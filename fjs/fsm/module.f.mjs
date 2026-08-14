@@ -50,9 +50,22 @@ const mergeOp = { union: sortedSetUnion(cmp), equal: equal(strictEqual), def: []
 /** @type {(s: string) => (set: SortedSet<string>) => boolean} */
 const hasState = s => set => !isEmpty(intersect(cmp)([s])(set))
 
+/**
+ * Labels a byte set's ranges with the rule they lead to: a range inside the set
+ * transitions to `ruleOut`, one outside transitions nowhere.
+ *
+ * `byte_set.toRangeMap` answers only whether each range is in the set; which
+ * state that means is a DFA question, so it is answered here.
+ *
+ * @type {(ruleOut: string) => (entry: Entry<boolean>) => Entry<SortedSet<string>>}
+ */
+const labelRange = ruleOut => ([inSet, max]) => [inSet ? [ruleOut] : [], max]
+
 /** @type {(set: SortedSet<string>) => Fold<_Rule, RangeMap<SortedSet<string>>>} */
 const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
-    if (hasState(ruleIn)(set)) { return merge(mergeOp)(rm)(toRangeMap(bs)(ruleOut)) }
+    if (hasState(ruleIn)(set)) {
+        return merge(mergeOp)(rm)(map(labelRange(ruleOut))(toRangeMap(bs)))
+    }
     return rm
 }
 

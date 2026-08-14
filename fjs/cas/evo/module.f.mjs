@@ -93,11 +93,16 @@ const union = set => items =>
  */
 const canonicalHash = h => vecToCBase32(unwrap(cBase32ToVec(h)))
 
-/** Canonicalizes every direct hash in a structurally validated flat lock map.
+/**
+ * Canonicalizes every direct hash of a structurally validated lock map, at
+ * every depth, preserving its nested scope structure. Nested maps are scopes
+ * rather than references, so only the strings are re-spelled — the same split
+ * `fjs/media/revision`'s `checkReferences` validates along.
  * @type {(lock: LockMap) => LockMap}
  */
 const canonicalLock = lock =>
-    Object.fromEntries(definedEntries(lock).map(([subject, hash]) => [subject, canonicalHash(hash)]))
+    Object.fromEntries(definedEntries(lock).map(
+        ([subject, value]) => [subject, typeof value === 'string' ? canonicalHash(value) : canonicalLock(value)]))
 
 /** A subject's current heads: revision hashes seen that no other revision of the same subject names as a parent.
  * @type {(state: SubjectState) => readonly Hash[]}

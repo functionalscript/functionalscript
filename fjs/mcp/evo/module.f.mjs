@@ -8,16 +8,16 @@
  *
  * | Tool           | args                                          | action            | result                               |
  * |----------------|-----------------------------------------------|-------------------|--------------------------------------|
- * | `evo_list`     | `{ archived? }`                               | `e.list(...)`     | subjects, as a JSON array of strings |
- * | `evo_head`     | `{ subject }`                                 | `e.head(...)`     | head hashes, one per line            |
- * | `evo_revision` | `{ hash }`                                    | `e.revision(...)` | the revision, as JSON `RevisionData` |
- * | `evo_add`      | `{ parents, snapshot?, subject?, archived? }`  | `e.add(...)`      | hash (cBase32)                       |
+ * | `evo_list`     | `{ archived? }`                                      | `e.list(...)`     | subjects, as a JSON array of strings |
+ * | `evo_head`     | `{ subject }`                                        | `e.head(...)`     | head hashes, one per line            |
+ * | `evo_revision` | `{ hash }`                                           | `e.revision(...)` | the revision, as JSON `RevisionData` |
+ * | `evo_add`      | `{ parents, snapshot?, subject?, archived?, lock? }`  | `e.add(...)`      | hash (cBase32)                       |
  *
  * `evo_add` and `evo_revision` speak the same structure — `fjs/cas/evo`'s
  * `RevisionData` — in opposite directions, so a revision read back can be
- * added again as-is. `evo_add`'s advertised arguments stay as they are: the
- * one field `evo_revision` returns that `evo_add` does not accept is
- * `generation`, which the server computes, and rtti's struct validation
+ * added again as-is, `lock` scopes and all. The one field `evo_revision`
+ * returns that `evo_add` does not accept is `generation`, which the server
+ * computes, and rtti's struct validation
  * ignores properties the schema does not name, so a whole `evo_revision`
  * result can be passed straight back to `evo_add`.
  *
@@ -51,6 +51,7 @@
  */
 
 import { string, option, array } from '../../types/rtti/module.f.mjs'
+import { lock } from '../../media/revision/module.f.mjs'
 import { pure, step } from '../../effects/module.f.mjs'
 import {
     toolEntry, errorResult, okResult,
@@ -82,12 +83,20 @@ export const evoRevisionArgs = /** @type {const} */ ({
  * Arguments for `evo_add`: a new revision, per `fjs/cas/evo`'s
  * `RevisionData` — every field of it the caller supplies, i.e. all but
  * `generation`, which the server computes.
+ *
+ * `lock` is the media format's own recursive schema
+ * (`fjs/media/revision`'s `lock`), not a restatement of it, so the advertised
+ * `inputSchema` and what the server accepts cannot drift apart. Being
+ * recursive, it is the one argument whose JSON Schema is emitted as a named
+ * `$defs` rule plus a local `$ref` rather than inline — see
+ * `fjs/media/json/schema`.
  */
 export const evoAddArgs = /** @type {const} */ ({
     parents: array(string),
     snapshot: option(string),
     subject: option(string),
     archived: option(true),
+    lock: option(lock),
 })
 
 // ── Tool registry ────────────────────────────────────────────────────────────────
@@ -128,7 +137,7 @@ export const evoToolRegistry = e => [
     ),
     toolEntry(
         'evo_revision',
-        'Read one revision by hash, as JSON: `{ subject, parents, snapshot, generation, archived? }`. `parents[0]` is the mainline parent and every further entry is a merged-in branch; `parents` and `snapshot` come back in their canonical cBase32 spelling, so they compare directly against `evo_head` output. Errors when the hash is not cBase32, is not present in the store, could not be read, or does not hold a `vnd.fjs.revision` blob — use `cas_get` for raw bytes of non-revision content.',
+        'Read one revision by hash, as JSON: `{ subject, parents, snapshot, generation, archived?, lock? }`. `parents[0]` is the mainline parent and every further entry is a merged-in branch; `parents` and `snapshot` come back in their canonical cBase32 spelling, so they compare directly against `evo_head` output. Errors when the hash is not cBase32, is not present in the store, could not be read, or does not hold a `vnd.fjs.revision` blob — use `cas_get` for raw bytes of non-revision content.',
         evoRevisionArgs,
         // The revision goes out as JSON in a text content item, like
         // `evo_list`'s. An encoded response that outgrows the transport cap is
@@ -142,7 +151,7 @@ export const evoToolRegistry = e => [
     ),
     toolEntry(
         'evo_add',
-        'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server.',
+        'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server. `lock` is optional resolver input: a map from dependency subject to the cBase32 hash of the content it resolves to, or to a nested map scoping further bindings under that subject (use nesting only for conflicting choices a flat map cannot express, e.g. two dependencies needing different versions of a third).',
         evoAddArgs,
         /** @type {(input: Ts<typeof evoAddArgs>) => Effect<O | MemOp, ToolsCallResult>} */
         (input => step(
