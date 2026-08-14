@@ -1,7 +1,19 @@
-/** @import { Monoid } from './types.ts' */
+/**
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Absorbing, Monoid } from './types.ts'
+ */
 
-import { repeat, fold } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { repeat, fold, foldAbsorbing } from './module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
+
+/** @type {Absorbing<number>} */
+const multiply = {
+    monoid: {
+        identity: 1,
+        operation: a => b => a * b,
+    },
+    absorbing: 0,
+}
 
 export const proof = {
     numberAdd: () => {
@@ -77,5 +89,33 @@ export const proof = {
             assertEq(f(['a', 'b', 'c', 'd']), '((ab)(cd))')
             assertEq(f(['a', 'b', 'c', 'd', 'e']), '(((ab)(cd))e)')
         },
-    }
+    },
+    foldAbsorbing: {
+        plain: () => {
+            // with no absorbing element in the list, it is `fold`
+            assertEq(foldAbsorbing(multiply)([2, 3, 4]), 24)
+            assertEq(foldAbsorbing(multiply)([]), 1)
+            assertEq(foldAbsorbing(multiply)([2, 3, 4]), fold(multiply.monoid)([2, 3, 4]))
+        },
+        absorbed: () => {
+            assertEq(foldAbsorbing(multiply)([2, 0, 4]), 0)
+        },
+        stopsEarly: () => {
+            // `List` includes `Thunk`, so this list is unbounded: `fold` would
+            // pull from it forever. The elements past the absorbing one assert
+            // that they are never read.
+            /** @type {(n: number) => List<number>} */
+            const rest = n => () => {
+                assert(false)
+                return { first: n, tail: rest(n + 1) }
+            }
+            // `0` is absorbing on its own, so the walk stops at the element
+            // itself...
+            assertEq(foldAbsorbing(multiply)({ first: 0, tail: rest(1) }), 0)
+            // ...and here only the merge of `2` and `0` reaches it.
+            assertEq(
+                foldAbsorbing(multiply)({ first: 2, tail: { first: 0, tail: rest(1) } }),
+                0)
+        },
+    },
 }

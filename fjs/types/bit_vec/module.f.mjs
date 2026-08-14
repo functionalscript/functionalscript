@@ -34,8 +34,8 @@ import { map } from '../list/module.f.mjs'
 
 import { asBase, asNominal } from '../nominal/module.f.mjs'
 
-import { fold, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
-/** @import { Monoid } from '../../common/monoid/types.ts' */
+import { foldAbsorbing, repeat as mRepeat } from '../../common/monoid/module.f.mjs'
+/** @import { Absorbing } from '../../common/monoid/types.ts' */
 
 import { cmp, max, min } from '../function/compare/module.f.mjs'
 /** @import { Sign } from '../function/compare/types.ts' */
@@ -212,33 +212,37 @@ const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
  * lengths are exact and additive — this is the length, not an estimate of it
  * (AGENTS.md §5.6).
  *
- * Overflow is reported at the end rather than short-circuiting the walk: `null`
- * propagates through the rest of the fold instead of abandoning the list. For a
- * **finite** list that costs one completed walk over an already-doomed input,
- * which is worth reusing one generic `fold`. For an **unbounded lazy** list
- * (`List<T>` includes `Thunk<T>`) it is stronger than a cost: `tryListToVec` and
- * `tryU8ListToVec` keep pulling elements forever and never return, where a
- * short-circuiting fold answered `null` at the element that crossed the cap.
- * Hand them a finite list — see `todo/` in this directory for restoring the
- * early exit.
+ * Being absorbing is also what keeps the fold's walk bounded: `foldAbsorbing`
+ * stops at the first merge that overflows instead of reading the rest of a list
+ * whose answer is already `null`. `List<T>` includes `Thunk<T>`, so that is the
+ * difference between answering and never returning on an unbounded lazy list —
+ * and at `maxLength` = 128 KiB, overflow is an ordinary outcome for a stream,
+ * not an exotic one. Since a single vector is never `null`, only a merge can
+ * reach the absorbing element, so the stop lags the element that crossed the cap
+ * by at most one doubling of the run size (measured: 65 536 elements read for a
+ * cap crossed at 32 769, and 4 for a cap crossed at 3).
  *
- * @type {(unpackConcat: _UnpackConcat) => Monoid<Nullable<Unpacked>>}
+ * @type {(unpackConcat: _UnpackConcat) => Absorbing<Nullable<Unpacked>>}
  */
 const tryUnpackConcat = unpackConcat => ({
-    identity: unpackEmpty,
-    operation: a => b =>
-        a === null || b === null || a.length + b.length > maxLength
-            ? null
-            : unpackConcat(a)(b)
+    monoid: {
+        identity: unpackEmpty,
+        operation: a => b =>
+            a === null || b === null || a.length + b.length > maxLength
+                ? null
+                : unpackConcat(a)(b)
+    },
+    absorbing: null,
 })
 
 /**
  * Concatenates a list of unpacked vectors, or `null` if the result would be
  * longer than `maxLength`.
  *
- * `monoid.fold` reduces as a balanced binary tree, so each merge joins two runs
- * of comparable size — O(n log n) total `bigint` shifting work instead of the
- * O(n²) a left fold would spend growing one accumulator against small operands.
+ * `monoid.foldAbsorbing` reduces as a balanced binary tree, so each merge joins
+ * two runs of comparable size — O(n log n) total `bigint` shifting work instead
+ * of the O(n²) a left fold would spend growing one accumulator against small
+ * operands — and stops reading at the first overflow.
  *
  * This is the bit-vector analogue of a builder that accumulates appended pieces
  * and materializes the combined result on demand, such as `StringBuilder`
@@ -247,7 +251,7 @@ const tryUnpackConcat = unpackConcat => ({
  * @param {_UnpackConcat} unpackConcat
  */
 const unpackListToVec = unpackConcat =>
-    compose(fold(tryUnpackConcat(unpackConcat)))(nullableMap(pack))
+    compose(foldAbsorbing(tryUnpackConcat(unpackConcat)))(nullableMap(pack))
 
 /** @type {(base: _Base) => BitOrder} */
 const bo = ({ front, removeFront, norm, uintCmp, unpackSplit, unpackConcatUint }) => {

@@ -429,6 +429,22 @@ export const proof = {
         assertEq(lsb.tryListToVec(longer), null)
         assertEq(msb.tryListToVec(longer), null)
     },
+    tryListToVecUnbounded: () => {
+        // `List` includes `Thunk`, so an unbounded lazy list is a legal input —
+        // and at 128 KiB, `maxLength` is an ordinary amount for a stream to
+        // exceed. Overflow being absorbing is what lets the fold answer instead
+        // of reading forever: each element here is half of `maxLength`, so the
+        // total crosses the cap at the third and the merge that sees it happens
+        // at the fourth. The rest of the list asserts it is never read.
+        const half = vec(maxLength / 2n)(1n)
+        /** @type {(n: number) => List<Vec>} */
+        const from = n => () => {
+            assert(n <= 8)
+            return { first: half, tail: from(n + 1) }
+        }
+        assertEq(lsb.tryListToVec(from(1)), null)
+        assertEq(msb.tryListToVec(from(1)), null)
+    },
     listToVecOverflow: {
         // Same oversized input, but through the throwing `listToVec` wrapper.
         throw: () => {

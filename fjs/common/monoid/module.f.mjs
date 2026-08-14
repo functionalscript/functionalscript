@@ -7,11 +7,11 @@
  * @module
  *
  * @import { Fold, Reduce } from '../../types/function/operator/types.ts'
- * @import { List } from  '../../types/list/types.ts'
- * @import { Monoid } from './types.ts'
+ * @import { Accumulator, List } from  '../../types/list/types.ts'
+ * @import { Absorbing, Monoid } from './types.ts'
  */
 
-import { fold as listFold } from '../../types/list/module.f.mjs'
+import { fold as listFold, tryFold } from '../../types/list/module.f.mjs'
 import { compose } from '../../types/function/module.f.mjs'
 
 /**
@@ -69,7 +69,14 @@ export const repeat = ({ identity, operation }) => n => a => {
  *  readonly size: number
  *  readonly value: T
  *  readonly rest: _Stack<T>
- * } | null} _Stack
+ * }} _Run
+ */
+
+/**
+ * A stack of runs, `null` when empty.
+ *
+ * @template T
+ * @typedef {_Run<T> | null} _Stack
  */
 
 /**
@@ -81,12 +88,23 @@ export const repeat = ({ identity, operation }) => n => a => {
  * The merge keeps the earlier run on the left (`operation(stack.value)(value)`),
  * so re-associating never re-orders.
  *
- * @type {<T>(operation: Reduce<T>) => (size: number) => (value: T) => (stack: _Stack<T>) => _Stack<T>}
+ * The result is always a run, never the empty stack — which is what lets
+ * {@link absorbingAccumulator} read `null` as a stop signal rather than a state.
+ *
+ * @type {<T>(operation: Reduce<T>) => (size: number) => (value: T) => (stack: _Stack<T>) => _Run<T>}
  */
 const push = operation => size => value => stack =>
     stack === null || stack.size !== size
         ? { size, value, rest: stack }
         : push(operation)(size * 2)(operation(stack.value)(value))(stack.rest)
+
+/**
+ * `push` as a one-element step over the stack, the {@link Fold} `list.fold`
+ * takes.
+ *
+ * @type {<T>(operation: Reduce<T>) => Fold<T, _Stack<T>>}
+ */
+const step = operation => push(operation)(1)
 
 /**
  * Combines the stack's runs into one value, earliest (bottom, largest) first,
@@ -155,4 +173,78 @@ const combine = monoid => stack =>
  * ```
  */
 export const fold = monoid =>
-    compose(listFold(push(monoid.operation)(1))(null))(combine(monoid))
+    compose(listFold(step(monoid.operation))(null))(combine(monoid))
+
+/**
+ * The run stack as a short-circuiting {@link Accumulator}: `update` returns
+ * `null` — `tryFold`'s stop signal — as soon as a merge produces the absorbing
+ * element.
+ *
+ * Only the newest run can be `absorbing`: an earlier one would have stopped the
+ * walk already.
+ */
+const absorbingAccumulator =
+    /**
+     * @template T
+     * @param {Monoid<T>} monoid
+     */
+    monoid => {
+        const p = push(monoid.operation)(1)
+        const end = combine(monoid)
+        /**
+         * @param {T} absorbing
+         * @returns {Accumulator<T, _Stack<T>, T>}
+         */
+        return absorbing => ({
+            init: null,
+            update: (value, stack) => {
+                const next = p(value)(stack)
+                return next.value === absorbing ? null : next
+            },
+            end,
+        })
+    }
+
+/**
+ * {@link fold} for a monoid with an absorbing element, stopping at the first
+ * element that reaches it.
+ *
+ * The result is the same as `fold`'s — combining `absorbing` with the rest of
+ * the list is `absorbing` again — but the rest of the list is never read. That
+ * is what makes it usable on an unbounded lazy `List`, where `fold` keeps
+ * pulling elements forever after the answer is already decided.
+ *
+ * It stops as soon as a **run** reaches `absorbing`: immediately when an element
+ * is absorbing on its own (`0` in a product), otherwise at the merge that first
+ * produces it. When only a combination is absorbing — `bit_vec`'s length cap —
+ * that merge can lag the element that actually decided the answer, because runs
+ * merge at power-of-two boundaries: at most one doubling, so under twice as many
+ * elements as a left fold's per-element check would read. Bounded either way,
+ * which is the property that matters against an unbounded list.
+ *
+ * Grouping, order, and the `log2(n)` stack bound are `fold`'s; only the walk
+ * gains an exit.
+ *
+ * @template T The type of the elements in the monoid.
+ * @param {Absorbing<T>} absorbing The monoid together with its absorbing element.
+ * @returns {(list: List<T>) => T} A function that reduces a `List<T>` to a single `T`.
+ *
+ * @example
+ *
+ * ```ts
+ * const multiply: Absorbing<number> = {
+ *     monoid: { identity: 1, operation: a => b => a * b },
+ *     absorbing: 0,
+ * }
+ *
+ * foldAbsorbing(multiply)([2, 3, 4]) // 24
+ * foldAbsorbing(multiply)([2, 0, 4]) // 0 — `4` is never read
+ * ```
+ */
+export const foldAbsorbing = ({ monoid, absorbing }) => {
+    const f = tryFold(absorbingAccumulator(monoid)(absorbing))
+    return list => {
+        const result = f(list)
+        return result === null ? absorbing : result
+    }
+}
