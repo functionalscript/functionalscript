@@ -16,6 +16,7 @@ const { entries } = Object
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
 import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 const colon = [':']
 
@@ -188,7 +189,7 @@ export const stringify = sort => djs => {
     // always defined.
     /** @type {(entry: Unknown) => List<string>} */
     const constSerialize = entry => {
-        const refCounter = /** @type {_RefCounter} */ (refs.get(entry))
+        const refCounter = assertNotNullish(refs.get(entry))
         return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serializeWithConst(sort)(refs)(entry)(entry), ['\n']])
     }
     const constStrings = flatMap(constSerialize)(consts)
