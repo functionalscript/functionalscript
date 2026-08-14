@@ -20,6 +20,12 @@ history.
 
 ## Unreleased
 
+- `types/rtti/ts`: the runtime printer supports recursive schemas — it
+  converts through `fjs/types/rtti/data` (new `dataToTs`), so a recursive
+  schema prints as `type <name> = <expression>` definitions plus an entry
+  expression instead of overflowing the stack; output follows the data form's
+  canonical order
+  [#1542](https://github.com/functionalscript/functionalscript/pull/1542).
 - `types/uint8array`: `toVec` attempts the conversion instead of precomputing a
   byte-count bound; behavior and error message unchanged
   [#1543](https://github.com/functionalscript/functionalscript/pull/1543)

@@ -1,19 +1,64 @@
-import { printer } from './module.f.mjs'
+/**
+ * @import { Type } from '../types.ts'
+ * @import { Data } from '../data/types.ts'
+ */
+
+import { assertEq } from '../../../asserts/module.f.mjs'
+import { toData } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, record, or, option, never } from '../module.f.mjs'
-/** @import { Type } from '../types.ts' */
+import { dataToTs, printer } from './module.f.mjs'
 
 const toTs = printer()
 const toTsMut = printer(true)
+
 /** @type {(rtti: Type, expected: string) => void} */
 const eqMut = (rtti, expected) => {
     const result = toTsMut(rtti)
     if (result !== expected) { throw `expected ${JSON.stringify(expected)}, got ${JSON.stringify(result)}` }
 }
+
 /** @type {(rtti: Type, expected: string) => void} */
 const eq = (rtti, expected) => {
     const result = toTs(rtti)
     if (result !== expected) { throw `expected ${JSON.stringify(expected)}, got ${JSON.stringify(result)}` }
 }
+
+/** @type {(data: Data, expected: unknown) => void} */
+const eqData = (data, expected) => {
+    const result = JSON.stringify(dataToTs()(data))
+    const exp = JSON.stringify(expected)
+    assertEq(result, exp, [result, exp])
+}
+
+/** A recursive list: `type list = readonly list[]`. */
+/** @typedef {() => readonly ['array', _List]} _List */
+/** @type {_List} */
+const list = () => ['array', list]
+
+/** Mutual recursion through a container. */
+/** @typedef {() => readonly ['or', typeof number, _Forest]} _Tree */
+/** @typedef {() => readonly ['array', _Tree]} _Forest */
+/** @type {_Tree} */
+const tree = () => ['or', number, forest]
+/** @type {_Forest} */
+const forest = () => ['array', tree]
+
+/** A cycle closing through an anonymous `or` thunk — an empty rule name. */
+/** @typedef {() => readonly ['record', () => readonly ['or', typeof string, _Lock]]} _Lock */
+/** @type {_Lock} */
+const lock = () => ['record', or(string, lock)]
+
+/** A recursive rule whose function name is the predefined type name `string`. */
+/** @typedef {() => readonly ['array', _StringNamed]} _StringNamed */
+/** @type {{ readonly string: _StringNamed }} */
+const stringNamedHolder = { string: () => ['array', stringNamedHolder.string] }
+const stringNamed = stringNamedHolder.string
+
+/** A recursive rule whose function name is `T0` — the first generated identifier. */
+/** @typedef {() => readonly ['array', _T0Named]} _T0Named */
+/** @type {{ readonly T0: _T0Named }} */
+const t0NamedHolder = { T0: () => ['array', t0NamedHolder.T0] }
+const t0Named = t0NamedHolder.T0
 
 export const proof = {
     tag0: {
@@ -47,7 +92,8 @@ export const proof = {
         bigint: () => eq(7n, '7n'),
         emptyTuple: () => eq([], 'readonly[]'),
         tuple: () => eq([12, true], 'readonly[12,true]'),
-        emptyStruct: () => eq({}, '{}'),
+        // an unconstrained struct is the whole object kind
+        emptyStruct: () => eq({}, '{readonly[k in string]?:unknown}'),
         struct: () => eq(
             { a: number, b: string },
             '{readonly"a":number,readonly"b":string}',
@@ -77,12 +123,78 @@ export const proof = {
         mixed: () => eq(or(42, string), '42|string'),
     },
     never: () => eq(never, 'never'),
-    option: () => eq(option(number), 'number|undefined'),
+    // union members follow the canonical kind order, `undefined` first
+    option: () => eq(option(number), 'undefined|number'),
+    normalization: {
+        booleanFromConsts: () => eq(or(true, false), 'boolean'),
+        literalAbsorbed: () => eq(or(42, number), 'number'),
+        sortedLiterals: () => eq(or(2, 1), '1|2'),
+        sortedBigints: () => eq(or(2n, 1n), '1n|2n'),
+        canonicalIdentity: () => {
+            assertEq(toTs(or(string, number)), toTs(or(number, string)))
+        },
+        optionalProp: () => eq({ x: option(string) }, '{readonly"x":undefined|string}'),
+    },
+    recursion: {
+        selfList: () => {
+            eq(list, 'list')
+            eqData(toData(list), [[['list', 'readonly(list)[]']], 'list'])
+        },
+        mutual: () => {
+            eqData(toData(tree), [[['tree', 'number|readonly(tree)[]']], 'tree'])
+            eqData(toData(forest), [[['tree', 'number|readonly(tree)[]']], 'readonly(tree)[]'])
+        },
+        recursiveUnion: () => {
+            eqData(toData(or(number, list)), [[['list', 'readonly(list)[]']], 'number|readonly(list)[]'])
+        },
+        mutable: () => {
+            const [defs, entry] = dataToTs(true)(toData(list))
+            assertEq(JSON.stringify([defs, entry]), JSON.stringify([[['list', '(list)[]']], 'list']))
+        },
+    },
+    identifiers: {
+        // the empty rule name is not an identifier — generated `T0`
+        emptyName: () => {
+            eqData(toData(lock), [
+                [['T0', 'string|{readonly[k in string]?:T0}']],
+                '{readonly[k in string]?:T0}',
+            ])
+        },
+        // a predefined type name cannot name an alias — generated `T0`
+        predefinedName: () => {
+            eqData(toData(stringNamed), [[['T0', 'readonly(T0)[]']], 'T0'])
+        },
+        // a generated identifier skips names already kept
+        generatedCollision: () => {
+            eqData(toData(/** @type {const} */ ([t0Named, lock])), [
+                [['T1', 'string|{readonly[k in string]?:T1}'], ['T0', 'readonly(T0)[]']],
+                'readonly[T0,{readonly[k in string]?:T1}]',
+            ])
+        },
+    },
+    data: {
+        tupleWithRest: () => {
+            eqData([{}, { array: [{ prefix: [{ number: true }], rest: { string: true } }] }],
+                [[], 'readonly[number,...readonly(string)[]]'])
+        },
+        structWithRest: () => {
+            eqData([{}, { object: [{ props: { a: { number: true } }, rest: { string: true } }] }],
+                [[], '{readonly"a":number}&{readonly[k in string]?:string}'])
+        },
+        wholeKinds: () => {
+            eqData([{}, { array: true, object: true }],
+                [[], 'readonly(unknown)[]|{readonly[k in string]?:unknown}'])
+        },
+    },
     mut: {
         array: () => eqMut(array(number), '(number)[]'),
         nestedArray: () => eqMut(array(array(boolean)), '((boolean)[])[]'),
         record: () => eqMut(record(string), '{[k in string]?:string}'),
         tuple: () => eqMut([12, true], '[12,true]'),
         struct: () => eqMut({ a: number, b: string }, '{"a":number,"b":string}'),
+    },
+    throw: {
+        // a dangling reference is malformed data
+        missingDefinition: () => dataToTs()([{}, 'nope']),
     },
 }
