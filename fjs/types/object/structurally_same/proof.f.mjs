@@ -29,7 +29,7 @@ export const proof = {
     identity: [
         // the same reference short-circuits before any traversal
         () => {
-            const a = { x: [1, 2] }
+            const a = /** @type {const} */ ({ x: [1, 2] })
             same(a, a)
         },
     ],
