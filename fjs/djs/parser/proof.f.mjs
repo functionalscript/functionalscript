@@ -300,6 +300,115 @@ export const proof = {
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token')
         },
+        () => {
+            // 'export' with no 'default' before eof.
+            const tokenList = tokenizeString('export')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // 'const' with no name before eof.
+            const tokenList = tokenizeString('const')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // 'const <name>' with no '=' before eof.
+            const tokenList = tokenizeString('const x')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // 'const <name>' followed by a token that isn't '='.
+            const tokenList = tokenizeString('const x 5')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // 'import' with no name before eof.
+            const tokenList = tokenizeString('import')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // 'import' followed by a token that isn't an id.
+            const tokenList = tokenizeString('import 5')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // 'import <name>' with no 'from' before eof.
+            const tokenList = tokenizeString('import a')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // 'import <name> from' with no module string before eof.
+            const tokenList = tokenizeString('import a from')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // Array opened but eof arrives before any value/']'.
+            const tokenList = tokenizeString('export default [')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // Object opened but eof arrives before any key/'}'.
+            const tokenList = tokenizeString('export default {')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // Object key given but eof arrives before ':'.
+            const tokenList = tokenizeString('export default {"a"')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // Object ':' given but eof arrives before the value.
+            const tokenList = tokenizeString('export default {"a":')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // Object value given, followed by a token that's neither ',' nor '}'.
+            const tokenList = tokenizeString('export default {"a":1 2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // Object ',' given but eof arrives before the next key/'}'.
+            const tokenList = tokenizeString('export default {"a":1,')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // `parseFromTokens` itself, called with no tokens at all (the
+            // tokenizer never produces this — it always emits at least an
+            // `eof` token — but the exported function's own contract must
+            // still handle it: the initial state is neither 'result' nor
+            // 'error', so it falls through to the same "unexpected end".
+            const obj = parseFromTokens(null)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+            assertEq(obj[1].metadata, null)
+        },
     ],
     errorMetadata: [
         () => {
