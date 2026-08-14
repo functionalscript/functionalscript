@@ -83,7 +83,7 @@ export const actions = /** @type {const} */({
     'wasmerio/setup-wasmer': 'v3.1',
     // https://github.com/marketplace/actions/install-nix
     // Enables the `nix-command` and `flakes` experimental features by default.
-    'cachix/install-nix-action': 'v31.11.0',
+    'cachix/install-nix-action': 'v31.11.1',
     // https://rust-lang.org/ - value is Rust version, not action version
     'dtolnay/rust-toolchain': '1.97.1',
 })
