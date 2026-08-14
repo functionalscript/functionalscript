@@ -1,6 +1,7 @@
 /**
  * Type-level API for `fjs/djs/parser/module.f.mjs`: the `ParseError` shape
- * `parseFromTokens` reports.
+ * `parseFromTokens` reports, and the `_ValueToken` subset `tokenToValue`
+ * accepts.
  *
  * @module
  */
