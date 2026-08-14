@@ -186,8 +186,13 @@ export const proof = {
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
         },
         () => {
-            // '+' after the exponent's digits have already started.
-            const result = stringify(tokenizeString('1e5+'))
+            // '+' after the exponent's digits have already started. A trailing
+            // digit (not just eof) matters here: if this branch were merged
+            // into the accepting 'e' arm, the '+' would restart the exponent
+            // and the trailing '3' would complete a *valid* number instead —
+            // 'invalid number' alone doesn't distinguish that from eof cutting
+            // the (still invalid) token short.
+            const result = stringify(tokenizeString('1e5+3'))
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
         },
         () => {

@@ -748,12 +748,14 @@ export const proof = {
     // runs tokenizeCharCodeOp/tokenizeEofOp again afterward with that state.
     // Call each directly to cover their otherwise-unreachable `'eof'` arms.
     tokenizeCharCodeOpAfterEof: () => {
-        const [tokens] = tokenizeCharCodeOp('a'.charCodeAt(0), { kind: 'eof' })
+        const [tokens, state] = tokenizeCharCodeOp('a'.charCodeAt(0), { kind: 'eof' })
         assertStructurallySame(toArray(tokens), [{ kind: 'error', message: 'eof' }])
+        assertStructurallySame(state, { kind: 'eof' })
     },
     tokenizeEofOpAfterEof: () => {
-        const [tokens] = tokenizeEofOp({ kind: 'eof' })
+        const [tokens, state] = tokenizeEofOp({ kind: 'eof' })
         assertStructurallySame(toArray(tokens), [{ kind: 'error', message: 'eof' }, { kind: 'eof' }])
+        assertStructurallySame(state, { kind: 'eof' })
     },
     throw: {
         // union throws when two distinct non-default handlers are merged for the same range;
