@@ -123,7 +123,9 @@ written down, and the format therefore defines no precedence between them —
 consistent with its refusal to define overlay or inheritance for nested maps.
 Nor is a chain possible: a lock blob's own `lock` is a map, never a hash
 ([Composition](../lock/README.md#composition)), so following a reference
-terminates in one step.
+terminates in one step. (A proposed `parent` field would make lock blobs layer
+over one another and end that one-step guarantee — see
+[lock-inheritance](../lock/todo/lock-inheritance.md).)
 
 **Interpretability in isolation is unaffected in the sense the rule means it.**
 `snapshot` and `generation` remain required, so materializing a revision's

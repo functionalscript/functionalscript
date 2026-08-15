@@ -83,6 +83,12 @@ a fetch that returns something else changes the map's meaning. Refusing
 composition keeps every position unambiguous at the cost of one indirection
 nobody has asked for.
 
+That reasoning is about the *value position*, and does not reach a separate
+top-level field naming lock blobs to layer over — nothing ambiguous is written
+there. Inheritance in that form is proposed in
+[lock-inheritance](./todo/lock-inheritance.md), which would also have to
+settle whether defining a precedence order is format business at all.
+
 ## Canonical serialization
 
 Identical to the revision dialect's: sort every object's property names
