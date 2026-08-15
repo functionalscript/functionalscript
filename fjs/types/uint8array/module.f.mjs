@@ -29,7 +29,7 @@ const m = map(fromArrayLike)
  *
  * Throws if the result would exceed `maxLength`. The bound is not precomputed:
  * `tryU8ListToVec` attempts the real conversion and reports `null` when it does
- * not fit (AGENTS.md §5.6).
+ * not fit (`DESIGN.md` §6).
  *
  * @type {(input: List<Uint8Array>) => Vec}
  */
