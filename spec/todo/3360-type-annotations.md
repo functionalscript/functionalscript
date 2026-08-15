@@ -1,0 +1,179 @@
+# Type Annotations
+
+```js
+import { number, or, string } from 'functionalscript/fjs/types/rtti/module.f.mjs'
+
+export const myType = or(number, string)
+
+export const a /*: myType */ = 'hello'
+```
+
+An annotation is a comment holding an ordinary expression that evaluates to an
+RTTI schema. The compiler loads that expression at compile time and checks the
+annotated value against it.
+
+Depends on [expression](./3410-expression.md) and on the compiler being able to
+load and run a module as meta-programming
+([`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md)) — nothing here can start
+before both. This is a working draft of a direction, not a plan: TypeScript
+remains the type checker meanwhile, and the near-term work is to turn the
+standard toolchain up as far as it goes
+([`todo/strict-static-analysis.md`](../../todo/strict-static-analysis.md)).
+
+Not to be confused with the TC39
+[Type Annotations](https://github.com/tc39/proposal-type-annotations) proposal
+(§4.1), which is erasable syntax with no checker attached. This feature is the
+opposite: no new syntax beyond a comment, and a checker that is an ordinary
+library.
+
+## Why not a type language
+
+TypeScript's answer to typing is a superset of JavaScript with its own type
+grammar. JSDoc's answer is the same grammar again, only noisier. Neither is
+wanted here: a type should be an ordinary **value**, built from
+[`fjs/types/rtti`](../../fjs/types/rtti/README.md), and an annotation should be
+an ordinary **expression** naming one.
+
+`.d.ts` can be generated from the same schemas, and inference should carry as
+much of the burden as possible so annotations stay rare. `/*: … */` and JSDoc's
+`/** … */` coexist while the tree migrates.
+
+## What this settles about the parser
+
+There is no type grammar to write. A JSDoc-shaped design would need one — a
+block grammar, and underneath it a grammar for a subset of TypeScript's type
+expressions — and that second layer is the superset this project exists to
+avoid, re-implemented in the repository's own BNF. The annotation body is an
+expression in the module's own scope, which the FunctionalScript parser already
+handles. What is needed is only a way to recognize the annotation and hand its
+body to the existing expression parser.
+
+That recognition is nearly free today. The tokenizer keeps a block comment's
+body verbatim, so the three forms differ in their first character:
+
+```js
+// export const a /*: myType */ = "hello"
+{ kind: '/*', value: ': myType ' }     // annotation
+{ kind: '/*', value: '* @type {X} ' }  // JSDoc
+{ kind: '/*', value: ' plain ' }       // comment
+```
+
+which is exactly why the two annotation forms can coexist during the
+transition. A distinct token kind would be cleaner than inspecting the first
+character, but no new grammar is involved either way.
+
+## What already exists
+
+More than half of this is built:
+
+| Piece | Where | State |
+| --- | --- | --- |
+| Schema constructors | `fjs/types/rtti/module.f.mjs` | `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`, `option`, `never`, plus `Const` (primitive / tuple / struct used directly as its own schema) |
+| Value checking | `fjs/types/rtti/validate/`, `parse/` | `validate(schema)(value)`, `parse(schema)(value)` |
+| Canonical data form | `fjs/types/rtti/data/` | `toData`, `cmp`, `equal`, **`subset`**, data-driven `validate` |
+| TypeScript emission | `fjs/types/rtti/ts/module.f.mjs` | runtime printer: `thunk RTTI → toData → dataToTs`, emitting canonical type aliases, recursion included |
+| Compile-time bridge | `Ts<T>` in `fjs/types/rtti/ts/types.ts` | maps a schema to its TypeScript type, so `npx tsc` keeps working through the transition |
+
+Two of these matter more than they look. `data`'s **`subset`** is assignability
+as a decidable operation on the canonical form — the primitive a checker needs.
+And `ts/module.f.mjs` is already the `.d.ts` generator: schemas in, canonical
+TypeScript aliases out.
+
+## Open questions
+
+1. **Compile-time evaluation and staging.** Checking `a /*: myType */` requires
+   evaluating `myType`, which requires evaluating its imports. Which expressions
+   may an annotation reference — module-level constants only, or anything the
+   compiler can reduce? What happens when an annotation depends on a value that
+   is not compile-time known?
+
+2. **Non-literal right-hand sides.** `validate(myType)('hello')` settles the
+   literal case. For `const a /*: t */ = f(x)` the checker must infer an RTTI
+   for `f(x)` and ask `subset(inferred, declared)`. `subset` exists; the
+   inference does not. This is where "more type inference" has to land, and it
+   is most of the work.
+
+3. **Function types.** `Type` has no function case, and FunctionalScript modules
+   are almost entirely functions — 1318 of the 3772 JSDoc type bodies in the
+   tree are function types. The schema side is already tracked as
+   [`fjs/types/rtti/todo/668-rtti-function-types.md`](../../fjs/types/rtti/todo/668-rtti-function-types.md),
+   which reaches the same conclusion the annotation side needs: a function can
+   be checked as callable, but its contract is only observable when it is
+   called. What remains open here is what an annotation on a function should
+   therefore *mean* — a compile-time check that cannot be completed, or a
+   wrapper that validates each call. Until that is settled, `/*: */` can join
+   `@type` but not replace it.
+
+4. **Generic schemas.** 169 `@template` uses today. A generic type is naturally a
+   *function from schemas to schemas* — `array` and `record` already are — so
+   the value layer needs nothing new. What needs design is `Ts<>` and `.d.ts`
+   emission for a parameterised alias.
+
+5. **Nominal types.** [`fjs/types/nominal`](../../fjs/types/nominal/module.f.mjs)
+   has no RTTI representation and no issue of its own. Branding is a
+   compile-time-only fiction — `asNominal` is `identity` — so either RTTI gains
+   a nominal wrapper carrying a brand, or nominal types stay a TypeScript-era
+   construct.
+
+## Sketch of an order, when the time comes
+
+1. Recognize `/*: … */` in the compiler's parser and hand its body to the
+   existing expression parser.
+2. Evaluate the annotation expression at compile time
+   ([`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md)).
+3. Generate `.d.ts` from the schemas — `fjs/types/rtti/ts` is already the
+   printer, so this is plumbing plus a `fjs` command, and it is the step that
+   could land earliest and independently.
+4. Check literal right-hand sides with `validate`.
+5. Design inference, then check general right-hand sides with `subset`.
+6. Resolve the function-schema question
+   ([668-rtti-function-types](../../fjs/types/rtti/todo/668-rtti-function-types.md))
+   before `/*: */` goes beyond constants.
+
+## Depends on
+
+- [`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md) — the compiler loading and
+  running modules as meta-programming, which is what compile-time evaluation of
+  an annotation expression means.
+- [fjs-nanvm-integration.md](../../todo/fjs-nanvm-integration.md) and
+  [migrate-typescript-to-mjs.md](../../todo/migrate-typescript-to-mjs.md) — the path to a
+  compiler that parses authored FunctionalScript.
+- [js-string-literals](./2460-js-string-literals.md) — FunctionalScript's string
+  grammar is JSON's, so the repository's own single-quoted `.mjs` sources are
+  not yet input the parser accepts. Normalizing them is part of
+  [migrate-typescript-to-mjs.md](../../todo/migrate-typescript-to-mjs.md) stage 3, not a
+  tokenizer defect.
+
+## Consequences for the TypeScript-era work
+
+- [inline-type-casts.md](../../todo/inline-type-casts.md) stands unchanged. It describes
+  the code as it is today, and 208 of its 357 sites are noise under any type
+  system.
+- [eslint.md](../../todo/eslint.md)'s `no-inline-type-cast` and `no-unknown-jsdoc-tag`
+  are **transitional**: worth having while JSDoc is the annotation form, but
+  they must not be used to justify building a TypeScript-type grammar. Both are
+  satisfiable by matching on the comment's first character plus the JS token
+  stream, with no type parsing.
+- [tsconfig-strict-flags.md](../../todo/tsconfig-strict-flags.md) and
+  [strict-static-analysis.md](../../todo/strict-static-analysis.md) are unaffected, and
+  are the near-term work. `npx tsc` and the standard toolchain remain the
+  checker until all of the above exists.
+
+## Related
+
+- [`fjs/types/rtti/README.md`](../../fjs/types/rtti/README.md) — the schema system
+  this builds on.
+- [`fjs/types/rtti/todo/668-rtti-function-types.md`](../../fjs/types/rtti/todo/668-rtti-function-types.md) —
+  the schema-side half of open question 3.
+- [type inference](./3370-type-inference.md) — the other half: annotations are
+  only as useful as what can be inferred without them, and open question 2 below
+  is where the two meet.
+- [new-pl.md § Type System](../../todo/new-pl.md#type-system) — the same idea one
+  level further out: type checking as an opt-in library rather than a language
+  feature. This document is the FunctionalScript-scoped version.
+- [ast-spec.md](../../todo/ast-spec.md) — already specifies the AST with RTTI and
+  generates Rust from it; the same schemas would feed both.
+- [types-for-fs.md](../../todo/types-for-fs.md) — why TypeScript's own type system is not
+  the target.
+- [`fjs/bnf/todo/layered-parser.md`](../../fjs/bnf/todo/layered-parser.md) — the
+  transducer stack the tokenizer work belongs to.

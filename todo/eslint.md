@@ -77,7 +77,7 @@ nothing; deferring ESLint leaves the type-aware rules unrun.
 An earlier revision of this issue proposed parsing JSDoc properly: a block
 grammar plus a grammar for the subset of TypeScript's type expressions the tree
 uses. The second half is a mistake. FunctionalScript's direction is
-[`/*: type */` annotations checked by RTTI](./rtti-type-annotations.md), where a
+[`/*: type */` annotations checked by RTTI](../spec/todo/3360-type-annotations.md), where a
 type is an ordinary value and an annotation is an ordinary expression — so a
 TypeScript-type grammar would be re-implementing, in the repository's own BNF,
 exactly the superset the project exists to avoid.
@@ -115,5 +115,6 @@ on the compiler. They are worth writing now.
 - [strict-static-analysis.md](./strict-static-analysis.md) — the umbrella: every
   standard tool that could check this code base, and where ESLint sits among
   them.
-- [rtti-type-annotations.md](./rtti-type-annotations.md) — the eventual type
-  layer, gated on the compiler; it does not change what to do now.
+- [`spec/todo/3360-type-annotations.md`](../spec/todo/3360-type-annotations.md) —
+  the eventual type layer, gated on the compiler; it does not change what to do
+  now.

@@ -2,6 +2,10 @@
 
 We need type inference to prove that specific values have specific types. Type annotations can help, but we can't trust them.
 
+See [type-annotations](./3360-type-annotations.md) for the annotation form those
+would take: an RTTI schema named by an ordinary expression, checked against the
+annotated value at compile time.
+
 ## Level 1
 
 ```rust

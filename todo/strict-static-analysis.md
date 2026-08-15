@@ -19,8 +19,8 @@ lint, no formatting check, no unused-code check, no package-correctness check.
 
 That asymmetry is the gap to close, using well-known tools rather than
 home-grown ones. FunctionalScript's own [`/*: type */` +
-RTTI direction](./rtti-type-annotations.md) is a long way out and gated on the
-compiler; until it arrives, `tsc` and the standard JavaScript toolchain are the
+RTTI direction](../spec/todo/3360-type-annotations.md) is a long way out and
+gated on the compiler; until it arrives, `tsc` and the standard JavaScript toolchain are the
 checker, and they should be turned up as far as they go.
 
 ### How to add a check
@@ -80,5 +80,6 @@ size of the diff before committing to it — or scoping it to new files only.
 - [tsconfig-strict-flags.md](./tsconfig-strict-flags.md) — the `tsc` half, measured.
 - [eslint.md](./eslint.md) — the linter decision.
 - [inline-type-casts.md](./inline-type-casts.md) — 357 sites no current check sees.
-- [rtti-type-annotations.md](./rtti-type-annotations.md) — where the type layer
-  is eventually going, and why it does not change what to do now.
+- [`spec/todo/3360-type-annotations.md`](../spec/todo/3360-type-annotations.md) —
+  where the type layer is eventually going, and why it does not change what to
+  do now.

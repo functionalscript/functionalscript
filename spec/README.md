@@ -130,11 +130,12 @@ The FJS can have functions. The format requires additional run-time information 
 ### 3.3. Priority 3
 
 1. [ ] Regular Expressions.
-2. [ ] [type inference](./todo/3370-type-inference.md)
-3. [ ] [promise](./todo/3380-promise.md). Needed for JavaScript interop only —
+2. [ ] [type-annotations](./todo/3360-type-annotations.md)
+3. [ ] [type inference](./todo/3370-type-inference.md)
+4. [ ] [promise](./todo/3380-promise.md). Needed for JavaScript interop only —
    I/O is done with effects and requires no promises (§5).
-4. [ ] [class](./todo/3390-class.md)
-5. [ ] Temporal classes. See https://github.com/functionalscript/functionalscript/pull/801
+5. [ ] [class](./todo/3390-class.md)
+6. [ ] Temporal classes. See https://github.com/functionalscript/functionalscript/pull/801
 
 ### 3.4. Syntactic Sugar
 
