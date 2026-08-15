@@ -48,8 +48,8 @@ across architectures, VM implementations, and versions, while the AST is the
 stable representation. See
 [`spec/README.md` §9](../../spec/README.md#9-serialization-ast-as-data-not-bytecode).
 
-The exact shape of the code-describing `Any` (tags/shapes) is specified by
-the [ast-spec](../../todo/ast-spec.md) — the contract of the `Function`
+The exact shape of the code-describing `Any` is specified by the
+[ast-spec](../../todo/ast-spec.md) — the contract of the `Function`
 constructor.
 
 #### Execution: two paths (decided)
@@ -379,9 +379,8 @@ compiler-compatibility migration rather than a separate rewrite.
 
 ### Related
 
-- [`spec/README.md`](../../spec/README.md) — the language spec and
-  tag tables; §9 records the AST-as-data decision and the two execution
-  paths.
+- [`spec/README.md`](../../spec/README.md) — the language spec; §9 records the
+  AST-as-data decision and the two execution paths.
 - [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — source extension contract
   and incremental repository migration.
 - [ast-spec](../../todo/ast-spec.md) — the schema (RTTI) of the

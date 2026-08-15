@@ -4,19 +4,16 @@
 //! `fjs/nanvm/module.f.mjs`, and reaches this crate as `generated.rs`
 //! (see `nanvm-lib/tests/README.md`). What stays hand-written is everything
 //! that has nothing to compare against in a JS engine: conversions out of
-//! `Any`, `Debug` formatting, bigint limb arithmetic, and serialization.
+//! `Any`, `Debug` formatting, and bigint limb arithmetic.
 
 mod generated;
 mod harness;
 
 use nanvm_lib::{
-    common::{default::default, iter::Iter, serializable::Serializable},
+    common::default::default,
     naive,
     sign::Sign,
-    vm::{
-        Any, Array, BigInt, Function, IContainer, IVm, Nullish, Object, Property, String, ToAny,
-        ToArray, ToObject, Unpacked,
-    },
+    vm::{Any, Array, BigInt, Function, IContainer, IVm, Nullish, Object, String, ToAny},
 };
 
 /// `try_into` out of `Any`, for each type that supports it.
@@ -117,57 +114,6 @@ fn bigint_debug_format<A: IVm>() {
     }
 }
 
-fn eq_container<T: IntoIterator>(a: T, b: T, e: fn(a: &T::Item, &T::Item) -> bool) -> bool {
-    a.into_iter().eq_by_(b.into_iter(), e)
-}
-
-/// Structural equality, which `==` on `Any` deliberately is not: containers
-/// compare by reference there, so a round-tripped value never equals its
-/// original.
-fn eq_value<A: IVm>(a: &Any<A>, b: &Any<A>) -> bool {
-    match (a.clone().into(), b.clone().into()) {
-        (Unpacked::Nullish(a), Unpacked::Nullish(b)) => a == b,
-        (Unpacked::Boolean(a), Unpacked::Boolean(b)) => a == b,
-        (Unpacked::Number(a), Unpacked::Number(b)) => a.to_bits() == b.to_bits(),
-        (Unpacked::String(a), Unpacked::String(b)) => a == b,
-        (Unpacked::BigInt(a), Unpacked::BigInt(b)) => a == b,
-        (Unpacked::Array(a), Unpacked::Array(b)) => eq_container(a, b, eq_value),
-        (Unpacked::Object(a), Unpacked::Object(b)) => {
-            eq_container(a, b, |x: &Property<A>, y: &Property<A>| {
-                x.0 == y.0 && eq_value(&x.1, &y.1)
-            })
-        }
-        _ => false,
-    }
-}
-
-fn serialization<A: IVm>() {
-    use std::io::Cursor;
-
-    let values: &[Any<A>] = &[
-        Nullish::Null.to_any(),
-        Nullish::Undefined.to_any(),
-        true.to_any(),
-        false.to_any(),
-        2.3.to_any(),
-        "Hello".into(),
-        Into::<BigInt<A>>::into(12u64).to_any(),
-        Array::default().to_any(),
-        [7.0.to_any()].to_array().to_any(),
-        [("a".into(), 1.0.to_any()), ("b".into(), "c".into())]
-            .to_object()
-            .to_any(),
-    ];
-
-    for value in values.iter() {
-        let mut buf = Vec::new();
-        value.clone().serialize(&mut buf).unwrap();
-        let mut cursor = Cursor::new(buf);
-        let result = Any::deserialize(&mut cursor).unwrap();
-        assert!(eq_value(value, &result));
-    }
-}
-
 fn format_fn<A: IVm>() {
     let f = Function::<A>(A::InternalFunction::new_ok(
         ("myfunc".into(), 2),
@@ -239,7 +185,6 @@ fn gen_test<A: IVm>() {
     conversions::<A>();
     debug_format::<A>();
     bigint_debug_format::<A>();
-    serialization::<A>();
     unary_plus_bigint_message::<A>();
     bigint_add::<A>();
     bigint_mul::<A>();

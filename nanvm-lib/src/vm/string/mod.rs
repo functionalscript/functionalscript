@@ -1,6 +1,5 @@
 mod index;
 mod partial_eq;
-mod serializable;
 mod sized_index;
 
 pub mod to_string;

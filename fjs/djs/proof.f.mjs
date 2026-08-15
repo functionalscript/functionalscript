@@ -43,13 +43,15 @@ export const proof = {
     },
     fileNotFound: () => {
         const [state, code] = virtual(emptyState)(compile(['missing.f.js', 'output.f.js']))
-        assertEq(code, 0)
+        assertEq(code, 1)
         assert(state.stderr.includes('file not found'), state.stderr)
+        assertEq(state.root['output.f.js'], undefined)
     },
     parseError: () => {
         const root = { 'bad.f.js': [utf8('export default @')] }
         const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.f.js']))
-        assertEq(code, 0)
+        assertEq(code, 1)
         assert(state.stderr !== '', 'expected error output')
+        assertEq(state.root['output.f.js'], undefined)
     },
 }

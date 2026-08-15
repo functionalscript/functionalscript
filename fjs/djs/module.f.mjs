@@ -18,7 +18,16 @@ import { writeUtf8File, error } from '../effects/node/module.f.mjs'
 
 /** @typedef {ReadFile | WriteFile | Write} _CompileOp */
 
-/** @type {(args: readonly string[]) => Effect<_CompileOp, number>} */
+/**
+ * Compiles the DJS module `args[0]` into `args[1]`, serializing as a JSON tree
+ * when the output name ends with `.json` and as a module otherwise.
+ *
+ * Returns the process exit code: `0` once the output file is written, `1` on
+ * every failure — too few arguments, a missing input file, or a parse error —
+ * so a caller can detect a failed compile from the exit status alone.
+ *
+ * @type {(args: readonly string[]) => Effect<_CompileOp, number>}
+ */
 export const compile = args => {
     if (args.length < 2) {
         return step(
@@ -35,7 +44,7 @@ export const compile = args => {
                 const metadata = result[1].metadata
                 return step(
                     error(`${metadata?.path}:${metadata?.line}:${metadata?.column} - error: ${result[1].message}`),
-                    () => pure(0))
+                    () => pure(1))
             }
             const content = outputFileName.endsWith('.json')
                 ? stringifyAsTree(sort)(result[1])

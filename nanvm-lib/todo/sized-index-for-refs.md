@@ -24,7 +24,7 @@ The blocker is structural: `SizedIndex::index_iter`
 `Self: Sized`, while `IContainer::items()` returns `&Self::Items` with
 `Items: ?Sized`. The one iteration abstraction the crate has is unreachable
 from the one accessor that returns items, so every consumer falls back to
-`0..len` indexing: `icontainer.rs:44, 57`, `container_fmt.rs:11`,
+`0..len` indexing: `icontainer.rs:40`, `container_fmt.rs:11`,
 `function/debug.rs:11, 19`, `bigint/debug.rs:18-22`.
 
 ### Proposal
@@ -32,14 +32,14 @@ from the one accessor that returns items, so every consumer falls back to
 `impl<I: Uint, T: SizedIndex<I> + ?Sized> SizedIndex<I> for &T` (with the
 matching `Index`), making `items()` directly iterable. Then `items_eq`
 becomes header check plus
-`a.index_iter().eq_by_(b.index_iter(), PartialEq::eq)`, and `serialize` a
-`for item in items.index_iter()`. Also the missing piece that unblocks
+`a.index_iter().eq_by_(b.index_iter(), PartialEq::eq)`, and the debug/format
+loops become `for item in items.index_iter()`. Also the missing piece that unblocks
 [debug-delimited-fmt-helper](debug-delimited-fmt-helper.md) cleanly.
 
 ### Tasks
 
 - [ ] Add the reference impls
-- [ ] Convert `items_eq`, `serialize`, and the debug/format loops
+- [ ] Convert `items_eq` and the debug/format loops
 
 ### Related
 
