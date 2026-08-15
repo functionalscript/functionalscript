@@ -296,6 +296,22 @@ export const proof = {
         // Re-encoding an UnsupportedRecord returns it unchanged (it is already the TLV bytes)
         assertEq(encode(decoded), raw, 'encode should round-trip UnsupportedRecord')
     },
+    // parsedTagDecode narrows the top three bits of the tag's first byte
+    // (class + primitive/constructed) to one of exactly eight values via an
+    // 8-way `||` assert. Every other test in this file only ever exercises
+    // the universal-primitive tag (top bits 000), so each of the other seven
+    // comparisons has never had a case where it's the one that turns the
+    // assert true — one round trip per class×P/C combination covers them all.
+    tagClass: {
+        universalPrimitive: () => check(0x02n, vec8(0x42n), empty),
+        universalConstructed: () => check(0x22n, vec8(0x42n), empty),
+        applicationPrimitive: () => check(0x42n, vec8(0x42n), empty),
+        applicationConstructed: () => check(0x62n, vec8(0x42n), empty),
+        contextPrimitive: () => check(0x82n, vec8(0x42n), empty),
+        contextConstructed: () => check(0xA2n, vec8(0x42n), empty),
+        privatePrimitive: () => check(0xC2n, vec8(0x42n), empty),
+        privateConstructed: () => check(0xE2n, vec8(0x42n), empty),
+    },
     raw: [
         () => {
             const e = encodeRaw([0x00n, vec8(0x23n)])
