@@ -279,8 +279,9 @@ export const proof = {
             // Long right-recursive repetition: one `repeat0Plus` chain across the
             // whole input. This is the shape that overflowed the JS call stack
             // when the matcher recursed once per consumed code point.
-            const m = parser(repeat0Plus(set(' \n\r\t')))
-            const [, success, remainder] = m('', toArray(stringToCodePointList(' '.repeat(10000))))
+            const rule = repeat0Plus(set(' \n\r\t'))
+            const m = parser(rule)
+            const [, success, remainder] = m(toData(rule)[1], toArray(stringToCodePointList(' '.repeat(10000))))
             assertEq(success, true)
             assertEq(remainder?.length, 0)
         },
@@ -342,7 +343,30 @@ export const proof = {
             const dm = dispatchMap(repeatData[0])
             const result = JSON.stringify(dm)
             if (result !== '{"ws":{"emptyTag":true,"rangeMap":[]},"a":{"rangeMap":[[null,64],[{"rules":[]},65]]},"repa":{"rangeMap":[[null,64],[{"rules":[""]},65]]},"":{"rangeMap":[[null,64],[{"rules":[""]},65]]}}') { throw result }
-        }
+        },
+        () => {
+            // A `repeat` rule dispatches on its item's first set and continues
+            // with the item's own chain followed by itself — the right-recursive
+            // chain the fold removed from the data, rebuilt here because this
+            // backend inlines a nullable item's first set into whatever encloses
+            // it and so cannot carry the repetition anywhere else.
+            const rule = repeat0Plus(range('AF'))
+            const [ruleSet, entry] = toData(rule)
+            assertEq(JSON.stringify(ruleSet[entry]), '{"repeat":["0"]}')
+            assertEq(
+                JSON.stringify(dispatchMap(ruleSet)[entry]),
+                '{"emptyTag":true,"rangeMap":[[null,64],[{"rules":["r"]},70]]}')
+        },
+        () => {
+            // A repetition of itself has no first set to dispatch on, and asking
+            // for one would not terminate. `toData` never folds such a rule; a
+            // hand-written rule set can still hold one.
+            /** @type {RuleSet} */
+            const ruleSet = { repeated: { repeat: ['repeated'] } }
+            assertEq(
+                JSON.stringify(dispatchMap(ruleSet)),
+                '{"repeated":{"emptyTag":true,"rangeMap":[]}}')
+        },
     ],
     repeatParser: [
         () => {

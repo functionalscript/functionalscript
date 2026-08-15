@@ -13,9 +13,9 @@ based on the pre-migration representation (`typeof rule === 'number'`, array,
 otherwise variant), while `DataRule` also has a string-specific path.
 
 That is a maintenance liability because every new or changed rule shape requires
-parallel edits across the parser backends. It is already visible in
-[667-bnf-repeat-flatten](./667-bnf-repeat-flatten.md), which originally proposed
-adding another dispatch branch at every site.
+parallel edits across the parser backends. The `Repeat` rule kind demonstrated
+it: adding it meant a new dispatch branch at every site, kept honest only by the
+shared `isRepeat` discriminator it introduced.
 
 The surrounding BNF work now changes those assumptions before this TODO can be
 implemented:
@@ -67,8 +67,8 @@ scheme. Each call site keeps its own recursion/accumulator structure.
       `typeof rule === 'number'` terminal test.
 - [ ] Rewrite the backend dispatch sites to use the shared visitor.
 - [ ] Keep any alphabet-specific lowering outside this generic visitor.
-- [ ] Reconcile [667-bnf-repeat-flatten](./667-bnf-repeat-flatten.md) with the
-      visitor after its `Repeat` encoding is rebased on the final `Rule` union.
+- [ ] Absorb `isRepeat` from `fjs/bnf/data/module.f.mjs` into the visitor, so the
+      repetition case has one discriminator rather than a predicate beside it.
 - [ ] Add proof coverage for every final `Rule` case so a newly added case cannot
       be silently skipped by a backend.
 - [ ] `npx tsc`, `fjs t`.
@@ -79,9 +79,8 @@ scheme. Each call site keeps its own recursion/accumulator structure.
   task** by removing the current generic string rule.
 - [256-bit bigint BNF symbols](./bigint-symbols.md) — **blocks this task** until
   the terminal/range representation and parser discriminants are migrated.
-- [667-bnf-repeat-flatten](./667-bnf-repeat-flatten.md) — must itself be rebased
-  on the same final `Rule` union; a future `Repeat` case should extend the visitor
-  rather than introduce parallel backend dispatch edits.
+- [LL(1) repeat flattening](./ll1-repeat-flatten.md) — the `Repeat` case the
+  visitor has to cover, and the backend that still dispatches it separately.
 - [nullable-analysis-shared](./nullable-analysis-shared.md) — the shared
   nullability pass is a natural consumer once the visitor exists.
 - `fjs/types/rtti/common/module.f.mjs` — existing `visit` precedent.

@@ -33,7 +33,8 @@
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import { descentParser } from '../../bnf/descent/module.f.mjs'
+import { descentParserRuleSet } from '../../bnf/descent/module.f.mjs'
+import { toData } from '../../bnf/data/module.f.mjs'
 import {
     eof,
     none,
@@ -241,6 +242,20 @@ const buildToken = () => {
 // (see fjs/bnf/descent/module.f.mjs).
 /** @type {() => Rule} */
 export const jsGrammar = () => repeat0Plus(buildToken())
+
+/**
+ * The whole-file matcher together with the name of the rule to start it at.
+ *
+ * `toData` generates rule names, so the entry name belongs to the conversion
+ * rather than to the grammar's spelling and is read back from it here. Building
+ * both from one conversion also keeps the grammar built once per matcher.
+ *
+ * @type {<T>() => readonly [DescentMatch<T>, string]}
+ */
+export const jsMatcher = () => {
+    const [ruleSet, entry] = toData(jsGrammar())
+    return [descentParserRuleSet(ruleSet), entry]
+}
 
 const stringify = stringifyAsTree(sort)
 
@@ -467,9 +482,9 @@ export const tokenizeString = s => {
     if (cp.length === 0) {
         return stringify([{ kind: 'eof' }])
     }
-    const m = descentParser(jsGrammar())
+    const [m, entry] = jsMatcher()
     const cpm = codePointsWithMetadata('')(cp)
-    const { ast, success: ok, idx: len } = m('', cpm)
+    const { ast, success: ok, idx: len } = m(entry, cpm)
     if (!ok || len !== cp.length)
         return 'error'
 
@@ -505,9 +520,9 @@ export const tokenizeJs = input => path => {
     const initial = { path, line: 1, column: 1 }
     if (cp.length === 0) return [{ token: { kind: 'eof' }, metadata: initial }]
 
-    const m = descentParser(jsGrammar())
+    const [m, entry] = jsMatcher()
     const cpm = codePointsWithMetadata(path)(cp)
-    const { ast, success: ok, idx: len } = m('', cpm)
+    const { ast, success: ok, idx: len } = m(entry, cpm)
     const finalMetadata = fold(advanceMetadata)(initial)(cp)
 
     if (!ok || len !== cp.length) {

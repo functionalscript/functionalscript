@@ -81,12 +81,11 @@ This split changes the public design assumptions used by older open TODOs:
   split/revision must remove `string` as a generic rule kind. Unicode text helpers
   are constructors of ordinary generic rules rather than a distinct generic rule
   kind.
-- [`fjs/bnf/todo/667-bnf-repeat-flatten.md`](./667-bnf-repeat-flatten.md) is
-  blocked by this task (and by the bigint symbol/range migration). Its previous
-  design used a bare `string` as a new generic `Repeat` rule and assumed terminals
-  were detected with `typeof rule === 'number'`. Both assumptions are pre-migration
-  and must be rebased on the final generic `Rule` discriminants before that TODO is
-  implemented.
+- The `Repeat` rule kind has shipped and is **not** affected by this split. Its
+  earlier design did use a bare `string` as a generic rule and `typeof rule ===
+  'number'` terminal dispatch; the implemented one uses neither — a `Repeat` is
+  `{ repeat: [name] }`, and `isRepeat` in `fjs/bnf/data/module.f.mjs` is the
+  single discriminator to re-point when the rule model changes.
 - [`fjs/bnf/todo/rule-visitor.md`](./rule-visitor.md) is blocked by this task and
   the bigint symbol/range migration. Its visitor must be defined against the
   final post-migration `Rule` union: it must not preserve a generic string branch
@@ -136,10 +135,9 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Keep `fjs/bnf/todo/207.md` blocked until it is rebased/split so `string` is
       no longer described as a generic rule kind; Unicode text constructors lower
       to ordinary generic rules before semantic evaluation.
-- [ ] Keep `fjs/bnf/todo/667-bnf-repeat-flatten.md` blocked until it is rebased on
-      the post-split/post-bigint `Rule` union; its `Repeat` encoding must not reuse
-      bare `string`, and dispatch must not assume terminals are JavaScript
-      `number` values.
+- [ ] Re-point `isRepeat` in `fjs/bnf/data/module.f.mjs` at the post-split rule
+      model; the shipped `Repeat` encoding reuses neither bare `string` nor a
+      `typeof rule === 'number'` terminal test, so nothing else about it moves.
 - [ ] Keep `fjs/bnf/todo/rule-visitor.md` blocked until the final post-split and
       post-bigint `Rule` discriminants are settled; define its visitor against
       those semantic cases rather than the obsolete raw-string/number tests.
@@ -174,9 +172,8 @@ new module boundary and final rule discriminants before implementation starts.
   blocked on this split and must target `bnf/unicode` for text terminals.
 - [BNF semantic actions](./207.md) — blocked on this split; its rule model must
   remove generic `string` before implementation.
-- [BNF repeat flattening](./667-bnf-repeat-flatten.md) — blocked on the final
-  generic rule discriminants; its old bare-string repeat encoding is invalidated
-  by this split.
+- [LL(1) repeat flattening](./ll1-repeat-flatten.md) — unaffected by this split;
+  the shipped `Repeat` encoding never used a bare string.
 - [BNF rule visitor](./rule-visitor.md) — blocked on the final generic `Rule`
   discriminants; its visitor must not encode the pre-migration string/number
   dispatch assumptions.

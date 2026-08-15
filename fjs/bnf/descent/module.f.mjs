@@ -15,20 +15,27 @@
  * terminal was rejected at, which — unlike the result's own index — never
  * rewinds and is what diagnostics should be built from.
  *
+ * A `Repeat` rule is matched iteratively rather than by descending into itself
+ * once per item, so a repetition produces one AST node holding a flat sequence
+ * of the items it matched instead of the right-recursive chain its functional
+ * spelling would otherwise build.
+ *
  * See `./types.ts` for the type-level API.
  *
  * @module
  *
  * @import { TerminalRange } from '../types.ts'
- * @import { Rule as DataRule, Sequence } from '../data/types.ts'
+ * @import { Rule as DataRule, RuleSet, Sequence } from '../data/types.ts'
  * @import { Rule as FRule } from '../types.ts'
+ * @import { List } from '../../types/list/types.ts'
  * @import { AstRuleMeta, AstTag, AstSequenceMeta, CodePointMeta, DescentFailure, DescentMatch, DescentMatchResult, DescentMatchRule } from './types.ts'
  */
 
 import { eofSymbol, rangeDecode } from '../module.f.mjs'
 import { contains as rangeContains } from '../../types/range/module.f.mjs'
+import { concat, toArray } from '../../types/list/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import { emptyTagMap, toData } from '../data/module.f.mjs'
+import { emptyTagMap, isRepeat, toData } from '../data/module.f.mjs'
 
 /**
  * A match position that includes EOF consumption: `0 .. cp.length` are the
@@ -108,16 +115,15 @@ const recordFailure = (failure, pos, terminal) => {
 }
 
 /**
- * Creates a recursive descent parser that preserves metadata for each consumed
- * code point.
+ * Creates a recursive descent parser from an already materialized
+ * {@link RuleSet}, preserving metadata for each consumed code point.
  *
  * @template T
- * @param {FRule} fr
+ * @param {RuleSet} ruleSet
  * @returns {DescentMatch<T>}
  */
-export const descentParser = fr => {
-    const data = toData(fr)
-    const emptyTags = emptyTagMap(data[0])
+export const descentParserRuleSet = ruleSet => {
+    const emptyTags = emptyTagMap(ruleSet)
 
     /** @type {(tag: AstTag, sequence: AstSequenceMeta<T>, pos: _Cursor) => _Result<T>} */
     const mrSuccess = (tag, sequence, pos) => ({ ast: {tag, sequence}, success: true, pos })
@@ -150,7 +156,25 @@ export const descentParser = fr => {
      * }} _VariantFrame
      */
 
-    /** @typedef {_SeqFrame | _VariantFrame} _Frame */
+    // A suspended repetition: `item` is being matched by the current task for the
+    // round that began at `roundStart`, and `items` holds the ASTs of the rounds
+    // that already completed. They accumulate as a list rather than an array
+    // because a repetition is as long as its input: appending to an array per
+    // round would copy the whole prefix each time and make one repetition
+    // quadratic in the number of items it matched.
+    /**
+     * @typedef {{
+     *     readonly kind: 'repeat'
+     *     readonly tag: AstTag
+     *     readonly item: string
+     *     readonly items: _Items
+     *     readonly roundStart: _Cursor
+     * }} _RepeatFrame
+     */
+
+    /** @typedef {List<AstRuleMeta<T>>} _Items */
+
+    /** @typedef {_SeqFrame | _VariantFrame | _RepeatFrame} _Frame */
 
     // Immutable cons-cell stack: O(1) push/pop, no array copying per step.
     /**
@@ -164,11 +188,27 @@ export const descentParser = fr => {
     // tuple), or null when a result is ready to resume the innermost frame.
     /**
      * @typedef {{
+     *     readonly kind: 'rule'
      *     readonly name: string
      *     readonly tag: AstTag
      *     readonly pos: _Cursor
-     * }} _Task
+     * }} _RuleTask
      */
+
+    // The next round of a repetition, about to be started. Both the rule that
+    // introduces a repetition and the frame that finishes one of its rounds go
+    // through this, so a round is set up in exactly one place.
+    /**
+     * @typedef {{
+     *     readonly kind: 'repeat'
+     *     readonly tag: AstTag
+     *     readonly item: string
+     *     readonly items: _Items
+     *     readonly pos: _Cursor
+     * }} _RepeatTask
+     */
+
+    /** @typedef {_RuleTask | _RepeatTask} _Task */
 
     // The recursive-descent matcher as an explicit-stack machine: each iteration either
     // starts the current task (pushing a frame for a sequence/variant and descending into
@@ -183,7 +223,7 @@ export const descentParser = fr => {
         /** @type {_Stack} */
         let stack = null
         /** @type {_Task | null} */
-        let task = { name, tag, pos: startPos }
+        let task = { kind: 'rule', name, tag, pos: startPos }
         /** @type {_Result<T>} */
         let result = mrFail(undefined, [], startPos)
         // High-water mark across the whole match, so it survives the rewinds a
@@ -196,10 +236,19 @@ export const descentParser = fr => {
                 // The explicit annotation cuts a control-flow inference cycle (TS7022):
                 // `name`'s narrowed type feeds `rule`, whose type would otherwise feed the
                 // later `task` assignments that `name`'s narrowing depends on.
-                const { name, tag, pos } = /** @type {_Task} */ (task)
+                const current = /** @type {_Task} */ (task)
                 task = null
+                if (current.kind === 'repeat') {
+                    // One round of a repetition is one match of its item, so the
+                    // frame below carries the rounds already collected and the
+                    // position this round may have to rewind to.
+                    stack = { top: { kind: 'repeat', tag: current.tag, item: current.item, items: current.items, roundStart: current.pos }, rest: stack }
+                    task = { kind: 'rule', name: current.item, tag: undefined, pos: current.pos }
+                    continue
+                }
+                const { name, tag, pos } = current
                 /** @type {DataRule} */
-                const rule = data[0][name]
+                const rule = ruleSet[name]
                 if (typeof rule === 'number') {
                     // No nullable case: `emptyTagOf` in `bnf/data` returns `undefined`
                     // for every terminal, so `emptyTags[name]` here is always
@@ -218,8 +267,10 @@ export const descentParser = fr => {
                         result = mrSuccess(tag, [], pos)
                     } else {
                         stack = { top: { kind: 'seq', tag, items: rule, itemIndex: 0, startPos: pos, seq: [] }, rest: stack }
-                        task = { name: rule[0], tag: undefined, pos }
+                        task = { kind: 'rule', name: rule[0], tag: undefined, pos }
                     }
+                } else if (isRepeat(rule)) {
+                    task = { kind: 'repeat', tag, item: rule.repeat[0], items: null, pos }
                 } else {
                     const entries = definedEntries(rule)
                     const emptyTag = emptyTags[name]
@@ -229,7 +280,7 @@ export const descentParser = fr => {
                     } else {
                         stack = { top: { kind: 'variant', entries, entryIndex: 0, pos, emptyResult }, rest: stack }
                         const [entryTag, entryName] = entries[0]
-                        task = { name: entryName, tag: entryTag, pos }
+                        task = { kind: 'rule', name: entryName, tag: entryTag, pos }
                     }
                 }
                 continue
@@ -256,9 +307,27 @@ export const descentParser = fr => {
                     const itemIndex = frame.itemIndex + 1
                     if (itemIndex < frame.items.length) {
                         stack = { top: { ...frame, itemIndex, seq }, rest: stack }
-                        task = { name: frame.items[itemIndex], tag: undefined, pos }
+                        task = { kind: 'rule', name: frame.items[itemIndex], tag: undefined, pos }
                     } else {
                         result = mrSuccess(frame.tag, seq, pos)
+                    }
+                }
+            } else if (frame.kind === 'repeat') {
+                if (result.success === false) {
+                    // A round that fails ends the repetition instead of failing
+                    // it: the rounds before it stand, and the whole match rewinds
+                    // to where the failed round began.
+                    result = mrSuccess(frame.tag, toArray(frame.items), frame.roundStart)
+                } else {
+                    const items = concat(frame.items)([result.ast])
+                    if (result.pos === frame.roundStart) {
+                        // A round that consumed nothing would repeat forever. Only
+                        // a hand-written `repeat` over a nullable rule reaches
+                        // this — `toData` never derives one — so keep the one
+                        // empty round and stop.
+                        result = mrSuccess(frame.tag, toArray(items), result.pos)
+                    } else {
+                        task = { kind: 'repeat', tag: frame.tag, item: frame.item, items, pos: result.pos }
                     }
                 }
             } else {
@@ -271,7 +340,7 @@ export const descentParser = fr => {
                     if (entryIndex < frame.entries.length) {
                         stack = { top: { ...frame, entryIndex, emptyResult }, rest: stack }
                         const [entryTag, entryName] = frame.entries[entryIndex]
-                        task = { name: entryName, tag: entryTag, pos: frame.pos }
+                        task = { kind: 'rule', name: entryName, tag: entryTag, pos: frame.pos }
                     } else {
                         result = emptyResult
                     }
@@ -287,3 +356,13 @@ export const descentParser = fr => {
 
     return match
 }
+
+/**
+ * Creates a recursive descent parser that preserves metadata for each consumed
+ * code point.
+ *
+ * @template T
+ * @param {FRule} fr
+ * @returns {DescentMatch<T>}
+ */
+export const descentParser = fr => descentParserRuleSet(toData(fr)[0])

@@ -4,9 +4,36 @@ A recursive descent matcher backend built over the BNF data
 [`RuleSet`](../data) IR, a sibling of [`../ll1`](../ll1).
 
 `descentParser()` walks the grammar by recursive descent and preserves
-per-code-point metadata, producing a metadata-aware AST. Nullability (whether
+per-code-point metadata, producing a metadata-aware AST. `descentParserRuleSet()`
+is the same matcher over an already materialized `RuleSet`. Nullability (whether
 each rule can match empty input) is computed once by `emptyTagMap()` in
 [`../data`](../data).
+
+## Repetition is flat
+
+A `Repeat` rule ([`../data`](../data#the-repeat-rule)) is matched by iterating
+its item rather than by descending into the rule again per item, so a repetition
+produces **one** AST node holding a flat sequence of the items it matched:
+
+```text
+[{tag: ' ', …}, {tag: ' ', …}]     not     {tag: 'some', sequence: [' ', {tag: 'some', sequence: [' ', …]}]}
+```
+
+Per-item tags survive the change — each item keeps the node it always had, and
+what disappears is the `some`/`none` scaffolding of the encoding, along with the
+`none` node that used to terminate the chain. A repetition that matched nothing
+is an empty node rather than a `none`-tagged one.
+
+A round that fails ends the repetition instead of failing it, rewinding to where
+that round began; the rounds before it stand. A round that succeeds without
+consuming anything would repeat forever, so it is kept once and ends the
+repetition — `toData()` never folds a nullable item into a `repeat`, so only a
+hand-written rule set reaches that.
+
+Rounds accumulate as a list and become an array once, when the repetition ends.
+Appending to an array per round would copy the whole prefix each time, which is
+what makes the obvious spelling of a flat repetition quadratic in the number of
+items it matched.
 
 ## Logical EOF and the complete cursor
 

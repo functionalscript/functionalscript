@@ -3,10 +3,11 @@
  * {@link toData} conversion from the functional grammar.
  *
  * This module is the pure, parser-agnostic substrate: it defines the
- * {@link RuleSet} data form (`Rule = Variant | Sequence | TerminalRange`) and
- * converts a functional grammar into it. The automaton builders that consume a
- * {@link RuleSet} live in their own sibling modules (`fjs/bnf/ll1`,
- * `fjs/bnf/descent`, …), so the IR stays free of any one parser's machinery.
+ * {@link RuleSet} data form (`Rule = Variant | Sequence | TerminalRange |
+ * Repeat`) and converts a functional grammar into it. The automaton builders
+ * that consume a {@link RuleSet} live in their own sibling modules
+ * (`fjs/bnf/ll1`, `fjs/bnf/descent`, …), so the IR stays free of any one
+ * parser's machinery.
  *
  * See `./types.ts` for the type-level API.
  *
@@ -14,13 +15,28 @@
  *
  * @import { DataRule, Rule as FRule, Sequence as FSequence } from '../types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { EmptyTag, Rule, RuleSet, Sequence, Variant } from './types.ts'
+ * @import { StringSet } from '../../types/string_set/types.ts'
+ * @import { EmptyTag, Repeat, Rule, RuleSet, Sequence, Variant } from './types.ts'
  */
 
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
 import { oneEncode } from '../module.f.mjs'
-import { definedEntries } from '../../types/object/module.f.mjs'
+import { definedEntries, definedValues } from '../../types/object/module.f.mjs'
+import { contains, set } from '../../types/string_set/module.f.mjs'
+
+/**
+ * Whether a data rule is a {@link Repeat}.
+ *
+ * Every rule-dispatch site asks this instead of testing the shape inline, so
+ * the repetition rule kind has exactly one discriminator to move when the
+ * surrounding rule model changes.
+ *
+ * @param {Rule} rule
+ * @returns {rule is Repeat}
+ */
+export const isRepeat = rule =>
+    typeof rule === 'object' && !(rule instanceof Array) && rule.repeat instanceof Array
 
 /** @typedef {StringMap<EmptyTag>} _EmptyTagMap */
 
@@ -30,6 +46,10 @@ const emptyTagOf = map => rule => {
         return undefined
     } else if (rule instanceof Array) {
         return rule.every(item => map[item] !== undefined) ? true : undefined
+    } else if (isRepeat(rule)) {
+        // Zero repetitions is a match whatever the body does, and it carries no
+        // tag of its own — a repetition is a sequence of items, not a choice.
+        return true
     } else {
         /** @type {EmptyTag} */
         let tag = undefined
@@ -176,6 +196,92 @@ const toDataAdd = map => fr => {
     return [map2, { ...set, [id]: rule }, id]
 }
 
+//
+
+const { fromEntries } = Object
+
+/** @type {(rule: Rule) => Sequence} */
+const refs = rule => {
+    if (typeof rule === 'number') {
+        return []
+    } else if (rule instanceof Array) {
+        return rule
+    } else if (isRepeat(rule)) {
+        return rule.repeat
+    } else {
+        return definedValues(rule)
+    }
+}
+
+/** @type {(ruleSet: RuleSet) => (visited: StringSet, name: string) => StringSet} */
+const visit = ruleSet => (visited, name) =>
+    contains(name)(visited)
+        ? visited
+        : refs(ruleSet[name]).reduce(visit(ruleSet), set(name)(visited))
+
+/**
+ * Every rule the entry rule can reach, itself included.
+ *
+ * @type {(ruleSet: RuleSet) => (entry: string) => StringSet}
+ */
+const reachable = ruleSet => entry => visit(ruleSet)(null, entry)
+
+/** @type {(rule: Rule) => boolean} */
+const isNone = rule => rule instanceof Array && rule.length === 0
+
+/**
+ * The {@link Repeat} that `name` encodes as right-recursion, or `undefined`
+ * when it encodes something else.
+ *
+ * The shape recognized is exactly the unambiguous 0-or-more list: a two-branch
+ * variant whose branches are an empty sequence and `[item, name]`, in either
+ * order. Everything looser stays as it is — an operator-style tree, a separated
+ * list, or a 1-or-more chain all reach `name` again, but their extra items make
+ * the grouping a real choice rather than a list, so folding them into a flat
+ * sequence would discard structure no rule name is left to recover.
+ *
+ * Two further conditions keep the fold sound rather than merely plausible:
+ * `item` must not lead back to `name`, so `name`'s only self-reference is the
+ * tail one, and `item` must not match empty, since a body that can consume
+ * nothing has infinitely many parses of the same input.
+ *
+ * @type {(ruleSet: RuleSet, emptyTags: _EmptyTagMap) => (name: string) => Repeat | undefined}
+ */
+const repeatOf = (ruleSet, emptyTags) => name => {
+    const rule = ruleSet[name]
+    if (typeof rule === 'number' || rule instanceof Array || isRepeat(rule)) { return undefined }
+    const branches = definedValues(rule)
+    if (branches.length !== 2) { return undefined }
+    const [a, b] = branches
+    const step = isNone(ruleSet[a]) ? b : isNone(ruleSet[b]) ? a : undefined
+    if (step === undefined) { return undefined }
+    const stepRule = ruleSet[step]
+    if (!(stepRule instanceof Array) || stepRule.length !== 2 || stepRule[1] !== name) { return undefined }
+    const [item] = stepRule
+    if (emptyTags[item] !== undefined || contains(name)(reachable(ruleSet)(item))) { return undefined }
+    return { repeat: [item] }
+}
+
+/**
+ * Rewrites every right-recursive 0-or-more rule of a {@link RuleSet} into a
+ * {@link Repeat}, and drops the rules that the rewrite orphans.
+ *
+ * The dropped rules are the recursive branch and, unless something else still
+ * refers to it, the empty one: both are reachable only through the variant that
+ * the {@link Repeat} replaces. Pruning them keeps the invariant that every rule
+ * of a generated set is reachable from its entry, so the serialized form holds
+ * no dead grammar.
+ *
+ * @type {(ruleSet: RuleSet, entry: string) => RuleSet}
+ */
+export const detectRepeat = (ruleSet, entry) => {
+    const repeat = repeatOf(ruleSet, emptyTagMap(ruleSet))
+    /** @type {RuleSet} */
+    const next = fromEntries(entries(ruleSet).map(([k, v]) => [k, repeat(k) ?? v]))
+    const live = reachable(next)(entry)
+    return fromEntries(entries(next).filter(([k]) => contains(k)(live)))
+}
+
 /**
  * Converts a functional grammar rule into serializable BNF data and returns
  * the generated rule set with the entry rule identifier.
@@ -184,5 +290,5 @@ const toDataAdd = map => fr => {
  */
 export const toData = fr => {
     const [, ruleSet, id] = toDataAdd({})(fr)
-    return [ruleSet, id]
+    return [detectRepeat(ruleSet, id), id]
 }

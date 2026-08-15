@@ -2,6 +2,7 @@
  * @module
  *
  * @import { CodePoint } from '../../text/utf16/types.ts'
+ * @import { RuleSet } from '../data/types.ts'
  * @import { DescentMatch, CodePointMeta, DescentMatchResult } from './types.ts'
  */
 
@@ -9,7 +10,7 @@ import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
 import { commaJoin0Plus, eof, option, range, repeat0Plus, set } from '../module.f.mjs'
 import { emptyTagMap, toData } from '../data/module.f.mjs'
-import { descentParser } from './module.f.mjs'
+import { descentParser, descentParserRuleSet } from './module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { deterministic } from '../testlib.f.mjs'
 
@@ -77,11 +78,14 @@ export const proof = {
             if (result !== '{"0":"none","3":true,"":true,"r":"none"}') { throw result }
         },
         () => {
+            // The whole repetition is one `repeat` rule, and a repetition always
+            // matches empty — with no tag, because it is a list of items rather
+            // than a choice between branches.
             const repeatRule = repeat0Plus(set(' \n\r\t'))
             const data = toData(repeatRule)
             const emptyTags = emptyTagMap(data[0])
             const result = JSON.stringify(emptyTags)
-            if (result !== '{"5":true,"r":"none"}') { throw result }
+            assertEq(result, '{"r":true}')
         }
     ],
     descentParser: [
@@ -374,11 +378,12 @@ export const proof = {
         },
         () => {
             // Repetition terminates on EOF: consuming it moves the complete
-            // cursor, so the repeat makes exactly one round and then takes its
-            // empty branch — with `idx` alone this would never stop.
-            const m = descentParser(repeat0Plus(eof))
-            const mr = m('', [])
-            assertEq(JSON.stringify(mr), '{"ast":{"sequence":[{"sequence":[]},{"tag":"none","sequence":[]}]},"success":true,"idx":0}')
+            // cursor, so the repeat makes exactly one round and then stops —
+            // with `idx` alone this would never stop.
+            const rule = repeat0Plus(eof)
+            const m = descentParser(rule)
+            const mr = m(toData(rule)[1], [])
+            assertEq(JSON.stringify(mr), '{"ast":{"sequence":[{"sequence":[]}]},"success":true,"idx":0}')
         },
         () => {
             // Backtracking restores the complete cursor: `x` consumes EOF and
@@ -397,6 +402,58 @@ export const proof = {
             assertEq(f.idx, 0)
             assertEq(f.expected.length, 1)
             assertEq(f.expected[0], range('BB'))
+        },
+    ],
+    repeat: [
+        () => {
+            // The whole repetition is one node holding a flat sequence of the
+            // items it matched — not the right-recursive chain of `some`/`none`
+            // nodes its functional spelling builds.
+            const rule = repeat0Plus(set(' \n\r\t'))
+            const m = descentParser(rule)
+            const name = toData(rule)[1]
+            const mr = descentParserCpOnly(m, name, toArray(stringToCodePointList('  ')))
+            assertEq(
+                JSON.stringify(mr),
+                `{"ast":{"sequence":[{"tag":" ","sequence":[[${cp1(' ')},null]]},{"tag":" ","sequence":[[${cp1(' ')},null]]}]},"success":true,"idx":2}`)
+        },
+        () => {
+            // Zero items is a match, and the node is empty rather than tagged.
+            const rule = repeat0Plus(set(' \n\r\t'))
+            const m = descentParser(rule)
+            const mr = m(toData(rule)[1], [])
+            assertEq(JSON.stringify(mr), '{"ast":{"sequence":[]},"success":true,"idx":0}')
+        },
+        () => {
+            // A round that fails ends the repetition rather than failing it: the
+            // rounds before it stand and the match stops where the failed one
+            // began.
+            const rule = repeat0Plus(set(' \n\r\t'))
+            const m = descentParser(rule)
+            const name = toData(rule)[1]
+            const mr = descentParserCpOnly(m, name, toArray(stringToCodePointList(' x')))
+            assertEq(
+                JSON.stringify(mr),
+                `{"ast":{"sequence":[{"tag":" ","sequence":[[${cp1(' ')},null]]}]},"success":true,"idx":1}`)
+        },
+        () => {
+            // `toData` never folds a nullable item into a `repeat`, but a
+            // hand-written rule set can hold one. A round that consumes nothing
+            // would repeat forever, so it is kept once and ends the repetition.
+            /** @type {RuleSet} */
+            const ruleSet = {
+                repeated: { repeat: ['optionalA'] },
+                optionalA: { some: 'a', none: 'e' },
+                a: range('aa'),
+                e: [],
+            }
+            const m = descentParserRuleSet(ruleSet)
+            assertEq(
+                JSON.stringify(m('repeated', [])),
+                '{"ast":{"sequence":[{"tag":"none","sequence":[]}]},"success":true,"idx":0}')
+            assertEq(
+                JSON.stringify(m('repeated', [[cp1('a'), null]])),
+                `{"ast":{"sequence":[{"tag":"some","sequence":[[${cp1('a')},null]]},{"tag":"none","sequence":[]}]},"success":true,"idx":1}`)
         },
     ],
     furthestFailure: [

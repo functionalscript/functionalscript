@@ -7,6 +7,25 @@ An LL(1) dispatch/matcher backend built over the BNF data
 `parserRuleSet()` match input into an AST. The builder throws at build time
 (`can not merge …`) when the grammar is not LL(1) — a first/first conflict.
 
+## Repetition is not flat here
+
+The sibling [`../descent`](../descent#repetition-is-flat) backend matches a
+`Repeat` rule ([`../data`](../data#the-repeat-rule)) iteratively and emits one
+flat node for it. This backend does not: `dispatchMap()` compiles a `Repeat` back
+into the right-recursive chain it was folded from — dispatch on the item's first
+set, then the item's own chain followed by the repeat rule again — so the AST
+keeps the nested shape it always had.
+
+The obstacle is this backend's dispatch model rather than the rule kind. A
+dispatch entry *consumes* the symbol it dispatched on and continues with a chain
+of rule names, so the first symbol of a nullable item is inlined into whatever
+encloses it: a repetition leading a sequence (`[ws, value, ws]`) has its first
+set merged into that sequence's own entries, and the rules chain those entries
+carry is the only place the repetition can live on. A frame that loops cannot be
+reached from there. Emitting a flat repeat node here needs a rules chain that can
+name a repetition as a step — or a predictive table over a stack of rule
+invocations — which is a change to the dispatch model, not to this rule kind.
+
 ## Logical EOF and the complete cursor
 
 The caller passes physical symbols only; the matcher synthesizes the one logical

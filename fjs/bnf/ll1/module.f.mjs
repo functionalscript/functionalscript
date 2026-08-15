@@ -31,7 +31,7 @@ import { rangeMap } from '../../types/range_map/module.f.mjs'
 import { contains, set } from '../../types/string_set/module.f.mjs'
 import { eofSymbol, rangeDecode } from '../module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
-import { emptyTagMap, toData } from '../data/module.f.mjs'
+import { emptyTagMap, isRepeat, toData } from '../data/module.f.mjs'
 
 /** @type {Properties<_DispatchResult>} */
 const dispatchProps = {
@@ -109,6 +109,25 @@ export const dispatchMap = ruleSet => {
             /** @type {_DispatchRule} */
             const dr = {emptyTag, rangeMap: result}
             return { ...dm, [name]: dr}
+        } else if (isRepeat(rule)) {
+            // A repetition dispatches exactly like the right-recursive variant it
+            // was folded from: on the item's own first set, matching the item and
+            // then this rule again. This backend inlines the first set of a
+            // nullable item into whatever encloses it, so the repetition has to
+            // stay expressible as a rules chain — see ./README.md.
+            const [item] = rule.repeat
+            if (contains(item)(newCurrent)) {
+                /** @type {_DispatchRule} */
+                const dr = {emptyTag: true, rangeMap: []}
+                return { ...dm, [name]: dr }
+            }
+            dm = dispatchRule(dm, item, newCurrent)
+            const itemDr = assertNotNullish(dm[item])
+            /** @type {_Dispatch} */
+            const rangeMap = itemDr.rangeMap.map(x => [addRuleToDispatch(x[0], name), x[1]])
+            /** @type {_DispatchRule} */
+            const dr = {emptyTag: true, rangeMap}
+            return { ...dm, [name]: dr }
         } else {
             const entries = definedEntries(rule)
             /** @type {_Dispatch} */
