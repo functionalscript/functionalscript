@@ -9,8 +9,7 @@ The AST is the stable, canonical representation of functions, expressed as an
 FJS value (`Any`): the `Function` constructor accepts an `Any` that describes
 the code and executes it (see
 [`spec/README.md` §9](../spec/README.md#9-serialization-ast-as-data-not-bytecode)).
-Several components must agree on the exact shape of that value (tags and
-shapes):
+Several components must agree on the exact shape of that value:
 
 - the parser/compiler (FJS), which produces it;
 - the `Function` constructor and its interpreter (Rust), which execute it;
@@ -19,7 +18,7 @@ shapes):
 - the content hash (CAVM) and `toString(f)`, which require the shape to be
   exact — one AST, one byte sequence, one hash.
 
-The tag tables in [`spec/README.md`](../spec/README.md) sketch the tags, but
+[`spec/README.md`](../spec/README.md) lists the value kinds of each level, but
 there is no single specification of record, so the implementations have
 nothing precise to be checked against.
 
@@ -41,8 +40,9 @@ Why RTTI:
 - RTTI already supports the shapes an AST needs: structs, tuples, `or`
   (unions), and recursion via `Thunk`.
 
-The tag tables in [`spec/README.md`](../spec/README.md) become derived
-documentation; the RTTI schema is normative.
+The RTTI schema is the only specification of the AST shape;
+[`spec/README.md`](../spec/README.md) stays a prose overview of the levels and
+their features.
 
 Serialization needs no separate treatment here: the AST is an `Any` value, so
 the generic `Any` serialization (CBOR, including the deterministic profile

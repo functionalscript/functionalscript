@@ -44,32 +44,32 @@ spellings are a deferred feature, see
 **VM**:
 We are introducing new commands in such a way that every new command depends only on previous commands.
 
-|format|any           |Tag|          |
-|------|--------------|---|----------|
-|JSON  |undefined     | 00|          |
-|      |null          | 01|          |
-|      |false         | 02|          |
-|      |true          | 03|          |
-|      |number        | 04|u64       |
-|      |string        | 05|String    |
-|      |array         | 06|Array<Any>|
-|      |object        | 07|Object    |
+|format|any           |          |
+|------|--------------|----------|
+|JSON  |undefined     |          |
+|      |null          |          |
+|      |false         |          |
+|      |true          |          |
+|      |number        |u64       |
+|      |string        |String    |
+|      |array         |Array<Any>|
+|      |object        |Object    |
 
 ## 2. DJS
 
 The DJS form a graph of values. It can be serialized without additional run-time information.
 
-|format|any                     |Tag|          |Notes                                           |
-|------|------------------------|---|----------|------------------------------------------------|
-|DJS   |const_ref               | 80|u32       |[const](./2120-const.md)                        |
-|      |bigint_plus             | 08|Array<u64>|[bigint](./2320-bigint.md)                      |
-|      |bigint_minus            | 0A|Array<u64>|[bigint](./2320-bigint.md)                      |
-|      |undefined               | 0B|          |[undefined](./2310-undefined.md)                |
-|      |own_property            | 0C|          |[property-accessor](./todo/2330-property-accessor.md)|
-|      |instance_property       | 0E|          |[property-accessor](./todo/2330-property-accessor.md)|
-|      |instance_method_call    | 0F|          |[property-accessor](./todo/2330-property-accessor.md)|
-|      |at                      | 10|          |[property-accessor](./todo/2330-property-accessor.md)|
-|      |operators               |   |          |[operators](./todo/2340-operators.md)                |
+|format|any                     |          |Notes                                           |
+|------|------------------------|----------|------------------------------------------------|
+|DJS   |const_ref               |u32       |[const](./2120-const.md)                        |
+|      |bigint_plus             |Array<u64>|[bigint](./2320-bigint.md)                      |
+|      |bigint_minus            |Array<u64>|[bigint](./2320-bigint.md)                      |
+|      |undefined               |          |[undefined](./2310-undefined.md)                |
+|      |own_property            |          |[property-accessor](./todo/2330-property-accessor.md)|
+|      |instance_property       |          |[property-accessor](./todo/2330-property-accessor.md)|
+|      |instance_method_call    |          |[property-accessor](./todo/2330-property-accessor.md)|
+|      |at                      |          |[property-accessor](./todo/2330-property-accessor.md)|
+|      |operators               |          |[operators](./todo/2340-operators.md)                |
 
 ### 2.1. Required
 
@@ -107,9 +107,9 @@ We need it to use JSDoc and TypeScript.
 
 The FJS can have functions. The format requires additional run-time information for serialization.
 
-|format|any     |Tag|    |Notes                           |
-|------|--------|---|----|--------------------------------|
-|FJS   |function|   |Func|[function](./todo/3110-function.md)  |
+|format|any     |    |Notes                           |
+|------|--------|----|--------------------------------|
+|FJS   |function|Func|[function](./todo/3110-function.md)  |
 
 ### 3.1. Required
 
@@ -592,10 +592,9 @@ m.push(s)    // error: `m` is immutable
 ## 9. Serialization: AST as Data, not Bytecode
 
 **Decision:** the stable, canonical representation of functions is the **AST**, expressed as an
-FJS value (`Any`) using the tag tables above. Code is data: the `Function` constructor accepts an
-`Any` that describes the code, and the VM knows how to execute it
-(see [function](./todo/3110-function.md); the exact shape is specified by the
-[ast-spec](../todo/ast-spec.md)). The reasons:
+FJS value (`Any`). Code is data: the `Function` constructor accepts an `Any` that describes the
+code, and the VM knows how to execute it (see [function](./todo/3110-function.md); the exact shape
+is specified by the [ast-spec](../todo/ast-spec.md)). The reasons:
 
 1. We need a canonical data representation of functions in FunctionalScript — and in the future
    content-addressable VM (CAVM) — to compute a hash.

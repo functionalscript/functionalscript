@@ -1,6 +1,5 @@
 mod debug;
 mod partial_eq;
-mod serializable;
 
 pub mod header;
 
