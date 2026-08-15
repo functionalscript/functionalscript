@@ -508,7 +508,7 @@ const foldOp = token => state => {
 export const parseFromTokens = tokenList => {
     const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null } })(tokenList)
     switch (state.state) {
-        case 'result': return ok(/** @type {AstModule} */ ([toArray(state.module.modules), toArray(state.module.consts)]))
+        case 'result': return ok(/** @satisfies {AstModule} */ ([toArray(state.module.modules), toArray(state.module.consts)]))
         case 'error': return error(state.error)
         default: return error({ message: 'unexpected end', metadata: null })
     }

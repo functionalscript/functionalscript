@@ -99,7 +99,7 @@ const seedBlob = (root, home = '/home/user') => chunks => {
     const c = fileCas(sha256)(home)
     const stream = chunks.reduceRight(
         (/** @type {List<never, IoResult<Vec>>} */ tail, chunk) => nonEmpty(resultOk(chunk), tail),
-        /** @type {List<never, IoResult<Vec>>} */ (elEmpty()))
+        /** @satisfies {List<never, IoResult<Vec>>} */ (elEmpty()))
     const [state, result] = virtual({ ...emptyState, root })(c.write(stream))
     assert(result[0] === 'ok', result)
     return [state.root, vecToCBase32(result[1])]

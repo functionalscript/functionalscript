@@ -243,7 +243,7 @@ export const proof = {
         /** @type {List<FileCasOperation, IoResult<Vec>>} */
         const payload = chunks.reduceRight(
             (tail, chunk) => nonEmpty(ok(chunk), tail),
-            /** @type {List<FileCasOperation, IoResult<Vec>>} */ (empty()))
+            /** @satisfies {List<FileCasOperation, IoResult<Vec>>} */ (empty()))
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
         const hash = writeResult[1]
@@ -288,7 +288,7 @@ export const proof = {
         /** @type {IoResult<Vec>} */
         const errItem = error({ code: 'BOOM' })
         /** @type {List<FileCasOperation, IoResult<Vec>>} */
-        const payload = nonEmpty(okItem, nonEmpty(errItem, /** @type {List<FileCasOperation, IoResult<Vec>>} */ (empty())))
+        const payload = nonEmpty(okItem, nonEmpty(errItem, /** @satisfies {List<FileCasOperation, IoResult<Vec>>} */ (empty())))
         const [state1, result] = virtual(emptyState)(c.write(payload))
         assert(result[0] === 'error', ['expected write error', result])
         const [, hashes] = virtual(state1)(c.list())
@@ -307,7 +307,7 @@ export const proof = {
         /** @type {List<FileCasOperation, IoResult<Vec>>} */
         const payload = chunks.reduceRight(
             (tl, chunk) => nonEmpty(ok(chunk), tl),
-            /** @type {List<FileCasOperation, IoResult<Vec>>} */ (empty()))
+            /** @satisfies {List<FileCasOperation, IoResult<Vec>>} */ (empty()))
         const [state1, w] = virtual(emptyState)(c.write(payload))
         assert(w[0] === 'ok', ['expected write ok', w])
         const hash = w[1]
@@ -340,7 +340,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(nonEmpty(ok(content), /** @type {List<never, Ok<Vec>>} */ (empty())))
+        const x = c.write(nonEmpty(ok(content), /** @satisfies {List<never, Ok<Vec>>} */ (empty())))
         const [state1, w] = virtual(state0)(x)
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, present] = virtual(state1)(access(stalePath))
@@ -357,7 +357,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(nonEmpty(ok(content), /** @type {List<never, Ok<Vec>>} */ (empty())))
+        const x = c.write(nonEmpty(ok(content), /** @satisfies {List<never, Ok<Vec>>} */ (empty())))
         const [state1, w] = virtual(state0)(x)
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, present] = virtual(state1)(access(livePath))
@@ -454,7 +454,7 @@ export const proof = {
         /** @type {IoResult<Vec>} */
         const boom = error('boom')
         /** @type {List<never, IoResult<Vec>>} */
-        const stream = nonEmpty(ok(vec8(0x11n)), nonEmpty(boom, /** @type {List<never, IoResult<Vec>>} */ (empty())))
+        const stream = nonEmpty(ok(vec8(0x11n)), nonEmpty(boom, /** @satisfies {List<never, IoResult<Vec>>} */ (empty())))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
         const [r] = o

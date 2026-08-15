@@ -91,14 +91,15 @@ export const nixFlakes = jobs =>
     forEachStep(pure(jobs), writeFlake)
 
 /** Path a workflow passes to `nix develop`, for the job of the given id. */
-export const flakePath = /** @type {(id: string) => string} */ (id => `./${generatedDirectory}/${id}`)
+/** @type {(id: string) => string} */
+export const flakePath = id => `./${generatedDirectory}/${id}`
 
 /** Installs Nix, with `nix-command` and `flakes` enabled by the action's defaults. */
 export const nixInstall = install(uses('cachix/install-nix-action'))
 
 /** Runs one command inside a job's generated development shell. */
-export const nixDevelop = /** @type {(id: string, command: string) => string} */
-    ((id, command) => `nix develop ${flakePath(id)} --command ${command}`)
+/** @type {(id: string, command: string) => string} */
+export const nixDevelop = (id, command) => `nix develop ${flakePath(id)} --command ${command}`
 
 /**
  * Wraps a string so a POSIX shell reproduces it exactly. Single quotes protect

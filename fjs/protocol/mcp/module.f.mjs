@@ -232,7 +232,8 @@ export const notInitialized = rpcError(-32002)('Server not initialized')
 const _noParams = option(record(unknown))
 
 /** Initial session state — always start here. */
-export const uninitializedState = /** @type {McpSessionState} */ (['uninitialized'])
+/** @type {McpSessionState} */
+export const uninitializedState = ['uninitialized']
 
 /**
  * State-machine step for an MCP session using memory effects.

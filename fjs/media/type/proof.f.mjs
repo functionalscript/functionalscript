@@ -24,7 +24,7 @@ const bytes = (...b) => u8ListToVec(msb)(b)
 const stream = (...chunks) =>
     chunks.reduceRight(
         (tail, c) => nonEmpty(ok(c), tail),
-        /** @type {List<never, Result<Vec, unknown>>} */ (emptyList()))
+        /** @satisfies {List<never, Result<Vec, unknown>>} */ (emptyList()))
 
 // Runs the streaming detector over the given chunks and unwraps the metadata.
 /** @type {(...chunks: readonly Vec[]) => DetectMeta} */

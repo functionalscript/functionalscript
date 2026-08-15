@@ -203,7 +203,8 @@ export const import_ = do_('import')
 // write
 
 /** Emits a `Write` effect to the given named stream. */
-export const write = /** @type {Func<Write>} */ (do_('write'))
+/** @type {Func<Write>} */
+export const write = do_('write')
 
 /**
  * Encodes `s + '\n'` as UTF-8 and emits a `Write` effect to `stream`.
@@ -223,7 +224,8 @@ export const error = writeString('stderr')
 // read
 
 /** Emits a `Read` effect, yielding the next input byte or `null` at EOF. */
-export const read = /** @type {Func<Read>} */ (do_('read'))
+/** @type {Func<Read>} */
+export const read = do_('read')
 
 /** @type {(bytes: _UtfList) => string} */
 const utf8ListToString = bytes =>
