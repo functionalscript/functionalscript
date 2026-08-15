@@ -48,10 +48,13 @@ const parseDefaultState = input => {
 const parseMinusState = input => {
     if (input === null) return [[{ kind: 'error', message: 'invalid token' }], { kind: 'def' }]
     switch (input.token.kind) {
-        case '-': return [[{ kind: 'error', message: 'invalid token' }], { kind: '-' }]
         // negation is lexical: the minus sign joins the lexeme, so the token
         // stays the exact source text of the JSON number.
         case 'number': return [[{ kind: 'number', value: `-${input.token.value}` }], { kind: 'def' }]
+        // No `'-'` case: the underlying JS tokenizer always merges adjacent
+        // `-` characters into a single `'--'` token (see `js/tokenizer`), so
+        // this state never sees a second `'-'` — a run of `-` past the first
+        // always falls through to the `default` arm below instead.
         default: return [{ first: { kind: 'error', message: 'invalid token' }, tail: mapToken(input.token) }, { kind: 'def' }]
     }
 }
