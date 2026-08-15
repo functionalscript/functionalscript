@@ -27,7 +27,7 @@ docker run --rm -it --network none functionalscript
 - `deno task test`
 - `bun test`
 
-See [AGENTS.md §1.4](../AGENTS.md#14-ways-to-run-the-functionalscript-test-suite)
+See [CONTRIBUTING.md](../CONTRIBUTING.md#ways-to-run-the-functionalscript-test-suite)
 for the full list of equivalent ways to run the FunctionalScript test suite.
 
 ## Codex Setup
