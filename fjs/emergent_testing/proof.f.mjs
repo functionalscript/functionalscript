@@ -3,13 +3,13 @@
  * @import { NodeProgramOptions, Sandbox, Write } from '../effects/node/types.ts'
  * @import { JsModule } from '../effects/node/virtual/types.ts'
  * @import { Reporter } from './types.ts'
- * @import { All, Await, Test, TestContext } from '../effects/node/types.ts'
+ * @import { All, Await, Import, Readdir, Test, TestContext } from '../effects/node/types.ts'
  * @import { Ts } from '../types/rtti/ts/types.ts'
  */
 
 import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import {
     testAll, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
@@ -20,7 +20,7 @@ import { shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { array, number as rttiNumber, or, string as rttiString } from '../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
-import { unwrap } from '../types/result/module.f.mjs'
+import { ok, unwrap } from '../types/result/module.f.mjs'
 
 /**
  * The mock reporter's stdout lines. A schema rather than a hand-written type:
@@ -403,22 +403,65 @@ export const registerEmptyProof = () => {
 
 // register (the NodeProgram entry point) against an empty virtual root: no
 // modules to register means registerModuleMap short-circuits before ever
-// calling the selected TestContext's `test` op, so this reaches register's
-// own branches (inlineTestContext, engine) without hitting the virtual
-// harness's `test: todo` stub. Node engine, non-inline context.
+// calling the selected TestContext's `test` op, so this reaches that branch
+// without hitting the virtual harness's `test: todo` stub.
 export const registerEmptyModuleMap = () => {
     const state = { ...emptyState, root: {} }
     const [, exitCode] = virtual(state)(register(options('.')))
     assertEq(exitCode, 0)
 }
 
-// Same as registerEmptyModuleMap, but selects the Bun engine's inline
-// TestContext instead of Node's.
-export const registerEmptyModuleMapInlineBun = () => {
-    const state = { ...emptyState, root: {} }
-    const opts = { ...options('.'), inlineTestContext: true, engine: /** @type {const} */ ('bun') }
-    const [, exitCode] = virtual(state)(register(opts))
-    assertEq(exitCode, 0)
+// register's `star`/`ctx` selection, proven observably: the virtual harness's
+// own `test` op is `todo`, so a non-empty root can't go through `virtual()`
+// here without throwing. Instead this interprets register's effect with a
+// fully synthetic runner (discovery faked via `readdir`/`import`, mirroring
+// makeRegisterRunner's approach to `test`/`all`/`await`) that records which
+// TestContext object and which registered name each `test` call received —
+// so a swapped `engine` ternary or a deleted `inlineTestContext` branch
+// changes what's observed here, not just whether the line ran.
+export const registerSelectsContextAndStar = () => {
+    /** @type {TestContext} */
+    const nodeCtx = { test: todo }
+    /** @type {TestContext} */
+    const bunCtx = { test: todo }
+
+    /** @type {(extra: Partial<NodeProgramOptions>) => readonly (readonly [TestContext, string])[]} */
+    const runRegister = extra => {
+        /** @type {(readonly [TestContext, string])[]} */
+        let calls = []
+        /** @type {(s: undefined) => <T>(e: Effect<_RegisterMockOps | Readdir | Import, T>) => readonly [undefined, T]} */
+        let runner
+        runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
+            readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true }])],
+            import: _path => s => [s, ok({ proof: { ok: () => {} } })],
+            all: (...effects) => s =>
+                effects.reduce(
+                    ([st, rs], e) => {
+                        const [ns, r] = runner(st)(e)
+                        return /** @type {readonly [undefined, readonly unknown[]]} */ ([ns, [...rs, r]])
+                    },
+                    /** @type {readonly [undefined, readonly unknown[]]} */ ([s, []]),
+                ),
+            await: p => s => [s, [p]],
+            test: (ctx, name, _xf, _fn) => s => { calls = [...calls, [ctx, name]]; return [s, undefined] },
+        }))
+        runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, number>} */ (register({
+            ...defaultNodeProgramOptions, env: {}, testContext: nodeCtx, bunTestContext: bunCtx, ...extra,
+        })))
+        return calls
+    }
+
+    // Node engine, non-inline context: registers under nodeCtx, no ' ...' suffix.
+    const nodeCalls = runRegister({})
+    assertEq(nodeCalls.length, 1)
+    assert(nodeCalls[0][0] === nodeCtx)
+    assertEq(nodeCalls[0][1], 'import("./a.proof.f.ts").proof.ok()')
+
+    // Bun engine, inline context: registers under bunCtx, with ' ...' suffix.
+    const bunCalls = runRegister({ inlineTestContext: true, engine: 'bun' })
+    assertEq(bunCalls.length, 1)
+    assert(bunCalls[0][0] === bunCtx)
+    assertEq(bunCalls[0][1], 'import("./a.proof.f.ts").proof.ok() ...')
 }
 
 // direct unit tests for the pure path-format helpers
@@ -534,7 +577,7 @@ export const proof = {
     registerThrowsWithoutThrowing,
     registerEmptyProof,
     registerEmptyModuleMap,
-    registerEmptyModuleMapInlineBun,
+    registerSelectsContextAndStar,
     defaultReporterExpectedToThrow,
     helpers
 }
