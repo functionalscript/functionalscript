@@ -26,7 +26,7 @@
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { at, definedEntries } from '../../../types/object/module.f.mjs'
 import { array, number, option, or, record, string } from '../../../types/rtti/module.f.mjs'
-import { cmp, toData, unitBit, unknown as top } from '../../../types/rtti/data/module.f.mjs'
+import { cmp, toData, unitBit, unknown as top, withoutUnits } from '../../../types/rtti/data/module.f.mjs'
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
 
 /** @type {() => readonly ['const', typeof unknownConst]} */
@@ -199,18 +199,8 @@ const admitsUndefined = rules => n => {
  *
  * @type {(n: Node) => Node}
  */
-const stripUndefined = n => {
-    if (typeof n === 'string') { return n }
-    const unit = (n.unit ?? 0) & ~undefinedBit
-    return {
-        ...(unit === 0 ? {} : { unit }),
-        ...(n.number === undefined ? {} : { number: n.number }),
-        ...(n.string === undefined ? {} : { string: n.string }),
-        ...(n.bigint === undefined ? {} : { bigint: n.bigint }),
-        ...(n.array === undefined ? {} : { array: n.array }),
-        ...(n.object === undefined ? {} : { object: n.object }),
-    }
-}
+const stripUndefined = n =>
+    typeof n === 'string' ? n : withoutUnits(undefinedBit)(n)
 
 /**
  * A set of objects: `properties` for the declared keys — a key admitting
