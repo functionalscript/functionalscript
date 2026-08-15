@@ -48,3 +48,10 @@ payloads are far below; no expectation changes.)
 - [ ] Replace both `drain([])(c.read(hash))` pipelines with
       `collectRead(c.read(hash))`; drop the two `msb.listToVec` wrappers.
 - [ ] `fjs t` — cas proofs pass unchanged.
+
+### Related
+
+- `fjs/effects/todo/fold-stream-combinator.md` — extracts the three-case
+  stream fold from the four *production* consumers (`collectRead` among
+  them); these proof-side copies are not in its list and disappear
+  independently by calling `collectRead`.

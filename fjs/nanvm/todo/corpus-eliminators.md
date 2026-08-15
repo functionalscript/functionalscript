@@ -52,3 +52,10 @@ get one owner each.
       proof-covered); import them from `proof.f.mjs` and `rust/module.f.mjs`.
 - [ ] `npx tsc`, `fjs t`; `npm run update` if the generated Rust output is
       affected (it should be byte-identical).
+
+### Related
+
+- `nanvm-lib/todo/operator-test-operation-model.md` — rewrites the corpus
+  model (semantic operations + arity) across the same three files and keeps
+  the `Swapped` disambiguation; if it lands first, `orders`/`isThrows` should
+  be extracted as part of that rewrite rather than separately.
