@@ -168,4 +168,4 @@ const validateVisitor = /** @type {any} */ ({
 
 /** @type {<T extends Type>(rtti: T) => Validate<T>} */
 export const validate = rtti =>
-    /** @type {any} */ (visit(validateVisitor)(rtti))
+    (visit(validateVisitor)(rtti))

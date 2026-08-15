@@ -284,7 +284,7 @@ export const mcpStep = ({
                     read(stateKey),
                     ([t]) => t === 'initializing'
                         ? step(
-                            write(stateKey, ['initialized', /** @type {InitializedState} */ (true)]),
+                            write(stateKey, ['initialized', true]),
                             () => pure(null),
                         )
                         : pure(null),

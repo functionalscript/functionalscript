@@ -80,8 +80,8 @@ export const constPrimitiveValidate =
 /** @type {<R>(v: Visitor<R>) => (c: Const) => R} */
 const visitConst = v => c =>
     typeof c === 'object' && c !== null
-        ? (commonIsArray(c) ? v.tuple(c) : v.struct(/** @type {Struct} */ (c)))
-        : v.constPrimitive(/** @type {Primitive} */ (c))
+        ? (commonIsArray(c) ? v.tuple(c) : v.struct(c))
+        : v.constPrimitive(c)
 
 /** `IsContainer` guard for arrays, shared by `validate` and `parse`. */
 /** @type {IsContainer<ReadonlyArray<Unknown>>} */
@@ -179,7 +179,7 @@ export const visit =
                 case 'unknown': return v.unknown()
                 case 'or': return v.or(value)
             }
-            return v.primitive0(/** @type {Primitive0} */ (tag))
+            return v.primitive0(tag)
         }
         return visitConst(v)(rtti)
     }

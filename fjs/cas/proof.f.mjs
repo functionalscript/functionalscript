@@ -53,7 +53,7 @@ const casDefaultResponse = cmd => {
         case 'mkdir': case 'createExclusive': case 'rename': case 'rm':
         case 'writeBytes': case 'access':
             return ok(undefined)
-        case 'readdir': return ok(/** @type {readonly unknown[]} */ ([]))
+        case 'readdir': return ok([])
         case 'stat': return ok({ size: 0 })
         default: return ok(undefined)
     }
@@ -88,7 +88,7 @@ const drive = overrides => {
         const queue = overrides[cmd]
         return queue !== undefined && queue.length > 0 ? queue.shift() : casDefaultResponse(cmd)
     }
-    const handlers = /** @type {Parameters<typeof match>[0]} */ ({
+    const handlers = {
         access: () => next('access'),
         createExclusive: () => next('createExclusive'),
         mkdir: () => next('mkdir'),
@@ -100,7 +100,7 @@ const drive = overrides => {
         rm: () => next('rm'),
         stat: () => next('stat'),
         writeBytes: () => next('writeBytes'),
-    })
+    }
     const matcher = match(handlers)
     /** @type {(e: Effect<FileCasOperation, unknown>) => unknown} */
     const run_ = e => {

@@ -43,7 +43,7 @@ const writeFailingCas = {
 // large for `collectRead` to buffer looks like to a caller.
 /** @type {Cas<never>} */
 const readFailingCas = {
-    read: () => nonEmpty(/** @type {IoResult<Vec>} */ (error('boom')), elEmpty()),
+    read: () => nonEmpty(error('boom'), elEmpty()),
     write: () => pure(error('write not supported')),
     list: () => pure([]),
 }
@@ -57,8 +57,8 @@ const fixedCas = entries => ({
     read: hash => {
         const found = entries.find(([h]) => vecToCBase32(h) === vecToCBase32(hash))
         return found === undefined
-            ? nonEmpty(/** @type {IoResult<Vec>} */ (error('not found')), elEmpty())
-            : nonEmpty(/** @type {IoResult<Vec>} */ (ok(found[1])), elEmpty())
+            ? nonEmpty(error('not found'), elEmpty())
+            : nonEmpty(ok(found[1]), elEmpty())
     },
     write: () => pure(error('write not supported')),
     list: () => pure(entries.map(([h]) => h)),

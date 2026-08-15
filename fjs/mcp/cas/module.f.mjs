@@ -191,8 +191,7 @@ export const casToolRegistry = home => cacheKey => {
             'cas_add',
             'Store content and return its hash (cBase32). Pass type:"base64" for binary; omit or pass type:"text" for UTF-8 text (default). Inline content is capped at 128 KiB (131072 bytes) — larger content is rejected. For larger content, store the file with the `cas` CLI instead: run `npx functionalscript cas add <path>` yourself if you have shell access, or give the user that exact command to run — it prints the resulting hash on stdout.',
             casAddArgs,
-            /** @type {(args: Ts<typeof casAddArgs>) => Effect<FileCasOperation | MemOp, ToolsCallResult>} */
-            (({ type, content }) => {
+            ({ type, content }) => {
                 // type:'text' or 'base64' — resolve content to Vec, store via c.write()
                 /** @type {Vec | null} */
                 let x = type === 'base64'
@@ -202,25 +201,23 @@ export const casToolRegistry = home => cacheKey => {
                     ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
                     // The resolved content fits in one chunk; feed it as a single-item stream.
                     : step(
-                        c.write(nonEmpty(ok(x), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))),
-                        /** @type {(writeResult: IoResult<Vec>) => Effect<MemOp, ToolsCallResult>} */
-                        (writeResult => {
+                        c.write(nonEmpty(ok(x), elEmpty())),
+                        writeResult => {
                             if (writeResult[0] === 'error') { return pure(errorResult('write')) }
                             const hash = writeResult[1]
                             return step(
-                                syncRevision(cacheKey)(hash)(/** @type {Vec} */ (x)),
+                                syncRevision(cacheKey)(hash)(x),
                                 () => pure(okResult(vecToCBase32(hash)))
                             )
-                        }),
+                        },
                     )
-            }),
+            },
         ),
         toolEntry(
             'cas_get',
             'Inspect a blob by hash. Always returns JSON {length,mimeType,type[,uri]} where type is "text" or "base64". Pass content:true to also include the inline payload as text (type:"text") or blob (type:"base64"), but content is capped at 128 KiB (131072 bytes) — a larger blob is rejected with an error. To download a blob, prefer the uri field returned in the result instead of requesting inline content.',
             casGetArgs,
-            /** @type {(args: Ts<typeof casGetArgs>) => Effect<FileCasOperation, ToolsCallResult>} */
-            (r => {
+            r => {
                 const key = cBase32ToVec(r.hash)
                 if (key === null) {
                     return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
@@ -295,17 +292,16 @@ export const casToolRegistry = home => cacheKey => {
                         )
                     },
                 )
-            }),
+            },
         ),
         toolEntry(
             'cas_list',
             'List all stored content hashes (cBase32), one per line.',
             casListArgs,
-            /** @type {() => Effect<FileCasOperation, ToolsCallResult>} */
-            (() => step(
+            () => step(
                 c.list(),
                 hashes => pure(okResult(hashes.map(vecToCBase32).join('\n')))
-            )),
+            ),
         ),
     ]
 }

@@ -12,7 +12,7 @@ import { eff } from './module.f.mjs'
 /** @type {(command: 'add') => (a: number, b: number) => Effect<_AddOp, number>} */
 const doAdd = do_
 
-const next = match(/** @type {OperationMap<_AddOp, number>} */ ({ add: (a, b) => a + b }))
+const next = match({ add: (a, b) => a + b })
 
 export const proof = {
     value: () => {

@@ -59,13 +59,11 @@ const configNoTools = { ...config, capabilities: {} }
 const handlers = {
     // Echoes a received cursor as `nextCursor` so tests can observe pagination params.
     toolsList: (/** @type {ToolsListParams} */ p) =>
-        /** @type {Effect<_Op, ToolsListResult>} */
-        (pure(p.cursor === undefined
+        pure(p.cursor === undefined
             ? { tools: [{ name: 'greet', inputSchema: {} }] }
-            : { tools: [], nextCursor: p.cursor })),
+            : { tools: [], nextCursor: p.cursor }),
     toolsCall: (/** @type {ToolsCallParams} */ _p) =>
-        /** @type {Effect<_Op, ToolsCallResult>} */
-        (pure({ content: [{ type: 'text', text: 'hello' }] })),
+        pure({ content: [{ type: 'text', text: 'hello' }] }),
 }
 
 /** @typedef {readonly [unknown, McpSessionState]} _StepResult */
@@ -78,7 +76,7 @@ const runMem = effect =>
 // TypeScript infers O = Operation (the upper bound) rather than O = never when
 // O flows through McpHandlers<never>, so we cast the widened type down to MemOp.
 /** @type {<T>(e: Effect<Operation, T>) => Effect<MemOp, T>} */
-const asMemEffect = e => /** @type {Effect<MemOp, any>} */ (/** @type {unknown} */ (e))
+const asMemEffect = e => /** @type {Effect<MemOp, any>} */ (e)
 
 // Pairs the last step's response with the session state read back afterwards.
 // The response is still needed after the read, so it is carried forward in a
@@ -93,14 +91,14 @@ const withState = key => e => {
 /** @type {(cfg: McpConfig) => (msg: unknown) => _StepResult} */
 const step1 = cfg => msg =>
     runMem(asMemEffect(step(
-        create(/** @type {McpSessionState} */ (uninitializedState)),
+        create(uninitializedState),
         key => withState(key)(mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg))))))
 
 // Run initialize then a second step, return [response, newState] of the second.
 /** @type {(cfg: McpConfig) => (msg1: unknown) => (msg2: unknown) => _StepResult} */
 const step2 = cfg => msg1 => msg2 =>
     runMem(asMemEffect(step(
-        create(/** @type {McpSessionState} */ (uninitializedState)),
+        create(uninitializedState),
         key => {
             const r1 = mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg1))
             const r2 = step(r1, () => mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg2)))
@@ -111,7 +109,7 @@ const step2 = cfg => msg1 => msg2 =>
 /** @type {(cfg: McpConfig) => (msg1: unknown) => (msg2: unknown) => (msg3: unknown) => _StepResult} */
 const step3 = cfg => msg1 => msg2 => msg3 =>
     runMem(asMemEffect(step(
-        create(/** @type {McpSessionState} */ (uninitializedState)),
+        create(uninitializedState),
         key => {
             const r1 = mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg1))
             const r2 = step(r1, () => mcpStep(cfg)(handlers)(key)(/** @type {Unknown} */ (msg2)))
@@ -147,7 +145,7 @@ export const proof = {
 
         initializeReturnsResult: () => {
             const [resp] = step1(config)(initMsg)
-            assert(resp !== null && typeof resp === 'object' && 'result' in /** @type {object} */ (resp))
+            assert(resp !== null && typeof resp === 'object' && 'result' in (resp))
             const r = /** @type {{ result: { protocolVersion: string } }} */ (resp).result
             assertEq(r.protocolVersion, '2024-11-05')
         },
@@ -324,8 +322,7 @@ export const proof = {
         toolsCallAbsentArgumentsDefaultsToEmptyObject: () => {
             const echoArgs = /** @type {const} */ ({})
             const entry = toolEntry('echo', 'echoes', echoArgs,
-                /** @type {(a: Ts<typeof echoArgs>) => Effect<never, ToolsCallResult>} */
-                (() => pure(okResult('ok'))))
+                () => pure(okResult('ok')))
             const handlers = fromRegistry([entry])
             const [result] = runPure(handlers.toolsCall({ name: 'echo' }))
             assert(result !== undefined)

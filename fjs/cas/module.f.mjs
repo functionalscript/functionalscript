@@ -249,7 +249,7 @@ export const fileCas = sha2 => path => {
             const loop = offset =>
                 step(
                     readBytes(p, offset, chunkBytes),
-                    /** @type {(result: IoResult<Vec>) => List<FileCasOperation, IoResult<Vec>>} */ (result) => {
+                    (result) => {
                         const [t, v] = result
                         // A missing shard or read error is an explicit error item, never EOF.
                         if (t === 'error') {
@@ -271,7 +271,7 @@ export const fileCas = sha2 => path => {
             // genuine storage error and is surfaced, not masked as "no hashes".
             step(access(storePrefix), a => {
                 if (a[0] === 'error') {
-                    if (isNotFound(a[1])) { return pure(/** @type {readonly Vec[]} */ ([])) }
+                    if (isNotFound(a[1])) { return pure([]) }
                     throw a[1]
                 }
                 return mapStep(
@@ -306,7 +306,7 @@ const streamFile = filePath => {
     const loop = offset =>
         step(
             readBytes(filePath, offset, chunkBytes),
-            /** @type {(result: IoResult<Vec>) => List<ReadBytes, IoResult<Vec>>} */ (result) => {
+            (result) => {
                 if (result[0] === 'error') {
                     return nonEmpty(result, elEmpty())
                 }

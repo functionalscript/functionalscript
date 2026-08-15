@@ -32,14 +32,14 @@ const parseSubjects = rttiParse(array(rttiString))
 const findEntry = (registry, name) => {
     const entry = registry.find(e => e.name === name)
     assert(entry !== undefined, ['missing tool entry', name])
-    return /** @type {ToolEntry<O>} */ (entry)
+    return entry
 }
 
 /** @type {(result: ToolsCallResult) => string} */
 const textOf = result => {
     const [item] = result.content
     assert(item.type === 'text', ['expected a text content item', item])
-    return /** @type {{ text: string }} */ (item).text
+    return item.text
 }
 
 export const proof = {

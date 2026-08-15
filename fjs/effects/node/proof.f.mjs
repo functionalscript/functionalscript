@@ -313,7 +313,7 @@ export const proof = {
         // (and `duration`) instead of the runner measuring.
         ok: () => {
             const [_, { result, duration }] = virtual(emptyState)(
-                sandbox(() => /** @type {never} */ ({ result: ['ok', 42], duration: 0 })))
+                sandbox(() => ({ result: ['ok', 42], duration: 0 })))
             assert(result[0] === 'ok', result)
             assertEq(result[1], 42)
             assertEq(duration, 0)
@@ -321,7 +321,7 @@ export const proof = {
         error: () => {
             const err = new Error('fail')
             const [_, { result }] = virtual(emptyState)(
-                sandbox(() => /** @type {never} */ ({ result: ['error', err], duration: 0 })))
+                sandbox(() => ({ result: ['error', err], duration: 0 })))
             assert(result[0] === 'error', result)
             assertEq(result[1], err)
         },
@@ -351,7 +351,7 @@ export const proof = {
             assert(t === 'ok', result)
             assertEq(state.root.src, undefined, state.root)
             assert(Array.isArray(state.root.dst), state.root)
-            assertEq(uint((/** @type {readonly Vec[]} */ (state.root.dst))[0]), 0x2An, state.root)
+            assertEq(uint(state.root.dst[0]), 0x2An, state.root)
         },
         nestedRename: () => {
             const [state, [t, result]] = virtual({

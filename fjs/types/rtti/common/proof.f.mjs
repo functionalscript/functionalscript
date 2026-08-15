@@ -19,12 +19,12 @@ const collect = (acc, k, v) => [...acc, [k, v]]
 
 export const proof = {
     empty: () => {
-        const r = eachEntry(/** @type {_Entries} */ ([]), item, /** @type {_Entries} */ ([]), collect)
+        const r = eachEntry([], item, [], collect)
         assert(r[0] === 'ok')
         assertEq(r[1].length, 0)
     },
     allOk: () => {
-        const r = eachEntry([['a', 1], ['b', 2]], item, /** @type {_Entries} */ ([]), collect)
+        const r = eachEntry([['a', 1], ['b', 2]], item, [], collect)
         assert(r[0] === 'ok')
         assertEq(r[1].length, 2)
         assertEq(r[1][0][0], 'a')
@@ -39,7 +39,7 @@ export const proof = {
         assertEq(r[1], undefined)
     },
     firstErrorWins: () => {
-        const r = eachEntry([['a', -1], ['b', -2]], item, /** @type {_Entries} */ ([]), collect)
+        const r = eachEntry([['a', -1], ['b', -2]], item, [], collect)
         assert(r[0] === 'error')
         assertEq(r[1].message, 'negative at a')
     },
@@ -50,7 +50,7 @@ export const proof = {
             calls++
             return item(k, v)
         }
-        const r = eachEntry([['a', -1], ['b', -2], ['c', -3]], counting, /** @type {_Entries} */ ([]), collect)
+        const r = eachEntry([['a', -1], ['b', -2], ['c', -3]], counting, [], collect)
         assert(r[0] === 'error')
         assertEq(calls, 1)
     },
@@ -58,7 +58,7 @@ export const proof = {
         /** @type {(k: string, v: number) => Result<number, ValidationError>} */
         const nested = (k, v) =>
             v < 0 ? error({ path: ['inner'], message: 'bad' }) : ok(v)
-        const r = eachEntry([['outer', -1]], nested, /** @type {_Entries} */ ([]), collect)
+        const r = eachEntry([['outer', -1]], nested, [], collect)
         assert(r[0] === 'error')
         assertEq(r[1].path.length, 2)
         assertEq(r[1].path[0], 'outer')

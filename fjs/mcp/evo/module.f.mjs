@@ -121,7 +121,7 @@ export const evoToolRegistry = e => [
         // constrained to a newline-free alphabet), so a `join('\n')` line
         // format could not represent an empty subject or one containing a
         // newline without ambiguity — JSON encoding can.
-        /** @type {(args: Ts<typeof evoListArgs>) => Effect<MemOp, ToolsCallResult>} */
+        
         (({ archived }) => step(
             e.list(archived),
             subjects => pure(okResult(toJson(subjects)))
@@ -131,11 +131,10 @@ export const evoToolRegistry = e => [
         'evo_head',
         'List the current head hashes (cBase32) of a subject, one per line. Empty when the subject is unknown.',
         evoHeadArgs,
-        /** @type {(args: Ts<typeof evoHeadArgs>) => Effect<MemOp, ToolsCallResult>} */
-        (({ subject }) => step(
+        ({ subject }) => step(
             e.head(subject),
             heads => pure(okResult(heads.join('\n'))),
-        )),
+        ),
     ),
     toolEntry(
         'evo_revision',
@@ -145,7 +144,7 @@ export const evoToolRegistry = e => [
         // `evo_list`'s. An encoded response that outgrows the transport cap is
         // the transport's `-32603`, not a tool-level error — see "Result size"
         // in the module doc.
-        /** @type {(args: Ts<typeof evoRevisionArgs>) => Effect<O | MemOp, ToolsCallResult>} */
+        
         (({ hash }) => step(
             e.revision(hash),
             result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(toJson(result[1])))
@@ -155,10 +154,9 @@ export const evoToolRegistry = e => [
         'evo_add',
         'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server. `lock` is optional resolver input: a map from dependency subject to the cBase32 hash of the content it resolves to, or to a nested map scoping further bindings under that subject (use nesting only for conflicting choices a flat map cannot express, e.g. two dependencies needing different versions of a third). Pass a cBase32 hash instead of a map to share one already stored as a `vnd.fjs.lock` blob; the server records the reference and does not follow it.',
         evoAddArgs,
-        /** @type {(input: Ts<typeof evoAddArgs>) => Effect<O | MemOp, ToolsCallResult>} */
-        (input => step(
+        input => step(
             e.add(input),
             result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(result[1]))
-        )),
+        ),
     ),
 ]

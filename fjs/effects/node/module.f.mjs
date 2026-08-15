@@ -173,7 +173,7 @@ const writeLoop = path => {
 export const writeFromStream = (path, e) =>
     step(
         createExclusive(path),
-        okStep(() => /** @type {Effect<O | WriteBytes, IoResult<void>>} */ (writeLoop(path)(0, e))))
+        okStep(() => writeLoop(path)(0, e)))
 
 // stat
 
@@ -183,8 +183,7 @@ export const stat = do_('stat')
 // createServer
 
 export const createServer =
-    /** @type {<O extends Operation>(listener: RequestListener<O>) => Effect<O | CreateServer, Server>} */
-    (do_('createServer'))
+    do_('createServer')
 
 // listen
 
@@ -216,10 +215,10 @@ const writeString = stream => s =>
     write(stream, utf8(s + '\n'))
 
 /** Writes a line to `stdout`. Replaces the retired `Log` effect. */
-export const log = /** @type {Console} */ (writeString('stdout'))
+export const log = writeString('stdout')
 
 /** Writes a line to `stderr`. Replaces the retired `Error` effect. */
-export const error = /** @type {Console} */ (writeString('stderr'))
+export const error = writeString('stderr')
 
 // read
 

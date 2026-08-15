@@ -100,7 +100,7 @@ const containerParse =
         if (e.length === 0) {
             return /** @type {any} */ (ok(rebuild([])))
         }
-        const itemParse = /** @type {(v: Unknown) => _ItemResult} */ (/** @type {any} */ (parse(item)))
+        const itemParse = /** @type {any} */ (parse(item))
         const r = eachEntry(e, (_k, v) => itemParse(v), emptyEntries, consEntry)
         return r[0] === 'error' ? r : /** @type {any} */ (ok(rebuild(orderedEntries(r[1]))))
     }
@@ -130,7 +130,7 @@ const constContainerParse =
         }
         const r = eachEntry(
             entries(rtti),
-            (k, t) => /** @type {_ItemResult} */ (/** @type {any} */ (parse(t))(getItem(value, k))),
+            (k, t) => (/** @type {any} */ (parse(t))(getItem(value, k))),
             emptyEntries,
             consEntry,
         )
@@ -195,4 +195,4 @@ const parseVisitor = /** @type {any} */ ({
 
 /** @type {<T extends Type>(rtti: T) => Parse<T>} */
 export const parse = rtti =>
-    /** @type {any} */ (visit(parseVisitor)(rtti))
+    (visit(parseVisitor)(rtti))

@@ -107,32 +107,32 @@ export const proof = {
             error: () => assertError(validate(/** @type {const} */ (42))(43)),
         },
         nan: {
-            ok: () => assertOk(validate(/** @type {number} */ (NaN))(NaN)),
+            ok: () => assertOk(validate(NaN)(NaN)),
             error: () => {
-                assertError(validate(/** @type {number} */ (NaN))(0))
+                assertError(validate(NaN)(0))
                 assertError(validate(/** @type {const} */ (0))(NaN))
                 assertError(validate(/** @type {const} */ (42))(NaN))
             },
         },
         infinity: {
             ok: () => {
-                assertOk(validate(/** @type {number} */ (Infinity))(Infinity))
-                assertOk(validate(/** @type {number} */ (-Infinity))(-Infinity))
+                assertOk(validate(Infinity)(Infinity))
+                assertOk(validate(-Infinity)(-Infinity))
             },
             error: () => {
-                assertError(validate(/** @type {number} */ (Infinity))(-Infinity))
-                assertError(validate(/** @type {number} */ (Infinity))(0))
+                assertError(validate(Infinity)(-Infinity))
+                assertError(validate(Infinity)(0))
             },
         },
         signedZero: {
             // `Object.is` distinguishes +0 and -0; `===` treats them equal.
             distinct: () => {
                 assertError(validate(/** @type {const} */ (0))(-0))
-                assertError(validate(/** @type {number} */ (-0))(0))
+                assertError(validate(-0)(0))
             },
             self: () => {
                 assertOk(validate(/** @type {const} */ (0))(0))
-                assertOk(validate(/** @type {number} */ (-0))(-0))
+                assertOk(validate(-0)(-0))
             },
         },
         string: {

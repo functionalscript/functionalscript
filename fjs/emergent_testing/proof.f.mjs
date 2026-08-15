@@ -166,10 +166,10 @@ export const returnValueSubTree = () => {
     const [events, exit] = run({
         'r.proof.f.ts': () => ({
             proof: {
-                outer: /** @type {() => unknown} */ (() => ({
+                outer: () => ({
                     result: /** @type {const} */ (['ok', { inner }]),
                     duration: 0,
-                })),
+                }),
             }
         }),
     })
@@ -336,7 +336,7 @@ const makeRegisterRunner = testOp => {
             effects.reduce(
                 ([st, rs], e) => {
                     const [ns, r] = runner(st)(e)
-                    return /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([ns, [...rs, r]])
+                    return [ns, [...rs, r]]
                 },
                 /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([s, []]),
             ),
@@ -438,7 +438,7 @@ export const registerSelectsContextAndStar = () => {
                 effects.reduce(
                     ([st, rs], e) => {
                         const [ns, r] = runner(st)(e)
-                        return /** @type {readonly [undefined, readonly unknown[]]} */ ([ns, [...rs, r]])
+                        return [ns, [...rs, r]]
                     },
                     /** @type {readonly [undefined, readonly unknown[]]} */ ([s, []]),
                 ),

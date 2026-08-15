@@ -51,15 +51,15 @@ const run = runStep(echoStep)
 
 /** @type {(id: Id) => string} */
 const okResponse = id =>
-    stringifyJson(/** @type {Unknown} */ ({ jsonrpc, result: { ok: true }, id })) + '\n'
+    stringifyJson({ jsonrpc, result: { ok: true }, id }) + '\n'
 
 /** @type {string} */
 const parseErrorLine =
-    stringifyJson(/** @type {Unknown} */ ({ jsonrpc, error: parseError, id: null })) + '\n'
+    stringifyJson({ jsonrpc, error: parseError, id: null }) + '\n'
 
 /** @type {(id: Id) => string} */
 const internalErrorLine = id =>
-    stringifyJson(/** @type {Unknown} */ ({ jsonrpc, error: internalError, id })) + '\n'
+    stringifyJson({ jsonrpc, error: internalError, id }) + '\n'
 
 /** @type {(id: number) => string} */
 const ping = id => `{"jsonrpc":"2.0","method":"ping","id":${id}}`
@@ -122,7 +122,7 @@ export const proof = {
             const id = idOf(value)
             return pure(id === undefined
                 ? null
-                : /** @type {Response} */ (/** @type {unknown} */ ({ jsonrpc, result: { ok: true, nextCursor: undefined }, id })))
+                : /** @type {Response} */ ({ jsonrpc, result: { ok: true, nextCursor: undefined }, id }))
         }
         const state = runStep(step)(ping(1) + '\n')
         assertEq(state.stdout, okResponse(1))

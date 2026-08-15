@@ -143,7 +143,7 @@ const runStdio =
         const effect = step(
             initEvo(fileCas(sha256)(home)),
             cacheKey => step(
-                create(/** @type {McpSessionState} */ (uninitializedState)),
+                create(uninitializedState),
                 sessionKey =>
                     stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))
             )
@@ -176,12 +176,12 @@ const textSample = 'hello, world!'
 const revisionSample = `{"dialect":"${revisionDialect}","subject":"8","parents":[],"snapshot":"8","generation":0}`
 
 // A base64-encoded binary payload for binary add→get round-trips.
-const binarySample = /** @type {string} */ (base64Encode(vec8(0x2An)))
+const binarySample = base64Encode(vec8(0x2An))
 
 // A base64 blob whose leading bytes are the PNG magic-byte signature, so
 // `cas_get` detects its type and returns base64 with mimeType image/png.
-const pngSample = /** @type {string} */ (base64Encode(
-    u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])))
+const pngSample = base64Encode(
+    u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]))
 
 // Returns the RFC 4648 base64 encoding of `n` zero bytes, computed directly
 // without bigint arithmetic — independent of `base64.encode` so these tests
@@ -209,10 +209,10 @@ const largeMultiChunkBlobMeta =
     (/** @type {Vec} */ chunk0, /** @type {Vec} */ chunk1, /** @type {string} */ expectedType,
         /** @type {string} */ expectedMime) => () => {
         const [root, hash] = seedBlob({})([chunk0, chunk1])
-        const [metaResp] = /** @type {readonly unknown[]} */ (runSessionVirtual(root)([
+        const [metaResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_get', { hash }),
-        ]).slice(2))
+        ]).slice(2)
         assert(!resultOf(metaResp).isError)
         const meta = casGetResultOf(metaResp)
         assertEq(meta.type, expectedType)
@@ -265,10 +265,10 @@ export const proof = {
     // buffered inline. The metadata-only path (above) still returns its size/type.
     getContentLargeBlobTooLargeError: () => {
         const [root, hash] = seedBlob({})([asciiChunk, asciiChunk])
-        const [getResp] = /** @type {readonly unknown[]} */ (runSessionVirtual(root)([
+        const [getResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_get', { hash, content: true }),
-        ]).slice(2))
+        ]).slice(2)
         assertEq(resultOf(getResp).isError, true)
         const text = textOf(getResp)
         assert(text.includes('too large'))
@@ -657,7 +657,7 @@ export const proof = {
 
     getMetaOctetStreamForUnknownBinary: () => {
         const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
-        const binaryB64 = /** @type {string} */ (base64Encode(binaryContent))
+        const binaryB64 = base64Encode(binaryContent)
         const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
         const hash = textOf(addResp)
         const [, metaResp] = session(
@@ -675,7 +675,7 @@ export const proof = {
     // base64/octet-stream, not text/plain.
     getMetaOctetStreamForNulBlob: () => {
         const nulContent = u8ListToVec(msb)([0x00, 0x00, 0x00])
-        const nulB64 = /** @type {string} */ (base64Encode(nulContent))
+        const nulB64 = base64Encode(nulContent)
         const [addResp] = session(call(2, 'cas_add', { content: nulB64, type: 'base64' }))
         const hash = textOf(addResp)
         const [, metaResp] = session(
@@ -702,7 +702,7 @@ export const proof = {
     // cas_get with content:true on octet-stream (no magic bytes, not UTF-8) returns inline base64.
     getOctetStreamWithContentIncludesBase64: () => {
         const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
-        const binaryB64 = /** @type {string} */ (base64Encode(binaryContent))
+        const binaryB64 = base64Encode(binaryContent)
         const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
         const hash = textOf(addResp)
         const [, getResp] = session(

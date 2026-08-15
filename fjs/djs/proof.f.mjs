@@ -11,7 +11,7 @@ import { assert, assertEq } from '../asserts/module.f.mjs'
 const readOutput = (root, path) => {
     const file = root[path]
     if (!Array.isArray(file) || file.length === 0) { throw `${path} is not a file` }
-    return utf8ToString(/** @type {readonly Vec[]} */ (file)[0])
+    return utf8ToString(file[0])
 }
 
 export const proof = {

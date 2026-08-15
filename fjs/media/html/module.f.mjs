@@ -67,7 +67,7 @@ const escapeTable = /** @type {const} */ ({
 
 /** @type {(code: number) => string} */
 const escapeCharCode = code =>
-    escapeTable[/** @type {keyof typeof escapeTable} */ (code)] ?? fromCharCode(code)
+    escapeTable[code] ?? fromCharCode(code)
 
 const escape = compose(stringToList)(map(escapeCharCode))
 

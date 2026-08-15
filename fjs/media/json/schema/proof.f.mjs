@@ -11,7 +11,7 @@ import { unitBit } from '../../../types/rtti/data/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
 /** @type {(v: Unknown) => string} */
-const serialize = v => stringify(e => e)(/** @type {JsonValue} */ (/** @type {unknown} */ (v)))
+const serialize = v => stringify(e => e)(/** @type {JsonValue} */ (v))
 
 /** @type {(rtti: Parameters<typeof toJsonSchema>[0], expected: Unknown) => () => void} */
 const eq = (rtti, expected) => () => {

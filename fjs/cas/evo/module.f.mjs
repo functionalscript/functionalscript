@@ -67,7 +67,7 @@ import { isNotFound } from '../../effects/node/module.f.mjs'
 import { decodeText, encodeText, dialect, checkReferences, isHash } from '../../media/revision/module.f.mjs'
 
 /** A cache with no known subjects yet — the starting point for {@link buildCache}. */
-export const emptyCache = /** @type {Cache} */ ({ bySubject: {} })
+export const emptyCache = { bySubject: {} }
 
 /** @type {SubjectState} */
 const emptySubjectState = { hashes: [], parents: [], archived: [] }
@@ -291,8 +291,7 @@ const resolveParents = cas => parents => {
             return mapStep(
                 resolveParent(cas)(parentRef),
                 (/** @type {Result<Revision, string>} */ parentResult) =>
-                    /** @type {Result<readonly Revision[], string>} */
-                    (parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]])))
+                    parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]]))
         })
 }
 
@@ -461,7 +460,7 @@ export const addRevision = cas => cacheKey => input =>
                 return pure(error('revision too large to encode'))
             }
             return step(
-                cas.write(nonEmpty(ok(bytes), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))),
+                cas.write(nonEmpty(ok(bytes), elEmpty())),
                 (/** @type {IoResult<Vec>} */ writeResult) => {
                     if (writeResult[0] === 'error') {
                         return /** @type {Effect<MemOp, Result<Hash, string>>} */ (pure(error('failed to write revision to CAS')))

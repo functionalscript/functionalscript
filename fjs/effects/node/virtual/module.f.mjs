@@ -222,7 +222,7 @@ const insertEntityAt = (dir, path, entity) => {
                 return [dir, error(`'${name}' is a directory`)]
             }
             if (entityIsDir && existingIsDir) {
-                const existingDir = /** @type {Dir} */ (existing)
+                const existingDir = existing
                 const hasContent = Object.values(existingDir).some(v => v !== undefined)
                 if (hasContent) {
                     return [dir, error(`cannot overwrite non-empty directory '${name}'`)]
@@ -326,7 +326,7 @@ const writeBytesRawOp = (offset, data) => (dir, p) => {
     if (file === undefined) { return [dir, enoent] }              // writeBytes never creates
     if (!Array.isArray(file)) { return [dir, error(`'${name}' is not a file`)] }
     if (!Number.isInteger(offset) || offset < 0) { return [dir, error(`Offset ${offset} is invalid`)] }
-    const chunks = /** @type {readonly Vec[]} */ (file)
+    const chunks = file
     if (offset !== fileSizeBytes(chunks)) {
         return [dir, error(`writeBytes offset ${offset} must equal the file size (append-only)`)]
     }
@@ -342,7 +342,7 @@ const statOp = readOperation((dir, path) => {
     const file = dir[path[0]]
     if (file === undefined) { return enoent }
     if (!Array.isArray(file)) { return error(`'${path[0]}' is not a file`) }
-    return ok({ size: fileSizeBytes(/** @type {readonly Vec[]} */ (file)) })
+    return ok({ size: fileSizeBytes(file) })
 })
 
 /** @type {MemOperationMap<NodeOp, State>} */
@@ -359,7 +359,7 @@ const map = {
     },
     memCreate: value => state => {
         const id = `mem${state.memoryNext}`
-        const key = /** @type {Key<unknown>} */ (asNominal(id))
+        const key = asNominal(id)
         return [{
             ...state,
             memoryNext: state.memoryNext + 1,
