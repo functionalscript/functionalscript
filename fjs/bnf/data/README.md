@@ -16,7 +16,7 @@ would emit the cons-shaped chain that spelling implies rather than a sequence of
 items. `toData()` therefore recognizes the shape and records it:
 
 ```text
-R = { some: S, none: E }   S = [item, R]   E = []      ⟶   R = { repeat: [item] }
+R = { some: S, none: E }   S = [item, R]   E = []      ⟶   R = item
 ```
 
 Recognition is structural, so a hand-written 0-or-more list folds exactly like a
@@ -35,10 +35,14 @@ Naming that needs the schema/action mechanism, not this fold. There is no `min`
 parameter for the same reason: `repeat` means 0-or-more, exactly the case the
 shape settles on its own.
 
-The body is a one-element array rather than a bare rule name so a `Repeat` stays
-unambiguous against a `Variant`, whose branches all map to rule *names* — even a
-variant with a branch called `repeat`. Rule dispatch asks `isRepeat()` rather
-than testing that shape inline, so the discriminator lives in one place.
+A `Repeat` is the repeated rule's **name**, which keeps the four rule kinds
+disjoint by JavaScript type alone — a number is a `TerminalRange`, an array a
+`Sequence`, an object a `Variant`, a string this — so telling one kind from
+another never has to probe a shape. A string is free to mean this because nothing
+else in a `RuleSet` is one: the *functional* `DataRule` does have a string case,
+a Unicode literal, but `toData` expands it to terminals long before the data form
+exists. Rule dispatch still asks `isRepeat()` rather than testing for a string
+inline, so the discriminator lives in one place when the rule model next moves.
 
 Folding a rule leaves its recursive branch (and often its empty one) unreachable,
 and `toData()` drops rules that the entry can no longer reach. Generated rule

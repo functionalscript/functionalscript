@@ -115,7 +115,7 @@ export const dispatchMap = ruleSet => {
             // then this rule again. This backend inlines the first set of a
             // nullable item into whatever encloses it, so the repetition has to
             // stay expressible as a rules chain — see ./README.md.
-            const [item] = rule.repeat
+            const item = rule
             if (contains(item)(newCurrent)) {
                 /** @type {_DispatchRule} */
                 const dr = {emptyTag: true, rangeMap: []}

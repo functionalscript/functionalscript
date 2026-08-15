@@ -28,15 +28,14 @@ import { contains, set } from '../../types/string_set/module.f.mjs'
 /**
  * Whether a data rule is a {@link Repeat}.
  *
- * Every rule-dispatch site asks this instead of testing the shape inline, so
+ * Every rule-dispatch site asks this instead of testing for a string inline, so
  * the repetition rule kind has exactly one discriminator to move when the
  * surrounding rule model changes.
  *
  * @param {Rule} rule
  * @returns {rule is Repeat}
  */
-export const isRepeat = rule =>
-    typeof rule === 'object' && !(rule instanceof Array) && rule.repeat instanceof Array
+export const isRepeat = rule => typeof rule === 'string'
 
 /** @typedef {StringMap<EmptyTag>} _EmptyTagMap */
 
@@ -207,7 +206,7 @@ const refs = rule => {
     } else if (rule instanceof Array) {
         return rule
     } else if (isRepeat(rule)) {
-        return rule.repeat
+        return [rule]
     } else {
         return definedValues(rule)
     }
@@ -230,8 +229,8 @@ const reachable = ruleSet => entry => visit(ruleSet)(null, entry)
 const isNone = rule => rule instanceof Array && rule.length === 0
 
 /**
- * The {@link Repeat} that `name` encodes as right-recursion, or `undefined`
- * when it encodes something else.
+ * The {@link Repeat} — the name of the item to repeat — that `name` encodes as
+ * right-recursion, or `undefined` when it encodes something else.
  *
  * The shape recognized is exactly the unambiguous 0-or-more list: a two-branch
  * variant whose branches are an empty sequence and `[item, name]`, in either
@@ -259,7 +258,7 @@ const repeatOf = (ruleSet, emptyTags) => name => {
     if (!(stepRule instanceof Array) || stepRule.length !== 2 || stepRule[1] !== name) { return undefined }
     const [item] = stepRule
     if (emptyTags[item] !== undefined || contains(name)(reachable(ruleSet)(item))) { return undefined }
-    return { repeat: [item] }
+    return item
 }
 
 /**

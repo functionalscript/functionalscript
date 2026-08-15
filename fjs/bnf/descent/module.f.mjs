@@ -270,7 +270,7 @@ export const descentParserRuleSet = ruleSet => {
                         task = { kind: 'rule', name: rule[0], tag: undefined, pos }
                     }
                 } else if (isRepeat(rule)) {
-                    task = { kind: 'repeat', tag, item: rule.repeat[0], items: null, pos }
+                    task = { kind: 'repeat', tag, item: rule, items: null, pos }
                 } else {
                     const entries = definedEntries(rule)
                     const emptyTag = emptyTags[name]

@@ -352,7 +352,7 @@ export const proof = {
             // it and so cannot carry the repetition anywhere else.
             const rule = repeat0Plus(range('AF'))
             const [ruleSet, entry] = toData(rule)
-            assertEq(JSON.stringify(ruleSet[entry]), '{"repeat":["0"]}')
+            assertEq(JSON.stringify(ruleSet[entry]), '"0"')
             assertEq(
                 JSON.stringify(dispatchMap(ruleSet)[entry]),
                 '{"emptyTag":true,"rangeMap":[[null,64],[{"rules":["r"]},70]]}')
@@ -362,7 +362,7 @@ export const proof = {
             // for one would not terminate. `toData` never folds such a rule; a
             // hand-written rule set can still hold one.
             /** @type {RuleSet} */
-            const ruleSet = { repeated: { repeat: ['repeated'] } }
+            const ruleSet = { repeated: 'repeated' }
             assertEq(
                 JSON.stringify(dispatchMap(ruleSet)),
                 '{"repeated":{"emptyTag":true,"rangeMap":[]}}')

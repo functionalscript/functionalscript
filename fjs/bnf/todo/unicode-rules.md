@@ -49,10 +49,13 @@ text as Unicode code points, it belongs in `fjs/bnf/unicode`. Likewise, helpers
 that interpret binary data as byte symbols belong in `fjs/bnf/byte` rather than
 core BNF.
 
-Remove `string` from the generic `DataRule` / `Rule` representation. Unicode
-helpers should translate strings into ordinary generic rules before the grammar
-reaches `fjs/bnf/data`, so `fjs/bnf/data/module.f.mjs` no longer imports
-`stringToCodePointList` or performs a string-specific conversion.
+Remove `string` from the *functional* `DataRule` / `Rule` representation in
+`fjs/bnf/types.ts`. Unicode helpers should translate strings into ordinary
+generic rules before the grammar reaches `fjs/bnf/data`, so
+`fjs/bnf/data/module.f.mjs` no longer imports `stringToCodePointList` or performs
+a string-specific conversion. This does not touch the *data* `Rule` in
+`fjs/bnf/data/types.ts`, where a string is a `Repeat` and means the name of a
+rule to repeat.
 
 Keep generic combinators generic. If an existing combinator currently embeds
 Unicode syntax in its API (for example `commaJoin0Plus` accepting `'[]'` and
@@ -81,11 +84,14 @@ This split changes the public design assumptions used by older open TODOs:
   split/revision must remove `string` as a generic rule kind. Unicode text helpers
   are constructors of ordinary generic rules rather than a distinct generic rule
   kind.
-- The `Repeat` rule kind has shipped and is **not** affected by this split. Its
-  earlier design did use a bare `string` as a generic rule and `typeof rule ===
-  'number'` terminal dispatch; the implemented one uses neither — a `Repeat` is
-  `{ repeat: [name] }`, and `isRepeat` in `fjs/bnf/data/module.f.mjs` is the
-  single discriminator to re-point when the rule model changes.
+- The `Repeat` rule kind has shipped, and this split **helps** it. A `Repeat` is
+  a bare rule name, so `bnf/data`'s `Rule` now has a string case — but that is
+  the *data* `Rule`, which never had the Unicode-literal string case this task
+  removes from the *functional* `DataRule`. Removing the functional one leaves
+  `string` with exactly one meaning per layer instead of two spellings that only
+  ever met inside `data()`'s `case 'string'`. `isRepeat` in
+  `fjs/bnf/data/module.f.mjs` is the single discriminator to re-point if the
+  rule model moves again.
 - [`fjs/bnf/todo/rule-visitor.md`](./rule-visitor.md) is blocked by this task and
   the bigint symbol/range migration. Its visitor must be defined against the
   final post-migration `Rule` union: it must not preserve a generic string branch
@@ -119,7 +125,8 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Remove Unicode/text imports from `fjs/bnf/module.f.mjs`.
 - [ ] Keep byte-container interpretation out of `fjs/bnf/module.f.mjs` and
       `fjs/bnf/data/module.f.mjs`.
-- [ ] Remove `string` as a generic BNF `DataRule` / `Rule` case.
+- [ ] Remove `string` as a functional BNF `DataRule` / `Rule` case; leave the
+      data `Rule`'s string case, which is `Repeat`, alone.
 - [ ] Remove Unicode string expansion from `fjs/bnf/data/module.f.mjs`.
 - [ ] Make any core combinators that currently embed string/Unicode syntax
       alphabet-agnostic; keep optional Unicode conveniences in
@@ -135,9 +142,9 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Keep `fjs/bnf/todo/207.md` blocked until it is rebased/split so `string` is
       no longer described as a generic rule kind; Unicode text constructors lower
       to ordinary generic rules before semantic evaluation.
-- [ ] Re-point `isRepeat` in `fjs/bnf/data/module.f.mjs` at the post-split rule
-      model; the shipped `Repeat` encoding reuses neither bare `string` nor a
-      `typeof rule === 'number'` terminal test, so nothing else about it moves.
+- [ ] Check `isRepeat` in `fjs/bnf/data/module.f.mjs` still holds after the
+      split: a data `Rule` that is a string is a `Repeat`, and removing the
+      functional Unicode-literal case only makes that reading unambiguous.
 - [ ] Keep `fjs/bnf/todo/rule-visitor.md` blocked until the final post-split and
       post-bigint `Rule` discriminants are settled; define its visitor against
       those semantic cases rather than the obsolete raw-string/number tests.

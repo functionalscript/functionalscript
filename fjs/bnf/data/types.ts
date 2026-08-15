@@ -22,7 +22,7 @@ export type Sequence = readonly string[]
 export type Variant = StringMap<string>
 
 /**
- * Zero or more repetitions of one rule.
+ * Zero or more repetitions of the named rule.
  *
  * The functional grammar has no repetition primitive — `repeat0Plus(x)` expands
  * to a right-recursive variant — so this is the one rule kind `toData` derives
@@ -30,14 +30,14 @@ export type Variant = StringMap<string>
  * emits this instead, which is what lets a parser backend match the body
  * iteratively and produce one flat node for the whole repetition.
  *
- * The body is a one-element array rather than a bare rule name so the shape
- * stays unambiguous against {@link Variant}: a variant maps every branch to a
- * rule *name*, so an object holding an array can never be one — including a
- * variant with a branch literally called `repeat`. It is an array rather than
- * a bare object field so the body has room to become a whole {@link Sequence}
- * later without changing the encoding.
+ * A bare rule name keeps the four rule kinds disjoint by JavaScript type alone:
+ * a number is a {@link TerminalRange}, an array a {@link Sequence}, an object a
+ * {@link Variant}, and a string this. Nothing else in a {@link RuleSet} is a
+ * string, so no shape has to be probed to tell one kind from another. (The
+ * *functional* `DataRule` does have a string case — a Unicode literal — but
+ * that one never reaches here: `toData` expands it to terminals.)
  */
-export type Repeat = { readonly repeat: readonly[string] }
+export type Repeat = string
 
 /**
  * Grammar rule definition.
@@ -46,7 +46,7 @@ export type Repeat = { readonly repeat: readonly[string] }
  * - a tagged variant map,
  * - a sequence of referenced rule names,
  * - an encoded terminal range,
- * - a zero-or-more repetition of one rule.
+ * - the name of a rule to repeat zero or more times.
  */
 export type Rule = Variant | Sequence | TerminalRange | Repeat
 

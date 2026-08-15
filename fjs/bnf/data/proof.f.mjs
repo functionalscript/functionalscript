@@ -92,22 +92,22 @@ export const proof = {
             // the recursive and empty branches it replaced are pruned.
             const repeatRule = repeat0Plus(set(' \n\r\t'))
             const result = stringify(identity)(toData(repeatRule))
-            const expected = '[{"0":{" ":"1","\\n":"2","\\r":"3","\\t":"4"},"1":536870944,"2":167772170,"3":218103821,"4":150994953,"r":{"repeat":["0"]}},"r"]'
+            const expected = '[{"0":{" ":"1","\\n":"2","\\r":"3","\\t":"4"},"1":536870944,"2":167772170,"3":218103821,"4":150994953,"r":"0"},"r"]'
             assertEq(result, expected, [result, expected])
         }
     ],
     isRepeat: () => {
-        assertEq(isRepeat({ repeat: ['a'] }), true)
-        // A variant maps every branch to a rule *name*, so one cannot be taken
-        // for a repetition however its branches are named.
-        assertEq(isRepeat({ repeat: 'a' }), false)
+        assertEq(isRepeat('a'), true)
+        // Nothing else in a rule set is a string, so the four rule kinds are
+        // told apart by JavaScript type alone — no shape has to be probed.
         assertEq(isRepeat(['a', 'b']), false)
+        assertEq(isRepeat({ some: 'a' }), false)
         assertEq(isRepeat(oneEncode(0x41)), false)
     },
     detectRepeat: [
         () => {
             const result = stringify(identity)(toData(repeat0Plus(range('AF'))))
-            const expected = '[{"0":1090519110,"r":{"repeat":["0"]}},"r"]'
+            const expected = '[{"0":1090519110,"r":"0"},"r"]'
             assertEq(result, expected, [result, expected])
         },
         () => {
@@ -116,7 +116,7 @@ export const proof = {
             // spells one out as `characters`.
             const [ruleSet] = toData(classic())
             const repeats = Object.entries(ruleSet).filter(([, v]) => isRepeat(v))
-            assertEq(JSON.stringify(repeats), '[["characters",{"repeat":["character"]}]]')
+            assertEq(JSON.stringify(repeats), '[["characters","character"]]')
         },
         () => {
             // Already folded: a `repeat` is not itself a variant to fold again.

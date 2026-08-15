@@ -442,7 +442,7 @@ export const proof = {
             // would repeat forever, so it is kept once and ends the repetition.
             /** @type {RuleSet} */
             const ruleSet = {
-                repeated: { repeat: ['optionalA'] },
+                repeated: 'optionalA',
                 optionalA: { some: 'a', none: 'e' },
                 a: range('aa'),
                 e: [],
