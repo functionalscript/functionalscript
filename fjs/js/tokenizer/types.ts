@@ -6,7 +6,6 @@
 
 import type { RangeMapArray } from '../../types/range_map/types.ts'
 import type { List } from '../../types/list/types.ts'
-import type { BigFloat } from '../../types/bigfloat/types.ts'
 import type { keywords } from '../keywords/module.f.mjs'
 
 export type StringToken = {
@@ -14,10 +13,20 @@ export type StringToken = {
     readonly value: string
 }
 
+/**
+ * A numeric literal, kept as the exact source lexeme.
+ *
+ * `value` is the canonical lossless numeric source: the tokenizer never
+ * narrows it to a runtime numeric representation, so a syntactically valid
+ * literal reaches its consumer whatever its magnitude — a coefficient beyond
+ * the runtime's `bigint` limit and an exponent beyond `number` precision alike.
+ * Each consumer applies its own numeric policy to `value`; see
+ * [`fjs/media/json/number`](../../media/json/number/module.f.mjs) for the
+ * bounded lexical helpers that read it without narrowing.
+ */
 export type NumberToken = {
     readonly kind: 'number'
     readonly value: string
-    readonly bf: BigFloat
 }
 
 export type BigIntToken = {
@@ -177,21 +186,17 @@ export type _ParseUnicodeCharState = {
     readonly hexIndex: number
 }
 
-/** @internal */
+/**
+ * Numeric scanning state. It accumulates the lexeme only: no coefficient or
+ * exponent is materialized while scanning, so digit counts are bounded by the
+ * input rather than by any runtime numeric limit.
+ *
+ * @internal
+ */
 export type _ParseNumberState = {
     readonly kind: 'number'
     readonly numberKind: '0' | 'int' | '.' | 'fractional' | 'e' | 'e+' | 'e-' | 'expDigits' | 'bigint'
     readonly value: string
-    readonly b: _ParseNumberBuffer
-}
-
-/** @internal */
-export type _ParseNumberBuffer = {
-    readonly s: -1n | 1n
-    readonly m: bigint
-    readonly f: number
-    readonly es: -1 | 1
-    readonly e: number
 }
 
 /** @internal */

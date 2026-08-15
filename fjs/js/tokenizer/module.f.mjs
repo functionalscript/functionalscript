@@ -1,7 +1,12 @@
 /**
  * JavaScript tokenizer built as a range-map state machine over code points,
  * producing tokens for keywords, identifiers, punctuators, comments, strings,
- * and numeric literals (including `BigFloat`).
+ * and numeric literals.
+ *
+ * Numeric scanning is lexeme-first: a `number` token carries the exact source
+ * text and no derived numeric value, so tokenization stays bounded by the
+ * input and never fails because a coefficient or exponent is too large for a
+ * runtime numeric type.
  *
  * @module
  *
@@ -10,7 +15,7 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { Entry } from '../../types/ordered_map/types.ts'
  * @import { Range as NumberRange } from '../../types/range/types.ts'
- * @import { StringToken, NumberToken, BigIntToken, ErrorToken, WhitespaceToken, NewLineToken, IdToken, CommentToken, EofToken, JsToken, TokenMetadata, JsTokenWithMetadata, _TokenizerStateWithMetadata, _TokenizerState, _ErrorMessage, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _ParseNumberBuffer, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken, } from './types.ts'
+ * @import { StringToken, NumberToken, BigIntToken, ErrorToken, WhitespaceToken, NewLineToken, IdToken, CommentToken, EofToken, JsToken, TokenMetadata, JsTokenWithMetadata, _TokenizerStateWithMetadata, _TokenizerState, _ErrorMessage, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken, } from './types.ts'
  */
 
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
@@ -229,27 +234,21 @@ const create = def => a => {
     return v => c => x(c)(v)(c)
 }
 
-/** @type {(digit: number) => bigint} */
-const digitToBigInt = d => BigInt(d - digit0)
-
-/** @type {(digit: number) => _ParseNumberBuffer} */
-const startNumber = digit => ({ s: 1n, m: digitToBigInt(digit), f: 0, es: 1, e: 0 })
-
-/** @type {(digit: number) => (b: _ParseNumberBuffer) => _ParseNumberBuffer} */
-const addIntDigit = digit => b => ({ ...b, m: b.m * 10n + digitToBigInt(digit) })
-
-/** @type {(digit: number) => (b: _ParseNumberBuffer) => _ParseNumberBuffer} */
-const addFracDigit = digit => b => ({ ...b, m: b.m * 10n + digitToBigInt(digit), f: b.f - 1 })
-
-/** @type {(digit: number) => (b: _ParseNumberBuffer) => _ParseNumberBuffer} */
-const addExpDigit = digit => b => ({ ...b, e: b.e * 10 + digit - digit0 })
-
-/** @type {(s: _ParseNumberState) => JsToken} */
-const bufferToNumberToken = ({ numberKind, value, b }) => {
-    if (numberKind === 'bigint')
-        return { kind: 'bigint', value: b.s * b.m }
-    return { kind: 'number', value: value, bf: [b.s * b.m, b.f + b.es * b.e] }
-}
+/**
+ * Turns a completed numeric scanning state into its token.
+ *
+ * A `number` token carries the lexeme and nothing else — deriving a numeric
+ * value is each consumer's own policy, so no valid literal can fail to
+ * tokenize because its coefficient or exponent exceeds a runtime numeric
+ * limit. A `bigint` literal is the one case where the value *is* the token:
+ * `123n` means that bigint, so it is constructed here from the same lexeme.
+ *
+ * @type {(s: _ParseNumberState) => JsToken}
+ */
+const stateToNumberToken = ({ numberKind, value }) =>
+    numberKind === 'bigint'
+        ? { kind: 'bigint', value: BigInt(value) }
+        : { kind: 'number', value }
 
 /**
  * Derived from the one source of truth for JavaScript keywords,
@@ -341,12 +340,12 @@ const hasOperatorToken = op => at(op)(operatorMap) !== null
 const initialStateOp = create(
     /** @type {_CreateToToken<_TokenizerState>} */ (state => () => [[{ kind: 'error', message: 'unexpected character' }], state])
 )([
-    rangeFunc(rangeOneNine)(/** @type {_CreateToToken<_TokenizerState>} */ (() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: 'int' }])),
+    rangeFunc(rangeOneNine)(/** @type {_CreateToToken<_TokenizerState>} */ (() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: 'int' }])),
     rangeSetFunc(rangeIdStart)(/** @type {_CreateToToken<_TokenizerState>} */ (() => input => [empty, { kind: 'id', value: fromCharCode(input) }])),
     rangeSetFunc(rangeSetWhiteSpace)(/** @type {_CreateToToken<_TokenizerState>} */ (() => () => [empty, { kind: 'ws' }])),
     rangeSetFunc(rangeSetNewLine)(/** @type {_CreateToToken<_TokenizerState>} */ (() => () => [empty, { kind: 'nl' }])),
     rangeFunc(one(quotationMark))(/** @type {_CreateToToken<_TokenizerState>} */ (() => () => [empty, { kind: 'string', value: '' }])),
-    rangeFunc(one(digit0))(/** @type {_CreateToToken<_TokenizerState>} */ (() => input => [empty, { kind: 'number', value: fromCharCode(input), b: startNumber(input), numberKind: '0' }])),
+    rangeFunc(one(digit0))(/** @type {_CreateToToken<_TokenizerState>} */ (() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: '0' }])),
     rangeSetFunc(rangeOpStart)(/** @type {_CreateToToken<_TokenizerState>} */ (() => input => [empty, { kind: 'op', value: fromCharCode(input) }]))
 ])
 
@@ -360,7 +359,7 @@ const invalidNumberToToken = () => input => {
 const fullStopToToken = state => input => {
     switch (state.numberKind) {
         case '0':
-        case 'int': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: '.' }]
+        case 'int': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: '.' }]
         default: return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
     }
 }
@@ -370,12 +369,12 @@ const digit0ToToken = state => input => {
     switch (state.numberKind) {
         case '0': return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
         case '.':
-        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addFracDigit(input)(state.b), numberKind: 'fractional' }]
+        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'fractional' }]
         case 'e':
         case 'e+':
         case 'e-':
-        case 'expDigits': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addExpDigit(input)(state.b), numberKind: 'expDigits' }]
-        default: return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addIntDigit(input)(state.b), numberKind: state.numberKind }]
+        case 'expDigits': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'expDigits' }]
+        default: return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: state.numberKind }]
     }
 }
 
@@ -384,12 +383,12 @@ const digit19ToToken = state => input => {
     switch (state.numberKind) {
         case '0': return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
         case '.':
-        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addFracDigit(input)(state.b), numberKind: 'fractional' }]
+        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'fractional' }]
         case 'e':
         case 'e+':
         case 'e-':
-        case 'expDigits': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addExpDigit(input)(state.b), numberKind: 'expDigits' }]
-        default: return [empty, { kind: 'number', value: appendChar(state.value)(input), b: addIntDigit(input)(state.b), numberKind: 'int' }]
+        case 'expDigits': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'expDigits' }]
+        default: return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'int' }]
     }
 }
 
@@ -398,7 +397,7 @@ const expToToken = state => input => {
     switch (state.numberKind) {
         case '0':
         case 'int':
-        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: 'e' }]
+        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'e' }]
         default: return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
     }
 }
@@ -406,7 +405,7 @@ const expToToken = state => input => {
 /** @type {_CreateToToken<_ParseNumberState>} */
 const hyphenMinusToToken = state => input => {
     switch (state.numberKind) {
-        case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: { ...state.b, es: -1 }, numberKind: 'e-' }]
+        case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'e-' }]
         default: return terminalToToken(state)(input)
     }
 }
@@ -414,7 +413,7 @@ const hyphenMinusToToken = state => input => {
 /** @type {_CreateToToken<_ParseNumberState>} */
 const plusSignToToken = state => input => {
     switch (state.numberKind) {
-        case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), b: state.b, numberKind: 'e+' }]
+        case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'e+' }]
         default: return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
     }
 }
@@ -433,7 +432,7 @@ const terminalToToken = state => input => {
         default:
             {
                 const next = tokenizeCharCodeOp(input, { kind: 'initial' })
-                return [{ first: bufferToNumberToken(state), tail: next[0] }, next[1]]
+                return [{ first: stateToNumberToken(state), tail: next[0] }, next[1]]
             }
     }
 }
@@ -444,7 +443,7 @@ const bigintToToken = state => input => {
         case '0':
         case 'int':
             {
-                return [empty, { kind: 'number', value: state.value, b: state.b, numberKind: 'bigint' }]
+                return [empty, { kind: 'number', value: state.value, numberKind: 'bigint' }]
             }
         default:
             {
@@ -655,7 +654,7 @@ const tokenizeEofOp = state => {
                 case 'e+':
                 case 'e-': return [[{ kind: 'error', message: 'invalid number' }, { kind: 'eof' }], { kind: 'eof', }]
             }
-            return [[bufferToNumberToken(state), { kind: 'eof' }], { kind: 'eof' }]
+            return [[stateToNumberToken(state), { kind: 'eof' }], { kind: 'eof' }]
         case 'op': return [[getOperatorToken(state.value), { kind: 'eof' }], { kind: 'eof' }]
         case '//': return [[{ kind: '//', value: state.value }, { kind: 'eof' }], { kind: 'eof' }]
         case '/*':

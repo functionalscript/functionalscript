@@ -1,203 +1,104 @@
-## Investigate JSON numeric edge cases
+## Settle the standard JSON codec's numeric edge cases
 
 **Priority:** P3
 **Status:** open
 
 ### Problem
 
-The shared JSON tokenizer must preserve every valid numeric token as text before
-any bounded runtime numeric representation is required. The runtime layers then
-need explicit policies for values that do not map cleanly to their ordinary
-numeric types.
+The shared JSON tokenizer preserves every valid numeric token as text, and the
+shared structural parser hands that text to a per-codec numeric policy — see
+[`fjs/media/json/README.md`](../README.md). Each runtime codec still needs an
+explicit policy for values that do not map cleanly onto its numeric type.
 
 This investigation owns those **FunctionalScript codec** decisions. It does not
 require the default `fjs/media/json` API to mimic native `JSON.parse` /
-`JSON.stringify`.
+`JSON.stringify`. Exact native `JSON.*` compatibility is P5 follow-up work in
+[native JSON compatibility](./native-json-compatibility.md).
 
-There are two runtime codecs with different goals:
+The extended codec's decisions are settled and shipped (below). What remains
+open is the **standard** bigint-free codec, whose serializer still delegates
+finite-number spelling to the host's `JSON.stringify`.
 
-- extended JSON preserves bare integer syntax as `bigint` and decimal/exponent
-  syntax as `number`;
-- standard FunctionalScript JSON materializes the ordinary bigint-free
-  `fjs/media/json.Unknown` domain and emits deterministic valid JSON according to
-  its own documented contract.
+### Settled: extended codec
 
-Exact native `JSON.*` compatibility is P5 follow-up work in
-[native JSON compatibility](./native-json-compatibility.md). Do not spend P3
-implementation or investigation time on host-specific equivalence unless it is
-needed to choose the FunctionalScript codec's own behavior.
+Implemented in [`../extended/module.f.mjs`](../extended/module.f.mjs) and
+documented in [`../README.md`](../README.md):
 
-The edge cases that still matter to the FunctionalScript codecs are:
+| Case                                    | Decision                                              |
+| --------------------------------------- | ----------------------------------------------------- |
+| bare integer syntax                     | `bigint`, materialized from the lexeme                |
+| exact `-0`                              | negative-zero `number` (`bigint` has no negative zero) |
+| `.` / `e` / `E` syntax                  | `number`, even when the value is integral              |
+| exponent overflow (`1e400`)             | parse `error`; the extended domain has no non-finite `number` |
+| exponent underflow (`1e-400`)           | `0`; ordinary `number` rounding, not an error          |
+| programmatic `NaN` / `±Infinity`        | serialized as `null`, as `JSON.stringify` does         |
+| whole-valued `number`                   | serialized as `3.0` (or its own exponent spelling) so it reparses as `number` |
+| `bigint`                                | serialized as full base-10 digits, never exponent notation |
 
-- negative zero (`-0`);
-- positive infinity (`Infinity`);
-- negative infinity (`-Infinity`);
-- `NaN`;
-- exponent syntax whose numeric conversion overflows the finite JavaScript
-  `number` range, such as `1e400`;
-- bare integer syntax whose coefficient is too large for the runtime's `bigint`
-  implementation to construct directly;
-- finite integer-valued `number`s that need a non-bigint lexical spelling when
-  preserving the runtime `number` type in extended JSON.
+### Settled: exact checks stay bounded
 
-JSON text itself cannot spell `NaN` or infinities, but callers can still construct
-runtime values containing them and pass those values to a serializer. Therefore
-serialization needs a deliberate policy even though parsing never receives such
-literals directly.
+Exact numeric questions are answered from the lexeme in the length of the
+token, by [`../number/module.f.mjs`](../number/module.f.mjs): no coefficient
+bigint, no exponent conversion, and no `10 ** exponent`. `1e-99999999999999999999`
+is classified from a sign and a length.
 
-### Lossless numeric source
+### Known limit: oversized bare integers
 
-`NumberToken.value` is the canonical source for numeric text until materialization
-is complete, but **the tokenizer must be able to create that token without first
-materializing an unbounded numeric value**.
+A valid bare integer beyond the runtime's bigint limit (V8: above 2^30 bits,
+some 3.2e8 decimal digits) throws inside `BigInt`. FunctionalScript has no
+`try`/`catch`, so this cannot be contained as a `Result`, and predicting it
+from a digit count is exactly the size-estimating preflight AGENTS.md §5.6
+rules out. It is documented as a runtime limit in
+[`../README.md`](../README.md). Reopen it only if FunctionalScript gains a
+fallible-call primitive — a `tryBigInt`-shaped boundary would then be the
+right answer, and the extended policy's `Result` already has a place for it.
 
-The current tokenizer eagerly accumulates coefficient digits into bigint and
-exponent digits into JavaScript `number`. Either can exceed its runtime
-representation before `NumberToken.value` reaches the parser. The JSON numeric
-path therefore needs a lexeme-first tokenization boundary: preserve syntactically
-valid number text independently, and treat derived numeric data such as `bf` as
-fallible/lazy/optional where necessary.
+Note that nothing before that point narrows: the tokenizer and the structural
+parser handle such a document at full size, and the standard codec materializes
+it as a `number` without ever constructing a bigint.
 
-Do not depend on `NumberToken.bf` being exact for arbitrarily large exponent text,
-and do not depend on eager coefficient bigint construction succeeding. Exact
-decisions use the original lexeme or another representation that preserves it
-without narrowing first.
+### Open: standard FunctionalScript JSON codec
 
-This task owns only the **policy decisions** that the codecs need for exceptional
-numeric values. [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md)
-owns the tokenizer/structural implementation that establishes the lexeme-first
-boundary, including the tokenizer proofs for oversized coefficients and unbounded
-exponents. Do not duplicate that implementation work here.
+The ordinary `json.parse` / `json.stringify` codec is specified in
+[standard-parse-serialize.md](./standard-parse-serialize.md). Its parse policy
+is already explicit — every token becomes a `number`, read the way JavaScript
+reads that text, so `1e400` is `Infinity` and `1e-400` is `0`. What is still
+undecided is serialization:
 
-After tokenization succeeds, materializers may attempt their target runtime
-conversion. A valid bare integer can exceed the runtime bigint-size limit; that
-must produce the documented extended materialization result or controlled parse
-failure, never an uncaught runtime exception. Likewise, a standard or RTTI
-materializer remains free to choose a different target representation from the
-same exact token.
-
-### Extended JSON questions
-
-The lexical split itself is settled:
-
-```text
-bare integer without `.` / `e` / `E` -> bigint
-exact `-0`                            -> negative-zero number
-contains `.` / `e` / `E`             -> number
-```
-
-The remaining extended questions are exceptional cases where that lexical rule
-cannot directly produce an ordinary runtime leaf.
-
-#### Exponent overflow
-
-A valid token such as `1e400` is lexically a `number`, but ordinary conversion may
-produce `Infinity`.
-
-Choose one explicit extended policy, for example:
-
-- allow the resulting non-finite `number` as an extended runtime leaf;
-- preserve another internal representation until a later conversion;
-- return a controlled extended-parse failure.
-
-Choose the simplest coherent FunctionalScript contract; matching native
-`JSON.parse` is not a requirement.
-
-#### Oversized bare integers
-
-A valid bare integer can be too large for runtime bigint construction.
-
-The extended materializer must contain this case and choose a controlled policy.
-Do not preflight by guessing from digit count merely to avoid an unsafe operation;
-use a fallible materialization boundary and branch on whether the actual target
-value can be produced. It may fail if the runtime domain genuinely cannot
-represent the value; that does not prevent the standard FunctionalScript parser
-or RTTI parser from consuming the same lossless token with another policy.
-
-#### Non-finite programmatic numbers
-
-Choose whether the extended serializer rejects, normalizes, or otherwise handles
-`NaN` / `Infinity` / `-Infinity` supplied programmatically. Whatever is chosen
-must still emit valid JSON or fail explicitly.
-
-#### Negative zero
-
-Extended JSON deliberately distinguishes `-0` from bigint zero, because bigint
-has no negative-zero value. Preserve this distinction through the extended
-parse/serialize contract unless the investigation identifies a stronger reason to
-change it.
-
-### Standard FunctionalScript JSON questions
-
-The ordinary `json.parse` / `json.stringify` codec is specified separately in
-[standard-parse-serialize.md](./standard-parse-serialize.md). It may materialize
-standard numeric leaves directly from the lossless structural tree instead of
-routing through `ExtendedUnknown`.
-
-This investigation only needs to settle the default standard codec's exceptional
-number behavior:
-
-- how a valid token that numerically overflows finite JavaScript `number` is
-  represented in `json.Unknown`;
-- how negative zero is preserved or normalized by the default FunctionalScript
-  parser/stringifier;
-- how programmatic `NaN` / infinities are handled by the serializer;
-- what deterministic valid JSON spelling is used for finite `number` values when
-  exact native shortest-decimal output is not a requirement.
+- what deterministic valid JSON spelling is used for finite `number` values,
+  now that `numberSerialize` still calls the host's `JSON.stringify`;
+- how negative zero is preserved or normalized (`JSON.stringify(-0)` is `0`);
+- how programmatic `NaN` / infinities are handled;
+- whether a parsed `Infinity` is representable in `json.Unknown` at all, or
+  should be normalized on the way out.
 
 A simple FunctionalScript contract is preferable to reproducing host quirks.
-Later, after the Extended JSON codec and the standard/extended transforms exist,
-we may choose to move `json.*` closer to native behavior through documented
-breaking changes. If both contracts turn out to be useful, a separate compatible
-API remains an option. That decision is intentionally deferred to P5.
-
-### Native compatibility is P5
-
-Do not add native differential tests, spelling-boundary investigations, or API
-parity work to this P3 task. Existing measurements can remain as historical
-reference elsewhere, but no additional compatibility work is required here.
-
-See [native JSON compatibility](./native-json-compatibility.md).
+Moving `json.*` closer to native behavior through documented breaking changes,
+or adding a separate compatible API, is deliberately deferred to P5.
 
 ### Tasks
 
-- [ ] Verify and document the lexical rule that every token containing `.` or
-      `e` / `E` belongs to the extended `number` branch, while bare integers
-      belong to bigint except exact `-0`.
-- [ ] Verify that exact numeric policy decisions use `NumberToken.value` and remain
-      bounded by input length; do not narrow an unbounded exponent first.
-- [ ] Choose the extended policy for exponent overflow such as `1e400`.
-- [ ] Choose the extended policy for a valid bare integer whose coefficient
-      cannot be constructed as runtime bigint; no uncaught bigint-limit failure
-      may escape.
-- [ ] Define matching extended serialization/failure behavior for any exceptional
-      representation accepted by the parser.
-- [ ] Decide how the extended serializer handles programmatic `NaN`, `Infinity`,
-      and `-Infinity`.
-- [ ] Preserve/test negative-zero behavior in the extended codec.
-- [ ] Choose the default FunctionalScript standard parse policy for valid numeric
-      tokens that become non-finite JavaScript numbers.
 - [ ] Choose the default FunctionalScript standard stringify policy for `-0`,
       `NaN`, `Infinity`, and `-Infinity`.
 - [ ] Define a deterministic finite-number serialization rule sufficient for the
-      FunctionalScript standard codec.
-- [ ] Add proof cases for every settled default behavior, including oversized bare
-      integer input, unbounded exponent text, negative zero, fractions, ordinary
-      exponents, exponent overflow, and programmatic non-finite numbers.
+      FunctionalScript standard codec, and stop routing it through the host's
+      `JSON.stringify`.
+- [ ] Decide how a non-finite `number` parsed from valid text is represented or
+      normalized in `json.Unknown`.
+- [ ] Add proof cases for every settled default behavior, including oversized
+      bare integer input, unbounded exponent text, negative zero, fractions,
+      ordinary exponents, exponent overflow, and programmatic non-finite numbers.
 - [ ] Do not add native-compatibility work here; defer it to the P5 TODO.
 
 ### Related
 
-- [Extended JSON bigint parse/serialize](./bigint-parse-serialize.md) — blocked on
-  this task for extended exceptional-number materialization/serialization policy
-  and solely owns the tokenizer/structural exact-value implementation and its
-  tokenizer proofs.
+- [`fjs/media/json/README.md`](../README.md) — the shipped codec architecture and
+  the settled extended policy.
 - [Standard JSON parse/serialize](./standard-parse-serialize.md) — owns the default
   bigint-free FunctionalScript codec.
 - [Standard/extended value transforms](./standard-transform.md) — reusable runtime
   conversions; they do not depend on native stringify compatibility.
 - [Native JSON compatibility](./native-json-compatibility.md) — P5 follow-up; does
   not block this investigation.
-- [`fjs/media/json/module.f.mjs`](../module.f.mjs) — current ordinary JSON surface.
 - [`fjs/media/json/serializer/module.f.mjs`](../serializer/module.f.mjs) — current
   primitive serialization implementation to replace/self-host.

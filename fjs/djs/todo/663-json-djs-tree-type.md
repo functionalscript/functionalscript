@@ -23,8 +23,11 @@ is therefore unsound for generic consumers: `object[key]` is typed as
 
 ### Proposal
 
-Define the recursive container once, parameterized over the leaf type, in
-`fjs/media/json/common/module.f.mjs`:
+`fjs/media/json/types.ts` already defines this shape, as `Tree<P>` /
+`TreeObject<P>` / `TreeArray<P>`, and both `json.Unknown` and the extended value
+domain instantiate it. What remains is sharing it with `djs`, and deciding
+whether it keeps living in the JSON types or moves to a module both families
+name:
 
 ```ts
 /** A recursive JSON-shaped tree over a leaf/primitive type `P`. */
@@ -90,14 +93,15 @@ serialization behavior.
 
 ### Tasks
 
-- [ ] Add `fjs/media/json/common/module.f.mjs` with `Unknown<P>`, `Object<P>`, and
-      `Array<P>`.
-- [ ] Define `Object<P>` with the optional recursive index signature
-      `{ readonly [k in string]?: Unknown<P> }`.
+- [x] Define the leaf-parameterized tree with the optional recursive index
+      signature `{ readonly [k in string]?: Unknown<P> }`; it is
+      `Tree<P>` / `TreeObject<P>` / `TreeArray<P>` in `fjs/media/json/types.ts`.
+- [x] Re-express `fjs/media/json`'s `Unknown` / `Object` / `Array` aliases using
+      the generic tree while preserving their current public names.
+- [ ] Decide where the shared shape lives once `djs` uses it too, and move it
+      there if `fjs/media/json/types.ts` is the wrong home for both families.
 - [ ] Add proof/type coverage that arbitrary missing object-property reads are
       `Unknown<P> | undefined`.
-- [ ] Re-express `fjs/media/json`'s `Unknown` / `Object` / `Array` aliases using
-      the shared generic tree while preserving their current public names.
 - [ ] Re-express `fjs/djs`'s aliases using the same shared generic tree.
 - [ ] Preserve existing runtime behavior; this task should remain type-only.
 - [ ] Add the standard module header and handle `deno.json` exports according to
@@ -106,13 +110,14 @@ serialization behavior.
 
 ### Related
 
-- [Extended JSON bigint parse/serialize](../../media/json/todo/bigint-parse-serialize.md)
-  — may instantiate this tree with `null | boolean | string | number | bigint`;
-  it must rely on the optional object index signature rather than a required one.
+- [`fjs/media/json/types.ts`](../../media/json/types.ts) — already carries a
+  leaf-parameterized `Tree<P>` with the optional object index signature, which
+  `json.Unknown` and the extended value domain both instantiate. This task is
+  now about sharing that shape with `djs` rather than introducing it.
 - [157](./157.md) — shares JSON/DJS parser value machinery; complementary to
   sharing the recursive value type.
 - [197](./197.md) — extracts traversal over the same `Unknown` shape.
 - `fjs/media/json/types.ts` — current JSON recursive type aliases.
 - `fjs/djs/types.ts` — current DJS recursive type aliases.
-- `fjs/media/json/serializer/module.f.mjs` — currently has no separate recursive
-  generic value aliases and therefore is not part of this migration.
+- `fjs/media/json/serializer/module.f.mjs` — its `treeSerialize` walks
+  `Tree<P>`, so it follows whatever spelling this task settles on.

@@ -10,7 +10,6 @@
  */
 
 import { concat, empty, flat, stateScan, toArray } from '../../../types/list/module.f.mjs'
-import { multiply } from '../../../types/bigfloat/module.f.mjs'
 import { tokenize as jsTokenize } from '../../../js/tokenizer/module.f.mjs'
 import { assertEq } from '../../../asserts/module.f.mjs'
 
@@ -50,7 +49,9 @@ const parseMinusState = input => {
     if (input === null) return [[{ kind: 'error', message: 'invalid token' }], { kind: 'def' }]
     switch (input.token.kind) {
         case '-': return [[{ kind: 'error', message: 'invalid token' }], { kind: '-' }]
-        case 'number': return [[{ kind: 'number', bf: multiply(input.token.bf)(-1n), value: `-${input.token.value}` }], { kind: 'def' }]
+        // negation is lexical: the minus sign joins the lexeme, so the token
+        // stays the exact source text of the JSON number.
+        case 'number': return [[{ kind: 'number', value: `-${input.token.value}` }], { kind: 'def' }]
         default: return [{ first: { kind: 'error', message: 'invalid token' }, tail: mapToken(input.token) }, { kind: 'def' }]
     }
 }

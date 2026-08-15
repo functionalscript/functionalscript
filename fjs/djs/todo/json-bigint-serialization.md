@@ -1,8 +1,7 @@
 ## Use bigint-aware JSON for DJS interchange
 
 **Priority:** P3
-**Status:** blocked
-**Blocked by:** [Bigint-aware JSON parse/serialize](../../media/json/todo/bigint-parse-serialize.md)
+**Status:** open
 
 ### Problem
 
@@ -24,8 +23,8 @@ to accept DJS values.
 
 ### Proposal
 
-After [bigint-parse-serialize](../../media/json/todo/bigint-parse-serialize.md)
-lands, use that parse/serialize pair anywhere DJS needs JSON interchange.
+Use [`fjs/media/json/extended`](../../media/json/extended/module.f.mjs)'s
+parse/serialize pair anywhere DJS needs JSON interchange.
 
 Keep the two formats distinct:
 
@@ -72,7 +71,7 @@ DJS value the same behavior regardless of where it appears in the tree.
 
 ### Related
 
-- [Bigint-aware JSON parse/serialize](../../media/json/todo/bigint-parse-serialize.md)
+- [`fjs/media/json/extended/module.f.mjs`](../../media/json/extended/module.f.mjs)
   — generic implementation this task consumes.
 - [663-json-djs-tree-type](./663-json-djs-tree-type.md) — generic recursive tree
   typing may simplify sharing the bigint-aware JSON value type.

@@ -49,7 +49,6 @@ import {
 } from '../../bnf/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 import { isKeywordToken } from '../../js/tokenizer/module.f.mjs'
-import { multiply } from '../../types/bigfloat/module.f.mjs'
 import {
     asterisk, backspace, ht, lf, ff, cr,
     quotationMark, solidus, reverseSolidus,
@@ -374,22 +373,6 @@ const stringDecodeScan = (cp, state) => {
 /** @type {(codePoints: readonly number[]) => string} */
 const decodeJsonString = codePoints => codePointListToString(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1))))
 
-// value is grammar-validated: (0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)? — no need to re-check its shape here.
-/** @type {(value: string) => readonly [bigint, number]} */
-const decodeNumber = value => {
-    // at most one of 'e'/'E' can occur, so whichever indexOf finds it (if any) is the exponent marker
-    const lowerEIndex = value.indexOf('e')
-    const eIndex = lowerEIndex < 0 ? value.indexOf('E') : lowerEIndex
-    const mantissaText = eIndex < 0 ? value : value.slice(0, eIndex)
-    const expText = eIndex < 0 ? '' : value.slice(eIndex + 1)
-    const dotIndex = mantissaText.indexOf('.')
-    const intDigits = dotIndex < 0 ? mantissaText : mantissaText.slice(0, dotIndex)
-    const fracDigits = dotIndex < 0 ? '' : mantissaText.slice(dotIndex + 1)
-    const mantissa = BigInt(intDigits + fracDigits)
-    const exp = (expText === '' ? 0 : Number(expText)) - fracDigits.length
-    return [mantissa, exp]
-}
-
 /** @type {ReadonlySet<string>} */
 const keywordSet = new Set(keywords)
 
@@ -413,7 +396,7 @@ const toJsToken = tk => {
         case 'number': {
             const value = codePointListToString(codePoints)
             if (value.endsWith('n')) return { kind: 'bigint', value: BigInt(value.slice(0, -1)) }
-            return { kind: 'number', value, bf: decodeNumber(value) }
+            return { kind: 'number', value }
         }
         case 'comment':
             if (codePoints[1] === asterisk) // block comment /*...*/
@@ -600,7 +583,9 @@ const parseDjsMinusState = input => {
     switch (input.kind) {
         case 'eof': return [[{ kind: 'error', message: 'invalid token' }, { kind: 'eof' }], { kind: 'def' }]
         case 'bigint': return [[{ kind: 'bigint', value: -1n * input.value }], { kind: 'def' }]
-        case 'number': return [[{ kind: 'number', bf: multiply(input.bf)(-1n), value: `-${input.value}` }], { kind: 'def' }]
+        // negation is lexical: the minus sign joins the lexeme, so the token
+        // stays the exact source text of the number.
+        case 'number': return [[{ kind: 'number', value: `-${input.value}` }], { kind: 'def' }]
         default: return [{ first: { kind: 'error', message: 'invalid token' }, tail: mapDjsToken(input) }, { kind: 'def' }]
     }
 }

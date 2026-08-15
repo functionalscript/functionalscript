@@ -61,7 +61,17 @@ export const definedValues =
     map =>
     values(map).filter(v => v !== undefined)
 
-/** @type {<T>(cmd: StringMap<Exclude<T, undefined>>) => readonly (readonly [string, Exclude<T, undefined>])[]} */
+/**
+ * Returns only the defined (non-undefined) entries of a partial record.
+ *
+ * `T` is the record's own value type, which `StringMap` already makes
+ * optional. Writing the parameter as `StringMap<Exclude<T, undefined>>`
+ * instead would leave `T` in a non-inference position, so a record whose value
+ * type is itself generic — the leaf-parameterized JSON tree, say — could not
+ * be passed at all.
+ *
+ * @type {<T>(cmd: StringMap<T>) => readonly Entry<T>[]}
+ */
 export const definedEntries =
     cmd =>
     entries(cmd).flatMap(([a, b]) => b === undefined ? [] : [[a, b]])

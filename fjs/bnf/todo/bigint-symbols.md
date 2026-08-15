@@ -99,7 +99,7 @@ needed.
   semantics this migration keeps.
 - [Investigate TerminalRange representation](./terminal-range-representation.md)
   — selects a representation for the expanded bigint terminal domain.
-- [Bigint-aware JSON parse/serialize](../../media/json/todo/bigint-parse-serialize.md)
+- [`fjs/media/json/extended/module.f.mjs`](../../media/json/extended/module.f.mjs)
   — provides exact serialization for bigint-valued BNF data.
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — keeps core BNF
   independent from Unicode and byte-specific authoring helpers.
