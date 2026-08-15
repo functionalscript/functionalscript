@@ -1,17 +1,29 @@
 /**
  * @import { Grammar } from './module.f.mjs'
+ * @import { ByteSet } from '../types/byte_set/types.ts'
  */
 
-import { dfa, run, toRange, toUnion } from './module.f.mjs'
-import { union } from '../types/byte_set/module.f.mjs'
+import { dfa, run, toRange } from './module.f.mjs'
+import { one, union, empty, range as byteSetRange } from '../types/byte_set/module.f.mjs'
 import { sort, fromEntries } from '../types/object/module.f.mjs'
 import { stringify } from '../media/json/module.f.mjs'
 import { identity } from '../types/function/module.f.mjs'
-import { toArray } from '../types/list/module.f.mjs'
+import { fold, toArray } from '../types/list/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.mjs'
 import { assertEq } from '../asserts/module.f.mjs'
 
 const stringifyIdentity = stringify(identity)
+
+/**
+ * The byte set of a string's characters, used to spell a grammar's punctuation
+ * alphabets below. It lives here rather than in `fjs/fsm` or `types/byte_set`:
+ * `fjs/fsm` has no use for it, and a `types` leaf taking a *string* would have
+ * to depend on `fjs/text` to read one.
+ *
+ * @type {(s: string) => ByteSet}
+ */
+const toUnion = s =>
+    fold((/** @type {number} */i) => (/** @type {ByteSet} */bs) => union(bs)(one(i)))(empty)(stringToList(s))
 
 const buildDfa = () => {
     const lowercaseAlpha = toRange('az')
@@ -39,6 +51,16 @@ const buildDfa = () => {
 }
 
 export const proof = {
+    toRange: [
+        // Two characters name the inclusive range's endpoints.
+        () => assertEq(toRange('az'), byteSetRange([0x61, 0x7a])),
+        // One character is the singleton range. This threw `RangeError: The
+        // number NaN cannot be converted to a BigInt` while `toRange` read a
+        // second character that was not there.
+        () => assertEq(toRange('a'), byteSetRange([0x61, 0x61])),
+        () => assertEq(toRange('a'), one(0x61)),
+        () => assertEq(toRange('\0'), one(0)),
+    ],
     dfa: () => {
         const dfa = buildDfa()
         const entries = Object.entries(dfa)
