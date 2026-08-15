@@ -15,7 +15,15 @@ import { error, ok } from '../../../types/result/module.f.mjs'
 import { fold, next, toArray, concat } from '../../../types/list/module.f.mjs'
 import { setReplace } from '../../../types/ordered_map/module.f.mjs'
 import { fromMap } from '../../../types/object/module.f.mjs'
-import { assertEq } from '../../../asserts/module.f.mjs'
+
+/**
+ * Every syntax error the parser can report is the same one: a token that
+ * cannot follow the state it arrived in. It carries no position or metadata,
+ * so one shared value serves all of them.
+ *
+ * @type {_JsonState}
+ */
+const unexpectedToken = { status: 'error', message: 'unexpected token' }
 
 /** @type {(obj: _JsonObject) => (key: string) => _JsonObject} */
 const addKeyToObject =
@@ -29,11 +37,18 @@ const addValueToObject =
 const addToArray =
     array => value => ({ kind: 'array', values: concat(array.values)([value]) })
 
-/** @type {(state: _StateParse) => (key: string) => _JsonState} */
-const pushKey = state => value => {
-    if (state.top?.kind === 'object') { return { status: '{k', top: addKeyToObject(state.top)(value), stack: state.stack } }
-    return { status: 'error', message: 'error' }
-}
+/**
+ * `pushKey` only ever runs while parsing the object `startObject` opened
+ * (status `'{'`/`'{,'`), so `state.top` is always that object here — the same
+ * construction guarantee `endArray` relies on below.
+ *
+ * @type {(state: _StateParse) => (key: string) => _JsonState}
+ */
+const pushKey = state => value => ({
+    status: '{k',
+    top: addKeyToObject(/** @type {_JsonObject} */ (state.top))(value),
+    stack: state.stack,
+})
 
 /** @type {(state: _StateParse) => (value: Unknown) => _JsonState} */
 const pushValue = state => value => {
@@ -130,12 +145,12 @@ const parseValueOp = token => state => {
         // A value is required here (top level, after `[`+`,`, or after `:`),
         // so `]` is never valid — strict JSON has no trailing commas.
         case ']':
-            return { status: 'error', message: 'unexpected token' }
+            return unexpectedToken
         case '[': return startArray(state)
         case '{': return startObject(state)
         default:
             if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
-            return { status: 'error', message: 'unexpected token' }
+            return unexpectedToken
     }
 }
 
@@ -145,34 +160,34 @@ const parseArrayStartOp = token => state => {
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === ']') { return endArray(state) }
     if (token.kind === '{') { return startObject(state) }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {(token: JsonToken) => (state: _StateParse) => _JsonState} */
 const parseArrayValueOp = token => state => {
     if (token.kind === ']') { return endArray(state) }
     if (token.kind === ',') { return { status: '[,', top: state.top, stack: state.stack } }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {(token: JsonToken) => (state: _StateParse) => _JsonState} */
 const parseObjectStartOp = token => state => {
     if (token.kind === 'string') { return pushKey(state)(token.value) }
     if (token.kind === '}') { return endObject(state) }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {(token: JsonToken) => (state: _StateParse) => _JsonState} */
 const parseObjectKeyOp = token => state => {
     if (token.kind === ':') { return { status: '{:', top: state.top, stack: state.stack } }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {(token: JsonToken) => (state: _StateParse) => _JsonState} */
 const parseObjectNextOp = token => state => {
     if (token.kind === '}') { return endObject(state) }
     if (token.kind === ',') { return { status: '{,', top: state.top, stack: state.stack } }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {(token: JsonToken) => (state: _StateParse) => _JsonState} */
@@ -180,7 +195,7 @@ const parseObjectCommaOp = token => state => {
     // After a `,` a member (string key) is required — `}` here would be a
     // trailing comma, which strict JSON rejects.
     if (token.kind === 'string') { return pushKey(state)(token.value) }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {Fold<JsonToken, _JsonState>} */
@@ -189,7 +204,7 @@ const foldOp = token => state => {
         return state
 
     switch (state.status) {
-        case 'result': return { status: 'error', message: 'unexpected token' }
+        case 'result': return unexpectedToken
         case 'error': return { status: 'error', message: state.message }
         case '': return parseValueOp(token)(state)
         case '[': return parseArrayStartOp(token)(state)
@@ -218,19 +233,4 @@ export const parse = tokenList => {
         case 'error': return error(state.message)
         default: return error('unexpected end')
     }
-}
-
-export const proof = {
-    pushKey: {
-        // `pushKey` is only ever invoked while `state.top` is an object (the
-        // state machine's `'{'`/`'{,'` statuses guarantee it), so its
-        // non-object guard is a defensive branch unreachable through `parse`.
-        // Call it directly to cover that branch.
-        nonObjectTop: () => {
-            /** @type {_StateParse} */
-            const state = { status: '[', top: { kind: 'array', values: null }, stack: null }
-            const result = pushKey(state)('key')
-            assertEq(result.status, 'error')
-        },
-    },
 }
