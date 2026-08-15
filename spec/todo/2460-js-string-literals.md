@@ -37,7 +37,8 @@ mechanically:
 `'x'` → `"x"`, literal TAB → `\t`, `\v` → `\u000b`, `\x41` → `A`.
 
 **Note**: template literals are not part of this feature — they involve
-expression interpolation, not just lexical syntax.
+expression interpolation, not just lexical syntax. They are tracked separately
+as [template-literals](./3440-template-literals.md).
 
 **Note**: if a universal parser — one that recognizes JSON, DJS, and FS in a
 single pass — implements this feature, it must still distinguish JS strings
