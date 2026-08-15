@@ -11,6 +11,7 @@
 import { collapseRoot } from '../types/module.f.mjs'
 import { find } from '../find/module.f.mjs'
 import { fold } from '../../list/module.f.mjs'
+import { assert } from '../../../asserts/module.f.mjs'
 
 /**
  * @template T
@@ -86,7 +87,11 @@ const nodeSet = c => g => node => {
             }
             case 3: {
                 // replace
-                switch (x.length) {
+                // TODO: remove after TSGO fix the regression.
+                const xL = x.length
+                // See https://github.com/microsoft/typescript-go/issues/4613
+                assert(xL === 2 || xL === 5)
+                switch (xL) {
                     case 2: { return [[x[0], g(x[1])]] }
                     case 5: { return [[x[0], x[1], x[2], g(x[3]), x[4]]] }
                 }
