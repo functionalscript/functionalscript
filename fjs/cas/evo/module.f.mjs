@@ -49,7 +49,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { IoResult } from '../../effects/node/types.ts'
  * @import { List } from '../../effects/list/types.ts'
- * @import { LockMap, Revision } from '../../media/revision/types.ts'
+ * @import { LockField, LockMap, Revision } from '../../media/revision/types.ts'
  * @import { Hash, Subject, RevisionData, SubjectState, Cache, Evo } from './types.ts'
  */
 
@@ -103,6 +103,16 @@ const canonicalHash = h => vecToCBase32(unwrap(cBase32ToVec(h)))
 const canonicalLock = lock =>
     Object.fromEntries(definedEntries(lock).map(
         ([subject, value]) => [subject, typeof value === 'string' ? canonicalHash(value) : canonicalLock(value)]))
+
+/**
+ * Canonicalizes a revision's `lock` field: a shared-lock reference is one hash
+ * to re-spell, an inline map is walked to the bottom ({@link canonicalLock}).
+ * The split is the same one `fjs/media/revision`'s `lockFieldError` validates
+ * along, so what this re-spells is exactly what was checked.
+ * @type {(value: LockField) => LockField}
+ */
+const canonicalLockField = value =>
+    typeof value === 'string' ? canonicalHash(value) : canonicalLock(value)
 
 /** A subject's current heads: revision hashes seen that no other revision of the same subject names as a parent.
  * @type {(state: SubjectState) => readonly Hash[]}
@@ -415,7 +425,7 @@ const buildRevision = input => parents => {
         ...revision,
         parents: revision.parents.map(canonicalHash),
         snapshot: canonicalHash(revision.snapshot),
-        lock: revision.lock === undefined ? undefined : canonicalLock(revision.lock),
+        lock: revision.lock === undefined ? undefined : canonicalLockField(revision.lock),
     })
 }
 
@@ -479,7 +489,7 @@ const toRevisionData = ({ subject, parents, snapshot, generation, archived, lock
     snapshot: canonicalHash(snapshot),
     generation,
     archived,
-    lock: lock === undefined ? undefined : canonicalLock(lock),
+    lock: lock === undefined ? undefined : canonicalLockField(lock),
 })
 
 /**

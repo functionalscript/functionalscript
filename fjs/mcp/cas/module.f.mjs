@@ -123,6 +123,7 @@ import { tryUtf8 } from '../../text/module.f.mjs'
 import { detectStream } from '../../media/type/module.f.mjs'
 import { detect } from '../../media/module.f.mjs'
 import { revisionDialect } from '../../media/revision/module.f.mjs'
+import { lockDialect } from '../../media/lock/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import {
@@ -156,8 +157,13 @@ export const casListArgs = /** @type {const} */ ({})
 
 const toJson = stringify(identity)
 
-/** The dialect-aware classifier, bound to the dialects this server recognizes. */
-const detectDialect = detect([revisionDialect])
+/**
+ * The dialect-aware classifier, bound to the dialects this server recognizes:
+ * the revision format and the shared lock maps revisions reference
+ * (`fjs/media/lock`), so `cas_get` reports either under its own media type
+ * instead of `text/plain`.
+ */
+const detectDialect = detect([revisionDialect, lockDialect])
 
 /** @typedef {{
  *   readonly length: number

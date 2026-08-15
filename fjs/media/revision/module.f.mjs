@@ -18,7 +18,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { DialectEntry } from '../types.ts'
  * @import { String as RttiString } from '../../types/rtti/types.ts'
- * @import { LockMap, LockSchema, Revision, RevisionError } from './types.ts'
+ * @import { LockField, LockFieldSchema, LockMap, LockSchema, Revision, RevisionError } from './types.ts'
  */
 
 import { array, number, option, string } from '../../types/rtti/module.f.mjs'
@@ -86,6 +86,30 @@ export const lock = () => ['record', lockValue]
 const lockValue = () => ['or', string, lock]
 
 /**
+ * rtti schema for a revision's `lock` **field**: the bindings inline as a lock
+ * map, or a hash naming a `vnd.fjs.lock` blob (`fjs/media/lock`) that holds
+ * one to share — see [Shared lock references](./README.md#shared-lock-references).
+ *
+ * Structurally identical to {@link lockValue}, and deliberately a separate
+ * name: the two positions mean different things. A string *inside* a map is a
+ * dependency's content hash; a string in this position is a lock blob's hash,
+ * i.e. where the whole map lives. Only the top level is widened, so a nested
+ * string keeps meaning exactly what it always did and no position is
+ * ambiguous.
+ *
+ * Widening the field rather than adding a `lockRef` sibling is what keeps this
+ * dialect: an older reader validates `lock` as a map and rejects a string
+ * outright, whereas an unknown sibling field would validate and be read as
+ * "no bindings were recorded" — the fail-open misread the versioning rule
+ * exists to prevent. It also makes "inline map *and* reference" unstatable, so
+ * the format defines no precedence between them, consistent with its refusal
+ * to define overlay or inheritance for nested maps.
+ *
+ * @type {LockFieldSchema}
+ */
+export const lockField = () => ['or', hash, lock]
+
+/**
  * rtti schema for a `revision` BLOB. See the README for the full semantics of
  * each field; `dialect` is the type discriminant, matched here as an exact
  * literal so structural validation alone rejects any other dialect's blob.
@@ -97,7 +121,7 @@ export const revisionSchema = /** @type {const} */ ({
     snapshot: hash,
     generation: number,
     archived: option(true),
-    lock: option(lock),
+    lock: option(lockField),
 })
 
 /** Serializes a revision canonically, recursively sorting every object's property names.
@@ -134,10 +158,39 @@ const lockError = scope => lock => {
 }
 
 /**
+ * The first reason a structurally valid lock map is not a valid one, or `null`
+ * — {@link lockError} rooted at the empty scope, so a reported path is
+ * relative to the map itself.
+ *
+ * Exported because `fjs/media/lock` validates the very same map as a
+ * standalone blob: one recursive schema and one semantic check, so a map means
+ * the same thing inline and shared, and the two forms cannot drift.
+ *
+ * @type {(lock: LockMap) => string | null}
+ */
+export const lockMapError = lockError([])
+
+/**
+ * The first reason a structurally valid `lock` field is not a valid one, or
+ * `null`. A map is checked entry by entry ({@link lockMapError}); a string is
+ * a reference to a `vnd.fjs.lock` blob and is checked as a cbase32 hash and
+ * nothing more — this module is pure format with no store access, so whether
+ * the blob exists, and what its bindings mean once fetched, stay a resolver's
+ * business exactly as they do for `snapshot`.
+ *
+ * @type {(value: LockField) => string | null}
+ */
+export const lockFieldError = value =>
+    typeof value === 'string'
+        ? (isHash(value) ? null : `lock reference is not a valid hash: ${value}`)
+        : lockMapError(value)
+
+/**
  * Checks the semantic refinements the structural schema can't express on an
  * already shape-valid revision: every `parents` entry and the `snapshot` must
- * decode as a cbase32 hash ({@link isHash}), every direct `lock` value at
- * every depth must too ({@link lockError}), and `generation` must be a
+ * decode as a cbase32 hash ({@link isHash}), the `lock` field must too —
+ * every direct value at every depth of an inline map, or the shared-lock
+ * reference itself ({@link lockFieldError}) — and `generation` must be a
  * non-negative *safe* integer. `subject` is not checked — it is an identity
  * string, never a snapshot reference, so any string is valid, and the same
  * goes for a lock map's keys, which are subjects.
@@ -168,7 +221,7 @@ export const checkReferences = r => {
         if (!isHash(p)) { return error(`parent is not a valid hash: ${p}`) }
     }
     if (!isHash(r.snapshot)) { return error(`snapshot is not a valid hash: ${r.snapshot}`) }
-    const lockMessage = lockError([])(r.lock ?? {})
+    const lockMessage = r.lock === undefined ? null : lockFieldError(r.lock)
     if (lockMessage !== null) { return error(lockMessage) }
     if (!Number.isSafeInteger(r.generation) || r.generation < 0) {
         return error(`generation must be a non-negative safe integer: ${r.generation}`)

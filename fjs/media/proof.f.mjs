@@ -6,6 +6,7 @@ import { assertEq } from '../asserts/module.f.mjs'
 import { msb, u8ListToVec, repeat, vec8 } from '../types/bit_vec/module.f.mjs'
 import { detect, dialectEntry } from './module.f.mjs'
 import { dialect, revisionDialect } from './revision/module.f.mjs'
+import { dialect as lockDialectName, lockDialect } from './lock/module.f.mjs'
 import { number, string } from '../types/rtti/module.f.mjs'
 
 // All test strings here are ASCII, so char code === UTF-8 byte value.
@@ -14,8 +15,10 @@ const utf8Bytes = s => u8ListToVec(msb)([...s].map(c => c.charCodeAt(0)))
 
 const revisionJson = `{"dialect":"${dialect}","subject":"8","parents":[],"snapshot":"8","generation":0}`
 
-/** @type {readonly DialectEntry[]} */
-const dialects = [revisionDialect]
+/** The two dialects `fjs/media` itself ships, in the order `fjs/mcp` registers them.
+ * @type {readonly DialectEntry[]}
+ */
+const dialects = [revisionDialect, lockDialect]
 
 const detectRevision = detect(dialects)
 
@@ -78,6 +81,33 @@ export const proof = {
     // verdict stays `text/plain` — exactly what `decodeText` would say.
     nonHashSnapshotFallsThrough: () => {
         const text = `{"dialect":"${dialect}","subject":"8","parents":[],"snapshot":"not a hash","generation":0}`
+        const m = detectRevision(utf8Bytes(text))
+        assertEq(m.type, 'text')
+        assertEq(m.mime_type, 'text/plain')
+    },
+
+    // A valid shared-lock blob is recognized as its own dialect, alongside the
+    // revision one, and reported under the derived media type.
+    validLock: () => {
+        const m = detectRevision(utf8Bytes(`{"dialect":"${lockDialectName}","lock":{"dependency":"8"}}`))
+        assertEq(m.type, 'text')
+        assertEq(m.mime_type, 'application/vnd.fjs.lock+json')
+    },
+
+    // The two dialects never claim each other's blobs: each schema matches its
+    // own `dialect` literal, so a revision carrying an inline `lock` is still a
+    // revision, and a lock blob is never a revision.
+    lockAndRevisionDoNotOverlap: () => {
+        const withLock = `{"dialect":"${dialect}","subject":"8","parents":[],"snapshot":"8","generation":0,"lock":{"d":"8"}}`
+        assertEq(detectRevision(utf8Bytes(withLock)).mime_type, 'application/vnd.fjs.revision+json')
+        assertEq(detectRevision(utf8Bytes(revisionJson)).mime_type, 'application/vnd.fjs.revision+json')
+    },
+
+    // `lockDialect` carries the semantic check too: a structurally valid lock
+    // blob whose binding is not a cbase32 hash is not detected as one, exactly
+    // as its `decodeText` would say.
+    nonHashLockValueFallsThrough: () => {
+        const text = `{"dialect":"${lockDialectName}","lock":{"dependency":"not a hash"}}`
         const m = detectRevision(utf8Bytes(text))
         assertEq(m.type, 'text')
         assertEq(m.mime_type, 'text/plain')

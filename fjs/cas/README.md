@@ -32,3 +32,9 @@ schema.
   `application/vnd.fjs.revision+json`; see
   [fjs/media/revision/README.md](../media/revision/README.md) for the full
   spec.
+- [vnd.fjs.lock](../media/lock/) — a revision's `lock` map stored on its own,
+  so several revisions can point at one agreed dependency resolution instead
+  of each carrying a copy. History-free by design: history for lock content is
+  an ordinary revision whose `snapshot` is one of these blobs. Served as
+  `application/vnd.fjs.lock+json`; see
+  [fjs/media/lock/README.md](../media/lock/README.md) for the full spec.

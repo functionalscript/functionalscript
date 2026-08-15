@@ -9,7 +9,7 @@ import type { Operation, Effect } from '../../effects/types.ts'
 import type { MemOp } from '../../effects/memory/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
-import type { LockMap } from '../../media/revision/types.ts'
+import type { LockField } from '../../media/revision/types.ts'
 
 /** A cBase32 content hash, as accepted/returned by `Cas<O>`. */
 export type Hash = string
@@ -42,6 +42,12 @@ export type Subject = string
  * - `generation` — input: **ignored**, {@link computeGeneration} derives the
  *   authoritative value from the parents; output: always present. It exists as
  *   an input field only so a read value round-trips into `add` as-is.
+ * - `lock` — the format's own field, so it is an inline map or the hash of a
+ *   `vnd.fjs.lock` blob (`fjs/media/lock`) holding one. Both directions
+ *   validate and canonicalize every hash it names — the reference itself, or
+ *   each direct value at every depth of a map. Following a reference is not
+ *   done here: evo stores and reads revisions, it does not resolve
+ *   dependencies.
  *
  * Relaxing what the format requires is the point, not an oversight. The stored
  * `vnd.fjs.revision` blob requires `subject`, `snapshot` and `generation`, and
@@ -62,7 +68,7 @@ export type RevisionData = {
     readonly subject?: Subject | undefined
     readonly archived?: true | undefined
     readonly generation?: number | undefined
-    readonly lock?: LockMap | undefined
+    readonly lock?: LockField | undefined
 }
 
 /**
