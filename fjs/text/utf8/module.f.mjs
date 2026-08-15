@@ -11,9 +11,11 @@
 
 import { flatMap, toArray } from '../../types/list/module.f.mjs'
 import {
+    bmpMax,
     decoder,
     eofFlush,
     errorMask,
+    isSupplementaryPlane,
     isValidCodePoint,
 } from '../code_point/module.f.mjs'
 import { msb, u8List, length } from '../../types/bit_vec/module.f.mjs'
@@ -94,14 +96,14 @@ const codePointToUtf8 = input => {
     if (input >= 0x0080 && input <= 0x07ff) {
         return [input >> 6 | lead2Tag, contByte(input)]
     }
-    if (input >= 0x0800 && input <= 0xffff) {
+    if (input >= 0x0800 && input <= bmpMax) {
         return [
             input >> 12 | lead3Tag,
             contByte(input >> 6),
             contByte(input),
         ]
     }
-    if (input >= 0x10000 && input <= 0x10ffff) {
+    if (isSupplementaryPlane(input)) {
         return [
             input >> 18 | lead4Tag,
             contByte(input >> 12),
