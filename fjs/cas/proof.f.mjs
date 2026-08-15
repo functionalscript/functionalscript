@@ -41,6 +41,75 @@ const casCommand = match({
     writeBytes: () => 'writeBytes',
 })
 
+// A harmless "always succeeds" response for a command, used by `drive` once a
+// test's overrides for that command are exhausted — good enough to let the
+// rest of `write`'s pipeline run to completion without ever touching a real
+// filesystem.
+/** @type {(cmd: string) => unknown} */
+const casDefaultResponse = cmd => {
+    switch (cmd) {
+        case 'now': return 0
+        case 'randomInt': return 0
+        case 'mkdir': case 'createExclusive': case 'rename': case 'rm':
+        case 'writeBytes': case 'access':
+            return ok(undefined)
+        case 'readdir': return ok(/** @type {readonly unknown[]} */ ([]))
+        case 'stat': return ok({ size: 0 })
+        default: return ok(undefined)
+    }
+}
+
+/**
+ * Drives a `FileCasOperation` effect to completion with synthetic op
+ * responses instead of a filesystem. `overrides[cmd]` is a queue consumed in
+ * call order; once a command's queue is empty (or was never given),
+ * `casDefaultResponse` supplies an always-succeeds value.
+ *
+ * `write`'s op-failure branches — a `writeBytes`/`rename` call failing
+ * mid-stream, or the final `stat` reporting a mismatched size — are real only
+ * under a race (another writer, a failing disk) between two of `write`'s own
+ * steps. The virtual harness has no such race to offer, so this reaches them
+ * directly instead: `overrides` names exactly the one call that fails, and
+ * every other call in the pipeline succeeds around it.
+ *
+ * Also returns the ordered log of command names issued, so a caller can
+ * confirm not just the returned error but *that cleanup ran* — e.g. that the
+ * failure path's own `rm` of the partial staging file was actually called,
+ * not just that some code path returned the right error tag.
+ *
+ * @type {(overrides: Partial<Record<string, unknown[]>>) => (e: Effect<FileCasOperation, unknown>) => readonly [unknown, readonly string[]]}
+ */
+const drive = overrides => {
+    /** @type {string[]} */
+    const log = []
+    /** @type {(cmd: string) => unknown} */
+    const next = cmd => {
+        log.push(cmd)
+        const queue = overrides[cmd]
+        return queue !== undefined && queue.length > 0 ? queue.shift() : casDefaultResponse(cmd)
+    }
+    const handlers = /** @type {Parameters<typeof match>[0]} */ ({
+        access: () => next('access'),
+        createExclusive: () => next('createExclusive'),
+        mkdir: () => next('mkdir'),
+        now: () => next('now'),
+        randomInt: () => next('randomInt'),
+        readBytes: () => next('readBytes'),
+        readdir: () => next('readdir'),
+        rename: () => next('rename'),
+        rm: () => next('rm'),
+        stat: () => next('stat'),
+        writeBytes: () => next('writeBytes'),
+    })
+    const matcher = match(handlers)
+    /** @type {(e: Effect<FileCasOperation, unknown>) => unknown} */
+    const run_ = e => {
+        const m = matcher(e)
+        return m[0] === 'done' ? m[1] : run_(m[2](/** @type {any} */ (m[1])))
+    }
+    return e => [run_(e), log]
+}
+
 // Create a 128 KiB big file content (at the max Vec size limit)
 // This tests the boundary where files are at the chunk size limit
 /** @type {() => Vec} */
@@ -293,6 +362,60 @@ export const proof = {
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, present] = virtual(state1)(access(livePath))
         assert(present[0] === 'ok', 'expected GC to leave the live staging file alone')
+    },
+    casWriteBytesErrorAborts: () => {
+        // A `writeBytes` call failing mid-stream (disk full, permissions) fails closed:
+        // the partial staging file is deleted and the error is returned, without ever
+        // reaching a real filesystem here.
+        const c = fileCas(sha256)('.')
+        /** @type {List<never, IoResult<Vec>>} */
+        const payload = nonEmpty(ok(vec8(0x11n)), empty())
+        const [result, log] = drive({ writeBytes: [error('disk full')] })(c.write(payload))
+        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
+        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'disk full')
+        // The cleanup `rm` of the partial staging file must actually run, not just be
+        // implied by the returned error tag.
+        assertEq(log[log.length - 1], 'rm', ['expected cleanup rm to run', log])
+    },
+    casWriteLeaseRenewalRenameErrorAborts: () => {
+        // The lease-renewal `rename` (after every chunk) failing fails the same way as a
+        // `writeBytes` failure: the partial staging file is deleted, error returned.
+        const c = fileCas(sha256)('.')
+        /** @type {List<never, IoResult<Vec>>} */
+        const payload = nonEmpty(ok(vec8(0x11n)), empty())
+        const [result, log] = drive({ rename: [error('rename failed')] })(c.write(payload))
+        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
+        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'rename failed')
+        assertEq(log[log.length - 1], 'rm', ['expected cleanup rm to run', log])
+    },
+    casWritePublishSizeMismatchErrors: () => {
+        // `publish`'s three filesystem steps (mkdir/rename/rm) run best-effort with their
+        // results ignored; success is decided afterward by the final `stat`. A `stat`
+        // that reports `ok` but with a size other than what was written — a race with a
+        // concurrent writer — surfaces as a "publish size mismatch" error instead of a
+        // false "ok". Pins the size half of the check: a `stat` that returns `ok` with
+        // any size but the expected one must still fail, even though the tag alone says
+        // success.
+        const c = fileCas(sha256)('.')
+        /** @type {List<never, IoResult<Vec>>} */
+        const payload = nonEmpty(ok(vec8(0x11n)), empty())
+        const [result] = drive({ stat: [ok({ size: 999 })] })(c.write(payload))
+        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
+        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'publish size mismatch')
+    },
+    casWritePublishStatErrorErrorsEvenWithMatchingSize: () => {
+        // Pins the tag half of the same check: a `stat` that fails outright must still
+        // fail `write`, even in the degenerate case where its error payload happens to
+        // carry a `.size` field equal to the expected offset — otherwise a check that
+        // only compared `.size` (dropping the `st[0] === 'ok'` tag check) would slip
+        // through undetected by the size-mismatch case above, which never sees a
+        // coincidentally-matching size on a failed `stat`.
+        const c = fileCas(sha256)('.')
+        /** @type {List<never, IoResult<Vec>>} */
+        const payload = nonEmpty(ok(vec8(0x11n)), empty())
+        const [result] = drive({ stat: [error({ size: 1 })] })(c.write(payload))
+        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
+        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'publish size mismatch')
     },
     casUploadSuccess: () => {
         // A successful upload returns the hash and deletes the source file from cas_upload/.

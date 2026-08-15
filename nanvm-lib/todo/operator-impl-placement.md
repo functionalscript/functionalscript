@@ -11,8 +11,7 @@ violation already filed for `Debug for String` and the UTF-16 `From` impls:
 - `src/vm/impls/add.rs:5-10` and `src/vm/impls/add_assign.rs:5-9` —
   `Add`/`AddAssign for String<A>` is string concatenation, pure
   string-domain logic, while `vm/string/` exists and already holds
-  `index.rs`, `partial_eq.rs`, `serializable.rs`, `sized_index.rs`,
-  `to_string.rs`. `impls/add.rs` mixes it with the unrelated
+  `index.rs`, `partial_eq.rs`, `sized_index.rs`, `to_string.rs`. `impls/add.rs` mixes it with the unrelated
   `Add for Unpacked<A>`.
 - `src/vm/impls/mul.rs:5-11` — `Mul for Any<A>`, while `Any`'s other
   operators live in `vm/any/add.rs`, `vm/any/neg.rs`,

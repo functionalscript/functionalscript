@@ -6,5 +6,4 @@ mod from;
 mod into_iterator;
 mod mul;
 mod partial_eq;
-mod serializable;
 mod try_from;

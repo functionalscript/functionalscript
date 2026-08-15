@@ -23,6 +23,6 @@ An operator case belongs in [`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.
 committed copy is stale.
 
 What stays here is everything with no JavaScript counterpart: `try_into` out of
-`Any`, `Debug` formatting, multi-limb bigint arithmetic, serialization
-round-trips, and the exact text of `nanvm-lib`'s own error messages. These are
-properties of the VM, not of JavaScript, so there is nothing to share.
+`Any`, `Debug` formatting, multi-limb bigint arithmetic, and the exact text of
+`nanvm-lib`'s own error messages. These are properties of the VM, not of
+JavaScript, so there is nothing to share.

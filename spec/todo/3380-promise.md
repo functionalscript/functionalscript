@@ -1,5 +1,12 @@
 # Promise
 
+**Not required for I/O.** I/O is done with effects
+([spec §5](../README.md#5-io), [`fjs/effects`](../../fjs/effects/module.f.mjs)):
+an effect is plain data, and the promises a real runner uses live in the runner
+— host code — not in the language. This feature is therefore wanted for
+JavaScript interop and for `async`/`await` sugar, and nothing in the I/O design
+waits on it.
+
 It could be blocked until we solve the ownership problem.
 
 Promise is the main object. `async` and `await` are syntax sugars. If we can safely work with promises, we can transform a FunctionalScript program with `async` functions into a normal function with Promises.

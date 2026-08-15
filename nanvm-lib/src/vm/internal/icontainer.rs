@@ -1,15 +1,11 @@
-use core::{fmt::Debug, iter::from_fn};
-use std::io;
+use core::fmt::Debug;
 
-use crate::{
-    common::{serializable::Serializable, sized_index::SizedIndex},
-    vm::IVm,
-};
+use crate::{common::sized_index::SizedIndex, vm::IVm};
 
 pub trait IContainer<A: IVm>: Sized + Clone + 'static {
     // types
-    type Header: PartialEq + Serializable + Clone;
-    type Item: Debug + Serializable + Clone;
+    type Header: PartialEq + Clone;
+    type Item: Debug + Clone;
     type Items: ?Sized + SizedIndex<usize, Output = Self::Item>;
 
     // functions
@@ -47,30 +43,5 @@ pub trait IContainer<A: IVm>: Sized + Clone + 'static {
             }
         }
         true
-    }
-
-    fn serialize(self, write: &mut impl io::Write) -> io::Result<()> {
-        self.header().clone().serialize(write)?;
-        let items = self.items();
-        let len = items.length();
-        (len as u32).serialize(write)?;
-        for i in 0..len {
-            items[i].clone().serialize(write)?;
-        }
-        Ok(())
-    }
-
-    fn deserialize(read: &mut impl io::Read) -> io::Result<Self> {
-        let header = Self::Header::deserialize(read)?;
-        let mut len = u32::deserialize(read)?;
-        let i = from_fn(|| {
-            if len > 0 {
-                len -= 1;
-                Some(Self::Item::deserialize(read))
-            } else {
-                None
-            }
-        });
-        Self::new(header, i)
     }
 }
