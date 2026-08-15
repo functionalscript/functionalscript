@@ -238,7 +238,7 @@ export const reduce = op => def => compose(scan(reduceToScan(op)))(last(def))
  * Folds `input` with an {@link Accumulator}, short-circuiting to `null` the
  * moment `update` rejects an item; otherwise finalizes with `end`. This is the
  * list-level `try*` sibling of {@link fold} for accumulations that can fail
- * partway through (see the `try*`/`Nullable` convention in `AGENTS.md`).
+ * partway through (see the `try*`/`Nullable` convention in `DESIGN.md` §6).
  *
  * @type {<I, T, R>({ init, update, end }: Accumulator<I, T, R>) => (input: List<I>) => Nullable<R>}
  */

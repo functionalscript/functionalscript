@@ -68,7 +68,7 @@ export type Monoid<T> = {
  * has `null`, meaning "longer than `maxLength`".
  *
  * The monoid is carried as a field rather than intersected in, so it stays
- * independently constructed and consumed (`AGENTS.md` §6.2).
+ * independently constructed and consumed (`fjs/AGENTS.md` §3.2).
  */
 export type Absorbing<T> = {
     readonly monoid: Monoid<T>

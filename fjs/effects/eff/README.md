@@ -89,7 +89,7 @@ closed, module-scope function has a context-free identity, so content-addressed
 FunctionalScript can deduplicate structurally identical functions across
 modules and repositories; a function that captures enclosing locals hashes
 uniquely to its context (see the hoisting rules in
-[`AGENTS.md`](../../../AGENTS.md)). `Eff`'s `.step` is a closure over the chain
+[`fjs/AGENTS.md`](../../AGENTS.md)). `Eff`'s `.step` is a closure over the chain
 it continues, so **every instance is inherently un-shareable** — not merely an
 allocation, but a value the content-addressed store can never dedupe. Any
 wrapper of this shape pays that, so it is a property of the approach rather

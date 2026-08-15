@@ -102,7 +102,7 @@ deno check test.ts                    # and: deno check bad.ts must fail TS2322
 A `…/types.js` specifier resolves to the shipped `types.d.ts` for type
 checking, but names no runtime module — the package ships no `types.js` files.
 The only supported import is therefore the fully erased `import type { X }`
-(or JSDoc `@import`); the rule is stated in AGENTS.md §6.2. The inline form
+(or JSDoc `@import`); the rule is stated in `fjs/AGENTS.md` §3.2. The inline form
 must not be used:
 
 `inline.ts`:
