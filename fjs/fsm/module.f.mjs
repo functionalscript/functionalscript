@@ -12,13 +12,13 @@
  */
 
 import { equal, isEmpty, fold, map, toArray, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
-import { toRangeMap, union as byteSetUnion, one, empty, range } from '../types/byte_set/module.f.mjs'
+import { toRangeMap, range } from '../types/byte_set/module.f.mjs'
 import { intersect, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'
 import { merge, get as rangeMapGet } from '../types/range_map/module.f.mjs'
 import { strictEqual } from '../types/function/operator/module.f.mjs'
+import { range as asciiRange } from '../text/ascii/module.f.mjs'
 import { stringify } from '../media/json/module.f.mjs'
-import { identity } from '../types/function/module.f.mjs'
-import { stringToList } from '../text/utf16/module.f.mjs'
+import { compose, identity } from '../types/function/module.f.mjs'
 import { cmp } from '../types/string/module.f.mjs'
 
 /** @typedef {readonly [string, ByteSet, string]} _Rule */
@@ -29,20 +29,17 @@ import { cmp } from '../types/string/module.f.mjs'
 
 const stringifyIdentity = stringify(identity)
 
-/** @type {(s: string) => ByteSet} */
-export const toRange = s => {
-    const [b, e] = toArray(stringToList(s))
-    return range([b, e])
-}
-
-/** @type {Fold<number, ByteSet>} */
-const toUnionOp = i => bs => byteSetUnion(bs)(one(i))
-
-/** @type {(s: string) => ByteSet} */
-export const toUnion = s => {
-    const codePoints = stringToList(s)
-    return fold(toUnionOp)(empty)(codePoints)
-}
+/**
+ * The byte set of an inclusive ASCII character range, written as the two
+ * endpoint characters: `toRange('az')`.
+ *
+ * `fjs/text/ascii` owns "two-character string to inclusive `Range`", including
+ * the one-character case where both endpoints are that character, so this is
+ * its composition with `byte_set.range` and nothing more.
+ *
+ * @type {(s: string) => ByteSet}
+ */
+export const toRange = compose(asciiRange)(range)
 
 /** @type {Properties<SortedSet<string>>} */
 const mergeOp = { union: sortedSetUnion(cmp), equal: equal(strictEqual), def: [] }
