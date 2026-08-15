@@ -47,6 +47,12 @@ fjs/media/
                 landed; see fjs/media/revision/README.md)
 ```
 
+A fourth followed by the same membership rule: `media/lock/` — dialect
+`vnd.fjs.lock`, served as `application/vnd.fjs.lock+json`, a revision's `lock`
+map stored on its own so several revisions can share one resolution. It sits
+beside `revision/` for the same cycle reason (see below), and imports the map
+schema from it rather than restating it.
+
 Later candidates for the same bucket, deliberately deferred to keep each PR
 small:
 

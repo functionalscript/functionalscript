@@ -177,16 +177,20 @@ export const proof = {
             textOf(read),
             `{"subject":"doc","parents":[],"snapshot":"${snapshot}","generation":0,"lock":{"B":{"D":"${d1}"},"C":{"D":"${d2}"}}}`)
     },
-    // The advertised `inputSchema` publishes the recursion the way JSON
-    // Schema expresses one: a named `$defs` rule the `lock` property refers
-    // to through a local `$ref`, rather than a flat-only shape or an
-    // infinitely inlined one.
+    // The advertised `inputSchema` publishes both halves of the format's
+    // `lock` field: either a shared-lock reference (a string) or an inline
+    // map, and the map's recursion the way JSON Schema expresses one — a named
+    // `$defs` rule reached through a local `$ref`, rather than a flat-only
+    // shape or an infinitely inlined one.
     evoAddInputSchemaPublishesTheLockRecursion: () => {
         const schema = toJsonSchema(evoAddArgs)
         const lock = at('lock')(schema.properties ?? {})
         assert(lock !== null, ['expected a lock property', schema])
         const ref = '#/$defs/lockValue'
-        assertEq(at('$ref')(lock.additionalProperties ?? {}), ref)
+        const [sharedRef, inlineMap] = lock.anyOf ?? []
+        assertEq(sharedRef?.type, 'string')
+        assertEq(inlineMap?.type, 'object')
+        assertEq(at('$ref')(inlineMap?.additionalProperties ?? {}), ref)
         const rule = at('lockValue')(schema.$defs ?? {})
         assert(rule !== null, ['expected a lockValue definition', schema])
         const [directHash, nestedMap] = rule.anyOf ?? []

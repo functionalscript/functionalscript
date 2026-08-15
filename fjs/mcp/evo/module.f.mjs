@@ -51,7 +51,7 @@
  */
 
 import { string, option, array } from '../../types/rtti/module.f.mjs'
-import { lock } from '../../media/revision/module.f.mjs'
+import { lockField } from '../../media/revision/module.f.mjs'
 import { pure, step } from '../../effects/module.f.mjs'
 import {
     toolEntry, errorResult, okResult,
@@ -84,11 +84,13 @@ export const evoRevisionArgs = /** @type {const} */ ({
  * `RevisionData` — every field of it the caller supplies, i.e. all but
  * `generation`, which the server computes.
  *
- * `lock` is the media format's own recursive schema
- * (`fjs/media/revision`'s `lock`), not a restatement of it, so the advertised
- * `inputSchema` and what the server accepts cannot drift apart. Being
- * recursive, it is the one argument whose JSON Schema is emitted as a named
- * `$defs` rule plus a local `$ref` rather than inline — see
+ * `lock` is the media format's own field schema
+ * (`fjs/media/revision`'s `lockField`), not a restatement of it, so the
+ * advertised `inputSchema` and what the server accepts cannot drift apart. It
+ * therefore accepts either form the format does — the bindings inline, or the
+ * hash of a `vnd.fjs.lock` blob holding them. The map half is recursive, which
+ * makes it the one argument whose JSON Schema reaches a named `$defs` rule
+ * through a local `$ref` rather than being inlined whole — see
  * `fjs/media/json/schema`.
  */
 export const evoAddArgs = /** @type {const} */ ({
@@ -96,7 +98,7 @@ export const evoAddArgs = /** @type {const} */ ({
     snapshot: option(string),
     subject: option(string),
     archived: option(true),
-    lock: option(lock),
+    lock: option(lockField),
 })
 
 // ── Tool registry ────────────────────────────────────────────────────────────────
@@ -151,7 +153,7 @@ export const evoToolRegistry = e => [
     ),
     toolEntry(
         'evo_add',
-        'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server. `lock` is optional resolver input: a map from dependency subject to the cBase32 hash of the content it resolves to, or to a nested map scoping further bindings under that subject (use nesting only for conflicting choices a flat map cannot express, e.g. two dependencies needing different versions of a third).',
+        'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server. `lock` is optional resolver input: a map from dependency subject to the cBase32 hash of the content it resolves to, or to a nested map scoping further bindings under that subject (use nesting only for conflicting choices a flat map cannot express, e.g. two dependencies needing different versions of a third). Pass a cBase32 hash instead of a map to share one already stored as a `vnd.fjs.lock` blob; the server records the reference and does not follow it.',
         evoAddArgs,
         /** @type {(input: Ts<typeof evoAddArgs>) => Effect<O | MemOp, ToolsCallResult>} */
         (input => step(

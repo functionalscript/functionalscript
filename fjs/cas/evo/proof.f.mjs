@@ -653,7 +653,42 @@ export const proof = {
         assert(added[0] === 'ok', ['expected add ok', added])
         const [, result] = virtual(state1)(e.revision(added[1]))
         assert(result[0] === 'ok', ['expected revision ok', result])
-        assertEq(result[1].lock?.dependency, canonical)
+        const lock = result[1].lock
+        assert(typeof lock === 'object', ['expected an inline lock map', lock])
+        assertEq(lock.dependency, canonical)
+    },
+    // A `lock` naming a `vnd.fjs.lock` blob is stored and read back as the
+    // reference it is: validated as a hash and re-spelled canonically, like
+    // `snapshot`, and never followed — resolving one is a resolver's job.
+    revisionSharedLockReferenceRoundTripsAndCanonicalizes: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const canonical = vecToCBase32(vec8(0xffn))
+        const alias = canonical.toUpperCase()
+        const [state1, added] = virtual(state0)(e.add({
+            parents: [], subject: 'doc', snapshot: canonical, lock: alias,
+        }))
+        assert(added[0] === 'ok', ['expected add ok', added])
+        const [state2, result] = virtual(state1)(e.revision(added[1]))
+        assert(result[0] === 'ok', ['expected revision ok', result])
+        assertEq(result[1].lock, canonical)
+        const [, readded] = virtual(state2)(e.add(result[1]))
+        assert(readded[0] === 'ok', ['expected re-add ok', readded])
+        assertEq(readded[1], added[1])
+    },
+    // A shared-lock reference is checked as a hash on the way in, so a
+    // non-cBase32 one fails the write instead of being stored unresolvable.
+    revisionInvalidSharedLockReferenceIsRejected: () => {
+        const c = fileCas(sha256)(home)
+        const [state0, cacheKey] = virtual(emptyState)(initEvo(c))
+        const e = evo(c)(cacheKey)
+        const [, result] = virtual(state0)(e.add({
+            parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0xffn)),
+            lock: 'https://example.com/lock',
+        }))
+        assert(result[0] === 'error', ['expected error', result])
+        assert(result[1].includes('lock reference is not a valid hash'), result[1])
     },
     // A nested lock map round-trips with its scope structure intact, and
     // canonicalization recurses into it: an alias spelling bound inside a
@@ -671,7 +706,9 @@ export const proof = {
         assert(added[0] === 'ok', ['expected add ok', added])
         const [state2, result] = virtual(state1)(e.revision(added[1]))
         assert(result[0] === 'ok', ['expected revision ok', result])
-        const scope = result[1].lock?.B
+        const lock = result[1].lock
+        assert(typeof lock === 'object', ['expected an inline lock map', lock])
+        const scope = lock.B
         assert(typeof scope === 'object', ['expected a nested scope', scope])
         assertEq(scope.D, canonical)
         // The read value is still valid `add` input, and re-adding it reuses

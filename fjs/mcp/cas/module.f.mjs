@@ -123,6 +123,7 @@ import { tryUtf8 } from '../../text/module.f.mjs'
 import { detectStream } from '../../media/type/module.f.mjs'
 import { detect } from '../../media/module.f.mjs'
 import { revisionDialect } from '../../media/revision/module.f.mjs'
+import { lockDialect } from '../../media/lock/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import {
@@ -134,6 +135,7 @@ import { identity } from '../../types/function/module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { syncRevision } from '../../cas/evo/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
 
@@ -156,8 +158,13 @@ export const casListArgs = /** @type {const} */ ({})
 
 const toJson = stringify(identity)
 
-/** The dialect-aware classifier, bound to the dialects this server recognizes. */
-const detectDialect = detect([revisionDialect])
+/**
+ * The dialect-aware classifier, bound to the dialects this server recognizes:
+ * the revision format and the shared lock maps revisions reference
+ * (`fjs/media/lock`), so `cas_get` reports either under its own media type
+ * instead of `text/plain`.
+ */
+const detectDialect = detect([revisionDialect, lockDialect])
 
 /** @typedef {{
  *   readonly length: number
@@ -269,19 +276,21 @@ export const casToolRegistry = home => cacheKey => {
                                 /** @type {_Meta} */
                                 const refinedMeta = { length: Number(refined.length), mimeType: refined.mime_type, type: refined.type, uri }
                                 if (refined.type === 'text') {
-                                    // `type: 'text'` means the detector validated `value` as UTF-8,
-                                    // so `fromVec` is non-null here; guard defensively regardless.
-                                    const str = fromVec(value)
-                                    return pure(str === null
-                                        ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                                        : okResult(toJson({ ...refinedMeta, text: str }))
-                                    )
+                                    // `type: 'text'` means the detector validated `value` as
+                                    // whole-blob UTF-8 with a byte-aligned length (see
+                                    // `media/type`'s `finish`) — the same two conditions
+                                    // `fromVec` checks, via the same decoder — so `fromVec`
+                                    // cannot return `null` here (mirrors `media`'s own `detect`).
+                                    const str = assertNotNullish(fromVec(value), 'cas_get: type text implies fromVec succeeds')
+                                    return pure(okResult(toJson({ ...refinedMeta, text: str })))
                                 }
-                                const blob = base64Encode(value)
-                                return pure(blob === null
-                                    ? errorResult(`content is not byte-aligned: ${r.hash}`)
-                                    : okResult(toJson({ ...refinedMeta, blob }))
-                                )
+                                // Every byte ever written through `cas_add`/the CAS store is
+                                // whole-byte chunks (UTF-8 text or already-decoded base64), so
+                                // `value` is always byte-aligned regardless of which branch
+                                // classified it — `base64Encode` only rejects a non-byte-aligned
+                                // input.
+                                const blob = assertNotNullish(base64Encode(value), 'cas_get: stored content is always byte-aligned')
+                                return pure(okResult(toJson({ ...refinedMeta, blob })))
                             },
                         )
                     },
