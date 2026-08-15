@@ -988,7 +988,7 @@ person can re-check rather than re-derive. Counts are as of
       declarations already in the tree re-checks every `.mjs` import through
       the emitted `.d.mts` (which outranks `.mjs` in resolution), which is what
       made the `Assert<Equal<…>>` round-trip pins bite — seeding the
-      AGENTS.md §6.2 counter-example fails the two-pass `prepack` and passes a
+      `fjs/AGENTS.md` §3.2 counter-example fails the two-pass `prepack` and passes a
       naive one-pass one. `prepack` is therefore
       `tsc --noEmit false --emitDeclarationOnly && tsc`: declaration
       emit, then the same round-trip check with nothing emitted.

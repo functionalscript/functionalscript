@@ -28,6 +28,18 @@ concrete bugs or tasks that belong in a child `todo/`.
 
 If you can't decide where an issue belongs, leave it here and discuss.
 
+## GitHub issues are an intake channel
+
+GitHub issues are an **intake** channel, not a tracker: external contributors
+cannot add `todo/` files, so they report there instead (see
+[CONTRIBUTING.md](../CONTRIBUTING.md)). A maintainer creates the `todo/` file for
+each such report, linking the GitHub issue from its `Related` section. The
+`todo/` file is the tracked issue from then on; the GitHub issue stays open only
+as the reporter's thread and is closed when the fix ships.
+
+Reference issues with an explicit link, not GitHub's `#` prefix. `#NNN` is
+reserved for GitHub pull request and issue numbers.
+
 ## Blocked by third parties
 
 Issues that cannot progress until an external event occurs (a TC39 proposal lands, a
@@ -77,7 +89,8 @@ Before deleting, ensure design decisions are captured in the relevant
 `README.md` or JSDoc.
 
 Won't-fix issues: document the reason in the relevant `README.md`, in a code
-comment, or in another issue — then delete the issue file.
+comment, or in another issue — then delete the issue file. Do not leave a
+status-only tombstone.
 
 ## Priority scale
 
