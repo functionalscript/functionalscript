@@ -39,8 +39,11 @@ const makeState = (/** @type {boolean} */ rust, /** @type {string | undefined} *
 /** @type {(dir: Dir, name: string) => Dir} */
 const subDir = (dir, name) => {
     const entity = dir[name]
-    assert(typeof entity === 'object' && !Array.isArray(entity), entity)
-    return /** @type {Dir} */ (entity)
+    // `Array.isArray` narrows to `any[]`, which `readonly Vec[]` is not assignable
+    // to, so its negative branch never removes a `readonly` array from a union.
+    // `instanceof Array` does, so this `assert` narrows `entity` to `Dir`.
+    assert(typeof entity === 'object' && !(entity instanceof Array), entity)
+    return entity
 }
 
 /** @type {(dir: Dir, name: string) => string} */

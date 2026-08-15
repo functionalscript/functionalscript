@@ -376,8 +376,7 @@ export const match = map =>
     e => {
         if (typeof e === 'function') { return ['done', e()] }
         const { command, payload, continuation } = e
-        const handler = /** @type {(...payload: readonly unknown[]) => R} */
-            (at(command)(/** @type {any} */ (map)))
+        const handler = at(command)(map)
         assert(handler !== null, command)
         return ['cont', handler(...payload), continuation]
     }

@@ -5,8 +5,8 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from '../cas/types.ts'
  * @import { List } from '../effects/list/types.ts'
- * @import { McpSessionState, ToolsCallResult } from '../protocol/mcp/types.ts'
- * @import { IoResult, Mkdir, Now, RandomInt, ReadBytes, Rename, } from '../effects/node/types.ts'
+ * @import { ContentItem, ToolsCallResult } from '../protocol/mcp/types.ts'
+ * @import { IoResult, Mkdir, Now, RandomInt, ReadBytes, Rename } from '../effects/node/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'
  */
 
@@ -99,7 +99,7 @@ const seedBlob = (root, home = '/home/user') => chunks => {
     const c = fileCas(sha256)(home)
     const stream = chunks.reduceRight(
         (/** @type {List<never, IoResult<Vec>>} */ tail, chunk) => nonEmpty(resultOk(chunk), tail),
-        /** @type {List<never, IoResult<Vec>>} */ (elEmpty()))
+        /** @satisfies {List<never, IoResult<Vec>>} */ (elEmpty()))
     const [state, result] = virtual({ ...emptyState, root })(c.write(stream))
     assert(result[0] === 'ok', result)
     return [state.root, vecToCBase32(result[1])]
@@ -143,7 +143,7 @@ const runStdio =
         const effect = step(
             initEvo(fileCas(sha256)(home)),
             cacheKey => step(
-                create(/** @type {McpSessionState} */ (uninitializedState)),
+                create(uninitializedState),
                 sessionKey =>
                     stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))
             )
@@ -154,15 +154,80 @@ const runStdio =
         return stdout.split('\n').filter(line => line.length > 0).slice(1).map(line => unwrap(parseJson(line)))
     }
 
+/**
+ * The `result` of a `tools/call` response.
+ *
+ * This is the one place a response crosses from `unknown` to a typed
+ * {@link ToolsCallResult}. The structural essentials are checked here so the
+ * accessors below — and every call site — do not have to assume them; only the
+ * final step from a checked `content` array to `ToolsCallResult` is taken on
+ * trust, because rtti's `parse` reads `Unknown`, and getting there from
+ * `unknown` is the same problem one level down.
+ */
 /** @type {(resp: unknown) => ToolsCallResult} */
-const resultOf = resp =>
-    /** @type {{ readonly result: ToolsCallResult }} */ (resp).result
+const resultOf = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'result' in resp, resp)
+    const { result } = resp
+    assert(typeof result === 'object' && result !== null && 'content' in result, result)
+    const { content } = result
+    assert(content instanceof Array, content)
+    return /** @type {ToolsCallResult} */ (result)
+}
 
-/** @type {(resp: unknown) => unknown} */
-const item0 = resp => resultOf(resp).content[0]
+/** @type {(resp: unknown) => ContentItem} */
+const item0 = resp => {
+    const [item] = resultOf(resp).content
+    assert(item !== undefined, resp)
+    return item
+}
 
 /** @type {(resp: unknown) => string} */
-const textOf = resp => (/** @type {{ readonly text: string }} */ (item0(resp))).text
+const textOf = resp => {
+    const item = item0(resp)
+    assert(item.type === 'text', item)
+    return item.text
+}
+
+// The accessors below read a response that is `unknown` at this boundary. They
+// check their way in rather than casting, so a malformed response fails at the
+// read with the offending value attached.
+
+/** Whether `resp` is an object carrying `key`. */
+/** @type {(resp: unknown, key: 'error' | 'result') => boolean} */
+const has = (resp, key) => typeof resp === 'object' && resp !== null && key in resp
+
+/** @type {(resp: unknown) => number} */
+const errorCode = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'error' in resp, resp)
+    const { error } = resp
+    assert(typeof error === 'object' && error !== null && 'code' in error, error)
+    const { code } = error
+    assert(typeof code === 'number', code)
+    return code
+}
+
+/** @type {(resp: unknown) => unknown} */
+const idOf = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'id' in resp, resp)
+    return resp.id
+}
+
+/** The `name` and `inputSchema.type` of each tool in a `tools/list` result. */
+/** @type {(resp: unknown) => readonly { readonly name: string, readonly schemaType: unknown }[]} */
+const toolsOf = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'result' in resp, resp)
+    const { result } = resp
+    assert(typeof result === 'object' && result !== null && 'tools' in result, result)
+    const { tools } = result
+    assert(tools instanceof Array, tools)
+    return tools.map(t => {
+        assert(typeof t === 'object' && t !== null && 'name' in t && 'inputSchema' in t, t)
+        const { name, inputSchema } = t
+        assert(typeof name === 'string', name)
+        assert(typeof inputSchema === 'object' && inputSchema !== null && 'type' in inputSchema, inputSchema)
+        return { name, schemaType: inputSchema.type }
+    })
+}
 
 /** The `text` payload of a `cas_get` response, parsed and checked against {@link casGetResult}. */
 const casGetResultOf = (/** @type {unknown} */ resp) =>
@@ -176,12 +241,12 @@ const textSample = 'hello, world!'
 const revisionSample = `{"dialect":"${revisionDialect}","subject":"8","parents":[],"snapshot":"8","generation":0}`
 
 // A base64-encoded binary payload for binary add→get round-trips.
-const binarySample = /** @type {string} */ (base64Encode(vec8(0x2An)))
+const binarySample = base64Encode(vec8(0x2An))
 
 // A base64 blob whose leading bytes are the PNG magic-byte signature, so
 // `cas_get` detects its type and returns base64 with mimeType image/png.
-const pngSample = /** @type {string} */ (base64Encode(
-    u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01])))
+const pngSample = base64Encode(
+    u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]))
 
 // Returns the RFC 4648 base64 encoding of `n` zero bytes, computed directly
 // without bigint arithmetic — independent of `base64.encode` so these tests
@@ -209,10 +274,10 @@ const largeMultiChunkBlobMeta =
     (/** @type {Vec} */ chunk0, /** @type {Vec} */ chunk1, /** @type {string} */ expectedType,
         /** @type {string} */ expectedMime) => () => {
         const [root, hash] = seedBlob({})([chunk0, chunk1])
-        const [metaResp] = /** @type {readonly unknown[]} */ (runSessionVirtual(root)([
+        const [metaResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_get', { hash }),
-        ]).slice(2))
+        ]).slice(2)
         assert(!resultOf(metaResp).isError)
         const meta = casGetResultOf(metaResp)
         assertEq(meta.type, expectedType)
@@ -265,10 +330,10 @@ export const proof = {
     // buffered inline. The metadata-only path (above) still returns its size/type.
     getContentLargeBlobTooLargeError: () => {
         const [root, hash] = seedBlob({})([asciiChunk, asciiChunk])
-        const [getResp] = /** @type {readonly unknown[]} */ (runSessionVirtual(root)([
+        const [getResp] = runSessionVirtual(root)([
             init, initialized,
             call(2, 'cas_get', { hash, content: true }),
-        ]).slice(2))
+        ]).slice(2)
         assertEq(resultOf(getResp).isError, true)
         const text = textOf(getResp)
         assert(text.includes('too large'))
@@ -302,9 +367,8 @@ export const proof = {
         const [getResp] = runStdio(root)([
             call(2, 'cas_get', { hash, content: true }),
         ])
-        const err = /** @type {{ readonly error?: { readonly code: number }, readonly id: unknown }} */ (getResp)
-        assertEq(err.error?.code, -32603)
-        assertEq(err.id, 2)
+        assertEq(errorCode(getResp), -32603)
+        assertEq(idOf(getResp), 2)
     },
 
     // The paired boundary case: a blob whose base64 inflation leaves enough
@@ -337,19 +401,18 @@ export const proof = {
         const [getResp] = runStdio(root)([
             call(2, 'cas_get', { hash, content: true }),
         ])
-        const err = /** @type {{ readonly error?: { readonly code: number }, readonly id: unknown }} */ (getResp)
-        assertEq(err.error?.code, -32603)
-        assertEq(err.id, 2)
+        assertEq(errorCode(getResp), -32603)
+        assertEq(idOf(getResp), 2)
     },
 
     toolsListAdvertisesSevenTools: () => {
         const [resp] = runSessionVirtual({})([init, initialized, list(2)]).slice(2)
-        const tools = (/** @type {{ result: { tools: readonly { name: string }[] } }} */ (resp)).result.tools
+        const tools = toolsOf(resp)
         assertEq(tools.length, 7)
         assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,evo_list,evo_head,evo_revision,evo_add')
-        const add = (/** @type {{ result: { tools: readonly { inputSchema: { type?: string } }[] } }} */ (resp))
-            .result.tools[0]
-        assertEq(add.inputSchema.type, 'object')
+        const [add] = tools
+        assert(add !== undefined, tools)
+        assertEq(add.schemaType, 'object')
     },
 
     // The same server also exposes Evo (fjs/cas/evo): add a revision, then
@@ -476,7 +539,7 @@ export const proof = {
             call(2, 'cas_add', { content: textSample }),
             call(3, 'cas_get', { hash, content: true }),
         )
-        assertEq(item0(getResp) === null ? null : (/** @type {{ type: string }} */ (item0(getResp))).type, 'text')
+        assertEq(item0(getResp).type, 'text')
         const result = casGetResultOf(getResp)
         assertEq(result.type, 'text')
         assertEq(result.mimeType, 'text/plain')
@@ -491,7 +554,7 @@ export const proof = {
             call(3, 'cas_get', { hash, content: true }),
         )
         assert(!resultOf(getResp).isError)
-        assertEq((/** @type {{ type: string }} */ (item0(getResp))).type, 'text')
+        assertEq(item0(getResp).type, 'text')
         const result = casGetResultOf(getResp)
         assertEq(result.type, 'base64')
         assertEq(result.mimeType, 'image/png')
@@ -620,8 +683,8 @@ export const proof = {
 
     toolErrorIsNotJsonRpcError: () => {
         const [resp] = session(call(2, 'cas_add', { content: 'not valid!', type: 'base64' }))
-        assert(!('error' in /** @type {object} */ (resp)))
-        assert('result' in /** @type {object} */ (resp))
+        assert(!has(resp, 'error'), resp)
+        assert(has(resp, 'result'), resp)
     },
 
     // cas_get without content:true returns only metadata.
@@ -657,7 +720,7 @@ export const proof = {
 
     getMetaOctetStreamForUnknownBinary: () => {
         const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
-        const binaryB64 = /** @type {string} */ (base64Encode(binaryContent))
+        const binaryB64 = base64Encode(binaryContent)
         const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
         const hash = textOf(addResp)
         const [, metaResp] = session(
@@ -675,7 +738,7 @@ export const proof = {
     // base64/octet-stream, not text/plain.
     getMetaOctetStreamForNulBlob: () => {
         const nulContent = u8ListToVec(msb)([0x00, 0x00, 0x00])
-        const nulB64 = /** @type {string} */ (base64Encode(nulContent))
+        const nulB64 = base64Encode(nulContent)
         const [addResp] = session(call(2, 'cas_add', { content: nulB64, type: 'base64' }))
         const hash = textOf(addResp)
         const [, metaResp] = session(
@@ -702,7 +765,7 @@ export const proof = {
     // cas_get with content:true on octet-stream (no magic bytes, not UTF-8) returns inline base64.
     getOctetStreamWithContentIncludesBase64: () => {
         const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
-        const binaryB64 = /** @type {string} */ (base64Encode(binaryContent))
+        const binaryB64 = base64Encode(binaryContent)
         const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
         const hash = textOf(addResp)
         const [, getResp] = session(

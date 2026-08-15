@@ -35,7 +35,7 @@ import { do_, mapStep, okStep, pure, step } from '../module.f.mjs'
  * @type {(e: unknown) => boolean}
  */
 export const isNotFound = e =>
-    typeof e === 'object' && e !== null && (/** @type {{ readonly code?: unknown }} */ (e)).code === 'ENOENT'
+    typeof e === 'object' && e !== null && 'code' in e && e.code === 'ENOENT'
 
 // all
 
@@ -173,7 +173,7 @@ const writeLoop = path => {
 export const writeFromStream = (path, e) =>
     step(
         createExclusive(path),
-        okStep(() => /** @type {Effect<O | WriteBytes, IoResult<void>>} */ (writeLoop(path)(0, e))))
+        okStep(() => writeLoop(path)(0, e)))
 
 // stat
 
@@ -204,7 +204,8 @@ export const import_ = do_('import')
 // write
 
 /** Emits a `Write` effect to the given named stream. */
-export const write = /** @type {Func<Write>} */ (do_('write'))
+/** @type {Func<Write>} */
+export const write = do_('write')
 
 /**
  * Encodes `s + '\n'` as UTF-8 and emits a `Write` effect to `stream`.
@@ -216,15 +217,18 @@ const writeString = stream => s =>
     write(stream, utf8(s + '\n'))
 
 /** Writes a line to `stdout`. Replaces the retired `Log` effect. */
-export const log = /** @type {Console} */ (writeString('stdout'))
+/** @type {Console} */
+export const log = writeString('stdout')
 
 /** Writes a line to `stderr`. Replaces the retired `Error` effect. */
-export const error = /** @type {Console} */ (writeString('stderr'))
+/** @type {Console} */
+export const error = writeString('stderr')
 
 // read
 
 /** Emits a `Read` effect, yielding the next input byte or `null` at EOF. */
-export const read = /** @type {Func<Read>} */ (do_('read'))
+/** @type {Func<Read>} */
+export const read = do_('read')
 
 /** @type {(bytes: _UtfList) => string} */
 const utf8ListToString = bytes =>

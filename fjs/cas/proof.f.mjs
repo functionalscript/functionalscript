@@ -53,7 +53,7 @@ const casDefaultResponse = cmd => {
         case 'mkdir': case 'createExclusive': case 'rename': case 'rm':
         case 'writeBytes': case 'access':
             return ok(undefined)
-        case 'readdir': return ok(/** @type {readonly unknown[]} */ ([]))
+        case 'readdir': return ok([])
         case 'stat': return ok({ size: 0 })
         default: return ok(undefined)
     }
@@ -88,7 +88,7 @@ const drive = overrides => {
         const queue = overrides[cmd]
         return queue !== undefined && queue.length > 0 ? queue.shift() : casDefaultResponse(cmd)
     }
-    const handlers = /** @type {Parameters<typeof match>[0]} */ ({
+    const handlers = {
         access: () => next('access'),
         createExclusive: () => next('createExclusive'),
         mkdir: () => next('mkdir'),
@@ -100,18 +100,30 @@ const drive = overrides => {
         rm: () => next('rm'),
         stat: () => next('stat'),
         writeBytes: () => next('writeBytes'),
-    })
+    }
     const matcher = match(handlers)
     /** @type {(e: Effect<FileCasOperation, unknown>) => unknown} */
     const run_ = e => {
         const m = matcher(e)
-        return m[0] === 'done' ? m[1] : run_(m[2](/** @type {any} */ (m[1])))
+        return m[0] === 'done' ? m[1] : run_(m[2](m[1]))
     }
     return e => [run_(e), log]
 }
 
 // Create a 128 KiB big file content (at the max Vec size limit)
 // This tests the boundary where files are at the chunk size limit
+/**
+ * The message of an `IoResult` the driver returned as `unknown`. Checks the
+ * result really is an `error` pair rather than assuming it: these proofs exist
+ * to establish that a write fails closed, so the shape is the claim.
+ */
+/** @type {(result: unknown) => unknown} */
+const errorMessage = result => {
+    assert(result instanceof Array && result.length === 2 && result[0] === 'error',
+        ['expected an error result', result])
+    return result[1]
+}
+
 /** @type {() => Vec} */
 const createBigFileContent = () => {
     const byteCount = 128n * 1024n // 128 KiB
@@ -243,7 +255,7 @@ export const proof = {
         /** @type {List<FileCasOperation, IoResult<Vec>>} */
         const payload = chunks.reduceRight(
             (tail, chunk) => nonEmpty(ok(chunk), tail),
-            /** @type {List<FileCasOperation, IoResult<Vec>>} */ (empty()))
+            /** @satisfies {List<FileCasOperation, IoResult<Vec>>} */ (empty()))
         const [state1, writeResult] = virtual(emptyState)(c.write(payload))
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
         const hash = writeResult[1]
@@ -288,7 +300,7 @@ export const proof = {
         /** @type {IoResult<Vec>} */
         const errItem = error({ code: 'BOOM' })
         /** @type {List<FileCasOperation, IoResult<Vec>>} */
-        const payload = nonEmpty(okItem, nonEmpty(errItem, /** @type {List<FileCasOperation, IoResult<Vec>>} */ (empty())))
+        const payload = nonEmpty(okItem, nonEmpty(errItem, /** @satisfies {List<FileCasOperation, IoResult<Vec>>} */ (empty())))
         const [state1, result] = virtual(emptyState)(c.write(payload))
         assert(result[0] === 'error', ['expected write error', result])
         const [, hashes] = virtual(state1)(c.list())
@@ -307,7 +319,7 @@ export const proof = {
         /** @type {List<FileCasOperation, IoResult<Vec>>} */
         const payload = chunks.reduceRight(
             (tl, chunk) => nonEmpty(ok(chunk), tl),
-            /** @type {List<FileCasOperation, IoResult<Vec>>} */ (empty()))
+            /** @satisfies {List<FileCasOperation, IoResult<Vec>>} */ (empty()))
         const [state1, w] = virtual(emptyState)(c.write(payload))
         assert(w[0] === 'ok', ['expected write ok', w])
         const hash = w[1]
@@ -340,7 +352,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(nonEmpty(ok(content), /** @type {List<never, Ok<Vec>>} */ (empty())))
+        const x = c.write(nonEmpty(ok(content), /** @satisfies {List<never, Ok<Vec>>} */ (empty())))
         const [state1, w] = virtual(state0)(x)
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, present] = virtual(state1)(access(stalePath))
@@ -357,7 +369,7 @@ export const proof = {
         }
         const content = vec8(0x2An)
         const c = fileCas(sha256)('.')
-        const x = c.write(nonEmpty(ok(content), /** @type {List<never, Ok<Vec>>} */ (empty())))
+        const x = c.write(nonEmpty(ok(content), /** @satisfies {List<never, Ok<Vec>>} */ (empty())))
         const [state1, w] = virtual(state0)(x)
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, present] = virtual(state1)(access(livePath))
@@ -371,8 +383,7 @@ export const proof = {
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
         const [result, log] = drive({ writeBytes: [error('disk full')] })(c.write(payload))
-        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
-        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'disk full')
+        assertEq(errorMessage(result), 'disk full')
         // The cleanup `rm` of the partial staging file must actually run, not just be
         // implied by the returned error tag.
         assertEq(log[log.length - 1], 'rm', ['expected cleanup rm to run', log])
@@ -384,8 +395,7 @@ export const proof = {
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
         const [result, log] = drive({ rename: [error('rename failed')] })(c.write(payload))
-        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
-        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'rename failed')
+        assertEq(errorMessage(result), 'rename failed')
         assertEq(log[log.length - 1], 'rm', ['expected cleanup rm to run', log])
     },
     casWritePublishSizeMismatchErrors: () => {
@@ -400,8 +410,7 @@ export const proof = {
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
         const [result] = drive({ stat: [ok({ size: 999 })] })(c.write(payload))
-        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
-        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'publish size mismatch')
+        assertEq(errorMessage(result), 'publish size mismatch')
     },
     casWritePublishStatErrorErrorsEvenWithMatchingSize: () => {
         // Pins the tag half of the same check: a `stat` that fails outright must still
@@ -414,8 +423,7 @@ export const proof = {
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
         const [result] = drive({ stat: [error({ size: 1 })] })(c.write(payload))
-        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
-        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'publish size mismatch')
+        assertEq(errorMessage(result), 'publish size mismatch')
     },
     casUploadSuccess: () => {
         // A successful upload returns the hash and deletes the source file from cas_upload/.
@@ -454,7 +462,7 @@ export const proof = {
         /** @type {IoResult<Vec>} */
         const boom = error('boom')
         /** @type {List<never, IoResult<Vec>>} */
-        const stream = nonEmpty(ok(vec8(0x11n)), nonEmpty(boom, /** @type {List<never, IoResult<Vec>>} */ (empty())))
+        const stream = nonEmpty(ok(vec8(0x11n)), nonEmpty(boom, /** @satisfies {List<never, IoResult<Vec>>} */ (empty())))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
         const [r] = o

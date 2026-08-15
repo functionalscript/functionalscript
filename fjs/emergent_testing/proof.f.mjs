@@ -166,10 +166,10 @@ export const returnValueSubTree = () => {
     const [events, exit] = run({
         'r.proof.f.ts': () => ({
             proof: {
-                outer: /** @type {() => unknown} */ (() => ({
+                outer: () => ({
                     result: /** @type {const} */ (['ok', { inner }]),
                     duration: 0,
-                })),
+                }),
             }
         }),
     })
@@ -336,7 +336,7 @@ const makeRegisterRunner = testOp => {
             effects.reduce(
                 ([st, rs], e) => {
                     const [ns, r] = runner(st)(e)
-                    return /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([ns, [...rs, r]])
+                    return [ns, [...rs, r]]
                 },
                 /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([s, []]),
             ),
@@ -438,7 +438,7 @@ export const registerSelectsContextAndStar = () => {
                 effects.reduce(
                     ([st, rs], e) => {
                         const [ns, r] = runner(st)(e)
-                        return /** @type {readonly [undefined, readonly unknown[]]} */ ([ns, [...rs, r]])
+                        return [ns, [...rs, r]]
                     },
                     /** @type {readonly [undefined, readonly unknown[]]} */ ([s, []]),
                 ),
@@ -535,13 +535,13 @@ export const helpers = {
     parseTestSet: {
         nullReturnsEmpty: () => {
             const result = parseTestSet(false, null)
-            assertEq(Array.isArray(result), true)
-            assertEq((/** @type {unknown[]} */ (result)).length, 0)
+            assert(result instanceof Array, result)
+            assertEq(result.length, 0)
         },
         functionWithParamsReturnsEmpty: () => {
             const result = parseTestSet(false, (/** @type {number} */ _x) => _x)
-            assertEq(Array.isArray(result), true)
-            assertEq((/** @type {unknown[]} */ (result)).length, 0)
+            assert(result instanceof Array, result)
+            assertEq(result.length, 0)
         },
     },
 }

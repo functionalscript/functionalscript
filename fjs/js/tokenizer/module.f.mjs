@@ -338,15 +338,15 @@ const hasOperatorToken = op => at(op)(operatorMap) !== null
 
 /** @type {(state: _InitialState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const initialStateOp = create(
-    /** @type {_CreateToToken<_TokenizerState>} */ (state => () => [[{ kind: 'error', message: 'unexpected character' }], state])
+    state => () => [[{ kind: 'error', message: 'unexpected character' }], state]
 )([
-    rangeFunc(rangeOneNine)(/** @type {_CreateToToken<_TokenizerState>} */ (() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: 'int' }])),
-    rangeSetFunc(rangeIdStart)(/** @type {_CreateToToken<_TokenizerState>} */ (() => input => [empty, { kind: 'id', value: fromCharCode(input) }])),
-    rangeSetFunc(rangeSetWhiteSpace)(/** @type {_CreateToToken<_TokenizerState>} */ (() => () => [empty, { kind: 'ws' }])),
-    rangeSetFunc(rangeSetNewLine)(/** @type {_CreateToToken<_TokenizerState>} */ (() => () => [empty, { kind: 'nl' }])),
-    rangeFunc(one(quotationMark))(/** @type {_CreateToToken<_TokenizerState>} */ (() => () => [empty, { kind: 'string', value: '' }])),
-    rangeFunc(one(digit0))(/** @type {_CreateToToken<_TokenizerState>} */ (() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: '0' }])),
-    rangeSetFunc(rangeOpStart)(/** @type {_CreateToToken<_TokenizerState>} */ (() => input => [empty, { kind: 'op', value: fromCharCode(input) }]))
+    rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: 'int' }]),
+    rangeSetFunc(rangeIdStart)(() => input => [empty, { kind: 'id', value: fromCharCode(input) }]),
+    rangeSetFunc(rangeSetWhiteSpace)(() => () => [empty, { kind: 'ws' }]),
+    rangeSetFunc(rangeSetNewLine)(() => () => [empty, { kind: 'nl' }]),
+    rangeFunc(one(quotationMark))(() => () => [empty, { kind: 'string', value: '' }]),
+    rangeFunc(one(digit0))(() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: '0' }]),
+    rangeSetFunc(rangeOpStart)(() => input => [empty, { kind: 'op', value: fromCharCode(input) }])
 ])
 
 /** @type {_CreateToToken<_ParseNumberState>} */
@@ -467,12 +467,12 @@ const parseNumberStateOp = create(invalidNumberToToken)([
 
 /** @type {(state: _InvalidNumberState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const invalidNumberStateOp = create(
-    /** @type {_CreateToToken<_InvalidNumberState>} */ (() => () => [empty, { kind: 'invalidNumber' }])
+    () => () => [empty, { kind: 'invalidNumber' }]
 )([
-    rangeSetFunc(rangeSetTerminalForNumber)(/** @type {_CreateToToken<_InvalidNumberState>} */ (() => input => {
+    rangeSetFunc(rangeSetTerminalForNumber)(() => input => {
         const next = tokenizeCharCodeOp(input, { kind: 'initial' })
         return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
-    }))
+    })
 ])
 
 /** @type {readonly NumberRange[]} */
@@ -484,12 +484,12 @@ const rangeSetStringControl = [
 
 /** @type {(state: _ParseStringState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const parseStringStateOp = create(
-    /** @type {_CreateToToken<_ParseStringState>} */ (state => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }])
+    state => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }]
 )([
-    rangeFunc(one(quotationMark))(/** @type {_CreateToToken<_ParseStringState>} */ (state => () => [[{ kind: 'string', value: state.value }], { kind: 'initial' }])),
-    rangeFunc(one(reverseSolidus))(/** @type {_CreateToToken<_ParseStringState>} */ (state => () => [empty, { kind: 'escapeChar', value: state.value }])),
-    rangeSetFunc(rangeSetNewLine)(/** @type {_CreateToToken<_ParseStringState>} */ (() => () => [[{ kind: 'error', message: 'unterminated string literal' }], { kind: 'nl' }])),
-    rangeSetFunc(rangeSetStringControl)(/** @type {_CreateToToken<_ParseStringState>} */ (state => () => [[{ kind: 'error', message: 'unescaped control character in string' }], { kind: 'string', value: state.value }]))
+    rangeFunc(one(quotationMark))(state => () => [[{ kind: 'string', value: state.value }], { kind: 'initial' }]),
+    rangeFunc(one(reverseSolidus))(state => () => [empty, { kind: 'escapeChar', value: state.value }]),
+    rangeSetFunc(rangeSetNewLine)(() => () => [[{ kind: 'error', message: 'unterminated string literal' }], { kind: 'nl' }]),
+    rangeSetFunc(rangeSetStringControl)(state => () => [[{ kind: 'error', message: 'unescaped control character in string' }], { kind: 'string', value: state.value }])
 ])
 
 /** @type {_CreateToToken<_ParseEscapeCharState>} */
@@ -500,13 +500,13 @@ const parseEscapeDefault = state => input => {
 
 /** @type {(state: _ParseEscapeCharState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const parseEscapeCharStateOp = create(parseEscapeDefault)([
-    rangeSetFunc([one(quotationMark), one(reverseSolidus), one(solidus)])(/** @type {_CreateToToken<_ParseEscapeCharState>} */ (state => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }])),
-    rangeFunc(one(latinSmallLetterB))(/** @type {_CreateToToken<_ParseEscapeCharState>} */ (state => () => [empty, { kind: 'string', value: appendChar(state.value)(backspace) }])),
-    rangeFunc(one(latinSmallLetterF))(/** @type {_CreateToToken<_ParseEscapeCharState>} */ (state => () => [empty, { kind: 'string', value: appendChar(state.value)(ff) }])),
-    rangeFunc(one(latinSmallLetterN))(/** @type {_CreateToToken<_ParseEscapeCharState>} */ (state => () => [empty, { kind: 'string', value: appendChar(state.value)(lf) }])),
-    rangeFunc(one(latinSmallLetterR))(/** @type {_CreateToToken<_ParseEscapeCharState>} */ (state => () => [empty, { kind: 'string', value: appendChar(state.value)(cr) }])),
-    rangeFunc(one(latinSmallLetterT))(/** @type {_CreateToToken<_ParseEscapeCharState>} */ (state => () => [empty, { kind: 'string', value: appendChar(state.value)(ht) }])),
-    rangeFunc(one(latinSmallLetterU))(/** @type {_CreateToToken<_ParseEscapeCharState>} */ (state => () => [empty, { kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0 }])),
+    rangeSetFunc([one(quotationMark), one(reverseSolidus), one(solidus)])(state => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }]),
+    rangeFunc(one(latinSmallLetterB))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(backspace) }]),
+    rangeFunc(one(latinSmallLetterF))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(ff) }]),
+    rangeFunc(one(latinSmallLetterN))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(lf) }]),
+    rangeFunc(one(latinSmallLetterR))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(cr) }]),
+    rangeFunc(one(latinSmallLetterT))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(ht) }]),
+    rangeFunc(one(latinSmallLetterU))(state => () => [empty, { kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0 }]),
 ])
 
 /** @type {_CreateToToken<_ParseUnicodeCharState>} */
@@ -543,7 +543,7 @@ const parseIdDefault = state => input => {
 
 /** @type {(state: _ParseIdState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const parseIdStateOp = create(parseIdDefault)([
-    rangeSetFunc(rangeId)(/** @type {_CreateToToken<_ParseIdState>} */ (state => input => [empty, { kind: 'id', value: appendChar(state.value)(input) }]))
+    rangeSetFunc(rangeId)(state => input => [empty, { kind: 'id', value: appendChar(state.value)(input) }])
 ])
 
 /** @type {(state: _ParseOperatorState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
@@ -563,30 +563,30 @@ const parseOperatorStateOp = state => input => {
 
 /** @type {(state: _ParseCommentState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const parseSinglelineCommentStateOp = create(
-    /** @type {_CreateToToken<_ParseCommentState>} */ (state => input => [empty, { ...state, value: appendChar(state.value)(input) }])
+    state => input => [empty, { ...state, value: appendChar(state.value)(input) }]
 )([
-    rangeSetFunc(rangeSetNewLine)(/** @type {_CreateToToken<_ParseCommentState>} */ (state => () => [[{ kind: '//', value: state.value }], { kind: 'nl' }]))
+    rangeSetFunc(rangeSetNewLine)(state => () => [[{ kind: '//', value: state.value }], { kind: 'nl' }])
 ])
 
 /** @type {(state: _ParseCommentState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const parseMultilineCommentStateOp = create(
-    /** @type {_CreateToToken<_ParseCommentState>} */ (state => input => [empty, { ...state, value: appendChar(state.value)(input) }])
+    state => input => [empty, { ...state, value: appendChar(state.value)(input) }]
 )([
-    rangeFunc(one(asterisk))(/** @type {_CreateToToken<_ParseCommentState>} */ (state => () => [empty, { ...state, kind: '/**' }])),
-    rangeSetFunc(rangeSetNewLine)(/** @type {_CreateToToken<_ParseCommentState>} */ (state => input => [empty, { ...state, value: appendChar(state.value)(input), newLine: true }])),
+    rangeFunc(one(asterisk))(state => () => [empty, { ...state, kind: '/**' }]),
+    rangeSetFunc(rangeSetNewLine)(state => input => [empty, { ...state, value: appendChar(state.value)(input), newLine: true }]),
 ])
 
 /** @type {(state: _ParseCommentState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const parseMultilineCommentAsteriskStateOp = create(
-    /** @type {_CreateToToken<_ParseCommentState>} */ (state => input => [empty, { ...state, kind: '/*', value: appendChar(appendChar(state.value)(asterisk))(input) }])
+    state => input => [empty, { ...state, kind: '/*', value: appendChar(appendChar(state.value)(asterisk))(input) }]
 )([
-    rangeFunc(one(asterisk))(/** @type {_CreateToToken<_ParseCommentState>} */ (state => () => [empty, { ...state, value: appendChar(state.value)(asterisk) }])),
-    rangeSetFunc(rangeSetNewLine)(/** @type {_CreateToToken<_ParseCommentState>} */ (state => input => [empty, { kind: '/*', value: appendChar(appendChar(state.value)(asterisk))(input), newLine: true }])),
-    rangeFunc(one(solidus))(/** @type {_CreateToToken<_ParseCommentState>} */ (state => () => {
+    rangeFunc(one(asterisk))(state => () => [empty, { ...state, value: appendChar(state.value)(asterisk) }]),
+    rangeSetFunc(rangeSetNewLine)(state => input => [empty, { kind: '/*', value: appendChar(appendChar(state.value)(asterisk))(input), newLine: true }]),
+    rangeFunc(one(solidus))(state => () => {
         /** @type {List<JsToken>} */
         const tokens = state.newLine ? [{ kind: '/*', value: state.value }, { kind: 'nl' }] : [{ kind: '/*', value: state.value }]
         return [tokens, { kind: 'initial' }]
-    }))
+    })
 ])
 
 /** @type {_CreateToToken<_ParseWhitespaceState>} */
@@ -597,8 +597,8 @@ const parseWhitespaceDefault = () => input => {
 
 /** @type {(state: _ParseWhitespaceState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const parseWhitespaceStateOp = create(parseWhitespaceDefault)([
-    rangeSetFunc(rangeSetWhiteSpace)(/** @type {_CreateToToken<_ParseWhitespaceState>} */ (state => () => [empty, state])),
-    rangeSetFunc(rangeSetNewLine)(/** @type {_CreateToToken<_ParseWhitespaceState>} */ (() => () => [empty, { kind: 'nl' }]))
+    rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, state]),
+    rangeSetFunc(rangeSetNewLine)(() => () => [empty, { kind: 'nl' }])
 ])
 
 /** @type {_CreateToToken<_ParseNewLineState>} */
@@ -609,13 +609,13 @@ const parseNewLineDefault = () => input => {
 
 /** @type {(state: _ParseNewLineState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const parseNewLineStateOp = create(parseNewLineDefault)([
-    rangeSetFunc(rangeSetWhiteSpace)(/** @type {_CreateToToken<_ParseNewLineState>} */ (state => () => [empty, state])),
-    rangeSetFunc(rangeSetNewLine)(/** @type {_CreateToToken<_ParseNewLineState>} */ (state => () => [empty, state]))
+    rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, state]),
+    rangeSetFunc(rangeSetNewLine)(state => () => [empty, state])
 ])
 
 /** @type {(state: _EofState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const eofStateOp = create(
-    /** @type {_CreateToToken<_EofState>} */ (state => () => [[{ kind: 'error', message: 'eof' }], state])
+    state => () => [[{ kind: 'error', message: 'eof' }], state]
 )([])
 
 /** @type {StateScan<number, _TokenizerState, List<JsToken>>} */

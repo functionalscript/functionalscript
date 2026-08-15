@@ -130,7 +130,7 @@ export const nodeRemove = c => node => {
         const { first, tail } = find(c)(node)
         /** @type {(n: TNode<T>) => (f: (v: T) => PathItem<T>) => _RemovePath<T>} */
         const branch = n => f => {
-            const [v, p] = path(/** @type {Path<T>} */(null))(n)
+            const [v, p] = path(null)(n)
             return { first: p.first, tail: concat(p.tail)({ first: f(v), tail }) }
         }
         const [i, n] = first

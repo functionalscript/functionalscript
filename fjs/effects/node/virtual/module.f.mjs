@@ -5,7 +5,6 @@
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { MemOperationMap, RunInstance } from '../../mock/types.ts'
- * @import { Key } from '../../memory/types.ts'
  * @import { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
  * @import { Dir, State, _Entity } from './types.ts'
  */
@@ -44,10 +43,13 @@ const operation = op => {
         }
         const [first, ...rest] = path
         const subDir = dir[first]
-        if (typeof subDir !== 'object' || Array.isArray(subDir)) {
+        // `instanceof Array`, not `Array.isArray`: the latter narrows to `any[]`,
+        // which `readonly Vec[]` is not assignable to, so its negative branch never
+        // removes a `readonly` array from `_Entity`. Only `instanceof` narrows here.
+        if (typeof subDir !== 'object' || subDir instanceof Array) {
             return op(dir, path)
         }
-        const [newSubDir, r] = f(/** @type {Dir} */ (subDir), rest)
+        const [newSubDir, r] = f(subDir, rest)
         return [{ ...dir, [first]: newSubDir }, r]
     }
     return path => state => {
@@ -146,10 +148,10 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
         let result = []
         for (const [name, content] of entries(d)) {
             if (content === undefined) { continue }
-            const isFile = Array.isArray(content) || typeof content !== 'object'
+            const isFile = content instanceof Array || typeof content !== 'object'
             result = [...result, { name, parentPath, isFile }]
             if (!isFile && recursive) {
-                result = [...result, ...f(join(parentPath, name), /** @type {Dir} */ (content))]
+                result = [...result, ...f(join(parentPath, name), content)]
             }
         }
         return result
@@ -194,8 +196,8 @@ const extractEntity = (dir, path) => {
     }
     const [first, ...rest] = path
     const sub = dir[first]
-    if (sub === undefined || Array.isArray(sub) || typeof sub === 'function') { return [dir, enoent] }
-    const [newSub, result] = extractEntity(/** @type {Dir} */ (sub), rest)
+    if (sub === undefined || sub instanceof Array || typeof sub === 'function') { return [dir, enoent] }
+    const [newSub, result] = extractEntity(sub, rest)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
 }
@@ -222,7 +224,7 @@ const insertEntityAt = (dir, path, entity) => {
                 return [dir, error(`'${name}' is a directory`)]
             }
             if (entityIsDir && existingIsDir) {
-                const existingDir = /** @type {Dir} */ (existing)
+                const existingDir = existing
                 const hasContent = Object.values(existingDir).some(v => v !== undefined)
                 if (hasContent) {
                     return [dir, error(`cannot overwrite non-empty directory '${name}'`)]
@@ -234,8 +236,8 @@ const insertEntityAt = (dir, path, entity) => {
     const [first, ...rest] = path
     const sub = dir[first]
     if (sub === undefined) { return [dir, enoent] }
-    if (Array.isArray(sub) || typeof sub === 'function') { return [dir, error('not a directory')] }
-    const [newSub, result] = insertEntityAt(/** @type {Dir} */ (sub), rest, entity)
+    if (sub instanceof Array || typeof sub === 'function') { return [dir, error('not a directory')] }
+    const [newSub, result] = insertEntityAt(sub, rest, entity)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
 }
@@ -326,7 +328,7 @@ const writeBytesRawOp = (offset, data) => (dir, p) => {
     if (file === undefined) { return [dir, enoent] }              // writeBytes never creates
     if (!Array.isArray(file)) { return [dir, error(`'${name}' is not a file`)] }
     if (!Number.isInteger(offset) || offset < 0) { return [dir, error(`Offset ${offset} is invalid`)] }
-    const chunks = /** @type {readonly Vec[]} */ (file)
+    const chunks = file
     if (offset !== fileSizeBytes(chunks)) {
         return [dir, error(`writeBytes offset ${offset} must equal the file size (append-only)`)]
     }
@@ -342,7 +344,7 @@ const statOp = readOperation((dir, path) => {
     const file = dir[path[0]]
     if (file === undefined) { return enoent }
     if (!Array.isArray(file)) { return error(`'${path[0]}' is not a file`) }
-    return ok({ size: fileSizeBytes(/** @type {readonly Vec[]} */ (file)) })
+    return ok({ size: fileSizeBytes(file) })
 })
 
 /** @type {MemOperationMap<NodeOp, State>} */
@@ -359,7 +361,7 @@ const map = {
     },
     memCreate: value => state => {
         const id = `mem${state.memoryNext}`
-        const key = /** @type {Key<unknown>} */ (asNominal(id))
+        const key = asNominal(id)
         return [{
             ...state,
             memoryNext: state.memoryNext + 1,

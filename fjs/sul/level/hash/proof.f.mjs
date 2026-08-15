@@ -3,7 +3,7 @@
  * @import { EncodeState } from './types.ts'
  */
 
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { compress, level3Id } from '../../id/module.f.mjs'
 import { emptyEncodeState, encode } from './module.f.mjs'
 
@@ -80,7 +80,7 @@ export const proof = {
     // Output equals the merged value in the last add call
     output_is_last_add: () => {
         const [out, storage] = runWord([s1, s0, s1])
-        assertEq(out, /** @type {_NodeList[number]} */ (storage.at(-1))[2])
+        assertEq(out, assertNotNullish(storage.at(-1))[2])
     },
 
     // Stack is empty after flush; storage is preserved

@@ -20,9 +20,16 @@
  * @import { Response, Id, RpcError } from '../json_rpc/types.ts'
  * @import { Type } from '../../types/rtti/types.ts'
  * @import {
- *   Implementation, ServerCapabilities, InitializeResult, Tool,
- *   ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry,
- *   InitializedState, McpSessionState, McpConfig,
+ *   Implementation,
+ *   ServerCapabilities,
+ *   InitializeResult,
+ *   Tool,
+ *   ToolsListParams,
+ *   ToolsCallResult,
+ *   McpHandlers,
+ *   ToolEntry,
+ *   McpSessionState,
+ *   McpConfig,
  * } from './types.ts'
  */
 
@@ -232,7 +239,8 @@ export const notInitialized = rpcError(-32002)('Server not initialized')
 const _noParams = option(record(unknown))
 
 /** Initial session state — always start here. */
-export const uninitializedState = /** @type {McpSessionState} */ (['uninitialized'])
+/** @type {McpSessionState} */
+export const uninitializedState = ['uninitialized']
 
 /**
  * State-machine step for an MCP session using memory effects.
@@ -284,7 +292,7 @@ export const mcpStep = ({
                     read(stateKey),
                     ([t]) => t === 'initializing'
                         ? step(
-                            write(stateKey, ['initialized', /** @type {InitializedState} */ (true)]),
+                            write(stateKey, ['initialized', true]),
                             () => pure(null),
                         )
                         : pure(null),

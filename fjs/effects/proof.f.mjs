@@ -1,5 +1,5 @@
 /**
- * @import { Effect, Operation, OperationMap } from './types.ts'
+ * @import { Effect, Operation } from './types.ts'
  */
 
 import { step, do_, foldStep, forEachStep, mapStep, match, okStep, history, pure, runPure, historyStep } from './module.f.mjs'
@@ -29,7 +29,7 @@ export const assertPure = (e, expected) => {
 /** @type {(command: 'add') => (a: number, b: number) => Effect<_AddOp, number>} */
 const doAdd = do_
 
-const next = match(/** @type {OperationMap<_AddOp, number>} */ ({ add: (a, b) => a + b }))
+const next = match({ add: (a, b) => a + b })
 
 /**
  * An operation set whose command is any `string`, which is what a `Do` node
@@ -43,12 +43,12 @@ const next = match(/** @type {OperationMap<_AddOp, number>} */ ({ add: (a, b) =>
 /** @type {(command: string) => (a: number) => Effect<_AnyOp, number>} */
 const doAny = do_
 
-const anyNext = match(/** @type {OperationMap<_AnyOp, number>} */ ({ add: a => a + 1 }))
+const anyNext = match({ add: a => a + 1 })
 
 export const proof = {
     foldStep: {
         empty: () => {
-            const e = foldStep(pure(/** @type {readonly number[]} */ ([])), 10, x => s => pure(s + x))
+            const e = foldStep(pure([]), 10, x => s => pure(s + x))
             assertPure(e, 10)
         },
         threadsState: () => {
@@ -62,7 +62,7 @@ export const proof = {
     },
     forEachStep: {
         empty: () => {
-            const e = forEachStep(pure(/** @type {readonly number[]} */ ([])), () => pure(undefined))
+            const e = forEachStep(pure([]), () => pure(undefined))
             assertPure(e, undefined)
         },
         runs: () => {
@@ -81,7 +81,7 @@ export const proof = {
         },
         error: () => {
             const e = step(
-                pure(error(/** @type {string} */ ('oops'))),
+                pure(error('oops')),
                 okStep(/** @type {(value: number) => Effect<never, import('../types/result/types.ts').Result<number, string>>} */
                     (v => pure(ok(v * 2)))))
             const o = runPure(e)

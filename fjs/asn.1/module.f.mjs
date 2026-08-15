@@ -19,6 +19,7 @@ import {
     vec,
     vec8,
 } from '../types/bit_vec/module.f.mjs'
+import { assert } from '../asserts/module.f.mjs'
 import { identity } from '../types/function/module.f.mjs'
 import { max } from '../types/function/compare/module.f.mjs'
 import { encode as b128encode, decode as b128decode } from '../basen/base128/module.f.mjs'
@@ -65,7 +66,13 @@ const parsedTagEncode = ([classPc, number]) => {
 /** @type {(v: Vec) => readonly[_ParsedTag, Vec]} */
 const parsedTagDecode = v => {
     const [firstByte, rest] = pop8(v)
-    const classPc = /** @type {_ClassPc} */(firstByte & classPcMask)
+    const classPc = firstByte & classPcMask
+    // `classPcMask` is the top three bits, so the result is one of eight values;
+    // the assert is what narrows `bigint` to `_ClassPc`.
+    assert(classPc === 0b000_00000n || classPc === 0b001_00000n
+        || classPc === 0b010_00000n || classPc === 0b011_00000n
+        || classPc === 0b100_00000n || classPc === 0b101_00000n
+        || classPc === 0b110_00000n || classPc === 0b111_00000n, classPc)
     const firstByteNumber = firstByte & tagNumberMask
     const [number, rest1] = firstByteNumber < tagNumberMask
         ? [firstByteNumber, rest]

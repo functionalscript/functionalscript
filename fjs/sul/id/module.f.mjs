@@ -7,14 +7,13 @@
  * @module
  *
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Point2D } from '../../crypto/secp/types.ts'
  * @import { V8 } from '../../crypto/sha2/types.ts'
  * @import { Id } from './types.ts'
  */
 
 import { toArray } from '../../types/list/module.f.mjs'
 import { length, msb, uint, uintChunkList, unpack, vec } from '../../types/bit_vec/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { secp256r1 } from '../../crypto/secp/module.f.mjs'
 import { base32 } from '../../crypto/sha2/module.f.mjs'
@@ -33,7 +32,7 @@ const utf8IvSeed = utf8(ivSeed)
 const c = secp256r1
 
 /** @type {bigint} */
-const ivUint = /** @type {Point2D} */ (c.mul(uint(utf8IvSeed))(c.g))[0]
+const ivUint = assertNotNullish(c.mul(uint(utf8IvSeed))(c.g))[0]
 
 // 64 hex = 256 bits = 32 bytes:
 assertEq(

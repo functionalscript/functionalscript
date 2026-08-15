@@ -7,6 +7,7 @@
  * @import { Commands } from './cli/types.ts'
  */
 
+import { assert } from './asserts/module.f.mjs'
 import { compile } from './djs/module.f.mjs'
 import { main as testMain } from './emergent_testing/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'
@@ -53,7 +54,14 @@ const commands = [
             const [file, ...args] = options.args
             return step(
                 import_(file),
-                x => (/** @type {NodeProgram} */ (unwrap(x).main))({ ...options, args }))
+                x => {
+                    const { main } = unwrap(x)
+                    // A module named on the command line may export anything;
+                    // fail here with the value rather than as `main is not a
+                    // function` from inside the effect runner.
+                    assert(typeof main === 'function', ['not a NodeProgram', file])
+                    return /** @type {NodeProgram} */ (main)({ ...options, args })
+                })
         },
     },
 ]

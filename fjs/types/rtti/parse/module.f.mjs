@@ -32,7 +32,7 @@
  * @import { Result as CommonResult } from '../../result/types.ts'
  * @import { StringMap } from '../../object/types.ts'
  * @import { List } from '../../list/types.ts'
- * @import { Container, IsContainer, ValidateE, ValidationError, Visitor } from '../common/types.ts'
+ * @import { Container, IsContainer, ValidationError, Visitor } from '../common/types.ts'
  * @import { Unknown } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
  */
@@ -100,7 +100,7 @@ const containerParse =
         if (e.length === 0) {
             return /** @type {any} */ (ok(rebuild([])))
         }
-        const itemParse = /** @type {(v: Unknown) => _ItemResult} */ (/** @type {any} */ (parse(item)))
+        const itemParse = /** @type {any} */ (parse(item))
         const r = eachEntry(e, (_k, v) => itemParse(v), emptyEntries, consEntry)
         return r[0] === 'error' ? r : /** @type {any} */ (ok(rebuild(orderedEntries(r[1]))))
     }
@@ -130,7 +130,7 @@ const constContainerParse =
         }
         const r = eachEntry(
             entries(rtti),
-            (k, t) => /** @type {_ItemResult} */ (/** @type {any} */ (parse(t))(getItem(value, k))),
+            (k, t) => (/** @type {any} */ (parse(t))(getItem(value, k))),
             emptyEntries,
             consEntry,
         )
@@ -156,7 +156,7 @@ const orParse =
      * @returns {Parse<() => readonly ['or', ...T]>}
      */
     rtti =>
-        /** @type {any} */ (orVisit(/** @type {(t: Type) => ValidateE} */ (/** @type {any} */ (parse)))(rtti))
+        /** @type {any} */ (orVisit(/** @type {any} */ (parse))(rtti))
 
 /**
  * Creates a parser function for the given RTTI schema.
@@ -195,4 +195,4 @@ const parseVisitor = /** @type {any} */ ({
 
 /** @type {<T extends Type>(rtti: T) => Parse<T>} */
 export const parse = rtti =>
-    /** @type {any} */ (visit(parseVisitor)(rtti))
+    (visit(parseVisitor)(rtti))

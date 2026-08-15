@@ -109,32 +109,32 @@ export const proof = {
             error: () => assertError(parse(/** @type {const} */ (42))(43)),
         },
         nan: {
-            ok: () => assertOk(parse(/** @type {number} */ (NaN))(NaN)),
+            ok: () => assertOk(parse(NaN)(NaN)),
             error: () => {
-                assertError(parse(/** @type {number} */ (NaN))(0))
+                assertError(parse(NaN)(0))
                 assertError(parse(/** @type {const} */ (0))(NaN))
                 assertError(parse(/** @type {const} */ (42))(NaN))
             },
         },
         infinity: {
             ok: () => {
-                assertOk(parse(/** @type {number} */ (Infinity))(Infinity))
-                assertOk(parse(/** @type {number} */ (-Infinity))(-Infinity))
+                assertOk(parse(Infinity)(Infinity))
+                assertOk(parse(-Infinity)(-Infinity))
             },
             error: () => {
-                assertError(parse(/** @type {number} */ (Infinity))(-Infinity))
-                assertError(parse(/** @type {number} */ (Infinity))(0))
+                assertError(parse(Infinity)(-Infinity))
+                assertError(parse(Infinity)(0))
             },
         },
         signedZero: {
             // `Object.is` distinguishes +0 and -0; `===` treats them equal.
             distinct: () => {
                 assertError(parse(/** @type {const} */ (0))(-0))
-                assertError(parse(/** @type {number} */ (-0))(0))
+                assertError(parse(-0)(0))
             },
             self: () => {
                 assertOk(parse(/** @type {const} */ (0))(0))
-                assertOk(parse(/** @type {number} */ (-0))(-0))
+                assertOk(parse(-0)(-0))
             },
         },
         string: {
@@ -196,7 +196,7 @@ export const proof = {
             const input = [1, 2, 3]
             /** @type {readonly number[]} */
             const out = unwrap(parse(array(number))(input))
-            assert(out !== /** @type {unknown} */ (input), 'expected a fresh array')
+            assert(out !== input, 'expected a fresh array')
             assertStructurallySame(out, [1, 2, 3])
         },
         error: () => {
@@ -224,7 +224,7 @@ export const proof = {
             const input = { a: 1, b: 2 }
             /** @type {Record<string, number>} */
             const out = unwrap(parse(record(number))(input))
-            assert(out !== /** @type {unknown} */ (input), 'expected a fresh record')
+            assert(out !== input, 'expected a fresh record')
             assertStructurallySame(out, { a: 1, b: 2 })
         },
         error: () => {

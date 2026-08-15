@@ -49,13 +49,13 @@ export const csi = end => code =>
 export const sgr = csi('m')
 
 /** Resets all SGR styles to terminal defaults. */
-export const reset = /** @type {string} */ (sgr(0))
+export const reset = sgr(0)
 /** Enables bold/intense text rendering when supported by the terminal. */
-export const bold = /** @type {string} */ (sgr(1))
+export const bold = sgr(1)
 /** Applies red foreground color to subsequent text. */
-export const fgRed = /** @type {string} */ (sgr(31))
+export const fgRed = sgr(31)
 /** Applies green foreground color to subsequent text. */
-export const fgGreen = /** @type {string} */ (sgr(32))
+export const fgGreen = sgr(32)
 
 const { max } = Math
 

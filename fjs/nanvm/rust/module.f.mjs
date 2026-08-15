@@ -78,7 +78,7 @@ export const valueExpr = v => {
         case 'bigint': { return `bigint_any(${i64Literal(v)})` }
     }
     if (Array.isArray(v)) {
-        const items = /** @type {readonly Value[]} */(v)
+        const items = v
         return items.length === 0
             ? 'Array::default().to_any()'
             : `[${items.map(valueExpr).join(', ')}].to_array().to_any()`

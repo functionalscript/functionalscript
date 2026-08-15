@@ -40,6 +40,5 @@ export const read =
     (do_('memRead'))
 
 /** Replaces the current contents of a typed memory slot. */
-export const write =
-    /** @type {<T>(key: Key<T>, value: T) => Effect<MemWrite, void>} */
-    (do_('memWrite'))
+/** @type {<T>(key: Key<T>, value: T) => Effect<MemWrite, void>} */
+export const write = do_('memWrite')

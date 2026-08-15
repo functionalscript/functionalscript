@@ -1,5 +1,5 @@
 /**
- * @import { Dir, JsModule } from './types.ts'
+ * @import { Dir } from './types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
@@ -44,7 +44,7 @@ export const proof = {
         // `!Array.isArray(file)` branch of writeFileOp: the entry exists but is
         // neither undefined nor an array.
         /** @type {Dir} */
-        const root = { 'a.f.ts': /** @type {JsModule} */ (() => ({})) }
+        const root = { 'a.f.ts': () => ({}) }
         const [, result] = virtual({ ...emptyState, root })(writeFile('a.f.ts', vec8(0x42n)))
         assert(result[0] === 'error')
     },
@@ -110,13 +110,13 @@ export const proof = {
         readFileOnJsModule: () => {
             // readFile on a JsModule path covers typeof file === 'function' branch
             /** @type {Dir} */
-            const root = { 'a.f.ts': /** @type {JsModule} */ (() => ({})) }
+            const root = { 'a.f.ts': () => ({}) }
             virtual({ ...emptyState, root })(readFile('a.f.ts'))
         },
         readBytesOnJsModule: () => {
             // readBytes on a JsModule path covers typeof file === 'function' branch
             /** @type {Dir} */
-            const root = { 'a.f.ts': /** @type {JsModule} */ (() => ({})) }
+            const root = { 'a.f.ts': () => ({}) }
             virtual({ ...emptyState, root })(readBytes('a.f.ts', 0, 1))
         },
     },
@@ -220,7 +220,7 @@ export const proof = {
         // branch (unlike readFile/readBytes, writeBytes has no separate throw
         // for JsModule, so this is the reachable way to hit "not a file").
         /** @type {Dir} */
-        const root = { 'a.f.ts': /** @type {JsModule} */ (() => ({})) }
+        const root = { 'a.f.ts': () => ({}) }
         const [, result] = virtual({ ...emptyState, root })(writeBytes('a.f.ts', 0, vec8(0x1n)))
         assert(result[0] === 'error')
     },
@@ -348,7 +348,7 @@ export const proof = {
         // stat on a JsModule entry (neither an array nor a descendable
         // directory) covers the !Array.isArray(file) branch of statOp.
         /** @type {Dir} */
-        const root = { 'a.f.ts': /** @type {JsModule} */ (() => ({})) }
+        const root = { 'a.f.ts': () => ({}) }
         const [, result] = virtual({ ...emptyState, root })(stat('a.f.ts'))
         assert(result[0] === 'error')
         assertEq(result[1], `'a.f.ts' is not a file`)

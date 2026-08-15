@@ -1,7 +1,6 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
  * @import { IoResult, ReadFile } from "./types.ts"
- * @import { Dir } from "./virtual/types.ts"
  * @import { List } from "../list/types.ts"
  * @import { OperationMap } from "../types.ts"
  */
@@ -81,8 +80,11 @@ export const proof = {
             )
             assert(t === 'ok', result)
             const tmp = state.root.tmp
-            assert(!(typeof tmp !== 'object' || Array.isArray(tmp)), state.root)
-            const cache = (/** @type {Dir} */ (tmp)).cache
+            // `instanceof Array`, not `Array.isArray`: only the former's negative
+            // branch removes a `readonly` array from a union, so only it narrows
+            // `_Entity` to `Dir`.
+            assert(!(typeof tmp !== 'object' || tmp instanceof Array), state.root)
+            const cache = tmp.cache
             assert(!(typeof cache !== 'object' || Array.isArray(cache)), tmp)
         },
         nonRec: () => {
@@ -122,7 +124,8 @@ export const proof = {
         nestedPath: () => {
             const [_, [t, result]] = virtual(emptyState)(readFile('tmp/cache'))
             assert(t === 'error', result)
-            if ((/** @type {{ code?: unknown }} */ (result)).code !== 'ENOENT') { throw result }
+            assert(typeof result === 'object' && result !== null && 'code' in result, result)
+            if (result.code !== 'ENOENT') { throw result }
         },
         withinLimit: () => {
             // Test with a small file well within the 131,072 byte limit
@@ -272,8 +275,8 @@ export const proof = {
             })(rm('tmp/cache'))
             assert(t === 'ok', result)
             const tmp = state.root.tmp
-            assert(!(typeof tmp !== 'object' || Array.isArray(tmp)), state.root)
-            assertEq((/** @type {Dir} */ (tmp)).cache, undefined, tmp)
+            assert(!(typeof tmp !== 'object' || tmp instanceof Array), state.root)
+            assertEq(tmp.cache, undefined, tmp)
         },
         noSuchFile: () => {
             const [_, [t, result]] = virtual(emptyState)(rm('hello'))
@@ -313,7 +316,7 @@ export const proof = {
         // (and `duration`) instead of the runner measuring.
         ok: () => {
             const [_, { result, duration }] = virtual(emptyState)(
-                sandbox(() => /** @type {never} */ ({ result: ['ok', 42], duration: 0 })))
+                sandbox(() => ({ result: ['ok', 42], duration: 0 })))
             assert(result[0] === 'ok', result)
             assertEq(result[1], 42)
             assertEq(duration, 0)
@@ -321,7 +324,7 @@ export const proof = {
         error: () => {
             const err = new Error('fail')
             const [_, { result }] = virtual(emptyState)(
-                sandbox(() => /** @type {never} */ ({ result: ['error', err], duration: 0 })))
+                sandbox(() => ({ result: ['error', err], duration: 0 })))
             assert(result[0] === 'error', result)
             assertEq(result[1], err)
         },
@@ -351,7 +354,7 @@ export const proof = {
             assert(t === 'ok', result)
             assertEq(state.root.src, undefined, state.root)
             assert(Array.isArray(state.root.dst), state.root)
-            assertEq(uint((/** @type {readonly Vec[]} */ (state.root.dst))[0]), 0x2An, state.root)
+            assertEq(uint(state.root.dst[0]), 0x2An, state.root)
         },
         nestedRename: () => {
             const [state, [t, result]] = virtual({
@@ -360,8 +363,8 @@ export const proof = {
             })(rename('tmp/src', 'tmp/dst'))
             assert(t === 'ok', result)
             const tmp = state.root.tmp
-            assert(!(typeof tmp !== 'object' || Array.isArray(tmp)), state.root)
-            assertEq((/** @type {Dir} */ (tmp)).src, undefined, tmp)
+            assert(!(typeof tmp !== 'object' || tmp instanceof Array), state.root)
+            assertEq(tmp.src, undefined, tmp)
         },
         dirOverFile: () => {
             const [state, [t, result]] = virtual({

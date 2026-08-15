@@ -76,7 +76,7 @@ const unicodeEscape = unit =>
 const escapeCodePoint = codePoint =>
     (codePoint & errorMask) !== 0
         ? unicodeEscape(codePoint & 0xffff)
-        : escapeTable[/** @type {keyof typeof escapeTable} */ (codePoint)]
+        : escapeTable[codePoint]
             ?? (codePoint < space ? unicodeEscape(codePoint) : codePointToString(codePoint))
 
 /**

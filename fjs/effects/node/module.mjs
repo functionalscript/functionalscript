@@ -115,7 +115,7 @@ const sandbox = async f => {
             p = await p
             after = performance.now()
         }
-        result = ok(/** @type {T} */ (p))
+        result = ok(p)
     } catch (e) {
         after = performance.now()
         result = error(e)
@@ -190,7 +190,7 @@ const waitReadableOrEnd = stdin =>
 const readStdinByte = async () => {
     const stdin = process.stdin
     while (true) {
-        const chunk = /** @type {Uint8Array | null} */ (stdin.read(1))
+        const chunk = stdin.read(1)
         if (chunk !== null) {
             return chunk[0]
         }

@@ -32,7 +32,7 @@
  * @import { Unknown } from '../ts/types.ts'
  * @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts'
  * @import { StringMap } from '../../object/types.ts'
- * @import { Container, IsContainer, Validate, ValidateE, Visitor } from '../common/types.ts'
+ * @import { Container, IsContainer, Validate, Visitor } from '../common/types.ts'
  */
 
 import { ok } from '../../result/module.f.mjs'
@@ -137,7 +137,7 @@ const orValidate =
      * @returns {Validate<() => readonly ['or', ...T]>}
      */
     rtti =>
-        /** @type {any} */ (orVisit(/** @type {(t: Type) => ValidateE} */ (/** @type {any} */ (validate)))(rtti))
+        /** @type {any} */ (orVisit(/** @type {any} */ (validate))(rtti))
 
 /**
  * Creates a validator function for the given RTTI schema.
@@ -168,4 +168,4 @@ const validateVisitor = /** @type {any} */ ({
 
 /** @type {<T extends Type>(rtti: T) => Validate<T>} */
 export const validate = rtti =>
-    /** @type {any} */ (visit(validateVisitor)(rtti))
+    (visit(validateVisitor)(rtti))

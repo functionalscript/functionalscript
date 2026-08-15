@@ -193,9 +193,9 @@ export const proof = {
     },
     removeBack: () => {
         const v = vec(17n)(0x12345n)
-        assertEq(v, unsafeVec(0x12345n), (/** @type {bigint} */ (asBase(v))).toString(16))
+        assertEq(v, unsafeVec(0x12345n), (asBase(v)).toString(16))
         const r = lsb.removeFront(9n)(v)
-        assertEq(r, unsafeVec(0x91n), (/** @type {bigint} */ (asBase(r))).toString(16))
+        assertEq(r, unsafeVec(0x91n), (asBase(r)).toString(16))
     },
     uint: [
         // 0

@@ -121,8 +121,8 @@ const eqProof = (() => {
     })
     /** @type {(c: EqCase) => readonly[string, () => void]} */
     const leaf = c => [c.name, () => {
-        const a = /** @type {any} */(operand(c.a))
-        const b = /** @type {any} */(operand(c.b))
+        const a = operand(c.a)
+        const b = operand(c.b)
         assertEq(a === b, c.eq, [a, c.eq ? '===' : '!==', b])
         assertEq(b === a, c.eq)
     }]
@@ -157,7 +157,7 @@ const jsOnly = {
     },
     throw: {
         toStringThrows: () => String({ toString: () => { throw 'Custom error' } }),
-        toStringNotAFunction: () => String(/** @type {any} */({ toString: 'hello' })),
+        toStringNotAFunction: () => String({ toString: 'hello' }),
         toStringNotPrimitive: () => String({ toString: () => [] }),
         /** `throws` describes a case's outcome; it is not a value to build. */
         throwsIsNotAValue: () => value(() => ['throw']),

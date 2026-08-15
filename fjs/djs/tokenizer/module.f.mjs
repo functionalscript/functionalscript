@@ -9,7 +9,7 @@
  *   AstTag,
  *   CodePointMeta,
  *   DescentMatch,
- *   DescentMatchResult
+ *   DescentMatchResult,
  * } from '../../bnf/descent/types.ts'
  * @import { DataRule, Rule } from '../../bnf/types.ts'
  * @import {
@@ -29,7 +29,6 @@
  * @import { CodePoint } from '../../text/utf16/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Unknown } from '../types.ts'
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
  */
 
@@ -302,7 +301,7 @@ const scanFunc = (input, state) => {
 }
 
 // All operator tag strings produced by the grammar's operator rule
-const operatorTags = /** @type {ReadonlySet<string>} */ (new Set([
+const operatorTags = new Set([
     '.', '=>', '===', '==', '=', '!==', '!=', '!',
     '>>>=', '>>>', '>>=', '>>', '>=', '>',
     '<<=', '<<', '<=', '<',
@@ -311,7 +310,7 @@ const operatorTags = /** @type {ReadonlySet<string>} */ (new Set([
     '&&=', '&&', '&=', '&', '||=', '||', '|=', '|',
     '^=', '^', '~', '??=', '??', '?.', '?',
     '[', ']', '{', '}', '(', ')', ',', ':'
-]))
+])
 
 /** @type {(tk: _FlatToken) => boolean} */
 const filterFunc = tk => {
@@ -466,9 +465,9 @@ const getTokensFromAstRule = ast => {
 export const tokenizeString = s => {
     const cp = toArray(stringToCodePointList(s))
     if (cp.length === 0) {
-        return stringify(/** @type {Unknown} */ ([{ kind: 'eof' }]))
+        return stringify([{ kind: 'eof' }])
     }
-    const m = /** @type {DescentMatch<TokenMetadata>} */ (descentParser(jsGrammar()))
+    const m = descentParser(jsGrammar())
     const cpm = codePointsWithMetadata('')(cp)
     const { ast, success: ok, idx: len } = m('', cpm)
     if (!ok || len !== cp.length)
@@ -483,7 +482,7 @@ export const tokenizeString = s => {
     const tokens = flat(stateScan(scanFunc)(['', null, []])(filterTokens))
     const jsTokens = concat(flatMap(toJsTokens)(tokens))([{ kind: 'eof' }])
     const result = toArray(jsTokens)
-    return stringify(/** @type {Unknown} */ (result))
+    return stringify(result)
 }
 
 // Finds `tag` in flatTokens and returns the metadata of the next code point after it.
@@ -506,7 +505,7 @@ export const tokenizeJs = input => path => {
     const initial = { path, line: 1, column: 1 }
     if (cp.length === 0) return [{ token: { kind: 'eof' }, metadata: initial }]
 
-    const m = /** @type {DescentMatch<TokenMetadata>} */ (descentParser(jsGrammar()))
+    const m = descentParser(jsGrammar())
     const cpm = codePointsWithMetadata(path)(cp)
     const { ast, success: ok, idx: len } = m('', cpm)
     const finalMetadata = fold(advanceMetadata)(initial)(cp)

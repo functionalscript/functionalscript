@@ -45,10 +45,9 @@
  * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Cas } from '../types.ts'
- * @import { Ok, Result } from '../../types/result/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { IoResult } from '../../effects/node/types.ts'
- * @import { List } from '../../effects/list/types.ts'
  * @import { LockField, LockMap, Revision } from '../../media/revision/types.ts'
  * @import { Hash, Subject, RevisionData, SubjectState, Cache, Evo } from './types.ts'
  */
@@ -67,7 +66,8 @@ import { isNotFound } from '../../effects/node/module.f.mjs'
 import { decodeText, encodeText, dialect, checkReferences, isHash } from '../../media/revision/module.f.mjs'
 
 /** A cache with no known subjects yet — the starting point for {@link buildCache}. */
-export const emptyCache = /** @type {Cache} */ ({ bySubject: {} })
+/** @type {Cache} */
+export const emptyCache = { bySubject: {} }
 
 /** @type {SubjectState} */
 const emptySubjectState = { hashes: [], parents: [], archived: [] }
@@ -291,8 +291,7 @@ const resolveParents = cas => parents => {
             return mapStep(
                 resolveParent(cas)(parentRef),
                 (/** @type {Result<Revision, string>} */ parentResult) =>
-                    /** @type {Result<readonly Revision[], string>} */
-                    (parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]])))
+                    parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]]))
         })
 }
 
@@ -461,7 +460,7 @@ export const addRevision = cas => cacheKey => input =>
                 return pure(error('revision too large to encode'))
             }
             return step(
-                cas.write(nonEmpty(ok(bytes), /** @type {List<never, Ok<Vec>>} */ (elEmpty()))),
+                cas.write(nonEmpty(ok(bytes), elEmpty())),
                 (/** @type {IoResult<Vec>} */ writeResult) => {
                     if (writeResult[0] === 'error') {
                         return /** @type {Effect<MemOp, Result<Hash, string>>} */ (pure(error('failed to write revision to CAS')))

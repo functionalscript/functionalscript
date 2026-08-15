@@ -26,6 +26,7 @@
  * @import { NumberPolicy, ParseUnknown, _JsonObject, _JsonArray, _StateParse, _JsonState, _JsonStack, _ValueToken } from './types.ts'
  */
 
+import { assert } from '../../../asserts/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { fold, next, toArray, concat } from '../../../types/list/module.f.mjs'
 import { setReplace } from '../../../types/ordered_map/module.f.mjs'
@@ -62,11 +63,15 @@ const addToArray =
  * @param {_StateParse<P>} state
  * @returns {(key: string) => _JsonState<P>}
  */
-const pushKey = state => value => ({
-    status: '{k',
-    top: addKeyToObject(/** @type {_JsonObject<P>} */ (state.top))(value),
-    stack: state.stack,
-})
+const pushKey = state => value => {
+    const { top } = state
+    assert(top !== null && top.kind === 'object', top)
+    return {
+        status: '{k',
+        top: addKeyToObject(top)(value),
+        stack: state.stack,
+    }
+}
 
 /** @type {<P>(state: _StateParse<P>) => (value: ParseUnknown<P>) => _JsonState<P>} */
 const pushValue = state => value => {
@@ -105,7 +110,9 @@ const popStack = stack => {
  * @returns {_JsonState<P>}
  */
 const endArray = state => {
-    const array = toArray(/** @type {_JsonArray<P>} */ (state.top).values)
+    const { top } = state
+    assert(top !== null && top.kind === 'array', top)
+    const array = toArray(top.values)
     const newState = popStack(state.stack)
     return pushValue(newState)(array)
 }
@@ -125,7 +132,9 @@ const startObject = state => {
  * @returns {_JsonState<P>}
  */
 const endObject = state => {
-    const obj = fromMap(/** @type {_JsonObject<P>} */ (state.top).values)
+    const { top } = state
+    assert(top !== null && top.kind === 'object', top)
+    const obj = fromMap(top.values)
     const newState = popStack(state.stack)
     return pushValue(newState)(obj)
 }
