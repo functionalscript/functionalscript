@@ -5,7 +5,7 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from '../cas/types.ts'
  * @import { List } from '../effects/list/types.ts'
- * @import { McpSessionState, ToolsCallResult } from '../protocol/mcp/types.ts'
+ * @import { ContentItem, McpSessionState, ToolsCallResult } from '../protocol/mcp/types.ts'
  * @import { IoResult, Mkdir, Now, RandomInt, ReadBytes, Rename, } from '../effects/node/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'
  */
@@ -154,15 +154,80 @@ const runStdio =
         return stdout.split('\n').filter(line => line.length > 0).slice(1).map(line => unwrap(parseJson(line)))
     }
 
+/**
+ * The `result` of a `tools/call` response.
+ *
+ * This is the one place a response crosses from `unknown` to a typed
+ * {@link ToolsCallResult}. The structural essentials are checked here so the
+ * accessors below — and every call site — do not have to assume them; only the
+ * final step from a checked `content` array to `ToolsCallResult` is taken on
+ * trust, because rtti's `parse` reads `Unknown`, and getting there from
+ * `unknown` is the same problem one level down.
+ */
 /** @type {(resp: unknown) => ToolsCallResult} */
-const resultOf = resp =>
-    /** @type {{ readonly result: ToolsCallResult }} */ (resp).result
+const resultOf = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'result' in resp, resp)
+    const { result } = resp
+    assert(typeof result === 'object' && result !== null && 'content' in result, result)
+    const { content } = result
+    assert(content instanceof Array, content)
+    return /** @type {ToolsCallResult} */ (result)
+}
 
-/** @type {(resp: unknown) => unknown} */
-const item0 = resp => resultOf(resp).content[0]
+/** @type {(resp: unknown) => ContentItem} */
+const item0 = resp => {
+    const [item] = resultOf(resp).content
+    assert(item !== undefined, resp)
+    return item
+}
 
 /** @type {(resp: unknown) => string} */
-const textOf = resp => (/** @type {{ readonly text: string }} */ (item0(resp))).text
+const textOf = resp => {
+    const item = item0(resp)
+    assert(item.type === 'text', item)
+    return item.text
+}
+
+// The accessors below read a response that is `unknown` at this boundary. They
+// check their way in rather than casting, so a malformed response fails at the
+// read with the offending value attached.
+
+/** Whether `resp` is an object carrying `key`. */
+/** @type {(resp: unknown, key: 'error' | 'result') => boolean} */
+const has = (resp, key) => typeof resp === 'object' && resp !== null && key in resp
+
+/** @type {(resp: unknown) => number} */
+const errorCode = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'error' in resp, resp)
+    const { error } = resp
+    assert(typeof error === 'object' && error !== null && 'code' in error, error)
+    const { code } = error
+    assert(typeof code === 'number', code)
+    return code
+}
+
+/** @type {(resp: unknown) => unknown} */
+const idOf = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'id' in resp, resp)
+    return resp.id
+}
+
+/** The `name` and `inputSchema.type` of each tool in a `tools/list` result. */
+/** @type {(resp: unknown) => readonly { readonly name: string, readonly schemaType: unknown }[]} */
+const toolsOf = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'result' in resp, resp)
+    const { result } = resp
+    assert(typeof result === 'object' && result !== null && 'tools' in result, result)
+    const { tools } = result
+    assert(tools instanceof Array, tools)
+    return tools.map(t => {
+        assert(typeof t === 'object' && t !== null && 'name' in t && 'inputSchema' in t, t)
+        const { name, inputSchema } = t
+        assert(typeof name === 'string', name)
+        assert(typeof inputSchema === 'object' && inputSchema !== null && 'type' in inputSchema, inputSchema)
+        return { name, schemaType: inputSchema.type }
+    })
+}
 
 /** The `text` payload of a `cas_get` response, parsed and checked against {@link casGetResult}. */
 const casGetResultOf = (/** @type {unknown} */ resp) =>
@@ -302,9 +367,8 @@ export const proof = {
         const [getResp] = runStdio(root)([
             call(2, 'cas_get', { hash, content: true }),
         ])
-        const err = /** @type {{ readonly error?: { readonly code: number }, readonly id: unknown }} */ (getResp)
-        assertEq(err.error?.code, -32603)
-        assertEq(err.id, 2)
+        assertEq(errorCode(getResp), -32603)
+        assertEq(idOf(getResp), 2)
     },
 
     // The paired boundary case: a blob whose base64 inflation leaves enough
@@ -337,19 +401,18 @@ export const proof = {
         const [getResp] = runStdio(root)([
             call(2, 'cas_get', { hash, content: true }),
         ])
-        const err = /** @type {{ readonly error?: { readonly code: number }, readonly id: unknown }} */ (getResp)
-        assertEq(err.error?.code, -32603)
-        assertEq(err.id, 2)
+        assertEq(errorCode(getResp), -32603)
+        assertEq(idOf(getResp), 2)
     },
 
     toolsListAdvertisesSevenTools: () => {
         const [resp] = runSessionVirtual({})([init, initialized, list(2)]).slice(2)
-        const tools = (/** @type {{ result: { tools: readonly { name: string }[] } }} */ (resp)).result.tools
+        const tools = toolsOf(resp)
         assertEq(tools.length, 7)
         assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,evo_list,evo_head,evo_revision,evo_add')
-        const add = (/** @type {{ result: { tools: readonly { inputSchema: { type?: string } }[] } }} */ (resp))
-            .result.tools[0]
-        assertEq(add.inputSchema.type, 'object')
+        const [add] = tools
+        assert(add !== undefined, tools)
+        assertEq(add.schemaType, 'object')
     },
 
     // The same server also exposes Evo (fjs/cas/evo): add a revision, then
@@ -476,7 +539,7 @@ export const proof = {
             call(2, 'cas_add', { content: textSample }),
             call(3, 'cas_get', { hash, content: true }),
         )
-        assertEq(item0(getResp) === null ? null : (/** @type {{ type: string }} */ (item0(getResp))).type, 'text')
+        assertEq(item0(getResp).type, 'text')
         const result = casGetResultOf(getResp)
         assertEq(result.type, 'text')
         assertEq(result.mimeType, 'text/plain')
@@ -491,7 +554,7 @@ export const proof = {
             call(3, 'cas_get', { hash, content: true }),
         )
         assert(!resultOf(getResp).isError)
-        assertEq((/** @type {{ type: string }} */ (item0(getResp))).type, 'text')
+        assertEq(item0(getResp).type, 'text')
         const result = casGetResultOf(getResp)
         assertEq(result.type, 'base64')
         assertEq(result.mimeType, 'image/png')
@@ -620,8 +683,8 @@ export const proof = {
 
     toolErrorIsNotJsonRpcError: () => {
         const [resp] = session(call(2, 'cas_add', { content: 'not valid!', type: 'base64' }))
-        assert(!('error' in /** @type {object} */ (resp)))
-        assert('result' in /** @type {object} */ (resp))
+        assert(!has(resp, 'error'), resp)
+        assert(has(resp, 'result'), resp)
     },
 
     // cas_get without content:true returns only metadata.

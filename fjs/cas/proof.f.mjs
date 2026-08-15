@@ -112,6 +112,18 @@ const drive = overrides => {
 
 // Create a 128 KiB big file content (at the max Vec size limit)
 // This tests the boundary where files are at the chunk size limit
+/**
+ * The message of an `IoResult` the driver returned as `unknown`. Checks the
+ * result really is an `error` pair rather than assuming it: these proofs exist
+ * to establish that a write fails closed, so the shape is the claim.
+ */
+/** @type {(result: unknown) => unknown} */
+const errorMessage = result => {
+    assert(result instanceof Array && result.length === 2 && result[0] === 'error',
+        ['expected an error result', result])
+    return result[1]
+}
+
 /** @type {() => Vec} */
 const createBigFileContent = () => {
     const byteCount = 128n * 1024n // 128 KiB
@@ -371,8 +383,7 @@ export const proof = {
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
         const [result, log] = drive({ writeBytes: [error('disk full')] })(c.write(payload))
-        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
-        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'disk full')
+        assertEq(errorMessage(result), 'disk full')
         // The cleanup `rm` of the partial staging file must actually run, not just be
         // implied by the returned error tag.
         assertEq(log[log.length - 1], 'rm', ['expected cleanup rm to run', log])
@@ -384,8 +395,7 @@ export const proof = {
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
         const [result, log] = drive({ rename: [error('rename failed')] })(c.write(payload))
-        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
-        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'rename failed')
+        assertEq(errorMessage(result), 'rename failed')
         assertEq(log[log.length - 1], 'rm', ['expected cleanup rm to run', log])
     },
     casWritePublishSizeMismatchErrors: () => {
@@ -400,8 +410,7 @@ export const proof = {
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
         const [result] = drive({ stat: [ok({ size: 999 })] })(c.write(payload))
-        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
-        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'publish size mismatch')
+        assertEq(errorMessage(result), 'publish size mismatch')
     },
     casWritePublishStatErrorErrorsEvenWithMatchingSize: () => {
         // Pins the tag half of the same check: a `stat` that fails outright must still
@@ -414,8 +423,7 @@ export const proof = {
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
         const [result] = drive({ stat: [error({ size: 1 })] })(c.write(payload))
-        assert(/** @type {IoResult<Vec>} */ (result)[0] === 'error', ['expected write error', result])
-        assertEq(/** @type {IoResult<Vec>} */ (result)[1], 'publish size mismatch')
+        assertEq(errorMessage(result), 'publish size mismatch')
     },
     casUploadSuccess: () => {
         // A successful upload returns the hash and deletes the source file from cas_upload/.
