@@ -18,7 +18,6 @@
  * @import { Cas, FileCas, FileCasOperation } from './types.ts'
  */
 
-import { sha256 } from '../crypto/sha2/module.f.mjs'
 import { join, normalize, parse } from '../path/module.f.mjs'
 import { empty, length, maxLength, maxLengthBytes, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
@@ -320,8 +319,8 @@ const streamFile = filePath => {
 
 /**
  * Streams the file at `path` through `cas.write`, returning the content hash.
- * Both the CLI `cas add` and the MCP `add` delegate to this; the MCP layer
- * additionally deletes the source file on success.
+ * Its one consumer is the CLI's `cas add`; the MCP `cas_add` tool takes inline
+ * content and calls `write` itself, so it does not come through here.
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
@@ -333,18 +332,3 @@ export const casAddFile = cas => path =>
     // caller passes a Cas<O> where ReadBytes ⊆ O (e.g. FileCasOperation).
     cas.write(streamFile(path))
 
-/**
- * Upload pipeline: streams `fileName` from `~/cas_upload/` through `casAddFile`,
- * then deletes the source on success. On failure the source is left in place so
- * the upload can be retried; `write` already cleans up its own partial staging file.
- *
- * @type {(home: string) => (fileName: string) => Effect<FileCasOperation, IoResult<Vec>>}
- */
-export const casUpload = home => fileName => {
-    const src = join(home, 'cas_upload', fileName)
-    const c = fileCas(sha256)(home)
-    return step(
-        casAddFile(c)(src),
-        okStep(/** @type {(v: Vec) => Effect<Rm, IoResult<Vec>>} */ (v =>
-            mapStep(rm(src), () => ok(v)))))
-}

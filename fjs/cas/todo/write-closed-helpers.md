@@ -63,5 +63,5 @@ by a one-line JSDoc claim, as above. No fragment extraction.
 
 - [fold-stream-combinator](../../effects/todo/fold-stream-combinator.md) —
   covers the chunk loop; this issue covers the remaining nested helpers.
-- `okStep` (`fjs/effects/module.f.mjs`) already applies to two steps inside
-  `write` (`createExclusive`, and `casUpload` beside it).
+- `okStep` (`fjs/effects/module.f.mjs`) already applies to a step inside
+  `write` (`createExclusive`).

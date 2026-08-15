@@ -142,32 +142,16 @@ The `_` prefix ensures `_stage/` is excluded from the `list` operation, which
 validates each directory name via `cBase32ToVec` and would reject `_stage` as
 an invalid base-32 prefix anyway.
 
-## Compatibility with the existing `casUpload` path
+## The removed `casUpload` path
 
-The existing `casUpload` implementation (`fjs/cas/module.f.mjs`) uses a different
-staging path: `.cas/.stage/` (dot-prefixed, not underscore-prefixed). This is an
-ad-hoc staging directory that predates the formal Strategy 1 design and does not
-follow the `tryLockExclusive` cleaning protocol — it creates per-upload temp files
-but holds no persistent flock.
+Earlier revisions of this plan carried a section on migrating `casUpload`'s
+staging directory into `_stage/` so one cleaner could cover both, including a
+warning that its `rename` preserves the source mtime and would defeat a
+mtime-based grace period. `casUpload` has since been deleted: it was the
+residue of the MCP `type: 'url'` upload flow removed for symlink-escape
+reasons, and it had no caller. There is no second staging location to
+reconcile, so a cleaner implementing Strategy 1 scans `_stage/` and nothing
+else.
 
-The formal design uses `_stage/` because:
-- The `_` prefix is the project convention for non-hash directories (excluded by
-  `list` via `cBase32ToVec`).
-- `.stage/` uses a dot prefix, which is valid on POSIX but can conflict with hidden
-  directory conventions and is less clearly "internal infrastructure."
-
-During the transition, a cleaner implementing Strategy 1 would scan `_stage/` and
-miss any orphans left by `casUpload` in `.stage/`. Two options:
-
-1. **Migrate `casUpload`** to write into `_stage/` so all staging files share one
-   cleaning scope. This is the recommended path once Strategy 1 effects are
-   implemented.
-2. **Scan both** — teach the cleaner to cover `.stage/` as well. However, this
-   option is **unsafe** and the mtime grace period provides no protection here:
-   `casUpload` **renames** the source from `cas_upload/` into `.stage/<uuid>`
-   (`fjs/cas/module.f.mjs:152`), which preserves the source file's original mtime
-   rather than setting a fresh one. The staged file can therefore appear arbitrarily
-   old immediately after the rename — even older than the grace-period threshold —
-   making a mtime-based check classify a just-started active upload as a stale orphan.
-   This option must not be used until `casUpload` acquires an OS-level hold on its
-   staging file (e.g. via `openExclusive` after migrating to `_stage/`).
+If an upload flow returns, design it against this plan from the start rather
+than migrating it in.

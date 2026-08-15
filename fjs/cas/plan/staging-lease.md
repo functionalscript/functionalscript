@@ -517,11 +517,8 @@ a misjudged-slow uploader restarts or hands off, never corrupts.
 | Works across machines / shared disk | No — lock is process-local | Yes — atomic rename + create + deadline (needs an FS that supplies them) |
 | Detects a stuck-but-alive writer | No — lock is held while the process lives | Yes, with progress-coupled renewal — enables competitive/failover uploads |
 
-## Relationship to the existing `casUpload` path
+## The removed `casUpload` path
 
-The same migration note from `staging.md` applies: `casUpload` (`fjs/cas/module.f.mjs`)
-currently stages into `.cas/.stage/` and would be unaffected by a lease GC scanning
-`_stage/`. Migrating `casUpload` to write `<deadline>-<random256>` names under
-`_stage/` brings it under one GC scope. Unlike the lock design, the lease has no mtime
-dependency, so the `rename`-preserves-mtime hazard described in `staging.md` does not
-apply here — a migrated `casUpload` only needs to stamp a fresh deadline into the name.
+`staging.md`'s migration note applied to `casUpload`, which has since been
+deleted as an unreferenced remnant. A lease GC scanning `_stage/` has no
+second staging location to reconcile.
