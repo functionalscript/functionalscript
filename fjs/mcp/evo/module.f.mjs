@@ -120,7 +120,7 @@ export const evoToolRegistry = e => [
         // constrained to a newline-free alphabet), so a `join('\n')` line
         // format could not represent an empty subject or one containing a
         // newline without ambiguity — JSON encoding can.
-        
+
         (({ archived }) => step(
             e.list(archived),
             subjects => pure(okResult(toJson(subjects)))
@@ -143,7 +143,7 @@ export const evoToolRegistry = e => [
         // `evo_list`'s. An encoded response that outgrows the transport cap is
         // the transport's `-32603`, not a tool-level error — see "Result size"
         // in the module doc.
-        
+
         (({ hash }) => step(
             e.revision(hash),
             result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(toJson(result[1])))

@@ -110,16 +110,17 @@ should go.
 
 | Reason | Count |
 | --- | --: |
-| Cast overrides a genuine type mismatch (TS2322 / TS2345) | 35 |
-| `any` bridge — generic erasure, mostly the rtti visitors and `effects/module` | 23 |
-| Unconstructible brand — the cast is the demonstration | 6 |
+| Cast overrides a genuine type mismatch (TS2322 / TS2345) | 37 |
+| `any` bridge — generic erasure, mostly the rtti visitors and `effects/module` | 24 |
+| Unconstructible brand — the cast is the demonstration (6 restored, 2 never removed) | 8 |
 | No overlap without `unknown` — a deliberately wrong value (TS2352) | 6 |
 | Reads an `unknown` the surrounding code has established (TS18046) | 4 |
 | Compiles without it, but the emitted `.d.mts` changes | 2 |
 | One each: TS7022 cycle cut, TS2589 depth, nominal `identity` | 3 |
 | Arrived on `main` after the audit | 11 |
+| **Total** | **95** |
 
-The 35 TS2322/TS2345 cases are the ones AGENTS.md means by "it usually means the
+The 37 TS2322/TS2345 cases are the ones AGENTS.md means by "it usually means the
 types or the code structure should be improved instead". They are deliberately
 left rather than rewritten, and grouped by the API each papers over:
 
@@ -128,7 +129,7 @@ left rather than rewritten, and grouped by the API each papers over:
 | [`fjs/effects/todo/do-generic-operation-signatures.md`](../fjs/effects/todo/do-generic-operation-signatures.md) | 3 |
 | [`fjs/effects/todo/step-continuation-operation-union.md`](../fjs/effects/todo/step-continuation-operation-union.md) | 6 |
 | [`fjs/effects/node/todo/async-operation-map-assignability.md`](../fjs/effects/node/todo/async-operation-map-assignability.md) | 2 (+2 nearby) |
-| [`fjs/js/todo/token-kind-narrowing.md`](../fjs/js/todo/token-kind-narrowing.md) | 4 |
+| [`fjs/js/todo/token-kind-narrowing.md`](../fjs/js/todo/token-kind-narrowing.md) | 4 (3 by retyping; `js/tokenizer:262` is a separate distribution problem) |
 | [`fjs/types/btree/todo/find-path-item-typing.md`](../fjs/types/btree/todo/find-path-item-typing.md) | 3 |
 | [`fjs/emergent_testing/todo/mockrun-parameters-inference.md`](../fjs/emergent_testing/todo/mockrun-parameters-inference.md) | 2 |
 
@@ -158,9 +159,9 @@ the table below rather than given an issue each.
 | `fjs/cas/module.f.mjs` | 348 | `(v: Vec) => Effect<Rm, IoResult<Vec>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/crypto/sign/proof.f.mjs` | 65 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
 | `fjs/djs/module.f.mjs` | 41 | `(result: Result<Unknown, ParseError>) => Effect<_CompileOp…` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/djs/tokenizer/module.f.mjs` | 294 | `TokenMetadata` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/djs/tokenizer/module.f.mjs` | 392 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/djs/tokenizer/module.f.mjs` | 405 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/djs/tokenizer/module.f.mjs` | 295 | `TokenMetadata` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/djs/tokenizer/module.f.mjs` | 393 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/djs/tokenizer/module.f.mjs` | 406 | `JsToken` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/djs/transpiler/module.f.mjs` | 103 | `(context: ParseContext) => Effect<ReadFile, Result<Unknown…` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/memory/module.f.mjs` | 34 | `<T>(value: T) => Effect<MemCreate, Key<T>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/effects/memory/module.f.mjs` | 39 | `<T>(key: Key<T>) => Effect<MemRead, T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
