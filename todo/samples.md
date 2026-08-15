@@ -12,7 +12,7 @@ like, end to end, to someone who has not read the source.
   (a purely functional subset of JavaScript), lists the `fjs` CLI commands,
   and documents CAS and MCP usage — but contains no FunctionalScript code.
   The nearest thing to a language example is the specification draft in
-  [lang/README.md](./lang/README.md), which is a spec, not a tutorial.
+  [spec/README.md](../spec/README.md), which is a spec, not a tutorial.
 - [demo/README.md](./demo/README.md) has the examples a newcomer wants
   (`math.f.js`, shared-reference data modules, a test module), but it is a
   presentation script parked under `todo/`, not linked from anywhere a
@@ -42,7 +42,7 @@ thing to keep in sync:
   build. A sample that is not executed will rot.
 - **Samples use only shipped features.** The parser is still a work in
   progress; a sample that needs an unimplemented feature belongs in
-  [lang/](./lang/README.md) as a spec example, not in `samples/`.
+  [spec/](../spec/README.md) as a spec example, not in `samples/`.
 - **The root README embeds the smallest one** — a reader should see
   FunctionalScript code without leaving the front page.
 

@@ -26,6 +26,6 @@ Type stripping blockers:
 - Node, Deno, and TypeScript don't allow type annotations in `.js` files. See the [Type Annotations proposal](https://github.com/tc39/proposal-type-annotations).
 - Browsers don't support type annotations or `.ts` files.
 
-Depends on [default-import](./2130-default-import.md).
+Depends on [default-import](../2130-default-import.md).
 
 See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#namespace_import
