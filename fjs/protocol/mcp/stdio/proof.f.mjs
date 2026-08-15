@@ -122,7 +122,7 @@ export const proof = {
             const id = idOf(value)
             return pure(id === undefined
                 ? null
-                : /** @type {Response} */ ({ jsonrpc, result: { ok: true, nextCursor: undefined }, id }))
+                : { jsonrpc, result: { ok: true, nextCursor: undefined }, id })
         }
         const state = runStep(step)(ping(1) + '\n')
         assertEq(state.stdout, okResponse(1))

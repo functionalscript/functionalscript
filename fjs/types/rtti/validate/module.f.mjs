@@ -137,7 +137,7 @@ const orValidate =
      * @returns {Validate<() => readonly ['or', ...T]>}
      */
     rtti =>
-        /** @type {any} */ (orVisit(/** @type {(t: Type) => ValidateE} */ (/** @type {any} */ (validate)))(rtti))
+        /** @type {any} */ (orVisit(/** @type {any} */ (validate))(rtti))
 
 /**
  * Creates a validator function for the given RTTI schema.

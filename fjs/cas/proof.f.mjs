@@ -105,7 +105,7 @@ const drive = overrides => {
     /** @type {(e: Effect<FileCasOperation, unknown>) => unknown} */
     const run_ = e => {
         const m = matcher(e)
-        return m[0] === 'done' ? m[1] : run_(m[2](/** @type {any} */ (m[1])))
+        return m[0] === 'done' ? m[1] : run_(m[2](m[1]))
     }
     return e => [run_(e), log]
 }

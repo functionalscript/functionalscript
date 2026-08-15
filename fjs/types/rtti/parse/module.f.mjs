@@ -156,7 +156,7 @@ const orParse =
      * @returns {Parse<() => readonly ['or', ...T]>}
      */
     rtti =>
-        /** @type {any} */ (orVisit(/** @type {(t: Type) => ValidateE} */ (/** @type {any} */ (parse)))(rtti))
+        /** @type {any} */ (orVisit(/** @type {any} */ (parse))(rtti))
 
 /**
  * Creates a parser function for the given RTTI schema.

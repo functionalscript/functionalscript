@@ -46,8 +46,8 @@ export const proof = {
         }
         {
 
-            const a = /** @type {any} */ (undefined)
-            const b = /** @type {any} */ (undefined)
+            const a = undefined
+            const b = undefined
 
             // a < b; // TS2469: Operator '<' cannot be applied to type 'symbol'.
         }
