@@ -114,6 +114,14 @@ Land in this order, each step independently verifiable with `npx tsc` and `fjs t
 5. For the remaining 77, open follow-up issues per type/API problem rather than
    rewriting the cast.
 
+### Related
+
+- [tsconfig-strict-flags.md](./tsconfig-strict-flags.md) —
+  `noUncheckedIndexedAccess` overlaps with this issue's `assert` bucket and
+  should land after it.
+- [eslint.md](./eslint.md) — no `tsc` flag can ban an inline cast, so without a
+  linter this count creeps back after the cleanup.
+
 ### Full table
 
 Verdict per site. `Line` is the line of the opening `/**` in the current tree.
