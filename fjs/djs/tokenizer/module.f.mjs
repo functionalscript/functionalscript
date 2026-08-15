@@ -612,10 +612,14 @@ const scanDjsTokenWithMetadata = (input, state) => {
 export const tokenize = input => path => flat(stateScan(scanDjsTokenWithMetadata)({ kind: 'def' })(tokenizeJs(input)(path)))
 
 export const proof = {
-    // `tagToToken`'s `true` arm fires only for an `AstTag` of literal `true`,
-    // which `bnf/data`'s `emptyTagOf` reserves for an anonymous nullable
-    // sequence rule — no rule in `buildToken`/`jsGrammar` is both anonymous and
-    // nullable, so no current grammar path reaches it through `tokenizeJs`.
+    // `tagToToken`'s `true` arm fires only for an `AstTag` of literal `true`.
+    // `bnf/data`'s `emptyTagOf` is the only source of that value, and
+    // `bnf/descent/module.f.mjs` reads it in exactly one place (its variant
+    // arm), always wrapped in `mrFail` — a failure. A failed variant only
+    // propagates as the overall `result` when nothing in it matches, so it
+    // never survives into a successful sequence/AST; a `true` tag therefore
+    // can never appear on a successful `descentParser` match for any
+    // grammar, `jsGrammar` included, so `tokenizeJs` can't reach this arm.
     // Call it directly to cover that branch.
     tagToTokenTrueTag: () => {
         assertEq(tagToToken(true), 'true')
