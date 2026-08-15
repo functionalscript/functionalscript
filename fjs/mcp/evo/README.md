@@ -53,13 +53,16 @@ which the server computes; rtti struct validation ignores properties the
 schema does not name, so a whole `evo_revision` result can be passed straight
 back to `evo_add`.
 
-`evo_add`'s `lock` is not a restatement of the format's lock map but
-[`fjs/media/revision`](../../media/revision/)'s own `lock` schema, so what the
-server accepts and what `tools/list` advertises cannot drift apart. It is
-recursive — a value is a hash or a nested scope — which is why it is the one
-argument whose JSON Schema is not inlined: it comes out as a named `$defs`
-rule (`lockValue`) that the `lock` property reaches through a local `$ref`,
-the JSON Schema spelling of a cycle.
+`evo_add`'s `lock` is not a restatement of the format's lock field but
+[`fjs/media/revision`](../../media/revision/)'s own `lockField` schema, so what
+the server accepts and what `tools/list` advertises cannot drift apart. It
+therefore takes either form the format does: the bindings inline as a map, or
+the cBase32 hash of a [`vnd.fjs.lock`](../../media/lock/) blob holding them —
+recorded as given, never followed. The map half is recursive — a value is a
+hash or a nested scope — which is why it is the one argument whose JSON Schema
+is not inlined whole: the recursion comes out as a named `$defs` rule
+(`lockValue`) reached through a local `$ref`, the JSON Schema spelling of a
+cycle.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
 [`toJsonSchema`](../../media/json/schema/module.f.mjs) derives the

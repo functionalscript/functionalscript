@@ -192,6 +192,30 @@ export const proof = {
             assertEq(r[1], 'lock value for B/D is not a valid hash: https://example.com/x')
         },
 
+        // In place of the map, `lock` may be the hash of a `vnd.fjs.lock`
+        // blob holding one — the only position where a string means "where
+        // the bindings are" rather than "this dependency's content".
+        sharedLockReferenceAccepted: () => {
+            const r = validate(revisionOf({ lock: h1 }))
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].lock, h1)
+        },
+
+        // A reference is validated as a cbase32 hash and nothing more — the
+        // same contract `snapshot` has — so a non-hash one is rejected.
+        invalidSharedLockReferenceRejected: () => {
+            const r = validate(revisionOf({ lock: 'https://example.com/lock' }))
+            assert(r[0] === 'error', ['expected error', r])
+            assertEq(r[1], 'lock reference is not a valid hash: https://example.com/lock')
+        },
+
+        // Only the top level is widened: a nested value is still a hash or a
+        // map, so nothing about an inline map's meaning changed.
+        nestedValueIsStillNotAReference: () => {
+            const [t] = validate(revisionOf({ lock: { B: { D: h1 } } }))
+            assertEq(t, 'ok')
+        },
+
         // Wrong dialect tag: structural validation rejects it outright.
         wrongDialectRejected: () => {
             const [t] = validate({ dialect: 'vnd.fjs.other', subject: h1, parents: [], snapshot: h2, generation: 0 })
@@ -268,6 +292,13 @@ export const proof = {
             assert(a[0] === 'ok', ['expected ok', a])
             assert(b[0] === 'ok', ['expected ok', b])
             assertEq(encodeText(a[1]), encodeText(b[1]))
+        },
+        // A shared-lock reference serializes as the plain string it is — no
+        // wrapper, no marker: the two forms are told apart by JSON type.
+        serializesSharedLockReferenceAsAString: () => {
+            const decoded = validate(revisionOf({ lock: h1 }))
+            assert(decoded[0] === 'ok', ['expected ok', decoded])
+            assert(encodeText(decoded[1]).includes(`"lock":"${h1}"`))
         },
         preservesArrayOrder: () => {
             const decoded = validate(revisionOf({ parents: [h2, h1] }))
