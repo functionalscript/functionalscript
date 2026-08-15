@@ -63,11 +63,14 @@ subcommand could carry the three syntactic rules with no dependency at all, and
 would exercise the compiler on the repository itself. That is the right
 long-term home for them.
 
-It is not the near-term answer, for two reasons. The tokenizer cannot yet read
-the tree — it accepts neither single-quoted strings nor template literals
-([`fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md`](../fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md)) —
-and the rules it would carry are the ones ESLint would carry anyway. Deferring
-it costs nothing; deferring ESLint leaves the type-aware rules unrun.
+It is not the near-term answer, for two reasons. FunctionalScript's string
+grammar is JSON's — double quotes only, by design
+([`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md)) — so the
+tokenizer does not accept the single-quoted, template-literal `.mjs` sources
+this repository is currently written in, and a linter built on it could not
+read the code it is meant to check until those sources are normalized. And the
+rules it would carry are the ones ESLint would carry anyway. Deferring it costs
+nothing; deferring ESLint leaves the type-aware rules unrun.
 
 ### Whichever route: do not build a JSDoc type grammar
 

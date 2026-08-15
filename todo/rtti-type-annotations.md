@@ -118,8 +118,7 @@ TypeScript aliases out.
 ### Sketch of an order, when the time comes
 
 1. Recognize `/*: … */` in the compiler's parser and hand its body to the
-   existing expression parser. Requires a tokenizer that can read the tree —
-   [`fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md`](../fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md).
+   existing expression parser.
 2. Evaluate the annotation expression at compile time
    ([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)).
 3. Generate `.d.ts` from the schemas — `fjs/types/rtti/ts` is already the
@@ -137,8 +136,11 @@ TypeScript aliases out.
 - [fjs-nanvm-integration.md](./fjs-nanvm-integration.md) and
   [migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md) — the path to a
   compiler that parses authored FunctionalScript.
-- [`fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md`](../fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md) —
-  the tokenizer cannot yet read the repository's own sources.
+- [`spec/todo/2460-js-string-literals.md`](../spec/todo/2460-js-string-literals.md) — FunctionalScript's string
+  grammar is JSON's, so the repository's own single-quoted `.mjs` sources are
+  not yet input the parser accepts. Normalizing them is part of
+  [migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md) stage 3, not a
+  tokenizer defect.
 
 ### Consequences for the TypeScript-era work
 
