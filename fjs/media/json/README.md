@@ -29,9 +29,15 @@ tokenizes: a coefficient with more digits than `number` can hold, an exponent
 past `number`'s precision, or both. Nothing narrows until a codec's numeric
 policy asks for a runtime value.
 
-That also removes work: the tokenizer used to accumulate the coefficient with
-bigint arithmetic per digit — quadratic in the digit count — for a value no
-consumer ever read.
+What this replaced was worse than redundant. The tokenizer used to accumulate a
+`BigFloat` alongside the lexeme — the coefficient with bigint arithmetic per
+digit, quadratic in the digit count, and the exponent as an ordinary `number`.
+Past 2^53 that exponent silently lost digits: `1e999999999999999999999`
+tokenized with an exponent of `1.0000000000000001e21`, and
+`1e99999999999999999999` with `100000000000000020000`. No consumer ever read
+the field, so this was a latent corruption rather than an observed bug — but a
+derived value that has to be right before the token exists is the wrong shape
+regardless of who reads it.
 
 ## The numeric policy is the seam, not an exact tree
 
