@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 use std::rc::Rc;
 
-use crate::{common::serializable::Serializable, naive::Naive, vm::IContainer};
+use crate::{naive::Naive, vm::IContainer};
 
 #[derive(Clone, PartialEq)]
 pub struct Container<H, I> {
@@ -9,8 +9,8 @@ pub struct Container<H, I> {
     items: Rc<[I]>,
 }
 
-impl<H: Clone + PartialEq + Serializable + 'static, I: Clone + Debug + Serializable + 'static>
-    IContainer<Naive> for Container<H, I>
+impl<H: Clone + PartialEq + 'static, I: Clone + Debug + 'static> IContainer<Naive>
+    for Container<H, I>
 {
     type Header = H;
     type Item = I;
