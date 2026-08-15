@@ -3,7 +3,7 @@
  * @import { Data } from './types.ts'
  */
 
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import {
     array,
     bigint,
@@ -16,7 +16,7 @@ import {
     string,
     unknown as unknownRtti,
 } from '../module.f.mjs'
-import { cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate } from './module.f.mjs'
+import { cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate, withoutUnits } from './module.f.mjs'
 
 /** @type {(actual: Data) => (expected: Data) => void} */
 const assertData = actual => expected =>
@@ -119,6 +119,29 @@ const tupleString = /** @type {const} */ ([string])
 const emptyTuple = /** @type {const} */ ([])
 
 export const proof = {
+    withoutUnits: [
+        // Removing the last unit bit removes the key: an empty kind is an
+        // absent property here, never a zero.
+        () => assertStructurallySame(
+            withoutUnits(unitBit(undefined))({ unit: unitBit(undefined) }),
+            never),
+        () => assertStructurallySame(
+            withoutUnits(unitBit(undefined))({ unit: unitBit(undefined) | unitBit(null) }),
+            { unit: unitBit(null) }),
+        // Bits that are not set are a no-op.
+        () => assertStructurallySame(
+            withoutUnits(unitBit(undefined))({ unit: unitBit(null) }),
+            { unit: unitBit(null) }),
+        () => assertStructurallySame(withoutUnits(unitBit(undefined))(never), never),
+        // The other five kinds are carried through untouched — this is what
+        // enumerating `UnionSet`'s members by hand would silently drop.
+        () => assertStructurallySame(
+            withoutUnits(unitBit(undefined))(unknown),
+            { ...unknown, unit: unitBit(null) | unitBit(false) | unitBit(true) }),
+        () => assertStructurallySame(
+            withoutUnits(unitBit(undefined))({ unit: unitBit(undefined), string: true }),
+            { string: true }),
+    ],
     unitBits: () => {
         // the literal bits are the encoding under test
         assertEq(unitList.join(), 'null,undefined,false,true')

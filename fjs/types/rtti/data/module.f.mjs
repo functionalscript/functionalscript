@@ -68,6 +68,25 @@ export const unknown = {
     object: true,
 }
 
+/**
+ * The union with the given unit bits removed — set subtraction restricted to
+ * the unit kind. Dropping `undefined` from an optional property's value set is
+ * the motivating case.
+ *
+ * The other five kinds are carried through untouched rather than copied field
+ * by field. That is not only shorter: a caller that enumerates `UnionSet`'s
+ * members to rebuild the node silently **drops** any kind added to the type
+ * later, whereas spreading cannot. Removing every unit bit removes the `unit`
+ * key entirely, since an empty kind is an absent property here, never a zero.
+ *
+ * @type {(bits: number) => (n: UnionSet) => UnionSet}
+ */
+export const withoutUnits = bits => n => {
+    const unit = (n.unit ?? 0) & ~bits
+    const { unit: _, ...rest } = n
+    return unit === 0 ? rest : { unit, ...rest }
+}
+
 // ── canonical order ──────────────────────────────────────────────────────────
 
 /** @type {(a: string, b: string) => number} */
