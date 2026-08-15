@@ -7,15 +7,14 @@
 
 Both `fjs/media/json/parser/module.f.mjs` and `fjs/djs/parser/module.f.mjs` build the
 container state machine out of four helpers — `startArray`, `startObject`,
-`endArray`, `endObject` — and within each module the two `start*` helpers and
-the two `end*` helpers share their *entire* stack-bookkeeping body. The only
-thing that genuinely differs between array and object is the container kind: the
-`status` label and the empty-container literal on the way in, and how the
-finished container's value is extracted on the way out. Everything around that —
-pushing the current `top` onto the stack, popping it back off, and threading the
-result through `pushValue` — is repeated verbatim.
+`endArray`, `endObject`. The pop side is already deduplicated in both modules
+via a shared `popStack` helper (`fjs/media/json/parser/module.f.mjs:59`,
+`fjs/djs/parser/module.f.mjs:272`), used by both `endArray` and `endObject`.
+What remains is the push side: the two `start*` helpers in each module still
+share their *entire* stack-push body verbatim — only the `status` label and
+the empty-container literal differ between array and object.
 
-#### JSON (`fjs/media/json/parser/module.f.mjs:79-111`)
+#### JSON (`fjs/media/json/parser/module.f.mjs:46-49,79-82`)
 
 The stack-push line is byte-identical in both `start*` helpers:
 
@@ -35,29 +34,28 @@ const startObject
     }
 ```
 
-and the pop-and-push-result body is identical in both `end*` helpers — only the
-expression that turns `state.top` into a finished value changes:
+The pop side (`endArray`/`endObject`) already shares its body through
+`popStack`:
 
 ```ts
-const endArray
-    : (state: StateParse) => JsonState
-    = state => {
-        const array = state.top !== null ? toArray(state.top.values) : null
-        const newState
-            : StateParse
-            = { status: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
-        return pushValue(newState)(array)
-    }
+const popStack = stack => {
+    const ne = next(stack)
+    return ne === null
+        ? { status: '', top: null, stack: null }
+        : { status: '', top: ne.first, stack: ne.tail }
+}
 
-const endObject
-    : (state: StateParse) => JsonState
-    = state => {
-        const obj = state.top?.kind === 'object' ? fromMap(state.top.values) : null
-        const newState
-            : StateParse
-            = { status: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
-        return pushValue(newState)(obj)
-    }
+const endArray = state => {
+    const array = toArray(state.top.values)
+    const newState = popStack(state.stack)
+    return pushValue(newState)(array)
+}
+
+const endObject = state => {
+    const obj = fromMap(state.top.values)
+    const newState = popStack(state.stack)
+    return pushValue(newState)(obj)
+}
 ```
 
 #### DJS (`fjs/djs/parser/module.f.mjs:262-303`)
@@ -74,32 +72,20 @@ const startObject = state => {
     const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
     return { ... state, valueState: '{', top: ['object', null, ''], stack: newStack }
 }
-
-const endArray = state => {
-    const top = state.top;
-    const newState = { ... state, valueState: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
-    if (top !== null && top[0] === 'array') {
-        const array: AstArray = ['array', toArray(top[1])];
-        return pushValue(newState)(array)
-    }
-    return pushValue(newState)(null)
-}
-const endObject = state => {
-    const obj = state?.top !== null && state?.top[0] === 'object' ? fromMap(state.top[1]) : null;
-    const newState = { ... state, valueState: '', top: first(null)(state.stack), stack: drop(1)(state.stack) }
-    return pushValue(newState)(obj)
-}
 ```
 
-So the `newStack` push appears **four** times across the two modules and
-`newState` pop appears **four** times, each one a verbatim copy of its sibling.
-The repeated lines are not trivial one-liners: the push is a conditional
-(`state.top === null ? null : { first, tail }`) and the pop combines
-`first(null)(state.stack)` with `drop(1)(state.stack)` and resets the status.
-This is exactly the case `AGENTS.md` calls out — "when two code branches share
-most of their structure, refactor so the shared part appears once and only the
-difference lives in the conditional" — and it is also a separation-of-concerns
-point: *manipulating the container stack* is a distinct concern from *which
+DJS's `endArray`/`endObject` also already share their pop body through a local
+`popStack` helper (`fjs/djs/parser/module.f.mjs:272`), mirroring JSON's.
+
+So the `newStack` push appears **four** times across the two modules — twice
+per module, byte-identical modulo the container-kind literal — while the pop
+side is already down to one `popStack` per module. The repeated push is not a
+trivial one-liner: it's a conditional (`state.top === null ? null : { first,
+tail }`) that decides whether to grow the stack. This is exactly the case
+`AGENTS.md` calls out — "when two code branches share most of their
+structure, refactor so the shared part appears once and only the difference
+lives in the conditional" — and it is also a separation-of-concerns point:
+*manipulating the container stack* is a distinct concern from *which
 container kind* is being opened or closed.
 
 The DRY trigger is already met inside each module on its own: there are two real
@@ -124,26 +110,21 @@ const startContainer =
     (status: '[' | '{') => (top: JsonStackElement) => (state: StateParse): JsonState =>
         ({ status, top, stack: pushStack(state) })
 
-const endContainer =
-    (build: (top: JsonStackElement | null) => Unknown) => (state: StateParse): JsonState =>
-        pushValue(popState(state))(build(state.top))
-
 const startArray  = startContainer('[')({ kind: 'array', values: null })
 const startObject = startContainer('{')({ kind: 'object', values: null, key: '' })
-const endArray  = endContainer(top => top !== null ? toArray(top.values) : null)
-const endObject = endContainer(top => top?.kind === 'object' ? fromMap(top.values) : null)
 ```
 
 The empty-container literal is now evaluated once at module load and shared
-across calls (sound, since the values are immutable), and the stack push/pop
-lives in exactly one place. The four public helpers shrink to one-line
-derivations whose body *is* the array-vs-object difference and nothing else.
+across calls (sound, since the values are immutable), and the stack push
+lives in exactly one place. `endArray`/`endObject` are unchanged — they
+already share their pop body through the existing `popStack` helper — so only
+`startArray`/`startObject` shrink to one-line derivations whose body *is* the
+array-vs-object difference and nothing else.
 
 The DJS module gets the same treatment, keeping its `{ ...state, ... }` spread
-inside `startContainer` / `popState` and its tuple containers / `['array', …]`
-result in the `build` callbacks. `endArray`'s "top is not actually an array →
-push `null`" fallback stays inside its `build` callback, so the shared
-`pushValue(popState(state))(...)` skeleton is unchanged.
+inside `startContainer` and its tuple containers in the `top` argument.
+`endArray`/`endObject` need no change there either, since DJS's `popStack`
+already covers the pop side.
 
 ### Why this is filed at P4
 
@@ -159,12 +140,13 @@ one and can land independently of 157.
 
 ### Tasks
 
-- [ ] In `fjs/media/json/parser/module.f.mjs`, add `pushStack` / `popState` (or
-      equivalently named) and `startContainer` / `endContainer`; derive
-      `startArray` / `startObject` / `endArray` / `endObject` from them.
+- [x] Pop side: both modules already share their pop body via a `popStack`
+      helper (`fjs/media/json/parser/module.f.mjs:59`,
+      `fjs/djs/parser/module.f.mjs:272`), used by `endArray`/`endObject`.
+- [ ] In `fjs/media/json/parser/module.f.mjs`, add `pushStack` / `startContainer`
+      (or equivalently named); derive `startArray` / `startObject` from them.
 - [ ] Apply the same shape to `fjs/djs/parser/module.f.mjs`, preserving the
-      `{ ...state }` spread and the `endArray` non-array fallback inside the
-      `build` callback.
+      `{ ...state }` spread.
 - [ ] Run `npx tsc` and `fjs t`; confirm `fjs/media/json/parser/proof.f.mjs` and
       `fjs/djs/parser/proof.f.mjs` still pass with full line/branch coverage
       (behaviour is unchanged — this is a pure refactor).

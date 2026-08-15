@@ -23,16 +23,22 @@ if (cmp('apple')('banana') !== -1) { throw 3 }
 if (uint(s) !== 0x68656C6C_6F20776F_726C64n) { throw s }
 ```
 
-Counts in the current tree:
+Counts in the current tree (re-verified 2026-08-14):
 
-- ~1,623 `if (...) { throw ... }` lines across `fjs/**/proof.f.mjs` —
-  the dominant assertion style.
-- Only 4 files import `assertEq`: `fjs/sul/proof.f.mjs`,
-  `fjs/sul/level/hash/proof.f.mjs`, `fjs/sul/id/proof.f.mjs`,
-  `fjs/sul/id/module.f.mjs`.
-- ~40 of the manual sites throw bare string literals
-  (`throw 'error'`, `throw 'Error'`) that carry no actual context —
-  worse than `assertEq`'s `[a, b]` pair on failure.
+- ~494 `if (...) { throw ... }` lines remain across `**/proof.f.mjs` —
+  down from the original count, but still a real chunk of the manual
+  pattern.
+- 109 of 118 `proof.f.mjs` files now import `assertEq` — adoption is
+  well underway. The 9 remaining holdouts: `fjs/basen/base128/proof.f.mjs`,
+  `fjs/js/tokenizer/proof.f.mjs`, `fjs/media/json/tokenizer/proof.f.mjs`,
+  `fjs/types/nominal/proof.f.mjs`,
+  `fjs/types/object/structurally_same/proof.f.mjs`,
+  `fjs/types/range/proof.f.mjs`, `fjs/types/range_set/proof.f.mjs`,
+  `fjs/types/rtti/proof.f.mjs`, `todo/proof.f.mjs`.
+- A number of files already using `assertEq` still carry leftover
+  manual `if (...) { throw ... }` sites alongside it (the 494 count
+  above is not confined to the 9 holdout files) — full adoption within
+  an already-migrated file is still incomplete in places.
 
 The mechanical translation is one-to-one:
 
@@ -77,15 +83,15 @@ it's by far the most common and the lowest-judgement case.
 
 ### Why this qualifies
 
-- **DRY at extreme volume.** ~1,623 spellings of the same three-token
-  conditional throw. Even partial adoption (e.g. the ~60% that are
-  exactly `if (x !== expected) { throw x }`) deletes hundreds of
-  redundant patterns and replaces them with a single call.
+- **DRY at extreme volume.** Even after 109 of 118 files adopted
+  `assertEq`, ~494 spellings of the same three-token conditional throw
+  remain. Continuing adoption (both in the 9 holdout files and the
+  leftover manual sites within already-migrated files) keeps deleting
+  redundant patterns in favour of a single call.
 - **Failure-message quality goes up.** `throw [a, b]` always includes
-  both sides of the comparison. Today's `throw 0` / `throw 1` /
+  both sides of the comparison. Manual `throw 0` / `throw 1` /
   `throw 'error'` sites lose the actual value entirely, which forces
-  re-running with `console.log` to debug. The 40 bare-string throws
-  in particular are strictly worse than the helper.
+  re-running with `console.log` to debug.
 - **Separation of concerns.** "How a test asserts equality" is one
   decision and lives in one helper. Today each proof file re-makes
   that decision on every line. The helper already exists — it's just
@@ -117,14 +123,14 @@ it's by far the most common and the lowest-judgement case.
   problem before mass-importing from `fjs/dev` into the `fjs/types`
   subtree. If there is, hoist `assert`/`assertEq` into a small
   `fjs/types/proof/module.f.mjs` (or co-located leaf) that `fjs/dev` can
-  re-export. The 4 existing `assertEq` consumers in `fjs/sul/` are a
+  re-export. The 109 existing `assertEq` consumers across the tree are a
   good existence proof that the import edge works from outside
   `fjs/types`.
 - **Land in small PRs.** AGENTS.md asks for "one feature/improvement
-  with minimal code changes" per PR; a single PR rewriting 1,600 lines
-  is not in the spirit of that rule even if each diff is trivial.
-  Folder-by-folder keeps reviews proportionate. No CHANGELOG entry per
-  PR — these are test-only changes.
+  with minimal code changes" per PR; a single PR rewriting hundreds of
+  lines is not in the spirit of that rule even if each diff is
+  trivial. Folder-by-folder keeps reviews proportionate. No CHANGELOG
+  entry per PR — these are test-only changes.
 - **Coverage delta = zero.** The helper does not change what is
   asserted, only how. Tests must continue to pass without any
   expected-result edits; if they don't, the rewrite caught a

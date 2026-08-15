@@ -5,7 +5,18 @@
 
 ### Problem
 
-Two surviving CI step sites build the same `run`-based step for globally installing a
+**Update:** the `@typescript/native-preview`/`tsgo` global-install call site described
+below no longer exists in the repo (verified via
+`grep -rn "native-preview\|tsgo" .github/workflows/ fjs/ci/`, which finds only this file's
+own text). `fjs/ci/node/module.f.mjs` currently has a single global-install site,
+`fjsGlobalInstall`, for `functionalscript`. With only one real consumer left, the
+second-consumer threshold this proposal relies on (see "Why this still qualifies" below)
+no longer holds, and a shared `npmGlobalInstall` factory may not be worth the abstraction
+until a second consumer actually reappears. Leaving this open rather than closing it,
+since a future global-install site (or the return of a tsgo-like tool) would revive the
+case for it.
+
+Originally, two CI step sites built the same `run`-based step for globally installing a
 pinned npm package:
 
 ```ts
@@ -16,8 +27,8 @@ const fjsGlobalInstall = (version: string): MetaStep =>
 install({ run: `npm install -g @typescript/native-preview@${tsgo}` })
 ```
 
-The shape `install({ run: `npm install -g ${pkg}@${version}` })` is duplicated; only the
-package name and version differ.
+The shape `install({ run: `npm install -g ${pkg}@${version}` })` was duplicated; only the
+package name and version differed.
 
 The former `fjs/ci/playwright/module.f.mjs` call site is intentionally not a consumer of
 this proposal. That job and its global install have already been deleted, and this task
@@ -49,10 +60,12 @@ acceptable implementation choice if those related APIs settle on that style.
 
 ### Why this still qualifies
 
-- There are two real surviving consumers, meeting the second-consumer threshold.
+- **Only one real surviving consumer remains** (`fjsGlobalInstall`); the
+  `@typescript/native-preview` site is gone, so the original second-consumer threshold no
+  longer holds — see the Problem update above.
 - The construction is identical and varies only by data.
 - The abstraction names one repository policy: install a pinned npm tool globally.
-- A future third consumer can reuse the factory without restoring the deleted Playwright
+- A future second consumer can reuse the factory without restoring the deleted Playwright
   job.
 
 This remains distinct from:
@@ -66,8 +79,9 @@ This remains distinct from:
 
 - [ ] Add `npmGlobalInstall` to `fjs/ci/common/module.f.mjs`.
 - [ ] Rebind `fjsGlobalInstall` in `fjs/ci/node/module.f.mjs`.
-- [ ] Replace the inline `@typescript/native-preview` global-install step.
-- [ ] Confirm proof coverage for both surviving consumers and the generated step shape.
+- [ ] ~~Replace the inline `@typescript/native-preview` global-install step.~~ (site no
+      longer exists — see Problem update)
+- [ ] Confirm proof coverage for the surviving consumer and the generated step shape.
 - [ ] Verify generated workflow output is unchanged.
 - [ ] Run `npx tsc` and `fjs t`.
 

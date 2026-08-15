@@ -47,6 +47,7 @@ home.
 
 ### Related
 
-- [86](86.md) — coercion traits for a future VM, a different layer
+- `src/vm/string_coercion.rs` / `src/vm/number_coercion.rs` — coercion
+  traits for a different layer, same "give the type its algebra" idea
 - [sign-algebra](sign-algebra.md) — the same "give the type its algebra"
   move for `Sign`
