@@ -5,7 +5,6 @@
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { MemOperationMap, RunInstance } from '../../mock/types.ts'
- * @import { Key } from '../../memory/types.ts'
  * @import { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
  * @import { Dir, State, _Entity } from './types.ts'
  */

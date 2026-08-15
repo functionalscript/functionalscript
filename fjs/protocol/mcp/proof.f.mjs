@@ -3,10 +3,12 @@
  * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
- * @import { Ts } from '../../types/rtti/ts/types.ts'
  * @import {
- *   ToolsListParams, ToolsListResult, ToolsCallParams, ToolsCallResult,
- *   McpHandlers, McpConfig, McpSessionState,
+ *   ToolsListParams,
+ *   ToolsCallParams,
+ *   McpHandlers,
+ *   McpConfig,
+ *   McpSessionState,
  * } from './types.ts'
  */
 

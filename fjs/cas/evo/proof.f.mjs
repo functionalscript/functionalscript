@@ -2,7 +2,6 @@
  * @import { Cas } from '../types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Ok } from '../../types/result/types.ts'
- * @import { IoResult } from '../../effects/node/types.ts'
  * @import { List } from '../../effects/list/types.ts'
  * @import { RevisionData } from './types.ts'
  */

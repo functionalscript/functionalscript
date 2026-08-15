@@ -2,7 +2,7 @@
  * @import { Unknown } from '../../../media/json/types.ts'
  * @import { Effect } from '../../../effects/types.ts'
  * @import { State } from '../../../effects/node/virtual/types.ts'
- * @import { Id, Response } from '../../json_rpc/types.ts'
+ * @import { Id } from '../../json_rpc/types.ts'
  * @import { Step } from './types.ts'
  */
 

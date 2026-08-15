@@ -1,5 +1,4 @@
 /**
- * @import { Unknown as JsonValue } from '../types.ts'
  * @import { Unknown } from './module.f.mjs'
  * @import { Data } from '../../../types/rtti/data/types.ts'
  */

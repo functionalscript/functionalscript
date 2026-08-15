@@ -32,7 +32,7 @@
  * @import { Unknown } from '../ts/types.ts'
  * @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts'
  * @import { StringMap } from '../../object/types.ts'
- * @import { Container, IsContainer, Validate, ValidateE, Visitor } from '../common/types.ts'
+ * @import { Container, IsContainer, Validate, Visitor } from '../common/types.ts'
  */
 
 import { ok } from '../../result/module.f.mjs'

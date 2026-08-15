@@ -43,11 +43,10 @@
  *
  * @module
  *
- * @import { Effect, Operation } from '../../effects/types.ts'
+ * @import { Operation } from '../../effects/types.ts'
  * @import { MemOp } from '../../effects/memory/types.ts'
- * @import { ToolEntry, ToolsCallResult } from '../../protocol/mcp/types.ts'
+ * @import { ToolEntry } from '../../protocol/mcp/types.ts'
  * @import { Evo } from '../../cas/evo/types.ts'
- * @import { Ts } from '../../types/rtti/ts/types.ts'
  */
 
 import { string, option, array } from '../../types/rtti/module.f.mjs'

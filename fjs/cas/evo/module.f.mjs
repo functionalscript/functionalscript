@@ -45,10 +45,9 @@
  * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Cas } from '../types.ts'
- * @import { Ok, Result } from '../../types/result/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { IoResult } from '../../effects/node/types.ts'
- * @import { List } from '../../effects/list/types.ts'
  * @import { LockField, LockMap, Revision } from '../../media/revision/types.ts'
  * @import { Hash, Subject, RevisionData, SubjectState, Cache, Evo } from './types.ts'
  */
@@ -67,6 +66,7 @@ import { isNotFound } from '../../effects/node/module.f.mjs'
 import { decodeText, encodeText, dialect, checkReferences, isHash } from '../../media/revision/module.f.mjs'
 
 /** A cache with no known subjects yet — the starting point for {@link buildCache}. */
+/** @type {Cache} */
 export const emptyCache = { bySubject: {} }
 
 /** @type {SubjectState} */

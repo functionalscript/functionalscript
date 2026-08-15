@@ -23,8 +23,8 @@ export const proof = {
              * @typedef {T & { __noCompare__: never }} _ForbiddenCompare
              */
             /** @typedef {_ForbiddenCompare<{ value: number }>} _IntersectionSafeId */
-            const a = { value: 1 }
-            const b = { value: 2 }
+            const a = /** @type {_IntersectionSafeId} */ ({ value: 1 })
+            const b = /** @type {_IntersectionSafeId} */ ({ value: 2 })
 
             // No Compile-time error
             if (a < b) { }
@@ -38,16 +38,16 @@ export const proof = {
             if (x < x) { }
         }
         {
-            const a = {}
-            const b = {}
+            const a = /** @type {_SymbolKeyBranded} */ ({})
+            const b = /** @type {_SymbolKeyBranded} */ ({})
 
             // No Error
             a < b
         }
         {
 
-            const a = undefined
-            const b = undefined
+            const a = /** @type {_SymbolIntersectionBranded} */ (/** @type {any} */ (undefined))
+            const b = /** @type {_SymbolIntersectionBranded} */ (/** @type {any} */ (undefined))
 
             // a < b; // TS2469: Operator '<' cannot be applied to type 'symbol'.
         }

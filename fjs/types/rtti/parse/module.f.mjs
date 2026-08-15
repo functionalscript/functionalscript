@@ -32,7 +32,7 @@
  * @import { Result as CommonResult } from '../../result/types.ts'
  * @import { StringMap } from '../../object/types.ts'
  * @import { List } from '../../list/types.ts'
- * @import { Container, IsContainer, ValidateE, ValidationError, Visitor } from '../common/types.ts'
+ * @import { Container, IsContainer, ValidationError, Visitor } from '../common/types.ts'
  * @import { Unknown } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
  */

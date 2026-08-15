@@ -1,5 +1,5 @@
 /**
- * @import { Dir, JsModule } from './types.ts'
+ * @import { Dir } from './types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'

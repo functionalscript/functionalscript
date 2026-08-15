@@ -101,17 +101,12 @@
  *
  * @module
  *
- * @import { Effect } from '../../effects/types.ts'
  * @import { MemOp } from '../../effects/memory/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Ok } from '../../types/result/types.ts'
- * @import { ToolEntry, ToolsCallResult } from '../../protocol/mcp/types.ts'
+ * @import { ToolEntry } from '../../protocol/mcp/types.ts'
  * @import { FileCasOperation } from '../../cas/types.ts'
  * @import { Cache } from '../../cas/evo/types.ts'
  * @import { Key } from '../../effects/memory/types.ts'
- * @import { Ts } from '../../types/rtti/ts/types.ts'
- * @import { List } from '../../effects/list/types.ts'
- * @import { IoResult } from '../../effects/node/types.ts'
  */
 
 import { string, option, or, boolean } from '../../types/rtti/module.f.mjs'

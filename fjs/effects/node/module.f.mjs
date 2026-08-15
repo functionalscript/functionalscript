@@ -183,7 +183,8 @@ export const stat = do_('stat')
 // createServer
 
 export const createServer =
-    do_('createServer')
+    /** @type {<O extends Operation>(listener: RequestListener<O>) => Effect<O | CreateServer, Server>} */
+    (do_('createServer'))
 
 // listen
 
@@ -216,9 +217,11 @@ const writeString = stream => s =>
     write(stream, utf8(s + '\n'))
 
 /** Writes a line to `stdout`. Replaces the retired `Log` effect. */
+/** @type {Console} */
 export const log = writeString('stdout')
 
 /** Writes a line to `stderr`. Replaces the retired `Error` effect. */
+/** @type {Console} */
 export const error = writeString('stderr')
 
 // read

@@ -1,5 +1,4 @@
 /**
- * @import { Unknown } from '../types.ts'
  */
 
 import { descentParser } from '../../bnf/descent/module.f.mjs'
