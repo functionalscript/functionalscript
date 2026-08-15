@@ -81,8 +81,11 @@ export const proof = {
             )
             assert(t === 'ok', result)
             const tmp = state.root.tmp
-            assert(!(typeof tmp !== 'object' || Array.isArray(tmp)), state.root)
-            const cache = (/** @type {Dir} */ (tmp)).cache
+            // `instanceof Array`, not `Array.isArray`: only the former's negative
+            // branch removes a `readonly` array from a union, so only it narrows
+            // `_Entity` to `Dir`.
+            assert(!(typeof tmp !== 'object' || tmp instanceof Array), state.root)
+            const cache = tmp.cache
             assert(!(typeof cache !== 'object' || Array.isArray(cache)), tmp)
         },
         nonRec: () => {
@@ -272,8 +275,8 @@ export const proof = {
             })(rm('tmp/cache'))
             assert(t === 'ok', result)
             const tmp = state.root.tmp
-            assert(!(typeof tmp !== 'object' || Array.isArray(tmp)), state.root)
-            assertEq((/** @type {Dir} */ (tmp)).cache, undefined, tmp)
+            assert(!(typeof tmp !== 'object' || tmp instanceof Array), state.root)
+            assertEq(tmp.cache, undefined, tmp)
         },
         noSuchFile: () => {
             const [_, [t, result]] = virtual(emptyState)(rm('hello'))
@@ -360,8 +363,8 @@ export const proof = {
             })(rename('tmp/src', 'tmp/dst'))
             assert(t === 'ok', result)
             const tmp = state.root.tmp
-            assert(!(typeof tmp !== 'object' || Array.isArray(tmp)), state.root)
-            assertEq((/** @type {Dir} */ (tmp)).src, undefined, tmp)
+            assert(!(typeof tmp !== 'object' || tmp instanceof Array), state.root)
+            assertEq(tmp.src, undefined, tmp)
         },
         dirOverFile: () => {
             const [state, [t, result]] = virtual({

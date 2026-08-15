@@ -44,10 +44,13 @@ const operation = op => {
         }
         const [first, ...rest] = path
         const subDir = dir[first]
-        if (typeof subDir !== 'object' || Array.isArray(subDir)) {
+        // `instanceof Array`, not `Array.isArray`: the latter narrows to `any[]`,
+        // which `readonly Vec[]` is not assignable to, so its negative branch never
+        // removes a `readonly` array from `_Entity`. Only `instanceof` narrows here.
+        if (typeof subDir !== 'object' || subDir instanceof Array) {
             return op(dir, path)
         }
-        const [newSubDir, r] = f(/** @type {Dir} */ (subDir), rest)
+        const [newSubDir, r] = f(subDir, rest)
         return [{ ...dir, [first]: newSubDir }, r]
     }
     return path => state => {
@@ -146,10 +149,10 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
         let result = []
         for (const [name, content] of entries(d)) {
             if (content === undefined) { continue }
-            const isFile = Array.isArray(content) || typeof content !== 'object'
+            const isFile = content instanceof Array || typeof content !== 'object'
             result = [...result, { name, parentPath, isFile }]
             if (!isFile && recursive) {
-                result = [...result, ...f(join(parentPath, name), /** @type {Dir} */ (content))]
+                result = [...result, ...f(join(parentPath, name), content)]
             }
         }
         return result
@@ -194,8 +197,8 @@ const extractEntity = (dir, path) => {
     }
     const [first, ...rest] = path
     const sub = dir[first]
-    if (sub === undefined || Array.isArray(sub) || typeof sub === 'function') { return [dir, enoent] }
-    const [newSub, result] = extractEntity(/** @type {Dir} */ (sub), rest)
+    if (sub === undefined || sub instanceof Array || typeof sub === 'function') { return [dir, enoent] }
+    const [newSub, result] = extractEntity(sub, rest)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
 }
@@ -234,8 +237,8 @@ const insertEntityAt = (dir, path, entity) => {
     const [first, ...rest] = path
     const sub = dir[first]
     if (sub === undefined) { return [dir, enoent] }
-    if (Array.isArray(sub) || typeof sub === 'function') { return [dir, error('not a directory')] }
-    const [newSub, result] = insertEntityAt(/** @type {Dir} */ (sub), rest, entity)
+    if (sub instanceof Array || typeof sub === 'function') { return [dir, error('not a directory')] }
+    const [newSub, result] = insertEntityAt(sub, rest, entity)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
 }
