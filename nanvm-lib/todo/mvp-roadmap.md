@@ -24,7 +24,7 @@ building/running them is an ordinary cargo workflow. Each ecosystem keeps its
 native tool. The self-hosted `nanvm` crate is the post-MVP milestone below
 (see [console-program](./console-program.md)).
 
-See [`todo/lang/`](../../todo/lang/README.md) for language details. Details
+See [`spec/`](../../spec/README.md) for language details. Details
 for individual items below are added only after discussion.
 
 ### Proposal
@@ -46,7 +46,7 @@ reasons:
 Bytecode is an advanced, performance-oriented representation that may vary
 across architectures, VM implementations, and versions, while the AST is the
 stable representation. See
-[`todo/lang/README.md` §9](../../todo/lang/README.md#9-serialization-ast-as-data-not-bytecode).
+[`spec/README.md` §9](../../spec/README.md#9-serialization-ast-as-data-not-bytecode).
 
 The exact shape of the code-describing `Any` (tags/shapes) is specified by
 the [ast-spec](../../todo/ast-spec.md) — the contract of the `Function`
@@ -298,7 +298,7 @@ as a generic `Any` facility, post-MVP.
       [`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs), which is what
       tests it on both sides.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
-      Spec: [operators](../../todo/lang/2340-operators.md).
+      Spec: [operators](../../spec/todo/2340-operators.md).
 - [ ] **Parser**, using [`fjs/bnf/`](../../fjs/bnf/README.md) (FJS).
 - [ ] **Incremental repository compiler coverage** — this is not an MVP gate.
       First complete the repository TypeScript-to-JavaScript Stage 1 and authored
@@ -320,8 +320,8 @@ as a generic `Any` facility, post-MVP.
       flag. Related: [fs-vm-load-save](./fs-vm-load-save.md).
 - [ ] **Basic control operator `?:`** (Rust).
 - [ ] **Nested functions** (function frame) (Rust).
-      See [function](../../todo/lang/3110-function.md),
-      [function-frame](../../todo/lang/3111-function-frame.md).
+      See [function](../../spec/todo/3110-function.md),
+      [function-frame](../../spec/todo/3111-function-frame.md).
 - [ ] **`nanvm-effects-node` crate** (Rust) — the effect runner: implements
       the generated stub trait against the OS; sync subset (fs, console)
       first. Preceded by defining the effect vocabulary as an RTTI schema
@@ -332,7 +332,7 @@ as a generic `Any` facility, post-MVP.
 #### P3
 
 - [ ] **Control statements**: `if`, `while`, etc. (Rust).
-      See [`todo/lang/README.md` §3.2](../../todo/lang/README.md).
+      See [`spec/README.md` §3.2](../../spec/README.md).
 - [ ] **`Any` serialization (CBOR)** — generic serialization of `Any`
       values, which covers code as data; includes the deterministic profile
       needed for CAVM hashing (see open questions).
@@ -379,7 +379,7 @@ compiler-compatibility migration rather than a separate rewrite.
 
 ### Related
 
-- [`todo/lang/README.md`](../../todo/lang/README.md) — the language spec and
+- [`spec/README.md`](../../spec/README.md) — the language spec and
   tag tables; §9 records the AST-as-data decision and the two execution
   paths.
 - [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — source extension contract

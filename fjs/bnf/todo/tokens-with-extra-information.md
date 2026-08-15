@@ -18,7 +18,7 @@ tokenizer(CFG) ==AST==> ToFsToken(Fun) ==Token[]==> parser(CFG) ==AST==> backend
 This allows a simple and fast `LL(1)` parser. **CFG** = context-free grammar, **Fun** = functional transformation.
 
 The AST is the stable representation of functions, expressed as an FJS value (see
-[`todo/lang/README.md` §9](../../../todo/lang/README.md#9-serialization-ast-as-data-not-bytecode));
+[`spec/README.md` §9](../../../spec/README.md#9-serialization-ast-as-data-not-bytecode));
 a backend either generates Rust code calling the `nanvm-lib` API (AOT) or hands the AST as data to
 the `Function` constructor (interpretation).
 

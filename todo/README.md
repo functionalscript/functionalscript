@@ -115,4 +115,4 @@ status-only tombstone.
 
 ## Language Specification
 
-See [lang/README.md](./lang/README.md).
+See [spec/README.md](../spec/README.md).

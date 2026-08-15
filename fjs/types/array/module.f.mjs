@@ -54,9 +54,21 @@ export const first = at(0)
 export const last = a => at(a.length - 1)(a)
 
 /**
+ * Applies `f` to a non-empty array, answering `null` for an empty one — the
+ * shared shape of the whole-array accessors below.
+ *
+ * The guard is `a.length === 0` and not `first(a) === null`: `first` goes
+ * through `fromUndefined`, so it reads a *stored* `null` or `undefined`
+ * element as absence. `[null]` is not empty, but `first` says it is.
+ *
+ * @type {<T, R>(f: (a: readonly T[]) => R) => (a: readonly T[]) => R | null}
+ */
+const onNonEmpty = f => a => a.length === 0 ? null : f(a)
+
+/**
  * @type {<T>(a: readonly T[]) => readonly T[] | null}
  */
-export const tail = a => a.length === 0 ? null : uncheckTail(a)
+export const tail = onNonEmpty(uncheckTail)
 
 /**
  * @type {<T>(a: readonly T[]) => readonly [T, readonly T[]] | null}
@@ -69,7 +81,7 @@ export const splitFirst = a => {
 }
 
 /** @type {<T>(a: readonly T[]) => readonly T[] | null} */
-export const head = a => a.length === 0 ? null : uncheckHead(a)
+export const head = onNonEmpty(uncheckHead)
 
 /** @type {<T>(a: readonly T[]) => readonly [readonly T[], T] | null} */
 export const splitLast = a => {
