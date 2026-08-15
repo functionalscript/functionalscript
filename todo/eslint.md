@@ -54,17 +54,32 @@ the compiler on the repository itself, and fits the self-hosting direction. It
 is more work up front, and it will not reach parity with
 `@typescript-eslint`'s type-aware rules without type information.
 
-[jsdoc-parser.md](./jsdoc-parser.md) works this option out in detail. Doing it
-properly means parsing JSDoc rather than pattern-matching comment text — a block
-grammar and a TypeScript-type-subset grammar, both in `fjs/bnf` form, sized to
-the surface the repository actually writes. That doc also records the blocker:
-the JS tokenizer accepts neither single-quoted strings nor template literals, so
-it cannot yet read the code it was written to describe.
-
 The three rules above are all **syntactic** — an inline cast, an unknown tag
 name, a predicate signature — so none of them needs type information. That
 argues for starting with the `fjs` check and reaching for ESLint only if a
 type-aware rule turns out to be worth the dependency.
+
+### Do not build a JSDoc type grammar for this
+
+An earlier revision of this issue proposed parsing JSDoc properly: a block
+grammar plus a grammar for the subset of TypeScript's type expressions the tree
+uses. The second half is a mistake. FunctionalScript's direction is
+[`/*: type */` annotations checked by RTTI](./rtti-type-annotations.md), where a
+type is an ordinary value and an annotation is an ordinary expression — so a
+TypeScript-type grammar would be re-implementing, in the repository's own BNF,
+exactly the superset the project exists to avoid.
+
+All three rules are satisfiable without it. The tokenizer keeps a block
+comment's body verbatim, so `'* @type {X} '` (JSDoc), `': myType '` (annotation)
+and `' plain '` (comment) are told apart by the first character; the rules then
+need only the JS token stream around them. That is a recognizer, not a type
+parser, and it stays correct when JSDoc goes away.
+
+These rules are therefore **transitional** — they police the JSDoc era and
+retire with it. The one thing they do need first is a tokenizer that can read
+the tree: it currently accepts neither single-quoted strings nor template
+literals, which is tracked in
+[rtti-type-annotations.md](./rtti-type-annotations.md).
 
 ### Proposal
 
