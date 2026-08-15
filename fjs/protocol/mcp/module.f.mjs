@@ -20,9 +20,16 @@
  * @import { Response, Id, RpcError } from '../json_rpc/types.ts'
  * @import { Type } from '../../types/rtti/types.ts'
  * @import {
- *   Implementation, ServerCapabilities, InitializeResult, Tool,
- *   ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry,
- *   InitializedState, McpSessionState, McpConfig,
+ *   Implementation,
+ *   ServerCapabilities,
+ *   InitializeResult,
+ *   Tool,
+ *   ToolsListParams,
+ *   ToolsCallResult,
+ *   McpHandlers,
+ *   ToolEntry,
+ *   McpSessionState,
+ *   McpConfig,
  * } from './types.ts'
  */
 

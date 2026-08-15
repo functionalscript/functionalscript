@@ -28,7 +28,7 @@
  * @module
  *
  * @import { Primitive, Unknown } from '../ts/types.ts'
- * @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
+ * @import { Const, Info0, Primitive0, Tag1, Tuple, Type } from '../types.ts'
  * @import { Error, Result as CommonResult } from '../../result/types.ts'
  * @import { StringMap } from '../../object/types.ts'
  * @import { Validate, Visitor, IsContainer, Container, ResultE, ValidateE, ValidationError } from './types.ts'

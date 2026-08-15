@@ -1,7 +1,6 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
  * @import { IoResult, ReadFile } from "./types.ts"
- * @import { Dir } from "./virtual/types.ts"
  * @import { List } from "../list/types.ts"
  * @import { OperationMap } from "../types.ts"
  */

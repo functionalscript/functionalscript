@@ -9,7 +9,7 @@
  *   AstTag,
  *   CodePointMeta,
  *   DescentMatch,
- *   DescentMatchResult
+ *   DescentMatchResult,
  * } from '../../bnf/descent/types.ts'
  * @import { DataRule, Rule } from '../../bnf/types.ts'
  * @import {
@@ -29,7 +29,6 @@
  * @import { CodePoint } from '../../text/utf16/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Unknown } from '../types.ts'
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
  */
 

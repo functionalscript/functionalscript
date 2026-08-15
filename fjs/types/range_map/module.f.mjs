@@ -111,7 +111,7 @@ export const fromRange =
         /** @param {T} v */
         v =>
             /** @param {Range} r */
-            ([a, b]) => /** @satisfies {RangeMapArray<T>} */([[def, a - 1], [v, b]])
+            ([a, b]) => /** @type {RangeMapArray<T>} */([[def, a - 1], [v, b]])
 
 /**
  * Creates a set of operations for managing range maps using the specified properties.

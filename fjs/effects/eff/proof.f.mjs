@@ -1,5 +1,5 @@
 /**
- * @import { Effect, OperationMap } from '../types.ts'
+ * @import { Effect } from '../types.ts'
  */
 
 import { do_, match, pure } from '../module.f.mjs'

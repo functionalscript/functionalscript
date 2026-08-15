@@ -1,5 +1,5 @@
 /**
- * @import { Effect, Operation, OperationMap } from './types.ts'
+ * @import { Effect, Operation } from './types.ts'
  */
 
 import { step, do_, foldStep, forEachStep, mapStep, match, okStep, history, pure, runPure, historyStep } from './module.f.mjs'

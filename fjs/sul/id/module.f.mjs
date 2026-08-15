@@ -7,7 +7,6 @@
  * @module
  *
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Point2D } from '../../crypto/secp/types.ts'
  * @import { V8 } from '../../crypto/sha2/types.ts'
  * @import { Id } from './types.ts'
  */
