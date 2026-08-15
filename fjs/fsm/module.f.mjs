@@ -13,12 +13,12 @@
 
 import { equal, isEmpty, fold, map, toArray, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
 import { toRangeMap, range } from '../types/byte_set/module.f.mjs'
-import { intersect, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'
+import { intersect, toKey, union as sortedSetUnion } from '../types/sorted_set/module.f.mjs'
 import { merge, get as rangeMapGet } from '../types/range_map/module.f.mjs'
 import { strictEqual } from '../types/function/operator/module.f.mjs'
 import { range as asciiRange } from '../text/ascii/module.f.mjs'
-import { stringify } from '../media/json/module.f.mjs'
-import { compose, identity } from '../types/function/module.f.mjs'
+import { compose } from '../types/function/module.f.mjs'
+import { at } from '../types/object/module.f.mjs'
 import { cmp } from '../types/string/module.f.mjs'
 
 /** @typedef {readonly [string, ByteSet, string]} _Rule */
@@ -27,7 +27,6 @@ import { cmp } from '../types/string/module.f.mjs'
 
 /** @typedef {StringMap<RangeMapArray<string>>} _Dfa */
 
-const stringifyIdentity = stringify(identity)
 
 /**
  * The byte set of an inclusive ASCII character range, written as the two
@@ -71,9 +70,9 @@ const foldOp = set => ([ruleIn, bs, ruleOut]) => rm => {
  *
  * @type {(entry: Entry<SortedSet<string>>) => Entry<string>}
  */
-const stringifyEntry = ([sortedSet, max]) => [stringifyIdentity(sortedSet), max]
+const keyEntry = ([sortedSet, max]) => [toKey(sortedSet), max]
 
-const stringifyEntries = map(stringifyEntry)
+const keyEntries = map(keyEntry)
 
 /**
  * Drops an entry's range boundary, leaving the state set.
@@ -86,10 +85,10 @@ const entryValues = map(entryValue)
 
 /** @type {(grammar: Grammar) => Fold<SortedSet<string>, _Dfa>} */
 const addEntry = grammar => set => dfa => {
-    const s = stringifyIdentity(set)
-    if (s in dfa) { return dfa }
+    const s = toKey(set)
+    if (at(s)(dfa) !== null) { return dfa }
     const setMap = fold(foldOp(set))(emptyList)(grammar)
-    const stringMap = toArray(stringifyEntries(setMap))
+    const stringMap = toArray(keyEntries(setMap))
     const newDfa = { ...dfa, [s]: stringMap }
     const newStates = entryValues(setMap)
     return fold(addEntry(grammar))(newDfa)(newStates)
@@ -98,20 +97,20 @@ const addEntry = grammar => set => dfa => {
 /** @type {string[]} */
 const emptyState = []
 
-const emptyStateStringify = stringifyIdentity(emptyState)
+const emptyStateKey = toKey(emptyState)
 
 const initialState = ['']
 
-const initialStateStringify = stringifyIdentity(initialState)
+const initialStateKey = toKey(initialState)
 
 /** @type {(grammar: Grammar) => _Dfa} */
 export const dfa = grammar => addEntry(grammar)(initialState)({})
 
-const get = rangeMapGet(emptyStateStringify)
+const get = rangeMapGet(emptyStateKey)
 
 /** @type {(dfa: _Dfa) => Fold<number, string>} */
 const runOp = dfa => input => s => get(dfa[s] ?? [])(input)
 
 /** @type {(dfa: _Dfa) => (input: List<number>) => List<string>} */
 export const run = dfa => input =>
-    foldScan(runOp(dfa))(initialStateStringify)(input)
+    foldScan(runOp(dfa))(initialStateKey)(input)

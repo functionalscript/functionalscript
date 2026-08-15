@@ -32,21 +32,26 @@ export const encode =
 
         /** @typedef {readonly [Id | undefined, S, readonly _HashState[]]} _CascadeResult */
 
-        /** @type {(id0: Id, storage0: S, stacks0: readonly _HashState[]) => _CascadeResult} */
-        const cascade = (id0, storage0, stacks0) => {
-            let id = id0, storage = storage0, stacks = stacks0
-            for (let index = 0; ; index++) {
-                if (index >= stacks.length) {
-                    const [, [newStorage, newStack]] = step(id, [storage, []])
-                    return [id, newStorage, [...stacks, newStack]]
-                }
-                const [out, [newStorage, newStack]] = step(id, [storage, stacks[index]])
-                stacks = [...stacks.slice(0, index), newStack, ...stacks.slice(index + 1)]
-                storage = newStorage
-                if (out === undefined) return [undefined, storage, stacks]
-                id = out
+        // Recursive rather than a `for(;;)` loop: every exit is one of the two
+        // `return`s below, so a bare `for(;;)` picks up a phantom "loop falls
+        // through" branch that V8's coverage instrumentation can never mark
+        // taken — there is no third way out to take it. Recursion has no such
+        // branch to begin with.
+        /** @type {(id: Id, storage: S, stacks: readonly _HashState[], index: number) => _CascadeResult} */
+        const cascadeFrom = (id, storage, stacks, index) => {
+            if (index >= stacks.length) {
+                const [, [newStorage, newStack]] = step(id, [storage, []])
+                return [id, newStorage, [...stacks, newStack]]
             }
+            const [out, [newStorage, newStack]] = step(id, [storage, stacks[index]])
+            const newStacks = [...stacks.slice(0, index), newStack, ...stacks.slice(index + 1)]
+            return out === undefined
+                ? [undefined, newStorage, newStacks]
+                : cascadeFrom(out, newStorage, newStacks, index + 1)
         }
+
+        /** @type {(id0: Id, storage0: S, stacks0: readonly _HashState[]) => _CascadeResult} */
+        const cascade = (id0, storage0, stacks0) => cascadeFrom(id0, storage0, stacks0, 0)
 
         /** @type {(bit: bigint, state: EncodeState<S>) => readonly [Id | undefined, EncodeState<S>]} */
         const literalStep = (bit, state) => {
