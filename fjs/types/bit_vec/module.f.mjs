@@ -182,15 +182,13 @@ const op = norm => op => ap => bp => {
 const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
 
 /**
- * Neither of these depends on a bit order or on the list being mapped, so both
- * are bound once here rather than rebuilt per call (`fjs/AGENTS.md` §3.3).
+ * The element-to-`Unpacked` maps the two {@link mappedListToVec} instances
+ * differ by. Neither depends on a bit order, so both are bound once here
+ * (`fjs/AGENTS.md` §3.3).
+ *
+ * @type {(_: number) => Unpacked}
  */
-const mapUnpack = map(unpack)
-
-/** @type {(_: number) => Unpacked} */
 const u8ToUnpacked = b => ({ length: 8n, uint: BigInt(b) })
-
-const mapU8ToUnpacked = map(u8ToUnpacked)
 
 /**
  * Concatenation as a monoid over `Nullable<Unpacked>`, where `null` means "the
@@ -250,6 +248,24 @@ const tryUnpackConcat = unpackConcat => ({
 const unpackListToVec = unpackConcat =>
     compose(foldAbsorbing(tryUnpackConcat(unpackConcat)))(nullableMap(pack))
 
+/**
+ * Concatenates a list of `I` values into one vector, mapping each element to
+ * its `Unpacked` form first; `null` when the result would exceed `maxLength`.
+ *
+ * The concatenation counterpart of {@link mappedChunkList}. Everything about
+ * the operation is fixed except how one element becomes `Unpacked`, so each
+ * element type supplies just that map. The `bo` parameter is structural rather
+ * than a whole `BitOrder` because `bo`'s own body applies this before the
+ * record exists.
+ *
+ * @type {<I>(g: (i: I) => Unpacked) => (bo: { readonly unpackConcat: _UnpackConcat }) => (list: List<I>) => Nullable<Vec>}
+ */
+const mappedListToVec = g => ({ unpackConcat }) => {
+    const f = unpackListToVec(unpackConcat)
+    const mg = map(g)
+    return list => f(mg(list))
+}
+
 /** @type {(base: _Base) => BitOrder} */
 const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
     /** @param {bigint} len */
@@ -294,9 +310,7 @@ const bo = ({ norm, uintCmp, unpackSplit, unpackConcatUint }) => {
         const bu = unpack(b)
         return pack(unpackConcat(au)(bu))
     }
-    const unpackedListToVec = unpackListToVec(unpackConcat)
-    /** @param {List<Vec>} list */
-    const tryListToVec = list => unpackedListToVec(mapUnpack(list))
+    const tryListToVec = mappedListToVec(unpack)({ unpackConcat })
     return {
         front,
         removeFront,
@@ -370,10 +384,7 @@ export const msb = bo({
  *
  * @type {(_: BitOrder) => (list: List<number>) => Nullable<Vec>}
  */
-export const tryU8ListToVec = ({ unpackConcat }) => {
-    const unpackedListToVec = unpackListToVec(unpackConcat)
-    return list => unpackedListToVec(mapU8ToUnpacked(list))
-}
+export const tryU8ListToVec = mappedListToVec(u8ToUnpacked)
 
 /**
  * Converts a list of unsigned 8-bit integers to a bit vector using the provided bit order.
