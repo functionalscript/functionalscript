@@ -35,7 +35,7 @@ import { do_, mapStep, okStep, pure, step } from '../module.f.mjs'
  * @type {(e: unknown) => boolean}
  */
 export const isNotFound = e =>
-    typeof e === 'object' && e !== null && (/** @type {{ readonly code?: unknown }} */ (e)).code === 'ENOENT'
+    typeof e === 'object' && e !== null && 'code' in e && e.code === 'ENOENT'
 
 // all
 

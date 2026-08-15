@@ -125,7 +125,8 @@ export const proof = {
         nestedPath: () => {
             const [_, [t, result]] = virtual(emptyState)(readFile('tmp/cache'))
             assert(t === 'error', result)
-            if ((/** @type {{ code?: unknown }} */ (result)).code !== 'ENOENT') { throw result }
+            assert(typeof result === 'object' && result !== null && 'code' in result, result)
+            if (result.code !== 'ENOENT') { throw result }
         },
         withinLimit: () => {
             // Test with a small file well within the 131,072 byte limit
