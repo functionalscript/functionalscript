@@ -5,14 +5,11 @@
 
 import { dfa, run, toRange } from './module.f.mjs'
 import { one, union, empty, range as byteSetRange } from '../types/byte_set/module.f.mjs'
-import { sort, fromEntries } from '../types/object/module.f.mjs'
-import { stringify } from '../media/json/module.f.mjs'
-import { identity } from '../types/function/module.f.mjs'
+import { toKey } from '../types/sorted_set/module.f.mjs'
 import { fold, toArray } from '../types/list/module.f.mjs'
 import { stringToList } from '../text/utf16/module.f.mjs'
-import { assertEq } from '../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 
-const stringifyIdentity = stringify(identity)
 
 /**
  * The byte set of a string's characters, used to spell a grammar's punctuation
@@ -61,111 +58,61 @@ export const proof = {
         () => assertEq(toRange('a'), one(0x61)),
         () => assertEq(toRange('\0'), one(0)),
     ],
-    dfa: () => {
-        const dfa = buildDfa()
-        const entries = Object.entries(dfa)
-        const sortedEntries = sort(entries)
-        const obj = fromEntries(sortedEntries)
-        const result = stringifyIdentity(obj)
-
-        const expectedObj = {
-            '[""]': [
-                [ '[]', 35 ],
-                [ '["id"]', 36 ],
-                [ '[]', 47 ],
-                [ '["floatBegin","int"]', 57 ],
-                [ '[]', 64 ],
-                [ '["id"]', 90 ],
-                [ '[]', 94 ],
-                [ '["id"]', 95 ],
-                [ '[]', 96 ],
-                [ '["id"]', 122 ]
-            ],
-            '["float"]': [ [ '[]', 47 ], [ '["float"]', 57 ] ],
-            '["floatBegin","int"]': [
-                [ '[]', 45 ],
-                [ '["floatDot"]', 46 ],
-                [ '[]', 47 ],
-                [ '["floatBegin","int"]', 57 ]
-            ],
-            '["floatDot"]': [ [ '[]', 47 ], [ '["float"]', 57 ] ],
-            '["id"]': [
-                [ '[]', 35 ],
-                [ '["id"]', 36 ],
-                [ '[]', 47 ],
-                [ '["id"]', 57 ],
-                [ '[]', 64 ],
-                [ '["id"]', 90 ],
-                [ '[]', 94 ],
-                [ '["id"]', 95 ],
-                [ '[]', 96 ],
-                [ '["id"]', 122 ]
-            ],
-            '[]': []
-        };
-        const expectedResult = stringifyIdentity(expectedObj)
-
-        if (result !== expectedResult) {throw result }
-    },
+    // The expected states are written as the sets they are, keyed through
+    // `toKey`, so this proof asserts the automaton and not the key encoding.
+    dfa: () => assertStructurallySame(buildDfa(), {
+        [toKey([''])]: [
+            [toKey([]), 35],
+            [toKey(['id']), 36],
+            [toKey([]), 47],
+            [toKey(['floatBegin', 'int']), 57],
+            [toKey([]), 64],
+            [toKey(['id']), 90],
+            [toKey([]), 94],
+            [toKey(['id']), 95],
+            [toKey([]), 96],
+            [toKey(['id']), 122],
+        ],
+        [toKey(['float'])]: [[toKey([]), 47], [toKey(['float']), 57]],
+        [toKey(['floatBegin', 'int'])]: [
+            [toKey([]), 45],
+            [toKey(['floatDot']), 46],
+            [toKey([]), 47],
+            [toKey(['floatBegin', 'int']), 57],
+        ],
+        [toKey(['floatDot'])]: [[toKey([]), 47], [toKey(['float']), 57]],
+        [toKey(['id'])]: [
+            [toKey([]), 35],
+            [toKey(['id']), 36],
+            [toKey([]), 47],
+            [toKey(['id']), 57],
+            [toKey([]), 64],
+            [toKey(['id']), 90],
+            [toKey([]), 94],
+            [toKey(['id']), 95],
+            [toKey([]), 96],
+            [toKey(['id']), 122],
+        ],
+        [toKey([])]: [],
+    }),
     run: [
-        () => {
-            const dfa = buildDfa()
-            const input = stringToList('a1')
-            const result = stringifyIdentity(toArray(run(dfa)(input)))
-
-            const expectedOutput = [
-                '["id"]',
-                '["id"]'
-            ]
-            const expectedResult = stringifyIdentity(expectedOutput)
-            assertEq(result, expectedResult)
-        },
-        () => {
-            const dfa = buildDfa()
-            const input = stringToList('0.1')
-            const result = stringifyIdentity(toArray(run(dfa)(input)))
-
-            const expectedOutput = [
-                '["floatBegin","int"]',
-                '["floatDot"]',
-                '["float"]'
-            ]
-            const expectedResult = stringifyIdentity(expectedOutput)
-            assertEq(result, expectedResult)
-        },
-        () => {
-            const dfa = buildDfa()
-            const input = stringToList('//')
-            const result = stringifyIdentity(toArray(run(dfa)(input)))
-
-            const expectedOutput = [
-                '[]',
-                '[]'
-            ]
-            const expectedResult = stringifyIdentity(expectedOutput)
-            assertEq(result, expectedResult)
-        },
-        () => {
-            const dfa = buildDfa()
-            const input = stringToList('::')
-            const result = stringifyIdentity(toArray(run(dfa)(input)))
-
-            const expectedOutput = [
-                '[]',
-                '[]'
-            ]
-            const expectedResult = stringifyIdentity(expectedOutput)
-            assertEq(result, expectedResult)
-        },
-        () => {
-            // `run` accepts any `Dfa` (a `StringMap`, so entries may be
-            // missing), not only one built by `dfa()`. A state absent from
-            // the map falls back to the empty transition table.
-            const result = stringifyIdentity(toArray(run({})(stringToList('a'))))
-
-            const expectedOutput = ['[]']
-            const expectedResult = stringifyIdentity(expectedOutput)
-            assertEq(result, expectedResult)
-        }
-    ]
+        () => assertStructurallySame(
+            toArray(run(buildDfa())(stringToList('a1'))),
+            [toKey(['id']), toKey(['id'])]),
+        () => assertStructurallySame(
+            toArray(run(buildDfa())(stringToList('0.1'))),
+            [toKey(['floatBegin', 'int']), toKey(['floatDot']), toKey(['float'])]),
+        () => assertStructurallySame(
+            toArray(run(buildDfa())(stringToList('//'))),
+            [toKey([]), toKey([])]),
+        () => assertStructurallySame(
+            toArray(run(buildDfa())(stringToList('::'))),
+            [toKey([]), toKey([])]),
+        // `run` accepts any `Dfa` (a `StringMap`, so entries may be missing),
+        // not only one built by `dfa()`. A state absent from the map falls
+        // back to the empty transition table.
+        () => assertStructurallySame(
+            toArray(run({})(stringToList('a'))),
+            [toKey([])]),
+    ],
 }
