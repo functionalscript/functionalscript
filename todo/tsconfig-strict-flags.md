@@ -1,6 +1,6 @@
 # Additional strictness flags for `tsconfig.json`
 
-**Priority:** P3
+**Priority:** P2
 **Status:** open
 
 ### Problem
@@ -66,6 +66,8 @@ Each step is independently verifiable with `npx tsc` and `fjs t`.
 
 ### Related
 
+- [strict-static-analysis.md](./strict-static-analysis.md) — the umbrella this
+  is the first step of.
 - [inline-type-casts.md](./inline-type-casts.md) — the cast audit; overlaps with
   `noUncheckedIndexedAccess`.
 - [eslint.md](./eslint.md) — the rules no `tsc` flag can express.

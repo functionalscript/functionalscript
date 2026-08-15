@@ -1,7 +1,20 @@
 # `/*: type */` annotations checked by RTTI
 
-**Priority:** P2
-**Status:** open
+**Priority:** P5
+**Status:** open — direction only, gated on the compiler
+
+### Scope
+
+This is a **direction, not a plan**. Nothing here is implemented, and work on it
+starts only once there is a proper FunctionalScript compiler: the annotation has
+to be recognized by the compiler's own parser, and checking it means the compiler
+can load and evaluate a module at compile time
+([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)).
+
+Until then TypeScript is the type checker, and the near-term work is to turn the
+standard toolchain up as far as it goes — see
+[strict-static-analysis.md](./strict-static-analysis.md). Nothing in this issue
+argues against any of that.
 
 ### Direction
 
@@ -102,51 +115,30 @@ TypeScript aliases out.
    a compile-time-only fiction, so either RTTI gains a nominal wrapper carrying a
    brand, or nominal types stay a TypeScript-era construct.
 
-### Proposal
+### Sketch of an order, when the time comes
 
-1. **Complete the JS tokenizer** — single-quoted strings, template literals, and
-   a token start position, with proofs. Nothing downstream can read the tree
-   until this lands; see the measurement below.
-2. Emit `/*: … */` as its own token kind and parse its body with the existing
-   expression parser.
-3. Wire `.d.ts` generation to `fjs/types/rtti/ts` for modules that annotate this
-   way — the printer already exists, so this is plumbing plus a `fjs` command.
+1. Recognize `/*: … */` in the compiler's parser and hand its body to the
+   existing expression parser. Requires a tokenizer that can read the tree —
+   [`fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md`](../fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md).
+2. Evaluate the annotation expression at compile time
+   ([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)).
+3. Generate `.d.ts` from the schemas — `fjs/types/rtti/ts` is already the
+   printer, so this is plumbing plus a `fjs` command, and it is the step that
+   could land earliest and independently.
 4. Check literal right-hand sides with `validate`.
 5. Design inference, then check general right-hand sides with `subset`.
-6. Decide the function-schema question (3) before promoting `/*: */` beyond
-   constants.
+6. Resolve the function-schema question before `/*: */` goes beyond constants.
 
-### Blocker: the tokenizer rejects the syntax this repository is written in
+### Depends on
 
-Run over all 260 `.mjs` files under `fjs/`, the JS tokenizer emits **24,166
-error tokens across 251 of them**. Two constructs account for all of them:
-
-| Construct | Result |
-| --- | --- |
-| `'single-quoted string'` | error tokens |
-| `` `template ${literal}` `` | error tokens |
-| `"double-quoted string"` | ok |
-| `b?.c`, `b ?? c`, `[...b]`, `{ [k]: 1 }`, `{ a, ...rest }`, arrow bodies | ok |
-| `/regex/` | no error, but lexes as two `/` operators — no regex token |
-
-The repository's own sources use single quotes and template literals
-throughout, so the tokenizer cannot yet read the code it was written to
-describe. The failure is not graceful: with no single-quote support, a `/*` or
-`//` **inside** a single-quoted string opens a phantom block comment that
-swallows everything up to the next `*/`.
-
-```js
-// input
-const t = { kind: '/*' }
-const u = 1
-/** @type {X} */ (v)
-
-// tokens
-const | id:t | = | { | id:kind | : | error | /*:"' }\nconst u = 1\n/** @type {X} " | ( | id:v | ) | eof
-```
-
-`fjs/js/tokenizer/module.f.mjs` itself is affected, since it carries `'/*'` and
-`'//'` as data. Any `/*: … */` recognizer inherits the same hazard.
+- [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) — the compiler loading and
+  running modules as meta-programming, which is what compile-time evaluation of
+  an annotation expression means.
+- [fjs-nanvm-integration.md](./fjs-nanvm-integration.md) and
+  [migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md) — the path to a
+  compiler that parses authored FunctionalScript.
+- [`fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md`](../fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md) —
+  the tokenizer cannot yet read the repository's own sources.
 
 ### Consequences for the TypeScript-era work
 
@@ -158,8 +150,10 @@ const | id:t | = | { | id:kind | : | error | /*:"' }\nconst u = 1\n/** @type {X}
   they must not be used to justify building a TypeScript-type grammar. Both are
   satisfiable by matching on the comment's first character plus the JS token
   stream, with no type parsing.
-- [tsconfig-strict-flags.md](./tsconfig-strict-flags.md) is unaffected; `npx tsc`
-  remains the checker until inference exists.
+- [tsconfig-strict-flags.md](./tsconfig-strict-flags.md) and
+  [strict-static-analysis.md](./strict-static-analysis.md) are unaffected, and
+  are the near-term work. `npx tsc` and the standard toolchain remain the
+  checker until all of the above exists.
 
 ### Related
 

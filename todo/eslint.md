@@ -1,6 +1,6 @@
-# ESLint (or an `fjs` equivalent) for rules `tsc` cannot express
+# ESLint for rules `tsc` cannot express
 
-**Priority:** P3
+**Priority:** P2
 **Status:** open
 
 ### Problem
@@ -37,29 +37,39 @@ Three concrete gaps:
    predicates", "avoid `as`", the `@type {const}` placement rule — all currently
    review-only.
 
-### Two ways to do it
+### ESLint is the near-term answer
 
-**ESLint.** `eslint` + `@typescript-eslint` gives `no-unnecessary-type-assertion`
-(which would have found much of the audit's "remove" bucket automatically),
-`no-explicit-any`, `consistent-type-assertions`, and a plugin surface for the
-custom rules above. The cost is real: the repo currently has exactly two
+`eslint` + `typescript-eslint` gives `no-unnecessary-type-assertion` — which
+would have found most of the audit's 181-cast "remove" bucket on its own —
+plus `no-unnecessary-condition`, `no-explicit-any`,
+`consistent-type-assertions`, and a plugin surface for the three rules above.
+
+The cost is real and should be stated plainly: the repository has exactly two
 devDependencies (`typescript`, `@types/node`) and no other JavaScript tooling.
-ESLint plus a TypeScript parser is a large dependency tree, needs its own config
-and CI step, and its typed rules re-run the type checker.
+ESLint with a TypeScript parser is a large dependency tree, needs its own
+config and CI step, and its typed rules re-run the type checker.
 
-**An `fjs` check.** FunctionalScript already has its own tokenizer, parser and
-CLI (`fjs/js/tokenizer/`, `fjs/djs/`, `fjs/module.f.mjs`). A `fjs lint`
-subcommand reading the same token stream would add no dependency, would exercise
-the compiler on the repository itself, and fits the self-hosting direction. It
-is more work up front, and it will not reach parity with
-`@typescript-eslint`'s type-aware rules without type information.
+It is still worth it, because it is the only entry in
+[strict-static-analysis.md](./strict-static-analysis.md) that reaches
+**type-aware** rules. Everything else there — `tsc` flags, `deno lint`,
+`deno fmt`, `knip`, `publint` — is syntactic or structural. The single most
+valuable rule found by the cast audit needs the checker, and nothing but
+`typescript-eslint` provides it.
 
-The three rules above are all **syntactic** — an inline cast, an unknown tag
-name, a predicate signature — so none of them needs type information. That
-argues for starting with the `fjs` check and reaching for ESLint only if a
-type-aware rule turns out to be worth the dependency.
+### The `fjs lint` alternative, and why it waits
 
-### Do not build a JSDoc type grammar for this
+FunctionalScript has its own tokenizer, parser and CLI, so a `fjs lint`
+subcommand could carry the three syntactic rules with no dependency at all, and
+would exercise the compiler on the repository itself. That is the right
+long-term home for them.
+
+It is not the near-term answer, for two reasons. The tokenizer cannot yet read
+the tree — it accepts neither single-quoted strings nor template literals
+([`fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md`](../fjs/js/todo/tokenizer-single-quoted-strings-and-templates.md)) —
+and the rules it would carry are the ones ESLint would carry anyway. Deferring
+it costs nothing; deferring ESLint leaves the type-aware rules unrun.
+
+### Whichever route: do not build a JSDoc type grammar
 
 An earlier revision of this issue proposed parsing JSDoc properly: a block
 grammar plus a grammar for the subset of TypeScript's type expressions the tree
@@ -75,21 +85,21 @@ and `' plain '` (comment) are told apart by the first character; the rules then
 need only the JS token stream around them. That is a recognizer, not a type
 parser, and it stays correct when JSDoc goes away.
 
-These rules are therefore **transitional** — they police the JSDoc era and
-retire with it. The one thing they do need first is a tokenizer that can read
-the tree: it currently accepts neither single-quoted strings nor template
-literals, which is tracked in
-[rtti-type-annotations.md](./rtti-type-annotations.md).
+These rules are **transitional** in the sense that they police the JSDoc era —
+but that era is the whole of the foreseeable future, since `/*: type */` waits
+on the compiler. They are worth writing now.
 
 ### Proposal
 
-1. Decide between the two directions above; this is a policy call about
-   dependencies, not a technical blocker.
-2. Whichever is chosen, land the three syntactic rules first — inline `@type`
-   cast, unknown JSDoc tag, type predicate — since they are what AGENTS.md
-   already forbids and nothing checks.
-3. Wire it into CI next to `npx tsc` and `fjs t`.
-4. Gate the cast rule behind an allowlist or a warning level until
+1. Decide whether the dependency is acceptable. This is a policy call, not a
+   technical blocker, and it is the only thing standing in the way.
+2. Land `eslint` + `typescript-eslint` with the recommended type-aware set,
+   starting from `no-unnecessary-type-assertion`.
+3. Add the three custom rules — inline `@type` cast, unknown JSDoc tag, type
+   predicate — since they are what AGENTS.md already forbids and nothing checks.
+4. Add it to the generated workflow via `fjs/ci/` (not to `ci.yml` directly),
+   next to `npx tsc` and `fjs test`.
+5. Gate the cast rule behind an allowlist or a warning level until
    [inline-type-casts.md](./inline-type-casts.md) is worked through, so the
    cleanup and the enforcement can land independently.
 
@@ -99,3 +109,8 @@ literals, which is tracked in
   from regressing.
 - [tsconfig-strict-flags.md](./tsconfig-strict-flags.md) — what `tsc` *can*
   enforce, and at what cost.
+- [strict-static-analysis.md](./strict-static-analysis.md) — the umbrella: every
+  standard tool that could check this code base, and where ESLint sits among
+  them.
+- [rtti-type-annotations.md](./rtti-type-annotations.md) — the eventual type
+  layer, gated on the compiler; it does not change what to do now.
