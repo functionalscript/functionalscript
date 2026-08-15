@@ -49,3 +49,8 @@ export const splitLast = a => {
 
 - [../../ordered_map/todo/at-nullable-map.md](../../ordered_map/todo/at-nullable-map.md)
   — cites array's accessors as the precedent this holdout breaks.
+- [split-accessors-nullish-element](split-accessors-nullish-element.md) —
+  **read first.** Both split accessors treat a stored `null`/`undefined`
+  element as an empty array, and the `nullable.map` shape proposed here is
+  exactly the code that causes it. Applying this issue alone would preserve
+  the defect in a tidier form.
