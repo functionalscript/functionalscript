@@ -67,11 +67,21 @@ should go.
 | One each: TS7022 cycle cut, TS2589 depth, nominal `identity`, `Function` → `NodeProgram` | 4 |
 
 The 36 TS2322/TS2345 cases are the ones AGENTS.md means by "it usually means the
-types or the code structure should be improved instead". Each needs its own
-issue against the API it is papering over — `do_('memRead')` typed as
-`<T>(key: Key<T>) => Effect<MemRead, T>`, `ToAsyncOperationMap<MemOp>` at the
-node runners, `Index`/tuple arity in `types/btree` — not a different cast
-syntax. They are deliberately left rather than rewritten.
+types or the code structure should be improved instead". They are deliberately
+left rather than rewritten, and grouped by the API each papers over:
+
+| Issue | Sites |
+| --- | --: |
+| [`fjs/effects/todo/do-generic-operation-signatures.md`](../fjs/effects/todo/do-generic-operation-signatures.md) | 3 |
+| [`fjs/effects/todo/step-continuation-operation-union.md`](../fjs/effects/todo/step-continuation-operation-union.md) | 6 |
+| [`fjs/effects/node/todo/async-operation-map-assignability.md`](../fjs/effects/node/todo/async-operation-map-assignability.md) | 2 (+2 nearby) |
+| [`fjs/js/todo/token-kind-narrowing.md`](../fjs/js/todo/token-kind-narrowing.md) | 4 |
+| [`fjs/types/btree/todo/find-path-item-typing.md`](../fjs/types/btree/todo/find-path-item-typing.md) | 3 |
+| [`fjs/emergent_testing/todo/mockrun-parameters-inference.md`](../fjs/emergent_testing/todo/mockrun-parameters-inference.md) | 2 |
+
+The rest are one-offs with no shared cause — a deliberately wrong value in a
+negative test, a nominal brand, `Function` → `NodeProgram` — and are listed in
+the table below rather than given an issue each.
 
 ### Follow-ups
 
