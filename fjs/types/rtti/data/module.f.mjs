@@ -22,7 +22,7 @@
  * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from './types.ts'
  */
 
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
+import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { at, definedEntries, definedValues } from '../../object/module.f.mjs'
 import { ok } from '../../result/module.f.mjs'
 import { eachEntry, isArray, verror } from '../common/module.f.mjs'
@@ -747,7 +747,11 @@ const orUnion = (state, t, operands) => {
 const thunkUnion = (state, t) => {
     const [tag, ...rest] = t()
     switch (tag) {
-        case 'const': { return constUnion(state, /** @type {Const} */ (rest[0])) }
+        case 'const': {
+            const [c] = rest
+            assert(typeof c !== 'function', c)
+            return constUnion(state, c)
+        }
         case 'boolean': { return [state, { unit: booleanUnits }] }
         case 'number': { return [state, { number: true }] }
         case 'string': { return [state, { string: true }] }

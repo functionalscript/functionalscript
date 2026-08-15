@@ -535,13 +535,13 @@ export const helpers = {
     parseTestSet: {
         nullReturnsEmpty: () => {
             const result = parseTestSet(false, null)
-            assertEq(Array.isArray(result), true)
-            assertEq((/** @type {unknown[]} */ (result)).length, 0)
+            assert(result instanceof Array, result)
+            assertEq(result.length, 0)
         },
         functionWithParamsReturnsEmpty: () => {
             const result = parseTestSet(false, (/** @type {number} */ _x) => _x)
-            assertEq(Array.isArray(result), true)
-            assertEq((/** @type {unknown[]} */ (result)).length, 0)
+            assert(result instanceof Array, result)
+            assertEq(result.length, 0)
         },
     },
 }

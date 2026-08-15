@@ -25,6 +25,7 @@
  */
 
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { rangeMap } from '../../types/range_map/module.f.mjs'
 import { contains, set } from '../../types/string_set/module.f.mjs'
@@ -95,7 +96,7 @@ export const dispatchMap = ruleSet => {
                     result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
                 } else {
                     dm = dispatchRule(dm, item, newCurrent)
-                    const dr = /** @type {_DispatchRule} */ (dm[item])
+                    const dr = assertNotNullish(dm[item])
                     if (emptyTag === true) {
                         result = result.map(x => [addRuleToDispatch(x[0], item), x[1]])
                         result = toArray(dispatchOp.merge(result)(dr.rangeMap))
@@ -116,7 +117,7 @@ export const dispatchMap = ruleSet => {
             let emptyTag = undefined
             for (const [tag, item] of entries) {
                 dm = dispatchRule(dm, item, newCurrent)
-                const dr = /** @type {_DispatchRule} */ (dm[item])
+                const dr = assertNotNullish(dm[item])
                 if (nullMap[item] !== undefined) {
                     emptyTag = tag
                 } else {
@@ -255,7 +256,7 @@ export const parserRuleSet = ruleSet => {
     const map = dispatchMap(ruleSet)
 
     /** @type {(name: string) => _DispatchRule} */
-    const dispatched = name => /** @type {_DispatchRule} */ (map[name])
+    const dispatched = name => assertNotNullish(map[name])
 
     // The matcher as an explicit-stack machine: each iteration either starts the
     // current task (dispatching one rule and pushing a frame for the rules chain

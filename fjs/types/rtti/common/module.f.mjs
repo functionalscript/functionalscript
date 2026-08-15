@@ -34,6 +34,7 @@
  * @import { Validate, Visitor, IsContainer, Container, ResultE, ValidateE, ValidationError } from './types.ts'
  */
 
+import { assert } from '../../../asserts/module.f.mjs'
 import { error, ok } from '../../result/module.f.mjs'
 import { isArray as commonIsArray } from '../../array/module.f.mjs'
 import { isObject as commonIsObject } from '../../object/module.f.mjs'
@@ -173,7 +174,13 @@ export const visit =
         if (typeof rtti === 'function') {
             const [tag, ...value] = rtti()
             switch (tag) {
-                case 'const': return visitConst(v)(/** @type {Const} */ (value[0]))
+                case 'const': {
+                    const [c] = value
+                    // `Type` is `Const | Thunk`, and a `Thunk` is a function, so
+                    // this is exactly the check that defines `Const`.
+                    assert(typeof c !== 'function', c)
+                    return visitConst(v)(c)
+                }
                 case 'array': return v.array(value[0])
                 case 'record': return v.record(value[0])
                 case 'unknown': return v.unknown()

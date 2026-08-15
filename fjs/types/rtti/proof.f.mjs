@@ -2,6 +2,8 @@
  * @import { StringMap } from '../object/types.ts'
  */
 
+import { assertNotNullish } from '../../asserts/module.f.mjs'
+
 /** @typedef {StringMap<readonly unknown[]>} _Tests */
 
 /** @type {_Tests} */
@@ -16,7 +18,7 @@ const tests = {
 }
 
 export const proof = {
-    typeof: Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, /** @type {readonly unknown[]} */ (a).map(v => () => {
+    typeof: Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, assertNotNullish(a).map(v => () => {
         if (typeof v !== k) { throw `typeof ${v} !== ${k}` }
     })])),
 }

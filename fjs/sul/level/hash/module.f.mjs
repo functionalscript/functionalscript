@@ -9,6 +9,7 @@
  * @import { Add, EncodeState } from './types.ts'
  */
 
+import { assertNotNullish } from '../../../asserts/module.f.mjs'
 import { emptyState, patriciaTrie } from '../../../types/patricia_trie/module.f.mjs'
 import { compress } from '../../id/module.f.mjs'
 import { asBase } from '../../../types/nominal/module.f.mjs'
@@ -49,7 +50,7 @@ export const encode =
                 return [undefined, push([asBase(symbol), symbol], state)]
             }
             const [root1, storage1] = end(state)
-            const [root2, storage2] = rootCreate(/** @type {Id} */ (root1), symbol, storage1)
+            const [root2, storage2] = rootCreate(assertNotNullish(root1), symbol, storage1)
             return [root2, [storage2, []]]
         }
     }

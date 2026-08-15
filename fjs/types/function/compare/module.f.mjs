@@ -7,14 +7,21 @@
  * @import { Cmp1, Cmp2, Compare, Sign } from './types.ts'
  */
 
+import { assert } from '../../../asserts/module.f.mjs'
+
 /** @type {<T>(cmp: Compare<T>) => (value: T) => Index<3>} */
-export const index3
-    = cmp => value => /** @type {Index<3>} */(cmp(value) + 1)
+export const index3 = cmp => value => {
+    const i = cmp(value) + 1
+    assert(i === 0 || i === 1 || i === 2, i)
+    return i
+}
 
 /** @type {<T>(cmp: Compare<T>) => (v2: Tuple<2, T>) => Index<5>} */
 export const index5 = cmp => ([v0, v1]) => {
     const _0 = cmp(v0)
-    return /** @type {Index<5>} */(_0 <= 0 ? _0 + 1 : cmp(v1) + 3)
+    const i = _0 <= 0 ? _0 + 1 : cmp(v1) + 3
+    assert(i === 0 || i === 1 || i === 2 || i === 3 || i === 4, i)
+    return i
 }
 
 /** @type {<A extends Cmp1>(a: A) => <B extends Cmp2<A, B>>(b: B) => Sign} */
