@@ -12,7 +12,7 @@ import { commaJoin0Plus, eof, option, range, repeat0Plus, set } from '../module.
 import { emptyTagMap, toData } from '../data/module.f.mjs'
 import { descentParser, descentParserRuleSet } from './module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
-import { deterministic } from '../testlib.f.mjs'
+import { deterministic, showAst } from '../testlib.f.mjs'
 
 /** @type {(cp: CodePoint) => CodePointMeta<unknown>} */
 const mapCodePoint = cp => [cp, undefined]
@@ -258,33 +258,62 @@ export const proof = {
         () => {
             const m = descentParser(deterministic())
 
-            const expect = (/** @type {string} */s, /** @type {boolean} */expected) => {
+            // A match is pinned by the AST it built, not just by the fact that it
+            // matched: the shape is what a repetition changes, and asserting it
+            // subsumes success — only a full match produces one. `showAst` writes
+            // a node as `tag(children)` with the code points it consumed as one
+            // quoted string, `*` for the tagless empty match.
+            //
+            // The leading three spaces are the `repeat` to read first: they are
+            // three siblings of one node here, and three levels of nesting in the
+            // LL(1) backend's copy of these expectations.
+            /** @type {(s: string, expected: string) => void} */
+            const expectAst = (s, expected) => {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
-                const success = mr.success && mr.idx === cp.length
-                assertEq(success, expected, mr)
+                assertEq(mr.success, true, s)
+                assertEq(mr.idx, cp.length, s)
+                assertEq(showAst(mr.ast), expected, s)
             }
 
-            expect('   true   ', true)
-            expect('   tr2ue   ', false)
-            expect('   true"   ', false)
-            expect('   "Hello"   ', true)
-            expect('   "Hello   ', false)
-            expect('   "Hello\\n\\r\\""   ', true)
-            expect('   -56.7e+5  ', true)
-            expect('   h-56.7e+5   ', false)
-            expect('   -56.7e+5   3', false)
-            expect('   [] ', true)
-            expect('   {} ', true)
-            expect('   [[[]]] ', true)
-            expect('   [1] ', true)
-            expect('   [ 12, false, "a"]  ', true)
-            expect('   [ 12, false2, "a"]  ', false)
-            expect('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', true)
-            expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
-            expect('   { "q": [ 12, false, [}], "a"] }  ', false)
-            expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
-            expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
+            /** @type {(s: string) => void} */
+            const expectNoMatch = s => {
+                const cp = toArray(stringToCodePointList(s))
+                const mr = descentParserCpOnly(m, '', cp)
+                assertEq(mr.success && mr.idx === cp.length, false, s)
+            }
+
+            expectAst('   true   ', '((" "(" ") " "(" ") " "(" ")) "true"(("t") ("r") ("u") ("e")) (" "(" ") " "(" ") " "(" ")))')
+            expectAst('   "Hello"   ', '((" "(" ") " "(" ") " "(" ")) "string"((("\\"")) ("0x2300005b"("H") "0x5d10ffff"("e") "0x5d10ffff"("l") "0x5d10ffff"("l") "0x5d10ffff"("o")) (("\\""))) (" "(" ") " "(" ") " "(" ")))')
+            expectAst('   "Hello\\n\\r\\""   ', '((" "(" ") " "(" ") " "(" ")) "string"((("\\"")) ("0x2300005b"("H") "0x5d10ffff"("e") "0x5d10ffff"("l") "0x5d10ffff"("l") "0x5d10ffff"("o") "escape"((("\\\\")) "n"("n")) "escape"((("\\\\")) "r"("r")) "escape"((("\\\\")) "\\""("\\""))) (("\\""))) (" "(" ") " "(" ") " "(" ")))')
+            expectAst('   -56.7e+5  ', '((" "(" ") " "(" ") " "(" ")) "number"("some"(("-")) "onenine"(("5") (("6"))) "some"(((".")) (("7") ())) "some"("e"("e") "+"("+") (("5") ()))) (" "(" ") " "(" ")))')
+            expectAst('   [] ', '((" "(" ") " "(" ") " "(" ")) "array"((("[")) () "none"() (("]"))) (" "(" ")))')
+            expectAst('   {} ', '((" "(" ") " "(" ") " "(" ")) "object"((("{")) () "none"() (("}"))) (" "(" ")))')
+            expectAst('   [[[]]] ', '((" "(" ") " "(" ") " "(" ")) "array"((("[")) () "some"(("array"((("[")) () "some"(("array"((("[")) () "none"() (("]"))) ()) "none"()) (("]"))) ()) "none"()) (("]"))) (" "(" ")))')
+            expectAst('   [1] ', '((" "(" ") " "(" ") " "(" ")) "array"((("[")) () "some"(("number"("none"() "onenine"(("1") ()) "none"() "none"()) ()) "none"()) (("]"))) (" "(" ")))')
+            expectAst('   [ 12, false, "a"]  ', '((" "(" ") " "(" ") " "(" ")) "array"((("[")) (" "(" ")) "some"(("number"("none"() "onenine"(("1") (("2"))) "none"() "none"()) ()) "some"(((((",")) (" "(" "))) ("false"(("f") ("a") ("l") ("s") ("e")) ())) "some"(((((",")) (" "(" "))) ("string"((("\\"")) ("0x5d10ffff"("a")) (("\\""))) ())) "none"()))) (("]"))) (" "(" ") " "(" ")))')
+            expectAst('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', '((" "(" ") " "(" ") " "(" ")) "object"((("{")) (" "(" ")) "some"(((((("\\"")) ("0x5d10ffff"("q")) (("\\""))) () ((":")) (" "(" ")) "array"((("[")) (" "(" ")) "some"(("number"("none"() "onenine"(("1") (("2"))) "none"() "none"()) ()) "some"(((((",")) (" "(" "))) ("false"(("f") ("a") ("l") ("s") ("e")) ())) "some"(((((",")) (" "(" "))) ("array"((("[")) () "some"(("object"((("{")) () "some"(((((("\\"")) ("0x5d10ffff"("b")) (("\\""))) (" "(" ")) ((":")) (" "(" ")) "string"((("\\"")) ("0x5d10ffff"("c")) (("\\"")))) ()) "none"()) (("}"))) ()) "none"()) (("]"))) ())) "some"(((((",")) (" "(" "))) ("string"((("\\"")) ("0x5d10ffff"("a")) (("\\""))) ())) "none"())))) (("]")))) (" "(" "))) "none"()) (("}"))) (" "(" ") " "(" ")))')
+            expectAst('   { "q": [ 12, false, [{}], "a"] }  ', '((" "(" ") " "(" ") " "(" ")) "object"((("{")) (" "(" ")) "some"(((((("\\"")) ("0x5d10ffff"("q")) (("\\""))) () ((":")) (" "(" ")) "array"((("[")) (" "(" ")) "some"(("number"("none"() "onenine"(("1") (("2"))) "none"() "none"()) ()) "some"(((((",")) (" "(" "))) ("false"(("f") ("a") ("l") ("s") ("e")) ())) "some"(((((",")) (" "(" "))) ("array"((("[")) () "some"(("object"((("{")) () "none"() (("}"))) ()) "none"()) (("]"))) ())) "some"(((((",")) (" "(" "))) ("string"((("\\"")) ("0x5d10ffff"("a")) (("\\""))) ())) "none"())))) (("]")))) (" "(" "))) "none"()) (("}"))) (" "(" ") " "(" ")))')
+            expectAst('   [{ "q": [ 12, false, [{}], "a"] }]  ', '((" "(" ") " "(" ") " "(" ")) "array"((("[")) () "some"(("object"((("{")) (" "(" ")) "some"(((((("\\"")) ("0x5d10ffff"("q")) (("\\""))) () ((":")) (" "(" ")) "array"((("[")) (" "(" ")) "some"(("number"("none"() "onenine"(("1") (("2"))) "none"() "none"()) ()) "some"(((((",")) (" "(" "))) ("false"(("f") ("a") ("l") ("s") ("e")) ())) "some"(((((",")) (" "(" "))) ("array"((("[")) () "some"(("object"((("{")) () "none"() (("}"))) ()) "none"()) (("]"))) ())) "some"(((((",")) (" "(" "))) ("string"((("\\"")) ("0x5d10ffff"("a")) (("\\""))) ())) "none"())))) (("]")))) (" "(" "))) "none"()) (("}"))) ()) "none"()) (("]"))) (" "(" ") " "(" ")))')
+
+            expectNoMatch('   tr2ue   ')
+            expectNoMatch('   true"   ')
+            expectNoMatch('   "Hello   ')
+            expectNoMatch('   h-56.7e+5   ')
+            expectNoMatch('   -56.7e+5   3')
+            expectNoMatch('   [ 12, false2, "a"]  ')
+            expectNoMatch('   { "q": [ 12, false, [}], "a"] }  ')
+
+            // The invalid input in detail. A failed match's own index rewound to
+            // the start and locates nothing; the furthest failure is the
+            // high-water mark, and it lands on the `}` that closes nothing.
+            const bad = '   [{ "q": [ 12, false, [}], "a"] }]  '
+            const badMr = descentParserCpOnly(m, '', toArray(stringToCodePointList(bad)))
+            assertEq(badMr.success, false, bad)
+            assertEq(badMr.idx, 0, bad)
+            const failure = assertNotNullish(badMr.failure)
+            assertEq(failure.idx, 25, bad)
+            assertEq(bad[failure.idx], '}', bad)
         }
     ],
     // Regression for the stack-recursive matcher bug: the matcher used to recurse

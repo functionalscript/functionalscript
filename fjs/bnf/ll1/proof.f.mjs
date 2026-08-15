@@ -10,8 +10,8 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { commaJoin0Plus, eof, option, range, repeat0Plus, set } from '../module.f.mjs'
 import { toData } from '../data/module.f.mjs'
 import { dispatchMap, parser, parserRuleSet } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
-import { deterministic } from '../testlib.f.mjs'
+import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { deterministic, showAst } from '../testlib.f.mjs'
 
 export const proof = {
     dispatch: [
@@ -244,34 +244,60 @@ export const proof = {
         () => {
             const m = parser(deterministic())
 
-            /** @type {(mr: MatchResult) => boolean} */
-            const isSuccess = (mr) => mr[1] && mr[2]?.length === 0
-            /** @type {(s: string, success: boolean) => void} */
-            const expect = (s, success) => {
+            // The same inputs as `bnf/descent`'s copy of this group, pinned by the
+            // AST each one builds rather than by "did it match" — see that proof
+            // for what `showAst` writes.
+            //
+            // Read the leading three spaces against the descent expectations: a
+            // `repeat` is one flat node of three items there, and three levels of
+            // right-recursion here, because this backend compiles a `Repeat` back
+            // into the chain it was folded from (./README.md). Every `*()` is an
+            // empty tail node the descent AST does not have at all.
+            /** @type {(s: string, expected: string) => void} */
+            const expectAst = (s, expected) => {
                 const mr = m('', toArray(stringToCodePointList(s)))
-                assertEq(isSuccess(mr), success, mr)
+                assertEq(mr[1], true, s)
+                assertEq(mr[2]?.length, 0, s)
+                assertEq(showAst(mr[0]), expected, s)
             }
 
-            expect('   true   ', true)
-            expect('   tr2ue   ', false)
-            expect('   true"   ', false)
-            expect('   "Hello"   ', true)
-            expect('   "Hello   ', false)
-            expect('   "Hello\\n\\r\\""   ', true)
-            expect('   -56.7e+5  ', true)
-            expect('   h-56.7e+5   ', false)
-            expect('   -56.7e+5   3', false)
-            expect('   [] ', true)
-            expect('   {} ', true)
-            expect('   [[[]]] ', true)
-            expect('   [1] ', true)
-            expect('   [ 12, false, "a"]  ', true)
-            expect('   [ 12, false2, "a"]  ', false)
-            expect('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', true)
-            expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
-            expect('   { "q": [ 12, false, [}], "a"] }  ', false)
-            expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
-            expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
+            /** @type {(s: string) => void} */
+            const expectNoMatch = s => {
+                const mr = m('', toArray(stringToCodePointList(s)))
+                assertEq(mr[1] && mr[2]?.length === 0, false, s)
+            }
+
+            expectAst('   true   ', '" "(" " " "(" " " "(" " *())) "true"("t" ("r") ("u") ("e")) " "(" " " "(" " " "(" " *()))))')
+            expectAst('   "Hello"   ', '" "(" " " "(" " " "(" " *())) "string"("\\"" "0x2300005b"("H" "0x5d10ffff"("e" "0x5d10ffff"("l" "0x5d10ffff"("l" "0x5d10ffff"("o" *()))))) ("\\"")) " "(" " " "(" " " "(" " *()))))')
+            expectAst('   "Hello\\n\\r\\""   ', '" "(" " " "(" " " "(" " *())) "string"("\\"" "0x2300005b"("H" "0x5d10ffff"("e" "0x5d10ffff"("l" "0x5d10ffff"("l" "0x5d10ffff"("o" "escape"("\\\\" "n"("n") "escape"("\\\\" "r"("r") "escape"("\\\\" "\\""("\\"") *())))))))) ("\\"")) " "(" " " "(" " " "(" " *()))))')
+            expectAst('   -56.7e+5  ', '" "(" " " "(" " " "(" " *())) "number"("-" "onenine"("5" ("6" *())) "some"("." ("7" *())) "some"("e" "some"("+") ("5" *()))) " "(" " " "(" " *())))')
+            expectAst('   [] ', '" "(" " " "(" " " "(" " *())) "array"("[" *() "none"() ("]")) " "(" " *()))')
+            expectAst('   {} ', '" "(" " " "(" " " "(" " *())) "object"("{" *() "none"() ("}")) " "(" " *()))')
+            expectAst('   [[[]]] ', '" "(" " " "(" " " "(" " *())) "array"("[" *() "some"("[" *() "some"("[" *() "none"() ("]") *() "none"()) ("]") *() "none"()) ("]")) " "(" " *()))')
+            expectAst('   [1] ', '" "(" " " "(" " " "(" " *())) "array"("[" *() "some"("1" *() "none"() "none"() *() "none"()) ("]")) " "(" " *()))')
+            expectAst('   [ 12, false, "a"]  ', '" "(" " " "(" " " "(" " *())) "array"("[" " "(" " *()) "some"("1" ("2" *()) "none"() "none"() *() "some"("," " "(" " *()) "false"("f" ("a") ("l") ("s") ("e") *()) "some"("," " "(" " *()) "string"("\\"" "0x5d10ffff"("a" *()) ("\\"") *()) "none"()))) ("]")) " "(" " " "(" " *())))')
+            expectAst('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', '" "(" " " "(" " " "(" " *())) "object"("{" " "(" " *()) "some"("\\"" "0x5d10ffff"("q" *()) ("\\"") *() (":") " "(" " *()) "array"("[" " "(" " *()) "some"("1" ("2" *()) "none"() "none"() *() "some"("," " "(" " *()) "false"("f" ("a") ("l") ("s") ("e") *()) "some"("," " "(" " *()) "array"("[" *() "some"("{" *() "some"("\\"" "0x5d10ffff"("b" *()) ("\\"") " "(" " *()) (":") " "(" " *()) "string"("\\"" "0x5d10ffff"("c" *()) ("\\"")) *() "none"()) ("}") *() "none"()) ("]") *()) "some"("," " "(" " *()) "string"("\\"" "0x5d10ffff"("a" *()) ("\\"") *()) "none"())))) ("]")) " "(" " *()) "none"()) ("}")) " "(" " " "(" " *())))')
+            expectAst('   { "q": [ 12, false, [{}], "a"] }  ', '" "(" " " "(" " " "(" " *())) "object"("{" " "(" " *()) "some"("\\"" "0x5d10ffff"("q" *()) ("\\"") *() (":") " "(" " *()) "array"("[" " "(" " *()) "some"("1" ("2" *()) "none"() "none"() *() "some"("," " "(" " *()) "false"("f" ("a") ("l") ("s") ("e") *()) "some"("," " "(" " *()) "array"("[" *() "some"("{" *() "none"() ("}") *() "none"()) ("]") *()) "some"("," " "(" " *()) "string"("\\"" "0x5d10ffff"("a" *()) ("\\"") *()) "none"())))) ("]")) " "(" " *()) "none"()) ("}")) " "(" " " "(" " *())))')
+            expectAst('   [{ "q": [ 12, false, [{}], "a"] }]  ', '" "(" " " "(" " " "(" " *())) "array"("[" *() "some"("{" " "(" " *()) "some"("\\"" "0x5d10ffff"("q" *()) ("\\"") *() (":") " "(" " *()) "array"("[" " "(" " *()) "some"("1" ("2" *()) "none"() "none"() *() "some"("," " "(" " *()) "false"("f" ("a") ("l") ("s") ("e") *()) "some"("," " "(" " *()) "array"("[" *() "some"("{" *() "none"() ("}") *() "none"()) ("]") *()) "some"("," " "(" " *()) "string"("\\"" "0x5d10ffff"("a" *()) ("\\"") *()) "none"())))) ("]")) " "(" " *()) "none"()) ("}") *() "none"()) ("]")) " "(" " " "(" " *())))')
+
+            expectNoMatch('   tr2ue   ')
+            expectNoMatch('   true"   ')
+            expectNoMatch('   "Hello   ')
+            expectNoMatch('   h-56.7e+5   ')
+            expectNoMatch('   -56.7e+5   3')
+            expectNoMatch('   [ 12, false2, "a"]  ')
+            expectNoMatch('   { "q": [ 12, false, [}], "a"] }  ')
+
+            // The invalid input in detail. This backend never backtracks, so the
+            // remainder is where matching stopped: on the `}` that closes nothing,
+            // the same position the descent backend reports as its furthest
+            // failure.
+            const bad = '   [{ "q": [ 12, false, [}], "a"] }]  '
+            const badMr = m('', toArray(stringToCodePointList(bad)))
+            assertEq(badMr[1], false, bad)
+            const remainder = assertNotNullish(badMr[2])
+            assertEq(bad.length - remainder.length, 25, bad)
+            assertEq(bad[25], '}', bad)
         }
     ],
     longInput: [
