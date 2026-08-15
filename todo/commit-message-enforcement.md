@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** open — the format is adopted, in
-[AGENTS.md §8.5](../AGENTS.md#85-commit-messages), so this is no longer
+[CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages), so this is no longer
 waiting on it; the linter enforces that documented rule. The gap between
 adoption and enforcement is deliberate trial time, so let the format run by
 hand on real PRs first: whatever it gets wrong is fixed while a fix is still a
@@ -49,7 +49,7 @@ would block it outright but require an Enterprise plan.
 
 ## Related
 
-- [AGENTS.md §8.5](../AGENTS.md#85-commit-messages) — the format this enforces
+- [CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages) — the format this enforces
 - [commit-message-standard.md](./commit-message-standard.md) — the reasoning
   behind that format, and the repository settings it still waits on
 - [changelog-website.md](./changelog-website.md) — plans the changelog

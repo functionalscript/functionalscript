@@ -149,7 +149,7 @@ export const mrFail = mr(false)
 
 `symbolOf` is the one place the two leaf shapes differ, so each backend binds
 its partial application once at module scope, per
-[AGENTS.md §6.3](../../../AGENTS.md#place-curried-partial-applications-at-their-dependencys-scope):
+[fjs/AGENTS.md §3.3](../../AGENTS.md#place-curried-partial-applications-at-their-dependencys-scope):
 `symbolAt(identity)` in `ll1` (`identity` from `fjs/types/function`) and
 `symbolAt(([symbol]) => symbol)` in `descent`.
 
@@ -167,7 +167,7 @@ Call sites:
   `leafAt`, and the constructors come from the shared module.
 - Delete the `AstRuleMeta` / `AstSequenceMeta` / `AstTag` declarations rather
   than aliasing the new names to the old ones
-  ([AGENTS.md §5.2](../../../AGENTS.md#52-the-api-is-the-most-important-part-of-quality):
+  ([DESIGN.md §2](../../../DESIGN.md#2-the-api-is-the-most-important-part-of-quality):
   two spellings for one concept is the last resort, not the convenient path).
   There is exactly one external importer to update, `fjs/djs/tokenizer`, which
   takes `AstRuleMeta`, `AstSequenceMeta`, `AstTag`, and `CodePointMeta` from

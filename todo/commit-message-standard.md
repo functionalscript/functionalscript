@@ -2,9 +2,9 @@
 
 **Priority:** P2
 **Status:** wip — the format is adopted, in
-[AGENTS.md §8.5](../AGENTS.md#85-commit-messages): title, `Changelog:` section,
-squash-only. Release tagging was rejected, see below. AGENTS.md is the
-normative text from now on; the proposal below is kept for the reasoning
+[CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages): title, `Changelog:`
+section, squash-only. Release tagging was rejected, see below.
+`CONTRIBUTING.md` is the normative text from now on; the proposal below is kept for the reasoning
 behind it, and only the repository settings remain undone — they need a
 maintainer with admin rights and cannot land in a PR.
 
@@ -111,18 +111,18 @@ holds one file per PR that shipped in that release — so a tag would be a
 second copy of a fact the tree already carries, and one a release could
 forget. A generator takes the boundary from the release commit, whose title is
 the bare version, or from the changelog directories themselves. Recorded in
-[AGENTS.md §8.4](../AGENTS.md#84-breaking-changes-and-versioning) so the
+[changelog/README.md](../changelog/README.md#breaking-changes-and-versioning) so the
 question is not reopened by the next reader.
 
 ## Tasks
 
 - [ ] Repository settings: squash-only, default squash message "Pull request
       title and description", branch protection (PRs required, linear
-      history). Until these are set, AGENTS.md §8.5 is a convention a
+      history). Until these are set, the documented format is a convention a
       maintainer can defeat with one click in the merge dialog or one
       `git push`.
-- [x] Document the title and `Changelog:` section format in AGENTS.md §8 once
-      adopted — [§8.5](../AGENTS.md#85-commit-messages)
+- [x] Document the title and `Changelog:` section format once adopted —
+      [CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages)
 
 Machine-checking the format before merge is a separate, later step:
 [commit-message-enforcement.md](./commit-message-enforcement.md), unblocked
