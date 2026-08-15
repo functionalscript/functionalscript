@@ -1,6 +1,7 @@
 import { assertEq } from '../../asserts/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import {
+    bmpMax,
     eofFlush,
     isBmpCodePoint,
     isHighSurrogate,
@@ -63,6 +64,16 @@ export const proof = {
         // both false: surrogate and supplementary
         () => check(isBmpCodePoint(0xd800), false),
         () => check(isBmpCodePoint(0x10000), false),
+    ],
+    bmpMax: [
+        // The exported boundary and the predicates derived from it must agree:
+        // `bmpMax` is the last BMP code point, and the next one starts the
+        // supplementary planes. This is the pairing the UTF-8 encoder relies
+        // on to split its 3-byte and 4-byte forms.
+        () => check(isBmpCodePoint(bmpMax), true),
+        () => check(isSupplementaryPlane(bmpMax), false),
+        () => check(isSupplementaryPlane(bmpMax + 1), true),
+        () => check(isBmpCodePoint(bmpMax + 1), false),
     ],
     isSupplementaryPlane: [
         () => check(isSupplementaryPlane(0x10000), true),
