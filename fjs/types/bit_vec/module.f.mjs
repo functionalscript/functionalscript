@@ -183,7 +183,7 @@ const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
 
 /**
  * Neither of these depends on a bit order or on the list being mapped, so both
- * are bound once here rather than rebuilt per call (AGENTS.md §6.3).
+ * are bound once here rather than rebuilt per call (`fjs/AGENTS.md` §3.3).
  */
 const mapUnpack = map(unpack)
 
@@ -207,7 +207,7 @@ const mapU8ToUnpacked = map(u8ToUnpacked)
  * result because the result is what must not be built: `maxLength` is the
  * smallest `bigint` size supported across FunctionalScript's runtimes. The two
  * lengths are exact and additive — this is the length, not an estimate of it
- * (AGENTS.md §5.6).
+ * (`DESIGN.md` §6).
  *
  * Being absorbing is also what keeps the fold's walk bounded: `foldAbsorbing`
  * stops at the first merge that overflows instead of reading the rest of a list

@@ -74,7 +74,7 @@ Decide which of these is true, then apply it uniformly:
    absent.** This would match how the repo already treats `StringMap<T>` —
    `{readonly[k in string]?: T}`, iterated with `definedEntries` /
    `definedValues` precisely because an `undefined` value is not an entry
-   (AGENTS.md §6.2). It contradicts the semantics `structurallySame` shipped
+   (`fjs/AGENTS.md` §3.2). It contradicts the semantics `structurallySame` shipped
    with, so it is a breaking change to that helper and needs its own argument,
    not a drive-by flip. Note that option 3 also removes the reason option 1
    exists, so pick one, not both.
@@ -103,5 +103,5 @@ measured against what reads `emptyTag`.
 - `fjs/cas/evo/proof.f.mjs`, `fjs/bnf/proof.f.mjs` — the two sites already
   converted; both compared two *values*, so neither hit the `undefined`
   problem.
-- AGENTS.md §6.2 (`StringMap` / `definedEntries`) — the precedent option 3
+- `fjs/AGENTS.md` §3.2 (`StringMap` / `definedEntries`) — the precedent option 3
   would be aligning with.

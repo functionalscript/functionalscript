@@ -30,7 +30,16 @@ import { error, ok } from '../../../types/result/module.f.mjs'
 import { fold, next, toArray, concat } from '../../../types/list/module.f.mjs'
 import { setReplace } from '../../../types/ordered_map/module.f.mjs'
 import { fromMap } from '../../../types/object/module.f.mjs'
-import { assertEq } from '../../../asserts/module.f.mjs'
+
+/**
+ * Every syntax error the parser can report is the same one: a token that
+ * cannot follow the state it arrived in. It carries no position or metadata,
+ * so one shared value serves all of them — and no numeric policy either, so
+ * the same value serves every instantiation of the parser.
+ *
+ * @type {_JsonState<never>}
+ */
+const unexpectedToken = { status: 'error', message: 'unexpected token' }
 
 /** @type {<P>(obj: _JsonObject<P>) => (key: string) => _JsonObject<P>} */
 const addKeyToObject =
@@ -44,11 +53,20 @@ const addValueToObject =
 const addToArray =
     array => value => ({ kind: 'array', values: concat(array.values)([value]) })
 
-/** @type {<P>(state: _StateParse<P>) => (key: string) => _JsonState<P>} */
-const pushKey = state => value => {
-    if (state.top?.kind === 'object') { return { status: '{k', top: addKeyToObject(state.top)(value), stack: state.stack } }
-    return { status: 'error', message: 'error' }
-}
+/**
+ * `pushKey` only ever runs while parsing the object `startObject` opened
+ * (status `'{'`/`'{,'`), so `state.top` is always that object here — the same
+ * construction guarantee `endArray` relies on below.
+ *
+ * @template P
+ * @param {_StateParse<P>} state
+ * @returns {(key: string) => _JsonState<P>}
+ */
+const pushKey = state => value => ({
+    status: '{k',
+    top: addKeyToObject(/** @type {_JsonObject<P>} */ (state.top))(value),
+    stack: state.stack,
+})
 
 /** @type {<P>(state: _StateParse<P>) => (value: ParseUnknown<P>) => _JsonState<P>} */
 const pushValue = state => value => {
@@ -157,12 +175,12 @@ const parseValueOp = policy => token => state => {
         // A value is required here (top level, after `[`+`,`, or after `:`),
         // so `]` is never valid — strict JSON has no trailing commas.
         case ']':
-            return { status: 'error', message: 'unexpected token' }
+            return unexpectedToken
         case '[': return startArray(state)
         case '{': return startObject(state)
         default:
             if (isValueToken(token)) { return pushLeaf(policy)(state)(token) }
-            return { status: 'error', message: 'unexpected token' }
+            return unexpectedToken
     }
 }
 
@@ -172,34 +190,34 @@ const parseArrayStartOp = policy => token => state => {
     if (token.kind === '[') { return startArray(state) }
     if (token.kind === ']') { return endArray(state) }
     if (token.kind === '{') { return startObject(state) }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {<P>(token: JsonToken) => (state: _StateParse<P>) => _JsonState<P>} */
 const parseArrayValueOp = token => state => {
     if (token.kind === ']') { return endArray(state) }
     if (token.kind === ',') { return { status: '[,', top: state.top, stack: state.stack } }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {<P>(token: JsonToken) => (state: _StateParse<P>) => _JsonState<P>} */
 const parseObjectStartOp = token => state => {
     if (token.kind === 'string') { return pushKey(state)(token.value) }
     if (token.kind === '}') { return endObject(state) }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {<P>(token: JsonToken) => (state: _StateParse<P>) => _JsonState<P>} */
 const parseObjectKeyOp = token => state => {
     if (token.kind === ':') { return { status: '{:', top: state.top, stack: state.stack } }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {<P>(token: JsonToken) => (state: _StateParse<P>) => _JsonState<P>} */
 const parseObjectNextOp = token => state => {
     if (token.kind === '}') { return endObject(state) }
     if (token.kind === ',') { return { status: '{,', top: state.top, stack: state.stack } }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {<P>(token: JsonToken) => (state: _StateParse<P>) => _JsonState<P>} */
@@ -207,7 +225,7 @@ const parseObjectCommaOp = token => state => {
     // After a `,` a member (string key) is required — `}` here would be a
     // trailing comma, which strict JSON rejects.
     if (token.kind === 'string') { return pushKey(state)(token.value) }
-    return { status: 'error', message: 'unexpected token' }
+    return unexpectedToken
 }
 
 /** @type {<P>(policy: NumberPolicy<P>) => Fold<JsonToken, _JsonState<P>>} */
@@ -216,7 +234,7 @@ const foldOp = policy => token => state => {
         return state
 
     switch (state.status) {
-        case 'result': return { status: 'error', message: 'unexpected token' }
+        case 'result': return unexpectedToken
         case 'error': return { status: 'error', message: state.message }
         case '': return parseValueOp(policy)(token)(state)
         case '[': return parseArrayStartOp(policy)(token)(state)
@@ -251,17 +269,3 @@ export const parse = policy => tokenList => {
     }
 }
 
-export const proof = {
-    pushKey: {
-        // `pushKey` is only ever invoked while `state.top` is an object (the
-        // state machine's `'{'`/`'{,'` statuses guarantee it), so its
-        // non-object guard is a defensive branch unreachable through `parse`.
-        // Call it directly to cover that branch.
-        nonObjectTop: () => {
-            /** @type {_StateParse<never>} */
-            const state = { status: '[', top: { kind: 'array', values: null }, stack: null }
-            const result = pushKey(state)('key')
-            assertEq(result.status, 'error')
-        },
-    },
-}

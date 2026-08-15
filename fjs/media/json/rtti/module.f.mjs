@@ -8,7 +8,7 @@
  * `typeof`. That spelling is deliberate: `@type {const}` also type-checks here,
  * but leaves declaration emit no name for the recursive positions, so it
  * inlines the structure, gives up at depth, and degrades the emitted `.d.mts`
- * to `any`. See AGENTS.md §6.2.
+ * to `any`. See `fjs/AGENTS.md` §3.2.
  *
  * The TypeScript counterparts live in the sibling
  * [`../types.ts`](../types.ts), which pins them against these schemas with
