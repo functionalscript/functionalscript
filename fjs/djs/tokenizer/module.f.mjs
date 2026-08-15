@@ -33,6 +33,7 @@
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
  */
 
+import { assertEq } from '../../asserts/module.f.mjs'
 import { descentParser } from '../../bnf/descent/module.f.mjs'
 import {
     eof,
@@ -609,3 +610,14 @@ const scanDjsTokenWithMetadata = (input, state) => {
 
 /** @type {(input: List<number>) => (path: string) => List<DjsTokenWithMetadata>} */
 export const tokenize = input => path => flat(stateScan(scanDjsTokenWithMetadata)({ kind: 'def' })(tokenizeJs(input)(path)))
+
+export const proof = {
+    // `tagToToken`'s `true` arm fires only for an `AstTag` of literal `true`,
+    // which `bnf/data`'s `emptyTagOf` reserves for an anonymous nullable
+    // sequence rule — no rule in `buildToken`/`jsGrammar` is both anonymous and
+    // nullable, so no current grammar path reaches it through `tokenizeJs`.
+    // Call it directly to cover that branch.
+    tagToTokenTrueTag: () => {
+        assertEq(tagToToken(true), 'true')
+    },
+}
