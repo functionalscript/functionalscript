@@ -56,3 +56,25 @@ export const has =
      * @returns {(value: T) => (set: SortedSet<T>) => boolean}
      */
     cmp => value => set => find(cmp)(value)(set) === value
+
+/** @type {(s: string) => string} */
+const lengthPrefixed = s => `${s.length}:${s}`
+
+/**
+ * A canonical key for a set of strings: equal sets always produce the same
+ * key, and unequal sets never produce the same one. Useful wherever a set has
+ * to index a `StringMap` — the subset construction in `fjs/fsm`, say.
+ *
+ * Each element is written length-prefixed (`3:abc`) and the parts are
+ * concatenated. Joining on a separator would **not** be canonical: elements
+ * are arbitrary strings, so `['a,b']` and `['a', 'b']` would both produce
+ * `a,b` and two different sets would share one key. A length prefix is
+ * readable back — take the digits, the `:`, then exactly that many code
+ * units — so the encoding is injective without an escaping table.
+ *
+ * The key is canonical for the *set* only because `SortedSet` is sorted:
+ * element order is fixed by the set's own invariant, not by this function.
+ *
+ * @type {(set: SortedSet<string>) => string}
+ */
+export const toKey = set => set.map(lengthPrefixed).join('')

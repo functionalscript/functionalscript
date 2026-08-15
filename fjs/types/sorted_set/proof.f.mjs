@@ -2,7 +2,7 @@
  * @import { Unknown } from '../../media/json/types.ts'
  */
 
-import { has, intersect, union } from './module.f.mjs'
+import { has, intersect, toKey, union } from './module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { toArray, countdown, length } from '../list/module.f.mjs'
@@ -16,6 +16,21 @@ const str = a => stringify(sort)(a)
 const reverseCmp = flip(cmp)
 
 export const proof = {
+    toKey: [
+        () => assertEq(toKey([]), ''),
+        () => assertEq(toKey(['']), '0:'),
+        () => assertEq(toKey(['a']), '1:a'),
+        () => assertEq(toKey(['a', 'b']), '1:a1:b'),
+        // The reason the key is length-prefixed rather than separator-joined:
+        // these two sets are different and must not share a key, but any
+        // fixed separator that can occur in an element collapses them.
+        () => assert(toKey(['a,b']) !== toKey(['a', 'b']), 'comma'),
+        () => assert(toKey(['a:b']) !== toKey(['a', 'b']), 'colon'),
+        () => assert(toKey(['a\nb']) !== toKey(['a', 'b']), 'newline'),
+        // A prefix of one element must not be confused with a shorter one.
+        () => assert(toKey(['ab']) !== toKey(['a']), 'prefix'),
+        () => assert(toKey(['']) !== toKey([]), 'empty element vs empty set'),
+    ],
     example: () => {
         const cmp = (/** @type {number} */ a) => (/** @type {number} */ b) => a < b ? -1 : a > b ? 1 : 0
 

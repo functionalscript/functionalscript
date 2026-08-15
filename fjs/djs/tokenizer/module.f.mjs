@@ -32,6 +32,7 @@
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
  */
 
+import { assertEq } from '../../asserts/module.f.mjs'
 import { descentParser } from '../../bnf/descent/module.f.mjs'
 import {
     eof,
@@ -608,3 +609,18 @@ const scanDjsTokenWithMetadata = (input, state) => {
 
 /** @type {(input: List<number>) => (path: string) => List<DjsTokenWithMetadata>} */
 export const tokenize = input => path => flat(stateScan(scanDjsTokenWithMetadata)({ kind: 'def' })(tokenizeJs(input)(path)))
+
+export const proof = {
+    // `tagToToken`'s `true` arm fires only for an `AstTag` of literal `true`.
+    // `bnf/data`'s `emptyTagOf` is the only source of that value, and
+    // `bnf/descent/module.f.mjs` reads it in exactly one place (its variant
+    // arm), always wrapped in `mrFail` — a failure. A failed variant only
+    // propagates as the overall `result` when nothing in it matches, so it
+    // never survives into a successful sequence/AST; a `true` tag therefore
+    // can never appear on a successful `descentParser` match for any
+    // grammar, `jsGrammar` included, so `tokenizeJs` can't reach this arm.
+    // Call it directly to cover that branch.
+    tagToTokenTrueTag: () => {
+        assertEq(tagToToken(true), 'true')
+    },
+}
