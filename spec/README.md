@@ -141,7 +141,8 @@ The FJS can have functions. The format requires additional run-time information 
 1. [ ] [expression](./todo/3410-expression.md)
 2. [ ] [one-parameter](./todo/3420-one-parameter.md)
 3. [ ] [assignments](./todo/3430-assignments.md)
-4. [ ] `async`/`await`. Depends on the implementation of promises.
+4. [ ] [template-literals](./todo/3440-template-literals.md)
+5. [ ] `async`/`await`. Depends on the implementation of promises.
 
 ## 4. ECMAScript Proposals
 
