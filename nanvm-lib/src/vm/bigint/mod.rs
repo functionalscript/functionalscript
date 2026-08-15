@@ -7,7 +7,6 @@ mod index;
 mod mul;
 mod neg;
 mod partial_eq;
-mod serializable;
 mod shl;
 mod shr;
 mod sized_index;
