@@ -54,11 +54,12 @@ the compiler on the repository itself, and fits the self-hosting direction. It
 is more work up front, and it will not reach parity with
 `@typescript-eslint`'s type-aware rules without type information.
 
-[fjs-lint.md](./fjs-lint.md) works this option out in detail: what already
-exists, sketches for the three rules, a prototype run that reproduces 221 of 221
-`@type {const}` casts and 353 of 357 inline casts from the repository's own
-tokenizer — and the blocker it exposed, that the tokenizer does not yet accept
-single-quoted strings or template literals.
+[jsdoc-parser.md](./jsdoc-parser.md) works this option out in detail. Doing it
+properly means parsing JSDoc rather than pattern-matching comment text — a block
+grammar and a TypeScript-type-subset grammar, both in `fjs/bnf` form, sized to
+the surface the repository actually writes. That doc also records the blocker:
+the JS tokenizer accepts neither single-quoted strings nor template literals, so
+it cannot yet read the code it was written to describe.
 
 The three rules above are all **syntactic** — an inline cast, an unknown tag
 name, a predicate signature — so none of them needs type information. That
