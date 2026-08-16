@@ -28,7 +28,19 @@ guards, A4) are merged into the graph by the **`comma` operation**:
 
   lowers to a `comma` node verbatim, `toString(f)` prints it back
   verbatim, and a JS engine running the printed source implements one
-  legal schedule (left-to-right, eager) of the same semantics.
+  legal schedule (left-to-right, eager) of the same semantics. The
+  statement spellings normalize to the same node — all three of
+
+  ```js
+  const f = a => { assert(a >= 0); return a + 2 }
+  const g = a => { const _ = assert(a >= 0); return a + 2 }
+  const h = a => { return assert(a >= 0), a + 2 }
+  ```
+
+  are one function with one AST and one hash. The AST has **no assert
+  node**: `assert` is an ordinary function value that throws on a falsy
+  argument; what makes an operand an assert is purely positional — its
+  value is discarded by `comma`.
   [operators](../spec/todo/2340-operators.md) bans the comma operator in
   general; per [spec/README.md](../spec/README.md), FS whitelists
   *complete semantic patterns*, and `assert(...), result` is such a
