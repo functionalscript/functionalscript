@@ -9,11 +9,21 @@ See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
   - LL(1) dispatch/matcher [./ll1/](./ll1/),
   - recursive descent matcher [./descent/](./descent/).
 
-The two backends accept the same grammars but **do not** produce the same AST for
-them — see [./ll1/README.md](./ll1/README.md#the-ast-diverges-from-the-descent-backends)
-for the six-row table and [./todo/ll1-ast-divergence.md](./todo/ll1-ast-divergence.md)
-for whether that is a defect or a contract. Until that is settled, an AST belongs
-to the backend that produced it.
+## The AST is one contract
+
+The AST a `RuleSet` implies is part of the `RuleSet` contract, not any one
+backend's private business: every backend builds a node per rule *invocation* —
+a rule is entered before its first symbol is consumed — and a `Repeat` rule is
+one flat node of the items it matched
+([./descent/README.md](./descent/README.md#repetition-is-flat)). A consumer may
+therefore read either backend's AST; a semantic action attached to a rule finds
+that rule's node in both. The `descentEquivalence` proof group in
+`./ll1/proof.f.mjs` pins the shared shapes, one grammar and one expected AST
+per case, matched by both backends.
+
+What a backend may add is *decoration* (per-code-point metadata in
+[./descent/](./descent/)) and its own failure reporting; the successful shape
+is shared.
 
 ## Terminals and EOF
 
@@ -102,92 +112,24 @@ export default [{
 }, 'spaceOrDigit']
 ```
 
-## DispatchRules
+## Dispatch
 
-```ts
-type DispatchRule = {
-    readonly emptyTag: string|true|undefined  
-    readonly rangeMap: RangeMap<{
-        readonly tag: string|undefined
-        readonly rules: DispatchRule[]
-    }>
-}
-
-type DispatchSequence = {
-    readonly emptyTag: true|undefined
-    readonly rangeMap: RangeMap<{
-        readonly tag: undefined
-        readonly rules: DispatchRule[]
-    }>
-}
-
-type DispatchVariant = {
-    readonly emptyTag: string|undefined
-    readonly rangeMap: RangeMap<{
-        readonly tag: string
-        readonly rules: DispatchRule[]
-    }>
-}
-```
-
-```ts
-const spaceOrDigit: DispatchRule = {
-    rangeMap: {
-        0x20: { tag: 'space', rules: [] },
-        0x30..0x39: { tag: 'digit', rules: [] },
-    }
-}
-
-const digit: DispatchRule = {
-    rangeMap: {
-        0x30..0x39: { rules: [] }
-    }
-}
-
-const sequence: DispatchRule = {
-    rangeMap: {
-        0x20: { rules: [digit] }
-    }
-}
-
-const twoSequences: DispitchRule = {
-    rangeMap: {
-        0x20: [digit, sequence]
-    }
-}
-
-const emtpy: DispatchRule = {
-    emptyTag: true,
-    rangeMap: {}
-}
-
-const minus: DispatchRule = {
-    rangeMap: {
-        0x2D..0x2D: { rules: [] }
-    }
-}
-
-const optionalMap: DispatchRule = {
-    emptyTag: 'none',
-    rangeMap: {
-        0x2D..0x2D: { tag: 'minus', rules: [] }
-    }
-}
-
-const iDigit: Dispatch = {
-    rangeMap: {
-        0x2D..0x2D: { output: [{"minus:" ["-"]}], rules: [digit] }
-        0x30..0x39: { output: [{"none": []}], rules: [] }
-    }
-}
-```
+The [./ll1/](./ll1/) backend compiles a `RuleSet` into one first-set range map
+per rule. Only a variant's map carries values that are read — the branch each
+lookahead selects, entered *before* the symbol is consumed — plus the nullable
+branch a dispatch miss selects; every other rule kind consults its map solely
+for first-set membership, which is how a repetition decides to start another
+round. See [./ll1/README.md](./ll1/README.md) and `./ll1/types.ts`.
 
 ## AST
 
-`" 1"` => `[{space:0x20},{digit:0x31}]`
-- optionalMinus:
-  - `"-"` => `{ "minus": ['-'] }`
-  - `""` => `{ "none": [] }`
+A node per rule invocation, `{ tag, sequence }`: the tag names the variant
+branch the node came through (`undefined` elsewhere), and the sequence holds
+the consumed symbols and child nodes in order. `iDigit` from the rule set
+above:
+
+- `"-1"` => `{ sequence: [{ tag: 'minus', sequence: [0x2D] }, { sequence: [0x31] }] }`
+- `"1"` => `{ sequence: [{ tag: 'none', sequence: [] }, { sequence: [0x31] }] }`
 
 ## Common Patterns
 

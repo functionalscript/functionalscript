@@ -56,11 +56,17 @@ others silently drift — and this is a contract every future backend
 `ll1`'s `_AstRule` / `AstSequence` and `descent`'s `AstRuleMeta<T>` /
 `AstSequenceMeta<T>` are one type family parameterized by leaf type: `ll1`'s
 leaf is `CodePoint`, `descent`'s is `CodePointMeta<T>`. `AstTag` is declared
-byte-identically in both `types.ts` files:
+in both `types.ts` files, no longer identically — `ll1` narrowed its own to
+`string|undefined` when its matcher stopped producing `true`-tagged nodes,
+while `descent` still declares the `true` its matcher likewise never produces:
 
 ```ts
-export type AstTag = string|true|undefined
+export type AstTag = string|undefined      // ll1
+export type AstTag = string|true|undefined // descent
 ```
+
+The shared declaration should settle on `string|undefined` and drop the
+`true` arm of `showTag` in `fjs/bnf/testlib.f.mjs` with it.
 
 #### 3. The result constructors
 
@@ -78,10 +84,10 @@ its public `Remainder` reports.
 
 #### What must not be shared
 
-The machines themselves. `descent` backtracks: two frame kinds, a per-frame
+The machines themselves. `descent` backtracks: three frame kinds, a per-frame
 rewind to the sequence's start, and a furthest-failure high-water mark that
-outlives the rewinds. `ll1` is predictive: one frame kind, and a cursor that
-never moves backwards. Their public results are different types on purpose —
+outlives the rewinds. `ll1` is predictive: sequence and repetition frames with
+no rewind state, and a cursor that never moves backwards. Their public results are different types on purpose —
 `{ ast, success, idx, failure? }` against `readonly [ast, success, Remainder]`.
 One matcher covering both would be worse than two, and this issue does not
 propose it.

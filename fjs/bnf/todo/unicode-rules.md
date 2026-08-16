@@ -179,8 +179,9 @@ new module boundary and final rule discriminants before implementation starts.
   blocked on this split and must target `bnf/unicode` for text terminals.
 - [BNF semantic actions](./207.md) — blocked on this split; its rule model must
   remove generic `string` before implementation.
-- [LL(1) AST divergence](./ll1-ast-divergence.md) — unaffected by this split;
-  the shipped `Repeat` encoding is a data-layer string, not a functional one.
+- [`../data/README.md`](../data/README.md#the-repeat-rule) — unaffected by this
+  split; the shipped `Repeat` encoding is a data-layer string, not a functional
+  one.
 - [BNF rule visitor](./rule-visitor.md) — blocked on the final generic `Rule`
   discriminants; its visitor must not encode the pre-migration string/number
   dispatch assumptions.
