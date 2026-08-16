@@ -21,9 +21,11 @@ Operation format:
   that builds the property's value.
 - **array** — a tagged tuple `[command, ...parameters]`:
   - `["array", ...operations]` — array constructor,
+  - `["args"]` — the array of arguments passed to the function
+    (subject 2),
   - `["local", number]` — reference to a previously computed result;
-    the number must be smaller than the current index; `-1` means the
-    array of arguments passed to the function,
+    the number must be a non-negative integer smaller than the current
+    index (subject 2),
   - `["at", operation0, operation1]` — `operation0[operation1]`,
   - `["call", operation0, operation1]` — `operation0(...operation1)`,
   - `["bindCall", operation0, operation1, operation2]` —
@@ -113,22 +115,28 @@ The layering this implies (recorded as part of the decision):
 
 ### 2. Arguments reference: `["local", -1]` vs. a separate command
 
-**Status:** open
+**Status:** decided
 
-`-1` as "the arguments array" is a sentinel inside the `local` index space.
-Closures are coming ([function-frame](../spec/todo/3111-function-frame.md)
-already designs a separate captured-consts frame), inviting `-2` for
-captures — sentinel creep, the special-casing [DESIGN.md §1](../DESIGN.md)
-warns about.
+**Resolution: a zero-parameter `["args"]` command yields the array of
+arguments passed to the function; `local` indices stay non-negative.**
 
-Options:
+Rationale:
 
-1. Keep `["local", -1]`.
-2. Zero-parameter `["args"]` command; `local` stays non-negative, validation
-   is "integer in `[0, currentIndex)`", nothing else. Closures later become
-   `["capture", i]` — a new tag, not a new magic number.
-3. `["arg", i]` — direct access to a single argument (the whole arguments
-   array is then not reified in stage 1).
+- `-1` as "the arguments array" is a sentinel inside the `local` index
+  space, inviting sentinel creep (`-2` for captures, …) — the
+  special-casing [DESIGN.md §1](../DESIGN.md) warns about. With `["args"]`,
+  `local` validation is "integer in `[0, currentIndex)`", nothing else, and
+  closures later arrive as `["capture", i]` — a new tag, not a new magic
+  number ([function-frame](../spec/todo/3111-function-frame.md) already
+  designs captured consts as a separate frame).
+- The rejected `["arg", i]` (single-argument access, no reified arguments
+  array) cannot express rest parameters (`(...xs) => xs`) or forwarding all
+  arguments without a separate command; `["arg", i]` is expressible as
+  `["at", ["args"], i]` while the reverse is not.
+- The arguments array is first-class: `["args"]` returns a real array, so
+  forwarding is simply `["call", f, ["args"]]`. This is the AST-level
+  calling convention; it does not resurrect the JS `arguments` object
+  (arrow-function semantics still apply at the language level).
 
 ### 3. Lazy operators and the branch extension path
 
