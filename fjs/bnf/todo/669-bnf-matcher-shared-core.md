@@ -211,9 +211,8 @@ line each. If it is shared, it is a general immutable stack and belongs in
 
 - [terminal-range-shared-type](./terminal-range-shared-type.md) — the same
   one-owner move for `TerminalRange`, which `bnf` and `bnf/data` both declare.
-- [665-bnf-data-fold-children](./665-bnf-data-fold-children.md) and
-  [667-bnf-repeat-flatten](./667-bnf-repeat-flatten.md) — other `bnf/data`
-  cleanups; different functions, and unaffected by this one.
+- [665-bnf-data-fold-children](./665-bnf-data-fold-children.md) — another
+  `bnf/data` cleanup; different functions, and unaffected by this one.
 - [recognizer-backend](./recognizer-backend.md),
   [new-parser](./new-parser.md) — future backends that would consume this
   layer rather than re-deriving the cursor a third time.

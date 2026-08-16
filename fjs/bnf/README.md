@@ -9,6 +9,12 @@ See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
   - LL(1) dispatch/matcher [./ll1/](./ll1/),
   - recursive descent matcher [./descent/](./descent/).
 
+The two backends accept the same grammars but **do not** produce the same AST for
+them — see [./ll1/README.md](./ll1/README.md#the-ast-diverges-from-the-descent-backends)
+for the six-row table and [./todo/ll1-ast-divergence.md](./todo/ll1-ast-divergence.md)
+for whether that is a defect or a contract. Until that is settled, an AST belongs
+to the backend that produced it.
+
 ## Terminals and EOF
 
 A terminal is a semantic symbol. The domain is

@@ -1,10 +1,10 @@
 /**
  */
 
-import { descentParser } from '../../bnf/descent/module.f.mjs'
+import { isRepeat, toData } from '../../bnf/data/module.f.mjs'
 import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { jsGrammar, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.mjs'
+import { jsGrammar, jsMatcher, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -24,13 +24,21 @@ const errorAt = s => {
 }
 
 export const proof = {
+    // The whole-file grammar is one repetition of a token, and `toData` records
+    // that rather than leaving it as the right-recursive variant `repeat0Plus`
+    // builds — which is why the tokenizer reads its entry name from `jsMatcher`
+    // instead of naming a rule: the rules that encoded the repetition are gone.
+    jsGrammar: () => {
+        const [ruleSet, entry] = toData(jsGrammar())
+        assert(isRepeat(ruleSet[entry]), JSON.stringify([ruleSet[entry], entry]))
+    },
     isValid: [() => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
 
             /** @type {(s: string, expected: boolean) => void} */
             const expect = (s, expected) => {
                 const cp = toArray(stringToCodePointList(s))
-                const mr = descentParserCpOnly(m, '', cp)
+                const mr = descentParserCpOnly(m, entry, cp)
                 const success = mr.success && mr.idx === cp.length
                 assertEq(success, expected, JSON.stringify([s, mr]))
             }
@@ -66,121 +74,121 @@ export const proof = {
     ],
     tokenizer: [
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('tr'))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'id', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('"tr"'))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'string', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('56.7e+5'))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'number', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('56n'))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'number', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('*'))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '*', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('**'))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '**', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('=>'))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '=>', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('=='))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assert(!(seq.tag !== '=='), JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('==='))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assert(!(seq.tag !== '==='), JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('='))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '=', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList(' '))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, ' ', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('\n'))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '\n', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('/\n'))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, '/', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('//\n'))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'comment', JSON.stringify(mr))
         },
         () => {
-            const m = descentParser(jsGrammar())
+            const [m, entry] = jsMatcher()
             const cp = toArray(stringToCodePointList('/*1*/'))
-            const mr = descentParserCpOnly(m, '', cp)
+            const mr = descentParserCpOnly(m, entry, cp)
             const seq = mr.ast.sequence[0]
             assert(!(seq instanceof Array), JSON.stringify(mr))
             assertEq(seq.tag, 'comment', JSON.stringify(mr))
