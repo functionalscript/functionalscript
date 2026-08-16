@@ -25,7 +25,7 @@ export const images = /** @type {const} */({
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = /** @type {const} */ '0.44.0'
+export const functionalscript = /** @type {const} */ '0.45.0'
 
 // https://bun.sh/
 export const bun = '1.3.14'
@@ -53,7 +53,7 @@ export const node = /** @type {const} */({
 // https://channels.nixos.org/nixos-26.05/git-revision
 export const nixpkgs = /** @type {const} */({
     ref: 'nixos-26.05',
-    commit: '9f78f44a87948854445dae0b6bf82b2e87e4efb5',
+    commit: '02e08985a27c65ffd33d434eeb2e660a2e4dc84d',
 })
 
 // https://github.com/bytecodealliance/wasmtime/releases

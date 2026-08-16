@@ -24,7 +24,6 @@ behaviour:
 |------|-----|
 |[`fjs/effects/types.ts`](../../fjs/effects/types.ts)|the `Effect` type and its invariants|
 |[`fjs/effects/module.f.mjs`](../../fjs/effects/module.f.mjs)|`pure`, `do_`, `step` and the other combinators, `match`|
-|[`fjs/effects/eff`](../../fjs/effects/eff/README.md)|an optional method-chaining wrapper — an experiment, unstable, and expressible entirely in terms of `step`|
 
 ## 5.1. `Effect` — the value
 
