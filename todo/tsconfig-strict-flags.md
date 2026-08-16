@@ -6,12 +6,11 @@
 ### Problem
 
 [`tsconfig.json`](../tsconfig.json) enables `strict`, `exactOptionalPropertyTypes`,
-`erasableSyntaxOnly` and `verbatimModuleSyntax`, but leaves eight further
-checking flags commented out. Nothing records whether they were rejected or
-merely never tried, so each new contributor re-asks the question.
-
-Four of them cost nothing today: the tree is already clean under them. Leaving
-them off means the property is unenforced and can silently regress.
+`erasableSyntaxOnly`, `verbatimModuleSyntax`, `noImplicitReturns`,
+`noFallthroughCasesInSwitch`, `noImplicitOverride` and `isolatedModules`, but
+leaves four further checking flags commented out. Nothing records whether they
+were rejected or merely never tried, so each new contributor re-asks the
+question.
 
 One of them — `noUncheckedIndexedAccess` — matters beyond hygiene. It makes
 every index access yield `T | undefined`, which is exactly the obligation
@@ -23,46 +22,67 @@ candidates: `fjs/effects/node/virtual/`, `fjs/bnf/descent/`,
 
 ### Measurements
 
-Error counts from `npx tsc --noEmit --<flag>` on a clean tree (TypeScript
-7.0.2), one flag at a time:
+Error counts from `npx tsc --<flag>` on a clean tree (TypeScript 7.0.2), one
+flag at a time. The four enabled flags are listed with the count they carried
+when they were turned on; the rest are current.
 
 | Flag | New errors | Notes |
 | --- | --: | --- |
-| `noImplicitReturns` | 0 | free |
-| `noFallthroughCasesInSwitch` | 0 | free |
-| `noImplicitOverride` | 0 | free |
-| `isolatedModules` | 0 | free |
+| `noImplicitReturns` | 0 | **enabled** |
+| `noImplicitOverride` | 0 | **enabled** |
+| `isolatedModules` | 0 | **enabled** |
+| `noFallthroughCasesInSwitch` | 2 | **enabled**, after two fixes — see below |
 | `noUnusedParameters` | 8 | |
-| `noPropertyAccessFromIndexSignature` | 31 | |
-| `noUncheckedIndexedAccess` | 202 | the one with design value, see above |
-| `noUnusedLocals` | 209 | 130 `TS6196` + 79 `TS6133`, see below |
+| `noPropertyAccessFromIndexSignature` | 33 | |
+| `noUncheckedIndexedAccess` | 211 | the one with design value, see above |
+| `noUnusedLocals` | 214 | 133 `TS6196` + 81 `TS6133`, see below |
+
+`noFallthroughCasesInSwitch` was measured at 0 when this issue was first
+written; the tree had drifted to 2 by the time the flag was turned on. Both
+sites were switches whose exhaustiveness TypeScript could not see, so the end of
+the enclosing `case` was reachable and control would have fallen into the next
+one:
+
+- `fjs/djs/tokenizer/module.f.mjs` — `stringDecodeScan`'s `escape` state
+  switches on a code point against the ASCII constants of `fjs/text/ascii`,
+  which are `number`, not literal types. No such switch can ever be exhaustive
+  to TypeScript, so the last clause became a `default`.
+- `fjs/types/btree/set/module.f.mjs` — `switch (x.length)` over a tuple union,
+  where TSGO does not narrow the length to a literal union
+  ([typescript-go#4613](https://github.com/microsoft/typescript-go/issues/4613)).
+  Fixed the way the same function already worked around that regression: bind
+  the length, `assert` the two possible values, switch on the binding.
+
+The two fixes are the argument for the flag: in both places a fallthrough would
+have silently continued into an unrelated state rather than failing.
 
 `noUnusedLocals` splits into two unrelated populations:
 
-- **130 `TS6196`** — type names pulled in by a JSDoc
+- **133 `TS6196`** — type names pulled in by a JSDoc
   `@import { … } from './types.ts'` list and never referenced. `@import` lists
   drift as a module changes and nothing catches it today; this is real dead
   weight and the only JSDoc-specific hygiene gap the audit found.
-- **79 `TS6133`** — unused values, e.g. the ASN.1 universal tag constants
+- **81 `TS6133`** — unused values, e.g. the ASN.1 universal tag constants
   (`eoc`, `bitString`, `null_`, `external`, …) kept as documentation of the tag
   space. Those are deliberate; enabling the flag forces a decision about them
   (export, drop, or annotate).
 
-### Proposal
+### Tasks
 
-1. Enable the four zero-cost flags now, in one commit, to lock in properties the
-   tree already has: `noImplicitReturns`, `noFallthroughCasesInSwitch`,
-   `noImplicitOverride`, `isolatedModules`.
-2. Enable `noUnusedParameters` (8 sites) and `noPropertyAccessFromIndexSignature`
-   (31 sites) as small follow-ups.
-3. Take `noUncheckedIndexedAccess` as its own task, sequenced **after** the
-   `assert` conversions in [inline-type-casts.md](./inline-type-casts.md) — the
-   two overlap, and doing the casts first shrinks the 202.
-4. For `noUnusedLocals`, fix the 130 stale `@import` entries first; that is
-   worth doing on its own even if the flag stays off. Decide the 79 unused
-   values separately.
+- [x] Enable the four low-cost flags: `noImplicitReturns`,
+      `noFallthroughCasesInSwitch`, `noImplicitOverride`, `isolatedModules`.
+- [ ] Enable `noUnusedParameters` (8 sites) and
+      `noPropertyAccessFromIndexSignature` (33 sites) as small follow-ups.
+- [ ] Take `noUncheckedIndexedAccess` as its own task, sequenced **after** the
+      `assert` conversions in [inline-type-casts.md](./inline-type-casts.md) —
+      the two overlap, and doing the casts first shrinks the 211.
+- [ ] For `noUnusedLocals`, fix the 133 stale `@import` entries first; that is
+      worth doing on its own even if the flag stays off. Decide the 81 unused
+      values separately.
 
-Each step is independently verifiable with `npx tsc` and `fjs t`.
+Each step is independently verifiable with `npx tsc` and `fjs t`. Re-measure
+before starting one: the counts above are a snapshot, and
+`noFallthroughCasesInSwitch` is the standing proof that they drift.
 
 ### Related
 
