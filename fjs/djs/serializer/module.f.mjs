@@ -3,9 +3,8 @@
  *
  * @module
  *
- * @import { Unknown, Object } from '../types.ts'
+ * @import { Unknown, Object, _MapEntries } from '../types.ts'
  * @import { Fold } from '../../types/function/operator/types.ts'
- * @import { Entry as ObjectEntry } from '../../types/object/types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
 
@@ -15,16 +14,12 @@ import { flat, flatMap, map, concat as listConcat } from '../../types/list/modul
 const { entries } = Object
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
-import { objectWrap, arrayWrap, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
+import { objectWrap, arrayWrap, colon, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-
-const colon = [':']
 
 export const undefinedSerialize = ['undefined']
 
 /** @typedef {readonly [number, number]} _RefCounter */
-
-/** @typedef {(entries: List<ObjectEntry<Unknown>>) => List<ObjectEntry<Unknown>>} _MapEntries */
 
 /** @typedef {ReadonlyMap<Unknown, _RefCounter>} _Refs */
 
