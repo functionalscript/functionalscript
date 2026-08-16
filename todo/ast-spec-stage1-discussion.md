@@ -397,6 +397,14 @@ order.**
   not be reachable from any other entry. Without this rule the same
   function could be spelled with or without redundant
   listed-but-referenced entries, needlessly splitting hashes.
+- **Canonical branch order (candidate):** since branch order is free, the
+  written order of assert branches can be normalized smallest to biggest
+  — a deterministic spelling that improves hash matching and doubles as
+  the default schedule: simple asserts fire first (fail-fast falls out of
+  the spelling). To pin down when adopted: the size metric (node count of
+  the branch's reachable subgraph, shared nodes counted once) and a
+  deterministic tie-breaker (structural comparison) so the order is
+  total.
 - **Membership is semantic; order is not** (A4 rejected): every branch
   evaluates before the function completes normally, so A3's
   always-fails holds — but any evaluation order of branches (including
