@@ -138,6 +138,14 @@ Rationale:
   calling convention; it does not resurrect the JS `arguments` object
   (arrow-function semantics still apply at the language level).
 
+Examples — named parameters are positions in the arguments array; the
+compiler erases names:
+
+```js
+const f = (...a) => a[5]   // [["at", ["args"], 5]]
+const g = (a) => a[5]      // [["at", ["at", ["args"], 0], 5]]
+```
+
 ### 3. Lazy operators and the branch extension path
 
 **Status:** open
