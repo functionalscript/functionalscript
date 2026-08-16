@@ -11,14 +11,17 @@ and this document is deleted.
 revision history is recorded in subjects 1 and 8.*
 
 A function body is an **array of branches**: every entry is the root
-node of a rooted subgraph of the computation DAG. All entries but the
-last are **assert branches** — their values are discarded, they exist
-for their throw-potential only (fail-fast guards, A4). The last entry is
-the **resulting branch**, whose value the function returns. Branches are
-unordered among themselves, share nodes freely by reference, and all
-must complete for the function to complete normally. (These are DAG
-branches — rooted subgraphs — not the control-flow branches of the
-future `cond`, subject 3.)
+node of a rooted subgraph of the computation DAG. The **first** entry is
+the **resulting branch**, whose value the function returns; all
+remaining entries are **assert branches** — their values are discarded,
+they exist for their throw-potential only (fail-fast guards, A4). The
+spelling is *fixed head + unordered tail*: index 0 is always the result
+(stable under adding or removing asserts, knowable without the array's
+length, and rhyming with the head-first tagged tuples), while the assert
+branches are unordered among themselves. Branches share nodes freely by
+reference, and all must complete for the function to complete normally.
+(These are DAG branches — rooted subgraphs — not the control-flow
+branches of the future `cond`, subject 3.)
 
 - an operation node is:
   - a **non-object, non-array value** — a constant: `"hello world"`, `2.5`,
@@ -55,8 +58,8 @@ export default [["array", x, x]]     // one branch: the result; x is interior
 // (...a) => { const check = a[0].length; return a[1] }
 const a = ["args"]
 export default [
+    ["at", a, 1],                    // resulting branch: always first
     ["at", ["at", a, 0], "length"],  // assert branch: value unused
-    ["at", a, 1],                    // resulting branch
 ]
 ```
 
@@ -187,8 +190,8 @@ Unlocked by rejecting A4:
 
 Still illegal with A4 rejected:
 
-- **dropping** an anchored may-throw operation — A3 makes the anchor
-  list an existence guarantee (subject 8);
+- **dropping** an anchored may-throw operation — A3 makes the branch
+  array an existence guarantee (subject 8);
 - **speculating** a lazy operand — a not-taken branch may throw where JS
   completes;
 - **merging** identical constructor nodes — object identity is
@@ -214,7 +217,8 @@ top of them ([DESIGN.md §8](../DESIGN.md) taken to its logical end). The
 Kept from the original decision, unchanged:
 
 - **The AST mirrors the source; no normalization.** A source subexpression
-  is an anonymous nested operand; a source `const` is an anchor-list entry
+  is an anonymous nested operand; a source `const` is a shared interior
+  node — or an assert-branch root when its value is unused
   that other nodes reference. Sharing cannot be inlined away (it is
   observable: `{} === {}` is `false`), and reordering is constrained by
   throw order (subject 8) — so neither "maximally flat" nor "maximally
@@ -235,7 +239,7 @@ Kept from the original decision, unchanged:
   does liveness analysis. Restoring the AST from bytecode is neither
   required nor generally possible: the function always carries its AST.
 - **The AST is the single input to multiple processors**: the bytecode
-  interpreter, the `toString(f)` source printer (anchor entries print as
+  interpreter, the `toString(f)` source printer (shared nodes print as
   `const` lines, anonymous operands as expressions), and AOT backends
   (Rust, potentially WASM or machine code). Its structure is preserved
   because those backends exploit it; the interpreter may realize scopes as
@@ -295,7 +299,8 @@ open:
 - Recorded extension path: `["cond", condNode, thenNode, elseNode]` where
   laziness is a property of the operand *position*. A branch operand is an
   ordinary node — including, when the branch body has its own consts, a
-  nested anchor list carrying that branch's effect order (subject 8).
+  nested branch array carrying that branch's effect membership
+  (subject 8).
 - The reference model dissolves the scoping problem that the index model
   had: there is no index space to scope, no De Bruijn `(up, index)`
   machinery; sharing across a lazy boundary is a plain reference, and a
@@ -325,7 +330,8 @@ the FJS compiler would never emit. To validate:
 - constants: function values in constant position are a validation error
   (until a `["function", ...]` node exists,
   [function](../spec/todo/3110-function.md));
-- the body: must be a non-empty array — "the last entry" must exist;
+- the body: must be a non-empty array — the resulting branch (index 0)
+  must exist;
 - unknown command tags: validation error;
 - duplicate object-constructor keys: validation error (subject 4);
 - **acyclicity**: DJS cannot express cycles (const-before-use), but an
@@ -361,13 +367,13 @@ names must be rejected at *runtime*.
 
 **Status:** open
 
-A function body is a *bare* array of operation nodes: array means "anchor
-list" at body position and "tagged tuple" at operand position.
+A function body is a *bare* array of operation nodes: array means
+"branch array" at body position and "tagged tuple" at operand position.
 Intentional, but must be stated explicitly; it also matches the eventual
 `["function", body]` node.
 
 To decide: whether stage 1's `Function` constructor input is the bare
-anchor list or a wrapper carrying metadata — parameter count for
+branch array or a wrapper carrying metadata — parameter count for
 `.length`, and parameter-shape fidelity for `toString(f)` (subject 2
 erases names and arity; without a wrapper, `toString` can only print a
 rest-parameter spelling).
@@ -393,7 +399,7 @@ order.**
   roots is **reachability, not effect analysis**: the AST's shape does
   not depend on any analysis's precision, preserving hash stability
   across compiler versions.
-- **Well-formedness: entries are true roots** — a non-last entry must
+- **Well-formedness: entries are true roots** — an assert entry must
   not be reachable from any other entry. Without this rule the same
   function could be spelled with or without redundant
   listed-but-referenced entries, needlessly splitting hashes.
@@ -406,7 +412,8 @@ order.**
     their content hash, so the function itself has a stable hash
     regardless of how the source ordered its asserts; the hash is its
     own total order and tie-breaker (details ride on the canonical graph
-    serialization, subject 9).
+    serialization, subject 9). The resulting branch stays at its fixed
+    head position, outside the sorted set.
   Because order is not semantic, the canonical *written* order and the
   runtime *schedule* decouple: hash order for the spelling and
   cheapest-first for the schedule can coexist. None of this is for the
