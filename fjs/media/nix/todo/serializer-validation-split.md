@@ -283,9 +283,10 @@ where it lands.
   declares no media type. Split out of this issue: it is a separate
   improvement, and `AGENTS.md` §8.1 asks a PR to implement one. Neither blocks
   the other.
-- [serializer-shared-atoms](../../json/todo/serializer-shared-atoms.md) —
-  shares `colon` / `MapEntries` between the json and djs serializers; the same
-  "one owner for a serializer atom" question, disjoint atoms.
+- `fjs/media/json/serializer/module.f.mjs` — `colon` is exported there and
+  shared with the djs serializer, alongside `objectWrap` / `arrayWrap` and the
+  leaf serializers. The same "one owner for a serializer atom" question,
+  already answered for those atoms; nix's are disjoint from them.
 - `fjs/media/json/serializer/module.f.mjs` — `join` / `wrap` over
   `List<List<string>>`, the existing chunk-joining vocabulary.
 - `fjs/types/nullable/module.f.mjs` — the `null`-for-absence convention and the
