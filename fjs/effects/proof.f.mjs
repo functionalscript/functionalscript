@@ -8,7 +8,7 @@ import { assert, assertEq } from '../asserts/module.f.mjs'
 
 /**
  * Asserts that `e` yields `expected` without performing a command. Exported so
- * `eff/proof.f.ts` shares this definition instead of repeating it.
+ * other proofs can share this definition instead of repeating it.
  *
  * Not `assertEq(runPure(e), [expected])`: `assertEq` compares with `===`, so a
  * freshly allocated `[expected]` is never equal to the returned option. Assert

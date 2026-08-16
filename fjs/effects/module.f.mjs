@@ -3,8 +3,7 @@
  *
  * An `Effect<O, T>` **is** the raw value — a `Pure` thunk (`() => T`) or a `Do`
  * node (`{ command, payload, continuation }`). It is plain data with no methods.
- * Composition is provided externally by {@link step}. The optional
- * method-chaining wrapper lives in `fjs/effects/eff/module.f.mjs`.
+ * Composition is provided externally by {@link step}.
  *
  * **It is the low-level representation.** Fallible work is written against
  * `IoEffect<O, T, E>` — the `Effect<O, Result<T, E>>` with an explicit error
@@ -152,8 +151,7 @@ export const pure = v => () => v
  * third case meaning "not yet decided". That is inherent to the representation,
  * not a gap in this module's API. A caller that needs to name a composition
  * without performing it yet has to keep the ingredients and defer the `step`
- * itself — `Eff` does exactly this, holding its history tuple as a thunk (`h`)
- * precisely because composing it eagerly is the one thing it cannot take back.
+ * itself.
  *
  * @type {<O extends Operation, T, Q extends Operation, R>(e: Effect<O, T>, f: (t: T) => Effect<Q, R>) => Effect<O | Q, R>}
  */
