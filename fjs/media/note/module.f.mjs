@@ -3,8 +3,9 @@
  * event, …) as a BLOB of its own.
  *
  * The format is deliberately minimal: the dialect tag, the text, and
- * optionally the subjects the item depends on. Everything else a richer item
- * needs — a title, tags, dates, a status — is a future **optional** field:
+ * optionally the subjects the item depends on and a priority. Everything
+ * else a richer item needs — a title, tags, dates, a status — is a future
+ * **optional** field:
  * rtti structs are open, so additive extension keeps the tag (see the
  * versioning rule in `fjs/media/revision/README.md`), and starting minimal is
  * what keeps every extension additive.
@@ -31,7 +32,7 @@
  * @import { Note, NoteError } from './types.ts'
  */
 
-import { array, option, string } from '../../types/rtti/module.f.mjs'
+import { array, option, or, string } from '../../types/rtti/module.f.mjs'
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
 import { parse as parseJson, stringify } from '../json/module.f.mjs'
 import { okThen } from '../../types/result/module.f.mjs'
@@ -72,11 +73,29 @@ export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
  * reordering or removing entries renumbers references. A bracketed integer
  * that indexes no entry is ordinary text, not a broken reference, so the
  * convention adds no validation stage (see the README).
+ *
+ * `priority` is the author's decision about the item's urgency, on the
+ * {@link priorities} scale — a closed literal union, so it too is enforced
+ * entirely structurally (a number would invite scale and range questions
+ * only a semantic check could answer). Absent means **unprioritized** — the
+ * author has not decided — which is the constant default that makes the
+ * field optional, and is deliberately distinct from any rank.
  */
+/**
+ * The priority scale, most urgent first: `P1` is "drop everything", `P5` is
+ * "someday". The vocabulary of `todo/README.md`'s issue format, reused
+ * rather than invented, so one scale ranks the repository's own issues and a
+ * note blob alike. Widening it later (e.g. a `P0`) follows the fail-closed
+ * path the versioning rule allows: an older reader rejects the new rank
+ * rather than misreading it.
+ */
+export const priorities = /** @type {const} */ (['P1', 'P2', 'P3', 'P4', 'P5'])
+
 export const noteSchema = /** @type {const} */ ({
     dialect,
     text: string,
     dependencies: option(array(string)),
+    priority: option(or(...priorities)),
 })
 
 /** Serializes a note canonically, sorting every object's property names.

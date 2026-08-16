@@ -1,11 +1,16 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { dialect, mediaType, decodeText, encodeText, noteDialect, validate } from './module.f.mjs'
+import { dialect, mediaType, decodeText, encodeText, noteDialect, priorities, validate } from './module.f.mjs'
 import { dialect as lockDialect } from '../lock/module.f.mjs'
 
 export const proof = {
     dialectAndMediaType: () => {
         assertEq(dialect, 'vnd.fjs.note')
         assertEq(mediaType, 'application/vnd.fjs.note+json')
+    },
+
+    // The published scale, most urgent first — `todo/README.md`'s vocabulary.
+    priorityScale: () => {
+        assertEq(priorities.join(','), 'P1,P2,P3,P4,P5')
     },
 
     validate: {
@@ -60,6 +65,27 @@ export const proof = {
         },
         nonStringDependencyRejected: () => {
             const [t] = validate({ dialect, text: 'hi', dependencies: [42] })
+            assertEq(t, 'error')
+        },
+
+        // A priority is one of the closed `priorities` literals — the
+        // author's urgency decision, enforced entirely structurally.
+        priorityAccepted: () => {
+            const r = validate({ dialect, text: 'fix the build', priority: 'P1' })
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].priority, 'P1')
+        },
+
+        // The scale is closed: an unknown rank fails structurally rather than
+        // passing as a free-form string — the fail-closed widening path.
+        unknownPriorityRejected: () => {
+            const [t] = validate({ dialect, text: 'hi', priority: 'P0' })
+            assertEq(t, 'error')
+        },
+
+        // The rank is a literal, not a number: `1` is not `'P1'`.
+        numericPriorityRejected: () => {
+            const [t] = validate({ dialect, text: 'hi', priority: 1 })
             assertEq(t, 'error')
         },
 

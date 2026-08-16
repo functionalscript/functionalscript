@@ -4,11 +4,11 @@ A `note` BLOB is a human-authored text item — a note, a todo, an issue, a
 calendar event — stored as a value of its own.
 
 The format starts deliberately minimal: the dialect tag, the text, and
-optionally the subjects the item depends on. That is not a placeholder shape
-but the extension strategy: rtti structs are open, so every future
-capability — a title, tags, dates, a status — is an **optional** field added
-under the same tag, and starting minimal is what keeps every extension
-additive (see [Extending the format](#extending-the-format)).
+optionally the subjects the item depends on and a priority. That is not a
+placeholder shape but the extension strategy: rtti structs are open, so
+every future capability — a title, tags, dates, a status — is an **optional**
+field added under the same tag, and starting minimal is what keeps every
+extension additive (see [Extending the format](#extending-the-format)).
 
 ```ts
 import { noteSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.mjs'
@@ -17,10 +17,13 @@ import { noteSchema, dialect, mediaType, validate, decodeText, encodeText } from
 ## Shape
 
 ```ts
+export const priorities = ['P1', 'P2', 'P3', 'P4', 'P5'] as const
+
 export const noteSchema = {
     dialect: 'vnd.fjs.note',
     text: string,
     dependencies: option(array(string)),
+    priority: option(or(...priorities)),
 } as const
 ```
 
@@ -29,6 +32,7 @@ export const noteSchema = {
 | `dialect`      | `'vnd.fjs.note'`      | Format tag — the media type is derived from it.    |
 | `text`         | `string`              | The item's text. Any string, including `''`.       |
 | `dependencies` | `string[]` (optional) | Subjects of the items this one depends on — see [Dependencies](#dependencies). |
+| `priority`     | `'P1' \| 'P2' \| 'P3' \| 'P4' \| 'P5'` (optional) | The author's urgency ranking, most urgent first — see [Priority](#priority). |
 
 `text` is **required**, and may be `''`. An absent text and an empty one would
 otherwise be two spellings of one blob, and a blob whose only purpose is to
@@ -104,6 +108,36 @@ Two consequences:
   reference-extraction helper) is tracked in
   [todo/extend-note-format.md](./todo/extend-note-format.md), and either is
   an additive change under the versioning rule.
+
+## Priority
+
+`priority` ranks the item's urgency on a closed five-rank scale, most urgent
+first: `P1` is "drop everything", `P5` is "someday". The vocabulary is
+[`todo/README.md`](../../../todo/README.md#issue-format)'s issue format,
+reused rather than invented, so one scale ranks the repository's own issues
+and a note blob alike.
+
+**Priority, not severity.** The two are different claims: severity states a
+fact about a problem's impact, priority states the author's decision about
+what to work on first. This format records authored items, so it carries the
+decision; an impact assessment is prose and belongs in `text`. If a
+defect-tracking use ever genuinely needs a separate impact axis, `severity`
+is an additive optional field of its own — recording one never precluded the
+other.
+
+**Literals, not numbers.** A numeric rank would pose questions only a
+semantic check could answer — is `1` high or low, is `0` allowed, is `2.5`? —
+and this dialect deliberately has no semantic stage. The closed literal union
+is enforced entirely structurally: an unknown rank (`'P0'`, `'high'`, `1`)
+fails validation rather than passing as free-form data. Widening the scale
+later is the same fail-closed decision as widening `lock` in the revision
+dialect — an older reader rejects a `P0` note outright rather than
+misreading it, and every existing rank keeps meaning what it always did.
+
+Absent means **unprioritized**: the author has not decided. That is a
+constant default — derivable from nothing, the rule that keeps the field
+optional — and it is deliberately distinct from every rank, including `P5`:
+"someday" is a decision, "no decision yet" is not a rank.
 
 ## A value, not a step
 
