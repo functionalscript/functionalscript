@@ -756,6 +756,18 @@ than a single access.
 
 ### 3.4 Effects (`fjs/effects`)
 
+**Fallible work composes through `fjs/effects/io`.** An `IoEffect<O, T, E>` is
+an `Effect` whose result is a `Result`, and its `step` runs the continuation
+only on `ok`, propagating an `error` on its own. Every operation returns one, so
+this is the layer ordinary code writes against; the raw `step` in
+`fjs/effects/module.f.mjs` knows nothing of `Result` and will happily run the
+next link after a failed one. Reach for `catchStep` where a failure has a real
+fallback, `resultStep` where both branches genuinely matter, and `unwrapStep`
+only where panicking is the considered answer. See
+[`fjs/effects/io/README.md`](./effects/io/README.md).
+
+The rules below apply to both layers, and to the Io `step` first.
+
 Bind every effect in a sequence to its own name, all at one level, so the
 sequence reads top-to-bottom in evaluation order instead of inside-out.
 
@@ -788,6 +800,9 @@ A later link needing a value from an earlier one is **not** a reason to nest —
 nested continuation only reaches back because it closes over the enclosing scope.
 Use `historyStep`, which carries every earlier value forward in a newest-first
 tuple (a `History`) so they stay reachable downstream and the chain stays flat.
+A fallible chain uses the Io `historyStep`: the raw one would carry each link's
+`Result` into the tuple, so every later link would destructure results it has no
+intention of handling.
 `history(e)` starts a history from a plain effect; `historyStep` takes a history
 and returns one, so it composes with itself to any depth and only the entry point
 needs `history`.

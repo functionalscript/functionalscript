@@ -320,31 +320,51 @@ the bytes.
 
 ## Stage 4. Migrate consumers
 
-**Blocked by:** Stage 3 (done).
+**In progress.** Migrate module by module; each module is its own pull request,
+and the worklist is the `unwrapStep` call sites — every one is a consumer that
+has not yet chosen a policy beyond "panic".
 
-Start from the `unwrapStep` call sites: each one is a consumer that has not yet
-chosen a policy beyond "panic".
+Migrated so far: `fjs/ci`, `fjs/ci/nix`, `fjs/nanvm/update`, `fjs/dev/update`,
+`fjs/cas` and `cas list`. Still on `unwrapStep`: `fjs/emergent_testing`,
+`fjs/cas/evo`, `fjs/mcp`, `fjs/protocol/mcp` (and its stdio transport),
+`fjs/dev`, and the proofs that drive them.
 
-- [ ] Migrate consumers module by module to IoEffect composition.
-- [ ] Replace `step(e, okStep(f))` and equivalent manual propagation with
-      IoEffect `step`.
-- [ ] Use `catchStep` only for intentional recovery/fallback, including
+- [x] Migrate consumers module by module to IoEffect composition.
+- [x] Replace `step(e, okStep(f))` and equivalent manual propagation with
+      IoEffect `step`. **`okStep` has no consumer left but the Io `step`
+      itself** — Stage 5 can inline it and drop the export.
+- [x] Use `catchStep` only for intentional recovery/fallback, including
       `NotImplemented` handling.
-- [ ] Use `resultStep` where both branches genuinely matter.
+- [x] Use `resultStep` where both branches genuinely matter.
 - [ ] No fluent consumer is left to decide about: every module now composes
       through the flat combinators, and `Eff`
       (`fjs/effects/eff/module.f.mjs`) is kept only as the experiment its
       [README](../eff/README.md) describes. If it gains a consumer again
       before this stage lands, it needs an Io-aware `.step` — otherwise
       nothing here depends on it.
-- [ ] Update the flat-step / "do not nest steps" guidance for the new
-      semantics.
-- [ ] Add IoEffect variants of other combinators only when real consumers
+- [x] Update the flat-step / "do not nest steps" guidance for the new
+      semantics (`fjs/AGENTS.md` §3.4 and the `fjs/effects` module header).
+- [x] Add IoEffect variants of other combinators only when real consumers
       require them; do not mirror the whole raw-effect API speculatively.
+      `history` / `historyStep` / `foldStep` / `forEachStep` landed with the
+      consumers that required them; `items` stays a **raw** effect in both
+      folds, since no consumer produces its list fallibly.
 - [ ] Revisit `okStep`, `IoResult`, stream-fold helpers, and specialized
       recovery adapters as consumers migrate; remove redundant APIs when
       possible.
-- [ ] Validate `npx tsc` and `fjs t` after each migration PR.
+- [x] Validate `npx tsc` and `fjs t` after each migration PR.
+
+What the migrated modules showed:
+
+- A program's chain now runs to its tail and ends in `exitStep`, so a failed
+  write is the host's message on stderr and exit code `1` rather than a stack
+  trace. `fjs/dev/update`'s missing-source proof moved out of its `throw` group
+  for exactly that reason.
+- `catchStep` earns its keep in `fjs/cas`'s `gcStage`, whose error channel is
+  now `never` — the claim that a best-effort sweep cannot fail the upload it is
+  piggy-backed on is in the type.
+- `resultStep` is what a cleanup-on-failure site wants: `writeImpl` deletes its
+  partial staging file and *then* reports, which propagation alone would skip.
 
 ## Stage 5. Retire old `Effect`; rename `IoEffect` to `Effect`
 

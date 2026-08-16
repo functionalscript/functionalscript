@@ -12,15 +12,16 @@
  * @module
  *
  * @import { Effect } from '../../effects/types.ts'
- * @import { Mkdir, WriteFile } from '../../effects/node/types.ts'
+ * @import { IoError, Mkdir, WriteFile } from '../../effects/node/types.ts'
+ * @import { IoEffect, NotImplemented } from '../../effects/io/types.ts'
  * @import { Expression } from '../../media/nix/types.ts'
  * @import { MetaStep } from '../common/types.ts'
  * @import { NixJob } from './types.ts'
  */
 
-import { forEachStep, pure, step } from '../../effects/module.f.mjs'
+import { pure } from '../../effects/module.f.mjs'
 import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
-import { unwrapStep } from '../../effects/io/module.f.mjs'
+import { forEachStep, step } from '../../effects/io/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
@@ -73,20 +74,19 @@ const flake = ({ system, packages, shellHook }) => ['set',
 export const flakeText = job =>
     unwrapNullable(fromUndefined(nixToString(flake(job))))
 
-/** @type {(job: NixJob) => Effect<Mkdir | WriteFile, void>} */
+/** @type {(job: NixJob) => IoEffect<Mkdir | WriteFile, void, NotImplemented | IoError>} */
 const writeFlake = job => {
     const directory = `${generatedDirectory}/${job.id}`
-    const created = unwrapStep(mkdir(directory, { recursive: true }))
-    const written = step(
+    const created = mkdir(directory, { recursive: true })
+    return step(
         created,
         () => writeUtf8File(`${directory}/flake.nix`, flakeText(job)))
-    return unwrapStep(written)
 }
 
 /**
- * Writes one generated flake per job.
+ * Writes one generated flake per job, stopping at the first failure.
  *
- * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void>}
+ * @type {(jobs: readonly NixJob[]) => IoEffect<Mkdir | WriteFile, void, NotImplemented | IoError>}
  */
 export const nixFlakes = jobs =>
     forEachStep(pure(jobs), writeFlake)
