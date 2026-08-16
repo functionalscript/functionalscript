@@ -83,7 +83,7 @@ the AST's sharing structure and DJS's graph structure are the same thing.
 ```js
 // const f = (...a) => { const x = a[0]; return [x, x] }
 const x = [".", ["args"], 0]
-export default ["array", x, x]       // the body is one node; x is interior
+export default ["[]", x, x]          // the body is one node; x is interior
 
 // (...a) => { const check = a[0].length; return a[1] } — with comma (later)
 const a = ["args"]
@@ -96,17 +96,17 @@ export default [",",
 Agreed points (not under discussion):
 
 - Host-value reuse follows [DESIGN.md §8](../DESIGN.md): constants describe
-  themselves; tags only where the host value is ambiguous. `["array", ...]`
+  themselves; tags only where the host value is ambiguous. `["[]", ...]`
   is a complete escape hatch — any constant array is expressible.
 - `[".()", …]` is semantically required, not an optimization:
   [property-accessor](../spec/todo/2330-property-accessor.md) shows
   `a.indexOf(x)` and `const p = a.indexOf; p(x)` differ observably.
 - `args` is **a single operand that evaluates to an array**, not a
   literal list of operand nodes: `f(a, b)` is
-  `["()", f, ["array", a, b]]`, while spread `f(...xs)` is just
+  `["()", f, ["[]", a, b]]`, while spread `f(...xs)` is just
   `["()", f, xs]` and forwarding is `["()", f, ["args"]]` — free,
   because `["args"]` is itself a first-class array (subject 2). A
-  literal-list operand would save the `["array", …]` wrapper in the
+  literal-list operand would save the `["[]", …]` wrapper in the
   common case but would need a spread marker for those. Same for
   `[".()", …]`'s third operand.
 
@@ -121,7 +121,7 @@ node; `node` below means any of them.
 |----|--|-----|-----|
 |`2.5`, `"a"`, `true`, `null`, `undefined`, `34n`|itself|1|constant — any non-object, non-array value|
 |`{ key: node, … }`|`{ key: … }`|1|object constructor; key order is part of the value (subject 4)|
-|`["array", ...node]`|`[…]`|1|array constructor|
+|`["[]", ...node]`|`[…]`|1|array constructor|
 |`["args"]`|—|1|the arguments array (subject 2)|
 |`[".", object, property]`|`o.p`, `o[p]`|1|property access; one operation for both spellings|
 |`["()", object, args]`|`f(...args)`|1|call; `args` is one node yielding an array|
@@ -143,9 +143,6 @@ does not carry 2330's static/computed distinction (subject 6).
 
 Word tags remain only where no unambiguous JS spelling exists:
 
-- `"array"` — but see the open question in subject 6: with access
-  spelled `"."`, the tag `"[]"` is free, and it is JS's own spelling
-  for an array literal;
 - `"args"` — FS has no `arguments` object to borrow a spelling from
   (subject 2);
 - `"function"`, `"frame"`, `"self"`, `"throw"` — no unambiguous JS
@@ -189,16 +186,16 @@ ordinary indexing, `[".", ["frame"], 0]`, exactly as an argument is
 
 Frame construction mirrors a call: `["function", frame, body]`, where
 `frame` is one node evaluating to an array — built in the *enclosing*
-scope, usually `["array", …]` — and `body` is the inner function's
+scope, usually `["[]", …]` — and `body` is the inner function's
 graph. Compare `["()", f, args]`: same shape, one for entering a call,
 one for creating a closure.
 
 ```js
 // const f = x => { … const b = y => { … f(y) … }; … b(…) … }
 // inside f, building b — f puts its own ["self"] into b's frame:
-["function", ["array", ["self"]], /* b's body */ …]
+["function", ["[]", ["self"]], /* b's body */ …]
 // inside b, calling f — slot 0 of b's frame:
-["()", [".", ["frame"], 0], ["array", [".", ["args"], 0]]]
+["()", [".", ["frame"], 0], ["[]", [".", ["args"], 0]]]
 ```
 
 Consequences:
@@ -666,13 +663,12 @@ compile-time specializations for the bytecode, option 2 above.
 `Object.getOwnPropertyDescriptor(o, p)?.value`, an ordinary call, not a
 syntax needing a tag.
 
-**Follow-on question: should `"array"` become `"[]"`?** Choosing `"."`
-for access frees the `"[]"` tag, and `[a, b]` is precisely how JS
-spells an array literal — so `["[]", ...node]` would be the consistent
-name, leaving `"args"`, `"frame"`, `"self"`, `"throw"` and `"function"`
-as the only word tags. There is no collision any more: the earlier
-objection was that `["[]", a, b]` would read as both a two-element
-array and `a[b]`, and with access on `"."` that ambiguity is gone.
+**Decided: the array constructor is `"[]"`.** Choosing `"."` for access
+freed the tag, and `[a, b]` is precisely how JS spells an array literal.
+The earlier objection — that `["[]", a, b]` would read as both a
+two-element array and `a[b]` — disappeared with access moved to `"."`.
+Word tags now survive only where JS genuinely has no expression
+spelling: `"args"`, `"frame"`, `"self"`, `"throw"`, `"function"`.
 
 ### 7. Top-level shape of a function
 
