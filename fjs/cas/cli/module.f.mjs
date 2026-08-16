@@ -11,9 +11,9 @@
 
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
-import { forEachStep, pure, step } from '../../effects/module.f.mjs'
+
 import { errorExit, exitStep, log, writeFromStream } from '../../effects/node/module.f.mjs'
-import { step as ioStep, unwrapStep } from '../../effects/io/module.f.mjs'
+import { forEachStep, step as ioStep } from '../../effects/io/module.f.mjs'
 import { dispatch } from '../../cli/module.f.mjs'
 import { casAddFile, fileCas } from '../module.f.mjs'
 
@@ -53,14 +53,7 @@ export const commands = [
         description: 'List all stored content hashes',
         handler: ({ home }) => {
             const c = fileCas(sha256)(home)
-            // A listing that cannot reach stdout has no useful fallback, and
-            // `forEachStep`'s `void` accumulator would otherwise discard each
-            // write's outcome silently.
-            const x0 = forEachStep(c.list(), j => unwrapStep(log(vecToCBase32(j))))
-            return step(
-                x0,
-                () => pure(0)
-            )
+            return exitStep(forEachStep(c.list(), j => log(vecToCBase32(j))))
         },
     },
 ]
