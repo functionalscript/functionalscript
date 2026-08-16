@@ -6,10 +6,13 @@ It is the **preferred high-level abstraction for fallible work**; the raw
 `Effect<O, T>` remains the low-level representation both it and the raw
 combinators are built from.
 
-This directory is stage 1 of the migration planned in
-[`../todo/io-effect-migration.md`](../todo/io-effect-migration.md). Today it
-holds types and nothing else — [`./types.ts`](./types.ts) — so adopting it
-changes no operation, no runner, and no consumer.
+This directory is stages 1 and 2 of the migration planned in
+[`../todo/io-effect-migration.md`](../todo/io-effect-migration.md): the types
+([`./types.ts`](./types.ts)) and the composition API
+([`./module.f.mjs`](./module.f.mjs)). No operation, runner, or consumer produces
+an `IoEffect` yet — stage 3 moves the `Result` envelope into the operations'
+declared return types, and stage 4 migrates the consumers — so adopting the
+layer is still additive.
 
 ## Why the layer exists
 
@@ -34,9 +37,9 @@ With an `IoEffect`-aware `step`, that same line means what it looks like:
 gives FunctionalScript the default error-propagation path other languages get
 from exceptions or Rust's `?`, without giving it exceptions.
 
-## The vocabulary (stage 2)
+## The vocabulary
 
-Three branch-aware operations, arriving with this directory's `module.f.mjs`:
+Three branch-aware operations, in [`./module.f.mjs`](./module.f.mjs):
 
 - `step` — continue on `ok`, propagate the error. The normal path.
 - `catchStep` — continue on `error`, preserve the success value. The error path.
@@ -45,13 +48,51 @@ Three branch-aware operations, arriving with this directory's `module.f.mjs`:
 The union rules follow `okThen` in
 [`../../types/result/module.f.mjs`](../../types/result/module.f.mjs): error
 types are **unioned, not unified**, so neither side is pre-widened and a branch
-that is passed through stays the very tuple it arrived as. `types.ts` pins the
-widening those signatures rely on — and pins that it only goes one way, so an
-unhandled error type is a compile error rather than a value nobody looked at.
+that is passed through stays the very tuple it arrived as. `step` unions the
+error channel and replaces the success type; `catchStep` mirrors it, unioning
+the success channel and replacing the error type; `resultStep` consumes both
+branches and replaces both. `types.ts` pins each of those signatures at a
+concrete instantiation, so a "simplification" that unified an error channel
+fails there rather than at some future call site.
 
 The new `step` conflicts with the raw one, which is why these live in their own
 module and can already use their final names. Stage 5 retires the raw public
 abstraction and renames `IoEffect` to `Effect`.
+
+### `resultStep` is raw `step`, and still earns its name
+
+Expanded through the alias, `resultStep` **is** the raw `step` at the Io
+instantiation — a continuation taking a `Result<T, E>` and returning an effect
+is what raw `step` already offers — so it adds no branch behavior and is
+implemented as that function with a narrower type. It is named anyway because
+the three operations are the canonical vocabulary: a chain that spells the
+both-branches case as a raw `step` reads as an escape from the layer, and from
+stage 5, when the raw representation goes private, this is the public spelling
+of that instantiation.
+
+`finallyStep` is declined on the same principle read the other way — a
+derivable form earns a name by being canonical vocabulary, and that one has not
+shown it is.
+
+### `pureOk` / `pureError`, not `ok` / `error`
+
+The two lifts are the only way into the layer until stage 3 gives the
+operations their `Result` envelope, so they are entry points rather than
+speculative API. They are *not* spelled `ok` / `error`: those names are
+`fjs/types/result`'s, and a consumer that both builds bare `Result`s and lifts
+them — which is every consumer during the migration — would have to alias one
+pair at each import. `pure` is not free to shadow either; it is the raw lift,
+and a module that uses both wants them distinguishable.
+
+### The raw `okStep` now unions its error types
+
+Io `step` is raw `step` over `okStep`, the adapter that already writes the
+`ok` / `error` branch — but `okStep` unified the two error types, which is
+exactly what this layer must not do. Its type now quantifies the incoming error
+on the second arrow (`<T, R, E>(f) => <F>(r) => …`), matching `okThen`, the
+pure sibling its documentation already claimed. The change is a strict
+generalization: every previous instantiation is `F = E`, so existing raw
+consumers are unaffected.
 
 ## `NotImplemented`
 
@@ -76,12 +117,18 @@ is an interruption, never dressed up as `NotImplemented`.
 
 ## What is deliberately absent
 
-- **No runtime module yet.** A declaration-only stage belongs in `types.ts`
-  rather than acquiring an artificial JavaScript representation, so there is no
-  `module.f.mjs` and no constructor here. The lifts (`v => pure(ok(v))`,
-  `e => pure(error(e))`) land in stage 2, with the operations that need them.
 - **No `notImplemented` value.** Nothing produces this error until stage 6,
   where a runner may omit a handler; until then it exists in the type model and
-  runners stay total over their declared operation maps.
-- **No mirrored raw API.** Io variants of the other combinators arrive when real
-  consumers require them, not speculatively.
+  runners stay total over their declared operation maps. The lifts do not
+  produce it either — it arrives through an operation's own continuation, not
+  from a program lifting it.
+- **No Io `historyStep`.** It is *expected* — `fjs/cas`'s chains reach back to
+  earlier values, so migrating them will need one — but the first consumer
+  should shape it. Until then the raw `historyStep` still applies to any
+  `IoEffect` whose links do not short-circuit.
+- **No mirrored raw API.** Io variants of the other combinators (`foldStep`,
+  `forEachStep`) arrive when real consumers require them, not speculatively.
+  `mapStep` is here rather than deferred because without it every site
+  converted in stage 4 would spell its trailing pure projection as a step,
+  which [`../todo/map-step-combinator.md`](../todo/map-step-combinator.md)
+  establishes is the wrong shape.
