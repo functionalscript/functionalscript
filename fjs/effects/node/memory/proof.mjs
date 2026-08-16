@@ -13,7 +13,7 @@ import {
 } from '../../memory/module.f.mjs'
 import { memoryOperationMap, run } from './module.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { step } from '../../module.f.mjs'
+import { step, unwrapStep } from '../../io/module.f.mjs'
 
 export const proof = {
     nodeInterpreter: async () => {
@@ -22,13 +22,15 @@ export const proof = {
             key => step(
                 write(key, 2),
                 () => read(key)))
-        assertEq(await run(x), 2)
+        const r = await run(x)
+        assert(r[0] === 'ok', r)
+        assertEq(r[1], 2)
     },
     reusedOperationMapPersists: async () => {
         const runner = asyncRun(/** @type {import('../../types.ts').ToAsyncOperationMap<MemOp>} */ (memoryOperationMap()))
-        const key = await runner(create(1))
+        const key = await runner(unwrapStep(create(1)))
         await runner(write(key, 2))
-        const result = await runner(read(key))
+        const result = await runner(unwrapStep(read(key)))
         assertEq(result, 2)
     },
     missingKeyThrows: async () => {

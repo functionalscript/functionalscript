@@ -36,7 +36,8 @@
  */
 
 import { pure, step } from '../../../effects/module.f.mjs'
-import { readLine, write } from '../../../effects/node/module.f.mjs'
+import { unwrapStep } from '../../../effects/io/module.f.mjs'
+import { ioError, readLine, write } from '../../../effects/node/module.f.mjs'
 import { tryUtf8 } from '../../../text/module.f.mjs'
 import { parse, stringify } from '../../../media/json/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
@@ -60,11 +61,8 @@ const internalErrorResponse = id => ({ jsonrpc, error: internalError, id })
 const writeResponse = resp => {
     const v = tryUtf8(stringifyJson(resp) + '\n')
     return v === null
-        ? pure(error(undefined))
-        : step(
-            write('stdout', v),
-            () => pure(ok(undefined)),
-        )
+        ? pure(error(ioError({ message: 'response does not encode as UTF-8' })))
+        : write('stdout', v)
 }
 
 /**
@@ -79,7 +77,10 @@ const writeResponse = resp => {
  */
 export const stdioTransport = handler =>
     step(
-        readLine('stdin'),
+        // A transport that cannot read its own input has no fallback to choose,
+        // so a `readLine` failure is this program's panic rather than a value
+        // threaded through the loop.
+        unwrapStep(readLine('stdin')),
         line => line === null
             ? pure(undefined)
             : handleLine(handler)(line),

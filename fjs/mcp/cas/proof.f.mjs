@@ -10,6 +10,7 @@
 import { casToolRegistry } from './module.f.mjs'
 import { match } from '../../effects/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
+import { ioError } from '../../effects/node/module.f.mjs'
 import { vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
@@ -25,8 +26,8 @@ import { parse as parseJson } from '../../media/json/module.f.mjs'
 /** @type {(cmd: string) => unknown} */
 const defaultResponse = cmd => {
     switch (cmd) {
-        case 'now': return 0
-        case 'randomInt': return 0
+        case 'now': return ok(0)
+        case 'randomInt': return ok(0)
         case 'mkdir': case 'createExclusive': case 'rename': case 'rm':
         case 'writeBytes': case 'access':
             return ok(undefined)
@@ -35,9 +36,9 @@ const defaultResponse = cmd => {
         // An empty chunk reads as end-of-stream, so a `readBytes` call with no
         // override reads as an immediately-empty file by default.
         case 'readBytes': return ok(vec(0n)(0n))
-        case 'memCreate': return /** @type {unknown} */ ('mem-key')
-        case 'memRead': return undefined
-        case 'memWrite': return undefined
+        case 'memCreate': return ok(/** @type {unknown} */ ('mem-key'))
+        case 'memRead': return ok(undefined)
+        case 'memWrite': return ok(undefined)
         default: return ok(undefined)
     }
 }
@@ -119,7 +120,7 @@ export const proof = {
     // success.
     casAddWriteErrorReturnsError: () => {
         const result = /** @type {ToolsCallResult} */ (
-            drive({ writeBytes: [error('disk full')] })(toolHandle('cas_add')({ content: 'hello' }))
+            drive({ writeBytes: [error(ioError({ message: 'disk full' }))] })(toolHandle('cas_add')({ content: 'hello' }))
         )
         assert(result.isError === true, ['expected isError', result])
     },
@@ -130,7 +131,7 @@ export const proof = {
     // streaming verdict rather than fail the whole request.
     casGetMetadataRefineHashVanishesFallsBackToStreamingVerdict: () => {
         const result = /** @type {ToolsCallResult} */ (
-            drive({ readBytes: [ok(vec8(0x41n)), ok(vec(0n)(0n)), error('vanished')] })
+            drive({ readBytes: [ok(vec8(0x41n)), ok(vec(0n)(0n)), error(ioError({ message: 'vanished' }))] })
                 (toolHandle('cas_get')({ hash: someHash, content: false }))
         )
         assert(result.isError !== true, ['expected ok result', result])
@@ -147,7 +148,7 @@ export const proof = {
     // to fall back to once inline content was actually promised.
     casGetContentFetchHashVanishesReturnsError: () => {
         const result = /** @type {ToolsCallResult} */ (
-            drive({ readBytes: [ok(vec8(0x41n)), ok(vec(0n)(0n)), error('vanished')] })
+            drive({ readBytes: [ok(vec8(0x41n)), ok(vec(0n)(0n)), error(ioError({ message: 'vanished' }))] })
                 (toolHandle('cas_get')({ hash: someHash, content: true }))
         )
         assert(result.isError === true, ['expected isError', result])

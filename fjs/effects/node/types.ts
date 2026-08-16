@@ -12,12 +12,49 @@ import type { Result } from '../../types/result/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
 import type { Effect, Operation, ToAsyncOperationMap } from '../types.ts'
 import type { List } from '../list/types.ts'
+import type { NotImplemented } from '../io/types.ts'
 
-export type IoResult<T> = Result<T, unknown>
+/**
+ * A host failure, normalized: whatever the runtime threw reduced to a
+ * serializable record. `code` is the OS error code when the host supplied one
+ * (`'ENOENT'`, `'EEXIST'`), absent otherwise.
+ *
+ * It is a tagged tuple for the same reason {@link NotImplemented} is — the two
+ * share an error channel, and the tag is what tells them apart. That
+ * distinction is the whole reason this type exists: with a bare `unknown`
+ * error, `NotImplemented | unknown` collapses to `unknown` and a program can no
+ * longer tell "this runner cannot do it" from "the host tried and failed".
+ *
+ * Normalizing also keeps the channel serializable. A thrown `Error` carries a
+ * stack, a `cause`, and arbitrary own properties; none of it survives a wire
+ * hop, and a runner in another process could not reproduce it.
+ */
+export type IoError = readonly['ioError', IoErrorInfo]
+
+export type IoErrorInfo = {
+    readonly code?: string
+    readonly message: string
+}
+
+/**
+ * The result of an operation with no failures of its own: it either produces
+ * its value or reports that the runner does not implement it.
+ *
+ * Every operation's return type is a `Result`, including the ones that cannot
+ * fail on their own terms — an operation left on a raw contract would be a hole
+ * in the error channel, and a runner may omit a handler for any of them.
+ */
+export type OpResult<T> = Result<T, NotImplemented>
+
+/**
+ * The result of an operation that performs host IO: its value, a normalized
+ * host failure, or the missing-handler report.
+ */
+export type IoResult<T> = Result<T, NotImplemented | IoError>
 
 // all
 
-export type All = ['all', <T>(...effects: Effect<never, T>[]) => readonly T[]]
+export type All = ['all', <T>(...effects: Effect<never, T>[]) => OpResult<readonly T[]>]
 
 // fetch
 
@@ -75,7 +112,7 @@ export type ReadBytes = readonly['readBytes', (path: string, offset: number, siz
 
 // randomInt
 
-export type RandomInt = readonly['randomInt', () => number]
+export type RandomInt = readonly['randomInt', () => OpResult<number>]
 
 // exec
 
@@ -150,11 +187,11 @@ export type ServerResponse = {
 
 export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effect<O, ServerResponse>
 
-export type CreateServer = ['createServer', (listener: RequestListener<Operation>) => Server]
+export type CreateServer = ['createServer', (listener: RequestListener<Operation>) => OpResult<Server>]
 
 // listen
 
-export type Listen = ['listen', (server: Server, port: number) => void]
+export type Listen = ['listen', (server: Server, port: number) => OpResult<void>]
 
 // HTTP
 
@@ -162,7 +199,7 @@ export type Http = CreateServer | Listen
 
 // Wait forever
 
-export type Forever = ['forever', () => never]
+export type Forever = ['forever', () => OpResult<never>]
 
 // import
 
@@ -180,9 +217,9 @@ export type WriteConsoles = 'stdout' | 'stderr'
  * a `Vec`. The Node runner maps each stream name to the appropriate fd and
  * delegates to the OS via `stream.write()` with backpressure handling.
  */
-export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => void]
+export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => OpResult<void>]
 
-export type Console = (s: string) => Effect<Write, void>
+export type Console = (s: string) => Effect<Write, OpResult<void>>
 
 // read
 
@@ -197,14 +234,14 @@ export type ReadConsoles = 'stdin'
  * rather than the interpreter. Back-pressure is naturally sequential — the next
  * `read` is only issued once the previous byte is consumed.
  */
-export type Read = readonly['read', (stream: ReadConsoles) => number | null]
+export type Read = readonly['read', (stream: ReadConsoles) => OpResult<number | null>]
 
 /** @internal */
 export type _UtfList = EffectList<number>
 
 // now
 
-export type Now = readonly['now', () => number]
+export type Now = readonly['now', () => OpResult<number>]
 
 // sandbox
 
@@ -225,7 +262,7 @@ export type SandboxResult<T> = {
     readonly duration: number
 }
 
-export type Sandbox = readonly['sandbox', <T>(f: () => T) => SandboxResult<T>]
+export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxResult<T>>]
 
 /**
  * Resolves the return value of a test function inside the effect runner.
@@ -234,7 +271,7 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => SandboxResult<T>]
  * (objects with a `.then` method that are not `instanceof Promise`) are
  * treated as ordinary values — not awaited. See `fjs/dev/tf/README.md`.
  */
-export type Await = readonly['await', (p: unknown) => readonly[unknown]]
+export type Await = readonly['await', (p: unknown) => OpResult<readonly[unknown]>]
 
 // Test registration
 
@@ -260,7 +297,7 @@ export type TestContext = {
 
 /** Effect operation that registers a named test with the active `TestContext`. */
 export type Test =
-    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All | Await, void>) => void]
+    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All | Await, void>) => OpResult<void>]
 
 // Node
 

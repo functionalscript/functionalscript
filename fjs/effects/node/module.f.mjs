@@ -13,7 +13,8 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Effect, Func, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
+ * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoError, IoErrorInfo, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, OpResult, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
+ * @import { IoEffect, NotImplemented } from '../io/types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -21,21 +22,58 @@ import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
-import { ok, error as resultError, mapOk } from '../../types/result/module.f.mjs'
-import { do_, mapStep, okStep, pure, step } from '../module.f.mjs'
+import { ok, error as resultError } from '../../types/result/module.f.mjs'
+import { do_, mapStep, pure, step } from '../module.f.mjs'
+import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../io/module.f.mjs'
+
+/**
+ * Builds a normalized host error. The constructor exists so the shape is
+ * written once: every runner reports its failures through it, and a consumer
+ * matching on `'ioError'` knows what the payload holds.
+ *
+ * @type {(info: IoErrorInfo) => IoError}
+ */
+export const ioError = info => ['ioError', info]
+
+/**
+ * Normalizes a **thrown** value into an {@link IoError}: the OS error code when
+ * the host attached a string one, and a message that is the `Error`'s own or
+ * the value's string form.
+ *
+ * This is the boundary where an impure runner's `catch` becomes ordinary effect
+ * data. Nothing past it sees the thrown object, which is the point — a stack, a
+ * `cause`, and arbitrary own properties do not survive a wire hop, and a
+ * program that branched on them would be reading the host's implementation
+ * rather than the operation's contract.
+ *
+ * @type {(e: unknown) => IoError}
+ */
+export const toIoError = e => {
+    const message = e instanceof Error ? e.message : String(e)
+    if (typeof e !== 'object' || e === null || !('code' in e) || typeof e.code !== 'string') {
+        return ioError({ message })
+    }
+    return ioError({ code: e.code, message })
+}
 
 /**
  * True if `e` is a "file or directory does not exist" (`ENOENT`) error.
  *
- * Node's filesystem rejections are `Error`s carrying `code: 'ENOENT'`; the
- * virtual interpreter mirrors that shape for absent paths. Lets callers swallow
- * only the missing-path case (e.g. a fresh store) while propagating genuine
- * failures (permissions, corruption) rather than masking them.
+ * Node's filesystem rejections are `Error`s carrying `code: 'ENOENT'`, which
+ * {@link toIoError} keeps; the virtual interpreter reports the same code for
+ * absent paths. Lets callers swallow only the missing-path case (e.g. a fresh
+ * store) while propagating genuine failures (permissions, corruption) rather
+ * than masking them.
  *
- * @type {(e: unknown) => boolean}
+ * A {@link NotImplemented} is never "not found": a runner that cannot perform
+ * the operation has not looked for the path at all, so the two must not
+ * collapse into one benign branch — which is exactly what a bare `unknown`
+ * error channel used to allow.
+ *
+ * @type {(e: NotImplemented | IoError) => boolean}
  */
-export const isNotFound = e =>
-    typeof e === 'object' && e !== null && 'code' in e && e.code === 'ENOENT'
+export const isNotFound = ([tag, payload]) =>
+    tag === 'ioError' && payload.code === 'ENOENT'
 
 // all
 
@@ -44,14 +82,14 @@ export const isNotFound = e =>
  * This is the reason why we merge `O` with `All` in the resulted `Effect`.
  */
 export const all =
-    /** @type {<O extends Operation, T>(...a: readonly Effect<O, T>[]) => Effect<O | All, readonly T[]>} */
+    /** @type {<O extends Operation, T>(...a: readonly Effect<O, T>[]) => Effect<O | All, OpResult<readonly T[]>>} */
     (do_('all'))
 
 /**
  * @template {Operation} O0
  * @template T0
  * @param {Effect<O0, T0>} a
- * @returns {<O1 extends Operation, T1>(b: Effect<O1, T1>) => Effect<O0 | O1 | All, readonly[T0, T1]>}
+ * @returns {<O1 extends Operation, T1>(b: Effect<O1, T1>) => Effect<O0 | O1 | All, OpResult<readonly[T0, T1]>>}
  */
 export const both = a => b =>
     /** @type {any} */ (all)(a, b)
@@ -74,14 +112,14 @@ export const readFile = do_('readFile')
 /**
  * Reads a file as UTF-8 text.
  *
- * Preserves the `IoResult` instead of unwrapping so callers can pattern-match
- * on errors (e.g. convert them into domain-specific errors) or `unwrap` at the
- * call site.
+ * Preserves the error channel instead of unwrapping so callers can
+ * pattern-match on it (e.g. convert a failure into a domain-specific error) or
+ * `unwrap` at the call site.
  *
- * @type {(path: string) => Effect<ReadFile, IoResult<string>>}
+ * @type {(path: string) => IoEffect<ReadFile, string, NotImplemented | IoError>}
  */
 export const readUtf8File = path =>
-    mapStep(readFile(path), mapOk(utf8ToString))
+    ioMapStep(readFile(path), utf8ToString)
 
 // readdir
 
@@ -96,7 +134,7 @@ export const writeFile = do_('writeFile')
 /**
  * Writes a string to `path` as UTF-8 bytes.
  *
- * @type {(path: string, content: string) => Effect<WriteFile, IoResult<void>>}
+ * @type {(path: string, content: string) => IoEffect<WriteFile, void, NotImplemented | IoError>}
  */
 export const writeUtf8File = (path, content) =>
     writeFile(path, utf8(content))
@@ -147,7 +185,7 @@ const writeLoop = path => {
     const f = (offset, e) =>
         step(e, r => {
             if (r === undefined) {
-                return pure(ok(undefined))
+                return pureOk(undefined)
             }
             const { first: [t, v], tail } = r
             if (t === 'error') {
@@ -155,11 +193,11 @@ const writeLoop = path => {
             }
             const lenV = length(v)
             if ((lenV & 0b111n) !== 0n) {
-                return pure(resultError('invalid buffer size'))
+                return pureError(ioError({ message: 'invalid buffer size' }))
             }
-            return step(
+            return ioStep(
                 writeBytes(path, offset, v),
-                okStep(() => f(offset + Number(lenV >> 3n), tail)))
+                () => f(offset + Number(lenV >> 3n), tail))
         })
     return f
 }
@@ -171,9 +209,9 @@ const writeLoop = path => {
  * @returns {Effect<O | WriteBytes | CreateExclusive, IoResult<void>>}
  */
 export const writeFromStream = (path, e) =>
-    step(
+    ioStep(
         createExclusive(path),
-        okStep(() => writeLoop(path)(0, e)))
+        () => writeLoop(path)(0, e))
 
 // stat
 
@@ -183,7 +221,7 @@ export const stat = do_('stat')
 // createServer
 
 export const createServer =
-    /** @type {<O extends Operation>(listener: RequestListener<O>) => Effect<O | CreateServer, Server>} */
+    /** @type {<O extends Operation>(listener: RequestListener<O>) => Effect<O | CreateServer, OpResult<Server>>} */
     (do_('createServer'))
 
 // listen
@@ -211,7 +249,7 @@ export const write = do_('write')
  * Encodes `s + '\n'` as UTF-8 and emits a `Write` effect to `stream`.
  * Shared implementation for `log` and `error`.
  *
- * @type {(stream: WriteConsoles) => (s: string) => Effect<Write, void>}
+ * @type {(stream: WriteConsoles) => Console}
  */
 const writeString = stream => s =>
     write(stream, utf8(s + '\n'))
@@ -251,17 +289,20 @@ const lf = 0x0a
  * reversed and decoded once at the terminator, so a large line costs O(n)
  * rather than the O(n²) of copying a growing array on every byte.
  *
- * @type {(stream: ReadConsoles) => Effect<Read, string | null>}
+ * A failed `read` — a runner without the operation — propagates: the line is
+ * not silently truncated into a `null` that a caller would read as EOF.
+ *
+ * @type {(stream: ReadConsoles) => IoEffect<Read, string | null, NotImplemented>}
  */
 export const readLine = stream => {
-    /** @type {(acc: _UtfList) => Effect<Read, string | null>} */
+    /** @type {(acc: _UtfList) => IoEffect<Read, string | null, NotImplemented>} */
     const loop = acc =>
-        step(
+        ioStep(
             read(stream),
             b => b === null
-                ? pure(acc === null ? null : utf8ListToString(reverse(acc)))
+                ? pureOk(acc === null ? null : utf8ListToString(reverse(acc)))
                 : b === lf
-                    ? pure(utf8ListToString(reverse(acc)))
+                    ? pureOk(utf8ListToString(reverse(acc)))
                     : loop({ first: b, tail: acc })
         )
     return loop(null)
@@ -299,9 +340,9 @@ export const sandbox = do_('sandbox')
 /** @type {Func<Await>} */
 const awaitPromise = do_('await')
 
-/** @type {(p: unknown) => Effect<Await, unknown>} */
+/** @type {(p: unknown) => IoEffect<Await, unknown, NotImplemented>} */
 export const awaitIfPromise = p =>
-    mapStep(awaitPromise(p), ([x]) => x)
+    ioMapStep(awaitPromise(p), ([x]) => x)
 
 // Test registration
 
@@ -315,10 +356,39 @@ export const test = do_('test')
  * "fail with a message" program for a `NodeProgram`. For non-`1` exit codes,
  * compose `mapStep(error(s), () => n)` directly.
  *
+ * **The write's own outcome is deliberately discarded**, which is why this is
+ * the raw `mapStep` rather than the Io one. The program is already failing and
+ * the exit code is `1` whether or not `stderr` accepted the bytes; propagating
+ * here would hand every caller a "failed to report a failure" branch with no
+ * better answer available to it than the one taken here.
+ *
  * @type {(s: string) => Effect<Write, number>}
  */
 export const errorExit = s =>
     mapStep(error(s), () => 1)
+
+/**
+ * Renders a channel error as a human line: an {@link IoError}'s own message, or
+ * the command name a runner could not dispatch.
+ *
+ * @type {(e: NotImplemented | IoError) => string}
+ */
+export const errorMessage = ([tag, payload]) =>
+    tag === 'notImplemented' ? `operation not implemented: ${payload}` : payload.message
+
+/**
+ * Ends a program with an exit code that reflects `e`: `ok` yields `0`, and a
+ * failure is reported on `stderr` and yields `1` ({@link errorExit}).
+ *
+ * This is the exit-code policy a `NodeProgram` needs at the end of its chain,
+ * and the reason a program does not have to invent one per command. It is the
+ * counterpart of {@link isNotFound} at the other end of the channel: where that
+ * one asks which failure this is, this one stops asking and reports.
+ *
+ * @type {<O extends Operation, T>(e: IoEffect<O, T, NotImplemented | IoError>) => Effect<O | Write, number>}
+ */
+export const exitStep = e =>
+    step(e, r => r[0] === 'error' ? errorExit(errorMessage(r[1])) : pure(0))
 
 /** @type {(version: string) => readonly number[]} */
 const versionParts = version =>

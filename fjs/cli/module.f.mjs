@@ -10,7 +10,7 @@
  * @import { Commands } from './types.ts'
  */
 
-import { errorExit, log } from '../effects/node/module.f.mjs'
+import { errorExit, exitStep, log } from '../effects/node/module.f.mjs'
 import { pure, step } from '../effects/module.f.mjs'
 import { at, fromEntries } from '../types/object/module.f.mjs'
 
@@ -38,9 +38,7 @@ export const dispatch = commands => options => {
                 return dispatch(targetCmd.handler)({ ...options, args: ['help'] })
             }
         }
-        return step(
-            log(helpText),
-            () => pure(0))
+        return exitStep(log(helpText))
     }
     const found = at(cmd)(map)
     if (found === null) {

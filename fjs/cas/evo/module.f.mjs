@@ -53,6 +53,7 @@
  */
 
 import { pure, foldStep, mapStep, step } from '../../effects/module.f.mjs'
+import { unwrapStep } from '../../effects/io/module.f.mjs'
 import { create, read, write } from '../../effects/memory/module.f.mjs'
 import { collectRead } from '../module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
@@ -229,13 +230,15 @@ export const buildCache = cas =>
  * @returns {Effect<O | MemOp, Key<Cache>>}
  */
 export const initEvo = cas =>
-    step(buildCache(cas), cache => create(cache))
+    step(buildCache(cas), cache => unwrapStep(create(cache)))
 
 /** Reads, then rewrites, the cache at `cacheKey` with `revision` folded in at `hash`.
  * @type {(cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision) => Effect<MemOp, void>}
  */
 const foldIntoCache = cacheKey => hash => revision =>
-    step(read(cacheKey), cache => write(cacheKey, addRevisionToCache(hash, revision)(cache)))
+    step(
+        unwrapStep(read(cacheKey)),
+        cache => unwrapStep(write(cacheKey, addRevisionToCache(hash, revision)(cache))))
 
 /**
  * Folds `value` — bytes already written to a `Cas` at `hash` by some other
@@ -564,11 +567,11 @@ export const evo = cas => cacheKey => ({
     list: archived => {
         const listed = subjectListed(archived)
         return mapStep(
-            read(cacheKey),
+            unwrapStep(read(cacheKey)),
             cache => definedEntries(cache.bySubject)
                 .flatMap(([subject, state]) => listed(state) ? [subject] : []))
     },
-    head: subject => mapStep(read(cacheKey), cache => {
+    head: subject => mapStep(unwrapStep(read(cacheKey)), cache => {
         const state = at(subject)(cache.bySubject)
         return state === null ? [] : headsOf(state)
     }),

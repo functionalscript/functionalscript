@@ -6,7 +6,7 @@
  *
  * @module
  *
- * @import { Write, WriteConsoles, NodeProgramOptions } from '../../effects/node/types.ts'
+ * @import { Console, Write, WriteConsoles, NodeProgramOptions } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Stdout, WriteText, CsiConsole } from './types.ts'
  */
@@ -92,7 +92,7 @@ const str = isTTY => s =>
  * stream is not a TTY, then encodes to UTF-8 and emits a `Write` effect.
  * Does NOT append `\n` — callers are responsible for line termination.
  *
- * @type {(options: NodeProgramOptions) => (stream: WriteConsoles) => (s: string) => Effect<Write, void>}
+ * @type {(options: NodeProgramOptions) => (stream: WriteConsoles) => Console}
  */
 export const csiWrite = ({ std }) => stream => {
     const toStr = str(std[stream].isTTY)

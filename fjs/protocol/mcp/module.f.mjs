@@ -35,6 +35,7 @@
 
 import { boolean, string, option, array, record, or } from '../../types/rtti/module.f.mjs'
 import { pure, step } from '../../effects/module.f.mjs'
+import { unwrapStep } from '../../effects/io/module.f.mjs'
 import { read, write } from '../../effects/memory/module.f.mjs'
 import {
     decodeRequest,
@@ -289,10 +290,10 @@ export const mcpStep = ({
                     return pure(null)
                 }
                 return step(
-                    read(stateKey),
+                    unwrapStep(read(stateKey)),
                     ([t]) => t === 'initializing'
                         ? step(
-                            write(stateKey, ['initialized', true]),
+                            unwrapStep(write(stateKey, ['initialized', true])),
                             () => pure(null),
                         )
                         : pure(null),
@@ -313,7 +314,7 @@ export const mcpStep = ({
         // `initialize` transitions uninitialized → initializing; reject if already done.
         if (method === 'initialize') {
             return step(
-                read(stateKey),
+                unwrapStep(read(stateKey)),
                 ([t]) => {
                     if (t !== 'uninitialized') {
                         return pure(_errResponse(id)(invalidRequest))
@@ -338,7 +339,7 @@ export const mcpStep = ({
 
         // All other methods require fully initialized state — read it first.
         return step(
-            read(stateKey),
+            unwrapStep(read(stateKey)),
             ([t]) => {
                 if (t !== 'initialized') {
                     return pure(_errResponse(id)(notInitialized))

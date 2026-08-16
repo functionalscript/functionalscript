@@ -17,6 +17,7 @@
  *
  * @import { Nominal } from '../../types/nominal/types.ts'
  * @import { Effect } from '../types.ts'
+ * @import { OpResult } from '../node/types.ts'
  * @import { Key, MemCreate, MemRead, MemWrite, _MemKeyHash } from './types.ts'
  */
 
@@ -31,14 +32,14 @@ export const asNominal = nominalAsNominal
 
 /** Creates a new typed memory slot with `value` as its initial contents. */
 export const create =
-    /** @type {<T>(value: T) => Effect<MemCreate, Key<T>>} */
+    /** @type {<T>(value: T) => Effect<MemCreate, OpResult<Key<T>>>} */
     (do_('memCreate'))
 
 /** Reads the current contents of a typed memory slot. */
 export const read =
-    /** @type {<T>(key: Key<T>) => Effect<MemRead, T>} */
+    /** @type {<T>(key: Key<T>) => Effect<MemRead, OpResult<T>>} */
     (do_('memRead'))
 
 /** Replaces the current contents of a typed memory slot. */
-/** @type {<T>(key: Key<T>, value: T) => Effect<MemWrite, void>} */
+/** @type {<T>(key: Key<T>, value: T) => Effect<MemWrite, OpResult<void>>} */
 export const write = do_('memWrite')
