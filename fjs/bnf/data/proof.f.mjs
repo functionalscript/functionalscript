@@ -6,8 +6,8 @@
 
 import { identity } from '../../types/function/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
-import { oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../module.f.mjs'
-import { emptyTagMap, toData } from './module.f.mjs'
+import { none, oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../module.f.mjs'
+import { detectRepeat, emptyTagMap, isRepeat, toData } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { classic, deterministic } from '../testlib.f.mjs'
@@ -88,10 +88,81 @@ export const proof = {
             if (result !== '[{"0":{"some":"1","none":"3"},"1":["2"],"2":1627390049,"3":[],"":["0","r"],"r":{"some":"","none":"3"}},"r"]') { throw result }
         },
         () => {
+            // The item is not nullable, so this one folds into a `repeat`, and
+            // the recursive and empty branches it replaced are pruned.
             const repeatRule = repeat0Plus(set(' \n\r\t'))
             const result = stringify(identity)(toData(repeatRule))
-            if (result !== '[{"0":{" ":"1","\\n":"2","\\r":"3","\\t":"4"},"1":536870944,"2":167772170,"3":218103821,"4":150994953,"5":[],"":["0","r"],"r":{"some":"","none":"5"}},"r"]') { throw result }
+            const expected = '[{"0":{" ":"1","\\n":"2","\\r":"3","\\t":"4"},"1":536870944,"2":167772170,"3":218103821,"4":150994953,"r":"0"},"r"]'
+            assertEq(result, expected, [result, expected])
         }
+    ],
+    isRepeat: () => {
+        assertEq(isRepeat('a'), true)
+        // Nothing else in a rule set is a string, so the four rule kinds are
+        // told apart by JavaScript type alone — no shape has to be probed.
+        assertEq(isRepeat(['a', 'b']), false)
+        assertEq(isRepeat({ some: 'a' }), false)
+        assertEq(isRepeat(oneEncode(0x41)), false)
+    },
+    detectRepeat: [
+        () => {
+            const result = stringify(identity)(toData(repeat0Plus(range('AF'))))
+            const expected = '[{"0":1090519110,"r":"0"},"r"]'
+            assertEq(result, expected, [result, expected])
+        },
+        () => {
+            // Nothing about the fold depends on `repeat0Plus`: a hand-written
+            // 0-or-more list is the same shape and folds the same way. `classic`
+            // spells one out as `characters`.
+            const [ruleSet] = toData(classic())
+            const repeats = Object.entries(ruleSet).filter(([, v]) => isRepeat(v))
+            assertEq(JSON.stringify(repeats), '[["characters","character"]]')
+        },
+        () => {
+            // Already folded: a `repeat` is not itself a variant to fold again.
+            const [ruleSet, entry] = toData(repeat0Plus(range('AF')))
+            assertEq(
+                stringify(identity)(detectRepeat(ruleSet, entry)),
+                stringify(identity)(ruleSet))
+        },
+        () => {
+            // 1-or-more: the base branch is the item, not the empty rule.
+            const digit = range('09')
+            const digits = () => ({ digit, digits: [digit, digits] })
+            const result = stringify(identity)(toData(digits))
+            const expected = '[{"0":["","digits"],"":805306425,"digits":{"digit":"","digits":"0"}},"digits"]'
+            assertEq(result, expected, [result, expected])
+        },
+        () => {
+            // A separated list repeats `[item, separator, self]`; which of the
+            // three items are the list's elements is not something the shape
+            // says, so it stays a variant.
+            const sep = () => ({ none, list: [range('09'), ',', sep] })
+            const result = stringify(identity)(toData(sep))
+            const expected = '[{"0":["1","2","sep"],"1":805306425,"2":["3"],"3":738197548,"":[],"sep":{"none":"","list":"0"}},"sep"]'
+            assertEq(result, expected, [result, expected])
+        },
+        () => {
+            // The tail is not the rule's only self-reference: the item leads back
+            // into it, so the recursion is a tree rather than a list.
+            const nested = () => ({ none, some: [inner, nested] })
+            const inner = () => ({ leaf: range('AA'), group: ['(', nested, ')'] })
+            const [ruleSet] = toData(nested)
+            assertEq(JSON.stringify(ruleSet.nested), '{"none":"","some":"0"}')
+        },
+        () => {
+            // A nullable item gives the same input infinitely many parses, so
+            // the repetition is not the unambiguous one this fold is limited to.
+            const [ruleSet, entry] = toData(repeat0Plus(option('a')))
+            assertEq(JSON.stringify(ruleSet[entry]), '{"some":"","none":"3"}')
+        },
+        () => {
+            // Two branches, an empty one and a terminal: the non-empty branch is
+            // not a sequence at all.
+            const result = stringify(identity)(toData({ e: '', a: range('AA') }))
+            const expected = '[{"0":[],"1":1090519105,"":{"e":"0","a":"1"}},""]'
+            assertEq(result, expected, [result, expected])
+        },
     ],
     variantTest: () => {
         const varintRule = { a: 'a', b: 'b'}
