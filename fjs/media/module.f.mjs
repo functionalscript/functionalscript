@@ -12,10 +12,10 @@
  * `fjs/media/type` verdict unchanged.
  *
  * The dialect set is a **parameter**, not an import: `detect(dialects)(bytes)`.
- * This module therefore knows no dialect of its own — `fjs/media/revision` and
- * `fjs/media/lock` each export their own {@link DialectEntry}
- * (`revisionDialect`, `lockDialect`), and a caller passes the list it wants
- * recognized. Any format following the `vnd.fjs.<name>` convention (see
+ * This module therefore knows no dialect of its own — `fjs/media/revision`,
+ * `fjs/media/lock`, and `fjs/media/note` each export their own
+ * {@link DialectEntry} (`revisionDialect`, `lockDialect`, `noteDialect`), and
+ * a caller passes the list it wants recognized. Any format following the `vnd.fjs.<name>` convention (see
  * `fjs/media/revision/README.md`), in this repo or downstream, is registerable
  * the same way.
  *
