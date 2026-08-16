@@ -414,12 +414,25 @@ order.**
   implementation.
   How engines *prioritize* branches is deliberately unspecified — order
   is not semantic, so any schedule is legal: racing cheap guards first
-  (fail-fast), parking expensive branches, full parallelism — or none of
-  it. A `throw` in FS is the analogue of a panic in other languages, so
-  engines may reasonably assume asserts rarely fire and optimize for the
-  happy path instead. The spec assumes nothing about any of this; the
-  freedoms above are illustrations of what A1–A4 make sound for any
-  engine, with no coordination.
+  (fail-fast), parking expensive branches, full parallelism, or plain
+  sequential. A `throw` in FS is the analogue of a panic in other
+  languages, so engines may reasonably assume asserts rarely fire and
+  optimize for the happy path. The spec assumes nothing about any of
+  this; the freedoms above are illustrations of what A1–A4 make sound
+  for any engine, with no coordination.
+- **Membership is never negotiable: a result is revealed only after ALL
+  branches complete successfully.** Scheduling freedom is about *when*
+  guards run, never *whether*. This is more than A3 fidelity — an assert
+  branch may be a security guard whose failure must prevent the result
+  from ever reaching the caller:
+
+  ```js
+  const getValue = key => { assert(key !== 'password'); return map[key] }
+  ```
+
+  An engine may compute anything early — even the resulting branch
+  speculatively, which is unobservable — but the function's value must
+  not escape to the caller until every assert branch has succeeded.
 - **Membership is semantic; order is not** (A4 rejected): every branch
   evaluates before the function completes normally, so A3's
   always-fails holds — but any evaluation order of branches (including
