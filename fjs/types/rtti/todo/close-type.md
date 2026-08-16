@@ -128,6 +128,9 @@ spellings of the same set must not compare unequal. `['close', S]` and
 
 - [retire-validate.md](./retire-validate.md) — the open default this is the
   counterpart to.
+- [`../../../media/json/todo/rtti-parse.md`](../../../media/json/todo/rtti-parse.md)
+  — the RTTI-aware JSON parser reuses `../parse/module.f.mjs`'s container
+  behavior, so it needs a `close` case too; whichever lands second picks it up.
 - `../data/types.ts:22-55` — `ArraySet` / `ObjectSet`; the `rest` field this
   maps onto.
 - `../data/module.f.mjs:296-320` — `arraySet` / `objectSet` normalization,

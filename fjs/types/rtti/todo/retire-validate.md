@@ -84,6 +84,35 @@ Nine modules import `validate`:
   `media`'s dialect detection this runs once per candidate dialect per value,
   so measure there rather than assuming it is free.
 
+## If you don't want the two-step
+
+The obvious objection to deleting `validate` is the cost it leaves behind.
+Reading JSON against a schema becomes text → extended value → `parse` →
+`Ts<T>`: two traversals and an intermediate value that is discarded. `validate`
+at least avoided the second allocation by returning what it was given.
+
+The answer is not to keep a validator, it is to not build the intermediate
+value at all —
+[`../../../media/json/todo/rtti-parse.md`](../../../media/json/todo/rtti-parse.md),
+the RTTI-aware JSON parser, which goes from text to `Ts<T>` in one pass:
+
+```ts
+parse = <T extends Type>(rtti: T) =>
+    (text: string): Result<Ts<T>, JsonOrValidationError> => ...
+```
+
+It is strictly better than `validate` for that use, not merely equivalent: it
+sees the original number token, so it can reject `1.00000000000000001` against
+an rtti `bigint`, which no validator over an already-materialized value can do
+— by then the token has been rounded to `1`.
+
+So the two readers that remain are `parse` for a runtime value and the JSON
+parser for text, and neither has a reason to return its input unchanged.
+
+That todo already states it reuses `../parse/module.f.mjs`'s structural
+behavior — "drop extra struct fields/tuple elements where the current parser
+does" — so it inherits openness rather than needing its own rule.
+
 ## Scope: only the schema-form `validate`
 
 `../data/module.f.mjs` also exports a `validate`. That is a different
@@ -141,5 +170,8 @@ exact, and adds a length check. Guard it where that person will be looking.
 
 - [close-type.md](./close-type.md) — the explicit closed form; the other half
   of this decision.
+- [`../../../media/json/todo/rtti-parse.md`](../../../media/json/todo/rtti-parse.md)
+  — schema-directed parsing straight from JSON text; what replaces `validate`
+  for callers who were only avoiding a second pass.
 - `../parse/module.f.mjs` — its module header already documents the
   fresh-value contract and the forward-compatibility reason for it.
