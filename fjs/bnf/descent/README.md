@@ -35,6 +35,11 @@ Appending to an array per round would copy the whole prefix each time, which is
 what makes the obvious spelling of a flat repetition quadratic in the number of
 items it matched.
 
+The sibling [`../ll1`](../ll1#the-ast-diverges-from-the-descent-backends) backend
+does *not* match this shape, for repetition or for four other constructs. Do not
+write a consumer that reads "the AST" from whichever backend is at hand until
+`../todo/ll1-ast-divergence.md` settles whether the two are one contract.
+
 ## Logical EOF and the complete cursor
 
 The caller passes physical code points only; the matcher synthesizes the one

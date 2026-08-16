@@ -79,7 +79,7 @@ scheme. Each call site keeps its own recursion/accumulator structure.
   task** by removing the current generic string rule.
 - [256-bit bigint BNF symbols](./bigint-symbols.md) — **blocks this task** until
   the terminal/range representation and parser discriminants are migrated.
-- [LL(1) repeat flattening](./ll1-repeat-flatten.md) — the `Repeat` case the
+- [LL(1) AST divergence](./ll1-ast-divergence.md) — the `Repeat` case the
   visitor has to cover, and the backend that still dispatches it separately.
 - [nullable-analysis-shared](./nullable-analysis-shared.md) — the shared
   nullability pass is a natural consumer once the visitor exists.

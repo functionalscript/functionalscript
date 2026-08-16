@@ -1,17 +1,39 @@
 /**
  * @module
  *
+ * @import { CodePoint } from '../../text/utf16/types.ts'
  * @import { RuleSet } from '../data/types.ts'
+ * @import { CodePointMeta } from '../descent/types.ts'
+ * @import { Rule as FRule } from '../types.ts'
  * @import { MatchResult } from './types.ts'
  */
 
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { map, toArray } from '../../types/list/module.f.mjs'
 import { commaJoin0Plus, eof, option, range, repeat0Plus, set } from '../module.f.mjs'
 import { toData } from '../data/module.f.mjs'
+import { descentParser } from '../descent/module.f.mjs'
 import { dispatchMap, parser, parserRuleSet } from './module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { deterministic, showAst } from '../testlib.f.mjs'
+
+/** @type {(cp: CodePoint) => CodePointMeta<unknown>} */
+const mapCodePoint = cp => [cp, undefined]
+
+/**
+ * One grammar matched by both backends, pinning each one's AST. Both sides are
+ * asserted in one place so that a change to either backend has to restate what
+ * the other produces, rather than letting the two drift apart unremarked.
+ *
+ * @type {(rule: FRule, s: string, descent: string, ll1: string) => () => void}
+ */
+const bothBackends = (rule, s, descent, ll1) => () => {
+    const [, entry] = toData(rule)
+    const cp = toArray(stringToCodePointList(s))
+    const dm = descentParser(rule)(entry, toArray(map(mapCodePoint)(cp)))
+    assertEq(showAst(dm.ast), descent, s)
+    assertEq(showAst(parser(rule)(entry, cp)[0]), ll1, s)
+}
 
 export const proof = {
     dispatch: [
@@ -428,6 +450,55 @@ export const proof = {
             if (result !== '[{"sequence":[]},false,[66]]') { throw result }
         }
     ],
+    // The two backends consume the same `RuleSet` and disagree about the AST it
+    // implies. Every case below is one grammar matched by both, so the pair is
+    // pinned side by side and neither can drift without this failing.
+    //
+    // The cause is one: `bnf/descent` builds a node per rule *invocation*, while
+    // this backend builds one per *dispatch*, and a dispatch consumes the leading
+    // symbol and carries the rest as a flat chain of rule names. A rule entered
+    // through a dispatch therefore never gets a node of its own.
+    //
+    // See ../todo/ll1-ast-divergence.md — `nesting` is the case that loses
+    // information rather than merely reshaping it.
+    descentDivergence: {
+        // The first item of a sequence loses its node: the symbol the dispatch
+        // consumed is spliced into the enclosing node instead.
+        leadingItem: bothBackends(
+            [range('AA'), range('BB'), range('CC')], 'ABC',
+            '(("A") ("B") ("C"))',
+            '("A" ("B") ("C"))'),
+        // A variant is the one shape both agree on.
+        variant: bothBackends(
+            { a: range('AA'), b: range('BB') }, 'A',
+            '"a"("A")',
+            '"a"("A")'),
+        // A nullable item that matched empty leaves no node at all here, so the
+        // AST cannot say the option was ever considered.
+        skippedOption: bothBackends(
+            [option(range('--')), range('09')], '5',
+            '("none"() ("5"))',
+            '("5")'),
+        // Taken, the same option's tag lands on the enclosing node rather than on
+        // a node of its own.
+        takenOption: bothBackends(
+            [option(range('--')), range('09')], '-5',
+            '("some"("-") ("5"))',
+            '"some"("-" ("5"))'),
+        // A repetition is flat in `bnf/descent` and right-recursive here, down to
+        // an empty `*()` tail node per item.
+        repetition: bothBackends(
+            repeat0Plus(range('AA')), 'AAA',
+            '(("A") ("A") ("A"))',
+            '("A" ("A" ("A" *())))'),
+        // Grouping is *lost*, not reshaped: this backend gives `[[A,B],C]` and
+        // `[A,B,C]` — the `leadingItem` case above — byte-identical ASTs, so no
+        // later pass can tell the two grammars apart.
+        nesting: bothBackends(
+            [[range('AA'), range('BB')], range('CC')], 'ABC',
+            '((("A") ("B")) ("C"))',
+            '("A" ("B") ("C"))'),
+    },
     throw: {
         ambiguousVariantDispatch: () => {
             // Two alternatives covering the same code point — dispatch merge throws.

@@ -7,24 +7,48 @@ An LL(1) dispatch/matcher backend built over the BNF data
 `parserRuleSet()` match input into an AST. The builder throws at build time
 (`can not merge …`) when the grammar is not LL(1) — a first/first conflict.
 
-## Repetition is not flat here
+## The AST diverges from the descent backend's
 
-The sibling [`../descent`](../descent#repetition-is-flat) backend matches a
-`Repeat` rule ([`../data`](../data#the-repeat-rule)) iteratively and emits one
-flat node for it. This backend does not: `dispatchMap()` compiles a `Repeat` back
-into the right-recursive chain it was folded from — dispatch on the item's first
-set, then the item's own chain followed by the repeat rule again — so the AST
-keeps the nested shape it always had.
+Both backends consume the same `RuleSet` and disagree about the AST it implies.
+Six grammars, matched by each:
 
-The obstacle is this backend's dispatch model rather than the rule kind. A
-dispatch entry *consumes* the symbol it dispatched on and continues with a chain
-of rule names, so the first symbol of a nullable item is inlined into whatever
-encloses it: a repetition leading a sequence (`[ws, value, ws]`) has its first
-set merged into that sequence's own entries, and the rules chain those entries
-carry is the only place the repetition can live on. A frame that loops cannot be
-reached from there. Emitting a flat repeat node here needs a rules chain that can
-name a repetition as a step — or a predictive table over a stack of rule
-invocations — which is a change to the dispatch model, not to this rule kind.
+| grammar | input | [`../descent`](../descent) | this backend |
+| --- | --- | --- | --- |
+| `[A, B, C]` | `ABC` | `(("A") ("B") ("C"))` | `("A" ("B") ("C"))` |
+| `{a: A, b: B}` | `A` | `"a"("A")` | `"a"("A")` |
+| `[option(-), 09]` | `5` | `("none"() ("5"))` | `("5")` |
+| `[option(-), 09]` | `-5` | `("some"("-") ("5"))` | `"some"("-" ("5"))` |
+| `repeat0Plus(A)` | `AAA` | `(("A") ("A") ("A"))` | `("A" ("A" ("A" *())))` |
+| `[[A, B], C]` | `ABC` | `((("A") ("B")) ("C"))` | `("A" ("B") ("C"))` |
+
+Only the variant agrees. The leading item loses its node; a nullable item that
+matched empty leaves no node at all; a taken option's tag lands on the enclosing
+node instead of its own; a repetition is right-recursive here and flat there. The
+last row is the serious one — `[[A, B], C]` and `[A, B, C]` produce **identical**
+ASTs, so grouping is destroyed rather than reshaped, and no later pass can
+recover which grammar was matched.
+
+One mechanism explains all five. `../descent` builds a node per rule
+*invocation*; this backend builds one per *dispatch*. A dispatch entry
+**consumes** the symbol it dispatched on and continues with a flat chain of rule
+names, so a rule entered *through* a dispatch never gets a node — its leaf, its
+children and its tag are absorbed by whatever enclosed it.
+
+That is also why `dispatchMap()` compiles a `Repeat` rule
+([`../data`](../data#the-repeat-rule)) back into the right-recursive chain it was
+folded from, rather than matching it iteratively as `../descent` does. The first
+set of a nullable item is inlined into whatever encloses it: a repetition leading
+a sequence (`[ws, value, ws]`) has its first set merged into that sequence's own
+entries, and the rules chain those entries carry is the only place the repetition
+can live on. A frame that loops cannot be reached from there. Doing it for only
+the *non-inlined* references would be worse than not doing it — one grammar would
+then produce a flat node in one position and a chain in another.
+
+Every row above is pinned by the `descentDivergence` proof group, so neither
+backend can drift without restating what the other produces.
+`../todo/ll1-ast-divergence.md` tracks the fix: a dispatch model where a rule is
+entered *before* its first symbol is consumed, which is a change
+[`new-parser`](../todo/new-parser.md) already contemplates.
 
 ## Logical EOF and the complete cursor
 
