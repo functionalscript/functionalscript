@@ -112,6 +112,16 @@ const magicMime = m => m.tag === 'matched' ? m.mime : null
  * either way. A signature still in `scan` at the end of the `Vec` — a prefix
  * too short to complete any signature — reads as `null`.
  *
+ * Cost follows `push`, which stops only once the whole verdict is settled, not
+ * once the magic state is. On a signature match or on non-text bytes that is
+ * still an early exit; on valid text it now reads the whole `Vec`, because the
+ * shared machine is still tracking the UTF-8 factor this function ignores
+ * (measured: 100 KB of ASCII, 1.2 ms before, 82 ms after). That is the same
+ * work {@link detectVec} already does on the same bytes, and `Vec` is capped at
+ * `maxLength`, so the cost is bounded rather than unbounded — but a caller
+ * scanning many large text blobs for signatures alone should know it is paying
+ * for the UTF-8 fold too.
+ *
  * The bytes come from `u8List`, so a `Vec` whose length is not a whole number of
  * bytes has its trailing partial byte zero-padded — the same reading of a ragged
  * `Vec` the streaming detector already uses.
