@@ -67,10 +67,12 @@ are then derived from the accepted set.
 
 ### A1. No side effects
 
-**Status:** undecided
+**Status:** accepted
 
 Code and functions don't have side effects: executing the same function
-with the same parameters always produces the same result.
+with the same parameters always produces the same result. This is FS
+principle 1 ([spec/README.md](../spec/README.md)); with A2, "same result"
+applies to runs that complete.
 
 ### A2. The runner may interrupt
 
@@ -82,18 +84,54 @@ limits are part of the specification.
 
 ### A3. Throws are preserved
 
-**Status:** undecided
+**Status:** accepted
 
 If a function is supposed to throw in JavaScript for some parameters, it
-must throw in FunctionalScript with the same parameters.
+must throw (fail) in FunctionalScript with the same parameters. Together
+with FS principle 2, the converse holds too: when JS completes with a
+value, an uninterrupted FS run completes with that value — so FS fails
+iff JS throws or the runner interrupts (A2).
 
 ### A4. Computation order is preserved
 
-**Status:** undecided
+**Status:** rejected — replaced by the opaque-error contract
 
-Computation order should be preserved. For example, if the code checks
-that parameters are in the right range and only then computes, it must
-happen in that order.
+Preserving observable computation order would forbid rearranging the
+graph (for canonical hashing) and most optimization. Rejection is sound
+only given A1 and only under the following contract.
+
+**Opaque-error contract.** For every input, a function's observable
+outcome is either its JS value or one indistinguishable "unexpected
+error":
+
+- an error carries no information out of a function — no error values,
+  types, or messages cross the function boundary (`throw password`
+  cannot leak; errors are not an exfiltration channel);
+- FS code cannot catch or inspect errors — stage 1 has no catch, and
+  failures propagate to the host. A future catch/Result facility
+  observes failure only at region granularity, and reordering must then
+  respect region boundaries;
+- a runner interrupt (A2) is observably the same "unexpected error":
+  aborts, JS-mandated throws, and non-termination all collapse into one
+  failure outcome;
+- runners may emit out-of-band diagnostics (which operation failed, and
+  where) for humans; FS code can never read them.
+
+Soundness: by A1 the completed value is order-independent; by A3 plus
+anchoring (subject 8) every may-throw operation still evaluates under
+any reordering, so fails-vs-completes is order-independent; reordering a
+throw behind a non-terminating computation yields failure either way
+(A2). Hence all evaluation orders of independent anchored entries are
+observably equal.
+
+Still illegal with A4 rejected:
+
+- **dropping** an anchored may-throw operation — A3 makes the anchor
+  list an existence guarantee (subject 8);
+- **speculating** a lazy operand — a not-taken branch may throw where JS
+  completes;
+- **merging** identical constructor nodes — object identity is
+  observable and sharing stays semantic (subject 1).
 
 ## Subjects
 
@@ -122,6 +160,11 @@ Kept from the original decision, unchanged:
   nested" is a valid normal form. Hash identity = structural identity of
   the graph as written (the name-erased source); hash equality does not
   decide semantic equivalence (same stance as Unison).
+  *Note (A4 rejected):* the throw-order half of this rationale is
+  superseded — under the opaque-error contract, canonical reordering and
+  inlining are *sound* modulo sharing, so a normal form is now possible
+  in principle. Whether to adopt one is parked with subject 9 (its
+  motivation is hash matching); stage 1 keeps hash-as-written.
 - **Lowering is one-way and lossy.** Lifetime and slot management — `pop`,
   top-relative indexing, auto-consuming RPN stack schemes — belong to the
   VM-internal bytecode
@@ -268,37 +311,39 @@ anchor list or a wrapper carrying metadata — parameter count for
 erases names and arity; without a wrapper, `toString` can only print a
 rest-parameter spelling).
 
-### 8. Anchored, JS-deterministic evaluation
+### 8. Anchored evaluation
 
-**Status:** decided
+**Status:** decided (revised under A4 rejected)
 
 **Resolution: every operation that may throw must be linked into the
-graph, and the anchor list is the syntax that links it.**
+graph; the anchor list is the syntax that links it, and it guarantees
+*existence*, not order.**
 
 - A throw is an effect. A reference edge can only express "the result is
-  needed here"; a may-throw operation needs "evaluate this, at this point
-  in the order, even if its value is never (or not yet) needed". A pure
-  data-flow DAG has no edge type for that, so the format needs dedicated
-  syntax: the body's anchor list — an n-ary `seq`, the function's effect
-  chain, mirroring source statement order. (Graph IRs solve this the same
-  way: control/effect edges alongside data edges.) The source language
-  needs no new syntax — the `const` statement *is* it.
+  needed here"; a may-throw operation needs "evaluate this even if its
+  value is never needed". A pure data-flow DAG has no edge type for that,
+  so the format needs dedicated syntax: the body's anchor list. (Graph
+  IRs solve this the same way: effect edges alongside data edges.) The
+  source language needs no new syntax — the `const` statement *is* it.
 - **All source consts are anchored, not only may-throw ones.** Anchoring
   only throwing operations would require effect analysis (`at`, `call`,
   `bindCall` throw; calls throw transitively), and the AST's shape would
   then depend on that analysis's precision — poisoning hash stability
   across compiler versions. Anchoring everything needs zero analysis and
   mirrors the source exactly.
-- Consequence: evaluation is **fully JS-eager-deterministic** — anchor
-  entries in source order, anonymous operands depth-first left-to-right
-  (JS's own expression order), every throwing operation fires exactly when
-  JS would fire it. Spec principle 2 ([spec/README.md](../spec/README.md))
-  holds outright; no stance on error identity or timing is needed.
-- Memoization by node identity is well-defined under this order: a shared
-  node evaluates at its first demand (for compiler output, its anchor
-  position) and is reused afterwards.
+- **Membership is semantic; order is not** (A4 rejected): every anchored
+  entry evaluates before the function completes normally, so A3's
+  fails-iff-JS-throws holds — but any evaluation order of independent
+  entries (including parallel) is legal under the opaque-error contract.
+  Data dependencies still order evaluation; lazy operands (subject 3) are
+  still never speculated.
+- Source order remains the written form — the reference presentation for
+  `toString(f)` and the natural implementation order — it just carries no
+  observable meaning beyond dependencies.
+- Memoization by node identity: a shared node evaluates at its first
+  demand and is reused afterwards.
 - Future: a branch operand carries its own nested anchor list, giving each
-  branch its per-branch effect order (subject 3).
+  branch its per-branch effect membership (subject 3).
 
 ### 9. Canonical graph serialization and hashing
 
