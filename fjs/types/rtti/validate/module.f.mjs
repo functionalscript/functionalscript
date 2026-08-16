@@ -96,38 +96,52 @@ const recordValidate = containerValidate(isObject)
  * Builds a validator for `Tuple` or `Struct` const schemas.
  * Iterates over the schema's entries and validates each corresponding
  * element/property of the value.
+ *
+ * `sizeOk` is where tuples and structs part company. A tuple is closed — the
+ * schema's length is the value's length — while a struct is open, because a
+ * value of type `{ readonly a: 42 }` may carry more properties under
+ * TypeScript's structural typing. See the rtti `README.md`.
  */
 const constContainerValidate =
     /**
      * @template {Unknown} C
      * @param {IsContainer<C>} isContainer
      * @param {(value: C, k: string) => Unknown} getItem
+     * @param {(value: C, size: number) => boolean} sizeOk
      * @returns {<T extends Tuple | Struct>(rtti: T) => Validate<T>}
      */
-    (isContainer, getItem) =>
-    rtti => value => {
-        if (!isContainer(value)) {
-            return verror('unexpected value')
+    (isContainer, getItem, sizeOk) =>
+    rtti => {
+        // Depends on `rtti` alone, so it is computed once per schema rather
+        // than once per validated value.
+        const rttiEntries = Object.entries(rtti)
+        const { length } = rttiEntries
+        return value => {
+            if (!isContainer(value) || !sizeOk(value, length)) {
+                return verror('unexpected value')
+            }
+            const r = eachEntry(
+                rttiEntries,
+                (k, v) => /** @type {any} */ (validate(v))(getItem(value, k)),
+                undefined,
+                noAccumulate,
+            )
+            // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
+            // structurally equivalent to C — TypeScript can't narrow element types through the loop.
+            return r[0] === 'error' ? r : /** @type {any} */ (ok(value))
         }
-        const r = eachEntry(
-            Object.entries(rtti),
-            (k, v) => /** @type {any} */ (validate(v))(getItem(value, k)),
-            undefined,
-            noAccumulate,
-        )
-        // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
-        // structurally equivalent to C — TypeScript can't narrow element types through the loop.
-        return r[0] === 'error' ? r : /** @type {any} */ (ok(value))
     }
 
 const tupleValidate = constContainerValidate(
     isArray,
-    (value, k) => value[Number(k)]
+    (value, k) => value[Number(k)],
+    (value, size) => value.length === size,
 )
 
 const structValidate = constContainerValidate(
     isObject,
-    (value, k) => value[k]
+    (value, k) => value[k],
+    () => true,
 )
 
 const orValidate =

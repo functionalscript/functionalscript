@@ -137,6 +137,6 @@ now.
 
 The data form constrains a tuple's length exactly (`{ prefix }` with no
 `rest` admits only `prefix.length` elements), matching the `Ts<T>` type-level
-mapping. The thunk-direct validator currently accepts extra tuple elements —
-see [`../todo/tuple-extra-elements.md`](../todo/tuple-extra-elements.md) for
-the divergence.
+mapping and the thunk-direct `validate`. See
+[`../README.md`](../README.md#tuples-are-closed-structs-are-open) for how the
+three runtime consumers line up on tuple length and struct keys.

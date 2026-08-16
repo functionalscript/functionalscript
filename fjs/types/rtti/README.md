@@ -28,6 +28,28 @@ A `Type` is one of:
   - `Struct` (`{ key: schema, ... }`) — validates each declared property
 - **`Thunk`** (`() => Info`) — a lazy schema for tag-based and recursive types
 
+### Tuples are closed, structs are open
+
+A tuple's length is part of its type, a struct's key set is not, and every
+runtime consumer follows `Ts<T>` on both counts:
+
+| | extra element / key | `validate` | `parse` | data form |
+| --- | --- | --- | --- | --- |
+| `Tuple` | `[42, 'extra']` against `[42]` | error | dropped | not in the set |
+| `Struct` | `{ a: 42, b: 'x' }` against `{ a: 42 }` | ok | dropped | in the set |
+
+The asymmetry is TypeScript's, not a quirk of these validators.
+`Ts<readonly [42]>` is the exact tuple `readonly [42]`, and a 2-element array
+is not assignable to it — so `validate` rejects one. A value of type
+`{ readonly a: 42 }` may carry more properties under structural typing — so
+`validate` accepts one.
+
+`parse` drops rather than rejects in both rows, and that is deliberate: it
+constructs a fresh value containing only what the schema declares, which
+makes it forward-compatible with a serialization format that grows fields.
+Rejecting there would trade that away for nothing — the value it returns
+already has the exact type.
+
 ## Built-in schemas
 
 The built-in schemas are all `Thunk`s — functions that return an `Info` descriptor.

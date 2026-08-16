@@ -162,7 +162,26 @@ export const proof = {
                 /** @typedef {Assert<Equal<Ts<typeof t>, readonly[42, 'hello']>>} _RoundTrip */
                 assertOk(validate(t)([42, 'hello']))
             },
-            extraItems: () => assertOk(validate(/** @type {const} */ ([42]))([42, 'extra'])),
+            // A tuple is closed: `Ts<readonly [42]>` is the exact tuple, and a
+            // 2-element array is not assignable to it. Unlike a struct's extra
+            // keys, which structural typing does allow — see `struct.extraKeys`.
+            extraItems: () => {
+                assertError(validate(/** @type {const} */ ([42]))([42, 'extra']))
+                assertError(validate(/** @type {const} */ ([42, 'hello']))([42, 'hello', 0]))
+            },
+            // The other side of the length check. Too few elements was already
+            // an error, but through the per-element walk, so it was reported at
+            // the first missing index; the length check now catches it first
+            // and reports it at the root, where the length itself lives.
+            missingItems: () => {
+                assertError(validate(/** @type {const} */ ([42]))([]))
+                assertError(validate(/** @type {const} */ ([42, 'hello']))([42]))
+            },
+            // An empty tuple schema admits exactly the empty array.
+            empty: () => {
+                assertOk(validate(/** @type {const} */ ([]))([]))
+                assertError(validate(/** @type {const} */ ([]))([1]))
+            },
             error: () => {
                 assertError(validate(/** @type {const} */ ([42]))([99]))
                 assertError(validate(/** @type {const} */ ([42]))({}))
