@@ -1,5 +1,6 @@
 # AST stage 1: discussion
 
+**Priority:** P2
 **Status:** open — working document for designing the stage 1 function AST.
 Each subject below is resolved separately; once all are **decided**, the
 result is distilled into a concrete design in [ast-spec.md](./ast-spec.md)
@@ -235,8 +236,8 @@ Kept from the original decision, unchanged:
 
 - **The AST mirrors the source; no normalization.** A source subexpression
   is an anonymous nested operand; a source `const` is a shared interior
-  node — or an assert-branch root when its value is unused
-  that other nodes reference. Sharing cannot be inlined away (it is
+  node that other nodes reference — or an assert-branch root when its
+  value is unused. Sharing cannot be inlined away (it is
   observable: `{} === {}` is `false`), and reordering is constrained by
   throw order (subject 8) — so neither "maximally flat" nor "maximally
   nested" is a valid normal form. Hash identity = structural identity of
@@ -329,12 +330,15 @@ open:
 
 **Status:** decided
 
-**Resolution: property order is semantic** — properties evaluate in the
-order written, per JS insertion-order semantics, which subject 8 adopts
-exactly. Sorted-key canonicalization (as `fjs compile` applies to data
-output, [spec/README.md](../spec/README.md)) must **not** be applied to
-object constructors: reordering keys reorders evaluation of throwing
-operands. Duplicate keys are a validation error.
+**Resolution: property order is semantic** — the written key order is
+part of the constructed *value*, not of the schedule: JS objects
+preserve insertion order (`Object.keys`, iteration, `JSON.stringify`),
+so reordering an object constructor's keys changes the resulting
+object. This holds with A4 rejected — the evaluation *order* of
+property operands is as free as any other (subject 8); what is fixed is
+the result. Sorted-key canonicalization (as `fjs compile` applies to
+data output, [spec/README.md](../spec/README.md)) must **not** be
+applied to object constructors. Duplicate keys are a validation error.
 
 ### 5. Validation
 
@@ -508,12 +512,12 @@ discussion. The notes below are kept so nothing is rediscovered later.
 Sharing is semantic (subject 1), so the canonical byte form must encode
 the **graph**, not a tree expansion:
 
-- deterministic CBOR needs sharing support (RFC 8949 tags 28/29 or a
-  profile-defined equivalent) with a canonical placement rule — e.g.
-  first use in evaluation order is the definition, later uses are
-  back-references. The back-reference indices are **derived** from the
-  graph, never authored (subject 1). Affects the CBOR task in
-  [mvp-roadmap](../../nanvm-lib/todo/mvp-roadmap.md).
+- deterministic CBOR needs sharing support (the IANA-registered
+  value-sharing tags 28/29, or a profile-defined equivalent) with a
+  canonical placement rule — e.g. first use in evaluation order is the
+  definition, later uses are back-references. The back-reference indices
+  are **derived** from the graph, never authored (subject 1). Affects
+  the CBOR task in [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md).
 - Hash-consing / content-addressed dedup must **not** merge structurally
   identical constructor nodes: `[{}, {}]` and `const x = {}; [x, x]` are
   semantically different, and a naive structural hash conflates them. The
