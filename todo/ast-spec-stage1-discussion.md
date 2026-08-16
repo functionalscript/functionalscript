@@ -159,6 +159,26 @@ does not evaluate those operands either.
 is not needed: the ternary operator is that node, spelled as JS spells
 it.
 
+**Throwing is the only effect.** In a purely functional language (A1)
+the sole side effect an eager computation can have is *throwing* — with
+non-termination and resource exhaustion collapsed into the same opaque
+failure (A2, A4). Everything else about a node is just its value.
+Consequences:
+
+- the whole membership apparatus — `comma`, subject 8, effect edges —
+  exists for this one effect. Were nothing able to throw, the AST would
+  be pure data flow: unreachable nodes could simply be dropped;
+- eager and lazy evaluation of an operand differ *only* in whether a
+  failure can be introduced. So the ban on **speculating** a lazy
+  operand (A4) is narrower than stated there: an operand **proven
+  non-throwing may be speculated**, hoisted, or evaluated in parallel —
+  the same as-if reasoning that lets a proof stand in for running a
+  guard (subject 8);
+- "may throw" is therefore the single predicate an optimizer needs.
+  Nodes proven total are freely movable and droppable — but **not
+  freely duplicable**: an object or array constructor creates observable
+  identity even though it cannot throw (subject 1).
+
 ## Assumptions
 
 Different graph-building rules follow from which of these assumptions are
@@ -294,7 +314,9 @@ Still illegal with A4 rejected:
 - **dropping** an anchored may-throw operation — A3 makes the `comma`
   merge an existence guarantee (subject 8);
 - **speculating** a lazy operand — a not-taken branch may throw where JS
-  completes;
+  completes; unless it is *proven* non-throwing, in which case
+  speculation is unobservable and allowed (see "Throwing is the only
+  effect" in [Operations](#operations));
 - **merging** identical constructor nodes — object identity is
   observable and sharing stays semantic (subject 1).
 
