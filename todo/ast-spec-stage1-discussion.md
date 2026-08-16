@@ -50,24 +50,66 @@ Agreed strengths (not under discussion):
 
 ### 1. Nested operations vs. the result array (canonical form)
 
-**Status:** open
+**Status:** decided
 
-Operand positions accept full operations, so operands can nest arbitrarily;
-but only top-level operations get result-array slots. Consequence: the same
-function has many spellings (nested vs. flattened), and CAVM hashing wants
-"one AST, one byte sequence, one hash" ([ast-spec](./ast-spec.md)).
+**Resolution: the AST mirrors the source structure, and the hash takes it
+as written.** There is no normalization between nested and flattened
+spellings, in either direction.
 
-Options:
+- A source subexpression is a *nested* operation; a source `const` (and any
+  function-level sharing) is a *top-level* operation referenced via `local`.
+  Operand positions accept any operation — constant, nested tuple, or
+  `local` — and the source determines which spelling you get.
+- Hash identity = structural identity of the AST, i.e. of the name-erased
+  source. Two differently written but semantically equal functions hash
+  differently — the same stance as Unison; hash equality does not decide
+  semantic equivalence.
+- `toString(f)` becomes a faithful round-trip: nested operations print as
+  expressions, top-level operations print as `const` lines.
 
-1. Canonical form = fully flattened: operands are constants or `["local", i]`
-   only; nesting is a validation error.
-2. Canonical form = maximally nested: `local` appears only at genuine sharing
-   points (a result referenced more than once); single-use intermediates must
-   be nested.
-3. Both spellings valid; hash identity is spelling-sensitive; canonicalization
-   is a later, separate concern.
+Why neither direction can be a normal form:
 
-To decide now even if stage 1 does not enforce it.
+- **Flattening is bytecode, not AST.** Fully-flat form forces lifetime and
+  slot management into the canonical format: `pop` to reclaim temps,
+  top-relative indexing, or auto-consuming operands with an explicit
+  `push`. *When* a temp is popped is an implementation choice, so two
+  producers would hash the same function differently; top-relative indexing
+  makes the same subexpression spell differently by context. Flat operands
+  also either repurpose bare numbers as references (breaking the
+  [DESIGN.md §8](../DESIGN.md) rule that host values describe themselves)
+  or tag every operand and lift every constant into a slot — maximum noise.
+  All of this machinery already has a home: the VM-internal bytecode
+  ([vm-command-format](../spec/todo/vm-command-format.md) NPN/RPN,
+  [call-like-instructions](../spec/todo/9100-call-like-instructions.md),
+  [function-frame](../spec/todo/3111-function-frame.md)), whose generator
+  does liveness analysis and may freely use auto-popping stack schemes.
+- **Inlining is not semantics-preserving.** Sharing is observable
+  (`{} === {}` is `false`; DJS already emits a `const` for any value
+  referenced more than once, [spec/README.md](../spec/README.md)), so a
+  multiply-referenced result cannot be inlined. And operations throw, so
+  inlining a single-use `const` past another throwing operation reorders
+  which error is raised. "Maximally nested" is therefore as broken a normal
+  form as "maximally flat".
+
+The layering this implies (recorded as part of the decision):
+
+- The AST is the information-rich, stable representation; lowering to
+  bytecode is **one-way and lossy**. Restoring the AST from auto-popping
+  bytecode is not required and not possible in general — the function
+  always carries its AST, so nothing ever needs to be restored.
+- The AST is the single input to *multiple* processors: the bytecode
+  interpreter, the `toString(f)` source printer, and AOT backends (Rust,
+  and potentially WASM or machine code). Nesting and scoping are preserved
+  precisely because those backends can exploit the structure; a flat form
+  would discard it for everyone.
+- Cost accepted: a tree-walking interpreter recurses on nesting depth, so a
+  hostile AST can threaten the native stack. Answer: a documented
+  implementation limit on depth (acceptable interim answer per
+  [DESIGN.md §1](../DESIGN.md)) and/or internal lowering to a stack form —
+  the interpreter's concern, not the format's.
+- Future extension noted for subject 3: operand positions may later hold
+  sub-sequences (arrays of operations — "substacks"), adding nested scopes
+  for lazy operands and branches.
 
 ### 2. Arguments reference: `["local", -1]` vs. a separate command
 
