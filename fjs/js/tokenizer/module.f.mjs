@@ -10,12 +10,12 @@
  *
  * @module
  *
- * @import { Scan, StateScan } from '../../types/function/operator/types.ts'
- * @import { RangeMapArray, RangeMerge } from '../../types/range_map/types.ts'
+ * @import { Reduce, Scan, StateScan } from '../../types/function/operator/types.ts'
+ * @import { RangeMerge } from '../../types/range_map/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Entry } from '../../types/ordered_map/types.ts'
  * @import { Range as NumberRange } from '../../types/range/types.ts'
- * @import { StringToken, NumberToken, BigIntToken, ErrorToken, WhitespaceToken, NewLineToken, IdToken, CommentToken, EofToken, JsToken, TokenMetadata, JsTokenWithMetadata, _TokenizerStateWithMetadata, _TokenizerState, _ErrorMessage, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken, } from './types.ts'
+ * @import { JsToken, TokenMetadata, JsTokenWithMetadata, _TokenizerStateWithMetadata, _TokenizerState, _ErrorMessage, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken, } from './types.ts'
  */
 
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
@@ -162,15 +162,18 @@ const rangeId = [digitRange, ...rangeIdStart]
 const appendChar = old => input => `${old}${fromCharCode(input)}`
 
 /**
- * @template T
- * @param {_CreateToToken<T>} def
- * @returns {(a: _CreateToToken<T>) => (b: _CreateToToken<T>) => _CreateToToken<T>}
+ * @type {<T>(a: T) => Reduce<T>}
  */
-const union = def => a => b => {
+const unionX = def => a => b => {
     if (a === def || a === b) { return b }
     if (b === def) { return a }
     throw [a, b]
 }
+
+/**
+ * @type {<T>(a: _CreateToToken<T>) => Reduce<_CreateToToken<T>>}
+ */
+const union = unionX
 
 /**
  * @template T
@@ -715,11 +718,6 @@ export const proof = {
     throw: {
         // union throws when two distinct non-default handlers are merged for the same range;
         // this path is unreachable through the public API (no overlapping ranges in practice).
-        unionConflict: () => {
-            const def = (/** @type {undefined} */ _) => todo
-            const a = (/** @type {undefined} */ _) => todo
-            const b = (/** @type {undefined} */ _) => todo
-            union(def)(a)(b)
-        }
+        unionConflict: () => unionX(0)(1)(2)
     }
 }
