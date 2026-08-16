@@ -463,6 +463,18 @@ order.**
     mandated failure (A3); an A2 interrupt is an engine artifact, never
     a cacheable verdict.
 
+- **Asserts are contracts, not validation.** A developer must never use
+  asserts to validate untrusted input — a function handling an HTTP
+  request must not guard the request with asserts, or any user can crash
+  the program (a DoS vector). Untrusted-input validation is an ordinary,
+  *expected* outcome and belongs in values (`Result` / `Nullable`,
+  [044-error-handling-pattern](./044-error-handling-pattern.md)); an
+  assert firing means the program itself is wrong — a breach of an
+  internal API contract. The opaque-error contract (A4) enforces this
+  discipline by construction: an error carries no information, so an
+  assert *cannot* tell a caller what was wrong with their input —
+  validation that needs to explain itself must produce a value.
+
   An engine that actually *skips* assert branches is conceivable only as
   a **debug mode** — a development tool showing the would-be result even
   when guards would fail. Such a mode is non-conforming by definition:
