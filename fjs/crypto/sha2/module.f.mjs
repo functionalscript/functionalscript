@@ -11,7 +11,7 @@
  * @import { Base, Sha2, State, V16, V8 } from './types.ts'
  */
 
-import { mask } from '../../types/bigint/module.f.mjs'
+import { divUp8, mask } from '../../types/bigint/module.f.mjs'
 import {
     vec,
     length,
@@ -257,6 +257,8 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
 const sha2 = ({ append, end, chunkLength }, hash, hashLength) => ({
     hashLength,
     blockLength: chunkLength,
+    hashBytes: divUp8(hashLength),
+    blockBytes: divUp8(chunkLength),
     init: {
         hash,
         len: 0n,
