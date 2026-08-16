@@ -152,7 +152,24 @@ error":
 
 - an error carries no information out of a function — no error values,
   types, or messages cross the function boundary (`throw password`
-  cannot leak; errors are not an exfiltration channel);
+  cannot leak; errors are not an exfiltration channel). Example of why,
+  interlocking with unordered branches:
+
+  ```js
+  const f = user => {
+      assert(authorizedUser(user))
+      // ... deep in the data path:
+      throw `invalid-api-key: ${apiKey}`
+  }
+  ```
+
+  With branches unordered, an engine may evaluate the data path before
+  the authorization guard — a race that would hand an unauthorized
+  caller the API key if throw payloads were observable. Opaque errors
+  make the race harmless: whichever throw fires first, the caller sees
+  the same information-free failure. Opaque errors are not only what
+  *permits* rejecting A4 — they are what makes unordered guards *safe*
+  in the presence of secret-carrying throws;
 - FS code cannot catch or inspect errors — stage 1 has no catch, and
   failures propagate to the host. A future catch/Result facility
   observes failure only at region granularity, and reordering must then
