@@ -127,7 +127,7 @@ node; `node` below means any of them.
 |`["()", object, args]`|`f(...args)`|1|call; `args` is one node yielding an array|
 |`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|1|method call; keeps `this` binding|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
-|`["function", frame, body]`|`(…) => …`|later|closures; `frame` yields the captured array (see below)|
+|`["=>", frame, body]`|`(…) => …`|later|closures; `frame` yields the captured array (see below)|
 
 Tags are **JS syntax wherever JS has syntax for the operation** — hence
 `"."`, `"()"`, `".()"` and `","` above, and the operator symbols
@@ -141,12 +141,22 @@ operand is a node, so `o.p` (a string constant) and `o[p]` (any
 expression) are the same operation with different operands. The AST
 does not carry 2330's static/computed distinction (subject 6).
 
+`"=>"` is the function constructor because FS has only **arrow
+functions** — there is exactly one spelling to reuse, so the tag is
+unambiguous. (`toString(f)` printing `["self"]` as a *named function
+expression* is a separate matter: that is the printer working around
+JS's lack of an expression for self-reference, not a second function
+form in the AST.)
+
 Word tags remain only where no unambiguous JS spelling exists:
 
 - `"args"` — FS has no `arguments` object to borrow a spelling from
   (subject 2);
-- `"function"`, `"frame"`, `"self"`, `"throw"` — no unambiguous JS
-  expression spells any of them.
+- `"frame"`, `"self"` — JS has no expression for either (`arguments`
+  is not FS's model, and `arguments.callee` is forbidden in strict
+  mode);
+- `"throw"` — a JS keyword, but a *statement*, so there is no
+  expression spelling to reuse.
 
 Symbol tags never collide with word tags, so both live in one namespace.
 
@@ -184,7 +194,7 @@ copied into a frame when the function object is created — the scheme
 ordinary indexing, `[".", ["frame"], 0]`, exactly as an argument is
 `[".", ["args"], 0]` (subject 2).
 
-Frame construction mirrors a call: `["function", frame, body]`, where
+Frame construction mirrors a call: `["=>", frame, body]`, where
 `frame` is one node evaluating to an array — built in the *enclosing*
 scope, usually `["[]", …]` — and `body` is the inner function's
 graph. Compare `["()", f, args]`: same shape, one for entering a call,
@@ -193,7 +203,7 @@ one for creating a closure.
 ```js
 // const f = x => { … const b = y => { … f(y) … }; … b(…) … }
 // inside f, building b — f puts its own ["self"] into b's frame:
-["function", ["[]", ["self"]], /* b's body */ …]
+["=>", ["[]", ["self"]], /* b's body */ …]
 // inside b, calling f — slot 0 of b's frame:
 ["()", [".", ["frame"], 0], ["[]", [".", ["args"], 0]]]
 ```
@@ -231,7 +241,7 @@ recursion with no special machinery.
   case.
 - **Binds to the innermost enclosing function**, exactly like
   `["args"]` — so it inherits the same open corner: once
-  `["function", …]` nests, a node using `["self"]` cannot be shared
+  `["=>", …]` nests, a node using `["self"]` cannot be shared
   across nesting depths (subject 3, subject 9).
 - **Word tag**: JS has no expression spelling for "this function"
   (`arguments.callee` is forbidden in strict mode). `toString(f)` can
@@ -606,7 +616,7 @@ The AST is the `Function` constructor's public input and will see shapes
 the FJS compiler would never emit. To validate:
 
 - constants: function values in constant position are a validation error
-  (until a `["function", ...]` node exists,
+  (until a `["=>", ...]` node exists,
   [function](../spec/todo/3110-function.md));
 - the body: a single operation node;
 - `","` (when introduced): at least two operands — a single-operand
@@ -668,7 +678,7 @@ freed the tag, and `[a, b]` is precisely how JS spells an array literal.
 The earlier objection — that `["[]", a, b]` would read as both a
 two-element array and `a[b]` — disappeared with access moved to `"."`.
 Word tags now survive only where JS genuinely has no expression
-spelling: `"args"`, `"frame"`, `"self"`, `"throw"`, `"function"`.
+spelling: `"args"`, `"frame"`, `"self"`, `"throw"`.
 
 ### 7. Top-level shape of a function
 
@@ -676,7 +686,7 @@ spelling: `"args"`, `"frame"`, `"self"`, `"throw"`, `"function"`.
 
 With the body a single operation node, no special top-level shape
 remains — every position, the body included, is a node, and the body
-composes directly into `["function", frame, body]`
+composes directly into `["=>", frame, body]`
 ([Operations](#operations)).
 
 To decide: whether stage 1's `Function` constructor input is the bare
@@ -904,7 +914,7 @@ an *expression* that evaluates to the final state.
 Two shapes to decide between:
 
 1. **A loop operation** — the AST gains a primitive whose operands are
-   the initial state and a step (a `["function", …]` node, subject 7)
+   the initial state and a step (a `["=>", …]` node, subject 7)
    from state to state; source `let` + `while` lowers to it. Every
    backend emits a real loop; nothing depends on TCO. Costs: a new
    operation, and a second way to express iteration alongside recursion,
