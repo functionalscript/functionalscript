@@ -13,8 +13,9 @@
  * nothing of `Result`: {@link step} runs its continuation whether or not the
  * previous effect failed, so a chain of fallible effects must forward each
  * `Result` by hand — {@link okStep} is that forwarding written once. The
- * branch-aware `step` / `catchStep` / `resultStep` that make it automatic are
- * the next stage of the migration, and land beside `IoEffect`.
+ * branch-aware `step` / `catchStep` / `resultStep` that make it automatic live
+ * in `./io/module.f.mjs`; the ones here stay for consumers still written
+ * against the raw contracts.
  *
  * **Three functions discriminate `Pure` from `Do`** — {@link step},
  * {@link match}, and {@link runPure} — plus the node proof in
@@ -314,7 +315,16 @@ export const forEachStep = (items, f) =>
  * `r[0] === 'error' ? pure(r) : f(r[1])` check that recurs at every site
  * chaining `Effect<O, Result<T, E>>` steps.
  *
- * @type {<T, E, O extends Operation, R>(f: (value: T) => Effect<O, Result<R, E>>) => (r: Result<T, E>) => Effect<O, Result<R, E>>}
+ * The effectful twin of `okThen` (`fjs/types/result/module.f.mjs`), down to how
+ * its type is quantified. **The two error types are unioned, not unified**, and
+ * `F` binds on the *second* arrow: `f` alone determines the value types, so one
+ * `okStep(f)` adapts results carrying any error type, and the incoming error is
+ * passed through as the very tuple it arrived as rather than being rebuilt to
+ * retag it into a wider type. The IoEffect `step` (`./io/module.f.mjs`) is
+ * exactly this adapter under raw `step`, and it is the union that lets adjacent
+ * links there fail in different ways.
+ *
+ * @type {<T, E, O extends Operation, R>(f: (value: T) => Effect<O, Result<R, E>>) => <F>(r: Result<T, F>) => Effect<O, Result<R, E | F>>}
  */
 export const okStep = f => r =>
     r[0] === 'error' ? pure(r) : f(r[1])

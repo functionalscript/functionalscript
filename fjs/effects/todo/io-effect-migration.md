@@ -205,41 +205,52 @@ fails to compile rather than merely contradicting a comment).
 
 ## Stage 2. Add IoEffect operations
 
-**Blocked by:** Stage 1 (done).
+**Done.** The stage landed as `fjs/effects/io/module.f.mjs` and its proof.
 
-- [ ] Add IoEffect `step`, `catchStep`, and `resultStep` with the signatures
+- [x] Add IoEffect `step`, `catchStep`, and `resultStep` with the signatures
       pinned above.
-- [ ] `step`: `ok` runs the continuation; `error` passes through.
-- [ ] `catchStep`: `error` runs the continuation; `ok` passes through.
-- [ ] `resultStep`: pass the complete `Result` to the continuation.
-- [ ] Allow adjacent links to contribute different error types and union them
+- [x] `step`: `ok` runs the continuation; `error` passes through.
+- [x] `catchStep`: `error` runs the continuation; `ok` passes through.
+- [x] `resultStep`: pass the complete `Result` to the continuation.
+- [x] Allow adjacent links to contribute different error types and union them
       per the signatures above.
-- [ ] Add the **constructors** without which the three steps cannot be used:
+- [x] Add the **constructors** without which the three steps cannot be used:
       a success lift (`v => pure(ok(v))`) and a failure lift
       (`e => pure(error(e))`). These are entry points, not speculative API
       mirroring.
-- [ ] Add the IoEffect `mapStep` (map over the `ok` value, pass `error`
+- [x] Add the IoEffect `mapStep` (map over the `ok` value, pass `error`
       through). [`map-step-combinator.md`](./map-step-combinator.md) already
       establishes that trailing pure projections must not be spelled as steps;
       without an Io `mapStep` every converted site would regress to that
       spelling.
-- [ ] Keep today's raw `step` and `okStep` available for old consumers during
+- [x] Keep today's raw `step` and `okStep` available for old consumers during
       migration.
-- [ ] Add proof coverage for propagation, recovery, joining, and mixed error
+- [x] Add proof coverage for propagation, recovery, joining, and mixed error
       types.
+
+The lifts are `pureOk` / `pureError`, not `ok` / `error`: those names belong to
+`fjs/types/result`, and every consumer during the migration both builds bare
+`Result`s and lifts them.
+
+**Raw `okStep` now unions its error types.** Io `step` is raw `step` over
+`okStep`, but `okStep` unified the two errors — the one thing this layer must
+not do — so its type quantifies the incoming error on the second arrow, exactly
+as `okThen` already did. It is a strict generalization (every previous
+instantiation is `F = E`), so the raw consumers it stays available for are
+unaffected.
 
 An Io-aware `historyStep` (carry the `ok` values forward, short-circuit on
 `error`) is **expected** to be needed as soon as `fjs/cas` migrates — its
-chains reach back to earlier values today. It may land here or at the start of
-Stage 4, but it should not be a surprise when Stage 4's "only when consumers
-require" triggers on the first consumer.
+chains reach back to earlier values today. It did not land here: no consumer
+exists yet to shape it, so it should not be a surprise when Stage 4's "only
+when consumers require" triggers on the first one.
 
 Every intermediate value remains one `IoEffect`; success and error are not
 represented as a pair of effects.
 
 ## Stage 3. Make operations IoEffect-compatible
 
-**Blocked by:** Stage 2.
+**Blocked by:** Stage 2 (done).
 
 - [ ] Convert operation contracts so the `Result` envelope is in the
       operation's declared return type and normal operation constructors

@@ -3,11 +3,12 @@
  * abstraction whose error channel is explicit, and `NotImplemented`, the error
  * a runner answers with when it cannot dispatch an operation.
  *
- * Stage 1 of the migration is types only — no operation, runner, or consumer
- * produces or consumes an `IoEffect` yet, and `step` / `catchStep` /
- * `resultStep` arrive with the sibling `module.f.mjs` in stage 2. Why the layer
- * exists, why the `Result` sits where it does, and what is deliberately absent:
- * [`./README.md`](./README.md).
+ * The composition API — `step`, `catchStep`, `resultStep`, the two lifts, and
+ * `mapStep` — is the sibling [`./module.f.mjs`](./module.f.mjs), whose
+ * signatures the asserts at the bottom of this file pin. No operation, runner,
+ * or consumer produces an `IoEffect` yet; that is stage 3 and stage 4. Why the
+ * layer exists, why the `Result` sits where it does, and what is deliberately
+ * absent: [`./README.md`](./README.md).
  */
 
 import type { Assert } from '../../asserts/types.ts'
@@ -15,6 +16,7 @@ import type { Unknown as Json } from '../../media/json/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { Do, Effect, Operation, Pure } from '../types.ts'
+import type { catchStep, mapStep, resultStep, step } from './module.f.mjs'
 
 /**
  * The runner cannot dispatch this operation and has **not** started it.
@@ -58,10 +60,10 @@ export type NotImplemented = readonly['notImplemented', string]
  * ordinary continuation.
  *
  * The alias is transparent, so every raw combinator already applies at this
- * instantiation; what stage 2 adds is the branch-aware vocabulary — `step`
- * propagates an error, `catchStep` recovers from one, `resultStep` observes
- * both. Recovery therefore never needs `try`/`catch`, which FunctionalScript
- * does not offer and whose `throw` stays reserved for panics.
+ * instantiation. What the sibling module adds is the branch-aware vocabulary —
+ * `step` propagates an error, `catchStep` recovers from one, `resultStep`
+ * observes both. Recovery therefore never needs `try`/`catch`, which
+ * FunctionalScript does not offer and whose `throw` stays reserved for panics.
  */
 export type IoEffect<O extends Operation, T, E> =
     Effect<O, Result<T, E>>
@@ -104,6 +106,37 @@ type _WidensOk = Assert<_Add extends IoEffect<_AddOp, number | string, NotImplem
 // `Effect`'s covariance in `O` survives the alias, so an effect keeps composing
 // with one that requests further commands.
 type _WidensOperations = Assert<_Add extends IoEffect<_AddOp | _MulOp, number, NotImplemented> ? true : false>
+
+// The composition signatures, checked rather than merely declared. The union
+// rules are the subtle part of this layer — a "simplification" that unified an
+// error channel instead of unioning it would still compile at the definition
+// and fail only at some future call site, so each is pinned at a concrete
+// instantiation here.
+//
+// `step` unions the operation sets and the errors, and replaces the success
+// type with the continuation's.
+type _StepSig = Assert<Equal<
+    ReturnType<typeof step<_AddOp, number, NotImplemented, _MulOp, string, string>>,
+    IoEffect<_AddOp | _MulOp, string, NotImplemented | string>>>
+
+// `catchStep` mirrors it: the success channel is the union of the preserved
+// value and the recovery's, and the error type is the recovery's alone —
+// `never` when every error is handled.
+type _CatchStepSig = Assert<Equal<
+    ReturnType<typeof catchStep<_AddOp, number, NotImplemented, _MulOp, string, never>>,
+    IoEffect<_AddOp | _MulOp, number | string, never>>>
+
+// `resultStep` consumes both branches, so it replaces both channels and unions
+// only the operation sets.
+type _ResultStepSig = Assert<Equal<
+    ReturnType<typeof resultStep<_AddOp, number, NotImplemented, _MulOp, string, string>>,
+    IoEffect<_AddOp | _MulOp, string, string>>>
+
+// `mapStep` widens nothing: a pure projection issues no commands and cannot
+// fail, so only the success type changes.
+type _MapStepSig = Assert<Equal<
+    ReturnType<typeof mapStep<_AddOp, number, NotImplemented, string>>,
+    IoEffect<_AddOp, string, NotImplemented>>>
 
 // `NotImplemented` is JSON data. This is the assert the "command name only"
 // rule exists to keep true: an operation's payload may hold functions, and
