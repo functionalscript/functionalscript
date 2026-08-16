@@ -39,6 +39,10 @@ const parseShape = rttiParse(packageJsonSchema)
  * The cast is what the successful parse just proved: `value` satisfies the
  * schema, and an open struct's type is satisfied by a value carrying more.
  *
+ * This is the only place in the tree that still needs "check the shape, return
+ * the original", and the module has no consumers — see
+ * [todo/remove-module.md](./todo/remove-module.md).
+ *
  * @type {(value: Unknown) => Result<PackageJson, ValidationError>}
  */
 export const validatePackageJson = value =>
