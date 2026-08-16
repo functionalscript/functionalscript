@@ -34,22 +34,27 @@ is its own review.
 One pull request per module, in this order — later ones depend on the types
 earlier ones settle.
 
-**`fjs/emergent_testing`** (9 sites). The reporter's writes, `all`, `await`,
-`sandbox` and `test`. `Reporter<O>`'s members return `Effect<O, void>`, and a
-`void` return position accepts a `Result`-valued effect silently, so the type
-has to change with the code or the discard just moves. The chain ends at
-`main`, which already produces an exit code — `exitStep` is the tail.
+**`fjs/emergent_testing`** (8 sites). The reporter's writes, `all`, `await`,
+`sandbox` and `test`. `Reporter<O>`'s `result` and `summary` return
+`Effect<O, void>`, and a `void` return position accepts a `Result`-valued
+effect silently, so those two types have to change with the code or the discard
+just moves; `test` returns `Effect<O, SandboxResult<unknown>>` and is not
+subject to that hazard. The chain ends at `main`, which already produces an exit
+code — `exitStep` is the tail.
 
-**`fjs/dev`** (3 bare `unwrap`s + one `all`). `loadModuleMap` panics on a
-`readdir` or `import` failure. Its consumer is `emergent_testing`'s `main`, so
-this and the module above meet at the same tail.
+**`fjs/dev`** (4 bare `unwrap`s: a `readdir`, an `import`, and two `all`s).
+`loadModuleMap` panics on any of them. Its consumer is `emergent_testing`'s
+`main`, so this and the module above meet at the same tail.
 
-**`fjs/cas/evo`** (5 sites). The cache slot behind `Evo<O>`. `list`, `head` and
-`revision` are declared `Effect<MemOp, …>`; propagating makes them
+**`fjs/cas/evo`** (5 sites). The cache slot behind `Evo<O>`. `list` and `head`
+are declared `Effect<MemOp, …>` and read the slot, so propagating makes them
 `IoEffect<MemOp, …, NotImplemented>`, which every `fjs/mcp/evo` tool handler
-then has to answer for — an MCP error response is the natural end, and
-`add` already returns a domain `Result<Hash, string>` that must **not** be
-collapsed into the effect's channel.
+then has to answer for — an MCP error response is the natural end. `revision`
+is `Effect<O | MemOp, Result<RevisionData, string>>` but is served by
+`readRevision(cas)` and never reaches the slot, so it does not move until the
+memoization its `MemOp` is reserved for arrives. Both it and `add` return a
+domain `Result` that must **not** be collapsed into the effect's channel — it
+is returned data, like `SandboxResult.result`.
 
 **`fjs/protocol/mcp` + `fjs/protocol/mcp/stdio`** (5 sites). Session state and
 `readLine`. The transport loop's `void` result is the same hazard as the
