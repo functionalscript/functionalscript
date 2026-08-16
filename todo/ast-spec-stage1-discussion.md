@@ -840,6 +840,50 @@ the **graph**, not a tree expansion:
 
 **Status:** open
 
+**The source rule: declare before use, plus self.** A nested function may
+reference any `const` defined *before* it, and itself — nothing else
+([forward-references](../spec/todo/3140-forward-references.md),
+[spec/README.md](../spec/README.md)):
+
+```ts
+const a = 0
+const f = () => {
+   const x = a * 3   // ok — a is defined before f
+   const y = b * 4   // error — b is not
+   return x + y
+}
+const b = 3
+```
+
+This is exactly what makes frames constructible. `["=>", frame, body]`
+evaluates its `frame` operand *first*, so every captured value must
+already exist; a forward reference would need a value that does not
+exist yet — a cycle, which subject 5 forbids. And it is why `["self"]`
+must be a primitive rather than a frame slot: self-reference is the one
+case where a function legitimately refers to something that does not
+exist when its frame is built.
+
+**The relaxation is an acyclicity rule.** Allowing a forward reference
+whenever the referent's computation graph does not depend on the
+referring function is precisely "the value graph stays a DAG". It is
+sound because *textual order is not observable*: module consts are pure
+(A1) and their failures are opaque (A4), so a compiler may topologically
+reorder them. What must hold is the dependency DAG, not the source
+order — the AST encodes no source order at all.
+
+Mutual recursion stays excluded even under the relaxation (`b` would
+depend on `f`), consistent with the open item in subject 9. Note that
+3140's proposed workaround —
+
+```ts
+const x = { a: () => x.b(), b: () => x.a() }
+```
+
+— is not merely a forward reference: under the frame model each closure
+would capture `x` while `x` is still being constructed, a cycle in the
+*value* graph. It needs the group mechanism from subject 9 (or passing
+the partner as an argument), not just relaxed ordering.
+
 The AST's only leaves are constants and `["args"]`. Nothing references a
 name the function did not compute itself:
 
