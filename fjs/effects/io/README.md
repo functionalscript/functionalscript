@@ -6,13 +6,13 @@ It is the **preferred high-level abstraction for fallible work**; the raw
 `Effect<O, T>` remains the low-level representation both it and the raw
 combinators are built from.
 
-This directory is stages 1 and 2 of the migration planned in
-[`../todo/io-effect-migration.md`](../todo/io-effect-migration.md): the types
-([`./types.ts`](./types.ts)) and the composition API
-([`./module.f.mjs`](./module.f.mjs)). No operation, runner, or consumer produces
-an `IoEffect` yet — stage 3 moves the `Result` envelope into the operations'
-declared return types, and stage 4 migrates the consumers — so adopting the
-layer is still additive.
+This directory is the layer itself — the types ([`./types.ts`](./types.ts)) and
+the composition API ([`./module.f.mjs`](./module.f.mjs)) — from the migration
+planned in
+[`../todo/io-effect-migration.md`](../todo/io-effect-migration.md). Every
+operation now declares a `Result` return and every runner answers with one
+(stage 3); what remains is migrating the consumers to compose with `step` /
+`catchStep` / `resultStep` instead of stating a policy per site (stage 4).
 
 ## Why the layer exists
 
@@ -76,9 +76,9 @@ shown it is.
 
 ### `pureOk` / `pureError`, not `ok` / `error`
 
-The two lifts are the only way into the layer until stage 3 gives the
-operations their `Result` envelope, so they are entry points rather than
-speculative API. They are *not* spelled `ok` / `error`: those names are
+The two lifts enter the layer from a plain value — the other way in is an
+operation, which now declares a `Result` return of its own. They are *not*
+spelled `ok` / `error`: those names are
 `fjs/types/result`'s, and a consumer that both builds bare `Result`s and lifts
 them — which is every consumer during the migration — would have to alias one
 pair at each import. `pure` is not free to shadow either; it is the raw lift,
@@ -114,6 +114,24 @@ channel obliges it to hand control back. The two mechanisms must not be
 conflated in either direction — a capability the runner merely lacks is answered
 with `NotImplemented`, never by killing the program, and a refusal to continue
 is an interruption, never dressed up as `NotImplemented`.
+
+## Leaving the layer
+
+Not every consumer is ready to compose. Two named policies exist so that a site
+which has not adopted the layer still has to *say* what it does with a failure
+rather than discard it:
+
+- `unwrapStep` (here) — panic on the error branch. It belongs where the caller
+  genuinely has no answer: a build tool that cannot read its own sources, a
+  reporter that cannot reach stdout. It is one greppable name rather than an
+  `unwrap` buried in a continuation, so the sites that have not yet chosen a
+  real policy are exactly the sites this name marks — and that is the worklist
+  stage 4 starts from.
+- `exitStep` / `errorMessage` (`../node/module.f.mjs`) — a `NodeProgram`'s
+  exit-code policy: report the failure on `stderr` and exit `1`.
+
+Neither is composition, and neither should grow: a consumer that can do
+something better with a failure wants `catchStep` or `resultStep`.
 
 ## What is deliberately absent
 

@@ -14,6 +14,7 @@
 
 import { mapStep, step } from '../effects/module.f.mjs'
 import { access, writeUtf8File } from '../effects/node/module.f.mjs'
+import { unwrapStep } from '../effects/io/module.f.mjs'
 import { functionalscript, images } from './config/module.f.mjs'
 import {
     architecture,
@@ -79,9 +80,11 @@ export const ci = ({ nodeExtra }) => step(
             },
             jobs,
         }
-        const workflowWritten = writeUtf8File(
+        // A generator that cannot write its own workflow file has nothing to
+        // fall back on, so the failure is this program's panic.
+        const workflowWritten = unwrapStep(writeUtf8File(
             '.github/workflows/ci.yml',
-            JSON.stringify(gha, null, '  '))
+            JSON.stringify(gha, null, '  ')))
         const flakesWritten = step(workflowWritten, () => nixFlakes(nixJobs))
         return mapStep(flakesWritten, () => 0)
     })

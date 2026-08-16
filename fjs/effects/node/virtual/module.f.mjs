@@ -5,7 +5,8 @@
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { MemOperationMap, RunInstance } from '../../mock/types.ts'
- * @import { Dirent, FileStat, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
+ * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
+ * @import { Error } from '../../../types/result/types.ts'
  * @import { Dir, State, _Entity } from './types.ts'
  */
 
@@ -14,6 +15,7 @@ import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
+import { ioError } from '../module.f.mjs'
 import { run } from '../../mock/module.f.mjs'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
 
@@ -67,12 +69,22 @@ const readOperation = op => operation((dir, path) => [dir, op(dir, path)])
 
 const okVoid = ok(undefined)
 
+/**
+ * A virtual host failure. The virtual runner reports the same normalized
+ * {@link IoError} the Node runner does, so a program cannot tell the two apart
+ * by the shape of what it catches — which is what makes a proof against the
+ * virtual filesystem evidence about the real one.
+ *
+ * @type {(message: string) => Error<IoError>}
+ */
+const fail = message => error(ioError({ message }))
+
 /** @type {(recursive: boolean) => (dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const mkdirOp = recursive => (dir, path) => {
     let d = {}
     let i = path.length
     if (i > 1 && !recursive) {
-        return [dir, error('non-recursive')]
+        return [dir, fail('non-recursive')]
     }
     while (i > 0) {
         i -= 1
@@ -86,7 +98,7 @@ const mkdirOp = recursive => (dir, path) => {
 const mkdir = recursive => operation(mkdirOp(recursive))
 
 /** Absent-path error mirroring Node's `ENOENT`, so `isNotFound` recognizes it. */
-const enoent = error({ code: 'ENOENT' })
+const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directory' }))
 
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<Vec>]} */
 const readFile = readOperation((dir, path) => {
@@ -105,7 +117,7 @@ const readFile = readOperation((dir, path) => {
         const chunkLen = length(chunk)
         if (chunkLen === 0n) { continue }
         if (length(result) + chunkLen > capBits) {
-            return error(`File size exceeds maximum allowed size of ${maxLengthBytes} bytes`)
+            return fail(`File size exceeds maximum allowed size of ${maxLengthBytes} bytes`)
         }
         result = msb.concat(result)(chunk)
     }
@@ -114,13 +126,13 @@ const readFile = readOperation((dir, path) => {
 
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<Module>]} */
 const import_ = readOperation((dir, path) => {
-    if (path.length !== 1) { return error('no such file') }
+    if (path.length !== 1) { return fail('no such file') }
     const entry = dir[path[0]]
-    if (typeof entry !== 'function') { return error(`'${path[0]}' is not a JsModule`) }
+    if (typeof entry !== 'function') { return fail(`'${path[0]}' is not a JsModule`) }
     return ok(entry())
 })
 
-const writeFileError = error('invalid file')
+const writeFileError = fail('invalid file')
 
 /** @type {(payload: Vec) => (dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const writeFileOp = payload => (dir, path) => {
@@ -135,7 +147,7 @@ const writeFileOp = payload => (dir, path) => {
 /** @type {(payload: Vec) => (path: string) => (state: State) => readonly [State, IoResult<void>]} */
 const writeFile = payload => operation(writeFileOp(payload))
 
-const invalidPath = error('invalid path')
+const invalidPath = fail('invalid path')
 
 const { entries } = Object
 
@@ -168,10 +180,10 @@ const access = readOperation((dir, path) => {
 
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const rmOp = (dir, path) => {
-    if (path.length !== 1) { return [dir, error('invalid path')] }
+    if (path.length !== 1) { return [dir, fail('invalid path')] }
     const [name] = path
     const entry = dir[name]
-    if (entry === undefined) { return [dir, error('no such file')] }
+    if (entry === undefined) { return [dir, fail('no such file')] }
     // No "is a directory" guard here: `operation`'s wrapper descends into
     // every plain-object (`Dir`) entry before this op ever runs, so `entry`
     // is always a `Vec[]` or a `JsModule` — never a bare `Dir` — and rm can
@@ -186,7 +198,7 @@ const rm = operation(rmOp)
 
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<_Entity>]} */
 const extractEntity = (dir, path) => {
-    if (path.length === 0) { return [dir, error('cannot extract root')] }
+    if (path.length === 0) { return [dir, fail('cannot extract root')] }
     if (path.length === 1) {
         const [name] = path
         const entry = dir[name]
@@ -218,16 +230,16 @@ const insertEntityAt = (dir, path, entity) => {
             const entityIsDir = !Array.isArray(entity) && typeof entity === 'object'
             const existingIsDir = !Array.isArray(existing) && typeof existing === 'object'
             if (entityIsDir && !existingIsDir) {
-                return [dir, error(`cannot overwrite file '${name}' with a directory`)]
+                return [dir, fail(`cannot overwrite file '${name}' with a directory`)]
             }
             if (!entityIsDir && existingIsDir) {
-                return [dir, error(`'${name}' is a directory`)]
+                return [dir, fail(`'${name}' is a directory`)]
             }
             if (entityIsDir && existingIsDir) {
                 const existingDir = existing
                 const hasContent = Object.values(existingDir).some(v => v !== undefined)
                 if (hasContent) {
-                    return [dir, error(`cannot overwrite non-empty directory '${name}'`)]
+                    return [dir, fail(`cannot overwrite non-empty directory '${name}'`)]
                 }
             }
         }
@@ -236,7 +248,7 @@ const insertEntityAt = (dir, path, entity) => {
     const [first, ...rest] = path
     const sub = dir[first]
     if (sub === undefined) { return [dir, enoent] }
-    if (sub instanceof Array || typeof sub === 'function') { return [dir, error('not a directory')] }
+    if (sub instanceof Array || typeof sub === 'function') { return [dir, fail('not a directory')] }
     const [newSub, result] = insertEntityAt(sub, rest, entity)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
@@ -252,7 +264,7 @@ const rename = (src, dst) => state => {
     // now that source exists, reject if dst is strictly inside src's subtree (rename into own descendant)
     // or if src is strictly inside dst's subtree (rename onto own ancestor)
     if (isProperPrefix(srcParsed, dstParsed) || isProperPrefix(dstParsed, srcParsed)) {
-        return [state, error('cannot rename a directory into its own subtree or onto an ancestor')]
+        return [state, fail('cannot rename a directory into its own subtree or onto an ancestor')]
     }
     const [dstRoot, dstResult] = insertEntityAt(srcRoot, dstParsed, srcResult[1])
     if (dstResult[0] === 'error') { return [state, dstResult] }
@@ -269,11 +281,11 @@ const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
     // before this op ever runs, and the `JsModule` case already threw above,
     // so `file` here is always a `Vec[]` — never a bare `Dir`.
     assert(Array.isArray(file), `'${p[0]}' is not a file`)
-    if (!Number.isInteger(offset)) { return error(`Offset ${offset} is not an integer`) }
-    if (!Number.isInteger(size)) { return error(`Chunk size ${size} is not an integer`) }
-    if (offset < 0) { return error(`Offset ${offset} is negative`) }
-    if (size < 0) { return error(`Chunk size ${size} is negative`) }
-    if (BigInt(size) > maxLengthBytes) { return error(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }
+    if (!Number.isInteger(offset)) { return fail(`Offset ${offset} is not an integer`) }
+    if (!Number.isInteger(size)) { return fail(`Chunk size ${size} is not an integer`) }
+    if (offset < 0) { return fail(`Offset ${offset} is negative`) }
+    if (size < 0) { return fail(`Chunk size ${size} is negative`) }
+    if (BigInt(size) > maxLengthBytes) { return fail(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }
     const chunks = file
     let toSkip = BigInt(offset) * 8n
     let toRead = BigInt(size) * 8n
@@ -301,7 +313,7 @@ const fileSizeBytes = chunks =>
     chunks.reduce((acc, c) => acc + Number(length(c) / 8n), 0)
 
 /** Absent-path error for an already-existing exclusive create, mirroring `EEXIST`. */
-const eexist = error({ code: 'EEXIST' })
+const eexist = error(ioError({ code: 'EEXIST', message: 'file already exists' }))
 
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const createExclusiveOp = (dir, path) => {
@@ -326,11 +338,11 @@ const writeBytesRawOp = (offset, data) => (dir, p) => {
     const [name] = p
     const file = dir[name]
     if (file === undefined) { return [dir, enoent] }              // writeBytes never creates
-    if (!Array.isArray(file)) { return [dir, error(`'${name}' is not a file`)] }
-    if (!Number.isInteger(offset) || offset < 0) { return [dir, error(`Offset ${offset} is invalid`)] }
+    if (!Array.isArray(file)) { return [dir, fail(`'${name}' is not a file`)] }
+    if (!Number.isInteger(offset) || offset < 0) { return [dir, fail(`Offset ${offset} is invalid`)] }
     const chunks = file
     if (offset !== fileSizeBytes(chunks)) {
-        return [dir, error(`writeBytes offset ${offset} must equal the file size (append-only)`)]
+        return [dir, fail(`writeBytes offset ${offset} must equal the file size (append-only)`)]
     }
     return [{ ...dir, [name]: [...chunks, data] }, okVoid]
 }
@@ -343,7 +355,7 @@ const statOp = readOperation((dir, path) => {
     if (path.length !== 1) { return enoent }
     const file = dir[path[0]]
     if (file === undefined) { return enoent }
-    if (!Array.isArray(file)) { return error(`'${path[0]}' is not a file`) }
+    if (!Array.isArray(file)) { return fail(`'${path[0]}' is not a file`) }
     return ok({ size: fileSizeBytes(file) })
 })
 
@@ -357,7 +369,7 @@ const map = {
             state = ns
             e = [...e, ei]
         }
-        return [state, e]
+        return [state, ok(e)]
     },
     memCreate: value => state => {
         const id = `mem${state.memoryNext}`
@@ -366,20 +378,20 @@ const map = {
             ...state,
             memoryNext: state.memoryNext + 1,
             memoryValues: { ...state.memoryValues, [id]: value },
-        }, key]
+        }, ok(key)]
     },
     memRead: key => state =>
-        [state, state.memoryValues[asBase(key)]],
+        [state, ok(state.memoryValues[asBase(key)])],
     memWrite: (key, value) => state => {
         const id = asBase(key)
         return [{
             ...state,
             memoryValues: { ...state.memoryValues, [id]: value },
-        }, undefined]
+        }, okVoid]
     },
     fetch: url => state => {
         const result = state.internet[url]
-        return result === undefined ? [state, error('not found')] : [state, ok(result)]
+        return result === undefined ? [state, fail('not found')] : [state, ok(result)]
     },
     mkdir: (path, p) => mkdir(p !== undefined)(path),
     readFile,
@@ -393,12 +405,12 @@ const map = {
     createExclusive,
     writeBytes: writeBytesOp,
     stat: statOp,
-    randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, state.randomNext],
+    randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, ok(state.randomNext)],
     exec: todo,
     createServer: todo,
     listen: todo,
     forever: todo,
-    now: () => state => [state, state.epochNs],
+    now: () => state => [state, ok(state.epochNs)],
     // Virtual sandbox is a pass-through: the fixture's test function is
     // expected to return a `SandboxResult` directly (encoding pass/fail and a
     // chosen duration), so the handler invokes it without try/catch or clock
@@ -406,18 +418,18 @@ const map = {
     // result instead of the runner measuring real execution. A genuine
     // exception in a fixture propagates loudly as a bug in the fixture.
     // See: issues/156-tf-virtual-tests.md
-    sandbox: f => state => [state, /** @type {SandboxResult<unknown>} */ (f())],
-    await: p => state => [state, [p]],
+    sandbox: f => state => [state, ok(/** @type {SandboxResult<unknown>} */ (f()))],
+    await: p => state => [state, ok([p])],
     test: todo,
     write: (stream, data) => state => {
         const s = utf8ToString(data)
-        return [{ ...state, [stream]: `${state[stream]}${s}` }, undefined]
+        return [{ ...state, [stream]: `${state[stream]}${s}` }, okVoid]
     },
     read: () => state => {
         const [first, ...rest] = state.stdin
         return state.stdin.length === 0
-            ? [state, null]
-            : [{ ...state, stdin: rest }, first]
+            ? [state, ok(null)]
+            : [{ ...state, stdin: rest }, ok(first)]
     },
 }
 

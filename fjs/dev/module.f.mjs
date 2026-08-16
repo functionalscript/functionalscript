@@ -73,9 +73,12 @@ const allFiles = (s, predicate) => {
                 }
                 return all(...result)
             })
+        // `all`'s own result is unwrapped like every other operation's in this
+        // module: a dev tool that cannot list a directory has no fallback, so
+        // the failure is a panic here rather than a value threaded upward.
         return step(
             x0,
-            v => pure(v.flat()))
+            v => pure(unwrap(v).flat()))
     }
     return load(s)
 }
@@ -118,7 +121,7 @@ export const loadModuleMap = env => {
     return step(
         x0,
         entries => pure(fromEntries(
-            entries
+            unwrap(entries)
                 .flat()
                 .map(([k, v]) => /** @type {const} */ ([relativize(prefix, k), v]))
                 .toSorted(([a], [b]) => strCmp(a)(b))

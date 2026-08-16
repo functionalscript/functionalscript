@@ -14,7 +14,7 @@
 
 import { mapStep, step } from '../../effects/module.f.mjs'
 import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrapStep } from '../../effects/io/module.f.mjs'
 import { data } from '../module.f.mjs'
 import { directory, generate, path } from '../rust/module.f.mjs'
 
@@ -24,9 +24,9 @@ import { directory, generate, path } from '../rust/module.f.mjs'
  * @type {() => Effect<Mkdir | WriteFile, void>}
  */
 export const generateRustTests = () => {
-    const directoryReady = mapStep(mkdir(directory, { recursive: true }), unwrap)
+    const directoryReady = unwrapStep(mkdir(directory, { recursive: true }))
     const written = step(directoryReady, () => writeUtf8File(path, generate(data)))
-    return mapStep(written, unwrap)
+    return unwrapStep(written)
 }
 
 /** @type {NodeProgram} */

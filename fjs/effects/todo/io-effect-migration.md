@@ -250,15 +250,17 @@ represented as a pair of effects.
 
 ## Stage 3. Make operations IoEffect-compatible
 
-**Blocked by:** Stage 2 (done).
+**Done.** Every operation in `fjs/effects/node/types.ts` and
+`fjs/effects/memory/types.ts` now declares a `Result` return, every runner
+answers with one, and `IoError` exists.
 
-- [ ] Convert operation contracts so the `Result` envelope is in the
+- [x] Convert operation contracts so the `Result` envelope is in the
       operation's declared return type and normal operation constructors
       return `IoEffect` (see "Where the `Result` envelope lives").
-- [ ] Update every runner handler in the same change as its operation:
+- [x] Update every runner handler in the same change as its operation:
       infallible handlers wrap their output in `ok(...)`; fallible handlers
       keep their behavior with a refined error type.
-- [ ] **Every operation converts; the sweep is total.** There is no list of
+- [x] **Every operation converts; the sweep is total.** There is no list of
       operations worth converting and no exemption for trivially-total ones —
       an operation left on the raw contract is a hole in the error channel,
       and Stage 6's "a runner may omit any handler" applies to all operations
@@ -268,26 +270,60 @@ represented as a pair of effects.
       changes the value its consumers receive. Degenerate shapes convert on
       the same principle — `Result<never, NotImplemented>` simply has only
       its error branch inhabited.
-- [ ] Convert each operation together with a sweep of its value-discarding
+- [x] Convert each operation together with a sweep of its value-discarding
       call sites: continuations that use the value break loudly at `tsc`,
       while continuations that discard it (`() => next`) keep compiling and
       silently ignore the new error channel — the very hazard motivating this
       migration.
-- [ ] Even operations without domain-specific failures include
+- [x] Even operations without domain-specific failures include
       `NotImplemented`.
-- [ ] Fallible operations extend the error channel with their own errors, e.g.
+- [x] Fallible operations extend the error channel with their own errors, e.g.
       `NotImplemented | IoError`.
-- [ ] Avoid bare `unknown` as the long-term error type when it would erase the
+- [x] Avoid bare `unknown` as the long-term error type when it would erase the
       `NotImplemented` distinction; normalize host failures into a distinct
       error representation where needed.
-- [ ] Preserve nested/domain `Result` only when `Result` is genuinely returned
+- [x] Preserve nested/domain `Result` only when `Result` is genuinely returned
       data rather than effect execution status (e.g. `SandboxResult.result`,
       which reports the sandboxed function's outcome, stays as data).
-- [ ] Do not migrate all consumers in this stage.
+- [x] Do not migrate all consumers in this stage.
+
+Two aliases carry the envelope: `OpResult<T>` (`Result<T, NotImplemented>`) for
+an operation with no failures of its own, and `IoResult<T>` — refined in place
+from `Result<T, unknown>` — for one that performs host IO
+(`Result<T, NotImplemented | IoError>`).
+
+`IoError` is `readonly['ioError', { code?, message }]`, a tagged tuple beside
+`NotImplemented` so the shared channel stays discriminable, in
+`fjs/effects/node/types.ts` beside the operations it belongs to. `toIoError`
+normalizes a thrown host value at the one boundary where an impure runner
+catches; the virtual runner reports the same shape, so a proof against the
+virtual filesystem stays evidence about the real one.
+
+**`Write` and `Read` stayed `OpResult`.** They are host IO and could fail
+(`EPIPE`), but this stage's rule for a currently-infallible handler is to wrap
+its output in `ok(...)`, not to invent a failure it never reported. Promoting
+them to `IoResult` is a behavior change and belongs in its own issue.
+
+**The value-discarding sweep needed a vocabulary for policy**, since a site
+that discarded the outcome had to start stating what it wants instead:
+
+- `unwrapStep` (`fjs/effects/io/module.f.mjs`) — leave the layer by panicking.
+  It is one greppable name rather than an `unwrap` buried in a continuation, so
+  the set of sites that have *not* yet chosen a real policy is exactly the set
+  Stage 4 has to visit.
+- `exitStep` and `errorMessage` (`fjs/effects/node/module.f.mjs`) — a
+  `NodeProgram`'s exit-code policy: report on `stderr`, exit `1`.
+
+`errorExit` keeps discarding its own write's outcome, deliberately: the program
+is already failing, and the exit code is `1` whether or not `stderr` accepted
+the bytes.
 
 ## Stage 4. Migrate consumers
 
-**Blocked by:** Stage 3.
+**Blocked by:** Stage 3 (done).
+
+Start from the `unwrapStep` call sites: each one is a consumer that has not yet
+chosen a policy beyond "panic".
 
 - [ ] Migrate consumers module by module to IoEffect composition.
 - [ ] Replace `step(e, okStep(f))` and equivalent manual propagation with

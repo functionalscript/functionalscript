@@ -7,7 +7,7 @@
 import { assert, assertEq, todo } from '../../asserts/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { do_, match, runPure } from '../module.f.mjs'
-import { catchStep, mapStep, pureError, pureOk, resultStep, step } from './module.f.mjs'
+import { catchStep, mapStep, pureError, pureOk, resultStep, step, unwrapStep } from './module.f.mjs'
 
 /**
  * A fallible operation, spelled the way stage 3 will spell every operation: the
@@ -199,6 +199,23 @@ export const proof = {
         overDo: () => {
             const e = resultStep(div(1, 0), ([tag]) => pureOk(tag))
             assertOk(run(e), 'error')
+        },
+    },
+    unwrapStep: {
+        // An `ok` leaves the layer as an ordinary raw effect, carrying the
+        // value rather than the `Result` around it.
+        ok: () => {
+            const o = runPure(unwrapStep(pureOk(5)))
+            assert(o.length === 1, o)
+            assertEq(o[0], 5)
+        },
+        // An `error` is a panic — the policy the name exists to make greppable.
+        // It throws where the composition is written, since `mapStep` forces a
+        // `Pure` head immediately.
+        throw: {
+            error: () => {
+                unwrapStep(pureError('boom'))
+            },
         },
     },
     mapStep: {

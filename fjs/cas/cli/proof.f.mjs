@@ -54,9 +54,10 @@ export const proof = {
     mainAddMissingFile: () => {
         // The source path doesn't exist, so `streamFile`'s first read comes back as an
         // error item; `write` fails closed with that error and the handler exits 1
-        // without ever calling `log` — covers the `hashResult[0] === 'error'` branch.
-        const [, exitCode] = virtual(emptyState)(main(makeOptions(['add', 'missing'])))
+        // without ever calling `log` — covers `exitStep`'s error branch.
+        const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['add', 'missing'])))
         assertEq(exitCode, 1)
+        assertEq(finalState.stderr, 'no such file or directory\n', finalState.stderr)
     },
     mainGetFound: () => {
         const content = vec8(0x2An)
@@ -76,7 +77,10 @@ export const proof = {
         // use an empty store so the hash is not found
         const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['get', hashStr, 'output'])))
         assertEq(exitCode, 1, ['expected exit 1', exitCode])
-        assert(finalState.stderr.length !== 0, 'expected error in stderr')
+        // The *message*, not just a non-empty line: the failure reaches the user
+        // as the host's own words. Asserting only that something was written is
+        // what let a stringified error tuple (`ioError,[object Object]`) pass.
+        assertEq(finalState.stderr, 'no such file or directory\n', finalState.stderr)
     },
     mainGetWrongArgs: () => {
         const [finalState, exitCode] = virtual(emptyState)(main(makeOptions(['get'])))

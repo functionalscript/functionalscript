@@ -12,6 +12,7 @@ import {
     assertStructurallySame,
 } from '../../asserts/module.f.mjs'
 import { pure } from '../../effects/module.f.mjs'
+import { ioError } from '../../effects/node/module.f.mjs'
 import { fileCas } from '../module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
@@ -33,7 +34,7 @@ const home = '.'
 /** @type {Cas<never>} */
 const writeFailingCas = {
     read: () => elEmpty(),
-    write: () => pure(error('boom')),
+    write: () => pure(error(ioError({ message: 'boom' }))),
     list: () => pure([]),
 }
 
@@ -42,8 +43,8 @@ const writeFailingCas = {
 // large for `collectRead` to buffer looks like to a caller.
 /** @type {Cas<never>} */
 const readFailingCas = {
-    read: () => nonEmpty(error('boom'), elEmpty()),
-    write: () => pure(error('write not supported')),
+    read: () => nonEmpty(error(ioError({ message: 'boom' })), elEmpty()),
+    write: () => pure(error(ioError({ message: 'write not supported' }))),
     list: () => pure([]),
 }
 
@@ -56,10 +57,10 @@ const fixedCas = entries => ({
     read: hash => {
         const found = entries.find(([h]) => vecToCBase32(h) === vecToCBase32(hash))
         return found === undefined
-            ? nonEmpty(error('not found'), elEmpty())
+            ? nonEmpty(error(ioError({ message: 'not found' })), elEmpty())
             : nonEmpty(ok(found[1]), elEmpty())
     },
-    write: () => pure(error('write not supported')),
+    write: () => pure(error(ioError({ message: 'write not supported' }))),
     list: () => pure(entries.map(([h]) => h)),
 })
 

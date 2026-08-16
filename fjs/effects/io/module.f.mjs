@@ -42,11 +42,11 @@
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
- * @import { Operation } from '../types.ts'
+ * @import { Effect, Operation } from '../types.ts'
  * @import { IoEffect } from './types.ts'
  */
 
-import { error, mapOk, ok } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok, unwrap } from '../../types/result/module.f.mjs'
 import { mapStep as rawMapStep, okStep, pure, step as rawStep } from '../module.f.mjs'
 
 /**
@@ -197,3 +197,23 @@ export const resultStep = rawStep
  * @type {<O extends Operation, T, E, R>(e: IoEffect<O, T, E>, f: (t: T) => R) => IoEffect<O, R, E>}
  */
 export const mapStep = (e, f) => rawMapStep(e, mapOk(f))
+
+/**
+ * Leaves the layer by **panicking** on the error branch: `ok` values continue
+ * as an ordinary raw `Effect`, an `error` is thrown.
+ *
+ * This is the program exercising its right to treat a failure as fatal, and it
+ * is a policy — not a conversion. It belongs at a site that genuinely has no
+ * answer to the failure: a build tool that cannot read its own sources, a
+ * proof whose fixture is missing. Where a caller could do something else,
+ * {@link catchStep} or {@link resultStep} is the honest spelling, and a chain
+ * that merely passes the failure along wants {@link step}.
+ *
+ * It is deliberately one greppable name rather than an `unwrap` buried in each
+ * continuation. Every occurrence is a site that has chosen to panic, so the
+ * choice can be reviewed, and the set of sites that have not yet chosen
+ * anything better is exactly the set this name marks.
+ *
+ * @type {<O extends Operation, T, E>(e: IoEffect<O, T, E>) => Effect<O, T>}
+ */
+export const unwrapStep = e => rawMapStep(e, unwrap)

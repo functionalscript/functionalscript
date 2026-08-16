@@ -12,7 +12,7 @@ import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
 import { fileCas, casAddFile, collectRead } from './module.f.mjs'
 import { match, pure, runPure, step } from '../effects/module.f.mjs'
-import { mkdir, writeFile, rm, readFile, access } from '../effects/node/module.f.mjs'
+import { ioError, mkdir, writeFile, rm, readFile, access } from '../effects/node/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
@@ -48,8 +48,8 @@ const casCommand = match({
 /** @type {(cmd: string) => unknown} */
 const casDefaultResponse = cmd => {
     switch (cmd) {
-        case 'now': return 0
-        case 'randomInt': return 0
+        case 'now': return ok(0)
+        case 'randomInt': return ok(0)
         case 'mkdir': case 'createExclusive': case 'rename': case 'rm':
         case 'writeBytes': case 'access':
             return ok(undefined)
@@ -117,6 +117,15 @@ const drive = overrides => {
  * result really is an `error` pair rather than assuming it: these proofs exist
  * to establish that a write fails closed, so the shape is the claim.
  */
+/**
+ * Asserts that a channel error is a host failure carrying `message`.
+ * @type {(e: unknown, message: string) => void}
+ */
+const assertIoMessage = (e, message) => {
+    assert(e instanceof Array && e[0] === 'ioError', ['expected an ioError', e])
+    assertEq(e[1].message, message)
+}
+
 /** @type {(result: unknown) => unknown} */
 const errorMessage = result => {
     assert(result instanceof Array && result.length === 2 && result[0] === 'error',
@@ -298,7 +307,7 @@ export const proof = {
         /** @type {IoResult<Vec>} */
         const okItem = ok(vec8(0x11n))
         /** @type {IoResult<Vec>} */
-        const errItem = error({ code: 'BOOM' })
+        const errItem = error(ioError({ code: 'BOOM', message: 'boom' }))
         /** @type {List<FileCasOperation, IoResult<Vec>>} */
         const payload = nonEmpty(okItem, nonEmpty(errItem, /** @satisfies {List<FileCasOperation, IoResult<Vec>>} */ (empty())))
         const [state1, result] = virtual(emptyState)(c.write(payload))
@@ -382,8 +391,8 @@ export const proof = {
         const c = fileCas(sha256)('.')
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
-        const [result, log] = drive({ writeBytes: [error('disk full')] })(c.write(payload))
-        assertEq(errorMessage(result), 'disk full')
+        const [result, log] = drive({ writeBytes: [error(ioError({ message: 'disk full' }))] })(c.write(payload))
+        assertIoMessage(errorMessage(result), 'disk full')
         // The cleanup `rm` of the partial staging file must actually run, not just be
         // implied by the returned error tag.
         assertEq(log[log.length - 1], 'rm', ['expected cleanup rm to run', log])
@@ -394,8 +403,8 @@ export const proof = {
         const c = fileCas(sha256)('.')
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
-        const [result, log] = drive({ rename: [error('rename failed')] })(c.write(payload))
-        assertEq(errorMessage(result), 'rename failed')
+        const [result, log] = drive({ rename: [error(ioError({ message: 'rename failed' }))] })(c.write(payload))
+        assertIoMessage(errorMessage(result), 'rename failed')
         assertEq(log[log.length - 1], 'rm', ['expected cleanup rm to run', log])
     },
     casWritePublishSizeMismatchErrors: () => {
@@ -410,7 +419,7 @@ export const proof = {
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
         const [result] = drive({ stat: [ok({ size: 999 })] })(c.write(payload))
-        assertEq(errorMessage(result), 'publish size mismatch')
+        assertIoMessage(errorMessage(result), 'publish size mismatch')
     },
     casWritePublishStatErrorErrorsEvenWithMatchingSize: () => {
         // Pins the tag half of the same check: a `stat` that fails outright must still
@@ -423,7 +432,7 @@ export const proof = {
         /** @type {List<never, IoResult<Vec>>} */
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
         const [result] = drive({ stat: [error({ size: 1 })] })(c.write(payload))
-        assertEq(errorMessage(result), 'publish size mismatch')
+        assertIoMessage(errorMessage(result), 'publish size mismatch')
     },
     collectReadDrainsChunks: () => {
         // The common path: every chunk is `ok`, so collectRead concatenates them all
@@ -437,14 +446,14 @@ export const proof = {
     collectReadPropagatesErrorItem: () => {
         // An error item mid-stream short-circuits collectRead with that same error.
         /** @type {IoResult<Vec>} */
-        const boom = error('boom')
+        const boom = error(ioError({ message: 'boom' }))
         /** @type {List<never, IoResult<Vec>>} */
         const stream = nonEmpty(ok(vec8(0x11n)), nonEmpty(boom, /** @satisfies {List<never, IoResult<Vec>>} */ (empty())))
         const o = runPure(collectRead(stream))
         assert(o.length === 1, 'expected collectRead to finish without issuing a command')
         const [r] = o
         assertEq(r[0], 'error')
-        assertEq(r[1], 'boom')
+        assertEq(r[1], boom[1])
     },
     // A single `Vec` cannot exceed `maxLength` bits — feed a pure stream whose second
     // chunk pushes the running total just over the limit so the overflow guard fires
@@ -463,7 +472,7 @@ export const proof = {
         // A non-ENOENT `access` failure (permissions, corruption) is a genuine storage
         // error and must propagate out of `list`, not be swallowed as an empty store.
         const c = fileCas(sha256)('.')
-        const boom = { code: 'EACCES' }
+        const boom = ioError({ code: 'EACCES', message: 'permission denied' })
         const r = casCommand(c.list())
         assert(r[0] === 'cont', 'expected list() to issue an access command first')
         assertEq(r[1], 'access')
