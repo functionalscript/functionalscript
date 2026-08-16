@@ -12,7 +12,7 @@
  */
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-import { bitLength, divUp8, roundUp8 } from '../../types/bigint/module.f.mjs'
+import { bitLength, roundUp8 } from '../../types/bigint/module.f.mjs'
 import { empty, length, msb, repeat, unpack, vec, vec8 } from '../../types/bit_vec/module.f.mjs'
 import { hmac } from '../hmac/module.f.mjs'
 import { computeSync } from '../sha2/module.f.mjs'
@@ -75,7 +75,7 @@ export const computeK =
         //    step and all subsequent steps, we use the same H function as the
         //    one used in step 'a' to process the input message; this choice
         //    will be discussed in more detail in Section 3.6.
-        const rep = repeat(divUp8(hf.hashLength))
+        const rep = repeat(hf.hashBytes)
         const v0 = rep(x01)
         // c. Set:
         //      K = 0x00 0x00 0x00 ... 0x00

@@ -44,8 +44,8 @@ const iPad = vec8(0x36n)
  * that takes a message and computes the HMAC.
  */
 export const hmac = hashFunc => {
-    const { blockLength } = hashFunc
-    const p = repeat(blockLength >> 3n)
+    const { blockLength, blockBytes } = hashFunc
+    const p = repeat(blockBytes)
     const ip = p(iPad)
     const op = p(oPad)
     const c = computeSync(hashFunc)
