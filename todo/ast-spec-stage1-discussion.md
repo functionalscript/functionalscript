@@ -403,24 +403,23 @@ order.**
   not be reachable from any other entry. Without this rule the same
   function could be spelled with or without redundant
   listed-but-referenced entries, needlessly splitting hashes.
-- **Branch ordering — a property, not a plan.** Since branch order is
-  free, assert branches *could* be normalized:
-  - **smallest to biggest** (subgraph node count, shared nodes counted
-    once, deterministic tie-breaker) — the spelling doubles as the
-    default schedule, simple asserts firing first;
-  - **lexicographical hash order** — a parser sorts assert branches by
-    their content hash, so the function itself has a stable hash
-    regardless of how the source ordered its asserts; the hash is its
-    own total order and tie-breaker (details ride on the canonical graph
-    serialization, subject 9). The resulting branch stays at its fixed
-    head position, outside the sorted set.
-  Because order is not semantic, the canonical *written* order and the
-  runtime *schedule* decouple: hash order for the spelling and
-  cheapest-first for the schedule can coexist. None of this is for the
-  first implementation, possibly ever: its value is what it demonstrates
-  — under assumptions A1–A4, this DAG admits very aggressive
-  optimization and normalization by us and by any other engine, with no
-  coordination, because every such transformation is already sound.
+- **Branch ordering: the spec owns the spelling; engines own the
+  schedule.** What matters for the specification is **canonical order**:
+  the resulting branch at its fixed head, and (eventually) a canonical
+  order for the assert tail — the leading candidate is
+  **lexicographical content-hash order**, which gives the function a
+  stable hash regardless of how the source ordered its asserts, with the
+  hash as its own total order and tie-breaker (details ride on the
+  canonical graph serialization, subject 9). Not for the first
+  implementation.
+  How engines *prioritize* branches is deliberately unspecified — order
+  is not semantic, so any schedule is legal: racing cheap guards first
+  (fail-fast), parking expensive branches, full parallelism — or none of
+  it. A `throw` in FS is the analogue of a panic in other languages, so
+  engines may reasonably assume asserts rarely fire and optimize for the
+  happy path instead. The spec assumes nothing about any of this; the
+  freedoms above are illustrations of what A1–A4 make sound for any
+  engine, with no coordination.
 - **Membership is semantic; order is not** (A4 rejected): every branch
   evaluates before the function completes normally, so A3's
   always-fails holds — but any evaluation order of branches (including
