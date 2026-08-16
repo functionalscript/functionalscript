@@ -35,9 +35,12 @@ guards, A4) are merged into the graph by the **`comma` operation**:
   const f = a => { assert(a >= 0); return a + 2 }
   const g = a => { const _ = assert(a >= 0); return a + 2 }
   const h = a => { return assert(a >= 0), a + 2 }
+  const k = a => (assert(a >= 0), a + 2)
   ```
 
-  are one function with one AST and one hash. The AST has **no assert
+  are one function with one AST and one hash. The last spelling — an
+  expression-bodied arrow, no block, no `return` — is the most compact
+  and the natural form for `toString(f)` to print. The AST has **no assert
   node**: `assert` is an ordinary function value that throws on a falsy
   argument; what makes an operand an assert is purely positional — its
   value is discarded by `comma`.
