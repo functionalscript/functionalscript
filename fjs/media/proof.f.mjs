@@ -7,6 +7,7 @@ import { msb, u8ListToVec, repeat, vec8 } from '../types/bit_vec/module.f.mjs'
 import { detect, dialectEntry } from './module.f.mjs'
 import { dialect, revisionDialect } from './revision/module.f.mjs'
 import { dialect as lockDialectName, lockDialect } from './lock/module.f.mjs'
+import { dialect as noteDialectName, noteDialect } from './note/module.f.mjs'
 import { number, string } from '../types/rtti/module.f.mjs'
 
 // All test strings here are ASCII, so char code === UTF-8 byte value.
@@ -15,24 +16,12 @@ const utf8Bytes = s => u8ListToVec(msb)([...s].map(c => c.charCodeAt(0)))
 
 const revisionJson = `{"dialect":"${dialect}","subject":"8","parents":[],"snapshot":"8","generation":0}`
 
-/** The two dialects `fjs/media` itself ships, in the order `fjs/mcp` registers them.
+/** The three dialects `fjs/media` itself ships, in the order `fjs/mcp` registers them.
  * @type {readonly DialectEntry[]}
  */
-const dialects = [revisionDialect, lockDialect]
+const dialects = [revisionDialect, lockDialect, noteDialect]
 
 const detectRevision = detect(dialects)
-
-/**
- * A second dialect following the same `vnd.fjs.<name>` convention, registered
- * with no refinement: structure alone decides the match.
- */
-const noteSchema = /** @type {const} */ ({
-    dialect: 'vnd.fjs.note',
-    text: string,
-})
-
-/** @type {DialectEntry} */
-const noteDialect = dialectEntry(noteSchema)
 
 /** A dialect name outside `vnd.fjs.*` — registerable, and detected as itself. */
 const gadgetSchema = /** @type {const} */ ({
@@ -113,14 +102,14 @@ export const proof = {
         assertEq(m.mime_type, 'text/plain')
     },
 
-    // A second dialect, registered by the caller, is recognized alongside the
-    // first — and an entry with no refinement matches on structure alone.
-    secondDialect: () => {
-        const d = detect([revisionDialect, noteDialect])
-        assertEq(d(utf8Bytes('{"dialect":"vnd.fjs.note","text":"hi"}')).mime_type, 'application/vnd.fjs.note+json')
-        assertEq(d(utf8Bytes(revisionJson)).mime_type, 'application/vnd.fjs.revision+json')
+    // The note dialect is registered with no refinement, so structure alone
+    // decides the match — a valid note is recognized alongside its siblings.
+    validNote: () => {
+        const m = detectRevision(utf8Bytes(`{"dialect":"${noteDialectName}","text":"hi"}`))
+        assertEq(m.type, 'text')
+        assertEq(m.mime_type, 'application/vnd.fjs.note+json')
         // Same tag, wrong shape: no entry matches.
-        assertEq(d(utf8Bytes('{"dialect":"vnd.fjs.note","text":42}')).mime_type, 'text/plain')
+        assertEq(detectRevision(utf8Bytes(`{"dialect":"${noteDialectName}","text":42}`)).mime_type, 'text/plain')
     },
 
     // The name is neither grammar-checked nor allowlisted: a dialect outside
