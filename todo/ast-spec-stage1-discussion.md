@@ -58,6 +58,43 @@ Agreed points (not under discussion):
   `["array", ...]`): handles spread `f(...xs)` for free, unlike a variadic
   form. Same for `bindCall`'s third operand.
 
+## Assumptions
+
+Different graph-building rules follow from which of these assumptions are
+accepted or rejected. Enumerated first, analyzed separately; each ends as
+**accepted** or **rejected**, and the graph-building rules in the subjects
+are then derived from the accepted set.
+
+### A1. No side effects
+
+**Status:** undecided
+
+Code and functions don't have side effects: executing the same function
+with the same parameters always produces the same result.
+
+### A2. The runner may interrupt
+
+**Status:** undecided
+
+A runner has the right to interrupt a function if it consumes too many
+resources or takes too much time to compute. No specific memory or time
+limits are part of the specification.
+
+### A3. Throws are preserved
+
+**Status:** undecided
+
+If a function is supposed to throw in JavaScript for some parameters, it
+must throw in FunctionalScript with the same parameters.
+
+### A4. Computation order is preserved
+
+**Status:** undecided
+
+Computation order should be preserved. For example, if the code checks
+that parameters are in the right range and only then computes, it must
+happen in that order.
+
 ## Subjects
 
 ### 1. Structure: indices vs. nesting vs. references
