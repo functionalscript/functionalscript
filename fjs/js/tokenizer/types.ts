@@ -36,6 +36,13 @@ export type BigIntToken = {
 
 export type ErrorToken = {readonly kind: 'error', message: _ErrorMessage}
 
+/**
+ * The two trivia kinds. A maximal run of whitespace and newlines collapses to
+ * one token, and the run is `'nl'` if it contains any newline — see
+ * `mergeTrivia` in `./module.f.mjs`, which owns that rule.
+ */
+export type TriviaKind = 'ws' | 'nl'
+
 export type WhitespaceToken = {readonly kind: 'ws'}
 
 export type NewLineToken = {readonly kind: 'nl'}
