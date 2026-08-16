@@ -433,6 +433,18 @@ order.**
   An engine may compute anything early — even the resulting branch
   speculatively, which is unobservable — but the function's value must
   not escape to the caller until every assert branch has succeeded.
+
+  "Succeeded" is an **as-if** rule — the engine must *establish* each
+  branch's success, not necessarily *execute* it:
+  - **proof instead of execution**: a guard proven never to throw
+    (types, value analysis) is established without running — A4's
+    unobservability makes proof and execution indistinguishable;
+  - **cache instead of execution**: by A1 any outcome is a pure function
+    of content and inputs, so a content-addressed cache hit *is* the
+    computation — CAVM's premise: hash of (function, arguments) →
+    result. Only *semantic* outcomes are cacheable — a value, or a
+    mandated failure (A3); an A2 interrupt is an engine artifact, never
+    a cacheable verdict.
 - **Membership is semantic; order is not** (A4 rejected): every branch
   evaluates before the function completes normally, so A3's
   always-fails holds — but any evaluation order of branches (including
