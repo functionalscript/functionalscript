@@ -33,22 +33,32 @@ A `Type` is one of:
 A tuple's length is part of its type, a struct's key set is not, and every
 runtime consumer follows `Ts<T>` on both counts:
 
-| | extra element / key | `validate` | `parse` | data form |
+| schema | value | `validate` | `parse` | data form |
 | --- | --- | --- | --- | --- |
-| `Tuple` | `[42, 'extra']` against `[42]` | error | dropped | not in the set |
-| `Struct` | `{ a: 42, b: 'x' }` against `{ a: 42 }` | ok | dropped | in the set |
+| `[42]` | `[42, 'extra']` | error | `[42]` | not in the set |
+| `[42]` | `[]` | error | error | not in the set |
+| `[number, option(string)]` | `[42]` | error | `[42, undefined]` | not in the set |
+| `{ a: 42 }` | `{ a: 42, b: 'x' }` | ok | `{ a: 42 }` | in the set |
 
-The asymmetry is TypeScript's, not a quirk of these validators.
+The tuple/struct asymmetry is TypeScript's, not a quirk of these validators.
 `Ts<readonly [42]>` is the exact tuple `readonly [42]`, and a 2-element array
 is not assignable to it — so `validate` rejects one. A value of type
 `{ readonly a: 42 }` may carry more properties under structural typing — so
 `validate` accepts one.
 
-`parse` drops rather than rejects in both rows, and that is deliberate: it
-constructs a fresh value containing only what the schema declares, which
+The third row is the one worth reading twice. A trailing element whose schema
+admits `undefined` — `option(t)` is `or(t, undefined)`, and `unknown` includes
+it — makes a *shorter* array look valid element by element, because the walk
+reads `value[1]` as `undefined` and `undefined` satisfies the schema. Length is
+still part of the type, so `validate` rejects it on length alone.
+
+`parse` never rejects for length in the over-long or optional-trailing rows,
+and that is deliberate: it constructs a fresh value with exactly the schema's
+length — truncating extras, filling a missing optional with `undefined` — which
 makes it forward-compatible with a serialization format that grows fields.
-Rejecting there would trade that away for nothing — the value it returns
-already has the exact type.
+Rejecting there would trade that away for nothing, since the value it returns
+already has the exact type. It still errors on a missing element whose schema
+does not admit `undefined` (row two), because there is nothing to fill it with.
 
 ## Built-in schemas
 

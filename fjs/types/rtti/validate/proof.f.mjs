@@ -169,13 +169,26 @@ export const proof = {
                 assertError(validate(/** @type {const} */ ([42]))([42, 'extra']))
                 assertError(validate(/** @type {const} */ ([42, 'hello']))([42, 'hello', 0]))
             },
-            // The other side of the length check. Too few elements was already
-            // an error, but through the per-element walk, so it was reported at
-            // the first missing index; the length check now catches it first
-            // and reports it at the root, where the length itself lives.
+            // The other side of the length check. When the missing element's
+            // schema rejects `undefined`, the per-element walk already caught
+            // this — the length check only moves the report from the first
+            // missing index to the root, where the length itself lives.
             missingItems: () => {
-                assertError(validate(/** @type {const} */ ([42]))([]))
-                assertError(validate(/** @type {const} */ ([42, 'hello']))([42]))
+                assertErrorPath([])(validate(/** @type {const} */ ([42]))([]))
+                assertErrorPath([])(validate(/** @type {const} */ ([42, 'hello']))([42]))
+            },
+            // But when the missing element's schema *admits* `undefined`, the
+            // walk saw a valid value at that index and returned ok. Only the
+            // length check rejects these, so these cases — not the ones above —
+            // are what pin the short side: with `length <= size` the whole
+            // suite still passes without them.
+            missingOptionalItems: () => {
+                assertError(validate([number, option(string)])([42]))
+                assertError(validate([option(number)])([]))
+                assertError(validate([unknown])([]))
+                // Present-but-undefined is still the declared length, so it
+                // stays ok — the check is on length, not on element presence.
+                assertOk(validate([number, option(string)])([42, undefined]))
             },
             // An empty tuple schema admits exactly the empty array.
             empty: () => {
