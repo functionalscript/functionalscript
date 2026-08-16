@@ -964,6 +964,24 @@ What that requires of the printer:
   values are materialized in the text. This is exactly what the
   closed-scope model gives ([Operations](#operations)): the only leaves
   to render are constants, `["args"]`, `["frame"]` and `["self"]`.
+- **The same `const` mechanism carries frames.** A printed `const` is
+  not only how sharing is preserved — it is also how a captured value
+  reaches a nested function: the value is bound in the enclosing scope
+  and the inner arrow refers to it by name.
+
+  ```js
+  const c0 = /* frame element */
+  const b = y => /* … c0 … */          // ["frame"] slot 0 reads as c0
+  ```
+
+  So **the AST's explicit frame is JS's implicit lexical capture**:
+  printing turns frame slots into captured names, parsing turns captured
+  names back into frame slots. `["frame"]` used as a whole array (rather
+  than indexed) simply prints as a real array of those names.
+
+  This sharpens subject 10's canonicality question: the printed `const`
+  order determines the frame layout recovered on parse, so printer and
+  parser must agree on layout or the round-trip below changes the hash.
 - **Printing is recursive over values.** A captured *function* value
   prints as its own source; every other DJS value has a literal
   spelling, so the value domain is closed under printing.
