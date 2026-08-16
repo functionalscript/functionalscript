@@ -45,9 +45,11 @@ inside the file — the file name already carries the number, and a renderer
 derives the link from it. A pull request with several entries puts them all in
 its one file, most important first.
 
-Only add entries for code changes — pull requests that only touch `todo/`,
-`AGENTS.md`, or other documentation files do not need one, and say
-`Changelog: none` in the description instead.
+Only add entries for changes that affect behavior or the public API — a pull
+request that doesn't (internal refactors, test-only changes, coverage
+improvements, and pull requests that only touch `todo/`, `AGENTS.md`, or other
+documentation files) does not need one, and says `Changelog: none` in the
+description instead.
 
 - **Keep it short.** An entry is **at most a few lines** (about three wrapped
   lines, ~250 characters) — what changed and, when it isn't obvious, why. It is a
