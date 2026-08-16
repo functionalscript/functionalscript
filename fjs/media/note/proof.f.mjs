@@ -36,9 +36,12 @@ export const proof = {
         },
 
         // Dependencies are subject identity strings, unconstrained like
-        // `vnd.fjs.revision`'s `subject` — no semantic check applies.
+        // `vnd.fjs.revision`'s `subject` — no semantic check applies. The
+        // text may reference them by index (`[0]`, `[1]`), which is a
+        // reading convention, not a validation rule: this blob validates the
+        // same with any text.
         dependenciesAccepted: () => {
-            const r = validate({ dialect, text: 'ship it', dependencies: ['write the spec', 'review'] })
+            const r = validate({ dialect, text: 'ship it once [0] and [1] land', dependencies: ['write the spec', 'review'] })
             assert(r[0] === 'ok', ['expected ok', r])
             assertEq(r[1].dependencies?.length, 2)
         },

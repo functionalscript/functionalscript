@@ -65,8 +65,13 @@ export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
  * `subject`, an identity string is unconstrained, so no semantic check
  * applies. The field is optional because its absent value is the constant
  * "depends on nothing"; an explicit `[]` says the same thing, and the format
- * does not distinguish the two. Order and duplicates carry no format-defined
- * meaning.
+ * does not distinguish the two.
+ *
+ * `text` may reference an entry by its zero-based index in square brackets —
+ * `[0]` names `dependencies[0]` — so the entry order is **significant**:
+ * reordering or removing entries renumbers references. A bracketed integer
+ * that indexes no entry is ordinary text, not a broken reference, so the
+ * convention adds no validation stage (see the README).
  */
 export const noteSchema = /** @type {const} */ ({
     dialect,

@@ -39,6 +39,13 @@ Candidates, roughly in order of usefulness:
   revision chain's `archived` flag, so `status` may not be needed at all.
 - A `text` syntax tag (e.g. Markdown) — only if plain "reader's decision"
   proves insufficient.
+- An escape for a literal `[N]` in `text` — under the dependency-reference
+  convention (`[0]` names `dependencies[0]`), a literal in-range bracketed
+  integer cannot currently be written. Additive: today's texts keep their
+  meaning, an escape only makes more texts expressible.
+- A reference-extraction helper — a no-regex scanner giving readers one
+  authoritative implementation of the `[N]` convention instead of each
+  re-deriving "decimal integer, no sign, no leading zeros, in range".
 
 ### Tasks
 
@@ -49,3 +56,5 @@ Candidates, roughly in order of usefulness:
 - [ ] `due`
 - [ ] decide whether `status` is needed given revision-level `archived`, and
       whether it can keep the tag
+- [ ] an escape for a literal `[N]` in `text`
+- [ ] a reference-extraction helper for the `[N]` convention

@@ -38,7 +38,9 @@ hold text has nothing to say when it does not — the same argument that makes
 The format records the text and defines no markup for it: how a reader
 renders it (e.g. as Markdown) is the reader's decision. A future optional
 field may tag a syntax explicitly; until then, nothing in the blob promises
-one.
+one. The single exception is the
+[dependency-reference convention](#referencing-dependencies-from-the-text):
+`[0]` in the text names `dependencies[0]`.
 
 ## Dependencies
 
@@ -64,12 +66,44 @@ The field is **optional** because its absent value is the constant "depends
 on nothing" — the same rule that keeps `archived` optional in the revision
 dialect. An explicit `[]` says the same thing; the format does not
 distinguish the two, a cost accepted because requiring the field would force
-`[]` noise onto every plain note. Order and duplicates carry no
-format-defined meaning, and the format defines no cycle rule: subjects are
-identities, not references to further note blobs, so no reference chain
+`[]` noise onto every plain note. The format defines no cycle rule: subjects
+are identities, not references to further note blobs, so no reference chain
 exists to terminate. What a dependency *means* — blocking, ordering,
 subtasking — is the reader's interpretation, exactly as lock-map semantics
 belong to resolvers.
+
+### Referencing dependencies from the text
+
+`text` may reference an entry by its zero-based index in square brackets:
+
+```json
+{
+  "dialect": "vnd.fjs.note",
+  "text": "Ship the release once [0] and [1] are closed.",
+  "dependencies": ["fix the tokenizer", "update the spec"]
+}
+```
+
+A reference is `[` + a decimal integer — no sign, no leading zeros — + `]`,
+and it is a reference **only when it indexes an existing entry**. A bracketed
+integer that indexes nothing (out of range, or no `dependencies` at all), and
+any other bracketed content (`[ ]`, `[x]`, `[a1]`), is ordinary text. So the
+convention is self-contained — resolving a reference needs nothing but the
+blob — and it adds no validation stage: there is no such thing as a
+structurally valid note with a *broken* reference, only text.
+
+Two consequences:
+
+- **Entry order is significant.** Reordering or removing entries renumbers
+  references, exactly as reordering `parents` changes a revision's meaning.
+  Text and list live in one blob and are edited together, so a writer keeps
+  them consistent the way it keeps any two halves of one value consistent;
+  duplicates are pointless but harmless.
+- **A literal in-range `[0]` cannot currently be written** in a note that has
+  dependencies. No escape is defined yet — defining one (and a reader-side
+  reference-extraction helper) is tracked in
+  [todo/extend-note-format.md](./todo/extend-note-format.md), and either is
+  an additive change under the versioning rule.
 
 ## A value, not a step
 
