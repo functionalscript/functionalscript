@@ -168,4 +168,13 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(loadModuleMap({}))
         assertEq(Object.keys(result).join(','), './a.f.ts')
     },
+    loadModuleMapStripsInitCwdPrefix: () => {
+        // With `INIT_CWD` set (the normal `npm run` case), discovery starts
+        // from that subdirectory and each key is relativized against it, so
+        // keys are still `./`-relative to `INIT_CWD` rather than carrying it.
+        /** @type {Dir} */
+        const root = { 'sub': { 'a.f.ts': () => ({}) } }
+        const [, result] = virtual({ ...emptyState, root })(loadModuleMap({ INIT_CWD: 'sub' }))
+        assertEq(Object.keys(result).join(','), './a.f.ts')
+    },
 }
