@@ -82,14 +82,14 @@ the AST's sharing structure and DJS's graph structure are the same thing.
 
 ```js
 // const f = (...a) => { const x = a[0]; return [x, x] }
-const x = ["[]", ["args"], 0]
+const x = [".", ["args"], 0]
 export default ["array", x, x]       // the body is one node; x is interior
 
 // (...a) => { const check = a[0].length; return a[1] } — with comma (later)
 const a = ["args"]
 export default [",",
-    ["[]", ["[]", a, 0], "length"],  // assert: value unused
-    ["[]", a, 1],                    // the result: last, as in JS (a, b) → b
+    [".", [".", a, 0], "length"],  // assert: value unused
+    [".", a, 1],                    // the result: last, as in JS (a, b) → b
 ]
 ```
 
@@ -98,7 +98,7 @@ Agreed points (not under discussion):
 - Host-value reuse follows [DESIGN.md §8](../DESIGN.md): constants describe
   themselves; tags only where the host value is ambiguous. `["array", ...]`
   is a complete escape hatch — any constant array is expressible.
-- `["[]()", …]` is semantically required, not an optimization:
+- `[".()", …]` is semantically required, not an optimization:
   [property-accessor](../spec/todo/2330-property-accessor.md) shows
   `a.indexOf(x)` and `const p = a.indexOf; p(x)` differ observably.
 - `args` is **a single operand that evaluates to an array**, not a
@@ -108,7 +108,7 @@ Agreed points (not under discussion):
   because `["args"]` is itself a first-class array (subject 2). A
   literal-list operand would save the `["array", …]` wrapper in the
   common case but would need a spread marker for those. Same for
-  `["[]()", …]`'s third operand.
+  `[".()", …]`'s third operand.
 
 ## Operations
 
@@ -123,24 +123,29 @@ node; `node` below means any of them.
 |`{ key: node, … }`|`{ key: … }`|1|object constructor; key order is part of the value (subject 4)|
 |`["array", ...node]`|`[…]`|1|array constructor|
 |`["args"]`|—|1|the arguments array (subject 2)|
-|`["[]", object, property]`|`o[p]`|1|instance property|
+|`[".", object, property]`|`o.p`, `o[p]`|1|property access; one operation for both spellings|
 |`["()", object, args]`|`f(...args)`|1|call; `args` is one node yielding an array|
-|`["[]()", object, property, args]`|`o[p](...args)`|1|instance method call; keeps `this` binding|
+|`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|1|method call; keeps `this` binding|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
 |`["function", frame, body]`|`(…) => …`|later|closures; `frame` yields the captured array (see below)|
 
 Tags are **JS syntax wherever JS has syntax for the operation** — hence
-`"[]"`, `"()"`, `"[]()"` and `","` above, and the operator symbols
+`"."`, `"()"`, `".()"` and `","` above, and the operator symbols
 below. This is [DESIGN.md §8](../DESIGN.md) again: the host language
 already spells these, so the AST reuses the spelling instead of
-inventing a vocabulary to be memorized and translated. `"[]()"` reads as
-the syntax it means, `o[p](…)`.
+inventing a vocabulary to be memorized and translated. `".()"` reads as
+the method call it denotes, `o.p(…)`.
+
+`"."` is **one operation for both JS access spellings**: the property
+operand is a node, so `o.p` (a string constant) and `o[p]` (any
+expression) are the same operation with different operands. The AST
+does not carry 2330's static/computed distinction (subject 6).
 
 Word tags remain only where no unambiguous JS spelling exists:
 
-- `"array"` — the JS spelling would be `"[]"`, which collides with
-  instance property access at the same arity (`["[]", a, b]` would be
-  both a two-element array and `a[b]`), so the word stays;
+- `"array"` — but see the open question in subject 6: with access
+  spelled `"."`, the tag `"[]"` is free, and it is JS's own spelling
+  for an array literal;
 - `"args"` — FS has no `arguments` object to borrow a spelling from
   (subject 2);
 - `"function"`, `"frame"`, `"self"`, `"throw"` — no unambiguous JS
@@ -179,8 +184,8 @@ All operators are post-stage-1: stage 1 has no operators at all.
 copied into a frame when the function object is created — the scheme
 [function-frame](../spec/todo/3111-function-frame.md) chooses — and
 `["frame"]` is that array. It needs no accessor of its own: a slot is
-ordinary indexing, `["[]", ["frame"], 0]`, exactly as an argument is
-`["[]", ["args"], 0]` (subject 2).
+ordinary indexing, `[".", ["frame"], 0]`, exactly as an argument is
+`[".", ["args"], 0]` (subject 2).
 
 Frame construction mirrors a call: `["function", frame, body]`, where
 `frame` is one node evaluating to an array — built in the *enclosing*
@@ -193,7 +198,7 @@ one for creating a closure.
 // inside f, building b — f puts its own ["self"] into b's frame:
 ["function", ["array", ["self"]], /* b's body */ …]
 // inside b, calling f — slot 0 of b's frame:
-["()", ["[]", ["frame"], 0], ["array", ["[]", ["args"], 0]]]
+["()", [".", ["frame"], 0], ["array", [".", ["args"], 0]]]
 ```
 
 Consequences:
@@ -539,15 +544,15 @@ arguments passed to the function.**
   `.length` and `toString(f)` fidelity (subject 7).
 - The rejected `["arg", i]` (single-argument access, no reified array)
   cannot express rest parameters (`(...xs) => xs`) or forwarding;
-  `["arg", i]` is expressible as `["[]", ["args"], i]` while the reverse
+  `["arg", i]` is expressible as `[".", ["args"], i]` while the reverse
   is not.
 
 Examples — named parameters are positions in the arguments array; the
 compiler erases names:
 
 ```js
-const f = (...a) => a[5]   // ["[]", ["args"], 5]
-const g = (a) => a[5]      // ["[]", ["[]", ["args"], 0], 5]
+const f = (...a) => a[5]   // [".", ["args"], 5]
+const g = (a) => a[5]      // [".", [".", ["args"], 0], 5]
 ```
 
 ### 3. Lazy operators and the branch extension path
@@ -559,8 +564,8 @@ lazy, and operations throw — so eager evaluation of both sides is
 observably wrong. Stage 1 ships no branches; it must only keep the door
 open:
 
-- **Operand shapes are specified per command** ("`"[]"` takes two
-  operation nodes"), never by a global rule like "an array in operand position is
+- **Operand shapes are specified per command** (`"."` takes two
+  operation nodes), never by a global rule like "an array in operand position is
   always a tagged operation" — so future commands with differently-shaped
   operands are additions, not breaking changes.
 - Recorded extension path: the lazy operators themselves —
@@ -625,13 +630,13 @@ the FJS compiler would never emit. To validate:
 
 [property-accessor](../spec/todo/2330-property-accessor.md) already names
 commands: `at`, `at_call`, `instance_property`, `instance_method_call`,
-`own_property`. This proposal's `"[]"` = its `at`; `"[]()"` = its
+`own_property`. This proposal's `"."` = its `at`; `".()"` = its
 `at_call`.
 
 Options:
 
 1. Adopt the existing names in the AST.
-2. AST keeps only the general layer (`"[]"`, `"[]()"`); 2330's
+2. AST keeps only the general layer (`"."`, `".()"`); 2330's
    `instance_property` / `instance_method_call` are noted as compile-time
    specializations of the VM's internal bytecode, not AST-level
    distinctions.
@@ -639,37 +644,35 @@ Options:
 Leaning toward 2 (minimal AST; bytecode is where performance distinctions
 live per [serialization](../spec/todo/serialization.md)). Consequence: the
 AST interpreter carries the safety burden 2330 assigns to compile-time
-checks — `["[]", obj, "constructor"]`, `__proto__`, and other prohibited
+checks — `[".", obj, "constructor"]`, `__proto__`, and other prohibited
 names must be rejected at *runtime*.
 
 **Decided for the structural tags: they are JS syntax too** —
-`["[]", object, property]`, `["()", object, args]`,
-`["[]()", object, property, args]`, `[",", …]`. Syntax is as much a
-host spelling as an operator symbol is, and `"[]()"` reads as the
-`o[p](…)` it denotes. Word tags survive only where no unambiguous
-spelling exists (`"array"`, `"args"`, `"function"` — see
-[Operations](#operations)). This supersedes the `at` / `call` /
-`bindCall` names used earlier in this document.
+`[".", object, property]`, `["()", object, args]`,
+`[".()", object, property, args]`, `[",", …]`. Syntax is as much a host
+spelling as an operator symbol is, and `".()"` reads as the `o.p(…)` it
+denotes. This supersedes the `at` / `call` / `bindCall` names used
+earlier in this document.
 
-**`"."` / `".()"` instead of `"[]"` / `"[]()"`?** They are shorter and
-read well, but they spell a *different* JS operation: `o.p` takes a
-literal identifier, `o[p]` takes an arbitrary expression. The AST's
-property operand is a node — any expression — so `"[]"` is the accurate
-spelling and `"."` would misdescribe `["." , o, someComputedNode]`.
+**Decided: `"."` and `".()"`, not `"[]"` and `"[]()"`.** One operation
+covers both JS access spellings — the property operand is a node, so
+`o.p` and `o[p]` differ only in whether that operand is a string
+constant. `"."` is the shorter and more readable tag, and `".()"`
+composes to read exactly like the method call it is. The AST therefore
+does **not** carry 2330's `instance_property` /
+`instance_method_call` (static name) as separate operations: they stay
+compile-time specializations for the bytecode, option 2 above.
+`own_property` likewise stays out — 2330 spells it
+`Object.getOwnPropertyDescriptor(o, p)?.value`, an ordinary call, not a
+syntax needing a tag.
 
-That makes the two spellings exactly 2330's open distinction, which is
-the remaining question here: whether the AST also carries
-`instance_property` / `instance_method_call` (static, compile-time-known
-property name) separately from the general computed access, or whether
-those stay bytecode specializations. If they are ever added at AST
-level, `"."` and `".()"` are their natural spelling — property operand
-restricted to a string constant — with `"[]"` / `"[]()"` remaining the
-general pair. Keeping `"[]"` now leaves both spellings available and
-costs nothing.
-
-Leaning: general pair only (option 2 above); `own_property` likewise
-stays out — 2330 spells it `Object.getOwnPropertyDescriptor(o, p)?.value`,
-an ordinary call, not a syntax the AST needs a tag for.
+**Follow-on question: should `"array"` become `"[]"`?** Choosing `"."`
+for access frees the `"[]"` tag, and `[a, b]` is precisely how JS
+spells an array literal — so `["[]", ...node]` would be the consistent
+name, leaving `"args"`, `"frame"`, `"self"`, `"throw"` and `"function"`
+as the only word tags. There is no collision any more: the earlier
+objection was that `["[]", a, b]` would read as both a two-element
+array and `a[b]`, and with access on `"."` that ambiguity is gone.
 
 ### 7. Top-level shape of a function
 
@@ -846,7 +849,7 @@ name the function did not compute itself:
 
 **Largely answered by `["frame"]`** ([Operations](#operations)): free
 values are captured into the frame when the closure is created, and read
-back as `["[]", ["frame"], i]`. `["self"]` covers self-reference, which
+back as `[".", ["frame"], i]`. `["self"]` covers self-reference, which
 no frame can seed at the top level. What remains open:
 
 - **which values go into a frame, and in what order** — the compiler
