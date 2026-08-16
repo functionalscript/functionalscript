@@ -5,24 +5,34 @@
  * a `Parse<T>` function. When called with an unknown value, it returns a `Result`
  * that is either `['ok', newValue]` or `['error', { path, message }]`.
  *
- * Unlike `validate`, which checks an existing value in-place and returns it
- * unchanged on success, `parse` always returns a freshly constructed value that
- * contains only the fields/elements declared by the schema. This makes both
- * structs and tuples effectively closed at runtime, matching the TypeScript
- * type produced by `Ts<T>`:
+ * **Structs and tuples are open.** A value carrying more than the schema
+ * declares is accepted; `parse` then returns a freshly constructed value that
+ * contains only the declared fields/elements, so the extras are accepted on
+ * the way in and absent on the way out:
  *
- * - Tuples: the result has exactly the schema's length; extra elements are dropped.
- * - Structs: the result contains only the schema's keys; extra properties are dropped.
+ * - Tuples: a longer array is accepted; the result has the schema's length.
+ * - Structs: undeclared properties are accepted; the result has only the
+ *   schema's keys.
  * - Arrays/records: every element/value is itself parsed, so a fresh container is
  *   always returned even if the inner type is a primitive.
  *
- * This also provides forward compatibility with extended serialization formats:
- * a schema-based parser keeps working when newer versions of the format add
- * extra fields or tuple elements.
+ * A member is required exactly when its set excludes `undefined` — an absent
+ * member reads as `undefined`, on both kinds — so a shorter array whose
+ * trailing position admits `undefined` is accepted and the gap is filled.
+ *
+ * Openness is what makes this forward-compatible with extended serialization
+ * formats: a schema-based parser keeps working when newer versions of the
+ * format add extra fields or tuple elements.
+ *
+ * **Do not read "the result has the schema's length" as "tuples are closed"
+ * and add a length check here.** The set a tuple schema describes includes
+ * longer arrays; `Ts<T>` renders the closed approximation only because
+ * TypeScript cannot express the open one (see `../ts/types.ts` `TupleTs`), and
+ * taking that rendering for the model is what produced #1622. A schema that
+ * wants exact members says so — see `../todo/close-type.md`.
  *
  * The error shape, path bookkeeping, primitive checks, and schema
- * recognition (`visit`) are shared with `validate` through
- * `../common/module.f.mjs`; only container construction differs.
+ * recognition (`visit`) come from `../common/module.f.mjs`.
  *
  * See `./types.ts` for the `Result`/`Parse` type-level API.
  *
@@ -78,11 +88,10 @@ const orderedEntries = list =>
     toArray(reverse(list))
 
 /**
- * Builds a parser for `array` or `record` schemas. Mirrors `validate`'s
- * `containerValidate`, but rebuilds a fresh container from each item's parsed
- * result instead of returning the value unchanged. The inner item parser is
- * instantiated lazily (only when the container is non-empty) so recursive
- * schemas don't recurse forever on empty containers.
+ * Builds a parser for `array` or `record` schemas: rebuilds a fresh container
+ * from each item's parsed result. The inner item parser is instantiated lazily
+ * (only when the container is non-empty) so recursive schemas don't recurse
+ * forever on empty containers.
  */
 const containerParse =
     /**
@@ -110,10 +119,10 @@ const arrayParse = containerParse(isArray, arrayRebuild)
 const recordParse = containerParse(isObject, recordRebuild)
 
 /**
- * Builds a parser for `Tuple` or `Struct` const schemas. Mirrors `validate`'s
- * `constContainerValidate`: it iterates the schema's entries (so extra tuple
- * elements and undeclared struct keys are dropped) and rebuilds the result
- * from each parsed item.
+ * Builds a parser for `Tuple` or `Struct` const schemas. It iterates the
+ * *schema's* entries, which is what makes both kinds open: a longer array or
+ * an undeclared key is never visited, so it is accepted and left out of the
+ * rebuilt result.
  */
 const constContainerParse =
     /**
@@ -175,10 +184,10 @@ const orParse =
  * p([1, 2, 3])         // ['ok', [1, 2, 3]]   (a new array)
  * p([1, 'two'])        // ['error', { path: ['1'], message: 'unexpected value' }]
  *
- * // tuples are closed: extra elements are dropped
+ * // open: a longer array is accepted, and the extra is not carried over
  * parse([number, number])([1, 2, 3]) // ['ok', [1, 2]]
  *
- * // structs drop undeclared keys
+ * // open: an undeclared key is accepted, and not carried over
  * parse({ a: number })({ a: 1, b: 2 }) // ['ok', { a: 1 }]
  * ```
  */

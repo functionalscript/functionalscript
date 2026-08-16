@@ -141,6 +141,13 @@ syntax. They are deliberately left rather than rewritten.
 
 ### Remaining sites
 
+This table is an audit snapshot, and its counts above are derived from it, so
+rows are kept as they were recorded even when the code has since moved. The
+nine `fjs/types/rtti/validate/` rows describe a module that has been deleted —
+`parse` is now the only schema-form reader — so those nine sites no longer
+exist. They are left in place rather than removed with the totals re-derived
+around them; a re-audit is the way to refresh this file, not a partial edit.
+
 | File | Line | `@type {T}` | Why it stays |
 | --- | --- | --- | --- |
 | `fjs/bnf/descent/module.f.mjs` | 199 | `_Task` | breaks a control-flow inference cycle |

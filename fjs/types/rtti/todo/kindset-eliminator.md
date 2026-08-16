@@ -104,5 +104,6 @@ at `kindFold` as the statement of the contract.
 
 ### Related
 
-- [172](./172.md) — validate/parse container skeleton; touches
-  `patternsValidate`'s callers, coordinate if both land.
+- `../data/module.f.mjs` — `patternsValidate` and its callers. (The
+  validate/parse container-skeleton issue that used to be listed here was
+  resolved by deleting `validate`.)

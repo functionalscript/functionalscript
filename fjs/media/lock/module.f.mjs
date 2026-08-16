@@ -30,7 +30,7 @@
  * @import { Lock, LockError } from './types.ts'
  */
 
-import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
+import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
 import { parse as parseJson, stringify } from '../json/module.f.mjs'
 import { error, ok, okThen } from '../../types/result/module.f.mjs'
 import { dialectEntry } from '../module.f.mjs'
@@ -71,7 +71,7 @@ export const lockSchema = /** @type {const} */ ({
 export const encodeText = stringify(sort)
 
 /** Structural-only validator: checks the shape, not the hash semantics. */
-const validateShape = rttiValidate(lockSchema)
+const validateShape = rttiParse(lockSchema)
 
 /**
  * Checks the semantic refinement the structural schema can't express on an

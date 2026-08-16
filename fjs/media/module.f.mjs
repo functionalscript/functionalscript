@@ -54,7 +54,7 @@ import { fromVec } from '../text/utf8/module.f.mjs'
 import { detectVec } from './type/module.f.mjs'
 import { parse } from './json/module.f.mjs'
 import { assert, assertNotNullish } from '../asserts/module.f.mjs'
-import { validate } from '../types/rtti/validate/module.f.mjs'
+import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
 
 /** The default refinement: structural validation alone decides the match. */
 const always = () => true
@@ -120,7 +120,7 @@ const matchWith = v => extraValidate => u => {
 export const dialectEntry = (type, extraValidate = always) => {
     const { dialect } = type
     assert(typeof dialect === 'string', 'dialectEntry: schema has no direct string `dialect` member')
-    return { dialect, match: matchWith(validate(type))(extraValidate) }
+    return { dialect, match: matchWith(rttiParse(type))(extraValidate) }
 }
 
 /**

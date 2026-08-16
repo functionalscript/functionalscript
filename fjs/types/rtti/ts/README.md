@@ -100,7 +100,7 @@ schema structure. Option 2 was reverted.
 
 ## Remaining open problems
 
-Three `as any` casts in `validate/module.f.mjs` and `parse/module.f.mjs` cannot
+The `as any` casts in `parse/module.f.mjs` cannot
 be removed without language features TypeScript does not yet have:
 
 **Problem A — visitor rank-2 erasure.** `Visitor<R>` requires a uniform `R`

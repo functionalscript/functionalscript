@@ -69,7 +69,7 @@ More than half of this is built:
 | Piece | Where | State |
 | --- | --- | --- |
 | Schema constructors | `fjs/types/rtti/module.f.mjs` | `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`, `option`, `never`, plus `Const` (primitive / tuple / struct used directly as its own schema) |
-| Value checking | `fjs/types/rtti/validate/`, `parse/` | `validate(schema)(value)`, `parse(schema)(value)` |
+| Value checking | `fjs/types/rtti/parse/` | `parse(schema)(value)` |
 | Canonical data form | `fjs/types/rtti/data/` | `toData`, `cmp`, `equal`, **`subset`**, data-driven `validate` |
 | TypeScript emission | `fjs/types/rtti/ts/module.f.mjs` | runtime printer: `thunk RTTI → toData → dataToTs`, emitting canonical type aliases, recursion included |
 | Compile-time bridge | `Ts<T>` in `fjs/types/rtti/ts/types.ts` | maps a schema to its TypeScript type, so `npx tsc` keeps working through the transition |

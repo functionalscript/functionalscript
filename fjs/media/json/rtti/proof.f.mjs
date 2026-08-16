@@ -8,20 +8,20 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.mjs'
-import { validate } from '../../../types/rtti/validate/module.f.mjs'
+import { parse } from '../../../types/rtti/parse/module.f.mjs'
 import { primitive, unknown, object, array } from './module.f.mjs'
 
-// Reduces a validation to its `ok`/`error` tag: these schemas are about what is
-// accepted, not about the payload, which validation returns unchanged. The
-// erased `ValidateE` keeps the shared helper from re-instantiating each
-// schema's deep recursive result type (TS2589).
+// Reduces a parse to its `ok`/`error` tag: these schemas are about what is
+// accepted, not about the payload `parse` rebuilds. The erased `ValidateE`
+// keeps the shared helper from re-instantiating each schema's deep recursive
+// result type (TS2589).
 /** @type {(v: ValidateE) => (value: Unknown) => string} */
 const tag = v => value => v(value)[0]
 
-const primitiveAccepts = tag(validate(primitive))
-const unknownAccepts = tag(validate(unknown))
-const objectAccepts = tag(validate(object))
-const arrayAccepts = tag(validate(array))
+const primitiveAccepts = tag(parse(primitive))
+const unknownAccepts = tag(parse(unknown))
+const objectAccepts = tag(parse(object))
+const arrayAccepts = tag(parse(array))
 
 export const proof = {
     primitive: {

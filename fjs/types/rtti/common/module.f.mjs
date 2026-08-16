@@ -1,29 +1,28 @@
 /**
- * Shared kernel for RTTI consumers (`validate`, `parse`).
+ * Shared kernel for RTTI consumers.
  *
- * Both consumers traverse the same schema shape and produce the same
- * `Result<T, ValidationError>` outcome. Only the per-variant handling differs
- * — `validate` keeps the original value, `parse` constructs a fresh one.
- *
- * This module hosts the parts that do not differ:
+ * `parse` (`../parse/module.f.mjs`) is the schema-form consumer; the data form
+ * (`../data/module.f.mjs`) is the other, walking a `Data` instead of a thunk
+ * graph. They produce the same `Result<T, ValidationError>` outcome and differ
+ * in how they dispatch, so this module hosts the parts that do not differ:
  *
  * - The error shape (`ValidationError`, `Path`) and path bookkeeping
  *   (`verror`, `prependPath`).
  * - Primitive checks (`primitive0Validate`, `constPrimitiveValidate`).
- * - The `Validate<T>`/`Result<T>` signatures — `parse` uses the same shape.
+ * - The `Validate<T>`/`Result<T>` signatures, which `parse` reuses
+ *   (`Parse<T> = Validate<T>`).
  * - `visit`: a visitor over the `Type` ADT. Callers supply a `Visitor<R>`
  *   with one handler per variant; `visit(v)(rtti)` recognizes `rtti` and
- *   calls the matching handler. Both consumers compose their top-level
- *   function from a visitor.
- * - `eachEntry`: the container entry loop (array/record/tuple/struct), shared
- *   by both consumers' container builders. Callers choose what (if anything)
- *   to accumulate, so `validate`'s pure pass/fail check pays no allocation.
+ *   calls the matching handler. `parse` composes its top-level function from
+ *   a visitor.
+ * - `eachEntry`: the container entry loop (array/record/tuple/struct). Callers
+ *   choose what (if anything) to accumulate, so a caller that only needs
+ *   pass/fail pays no allocation per entry.
  * - `orVisit`: the shared `or` handler — try each variant's recursive walker,
  *   return the first match.
  *
- * Keeping the kernel here also removes `parse`'s incidental dependency on
- * `validate` and gives schema-driven consumers (e.g. the data form in
- * `../data/module.f.mjs`) a stable shared base.
+ * Keeping the kernel here gives schema-driven consumers a stable shared base
+ * that does not depend on any one of them.
  *
  * @module
  *
@@ -84,12 +83,12 @@ const visitConst = v => c =>
         ? (commonIsArray(c) ? v.tuple(c) : v.struct(c))
         : v.constPrimitive(c)
 
-/** `IsContainer` guard for arrays, shared by `validate` and `parse`. */
+/** `IsContainer` guard for arrays. */
 /** @type {IsContainer<ReadonlyArray<Unknown>>} */
 export const isArray =
     value => commonIsArray(value)
 
-/** `IsContainer` guard for records/structs, shared by `validate` and `parse`. */
+/** `IsContainer` guard for records/structs. */
 /** @type {IsContainer<StringMap<Unknown>>} */
 export const isObject =
     value => commonIsObject(value)
@@ -100,13 +99,11 @@ export const isObject =
  * result into `acc` (starting from `init`) with `accumulate` and returns the
  * final accumulator.
  *
- * Shared by `validate` and `parse`'s container builders (array/record/tuple/
- * struct), which differ only in what `item` does with the value and what
- * they accumulate: `validate` has nothing to collect — its entire schema is
- * "did every entry succeed?" — so it passes `undefined`/`(acc) => acc` and
- * pays no allocation per entry; `parse` needs the rebuilt `[key, value]`
- * pairs, so it folds them into a `List` (see its call site) and converts to
- * an array once at the end.
+ * Used by `parse`'s container builders (array/record/tuple/struct), which
+ * need the rebuilt `[key, value]` pairs, so they fold them into a `List` (see
+ * the call site) and convert to an array once at the end. A caller whose
+ * whole question is "did every entry succeed?" passes `undefined`/`acc => acc`
+ * instead and pays no allocation per entry.
  */
 export const eachEntry =
     /**
@@ -134,9 +131,9 @@ export const eachEntry =
 /**
  * First variant in `variants` that `recurse` accepts, else `verror('no match')`.
  *
- * Shared `or` handler for `validate` and `parse`: both try each variant
- * against the value and return the first `'ok'` verbatim, differing only in
- * which recursive function (`validate` or `parse`) walks each variant. `recurse`
+ * Shared `or` handler: try each variant against the value and return the
+ * first `'ok'` verbatim, parameterized by the recursive function that walks
+ * each variant. `recurse`
  * is typed over the erased `ValidateE` alias — annotating it as `(t: Type) =>
  * Validate<Type>` would itself instantiate `Validate<Type>` and hit TS2589 —
  * so each caller passes its recursive function through one boundary cast.
