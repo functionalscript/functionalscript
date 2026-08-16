@@ -160,9 +160,9 @@ For tool details and package-consumer setup for Claude and Codex, see
 
 A pull request implements only one feature or improvement, with minimal code
 changes. Before submitting, ensure every check above passes, delete the `todo/`
-issue file in the same pull request, and — for code changes — add a changelog
-entry as `changelog/unreleased/<PR>.md`, named by the real pull request number
-once the pull request exists (see
+issue file in the same pull request, and — when the change affects behavior or
+the public API — add a changelog entry as `changelog/unreleased/<PR>.md`, named
+by the real pull request number once the pull request exists (see
 [changelog/README.md](./changelog/README.md)). The everyday workflow around
 this is [AGENTS.md §1](./AGENTS.md#1-workflow).
 
@@ -197,9 +197,9 @@ squash, so their messages are working notes.
   The section holds exactly the list items of `changelog/unreleased/<PR>.md` —
   same Markdown subset, same `**BREAKING CHANGES:**` prefix where it applies,
   no PR link ([changelog/README.md](./changelog/README.md#entries)). A pull
-  request that needs no entry writes `Changelog: none`. The section is
-  **mandatory** either way, so a forgotten entry is a visible omission rather
-  than a silent one.
+  request that doesn't change behavior or the public API needs no entry and
+  writes `Changelog: none`. The section is **mandatory** either way, so a
+  forgotten entry is a visible omission rather than a silent one.
 
   It duplicates the entry file on purpose: the file is what today's release
   process reads, the section is what a generator reading Git history would

@@ -85,12 +85,13 @@ Commands and Rust coding style: [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md).
 A PR implements only one feature or improvement, with minimal code changes, and
 every check above passing. Its title and description become the squash commit on
 `main`, so write them as one: a `<topic>: <short description>` title and a
-description ending in a mandatory `Changelog:` section. A PR that changes code
-adds `changelog/unreleased/<PR>.md`, named by the real PR number once the PR
-exists; a PR that only touches `todo/`, `AGENTS.md`, or other documentation
-writes `Changelog: none` instead. Breaking changes are welcome when they improve
-the API — prefix the entry with `**BREAKING CHANGES:**` and update every importer
-in the same PR.
+description ending in a mandatory `Changelog:` section. A PR that changes
+behavior or the public API adds `changelog/unreleased/<PR>.md`, named by the
+real PR number once the PR exists; a PR that doesn't — internal refactors,
+test-only changes, and PRs that only touch `todo/`, `AGENTS.md`, or other
+documentation — writes `Changelog: none` instead. Breaking changes are welcome
+when they improve the API — prefix the entry with `**BREAKING CHANGES:**` and
+update every importer in the same PR.
 
 Commit-message format and the PR checklist: [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
 Changelog entry rules, breaking changes, and versioning:
