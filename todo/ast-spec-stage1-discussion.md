@@ -40,10 +40,13 @@ guards, A4) are merged into the graph by the **`","` operation**:
 
   are one function with one AST and one hash. The last spelling — an
   expression-bodied arrow, no block, no `return` — is the most compact
-  and the natural form for `toString(f)` to print. The AST has **no assert
-  node**: `assert` is an ordinary function value that throws on a falsy
-  argument; what makes an operand an assert is purely positional — its
-  value is discarded by `","`.
+  and the natural form for `toString(f)` to print. The AST has **no
+  assert node**: what makes an operand an assert is purely positional —
+  its value is discarded by `","`. The guard itself is either an
+  ordinary function value that throws on a falsy argument, or, with no
+  free-variable machinery needed,
+  `["?:", cond, undefined, ["throw", …]]` ([Operations](#operations),
+  subject 10).
   [operators](../spec/todo/2340-operators.md) allows the comma operator
   for exactly this reason: it was rejected as "useful only when we want
   to mutate", and the assert pattern is the counter-example — in a pure
@@ -162,6 +165,39 @@ same arity.
 |`?:`|3|`c ? t : e`|**yes**|exactly one of the two arms is established|
 
 All operators are post-stage-1: stage 1 has no operators at all.
+
+### Other operations
+
+|Form|JS|Stage|Notes|
+|----|--|-----|-----|
+|`["throw", node]`|`throw v`|later|always fails; never produces a value|
+
+`throw` keeps a word tag because JS spells it as a **statement**, not an
+expression — there is no operator symbol to reuse. Consequences:
+
+- **Assertions become expressible in the AST**:
+  `["?:", cond, undefined, ["throw", …]]`. This matters more than
+  convenience — the AST has no way to *reference* a free variable
+  (module `const`, import, built-in): `["args"]` and constants are its
+  only leaves (see subject 10). A host `assert` function would need that
+  machinery; an operation does not.
+- **`["throw", v]` always fails**, so it is the one node that is
+  *provably throwing* — the mirror of the "provably non-throwing"
+  predicate. It must never be speculated into a position JS would not
+  reach.
+- **The thrown value is not observable to FS code** (A4: errors carry no
+  information; no catch). So whether `v` is evaluated at all is
+  unobservable — the operation fails either way, including when
+  evaluating `v` would itself throw. Engines *should* evaluate it for
+  out-of-band diagnostics, and a test framework may reveal it
+  (subject 8), but nothing in FS semantics depends on it.
+- **`toString(f)` wrinkle**: since `throw` is a statement, a `throw`
+  node inside an expression has no direct JS spelling. Printing it needs
+  a wrapper — `(() => { throw v })()` — which round-trips but is the
+  first operation whose printed form is not the syntax it came from.
+  Alternatives (a recognized `throw` helper, or an expression-level
+  `throw` pattern in the source language) to settle when the source
+  syntax for assertions is specified.
 
 **Laziness is positional, not nodal.** A lazy operand is a node that may
 never be demanded — but the same node referenced from an eager position
@@ -692,3 +728,40 @@ the **graph**, not a tree expansion:
   binder-relative form) hard to hash structurally — a known difficulty of
   binders + sharing. Constraint to resolve when the `function` node is
   designed.
+### 10. Free variables: module consts, imports, built-ins
+
+**Status:** open
+
+The AST's only leaves are constants and `["args"]`. Nothing references a
+name the function did not compute itself:
+
+- a module-level `const` or `import` the body uses
+  ([const](../spec/2120-const.md),
+  [default-import](../spec/2130-default-import.md));
+- a captured const, once closures exist — the frame
+  [function-frame](../spec/todo/3111-function-frame.md) designs;
+- a built-in namespace such as `Object` or `JSON`
+  ([built-in](../spec/todo/2360-built-in.md)), which
+  [2360](../spec/todo/2360-built-in.md) says may be used only as a
+  namespace, never assigned to a variable.
+
+Stage 1 can live without this — a body reachable from `["args"]` and
+constants alone is a real, if small, language. But every path forward
+needs it, so the shape should be chosen deliberately rather than by
+accident:
+
+1. **A leaf operation** — `["const", …]` / `["capture", i]`: explicit,
+   and the natural home for 3111's captured-consts frame.
+2. **Direct value embedding** — the referenced value *is* the constant,
+   since imports and module consts are already evaluated DJS values by
+   the time a function is built. Simplest, and it fits "the AST is an
+   `Any`"; but it inlines a shared value into every referencing
+   function, which matters for hashing and for `toString(f)` (a
+   reference to a named const would print as its expansion).
+3. **Built-ins as constants** — the built-in namespaces are values the
+   VM provides; embedding them collides with 2360's rule that they are
+   not assignable, so they may need their own leaf regardless.
+
+Related: `["throw", …]` exists as an operation partly because it needs
+none of this ([Operations](#operations)).
+
