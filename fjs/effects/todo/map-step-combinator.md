@@ -85,9 +85,7 @@ for brevity. The rationale is recorded in `mapStep`'s JSDoc.
 
 **No callback-arity hazard here.** `mapStep` applies `f` to exactly one
 argument, so passing a callee point-free cannot expose it to extra arguments the
-way `["1","2","3"].map(parseInt)` does. (`Eff.map` *is* exposed to that, because
-its history is positional — but no module uses `Eff` any more, so no site in
-this conversion needs the check.)
+way `["1","2","3"].map(parseInt)` does.
 
 **Scope.** `AGENTS.md` asks one improvement per PR. Take one module or one
 closely related group per PR; what must **not** happen is landing the whole

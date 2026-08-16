@@ -37,8 +37,8 @@ export type Effect<O extends Operation, T> =
  * - **The thunk must be pure and total.** Work hidden behind it is an effect
  *   that no runner ever sees and no `OperationMap` can interpret or mock.
  * - **It may be called more than once.** Nothing memoizes it. The same effect
- *   can be decoded repeatedly — `Eff` re-forces the effect it wraps on each
- *   `.step` — and under the first rule that costs nothing and changes nothing.
+ *   can be decoded repeatedly, and under the first rule that costs nothing and
+ *   changes nothing.
  *
  * A `lazy` constructor (`<T>(t: () => T): Effect<never, T> => t`) once existed
  * to advertise the thunk as a suspension. It was the identity function, and it
