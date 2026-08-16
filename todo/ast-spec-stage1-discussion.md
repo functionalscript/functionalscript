@@ -76,11 +76,20 @@ applies to runs that complete.
 
 ### A2. The runner may interrupt
 
-**Status:** undecided
+**Status:** accepted
 
 A runner has the right to interrupt a function if it consumes too many
 resources or takes too much time to compute. No specific memory or time
 limits are part of the specification.
+
+Resource limits are a property of the **engine**, not of the function:
+where one engine interrupts, another engine with more resources may
+return a result or throw the semantics-mandated exception (A3). The
+semantics defines one ideal outcome per input; every engine is a partial
+realization of it. Engines may differ in *whether* they answer, never in
+*what* they answer: any two runs that complete agree. Consequently FS
+code cannot rely on interruption or on its absence, and an interrupt is
+observably the same opaque failure as any other (A4 contract).
 
 ### A3. Throws are preserved
 
