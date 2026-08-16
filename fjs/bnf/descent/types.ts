@@ -1,13 +1,17 @@
 /**
  * Types for the recursive descent matcher backend.
  *
+ * The AST it builds is the shared one, over leaves that carry metadata:
+ * `Ast<CodePointMeta<T>>` from [`../matcher`](../matcher). What is declared
+ * here is what belongs to *this* backend — the metadata-carrying leaf, the
+ * diagnostics a backtracking matcher can report, and its public result.
+ *
  * @module
  */
 
 import type { CodePoint } from '../../text/utf16/types.ts'
+import type { Ast, AstTag } from '../matcher/types.ts'
 import type { TerminalRange } from '../types.ts'
-
-export type AstTag = string|true|undefined
 
 /**
  * Recursive descent matcher for a single named rule, starting from `startPos` —
@@ -58,7 +62,7 @@ export type DescentFailure = {
  * stopped just before it.
  */
 export type DescentMatchResult<T> = {
-    readonly ast: AstRuleMeta<T>
+    readonly ast: Ast<CodePointMeta<T>>
     readonly success: boolean
     readonly idx: number
     readonly failure?: DescentFailure
@@ -70,19 +74,10 @@ export type DescentMatchResult<T> = {
 export type DescentMatch<T> = (name: string, s: readonly CodePointMeta<T>[]) => DescentMatchResult<T>
 
 /**
- * Code point value paired with metadata.
+ * Code point value paired with metadata: this backend's AST leaf.
+ *
+ * Preserving metadata per consumed code point is what distinguishes this
+ * backend, so the leaf type stays here rather than moving to the shared layer,
+ * which is parameterized by it.
  */
 export type CodePointMeta<T> = readonly[CodePoint, T]
-
-/**
- * AST sequence for the metadata-aware parser.
- */
-export type AstSequenceMeta<T> = readonly(AstRuleMeta<T>|CodePointMeta<T>)[]
-
-/**
- * Metadata-aware AST node.
- */
-export type AstRuleMeta<T> = {
-    readonly tag: AstTag,
-    readonly sequence: AstSequenceMeta<T>
-}

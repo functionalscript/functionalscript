@@ -17,8 +17,9 @@
  * of the items it matched.
  *
  * The caller passes physical symbols only; the matcher synthesizes the one
- * logical EOF ({@link eofSymbol}) after them, so a grammar can dispatch on the
- * end of input with the `eof` terminal.
+ * logical EOF after them, so a grammar can dispatch on the end of input with
+ * the `eof` terminal. The position it does that at, the AST it builds, and the
+ * constructors that pair them are the shared layer in `fjs/bnf/matcher`.
  *
  * See `./types.ts` for the type-level API.
  *
@@ -29,19 +30,22 @@
  * @import { StringSet } from '../../types/string_set/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { RuleSet, Sequence } from '../data/types.ts'
+ * @import { Ast, AstResult, AstSequence, AstTag, Cursor } from '../matcher/types.ts'
  * @import { Rule as FRule } from '../types.ts'
- * @import { AstSequence, AstTag, Match, MatchResult, Remainder, _AstRule, _Dispatch, _DispatchBranch, _DispatchMap, _DispatchResult, _DispatchRule } from './types.ts'
+ * @import { Match, MatchResult, Remainder, _Dispatch, _DispatchBranch, _DispatchMap, _DispatchResult, _DispatchRule } from './types.ts'
  */
 
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { identity } from '../../types/function/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { rangeMap } from '../../types/range_map/module.f.mjs'
 import { contains as rangeContains } from '../../types/range/module.f.mjs'
 import { contains, set } from '../../types/string_set/module.f.mjs'
-import { eofSymbol, rangeDecode } from '../module.f.mjs'
+import { rangeDecode } from '../module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { emptyTagMap, isRepeat, toData } from '../data/module.f.mjs'
+import { leafAt, mrFail, mrSuccess, physicalIdx, symbolAt } from '../matcher/module.f.mjs'
 
 /** @type {Properties<_DispatchResult>} */
 const dispatchProps = {
@@ -160,33 +164,17 @@ export const parser = fr => {
 }
 
 /**
- * A match position over the physical input: `0 .. cp.length` are the physical
- * positions, and `cp.length + 1` is where the one synthesized EOF has been
- * consumed.
+ * Where a match stopped: a {@link Cursor}, or `null` when it ran out of input —
+ * the `null` {@link Remainder} this backend reports for that.
  *
- * This is the `(idx, eofConsumed)` cursor written as one number: `eofConsumed`
- * can only be true at the physical end, so the pair and the extended position
- * hold the same information.
- *
- * @typedef {number} _Cursor
- */
-
-/**
- * Where a match stopped: a {@link _Cursor}, or `null` when it ran out of input
- * — the `null` {@link Remainder} this backend reports for that.
- *
- * @typedef {_Cursor|null} _Position
+ * @typedef {Cursor|null} _Position
  */
 
 /**
  * The machine's own result: a {@link MatchResult} positioned by a cursor
  * instead of by a materialized remainder.
  *
- * @typedef {{
- *     readonly ast: _AstRule
- *     readonly success: boolean
- *     readonly pos: _Position
- * }} _Result
+ * @typedef {AstResult<CodePoint, _Position>} _Result
  */
 
 /**
@@ -198,7 +186,7 @@ export const parser = fr => {
  *     readonly tag: AstTag
  *     readonly items: Sequence
  *     readonly itemIndex: number
- *     readonly seq: AstSequence
+ *     readonly seq: AstSequence<CodePoint>
  * }} _SeqFrame
  */
 
@@ -218,7 +206,7 @@ export const parser = fr => {
  * }} _RepeatFrame
  */
 
-/** @typedef {List<_AstRule>} _Items */
+/** @typedef {List<Ast<CodePoint>>} _Items */
 
 /** @typedef {_SeqFrame | _RepeatFrame} _Frame */
 
@@ -239,7 +227,7 @@ export const parser = fr => {
  *     readonly kind: 'rule'
  *     readonly name: string
  *     readonly tag: AstTag
- *     readonly pos: _Cursor
+ *     readonly pos: Cursor
  * }} _RuleTask
  */
 
@@ -253,37 +241,22 @@ export const parser = fr => {
  *     readonly tag: AstTag
  *     readonly item: string
  *     readonly items: _Items
- *     readonly pos: _Cursor
+ *     readonly pos: Cursor
  * }} _RepeatTask
  */
 
 /** @typedef {_RuleTask | _RepeatTask} _Task */
 
-/** @type {(tag: AstTag, sequence: AstSequence, pos: _Position) => _Result} */
-const mrSuccess = (tag, sequence, pos) =>
-    ({ast: {tag, sequence}, success: true, pos})
-
-/** @type {(tag: AstTag, sequence: AstSequence, pos: _Position) => _Result} */
-const mrFail = (tag, sequence, pos) =>
-    ({ast: {tag, sequence}, success: false, pos})
-
 /**
- * The semantic symbol a cursor points at: a code point inside the physical
- * input, and the synthesized {@link eofSymbol} at its end. Only meaningful
- * where the cursor still has a symbol, `pos <= cp.length`.
+ * A leaf here is the code point itself, so it *is* its own symbol. The
+ * annotation pins `identity`'s type parameter, which `symbolAt`'s own cannot
+ * infer from a fully generic argument.
  *
- * @type {(cp: readonly CodePoint[], pos: _Cursor) => number}
+ * @type {(leaf: CodePoint) => number}
  */
-const symbolAt = (cp, pos) => pos < cp.length ? cp[pos] : eofSymbol
+const symbolOf = identity
 
-/**
- * What consuming the symbol at a cursor contributes to the AST: the code point
- * itself, and nothing for the synthesized EOF — it has no physical source
- * element.
- *
- * @type {(cp: readonly CodePoint[], pos: _Cursor) => AstSequence}
- */
-const leafAt = (cp, pos) => pos < cp.length ? [cp[pos]] : []
+const symbolAtCp = symbolAt(symbolOf)
 
 /**
  * The public remainder of a position. It stays physical, so consuming EOF
@@ -291,7 +264,7 @@ const leafAt = (cp, pos) => pos < cp.length ? [cp[pos]] : []
  *
  * @type {(cp: readonly CodePoint[], pos: _Position) => Remainder}
  */
-const remainderAt = (cp, pos) => pos === null ? null : cp.slice(Math.min(pos, cp.length))
+const remainderAt = (cp, pos) => pos === null ? null : cp.slice(physicalIdx(cp.length)(pos))
 
 /**
  * Creates an LL(1) parser from an already materialized {@link RuleSet}.
@@ -338,7 +311,7 @@ export const parserRuleSet = ruleSet => {
                     // the item's first set. Predictive selection cannot start a
                     // round that consumes nothing, so every round advances the
                     // cursor and the repetition always terminates.
-                    if (pos <= cp.length && dispatchOp.get(dispatched(item).rangeMap)(symbolAt(cp, pos)) !== null) {
+                    if (pos <= cp.length && dispatchOp.get(dispatched(item).rangeMap)(symbolAtCp(cp, pos)) !== null) {
                         stack = {top: {kind: 'repeat', tag, item, items}, rest: stack}
                         task = {kind: 'rule', name: item, tag: undefined, pos}
                     } else {
@@ -352,7 +325,7 @@ export const parserRuleSet = ruleSet => {
                     // The one logical EOF is available at the physical end, and
                     // only there: a terminal that matches it consumes it, once.
                     // Past it no symbol is left to consume.
-                    if (pos <= cp.length && rangeContains(...rangeDecode(rule))(symbolAt(cp, pos))) {
+                    if (pos <= cp.length && rangeContains(...rangeDecode(rule))(symbolAtCp(cp, pos))) {
                         result = mrSuccess(tag, leafAt(cp, pos), pos + 1)
                     } else if (pos >= cp.length) {
                         // Nothing left to reject: the match ran out of input.
@@ -371,7 +344,7 @@ export const parserRuleSet = ruleSet => {
                     task = {kind: 'repeat', tag, item: rule, items: null, pos}
                 } else {
                     const {empty, rangeMap} = dispatched(name)
-                    const d = pos > cp.length ? null : dispatchOp.get(rangeMap)(symbolAt(cp, pos))
+                    const d = pos > cp.length ? null : dispatchOp.get(rangeMap)(symbolAtCp(cp, pos))
                     const branch = d ?? empty
                     if (branch !== undefined) {
                         // The selected branch's node becomes the variant's,

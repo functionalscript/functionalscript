@@ -1,6 +1,7 @@
 /**
  * @module
  *
+ * @import { Ast, AstTag } from './matcher/types.ts'
  * @import { Rule } from './types.ts'
  */
 
@@ -199,17 +200,16 @@ export const deterministic = () => {
 //
 
 /**
- * The AST shape both matcher backends produce. `bnf/descent` pairs each
- * consumed code point with its metadata and `bnf/ll1` does not, so a leaf is
- * either form; the nodes themselves are the same `{ tag, sequence }`.
+ * The leaf of either backend's AST: `bnf/ll1` keeps the code point alone and
+ * `bnf/descent` pairs it with metadata, so a renderer that takes both is
+ * generic over exactly this.
  *
- * @typedef {{
- *     readonly tag: string | true | undefined
- *     readonly sequence: readonly _AstChild[]
- * }} _AstNode
+ * @typedef {number | readonly [number, unknown]} _Leaf
  */
 
-/** @typedef {_AstNode | number | readonly [number, unknown]} _AstChild */
+/** @typedef {Ast<_Leaf>} _AstNode */
+
+/** @typedef {_AstNode | _Leaf} _AstChild */
 
 /**
  * @param {_AstChild} child
@@ -217,7 +217,7 @@ export const deterministic = () => {
  */
 const isAstNode = child => typeof child !== 'number' && !(child instanceof Array)
 
-/** @type {(child: number | readonly [number, unknown]) => number} */
+/** @type {(child: _Leaf) => number} */
 const codePointOf = child => typeof child === 'number' ? child : child[0]
 
 /**
@@ -225,7 +225,7 @@ const codePointOf = child => typeof child === 'number' ? child : child[0]
  * match, and nothing at all for an untagged node. `*` rather than `true`
  * because a branch may itself be named `true` — the JSON grammars have one.
  *
- * @type {(tag: string | true | undefined) => string}
+ * @type {(tag: AstTag) => string}
  */
 const showTag = tag =>
     tag === undefined ? '' : tag === true ? '*' : JSON.stringify(tag)
