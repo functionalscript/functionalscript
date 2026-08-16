@@ -445,6 +445,13 @@ order.**
     result. Only *semantic* outcomes are cacheable — a value, or a
     mandated failure (A3); an A2 interrupt is an engine artifact, never
     a cacheable verdict.
+
+  An engine that actually *skips* assert branches is conceivable only as
+  a **debug mode** — a development tool showing the would-be result even
+  when guards would fail. Such a mode is non-conforming by definition:
+  never a default, and its results must never enter the
+  content-addressed cache or otherwise escape the debugging session —
+  they are not the function's outcome.
 - **Membership is semantic; order is not** (A4 rejected): every branch
   evaluates before the function completes normally, so A3's
   always-fails holds — but any evaluation order of branches (including
