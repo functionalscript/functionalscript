@@ -57,6 +57,17 @@ export type Base = {
 export type Sha2 = {
     readonly hashLength: bigint
     readonly blockLength: bigint
+    /**
+     * `hashLength` and `blockLength` in whole bytes, rounded up. Consumers
+     * that size a byte buffer read these instead of converting: `hmac` and
+     * `sign` each used to do it themselves, with two different spellings
+     * (`>> 3n` and `divUp8`), leaving a reader to work out per site whether
+     * the two roundings agree. They do for every SHA-2 variant, whose lengths
+     * are byte multiples — which is exactly why the decision belongs here
+     * once rather than at each call site.
+     */
+    readonly hashBytes: bigint
+    readonly blockBytes: bigint
     readonly init: State
     readonly append: Fold<Vec, State>
     readonly end: (state: State) => Vec

@@ -9,6 +9,19 @@ import { assertEq } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
 import { base32, base64, computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
 
+/**
+ * Every SHA-2 length is a whole number of bytes, so the rounded-up byte count
+ * and the exact division agree — this pins both that identity and the values.
+ *
+ * @type {(sha2: Sha2) => (hashBytes: bigint, blockBytes: bigint) => void}
+ */
+const checkBytes = ({ hashLength, blockLength, hashBytes, blockBytes }) => (h, b) => {
+    assertEq(hashBytes, h)
+    assertEq(blockBytes, b)
+    assertEq(hashBytes, hashLength >> 3n)
+    assertEq(blockBytes, blockLength >> 3n)
+}
+
 /** @type {(sha2: Sha2) => (x: bigint) => void} */
 const checkEmpty = ({ init, end, hashLength }) => x => {
     const result = end(init)
@@ -71,6 +84,17 @@ export const proof = {
         sha512x256: () => checkEmpty(sha512x256)(0xc672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967an),
         sha512x224: () => checkEmpty(sha512x224)(0x6ed0dd02806fa89e25de060c19d3ac86cabb87d6a0ddd05c333b84f4n),
     },
+    // The byte counts consumers read instead of converting bit lengths
+    // themselves. Asserted against the bit length each is derived from, not
+    // against a hand-written number, so the pairing is what is pinned.
+    byteLengths: [
+        () => checkBytes(sha224)(28n, 64n),
+        () => checkBytes(sha256)(32n, 64n),
+        () => checkBytes(sha384)(48n, 128n),
+        () => checkBytes(sha512)(64n, 128n),
+        () => checkBytes(sha512x224)(28n, 128n),
+        () => checkBytes(sha512x256)(32n, 128n),
+    ],
     utf8: [
         () => {
             const e = 0x730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525n
