@@ -15,10 +15,10 @@ them. All of it follows from
 and future backend has to implement identically or be wrong.
 
 The machines do **not** belong here, and one matcher covering both would be worse
-than two. `../descent` backtracks: two frame kinds, a per-frame rewind to the
+than two. `../descent` backtracks: three frame kinds, a per-frame rewind to the
 sequence's start, and a furthest-failure high-water mark that outlives the
-rewinds. `../ll1` is predictive: one frame kind, and a cursor that never moves
-backwards. Their public results are different types on purpose —
+rewinds. `../ll1` is predictive: sequence and repetition frames with no rewind
+state, and a cursor that never moves backwards. Their public results are different types on purpose —
 `{ ast, success, idx, failure? }` against `readonly [ast, success, Remainder]`.
 
 Nor is a leaf. A backend picks `L` for what it keeps of a consumed symbol:

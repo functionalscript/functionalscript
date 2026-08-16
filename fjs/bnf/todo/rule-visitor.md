@@ -79,8 +79,8 @@ scheme. Each call site keeps its own recursion/accumulator structure.
   task** by removing the current generic string rule.
 - [256-bit bigint BNF symbols](./bigint-symbols.md) — **blocks this task** until
   the terminal/range representation and parser discriminants are migrated.
-- [LL(1) AST divergence](./ll1-ast-divergence.md) — the `Repeat` case the
-  visitor has to cover, and the backend that still dispatches it separately.
+- [`../data/README.md`](../data/README.md#the-repeat-rule) — the `Repeat` case
+  the visitor has to cover; both backends now match it iteratively.
 - [nullable-analysis-shared](./nullable-analysis-shared.md) — the shared
   nullability pass is a natural consumer once the visitor exists.
 - `fjs/types/rtti/common/module.f.mjs` — existing `visit` precedent.

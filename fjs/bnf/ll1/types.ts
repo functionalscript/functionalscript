@@ -7,12 +7,16 @@
 import type { CodePoint } from '../../text/utf16/types.ts'
 import type { RangeMapArray } from '../../types/range_map/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
-import type { EmptyTag } from '../data/types.ts'
 import type { Ast } from '../matcher/types.ts'
 
-/** @internal */
+/**
+ * A rule's dispatch entry: its first set as a range map, and — for a variant
+ * that can match empty — the branch a dispatch miss selects.
+ *
+ * @internal
+ */
 export type _DispatchRule = {
-    readonly emptyTag: EmptyTag,
+    readonly empty: _DispatchBranch | undefined,
     readonly rangeMap: _Dispatch
 }
 
@@ -20,18 +24,19 @@ export type _DispatchRule = {
 export type _Dispatch = RangeMapArray<_DispatchResult>
 
 /** @internal */
-export type _DispatchResult = _DispatchRuleCollection | null
+export type _DispatchResult = _DispatchBranch | null
 
 /**
- * The rules a dispatched symbol selects, to be matched one after another. They
- * are names into the {@link _DispatchMap}: the builder only ever appends rule
- * names, so the matcher resolves each one there.
+ * A branch as dispatch selects it: the name of the rule to invoke — a name
+ * into the {@link _DispatchMap} — and the tag its node gets. Only a variant's
+ * entries are ever read as branches; every other rule kind consults its range
+ * map solely for first-set membership.
  *
  * @internal
  */
-export type _DispatchRuleCollection = {
+export type _DispatchBranch = {
     readonly tag: string | undefined,
-    readonly rules: readonly string[]
+    readonly name: string
 }
 
 /** @internal */
