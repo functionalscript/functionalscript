@@ -119,6 +119,7 @@ import { detectStream } from '../../media/type/module.f.mjs'
 import { detect } from '../../media/module.f.mjs'
 import { revisionDialect } from '../../media/revision/module.f.mjs'
 import { lockDialect } from '../../media/lock/module.f.mjs'
+import { noteDialect } from '../../media/note/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import {
@@ -155,11 +156,11 @@ const toJson = stringify(identity)
 
 /**
  * The dialect-aware classifier, bound to the dialects this server recognizes:
- * the revision format and the shared lock maps revisions reference
- * (`fjs/media/lock`), so `cas_get` reports either under its own media type
- * instead of `text/plain`.
+ * the revision format, the shared lock maps revisions reference
+ * (`fjs/media/lock`), and notes (`fjs/media/note`), so `cas_get` reports each
+ * under its own media type instead of `text/plain`.
  */
-const detectDialect = detect([revisionDialect, lockDialect])
+const detectDialect = detect([revisionDialect, lockDialect, noteDialect])
 
 /** @typedef {{
  *   readonly length: number
