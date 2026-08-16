@@ -3,10 +3,8 @@
  *
  * @module
  *
+ * @import { Ast, AstSequence, AstTag } from '../../bnf/matcher/types.ts'
  * @import {
- *   AstRuleMeta,
- *   AstSequenceMeta,
- *   AstTag,
  *   CodePointMeta,
  *   DescentMatch,
  *   DescentMatchResult,
@@ -455,7 +453,7 @@ const toJsTokenWithMetadata = tk => {
     return [{ token, metadata }]
 }
 
-/** @type {(value: AstRuleMeta<TokenMetadata>|CodePointMeta<TokenMetadata>) => List<_FlatToken>} */
+/** @type {(value: Ast<CodePointMeta<TokenMetadata>>|CodePointMeta<TokenMetadata>) => List<_FlatToken>} */
 const getTokensFromAstRuleOrCodePoint = value => {
     if (value instanceof Array)
         return [value]
@@ -463,7 +461,7 @@ const getTokensFromAstRuleOrCodePoint = value => {
     return getTokensFromAstRule(value)
 }
 
-/** @type {(seq: AstSequenceMeta<TokenMetadata>) => List<_FlatToken>} */
+/** @type {(seq: AstSequence<CodePointMeta<TokenMetadata>>) => List<_FlatToken>} */
 const getTokensFromAstSequence = seq => {
     return flatMap(getTokensFromAstRuleOrCodePoint)(seq)
 }
@@ -477,7 +475,7 @@ const tagToToken = tag => {
     }
 }
 
-/** @type {(ast: AstRuleMeta<TokenMetadata>) => List<_FlatToken>} */
+/** @type {(ast: Ast<CodePointMeta<TokenMetadata>>) => List<_FlatToken>} */
 const getTokensFromAstRule = ast => {
     const token = tagToToken(ast.tag)
     if (ast.sequence.length === 0)

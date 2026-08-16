@@ -50,23 +50,22 @@ backend can drift without restating what the other produces.
 entered *before* its first symbol is consumed, which is a change
 [`new-parser`](../todo/new-parser.md) already contemplates.
 
-## Logical EOF and the complete cursor
+## What this backend does with the cursor
 
-The caller passes physical symbols only; the matcher synthesizes the one logical
-EOF after them ([`../README.md`](../README.md#logical-eof-in-parser-input)). A
-rule that dispatches on `eof` consumes it at the physical end of input, once.
-Internally a position is therefore a cursor over `0 .. cp.length + 1`, where
-`cp.length + 1` means the synthesized EOF has been consumed — the
-`(idx, eofConsumed)` pair of the shared design written as one number, because
-`eofConsumed` can only be true at the physical end. The same cursor used to be a
-remainder slice paired with a threaded `eofConsumed` flag; it says the same
-thing, and being a number is what lets the input array be shared instead of
-copied (see below).
+The position is the shared [`Cursor`](../matcher), and its mechanics live there.
+What is this backend's own: LL(1) never backtracks, so a cursor only ever moves
+forward — which is why the machine needs no rewind state per frame, unlike
+[`../descent`](../descent). A rule that dispatches on `eof` consumes the
+synthesized end-of-input symbol at the physical end, once.
 
 Remainders stay physical, so consuming EOF leaves an empty remainder rather than
 the `null` this backend reports when a match runs out of input. Since EOF sits
 below every ordinary symbol, its dispatch entry cuts at `-2`; the dispatch map
 holds decoded terminals, never stored endpoint codes.
+
+The cursor used to be a remainder slice paired with a threaded `eofConsumed`
+flag. It says the same thing, and being a number is what lets the input array be
+shared instead of copied (see below).
 
 ## Matching without the JS call stack
 
@@ -88,6 +87,3 @@ same reason. Consuming a code point by re-slicing the remainder
 (`const [, ...restCp] = cp`) copied the whole rest of the input at every step,
 making a match quadratic in input length; the remainder slice a `MatchResult`
 carries is materialized once, when the match returns.
-
-LL(1) never backtracks, so a cursor only ever moves forward — which is why the
-machine needs no rewind state per frame, unlike the descent backend.

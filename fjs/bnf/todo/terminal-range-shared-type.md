@@ -43,7 +43,7 @@ module already has the type you need, import it" instead of duplicating.
 
 ### Related
 
-- [669-bnf-matcher-shared-core](./669-bnf-matcher-shared-core.md) — the same
-  one-owner move for the matcher backends' cursor, AST, and result
-  constructors (different declarations; this type duplication is not covered
-  there).
+- [`fjs/bnf/matcher`](../matcher) — the same one-owner move, done, for the
+  matcher backends' cursor, AST, and result constructors. It covers different
+  declarations; this type duplication was explicitly out of its scope and is
+  still open.
