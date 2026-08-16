@@ -265,7 +265,8 @@ graph, and the anchor list is the syntax that links it.**
 
 ### 9. Canonical graph serialization and hashing
 
-**Status:** open
+**Status:** parked — deliberately deferred; not part of the stage 1
+discussion. The notes below are kept so nothing is rediscovered later.
 
 Sharing is semantic (subject 1), so the canonical byte form must encode
 the **graph**, not a tree expansion:
