@@ -59,5 +59,6 @@ in `rtti/ts`:
 
 ### Related
 
-- [172](./172.md) — one container skeleton for `validate`/`parse`;
-  same theme of `rtti` submodules sharing the `data` algebra instead of copying it.
+- `../parse/module.f.mjs` — the same theme of `rtti` submodules sharing the
+  `data` algebra instead of copying it. (The container-skeleton issue this used
+  to point at was resolved by deleting `validate`: only one walker remains.)

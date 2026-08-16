@@ -67,7 +67,7 @@ covers `cas_add`/`cas_get`/`cas_list`.
 
 Each tool's argument schema is an rtti struct declared once and used twice:
 [`toJsonSchema`](../media/json/schema/module.f.mjs) derives the `inputSchema`
-advertised in `tools/list`, and [`validate`](../types/rtti/validate/module.f.mjs)
+advertised in `tools/list`, and [`parse`](../types/rtti/parse/module.f.mjs)
 decodes the `arguments` object in `tools/call`. There is no drift between what we
 advertise and what we accept.
 

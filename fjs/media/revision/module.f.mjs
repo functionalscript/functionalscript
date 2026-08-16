@@ -22,7 +22,7 @@
  */
 
 import { array, number, option, string } from '../../types/rtti/module.f.mjs'
-import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
+import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
 import { parse as parseJson } from '../json/module.f.mjs'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
 import { error, ok, okThen } from '../../types/result/module.f.mjs'
@@ -130,7 +130,7 @@ export const revisionSchema = /** @type {const} */ ({
 export const encodeText = stringify(sort)
 
 /** Structural-only validator: checks the shape, not the hash / generation semantics. */
-const validateShape = rttiValidate(revisionSchema)
+const validateShape = rttiParse(revisionSchema)
 
 /** True when `s` decodes as a cbase32 CAS hash (rejects `https://` and any other non-cbase32 string).
  * @type {(s: string) => boolean}

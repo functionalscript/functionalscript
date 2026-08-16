@@ -33,7 +33,7 @@
  */
 
 import { array, option, or, string } from '../../types/rtti/module.f.mjs'
-import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
+import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
 import { parse as parseJson, stringify } from '../json/module.f.mjs'
 import { okThen } from '../../types/result/module.f.mjs'
 import { dialectEntry } from '../module.f.mjs'
@@ -110,7 +110,7 @@ export const encodeText = stringify(sort)
  *
  * @type {(value: Unknown) => Result<Note, ValidationError>}
  */
-export const validate = rttiValidate(noteSchema)
+export const validate = rttiParse(noteSchema)
 
 /**
  * Decodes `text` as a `note` BLOB: JSON-parses it, then validates it per

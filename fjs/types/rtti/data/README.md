@@ -16,12 +16,16 @@ consumer actually needs it.
    collapse, structural equality (`equal`), inclusion (`subset`), and canonical
    ordering (`cmp`).
 
-A consequence is two validators: the thunk-direct one in
-[`../validate`](../validate/module.f.mjs) walks the thunk graph at dispatch
-time — simple, no preprocessing, good for ad-hoc use — while `validate` here
-consumes a `Data` produced by `toData` and benefits from the canonical form:
-unions are already flattened, subset-covered patterns already dropped. The two
-coexist; users who care about repeat use convert once and keep the data form.
+A consequence is two readers: the thunk-direct
+[`../parse`](../parse/module.f.mjs) walks the thunk graph at dispatch time —
+simple, no preprocessing, good for ad-hoc use — while `validate` here consumes
+a `Data` produced by `toData` and benefits from the canonical form: unions are
+already flattened, subset-covered patterns already dropped. The two coexist;
+users who care about repeat use convert once and keep the data form.
+
+They differ in what they return, not only in how they dispatch: `parse` builds
+a fresh value holding exactly the declared members, while `validate` here
+answers a set-membership question about the value it was given.
 
 ## The representation is set-theoretic
 
@@ -135,8 +139,26 @@ now.
 
 ## Tuple length
 
-The data form constrains a tuple's length exactly (`{ prefix }` with no
-`rest` admits only `prefix.length` elements), matching the `Ts<T>` type-level
-mapping and the thunk-direct `validate`. See
-[`../README.md`](../README.md#tuples-are-closed-structs-are-open) for how the
-three runtime consumers line up on tuple length and struct keys.
+The data form constrains a tuple's length exactly: `{ prefix }` with no `rest`
+admits only `prefix.length` elements.
+
+**This diverges from `parse`**, which treats structs and tuples as open (see
+[Structs and tuples are open](../README.md#structs-and-tuples-are-open)). The
+same schema gives two answers depending on which consumer reads it:
+
+```js
+parse([42])([42, 'extra'])             // ['ok', [42]]
+validate(toData([42]))([42, 'extra'])  // ['error', { path: [], message: 'unexpected value' }]
+```
+
+The divergence is arrays-only — struct keys already agree, because an absent
+`rest` means *closed* on arrays (`arraySet` normalizes a `rest` of `never`
+away) but *open* on objects (`objectSet` normalizes a `rest` of `unknown`
+away):
+
+```js
+parse({ a: 42 })({ a: 42, b: 'x' })             // ['ok', { a: 42 }]
+validate(toData({ a: 42 }))({ a: 42, b: 'x' })  // ['ok', { a: 42, b: 'x' }]
+```
+
+Tracked in [`../todo/data-form-open-tuples.md`](../todo/data-form-open-tuples.md).

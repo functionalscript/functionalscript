@@ -4,7 +4,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { ok, error } from '../../types/result/module.f.mjs'
-import { validate } from '../../types/rtti/validate/module.f.mjs'
+import { parse } from '../../types/rtti/parse/module.f.mjs'
 import {
     error as errorSchema,
     decodeRequest,
@@ -44,9 +44,9 @@ export const proof = {
             notObject: () => assert(!isOk(decodeRequest(42))),
         },
         error: {
-            ok: () => assert(isOk(validate(errorSchema)({ code: -1, message: 'x' }))),
-            withData: () => assert(isOk(validate(errorSchema)({ code: -1, message: 'x', data: [1, 2] }))),
-            missingMessage: () => assert(!isOk(validate(errorSchema)({ code: -1 }))),
+            ok: () => assert(isOk(parse(errorSchema)({ code: -1, message: 'x' }))),
+            withData: () => assert(isOk(parse(errorSchema)({ code: -1, message: 'x', data: [1, 2] }))),
+            missingMessage: () => assert(!isOk(parse(errorSchema)({ code: -1 }))),
         },
     },
     errors: {

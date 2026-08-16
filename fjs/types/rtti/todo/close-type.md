@@ -15,9 +15,9 @@ Add a closed container schema:
 - Every remaining property or element must match `Rest`.
 - If `Rest` is `undefined` or omitted, there must be no remaining members.
 
-Structs and tuples on their own stay **open** — see
-[retire-validate.md](./retire-validate.md). Closedness is stated, never
-inferred: a schema that wants exact members writes `close`.
+Structs and tuples on their own stay **open** — see "Structs and tuples are
+open" in [../README.md](../README.md). Closedness is stated, never inferred: a
+schema that wants exact members writes `close`.
 
 ## The data form already has this
 
@@ -89,7 +89,7 @@ its declaration, rather than dropping it. With a `Rest`, a member matching
 
 `['close', S]` renders as `Ts<S>` — the exact struct or tuple, which is what
 TypeScript is already good at, and is precisely the mapping `TupleTs` keeps
-today (`../ts/types.ts:78-80`).
+today (`../ts/types.ts:91-93`).
 
 `['close', S, R]` — a struct plus an index signature over `R`, or a tuple with
 a rest element — may or may not render. If it does not, that is a gap in
@@ -111,7 +111,7 @@ spellings of the same set must not compare unequal. `['close', S]` and
 ## Tasks
 
 - [ ] Extend `Type` with the `close` variant and update the `_AssertType` pin.
-- [ ] Add the `Visitor` / `match` case; implement it in `parse`.
+- [ ] Add the `Visitor` case and the `visit` branch; implement it in `parse`.
 - [ ] Decide and document `parse`'s rule for a rejected extra member, and
       whether `Rest`-matching members are copied.
 - [ ] `Ts<T>`: map `['close', S]`; attempt `['close', S, R]` and document the
@@ -126,8 +126,8 @@ spellings of the same set must not compare unequal. `['close', S]` and
 
 ## Related
 
-- [retire-validate.md](./retire-validate.md) — the open default this is the
-  counterpart to.
+- [`../README.md`](../README.md) — "Structs and tuples are open", the default
+  this is the counterpart to.
 - [`../../../media/json/todo/rtti-parse.md`](../../../media/json/todo/rtti-parse.md)
   — the RTTI-aware JSON parser reuses `../parse/module.f.mjs`'s container
   behavior, so it needs a `close` case too; whichever lands second picks it up.
