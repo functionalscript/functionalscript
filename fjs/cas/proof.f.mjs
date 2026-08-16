@@ -367,6 +367,26 @@ export const proof = {
         const [, present] = virtual(state1)(access(stalePath))
         assert(present[0] === 'error', 'expected GC to reclaim the expired staging file')
     },
+    casWriteGcRmFailureDoesNotFailTheUpload: () => {
+        // The sweep is best-effort, and `gcStage`'s error channel is `never`
+        // because it says so: an `rm` that fails on one expired file recovers
+        // per item, so the upload it is piggy-backed on still succeeds.
+        const stale = '0000000000000000000-stale'
+        const c = fileCas(sha256)('.')
+        // An empty payload: the driver's default `stat` reports size 0, so the
+        // publish check passes and the sweep is the only thing under test.
+        /** @type {List<never, IoResult<Vec>>} */
+        const payload = empty()
+        const [result, log] = drive({
+            // Only the first `now` is the sweep's, so every deadline after it
+            // stays 0 and the staging file below reads as expired.
+            now: [ok(1)],
+            readdir: [ok([{ name: stale, parentPath: '_stage', isFile: true }])],
+            rm: [error(ioError({ message: 'busy' }))],
+        })(c.write(payload))
+        assert(result instanceof Array && result[0] === 'ok', ['expected write ok', result])
+        assertEq(log[0], 'now', ['expected the sweep to run first', log])
+    },
     casWriteGcSkipsLiveLease: () => {
         // A staging file whose deadline is still in the future is left alone by the GC
         // that `write` runs before staging its own file.
