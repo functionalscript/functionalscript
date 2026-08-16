@@ -11,18 +11,23 @@ and this document is deleted.
 *This baseline supersedes the original index-based sequence proposal; the
 revision history is recorded in subjects 1 and 8.*
 
-A function body is an **array of branches**: every entry is the root
-node of a rooted subgraph of the computation DAG. The **first** entry is
-the **resulting branch**, whose value the function returns; all
-remaining entries are **assert branches** — their values are discarded,
-they exist for their throw-potential only (fail-fast guards, A4). The
-spelling is *fixed head + unordered tail*: index 0 is always the result
-(stable under adding or removing asserts, knowable without the array's
-length, and rhyming with the head-first tagged tuples), while the assert
-branches are unordered among themselves. Branches share nodes freely by
-reference, and all must complete for the function to complete normally.
-(These are DAG branches — rooted subgraphs — not the control-flow
-branches of the future `cond`, subject 3.)
+A function body is a **single operation node** — the root of the
+computation DAG. Non-resulting computations (asserts — fail-fast
+guards, A4) are merged into the graph by the **`comma` operation**:
+
+- `["comma", result, ...asserts]` establishes **all** of its operands
+  (subject 8) and takes the value of `result`. The assert operands'
+  values are discarded — they exist for their throw-potential only —
+  and are unordered among themselves (A4). The result operand sits at
+  the fixed head position, per the format's head-first convention:
+  stable under adding or removing asserts. *(Alternative spelling to
+  confirm: result last, mirroring the JS comma operator's `(a, b) → b`.)*
+- The operands of a `comma` are this document's **branches**: rooted
+  subgraphs of the DAG, sharing nodes freely by reference — distinct
+  from the control-flow branches of the future `cond` (subject 3).
+- **Stage 1 ships without `comma`**: a stage 1 body is a plain node, and
+  the operation is introduced later, when asserts arrive, without
+  changing the body's shape.
 
 - an operation node is:
   - a **non-object, non-array value** — a constant: `"hello world"`, `2.5`,
@@ -36,16 +41,18 @@ branches of the future `cond`, subject 3.)
     - `["at", node0, node1]` — `node0[node1]`,
     - `["call", node0, node1]` — `node0(...node1)`,
     - `["bindCall", node0, node1, node2]` —
-      `node0[node1](...node2)`.
+      `node0[node1](...node2)`,
+    - `["comma", result, ...asserts]` — the merge operation described
+      above (not in stage 1; introduced later).
 - operand positions hold **real references** to nodes, not indices.
   Referencing the same node from two positions is **semantic sharing**: the
   node is evaluated once and its result reused. `const x = {}` then
   `[x, x]` yields an array with `a[0] === a[1]`, while `[{}, {}]` yields
   two distinct objects.
-- evaluation: every branch evaluates (in any order, possibly in
-  parallel — A4); every node is memoized by its identity, so shared
-  nodes evaluate once; the function's value is the resulting branch's
-  value.
+- evaluation: the root node is established (subject 8) and its value is
+  the function's result; a `comma` establishes all its operands, in any
+  order, possibly in parallel (A4); every node is memoized by its
+  identity, so shared nodes evaluate once.
 
 The graph cannot be serialized as JSON (sharing would be lost — and
 sharing is semantic), but it serializes as **DJS** (`const` + reference):
@@ -54,13 +61,13 @@ the AST's sharing structure and DJS's graph structure are the same thing.
 ```js
 // const f = (...a) => { const x = a[0]; return [x, x] }
 const x = ["at", ["args"], 0]
-export default [["array", x, x]]     // one branch: the result; x is interior
+export default ["array", x, x]       // the body is one node; x is interior
 
-// (...a) => { const check = a[0].length; return a[1] }
+// (...a) => { const check = a[0].length; return a[1] } — with comma (later)
 const a = ["args"]
-export default [
-    ["at", a, 1],                    // resulting branch: always first
-    ["at", ["at", a, 0], "length"],  // assert branch: value unused
+export default ["comma",
+    ["at", a, 1],                    // the result: fixed head
+    ["at", ["at", a, 0], "length"],  // assert: value unused
 ]
 ```
 
@@ -185,16 +192,16 @@ Soundness: by A1 the completed value is order-independent; by A3 plus
 anchoring (subject 8) every may-throw operation still evaluates under
 any reordering, so fails-vs-completes is order-independent; reordering a
 throw behind a non-terminating computation yields failure either way
-(A2). Hence all evaluation orders of independent anchored entries are
+(A2). Hence all evaluation orders of independent anchored branches are
 observably equal.
 
 Unlocked by rejecting A4:
 
-- reordering and parallel evaluation of independent anchored entries;
+- reordering and parallel evaluation of independent anchored branches;
   canonical ordering for hash matching (subject 1 note);
-- **fail-fast guards**: an anchored entry whose value the result never
+- **fail-fast guards**: an anchored branch whose value the result never
   uses (an assert, a range check) is pure throw-potential — an engine
-  may execute such entries as soon as possible, e.g. hoisted into a
+  may execute such branches as soon as possible, e.g. hoisted into a
   prologue before expensive data-path work, or in parallel with it.
   Failing early also wastes fewer resources (A2), and an AOT backend can
   compile the guards into a literal precondition prologue;
@@ -208,8 +215,8 @@ Unlocked by rejecting A4:
 
 Still illegal with A4 rejected:
 
-- **dropping** an anchored may-throw operation — A3 makes the branch
-  array an existence guarantee (subject 8);
+- **dropping** an anchored may-throw operation — A3 makes the `comma`
+  merge an existence guarantee (subject 8);
 - **speculating** a lazy operand — a not-taken branch may throw where JS
   completes;
 - **merging** identical constructor nodes — object identity is
@@ -297,8 +304,8 @@ Examples — named parameters are positions in the arguments array; the
 compiler erases names:
 
 ```js
-const f = (...a) => a[5]   // [["at", ["args"], 5]]
-const g = (a) => a[5]      // [["at", ["at", ["args"], 0], 5]]
+const f = (...a) => a[5]   // ["at", ["args"], 5]
+const g = (a) => a[5]      // ["at", ["at", ["args"], 0], 5]
 ```
 
 ### 3. Lazy operators and the branch extension path
@@ -316,9 +323,9 @@ open:
   operands are additions, not breaking changes.
 - Recorded extension path: `["cond", condNode, thenNode, elseNode]` where
   laziness is a property of the operand *position*. A branch operand is an
-  ordinary node — including, when the branch body has its own consts, a
-  nested branch array carrying that branch's effect membership
-  (subject 8).
+  ordinary node — including a `comma` node when the branch body has its
+  own guards, which gives each control branch its per-branch effect
+  membership with no extra machinery (subject 8).
 - The reference model dissolves the scoping problem that the index model
   had: there is no index space to scope, no De Bruijn `(up, index)`
   machinery; sharing across a lazy boundary is a plain reference, and a
@@ -351,8 +358,11 @@ the FJS compiler would never emit. To validate:
 - constants: function values in constant position are a validation error
   (until a `["function", ...]` node exists,
   [function](../spec/todo/3110-function.md));
-- the body: must be a non-empty array — the resulting branch (index 0)
-  must exist;
+- the body: a single operation node;
+- `comma` (when introduced): at least two operands — a single-operand
+  `comma` is the identity and non-canonical; an assert operand reachable
+  from another operand of the same `comma` is redundant (well-formedness,
+  subject 8);
 - unknown command tags: validation error;
 - duplicate object-constructor keys: validation error (subject 4);
 - **acyclicity**: DJS cannot express cycles (const-before-use), but an
@@ -388,45 +398,49 @@ names must be rejected at *runtime*.
 
 **Status:** open
 
-A function body is a *bare* array of operation nodes: array means
-"branch array" at body position and "tagged tuple" at operand position.
-Intentional, but must be stated explicitly; it also matches the eventual
-`["function", body]` node.
+With the body a single operation node, no special top-level shape
+remains — every position, the body included, is a node, and the body
+composes directly into the eventual `["function", body]` node.
 
 To decide: whether stage 1's `Function` constructor input is the bare
-branch array or a wrapper carrying metadata — parameter count for
+body node or a wrapper carrying metadata — parameter count for
 `.length`, and parameter-shape fidelity for `toString(f)` (subject 2
 erases names and arity; without a wrapper, `toString` can only print a
 rest-parameter spelling).
 
-### 8. Branches: anchored evaluation
+### 8. `comma`: anchored evaluation
 
-**Status:** decided (revised under A4 rejected)
+**Status:** decided (revised: the merge is the `comma` operation)
 
-**Resolution: a function is an array of branches — assert branches plus
-the resulting branch — and the array guarantees *membership*, not
-order.**
+**Resolution: non-resulting computations are merged into the graph by
+the `comma` operation — `["comma", result, ...asserts]` — which
+guarantees *membership*, not order.** Stage 1 ships without `comma`;
+these rules bind the operation when it is introduced.
 
 - A throw is an effect. A reference edge can only express "the result is
   needed here"; a may-throw operation needs "evaluate this even if its
   value is never needed". A pure data-flow DAG has no edge type for
-  that, so the format needs dedicated syntax: the branch array. (Graph
-  IRs solve this the same way: effect edges alongside data edges.)
-- **Entries are the roots of the DAG, and only the roots.** A source
-  const whose value the result uses is already a member by reachability
-  — it collapses into an interior shared node and needs no entry. Only
-  non-resulting roots — the assert branches — need listing; at the
-  source level, an unused `const` *is* the assert syntax. Identifying
-  roots is **reachability, not effect analysis**: the AST's shape does
-  not depend on any analysis's precision, preserving hash stability
-  across compiler versions.
-- **Well-formedness: entries are true roots** — an assert entry must
-  not be reachable from any other entry. Without this rule the same
-  function could be spelled with or without redundant
-  listed-but-referenced entries, needlessly splitting hashes.
+  that, so the format needs dedicated syntax: `comma`'s assert-operand
+  positions are exactly those effect edges. (Graph IRs solve this the
+  same way: effect edges alongside data edges.) Being an ordinary
+  operation, `comma` composes anywhere in the graph — body root, or
+  inside a future control branch — one mechanism for all scopes.
+- **Only true roots need merging.** A source const whose value the
+  result uses is already a member by reachability — it collapses into
+  an interior shared node. Only non-resulting roots — the asserts —
+  need a `comma` operand; at the source level, an unused `const` *is*
+  the assert syntax. Identifying roots is **reachability, not effect
+  analysis**: the AST's shape does not depend on any analysis's
+  precision, preserving hash stability across compiler versions.
+- **Well-formedness: merged operands are true roots** — an assert
+  operand must not be reachable from any other operand of the same
+  `comma`. Without this rule the same function could be spelled with or
+  without redundant merged-but-referenced operands, needlessly
+  splitting hashes. A single-operand `comma` is the identity and
+  equally non-canonical.
 - **Branch ordering: the spec owns the spelling; engines own the
   schedule.** What matters for the specification is **canonical order**:
-  the resulting branch at its fixed head, and (eventually) a canonical
+  the result operand at its fixed head, and (eventually) a canonical
   order for the assert tail — the leading candidate is
   **lexicographical content-hash order**, which gives the function a
   stable hash regardless of how the source ordered its asserts, with the
@@ -441,19 +455,21 @@ order.**
   optimize for the happy path. The spec assumes nothing about any of
   this; the freedoms above are illustrations of what A1–A4 make sound
   for any engine, with no coordination.
-- **Membership is never negotiable: a result is revealed only after ALL
-  branches complete successfully.** Scheduling freedom is about *when*
-  guards run, never *whether*. This is more than A3 fidelity — an assert
-  branch may be a security guard whose failure must prevent the result
-  from ever reaching the caller:
+- **Membership is never negotiable: a `comma`'s value is revealed only
+  after ALL its operands complete successfully.** Scheduling freedom is
+  about *when* guards run, never *whether*. When the guarded `comma` is
+  the body root, its value is the function's value — so nothing escapes
+  to the caller until every guard passes. This is more than A3 fidelity
+  — an assert may be a security guard whose failure must prevent the
+  result from ever reaching the caller:
 
   ```js
   const getValue = key => { assert(key !== 'password'); return map[key] }
   ```
 
-  An engine may compute anything early — even the resulting branch
-  speculatively, which is unobservable — but the function's value must
-  not escape to the caller until every assert branch has succeeded.
+  An engine may compute anything early — even the result operand
+  speculatively, which is unobservable — but the `comma`'s value must
+  not be revealed until every assert operand has succeeded.
 
   "Succeeded" is an **as-if** rule — the engine must *establish* each
   branch's success, not necessarily *execute* it:
@@ -491,18 +507,18 @@ order.**
   never a default, and its results must never enter the
   content-addressed cache or otherwise escape the debugging session —
   they are not the function's outcome.
-- **Membership is semantic; order is not** (A4 rejected): every branch
-  evaluates before the function completes normally, so A3's
-  always-fails holds — but any evaluation order of branches (including
-  parallel, and assert branches as fail-fast guards before the data
+- **Membership is semantic; order is not** (A4 rejected): every merged
+  operand is established before the merging `comma`'s value is revealed,
+  so A3's always-fails holds — but any evaluation order of branches
+  (including parallel, and asserts as fail-fast guards before the data
   path) is legal under the opaque-error contract. Data dependencies
   still order evaluation; lazy operands (subject 3) are still never
   speculated.
 - Memoization by node identity: a shared node evaluates once, at its
   first demand.
 - Future: a control-flow branch operand (`cond`, subject 3) carries its
-  own nested branch array, giving each control branch its per-branch
-  effect membership.
+  guards as a `comma` node inside the branch — per-branch effect
+  membership with no extra machinery.
 
 ### 9. Canonical graph serialization and hashing
 
