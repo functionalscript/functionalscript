@@ -4,12 +4,13 @@
  * Built from the serializable IR in `fjs/bnf/data`, this is a sibling of the
  * LL(1) dispatch builder (`fjs/bnf/ll1`). It walks the grammar by recursive
  * descent and preserves per-code-point metadata, producing a metadata-aware
- * AST ({@link AstRuleMeta}). Nullability (which rule can match empty input) is
- * computed once by {@link emptyTagMap} in `fjs/bnf/data`.
+ * AST over leaves that carry it — `Ast<CodePointMeta<T>>`, built with the
+ * shared layer in `fjs/bnf/matcher`. Nullability (which rule can match empty
+ * input) is computed once by {@link emptyTagMap} in `fjs/bnf/data`.
  *
  * The caller passes physical symbols only; the matcher synthesizes the one
- * logical EOF ({@link eofSymbol}) after them, so a grammar can require the end
- * of input with the `eof` terminal.
+ * logical EOF after them, so a grammar can require the end of input with the
+ * `eof` terminal.
  *
  * A failed result also carries a {@link DescentFailure}: the furthest position a
  * terminal was rejected at, which — unlike the result's own index — never
@@ -28,35 +29,24 @@
  * @import { Rule as DataRule, RuleSet, Sequence } from '../data/types.ts'
  * @import { Rule as FRule } from '../types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { AstRuleMeta, AstTag, AstSequenceMeta, CodePointMeta, DescentFailure, DescentMatch, DescentMatchResult, DescentMatchRule } from './types.ts'
+ * @import { Ast, AstResult, AstSequence, AstTag, Cursor } from '../matcher/types.ts'
+ * @import { CodePointMeta, DescentFailure, DescentMatch, DescentMatchResult, DescentMatchRule } from './types.ts'
  */
 
-import { eofSymbol, rangeDecode } from '../module.f.mjs'
+import { rangeDecode } from '../module.f.mjs'
 import { contains as rangeContains } from '../../types/range/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { emptyTagMap, isRepeat, toData } from '../data/module.f.mjs'
-
-/**
- * A match position that includes EOF consumption: `0 .. cp.length` are the
- * physical positions, and `cp.length + 1` is where the one synthesized EOF has
- * been consumed.
- *
- * This is the complete cursor the design calls `(idx, eofConsumed)`, written as
- * one number: `eofConsumed` can only be true at the physical end, so the pair
- * and the extended position hold the same information, and comparing cursors
- * compares progress — consuming EOF *is* progress even though the public index
- * does not move.
- *
- * @typedef {number} _Cursor
- */
+import { leafAt, mrFail, mrSuccess, physicalIdx, symbolAt } from '../matcher/module.f.mjs'
 
 /**
  * The furthest-failure record while matching, positioned by the complete
- * cursor. {@link DescentFailure} is its public, physically-positioned form.
+ * {@link Cursor}. {@link DescentFailure} is its public, physically-positioned
+ * form.
  *
  * @typedef {{
- *     readonly pos: _Cursor
+ *     readonly pos: Cursor
  *     readonly expected: readonly TerminalRange[]
  * }} _Failure
  */
@@ -64,41 +54,22 @@ import { emptyTagMap, isRepeat, toData } from '../data/module.f.mjs'
 /**
  * The machine's own result: a {@link DescentMatchResult} positioned by the
  * complete cursor, and with no failure record — that one is tracked per match
- * rather than per frame.
+ * rather than per frame. This backend always has a position, so it needs no
+ * `null` case.
  *
  * @template T
- * @typedef {{
- *     readonly ast: AstRuleMeta<T>
- *     readonly success: boolean
- *     readonly pos: _Cursor
- * }} _Result
+ * @typedef {AstResult<CodePointMeta<T>, Cursor>} _Result
  */
 
 /**
- * The public, physical index of a cursor. Consuming EOF moves the cursor past
- * the physical end, and both cursors report `input.length`.
+ * A leaf here is a code point with its metadata, so its symbol is the first
+ * half. This is the only thing {@link symbolAt} needs to know about a leaf.
  *
- * @type {(length: number) => (pos: _Cursor) => number}
+ * @type {<T>(leaf: CodePointMeta<T>) => number}
  */
-const physicalIdx = length => pos => Math.min(pos, length)
+const symbolOf = ([symbol]) => symbol
 
-/**
- * The semantic symbol a cursor points at: a code point inside the physical
- * input, and the synthesized {@link eofSymbol} at its end. Only meaningful
- * where the cursor still has a symbol, `pos <= cp.length`.
- *
- * @type {<T>(cp: readonly CodePointMeta<T>[], pos: _Cursor) => number}
- */
-const symbolAt = (cp, pos) => pos < cp.length ? cp[pos][0] : eofSymbol
-
-/**
- * What consuming the symbol at a cursor contributes to the AST: the code point
- * with its metadata, and nothing for the synthesized EOF — it has no physical
- * source element.
- *
- * @type {<T>(cp: readonly CodePointMeta<T>[], pos: _Cursor) => AstSequenceMeta<T>}
- */
-const leafAt = (cp, pos) => pos < cp.length ? [cp[pos]] : []
+const symbolAtCp = symbolAt(symbolOf)
 
 /**
  * Folds one rejected terminal into the furthest-failure record: further along
@@ -106,7 +77,7 @@ const leafAt = (cp, pos) => pos < cp.length ? [cp[pos]] : []
  * discarded. The comparison is on the complete cursor, so a failure after EOF
  * was consumed is further than one at the same physical index before it.
  *
- * @type {(failure: _Failure, pos: _Cursor, terminal: TerminalRange) => _Failure}
+ * @type {(failure: _Failure, pos: Cursor, terminal: TerminalRange) => _Failure}
  */
 const recordFailure = (failure, pos, terminal) => {
     if (pos > failure.pos) { return { pos, expected: [terminal] } }
@@ -125,11 +96,6 @@ const recordFailure = (failure, pos, terminal) => {
 export const descentParserRuleSet = ruleSet => {
     const emptyTags = emptyTagMap(ruleSet)
 
-    /** @type {(tag: AstTag, sequence: AstSequenceMeta<T>, pos: _Cursor) => _Result<T>} */
-    const mrSuccess = (tag, sequence, pos) => ({ ast: {tag, sequence}, success: true, pos })
-    /** @type {(tag: AstTag, sequence: AstSequenceMeta<T>, pos: _Cursor) => _Result<T>} */
-    const mrFail = (tag, sequence, pos) => ({ ast: {tag, sequence}, success: false, pos })
-
     // A suspended sequence match: items[itemIndex] is being matched by the current
     // task; `seq` holds the ASTs of the items already matched.
     /**
@@ -138,8 +104,8 @@ export const descentParserRuleSet = ruleSet => {
      *     readonly tag: AstTag
      *     readonly items: Sequence
      *     readonly itemIndex: number
-     *     readonly startPos: _Cursor
-     *     readonly seq: AstSequenceMeta<T>
+     *     readonly startPos: Cursor
+     *     readonly seq: AstSequence<CodePointMeta<T>>
      * }} _SeqFrame
      */
 
@@ -151,7 +117,7 @@ export const descentParserRuleSet = ruleSet => {
      *     readonly kind: 'variant'
      *     readonly entries: readonly (readonly [string, string])[]
      *     readonly entryIndex: number
-     *     readonly pos: _Cursor
+     *     readonly pos: Cursor
      *     readonly emptyResult: _Result<T>
      * }} _VariantFrame
      */
@@ -168,11 +134,11 @@ export const descentParserRuleSet = ruleSet => {
      *     readonly tag: AstTag
      *     readonly item: string
      *     readonly items: _Items
-     *     readonly roundStart: _Cursor
+     *     readonly roundStart: Cursor
      * }} _RepeatFrame
      */
 
-    /** @typedef {List<AstRuleMeta<T>>} _Items */
+    /** @typedef {List<Ast<CodePointMeta<T>>>} _Items */
 
     /** @typedef {_SeqFrame | _VariantFrame | _RepeatFrame} _Frame */
 
@@ -191,7 +157,7 @@ export const descentParserRuleSet = ruleSet => {
      *     readonly kind: 'rule'
      *     readonly name: string
      *     readonly tag: AstTag
-     *     readonly pos: _Cursor
+     *     readonly pos: Cursor
      * }} _RuleTask
      */
 
@@ -204,7 +170,7 @@ export const descentParserRuleSet = ruleSet => {
      *     readonly tag: AstTag
      *     readonly item: string
      *     readonly items: _Items
-     *     readonly pos: _Cursor
+     *     readonly pos: Cursor
      * }} _RepeatTask
      */
 
@@ -254,7 +220,7 @@ export const descentParserRuleSet = ruleSet => {
                     // for every terminal, so `emptyTags[name]` here is always
                     // `undefined` and a terminal either consumes one symbol or fails.
                     // Past the synthesized EOF there is no symbol left to consume.
-                    if (pos <= cp.length && rangeContains(...rangeDecode(rule))(symbolAt(cp, pos))) {
+                    if (pos <= cp.length && rangeContains(...rangeDecode(rule))(symbolAtCp(cp, pos))) {
                         result = mrSuccess(tag, leafAt(cp, pos), pos + 1)
                     } else {
                         // The only place a terminal is rejected, so the only place

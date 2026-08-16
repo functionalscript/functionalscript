@@ -5,6 +5,7 @@ See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
 - the functional representation [./module.f.mjs](./module.f.mjs),
 - the serializable representation [./data/](./data/),
 - symbols for multi-character tokens [./token_symbol/](./token_symbol/),
+- the layer every matcher backend shares [./matcher/](./matcher/),
 - parser/automaton backends built over the serializable representation:
   - LL(1) dispatch/matcher [./ll1/](./ll1/),
   - recursive descent matcher [./descent/](./descent/).
@@ -62,6 +63,10 @@ alternatives, repetition, backtracking, and failure ordering all use the complet
 cursor, and `(idx, true)` is further than `(idx, false)`. The synthesized EOF has
 no physical source element, so it contributes no leaf to the AST, and diagnostics
 about it point at `input.length`.
+
+That is the normative statement; [./matcher/](./matcher/) is where it is
+implemented, once, so a backend does not re-derive it and a future one does not
+get it subtly wrong.
 
 ## Functional Representation
 

@@ -8,6 +8,7 @@ import type { CodePoint } from '../../text/utf16/types.ts'
 import type { RangeMapArray } from '../../types/range_map/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
 import type { EmptyTag } from '../data/types.ts'
+import type { Ast } from '../matcher/types.ts'
 
 /** @internal */
 export type _DispatchRule = {
@@ -37,23 +38,6 @@ export type _DispatchRuleCollection = {
 export type _DispatchMap = StringMap<_DispatchRule>
 
 /**
- * Represents a parsed AST rule, consisting of a rule name and its parsed sequence.
- *
- * @internal
- */
-export type _AstRule = {
-    readonly tag: AstTag,
-    readonly sequence: AstSequence
-}
-
-/**
- * Represents a parsed AST sequence.
- */
-export type AstSequence = readonly(_AstRule|CodePoint)[]
-
-export type AstTag = string|true|undefined
-
-/**
  * Represents the remaining input after a match attempt, or `null` if no match is possible.
  *
  * The remainder is physical: consuming the synthesized end-of-input symbol
@@ -66,7 +50,7 @@ export type Remainder = readonly CodePoint[] | null
  *
  * Represents the result of a match operation, including the parsed AST rule and the remainder of the input.
  */
-export type MatchResult = readonly[_AstRule, boolean, Remainder]
+export type MatchResult = readonly[Ast<CodePoint>, boolean, Remainder]
 
 /**
  * LL(1) parser function for matching by rule name.
