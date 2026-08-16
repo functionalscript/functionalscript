@@ -91,6 +91,23 @@ serialization behavior.
 - Confirm recursive generic aliases work with `tsc` and the repository's Deno
   checks.
 
+### The equality already holds and is now pinned
+
+`fjs/djs/types.ts` carries
+`Assert<Equal<Unknown, Tree<Primitive>>>`, added while sharing `colon` and
+`_MapEntries` with the json serializer. It compiles today, so djs's
+hand-written `Object` / `Array` / `Unknown` are **already** structurally
+`TreeObject` / `TreeArray` / `Tree` at djs's leaf set — the remaining work
+below is a rename, not a redefinition, and cannot change any type's meaning.
+The pin was checked to be load-bearing rather than vacuous: substituting
+`Tree<JsonPrimitive>` makes `tsc` fail with `Type 'false' does not satisfy
+the constraint 'true'`.
+
+`fjs/djs/types.ts` also already names `_MapEntries` as
+`TreeMapEntries<Primitive>`, matching `fjs/media/json/extended/types.ts`.
+That file is the worked precedent for the rest of this task: it instantiates
+all four aliases off the generic tree and nothing else.
+
 ### Tasks
 
 - [x] Define the leaf-parameterized tree with the optional recursive index

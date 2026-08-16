@@ -14,7 +14,7 @@ and `cargo test` in both profiles on every one of them.
 The JavaScript half runs `npx tsc` and the test suites (`fjs test`,
 `node --test`, `deno task cov`, `bun test --coverage`) — and nothing else. No
 lint, no formatting check, no unused-code check, no package-correctness check.
-`tsconfig.json` leaves eight checking flags off. There is no equivalent of
+`tsconfig.json` leaves four checking flags off. There is no equivalent of
 `-D warnings` anywhere on this side.
 
 That asymmetry is the gap to close, using well-known tools rather than
@@ -55,8 +55,8 @@ inspects the output.
 
 ### Proposal
 
-1. Enable the four zero-cost `tsc` flags
-   ([tsconfig-strict-flags.md](./tsconfig-strict-flags.md) step 1).
+1. ~~Enable the four low-cost `tsc` flags~~ — done; the remaining four are
+   tracked in [tsconfig-strict-flags.md](./tsconfig-strict-flags.md).
 2. Add `deno fmt --check` and `deno lint` to the generated workflow. Both are
    free in setup terms; expect one cleanup commit each.
 3. Add the declaration-emit check for `any` / `/*elided*/`.

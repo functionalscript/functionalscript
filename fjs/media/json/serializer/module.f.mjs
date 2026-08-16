@@ -138,7 +138,13 @@ export const objectWrap
 export const arrayWrap
     = wrap('[')(']')
 
-const colon = [':']
+/**
+ * The separator between a serialized property key and its value. Shared with
+ * the DJS serializer, which builds the same `key : value` fragment.
+ *
+ * @type {List<string>}
+ */
+export const colon = [':']
 
 /**
  * The recursive walk over a JSON-shaped tree: objects, arrays, and a leaf

@@ -14,8 +14,15 @@
  * previous effect failed, so a chain of fallible effects must forward each
  * `Result` by hand — {@link okStep} is that forwarding written once. The
  * branch-aware `step` / `catchStep` / `resultStep` that make it automatic live
- * in `./io/module.f.mjs`; the ones here stay for consumers still written
- * against the raw contracts.
+ * in `./io/module.f.mjs`, together with the `history` / `historyStep` /
+ * `foldStep` / `forEachStep` a fallible chain needs; the ones here stay for
+ * consumers still written against the raw contracts.
+ *
+ * **The composition rules below hold for both layers**, and a fallible chain
+ * should follow them through the Io combinators — a raw `historyStep` over an
+ * `IoEffect` carries each link's `Result` into the history rather than its
+ * value, and the raw `forEachStep` runs every item whatever each one answered,
+ * because a `void` accumulator accepts a `Result` silently.
  *
  * **Three functions discriminate `Pure` from `Do`** — {@link step},
  * {@link match}, and {@link runPure} — plus the node proof in

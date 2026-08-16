@@ -6,8 +6,8 @@
 
 import { assert, assertEq, todo } from '../../asserts/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
-import { do_, match, runPure } from '../module.f.mjs'
-import { catchStep, mapStep, pureError, pureOk, resultStep, step, unwrapStep } from './module.f.mjs'
+import { do_, match, pure, runPure } from '../module.f.mjs'
+import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step, unwrapStep } from './module.f.mjs'
 
 /**
  * A fallible operation, spelled the way stage 3 will spell every operation: the
@@ -62,6 +62,16 @@ const pureResult = e => {
     const o = runPure(e)
     assert(o.length === 1, e)
     return o[0]
+}
+
+/**
+ * The `ok` value an effect reaches without performing a command.
+ * @type {<O extends Operation, T, E>(e: IoEffect<O, T, E>) => T}
+ */
+const unwrapPure = e => {
+    const r = pureResult(e)
+    assert(r[0] === 'ok', r)
+    return r[1]
 }
 
 /** @type {<T, E>(r: Result<T, E>, expected: T) => void} */
@@ -199,6 +209,73 @@ export const proof = {
         overDo: () => {
             const e = resultStep(div(1, 0), ([tag]) => pureOk(tag))
             assertOk(run(e), 'error')
+        },
+    },
+    historyStep: {
+        // The chain stays flat: the last link reads a value bound two links
+        // back out of the tuple rather than out of an enclosing closure.
+        chain: () => {
+            const h0 = history(pureOk(1))
+            const h1 = historyStep(h0, x => pureOk(x + 1))
+            const h2 = historyStep(h1, (y, x) => pureOk(`${x}${y}`))
+            assertOk(pureResult(mapStep(h2, ([z]) => z)), '12')
+        },
+        // The history carries `ok` values, so a later link reads them without
+        // asking whether they are there...
+        carriesValues: () => {
+            const h0 = historyStep(history(pureOk(3)), x => pureOk(x * 2))
+            const [result, param] = unwrapPure(h0)
+            assertEq(param, 3)
+            assertEq(result, 6)
+        },
+        // ...because a failed link short-circuits instead of contributing one.
+        propagates: () => {
+            const h0 = historyStep(history(pureOk(3)), () => pureError('boom'))
+            assertError(pureResult(historyStep(h0, todo)), 'boom')
+        },
+        // A failure in the effect the history starts from never reaches `f`.
+        propagatesFromHead: () => {
+            assertError(pureResult(historyStep(history(pureError('boom')), todo)), 'boom')
+        },
+        // Over a `Do` node: the captured value survives the command boundary.
+        overDo: () => {
+            const h0 = historyStep(history(div(6, 3)), r => pureOk(r * 10))
+            const [result, param] = run(h0)[1]
+            assertEq(param, 2)
+            assertEq(result, 20)
+        },
+    },
+    foldStep: {
+        empty: () => {
+            assertOk(pureResult(foldStep(pure([]), 10, x => s => pureOk(s + x))), 10)
+        },
+        threadsState: () => {
+            assertOk(pureResult(foldStep(pure([1, 2, 3, 4]), 0, x => s => pureOk(s + x))), 10)
+        },
+        // The first failure stops the fold: `4` never reaches the accumulator,
+        // and the error is the result.
+        shortCircuits: () => {
+            const e = foldStep(
+                pure([1, 2, 4]),
+                0,
+                x => s => x === 2 ? pureError('two') : pureOk(s + x))
+            assertError(pureResult(e), 'two')
+        },
+    },
+    forEachStep: {
+        empty: () => {
+            assertOk(pureResult(forEachStep(pure([]), todo)), undefined)
+        },
+        runs: () => {
+            assertOk(pureResult(forEachStep(pure([1, 2, 3]), () => pureOk(undefined))), undefined)
+        },
+        // Where the raw `forEachStep` would run every item regardless, this one
+        // stops — the difference the `void` accumulator hides in the raw form.
+        stopsAtTheFirstError: () => {
+            const e = forEachStep(
+                pure([1, 2, 3]),
+                x => x === 2 ? pureError('two') : pureOk(undefined))
+            assertError(pureResult(e), 'two')
         },
     },
     unwrapStep: {
