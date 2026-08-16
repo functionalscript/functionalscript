@@ -848,12 +848,16 @@ reference any `const` defined *before* it, and itself — nothing else
 ```ts
 const a = 0
 const f = () => {
-   const x = a * 3   // ok — a is defined before f
-   const y = b * 4   // error — b is not
+   const x = a * 3              // ok — a is defined before f
+   const z = x === 5 ? f() : 6  // ok — f may reference itself
+   const y = b * 4              // error — b is not defined before f
    return x + y
 }
 const b = 3
 ```
+
+In `f`'s body, `a` is a captured value — frame slot 0 — while `f()` is
+`["()", ["self"], ["[]"]]`, needing no frame entry at all.
 
 This is exactly what makes frames constructible. `["=>", frame, body]`
 evaluates its `frame` operand *first*, so every captured value must
@@ -870,6 +874,14 @@ sound because *textual order is not observable*: module consts are pure
 (A1) and their failures are opaque (A4), so a compiler may topologically
 reorder them. What must hold is the dependency DAG, not the source
 order — the AST encodes no source order at all.
+
+**For now the design is built around `["self"]`** — direct
+self-reference is a primitive, and everything else arrives through the
+frame. A later redesign (a group mechanism for mutual recursion, or a
+different binding scheme entirely) is expected and welcome: breaking
+changes that improve the design are the repository's norm
+([DESIGN.md §2](../DESIGN.md)), and nothing here is load-bearing for
+compatibility yet.
 
 Mutual recursion stays excluded even under the relaxation (`b` would
 depend on `f`), consistent with the open item in subject 9. Note that
