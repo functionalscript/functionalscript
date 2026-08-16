@@ -181,19 +181,31 @@ module so they can already use their final names.
 
 ## Stage 1. Introduce `IoEffect`
 
-- [ ] Add `IoEffect<O, T, E> = Effect<O, Result<T, E>>`.
-- [ ] Add a small serializable `NotImplemented` error type identifying the
+**Done.** The stage landed as `fjs/effects/io/types.ts` plus
+[`fjs/effects/io/README.md`](../io/README.md); it is types only, so no
+operation, runner, or consumer changed.
+
+- [x] Add `IoEffect<O, T, E> = Effect<O, Result<T, E>>`.
+- [x] Add a small serializable `NotImplemented` error type identifying the
       unsupported operation **by command name only**. Payloads may contain
       functions (`createServer`'s listener, `sandbox`'s thunk, `test`'s body),
       so carrying the payload would break the serializability claim.
-- [ ] Document `IoEffect` as the preferred high-level fallible abstraction
+- [x] Document `IoEffect` as the preferred high-level fallible abstraction
       while current `Effect<O, T>` remains the low-level representation.
-- [ ] Add type/proof coverage without changing existing operations or
+- [x] Add type/proof coverage without changing existing operations or
       consumers.
+
+`NotImplemented` is `readonly['notImplemented', string]` — a tagged tuple like
+`Result`, so the union error channel (`NotImplemented | IoError`) stays
+discriminable by its tag. The stage has no runtime, so its coverage is
+type-level: the asserts in `types.ts` pin the alias's transparency, the
+one-directional widening the Stage 2 signatures rely on, and the
+serializability claim (against the JSON data model, so a later payload field
+fails to compile rather than merely contradicting a comment).
 
 ## Stage 2. Add IoEffect operations
 
-**Blocked by:** Stage 1.
+**Blocked by:** Stage 1 (done).
 
 - [ ] Add IoEffect `step`, `catchStep`, and `resultStep` with the signatures
       pinned above.

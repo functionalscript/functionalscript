@@ -6,6 +6,16 @@
  * Composition is provided externally by {@link step}. The optional
  * method-chaining wrapper lives in `fjs/effects/eff/module.f.mjs`.
  *
+ * **It is the low-level representation.** Fallible work is written against
+ * `IoEffect<O, T, E>` — the `Effect<O, Result<T, E>>` with an explicit error
+ * channel, and the preferred high-level abstraction (`./io/types.ts`, with the
+ * rationale in [`./io/README.md`](./io/README.md)). The combinators here know
+ * nothing of `Result`: {@link step} runs its continuation whether or not the
+ * previous effect failed, so a chain of fallible effects must forward each
+ * `Result` by hand — {@link okStep} is that forwarding written once. The
+ * branch-aware `step` / `catchStep` / `resultStep` that make it automatic are
+ * the next stage of the migration, and land beside `IoEffect`.
+ *
  * **Three functions discriminate `Pure` from `Do`** — {@link step},
  * {@link match}, and {@link runPure} — plus the node proof in
  * `fjs/effects/proof.f.mjs` that pins the representation on purpose. Everything

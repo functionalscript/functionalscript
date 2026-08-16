@@ -12,6 +12,12 @@ export type Operation =
  * {@link Do} node describing a command to perform. It is plain data — compose
  * effects with the external `step`, which is eager wherever the head is
  * `Pure`.
+ *
+ * **This is the low-level representation.** Work that can fail is written
+ * against `IoEffect<O, T, E>` (`./io/types.ts`), the `Effect<O, Result<T, E>>`
+ * with an explicit error channel, which is the preferred high-level
+ * abstraction — see [`./io/README.md`](./io/README.md). `Effect` is what that
+ * alias and the combinators here are built from, and it stays public as such.
  */
 export type Effect<O extends Operation, T> =
     Pure<T> | Do<O, T>
