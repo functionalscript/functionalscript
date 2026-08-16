@@ -41,11 +41,14 @@
  *
  * @module
  *
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Fold } from '../../types/function/operator/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Effect, Operation } from '../types.ts'
+ * @import { Effect, History, Operation } from '../types.ts'
  * @import { IoEffect } from './types.ts'
  */
 
+import { fold } from '../../types/list/module.f.mjs'
 import { error, mapOk, ok, unwrap } from '../../types/result/module.f.mjs'
 import { mapStep as rawMapStep, okStep, pure, step as rawStep } from '../module.f.mjs'
 
@@ -217,3 +220,89 @@ export const mapStep = (e, f) => rawMapStep(e, mapOk(f))
  * @type {<O extends Operation, T, E>(e: IoEffect<O, T, E>) => Effect<O, T>}
  */
 export const unwrapStep = e => rawMapStep(e, unwrap)
+
+/**
+ * Starts a history from a fallible effect, lifting its `ok` value into a
+ * one-element tuple that {@link historyStep} extends. The Io twin of the raw
+ * `history`, and the entry point a chain needs exactly once.
+ *
+ * @type {<O extends Operation, T, E>(e: IoEffect<O, T, E>) => IoEffect<O, readonly[T], E>}
+ */
+export const history = e => mapStep(e, v => [v])
+
+/**
+ * Like {@link step}, but carries the values forward instead of discarding
+ * them: runs `e` for the history `p`, continues with `f(...p)` for `r`, and
+ * yields `[r, ...p]`.
+ *
+ * This is what keeps a **fallible** chain flat. Each `step`'s continuation sees
+ * only the value it consumes, so a later link cannot reach an earlier one, and
+ * the alternative — nesting so the inner continuation closes over the outer
+ * one's parameter — is what `fjs/AGENTS.md` §3.4 rules out. The raw
+ * `historyStep` cannot serve here: it would carry each link's `Result` into the
+ * tuple rather than its value, so every later link would destructure results it
+ * has no intention of handling.
+ *
+ * The history holds `ok` values only. An `error` short-circuits the chain, so a
+ * failed link contributes nothing to the tuple — which is the point: a later
+ * link reads earlier values without asking whether they are there.
+ *
+ * @template {Operation} O
+ * @template {readonly unknown[]} P
+ * @template E
+ * @template {Operation} Q
+ * @template R
+ * @template F
+ * @param {IoEffect<O, P, E>} e
+ * @param {(...p: Readonly<P>) => IoEffect<Q, R, F>} f
+ * @returns {IoEffect<O | Q, readonly[R, ...P], E | F>}
+ */
+export const historyStep = (e, f) => {
+    /** @type {(param: P) => IoEffect<Q, readonly[R, ...P], F>} */
+    const cont = param => mapStep(f(...param), result => [result, ...param])
+    return step(e, cont)
+}
+
+/**
+ * Threads a state through one fallible effect per item, short-circuiting on the
+ * first `error`: the Io twin of the raw `foldStep`.
+ *
+ * **`items` is a raw effect.** Both of the shapes that need this fold — a list
+ * the caller already holds (`pure(jobs)`) and one an infallible operation
+ * produced — reach it without an error channel of their own, so requiring one
+ * would mean lifting at every call site to express something no consumer has.
+ * A fallible producer composes with {@link step} ahead of the fold instead.
+ *
+ * @template {Operation} O
+ * @template T
+ * @template {Operation} Q
+ * @template S
+ * @template E
+ * @param {Effect<O, List<T>>} items
+ * @param {S} init
+ * @param {(item: T) => (state: S) => IoEffect<Q, S, E>} f
+ * @returns {IoEffect<O | Q, S, E>}
+ */
+export const foldStep = (items, init, f) => {
+    /** @type {Fold<T, IoEffect<Q, S, E>>} */
+    const op = item => acc => step(acc, f(item))
+    return rawStep(items, fold(op)(pureOk(init)))
+}
+
+/**
+ * Runs `f(item)` for each item in order, stopping at the first failure and
+ * propagating it. The `void` accumulator sibling of {@link foldStep}.
+ *
+ * Stopping is the difference that matters against the raw `forEachStep`: that
+ * one runs every item whatever each one answered, because its `void`
+ * accumulator has nothing to carry a failure in — and TypeScript's `void`
+ * return position accepts a `Result`-valued effect silently, so the discard
+ * does not even show up as a type error.
+ *
+ * @type {<O extends Operation, T, Q extends Operation, E>(
+ *     items: Effect<O, List<T>>,
+ *     f: (item: T) => IoEffect<Q, void, E>
+ * ) => IoEffect<O | Q, void, E>}
+ */
+export const forEachStep = (items, f) =>
+    foldStep(items, undefined, item => () => f(item))

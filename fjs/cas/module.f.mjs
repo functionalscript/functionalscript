@@ -6,7 +6,7 @@
  * @import { Sha2, State as Sha2State } from '../crypto/sha2/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { Effect, Operation } from '../effects/types.ts'
- * @import { NotImplemented } from '../effects/io/types.ts'
+ * @import { IoEffect, NotImplemented } from '../effects/io/types.ts'
  * @import {
  *  IoError,
  *  IoResult,
@@ -23,8 +23,18 @@
 import { join, normalize, parse } from '../path/module.f.mjs'
 import { empty, length, maxLength, maxLengthBytes, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
-import { foldStep, forEachStep, history, historyStep, mapStep, okStep, pure, step } from '../effects/module.f.mjs'
-import { unwrapStep } from '../effects/io/module.f.mjs'
+import { mapStep, pure, step } from '../effects/module.f.mjs'
+import {
+    catchStep,
+    foldStep,
+    forEachStep,
+    history,
+    historyStep,
+    mapStep as ioMapStep,
+    pureOk,
+    resultStep,
+    step as ioStep,
+} from '../effects/io/module.f.mjs'
 import {
     access,
     createExclusive,
@@ -129,27 +139,33 @@ const deadlineOf = name => Number(name.slice(0, name.indexOf('-')))
  * still-live lease is left alone; the fencing rename keeps even a misjudged
  * reclaim fail-safe (worst case: that upload restarts).
  *
- * @template {Now | Readdir | Rm} O
- * @param {string} stageDir
- * @returns {Effect<O, void>}
+ * The error channel is `never`, and that is the claim this function makes: it
+ * catches every failure it can produce, so an upload composing it cannot fail
+ * because of a sweep.
+ *
+ * @type {(stageDir: string) => IoEffect<Now | Readdir | Rm, void, never>}
  */
 const gcStage = stageDir => {
     // The `readdir` result and the `now()` timestamp are both needed by the last
     // link, so the timestamp is carried forward in a history rather than closed
     // over by a nested continuation.
     const listed = historyStep(
-        history(unwrapStep(now())),
+        history(now()),
         () => readdir(stageDir, {}))
-    return step(
+    const swept = ioStep(
         listed,
-        ([[k, v], t]) => {
-            if (k === 'error') { return pure(undefined) }
-            const expired = v.flatMap(d =>
+        ([dirents, t]) => {
+            const expired = dirents.flatMap(d =>
                 d.isFile && deadlineOf(d.name) < t ? [d.name] : [])
+            // Each `rm` recovers on its own, so one undeletable file does not
+            // stop the sweep at the file before it.
             return forEachStep(
                 pure(expired),
-                name => mapStep(rm(join(stageDir, name)), () => undefined))
+                name => catchStep(rm(join(stageDir, name)), () => pureOk(undefined)))
         })
+    // A fresh store has no `_stage/` yet, and a sweep that cannot run must not
+    // fail the upload it is piggy-backed on.
+    return catchStep(swept, () => pureOk(undefined))
 }
 
 // Lock-free staging upload (plan/staging-lease.md): stream each chunk straight
@@ -190,8 +206,8 @@ const writeImpl = (sha2, path, stageDir, payload) => {
     /** @type {(curPath: string, e: NotImplemented | IoError) => Effect<FileCasOperation, IoResult<Vec>>} */
     const fail = (curPath, e) =>
         mapStep(rm(curPath), () => error(e))
-    const rndEffect = step(gcStage(stageDir), () => random256)
-    return step(rndEffect, rnd => {
+    const rndEffect = ioStep(gcStage(stageDir), () => random256)
+    return ioStep(rndEffect, rnd => {
         const rndStr = vecToCBase32(rnd)
         /** @type {(state: Sha2State, offset: number, curPath: string) => (stream: List<O1, IoResult<Vec>>) => Effect<O1 | FileCasOperation, IoResult<Vec>>} */
         const loop = (state, offset, curPath) =>
@@ -205,33 +221,36 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                         return fail(curPath, first[1])
                     }
                     const chunk = first[1]
-                    return step(writeBytes(curPath, offset, chunk), wb => {
+                    // Both branches matter: a failed write is cleaned up after,
+                    // rather than propagated with the partial file left behind.
+                    return resultStep(writeBytes(curPath, offset, chunk), wb => {
                         if (wb[0] === 'error') { return fail(curPath, wb[1]) }
                         const newState = sha2.append(chunk)(state)
                         const newOffset = offset + Number(length(chunk) / 8n)
                         // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
                         // The new path is still needed after the rename, to recurse with,
                         // so the rename captures it rather than closing over it.
-                        const nextPath = mapStep(
-                            unwrapStep(now()),
+                        const nextPath = ioMapStep(
+                            now(),
                             t => join(stageDir, stageName(t + leaseDelta, rndStr)))
                         const renamed = historyStep(
                             history(nextPath),
                             next => rename(curPath, next))
-                        return step(
+                        return resultStep(
                             renamed,
-                            ([[rt, v], next]) =>
-                                rt === 'error'
-                                    ? fail(curPath, v)
-                                    : loop(newState, newOffset, next)(tail))
+                            r => {
+                                if (r[0] === 'error') { return fail(curPath, r[1]) }
+                                const [, next] = r[1]
+                                return loop(newState, newOffset, next)(tail)
+                            })
                     })
                 })
-        const started = step(mkdir(stageDir, { recursive: true }), () => unwrapStep(now()))
-        return step(started, t0 => {
+        const started = ioStep(mkdir(stageDir, { recursive: true }), () => now())
+        return ioStep(started, t0 => {
             const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))
-            return step(
+            return ioStep(
                 createExclusive(path0),
-                okStep(() => loop(sha2.init, 0, path0)(payload)))
+                () => loop(sha2.init, 0, path0)(payload))
         })
     })
 }
@@ -291,14 +310,14 @@ export const fileCas = sha2 => path => {
 
 /** 256-bit random `Vec` built from 8 sequential `randomInt` (32-bit) calls.
  *
- * @type {Effect<RandomInt, Vec>}
+ * @type {IoEffect<RandomInt, Vec, NotImplemented>}
  */
 const random256 =
     foldStep(
         pure([0, 1, 2, 3, 4, 5, 6, 7]),
         empty,
         () => (/** @type {Vec} */ acc) =>
-            mapStep(unwrapStep(randomInt()), r => msb.concat(acc)(vec(32n)(BigInt(r)))))
+            ioMapStep(randomInt(), r => msb.concat(acc)(vec(32n)(BigInt(r)))))
 
 /** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items.
  *

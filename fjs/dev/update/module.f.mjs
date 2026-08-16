@@ -4,12 +4,13 @@
  * @module
  *
  * @import { Effect } from '../../effects/types.ts'
- * @import { Mkdir, NodeProgram, ReadFile, WriteFile } from '../../effects/node/types.ts'
+ * @import { IoError, Mkdir, NodeProgram, ReadFile, WriteFile } from '../../effects/node/types.ts'
+ * @import { IoEffect, NotImplemented } from '../../effects/io/types.ts'
  */
 
-import { history, historyStep, mapStep, step } from '../../effects/module.f.mjs'
-import { mkdir, readUtf8File, writeUtf8File } from '../../effects/node/module.f.mjs'
-import { unwrapStep } from '../../effects/io/module.f.mjs'
+
+import { exitStep, mkdir, readUtf8File, writeUtf8File } from '../../effects/node/module.f.mjs'
+import { history, historyStep, step } from '../../effects/io/module.f.mjs'
 
 const source = /** @type {const} */ ('.copilot/mcp.json')
 const targetDirectory = /** @type {const} */ ('.vscode')
@@ -18,15 +19,19 @@ const target = /** @type {const} */ ('.vscode/mcp.json')
 /**
  * Regenerates VS Code's local MCP configuration from the canonical Copilot configuration.
  *
- * @type {() => Effect<Mkdir | ReadFile | WriteFile, void>}
+ * The source text is still needed after the directory has been created, so it
+ * is carried forward in a history rather than closed over by a nested
+ * continuation — and the history holds the text itself, not the `Result` the
+ * read returned.
+ *
+ * @type {() => IoEffect<Mkdir | ReadFile | WriteFile, void, NotImplemented | IoError>}
  */
 export const syncMcp = () => {
-    const sourceText = history(unwrapStep(readUtf8File(source)))
+    const sourceText = history(readUtf8File(source))
     const targetDirectoryReady = historyStep(
         sourceText,
-        () => unwrapStep(mkdir(targetDirectory, { recursive: true })))
-    const targetWritten = step(targetDirectoryReady, ([, text]) => writeUtf8File(target, text))
-    return unwrapStep(targetWritten)
+        () => mkdir(targetDirectory, { recursive: true }))
+    return step(targetDirectoryReady, ([, text]) => writeUtf8File(target, text))
 }
 
 /**
@@ -34,4 +39,4 @@ export const syncMcp = () => {
  *
  * @type {NodeProgram}
  */
-export const main = () => mapStep(syncMcp(), () => 0)
+export const main = () => exitStep(syncMcp())
