@@ -1,17 +1,39 @@
 /**
  * @module
  *
+ * @import { CodePoint } from '../../text/utf16/types.ts'
  * @import { RuleSet } from '../data/types.ts'
+ * @import { CodePointMeta } from '../descent/types.ts'
+ * @import { Rule as FRule } from '../types.ts'
  * @import { MatchResult } from './types.ts'
  */
 
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { map, toArray } from '../../types/list/module.f.mjs'
 import { commaJoin0Plus, eof, option, range, repeat0Plus, set } from '../module.f.mjs'
 import { toData } from '../data/module.f.mjs'
+import { descentParser } from '../descent/module.f.mjs'
 import { dispatchMap, parser, parserRuleSet } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
-import { deterministic } from '../testlib.f.mjs'
+import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { deterministic, showAst } from '../testlib.f.mjs'
+
+/** @type {(cp: CodePoint) => CodePointMeta<unknown>} */
+const mapCodePoint = cp => [cp, undefined]
+
+/**
+ * One grammar matched by both backends, pinning each one's AST. Both sides are
+ * asserted in one place so that a change to either backend has to restate what
+ * the other produces, rather than letting the two drift apart unremarked.
+ *
+ * @type {(rule: FRule, s: string, descent: string, ll1: string) => () => void}
+ */
+const bothBackends = (rule, s, descent, ll1) => () => {
+    const [, entry] = toData(rule)
+    const cp = toArray(stringToCodePointList(s))
+    const dm = descentParser(rule)(entry, toArray(map(mapCodePoint)(cp)))
+    assertEq(showAst(dm.ast), descent, s)
+    assertEq(showAst(parser(rule)(entry, cp)[0]), ll1, s)
+}
 
 export const proof = {
     dispatch: [
@@ -244,34 +266,60 @@ export const proof = {
         () => {
             const m = parser(deterministic())
 
-            /** @type {(mr: MatchResult) => boolean} */
-            const isSuccess = (mr) => mr[1] && mr[2]?.length === 0
-            /** @type {(s: string, success: boolean) => void} */
-            const expect = (s, success) => {
+            // The same inputs as `bnf/descent`'s copy of this group, pinned by the
+            // AST each one builds rather than by "did it match" — see that proof
+            // for what `showAst` writes.
+            //
+            // Read the leading three spaces against the descent expectations: a
+            // `repeat` is one flat node of three items there, and three levels of
+            // right-recursion here, because this backend compiles a `Repeat` back
+            // into the chain it was folded from (./README.md). Every `*()` is an
+            // empty tail node the descent AST does not have at all.
+            /** @type {(s: string, expected: string) => void} */
+            const expectAst = (s, expected) => {
                 const mr = m('', toArray(stringToCodePointList(s)))
-                assertEq(isSuccess(mr), success, mr)
+                assertEq(mr[1], true, s)
+                assertEq(mr[2]?.length, 0, s)
+                assertEq(showAst(mr[0]), expected, s)
             }
 
-            expect('   true   ', true)
-            expect('   tr2ue   ', false)
-            expect('   true"   ', false)
-            expect('   "Hello"   ', true)
-            expect('   "Hello   ', false)
-            expect('   "Hello\\n\\r\\""   ', true)
-            expect('   -56.7e+5  ', true)
-            expect('   h-56.7e+5   ', false)
-            expect('   -56.7e+5   3', false)
-            expect('   [] ', true)
-            expect('   {} ', true)
-            expect('   [[[]]] ', true)
-            expect('   [1] ', true)
-            expect('   [ 12, false, "a"]  ', true)
-            expect('   [ 12, false2, "a"]  ', false)
-            expect('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', true)
-            expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
-            expect('   { "q": [ 12, false, [}], "a"] }  ', false)
-            expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
-            expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
+            /** @type {(s: string) => void} */
+            const expectNoMatch = s => {
+                const mr = m('', toArray(stringToCodePointList(s)))
+                assertEq(mr[1] && mr[2]?.length === 0, false, s)
+            }
+
+            expectAst('   true   ', '" "(" " " "(" " " "(" " *())) "true"("t" ("r") ("u") ("e")) " "(" " " "(" " " "(" " *()))))')
+            expectAst('   "Hello"   ', '" "(" " " "(" " " "(" " *())) "string"("\\"" "0x2300005b"("H" "0x5d10ffff"("e" "0x5d10ffff"("l" "0x5d10ffff"("l" "0x5d10ffff"("o" *()))))) ("\\"")) " "(" " " "(" " " "(" " *()))))')
+            expectAst('   "Hello\\n\\r\\""   ', '" "(" " " "(" " " "(" " *())) "string"("\\"" "0x2300005b"("H" "0x5d10ffff"("e" "0x5d10ffff"("l" "0x5d10ffff"("l" "0x5d10ffff"("o" "escape"("\\\\" "n"("n") "escape"("\\\\" "r"("r") "escape"("\\\\" "\\""("\\"") *())))))))) ("\\"")) " "(" " " "(" " " "(" " *()))))')
+            expectAst('   -56.7e+5  ', '" "(" " " "(" " " "(" " *())) "number"("-" "onenine"("5" ("6" *())) "some"("." ("7" *())) "some"("e" "some"("+") ("5" *()))) " "(" " " "(" " *())))')
+            expectAst('   [] ', '" "(" " " "(" " " "(" " *())) "array"("[" *() "none"() ("]")) " "(" " *()))')
+            expectAst('   {} ', '" "(" " " "(" " " "(" " *())) "object"("{" *() "none"() ("}")) " "(" " *()))')
+            expectAst('   [[[]]] ', '" "(" " " "(" " " "(" " *())) "array"("[" *() "some"("[" *() "some"("[" *() "none"() ("]") *() "none"()) ("]") *() "none"()) ("]")) " "(" " *()))')
+            expectAst('   [1] ', '" "(" " " "(" " " "(" " *())) "array"("[" *() "some"("1" *() "none"() "none"() *() "none"()) ("]")) " "(" " *()))')
+            expectAst('   [ 12, false, "a"]  ', '" "(" " " "(" " " "(" " *())) "array"("[" " "(" " *()) "some"("1" ("2" *()) "none"() "none"() *() "some"("," " "(" " *()) "false"("f" ("a") ("l") ("s") ("e") *()) "some"("," " "(" " *()) "string"("\\"" "0x5d10ffff"("a" *()) ("\\"") *()) "none"()))) ("]")) " "(" " " "(" " *())))')
+            expectAst('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', '" "(" " " "(" " " "(" " *())) "object"("{" " "(" " *()) "some"("\\"" "0x5d10ffff"("q" *()) ("\\"") *() (":") " "(" " *()) "array"("[" " "(" " *()) "some"("1" ("2" *()) "none"() "none"() *() "some"("," " "(" " *()) "false"("f" ("a") ("l") ("s") ("e") *()) "some"("," " "(" " *()) "array"("[" *() "some"("{" *() "some"("\\"" "0x5d10ffff"("b" *()) ("\\"") " "(" " *()) (":") " "(" " *()) "string"("\\"" "0x5d10ffff"("c" *()) ("\\"")) *() "none"()) ("}") *() "none"()) ("]") *()) "some"("," " "(" " *()) "string"("\\"" "0x5d10ffff"("a" *()) ("\\"") *()) "none"())))) ("]")) " "(" " *()) "none"()) ("}")) " "(" " " "(" " *())))')
+            expectAst('   { "q": [ 12, false, [{}], "a"] }  ', '" "(" " " "(" " " "(" " *())) "object"("{" " "(" " *()) "some"("\\"" "0x5d10ffff"("q" *()) ("\\"") *() (":") " "(" " *()) "array"("[" " "(" " *()) "some"("1" ("2" *()) "none"() "none"() *() "some"("," " "(" " *()) "false"("f" ("a") ("l") ("s") ("e") *()) "some"("," " "(" " *()) "array"("[" *() "some"("{" *() "none"() ("}") *() "none"()) ("]") *()) "some"("," " "(" " *()) "string"("\\"" "0x5d10ffff"("a" *()) ("\\"") *()) "none"())))) ("]")) " "(" " *()) "none"()) ("}")) " "(" " " "(" " *())))')
+            expectAst('   [{ "q": [ 12, false, [{}], "a"] }]  ', '" "(" " " "(" " " "(" " *())) "array"("[" *() "some"("{" " "(" " *()) "some"("\\"" "0x5d10ffff"("q" *()) ("\\"") *() (":") " "(" " *()) "array"("[" " "(" " *()) "some"("1" ("2" *()) "none"() "none"() *() "some"("," " "(" " *()) "false"("f" ("a") ("l") ("s") ("e") *()) "some"("," " "(" " *()) "array"("[" *() "some"("{" *() "none"() ("}") *() "none"()) ("]") *()) "some"("," " "(" " *()) "string"("\\"" "0x5d10ffff"("a" *()) ("\\"") *()) "none"())))) ("]")) " "(" " *()) "none"()) ("}") *() "none"()) ("]")) " "(" " " "(" " *())))')
+
+            expectNoMatch('   tr2ue   ')
+            expectNoMatch('   true"   ')
+            expectNoMatch('   "Hello   ')
+            expectNoMatch('   h-56.7e+5   ')
+            expectNoMatch('   -56.7e+5   3')
+            expectNoMatch('   [ 12, false2, "a"]  ')
+            expectNoMatch('   { "q": [ 12, false, [}], "a"] }  ')
+
+            // The invalid input in detail. This backend never backtracks, so the
+            // remainder is where matching stopped: on the `}` that closes nothing,
+            // the same position the descent backend reports as its furthest
+            // failure.
+            const bad = '   [{ "q": [ 12, false, [}], "a"] }]  '
+            const badMr = m('', toArray(stringToCodePointList(bad)))
+            assertEq(badMr[1], false, bad)
+            const remainder = assertNotNullish(badMr[2])
+            assertEq(bad.length - remainder.length, 25, bad)
+            assertEq(bad[25], '}', bad)
         }
     ],
     longInput: [
@@ -279,8 +327,9 @@ export const proof = {
             // Long right-recursive repetition: one `repeat0Plus` chain across the
             // whole input. This is the shape that overflowed the JS call stack
             // when the matcher recursed once per consumed code point.
-            const m = parser(repeat0Plus(set(' \n\r\t')))
-            const [, success, remainder] = m('', toArray(stringToCodePointList(' '.repeat(10000))))
+            const rule = repeat0Plus(set(' \n\r\t'))
+            const m = parser(rule)
+            const [, success, remainder] = m(toData(rule)[1], toArray(stringToCodePointList(' '.repeat(10000))))
             assertEq(success, true)
             assertEq(remainder?.length, 0)
         },
@@ -342,7 +391,30 @@ export const proof = {
             const dm = dispatchMap(repeatData[0])
             const result = JSON.stringify(dm)
             if (result !== '{"ws":{"emptyTag":true,"rangeMap":[]},"a":{"rangeMap":[[null,64],[{"rules":[]},65]]},"repa":{"rangeMap":[[null,64],[{"rules":[""]},65]]},"":{"rangeMap":[[null,64],[{"rules":[""]},65]]}}') { throw result }
-        }
+        },
+        () => {
+            // A `repeat` rule dispatches on its item's first set and continues
+            // with the item's own chain followed by itself — the right-recursive
+            // chain the fold removed from the data, rebuilt here because this
+            // backend inlines a nullable item's first set into whatever encloses
+            // it and so cannot carry the repetition anywhere else.
+            const rule = repeat0Plus(range('AF'))
+            const [ruleSet, entry] = toData(rule)
+            assertEq(JSON.stringify(ruleSet[entry]), '"0"')
+            assertEq(
+                JSON.stringify(dispatchMap(ruleSet)[entry]),
+                '{"emptyTag":true,"rangeMap":[[null,64],[{"rules":["r"]},70]]}')
+        },
+        () => {
+            // A repetition of itself has no first set to dispatch on, and asking
+            // for one would not terminate. `toData` never folds such a rule; a
+            // hand-written rule set can still hold one.
+            /** @type {RuleSet} */
+            const ruleSet = { repeated: 'repeated' }
+            assertEq(
+                JSON.stringify(dispatchMap(ruleSet)),
+                '{"repeated":{"emptyTag":true,"rangeMap":[]}}')
+        },
     ],
     repeatParser: [
         () => {
@@ -378,6 +450,55 @@ export const proof = {
             if (result !== '[{"sequence":[]},false,[66]]') { throw result }
         }
     ],
+    // The two backends consume the same `RuleSet` and disagree about the AST it
+    // implies. Every case below is one grammar matched by both, so the pair is
+    // pinned side by side and neither can drift without this failing.
+    //
+    // The cause is one: `bnf/descent` builds a node per rule *invocation*, while
+    // this backend builds one per *dispatch*, and a dispatch consumes the leading
+    // symbol and carries the rest as a flat chain of rule names. A rule entered
+    // through a dispatch therefore never gets a node of its own.
+    //
+    // See ../todo/ll1-ast-divergence.md — `nesting` is the case that loses
+    // information rather than merely reshaping it.
+    descentDivergence: {
+        // The first item of a sequence loses its node: the symbol the dispatch
+        // consumed is spliced into the enclosing node instead.
+        leadingItem: bothBackends(
+            [range('AA'), range('BB'), range('CC')], 'ABC',
+            '(("A") ("B") ("C"))',
+            '("A" ("B") ("C"))'),
+        // A variant is the one shape both agree on.
+        variant: bothBackends(
+            { a: range('AA'), b: range('BB') }, 'A',
+            '"a"("A")',
+            '"a"("A")'),
+        // A nullable item that matched empty leaves no node at all here, so the
+        // AST cannot say the option was ever considered.
+        skippedOption: bothBackends(
+            [option(range('--')), range('09')], '5',
+            '("none"() ("5"))',
+            '("5")'),
+        // Taken, the same option's tag lands on the enclosing node rather than on
+        // a node of its own.
+        takenOption: bothBackends(
+            [option(range('--')), range('09')], '-5',
+            '("some"("-") ("5"))',
+            '"some"("-" ("5"))'),
+        // A repetition is flat in `bnf/descent` and right-recursive here, down to
+        // an empty `*()` tail node per item.
+        repetition: bothBackends(
+            repeat0Plus(range('AA')), 'AAA',
+            '(("A") ("A") ("A"))',
+            '("A" ("A" ("A" *())))'),
+        // Grouping is *lost*, not reshaped: this backend gives `[[A,B],C]` and
+        // `[A,B,C]` — the `leadingItem` case above — byte-identical ASTs, so no
+        // later pass can tell the two grammars apart.
+        nesting: bothBackends(
+            [[range('AA'), range('BB')], range('CC')], 'ABC',
+            '((("A") ("B")) ("C"))',
+            '("A" ("B") ("C"))'),
+    },
     throw: {
         ambiguousVariantDispatch: () => {
             // Two alternatives covering the same code point — dispatch merge throws.

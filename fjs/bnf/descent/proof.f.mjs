@@ -2,6 +2,7 @@
  * @module
  *
  * @import { CodePoint } from '../../text/utf16/types.ts'
+ * @import { RuleSet } from '../data/types.ts'
  * @import { DescentMatch, CodePointMeta, DescentMatchResult } from './types.ts'
  */
 
@@ -9,9 +10,9 @@ import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
 import { commaJoin0Plus, eof, option, range, repeat0Plus, set } from '../module.f.mjs'
 import { emptyTagMap, toData } from '../data/module.f.mjs'
-import { descentParser } from './module.f.mjs'
+import { descentParser, descentParserRuleSet } from './module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
-import { deterministic } from '../testlib.f.mjs'
+import { deterministic, showAst } from '../testlib.f.mjs'
 
 /** @type {(cp: CodePoint) => CodePointMeta<unknown>} */
 const mapCodePoint = cp => [cp, undefined]
@@ -77,11 +78,14 @@ export const proof = {
             if (result !== '{"0":"none","3":true,"":true,"r":"none"}') { throw result }
         },
         () => {
+            // The whole repetition is one `repeat` rule, and a repetition always
+            // matches empty — with no tag, because it is a list of items rather
+            // than a choice between branches.
             const repeatRule = repeat0Plus(set(' \n\r\t'))
             const data = toData(repeatRule)
             const emptyTags = emptyTagMap(data[0])
             const result = JSON.stringify(emptyTags)
-            if (result !== '{"5":true,"r":"none"}') { throw result }
+            assertEq(result, '{"r":true}')
         }
     ],
     descentParser: [
@@ -254,33 +258,62 @@ export const proof = {
         () => {
             const m = descentParser(deterministic())
 
-            const expect = (/** @type {string} */s, /** @type {boolean} */expected) => {
+            // A match is pinned by the AST it built, not just by the fact that it
+            // matched: the shape is what a repetition changes, and asserting it
+            // subsumes success — only a full match produces one. `showAst` writes
+            // a node as `tag(children)` with the code points it consumed as one
+            // quoted string, `*` for the tagless empty match.
+            //
+            // The leading three spaces are the `repeat` to read first: they are
+            // three siblings of one node here, and three levels of nesting in the
+            // LL(1) backend's copy of these expectations.
+            /** @type {(s: string, expected: string) => void} */
+            const expectAst = (s, expected) => {
                 const cp = toArray(stringToCodePointList(s))
                 const mr = descentParserCpOnly(m, '', cp)
-                const success = mr.success && mr.idx === cp.length
-                assertEq(success, expected, mr)
+                assertEq(mr.success, true, s)
+                assertEq(mr.idx, cp.length, s)
+                assertEq(showAst(mr.ast), expected, s)
             }
 
-            expect('   true   ', true)
-            expect('   tr2ue   ', false)
-            expect('   true"   ', false)
-            expect('   "Hello"   ', true)
-            expect('   "Hello   ', false)
-            expect('   "Hello\\n\\r\\""   ', true)
-            expect('   -56.7e+5  ', true)
-            expect('   h-56.7e+5   ', false)
-            expect('   -56.7e+5   3', false)
-            expect('   [] ', true)
-            expect('   {} ', true)
-            expect('   [[[]]] ', true)
-            expect('   [1] ', true)
-            expect('   [ 12, false, "a"]  ', true)
-            expect('   [ 12, false2, "a"]  ', false)
-            expect('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', true)
-            expect('   { "q": [ 12, false, [{}], "a"] }  ', true)
-            expect('   { "q": [ 12, false, [}], "a"] }  ', false)
-            expect('   [{ "q": [ 12, false, [{}], "a"] }]  ', true)
-            expect('   [{ "q": [ 12, false, [}], "a"] }]  ', false)
+            /** @type {(s: string) => void} */
+            const expectNoMatch = s => {
+                const cp = toArray(stringToCodePointList(s))
+                const mr = descentParserCpOnly(m, '', cp)
+                assertEq(mr.success && mr.idx === cp.length, false, s)
+            }
+
+            expectAst('   true   ', '((" "(" ") " "(" ") " "(" ")) "true"(("t") ("r") ("u") ("e")) (" "(" ") " "(" ") " "(" ")))')
+            expectAst('   "Hello"   ', '((" "(" ") " "(" ") " "(" ")) "string"((("\\"")) ("0x2300005b"("H") "0x5d10ffff"("e") "0x5d10ffff"("l") "0x5d10ffff"("l") "0x5d10ffff"("o")) (("\\""))) (" "(" ") " "(" ") " "(" ")))')
+            expectAst('   "Hello\\n\\r\\""   ', '((" "(" ") " "(" ") " "(" ")) "string"((("\\"")) ("0x2300005b"("H") "0x5d10ffff"("e") "0x5d10ffff"("l") "0x5d10ffff"("l") "0x5d10ffff"("o") "escape"((("\\\\")) "n"("n")) "escape"((("\\\\")) "r"("r")) "escape"((("\\\\")) "\\""("\\""))) (("\\""))) (" "(" ") " "(" ") " "(" ")))')
+            expectAst('   -56.7e+5  ', '((" "(" ") " "(" ") " "(" ")) "number"("some"(("-")) "onenine"(("5") (("6"))) "some"(((".")) (("7") ())) "some"("e"("e") "+"("+") (("5") ()))) (" "(" ") " "(" ")))')
+            expectAst('   [] ', '((" "(" ") " "(" ") " "(" ")) "array"((("[")) () "none"() (("]"))) (" "(" ")))')
+            expectAst('   {} ', '((" "(" ") " "(" ") " "(" ")) "object"((("{")) () "none"() (("}"))) (" "(" ")))')
+            expectAst('   [[[]]] ', '((" "(" ") " "(" ") " "(" ")) "array"((("[")) () "some"(("array"((("[")) () "some"(("array"((("[")) () "none"() (("]"))) ()) "none"()) (("]"))) ()) "none"()) (("]"))) (" "(" ")))')
+            expectAst('   [1] ', '((" "(" ") " "(" ") " "(" ")) "array"((("[")) () "some"(("number"("none"() "onenine"(("1") ()) "none"() "none"()) ()) "none"()) (("]"))) (" "(" ")))')
+            expectAst('   [ 12, false, "a"]  ', '((" "(" ") " "(" ") " "(" ")) "array"((("[")) (" "(" ")) "some"(("number"("none"() "onenine"(("1") (("2"))) "none"() "none"()) ()) "some"(((((",")) (" "(" "))) ("false"(("f") ("a") ("l") ("s") ("e")) ())) "some"(((((",")) (" "(" "))) ("string"((("\\"")) ("0x5d10ffff"("a")) (("\\""))) ())) "none"()))) (("]"))) (" "(" ") " "(" ")))')
+            expectAst('   { "q": [ 12, false, [{"b" : "c"}], "a"] }  ', '((" "(" ") " "(" ") " "(" ")) "object"((("{")) (" "(" ")) "some"(((((("\\"")) ("0x5d10ffff"("q")) (("\\""))) () ((":")) (" "(" ")) "array"((("[")) (" "(" ")) "some"(("number"("none"() "onenine"(("1") (("2"))) "none"() "none"()) ()) "some"(((((",")) (" "(" "))) ("false"(("f") ("a") ("l") ("s") ("e")) ())) "some"(((((",")) (" "(" "))) ("array"((("[")) () "some"(("object"((("{")) () "some"(((((("\\"")) ("0x5d10ffff"("b")) (("\\""))) (" "(" ")) ((":")) (" "(" ")) "string"((("\\"")) ("0x5d10ffff"("c")) (("\\"")))) ()) "none"()) (("}"))) ()) "none"()) (("]"))) ())) "some"(((((",")) (" "(" "))) ("string"((("\\"")) ("0x5d10ffff"("a")) (("\\""))) ())) "none"())))) (("]")))) (" "(" "))) "none"()) (("}"))) (" "(" ") " "(" ")))')
+            expectAst('   { "q": [ 12, false, [{}], "a"] }  ', '((" "(" ") " "(" ") " "(" ")) "object"((("{")) (" "(" ")) "some"(((((("\\"")) ("0x5d10ffff"("q")) (("\\""))) () ((":")) (" "(" ")) "array"((("[")) (" "(" ")) "some"(("number"("none"() "onenine"(("1") (("2"))) "none"() "none"()) ()) "some"(((((",")) (" "(" "))) ("false"(("f") ("a") ("l") ("s") ("e")) ())) "some"(((((",")) (" "(" "))) ("array"((("[")) () "some"(("object"((("{")) () "none"() (("}"))) ()) "none"()) (("]"))) ())) "some"(((((",")) (" "(" "))) ("string"((("\\"")) ("0x5d10ffff"("a")) (("\\""))) ())) "none"())))) (("]")))) (" "(" "))) "none"()) (("}"))) (" "(" ") " "(" ")))')
+            expectAst('   [{ "q": [ 12, false, [{}], "a"] }]  ', '((" "(" ") " "(" ") " "(" ")) "array"((("[")) () "some"(("object"((("{")) (" "(" ")) "some"(((((("\\"")) ("0x5d10ffff"("q")) (("\\""))) () ((":")) (" "(" ")) "array"((("[")) (" "(" ")) "some"(("number"("none"() "onenine"(("1") (("2"))) "none"() "none"()) ()) "some"(((((",")) (" "(" "))) ("false"(("f") ("a") ("l") ("s") ("e")) ())) "some"(((((",")) (" "(" "))) ("array"((("[")) () "some"(("object"((("{")) () "none"() (("}"))) ()) "none"()) (("]"))) ())) "some"(((((",")) (" "(" "))) ("string"((("\\"")) ("0x5d10ffff"("a")) (("\\""))) ())) "none"())))) (("]")))) (" "(" "))) "none"()) (("}"))) ()) "none"()) (("]"))) (" "(" ") " "(" ")))')
+
+            expectNoMatch('   tr2ue   ')
+            expectNoMatch('   true"   ')
+            expectNoMatch('   "Hello   ')
+            expectNoMatch('   h-56.7e+5   ')
+            expectNoMatch('   -56.7e+5   3')
+            expectNoMatch('   [ 12, false2, "a"]  ')
+            expectNoMatch('   { "q": [ 12, false, [}], "a"] }  ')
+
+            // The invalid input in detail. A failed match's own index rewound to
+            // the start and locates nothing; the furthest failure is the
+            // high-water mark, and it lands on the `}` that closes nothing.
+            const bad = '   [{ "q": [ 12, false, [}], "a"] }]  '
+            const badMr = descentParserCpOnly(m, '', toArray(stringToCodePointList(bad)))
+            assertEq(badMr.success, false, bad)
+            assertEq(badMr.idx, 0, bad)
+            const failure = assertNotNullish(badMr.failure)
+            assertEq(failure.idx, 25, bad)
+            assertEq(bad[failure.idx], '}', bad)
         }
     ],
     // Regression for the stack-recursive matcher bug: the matcher used to recurse
@@ -374,11 +407,12 @@ export const proof = {
         },
         () => {
             // Repetition terminates on EOF: consuming it moves the complete
-            // cursor, so the repeat makes exactly one round and then takes its
-            // empty branch — with `idx` alone this would never stop.
-            const m = descentParser(repeat0Plus(eof))
-            const mr = m('', [])
-            assertEq(JSON.stringify(mr), '{"ast":{"sequence":[{"sequence":[]},{"tag":"none","sequence":[]}]},"success":true,"idx":0}')
+            // cursor, so the repeat makes exactly one round and then stops —
+            // with `idx` alone this would never stop.
+            const rule = repeat0Plus(eof)
+            const m = descentParser(rule)
+            const mr = m(toData(rule)[1], [])
+            assertEq(JSON.stringify(mr), '{"ast":{"sequence":[{"sequence":[]}]},"success":true,"idx":0}')
         },
         () => {
             // Backtracking restores the complete cursor: `x` consumes EOF and
@@ -397,6 +431,58 @@ export const proof = {
             assertEq(f.idx, 0)
             assertEq(f.expected.length, 1)
             assertEq(f.expected[0], range('BB'))
+        },
+    ],
+    repeat: [
+        () => {
+            // The whole repetition is one node holding a flat sequence of the
+            // items it matched — not the right-recursive chain of `some`/`none`
+            // nodes its functional spelling builds.
+            const rule = repeat0Plus(set(' \n\r\t'))
+            const m = descentParser(rule)
+            const name = toData(rule)[1]
+            const mr = descentParserCpOnly(m, name, toArray(stringToCodePointList('  ')))
+            assertEq(
+                JSON.stringify(mr),
+                `{"ast":{"sequence":[{"tag":" ","sequence":[[${cp1(' ')},null]]},{"tag":" ","sequence":[[${cp1(' ')},null]]}]},"success":true,"idx":2}`)
+        },
+        () => {
+            // Zero items is a match, and the node is empty rather than tagged.
+            const rule = repeat0Plus(set(' \n\r\t'))
+            const m = descentParser(rule)
+            const mr = m(toData(rule)[1], [])
+            assertEq(JSON.stringify(mr), '{"ast":{"sequence":[]},"success":true,"idx":0}')
+        },
+        () => {
+            // A round that fails ends the repetition rather than failing it: the
+            // rounds before it stand and the match stops where the failed one
+            // began.
+            const rule = repeat0Plus(set(' \n\r\t'))
+            const m = descentParser(rule)
+            const name = toData(rule)[1]
+            const mr = descentParserCpOnly(m, name, toArray(stringToCodePointList(' x')))
+            assertEq(
+                JSON.stringify(mr),
+                `{"ast":{"sequence":[{"tag":" ","sequence":[[${cp1(' ')},null]]}]},"success":true,"idx":1}`)
+        },
+        () => {
+            // `toData` never folds a nullable item into a `repeat`, but a
+            // hand-written rule set can hold one. A round that consumes nothing
+            // would repeat forever, so it is kept once and ends the repetition.
+            /** @type {RuleSet} */
+            const ruleSet = {
+                repeated: 'optionalA',
+                optionalA: { some: 'a', none: 'e' },
+                a: range('aa'),
+                e: [],
+            }
+            const m = descentParserRuleSet(ruleSet)
+            assertEq(
+                JSON.stringify(m('repeated', [])),
+                '{"ast":{"sequence":[{"tag":"none","sequence":[]}]},"success":true,"idx":0}')
+            assertEq(
+                JSON.stringify(m('repeated', [[cp1('a'), null]])),
+                `{"ast":{"sequence":[{"tag":"some","sequence":[[${cp1('a')},null]]},{"tag":"none","sequence":[]}]},"success":true,"idx":1}`)
         },
     ],
     furthestFailure: [

@@ -84,6 +84,25 @@ export const proof = {
             null),
 
     // Plain ASCII text matches no signature.
+    // `detect` is the magic projection of `push`, and that only holds because
+    // `magicStep` leaves a non-`scan` state alone. These pin both absorbing
+    // states as fixed points from the outside, where `magicStep` is private.
+    settledMagicIsAFixedPoint: [
+        // `matched` survives whatever follows the signature — including bytes
+        // that would not extend it, and a long tail that would otherwise keep
+        // the fold running.
+        () => assertEq(detect(bytes(0xff, 0xd8, 0xff, 0x00, 0x01, 0x02)), 'image/jpeg'),
+        () => assertEq(detect(bytes(0xff, 0xd8, 0xff, ...Array(64).fill(0x41))), 'image/jpeg'),
+        // `dead` survives too. This is the case where `push` keeps folding
+        // after the magic state is settled — `isSettled` stays false while the
+        // UTF-8 factor is still valid text — so a `dead` magic is fed many more
+        // bytes here than `detect`'s old loop ever gave it.
+        () => assertEq(detect(bytes(0x41)), null),
+        () => assertEq(detect(bytes(0x41, ...Array(64).fill(0x42))), null),
+        // ...and the same input still reads as text through the full detector,
+        // confirming the fold really did continue past the dead magic.
+        () => assertEq(detectVec(bytes(0x41, ...Array(64).fill(0x42))).type, 'text'),
+    ],
     textIsNull: () =>
         assertEq(detect(bytes(0x68, 0x65, 0x6c, 0x6c, 0x6f)), null),
 
