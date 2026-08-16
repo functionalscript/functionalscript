@@ -2,7 +2,7 @@
  * JSON-RPC 2.0 envelopes and a pure dispatcher.
  *
  * The envelopes are rtti schemas, so one declaration yields both a runtime
- * decoder (`validate(request)`) and the static type (`Ts<typeof request>`) — no
+ * decoder (`parse(request)`) and the static type (`Ts<typeof request>`) — no
  * drift between them. The dispatcher is pure: it maps an already-parsed request
  * value to a response value (or `null` for a notification) and performs no I/O.
  *
@@ -20,7 +20,7 @@
 
 import { at } from '../../types/object/module.f.mjs'
 import { number, string, or, option } from '../../types/rtti/module.f.mjs'
-import { validate } from '../../types/rtti/validate/module.f.mjs'
+import { parse } from '../../types/rtti/parse/module.f.mjs'
 import { unknown } from '../../media/json/rtti/module.f.mjs'
 
 export const jsonrpc = /** @type {const} */ ('2.0')
@@ -63,7 +63,7 @@ export const errorResponse = /** @type {const} */ ({ jsonrpc, error, id: _id })
 export const response = or(successResponse, errorResponse)
 
 /** Decodes an untrusted value as a JSON-RPC request / notification. */
-export const decodeRequest = validate(request)
+export const decodeRequest = parse(request)
 
 /**
  * Builds an `RpcError` with the given `code` and `message` (no `data`).

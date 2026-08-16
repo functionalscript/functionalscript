@@ -243,11 +243,11 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
 - [`fjs/types/rtti/parse`](../../../types/rtti/parse/module.f.mjs) — existing strict
   runtime-value parser whose structural behavior should be reused where possible,
   not changed to add JSON-specific coercion.
-- [`fjs/types/rtti/todo/retire-validate.md`](../../../types/rtti/todo/retire-validate.md)
-  — deletes the schema-form `validate`, which makes this parser the answer for
-  callers reading JSON text against a schema rather than a convenience. Structs
-  and tuples are open there, matching the "drop extra struct fields/tuple
-  elements where the current parser does" behavior this task already inherits.
+- [`fjs/types/rtti/README.md`](../../../types/rtti/README.md) — the schema-form
+  `validate` has been deleted, which makes this parser the answer for callers
+  reading JSON text against a schema rather than a convenience. Structs and
+  tuples are open there, matching the "drop extra struct fields/tuple elements
+  where the current parser does" behavior this task already inherits.
 - [`fjs/types/rtti/todo/close-type.md`](../../../types/rtti/todo/close-type.md)
   — adds a closed container schema; a closed container must *error* on an
   undeclared member rather than drop it, so this parser needs that case too.

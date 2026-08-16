@@ -5,14 +5,14 @@
  * @module
  *
  * @import { ValidationError } from '../../types/rtti/common/types.ts'
- * @import { Ts } from '../../types/rtti/ts/types.ts'
+ * @import { Ts, Unknown } from '../../types/rtti/ts/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
 import { parse as parseJsonText } from '../../media/json/module.f.mjs'
 import { option, record, string } from '../../types/rtti/module.f.mjs'
-import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
-import { okThen } from '../../types/result/module.f.mjs'
+import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
+import { mapOk, okThen } from '../../types/result/module.f.mjs'
 
 export const packageJsonSchema = /** @type {const} */ ({
     name: option(string),
@@ -23,7 +23,26 @@ export const packageJsonSchema = /** @type {const} */ ({
 /** @typedef {Ts<typeof packageJsonSchema>} PackageJson */
 /** @typedef {string | ValidationError} JsonTextError */
 
-export const validatePackageJson = rttiValidate(packageJsonSchema)
+const parseShape = rttiParse(packageJsonSchema)
+
+/**
+ * Checks `value` against {@link packageJsonSchema} and returns **the value it
+ * was given**, not a reconstruction of it.
+ *
+ * This module reads metadata without losing the unrelated fields a real
+ * `package.json` carries, so those fields have to survive the check —
+ * `dependencies`, `license`, and everything else the schema does not name.
+ * `rttiParse` builds a fresh value holding only the declared members, which is
+ * the right default everywhere else; here its result is used as the check and
+ * discarded.
+ *
+ * The cast is what the successful parse just proved: `value` satisfies the
+ * schema, and an open struct's type is satisfied by a value carrying more.
+ *
+ * @type {(value: Unknown) => Result<PackageJson, ValidationError>}
+ */
+export const validatePackageJson = value =>
+    mapOk(() => /** @type {PackageJson} */ (value))(parseShape(value))
 
 /**
  * Parses `text` as JSON and validates it against {@link packageJsonSchema}.

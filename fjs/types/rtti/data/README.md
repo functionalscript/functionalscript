@@ -16,12 +16,16 @@ consumer actually needs it.
    collapse, structural equality (`equal`), inclusion (`subset`), and canonical
    ordering (`cmp`).
 
-A consequence is two validators: the thunk-direct one in
-[`../validate`](../validate/module.f.mjs) walks the thunk graph at dispatch
-time — simple, no preprocessing, good for ad-hoc use — while `validate` here
-consumes a `Data` produced by `toData` and benefits from the canonical form:
-unions are already flattened, subset-covered patterns already dropped. The two
-coexist; users who care about repeat use convert once and keep the data form.
+A consequence is two readers: the thunk-direct
+[`../parse`](../parse/module.f.mjs) walks the thunk graph at dispatch time —
+simple, no preprocessing, good for ad-hoc use — while `validate` here consumes
+a `Data` produced by `toData` and benefits from the canonical form: unions are
+already flattened, subset-covered patterns already dropped. The two coexist;
+users who care about repeat use convert once and keep the data form.
+
+They differ in what they return, not only in how they dispatch: `parse` builds
+a fresh value holding exactly the declared members, while `validate` here
+answers a set-membership question about the value it was given.
 
 ## The representation is set-theoretic
 

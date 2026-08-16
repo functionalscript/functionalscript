@@ -155,14 +155,31 @@ export const proof = {
                 const r = parse(t)([42, 'hello'])
                 assertStructurallySame(unwrap(r), [42, 'hello'])
             },
-            // The key behavior change vs `validate`: extra tuple elements are dropped.
-            extraItemsDropped: () => {
+            // A tuple is OPEN: a longer array is accepted, and the extras are
+            // absent from what `parse` builds. This is deliberate — see
+            // "Structs and tuples are open" in ../README.md. Do not add a
+            // length check here on the strength of `Ts<readonly [42]>` being
+            // an exact tuple; that mapping is exact only because TypeScript
+            // could not express the open one (see ../ts/types.ts `TupleTs`),
+            // and reading it as a design decision is what produced #1622.
+            extraItemsAcceptedAndDropped: () => {
                 const r = parse(/** @type {const} */ ([42]))([42, 'extra'])
                 assertStructurallySame(unwrap(r), [42])
+                const long = parse(/** @type {const} */ ([42]))([42, 1, 2, 3])
+                assertStructurallySame(unwrap(long), [42])
+            },
+            // An absent member reads as `undefined`, so a position is required
+            // exactly when its set excludes `undefined` — the same rule the
+            // data form states for object keys, applied to arrays.
+            shortArrayFillsAnOptionalPosition: () => {
+                const r = parse([number, option(string)])([42])
+                assertStructurallySame(unwrap(r), [42, undefined])
             },
             error: () => {
                 assertError(parse(/** @type {const} */ ([42]))([99]))
                 assertError(parse(/** @type {const} */ ([42]))({}))
+                // `42` excludes `undefined`, so position 0 is required.
+                assertError(parse(/** @type {const} */ ([42]))([]))
             },
         },
         struct: {
@@ -171,8 +188,10 @@ export const proof = {
                 const r = parse(t)({ a: 42, b: 'hello' })
                 assertStructurallySame(unwrap(r), { a: 42, b: 'hello' })
             },
-            // Undeclared properties are dropped from the constructed value.
-            extraKeysDropped: () => {
+            // A struct is OPEN, on the same terms as a tuple: undeclared
+            // properties are accepted and absent from what `parse` builds.
+            // See "Structs and tuples are open" in ../README.md.
+            extraKeysAcceptedAndDropped: () => {
                 const r = parse(/** @type {const} */ ({ a: /** @type {const} */ (42) }))({ a: 42, b: 'extra' })
                 assertStructurallySame(unwrap(r), { a: 42 })
             },

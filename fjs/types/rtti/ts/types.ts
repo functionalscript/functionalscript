@@ -74,7 +74,20 @@ export type ArrayTs<T extends Type> = ReadonlyArray<Ts<T>>
 /** Maps a record schema `T` to `{ readonly[K in string]?: Ts<T> }`. */
 export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
 
-/** Maps a tuple schema to a readonly tuple of resolved types. */
+/**
+ * Maps a tuple schema to a readonly tuple of resolved types.
+ *
+ * **The commented-out line is the accurate mapping.** A tuple schema is *open*
+ * — a longer array is a member of the set it describes (see "Structs and
+ * tuples are open" in `../README.md`) — and the open form below says so. It is
+ * commented out because TypeScript could not handle it, so this renders the
+ * closed approximation instead.
+ *
+ * That is a limitation of this renderer, **not** a statement about the value
+ * model. Do not cite the exact mapping as evidence that tuples are closed and
+ * add a length check to `../parse/module.f.mjs`; that inference is what
+ * produced #1622.
+ */
 export type TupleTs<T extends Tuple> =
     // readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]
     { readonly[K in keyof T]: Ts<T[K]> }

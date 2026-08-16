@@ -7,7 +7,7 @@
  * - `tools/list` — advertise available tools
  * - `tools/call` — invoke a tool and return text content
  *
- * Each schema is both a runtime decoder (`validate(schema)`) and a static
+ * Each schema is both a runtime decoder (`parse(schema)`) and a static
  * TypeScript type (`Ts<typeof schema>`). Transport framing (stdio) and the
  * JSON-RPC dispatcher are in `fjs/protocol/json_rpc/module.f.mjs`.
  *
@@ -42,7 +42,7 @@ import {
     rpcError, invalidRequest, invalidParams, methodNotFound,
     jsonrpc,
 } from '../json_rpc/module.f.mjs'
-import { validate } from '../../types/rtti/validate/module.f.mjs'
+import { parse } from '../../types/rtti/parse/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
 import { unknown } from '../../media/json/rtti/module.f.mjs'
 
@@ -169,7 +169,7 @@ export const toolEntry = (name, description, inputRtti, handle) => ({
     inputRtti,
     /** @type {(a: Unknown) => Effect<O, ToolsCallResult>} */
     handle: a => {
-        const [t, r] = validate(/** @type {any} */ (inputRtti))(a)
+        const [t, r] = parse(/** @type {any} */ (inputRtti))(a)
         return t === 'error'
             ? pure(errorResult(`invalid arguments: ${r.message}`))
             : handle(/** @type {Ts<T>} */ (r))
@@ -284,7 +284,7 @@ export const mcpStep = ({
         // `notifications/initialized` transitions the session from initializing → initialized.
         if (id === undefined) {
             if (method === 'notifications/initialized') {
-                const [pt] = validate(_noParams)(params)
+                const [pt] = parse(_noParams)(params)
                 if (pt === 'error') {
                     // Malformed handshake — ignore it; the session stays gated.
                     return pure(null)
@@ -305,7 +305,7 @@ export const mcpStep = ({
         // `ping` is always valid regardless of session state, but its params
         // (if present) must be an object.
         if (method === 'ping') {
-            const [pt] = validate(_noParams)(params)
+            const [pt] = parse(_noParams)(params)
             return pt === 'error'
                 ? pure(_errResponse(id)(invalidParams))
                 : pure(_okResponse(id)({}))
@@ -319,7 +319,7 @@ export const mcpStep = ({
                     if (t !== 'uninitialized') {
                         return pure(_errResponse(id)(invalidRequest))
                     }
-                    const [pr] = validate(initializeParams)(params)
+                    const [pr] = parse(initializeParams)(params)
                     if (pr === 'error') {
                         return pure(_errResponse(id)(invalidParams))
                     }
@@ -350,7 +350,7 @@ export const mcpStep = ({
                         return pure(_errResponse(id)(methodNotFound))
                     }
                     // `params` may be absent — `tools/list` without a cursor.
-                    const [t, pr] = validate(toolsListParams)(params === undefined ? {} : params)
+                    const [t, pr] = parse(toolsListParams)(params === undefined ? {} : params)
                     return t === 'error'
                         ? pure(_errResponse(id)(invalidParams))
                         : step(
@@ -363,7 +363,7 @@ export const mcpStep = ({
                     if (capabilities.tools === undefined) {
                         return pure(_errResponse(id)(methodNotFound))
                     }
-                    const [t, pr] = validate(toolsCallParams)(params)
+                    const [t, pr] = parse(toolsCallParams)(params)
                     return t === 'error'
                         ? pure(_errResponse(id)(invalidParams))
                         : step(
