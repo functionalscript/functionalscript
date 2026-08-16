@@ -127,7 +127,7 @@ node; `node` below means any of them.
 |`["()", object, args]`|`f(...args)`|1|call; `args` is one node yielding an array|
 |`["[]()", object, property, args]`|`o[p](...args)`|1|instance method call; keeps `this` binding|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
-|`["function", …]`|`(…) => …`|later|closures; shape open (subject 7)|
+|`["function", frame, body]`|`(…) => …`|later|closures; `frame` yields the captured array (see below)|
 
 Tags are **JS syntax wherever JS has syntax for the operation** — hence
 `"[]"`, `"()"`, `"[]()"` and `","` above, and the operator symbols
@@ -143,7 +143,8 @@ Word tags remain only where no unambiguous JS spelling exists:
   both a two-element array and `a[b]`), so the word stays;
 - `"args"` — FS has no `arguments` object to borrow a spelling from
   (subject 2);
-- `"function"` — shape still open (subject 7).
+- `"function"`, `"frame"`, `"self"`, `"throw"` — no unambiguous JS
+  expression spells any of them.
 
 Symbol tags never collide with word tags, so both live in one namespace.
 
@@ -172,6 +173,43 @@ All operators are post-stage-1: stage 1 has no operators at all.
 |----|--|-----|-----|
 |`["throw", node]`|`throw v`|later|always fails; never produces a value|
 |`["self"]`|—|later|the function itself; recursion is `["()", ["self"], args]`|
+|`["frame"]`|—|later|the captured-consts frame, an array — as `["args"]` is for arguments|
+
+**`["frame"]` and the closed-scope model.** A closure's free values are
+copied into a frame when the function object is created — the scheme
+[function-frame](../spec/todo/3111-function-frame.md) chooses — and
+`["frame"]` is that array. It needs no accessor of its own: a slot is
+ordinary indexing, `["[]", ["frame"], 0]`, exactly as an argument is
+`["[]", ["args"], 0]` (subject 2).
+
+Frame construction mirrors a call: `["function", frame, body]`, where
+`frame` is one node evaluating to an array — built in the *enclosing*
+scope, usually `["array", …]` — and `body` is the inner function's
+graph. Compare `["()", f, args]`: same shape, one for entering a call,
+one for creating a closure.
+
+```js
+// const f = x => { … const b = y => { … f(y) … }; … b(…) … }
+// inside f, building b — f puts its own ["self"] into b's frame:
+["function", ["array", ["self"]], /* b's body */ …]
+// inside b, calling f — slot 0 of b's frame:
+["()", ["[]", ["frame"], 0], ["array", ["[]", ["args"], 0]]]
+```
+
+Consequences:
+
+- **A function body is a closed graph.** Its only leaves are constants,
+  `["args"]`, `["frame"]` and `["self"]` — every other value is
+  computed from them. Nothing refers outward.
+- That **resolves the nesting corner** flagged in subjects 3 and 9: a
+  node cannot be shared across a function boundary, because the inner
+  body's leaves mean something different there. It is not a rule to
+  enforce so much as a consequence of the model — and it is what makes
+  each function independently hashable.
+- **`["self"]` is still primitive**, not just a frame slot: a
+  top-level recursive function has no enclosing scope to build its
+  frame, so something must break that cycle. `["self"]` breaks it, and
+  frames propagate it inward (as in the example above).
 
 `["self"]` is what makes recursion expressible in a nameless AST, and —
 more importantly — what keeps a recursive function **finite and
@@ -537,8 +575,11 @@ open:
   had: there is no index space to scope, no De Bruijn `(up, index)`
   machinery; sharing across a lazy boundary is a plain reference, and a
   node demanded from two branches evaluates at most once (memoization).
-- Deferred to stage 2 (`function` node): nested functions make `["args"]`
-  context-dependent (whose arguments?) — see the open corner in subject 9.
+- Resolved by the closed-scope model ([Operations](#operations)): a
+  nested function's body is a closed graph whose leaves — `["args"]`,
+  `["frame"]`, `["self"]` — are its own, so a node simply cannot be
+  shared across a function boundary, and "whose arguments?" never
+  arises.
 
 ### 4. Object constructor: key order and duplicate keys
 
@@ -636,7 +677,8 @@ an ordinary call, not a syntax the AST needs a tag for.
 
 With the body a single operation node, no special top-level shape
 remains — every position, the body included, is a node, and the body
-composes directly into the eventual `["function", body]` node.
+composes directly into `["function", frame, body]`
+([Operations](#operations)).
 
 To decide: whether stage 1's `Function` constructor input is the bare
 body node or a wrapper carrying metadata — parameter count for
@@ -777,11 +819,14 @@ the **graph**, not a tree expansion:
   hash must be computed over the canonical graph serialization.
 - JSON output expands sharing ([spec/README.md](../spec/README.md)) and is
   therefore not a valid AST carrier; DJS and tagged CBOR are.
-- Open corner for stage 2: nested functions plus cross-function shared
-  nodes make context-dependent references (`["args"]`, and any
-  binder-relative form) hard to hash structurally — a known difficulty of
-  binders + sharing. Constraint to resolve when the `function` node is
-  designed.
+- Nested functions no longer pose the binders-plus-sharing difficulty:
+  the closed-scope model ([Operations](#operations)) makes each function
+  body a self-contained graph, so it hashes independently and no
+  reference is context-dependent across a boundary.
+- Still open: **mutual recursion**, where `a` calls `b` calls `a`. That
+  is a cycle *between* functions, which `["self"]` does not reach —
+  either the partner is passed as an argument, or the group is hashed
+  together with members addressed by index.
 ### 10. Free variables: module consts, imports, built-ins
 
 **Status:** open
@@ -799,9 +844,22 @@ name the function did not compute itself:
   [2360](../spec/todo/2360-built-in.md) says may be used only as a
   namespace, never assigned to a variable.
 
-`["self"]` ([Operations](#operations)) covers one case — a function
-referring to *itself* — without any naming mechanism. The rest still
-need one.
+**Largely answered by `["frame"]`** ([Operations](#operations)): free
+values are captured into the frame when the closure is created, and read
+back as `["[]", ["frame"], i]`. `["self"]` covers self-reference, which
+no frame can seed at the top level. What remains open:
+
+- **which values go into a frame, and in what order** — the compiler
+  decides, and hash-as-written (subject 1) means that choice must be
+  canonical: same source, same frame layout;
+- **built-in namespaces** (`Object`, `JSON`) — frame entries like any
+  other free value, or constants the VM provides?
+  [2360](../spec/todo/2360-built-in.md) says they may be used only as
+  namespaces, never assigned, so they may not be ordinary values at all;
+- **module consts and imports** — captured per closure, or embedded
+  directly as values (they are already-evaluated DJS values by then)?
+  Embedding inlines a shared value into every function that uses it,
+  which costs hashing and `toString(f)` fidelity.
 
 Stage 1 can live without this — a body reachable from `["args"]` and
 constants alone is a real, if small, language. But every path forward
