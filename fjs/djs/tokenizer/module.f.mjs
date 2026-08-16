@@ -393,7 +393,12 @@ const stringDecodeScan = (cp, state) => {
                 case latinSmallLetterN: return [[lf],        { kind: 'normal' }]    // \n → line feed (LF)
                 case latinSmallLetterR: return [[cr],        { kind: 'normal' }]    // \r → carriage return (CR)
                 case latinSmallLetterT: return [[ht],        { kind: 'normal' }]    // \t → horizontal tab (HT)
-                case latinSmallLetterU: return [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
+                // `\u` is the only case the assertion above leaves. It is a
+                // `default` rather than a `case latinSmallLetterU` because the
+                // ASCII constants are plain `number`s, so the switch can never
+                // be exhaustive to TypeScript and the clause would fall through
+                // into `unicode` below.
+                default: return [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
             }
         }
         case 'unicode': {
