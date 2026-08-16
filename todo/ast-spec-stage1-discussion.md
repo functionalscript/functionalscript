@@ -13,9 +13,9 @@ revision history is recorded in subjects 1 and 8.*
 
 A function body is a **single operation node** — the root of the
 computation DAG. Non-resulting computations (asserts — fail-fast
-guards, A4) are merged into the graph by the **`comma` operation**:
+guards, A4) are merged into the graph by the **`","` operation**:
 
-- `["comma", ...asserts, result]` establishes **all** of its operands
+- `[",", ...asserts, result]` establishes **all** of its operands
   (subject 8) and takes the value of the **last** one — it *is* the JS
   comma operator, `(a, b) → b`. The assert operands' values are
   discarded — they exist for their throw-potential only — and are
@@ -26,7 +26,7 @@ guards, A4) are merged into the graph by the **`comma` operation**:
   return assert(a >= 0 && b >= 0), a + b
   ```
 
-  lowers to a `comma` node verbatim, `toString(f)` prints it back
+  lowers to a `","` node verbatim, `toString(f)` prints it back
   verbatim, and a JS engine running the printed source implements one
   legal schedule (left-to-right, eager) of the same semantics. The
   statement spellings normalize to the same node — all three of
@@ -43,16 +43,16 @@ guards, A4) are merged into the graph by the **`comma` operation**:
   and the natural form for `toString(f)` to print. The AST has **no assert
   node**: `assert` is an ordinary function value that throws on a falsy
   argument; what makes an operand an assert is purely positional — its
-  value is discarded by `comma`.
+  value is discarded by `","`.
   [operators](../spec/todo/2340-operators.md) allows the comma operator
   for exactly this reason: it was rejected as "useful only when we want
   to mutate", and the assert pattern is the counter-example — in a pure
   language the only side effect a discarded operand can have is
   throwing.
-- The operands of a `comma` are this document's **branches**: rooted
+- The operands of a `","` are this document's **branches**: rooted
   subgraphs of the DAG, sharing nodes freely by reference — distinct
   from the control-flow branches of the future `cond` (subject 3).
-- **Stage 1 ships without `comma`**: a stage 1 body is a plain node, and
+- **Stage 1 ships without `","`**: a stage 1 body is a plain node, and
   the operation is introduced later, when asserts arrive, without
   changing the body's shape.
 
@@ -69,7 +69,7 @@ guards, A4) are merged into the graph by the **`comma` operation**:
   `[x, x]` yields an array with `a[0] === a[1]`, while `[{}, {}]` yields
   two distinct objects.
 - evaluation: the root node is established (subject 8) and its value is
-  the function's result; a `comma` establishes all its operands, in any
+  the function's result; a `","` establishes all its operands, in any
   order, possibly in parallel (A4); every node is memoized by its
   identity, so shared nodes evaluate once.
 
@@ -79,14 +79,14 @@ the AST's sharing structure and DJS's graph structure are the same thing.
 
 ```js
 // const f = (...a) => { const x = a[0]; return [x, x] }
-const x = ["at", ["args"], 0]
+const x = ["[]", ["args"], 0]
 export default ["array", x, x]       // the body is one node; x is interior
 
 // (...a) => { const check = a[0].length; return a[1] } — with comma (later)
 const a = ["args"]
-export default ["comma",
-    ["at", ["at", a, 0], "length"],  // assert: value unused
-    ["at", a, 1],                    // the result: last, as in JS (a, b) → b
+export default [",",
+    ["[]", ["[]", a, 0], "length"],  // assert: value unused
+    ["[]", a, 1],                    // the result: last, as in JS (a, b) → b
 ]
 ```
 
@@ -95,12 +95,17 @@ Agreed points (not under discussion):
 - Host-value reuse follows [DESIGN.md §8](../DESIGN.md): constants describe
   themselves; tags only where the host value is ambiguous. `["array", ...]`
   is a complete escape hatch — any constant array is expressible.
-- `bindCall` is semantically required, not an optimization:
+- `["[]()", …]` is semantically required, not an optimization:
   [property-accessor](../spec/todo/2330-property-accessor.md) shows
   `a.indexOf(x)` and `const p = a.indexOf; p(x)` differ observably.
-- `call`'s arguments are a single node yielding an array (usually
-  `["array", ...]`): handles spread `f(...xs)` for free, unlike a variadic
-  form. Same for `bindCall`'s third operand.
+- `args` is **a single operand that evaluates to an array**, not a
+  literal list of operand nodes: `f(a, b)` is
+  `["()", f, ["array", a, b]]`, while spread `f(...xs)` is just
+  `["()", f, xs]` and forwarding is `["()", f, ["args"]]` — free,
+  because `["args"]` is itself a first-class array (subject 2). A
+  literal-list operand would save the `["array", …]` wrapper in the
+  common case but would need a spread marker for those. Same for
+  `["[]()", …]`'s third operand.
 
 ## Operations
 
@@ -115,20 +120,31 @@ node; `node` below means any of them.
 |`{ key: node, … }`|`{ key: … }`|1|object constructor; key order is part of the value (subject 4)|
 |`["array", ...node]`|`[…]`|1|array constructor|
 |`["args"]`|—|1|the arguments array (subject 2)|
-|`["at", node, node]`|`o[i]`|1|subject 6|
-|`["call", node, node]`|`f(...args)`|1|the second operand yields the argument array|
-|`["bindCall", node, node, node]`|`o[p](...args)`|1|keeps `this` binding; subject 6|
-|`["comma", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
+|`["[]", object, property]`|`o[p]`|1|instance property|
+|`["()", object, args]`|`f(...args)`|1|call; `args` is one node yielding an array|
+|`["[]()", object, property, args]`|`o[p](...args)`|1|instance method call; keeps `this` binding|
+|`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
 |`["function", …]`|`(…) => …`|later|closures; shape open (subject 7)|
 
-### Operators
+Tags are **JS syntax wherever JS has syntax for the operation** — hence
+`"[]"`, `"()"`, `"[]()"` and `","` above, and the operator symbols
+below. This is [DESIGN.md §8](../DESIGN.md) again: the host language
+already spells these, so the AST reuses the spelling instead of
+inventing a vocabulary to be memorized and translated. `"[]()"` reads as
+the syntax it means, `o[p](…)`.
 
-Operators are tagged by their **actual JS symbol**, not by a name:
-`["+", a, b]`, not `["add", a, b]`. This is
-[DESIGN.md §8](../DESIGN.md) again — the host language already spells
-these, so the AST reuses the spelling instead of inventing a vocabulary
-to be memorized and translated. Symbol tags never collide with the word
-tags above, so both live in one namespace.
+Word tags remain only where no unambiguous JS spelling exists:
+
+- `"array"` — the JS spelling would be `"[]"`, which collides with
+  instance property access at the same arity (`["[]", a, b]` would be
+  both a two-element array and `a[b]`), so the word stays;
+- `"args"` — FS has no `arguments` object to borrow a spelling from
+  (subject 2);
+- `"function"` — shape still open (subject 7).
+
+Symbol tags never collide with word tags, so both live in one namespace.
+
+### Operators
 
 **Arity distinguishes unary from binary**: `["-", a]` is negation and
 `["-", a, b]` is subtraction — the same overloading JS itself uses, and
@@ -165,7 +181,7 @@ non-termination and resource exhaustion collapsed into the same opaque
 failure (A2, A4). Everything else about a node is just its value.
 Consequences:
 
-- the whole membership apparatus — `comma`, subject 8, effect edges —
+- the whole membership apparatus — `","`, subject 8, effect edges —
   exists for this one effect. Were nothing able to throw, the AST would
   be pure data flow: unreachable nodes could simply be dropped;
 - eager and lazy evaluation of an operand differ *only* in whether a
@@ -311,7 +327,7 @@ Unlocked by rejecting A4:
 
 Still illegal with A4 rejected:
 
-- **dropping** an anchored may-throw operation — A3 makes the `comma`
+- **dropping** an anchored may-throw operation — A3 makes the `","`
   merge an existence guarantee (subject 8);
 - **speculating** a lazy operand — a not-taken branch may throw where JS
   completes; unless it is *proven* non-throwing, in which case
@@ -388,22 +404,22 @@ arguments passed to the function.**
 - The arguments array is first-class and always an array — the actual
   arguments the caller passed, whatever the declaration looked like.
   Missing arguments read as `undefined` via ordinary array indexing; extra
-  arguments are simply present; forwarding is `["call", f, ["args"]]` —
+  arguments are simply present; forwarding is `["()", f, ["args"]]` —
   all ordinary array semantics, matching JS.
 - Declared parameters are a compiler-side naming convention over the
   arguments array, not an AST concept; declared arity matters only for
   `.length` and `toString(f)` fidelity (subject 7).
 - The rejected `["arg", i]` (single-argument access, no reified array)
   cannot express rest parameters (`(...xs) => xs`) or forwarding;
-  `["arg", i]` is expressible as `["at", ["args"], i]` while the reverse
+  `["arg", i]` is expressible as `["[]", ["args"], i]` while the reverse
   is not.
 
 Examples — named parameters are positions in the arguments array; the
 compiler erases names:
 
 ```js
-const f = (...a) => a[5]   // ["at", ["args"], 5]
-const g = (a) => a[5]      // ["at", ["at", ["args"], 0], 5]
+const f = (...a) => a[5]   // ["[]", ["args"], 5]
+const g = (a) => a[5]      // ["[]", ["[]", ["args"], 0], 5]
 ```
 
 ### 3. Lazy operators and the branch extension path
@@ -415,8 +431,8 @@ lazy, and operations throw — so eager evaluation of both sides is
 observably wrong. Stage 1 ships no branches; it must only keep the door
 open:
 
-- **Operand shapes are specified per command** ("`at` takes two operation
-  nodes"), never by a global rule like "an array in operand position is
+- **Operand shapes are specified per command** ("`"[]"` takes two
+  operation nodes"), never by a global rule like "an array in operand position is
   always a tagged operation" — so future commands with differently-shaped
   operands are additions, not breaking changes.
 - Recorded extension path: the lazy operators themselves —
@@ -424,7 +440,7 @@ open:
   [Operations](#operations)) — where laziness is a property of the
   operand *position*. No separate `cond` node is needed: `?:` is the
   branch node. A branch operand is an ordinary node — including a
-  `comma` node when the branch has its own guards, which gives each
+  `","` node when the branch has its own guards, which gives each
   control branch its per-branch effect membership with no extra
   machinery (subject 8).
 - The reference model dissolves the scoping problem that the index model
@@ -460,9 +476,9 @@ the FJS compiler would never emit. To validate:
   (until a `["function", ...]` node exists,
   [function](../spec/todo/3110-function.md));
 - the body: a single operation node;
-- `comma` (when introduced): at least two operands — a single-operand
-  `comma` is the identity and non-canonical; an assert operand reachable
-  from another operand of the same `comma` is redundant (well-formedness,
+- `","` (when introduced): at least two operands — a single-operand
+  `","` is the identity and non-canonical; an assert operand reachable
+  from another operand of the same `","` is redundant (well-formedness,
   subject 8);
 - unknown command tags: validation error;
 - duplicate object-constructor keys: validation error (subject 4);
@@ -478,13 +494,13 @@ the FJS compiler would never emit. To validate:
 
 [property-accessor](../spec/todo/2330-property-accessor.md) already names
 commands: `at`, `at_call`, `instance_property`, `instance_method_call`,
-`own_property`. This proposal's `at` = its `at`; `bindCall` = its
+`own_property`. This proposal's `"[]"` = its `at`; `"[]()"` = its
 `at_call`.
 
 Options:
 
 1. Adopt the existing names in the AST.
-2. AST keeps only the general layer (`at`, `bindCall`); 2330's
+2. AST keeps only the general layer (`"[]"`, `"[]()"`); 2330's
    `instance_property` / `instance_method_call` are noted as compile-time
    specializations of the VM's internal bytecode, not AST-level
    distinctions.
@@ -492,15 +508,37 @@ Options:
 Leaning toward 2 (minimal AST; bytecode is where performance distinctions
 live per [serialization](../spec/todo/serialization.md)). Consequence: the
 AST interpreter carries the safety burden 2330 assigns to compile-time
-checks — `["at", obj, "constructor"]`, `__proto__`, and other prohibited
+checks — `["[]", obj, "constructor"]`, `__proto__`, and other prohibited
 names must be rejected at *runtime*.
 
-Related, now that operators are tagged by symbol
-([Operations](#operations)): should the structural tags be symbolic too
-— `["[]", o, i]` for `at`, something for `call`? Leaning no: `o[i]` and
-`f(...args)` are *syntax*, not operator symbols, so there is nothing to
-reuse; a word tag is the honest spelling. Worth deciding together with
-the names above so the vocabulary is settled in one pass.
+**Decided for the structural tags: they are JS syntax too** —
+`["[]", object, property]`, `["()", object, args]`,
+`["[]()", object, property, args]`, `[",", …]`. Syntax is as much a
+host spelling as an operator symbol is, and `"[]()"` reads as the
+`o[p](…)` it denotes. Word tags survive only where no unambiguous
+spelling exists (`"array"`, `"args"`, `"function"` — see
+[Operations](#operations)). This supersedes the `at` / `call` /
+`bindCall` names used earlier in this document.
+
+**`"."` / `".()"` instead of `"[]"` / `"[]()"`?** They are shorter and
+read well, but they spell a *different* JS operation: `o.p` takes a
+literal identifier, `o[p]` takes an arbitrary expression. The AST's
+property operand is a node — any expression — so `"[]"` is the accurate
+spelling and `"."` would misdescribe `["." , o, someComputedNode]`.
+
+That makes the two spellings exactly 2330's open distinction, which is
+the remaining question here: whether the AST also carries
+`instance_property` / `instance_method_call` (static, compile-time-known
+property name) separately from the general computed access, or whether
+those stay bytecode specializations. If they are ever added at AST
+level, `"."` and `".()"` are their natural spelling — property operand
+restricted to a string constant — with `"[]"` / `"[]()"` remaining the
+general pair. Keeping `"[]"` now leaves both spellings available and
+costs nothing.
+
+Leaning: general pair only (option 2 above); `own_property` likewise
+stays out — 2330 spells it `Object.getOwnPropertyDescriptor(o, p)?.value`,
+an ordinary call, not a syntax the AST needs a tag for.
 
 ### 7. Top-level shape of a function
 
@@ -516,35 +554,35 @@ body node or a wrapper carrying metadata — parameter count for
 erases names and arity; without a wrapper, `toString` can only print a
 rest-parameter spelling).
 
-### 8. `comma`: anchored evaluation
+### 8. `","`: anchored evaluation
 
-**Status:** decided (revised: the merge is the `comma` operation)
+**Status:** decided (revised: the merge is the `","` operation)
 
 **Resolution: non-resulting computations are merged into the graph by
-the `comma` operation — `["comma", ...asserts, result]`, the JS comma
+the `","` operation — `[",", ...asserts, result]`, the JS comma
 operator — which guarantees *membership*, not order.** Stage 1 ships
-without `comma`; these rules bind the operation when it is introduced.
+without `","`; these rules bind the operation when it is introduced.
 
 - A throw is an effect. A reference edge can only express "the result is
   needed here"; a may-throw operation needs "evaluate this even if its
   value is never needed". A pure data-flow DAG has no edge type for
-  that, so the format needs dedicated syntax: `comma`'s assert-operand
+  that, so the format needs dedicated syntax: `","`'s assert-operand
   positions are exactly those effect edges. (Graph IRs solve this the
   same way: effect edges alongside data edges.) Being an ordinary
-  operation, `comma` composes anywhere in the graph — body root, or
+  operation, `","` composes anywhere in the graph — body root, or
   inside a future control branch — one mechanism for all scopes.
 - **Only true roots need merging.** A source const whose value the
   result uses is already a member by reachability — it collapses into
   an interior shared node. Only non-resulting roots — the asserts —
-  need a `comma` operand; at the source level, an unused `const` *is*
+  need a `","` operand; at the source level, an unused `const` *is*
   the assert syntax. Identifying roots is **reachability, not effect
   analysis**: the AST's shape does not depend on any analysis's
   precision, preserving hash stability across compiler versions.
 - **Well-formedness: merged operands are true roots** — an assert
   operand must not be reachable from any other operand of the same
-  `comma`. Without this rule the same function could be spelled with or
+  `","`. Without this rule the same function could be spelled with or
   without redundant merged-but-referenced operands, needlessly
-  splitting hashes. A single-operand `comma` is the identity and
+  splitting hashes. A single-operand `","` is the identity and
   equally non-canonical.
 - **Branch ordering: the spec owns the spelling; engines own the
   schedule.** What matters for the specification is **canonical order**:
@@ -564,9 +602,9 @@ without `comma`; these rules bind the operation when it is introduced.
   optimize for the happy path. The spec assumes nothing about any of
   this; the freedoms above are illustrations of what A1–A4 make sound
   for any engine, with no coordination.
-- **Membership is never negotiable: a `comma`'s value is revealed only
+- **Membership is never negotiable: a `","`'s value is revealed only
   after ALL its operands complete successfully.** Scheduling freedom is
-  about *when* guards run, never *whether*. When the guarded `comma` is
+  about *when* guards run, never *whether*. When the guarded `","` is
   the body root, its value is the function's value — so nothing escapes
   to the caller until every guard passes. This is more than A3 fidelity
   — an assert may be a security guard whose failure must prevent the
@@ -577,7 +615,7 @@ without `comma`; these rules bind the operation when it is introduced.
   ```
 
   An engine may compute anything early — even the result operand
-  speculatively, which is unobservable — but the `comma`'s value must
+  speculatively, which is unobservable — but the `","`'s value must
   not be revealed until every assert operand has succeeded.
 
   "Succeeded" is an **as-if** rule — the engine must *establish* each
@@ -617,7 +655,7 @@ without `comma`; these rules bind the operation when it is introduced.
   content-addressed cache or otherwise escape the debugging session —
   they are not the function's outcome.
 - **Membership is semantic; order is not** (A4 rejected): every merged
-  operand is established before the merging `comma`'s value is revealed,
+  operand is established before the merging `","`'s value is revealed,
   so A3's always-fails holds — but any evaluation order of branches
   (including parallel, and asserts as fail-fast guards before the data
   path) is legal under the opaque-error contract. Data dependencies
@@ -626,7 +664,7 @@ without `comma`; these rules bind the operation when it is introduced.
 - Memoization by node identity: a shared node evaluates once, at its
   first demand.
 - Future: a control-flow branch operand (`cond`, subject 3) carries its
-  guards as a `comma` node inside the branch — per-branch effect
+  guards as a `","` node inside the branch — per-branch effect
   membership with no extra machinery.
 
 ### 9. Canonical graph serialization and hashing
