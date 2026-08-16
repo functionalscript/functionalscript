@@ -22,7 +22,7 @@ import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
-import { ok, error as resultError } from '../../types/result/module.f.mjs'
+import { error as resultError } from '../../types/result/module.f.mjs'
 import { do_, mapStep, pure, step } from '../module.f.mjs'
 import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../io/module.f.mjs'
 

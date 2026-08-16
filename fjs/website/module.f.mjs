@@ -9,7 +9,6 @@
 
 import { htmlUtf8 } from '../media/html/module.f.mjs'
 import { exitStep, writeFile } from '../effects/node/module.f.mjs'
-import { pure, step } from '../effects/module.f.mjs'
 
 const html = htmlUtf8()(
     ['a',

@@ -6,7 +6,7 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import { run } from '../mock/module.f.mjs'
-import { mapStep, pureOk, step } from '../io/module.f.mjs'
+import { pureOk, step } from '../io/module.f.mjs'
 import {
     asBase, asNominal,
     create, read, write,

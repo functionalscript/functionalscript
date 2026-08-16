@@ -10,7 +10,6 @@
 import { history, historyStep, mapStep, step } from '../../effects/module.f.mjs'
 import { mkdir, readUtf8File, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { unwrapStep } from '../../effects/io/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
 
 const source = /** @type {const} */ ('.copilot/mcp.json')
 const targetDirectory = /** @type {const} */ ('.vscode')

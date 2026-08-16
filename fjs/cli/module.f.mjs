@@ -11,7 +11,6 @@
  */
 
 import { errorExit, exitStep, log } from '../effects/node/module.f.mjs'
-import { pure, step } from '../effects/module.f.mjs'
 import { at, fromEntries } from '../types/object/module.f.mjs'
 
 const helpMeta = { names: ['help', 'h', '?'], description: 'Print this help message' }

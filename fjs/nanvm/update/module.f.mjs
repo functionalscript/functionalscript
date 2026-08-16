@@ -15,7 +15,6 @@
 import { mapStep, step } from '../../effects/module.f.mjs'
 import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { unwrapStep } from '../../effects/io/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
 import { data } from '../module.f.mjs'
 import { directory, generate, path } from '../rust/module.f.mjs'
 

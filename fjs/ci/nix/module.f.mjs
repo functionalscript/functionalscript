@@ -18,7 +18,7 @@
  * @import { NixJob } from './types.ts'
  */
 
-import { forEachStep, mapStep, pure, step } from '../../effects/module.f.mjs'
+import { forEachStep, pure, step } from '../../effects/module.f.mjs'
 import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { unwrapStep } from '../../effects/io/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
