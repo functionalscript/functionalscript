@@ -86,12 +86,23 @@ Resource limits are a property of the **engine**, not of the function:
 where one engine interrupts, another engine with more resources may
 return a result or throw the semantics-mandated exception (A3). The
 semantics defines one ideal outcome per input; every engine is a partial
-realization of it. Engines may differ in *whether* they answer, never in
-*what* they answer — **if two runs both return a result, the result MUST
-be the same**, across engines and across runs (A1 gives this within one
-engine; A2 extends it to all engines). Consequently FS code cannot rely
-on interruption or on its absence, and an interrupt is observably the
-same opaque failure as any other (A4 contract).
+realization of it. Engines may differ in *whether* they answer; for
+*what* they answer, agreement is tiered:
+
+- **Content-addressable engines (CAVM) with the same version of function
+  serialization and identities MUST return the same result** — across
+  engines and across runs (A1 gives this within one engine).
+- Results of non-CA engines may vary in some cases: the observations
+  that touch identity or function serialization (object/function
+  identity, identity-based ordering —
+  [object-identity](../spec/todo/object-identity.md) — and
+  `toString(f)` text), which non-CA engines realize by references and
+  run history rather than by content. The exact list of such cases is to
+  be enumerated; identity-free observations agree on all engines.
+
+Consequently FS code cannot rely on interruption or on its absence, and
+an interrupt is observably the same opaque failure as any other (A4
+contract).
 
 ### A3. Throws are preserved
 
