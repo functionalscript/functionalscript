@@ -35,6 +35,31 @@ export const proof = {
             assertEq(t, 'error')
         },
 
+        // Dependencies are subject identity strings, unconstrained like
+        // `vnd.fjs.revision`'s `subject` — no semantic check applies.
+        dependenciesAccepted: () => {
+            const r = validate({ dialect, text: 'ship it', dependencies: ['write the spec', 'review'] })
+            assert(r[0] === 'ok', ['expected ok', r])
+            assertEq(r[1].dependencies?.length, 2)
+        },
+
+        // `[]` and an absent field both say "depends on nothing"; the format
+        // does not distinguish them, and both validate.
+        emptyDependenciesAccepted: () => {
+            const [t] = validate({ dialect, text: 'hi', dependencies: [] })
+            assertEq(t, 'ok')
+        },
+
+        // The field is a list of strings, nothing else.
+        nonArrayDependenciesRejected: () => {
+            const [t] = validate({ dialect, text: 'hi', dependencies: 'write the spec' })
+            assertEq(t, 'error')
+        },
+        nonStringDependencyRejected: () => {
+            const [t] = validate({ dialect, text: 'hi', dependencies: [42] })
+            assertEq(t, 'error')
+        },
+
         // rtti structs are open, so unknown fields are ignored rather than
         // rejected — the additive forward-compatibility path every future
         // extension (title, tags, dates, …) relies on.
@@ -78,11 +103,13 @@ export const proof = {
 
     encodeText: {
         // Two blobs differing only in property order converge on one byte
-        // sequence, so they address the same CAS blob.
+        // sequence, so they address the same CAS blob. `dependencies` sorts
+        // ahead of `dialect`, and its array order is preserved — arrays retain
+        // their declared order under canonical serialization.
         sortsPropertiesLexicographically: () => {
-            const decoded = decodeText(`{"text":"hi","dialect":"${dialect}"}`)
+            const decoded = decodeText(`{"text":"hi","dependencies":["b","a"],"dialect":"${dialect}"}`)
             assert(decoded[0] === 'ok', ['expected ok', decoded])
-            assertEq(encodeText(decoded[1]), `{"dialect":"${dialect}","text":"hi"}`)
+            assertEq(encodeText(decoded[1]), `{"dependencies":["b","a"],"dialect":"${dialect}","text":"hi"}`)
         },
     },
 

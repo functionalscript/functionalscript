@@ -3,12 +3,12 @@
 A `note` BLOB is a human-authored text item — a note, a todo, an issue, a
 calendar event — stored as a value of its own.
 
-The format starts deliberately minimal: the dialect tag and the text, nothing
-else. That is not a placeholder shape but the extension strategy: rtti structs
-are open, so every future capability — a title, tags, dates, a status — is an
-**optional** field added under the same tag, and starting minimal is what
-keeps every extension additive (see
-[Extending the format](#extending-the-format)).
+The format starts deliberately minimal: the dialect tag, the text, and
+optionally the subjects the item depends on. That is not a placeholder shape
+but the extension strategy: rtti structs are open, so every future
+capability — a title, tags, dates, a status — is an **optional** field added
+under the same tag, and starting minimal is what keeps every extension
+additive (see [Extending the format](#extending-the-format)).
 
 ```ts
 import { noteSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.mjs'
@@ -20,13 +20,15 @@ import { noteSchema, dialect, mediaType, validate, decodeText, encodeText } from
 export const noteSchema = {
     dialect: 'vnd.fjs.note',
     text: string,
+    dependencies: option(array(string)),
 } as const
 ```
 
-| Field     | Type              | Meaning                                            |
-|-----------|-------------------|----------------------------------------------------|
-| `dialect` | `'vnd.fjs.note'`  | Format tag — the media type is derived from it.    |
-| `text`    | `string`          | The item's text. Any string, including `''`.       |
+| Field          | Type                  | Meaning                                            |
+|----------------|-----------------------|----------------------------------------------------|
+| `dialect`      | `'vnd.fjs.note'`      | Format tag — the media type is derived from it.    |
+| `text`         | `string`              | The item's text. Any string, including `''`.       |
+| `dependencies` | `string[]` (optional) | Subjects of the items this one depends on — see [Dependencies](#dependencies). |
 
 `text` is **required**, and may be `''`. An absent text and an empty one would
 otherwise be two spellings of one blob, and a blob whose only purpose is to
@@ -37,6 +39,37 @@ The format records the text and defines no markup for it: how a reader
 renders it (e.g. as Markdown) is the reader's decision. A future optional
 field may tag a syntax explicitly; until then, nothing in the blob promises
 one.
+
+## Dependencies
+
+`dependencies` names the items this one depends on — a todo blocked by
+another todo, an issue waiting on a prerequisite. Each entry is a **subject
+identity string**, the same vocabulary as
+[`vnd.fjs.revision`](../revision/README.md)'s `subject` and a lock map's
+keys: an unconstrained string that identifies a *mutable* object, so no
+semantic check applies and any string is a valid entry.
+
+An entry is never a content hash. A dependency tracks the live item — a
+blocked-by relation follows the other item as it evolves, so freezing it to
+one snapshot would say the wrong thing. When a *specific* resolution does
+need recording — "this note, as it stood when these dependencies stood
+there" — that is exactly what the revision layer's
+[`lock`](../revision/README.md#lock-maps) is for: the revision whose
+`snapshot` is this note binds the note's dependency subjects to content
+hashes, and the note itself stays a value. The two fields compose without
+overlapping: the note says *what* it depends on, the revision's lock says
+*which content* those subjects resolved to.
+
+The field is **optional** because its absent value is the constant "depends
+on nothing" — the same rule that keeps `archived` optional in the revision
+dialect. An explicit `[]` says the same thing; the format does not
+distinguish the two, a cost accepted because requiring the field would force
+`[]` noise onto every plain note. Order and duplicates carry no
+format-defined meaning, and the format defines no cycle rule: subjects are
+identities, not references to further note blobs, so no reference chain
+exists to terminate. What a dependency *means* — blocking, ordering,
+subtasking — is the reader's interpretation, exactly as lock-map semantics
+belong to resolvers.
 
 ## A value, not a step
 
@@ -95,6 +128,9 @@ before it lands.
 - Anything to do with history, authorship, or time — a note has none of its
   own; use a revision.
 - Markup or rendering rules for `text`.
+- What a dependency relation means (blocking, ordering, subtasking), and any
+  resolution of dependency subjects to content — the reader's and the
+  revision layer's business, respectively (see [Dependencies](#dependencies)).
 - Kind-specific semantics (what makes a note "a todo" or "an event") — future
   optional fields, per the extension rule above.
 

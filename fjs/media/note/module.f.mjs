@@ -2,11 +2,12 @@
  * `vnd.fjs.note` — a human-authored text item (a note, todo, issue, calendar
  * event, …) as a BLOB of its own.
  *
- * The format is deliberately minimal: the dialect tag and the text, nothing
- * else. Everything a richer item needs — a title, tags, dates, a status — is a
- * future **optional** field: rtti structs are open, so additive extension
- * keeps the tag (see the versioning rule in `fjs/media/revision/README.md`),
- * and starting minimal is what keeps every extension additive.
+ * The format is deliberately minimal: the dialect tag, the text, and
+ * optionally the subjects the item depends on. Everything else a richer item
+ * needs — a title, tags, dates, a status — is a future **optional** field:
+ * rtti structs are open, so additive extension keeps the tag (see the
+ * versioning rule in `fjs/media/revision/README.md`), and starting minimal is
+ * what keeps every extension additive.
  *
  * Like `vnd.fjs.lock`, a note is a **value**, not a step: no timestamps, no
  * author, no history of its own. Edits over time are ordinary
@@ -30,7 +31,7 @@
  * @import { Note, NoteError } from './types.ts'
  */
 
-import { string } from '../../types/rtti/module.f.mjs'
+import { array, option, string } from '../../types/rtti/module.f.mjs'
 import { validate as rttiValidate } from '../../types/rtti/validate/module.f.mjs'
 import { parse as parseJson, stringify } from '../json/module.f.mjs'
 import { okThen } from '../../types/result/module.f.mjs'
@@ -47,17 +48,30 @@ export const dialect = /** @type {const} */ ('vnd.fjs.note')
 export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
 
 /**
- * rtti schema for a `note` BLOB: the dialect tag and the text, nothing else.
+ * rtti schema for a `note` BLOB: the dialect tag, the text, and optionally
+ * the subjects the item depends on.
  *
  * `text` is **required** and may be `''`: an absent text and an empty one
  * would otherwise be two spellings of one blob, and a blob whose only purpose
  * is to hold text has nothing to say when it does not. Any string is valid —
  * the format records the text and defines no markup for it; how a reader
  * renders it (e.g. as Markdown) is the reader's decision.
+ *
+ * `dependencies` entries are **subject identity strings** — the vocabulary of
+ * `vnd.fjs.revision`'s `subject` and of lock-map keys — naming the mutable
+ * items this one depends on (a blocked-by todo, an issue's prerequisite).
+ * They are never content hashes: a dependency tracks the live item, and
+ * pinning it to immutable content is the revision layer's `lock`. Like
+ * `subject`, an identity string is unconstrained, so no semantic check
+ * applies. The field is optional because its absent value is the constant
+ * "depends on nothing"; an explicit `[]` says the same thing, and the format
+ * does not distinguish the two. Order and duplicates carry no format-defined
+ * meaning.
  */
 export const noteSchema = /** @type {const} */ ({
     dialect,
     text: string,
+    dependencies: option(array(string)),
 })
 
 /** Serializes a note canonically, sorting every object's property names.
