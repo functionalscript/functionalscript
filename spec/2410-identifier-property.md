@@ -2,8 +2,8 @@
 
 ```js
 export default {
-    a: 'hello',
+    a: "hello",
 }
 ```
 
-Depends on [default-import](./2130-default-import.md).
+Depends on [default-export](./2110-default-export.md).
