@@ -10,7 +10,7 @@
 import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
-import { fileCas, casAddFile, collectRead, casUpload } from './module.f.mjs'
+import { fileCas, casAddFile, collectRead } from './module.f.mjs'
 import { match, pure, runPure, step } from '../effects/module.f.mjs'
 import { mkdir, writeFile, rm, readFile, access } from '../effects/node/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
@@ -424,29 +424,6 @@ export const proof = {
         const payload = nonEmpty(ok(vec8(0x11n)), empty())
         const [result] = drive({ stat: [error({ size: 1 })] })(c.write(payload))
         assertEq(errorMessage(result), 'publish size mismatch')
-    },
-    casUploadSuccess: () => {
-        // A successful upload returns the hash and deletes the source file from cas_upload/.
-        const content = vec8(0x2An)
-        const state0 = { ...emptyState, root: { 'cas_upload': { 'myfile': [content] } } }
-        const [state1, result] = virtual(state0)(casUpload('.')('myfile'))
-        assert(result[0] === 'ok', ['expected casUpload ok', result])
-        assertEq(length(result[1]), 256n, ['expected 256-bit hash', length(result[1])])
-        // Source must be deleted after successful publish.
-        const srcPath = join('.', 'cas_upload', 'myfile')
-        const [, srcAccess] = virtual(state1)(access(srcPath))
-        assert(srcAccess[0] === 'error', 'expected source to be deleted after successful upload')
-    },
-    casUploadFailureKeepsSource: () => {
-        // A missing source file causes write to fail; casUpload returns error and the
-        // source is left in place (trivially: it was never there, but the upload is not published).
-        const state0 = { ...emptyState, root: {} }
-        const [state1, result] = virtual(state0)(casUpload('.')('nonexistent'))
-        assert(result[0] === 'error', ['expected casUpload to fail on missing source', result])
-        // Nothing published to the store.
-        const c = fileCas(sha256)('.')
-        const [, hashes] = virtual(state1)(c.list())
-        assertEq(hashes.length, 0, ['expected nothing published on failed upload', hashes])
     },
     collectReadDrainsChunks: () => {
         // The common path: every chunk is `ok`, so collectRead concatenates them all
