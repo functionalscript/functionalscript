@@ -424,6 +424,18 @@ const test = [
             jsonStr(replacedSecond),
             '[[["1"],"100",["121","144"]],"16",[["169"],"25",["36"]],"4-updated",[["49"],"64",["81","9"]]]',
         )
+    },
+
+    // Replacing the first value of a two-value leaf exercises the
+    // `x.length === 2` arm of the `i === 1` "replace" case, which the
+    // fixtures above never reach — their two-value-leaf replaces all land on
+    // the second value.
+    () => {
+        /** @type {TNode<string>} */
+        const _map = set(['1'])('2')
+        assertEq(jsonStr(_map), '["1","2"]')
+        const replaced = replace(_map)('1')(() => '1-updated')
+        assertEq(jsonStr(replaced), '["1-updated","2"]')
     }
 ]
 
