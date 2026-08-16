@@ -1,7 +1,7 @@
 # Additional strictness flags for `tsconfig.json`
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -34,8 +34,8 @@ when they were turned on; the rest are current.
 | `noFallthroughCasesInSwitch` | 2 | **enabled**, after two fixes — see below |
 | `noUnusedParameters` | 8 | |
 | `noPropertyAccessFromIndexSignature` | 33 | |
-| `noUncheckedIndexedAccess` | 211 | the one with design value, see above |
-| `noUnusedLocals` | 214 | 133 `TS6196` + 81 `TS6133`, see below |
+| `noUncheckedIndexedAccess` | 212 | the one with design value, see above |
+| `noUnusedLocals` | 218 | 137 `TS6196` + 81 `TS6133`, see below |
 
 `noFallthroughCasesInSwitch` was measured at 0 when this issue was first
 written; the tree had drifted to 2 by the time the flag was turned on. Both
@@ -58,7 +58,7 @@ have silently continued into an unrelated state rather than failing.
 
 `noUnusedLocals` splits into two unrelated populations:
 
-- **133 `TS6196`** — type names pulled in by a JSDoc
+- **137 `TS6196`** — type names pulled in by a JSDoc
   `@import { … } from './types.ts'` list and never referenced. `@import` lists
   drift as a module changes and nothing catches it today; this is real dead
   weight and the only JSDoc-specific hygiene gap the audit found.
@@ -75,8 +75,8 @@ have silently continued into an unrelated state rather than failing.
       `noPropertyAccessFromIndexSignature` (33 sites) as small follow-ups.
 - [ ] Take `noUncheckedIndexedAccess` as its own task, sequenced **after** the
       `assert` conversions in [inline-type-casts.md](./inline-type-casts.md) —
-      the two overlap, and doing the casts first shrinks the 211.
-- [ ] For `noUnusedLocals`, fix the 133 stale `@import` entries first; that is
+      the two overlap, and doing the casts first shrinks the 212.
+- [ ] For `noUnusedLocals`, fix the 137 stale `@import` entries first; that is
       worth doing on its own even if the flag stays off. Decide the 81 unused
       values separately.
 
