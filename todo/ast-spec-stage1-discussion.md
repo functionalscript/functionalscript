@@ -934,3 +934,47 @@ practice — the reason `let` is on the roadmap at all.
 Related: [mutability](../spec/todo/mutability.md) treats `let` as stage
 zero of ownership tracking; whatever shape is chosen here must not
 require the AST to model mutable *objects*, only threaded state.
+
+### 12. `toString(f)`: real, runnable source
+
+**Status:** open (requirement agreed; details to settle)
+
+`toString(f)` returns **real FunctionalScript source** — a JS engine can
+`eval` it and get an equivalent function. Not a debug rendering: the
+printed text is the function.
+
+(`eval` itself remains *not allowed inside FS*
+([built-in](../spec/todo/2360-built-in.md)). This is a capability of the
+host holding the source, not of FS code.)
+
+What that requires of the printer:
+
+- **Every operation needs an expression form.** The two operations with
+  no JS expression spelling need runnable workarounds, not
+  approximations: `["throw", v]` prints as `(() => { throw v })()`, and
+  a function using `["self"]` prints as a *named function expression*,
+  `function self(…) { … self(…) … }`. Both `eval` correctly.
+- **Sharing must be preserved.** A node referenced twice must print as
+  one `const` used twice, never as two copies: `[x, x]` and `[{}, {}]`
+  are different functions (subject 1). This is the same graph-flattening
+  hazard as JSON output ([spec/README.md](../spec/README.md)) — a
+  printer that expands sharing silently changes semantics.
+- **The printed source must be closed.** `eval` has no module scope, so
+  nothing may print as a bare imported or module-level name; captured
+  values are materialized in the text. This is exactly what the
+  closed-scope model gives ([Operations](#operations)): the only leaves
+  to render are constants, `["args"]`, `["frame"]` and `["self"]`.
+- **Printing is recursive over values.** A captured *function* value
+  prints as its own source; every other DJS value has a literal
+  spelling, so the value domain is closed under printing.
+
+The property worth aiming at: **parse(toString(f)) reproduces the same
+AST**, and therefore the same hash (subject 9). That is what makes
+`toString` trustworthy rather than merely informative — and it is a
+sharper test of the whole design than any single operation, since it
+fails the moment an operation has no faithful source form.
+
+Open: whether the printed form is *canonical* (one function, one text)
+or merely correct. Canonical printing would make `toString` a
+serialization format in its own right; it also demands the same
+normalization decisions parked in subjects 1 and 9.
