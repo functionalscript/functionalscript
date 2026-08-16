@@ -12,6 +12,7 @@
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { pure, step } from '../effects/module.f.mjs'
+import { unwrapStep } from '../effects/io/module.f.mjs'
 import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, string as rttiString } from '../types/rtti/module.f.mjs'
@@ -80,7 +81,7 @@ const runSessionVirtual =
         const effect = step(
             initEvo(fileCas(sha256)(home)),
             cacheKey => step(
-                create(uninitializedState),
+                unwrapStep(create(uninitializedState)),
                 sessionKey => {
                     const step = mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)
                     return feed(step)(msgs)
@@ -143,7 +144,7 @@ const runStdio =
         const effect = step(
             initEvo(fileCas(sha256)(home)),
             cacheKey => step(
-                create(uninitializedState),
+                unwrapStep(create(uninitializedState)),
                 sessionKey =>
                     stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))
             )

@@ -13,7 +13,7 @@
  * @module
  *
  * @import { Effect } from '../types.ts'
- * @import { Server as EffectServer, Headers, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
+ * @import { IoResult, Server as EffectServer, Headers, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  */
@@ -30,7 +30,7 @@ import * as testContext from 'node:test'
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
-import { usesInlineTestContext } from './module.f.mjs'
+import { toIoError, usesInlineTestContext } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { asyncTryCatch } from '../../types/result/module.mjs'
@@ -68,6 +68,22 @@ import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 const createServer = http.createServer
 
 /** @typedef {<T>(effect: Effect<NodeOp, T>) => Promise<T>} _EffectToPromise */
+
+/**
+ * Performs host IO, reporting a thrown failure as an {@link IoResult} error.
+ *
+ * Every filesystem, network, and subprocess handler below goes through it, so
+ * the `catch` that turns an exception into effect data — and the normalization
+ * that keeps the channel serializable — happens in exactly one place.
+ *
+ * @template T
+ * @param {() => Promise<T>} f
+ * @returns {Promise<IoResult<T>>}
+ */
+const io = async f => {
+    const r = await asyncTryCatch(f)
+    return r[0] === 'ok' ? r : error(toIoError(r[1]))
+}
 
 /**
  * @template T
@@ -210,16 +226,16 @@ const { randomInt } = crypto
 /** @type {_EffectToPromise} */
 const runNodeEffect = asyncRun({
     ...memoryOperationMap(),
-    all: async (...effects) => await Promise.all(effects.map(runNodeEffect)),
-    fetch: async url => asyncTryCatch(async () => {
+    all: async (...effects) => ok(await Promise.all(effects.map(runNodeEffect))),
+    fetch: url => io(async () => {
         const response = await fetch(url)
         if (!response.ok) {
             throw new Error(`Fetch error: ${response.status} ${response.statusText}`)
         }
         return toVec(new Uint8Array(await response.arrayBuffer()))
     }),
-    mkdir: (path, options) => asyncTryCatch(async () => { await mkdir(path, options) }),
-    readFile: path => asyncTryCatch(async () => {
+    mkdir: (path, options) => io(async () => { await mkdir(path, options) }),
+    readFile: path => io(async () => {
         const fileStats = await stat(path)
         // if the file is too big, toVec should fail anyway but in this case we don't want to load the file.
         if (fileStats.size > maxFileSizeBytes) {
@@ -227,7 +243,7 @@ const runNodeEffect = asyncRun({
         }
         return toVec(await readFile(path))
     }),
-    readdir: (path, r) => asyncTryCatch(async () =>
+    readdir: (path, r) => io(async () =>
         (await readdir(path, { ...r, withFileTypes: true }))
         .map(v => ({
             name: v.name,
@@ -235,10 +251,10 @@ const runNodeEffect = asyncRun({
             isFile: v.isFile()
         }))
     ),
-    writeFile: (path, data) => asyncTryCatch(() => writeFile(path, fromVec(data))),
-    rm: path => asyncTryCatch(() => rm(path)),
-    rename: (src, dst) => asyncTryCatch(() => rename(src, dst)),
-    readBytes: (path, offset, size) => asyncTryCatch(async () => {
+    writeFile: (path, data) => io(() => writeFile(path, fromVec(data))),
+    rm: path => io(() => rm(path)),
+    rename: (src, dst) => io(() => rename(src, dst)),
+    readBytes: (path, offset, size) => io(async () => {
         if (offset < 0) {
             throw new Error(`Offset ${offset} is negative`)
         }
@@ -254,13 +270,13 @@ const runNodeEffect = asyncRun({
             await fh.close()
         }
     }),
-    randomInt: async () => randomInt(randomMax),
-    access: path => asyncTryCatch(() => access(path)),
-    createExclusive: path => asyncTryCatch(async () => {
+    randomInt: async () => ok(randomInt(randomMax)),
+    access: path => io(() => access(path)),
+    createExclusive: path => io(async () => {
         const fh = await open(path, 'wx')
         await fh.close()
     }),
-    writeBytes: (path, offset, data) => asyncTryCatch(async () => {
+    writeBytes: (path, offset, data) => io(async () => {
         const fh = await open(path, 'r+')
         try {
             const buffer = fromVec(data)
@@ -275,11 +291,11 @@ const runNodeEffect = asyncRun({
             await fh.close()
         }
     }),
-    stat: path => asyncTryCatch(async () => ({ size: (await stat(path)).size })),
-    import: path => asyncTryCatch(() => asyncImport(path)),
+    stat: path => io(async () => ({ size: (await stat(path)).size })),
+    import: path => io(() => asyncImport(path)),
     exec: (command, stdin) => new Promise(resolve => {
         const child = exec(command, (e, stdout, stderr) =>
-            resolve(e !== null ? /** @type {const} */ (['error', e]) : ok({ stdout, stderr }))
+            resolve(e !== null ? error(toIoError(e)) : ok({ stdout, stderr }))
         )
         child.stdin?.end(stdin)
     }),
@@ -299,20 +315,21 @@ const runNodeEffect = asyncRun({
                 .writeHead(status, outHeaders)
                 .end(fromVec(outBody))
         }
-        return /** @satisfies {EffectServer} */ (asNominal(createServer(nodeRl)))
+        return ok(/** @satisfies {EffectServer} */ (asNominal(createServer(nodeRl))))
     },
     listen: async (server, port) => {
         const s = /** @type {_Server} */ (asBase(server))
         s.listen(port)
+        return ok(undefined)
     },
     forever: () => new Promise(() => {}),
-    now: async () => now(),
-    sandbox,
-    await: awaitPromise,
-    write: (stream, data) => writeAll(streams[stream], fromVec(data)),
-    read: readStdinByte,
+    now: async () => ok(now()),
+    sandbox: async f => ok(await sandbox(f)),
+    await: async p => ok(await awaitPromise(p)),
+    write: async (stream, data) => ok(await writeAll(streams[stream], fromVec(data))),
+    read: async () => ok(await readStdinByte()),
     test: async (ctx, name, expectFailure, test) =>
-        ctx.test(name, { expectFailure }, async t => runNodeEffect(test(t))),
+        ok(await ctx.test(name, { expectFailure }, async t => runNodeEffect(test(t)))),
 })
 
 /** @type {TestFn} */

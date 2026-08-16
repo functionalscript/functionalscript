@@ -13,8 +13,8 @@
 import { transpile } from './transpiler/module.f.mjs'
 import { stringify, stringifyAsTree } from './serializer/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
-import { pure, step } from '../effects/module.f.mjs'
-import { writeUtf8File, error } from '../effects/node/module.f.mjs'
+import { step } from '../effects/module.f.mjs'
+import { errorExit, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 
 /** @typedef {ReadFile | WriteFile | Write} _CompileOp */
 
@@ -30,9 +30,7 @@ import { writeUtf8File, error } from '../effects/node/module.f.mjs'
  */
 export const compile = args => {
     if (args.length < 2) {
-        return step(
-            error('Error: Requires 2 or more arguments'),
-            () => pure(1))
+        return errorExit('Error: Requires 2 or more arguments')
     }
     const inputFileName = args[0]
     const outputFileName = args[1]
@@ -42,15 +40,11 @@ export const compile = args => {
         (result) => {
             if (result[0] === 'error') {
                 const metadata = result[1].metadata
-                return step(
-                    error(`${metadata?.path}:${metadata?.line}:${metadata?.column} - error: ${result[1].message}`),
-                    () => pure(1))
+                return errorExit(`${metadata?.path}:${metadata?.line}:${metadata?.column} - error: ${result[1].message}`)
             }
             const content = outputFileName.endsWith('.json')
                 ? stringifyAsTree(sort)(result[1])
                 : stringify(sort)(result[1])
-            return step(
-                writeUtf8File(outputFileName, content),
-                () => pure(0))
+            return exitStep(writeUtf8File(outputFileName, content))
         })
 }

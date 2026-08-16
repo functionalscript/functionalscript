@@ -6,7 +6,9 @@
  * @import { Sha2, State as Sha2State } from '../crypto/sha2/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { Effect, Operation } from '../effects/types.ts'
+ * @import { NotImplemented } from '../effects/io/types.ts'
  * @import {
+ *  IoError,
  *  IoResult,
  *  Now,
  *  RandomInt,
@@ -22,9 +24,11 @@ import { join, normalize, parse } from '../path/module.f.mjs'
 import { empty, length, maxLength, maxLengthBytes, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { foldStep, forEachStep, history, historyStep, mapStep, okStep, pure, step } from '../effects/module.f.mjs'
+import { unwrapStep } from '../effects/io/module.f.mjs'
 import {
     access,
     createExclusive,
+    ioError,
     isNotFound,
     mkdir,
     now,
@@ -78,7 +82,7 @@ export const collectRead = stream => {
             const [t, v] = first
             if (t === 'error') { return pure(first) }
             if (length(acc) + length(v) > maxLength) {
-                return pure(error(`cas blob exceeds maximum vector length of ${maxLength} bits`))
+                return pure(error(ioError({ message: `cas blob exceeds maximum vector length of ${maxLength} bits` })))
             }
             return loop(msb.concat(acc)(v))(tail)
         })
@@ -134,7 +138,7 @@ const gcStage = stageDir => {
     // link, so the timestamp is carried forward in a history rather than closed
     // over by a nested continuation.
     const listed = historyStep(
-        history(now()),
+        history(unwrapStep(now())),
         () => readdir(stageDir, {}))
     return step(
         listed,
@@ -180,10 +184,10 @@ const writeImpl = (sha2, path, stageDir, payload) => {
         const stated = step(removed, () => stat(dst))
         return mapStep(
             stated,
-            st => st[0] === 'ok' && st[1].size === offset ? ok(hash) : error('publish size mismatch'))
+            st => st[0] === 'ok' && st[1].size === offset ? ok(hash) : error(ioError({ message: 'publish size mismatch' })))
     }
     // Any streaming error fails closed: delete the partial file, return the error.
-    /** @type {(curPath: string, e: unknown) => Effect<FileCasOperation, IoResult<Vec>>} */
+    /** @type {(curPath: string, e: NotImplemented | IoError) => Effect<FileCasOperation, IoResult<Vec>>} */
     const fail = (curPath, e) =>
         mapStep(rm(curPath), () => error(e))
     const rndEffect = step(gcStage(stageDir), () => random256)
@@ -208,9 +212,9 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                         // Renew the lease: rename to a fresh deadline (keeps `delta` constant).
                         // The new path is still needed after the rename, to recurse with,
                         // so the rename captures it rather than closing over it.
-                        const nextPath = step(
-                            now(),
-                            t => pure(join(stageDir, stageName(t + leaseDelta, rndStr))))
+                        const nextPath = mapStep(
+                            unwrapStep(now()),
+                            t => join(stageDir, stageName(t + leaseDelta, rndStr)))
                         const renamed = historyStep(
                             history(nextPath),
                             next => rename(curPath, next))
@@ -222,7 +226,7 @@ const writeImpl = (sha2, path, stageDir, payload) => {
                                     : loop(newState, newOffset, next)(tail))
                     })
                 })
-        const started = step(mkdir(stageDir, { recursive: true }), () => now())
+        const started = step(mkdir(stageDir, { recursive: true }), () => unwrapStep(now()))
         return step(started, t0 => {
             const path0 = join(stageDir, stageName(t0 + leaseDelta, rndStr))
             return step(
@@ -294,7 +298,7 @@ const random256 =
         pure([0, 1, 2, 3, 4, 5, 6, 7]),
         empty,
         () => (/** @type {Vec} */ acc) =>
-            mapStep(randomInt(), r => msb.concat(acc)(vec(32n)(BigInt(r)))))
+            mapStep(unwrapStep(randomInt()), r => msb.concat(acc)(vec(32n)(BigInt(r)))))
 
 /** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items.
  *

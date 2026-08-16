@@ -1,11 +1,23 @@
 /**
  * @import { Dir } from './types.ts'
+ * @import { IoError } from '../types.ts'
+ * @import { NotImplemented } from '../../io/types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { emptyState, virtual } from './module.f.mjs'
+
+/**
+ * Asserts that a channel error is a host failure carrying `message` — the
+ * normalized shape every runner reports, virtual and Node alike.
+ * @type {(e: NotImplemented | IoError, message: string) => void}
+ */
+const assertIoMessage = (e, message) => {
+    assert(e[0] === 'ioError', e)
+    assertEq(e[1].message, message)
+}
 
 export const proof = {
     rm: {
@@ -86,7 +98,8 @@ export const proof = {
     awaitNonPromise: () => {
         // a non-promise value passes through the virtual `await` handler as-is
         const [, result] = virtual(emptyState)(awaitIfPromise(42))
-        assertEq(result, 42)
+        assert(result[0] === 'ok', result)
+        assertEq(result[1], 42)
     },
     fetchNotFound: () => {
         // covers the `result === undefined` branch of the `fetch` handler
@@ -144,7 +157,7 @@ export const proof = {
         // rename('', dst): src parses to the root path itself.
         const [, result] = virtual(emptyState)(rename('', 'dst'))
         assert(result[0] === 'error')
-        assertEq(result[1], 'cannot extract root')
+        assertIoMessage(result[1], 'cannot extract root')
     },
     renameSrcThroughFile: () => {
         // rename('a/b', dst) where 'a' is a file, not a directory: the
@@ -176,7 +189,7 @@ export const proof = {
         const root = { 'src': [vec8(0x42n)], 'blocker': [vec8(0x1n)] }
         const [, result] = virtual({ ...emptyState, root })(rename('src', 'blocker/x'))
         assert(result[0] === 'error')
-        assertEq(result[1], 'not a directory')
+        assertIoMessage(result[1], 'not a directory')
     },
     renameDstNestedError: () => {
         // rename(src, 'a/b/c') where 'a/b' is a file: insertEntityAt's error
@@ -185,7 +198,7 @@ export const proof = {
         const root = { 'src': [vec8(0x1n)], 'a': { 'b': [vec8(0x2n)] } }
         const [, result] = virtual({ ...emptyState, root })(rename('src', 'a/b/c'))
         assert(result[0] === 'error')
-        assertEq(result[1], 'not a directory')
+        assertIoMessage(result[1], 'not a directory')
     },
     createExclusiveNestedMissing: () => {
         // createExclusive('a/b') where 'a' doesn't exist: the operation
@@ -229,7 +242,7 @@ export const proof = {
         const root = { 'file': [vec8(0x1n)] }
         const [, result] = virtual({ ...emptyState, root })(writeBytes('file', -1, vec8(0x2n)))
         assert(result[0] === 'error')
-        assertEq(result[1], 'Offset -1 is invalid')
+        assertIoMessage(result[1], 'Offset -1 is invalid')
     },
     statNestedMissing: () => {
         // stat('a/b') where 'a' doesn't exist.
@@ -351,7 +364,7 @@ export const proof = {
         const root = { 'a.f.ts': () => ({}) }
         const [, result] = virtual({ ...emptyState, root })(stat('a.f.ts'))
         assert(result[0] === 'error')
-        assertEq(result[1], `'a.f.ts' is not a file`)
+        assertIoMessage(result[1], `'a.f.ts' is not a file`)
     },
     largeFileReadBytes: () => {
         // A file stored as two 128 KiB chunks is larger than maxLengthBytes.

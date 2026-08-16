@@ -9,6 +9,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { asyncRun } from '../../module.mjs'
+import { ok } from '../../../types/result/module.f.mjs'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
 
 /** @typedef {ToAsyncOperationMap<MemOp>} MemoryOperationMap */
@@ -37,17 +38,18 @@ export const memoryOperationMap = (uuid = randomUUID) => {
             /** @type {Key<unknown>} */
             const key = asNominal(id)
             store.set(id, value)
-            return key
+            return ok(key)
         },
         memRead: async key => {
             const id = asBase(key)
             if (!store.has(id)) { throw missingKey(id) }
-            return store.get(id)
+            return ok(store.get(id))
         },
         memWrite: async (key, value) => {
             const id = asBase(key)
             if (!store.has(id)) { throw missingKey(id) }
             store.set(id, value)
+            return ok(undefined)
         },
     }
 }

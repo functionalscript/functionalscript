@@ -9,7 +9,7 @@
 
 import { history, historyStep, mapStep, step } from '../../effects/module.f.mjs'
 import { mkdir, readUtf8File, writeUtf8File } from '../../effects/node/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { unwrapStep } from '../../effects/io/module.f.mjs'
 
 const source = /** @type {const} */ ('.copilot/mcp.json')
 const targetDirectory = /** @type {const} */ ('.vscode')
@@ -21,12 +21,12 @@ const target = /** @type {const} */ ('.vscode/mcp.json')
  * @type {() => Effect<Mkdir | ReadFile | WriteFile, void>}
  */
 export const syncMcp = () => {
-    const sourceText = history(mapStep(readUtf8File(source), unwrap))
+    const sourceText = history(unwrapStep(readUtf8File(source)))
     const targetDirectoryReady = historyStep(
         sourceText,
-        () => mapStep(mkdir(targetDirectory, { recursive: true }), unwrap))
+        () => unwrapStep(mkdir(targetDirectory, { recursive: true })))
     const targetWritten = step(targetDirectoryReady, ([, text]) => writeUtf8File(target, text))
-    return mapStep(targetWritten, unwrap)
+    return unwrapStep(targetWritten)
 }
 
 /**

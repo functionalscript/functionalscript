@@ -1,6 +1,8 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
- * @import { IoResult, ReadFile } from "./types.ts"
+ * @import { IoError, IoResult, ReadFile } from "./types.ts"
+ * @import { NotImplemented } from "../io/types.ts"
+ * @import { Result } from "../../types/result/types.ts"
  * @import { List } from "../list/types.ts"
  * @import { OperationMap } from "../types.ts"
  */
@@ -8,7 +10,8 @@
 import { empty, isVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match, pure, step } from "../module.f.mjs"
-import { both, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
+import { step as ioStep } from "../io/module.f.mjs"
+import { both, errorMessage, exitStep, fetch, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, toIoError, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -28,7 +31,98 @@ const readHelloMap = {
 
 const readHello = match(readHelloMap)
 
+/**
+ * Asserts that a channel error is a host failure carrying `message`. Every
+ * runner reports through the same normalized {@link IoError}, so a proof
+ * against the virtual filesystem names the message rather than the shape.
+ * @type {(e: NotImplemented | IoError, message: string) => void}
+ */
+const assertIoMessage = (e, message) => {
+    assert(e[0] === 'ioError', e)
+    assertEq(e[1].message, message)
+}
+
+/** Asserts that an operation succeeded with `expected`.
+ * @type {<T, E>(r: Result<T, E>, expected: T) => void}
+ */
+const assertOk = (r, expected) => {
+    assert(r[0] === 'ok', r)
+    assertEq(r[1], expected)
+}
+
 export const proof = {
+    // The one boundary where a runner's `catch` becomes effect data: whatever
+    // was thrown is reduced to a code (when the host attached a string one)
+    // and a message.
+    toIoError: {
+        error: () => {
+            assertIoMessage(toIoError(new Error('boom')), 'boom')
+        },
+        withCode: () => {
+            const e = toIoError(Object.assign(new Error('missing'), { code: 'ENOENT' }))
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, 'ENOENT', e)
+            assertEq(e[1].message, 'missing', e)
+        },
+        // A thrown non-`Error` still normalizes: the value's string form is the
+        // message, and there is no code to carry.
+        string: () => {
+            const e = toIoError('plain')
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+            assertEq(e[1].message, 'plain', e)
+        },
+        null: () => {
+            assertIoMessage(toIoError(null), 'null')
+        },
+        // An object whose `code` is not a string is not an OS error code, so it
+        // is dropped rather than carried as one.
+        nonStringCode: () => {
+            const e = toIoError({ code: 42 })
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+        },
+        noCode: () => {
+            const e = toIoError({})
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+        },
+    },
+    isNotFound: {
+        enoent: () => {
+            assert(isNotFound(ioError({ code: 'ENOENT', message: 'no such file or directory' })))
+        },
+        otherCode: () => {
+            assert(!isNotFound(ioError({ code: 'EACCES', message: 'permission denied' })))
+        },
+        // A runner that cannot perform the operation has not looked for the
+        // path at all, so a missing handler is never "not found".
+        notImplemented: () => {
+            assert(!isNotFound(['notImplemented', 'readFile']))
+        },
+    },
+    errorMessage: {
+        io: () => {
+            assertEq(errorMessage(ioError({ message: 'disk full' })), 'disk full')
+        },
+        notImplemented: () => {
+            assertEq(errorMessage(['notImplemented', 'readFile']), 'operation not implemented: readFile')
+        },
+    },
+    exitStep: {
+        // The exit-code policy a `NodeProgram` ends with: success is `0`...
+        ok: () => {
+            const [state, code] = virtual(emptyState)(exitStep(writeFile('hello', vec8(0x2An))))
+            assertEq(code, 0)
+            assertEq(state.stderr, '')
+        },
+        // ...and a failure is reported on `stderr` and exits `1`.
+        error: () => {
+            const [state, code] = virtual(emptyState)(exitStep(readFile('missing')))
+            assertEq(code, 1)
+            assertEq(state.stderr, 'no such file or directory\n')
+        },
+    },
     externalTestContext: () => {
         assert(usesInlineTestContext('node', 'v22.20.0'))
         assert(usesInlineTestContext('node', '25.99.99'))
@@ -124,8 +218,8 @@ export const proof = {
         nestedPath: () => {
             const [_, [t, result]] = virtual(emptyState)(readFile('tmp/cache'))
             assert(t === 'error', result)
-            assert(typeof result === 'object' && result !== null && 'code' in result, result)
-            if (result.code !== 'ENOENT') { throw result }
+            assert(result[0] === 'ioError', result)
+            assertEq(result[1].code, 'ENOENT', result)
         },
         withinLimit: () => {
             // Test with a small file well within the 131,072 byte limit
@@ -200,7 +294,7 @@ export const proof = {
         noSuchDir: () => {
             const [_, [t, result]] = virtual(emptyState)(readdir('tmp', { recursive: true }))
             assert(t === 'error', result)
-            assertEq(result, 'invalid path')
+            assertIoMessage(result, 'invalid path')
         },
     },
     writeFile: {
@@ -232,7 +326,7 @@ export const proof = {
                 writeFile('tmp/cache', vec8(0x2An))
             )
             assert(t === 'error', result)
-            assertEq(result, 'invalid file')
+            assertIoMessage(result, 'invalid file')
             assertEq(state.root.tmp, undefined, state.root)
         },
         directory: () => {
@@ -245,7 +339,7 @@ export const proof = {
                 writeFile('tmp', vec8(0x2An))
             )
             assert(t === 'error', result)
-            assertEq(result, 'invalid file')
+            assertIoMessage(result, 'invalid file')
             const tmp = state.root.tmp
             assert(!(tmp === undefined || Array.isArray(tmp)), tmp)
         },
@@ -281,7 +375,7 @@ export const proof = {
         noSuchFile: () => {
             const [_, [t, result]] = virtual(emptyState)(rm('hello'))
             assert(t === 'error', result)
-            assertEq(result, 'no such file')
+            assertIoMessage(result, 'no such file')
         },
         isDirectory: () => {
             const [state, [t, result]] = virtual({
@@ -289,18 +383,20 @@ export const proof = {
                 root: { tmp: {} },
             })(rm('tmp'))
             assert(t === 'error', result)
-            assertEq(result, 'invalid path')
+            assertIoMessage(result, 'invalid path')
             assert(state.root.tmp !== undefined, state.root)
         },
     },
     both: () => {
-        const [_, results] = virtual({
+        const [_, both2] = virtual({
             ...emptyState,
             root: {
                 a: [vec8(0x2An)],
                 b: [vec8(0x15n)],
             },
         })(both(readFile('a'))(readFile('b')))
+        assert(both2[0] === 'ok', both2)
+        const results = both2[1]
         assert(results[0][0] === 'ok', results[0])
         assert(results[1][0] === 'ok', results[1])
         assertEq(uint(results[0][1]), 0x2An, results[0][1])
@@ -308,41 +404,48 @@ export const proof = {
     },
     now: () => {
         const [_, result] = virtual({ ...emptyState, epochNs: 1_000_000 })(now())
-        assertEq(result, 1_000_000)
+        assertOk(result, 1_000_000)
     },
     sandbox: {
         // Virtual `sandbox` is now a pass-through: the function is expected
         // to return a `SandboxResult` directly. Fixtures dictate the result
         // (and `duration`) instead of the runner measuring.
         ok: () => {
-            const [_, { result, duration }] = virtual(emptyState)(
+            const [_, sandboxed] = virtual(emptyState)(
                 sandbox(() => ({ result: ['ok', 42], duration: 0 })))
+            // Two `Result`s, one inside the other on purpose: the outer one is
+            // the operation's own status, the inner one is the sandboxed
+            // function's outcome — returned data, not effect status.
+            assert(sandboxed[0] === 'ok', sandboxed)
+            const { result, duration } = sandboxed[1]
             assert(result[0] === 'ok', result)
             assertEq(result[1], 42)
             assertEq(duration, 0)
         },
         error: () => {
             const err = new Error('fail')
-            const [_, { result }] = virtual(emptyState)(
+            const [_, sandboxed] = virtual(emptyState)(
                 sandbox(() => ({ result: ['error', err], duration: 0 })))
+            assert(sandboxed[0] === 'ok', sandboxed)
+            const { result } = sandboxed[1]
             assert(result[0] === 'error', result)
             assertEq(result[1], err)
         },
     },
     memory: {
         createAndRead: () => {
-            const effect = step(memCreate(42), key => memRead(key))
+            const effect = ioStep(memCreate(42), key => memRead(key))
             const [_, value] = virtual(emptyState)(effect)
-            assertEq(value, 42)
+            assertOk(value, 42)
         },
         createAndWrite: () => {
-            const effect = step(
+            const effect = ioStep(
                     memCreate(1),
-                    key => step(
+                    key => ioStep(
                         memWrite(key, 99),
                         () => memRead(key)))
             const [_, value] = virtual(emptyState)(effect)
-            assertEq(value, 99)
+            assertOk(value, 99)
         },
     },
     rename: {
@@ -411,11 +514,11 @@ export const proof = {
     randomInt: {
         increments: () => {
             const [state1, r1] = virtual(emptyState)(randomInt())
-            assertEq(r1, 0)
+            assertOk(r1, 0)
             const [state2, r2] = virtual(state1)(randomInt())
-            assertEq(r2, 1)
+            assertOk(r2, 1)
             const [_, r3] = virtual(state2)(randomInt())
-            assertEq(r3, 2)
+            assertOk(r3, 2)
         },
     },
     writeFromStream: {
@@ -441,7 +544,7 @@ export const proof = {
                 writeFromStream('hello', chunks)
             )
             assert(t === 'error', result)
-            assertEq(result, 'invalid buffer size')
+            assertIoMessage(result, 'invalid buffer size')
         },
     },
 }

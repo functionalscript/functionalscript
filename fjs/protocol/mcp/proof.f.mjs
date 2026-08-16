@@ -14,6 +14,8 @@
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { history, historyStep, mapStep, pure, step, runPure } from '../../effects/module.f.mjs'
+import { unwrapStep } from '../../effects/io/module.f.mjs'
+import { ok } from '../../types/result/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { asBase, asNominal, create, read } from '../../effects/memory/module.f.mjs'
 import {
@@ -36,12 +38,12 @@ const mock = {
         const id = `k${state.next}`
         /** @type {Key<unknown>} */
         const key = asNominal(id)
-        return [{ next: state.next + 1, values: { ...state.values, [id]: value } }, key]
+        return [{ next: state.next + 1, values: { ...state.values, [id]: value } }, ok(key)]
     },
-    memRead: key => state => [state, state.values[asBase(key)]],
+    memRead: key => state => [state, ok(state.values[asBase(key)])],
     memWrite: (key, value) => state => {
         const id = asBase(key)
-        return [{ ...state, values: { ...state.values, [id]: value } }, undefined]
+        return [{ ...state, values: { ...state.values, [id]: value } }, ok(undefined)]
     },
 }
 
@@ -85,7 +87,7 @@ const asMemEffect = e => /** @type {Effect<MemOp, any>} */ (e)
 // history rather than closed over by a nested continuation.
 /** @type {(key: Key<McpSessionState>) => (e: Effect<Operation, unknown>) => Effect<Operation, _StepResult>} */
 const withState = key => e => {
-    const read0 = historyStep(history(e), () => read(key))
+    const read0 = historyStep(history(e), () => unwrapStep(read(key)))
     return mapStep(read0, ([state, resp]) => /** @type {const} */ ([resp, state]))
 }
 
@@ -93,14 +95,14 @@ const withState = key => e => {
 /** @type {(cfg: McpConfig) => (msg: Unknown) => _StepResult} */
 const step1 = cfg => msg =>
     runMem(asMemEffect(step(
-        create(uninitializedState),
+        unwrapStep(create(uninitializedState)),
         key => withState(key)(mcpStep(cfg)(handlers)(key)(msg)))))
 
 // Run initialize then a second step, return [response, newState] of the second.
 /** @type {(cfg: McpConfig) => (msg1: Unknown) => (msg2: Unknown) => _StepResult} */
 const step2 = cfg => msg1 => msg2 =>
     runMem(asMemEffect(step(
-        create(uninitializedState),
+        unwrapStep(create(uninitializedState)),
         key => {
             const r1 = mcpStep(cfg)(handlers)(key)(msg1)
             const r2 = step(r1, () => mcpStep(cfg)(handlers)(key)(msg2))
@@ -111,7 +113,7 @@ const step2 = cfg => msg1 => msg2 =>
 /** @type {(cfg: McpConfig) => (msg1: Unknown) => (msg2: Unknown) => (msg3: Unknown) => _StepResult} */
 const step3 = cfg => msg1 => msg2 => msg3 =>
     runMem(asMemEffect(step(
-        create(uninitializedState),
+        unwrapStep(create(uninitializedState)),
         key => {
             const r1 = mcpStep(cfg)(handlers)(key)(msg1)
             const r2 = step(r1, () => mcpStep(cfg)(handlers)(key)(msg2))

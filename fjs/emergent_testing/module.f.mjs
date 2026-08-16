@@ -19,6 +19,7 @@
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { all, awaitIfPromise, sandbox, test } from '../effects/node/module.f.mjs'
 import { history, historyStep, mapStep, pure, step } from '../effects/module.f.mjs'
+import { unwrapStep } from '../effects/io/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
@@ -117,8 +118,8 @@ export const registerModule = (ctx, k, v, star) => {
         // extra suffix is needed.
         const base = fmtImport(k, path)
         const name = throws ? base : `${base}${star}`
-        return test(ctx, name, throws, (/** @type {TestContext} */ t) =>
-            step(awaitIfPromise(fn()), resolved => {
+        return unwrapStep(test(ctx, name, throws, (/** @type {TestContext} */ t) =>
+            step(unwrapStep(awaitIfPromise(fn())), resolved => {
                 if (throws) {
                     return pure(undefined)
                 }
@@ -126,13 +127,13 @@ export const registerModule = (ctx, k, v, star) => {
                 if (sub.length === 0) {
                     return pure(undefined)
                 }
-                return mapStep(all(...sub.map(e => registerOne(t, e))), () => undefined)
+                return mapStep(unwrapStep(all(...sub.map(e => registerOne(t, e)))), () => undefined)
             })
-        )
+        ))
     }
     const tests = collectTests([], false, v)
     if (tests.length === 0) { return pure(undefined) }
-    return mapStep(all(...tests.map(e => registerOne(ctx, e))), () => undefined)
+    return mapStep(unwrapStep(all(...tests.map(e => registerOne(ctx, e)))), () => undefined)
 }
 
 /** @type {(a: _TestState, b: _TestState) => _TestState} */
@@ -175,7 +176,7 @@ const runModule = ({ result, test }) => (k, v) => ts => {
     /** @type {(path: Path, throws: boolean, v: unknown) => Effect<O | All, _TestState>} */
     const walk = (path, throws, v) => {
         const effects = collectTests(path, throws, v).map(one)
-        return mapStep(all(...effects), states => states.reduce(mergeState, zero))
+        return mapStep(unwrapStep(all(...effects)), states => states.reduce(mergeState, zero))
     }
     return mapStep(walk([], false, v), delta => mergeState(ts, delta))
 }
@@ -198,7 +199,7 @@ export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
     const modules = proofEntries(moduleMap)
     const total = mapStep(
-        all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero))),
+        unwrapStep(all(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero)))),
         m => m.reduce(mergeState, zero))
     // The totals are still needed after the summary has been printed, so they
     // are carried forward in a history rather than closed over by a nested
@@ -319,7 +320,7 @@ export const ghEscape = s =>
  * @type {(file: string, path: Path, entry: TestEntry) => Effect<Sandbox, SandboxResult<unknown>>}
  */
 export const defaultTest = (file, path, { fn, throws }) =>
-    mapStep(sandbox(fn), r => throws ? { ...r, result: invert(r.result) } : r)
+    mapStep(unwrapStep(sandbox(fn)), r => throws ? { ...r, result: invert(r.result) } : r)
 
 /** @type {(file: string, path: Path, color: string, label: string, duration: number) => string} */
 const fmtResultLine = (file, path, color, label, duration) =>
@@ -336,10 +337,14 @@ const fmtResultLine = (file, path, color, label, duration) =>
  */
 export const defaultReporter = options => {
     const write = csiWrite(options)
+    // A reporter that cannot emit its own output has no fallback to choose —
+    // there is nowhere left to report the failure — so a failed write is this
+    // program's panic. One `unwrapStep` here covers every line the reporter
+    // writes.
     /** @type {(w: WriteConsoles) => (s: string) => Effect<Write, void>} */
     const line = w => {
         const x = write(w)
-        return s => x(s + '\n')
+        return s => unwrapStep(x(s + '\n'))
     }
     const csiLog = line('stdout')
     const csiError = line('stderr')

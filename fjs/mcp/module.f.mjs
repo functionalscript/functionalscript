@@ -36,6 +36,7 @@
  */
 
 import { step } from '../effects/module.f.mjs'
+import { unwrapStep } from '../effects/io/module.f.mjs'
 import { create } from '../effects/memory/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import {
@@ -83,7 +84,7 @@ export const casConfig = {
 export const casMcpServer = home => step(
     initEvo(fileCas(sha256)(home)),
     cacheKey => step(
-        create(uninitializedState),
+        unwrapStep(create(uninitializedState)),
         sessionKey =>
             stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)),
     ),
