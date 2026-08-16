@@ -109,7 +109,7 @@ See [architecture.md §Human-readable paths](./architecture.md).
    the MVP pipeline, the compiler-bootstrap vehicle, and the AOT backend
    (see [`nanvm-lib/todo/mvp-roadmap.md`](../../nanvm-lib/todo/mvp-roadmap.md))
 4. `Function` constructor + interpreter in `nanvm-lib` — executes the AST as data
-   (see [`spec/README.md` §9](../../spec/README.md#9-serialization-ast-as-data-not-bytecode));
+   (see [`spec/todo/serialization.md`](../../spec/todo/serialization.md));
    bytecode is an optional, VM-internal, performance-oriented representation
 5. Generic `Any` serialization (CBOR) in `nanvm-lib` — covers code as data; needed for CAS/CAVM
 

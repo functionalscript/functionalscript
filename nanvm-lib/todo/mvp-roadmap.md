@@ -46,7 +46,7 @@ reasons:
 Bytecode is an advanced, performance-oriented representation that may vary
 across architectures, VM implementations, and versions, while the AST is the
 stable representation. See
-[`spec/README.md` §9](../../spec/README.md#9-serialization-ast-as-data-not-bytecode).
+[`spec/todo/serialization.md`](../../spec/todo/serialization.md).
 
 The exact shape of the code-describing `Any` is specified by the
 [ast-spec](../../todo/ast-spec.md) — the contract of the `Function`
@@ -332,7 +332,7 @@ as a generic `Any` facility, post-MVP.
 #### P3
 
 - [ ] **Control statements**: `if`, `while`, etc. (Rust).
-      See [`spec/README.md` §3.2](../../spec/README.md).
+      See [`spec/todo/README.md` §3.2](../../spec/todo/README.md).
 - [ ] **`Any` serialization (CBOR)** — generic serialization of `Any`
       values, which covers code as data; includes the deterministic profile
       needed for CAVM hashing (see open questions).
@@ -379,7 +379,8 @@ compiler-compatibility migration rather than a separate rewrite.
 
 ### Related
 
-- [`spec/README.md`](../../spec/README.md) — the language spec; §9 records the
+- [`spec/README.md`](../../spec/README.md) — the language spec;
+  [`spec/todo/serialization.md`](../../spec/todo/serialization.md) records the
   AST-as-data decision and the two execution paths.
 - [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — source extension contract
   and incremental repository migration.
