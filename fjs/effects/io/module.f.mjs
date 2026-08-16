@@ -1,0 +1,199 @@
+/**
+ * The IoEffect composition API: the branch-aware {@link step},
+ * {@link catchStep}, and {@link resultStep}, the two lifts that enter the
+ * layer, and {@link mapStep}.
+ *
+ * An `IoEffect<O, T, E>` is `Effect<O, Result<T, E>>` (`./types.ts`) — the raw
+ * effect from [`../module.f.mjs`](../module.f.mjs) with its failure in the
+ * type. These operations are what makes that alias worth naming: raw `step`
+ * knows nothing of `Result`, so it runs its continuation whether or not the
+ * previous effect failed, and a fallible chain written with it continues past
+ * an error unless every caller forwards each `Result` by hand.
+ *
+ * They live in their own module because {@link step} and {@link mapStep}
+ * collide with the raw ones, which stay available for consumers still written
+ * against the raw contracts. Nothing here has a consumer yet: stage 3 moves the
+ * `Result` envelope into the operations' declared return types, and stage 4
+ * migrates the consumers ([`./README.md`](./README.md)).
+ *
+ * The three branch-aware operations are the whole vocabulary:
+ *
+ * - {@link step} — continue on `ok`, propagate the `error`. The normal path.
+ * - {@link catchStep} — continue on `error`, preserve the `ok`. The error path.
+ * - {@link resultStep} — continue with the complete `Result`. Both paths.
+ *
+ * **The error channel is unioned, not unified**, following `okThen`
+ * (`fjs/types/result/module.f.mjs`), the pure sibling of this bind: neither
+ * side is pre-widened, and a branch that is passed through stays the very tuple
+ * it arrived as rather than being rebuilt to retag it into a wider type.
+ * {@link step} unions the error channel and replaces the success type;
+ * {@link catchStep} mirrors it, unioning the success channel and replacing the
+ * error type.
+ *
+ * Recovery therefore never needs `try`/`catch` — which FunctionalScript does
+ * not offer, and whose `throw` stays reserved for panics. Escalating an error
+ * to a panic is a decision the program makes explicitly, by `unwrap`ping what
+ * {@link resultStep} hands it.
+ *
+ * The raw module's composition rules apply here unchanged: bind each link in a
+ * sequence to its own name at one level, do not nest steps, and break a call
+ * that does not fit one line after `(` with one argument per line.
+ *
+ * @module
+ *
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { Operation } from '../types.ts'
+ * @import { IoEffect } from './types.ts'
+ */
+
+import { error, mapOk, ok } from '../../types/result/module.f.mjs'
+import { mapStep as rawMapStep, okStep, pure, step as rawStep } from '../module.f.mjs'
+
+/**
+ * Lifts a value into a successful `IoEffect` — `pure(ok(v))` written once.
+ *
+ * One of the two entry points into the layer: {@link step} and its siblings
+ * compose `IoEffect`s but cannot produce the first one, and until stage 3 gives
+ * the operations their `Result` envelope, nothing else does either.
+ *
+ * The error channel is `never`, which is not a special case to handle but the
+ * ordinary consequence of the union rules: `never | E` is `E`, so a lifted
+ * value composes with any chain without widening its errors.
+ *
+ * @type {<T>(v: T) => IoEffect<never, T, never>}
+ */
+export const pureOk = v => pure(ok(v))
+
+/**
+ * Lifts an error into a failed `IoEffect` — `pure(error(e))` written once, and
+ * the mirror of {@link pureOk}, with the success channel `never` instead.
+ *
+ * This is how a program *originates* a failure: a fallback that has run out of
+ * options, or a guard that rejects its input before performing anything. A
+ * runner producing `error(notImplemented)` is stage 6 and does not go through
+ * here — that error arrives through an operation's own continuation.
+ *
+ * @type {<E>(e: E) => IoEffect<never, never, E>}
+ */
+export const pureError = e => pure(error(e))
+
+/**
+ * The normal path: run `e`, and continue with `f` **only** if it succeeded. An
+ * `error` short-circuits the rest of the chain and is passed through unchanged.
+ *
+ * This is the default error propagation the migration exists to provide — the
+ * structured replacement for exception-style propagation, analogous to Rust's
+ * `?`. A sequence therefore reads as its success path, and mentions errors only
+ * where it intentionally handles them:
+ *
+ * ```js
+ * const a = writeFile(...)
+ * const b = step(a, () => console('written'))
+ * ```
+ *
+ * `'written'` is printed only when `writeFile` returned `ok`. The same line
+ * written with raw `step` prints it either way, which is the hazard this
+ * replaces — and note that it is the *value-discarding* continuation that hides
+ * it, since one that reads the value would not have compiled.
+ *
+ * **The error types are unioned** (`E | F`), so `f` may fail in its own way
+ * without either side being pre-widened; the operation sets union too, since
+ * `f` performs effects of its own.
+ *
+ * The body is raw `step` over `okStep`, the adapter that already writes this
+ * branch: it is that composition, given the name and the type the layer
+ * documents. `okStep` quantifies the incoming error on its second arrow, which
+ * is what makes the union expressible here rather than forcing both sides to
+ * the same error type.
+ *
+ * @type {<O extends Operation, T, E, Q extends Operation, R, F>(
+ *     e: IoEffect<O, T, E>,
+ *     f: (t: T) => IoEffect<Q, R, F>
+ * ) => IoEffect<O | Q, R, E | F>}
+ */
+export const step = (e, f) => rawStep(e, okStep(f))
+
+/**
+ * The error path: run `e`, and continue with `f` **only** if it failed. An `ok`
+ * is preserved unchanged, so the recovery is the only branch that mentions the
+ * failure.
+ *
+ * The exact mirror of {@link step}: where that unions the error channel and
+ * replaces the success type, this unions the success channel (`T | R` — the
+ * preserved value or the recovery's) and replaces the error type with `f`'s.
+ * Recovering from every error therefore leaves `F` uninhabited, and the type
+ * says so.
+ *
+ * Use it for *intentional* recovery — a fallback operation after a
+ * `NotImplemented`, a default for a missing file — never as a blanket
+ * "continue anyway"; that is what {@link step}'s propagation already prevents.
+ *
+ * The local continuation is annotated for the same reason {@link step}'s is:
+ * its two branches have different types — `f`'s effect and the untouched `ok`
+ * tuple — and the annotation states the union they belong to instead of
+ * leaving the compiler to infer it from whichever branch it reads first.
+ *
+ * @template {Operation} O
+ * @template T
+ * @template E
+ * @template {Operation} Q
+ * @template R
+ * @template F
+ * @param {IoEffect<O, T, E>} e
+ * @param {(err: E) => IoEffect<Q, R, F>} f
+ * @returns {IoEffect<O | Q, T | R, F>}
+ */
+export const catchStep = (e, f) => {
+    /** @type {(r: Result<T, E>) => IoEffect<Q, T | R, F>} */
+    const cont = r => r[0] === 'error' ? f(r[1]) : pure(r)
+    return rawStep(e, cont)
+}
+
+/**
+ * Both paths: run `e` and hand `f` the complete `Result`, which then decides
+ * what the outcome is. Use it where both branches genuinely matter — a report
+ * that records the failure, a retry policy, or the point where a program
+ * escalates an error to a panic by `unwrap`ping it.
+ *
+ * Expanded through the alias this **is** the raw `step` at the Io
+ * instantiation: a continuation that takes a `Result<T, E>` and returns an
+ * effect is what raw `step` already offers, so this adds no branch behavior of
+ * its own and is that function with a narrower type.
+ *
+ * It still earns the name. The three operations are the canonical vocabulary of
+ * the layer, and a chain that spells one of them as a raw `step` reads as an
+ * escape from the layer rather than as the deliberate both-branches case. From
+ * stage 5, when the raw representation goes private, this is the public
+ * spelling of that instantiation.
+ *
+ * `finallyStep` is declined on the same principle read the other way: a
+ * derivable form earns a name by being canonical vocabulary, and that one has
+ * not shown it is. It is `resultStep` plus a policy, and adds no expressive
+ * power until real consumers demonstrate a repeated policy worth naming.
+ *
+ * @type {<O extends Operation, T, E, Q extends Operation, R, F>(
+ *     e: IoEffect<O, T, E>,
+ *     f: (r: Result<T, E>) => IoEffect<Q, R, F>
+ * ) => IoEffect<O | Q, R, F>}
+ */
+export const resultStep = rawStep
+
+/**
+ * Applies a pure function to the `ok` value, passing an `error` through
+ * unchanged: the functor `map` of this layer, and a {@link step} whose
+ * continuation performs nothing further.
+ *
+ * It exists for the same reason the raw `mapStep` does — a trailing pure
+ * projection is where a sequence *ends*, not another link in it, and spelling
+ * it as a step misreports how many effects a chain runs
+ * (`../todo/map-step-combinator.md`). Without it, every site converted in stage
+ * 4 would regress to exactly that spelling, now with a `pureOk` inside it.
+ *
+ * **The operation set does not widen**, as with the raw `mapStep`: a pure
+ * projection issues no commands. Neither does the error channel — `f` cannot
+ * fail, so a chain that only projects its value keeps the errors it already
+ * had.
+ *
+ * @type {<O extends Operation, T, E, R>(e: IoEffect<O, T, E>, f: (t: T) => R) => IoEffect<O, R, E>}
+ */
+export const mapStep = (e, f) => rawMapStep(e, mapOk(f))
