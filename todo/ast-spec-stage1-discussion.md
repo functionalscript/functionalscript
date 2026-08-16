@@ -171,6 +171,36 @@ All operators are post-stage-1: stage 1 has no operators at all.
 |Form|JS|Stage|Notes|
 |----|--|-----|-----|
 |`["throw", node]`|`throw v`|later|always fails; never produces a value|
+|`["self"]`|—|later|the function itself; recursion is `["()", ["self"], args]`|
+
+`["self"]` is what makes recursion expressible in a nameless AST, and —
+more importantly — what keeps a recursive function **finite and
+acyclic**. Without it, self-reference would have to be a cycle in the
+graph: forbidden by subject 5, and unhashable, since a cyclic structure
+has no structural hash without a fixpoint. With `["self"]` a recursive
+function is an ordinary DAG, so content addressing (subject 9) works for
+recursion with no special machinery.
+
+- **Mutual recursion is not covered.** `["self"]` reaches only the
+  innermost enclosing function; `a` calling `b` calling `a`
+  ([function](../spec/todo/3110-function.md) has exactly this example)
+  is a cycle *between* functions. Either the partner is passed as an
+  argument, or mutually recursive functions form a hashed **group** with
+  members addressed by index. Open, and it belongs with subject 9 —
+  it is the same "hash a cycle" problem `["self"]` solves for the direct
+  case.
+- **Binds to the innermost enclosing function**, exactly like
+  `["args"]` — so it inherits the same open corner: once
+  `["function", …]` nests, a node using `["self"]` cannot be shared
+  across nesting depths (subject 3, subject 9).
+- **Word tag**: JS has no expression spelling for "this function"
+  (`arguments.callee` is forbidden in strict mode). `toString(f)` can
+  print a *named function expression* — `function self(…) { … self(…) … }`
+  — which round-trips, unlike the `throw` case.
+- **Useless before `"?:"`**: with no branch there is no base case, so
+  every `["self"]` call diverges. It lands with the operators, and
+  before [let](../spec/todo/3220-let.md) (subject 11) — recursion is the
+  baseline that `let` exists to make cheap on engines without TCO.
 
 `throw` keeps a word tag because JS spells it as a **statement**, not an
 expression — there is no operator symbol to reuse. Consequences:
@@ -769,6 +799,10 @@ name the function did not compute itself:
   [2360](../spec/todo/2360-built-in.md) says may be used only as a
   namespace, never assigned to a variable.
 
+`["self"]` ([Operations](#operations)) covers one case — a function
+referring to *itself* — without any naming mechanism. The rest still
+need one.
+
 Stage 1 can live without this — a body reachable from `["args"]` and
 constants alone is a real, if small, language. But every path forward
 needs it, so the shape should be chosen deliberately rather than by
@@ -794,8 +828,9 @@ none of this ([Operations](#operations)).
 
 **Status:** open
 
-Everything expressible by looping is expressible by recursion, and the
-NaNVM may implement **TCO** — but most JavaScript engines do not, and FS
+Everything expressible by looping is expressible by recursion —
+`["()", ["self"], args]` with a `"?:"` base case — and the NaNVM may
+implement **TCO** — but most JavaScript engines do not, and FS
 compiles to JavaScript (`.f.js`) as well as to Rust. A recursion-only
 language would therefore stack-overflow on ordinary JS engines for
 ordinary loops. [let](../spec/todo/3220-let.md) exists to give loops a
