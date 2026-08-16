@@ -153,6 +153,17 @@ throw behind a non-terminating computation yields failure either way
 (A2). Hence all evaluation orders of independent anchored entries are
 observably equal.
 
+Unlocked by rejecting A4:
+
+- reordering and parallel evaluation of independent anchored entries;
+  canonical ordering for hash matching (subject 1 note);
+- **fail-fast guards**: an anchored entry whose value the result never
+  uses (an assert, a range check) is pure throw-potential — an engine
+  may execute such entries as soon as possible, e.g. hoisted into a
+  prologue before expensive data-path work, or in parallel with it.
+  Failing early also wastes fewer resources (A2), and an AOT backend can
+  compile the guards into a literal precondition prologue.
+
 Still illegal with A4 rejected:
 
 - **dropping** an anchored may-throw operation — A3 makes the anchor
