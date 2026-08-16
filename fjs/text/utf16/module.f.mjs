@@ -160,7 +160,9 @@ const u16 = i => Number.isInteger(i) && isInU16Range(i)
  *               This can be either `null` (no state) or the previous high surrogate value.
  * @param word - The current UTF-16 word (U16) to process.
  * @returns A tuple where the first element is a list of decoded Unicode code points (`CodePoint`), and
- *          the second element is the updated state. If the word is invalid, an error code `0xffffffff` is returned.
+ *          the second element is the updated state. A word outside the `U16`
+ *          domain is reported as one bare `errorMask` unit, the same shape the
+ *          UTF-8 decoder's out-of-range guard emits.
  *
  * @example
  *
@@ -182,7 +184,10 @@ const u16 = i => Number.isInteger(i) && isInU16Range(i)
  */
 const utf16ByteToCodePointOp = (word, state) => {
     if (!u16(word)) {
-        return [[0xffffffff], state]
+        // Out of domain, so there is no payload to tag: emit the bare mask,
+        // matching `utf8ByteToCodePointOp`'s guard. Every other error path
+        // below tags a real code unit with `| errorMask`.
+        return [[errorMask], state]
     }
     if (state === null) {
         if (isBmpCodePoint(word)) { return [[word], null] }
