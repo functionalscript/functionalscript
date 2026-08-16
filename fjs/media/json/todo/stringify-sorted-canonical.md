@@ -63,5 +63,6 @@ applications once.
 
 ## Related
 
-- `fjs/media/json/todo/serializer-shared-atoms.md` — separate serializer
-  deduplication inside `fjs/media/json`; no overlap.
+- `fjs/media/json/serializer/module.f.mjs` — `colon` is exported there and
+  shared with the djs serializer; that deduplication was separate from this
+  issue and is done.

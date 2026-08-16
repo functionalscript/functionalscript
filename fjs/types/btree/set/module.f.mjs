@@ -80,7 +80,11 @@ const nodeSet = c => g => node => {
             case 2: {
                 // insert
                 const value = g(null)
-                switch (x.length) {
+                // TODO: remove after TSGO fix the regression.
+                const xL = x.length
+                // See https://github.com/microsoft/typescript-go/issues/4613
+                assert(xL === 1 || xL === 2)
+                switch (xL) {
                     case 1: { return [[x[0], value]] }
                     case 2: { return [[x[0]], value, [x[1]]] }
                 }
