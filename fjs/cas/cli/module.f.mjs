@@ -13,7 +13,7 @@ import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { forEachStep, pure, step } from '../../effects/module.f.mjs'
 import { errorExit, exitStep, log, writeFromStream } from '../../effects/node/module.f.mjs'
-import { unwrapStep } from '../../effects/io/module.f.mjs'
+import { step as ioStep, unwrapStep } from '../../effects/io/module.f.mjs'
 import { dispatch } from '../../cli/module.f.mjs'
 import { casAddFile, fileCas } from '../module.f.mjs'
 
@@ -27,12 +27,9 @@ export const commands = [
                 return errorExit("'cas add' expects one parameter")
             }
             const c = fileCas(sha256)(home)
-            return step(
-                casAddFile(c)(path),
-                hashResult => hashResult[0] === 'error'
-                    ? pure(1)
-                    : exitStep(log(vecToCBase32(hashResult[1])))
-            )
+            const added = casAddFile(c)(path)
+            const logged = ioStep(added, hash => log(vecToCBase32(hash)))
+            return exitStep(logged)
         },
     },
     {
@@ -48,10 +45,7 @@ export const commands = [
             }
             const c = fileCas(sha256)(home)
             const x = c.read(hash)
-            return step(
-                writeFromStream(path, x),
-                ([r, v]) => r === 'error' ? errorExit(`e: ` + String(v)) : pure(0),
-            )
+            return exitStep(writeFromStream(path, x))
         },
     },
     {
