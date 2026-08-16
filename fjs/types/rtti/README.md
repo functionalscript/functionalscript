@@ -28,6 +28,38 @@ A `Type` is one of:
   - `Struct` (`{ key: schema, ... }`) — validates each declared property
 - **`Thunk`** (`() => Info`) — a lazy schema for tag-based and recursive types
 
+### Tuples are closed, structs are open
+
+A tuple's length is part of its type, a struct's key set is not, and every
+runtime consumer follows `Ts<T>` on both counts:
+
+| schema | value | `validate` | `parse` | data form |
+| --- | --- | --- | --- | --- |
+| `[42]` | `[42, 'extra']` | error | `[42]` | not in the set |
+| `[42]` | `[]` | error | error | not in the set |
+| `[number, option(string)]` | `[42]` | error | `[42, undefined]` | not in the set |
+| `{ a: 42 }` | `{ a: 42, b: 'x' }` | ok | `{ a: 42 }` | in the set |
+
+The tuple/struct asymmetry is TypeScript's, not a quirk of these validators.
+`Ts<readonly [42]>` is the exact tuple `readonly [42]`, and a 2-element array
+is not assignable to it — so `validate` rejects one. A value of type
+`{ readonly a: 42 }` may carry more properties under structural typing — so
+`validate` accepts one.
+
+The third row is the one worth reading twice. A trailing element whose schema
+admits `undefined` — `option(t)` is `or(t, undefined)`, and `unknown` includes
+it — makes a *shorter* array look valid element by element, because the walk
+reads `value[1]` as `undefined` and `undefined` satisfies the schema. Length is
+still part of the type, so `validate` rejects it on length alone.
+
+`parse` never rejects for length in the over-long or optional-trailing rows,
+and that is deliberate: it constructs a fresh value with exactly the schema's
+length — truncating extras, filling a missing optional with `undefined` — which
+makes it forward-compatible with a serialization format that grows fields.
+Rejecting there would trade that away for nothing, since the value it returns
+already has the exact type. It still errors on a missing element whose schema
+does not admit `undefined` (row two), because there is nothing to fill it with.
+
 ## Built-in schemas
 
 The built-in schemas are all `Thunk`s — functions that return an `Info` descriptor.

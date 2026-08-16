@@ -162,7 +162,39 @@ export const proof = {
                 /** @typedef {Assert<Equal<Ts<typeof t>, readonly[42, 'hello']>>} _RoundTrip */
                 assertOk(validate(t)([42, 'hello']))
             },
-            extraItems: () => assertOk(validate(/** @type {const} */ ([42]))([42, 'extra'])),
+            // A tuple is closed: `Ts<readonly [42]>` is the exact tuple, and a
+            // 2-element array is not assignable to it. Unlike a struct's extra
+            // keys, which structural typing does allow — see `struct.extraKeys`.
+            extraItems: () => {
+                assertError(validate(/** @type {const} */ ([42]))([42, 'extra']))
+                assertError(validate(/** @type {const} */ ([42, 'hello']))([42, 'hello', 0]))
+            },
+            // The other side of the length check. When the missing element's
+            // schema rejects `undefined`, the per-element walk already caught
+            // this — the length check only moves the report from the first
+            // missing index to the root, where the length itself lives.
+            missingItems: () => {
+                assertErrorPath([])(validate(/** @type {const} */ ([42]))([]))
+                assertErrorPath([])(validate(/** @type {const} */ ([42, 'hello']))([42]))
+            },
+            // But when the missing element's schema *admits* `undefined`, the
+            // walk saw a valid value at that index and returned ok. Only the
+            // length check rejects these, so these cases — not the ones above —
+            // are what pin the short side: with `length <= size` the whole
+            // suite still passes without them.
+            missingOptionalItems: () => {
+                assertError(validate([number, option(string)])([42]))
+                assertError(validate([option(number)])([]))
+                assertError(validate([unknown])([]))
+                // Present-but-undefined is still the declared length, so it
+                // stays ok — the check is on length, not on element presence.
+                assertOk(validate([number, option(string)])([42, undefined]))
+            },
+            // An empty tuple schema admits exactly the empty array.
+            empty: () => {
+                assertOk(validate(/** @type {const} */ ([]))([]))
+                assertError(validate(/** @type {const} */ ([]))([1]))
+            },
             error: () => {
                 assertError(validate(/** @type {const} */ ([42]))([99]))
                 assertError(validate(/** @type {const} */ ([42]))({}))
