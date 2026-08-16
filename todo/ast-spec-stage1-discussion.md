@@ -475,6 +475,12 @@ order.**
   assert *cannot* tell a caller what was wrong with their input —
   validation that needs to explain itself must produce a value.
 
+  Asserts and throws are fully at home in **tests**. A test framework is
+  a host, not FS code — it sits on the out-of-band side of the A4
+  contract, where diagnostics already flow — so it may reveal everything
+  about a triggered assert (which one, where, with what context) to the
+  human. Contract breaches are precisely what tests exist to detect.
+
   An engine that actually *skips* assert branches is conceivable only as
   a **debug mode** — a development tool showing the would-be result even
   when guards would fail. Such a mode is non-conforming by definition:
