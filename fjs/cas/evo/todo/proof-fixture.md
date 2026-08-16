@@ -23,10 +23,9 @@ test would re-derive them.
 
 ### Proposal
 
-Export one fixture from `fjs/cas/evo/proof.f.mjs` (the repo precedent for a
-cross-file proof helper is `assertPure`, exported from
-`fjs/effects/proof.f.mjs` exactly so another proof shares it instead of
-repeating it):
+Export one fixture from `fjs/cas/evo/proof.f.mjs` (`assertPure` in
+`fjs/effects/proof.f.mjs` is exported for the same kind of sharing, though its
+last cross-file importer went away with the `Eff` experiment):
 
 ```js
 /** @type {(home: string) => readonly [State, Evo, Key<Cache>]} */
@@ -49,5 +48,5 @@ per-test bodies keep only what they actually vary.
 
 ### Related
 
-- `fjs/effects/proof.f.mjs` — `assertPure`, the exported-proof-helper
-  precedent.
+- `fjs/effects/proof.f.mjs` — `assertPure`, an exported proof helper of the
+  same shape (currently without a cross-file importer).
