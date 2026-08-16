@@ -207,9 +207,32 @@ are established": for `&&`, `||`, `??`, `?:` the operand set is
 *conditional*, exactly as in JS — which is what keeps A3 exact, since JS
 does not evaluate those operands either.
 
-**`?:` is the branch node.** The hypothetical `["cond", …]` of subject 3
-is not needed: the ternary operator is that node, spelled as JS spells
-it.
+**`?:` is the branch node — there is no `if` operation.** The
+hypothetical `["cond", …]` of subject 3 is not needed: the ternary
+operator is that node, spelled as JS spells it. If the *language* gains
+`if`, it is surface syntax that lowers to `"?:"`; the AST never grows a
+statement form for it.
+
+This generalizes: **the AST has no statement nodes at all.** Every
+statement form in the source language lowers to an expression
+operation — `const x = …` to a shared node, an unused `const` or a bare
+`assert(…)` to a `","` operand, `return e` to the root node, `if` to
+`"?:"`. The expression graph is the whole language; statements are
+surface syntax over it.
+
+The cost lands on the compiler: lowering `if` must be **deterministic**,
+because hash-as-written (subject 1) makes two spellings two functions.
+`if (!ok) throw e; return v` can lower to either
+
+```js
+["?:", ok, v, ["throw", e]]           // branch on the result
+[",", ["?:", ok, undefined, ["throw", e]], v]   // guard, then result
+```
+
+— the same function, different hashes. Which lowering is canonical is
+to settle when `if` is specified; the general case (an `if` in the
+middle of a body, early returns) needs a specified normalization, not
+just an example.
 
 **Throwing is the only effect.** In a purely functional language (A1)
 the sole side effect an eager computation can have is *throwing* — with
