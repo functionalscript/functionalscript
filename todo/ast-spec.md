@@ -8,7 +8,7 @@
 The AST is the stable, canonical representation of functions, expressed as an
 FJS value (`Any`): the `Function` constructor accepts an `Any` that describes
 the code and executes it (see
-[`spec/README.md` §9](../spec/README.md#9-serialization-ast-as-data-not-bytecode)).
+[`spec/todo/serialization.md`](../spec/todo/serialization.md)).
 Several components must agree on the exact shape of that value:
 
 - the parser/compiler (FJS), which produces it;
@@ -18,7 +18,8 @@ Several components must agree on the exact shape of that value:
 - the content hash (CAVM) and `toString(f)`, which require the shape to be
   exact — one AST, one byte sequence, one hash.
 
-[`spec/README.md`](../spec/README.md) lists the value kinds of each level, but
+[`spec/`](../spec/README.md) and
+[`spec/todo/`](../spec/todo/README.md) list the value kinds of each level, but
 there is no single specification of record, so the implementations have
 nothing precise to be checked against.
 
@@ -41,7 +42,7 @@ Why RTTI:
   (unions), and recursion via `Thunk`.
 
 The RTTI schema is the only specification of the AST shape;
-[`spec/README.md`](../spec/README.md) stays a prose overview of the levels and
+[`spec/`](../spec/README.md) stays a prose overview of the levels and
 their features.
 
 Serialization needs no separate treatment here: the AST is an `Any` value, so
@@ -65,5 +66,5 @@ for CAVM hashing) covers it — see the P3 task and open question in
 
 - [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — the
   `Function` constructor and interpreter tasks are blocked by this spec.
-- [`spec/README.md` §9](../spec/README.md#9-serialization-ast-as-data-not-bytecode)
+- [`spec/todo/serialization.md`](../spec/todo/serialization.md)
   — the AST-as-data decision and the two execution paths.

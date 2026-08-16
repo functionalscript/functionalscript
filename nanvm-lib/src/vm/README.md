@@ -23,7 +23,7 @@ struct String<T: IVm>;
 ## AST
 
 The AST is VM-agnostic and is the stable, serializable representation of functions
-(see [`spec/README.md` §9](../../../spec/README.md#9-serialization-ast-as-data-not-bytecode)).
+(see [`spec/todo/serialization.md`](../../../spec/todo/serialization.md)).
 A VM implementation may transform it into internal bytecode on loading, or use the AST itself
 as its byte code, interpreting it directly.
 
