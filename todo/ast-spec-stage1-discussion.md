@@ -15,13 +15,25 @@ A function body is a **single operation node** — the root of the
 computation DAG. Non-resulting computations (asserts — fail-fast
 guards, A4) are merged into the graph by the **`comma` operation**:
 
-- `["comma", result, ...asserts]` establishes **all** of its operands
-  (subject 8) and takes the value of `result`. The assert operands'
-  values are discarded — they exist for their throw-potential only —
-  and are unordered among themselves (A4). The result operand sits at
-  the fixed head position, per the format's head-first convention:
-  stable under adding or removing asserts. *(Alternative spelling to
-  confirm: result last, mirroring the JS comma operator's `(a, b) → b`.)*
+- `["comma", ...asserts, result]` establishes **all** of its operands
+  (subject 8) and takes the value of the **last** one — it *is* the JS
+  comma operator, `(a, b) → b`. The assert operands' values are
+  discarded — they exist for their throw-potential only — and are
+  unordered among themselves (A4). Result-last buys source fidelity:
+  the future source pattern
+
+  ```js
+  return assert(a >= 0 && b >= 0), a + b
+  ```
+
+  lowers to a `comma` node verbatim, `toString(f)` prints it back
+  verbatim, and a JS engine running the printed source implements one
+  legal schedule (left-to-right, eager) of the same semantics.
+  [operators](../spec/todo/2340-operators.md) bans the comma operator in
+  general; per [spec/README.md](../spec/README.md), FS whitelists
+  *complete semantic patterns*, and `assert(...), result` is such a
+  pattern — the general ban stands while this recognized pattern lowers
+  to `comma`.
 - The operands of a `comma` are this document's **branches**: rooted
   subgraphs of the DAG, sharing nodes freely by reference — distinct
   from the control-flow branches of the future `cond` (subject 3).
@@ -42,7 +54,7 @@ guards, A4) are merged into the graph by the **`comma` operation**:
     - `["call", node0, node1]` — `node0(...node1)`,
     - `["bindCall", node0, node1, node2]` —
       `node0[node1](...node2)`,
-    - `["comma", result, ...asserts]` — the merge operation described
+    - `["comma", ...asserts, result]` — the merge operation described
       above (not in stage 1; introduced later).
 - operand positions hold **real references** to nodes, not indices.
   Referencing the same node from two positions is **semantic sharing**: the
@@ -66,8 +78,8 @@ export default ["array", x, x]       // the body is one node; x is interior
 // (...a) => { const check = a[0].length; return a[1] } — with comma (later)
 const a = ["args"]
 export default ["comma",
-    ["at", a, 1],                    // the result: fixed head
     ["at", ["at", a, 0], "length"],  // assert: value unused
+    ["at", a, 1],                    // the result: last, as in JS (a, b) → b
 ]
 ```
 
@@ -413,9 +425,9 @@ rest-parameter spelling).
 **Status:** decided (revised: the merge is the `comma` operation)
 
 **Resolution: non-resulting computations are merged into the graph by
-the `comma` operation — `["comma", result, ...asserts]` — which
-guarantees *membership*, not order.** Stage 1 ships without `comma`;
-these rules bind the operation when it is introduced.
+the `comma` operation — `["comma", ...asserts, result]`, the JS comma
+operator — which guarantees *membership*, not order.** Stage 1 ships
+without `comma`; these rules bind the operation when it is introduced.
 
 - A throw is an effect. A reference edge can only express "the result is
   needed here"; a may-throw operation needs "evaluate this even if its
@@ -440,8 +452,9 @@ these rules bind the operation when it is introduced.
   equally non-canonical.
 - **Branch ordering: the spec owns the spelling; engines own the
   schedule.** What matters for the specification is **canonical order**:
-  the result operand at its fixed head, and (eventually) a canonical
-  order for the assert tail — the leading candidate is
+  the result operand at its fixed last position (the JS comma reading),
+  and (eventually) a canonical order for the asserts before it — the
+  leading candidate is
   **lexicographical content-hash order**, which gives the function a
   stable hash regardless of how the source ordered its asserts, with the
   hash as its own total order and tie-breaker (details ride on the
