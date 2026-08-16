@@ -10,10 +10,16 @@ and this document is deleted.
 *This baseline supersedes the original index-based sequence proposal; the
 revision history is recorded in subjects 1 and 8.*
 
-A function body is an **array of operation nodes** — the *anchor list*:
+A function body is an **array of branches**: every entry is the root
+node of a rooted subgraph of the computation DAG. All entries but the
+last are **assert branches** — their values are discarded, they exist
+for their throw-potential only (fail-fast guards, A4). The last entry is
+the **resulting branch**, whose value the function returns. Branches are
+unordered among themselves, share nodes freely by reference, and all
+must complete for the function to complete normally. (These are DAG
+branches — rooted subgraphs — not the control-flow branches of the
+future `cond`, subject 3.)
 
-- entries mirror the source `const` statements in source order; the last
-  entry is the result;
 - an operation node is:
   - a **non-object, non-array value** — a constant: `"hello world"`, `2.5`,
     `false`, `undefined`, `null`, `34n`;
@@ -32,9 +38,10 @@ A function body is an **array of operation nodes** — the *anchor list*:
   node is evaluated once and its result reused. `const x = {}` then
   `[x, x]` yields an array with `a[0] === a[1]`, while `[{}, {}]` yields
   two distinct objects.
-- evaluation: anchor-list entries evaluate in order; every node is
-  memoized by its identity; anonymous operands evaluate depth-first,
-  left-to-right — which is exactly JS evaluation order (subject 8).
+- evaluation: every branch evaluates (in any order, possibly in
+  parallel — A4); every node is memoized by its identity, so shared
+  nodes evaluate once; the function's value is the resulting branch's
+  value.
 
 The graph cannot be serialized as JSON (sharing would be lost — and
 sharing is semantic), but it serializes as **DJS** (`const` + reference):
@@ -43,7 +50,14 @@ the AST's sharing structure and DJS's graph structure are the same thing.
 ```js
 // const f = (...a) => { const x = a[0]; return [x, x] }
 const x = ["at", ["args"], 0]
-export default [x, ["array", x, x]]
+export default [["array", x, x]]     // one branch: the result; x is interior
+
+// (...a) => { const check = a[0].length; return a[1] }
+const a = ["args"]
+export default [
+    ["at", ["at", a, 0], "length"],  // assert branch: value unused
+    ["at", a, 1],                    // resulting branch
+]
 ```
 
 Agreed points (not under discussion):
@@ -351,39 +365,43 @@ anchor list or a wrapper carrying metadata — parameter count for
 erases names and arity; without a wrapper, `toString` can only print a
 rest-parameter spelling).
 
-### 8. Anchored evaluation
+### 8. Branches: anchored evaluation
 
 **Status:** decided (revised under A4 rejected)
 
-**Resolution: every operation that may throw must be linked into the
-graph; the anchor list is the syntax that links it, and it guarantees
-*existence*, not order.**
+**Resolution: a function is an array of branches — assert branches plus
+the resulting branch — and the array guarantees *membership*, not
+order.**
 
 - A throw is an effect. A reference edge can only express "the result is
   needed here"; a may-throw operation needs "evaluate this even if its
-  value is never needed". A pure data-flow DAG has no edge type for that,
-  so the format needs dedicated syntax: the body's anchor list. (Graph
-  IRs solve this the same way: effect edges alongside data edges.) The
-  source language needs no new syntax — the `const` statement *is* it.
-- **All source consts are anchored, not only may-throw ones.** Anchoring
-  only throwing operations would require effect analysis (`at`, `call`,
-  `bindCall` throw; calls throw transitively), and the AST's shape would
-  then depend on that analysis's precision — poisoning hash stability
-  across compiler versions. Anchoring everything needs zero analysis and
-  mirrors the source exactly.
-- **Membership is semantic; order is not** (A4 rejected): every anchored
-  entry evaluates before the function completes normally, so A3's
-  fails-iff-JS-throws holds — but any evaluation order of independent
-  entries (including parallel) is legal under the opaque-error contract.
-  Data dependencies still order evaluation; lazy operands (subject 3) are
-  still never speculated.
-- Source order remains the written form — the reference presentation for
-  `toString(f)` and the natural implementation order — it just carries no
-  observable meaning beyond dependencies.
-- Memoization by node identity: a shared node evaluates at its first
-  demand and is reused afterwards.
-- Future: a branch operand carries its own nested anchor list, giving each
-  branch its per-branch effect membership (subject 3).
+  value is never needed". A pure data-flow DAG has no edge type for
+  that, so the format needs dedicated syntax: the branch array. (Graph
+  IRs solve this the same way: effect edges alongside data edges.)
+- **Entries are the roots of the DAG, and only the roots.** A source
+  const whose value the result uses is already a member by reachability
+  — it collapses into an interior shared node and needs no entry. Only
+  non-resulting roots — the assert branches — need listing; at the
+  source level, an unused `const` *is* the assert syntax. Identifying
+  roots is **reachability, not effect analysis**: the AST's shape does
+  not depend on any analysis's precision, preserving hash stability
+  across compiler versions.
+- **Well-formedness: entries are true roots** — a non-last entry must
+  not be reachable from any other entry. Without this rule the same
+  function could be spelled with or without redundant
+  listed-but-referenced entries, needlessly splitting hashes.
+- **Membership is semantic; order is not** (A4 rejected): every branch
+  evaluates before the function completes normally, so A3's
+  always-fails holds — but any evaluation order of branches (including
+  parallel, and assert branches as fail-fast guards before the data
+  path) is legal under the opaque-error contract. Data dependencies
+  still order evaluation; lazy operands (subject 3) are still never
+  speculated.
+- Memoization by node identity: a shared node evaluates once, at its
+  first demand.
+- Future: a control-flow branch operand (`cond`, subject 3) carries its
+  own nested branch array, giving each control branch its per-branch
+  effect membership.
 
 ### 9. Canonical graph serialization and hashing
 
