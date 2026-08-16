@@ -1,6 +1,7 @@
 /**
  */
 
+import { isRepeat, toData } from '../../bnf/data/module.f.mjs'
 import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { jsGrammar, jsMatcher, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.mjs'
@@ -23,6 +24,14 @@ const errorAt = s => {
 }
 
 export const proof = {
+    // The whole-file grammar is one repetition of a token, and `toData` records
+    // that rather than leaving it as the right-recursive variant `repeat0Plus`
+    // builds — which is why the tokenizer reads its entry name from `jsMatcher`
+    // instead of naming a rule: the rules that encoded the repetition are gone.
+    jsGrammar: () => {
+        const [ruleSet, entry] = toData(jsGrammar())
+        assert(isRepeat(ruleSet[entry]), JSON.stringify([ruleSet[entry], entry]))
+    },
     isValid: [() => {
             const [m, entry] = jsMatcher()
 
