@@ -218,7 +218,8 @@ statement form in the source language lowers to an expression
 operation — `const x = …` to a shared node, an unused `const` or a bare
 `assert(…)` to a `","` operand, `return e` to the root node, `if` to
 `"?:"`. The expression graph is the whole language; statements are
-surface syntax over it.
+surface syntax over it. [let](../spec/todo/3220-let.md) and loops are
+the pressure point on this — see subject 11.
 
 The cost lands on the compiler: lowering `if` must be **deterministic**,
 because hash-as-written (subject 1) makes two spellings two functions.
@@ -788,3 +789,46 @@ accident:
 Related: `["throw", …]` exists as an operation partly because it needs
 none of this ([Operations](#operations)).
 
+
+### 11. `let`, loops, and tail calls
+
+**Status:** open
+
+Everything expressible by looping is expressible by recursion, and the
+NaNVM may implement **TCO** — but most JavaScript engines do not, and FS
+compiles to JavaScript (`.f.js`) as well as to Rust. A recursion-only
+language would therefore stack-overflow on ordinary JS engines for
+ordinary loops. [let](../spec/todo/3220-let.md) exists to give loops a
+trampoline instead.
+
+**The hard constraint: a mutable variable is not a DAG node.** A node
+has exactly one value; a `let` has a different value per iteration. So
+`let` can never be modeled by adding a "variable" node — it must lower
+to **explicit state threading**, where each iteration's state is a
+value. That keeps A1 purity (a local mutation that never escapes is
+unobservable) and keeps the no-statement-nodes property above: a loop is
+an *expression* that evaluates to the final state.
+
+Two shapes to decide between:
+
+1. **A loop operation** — the AST gains a primitive whose operands are
+   the initial state and a step (a `["function", …]` node, subject 7)
+   from state to state; source `let` + `while` lowers to it. Every
+   backend emits a real loop; nothing depends on TCO. Costs: a new
+   operation, and a second way to express iteration alongside recursion,
+   so the compiler must pick canonically (subject 1's hash-as-written).
+2. **Recursion only, TCO in the backend** — the AST expresses loops as
+   tail calls, and backends that lack TCO implement it themselves:
+   self-tail-calls become a `while` loop, mutual recursion a trampoline.
+   Keeps the AST minimal and iteration single-spelled; costs a required
+   transformation in every non-TCO backend, and trampolining overhead
+   where the simple case does not apply.
+
+Note that A2 does *not* rescue option 2 by itself: a stack overflow is
+an engine artifact an engine may report as a failure, but a language
+whose ordinary loops overflow on a major target is not portable in
+practice — the reason `let` is on the roadmap at all.
+
+Related: [mutability](../spec/todo/mutability.md) treats `let` as stage
+zero of ownership tracking; whatever shape is chosen here must not
+require the AST to model mutable *objects*, only threaded state.
