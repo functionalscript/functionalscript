@@ -139,8 +139,26 @@ now.
 
 ## Tuple length
 
-The data form constrains a tuple's length exactly (`{ prefix }` with no
-`rest` admits only `prefix.length` elements), matching the `Ts<T>` type-level
-mapping and the thunk-direct `validate`. See
-[`../README.md`](../README.md#tuples-are-closed-structs-are-open) for how the
-three runtime consumers line up on tuple length and struct keys.
+The data form constrains a tuple's length exactly: `{ prefix }` with no `rest`
+admits only `prefix.length` elements.
+
+**This diverges from `parse`**, which treats structs and tuples as open (see
+[Structs and tuples are open](../README.md#structs-and-tuples-are-open)). The
+same schema gives two answers depending on which consumer reads it:
+
+```js
+parse([42])([42, 'extra'])             // ['ok', [42]]
+validate(toData([42]))([42, 'extra'])  // ['error', { path: [], message: 'unexpected value' }]
+```
+
+The divergence is arrays-only — struct keys already agree, because an absent
+`rest` means *closed* on arrays (`arraySet` normalizes a `rest` of `never`
+away) but *open* on objects (`objectSet` normalizes a `rest` of `unknown`
+away):
+
+```js
+parse({ a: 42 })({ a: 42, b: 'x' })             // ['ok', { a: 42 }]
+validate(toData({ a: 42 }))({ a: 42, b: 'x' })  // ['ok', { a: 42, b: 'x' }]
+```
+
+Tracked in [`../todo/data-form-open-tuples.md`](../todo/data-form-open-tuples.md).
