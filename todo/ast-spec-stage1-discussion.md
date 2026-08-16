@@ -398,15 +398,22 @@ order.**
   function could be spelled with or without redundant
   listed-but-referenced entries, needlessly splitting hashes.
 - **Branch ordering — a property, not a plan.** Since branch order is
-  free, assert branches *could* be normalized smallest to biggest (by
-  subgraph node count, shared nodes counted once, deterministic
-  tie-breaker) — a spelling that improves hash matching and doubles as
-  the default schedule, with simple asserts firing first. This will
-  **not** be implemented in the first implementation and possibly never:
-  its value is what it demonstrates — under assumptions A1–A4, this DAG
-  admits very aggressive optimization by us and by any other engine,
-  with no coordination, because every such transformation is already
-  sound.
+  free, assert branches *could* be normalized:
+  - **smallest to biggest** (subgraph node count, shared nodes counted
+    once, deterministic tie-breaker) — the spelling doubles as the
+    default schedule, simple asserts firing first;
+  - **lexicographical hash order** — a parser sorts assert branches by
+    their content hash, so the function itself has a stable hash
+    regardless of how the source ordered its asserts; the hash is its
+    own total order and tie-breaker (details ride on the canonical graph
+    serialization, subject 9).
+  Because order is not semantic, the canonical *written* order and the
+  runtime *schedule* decouple: hash order for the spelling and
+  cheapest-first for the schedule can coexist. None of this is for the
+  first implementation, possibly ever: its value is what it demonstrates
+  — under assumptions A1–A4, this DAG admits very aggressive
+  optimization and normalization by us and by any other engine, with no
+  coordination, because every such transformation is already sound.
 - **Membership is semantic; order is not** (A4 rejected): every branch
   evaluates before the function completes normally, so A3's
   always-fails holds — but any evaluation order of branches (including
