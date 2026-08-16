@@ -32,7 +32,7 @@
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
  */
 
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { descentParserRuleSet } from '../../bnf/descent/module.f.mjs'
 import { toData } from '../../bnf/data/module.f.mjs'
 import {
@@ -363,7 +363,17 @@ const unwrapHexDigitValue = mapUnwrap(hexDigitValue)
 /** @type {StateScan<number, _StringDecodeState, List<number>>} */
 const stringDecodeScan = (cp, state) => {
     switch (state.kind) {
-        case 'escape':
+        case 'escape': {
+            // The grammar's own `escape` rule (`buildToken`'s `string`) only ever
+            // accepts `"`, `\`, `/`, `b`, `f`, `n`, `r`, `t`, or `u` right after a
+            // backslash — any other character fails to parse before a token
+            // reaches this scan at all, so narrowing to those nine is provable,
+            // not merely assumed.
+            assert(
+                cp === quotationMark || cp === reverseSolidus || cp === solidus ||
+                cp === latinSmallLetterB || cp === latinSmallLetterF || cp === latinSmallLetterN ||
+                cp === latinSmallLetterR || cp === latinSmallLetterT || cp === latinSmallLetterU,
+                cp)
             switch (cp) {
                 case quotationMark:  return [[quotationMark],  { kind: 'normal' }]  // \" → "
                 case reverseSolidus: return [[reverseSolidus], { kind: 'normal' }]  // \\ → \
@@ -374,8 +384,8 @@ const stringDecodeScan = (cp, state) => {
                 case latinSmallLetterR: return [[cr],        { kind: 'normal' }]    // \r → carriage return (CR)
                 case latinSmallLetterT: return [[ht],        { kind: 'normal' }]    // \t → horizontal tab (HT)
                 case latinSmallLetterU: return [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
-                default:  return [[cp], { kind: 'normal' }]
             }
+        }
         case 'unicode': {
             const acc = (state.acc << 4) | unwrapHexDigitValue(cp)
             return state.count === 3 ? [[acc], { kind: 'normal' }] : [null, { kind: 'unicode', acc, count: state.count + 1 }]
@@ -526,8 +536,13 @@ export const tokenizeJs = input => path => {
     const finalMetadata = fold(advanceMetadata)(initial)(cp)
 
     if (!ok || len !== cp.length) {
-        const errorMetadata = len < cpm.length ? cpm[len][1] : finalMetadata
-        return [{ token: { kind: 'error', message: 'invalid token' }, metadata: errorMetadata }]
+        // `len` is always `< cpm.length` (`=== cp.length`) here: `ok` false only
+        // ever happens with `len === 0` (nothing matched at position 0), and a
+        // `len !== cp.length` failure with `ok` true is by definition a partial
+        // match (`len < cp.length`) — `repeat0Plus` never fails after
+        // successfully consuming the whole input, so there is no way to reach
+        // this branch with `len === cp.length`.
+        return [{ token: { kind: 'error', message: 'invalid token' }, metadata: cpm[len][1] }]
     }
 
     const flatTokens = toArray(getTokensFromAstRule(ast))
