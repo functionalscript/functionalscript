@@ -61,16 +61,8 @@ guards, A4) are merged into the graph by the **`comma` operation**:
     `false`, `undefined`, `null`, `34n`;
   - an **object** — an object constructor; each property value is an
     operation node;
-  - an **array** — a tagged tuple `[command, ...parameters]`:
-    - `["array", ...nodes]` — array constructor,
-    - `["args"]` — the array of arguments passed to the function
-      (subject 2),
-    - `["at", node0, node1]` — `node0[node1]`,
-    - `["call", node0, node1]` — `node0(...node1)`,
-    - `["bindCall", node0, node1, node2]` —
-      `node0[node1](...node2)`,
-    - `["comma", ...asserts, result]` — the merge operation described
-      above (not in stage 1; introduced later).
+  - an **array** — a tagged tuple `[tag, ...operands]`; the tags are
+    listed in [Operations](#operations) below.
 - operand positions hold **real references** to nodes, not indices.
   Referencing the same node from two positions is **semantic sharing**: the
   node is evaluated once and its result reused. `const x = {}` then
@@ -109,6 +101,63 @@ Agreed points (not under discussion):
 - `call`'s arguments are a single node yielding an array (usually
   `["array", ...]`): handles spread `f(...xs)` for free, unlike a variadic
   form. Same for `bindCall`'s third operand.
+
+## Operations
+
+The operations we want, with their stage. Every operand is an operation
+node; `node` below means any of them.
+
+### Structural operations
+
+|Form|JS|Stage|Notes|
+|----|--|-----|-----|
+|`2.5`, `"a"`, `true`, `null`, `undefined`, `34n`|itself|1|constant — any non-object, non-array value|
+|`{ key: node, … }`|`{ key: … }`|1|object constructor; key order is part of the value (subject 4)|
+|`["array", ...node]`|`[…]`|1|array constructor|
+|`["args"]`|—|1|the arguments array (subject 2)|
+|`["at", node, node]`|`o[i]`|1|subject 6|
+|`["call", node, node]`|`f(...args)`|1|the second operand yields the argument array|
+|`["bindCall", node, node, node]`|`o[p](...args)`|1|keeps `this` binding; subject 6|
+|`["comma", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
+|`["function", …]`|`(…) => …`|later|closures; shape open (subject 7)|
+
+### Operators
+
+Operators are tagged by their **actual JS symbol**, not by a name:
+`["+", a, b]`, not `["add", a, b]`. This is
+[DESIGN.md §8](../DESIGN.md) again — the host language already spells
+these, so the AST reuses the spelling instead of inventing a vocabulary
+to be memorized and translated. Symbol tags never collide with the word
+tags above, so both live in one namespace.
+
+**Arity distinguishes unary from binary**: `["-", a]` is negation and
+`["-", a, b]` is subtraction — the same overloading JS itself uses, and
+unambiguous because no JS operator has two different meanings at the
+same arity.
+
+|Symbols|Arity|JS|Lazy|Notes|
+|-------|-----|--|----|-----|
+|`+` `-`|1|`+a`, `-a`|no|`+` is also the coercion [property-accessor](../spec/todo/2330-property-accessor.md) requires before a run-time index|
+|`!` `~`|1|`!a`, `~a`|no|unary only|
+|`+` `-` `*` `/` `%` `**`|2|`a + b`|no|arithmetic|
+|`===` `!==` `<` `<=` `>` `>=`|2|`a === b`|no|`==` and `!=` are not allowed by [operators](../spec/todo/2340-operators.md)|
+|`&` `\|` `^` `<<` `>>` `>>>`|2|`a & b`|no|bitwise|
+|`&&` `\|\|` `??`|2|`a && b`|**yes**|the right operand is established only if the left does not decide the result|
+|`?:`|3|`c ? t : e`|**yes**|exactly one of the two arms is established|
+
+All operators are post-stage-1: stage 1 has no operators at all.
+
+**Laziness is positional, not nodal.** A lazy operand is a node that may
+never be demanded — but the same node referenced from an eager position
+elsewhere is still evaluated there, once, by memoization. Short-circuit
+operators are therefore the one exception to subject 8's "all operands
+are established": for `&&`, `||`, `??`, `?:` the operand set is
+*conditional*, exactly as in JS — which is what keeps A3 exact, since JS
+does not evaluate those operands either.
+
+**`?:` is the branch node.** The hypothetical `["cond", …]` of subject 3
+is not needed: the ternary operator is that node, spelled as JS spells
+it.
 
 ## Assumptions
 
@@ -348,11 +397,14 @@ open:
   nodes"), never by a global rule like "an array in operand position is
   always a tagged operation" — so future commands with differently-shaped
   operands are additions, not breaking changes.
-- Recorded extension path: `["cond", condNode, thenNode, elseNode]` where
-  laziness is a property of the operand *position*. A branch operand is an
-  ordinary node — including a `comma` node when the branch body has its
-  own guards, which gives each control branch its per-branch effect
-  membership with no extra machinery (subject 8).
+- Recorded extension path: the lazy operators themselves —
+  `["&&", a, b]`, `["||", a, b]`, `["??", a, b]`, `["?:", c, t, e]` (see
+  [Operations](#operations)) — where laziness is a property of the
+  operand *position*. No separate `cond` node is needed: `?:` is the
+  branch node. A branch operand is an ordinary node — including a
+  `comma` node when the branch has its own guards, which gives each
+  control branch its per-branch effect membership with no extra
+  machinery (subject 8).
 - The reference model dissolves the scoping problem that the index model
   had: there is no index space to scope, no De Bruijn `(up, index)`
   machinery; sharing across a lazy boundary is a plain reference, and a
@@ -420,6 +472,13 @@ live per [serialization](../spec/todo/serialization.md)). Consequence: the
 AST interpreter carries the safety burden 2330 assigns to compile-time
 checks — `["at", obj, "constructor"]`, `__proto__`, and other prohibited
 names must be rejected at *runtime*.
+
+Related, now that operators are tagged by symbol
+([Operations](#operations)): should the structural tags be symbolic too
+— `["[]", o, i]` for `at`, something for `call`? Leaning no: `o[i]` and
+`f(...args)` are *syntax*, not operator symbols, so there is nothing to
+reuse; a word tag is the honest spelling. Worth deciding together with
+the names above so the vocabulary is settled in one pass.
 
 ### 7. Top-level shape of a function
 
