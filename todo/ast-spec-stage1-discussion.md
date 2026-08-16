@@ -86,11 +86,18 @@ limits are part of the specification.
 
 **Status:** accepted
 
-If a function is supposed to throw in JavaScript for some parameters, it
-must throw (fail) in FunctionalScript with the same parameters. Together
-with FS principle 2, the converse holds too: when JS completes with a
-value, an uninterrupted FS run completes with that value — so FS fails
-iff JS throws or the runner interrupts (A2).
+If a function **always** throws in JavaScript for the same parameters,
+it must also **always** throw (fail) in FunctionalScript with the same
+parameters.
+
+"Always" scopes both sides to determinism-by-semantics: covered are the
+throws the language mandates (e.g. `null[0]` fails on every run);
+excluded are engine-dependent failures (stack-overflow depth,
+out-of-memory), which ECMAScript does not pin down — those fall under
+A2's interrupt freedom instead. Together with FS principle 2: when JS
+always completes with a value, an uninterrupted FS run completes with
+that value — so for spec-deterministic behavior, FS fails iff JS throws
+or the runner interrupts (A2).
 
 ### A4. Computation order is preserved
 
