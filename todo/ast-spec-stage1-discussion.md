@@ -176,7 +176,14 @@ Unlocked by rejecting A4:
   may execute such entries as soon as possible, e.g. hoisted into a
   prologue before expensive data-path work, or in parallel with it.
   Failing early also wastes fewer resources (A2), and an AOT backend can
-  compile the guards into a literal precondition prologue.
+  compile the guards into a literal precondition prologue;
+- **resource-aware orchestration**: branches are schedulable units, so a
+  smart orchestrator may put a branch on hold when it demands too many
+  resources (e.g. allocates heavily) — a hold is unobservable since no
+  order is. Combined with fail-fast, the orchestrator parks the
+  expensive branch, races the cheap asserts, and either saves the parked
+  work (an assert fails) or resumes it (all pass) — making interruption
+  (A2) the last resort rather than the only tool.
 
 Still illegal with A4 rejected:
 
