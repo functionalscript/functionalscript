@@ -30,6 +30,8 @@
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
+ * @import { TriviaKind } from '../../js/tokenizer/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
@@ -49,7 +51,7 @@ import {
     unicodeRange,
 } from '../../bnf/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
-import { isKeywordToken } from '../../js/tokenizer/module.f.mjs'
+import { isKeywordToken, mergeTrivia } from '../../js/tokenizer/module.f.mjs'
 import {
     asterisk, backspace, ht, lf, ff, cr,
     quotationMark, solidus, reverseSolidus,
@@ -288,19 +290,29 @@ const codePointsWithMetadata = path => cp => toArray(flat(stateScan(metadataScan
 
 /** @typedef {[string, TokenMetadata | null, List<number>]} _TokenScanState */
 
-/** @type {(tag: string) => boolean} */
-const isNlTag = tag => tag === '\n' || tag === '\r'
-/** @type {(tag: string) => boolean} */
-const isWsTag = tag => tag === ' ' || tag === '\t'
+/**
+ * The grammar tag of a trivia code point, as the kind `mergeTrivia` speaks in;
+ * `null` for every other tag.
+ *
+ * @type {(tag: string) => Nullable<TriviaKind>}
+ */
+const triviaKind = tag =>
+    tag === '\n' || tag === '\r' ? 'nl' :
+    tag === ' ' || tag === '\t' ? 'ws' :
+    null
 
 /** @type {StateScan<_FlatToken, _TokenScanState, List<_Token>>} */
 const scanFunc = (input, state) => {
     const [stateTag, stateMetadata, stateCodePoints] = state
     if (typeof input === 'string') {
-        if (isNlTag(input) && isNlTag(stateTag)) return [null, state]
-        if (isWsTag(input) && isWsTag(stateTag)) return [null, state]
-        if (isNlTag(input) && isWsTag(stateTag)) return [null, [input, null, []]]
-        if (isWsTag(input) && isNlTag(stateTag)) return [null, state]
+        // A trivia run continues: `mergeTrivia` decides the run's kind, and
+        // the pending token only has to be restarted under the incoming tag
+        // when that kind is not the one it already has (ws followed by nl).
+        const inputKind = triviaKind(input)
+        const stateKind = triviaKind(stateTag)
+        if (inputKind !== null && stateKind !== null) {
+            return [null, mergeTrivia(stateKind, inputKind) === stateKind ? state : [input, null, []]]
+        }
         /** @type {_TokenScanState} */
         const newState = [input, null, []]
         if (stateTag === '') {

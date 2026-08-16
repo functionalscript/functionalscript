@@ -15,7 +15,7 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { Entry } from '../../types/ordered_map/types.ts'
  * @import { Range as NumberRange } from '../../types/range/types.ts'
- * @import { JsToken, TokenMetadata, JsTokenWithMetadata, _TokenizerStateWithMetadata, _TokenizerState, _ErrorMessage, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken, } from './types.ts'
+ * @import { JsToken, TokenMetadata, JsTokenWithMetadata, _TokenizerStateWithMetadata, _TokenizerState, _ErrorMessage, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken, TriviaKind, } from './types.ts'
  */
 
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
@@ -592,6 +592,28 @@ const parseMultilineCommentAsteriskStateOp = create(
     })
 ])
 
+/**
+ * The coalescing rule for whitespace/newline trivia: a maximal run collapses
+ * to a single token, and a run containing any newline is an `nl`. Equal kinds
+ * coalesce; `nl` absorbs `ws`.
+ *
+ * Exported because `fjs/djs/tokenizer` produces the same token stream and must
+ * agree byte for byte — its scanner reaches the same four decisions from
+ * grammar tags. This module defines `JsToken`, so the rule is stated here once
+ * rather than re-derived on each side with only the proofs to catch a drift.
+ *
+ * @type {(a: TriviaKind, b: TriviaKind) => TriviaKind}
+ */
+export const mergeTrivia = (a, b) => a === 'nl' || b === 'nl' ? 'nl' : 'ws'
+
+/**
+ * The two trivia states, shared rather than rebuilt, so a run of trivia
+ * allocates nothing per character.
+ *
+ * @type {{ readonly ws: _ParseWhitespaceState, readonly nl: _ParseNewLineState }}
+ */
+const triviaState = { ws: { kind: 'ws' }, nl: { kind: 'nl' } }
+
 /** @type {_CreateToToken<_ParseWhitespaceState>} */
 const parseWhitespaceDefault = () => input => {
     const next = tokenizeCharCodeOp(input, { kind: 'initial' })
@@ -600,8 +622,8 @@ const parseWhitespaceDefault = () => input => {
 
 /** @type {(state: _ParseWhitespaceState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const parseWhitespaceStateOp = create(parseWhitespaceDefault)([
-    rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, state]),
-    rangeSetFunc(rangeSetNewLine)(() => () => [empty, { kind: 'nl' }])
+    rangeSetFunc(rangeSetWhiteSpace)(({ kind }) => () => [empty, triviaState[mergeTrivia(kind, 'ws')]]),
+    rangeSetFunc(rangeSetNewLine)(({ kind }) => () => [empty, triviaState[mergeTrivia(kind, 'nl')]])
 ])
 
 /** @type {_CreateToToken<_ParseNewLineState>} */
@@ -612,8 +634,8 @@ const parseNewLineDefault = () => input => {
 
 /** @type {(state: _ParseNewLineState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const parseNewLineStateOp = create(parseNewLineDefault)([
-    rangeSetFunc(rangeSetWhiteSpace)(state => () => [empty, state]),
-    rangeSetFunc(rangeSetNewLine)(state => () => [empty, state])
+    rangeSetFunc(rangeSetWhiteSpace)(({ kind }) => () => [empty, triviaState[mergeTrivia(kind, 'ws')]]),
+    rangeSetFunc(rangeSetNewLine)(({ kind }) => () => [empty, triviaState[mergeTrivia(kind, 'nl')]])
 ])
 
 /** @type {(state: _EofState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
