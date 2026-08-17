@@ -108,7 +108,7 @@ See [architecture.md §Human-readable paths](./architecture.md).
 3. Rust code generator (FJS) — compiles FJS modules into Rust code calling the `nanvm-lib` API;
    the MVP pipeline, the compiler-bootstrap vehicle, and the AOT backend
    (see [`nanvm-lib/todo/mvp-roadmap.md`](../../nanvm-lib/todo/mvp-roadmap.md))
-4. `Function` constructor + interpreter in `nanvm-lib` — executes the AST as data
+4. `Function` constructor + interpreter in `nanvm-lib` — executes the EDAG as data
    (see [`spec/todo/serialization.md`](../../spec/todo/serialization.md));
    bytecode is an optional, VM-internal, performance-oriented representation
 5. Generic `Any` serialization (CBOR) in `nanvm-lib` — covers code as data; needed for CAS/CAVM
@@ -145,7 +145,7 @@ This is the longest dependency chain. Everything after it depends on it.
 
 Prerequisite: VM complete in `nanvm-lib`.
 
-Canonical serialization where structural equality implies hash equality — same shape, same hash. To be implemented in `nanvm-lib` (Rust); requires canonicalization of property order and a content-hashing layer, neither of which exists yet. The canonicalization scheme will be derived from the AST's own grammar — not SUL, which is designed for data of unknown structure and would impose the wrong tree shape onto a semantically structured AST.
+Canonical serialization where structural equality implies hash equality — same shape, same hash. To be implemented in `nanvm-lib` (Rust); requires canonicalization of property order and a content-hashing layer, neither of which exists yet. The canonicalization scheme will be derived from the EDAG's own grammar — not SUL, which is designed for data of unknown structure and would impose the wrong tree shape onto a semantically structured EDAG.
 
 ---
 
@@ -154,7 +154,7 @@ Canonical serialization where structural equality implies hash equality — same
 Prerequisite: compiler + CA FunctionalScript complete.
 
 - FunctionalScript modules stored in DISOT by content hash
-- New tool: `cas_run(hash, input?)` — loads the serialized AST, executes on nanvm with hard memory/time limits
+- New tool: `cas_run(hash, input?)` — loads the serialized EDAG, executes on nanvm with hard memory/time limits
 - Pure functions only; no side effects escape the sandbox
 
 ---
@@ -175,6 +175,6 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | Compiler (parsing) | `fjs/djs/` data pipeline ✓, `fjs/bnf/` framework ✓ | Function support, FS grammar |
 | Compiler (codegen) | — | Rust code generator (FJS), `Function` constructor + interpreter in `nanvm-lib` |
 | Compiler (repository coverage) | Stage-1 `.f.mjs` source migration is compiler-independent | Validate supported `.f.mjs` as coverage grows; after Stage 1, rename supported groups `.f.mjs` → `.f.js` |
-| CA FunctionalScript | — | Depends on VM + AST canonicalization |
+| CA FunctionalScript | — | Depends on VM + EDAG canonicalization |
 | Sandboxed execution | — | Depends on CA FS |
 | Hybrid intelligence | — | Depends on all above |

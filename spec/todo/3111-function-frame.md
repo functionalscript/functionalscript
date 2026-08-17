@@ -1,9 +1,9 @@
 
 # NaNVM function objects
 
-A user function object is serialized as an AST — the stable, canonical representation of functions
+A user function object is serialized as an EDAG — the stable, canonical representation of functions
 (see [serialization](./serialization.md)). On loading, a VM
-implementation may transform the AST into internal, VM-specific bytecode, executed by a bytecode
+implementation may transform the EDAG into internal, VM-specific bytecode, executed by a bytecode
 interpreter upon a call. This document describes such an internal bytecode scheme; nothing here is
 part of the stable serializable format. The VM's bytecode generator produces that bytecode plus
 metadata that it needs to generate correct call site bytecode.

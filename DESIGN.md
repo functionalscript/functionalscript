@@ -181,7 +181,7 @@ numbers" are different concepts. The proposed NaNVM operator-test data eDSL appl
 operands and expected results should be ordinary JavaScript values, while
 references, function values, and expected throws need special forms.
 
-Do not expose a tagged-union AST as the authoring API merely because it is
+Do not expose a tagged-union representation as the authoring API merely because it is
 convenient for the implementation. The ergonomic eDSL and its normalized
 machine-oriented representation may be different layers: a parser/compiler may
 normalize an author-friendly value into explicit tagged nodes for pattern
@@ -192,7 +192,7 @@ alike. Use a more explicit normalized representation only when that extra
 structure provides actual semantic or processing value.
 
 Apply this principle to new eDSLs and when improving existing ones, including the
-future FunctionalScript function AST. That AST should reuse FunctionalScript's
+future FunctionalScript function EDAG. That EDAG should reuse FunctionalScript's
 own literals, arrays, objects, and other language constructions wherever their
-meaning coincides with the syntax being represented, and introduce explicit AST
+meaning coincides with the syntax being represented, and introduce explicit EDAG
 nodes only where the host-language value would be ambiguous or insufficient.

@@ -171,7 +171,7 @@ TypeScript aliases out.
 - [new-pl.md § Type System](../../todo/new-pl.md#type-system) — the same idea one
   level further out: type checking as an opt-in library rather than a language
   feature. This document is the FunctionalScript-scoped version.
-- [ast-spec.md](../../todo/ast-spec.md) — already specifies the AST with RTTI and
+- [edag-spec.md](../../todo/edag-spec.md) — already specifies the EDAG with RTTI and
   generates Rust from it; the same schemas would feed both.
 - [types-for-fs.md](../../todo/types-for-fs.md) — why TypeScript's own type system is not
   the target.
