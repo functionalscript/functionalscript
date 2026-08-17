@@ -10,12 +10,12 @@
  * channel, and the preferred high-level abstraction (`./io/types.ts`, with the
  * rationale in [`./io/README.md`](./io/README.md)). The combinators here know
  * nothing of `Result`: {@link step} runs its continuation whether or not the
- * previous effect failed, so a chain of fallible effects must forward each
- * `Result` by hand — {@link okStep} is that forwarding written once. The
- * branch-aware `step` / `catchStep` / `resultStep` that make it automatic live
- * in `./io/module.f.mjs`, together with the `history` / `historyStep` /
- * `foldStep` / `forEachStep` a fallible chain needs; the ones here stay for
- * consumers still written against the raw contracts.
+ * previous effect failed, so a chain of fallible effects would have to forward
+ * each `Result` by hand. The branch-aware `step` / `catchStep` / `resultStep`
+ * that make it automatic live in `./io/module.f.mjs`, together with the
+ * `history` / `historyStep` / `foldStep` / `forEachStep` a fallible chain
+ * needs; the ones here stay for the infallible compositions and for the
+ * representation itself.
  *
  * **The composition rules below hold for both layers**, and a fallible chain
  * should follow them through the Io combinators — a raw `historyStep` over an
@@ -44,7 +44,7 @@
  * even a positional layout left for it to insulate anyone from.
  *
  * Effect helpers come in two shapes. **Step adapters** return a continuation
- * `(t: T) => Effect<Q, R>` meant to be passed into a step — see {@link okStep}.
+ * `(t: T) => Effect<Q, R>` meant to be passed into a step.
  * **Step variants** take the effect itself first, like {@link step} — see
  * {@link historyStep}. {@link mapStep} is the variant for the end of a chain:
  * a pure projection over an effect's result, which is a `step` that continues
@@ -313,26 +313,6 @@ export const foldStep = (items, init, f) => {
  */
 export const forEachStep = (items, f) =>
     foldStep(items, undefined, item => () => f(item))
-
-/**
- * A step adapter for the `error` short-circuit: `error` → pass it through
- * unchanged as `pure`, `ok` → continue with `f`. Collapses the hand-written
- * `r[0] === 'error' ? pure(r) : f(r[1])` check that recurs at every site
- * chaining `Effect<O, Result<T, E>>` steps.
- *
- * The effectful twin of `okThen` (`fjs/types/result/module.f.mjs`), down to how
- * its type is quantified. **The two error types are unioned, not unified**, and
- * `F` binds on the *second* arrow: `f` alone determines the value types, so one
- * `okStep(f)` adapts results carrying any error type, and the incoming error is
- * passed through as the very tuple it arrived as rather than being rebuilt to
- * retag it into a wider type. The IoEffect `step` (`./io/module.f.mjs`) is
- * exactly this adapter under raw `step`, and it is the union that lets adjacent
- * links there fail in different ways.
- *
- * @type {<T, E, O extends Operation, R>(f: (value: T) => Effect<O, Result<R, E>>) => <F>(r: Result<T, F>) => Effect<O, Result<R, E | F>>}
- */
-export const okStep = f => r =>
-    r[0] === 'error' ? pure(r) : f(r[1])
 
 /**
  * Runs an effect that reaches its value without performing a command: `[t]` for

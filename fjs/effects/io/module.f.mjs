@@ -50,7 +50,7 @@
 
 import { fold } from '../../types/list/module.f.mjs'
 import { error, mapOk, ok, unwrap } from '../../types/result/module.f.mjs'
-import { mapStep as rawMapStep, okStep, pure, step as rawStep } from '../module.f.mjs'
+import { mapStep as rawMapStep, pure, step as rawStep } from '../module.f.mjs'
 
 /**
  * Lifts a value into a successful `IoEffect` — `pure(ok(v))` written once.
@@ -103,18 +103,33 @@ export const pureError = e => pure(error(e))
  * without either side being pre-widened; the operation sets union too, since
  * `f` performs effects of its own.
  *
- * The body is raw `step` over `okStep`, the adapter that already writes this
- * branch: it is that composition, given the name and the type the layer
- * documents. `okStep` quantifies the incoming error on its second arrow, which
- * is what makes the union expressible here rather than forcing both sides to
- * the same error type.
+ * The body is raw `step` over the one branch this layer is named for: an
+ * `error` is handed back as the very tuple it arrived as rather than rebuilt to
+ * retag it into a wider type, which is what makes `E | F` expressible instead
+ * of forcing both sides to one error type. The continuation is annotated for
+ * that reason — its two branches have different types, and the annotation
+ * states the union they belong to rather than leaving the compiler to infer it
+ * from whichever it reads first.
  *
- * @type {<O extends Operation, T, E, Q extends Operation, R, F>(
- *     e: IoEffect<O, T, E>,
- *     f: (t: T) => IoEffect<Q, R, F>
- * ) => IoEffect<O | Q, R, E | F>}
+ * This used to route through an exported `okStep` in the raw module. Nothing
+ * else ever called it: the adapter *was* this function's body, one indirection
+ * away, so it is written here now and the raw layer has one export fewer.
+ *
+ * @template {Operation} O
+ * @template T
+ * @template E
+ * @template {Operation} Q
+ * @template R
+ * @template F
+ * @param {IoEffect<O, T, E>} e
+ * @param {(t: T) => IoEffect<Q, R, F>} f
+ * @returns {IoEffect<O | Q, R, E | F>}
  */
-export const step = (e, f) => rawStep(e, okStep(f))
+export const step = (e, f) => {
+    /** @type {(r: Result<T, E>) => IoEffect<Q, R, E | F>} */
+    const cont = r => r[0] === 'error' ? pure(r) : f(r[1])
+    return rawStep(e, cont)
+}
 
 /**
  * The error path: run `e`, and continue with `f` **only** if it failed. An `ok`

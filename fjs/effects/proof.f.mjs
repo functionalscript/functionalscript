@@ -2,7 +2,7 @@
  * @import { Effect, Operation } from './types.ts'
  */
 
-import { step, do_, foldStep, forEachStep, mapStep, match, okStep, history, pure, runPure, historyStep } from './module.f.mjs'
+import { step, do_, foldStep, forEachStep, mapStep, match, history, pure, runPure, historyStep } from './module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
@@ -68,27 +68,6 @@ export const proof = {
         runs: () => {
             const e = forEachStep(pure([1, 2, 3]), () => pure(undefined))
             assertPure(e, undefined)
-        },
-    },
-    okStep: {
-        ok: () => {
-            const e = step(pure(ok(5)), okStep((/** @type {number} */ v) => pure(ok(v * 2))))
-            const o = runPure(e)
-            assert(o.length === 1, e)
-            const [r] = o
-            assert(r[0] === 'ok', r)
-            assertEq(r[1], 10)
-        },
-        error: () => {
-            const e = step(
-                pure(error('oops')),
-                okStep(/** @type {(value: number) => Effect<never, import('../types/result/types.ts').Result<number, string>>} */
-                    (v => pure(ok(v * 2)))))
-            const o = runPure(e)
-            assert(o.length === 1, e)
-            const [r] = o
-            assert(r[0] === 'error', r)
-            assertEq(r[1], 'oops')
         },
     },
     runPure: {
