@@ -135,8 +135,10 @@ fjs compile input.f.js output.json   # JSON
 - A JSON output is a tree, so shared values are expanded, and types that JSON
   cannot express (`bigint`, `undefined`) are not available.
 - Object properties are emitted in sorted key order.
-- A `__proto__` key is emitted as `["__proto__"]:` in a JavaScript module and
-  as `"__proto__":` in JSON — the one key the two formats spell differently
+- The input extension names its language the same way: a `.json` input is a
+  JSON document, anything else a FunctionalScript module. The two readers
+  differ in one rule — a `"__proto__"` key — and a `__proto__` key is emitted
+  as `["__proto__"]:` in a JavaScript module and as `"__proto__":` in JSON
   ([proto-property-key](./2480-proto-property-key.md)).
 
 See [fjs/djs/README.md](../fjs/djs/README.md) for the data language

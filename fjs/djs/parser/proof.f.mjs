@@ -2,7 +2,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  */
 
-import { parseFromTokens } from './module.f.mjs'
+import { parseFromTokens, parseJsonFromTokens } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -259,6 +259,41 @@ export const proof = {
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+    ],
+    // `parseJsonFromTokens` reads a JSON document, which differs from a
+    // FunctionalScript module in exactly one rule: `"__proto__"` is an
+    // ordinary data key there, the way `JSON.parse` reads it (#2480).
+    json: [
+        () => {
+            const tokenList = tokenizeString('{"__proto__":5}')
+            const obj = parseJsonFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"__proto__":5}]]')
+        },
+        () => {
+            // the same text read as FunctionalScript, which is what it is not
+            const tokenList = tokenizeString('{"__proto__":5}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            // no JSON document has an identifier key, so this spelling means
+            // what JavaScript makes of it in either reader
+            const tokenList = tokenizeString('{__proto__:5}')
+            const obj = parseJsonFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            // every other key reads the same in both
+            const tokenList = tokenizeString('{"a":1,b:2,["c"]:3}')
+            const obj = parseJsonFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"a":1,"b":2,"c":3}]]')
         },
     ],
     invalid: [

@@ -1,45 +1,35 @@
-## `.json` input is read as FunctionalScript
+## A `.json` input is read by the DJS reader, not the JSON one
 
 **Priority:** P3
 **Status:** open
 
 ### Problem
 
-`transpile` ([`transpiler/module.f.mjs`](../transpiler/module.f.mjs)) reads
-every input with the DJS tokenizer and parser, whatever the file extension.
-The output side does branch on the extension — `fjs/djs/module.f.mjs` picks
-`stringifyAsTree` for `.json` and `stringify` otherwise — so the compiler
-writes two languages but reads only one.
+`transpile` ([`transpiler/module.f.mjs`](../transpiler/module.f.mjs)) picks its
+reader by extension — `parseJsonFromTokens` for `.json`, `parseFromTokens`
+otherwise — but both are the same DJS state machine, differing in one rule:
+`"__proto__"` is an ordinary data key in a JSON document
+([spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md)).
 
-That was invisible while the DJS reader was a superset of JSON. It stopped
-being one with
-[spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md): a
-JSON document containing a `__proto__` key is a valid JSON document and not a
-valid FunctionalScript module, so
-
-```sh
-fjs compile proto.json out.json   # fails, on input the compiler can write
-```
-
-The failure is correct for a FunctionalScript module and wrong for a JSON
-document. It is currently pinned by `protoKey.jsonDocumentRejected` in
-[`fjs/djs/proof.f.mjs`](../proof.f.mjs).
-
-The reverse direction of the asymmetry is looser rather than stricter: a
-`.json` input may today use `bigint`, `undefined`, comments, identifier keys,
-`import`, and `const` — none of which is JSON.
+So the `.json` reader is a *superset* of JSON, not JSON. A `.json` file may
+contain `bigint`, `undefined`, comments, identifier keys, computed keys,
+`import`, and `const` — none of which any other JSON reader accepts, including
+this repository's own [`fjs/media/json/parser`](../../media/json/parser).
+Nothing checks that a file the compiler treats as JSON is a JSON document.
 
 ### Proposal
 
-No design yet. The question is whether `fjs compile` should pick the reader by
-extension the way it picks the writer — `fjs/media/json/parser` for `.json`,
-the DJS parser otherwise — or keep one reader and treat the extension as
-naming the output format only. Picking by extension makes `.json` mean JSON in
-both directions and closes the round trip `proto.json → out.f.js → out.json`;
-it also makes today's DJS-in-`.json` inputs an error, which may be a breaking
-change for existing files.
+No design yet. The question is whether a `.json` input should be parsed by
+`fjs/media/json/parser`, so that `.json` means JSON in both directions, or go
+on being the DJS reader with JSON's `__proto__` rule.
+
+Against the switch: `fjs/media/json/parser`'s errors carry no position, so
+`.json` inputs would lose the `path:line:column` diagnostics they have today,
+and existing files using DJS extensions in a `.json` would stop compiling — a
+breaking change. In favour: a file the compiler calls JSON would actually be
+JSON, and the two readers would stop being one state machine with a flag.
 
 ### Related
 
 - [spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md) —
-  the rule that made the asymmetry observable.
+  the one rule the two readers differ in today.

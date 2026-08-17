@@ -130,16 +130,36 @@ export const proof = {
                 compileSource('export default {["__proto__"]:{"a":42}}')('output.json'),
                 '{"__proto__":{"a":42}}')
         },
-        // The documented exception to "JSON is a subset of FunctionalScript":
-        // `fjs compile` reads every input as FunctionalScript, so a JSON
-        // document carrying a `__proto__` key is rejected as input even though
-        // it is what the compiler *writes* for that value.
-        jsonDocumentRejected: () => {
-            const root = { 'input.json': [utf8('{"__proto__":{"a":42}}')] }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['input.json', 'output.json']))
+        // `fjs compile proto.json a.js` — the two languages meeting. The input
+        // is a JSON document, where `"__proto__"` is an ordinary data key, and
+        // the output is a JavaScript module, where only the computed form
+        // denotes one. Each hop uses its own language's spelling of the key.
+        jsonInput: () => {
+            const root = { 'proto.json': [utf8('{"__proto__":5}')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
+            assertEq(code, 0, state.stderr)
+            assertEq(readOutput(state.root, 'a.js'), 'export default {["__proto__"]:5}')
+        },
+        // …and back, byte for byte: a JSON document survives the loop
+        // `proto.json → a.js → out.json` with no `["__proto__"]:` artifact,
+        // which no JSON parser would accept.
+        jsonInputRoundTrip: () => {
+            const document = '{"__proto__":{"a":42}}'
+            const root = { 'proto.json': [utf8(document)] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
+            assertEq(code, 0, state.stderr)
+            const module = readOutput(state.root, 'a.js')
+            assertEq(module, 'export default {["__proto__"]:{"a":42}}')
+            assertEq(compileSource(module)('out.json'), document)
+        },
+        // The identifier spelling is no JSON document's key, so it stays a
+        // compilation error whatever the input file is called.
+        jsonInputIdKeyRejected: () => {
+            const root = { 'proto.json': [utf8('{__proto__:5}')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
             assertEq(code, 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
-            assertEq(state.root['output.json'], undefined)
+            assertEq(state.root['a.js'], undefined)
         },
         // The statement behind the textual assertions: the property is an
         // ordinary own property and the prototype is untouched. A textual test

@@ -9,6 +9,8 @@
  * @import { AstModule } from '../ast/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadFile } from '../../effects/node/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { ParseContext } from './types.ts'
  */
 
@@ -18,7 +20,7 @@ import { tokenize } from '../tokenizer/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
-import { parseFromTokens } from '../parser/module.f.mjs'
+import { parseFromTokens, parseJsonFromTokens } from '../parser/module.f.mjs'
 import { run } from '../ast/module.f.mjs'
 import { foldStep, pure, step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
@@ -33,6 +35,17 @@ const mapDjs = context => path => {
     return res.djs
 }
 
+/**
+ * The reader a file is read with, chosen by its extension the same way
+ * `fjs/djs` chooses the writer: a `.json` file is a JSON document, anything
+ * else a FunctionalScript module. The two disagree about the `__proto__` key
+ * and nothing else
+ * ([spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md)).
+ *
+ * @type {(path: string) => (tokens: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
+ */
+const parserFor = path => path.endsWith('.json') ? parseJsonFromTokens : parseFromTokens
+
 /** @type {(path: string) => Effect<ReadFile, Result<AstModule, ParseError>>} */
 const parseModule = path => step(
     readUtf8File(path),
@@ -41,7 +54,7 @@ const parseModule = path => step(
             return pure(error({ message: 'file not found', metadata: null }))
         }
         const tokens = tokenize(stringToList(result[1]))(path)
-        return pure(parseFromTokens(tokens))
+        return pure(parserFor(path)(tokens))
     })
 
 /** @type {(path: string) => (parseModuleResult: Result<AstModule, ParseError>) => (context: ParseContext) => Effect<ReadFile, ParseContext>} */

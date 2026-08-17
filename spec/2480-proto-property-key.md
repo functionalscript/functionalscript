@@ -36,13 +36,20 @@ A value may still carry a `__proto__` property; what a module cannot do is
 
 ## Compilation
 
-`fjs compile` writes the key differently in each output format, because the
-two languages disagree about it:
+`fjs compile` reads and writes the key differently in each language, because
+the two disagree about it. The file extension names the language on both
+sides:
 
 ```sh
 fjs compile input.f.js output.f.js   # {["__proto__"]:1}
 fjs compile input.f.js output.json   # {"__proto__":1}
+fjs compile input.json output.f.js   # reads {"__proto__":1} as a property
 ```
+
+So a JSON document survives the loop `proto.json → a.f.js → out.json` byte for
+byte, each hop spelling the key its own language's way. The identifier
+spelling is not a key in either language: no JSON document contains one, so
+`{__proto__: 1}` stays an error whatever the input file is called.
 
 In JavaScript output the computed form is what makes the module round-trip:
 it is the only spelling whose evaluation reproduces the property. In JSON
@@ -62,8 +69,9 @@ it as a data property, but then FunctionalScript source would mean something
 different from what a JavaScript engine gives it, breaking principle 2. A
 narrow, stated exception is the cheaper price.
 
-Because `fjs compile` reads every input as FunctionalScript, such a JSON
-document is rejected as *input* even though the same value compiles *to* that
-document.
+The exception is about the *language a file is written in*, not about the
+value: such a document is still readable, as JSON. `fjs compile` reads a
+`.json` input as JSON and any other input as FunctionalScript, so the document
+compiles — into a module spelling the same key the JavaScript way.
 
 Depends on [computed-property](./2470-computed-property.md).
