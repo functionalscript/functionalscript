@@ -17,6 +17,11 @@ continues the numbering used there.
 
 ## 2. DJS
 
+### 2.1. Module structure
+
+1. [ ] [import-attributes](./2140-import-attributes.md) — `with { type: "json" }`,
+   which JavaScript requires of a JSON import and the parser does not accept.
+
 ### 2.2. Priority 1
 
 We need it to use JSDoc and TypeScript.

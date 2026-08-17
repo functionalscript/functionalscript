@@ -78,6 +78,11 @@ of the line; semicolons are not part of the language.
 - An import path is a string literal, resolved relative to the importing
   module. Each module is parsed and evaluated once per resolved path; a
   circular dependency is an error.
+- A `.json` path is imported without an attribute, which JavaScript does not
+  accept — it requires `with { type: "json" }`, a clause the parser does not
+  recognize yet ([import-attributes](./todo/2140-import-attributes.md)). This
+  is the one place a module the compiler accepts is not a module a JavaScript
+  engine loads.
 
 ### 2.2. Expressions
 
