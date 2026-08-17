@@ -25,15 +25,21 @@ an own property — so one text means a data property as JSON and a
 prototype assignment as a FunctionalScript module. Every other JSON
 document means the same thing in both languages; this one does not.
 
-**The DJS serializer emits the unsafe form today**, so it does not
+**The module emitter writes the unsafe form today**, so it does not
 round-trip its own output:
 
 ```js
 const o = {}
 Object.defineProperty(o, '__proto__',
     { value: 3, enumerable: true, writable: true, configurable: true })
-stringifyAsTree(sort)(o)   // '{"__proto__":3}'
+stringify(sort)(o)         // 'export default {"__proto__":3}'
 ```
+
+The **JSON** emitter is correct as it stands —
+`stringifyAsTree(sort)(o)` gives `{"__proto__":3}`, which `JSON.parse`
+reads back as an own property. The two formats need different spellings;
+see
+[fjs/djs/todo/proto-key-handling](../fjs/djs/todo/proto-key-handling.md).
 
 Evaluating that text gives an object with **no** properties: the value
 is silently lost. With an object value it is worse — the prototype is
@@ -49,9 +55,12 @@ whose only meaning is "assign a prototype" has no meaning to give;
 rejecting it is the whitelist principle, not a special case. Accept
 `{ ["__proto__"]: … }`, which denotes an ordinary property.
 
-**Serializing.** Emit `["__proto__"]:` for that key, always. This is the
-only spelling whose evaluation reproduces the value, so it is required
-for round-tripping, not a stylistic choice.
+**Serializing.** In **FunctionalScript output**, emit `["__proto__"]:`
+for that key: it is the only spelling whose evaluation reproduces the
+value, so it is required for round-tripping, not a stylistic choice. In
+**JSON output** the plain `"__proto__":` key stays — the computed form
+is not valid JSON, and JSON already round-trips. The two emitters
+diverge here on purpose.
 
 Note that `2330`'s prohibition on *reading* `__proto__`
 ([property-accessor](../spec/todo/2330-property-accessor.md)) is a
@@ -90,8 +99,11 @@ key — which is still an improvement on expressing it *wrongly*.
 
 - [ ] Parser: reject the identifier and string-literal spellings.
 - [ ] Computed property keys with a constant string key.
-- [ ] Serializer: emit `["__proto__"]:` for that key
-      (`fjs/djs/serializer`), with a round-trip test.
+- [ ] Serializer: emit `["__proto__"]:` for that key in
+      FunctionalScript output only, with a round-trip test — note both
+      formats share one key serializer today, so the change is
+      per-emitter
+      ([fjs/djs/todo/proto-key-handling](../fjs/djs/todo/proto-key-handling.md)).
 - [ ] Round-trip proof: serialize → evaluate → structurally equal, over
       a corpus that includes `__proto__` keys.
 - [ ] Spec: document the rule when the parser implements it

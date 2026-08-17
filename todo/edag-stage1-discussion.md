@@ -716,14 +716,16 @@ the source order — `Object.keys({"2":a,"1":b})` and
 `Object.keys({"1":b,"2":a})` are both `["1","2"]`. Two EDAGs differing
 only in the order of index keys are therefore one JS value with two
 hashes, which the core invariant's print-run-compare test cannot
-distinguish. The conclusion stands on the non-index cases. This holds with A4 rejected — the evaluation *order* of
-property operands is as free as any other (subject 8); what is fixed is
-the result. Sorted-key canonicalization (as `fjs compile` applies to
+distinguish. The conclusion stands on the non-index cases.
+
+This holds with A4 rejected — the evaluation *order* of property
+operands is as free as any other (subject 8); what is fixed is the
+result. Sorted-key canonicalization (as `fjs compile` applies to
 data output, [spec/README.md](../spec/README.md)) must **not** be
 applied to object constructors. Duplicate keys are a validation error.
 
-**`__proto__` is a data key, never a prototype assignment.** FS has no
-run-time prototypes, so an object-constructor key `"__proto__"` denotes
+**`__proto__` is a data key, never a prototype assignment.** FS plans to
+have no prototype chains at run time, so a key `"__proto__"` denotes
 an ordinary property — and printing it (subject 12) must use the
 computed spelling `{ ["__proto__"]: … }`, the only JS form that
 reproduces the value. The identifier and string spellings assign a
@@ -749,13 +751,13 @@ the FJS compiler would never emit. To validate:
   subject 8);
 - unknown command tags: validation error;
 - **property operands** of `"."` and `".()"`: a permitted string
-  constant, a number constant, or a **unary** `"+"` / `"Number"` node —
-  anything else is a validation error. The arity qualifier is
-  load-bearing: binary `"+"` concatenates, so
-  `[".", o, ["+", "constr", "uctor"]]` would rebuild a prohibited name at
-  run time and reach `Object`. Only the unary form is guaranteed to
-  yield a number or throw. Anything else is a validation error, which is what keeps computed-string
-  prototype access unrepresentable ([Operations](#operations)). The
+  constant, a number constant, or a **unary** `"+"` / `"Number"` node.
+  Anything else is a validation error, which is what keeps
+  computed-string prototype access unrepresentable
+  ([Operations](#operations)). The arity qualifier is load-bearing:
+  binary `"+"` concatenates, so `[".", o, ["+", "constr", "uctor"]]`
+  would rebuild a prohibited name at run time and reach `Object`; only
+  the unary form is guaranteed to yield a number or throw. The
   prohibited-name list comes from
   [property-accessor](../spec/todo/2330-property-accessor.md), and
   because the key is a *constant* the check happens once, at
