@@ -43,8 +43,8 @@ lossy one.
 ### Proposal
 
 **Parsing.** `{ __proto__: … }` and `{ "__proto__": … }` are not valid
-FunctionalScript: reject them as compilation errors. FunctionalScript has no prototypes at run time
-([function-frame](../spec/todo/3111-function-frame.md)), so a spelling
+FunctionalScript: reject them as compilation errors. FunctionalScript plans to have no prototype chains at run time
+([property-accessor](../spec/todo/2330-property-accessor.md)), so a spelling
 whose only meaning is "assign a prototype" has no meaning to give;
 rejecting it is the whitelist principle, not a special case. Accept
 `{ ["__proto__"]: … }`, which denotes an ordinary property.
@@ -100,8 +100,8 @@ key — which is still an improvement on expressing it *wrongly*.
 
 ### Related
 
-- [proto-key-compiler-bug](./proto-key-compiler-bug.md) — the state of
-  the current FJS compiler and what to change in it.
+- [fjs/djs/todo/proto-key-handling](../fjs/djs/todo/proto-key-handling.md)
+  — the state of the current FJS compiler and what to change in it.
 - [edag-stage1-discussion](./edag-stage1-discussion.md) — subject 4
   (object constructor keys) and subject 12 (`toString(f)` must print the
   computed form for the same reason).

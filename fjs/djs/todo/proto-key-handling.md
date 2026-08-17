@@ -2,11 +2,9 @@
 
 **Priority:** P2
 **Status:** open
-**Blocked by:** computed property keys — see
-[proto-property-key](./proto-property-key.md)
 
 The rule and its rationale are in
-[proto-property-key](./proto-property-key.md); this issue is the state
+[proto-property-key](../../../todo/proto-property-key.md); this issue is the state
 of the current implementation and what to change in it.
 
 ### Part 1 — serializing (emitting)
@@ -15,14 +13,14 @@ of the current implementation and what to change in it.
 does not round-trip its own output:
 
 ```js
-import { stringifyAsTree } from './fjs/djs/serializer/module.f.mjs'
+import { stringify } from './fjs/djs/serializer/module.f.mjs'
 import { sort } from './fjs/types/object/module.f.mjs'
 
 const o = {}
 Object.defineProperty(o, '__proto__',
     { value: 3, enumerable: true, writable: true, configurable: true })
 
-stringifyAsTree(sort)(o)          // '{"__proto__":3}'
+stringify(sort)(o)                // 'export default {"__proto__":3}'
 eval('({"__proto__":3})')         // {} — the property is gone
 ```
 
@@ -30,54 +28,68 @@ With an object value the failure is worse than lossy: the emitted text
 replaces the prototype, producing a different value rather than an
 incomplete one.
 
-**Cause.** `propertySerialize` in
-[`fjs/djs/serializer/module.f.mjs`](../fjs/djs/serializer/module.f.mjs)
-builds a key with `stringSerialize` + `colon` borrowed from
-[`fjs/media/json/serializer/module.f.mjs`](../fjs/media/json/serializer/module.f.mjs).
-That is correct for JSON and wrong for JavaScript — the two languages
-disagree about this one key.
+**Cause, and why the fix cannot go where it looks like it should.**
+`propertySerialize` inside `buildSerialize`
+([`serializer/module.f.mjs`](../serializer/module.f.mjs)) builds every
+key with `stringSerialize` + `colon` borrowed from
+[`media/json/serializer`](../../media/json/serializer/module.f.mjs).
+That is right for JSON and wrong for JavaScript — the two languages
+disagree about this one key — but **both output formats share that one
+helper**:
 
-**Scope — the JSON serializer is correct and must not change.**
-`JSON.parse('{"__proto__":3}')` yields an own property, so JSON already
-round-trips; `["__proto__"]:` is not even valid JSON. Only the DJS
-emitter (the `.f.js` module path, `stringify` / `stringifyAsTree` via
-[`fjs/djs/module.f.mjs`](../fjs/djs/module.f.mjs)) needs the computed
-spelling. Fixing this in the shared JSON helper would break JSON output.
+```js
+// fjs/djs/module.f.mjs
+outputFileName.endsWith('.json')
+    ? stringifyAsTree(sort)(result[1])   // JSON output
+    : stringify(sort)(result[1])         // .f.js module output
+```
 
-- [ ] `propertySerialize` in the **DJS** serializer emits
-      `["__proto__"]:` for that key and `"k":` for every other.
-- [ ] Round-trip proof: serialize → evaluate → structurally equal, with
-      `__proto__` in the corpus, both as a primitive and as an object
-      value.
-- [ ] Leave the JSON serializer alone; add a test asserting JSON output
-      keeps `"__proto__":`, so a later refactor cannot "unify" the two.
+`stringifyAsTree` is the **`.json`** path and `stringify` the **module**
+path, and both reach the same `propertySerialize` through
+`serializeWithoutConst` and `serializeWithConst`. So patching
+`propertySerialize` would emit `["__proto__"]:` into `.json` files,
+which no JSON parser accepts.
+
+**The JSON output is already correct and must stay.**
+`JSON.parse('{"__proto__":3}')` yields an own property, so JSON
+round-trips today.
+
+- [ ] Parameterize key serialization per output format — the module
+      emitter uses `["__proto__"]:` for that key, the JSON emitter keeps
+      `"__proto__":` — rather than changing the shared helper.
+- [ ] Round-trip proof for the module path: serialize → evaluate →
+      structurally equal, with `__proto__` in the corpus, both as a
+      primitive and as an object value.
+- [ ] Test asserting JSON output keeps `"__proto__":`, so a later
+      refactor cannot "unify" the two paths and reintroduce this.
 
 ### Part 2 — parsing
 
 `{ __proto__: v }` and `{ "__proto__": v }` are **not valid
-FunctionalScript** ([proto-property-key](./proto-property-key.md)), so
+FunctionalScript** ([proto-property-key](../../../todo/proto-property-key.md)), so
 accepting them is the bug — independently of what the parser then does
 with them. `parseObjectStartOp` in
-[`fjs/djs/parser/module.f.mjs`](../fjs/djs/parser/module.f.mjs) takes a
+[`fjs/djs/parser/module.f.mjs`](../parser/module.f.mjs) takes a
 key from either a `string` or an `id` token (the identifier-property
-path, `#2410`) and hands it to `pushKey` unchecked, so both spellings
+path, [2410-identifier-property](../../../spec/2410-identifier-property.md)) and hands it to `pushKey` unchecked, so both spellings
 are accepted and treated as ordinary keys.
 
 **Scope — JSON input is a different reader and stays as it is.** In a
 JSON document `"__proto__"` *is* an ordinary data key, and
-[`fjs/media/json/parser`](../fjs/media/json/parser) is a separate module
+[`fjs/media/json/parser`](../../media/json/parser) is a separate module
 from the DJS parser used by the transpiler, so the rejection lands on
 the FunctionalScript side only. This is the one place where a JSON
 document is not also a valid FunctionalScript module — see the
 subset-exception note in
-[proto-property-key](./proto-property-key.md).
+[proto-property-key](../../../todo/proto-property-key.md).
 
 - [ ] Reject the `id` spelling `{ __proto__: … }` with a compilation
       error.
 - [ ] Reject the string spelling `{ "__proto__": … }` likewise.
-- [ ] Accept `{ ["__proto__"]: … }` — needs computed property keys,
-      which the language does not have yet, hence the **Blocked by**
-      above. The two rejections are not blocked and can land first.
+- [ ] Accept `{ ["__proto__"]: … }` — the only blocked task here: it
+      needs computed property keys, which the language does not have yet
+      ([proto-property-key](../../../todo/proto-property-key.md)). The two
+      rejections above are not blocked and can land first.
 - [ ] Parser proof covering all three spellings.
 
 ### Conformance tests

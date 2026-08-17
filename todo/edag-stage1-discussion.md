@@ -30,7 +30,7 @@ guards, A4) are merged into the graph by the **`","` operation**:
   lowers to a `","` node verbatim, `toString(f)` prints it back
   verbatim, and a JS engine running the printed source implements one
   legal schedule (left-to-right, eager) of the same semantics. The
-  statement spellings normalize to the same node — all four of
+  other spellings normalize to the same node — all four of
 
   ```js
   const f = a => { assert(a >= 0); return a + 2 }
@@ -134,7 +134,11 @@ everywhere else.
 
 "Behaves the same" means, precisely, under the assumptions:
 
-- the same value whenever both complete (A1, A2);
+- the same value whenever both complete (A1). Across *engines* this is
+  A2's tiered guarantee rather than an unconditional one: CA engines
+  sharing a serialization/identity version must agree, while non-CA
+  engines may differ on identity- and `toString`-sensitive observations
+  — so at most one of two disagreeing engines matches the JS engine;
 - failure exactly when JS always throws (A3) — plus engine interrupts,
   which are not the function's behavior (A2);
 - order of evaluation and the identity of an error are **not** part of
@@ -702,9 +706,17 @@ open:
 
 **Resolution: property order is semantic** — the written key order is
 part of the constructed *value*, not of the schedule: JS objects
-preserve insertion order (`Object.keys`, iteration, `JSON.stringify`),
-so reordering an object constructor's keys changes the resulting
-object. This holds with A4 rejected — the evaluation *order* of
+preserve insertion order for string keys (`Object.keys`, iteration,
+`JSON.stringify`), so reordering an object constructor's keys changes
+the resulting object.
+
+One exception, which limits the *rationale* but not the conclusion:
+**integer-index keys always come first, in ascending order**, whatever
+the source order — `Object.keys({"2":a,"1":b})` and
+`Object.keys({"1":b,"2":a})` are both `["1","2"]`. Two EDAGs differing
+only in the order of index keys are therefore one JS value with two
+hashes, which the core invariant's print-run-compare test cannot
+distinguish. The conclusion stands on the non-index cases. This holds with A4 rejected — the evaluation *order* of
 property operands is as free as any other (subject 8); what is fixed is
 the result. Sorted-key canonicalization (as `fjs compile` applies to
 data output, [spec/README.md](../spec/README.md)) must **not** be
@@ -737,14 +749,22 @@ the FJS compiler would never emit. To validate:
   subject 8);
 - unknown command tags: validation error;
 - **property operands** of `"."` and `".()"`: a permitted string
-  constant, a number constant, or a `"+"` / `"Number"` node — anything
-  else is a validation error, which is what keeps computed-string
+  constant, a number constant, or a **unary** `"+"` / `"Number"` node —
+  anything else is a validation error. The arity qualifier is
+  load-bearing: binary `"+"` concatenates, so
+  `[".", o, ["+", "constr", "uctor"]]` would rebuild a prohibited name at
+  run time and reach `Object`. Only the unary form is guaranteed to
+  yield a number or throw. Anything else is a validation error, which is what keeps computed-string
   prototype access unrepresentable ([Operations](#operations)). The
   prohibited-name list comes from
   [property-accessor](../spec/todo/2330-property-accessor.md), and
   because the key is a *constant* the check happens once, at
   construction, not on every access;
 - duplicate object-constructor keys: validation error (subject 4);
+- object-constructor key `"__proto__"`: **not** a validation error — it
+  denotes an ordinary own property (subject 4) — but it constrains
+  printing, since `{ "__proto__": v }` as JS assigns a prototype instead
+  ([proto-property-key](./proto-property-key.md), subject 12);
 - **acyclicity**: DJS cannot express cycles (const-before-use), but an
   `Any` handed to the `Function` constructor can be built by other means —
   cyclic node graphs must be rejected;
@@ -789,14 +809,13 @@ an optimization:
 
 |EDAG|2330|key|
 |---|----|---|
-|`[".", o, p]`|`instance_property` + `at`|string constant (permitted), or a number|
+|`[".", o, p]`|`at`, plus `instance_property` for the implemented names 2330 lists — 2330 routes every other name to `own_property`|string constant (permitted), or a number|
 |`[".()", o, p, args]`|`instance_method_call` + `at_call`|same|
 |`["own", o, k]`|`own_property`|any computed string; own properties only|
 
 `"."` merges 2330's static-name and numeric-index commands because the
 operand restriction ([Operations](#operations)) covers both safely; the
-static/numeric split that remains is a bytecode specialization, as
-option 2 said. But `own_property` cannot be folded in: it is what makes
+static/numeric split that remains is a bytecode specialization. But `own_property` cannot be folded in: it is what makes
 computed-string access *possible at all*, precisely by skipping the
 prototype chain.
 
@@ -805,7 +824,7 @@ freed the tag, and `[a, b]` is precisely how JS spells an array literal.
 The earlier objection — that `["[]", a, b]` would read as both a
 two-element array and `a[b]` — disappeared with access moved to `"."`.
 Word tags now survive only where JS genuinely has no expression
-spelling: `"args"`, `"frame"`, `"self"`, `"throw"`.
+spelling: `"args"`, `"frame"`, `"self"`, `"throw"`, `"own"`.
 
 ### 7. Top-level shape of a function
 
@@ -1132,11 +1151,21 @@ host holding the source, not of FS code.)
 
 What that requires of the printer:
 
-- **Every operation needs an expression form.** The two operations with
-  no JS expression spelling need runnable workarounds, not
-  approximations: `["throw", v]` prints as `(() => { throw v })()`, and
-  a function using `["self"]` prints as a *named function expression*,
-  `function self(…) { … self(…) … }`. Both `eval` correctly.
+- **Every operation needs an expression form.** The operations with no
+  JS expression spelling need runnable workarounds, not approximations:
+  `["throw", v]` prints as `(() => { throw v })()`; a function using
+  `["self"]` prints as a *named function expression*,
+  `function self(…) { … self(…) … }`; and `["own", o, k]` prints as its
+  recognized pattern, `Object.getOwnPropertyDescriptor(o, k)?.value`.
+  All `eval` correctly.
+
+  `["own", …]` has a consequence for the closed-scope claim below: its
+  printed form names the built-in `Object`, so the printed text is not
+  closed over constants and the three leaves alone — it also depends on
+  the ambient built-ins `eval` provides. That is sound (built-ins are
+  the same in every JS engine) but it is a fourth thing the printer
+  renders, and it is why built-in namespaces are still open in
+  subject 10.
 - **Sharing must be preserved.** A node referenced twice must print as
   one `const` used twice, never as two copies: `[x, x]` and `[{}, {}]`
   are different functions (subject 1). This is the same graph-flattening
