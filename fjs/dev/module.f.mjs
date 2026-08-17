@@ -178,6 +178,16 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root: {} })(loadModuleMap({ INIT_CWD: 'missing' }))
         assert(result[0] === 'error', result)
     },
+    loadModuleMapReportsUnimportableModule: () => {
+        // The other half of the same breaking change, and the half `readdir`
+        // does not cover: discovery lists the file, then the import of it
+        // fails. `'a.f.ts': []` is content rather than a module, so the
+        // virtual runner's `import` refuses it. Without this, a `loadFile`
+        // that turned every import failure into a success would still pass
+        // every other proof here.
+        const [, result] = virtual({ ...emptyState, root: { 'a.f.ts': [] } })(loadModuleMap({}))
+        assert(result[0] === 'error', result)
+    },
     loadModuleMapStripsInitCwdPrefix: () => {
         // With `INIT_CWD` set (the normal `npm run` case), discovery starts
         // from that subdirectory and each key is relativized against it, so
