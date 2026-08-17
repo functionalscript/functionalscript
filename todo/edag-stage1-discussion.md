@@ -30,7 +30,7 @@ guards, A4) are merged into the graph by the **`","` operation**:
   lowers to a `","` node verbatim, `toString(f)` prints it back
   verbatim, and a JS engine running the printed source implements one
   legal schedule (left-to-right, eager) of the same semantics. The
-  statement spellings normalize to the same node — all three of
+  statement spellings normalize to the same node — all four of
 
   ```js
   const f = a => { assert(a >= 0); return a + 2 }
@@ -55,7 +55,7 @@ guards, A4) are merged into the graph by the **`","` operation**:
   throwing.
 - The operands of a `","` are this document's **branches**: rooted
   subgraphs of the DAG, sharing nodes freely by reference — distinct
-  from the control-flow branches of the future `cond` (subject 3).
+  from the control-flow branches of `"?:"` (subject 3).
 - **Stage 1 ships without `","`**: a stage 1 body is a plain node, and
   the operation is introduced later, when asserts arrive, without
   changing the body's shape.
@@ -342,9 +342,10 @@ recursion with no special machinery.
   it is the same "hash a cycle" problem `["self"]` solves for the direct
   case.
 - **Binds to the innermost enclosing function**, exactly like
-  `["args"]` — so it inherits the same open corner: once
-  `["=>", …]` nests, a node using `["self"]` cannot be shared
-  across nesting depths (subject 3, subject 9).
+  `["args"]` — so once `["=>", …]` nests, a node using `["self"]`
+  cannot be shared across nesting depths. That is the closed-scope
+  model, not a defect: it is what makes each function body hash
+  independently (subjects 3 and 9).
 - **Word tag**: JS has no expression spelling for "this function"
   (`arguments.callee` is forbidden in strict mode). `toString(f)` can
   print a *named function expression* — `function self(…) { … self(…) … }`
@@ -743,26 +744,22 @@ the FJS compiler would never emit. To validate:
 
 ### 6. Command vocabulary vs. the existing spec names
 
-**Status:** open
+**Status:** decided
 
-[property-accessor](../spec/todo/2330-property-accessor.md) already names
+[property-accessor](../spec/todo/2330-property-accessor.md) names five
 commands: `at`, `at_call`, `instance_property`, `instance_method_call`,
-`own_property`. This proposal's `"."` = its `at`; `".()"` = its
-`at_call`.
+`own_property`. The EDAG keeps the general layer only — `"."` = its
+`at`, `".()"` = its `at_call`, `["own", …]` = its `own_property` — while
+`instance_property` and `instance_method_call` stay compile-time
+specializations for the bytecode, where performance distinctions belong
+([serialization](../spec/todo/serialization.md)).
 
-Options:
-
-1. Adopt the existing names in the EDAG.
-2. the EDAG keeps only the general layer (`"."`, `".()"`); 2330's
-   `instance_property` / `instance_method_call` are noted as compile-time
-   specializations of the VM's internal bytecode, not EDAG-level
-   distinctions.
-
-Leaning toward 2 (minimal EDAG; bytecode is where performance distinctions
-live per [serialization](../spec/todo/serialization.md)). Consequence: the
-EDAG interpreter carries the safety burden 2330 assigns to compile-time
-checks — `[".", obj, "constructor"]`, `__proto__`, and other prohibited
-names must be rejected at *runtime*.
+An earlier draft added: "consequence — the EDAG interpreter carries the
+safety burden 2330 assigns to compile-time checks; prohibited names must
+be rejected at *runtime*". That no longer holds. The property operand is
+restricted syntactically ([Operations](#operations)), so a prohibited
+name is a **validation** error at construction, and a computed string
+never reaches `"."` at all.
 
 **Decided for the structural tags: they are JS syntax too** —
 `[".", object, property]`, `["()", object, args]`,
@@ -925,8 +922,8 @@ without `","`; these rules bind the operation when it is introduced.
   speculated.
 - Memoization by node identity: a shared node evaluates once, at its
   first demand.
-- Future: a control-flow branch operand (`cond`, subject 3) carries its
-  guards as a `","` node inside the branch — per-branch effect
+- Future: a control-flow branch operand (an arm of `"?:"`, subject 3)
+  carries its guards as a `","` node inside the arm — per-branch effect
   membership with no extra machinery.
 
 ### 9. Canonical graph serialization and hashing

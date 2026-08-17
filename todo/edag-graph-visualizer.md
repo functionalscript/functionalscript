@@ -6,9 +6,9 @@
 ### Problem
 
 A function's EDAG is a **DAG whose sharing is semantic**
-([edag-spec](./edag-spec.md)): a node referenced twice is evaluated once,
-and `[x, x]` is a different function from `[{}, {}]`. Every textual view
-hides exactly that:
+([edag-stage1-discussion](./edag-stage1-discussion.md), subject 1): a
+node referenced twice is evaluated once, and `[x, x]` is a different
+function from `[{}, {}]`. Every textual view hides exactly that:
 
 - source text — the sharing shows only as `const` bindings, and two
   functions that read identically can differ in which nodes are shared;
@@ -57,6 +57,8 @@ What the rendering must show, beyond a plain tree:
 
 ### Related
 
-- [edag-spec](./edag-spec.md) — the format being visualized.
+- [edag-spec](./edag-spec.md) — the RTTI schema of the format.
+- [edag-stage1-discussion](./edag-stage1-discussion.md) — the format
+  being visualized, and where its semantics are worked out.
 - `toString(f)` is the *text* counterpart of the same data; the two
   together cover both audiences.

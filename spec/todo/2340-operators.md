@@ -38,7 +38,7 @@ The [comma operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Ref
 const f = a => (assert(a >= 0), a + 2)
 ```
 
-Each operand but the last is evaluated for its throw-potential and its value discarded; the value of the expression is the last operand. The equivalent statement spellings — a bare `assert(...)` statement, or a `const` whose value is unused — denote the same function, and all of them lower to the EDAG's `comma` operation ([edag-spec](../../todo/edag-spec.md)), which is where the exact semantics live: every operand is evaluated before the result is revealed, but the order among the discarded operands is not observable.
+Each operand but the last is evaluated for its throw-potential and its value discarded; the value of the expression is the last operand. The equivalent statement spellings — a bare `assert(...)` statement, or a `const` whose value is unused — denote the same function, and all of them lower to the EDAG's `","` operation ([edag-stage1-discussion](../../todo/edag-stage1-discussion.md), subject 8), which is where the exact semantics live: every operand is evaluated before the result is revealed, but the order among the discarded operands is not observable.
 
 Asserts express **internal contract breaches**, not input validation: untrusted input must be validated with values (`Result` / `Nullable`), since a program that throws on user input can be crashed by any user.
 
