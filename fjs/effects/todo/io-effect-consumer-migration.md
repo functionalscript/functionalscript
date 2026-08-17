@@ -22,8 +22,24 @@ grep -rn unwrapStep --include='*.f.mjs' --include='*.mjs' fjs | grep -v effects/
 Every hit is a consumer that has chosen "panic" because nothing better was
 available at the time, not because panicking is the right answer there. A
 server that cannot read its session state kills the process; a test runner that
-cannot write a line does the same. `fjs/dev` is the same defect spelled with a
-bare `unwrap` instead.
+cannot write a line does the same.
+
+**That grep is necessary but not sufficient, and finishing this issue means
+running two more.** `unwrapStep` is one greppable name precisely so the
+un-migrated sites can be counted — but by construction it cannot see a site
+that never used it:
+
+```sh
+grep -rn '\bunwrap(\|throw ' --include='*.f.mjs' fjs   # the same defect, spelled differently
+```
+
+`fjs/dev` was the first found that way; `fjs/cas`'s `list` and the `fjs run`
+command are two more, and neither was on this list until someone looked. The
+third sweep has no grep: an interface whose *type* has no error channel forces
+every implementation to panic, however it is spelled. `Reporter` and `Cas.list`
+were both that, and both were in modules this file had already ticked off. When
+a module is migrated, read its published types and ask which of them can still
+only answer by throwing.
 
 These modules were left out of the first tranche because each changes a
 published type, not just a chain: the migration reaches their callers, so each
@@ -98,11 +114,14 @@ modules still queued:
 - [x] `fjs/emergent_testing` — reporter, `registerModule`, `runModuleMap`,
       `defaultTest`; `Reporter<O>` member types.
 - [ ] `fjs/dev` — `loadModuleMap` and `allFiles`.
-- [ ] `fjs/cas/evo` — the cache slot and the `Evo<O>` API, plus `fjs/mcp/evo`.
+- [x] `fjs/cas/evo` — the cache slot and the `Evo<O>` API, plus `fjs/mcp/evo`.
 - [ ] `fjs/protocol/mcp` and its stdio transport.
 - [ ] `fjs/mcp`.
-- [ ] Delete this file once the grep above returns only considered, commented
-      sites, and check off Stage 4 in
+- [ ] `fjs` — the `run` command's bare `unwrap` of `import_`, which panics the
+      CLI on a module that will not import. Found by the sweep below, not by
+      the `unwrapStep` grep.
+- [ ] Delete this file once **both** sweeps below come back clean, and check
+      off Stage 4 in
       [io-effect-migration](./io-effect-migration.md).
 - [ ] `npx tsc`, `fjs t` and `npm run cov` after each pull request.
 

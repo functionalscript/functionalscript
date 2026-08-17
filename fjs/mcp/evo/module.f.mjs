@@ -52,6 +52,7 @@
 import { string, option, array } from '../../types/rtti/module.f.mjs'
 import { lockField } from '../../media/revision/module.f.mjs'
 import { pure, step } from '../../effects/module.f.mjs'
+import { errorMessage } from '../../effects/node/module.f.mjs'
 import {
     toolEntry, errorResult, okResult,
 } from '../../protocol/mcp/module.f.mjs'
@@ -121,9 +122,14 @@ export const evoToolRegistry = e => [
         // format could not represent an empty subject or one containing a
         // newline without ambiguity — JSON encoding can.
 
+        // A cache slot the runner cannot reach is a tool-level error, not a
+        // panic: the client asked a question the server could not answer, and
+        // saying so is an ordinary `isError` result.
         (({ archived }) => step(
             e.list(archived),
-            subjects => pure(okResult(toJson(subjects)))
+            r => pure(r[0] === 'error'
+                ? errorResult(errorMessage(r[1]))
+                : okResult(toJson(r[1])))
         )),
     ),
     toolEntry(
@@ -132,7 +138,9 @@ export const evoToolRegistry = e => [
         evoHeadArgs,
         ({ subject }) => step(
             e.head(subject),
-            heads => pure(okResult(heads.join('\n'))),
+            r => pure(r[0] === 'error'
+                ? errorResult(errorMessage(r[1]))
+                : okResult(r[1].join('\n'))),
         ),
     ),
     toolEntry(
@@ -153,9 +161,18 @@ export const evoToolRegistry = e => [
         'evo_add',
         'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server. `lock` is optional resolver input: a map from dependency subject to the cBase32 hash of the content it resolves to, or to a nested map scoping further bindings under that subject (use nesting only for conflicting choices a flat map cannot express, e.g. two dependencies needing different versions of a third). Pass a cBase32 hash instead of a map to share one already stored as a `vnd.fjs.lock` blob; the server records the reference and does not follow it.',
         evoAddArgs,
+        // Two `Result`s, two different failures, one MCP shape. The outer one
+        // is the effect channel — the cache slot was unreachable; the inner is
+        // the domain verdict — the revision itself was rejected. Both are
+        // `isError` to the client, but only the inner one carries a message it
+        // can act on, so they are rendered separately rather than collapsed.
         input => step(
             e.add(input),
-            result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(result[1]))
+            r => {
+                if (r[0] === 'error') { return pure(errorResult(errorMessage(r[1]))) }
+                const result = r[1]
+                return pure(result[0] === 'error' ? errorResult(result[1]) : okResult(result[1]))
+            }
         ),
     ),
 ]

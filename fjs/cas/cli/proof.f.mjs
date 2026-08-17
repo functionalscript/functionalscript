@@ -116,9 +116,15 @@ export const proof = {
         assertEq(exitCode, 1, ['expected exit 1', exitCode])
         assert(finalState.stderr.length !== 0, 'expected error in stderr')
     },
-    throw: {
-        // `.cas` exists but is a file, not a directory: a real storage error
-        // that must surface, not be masked as an empty list.
-        mainListCorruptStore: () => virtual({ ...emptyState, root: { '.cas': [vec8(0x2An)] } })(main(makeOptions(['list']))),
+    // `.cas` exists but is a file, not a directory: a real storage error that
+    // must surface, not be masked as an empty list. It is no longer a panic
+    // either — `list` answers with the error and the CLI reports it on stderr
+    // and exits 1, which is why this is an ordinary proof rather than a
+    // `throw` one.
+    mainListCorruptStore: () => {
+        const [state, code] = virtual({ ...emptyState, root: { '.cas': [vec8(0x2An)] } })(main(makeOptions(['list'])))
+        assertEq(code, 1)
+        assert(state.stderr !== '', ['expected the storage error reported on stderr', state.stderr])
+        assertEq(state.stdout, '')
     },
 }

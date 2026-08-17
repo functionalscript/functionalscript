@@ -31,6 +31,7 @@ import {
     history,
     historyStep,
     mapStep as ioMapStep,
+    pureError,
     pureOk,
     resultStep,
     step as ioStep,
@@ -291,18 +292,21 @@ export const fileCas = sha2 => path => {
             // empty store, mirroring how `read` maps a missing shard to an error item.
             // A `.cas` that exists but cannot be read (permissions, corruption) is a
             // genuine storage error and is surfaced, not masked as "no hashes".
-            step(access(storePrefix), a => {
-                if (a[0] === 'error') {
-                    if (isNotFound(a[1])) { return pure([]) }
-                    throw a[1]
-                }
-                return mapStep(
-                    readdir(storePrefix, { recursive: true }),
-                    r => unwrap(r).flatMap(({ name, parentPath, isFile }) =>
-                        toOption(isFile
-                            ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
-                            : null)))
-            }),
+            //
+            // `resultStep` because both branches genuinely matter: the absent
+            // store is a success answering `ok([])`, and every other failure is
+            // the caller's to see. It used to `throw` here, which is what the
+            // paragraph above always meant by "surfaced" but could not say
+            // while the return type had no error channel to say it in.
+            resultStep(access(storePrefix), a =>
+                a[0] === 'error'
+                    ? isNotFound(a[1]) ? pureOk([]) : pureError(a[1])
+                    : ioMapStep(
+                        readdir(storePrefix, { recursive: true }),
+                        r => r.flatMap(({ name, parentPath, isFile }) =>
+                            toOption(isFile
+                                ? cBase32ToVec(normalize(parentPath).substring(normalizedStorePrefix.length).replaceAll('/', '') + name)
+                                : null)))),
         url: hash =>
             join(path, toPath(hash))
     }

@@ -6,6 +6,7 @@
  */
 
 import type { Operation, Effect } from '../../effects/types.ts'
+import type { IoEffect, NotImplemented } from '../../effects/io/types.ts'
 import type { MemOp } from '../../effects/memory/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
@@ -107,11 +108,22 @@ export type Evo<O extends Operation> = {
      * adding it later is a compatible extension of this parameter, while
      * removing it would not be.
      */
-    readonly list: (archived?: true) => Effect<MemOp, readonly Subject[]>
+    readonly list: (archived?: true) => IoEffect<MemOp, readonly Subject[], NotImplemented>
     /** Returns the current head hashes of `subject` (empty if unknown). */
-    readonly head: (subject: Subject) => Effect<MemOp, readonly Hash[]>
-    /** Adds a new head; see {@link addRevision}. */
-    readonly add: (input: RevisionData) => Effect<O | MemOp, Result<Hash, string>>
+    readonly head: (subject: Subject) => IoEffect<MemOp, readonly Hash[], NotImplemented>
+    /**
+     * Adds a new head; see {@link addRevision}.
+     *
+     * **The two `Result`s are not the same answer and do not collapse.** The
+     * inner one is the domain verdict — a parent that does not resolve, a
+     * revision too large to encode, a `Cas` write that failed — which is
+     * information the caller asked for. The outer one is the effect channel:
+     * whether the cache slot could be reached at all. Folding the first into
+     * the second would report "invalid parent hash" the way it reports a
+     * runner that cannot dispatch `memWrite`, and a caller wants to answer
+     * those differently.
+     */
+    readonly add: (input: RevisionData) => IoEffect<O | MemOp, Result<Hash, string>, NotImplemented>
     /**
      * The revision at `hash`, decoded, validated, and canonicalized; see
      * {@link readRevision}. Served from the store today, so the `MemOp` in the
