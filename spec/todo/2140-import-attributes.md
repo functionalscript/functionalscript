@@ -2,13 +2,20 @@
 
 ```js
 import a from './a.json' with { type: "json" }
-export default [a]
+import b from './b.txt' with { type: "text" }
+export default [a, b]
 ```
 
-A JSON module is imported with an attribute naming its type. JavaScript
-requires it — without the attribute the same line is an error, so a
-FunctionalScript module that imports JSON today is not a JavaScript module,
-which is principle 2.
+A file that is not a module is imported with an attribute naming its type:
+`"json"` for a JSON document, `"text"` for a string. JavaScript requires the
+attribute — without it the first line is an error, so a FunctionalScript
+module that imports JSON today is not a JavaScript module, which is
+principle 2.
+
+The two types are at opposite ends of the same clause and arrive on different
+schedules: `"json"` is standard and shipping, and the parser is behind it;
+`"text"` is Stage 3 and no engine has it yet, so the parser must not get ahead
+of it.
 
 ## Why
 
@@ -23,6 +30,7 @@ ESM:
 |`import x from './a.json' with { type: "json" }`|the parsed document|
 |`import x from './a.f.js' with { type: "json" }`|`ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE`|
 |`import x from './a.json' with { foo: "bar" }`|`ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`|
+|`import x from './a.json' with { type: "text" }`|`ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`|
 
 The parser has it exactly backwards: it accepts the first line, which no
 JavaScript engine loads, and rejects the second with `unexpected token`.
@@ -30,14 +38,20 @@ JavaScript engine loads, and rejects the second with `unexpected token`.
 ## Rules
 
 - The clause is `with` followed by an object of attributes. The only attribute
-  is `type`, and its only value is the string `"json"`; any other key or value
-  is an error, as it is in JavaScript.
-- The attribute declares the type, it does not reinterpret the file: it must
+  is `type`, and its values are the strings `"json"` and `"text"`; any other
+  key or value is an error, as it is in JavaScript.
+- `type: "json"` declares a type, it does not reinterpret the file: it must
   agree with what the extension already says, so `type: "json"` on a
   FunctionalScript module is an error. The extension names the language of the
   file `fjs compile` is given
   ([proto-property-key](../2480-proto-property-key.md)); this is how a module
   names the language of a file it imports.
+- `type: "text"` is not a language claim — it says the file is not parsed at
+  all — so whether it likewise has to agree with an extension is an open
+  question. Taking the bytes of `./LICENSE`, of a `.txt`, or of a `.f.js` is
+  the same operation, and the proposal's own example imports a file no
+  extension rule would recognize; whatever JavaScript settles on is what to
+  follow.
 - The attribute value is a string literal, like an import path — not an
   expression.
 
@@ -72,16 +86,46 @@ document — a `.json` import without it is `ERR_IMPORT_ATTRIBUTE_MISSING` on
 any engine, so FunctionalScript should refuse it too rather than quietly
 reading the file as a module.
 
+## `type: "text"`
+
+```js
+import license from './LICENSE' with { type: "text" }
+export default { license }
+```
+
+A text import is a file read as a string, and a string is a DJS value — so
+this is the second reader the clause selects, next to JSON, and the cheapest
+one: no tokenizer, no parser, no `AstModule`. The file's bytes decode as UTF-8
+into one leaf value.
+
+It is [TC39's import-text proposal](https://github.com/tc39/proposal-import-text),
+Stage 3 as of March 2026, and its rules are the ones to take: the decoding is
+UTF-8 with no way to ask for another encoding, so a file that is not UTF-8 is
+an error rather than a mojibake string. The sibling
+[import-bytes](https://github.com/tc39/proposal-import-bytes) proposal
+(`type: "bytes"`, a `Uint8Array`) is what a non-UTF-8 file would go through,
+and is a separate question here — DJS has no byte-array value.
+
+**Not implemented by engines yet.** Node 22 answers
+`ERR_IMPORT_ATTRIBUTE_UNSUPPORTED` for `type: "text"`, so a module using it
+does not load today. That is the reverse of the `"json"` case, where the
+parser is behind the engines: here the parser would be ahead of them, which
+is a principle-2 hazard of its own — a module the compiler accepts that no
+engine runs. Landing `"text"` therefore waits on Stage 4 and shipping
+implementations, while `"json"` does not wait on anything.
+
 ## Notes
 
 - The serializer never emits an `import`, so this is a parser-side feature
   only.
 - The transpiler already reads only its root file by extension (`parserFor` in
   [`fjs/djs/transpiler`](../../fjs/djs/transpiler/module.f.mjs)) and every
-  import as FunctionalScript. What this feature adds is the second reader at
-  the import site: a module's import list is `readonly string[]`
+  import as FunctionalScript. What this feature adds is a reader per declared
+  type at the import site: a module's import list is `readonly string[]`
   ([`ast/types.ts`](../../fjs/djs/ast/types.ts)) and would carry each path's
-  declared type alongside it.
+  type alongside it. A `"text"` import is not a module at all — it resolves to
+  a string without being parsed — so the type also decides whether the
+  imported file has imports of its own to resolve.
 - `import type` ([namespace-import](./2220-namespace-import.md)) is a separate
   clause on the same statement and is unaffected.
 
