@@ -224,16 +224,24 @@ access, and grouping are not recognized yet — see the
 [roadmap](./todo/README.md).
 
 |Value|Example|In JSON|
-|-----|-------|-------|
-|`null`|`null`|yes|
-|boolean|`true`, `false`|yes|
-|number|`-42.5`, `3e2`|yes|
-|string|`"hello"`|yes|
-|`bigint`|`34n`, `-34n`|no|
-|`undefined`|`undefined`|no|
-|array|`[1, "a"]`|yes|
-|object|`{ "a": 1 }`|yes|
-|reference|`a`|no — a declared `import` or `const` name|
+|-----|-------|:-----:|
+|`null`|`null`|✅|
+|boolean|`true`, `false`|✅|
+|number|`-42.5`, `3e2`|✅|
+|string|`"hello"`|✅|
+|array|`[1, "a"]`|✅|
+|object|`{ "a": 1 }`|✅|
+|`bigint`|`34n`, `-34n`|❌|
+|`undefined`|`undefined`|❌|
+|reference|`a`|❌|
+
+A reference is a declared `import` or `const` name and denotes the value that
+name holds ([shared values](#shared-values-constants)). It is not a kind of
+value of its own: what a reference denotes is one of the types above, and what
+makes it worth writing is that two references can denote the *same* value.
+
+The ❌ rows are what a module has and a JSON document does not, so they are
+also what a `.json` output cannot carry ([output](#output)).
 
 ### Numbers
 
