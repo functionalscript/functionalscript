@@ -85,19 +85,13 @@ input — names the file being compiled instead.
 
 ### File Types
 
-|File type|Extension|Notes|
-|---------|---------|-----|
-|JSON|`.json`|Tree.|
-|FJS source|`.f.mjs`|Graph with functions. Authored ESM JavaScript with JSDoc types; the extension does **not** imply that the current parser/compiler accepts the module.|
-|FJS source|`.f.js`|Graph. Currently generated output; must not be authored.|
+|File type|Extension|Denotes|
+|---------|---------|-------|
+|JSON|`.json`|A tree of values.|
+|FunctionalScript|`.f.js`|A graph of values.|
 
-Once authored `.f.js` package support is complete, compiler-supported `.f.mjs`
-modules may move to authored `.f.js`, making `.f.js` the
-compiler-compatibility marker. This migration grows incrementally as compiler
-support grows. See [`fjs/fsc/README.md`](../fjs/fsc/README.md) for the
-authoritative extension contract and
-[`todo/migrate-typescript-to-mjs.md`](../todo/migrate-typescript-to-mjs.md)
-for the repository migration plan.
+The extension is what separates the two languages, and it is the only thing
+that does: a text is read as whichever language its name declares.
 
 ### JSON Input
 
