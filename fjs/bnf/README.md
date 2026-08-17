@@ -3,6 +3,7 @@
 See [Backus-Naur form](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form).
 
 - the functional representation [./module.f.mjs](./module.f.mjs),
+- the original BNF metasyntax, described by itself [./self/](./self/),
 - the serializable representation [./data/](./data/),
 - symbols for multi-character tokens [./token_symbol/](./token_symbol/),
 - the layer every matcher backend shares [./matcher/](./matcher/),
