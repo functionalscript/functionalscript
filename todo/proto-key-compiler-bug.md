@@ -131,8 +131,22 @@ fjs compile protoGood.js protoOutput.js  # succeeds
   is unchanged. The textual assertion alone would pass for a spelling
   that happens to look right; this one states the property being tested.
 
-Compiling `proto.json` to `.json` output must keep `"__proto__":`, per
-the serializer scope note above.
+**The reverse direction — FunctionalScript in, JSON out:**
+
+```sh
+fjs compile protoGood.js out.json   # succeeds
+```
+
+`out.json` must be exactly `{"__proto__":{"a":42}}` — plain JSON, with
+**no `["__proto__"]:` artifact**. The computed spelling is a JavaScript
+form; emitting it into a `.json` file would produce something no JSON
+parser accepts. So the two emitters diverge on purpose, and this test
+pins that: the JS emitter must use the computed spelling, the JSON
+emitter must not.
+
+Together the two directions close the loop:
+`proto.json → protoOutput.js → out.json` returns the original document
+byte for byte, with each hop using its own language's spelling.
 
 ### Why both halves matter
 
