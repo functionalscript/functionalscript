@@ -25,6 +25,37 @@ The extension is load-bearing in a second way nobody checks: a file named
 keys, `import`, and `const`, none of which is JSON. Calling it "the JSON
 reader" is already false; it is the DJS reader with one rule relaxed.
 
+### What JavaScript does
+
+JavaScript decides this question the other way, and principle 2 makes its
+answer evidence rather than trivia. `import` never looks at the bytes:
+
+|`import` in Node 22 (`"type": "module"`)|result|
+|-|-|
+|`import x from './data.json'`|`ERR_IMPORT_ATTRIBUTE_MISSING`, "needs an import attribute of `type: json`"|
+|`import x from './data.json' with { type: 'json' }`|`{ a: 1 }`|
+|`{"a":1}` in a `.js` file, no attribute|`SyntaxError: Unexpected token ':'` — read as JavaScript|
+|the same `.js` file `with { type: 'json' }`|`ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE`|
+
+The extension (or, in a browser, the response MIME type) fixes the module
+type; the import attribute is **required** for JSON and may only agree with it.
+The last row is the sharp one: the attribute cannot reinterpret a file, and no
+amount of JSON-shaped content makes a `.js` file JSON. Sniffing is absent on
+purpose — a server serving JSON that a page executes as JavaScript is XSSI, so
+the type is declared, never guessed.
+
+Reading a JSON document as JavaScript, meanwhile, yields nothing rather than a
+value: `{"a":1}` is not even parseable (`{` opens a block, and `"a":1` is no
+labeled statement — a label must be an identifier), and the documents that do
+parse — `[1,2]`, `5`, `null`, `{a:1}` — are statements, not exports, so the
+import fails with "does not provide an export named 'default'".
+
+So today's `parserFor` is a degenerate form of JavaScript's own answer: the
+extension decides, but nothing in the source says what the author meant. The
+choice below is therefore not "extension versus grammar" but **declaration
+versus grammar**, and a third option exists — keep the extension and let the
+source declare the language, the way `with { type: "json" }` does.
+
 ### Proposal
 
 One grammar accepting both languages, with the distinction inside it instead
@@ -66,8 +97,42 @@ matcher, while the parser below it is a hand-written fold. Writing the parser's
 grammar down is most of the value here; merging the two languages is what makes
 it worth doing now.
 
+### Alternative: the declaration, JavaScript's answer
+
+Keep the extension as the language selector and let the source say what it
+means, the way an import attribute does. Sniffing a text for its language is
+what JavaScript refused to do, and the grammar above is a form of sniffing:
+adding `export default` to a document silently changes what a `__proto__` key
+in it means, which is the "same bytes, different meaning" the problem section
+objects to, moved from the file name into the text.
+
+The counter-argument is that the compiler reads a named local file rather than
+an untrusted response, so the XSSI reasoning does not transfer, and that a
+document with no module statement is not JavaScript in any reading — the
+grammar is not guessing between two possible meanings, it is refusing to
+invent a JavaScript meaning for a text JavaScript rejects.
+
+Deciding between the two is the point of this issue; the tasks below assume
+the grammar and will need rewriting if the declaration wins.
+
+### A related gap: FunctionalScript imports of JSON
+
+`import a from "./x.json"` is accepted by the DJS parser and — since the
+extension change — read as a JSON document. **That same line is an error in
+JavaScript**: `ERR_IMPORT_ATTRIBUTE_MISSING`, as the table above shows. So an
+FS module importing JSON does not behave on a JavaScript engine the way it
+behaves here, which is principle 2. The language has no `with { type: … }`
+clause today, so the import cannot be spelled correctly at all. Whichever
+option wins above, the import surface needs one of: an import-attribute
+clause, or a rule that JSON is not importable.
+
 ### Tasks
 
+- [ ] Decide between the merged grammar and a source-level declaration; the
+      remaining tasks assume the grammar.
+- [ ] Import attributes, or a rule that a JSON file is not importable — today
+      `import a from "./x.json"` is accepted here and is an error in
+      JavaScript.
 - [ ] Decide whether a bare value document may use DJS extensions (`bigint`,
       `undefined`, comments, identifier and computed keys) or must be JSON —
       today it may, and nothing checks a `.json` file for JSON syntax.
