@@ -86,6 +86,24 @@ export const proof = {
         assert(result[0] === 'error', result)
     },
 
+    // The same, one turn of the loop later. The proof above only reaches the
+    // *first* read, so a tail that swallowed the failure on recursion would
+    // still pass it: here stdin yields one complete line, the handler answers
+    // it, and the read after that fails.
+    readFailureAfterALinePropagates: () => {
+        const bytes = toBytes(ping(1) + '\n')
+        const runner = mockRun(/** @type {Parameters<typeof mockRun<Read | Write, readonly number[]>>[0]} */ ({
+            read: () => (/** @type {readonly number[]} */ s) =>
+                s.length === 0
+                    ? [s, error(/** @type {const} */ (['notImplemented', 'read']))]
+                    : [s.slice(1), ok(s[0])],
+            write: () => (/** @type {readonly number[]} */ s) => [s, ok(undefined)],
+        }))
+        const [rest, result] = runner(bytes)(stdioTransport(echoStep))
+        assertEq(rest.length, 0, 'expected the line to be consumed before the failure')
+        assert(result[0] === 'error', result)
+    },
+
     // EOF on the very first read: clean shutdown, nothing written, no further reads.
     eofImmediately: () => {
         const state = run('')
