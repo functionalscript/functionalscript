@@ -17,6 +17,12 @@ continues the numbering used there.
 
 ## 2. DJS
 
+### 2.1. Module structure
+
+1. [ ] [import-attributes](./2140-import-attributes.md) — `with { type: "json" }`,
+   which JavaScript requires of a JSON import and the parser does not accept,
+   and `with { type: "text" }`, a file imported as a string.
+
 ### 2.2. Priority 1
 
 We need it to use JSDoc and TypeScript.
@@ -29,7 +35,11 @@ We need it to use JSDoc and TypeScript.
 2. [ ] [operators](./2340-operators.md),
 3. [ ] [grouping](./2350-grouping.md),
 4. [ ] [built-in](./2360-built-in.md),
-5. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed).
+5. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
+6. [ ] computed property key from an expression — `{ [name]: 0 }`. The
+   constant-string form is implemented
+   ([computed-property](../2470-computed-property.md)); the general one waits
+   on expressions.
 
 ### 2.4. Syntactic Sugar
 

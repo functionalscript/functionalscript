@@ -1,6 +1,10 @@
 /**
  * DJS serializer for formatting AST values back to source text.
  *
+ * Two output formats share this one walk over the value: `stringify` emits a
+ * JavaScript module and `stringifyAsTree` a JSON tree. They differ in `const`
+ * hoisting and in how a property key is spelled — see `_KeySerialize`.
+ *
  * @module
  *
  * @import { Unknown, Object, _MapEntries } from '../types.ts'
@@ -88,11 +92,43 @@ const entryValue = kv => kv[1]
 /** @type {_RefLookup} */
 const noRef = () => null
 
-/** @type {(refLookup: _RefLookup) => (sort: _MapEntries) => (value: Unknown) => List<string>} */
-const buildSerialize = refLookup => sort => {
+/**
+ * How one output format spells a property key. The two formats disagree about
+ * exactly one key, `__proto__`, so the spelling is a parameter of
+ * `buildSerialize` rather than a property of the shared JSON helper.
+ *
+ * @typedef {(key: string) => List<string>} _KeySerialize
+ */
+
+const protoKey = '__proto__'
+
+/**
+ * JSON spells every key as a quoted string. `"__proto__"` included: `JSON.parse`
+ * has no prototype special case, so the plain spelling already round-trips, and
+ * the computed form below is not JSON at all.
+ *
+ * @type {_KeySerialize}
+ */
+const jsonKeySerialize = stringSerialize
+
+/**
+ * JavaScript reads `{"__proto__": v}` as a prototype assignment, so a module
+ * emitting that spelling would not read back the value it was given. The
+ * computed form is the only spelling whose evaluation reproduces the property,
+ * which makes it a requirement of round-tripping rather than a style choice.
+ * See [spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md).
+ *
+ * @type {_KeySerialize}
+ */
+const jsKeySerialize = key => key === protoKey
+    ? flat([['['], stringSerialize(key), [']']])
+    : stringSerialize(key)
+
+/** @type {(keySerialize: _KeySerialize) => (refLookup: _RefLookup) => (sort: _MapEntries) => (value: Unknown) => List<string>} */
+const buildSerialize = keySerialize => refLookup => sort => {
     /** @type {(kv: readonly [string, Unknown]) => List<string>} */
     const propertySerialize = ([k, v]) => flat([
-        stringSerialize(k),
+        keySerialize(k),
         colon,
         f(v)
     ])
@@ -124,13 +160,18 @@ const buildSerialize = refLookup => sort => {
     return f
 }
 
-/** @type {(mapEntries: _MapEntries) => (value: Unknown) => List<string>} */
-export const serializeWithoutConst = buildSerialize(noRef)
+/**
+ * Serializes a value as a JSON tree — no `const` hoisting, and JSON's key
+ * spelling.
+ *
+ * @type {(mapEntries: _MapEntries) => (value: Unknown) => List<string>}
+ */
+export const serializeWithoutConst = buildSerialize(jsonKeySerialize)(noRef)
 
 /** @type {(sort: _MapEntries) => (refs: _Refs) => (root: Unknown) => (djs: Unknown) => List<string>} */
 const serializeWithConst = sort => refs => {
     const shared = sharedRef(refs)
-    return root => buildSerialize(value => {
+    return root => buildSerialize(jsKeySerialize)(value => {
         if (value === root) { return null }
         const rc = shared(value)
         if (rc !== undefined) { return [`c${rc[0]}`] }
@@ -175,7 +216,12 @@ const addRef = djs => refs => {
     return new Map([...refs, [djs, newCounter]])
 }
 
-/** @type {(sort: _MapEntries) => (djs: Unknown) => string} */
+/**
+ * Serializes a value as a JavaScript module: a shared value becomes a `const`,
+ * and a `__proto__` key is written in the computed form the language requires.
+ *
+ * @type {(sort: _MapEntries) => (djs: Unknown) => string}
+ */
 export const stringify = sort => djs => {
     const refs = countRefs(djs)
     const consts = getConstants(refs)(djs)
@@ -192,7 +238,12 @@ export const stringify = sort => djs => {
     return concat(listConcat(constStrings)(rootStrings))
 }
 
-/** @type {(mapEntries: _MapEntries) => (value: Unknown) => string} */
+/**
+ * Serializes a value as a JSON tree: shared values are expanded, and keys keep
+ * JSON's plain spelling.
+ *
+ * @type {(mapEntries: _MapEntries) => (value: Unknown) => string}
+ */
 export const stringifyAsTree = sort => compose(serializeWithoutConst(sort))(concat)
 
 

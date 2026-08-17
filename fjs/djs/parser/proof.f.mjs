@@ -2,7 +2,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  */
 
-import { parseFromTokens } from './module.f.mjs'
+import { parseFromTokens, parseJsonFromTokens } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -158,6 +158,143 @@ export const proof = {
             const result = stringifyDjsModule(obj[1])
             if (result !== '[[],[{"a":1}]]') { throw result }
         }
+    ],
+    // A computed key `["a"]` is a third spelling of an ordinary key, next to
+    // the identifier and the string literal (#2470).
+    computedKey: [
+        () => {
+            const tokenList = tokenizeString('export default {["a"]:1}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"a":1}]]')
+        },
+        () => {
+            // all three spellings in one object, plus a trailing comma
+            const tokenList = tokenizeString('export default {a:1,"b":2,["c"]:3,}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"a":1,"b":2,"c":3}]]')
+        },
+        () => {
+            // trivia is trivia inside the brackets too
+            const tokenList = tokenizeString('export default { [ /* c */ \n // c \n "a" /* c */ \n // c \n ] : 1 }')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"a":1}]]')
+        },
+        () => {
+            // the key that has no other spelling
+            const tokenList = tokenizeString('export default {["__proto__"]:{"a":42}}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"__proto__":{"a":42}}]]')
+        },
+    ],
+    invalidComputedKey: [
+        () => {
+            // the brackets hold a string literal, not a number
+            const tokenList = tokenizeString('export default {[1]:2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // eof inside the brackets, before the key
+            const tokenList = tokenizeString('export default {[')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // the brackets are not closed
+            const tokenList = tokenizeString('export default {["a"}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // eof after the key, before ']'
+            const tokenList = tokenizeString('export default {["a"')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // a computed key still needs its ':'
+            const tokenList = tokenizeString('export default {["a"]}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+    ],
+    // `{__proto__: v}` and `{"__proto__": v}` assign a prototype in JavaScript
+    // instead of adding a property, so FunctionalScript rejects both spellings
+    // and accepts only the computed one (#2480).
+    protoKey: [
+        () => {
+            const tokenList = tokenizeString('export default {__proto__:1}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"__proto__":1}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            // the same two spellings after a ',', the parser's other key state
+            const tokenList = tokenizeString('export default {"a":1,__proto__:2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"a":1,"__proto__":2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+    ],
+    // `parseJsonFromTokens` reads a JSON document, which differs from a
+    // FunctionalScript module in exactly one rule: `"__proto__"` is an
+    // ordinary data key there, the way `JSON.parse` reads it (#2480).
+    json: [
+        () => {
+            const tokenList = tokenizeString('{"__proto__":5}')
+            const obj = parseJsonFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"__proto__":5}]]')
+        },
+        () => {
+            // the same text read as FunctionalScript, which is what it is not
+            const tokenList = tokenizeString('{"__proto__":5}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            // no JSON document has an identifier key, so this spelling means
+            // what JavaScript makes of it in either reader
+            const tokenList = tokenizeString('{__proto__:5}')
+            const obj = parseJsonFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            // every other key reads the same in both
+            const tokenList = tokenizeString('{"a":1,b:2,["c"]:3}')
+            const obj = parseJsonFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"a":1,"b":2,"c":3}]]')
+        },
     ],
     invalid: [
         () => {

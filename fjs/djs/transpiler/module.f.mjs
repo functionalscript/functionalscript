@@ -9,6 +9,8 @@
  * @import { AstModule } from '../ast/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { ReadFile } from '../../effects/node/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { ParseContext } from './types.ts'
  */
 
@@ -18,7 +20,7 @@ import { tokenize } from '../tokenizer/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
-import { parseFromTokens } from '../parser/module.f.mjs'
+import { parseFromTokens, parseJsonFromTokens } from '../parser/module.f.mjs'
 import { run } from '../ast/module.f.mjs'
 import { foldStep, pure, step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
@@ -33,15 +35,35 @@ const mapDjs = context => path => {
     return res.djs
 }
 
-/** @type {(path: string) => Effect<ReadFile, Result<AstModule, ParseError>>} */
-const parseModule = path => step(
+/** @typedef {(tokens: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>} _Parse */
+
+/**
+ * The reader for the file named on the command line, chosen by its extension
+ * the same way `fjs/djs` chooses the writer: a `.json` file is a JSON
+ * document, anything else a FunctionalScript module. The two disagree about
+ * the `__proto__` key and nothing else
+ * ([spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md)).
+ *
+ * The root is the only file this applies to. What declares an *imported*
+ * file's language is the import statement — `with { type: "json" }` — which
+ * the language does not have yet
+ * ([spec/todo/2140-import-attributes](../../../spec/todo/2140-import-attributes.md)),
+ * so an import reads a FunctionalScript module whatever the file is called.
+ * Reading it as JSON on the strength of its name would mean a module could
+ * pull in a value no JavaScript engine would give it.
+ *
+ * @type {(path: string) => _Parse}
+ */
+const parserFor = path => path.endsWith('.json') ? parseJsonFromTokens : parseFromTokens
+
+/** @type {(parse: _Parse) => (path: string) => Effect<ReadFile, Result<AstModule, ParseError>>} */
+const parseModule = parse => path => step(
     readUtf8File(path),
     result => {
         if (result[0] === 'error') {
             return pure(error({ message: 'file not found', metadata: null }))
         }
-        const tokens = tokenize(stringToList(result[1]))(path)
-        return pure(parseFromTokens(tokens))
+        return pure(parse(tokenize(stringToList(result[1]))(path)))
     })
 
 /** @type {(path: string) => (parseModuleResult: Result<AstModule, ParseError>) => (context: ParseContext) => Effect<ReadFile, ParseContext>} */
@@ -51,7 +73,8 @@ const transpileWithImports = path => parseModuleResult => context => {
         const pathsCombine = listMap(pathConcat(dir))(parseModuleResult[1][0])
         const pathsArray = toArray(pathsCombine)
         const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }
-        const x0 = foldStep(pure(pathsArray), contextWithStack, foldNextModuleOp)
+        // Every import is a FunctionalScript module — see `parserFor`.
+        const x0 = foldStep(pure(pathsArray), contextWithStack, foldNextModuleOp(parseFromTokens))
         return step(
             x0,
             contextWithImports => {
@@ -70,8 +93,8 @@ const transpileWithImports = path => parseModuleResult => context => {
     return pure({ ...context, error: parseModuleResult[1] })
 }
 
-/** @type {(path: string) => (context: ParseContext) => Effect<ReadFile, ParseContext>} */
-const foldNextModuleOp = path => context => {
+/** @type {(parse: _Parse) => (path: string) => (context: ParseContext) => Effect<ReadFile, ParseContext>} */
+const foldNextModuleOp = parse => path => context => {
     if (context.error !== null) {
         return pure(context)
     }
@@ -85,7 +108,7 @@ const foldNextModuleOp = path => context => {
     }
 
     return step(
-        parseModule(path),
+        parseModule(parse)(path),
         parseModuleResult => transpileWithImports(path)(parseModuleResult)(context))
 }
 
@@ -96,10 +119,13 @@ const foldNextModuleOp = path => context => {
  * evaluates the AST. Returns `['ok', value]` on success, or `['error', ParseError]`
  * on a parse failure or circular dependency.
  *
+ * `path` is read in the language its extension names; every file it imports is
+ * read as FunctionalScript (`parserFor`).
+ *
  * @type {(path: string) => Effect<ReadFile, Result<Unknown, ParseError>>}
  */
 export const transpile = path => step(
-    foldNextModuleOp(path)({ stack: null, complete: null, error: null }),
+    foldNextModuleOp(parserFor(path))(path)({ stack: null, complete: null, error: null }),
     /** @type {(context: ParseContext) => Effect<ReadFile, Result<Unknown, ParseError>>} */
     (context) => {
         if (context.error !== null) {
