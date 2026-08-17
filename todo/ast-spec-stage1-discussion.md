@@ -123,9 +123,11 @@ node; `node` below means any of them.
 |`{ key: node, … }`|`{ key: … }`|1|object constructor; key order is part of the value (subject 4)|
 |`["[]", ...node]`|`[…]`|1|array constructor|
 |`["args"]`|—|1|the arguments array (subject 2)|
-|`[".", object, property]`|`o.p`, `o[p]`|1|property access; one operation for both spellings|
+|`[".", object, property]`|`o.p`, `o[p]`|1|property access; `property` is restricted (see below)|
 |`["()", object, args]`|`f(...args)`|1|call; `args` is one node yielding an array|
-|`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|1|method call; keeps `this` binding|
+|`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|1|method call; keeps `this` binding; same `property` restriction|
+|`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|1|own property by a computed **string**; no prototype chain|
+|`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
 |`["=>", frame, body]`|`(…) => …`|later|closures; `frame` yields the captured array (see below)|
 
@@ -136,10 +138,44 @@ already spells these, so the AST reuses the spelling instead of
 inventing a vocabulary to be memorized and translated. `".()"` reads as
 the method call it denotes, `o.p(…)`.
 
-`"."` is **one operation for both JS access spellings**: the property
-operand is a node, so `o.p` (a string constant) and `o[p]` (any
-expression) are the same operation with different operands. The AST
-does not carry 2330's static/computed distinction (subject 6).
+**The property operand is restricted**, in `"."` and `".()"` alike. It
+must be one of:
+
+- a **string constant** that is not on the prohibited list
+  ([property-accessor](../spec/todo/2330-property-accessor.md):
+  `constructor`, `__proto__`, the instance methods, …);
+- a **number constant**;
+- a node tagged `"+"` (unary) or `"Number"` — each guaranteed to yield
+  a number or throw.
+
+So a run-time-computed **string** can never reach `"."`. This is a
+*syntactic* rule, checkable when the `Function` constructor validates
+its input (subject 5), which is what 2330 already asks of the byte code:
+the expression inside `[]` must be a unary `+`, a number literal, or a
+permitted string literal.
+
+The point is that the dangerous case becomes **unrepresentable rather
+than checked**: prototype-chain lookup by a computed name — the abuse
+2330 documents (`f.constructor("…")`, `__proto__`) — has no spelling in
+the AST at all.
+
+Unary `+` throws on a **bigint**, so `["Number", node]` exists as the
+converting alternative; it is spelled by its JS built-in, `Number(x)`.
+
+Accessing a property by a **computed string** is a different operation,
+`["own", object, key]` — own properties only, no prototype chain, so a
+computed name is harmless. Its JS spelling is a pattern rather than
+syntax:
+
+```js
+Object.getOwnPropertyDescriptor(object, key)?.value
+```
+
+FunctionalScript recognizes that construction and lowers it to the
+single operation — the same whitelisted-pattern mechanism that gives
+`assert(…), result` its `","` node
+([spec/README.md](../spec/README.md)). Note `?.` is not an FS operator
+in its own right; it exists only inside this recognized pattern.
 
 `"=>"` is the function constructor because FS has only **arrow
 functions** — there is exactly one spelling to reuse, so the tag is
@@ -156,7 +192,11 @@ Word tags remain only where no unambiguous JS spelling exists:
   is not FS's model, and `arguments.callee` is forbidden in strict
   mode);
 - `"throw"` — a JS keyword, but a *statement*, so there is no
-  expression spelling to reuse.
+  expression spelling to reuse;
+- `"own"` — its JS form is a recognized *pattern*, not syntax.
+
+`"Number"` is not an exception: it is spelled exactly as the JS built-in
+it denotes.
 
 Symbol tags never collide with word tags, so both live in one namespace.
 
@@ -624,6 +664,14 @@ the FJS compiler would never emit. To validate:
   from another operand of the same `","` is redundant (well-formedness,
   subject 8);
 - unknown command tags: validation error;
+- **property operands** of `"."` and `".()"`: a permitted string
+  constant, a number constant, or a `"+"` / `"Number"` node — anything
+  else is a validation error, which is what keeps computed-string
+  prototype access unrepresentable ([Operations](#operations)). The
+  prohibited-name list comes from
+  [property-accessor](../spec/todo/2330-property-accessor.md), and
+  because the key is a *constant* the check happens once, at
+  construction, not on every access;
 - duplicate object-constructor keys: validation error (subject 4);
 - **acyclicity**: DJS cannot express cycles (const-before-use), but an
   `Any` handed to the `Function` constructor can be built by other means —
@@ -661,17 +709,28 @@ spelling as an operator symbol is, and `".()"` reads as the `o.p(…)` it
 denotes. This supersedes the `at` / `call` / `bindCall` names used
 earlier in this document.
 
-**Decided: `"."` and `".()"`, not `"[]"` and `"[]()"`.** One operation
-covers both JS access spellings — the property operand is a node, so
-`o.p` and `o[p]` differ only in whether that operand is a string
-constant. `"."` is the shorter and more readable tag, and `".()"`
-composes to read exactly like the method call it is. The AST therefore
-does **not** carry 2330's `instance_property` /
-`instance_method_call` (static name) as separate operations: they stay
-compile-time specializations for the bytecode, option 2 above.
-`own_property` likewise stays out — 2330 spells it
-`Object.getOwnPropertyDescriptor(o, p)?.value`, an ordinary call, not a
-syntax needing a tag.
+**Decided: `"."` and `".()"`, not `"[]"` and `"[]()"`.** `"."` is the
+shorter and more readable tag, and `".()"` composes to read exactly like
+the method call it is.
+
+**Decided: the AST keeps three access operations, not one and not
+2330's five.** An earlier draft of this subject said `"."` was a single
+operation covering every access, with 2330's distinctions left to the
+bytecode. That was wrong — the distinction is a *safety* boundary, not
+an optimization:
+
+|AST|2330|key|
+|---|----|---|
+|`[".", o, p]`|`instance_property` + `at`|string constant (permitted), or a number|
+|`[".()", o, p, args]`|`instance_method_call` + `at_call`|same|
+|`["own", o, k]`|`own_property`|any computed string; own properties only|
+
+`"."` merges 2330's static-name and numeric-index commands because the
+operand restriction ([Operations](#operations)) covers both safely; the
+static/numeric split that remains is a bytecode specialization, as
+option 2 said. But `own_property` cannot be folded in: it is what makes
+computed-string access *possible at all*, precisely by skipping the
+prototype chain.
 
 **Decided: the array constructor is `"[]"`.** Choosing `"."` for access
 freed the tag, and `[a, b]` is precisely how JS spells an array literal.
