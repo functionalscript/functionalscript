@@ -6,7 +6,7 @@ Each subject below is resolved separately; once all are **decided**, the
 result is distilled into a concrete design in [ast-spec.md](./ast-spec.md)
 and this document is deleted.
 
-## Baseline: a computation DAG with anchored evaluation
+## Baseline: an expression DAG with anchored evaluation
 
 *This baseline supersedes the original index-based sequence proposal; the
 revision history is recorded in subjects 1 and 8.*
@@ -95,13 +95,40 @@ export default [",",
 
 ### The core invariant
 
-**Any validated ASDAG behaves on the VM exactly as the corresponding
+**Any validated EDAG behaves on the VM exactly as the corresponding
 source behaves on a JavaScript engine.**
 
-(*ASDAG* — Abstract Syntax **Directed Acyclic Graph** — is the precise
-name for what this document builds: the sharing and the acyclicity are
-both semantic, so "tree" was never right. `spec/` and
-[ast-spec](./ast-spec.md) still say *AST*.)
+**EDAG** — *expression DAG* — is the name for what this document
+builds. Both halves are load-bearing:
+
+- **expression**: the graph has no statement nodes at all. `const` is
+  sharing, `if` is `"?:"`, `return` is the root node, an assert is a
+  `","` operand ([Operations](#operations)). Every node is an
+  expression;
+- **DAG**: sharing and acyclicity are both *semantic*, so "tree" was
+  never right.
+
+The term comes from *Compilers: Principles, Techniques, and Tools*
+(Aho, Sethi & Ullman; 2nd ed. with Lam), where a DAG for an expression
+is a syntax tree whose common subexpressions are shared, and DAGs
+represent basic blocks for local optimization. **FunctionalScript
+inverts its status.** There a DAG is *derived* from a tree by common
+subexpression elimination, and the two denote the same computation
+because sharing is unobservable — an optimization. Here the EDAG is
+**primary**: sharing is observable (`[x, x]` and `[{}, {}]` are
+different functions, subject 1), so no tree denotes what an EDAG
+denotes, and the sharing is authored rather than recovered by analysis.
+
+Related representations, for orientation: *term graphs* in the
+term-rewriting literature are the same structure (though often
+permitting cycles, which validation here forbids); the **VSDG** (value
+state dependence graph) is the closest compiler IR, since its state
+edges play the role of our `","` operands; *sea of nodes* is the same
+family but carries control edges and a scheduling phase this design
+does not have.
+
+`spec/` and [ast-spec](./ast-spec.md) still say *AST*; renaming them is
+a follow-up.
 
 "Behaves the same" means, precisely, under the assumptions:
 
