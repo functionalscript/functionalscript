@@ -1,6 +1,6 @@
 /**
- * @import { Effect } from '../effects/types.ts'
- * @import { IoEffect, NotImplemented } from '../effects/io/types.ts'
+ * @import { RawEffect } from '../effects/types.ts'
+ * @import { Effect, NotImplemented } from '../effects/io/types.ts'
  * @import { NodeProgramOptions, OpResult, Sandbox, Write } from '../effects/node/types.ts'
  * @import { JsModule } from '../effects/node/virtual/types.ts'
  * @import { Reporter } from './types.ts'
@@ -44,7 +44,7 @@ const parseEvent = rttiParse(event)
 
 /** @typedef {Reporter<Sandbox | Write>} _TestReporter */
 
-/** @type {(e: _Event) => IoEffect<Write, void, NotImplemented>} */
+/** @type {(e: _Event) => Effect<Write, void, NotImplemented>} */
 const writeEvent = e => log(JSON.stringify(e))
 
 /** @type {(stdout: string) => readonly _Event[]} */
@@ -310,7 +310,7 @@ export const githubReporterOutput = () => {
 // the failure on, so the exit code rather than a message is what is observable:
 // a run that cannot say anything at all still says it failed.
 export const reporterWriteFailure = () => {
-    /** @type {(s: undefined) => <T>(e: Effect<_FailOps, T>) => readonly [undefined, T]} */
+    /** @type {(s: undefined) => <T>(e: RawEffect<_FailOps, T>) => readonly [undefined, T]} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_FailOps, undefined>>[0]} */ ({
         readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true }])],
@@ -330,7 +330,7 @@ export const reporterWriteFailure = () => {
         write: (_stream, _data) => s => [s, error(/** @type {const} */(['notImplemented', 'write']))],
     }))
     const [, exitCode] = runner(undefined)(
-        /** @type {Effect<_FailOps, number>} */(main(options('.'))))
+        /** @type {RawEffect<_FailOps, number>} */(main(options('.'))))
     assertEq(exitCode, 1)
 }
 
@@ -339,7 +339,7 @@ export const reporterWriteFailure = () => {
 /** @typedef {Test | All | Await} _RegisterMockOps */
 
 /**
- * @typedef {(s: _RegisterMockState) => <T>(e: Effect<_RegisterMockOps, T>) => readonly [_RegisterMockState, T]} _RegisterRunner
+ * @typedef {(s: _RegisterMockState) => <T>(e: RawEffect<_RegisterMockOps, T>) => readonly [_RegisterMockState, T]} _RegisterRunner
  */
 
 /**
@@ -349,7 +349,7 @@ export const reporterWriteFailure = () => {
  *     ctx: TestContext,
  *     name: string,
  *     expectFailure: boolean,
- *     fn: (t: TestContext) => Effect<_RegisterMockOps, void>,
+ *     fn: (t: TestContext) => RawEffect<_RegisterMockOps, void>,
  * ) => (s: _RegisterMockState) => readonly [_RegisterMockState, OpResult<void>]} _RegisterTestOp
  */
 
@@ -466,7 +466,7 @@ export const registerSelectsContextAndStar = () => {
     const runRegister = extra => {
         /** @type {(readonly [TestContext, string])[]} */
         let calls = []
-        /** @type {(s: undefined) => <T>(e: Effect<_RegisterMockOps | Readdir | Import, T>) => readonly [undefined, T]} */
+        /** @type {(s: undefined) => <T>(e: RawEffect<_RegisterMockOps | Readdir | Import, T>) => readonly [undefined, T]} */
         let runner
         runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
             readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true }])],
@@ -484,7 +484,7 @@ export const registerSelectsContextAndStar = () => {
             await: p => s => [s, ok([p])],
             test: (ctx, name, _xf, _fn) => s => { calls = [...calls, [ctx, name]]; return [s, ok(undefined)] },
         }))
-        runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, number>} */ (register({
+        runner(undefined)(/** @type {RawEffect<_RegisterMockOps | Readdir | Import, number>} */ (register({
             ...defaultNodeProgramOptions, env: {}, testContext: nodeCtx, bunTestContext: bunCtx, ...extra,
         })))
         return calls

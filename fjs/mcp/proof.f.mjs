@@ -1,6 +1,6 @@
 /**
  * @import { Unknown } from '../media/json/types.ts'
- * @import { Effect, Operation } from '../effects/types.ts'
+ * @import { RawEffect, Operation } from '../effects/types.ts'
  * @import { Response } from '../protocol/json_rpc/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from '../cas/types.ts'
@@ -56,11 +56,11 @@ const parseCasGetResult = rttiParse(casGetResult)
 // Feeds each message to `handler` in order, collecting every response.
 /**
  * @template {Operation} O
- * @param {(v: Unknown) => Effect<O, Response | null>} handler
- * @returns {(msgs: readonly unknown[]) => Effect<O, readonly unknown[]>}
+ * @param {(v: Unknown) => RawEffect<O, Response | null>} handler
+ * @returns {(msgs: readonly unknown[]) => RawEffect<O, readonly unknown[]>}
  */
 const feed = handler => msgs => {
-    /** @type {(i: number, acc: readonly unknown[]) => Effect<O, readonly unknown[]>} */
+    /** @type {(i: number, acc: readonly unknown[]) => RawEffect<O, readonly unknown[]>} */
     const go = (i, acc) => (
         i === msgs.length
             ? pure(acc)

@@ -1,9 +1,9 @@
 /**
- * The IoEffect composition API: the branch-aware {@link step},
+ * The Effect composition API: the branch-aware {@link step},
  * {@link catchStep}, and {@link resultStep}, the two lifts that enter the
  * layer, and {@link mapStep}.
  *
- * An `IoEffect<O, T, E>` is `Effect<O, Result<T, E>>` (`./types.ts`) — the raw
+ * An `Effect<O, T, E>` is `RawEffect<O, Result<T, E>>` (`./types.ts`) — the raw
  * effect from [`../module.f.mjs`](../module.f.mjs) with its failure in the
  * type. These operations are what makes that alias worth naming: raw `step`
  * knows nothing of `Result`, so it runs its continuation whether or not the
@@ -44,8 +44,8 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { Fold } from '../../types/function/operator/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Effect, History, Operation } from '../types.ts'
- * @import { IoEffect } from './types.ts'
+ * @import { RawEffect, History, Operation } from '../types.ts'
+ * @import { Effect } from './types.ts'
  */
 
 import { fold } from '../../types/list/module.f.mjs'
@@ -53,22 +53,22 @@ import { error, mapOk, ok, unwrap } from '../../types/result/module.f.mjs'
 import { mapStep as rawMapStep, pure, step as rawStep } from '../module.f.mjs'
 
 /**
- * Lifts a value into a successful `IoEffect` — `pure(ok(v))` written once.
+ * Lifts a value into a successful `Effect` — `pure(ok(v))` written once.
  *
  * One of the two entry points into the layer: {@link step} and its siblings
- * compose `IoEffect`s but cannot produce the first one, and until stage 3 gives
+ * compose `Effect`s but cannot produce the first one, and until stage 3 gives
  * the operations their `Result` envelope, nothing else does either.
  *
  * The error channel is `never`, which is not a special case to handle but the
  * ordinary consequence of the union rules: `never | E` is `E`, so a lifted
  * value composes with any chain without widening its errors.
  *
- * @type {<T>(v: T) => IoEffect<never, T, never>}
+ * @type {<T>(v: T) => Effect<never, T, never>}
  */
 export const pureOk = v => pure(ok(v))
 
 /**
- * Lifts an error into a failed `IoEffect` — `pure(error(e))` written once, and
+ * Lifts an error into a failed `Effect` — `pure(error(e))` written once, and
  * the mirror of {@link pureOk}, with the success channel `never` instead.
  *
  * This is how a program *originates* a failure: a fallback that has run out of
@@ -76,7 +76,7 @@ export const pureOk = v => pure(ok(v))
  * runner producing `error(notImplemented)` is stage 6 and does not go through
  * here — that error arrives through an operation's own continuation.
  *
- * @type {<E>(e: E) => IoEffect<never, never, E>}
+ * @type {<E>(e: E) => Effect<never, never, E>}
  */
 export const pureError = e => pure(error(e))
 
@@ -121,12 +121,12 @@ export const pureError = e => pure(error(e))
  * @template {Operation} Q
  * @template R
  * @template F
- * @param {IoEffect<O, T, E>} e
- * @param {(t: T) => IoEffect<Q, R, F>} f
- * @returns {IoEffect<O | Q, R, E | F>}
+ * @param {Effect<O, T, E>} e
+ * @param {(t: T) => Effect<Q, R, F>} f
+ * @returns {Effect<O | Q, R, E | F>}
  */
 export const step = (e, f) => {
-    /** @type {(r: Result<T, E>) => IoEffect<Q, R, E | F>} */
+    /** @type {(r: Result<T, E>) => Effect<Q, R, E | F>} */
     const cont = r => r[0] === 'error' ? pure(r) : f(r[1])
     return rawStep(e, cont)
 }
@@ -157,12 +157,12 @@ export const step = (e, f) => {
  * @template {Operation} Q
  * @template R
  * @template F
- * @param {IoEffect<O, T, E>} e
- * @param {(err: E) => IoEffect<Q, R, F>} f
- * @returns {IoEffect<O | Q, T | R, F>}
+ * @param {Effect<O, T, E>} e
+ * @param {(err: E) => Effect<Q, R, F>} f
+ * @returns {Effect<O | Q, T | R, F>}
  */
 export const catchStep = (e, f) => {
-    /** @type {(r: Result<T, E>) => IoEffect<Q, T | R, F>} */
+    /** @type {(r: Result<T, E>) => Effect<Q, T | R, F>} */
     const cont = r => r[0] === 'error' ? f(r[1]) : pure(r)
     return rawStep(e, cont)
 }
@@ -190,9 +190,9 @@ export const catchStep = (e, f) => {
  * power until real consumers demonstrate a repeated policy worth naming.
  *
  * @type {<O extends Operation, T, E, Q extends Operation, R, F>(
- *     e: IoEffect<O, T, E>,
- *     f: (r: Result<T, E>) => IoEffect<Q, R, F>
- * ) => IoEffect<O | Q, R, F>}
+ *     e: Effect<O, T, E>,
+ *     f: (r: Result<T, E>) => Effect<Q, R, F>
+ * ) => Effect<O | Q, R, F>}
  */
 export const resultStep = rawStep
 
@@ -212,13 +212,13 @@ export const resultStep = rawStep
  * fail, so a chain that only projects its value keeps the errors it already
  * had.
  *
- * @type {<O extends Operation, T, E, R>(e: IoEffect<O, T, E>, f: (t: T) => R) => IoEffect<O, R, E>}
+ * @type {<O extends Operation, T, E, R>(e: Effect<O, T, E>, f: (t: T) => R) => Effect<O, R, E>}
  */
 export const mapStep = (e, f) => rawMapStep(e, mapOk(f))
 
 /**
  * Leaves the layer by **panicking** on the error branch: `ok` values continue
- * as an ordinary raw `Effect`, an `error` is thrown.
+ * as an ordinary raw `RawEffect`, an `error` is thrown.
  *
  * This is the program exercising its right to treat a failure as fatal, and it
  * is a policy — not a conversion. It belongs at a site that genuinely has no
@@ -232,7 +232,7 @@ export const mapStep = (e, f) => rawMapStep(e, mapOk(f))
  * choice can be reviewed, and the set of sites that have not yet chosen
  * anything better is exactly the set this name marks.
  *
- * @type {<O extends Operation, T, E>(e: IoEffect<O, T, E>) => Effect<O, T>}
+ * @type {<O extends Operation, T, E>(e: Effect<O, T, E>) => RawEffect<O, T>}
  */
 export const unwrapStep = e => rawMapStep(e, unwrap)
 
@@ -241,7 +241,7 @@ export const unwrapStep = e => rawMapStep(e, unwrap)
  * one-element tuple that {@link historyStep} extends. The Io twin of the raw
  * `history`, and the entry point a chain needs exactly once.
  *
- * @type {<O extends Operation, T, E>(e: IoEffect<O, T, E>) => IoEffect<O, readonly[T], E>}
+ * @type {<O extends Operation, T, E>(e: Effect<O, T, E>) => Effect<O, readonly[T], E>}
  */
 export const history = e => mapStep(e, v => [v])
 
@@ -268,12 +268,12 @@ export const history = e => mapStep(e, v => [v])
  * @template {Operation} Q
  * @template R
  * @template F
- * @param {IoEffect<O, P, E>} e
- * @param {(...p: Readonly<P>) => IoEffect<Q, R, F>} f
- * @returns {IoEffect<O | Q, readonly[R, ...P], E | F>}
+ * @param {Effect<O, P, E>} e
+ * @param {(...p: Readonly<P>) => Effect<Q, R, F>} f
+ * @returns {Effect<O | Q, readonly[R, ...P], E | F>}
  */
 export const historyStep = (e, f) => {
-    /** @type {(param: P) => IoEffect<Q, readonly[R, ...P], F>} */
+    /** @type {(param: P) => Effect<Q, readonly[R, ...P], F>} */
     const cont = param => mapStep(f(...param), result => [result, ...param])
     return step(e, cont)
 }
@@ -293,13 +293,13 @@ export const historyStep = (e, f) => {
  * @template {Operation} Q
  * @template S
  * @template E
- * @param {Effect<O, List<T>>} items
+ * @param {RawEffect<O, List<T>>} items
  * @param {S} init
- * @param {(item: T) => (state: S) => IoEffect<Q, S, E>} f
- * @returns {IoEffect<O | Q, S, E>}
+ * @param {(item: T) => (state: S) => Effect<Q, S, E>} f
+ * @returns {Effect<O | Q, S, E>}
  */
 export const foldStep = (items, init, f) => {
-    /** @type {Fold<T, IoEffect<Q, S, E>>} */
+    /** @type {Fold<T, Effect<Q, S, E>>} */
     const op = item => acc => step(acc, f(item))
     return rawStep(items, fold(op)(pureOk(init)))
 }
@@ -315,9 +315,9 @@ export const foldStep = (items, init, f) => {
  * does not even show up as a type error.
  *
  * @type {<O extends Operation, T, Q extends Operation, E>(
- *     items: Effect<O, List<T>>,
- *     f: (item: T) => IoEffect<Q, void, E>
- * ) => IoEffect<O | Q, void, E>}
+ *     items: RawEffect<O, List<T>>,
+ *     f: (item: T) => Effect<Q, void, E>
+ * ) => Effect<O | Q, void, E>}
  */
 export const forEachStep = (items, f) =>
     foldStep(items, undefined, item => () => f(item))

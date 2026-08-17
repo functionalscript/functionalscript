@@ -26,7 +26,7 @@
  *
  * @module
  *
- * @import { IoEffect, NotImplemented } from '../effects/io/types.ts'
+ * @import { Effect, NotImplemented } from '../effects/io/types.ts'
  * @import { IoError } from '../effects/node/types.ts'
  * @import { MemOp } from '../effects/memory/types.ts'
  * @import { Read, Write } from '../effects/node/types.ts'
@@ -79,7 +79,7 @@ export const casConfig = {
  * build the Evo subject/head cache (`initEvo`), allocates the session-state
  * slot, builds the `mcpStep` for the merged tool registry, and drives the
  * read → parse → dispatch → write loop until stdin EOF.
- * @type {(home: string) => IoEffect<Read | Write | MemOp | FileCasOperation, void, NotImplemented | IoError>}
+ * @type {(home: string) => Effect<Read | Write | MemOp | FileCasOperation, void, NotImplemented | IoError>}
  */
 export const casMcpServer = home => ioStep(
     initEvo(fileCas(sha256)(home)),
@@ -94,6 +94,6 @@ export const casMcpServer = home => ioStep(
 
 export const proof = {
     // casMcpServer is never called in integration tests because it drives a
-    // real stdio server; call it here to cover its Effect-building body.
+    // real stdio server; call it here to cover its effect-building body.
     casMcpServer: () => { casMcpServer('/') },
 }

@@ -1,7 +1,7 @@
 /**
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from './types.ts'
- * @import { Effect } from '../effects/types.ts'
+ * @import { RawEffect } from '../effects/types.ts'
  * @import { ReadFile, WriteFile, Rm, Mkdir, IoResult } from '../effects/node/types.ts'
  * @import { Ok } from '../types/result/types.ts'
  * @import { List } from '../effects/list/types.ts'
@@ -77,7 +77,7 @@ const casDefaultResponse = cmd => {
  * failure path's own `rm` of the partial staging file was actually called,
  * not just that some code path returned the right error tag.
  *
- * @type {(overrides: Partial<Record<string, unknown[]>>) => (e: Effect<FileCasOperation, unknown>) => readonly [unknown, readonly string[]]}
+ * @type {(overrides: Partial<Record<string, unknown[]>>) => (e: RawEffect<FileCasOperation, unknown>) => readonly [unknown, readonly string[]]}
  */
 const drive = overrides => {
     /** @type {string[]} */
@@ -102,7 +102,7 @@ const drive = overrides => {
         writeBytes: () => next('writeBytes'),
     }
     const matcher = match(handlers)
-    /** @type {(e: Effect<FileCasOperation, unknown>) => unknown} */
+    /** @type {(e: RawEffect<FileCasOperation, unknown>) => unknown} */
     const run_ = e => {
         const m = matcher(e)
         return m[0] === 'done' ? m[1] : run_(m[2](m[1]))
@@ -141,7 +141,7 @@ const createBigFileContent = () => {
 }
 
 // Test adding a big file and verifying the hash
-/** @type {() => Effect<_TestOp, void>} */
+/** @type {() => RawEffect<_TestOp, void>} */
 const testAddBigFile = () => {
     const bigFilePath = `${testDir}/big-file.bin`
     const cas = fileCas(sha256)(testDir)
@@ -174,7 +174,7 @@ const testAddBigFile = () => {
 }
 
 // Test adding and retrieving a big file
-/** @type {() => Effect<_TestOp, void>} */
+/** @type {() => RawEffect<_TestOp, void>} */
 const testAddAndGetBigFile = () => {
     const bigContent = createBigFileContent()
     const bigFilePath = `${testDir}/big-file.bin`
@@ -213,7 +213,7 @@ const testAddAndGetBigFile = () => {
 }
 
 export const proof = {
-    // Both effects must be interpreted, not merely built: an `Effect` is inert
+    // Both effects must be interpreted, not merely built: a `RawEffect` is inert
     // data, so returning one from a proof runs none of its continuations and
     // asserts nothing.
     addBigFile: () => { virtual(emptyState)(testAddBigFile()) },
@@ -231,7 +231,7 @@ export const proof = {
         const hash = writeResult[1]
         assertEq(length(hash), 256n, ['expected 256-bit hash', length(hash)])
         assertEq(msb.cmp(hash)(computeSync(sha256)([content])), 0, 'write hash mismatch')
-        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, IoResult<readonly Vec[]>>} */
+        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, IoResult<Vec>>) => RawEffect<FileCasOperation, IoResult<readonly Vec[]>>} */
         const drain = acc =>
             stream =>
                 step(
@@ -269,7 +269,7 @@ export const proof = {
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
         const hash = writeResult[1]
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'multi-chunk write hash mismatch')
-        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, IoResult<readonly Vec[]>>} */
+        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, IoResult<Vec>>) => RawEffect<FileCasOperation, IoResult<readonly Vec[]>>} */
         const drain = acc =>
             stream =>
                 step(
@@ -336,7 +336,7 @@ export const proof = {
         const hash = w[1]
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'oversized write hash mismatch')
         // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
-        /** @type {(state: typeof sha256.init) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, IoResult<Vec>>} */
+        /** @type {(state: typeof sha256.init) => (stream: List<FileCasOperation, IoResult<Vec>>) => RawEffect<FileCasOperation, IoResult<Vec>>} */
         const rehash = state =>
             stream =>
                 step(

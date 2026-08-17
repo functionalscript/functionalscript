@@ -1,5 +1,5 @@
 /**
- * @import { Effect, Operation } from './types.ts'
+ * @import { RawEffect, Operation } from './types.ts'
  */
 
 import { step, do_, foldStep, forEachStep, mapStep, match, history, pure, runPure, historyStep } from './module.f.mjs'
@@ -15,7 +15,7 @@ import { assert, assertEq } from '../asserts/module.f.mjs'
  * the option's shape first, then compare the value inside it.
  * @template {Operation} O
  * @template T
- * @param {Effect<O, T>} e
+ * @param {RawEffect<O, T>} e
  * @param {T} expected
  */
 export const assertPure = (e, expected) => {
@@ -26,7 +26,7 @@ export const assertPure = (e, expected) => {
 
 /** @typedef {readonly['add', (a: number, b: number) => number]} _AddOp */
 
-/** @type {(command: 'add') => (a: number, b: number) => Effect<_AddOp, number>} */
+/** @type {(command: 'add') => (a: number, b: number) => RawEffect<_AddOp, number>} */
 const doAdd = do_
 
 const next = match({ add: (a, b) => a + b })
@@ -40,7 +40,7 @@ const next = match({ add: (a, b) => a + b })
  * @typedef {readonly[string, (a: number) => number]} _AnyOp
  */
 
-/** @type {(command: string) => (a: number) => Effect<_AnyOp, number>} */
+/** @type {(command: string) => (a: number) => RawEffect<_AnyOp, number>} */
 const doAny = do_
 
 const anyNext = match({ add: a => a + 1 })

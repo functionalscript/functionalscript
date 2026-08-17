@@ -12,10 +12,10 @@
  *
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Effect, Func, Operation } from '../types.ts'
+ * @import { RawEffect, Func, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoError, IoErrorInfo, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, OpResult, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
- * @import { IoEffect, NotImplemented } from '../io/types.ts'
+ * @import { Effect, NotImplemented } from '../io/types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -80,10 +80,10 @@ export const isNotFound = ([tag, payload]) =>
 
 /**
  * To run the operation `O` should be known by the runner/engine.
- * This is the reason why we merge `O` with `All` in the resulted `Effect`.
+ * This is the reason why we merge `O` with `All` in the resulted `RawEffect`.
  */
 export const all =
-    /** @type {<O extends Operation, T>(...a: readonly Effect<O, T>[]) => Effect<O | All, OpResult<readonly T[]>>} */
+    /** @type {<O extends Operation, T>(...a: readonly RawEffect<O, T>[]) => RawEffect<O | All, OpResult<readonly T[]>>} */
     (do_('all'))
 
 /**
@@ -109,7 +109,7 @@ const okList = list => {
  *
  * `all` alone cannot serve a fallible chain. Its envelope is the runner's
  * (`OpResult`, saying whether the *operation* could be dispatched), so handing
- * it `IoEffect`s nests one `Result` inside another and the caller receives
+ * it `Effect`s nests one `Result` inside another and the caller receives
  * `readonly Result<T, E>[]`. That has to be collapsed before the chain can
  * `step` again, and a continuation that forgets to is the value-discarding
  * hazard this migration exists to remove — one level in, where it is harder to
@@ -123,7 +123,7 @@ const okList = list => {
  * `NotImplemented` with the effects' own `E` for the same reason every other
  * step does — either can be what went wrong.
  *
- * @type {<O extends Operation, T, E>(...a: readonly IoEffect<O, T, E>[]) => IoEffect<O | All, readonly T[], NotImplemented | E>}
+ * @type {<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O | All, readonly T[], NotImplemented | E>}
  */
 export const allOk = (...a) =>
     ioStep(all(...a), rs => pure(okList(rs)))
@@ -131,8 +131,8 @@ export const allOk = (...a) =>
 /**
  * @template {Operation} O0
  * @template T0
- * @param {Effect<O0, T0>} a
- * @returns {<O1 extends Operation, T1>(b: Effect<O1, T1>) => Effect<O0 | O1 | All, OpResult<readonly[T0, T1]>>}
+ * @param {RawEffect<O0, T0>} a
+ * @returns {<O1 extends Operation, T1>(b: RawEffect<O1, T1>) => RawEffect<O0 | O1 | All, OpResult<readonly[T0, T1]>>}
  */
 export const both = a => b =>
     /** @type {any} */ (all)(a, b)
@@ -159,7 +159,7 @@ export const readFile = do_('readFile')
  * pattern-match on it (e.g. convert a failure into a domain-specific error) or
  * `unwrap` at the call site.
  *
- * @type {(path: string) => IoEffect<ReadFile, string, NotImplemented | IoError>}
+ * @type {(path: string) => Effect<ReadFile, string, NotImplemented | IoError>}
  */
 export const readUtf8File = path =>
     ioMapStep(readFile(path), utf8ToString)
@@ -177,7 +177,7 @@ export const writeFile = do_('writeFile')
 /**
  * Writes a string to `path` as UTF-8 bytes.
  *
- * @type {(path: string, content: string) => IoEffect<WriteFile, void, NotImplemented | IoError>}
+ * @type {(path: string, content: string) => Effect<WriteFile, void, NotImplemented | IoError>}
  */
 export const writeUtf8File = (path, content) =>
     writeFile(path, utf8(content))
@@ -249,7 +249,7 @@ const writeLoop = path => {
  * @template {Operation} O
  * @param {string} path
  * @param {List<O, IoResult<Vec>>} e
- * @returns {Effect<O | WriteBytes | CreateExclusive, IoResult<void>>}
+ * @returns {RawEffect<O | WriteBytes | CreateExclusive, IoResult<void>>}
  */
 export const writeFromStream = (path, e) =>
     ioStep(
@@ -264,7 +264,7 @@ export const stat = do_('stat')
 // createServer
 
 export const createServer =
-    /** @type {<O extends Operation>(listener: RequestListener<O>) => Effect<O | CreateServer, OpResult<Server>>} */
+    /** @type {<O extends Operation>(listener: RequestListener<O>) => RawEffect<O | CreateServer, OpResult<Server>>} */
     (do_('createServer'))
 
 // listen
@@ -335,10 +335,10 @@ const lf = 0x0a
  * A failed `read` — a runner without the operation — propagates: the line is
  * not silently truncated into a `null` that a caller would read as EOF.
  *
- * @type {(stream: ReadConsoles) => IoEffect<Read, string | null, NotImplemented>}
+ * @type {(stream: ReadConsoles) => Effect<Read, string | null, NotImplemented>}
  */
 export const readLine = stream => {
-    /** @type {(acc: _UtfList) => IoEffect<Read, string | null, NotImplemented>} */
+    /** @type {(acc: _UtfList) => Effect<Read, string | null, NotImplemented>} */
     const loop = acc =>
         ioStep(
             read(stream),
@@ -383,7 +383,7 @@ export const sandbox = do_('sandbox')
 /** @type {Func<Await>} */
 const awaitPromise = do_('await')
 
-/** @type {(p: unknown) => IoEffect<Await, unknown, NotImplemented>} */
+/** @type {(p: unknown) => Effect<Await, unknown, NotImplemented>} */
 export const awaitIfPromise = p =>
     ioMapStep(awaitPromise(p), ([x]) => x)
 
@@ -405,7 +405,7 @@ export const test = do_('test')
  * here would hand every caller a "failed to report a failure" branch with no
  * better answer available to it than the one taken here.
  *
- * @type {(s: string) => Effect<Write, number>}
+ * @type {(s: string) => RawEffect<Write, number>}
  */
 export const errorExit = s =>
     mapStep(error(s), () => 1)
@@ -451,7 +451,7 @@ export const errorSummary = ([tag, payload]) =>
  * counterpart of {@link isNotFound} at the other end of the channel: where that
  * one asks which failure this is, this one stops asking and reports.
  *
- * @type {<O extends Operation, T>(e: IoEffect<O, T, NotImplemented | IoError>) => Effect<O | Write, number>}
+ * @type {<O extends Operation, T>(e: Effect<O, T, NotImplemented | IoError>) => RawEffect<O | Write, number>}
  */
 export const exitStep = e =>
     step(e, r => r[0] === 'error' ? errorExit(errorMessage(r[1])) : pure(0))

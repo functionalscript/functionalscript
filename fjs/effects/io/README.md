@@ -1,6 +1,6 @@
-# IoEffect — effects with an explicit error channel
+# `Effect` — effects with an explicit error channel
 
-`IoEffect<O, T, E>` is `Effect<O, Result<T, E>>`: the raw effect from
+`Effect<O, T, E>` is `RawEffect<O, Result<T, E>>`: the raw effect from
 [`../module.f.mjs`](../module.f.mjs) with its failure made part of the type.
 It is the **preferred high-level abstraction for fallible work**; the raw
 `Effect<O, T>` remains the low-level representation both it and the raw
@@ -32,7 +32,7 @@ like an ordinary sequence, but it means "run the next effect regardless". Every
 caller must remember to inspect each `Result` by hand, or wrap the continuation
 in `okStep`; missing one silently changes control flow.
 
-With an `IoEffect`-aware `step`, that same line means what it looks like:
+With an error-aware `step`, that same line means what it looks like:
 `console('written')` runs only on `ok`, and an error propagates on its own. That
 gives FunctionalScript the default error-propagation path other languages get
 from exceptions or Rust's `?`, without giving it exceptions.
@@ -55,9 +55,11 @@ branches and replaces both. `types.ts` pins each of those signatures at a
 concrete instantiation, so a "simplification" that unified an error channel
 fails there rather than at some future call site.
 
-The new `step` conflicts with the raw one, which is why these live in their own
-module and can already use their final names. Stage 5 retires the raw public
-abstraction and renames `IoEffect` to `Effect`.
+The `step` here conflicts by name with the raw one, which is why the two live in
+separate modules. Both are public and both are load-bearing: this one for
+anything that can fail, `RawEffect` for the representation, for the runners and
+`do_` that speak it, and for a computation with no failure to report — a `List`
+cell, a `Program`'s exit code, an MCP tool result.
 
 ### `resultStep` is raw `step`, and still earns its name
 
@@ -143,7 +145,7 @@ something better with a failure wants `catchStep` or `resultStep`.
 - **No Io `historyStep`.** It is *expected* — `fjs/cas`'s chains reach back to
   earlier values, so migrating them will need one — but the first consumer
   should shape it. Until then the raw `historyStep` still applies to any
-  `IoEffect` whose links do not short-circuit.
+  `Effect` whose links do not short-circuit.
 - **No mirrored raw API.** Io variants of the other combinators (`foldStep`,
   `forEachStep`) arrive when real consumers require them, not speculatively.
   `mapStep` is here rather than deferred because without it every site

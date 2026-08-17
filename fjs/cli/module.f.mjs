@@ -6,7 +6,7 @@
  * @module
  *
  * @import { NodeOp, NodeProgramOptions, Write } from '../effects/node/types.ts'
- * @import { Effect } from '../effects/types.ts'
+ * @import { RawEffect } from '../effects/types.ts'
  * @import { Commands } from './types.ts'
  */
 
@@ -15,7 +15,7 @@ import { at, fromEntries } from '../types/object/module.f.mjs'
 
 const helpMeta = { names: ['help', 'h', '?'], description: 'Print this help message' }
 
-/** @type {<O extends NodeOp>(commands: Commands<O>) => (options: NodeProgramOptions) => Effect<O | Write, number>} */
+/** @type {<O extends NodeOp>(commands: Commands<O>) => (options: NodeProgramOptions) => RawEffect<O | Write, number>} */
 export const dispatch = commands => options => {
     const [cmd, ...rest] = options.args
     const rows = [...commands, helpMeta]

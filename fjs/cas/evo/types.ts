@@ -5,8 +5,8 @@
  * @module
  */
 
-import type { Operation, Effect } from '../../effects/types.ts'
-import type { IoEffect, NotImplemented } from '../../effects/io/types.ts'
+import type { Operation, RawEffect } from '../../effects/types.ts'
+import type { Effect, NotImplemented } from '../../effects/io/types.ts'
 import type { MemOp } from '../../effects/memory/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
@@ -108,9 +108,9 @@ export type Evo<O extends Operation> = {
      * adding it later is a compatible extension of this parameter, while
      * removing it would not be.
      */
-    readonly list: (archived?: true) => IoEffect<MemOp, readonly Subject[], NotImplemented>
+    readonly list: (archived?: true) => Effect<MemOp, readonly Subject[], NotImplemented>
     /** Returns the current head hashes of `subject` (empty if unknown). */
-    readonly head: (subject: Subject) => IoEffect<MemOp, readonly Hash[], NotImplemented>
+    readonly head: (subject: Subject) => Effect<MemOp, readonly Hash[], NotImplemented>
     /**
      * Adds a new head; see {@link addRevision}.
      *
@@ -123,7 +123,7 @@ export type Evo<O extends Operation> = {
      * runner that cannot dispatch `memWrite`, and a caller wants to answer
      * those differently.
      */
-    readonly add: (input: RevisionData) => IoEffect<O | MemOp, Result<Hash, string>, NotImplemented>
+    readonly add: (input: RevisionData) => Effect<O | MemOp, Result<Hash, string>, NotImplemented>
     /**
      * The revision at `hash`, decoded, validated, and canonicalized; see
      * {@link readRevision}. Served from the store today, so the `MemOp` in the
@@ -132,5 +132,5 @@ export type Evo<O extends Operation> = {
      * operations read, which must not become a breaking change to this type
      * when it happens.
      */
-    readonly revision: (hash: Hash) => Effect<O | MemOp, Result<RevisionData, string>>
+    readonly revision: (hash: Hash) => RawEffect<O | MemOp, Result<RevisionData, string>>
 }

@@ -1,12 +1,12 @@
 /**
  * Core effect type constructors and combinators.
  *
- * An `Effect<O, T>` **is** the raw value — a `Pure` thunk (`() => T`) or a `Do`
+ * A `RawEffect<O, T>` **is** the raw value — a `Pure` thunk (`() => T`) or a `Do`
  * node (`{ command, payload, continuation }`). It is plain data with no methods.
  * Composition is provided externally by {@link step}.
  *
  * **It is the low-level representation.** Fallible work is written against
- * `IoEffect<O, T, E>` — the `Effect<O, Result<T, E>>` with an explicit error
+ * `Effect<O, T, E>` — the `RawEffect<O, Result<T, E>>` with an explicit error
  * channel, and the preferred high-level abstraction (`./io/types.ts`, with the
  * rationale in [`./io/README.md`](./io/README.md)). The combinators here know
  * nothing of `Result`: {@link step} runs its continuation whether or not the
@@ -19,7 +19,7 @@
  *
  * **The composition rules below hold for both layers**, and a fallible chain
  * should follow them through the Io combinators — a raw `historyStep` over an
- * `IoEffect` carries each link's `Result` into the history rather than its
+ * `Effect` carries each link's `Result` into the history rather than its
  * value, and the raw `forEachStep` runs every item whatever each one answered,
  * because a `void` accumulator accepts a `Result` silently.
  *
@@ -31,10 +31,10 @@
  * review flag, because the representation is only cheap to change while its
  * readers stay enumerable.
  *
- * A `decode` function (`(e: Effect<O, T>) => Decoded<O, T>`) once funnelled all
+ * A `decode` function (`(e: RawEffect<O, T>) => Decoded<O, T>`) once funnelled all
  * of that through a single `{ done, result }` / `{ done, command, payload,
  * continuation }` record, so that exactly one function held the shape test. It
- * has been removed. `Effect` is a function type unioned with an object type, so
+ * has been removed. `RawEffect` is a function type unioned with an object type, so
  * `typeof e === 'function'` is already a complete discriminant: `decode` bought
  * no narrowing, it re-encoded that narrowing as a `done` flag to be re-narrowed
  * one indirection later, and its `Decoded` record was declared in terms of the
@@ -43,8 +43,8 @@
  * the same nothing — and with {@link Do} now carrying named fields there is not
  * even a positional layout left for it to insulate anyone from.
  *
- * Effect helpers come in two shapes. **Step adapters** return a continuation
- * `(t: T) => Effect<Q, R>` meant to be passed into a step.
+ * RawEffect helpers come in two shapes. **Step adapters** return a continuation
+ * `(t: T) => RawEffect<Q, R>` meant to be passed into a step.
  * **Step variants** take the effect itself first, like {@link step} — see
  * {@link historyStep}. {@link mapStep} is the variant for the end of a chain:
  * a pure projection over an effect's result, which is a `step` that continues
@@ -117,19 +117,19 @@
  * @import { Option } from '../types/option/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Fold } from '../types/function/operator/types.ts'
- * @import { Cont, Do, Effect, F, History, MatchResult, Operation, OperationMap, Param, Pr, Pure, Return, ToAsyncOperationMap } from './types.ts'
+ * @import { Cont, Do, RawEffect, F, History, MatchResult, Operation, OperationMap, Param, Pr, Pure, Return, ToAsyncOperationMap } from './types.ts'
  */
 
 import { assert } from '../asserts/module.f.mjs'
 import { fold } from '../types/list/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
 
-/** @type {<T>(v: T) => Effect<never, T>} */
+/** @type {<T>(v: T) => RawEffect<never, T>} */
 export const pure = v => () => v
 
 /**
  * Composes effects: run `e`, then continue with `f` applied to its result.
- * The data-first primitive — raw `Effect` in, raw `Effect` out. Chains as
+ * The data-first primitive — raw `RawEffect` in, raw `RawEffect` out. Chains as
  * `step(step(e, f), g)`.
  *
  * **`step` is not lazy.** It reads `e`'s shape immediately, so a `Pure` head is
@@ -146,14 +146,14 @@ export const pure = v => () => v
  * composing a chain starts running the program.
  *
  * A composition cannot be suspended, and no combinator can fix that:
- * `defer: (() => Effect<O, T>) => Effect<O, T>` cannot be written here, because
+ * `defer: (() => RawEffect<O, T>) => RawEffect<O, T>` cannot be written here, because
  * the `Pure` / `Do` tag must be known before anything runs and the union has no
  * third case meaning "not yet decided". That is inherent to the representation,
  * not a gap in this module's API. A caller that needs to name a composition
  * without performing it yet has to keep the ingredients and defer the `step`
  * itself.
  *
- * @type {<O extends Operation, T, Q extends Operation, R>(e: Effect<O, T>, f: (t: T) => Effect<Q, R>) => Effect<O | Q, R>}
+ * @type {<O extends Operation, T, Q extends Operation, R>(e: RawEffect<O, T>, f: (t: T) => RawEffect<Q, R>) => RawEffect<O | Q, R>}
  */
 export const step = (e, f) =>
     typeof e === 'function'
@@ -170,8 +170,8 @@ export const step = (e, f) =>
  * it is where the sequence ends. Saying so in the combinator's name keeps the
  * "one name per link" shape of a chain honest about how many effects it runs.
  *
- * **The operation set does not widen.** The result is `Effect<O, R>`, not
- * `Effect<O | Q, R>`, because a pure projection issues no commands — nothing a
+ * **The operation set does not widen.** The result is `RawEffect<O, R>`, not
+ * `RawEffect<O | Q, R>`, because a pure projection issues no commands — nothing a
  * runner has to know how to interpret is added by `f`. That is what separates
  * this from `step`, beyond the shorter spelling.
  *
@@ -180,7 +180,7 @@ export const step = (e, f) =>
  * continuation where `step` puts it, rather than moving it to where the
  * composition is written.
  *
- * @type {<O extends Operation, T, R>(e: Effect<O, T>, f: (t: T) => R) => Effect<O, R>}
+ * @type {<O extends Operation, T, R>(e: RawEffect<O, T>, f: (t: T) => R) => RawEffect<O, R>}
  */
 export const mapStep = (e, f) =>
     step(e, t => pure(f(t)))
@@ -224,7 +224,7 @@ export const mapStep = (e, f) =>
  *
  * @type {<O extends Operation, P extends readonly unknown[], Q extends Operation, R>(
  *     e: History<O, P>,
- *     f: (...p: Readonly<P>) => Effect<Q, R>
+ *     f: (...p: Readonly<P>) => RawEffect<Q, R>
  * ) => History<O | Q, readonly[R, ...P]>}
  */
 export const historyStep = (e, f) =>
@@ -241,13 +241,13 @@ export const historyStep = (e, f) =>
  * flattening it, so link two would have to be spelled differently from link
  * three.
  *
- * @type {<O extends Operation, T>(e: Effect<O, T>) => History<O, readonly[T]>}
+ * @type {<O extends Operation, T>(e: RawEffect<O, T>) => History<O, readonly[T]>}
  */
 export const history = e =>
     step(e, v => pure([v]))
 
 /**
- * @type {<O extends Operation>(command: O[0]) => (...payload: Param<O>) => Effect<O, Return<O>>}
+ * @type {<O extends Operation>(command: O[0]) => (...payload: Param<O>) => RawEffect<O, Return<O>>}
  */
 export const do_ = command => (...payload) => ({ command, payload, continuation: pure })
 
@@ -255,7 +255,7 @@ export const do_ = command => (...payload) => ({ command, payload, continuation:
  * Sequentially threads a state value through an effect for each item produced by
  * `items`.
  *
- * Given `f: item => state => Effect<Q, state>`, `init: S`, and an `items` that
+ * Given `f: item => state => RawEffect<Q, state>`, `init: S`, and an `items` that
  * yields `[x₀, x₁, …]`, builds `step(step(f(x₀)(init), f(x₁)), f(x₂))…` and
  * yields a single effect producing the final state.
  *
@@ -264,7 +264,7 @@ export const do_ = command => (...payload) => ({ command, payload, continuation:
  *
  * **A step variant** (see the two shapes described in this module's header): the
  * effect comes first, as in {@link step} and {@link historyStep}. `items` is an
- * `Effect<O, List<T>>` rather than a bare `List<T>` because the list a caller
+ * `RawEffect<O, List<T>>` rather than a bare `List<T>` because the list a caller
  * folds over is normally *produced* by an effect — `cas.list()`, a `readdir`.
  * Taking the plain list would force every such caller to open a continuation
  * just to name the list (`step(cas.list(), foldStep(…))`), which is the nesting
@@ -293,13 +293,13 @@ export const do_ = command => (...payload) => ({ command, payload, continuation:
  * @template T
  * @template {Operation} Q
  * @template S
- * @param {Effect<O, List<T>>} items
+ * @param {RawEffect<O, List<T>>} items
  * @param {S} init
- * @param {(item: T) => (state: S) => Effect<Q, S>} f
- * @returns {Effect<O | Q, S>}
+ * @param {(item: T) => (state: S) => RawEffect<Q, S>} f
+ * @returns {RawEffect<O | Q, S>}
  */
 export const foldStep = (items, init, f) => {
-    /** @type {Fold<T, Effect<O | Q, S>>} */
+    /** @type {Fold<T, RawEffect<O | Q, S>>} */
     const op = item => acc => step(acc, f(item))
     return step(items, fold(op)(pure(init)))
 }
@@ -309,7 +309,7 @@ export const foldStep = (items, init, f) => {
  * intermediate results. The `void` accumulator sibling of {@link foldStep}, and
  * a step variant on the same grounds.
  *
- * @type {<O extends Operation, T, Q extends Operation>(items: Effect<O, List<T>>, f: (item: T) => Effect<Q, void>) => Effect<O | Q, void>}
+ * @type {<O extends Operation, T, Q extends Operation>(items: RawEffect<O, List<T>>, f: (item: T) => RawEffect<Q, void>) => RawEffect<O | Q, void>}
  */
 export const forEachStep = (items, f) =>
     foldStep(items, undefined, item => () => f(item))
@@ -329,13 +329,13 @@ export const forEachStep = (items, f) =>
  * this exists to rule out. `Option<T>` keeps them apart: `[null]` is a pure
  * `null`, `[]` is a `Do`.
  *
- * `O` stays generic rather than narrowing to `Effect<never, T>`. `Effect` is
- * covariant in `O`, so `Effect<never, T>` is assignable to `Effect<O, T>` and
+ * `O` stays generic rather than narrowing to `RawEffect<never, T>`. `RawEffect` is
+ * covariant in `O`, so `RawEffect<never, T>` is assignable to `RawEffect<O, T>` and
  * not the reverse — a continuation's result is always the wider type and would
  * be rejected. `Do<never, T>` is uninhabited besides, which would make the empty
  * case unreachable without a cast.
  *
- * @type {<O extends Operation, T>(e: Effect<O, T>) => Option<T>}
+ * @type {<O extends Operation, T>(e: RawEffect<O, T>) => Option<T>}
  */
 export const runPure = e =>
     typeof e === 'function' ? [e()] : []
@@ -375,7 +375,7 @@ export const match = map =>
     /**
      * @template {O} O1
      * @template T
-     * @param {Effect<O1, T>} e
+     * @param {RawEffect<O1, T>} e
      * @returns {MatchResult<O1, T, R>}
      */
     e => {

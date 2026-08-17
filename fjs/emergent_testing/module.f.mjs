@@ -10,8 +10,8 @@
  *
  * @module
  *
- * @import { Effect, Operation } from '../effects/types.ts'
- * @import { IoEffect, NotImplemented } from '../effects/io/types.ts'
+ * @import { RawEffect, Operation } from '../effects/types.ts'
+ * @import { Effect, NotImplemented } from '../effects/io/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
  * @import { TestFn, TestEntry, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts'
  * @import { All, Await, Env, IoError, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
@@ -106,10 +106,10 @@ export const collectTests = (path, throws, v) => {
  * This is the correct model for Node `--test`, Bun, and Deno, where tests must
  * be declared upfront and the framework drives execution.
  *
- * @type {(ctx: TestContext, k: string, v: unknown, star: string) => IoEffect<Test | All | Await, void, NotImplemented>}
+ * @type {(ctx: TestContext, k: string, v: unknown, star: string) => Effect<Test | All | Await, void, NotImplemented>}
  */
 export const registerModule = (ctx, k, v, star) => {
-    /** @type {(ctx: TestContext, entry: _TestAndPath) => IoEffect<Test | All | Await, void, NotImplemented>} */
+    /** @type {(ctx: TestContext, entry: _TestAndPath) => Effect<Test | All | Await, void, NotImplemented>} */
     const registerOne = (ctx, [path, { fn, throws }]) => {
         // `star` (non-empty for Bun and for Node below the 26 baseline) signals
         // that all sub-tests run inline inside this single registration, so an
@@ -121,7 +121,7 @@ export const registerModule = (ctx, k, v, star) => {
         const name = throws ? base : `${base}${star}`
         // The registered callback panics on failure, deliberately. `Test` hands
         // it to an external framework (node `--test`, Bun, Deno) whose contract
-        // is a raw `Effect<…, void>`: there is no channel to answer a failure
+        // is a raw `RawEffect<…, void>`: there is no channel to answer a failure
         // through, so propagating it here would only discard it one level up.
         // A throw is what that framework *does* understand — it reports the
         // test as failed, which is the outcome a caller wants anyway. The `test`
@@ -154,10 +154,10 @@ const zero = { time: 0, pass: 0, fail: 0 }
 /**
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(k: string, v: unknown) => (ts: _TestState) => IoEffect<O | All, _TestState, NotImplemented | IoError>}
+ * @returns {(k: string, v: unknown) => (ts: _TestState) => Effect<O | All, _TestState, NotImplemented | IoError>}
  */
 const runModule = ({ result, test }) => (k, v) => ts => {
-    /** @type {(entry: _TestAndPath) => IoEffect<O | All, _TestState, NotImplemented | IoError>} */
+    /** @type {(entry: _TestAndPath) => Effect<O | All, _TestState, NotImplemented | IoError>} */
     const one = ([testPath, set]) => {
         // The sandbox result is still needed after it has been reported, so the
         // reporting call is captured rather than nested inside its own step.
@@ -181,7 +181,7 @@ const runModule = ({ result, test }) => (k, v) => ts => {
                     sub => mergeState(addPass(duration)(zero), sub))
             })
     }
-    /** @type {(path: Path, throws: boolean, v: unknown) => IoEffect<O | All, _TestState, NotImplemented | IoError>} */
+    /** @type {(path: Path, throws: boolean, v: unknown) => Effect<O | All, _TestState, NotImplemented | IoError>} */
     const walk = (path, throws, v) => {
         const effects = collectTests(path, throws, v).map(one)
         return mapStep(allOk(...effects), states => states.reduce(mergeState, zero))
@@ -201,7 +201,7 @@ const proofEntries = moduleMap =>
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(moduleMap: ModuleMap) => IoEffect<O | All, number, NotImplemented | IoError>}
+ * @returns {(moduleMap: ModuleMap) => Effect<O | All, number, NotImplemented | IoError>}
  */
 export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
@@ -227,7 +227,7 @@ export const runModuleMap = reporter => moduleMap => {
  * only in what an `ok` means, and conflating them would report a failing suite
  * as a passing run.
  *
- * @type {<O extends Operation>(e: IoEffect<O, number, NotImplemented | IoError>) => Effect<O | Write, number>}
+ * @type {<O extends Operation>(e: Effect<O, number, NotImplemented | IoError>) => RawEffect<O | Write, number>}
  */
 const exitCodeStep = e =>
     rawStep(e, r => r[0] === 'error' ? errorExit(errorMessage(r[1])) : pure(r[1]))
@@ -253,7 +253,7 @@ export const testAll = reporter => options =>
  * Registers all modules in `moduleMap` that export a `proof` property with
  * `ctx`. Delegates to `registerModule` for each matching entry.
  *
- * @type {(ctx: TestContext, star: string) => (moduleMap: ModuleMap) => IoEffect<Test | All | Await, void, NotImplemented>}
+ * @type {(ctx: TestContext, star: string) => (moduleMap: ModuleMap) => Effect<Test | All | Await, void, NotImplemented>}
  */
 const registerModuleMap = (ctx, star) => moduleMap => {
     const modules = proofEntries(moduleMap)
@@ -344,7 +344,7 @@ export const ghEscape = s =>
  * Default `Reporter.test` implementation: sandboxes `fn` once and inverts the
  * result when `throws` is `true` (caught error → pass, clean return → fail).
  *
- * @type {(file: string, path: Path, entry: TestEntry) => IoEffect<Sandbox, SandboxResult<unknown>, NotImplemented>}
+ * @type {(file: string, path: Path, entry: TestEntry) => Effect<Sandbox, SandboxResult<unknown>, NotImplemented>}
  */
 export const defaultTest = (file, path, { fn, throws }) =>
     mapStep(sandbox(fn), r => throws ? { ...r, result: invert(r.result) } : r)
@@ -369,7 +369,7 @@ export const defaultReporter = options => {
     // decide that here: the failure travels to the program's tail, which ends
     // the run with the reason on `stderr` and exit `1`. That is the same
     // outcome a panic produced, minus the stack trace.
-    /** @type {(w: WriteConsoles) => (s: string) => IoEffect<Write, void, NotImplemented>} */
+    /** @type {(w: WriteConsoles) => (s: string) => Effect<Write, void, NotImplemented>} */
     const line = w => {
         const x = write(w)
         return s => x(s + '\n')

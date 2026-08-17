@@ -42,8 +42,8 @@
  *
  * @module
  *
- * @import { Effect, Operation } from '../../effects/types.ts'
- * @import { IoEffect, NotImplemented } from '../../effects/io/types.ts'
+ * @import { RawEffect, Operation } from '../../effects/types.ts'
+ * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
  * @import { IoError } from '../../effects/node/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Cas } from '../types.ts'
@@ -204,7 +204,7 @@ export const decodeRevisionVec = value => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {(hash: Vec) => Effect<O, Revision | null>}
+ * @returns {(hash: Vec) => RawEffect<O, Revision | null>}
  */
 export const decodeRevisionBlob = cas => hash =>
     mapStep(
@@ -221,13 +221,13 @@ export const decodeRevisionBlob = cas => hash =>
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {IoEffect<O, Cache, NotImplemented | IoError>}
+ * @returns {Effect<O, Cache, NotImplemented | IoError>}
  */
 export const buildCache = cas => {
     // Annotated rather than inferred: the body's `ok(…)` is an `Ok<Cache>`,
     // which unifies with `Result<S, E>` for any `E`, so the fold's error type
     // has nothing to pin it and drifts into the accumulator's.
-    /** @type {(hash: Vec) => (cache: Cache) => IoEffect<O, Cache, NotImplemented | IoError>} */
+    /** @type {(hash: Vec) => (cache: Cache) => Effect<O, Cache, NotImplemented | IoError>} */
     const foldOne = hash => cache =>
         mapStep(
             decodeRevisionBlob(cas)(hash),
@@ -241,13 +241,13 @@ export const buildCache = cas => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {IoEffect<O | MemOp, Key<Cache>, NotImplemented | IoError>}
+ * @returns {Effect<O | MemOp, Key<Cache>, NotImplemented | IoError>}
  */
 export const initEvo = cas =>
     ioStep(buildCache(cas), cache => create(cache))
 
 /** Reads, then rewrites, the cache at `cacheKey` with `revision` folded in at `hash`.
- * @type {(cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision) => IoEffect<MemOp, void, NotImplemented>}
+ * @type {(cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision) => Effect<MemOp, void, NotImplemented>}
  */
 const foldIntoCache = cacheKey => hash => revision =>
     ioStep(
@@ -262,7 +262,7 @@ const foldIntoCache = cacheKey => hash => revision =>
  * call can store a revision blob without going through {@link addRevision},
  * and this is what keeps the cache honest about it without rescanning the
  * whole store.
- * @type {(cacheKey: Key<Cache>) => (hash: Vec) => (value: Vec) => IoEffect<MemOp, void, NotImplemented>}
+ * @type {(cacheKey: Key<Cache>) => (hash: Vec) => (value: Vec) => Effect<MemOp, void, NotImplemented>}
  */
 export const syncRevision = cacheKey => hash => value => {
     const revision = decodeRevisionVec(value)
@@ -278,7 +278,7 @@ export const syncRevision = cacheKey => hash => value => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {(parentRef: Hash) => Effect<O, Result<Revision, string>>}
+ * @returns {(parentRef: Hash) => RawEffect<O, Result<Revision, string>>}
  */
 const resolveParent = cas => parentRef => {
     const parentHash = cBase32ToVec(parentRef)
@@ -295,7 +295,7 @@ const resolveParent = cas => parentRef => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {(parents: readonly Hash[]) => Effect<O, Result<readonly Revision[], string>>}
+ * @returns {(parents: readonly Hash[]) => RawEffect<O, Result<readonly Revision[], string>>}
  */
 const resolveParents = cas => parents => {
     /** @type {Result<readonly Revision[], string>} */
@@ -468,7 +468,7 @@ const buildRevision = input => parents => {
  * travels there, which is why every branch below answers `pureOk` with a
  * `Result` inside it rather than `pureError`.
  *
- * @returns {(cacheKey: Key<Cache>) => (input: RevisionData) => IoEffect<O | MemOp, Result<Hash, string>, NotImplemented>}
+ * @returns {(cacheKey: Key<Cache>) => (input: RevisionData) => Effect<O | MemOp, Result<Hash, string>, NotImplemented>}
  */
 export const addRevision = cas => cacheKey => input =>
     step(
@@ -485,7 +485,7 @@ export const addRevision = cas => cacheKey => input =>
                 cas.write(nonEmpty(ok(bytes), elEmpty())),
                 (/** @type {IoResult<Vec>} */ writeResult) => {
                     if (writeResult[0] === 'error') {
-                        return /** @type {IoEffect<MemOp, Result<Hash, string>, NotImplemented>} */ (pureOk(error('failed to write revision to CAS')))
+                        return /** @type {Effect<MemOp, Result<Hash, string>, NotImplemented>} */ (pureOk(error('failed to write revision to CAS')))
                     }
                     const hash = vecToCBase32(writeResult[1])
                     return ioMapStep(foldIntoCache(cacheKey)(hash)(canonicalRevision), () => ok(hash))
@@ -566,7 +566,7 @@ const decodeReadRevision = hash => ([tag, value]) => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {(hash: Hash) => Effect<O, Result<RevisionData, string>>}
+ * @returns {(hash: Hash) => RawEffect<O, Result<RevisionData, string>>}
  */
 export const readRevision = cas => hash => {
     const hashVec = cBase32ToVec(hash)

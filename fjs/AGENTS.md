@@ -756,8 +756,8 @@ than a single access.
 
 ### 3.4 Effects (`fjs/effects`)
 
-**Fallible work composes through `fjs/effects/io`.** An `IoEffect<O, T, E>` is
-an `Effect` whose result is a `Result`, and its `step` runs the continuation
+**Fallible work composes through `fjs/effects/io`.** An `Effect<O, T, E>` is a
+`RawEffect` whose result is a `Result`, and its `step` runs the continuation
 only on `ok`, propagating an `error` on its own. Every operation returns one, so
 this is the layer ordinary code writes against; the raw `step` in
 `fjs/effects/module.f.mjs` knows nothing of `Result` and will happily run the
@@ -765,6 +765,14 @@ next link after a failed one. Reach for `catchStep` where a failure has a real
 fallback, `resultStep` where both branches genuinely matter, and `unwrapStep`
 only where panicking is the considered answer. See
 [`fjs/effects/io/README.md`](./effects/io/README.md).
+
+**The two names say which one you mean.** `Effect<O, T, E>` can fail and
+`E` defaults to `NotImplemented`; `RawEffect<O, T>` (`fjs/effects/types.ts`) is
+the `Pure | Do` representation, and it is the right type for something that
+genuinely cannot fail — a `List` cell, a `Program`'s exit code, an MCP tool
+result — as well as for the runners and `do_` that speak the representation.
+Do not give a computation an error channel it has no failure to report through;
+do not leave one off something that does.
 
 The rules below apply to both layers, and to the Io `step` first.
 
