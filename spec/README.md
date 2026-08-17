@@ -14,6 +14,14 @@ access, type annotations — and the design documents for the VM, I/O,
 serialization, and the rest of the roadmap live in
 [`spec/todo/`](./todo/README.md).
 
+Those documents sort planned features into two layers, and use the names here.
+**DJS** — data JS — is the data subset: a module denotes a graph of values,
+and any of them can be serialized without additional run-time information.
+**FJS** is DJS plus functions, which cannot be serialized that way. Everything
+the compiler accepts today is DJS, so this document specifies DJS; the layer a
+feature belongs to is a statement about where it lands, not about what is
+implemented now.
+
 ## Principles
 
 **Compatibility with JavaScript.** FunctionalScript is a subset of JavaScript,
