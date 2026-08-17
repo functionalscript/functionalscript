@@ -447,6 +447,12 @@ RawEffect<O, T>                    // the Pure | Do representation
       the `todo/*.md` under `fjs/effects`, `fjs/cas`, `fjs/protocol/mcp` and
       friends, plus `spec/todo/io-effects.md`. They describe future work rather
       than current behaviour, so they were left out of the rename itself.
+      **Six of them also point at `okStep` as an existing export**
+      (`effect-list-fold`, `fold-stream-combinator`, `map-step-combinator`,
+      `step-continuation-operation-union`, `../node/todo/ornotfound-combinator`,
+      `../../cas/todo/write-closed-helpers`), which is a dangling reference
+      rather than a stale name: it is gone, not renamed, so each of those needs
+      a decision about what the proposal meant rather than a substitution.
 
 The rename silently changes what the second type parameter means — `T` becomes
 the `ok`-branch value rather than the raw result. **Relying on `tsc` to catch

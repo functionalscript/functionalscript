@@ -180,9 +180,8 @@ export const catchStep = (e, f) => {
  *
  * It still earns the name. The three operations are the canonical vocabulary of
  * the layer, and a chain that spells one of them as a raw `step` reads as an
- * escape from the layer rather than as the deliberate both-branches case. From
- * stage 5, when the raw representation goes private, this is the public
- * spelling of that instantiation.
+ * escape from the layer rather than as the deliberate both-branches case. This
+ * is the spelling that says the both-branches case was meant.
  *
  * `finallyStep` is declined on the same principle read the other way: a
  * derivable form earns a name by being canonical vocabulary, and that one has
