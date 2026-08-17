@@ -54,13 +54,23 @@ spelling. Fixing this in the shared JSON helper would break JSON output.
 
 ### Part 2 — parsing
 
-The parser accepts both prototype-assigning spellings today.
-`parseObjectStartOp` in
+`{ __proto__: v }` and `{ "__proto__": v }` are **not valid
+FunctionalScript** ([proto-property-key](./proto-property-key.md)), so
+accepting them is the bug — independently of what the parser then does
+with them. `parseObjectStartOp` in
 [`fjs/djs/parser/module.f.mjs`](../fjs/djs/parser/module.f.mjs) takes a
 key from either a `string` or an `id` token (the identifier-property
-path, `#2410`) and hands it to `pushKey` unchecked, so
-`{ __proto__: v }` and `{ "__proto__": v }` both parse as an ordinary
-key — the parser's meaning and JavaScript's disagree.
+path, `#2410`) and hands it to `pushKey` unchecked, so both spellings
+are accepted and treated as ordinary keys.
+
+**Scope — JSON input is a different reader and stays as it is.** In a
+JSON document `"__proto__"` *is* an ordinary data key, and
+[`fjs/media/json/parser`](../fjs/media/json/parser) is a separate module
+from the DJS parser used by the transpiler, so the rejection lands on
+the FunctionalScript side only. This is the one place where a JSON
+document is not also a valid FunctionalScript module — see the
+subset-exception note in
+[proto-property-key](./proto-property-key.md).
 
 - [ ] Reject the `id` spelling `{ __proto__: … }` with a compilation
       error.

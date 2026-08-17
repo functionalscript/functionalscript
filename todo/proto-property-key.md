@@ -42,8 +42,8 @@ lossy one.
 
 ### Proposal
 
-**Parsing.** Reject `{ __proto__: … }` and `{ "__proto__": … }` as
-compilation errors. FunctionalScript has no prototypes at run time
+**Parsing.** `{ __proto__: … }` and `{ "__proto__": … }` are not valid
+FunctionalScript: reject them as compilation errors. FunctionalScript has no prototypes at run time
 ([function-frame](../spec/todo/3111-function-frame.md)), so a spelling
 whose only meaning is "assign a prototype" has no meaning to give;
 rejecting it is the whitelist principle, not a special case. Accept
@@ -59,6 +59,19 @@ separate rule and stays: a value may carry a `__proto__` property that
 FunctionalScript code cannot read with `o.__proto__`. Reaching it needs
 `Object.getOwnPropertyDescriptor(o, k)?.value` — the `["own", …]`
 operation of the [EDAG](./edag-stage1-discussion.md).
+
+### Consequence: JSON is a subset of FunctionalScript *except here*
+
+JSON keeps its own meaning — `"__proto__"` is an ordinary data key in a
+JSON document, and the JSON reader must go on accepting it. So a JSON
+document containing a `__proto__` key is **not** a valid FunctionalScript
+module, and [spec/README.md](../spec/README.md)'s "JSON is a subset of
+FunctionalScript" needs this one documented exception.
+
+The alternative would be for FunctionalScript to accept the spelling and
+read it as a data property — but that makes FS source mean something
+different from what a JavaScript engine gives it, breaking FS principle 2.
+A narrow, stated exception to the subset claim is the cheaper price.
 
 ### Dependency
 
