@@ -4,9 +4,10 @@
  * @import { State } from '../../../effects/node/virtual/types.ts'
  * @import { Id } from '../../json_rpc/types.ts'
  * @import { Step } from './types.ts'
+ * @import { Read, Write } from '../../../effects/node/types.ts'
  */
 
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { pure } from '../../../effects/module.f.mjs'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
 import { stringify } from '../../../media/json/module.f.mjs'
@@ -16,6 +17,8 @@ import { maxLengthBytes } from '../../../types/bit_vec/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
 import { stdioTransport } from './module.f.mjs'
+import { run as mockRun } from '../../../effects/mock/module.f.mjs'
+import { error, ok } from '../../../types/result/module.f.mjs'
 
 const stringifyJson = stringify(sort)
 
@@ -71,6 +74,18 @@ const oversizedString = 'a'.repeat(Number(maxLengthBytes) + 1)
 const notification = '{"jsonrpc":"2.0","method":"notifications/initialized"}'
 
 export const proof = {
+    // A stdin that cannot be read ends the loop and hands the failure back,
+    // where it used to panic. EOF is not this case: that is `ok(null)`, and
+    // `eofImmediately` above pins it as the clean shutdown it should be.
+    readFailurePropagates: () => {
+        const runner = mockRun(/** @type {Parameters<typeof mockRun<Read | Write, undefined>>[0]} */ ({
+            read: () => (/** @type {undefined} */ s) => [s, error(/** @type {const} */ (['notImplemented', 'read']))],
+            write: () => (/** @type {undefined} */ s) => [s, ok(undefined)],
+        }))
+        const [, result] = runner(undefined)(stdioTransport(echoStep))
+        assert(result[0] === 'error', result)
+    },
+
     // EOF on the very first read: clean shutdown, nothing written, no further reads.
     eofImmediately: () => {
         const state = run('')

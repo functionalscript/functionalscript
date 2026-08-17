@@ -30,13 +30,14 @@
  * @module
  *
  * @import { Effect, Operation } from '../../../effects/types.ts'
- * @import { IoResult, Read, Write } from '../../../effects/node/types.ts'
+ * @import { IoError, IoResult, Read, Write } from '../../../effects/node/types.ts'
+ * @import { IoEffect, NotImplemented } from '../../../effects/io/types.ts'
  * @import { Response } from '../../json_rpc/types.ts'
  * @import { Step } from './types.ts'
  */
 
 import { pure, step } from '../../../effects/module.f.mjs'
-import { unwrapStep } from '../../../effects/io/module.f.mjs'
+import { pureOk, step as ioStep } from '../../../effects/io/module.f.mjs'
 import { ioError, readLine, write } from '../../../effects/node/module.f.mjs'
 import { tryUtf8 } from '../../../text/module.f.mjs'
 import { parse, stringify } from '../../../media/json/module.f.mjs'
@@ -71,25 +72,28 @@ const writeResponse = resp => {
  * Recurses after each handled line; terminates (resolving to `void`) when
  * `readLine` reports EOF.
  *
+ * A transport that cannot read its own input has no fallback to choose, but it
+ * does not have to decide that here: the failure ends the loop and travels to
+ * whoever started the server, which for `fjs mcp` is a message on `stderr` and
+ * exit `1`. EOF is not that — `readLine` answers `ok(null)`, the loop ends, and
+ * the server has done its job.
+ *
  * @template {Operation} O
  * @param {Step<O>} handler
- * @returns {Effect<Read | Write | O, void>}
+ * @returns {IoEffect<Read | Write | O, void, NotImplemented | IoError>}
  */
 export const stdioTransport = handler =>
-    step(
-        // A transport that cannot read its own input has no fallback to choose,
-        // so a `readLine` failure is this program's panic rather than a value
-        // threaded through the loop.
-        unwrapStep(readLine('stdin')),
+    ioStep(
+        readLine('stdin'),
         line => line === null
-            ? pure(undefined)
+            ? pureOk(undefined)
             : handleLine(handler)(line),
     )
 
 /**
  * @template {Operation} O
  * @param {Step<O>} handler
- * @returns {(line: string) => Effect<Read | Write | O, void>}
+ * @returns {(line: string) => IoEffect<Read | Write | O, void, NotImplemented | IoError>}
  */
 const handleLine = handler => line => {
     const [t, value] = parse(line)
