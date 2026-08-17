@@ -1,7 +1,8 @@
-# AST stage 1: discussion
+# EDAG stage 1: discussion
 
 **Priority:** P2
-**Status:** open — working document for designing the stage 1 function AST.
+**Status:** open — working document for designing the stage 1 function
+EDAG (expression DAG — see the core invariant).
 Each subject below is resolved separately; once all are **decided**, the
 result is distilled into a concrete design in [ast-spec.md](./ast-spec.md)
 and this document is deleted.
@@ -12,7 +13,7 @@ and this document is deleted.
 revision history is recorded in subjects 1 and 8.*
 
 A function body is a **single operation node** — the root of the
-computation DAG. Non-resulting computations (asserts — fail-fast
+expression DAG. Non-resulting computations (asserts — fail-fast
 guards, A4) are merged into the graph by the **`","` operation**:
 
 - `[",", ...asserts, result]` establishes **all** of its operands
@@ -38,9 +39,9 @@ guards, A4) are merged into the graph by the **`","` operation**:
   const k = a => (assert(a >= 0), a + 2)
   ```
 
-  are one function with one AST and one hash. The last spelling — an
+  are one function with one EDAG and one hash. The last spelling — an
   expression-bodied arrow, no block, no `return` — is the most compact
-  and the natural form for `toString(f)` to print. The AST has **no
+  and the natural form for `toString(f)` to print. The EDAG has **no
   assert node**: what makes an operand an assert is purely positional —
   its value is discarded by `","`. The guard itself is either an
   ordinary function value that throws on a falsy argument, or, with no
@@ -78,7 +79,7 @@ guards, A4) are merged into the graph by the **`","` operation**:
 
 The graph cannot be serialized as JSON (sharing would be lost — and
 sharing is semantic), but it serializes as **DJS** (`const` + reference):
-the AST's sharing structure and DJS's graph structure are the same thing.
+the EDAG's sharing structure and DJS's graph structure are the same thing.
 
 ```js
 // const f = (...a) => { const x = a[0]; return [x, x] }
@@ -148,7 +149,7 @@ Two consequences worth stating plainly:
   anything a hostile graph could express, validation must have already
   ruled out.
 - **The printed source is the semantic reference.** Every validated
-  ASDAG has a source form (subject 12), a JS engine runs that source,
+  EDAG has a source form (subject 12), a JS engine runs that source,
   and the two must agree — so `toString(f)` is not merely a feature but
   the statement of what the graph *means*. It also makes the invariant
   testable: print, run on a JS engine, run on the VM, compare.
@@ -194,7 +195,7 @@ node; `node` below means any of them.
 Tags are **JS syntax wherever JS has syntax for the operation** — hence
 `"."`, `"()"`, `".()"` and `","` above, and the operator symbols
 below. This is [DESIGN.md §8](../DESIGN.md) again: the host language
-already spells these, so the AST reuses the spelling instead of
+already spells these, so the EDAG reuses the spelling instead of
 inventing a vocabulary to be memorized and translated. `".()"` reads as
 the method call it denotes, `o.p(…)`.
 
@@ -217,7 +218,7 @@ permitted string literal.
 The point is that the dangerous case becomes **unrepresentable rather
 than checked**: prototype-chain lookup by a computed name — the abuse
 2330 documents (`f.constructor("…")`, `__proto__`) — has no spelling in
-the AST at all.
+the EDAG at all.
 
 Unary `+` throws on a **bigint**, so `["Number", node]` exists as the
 converting alternative; it is spelled by its JS built-in, `Number(x)`.
@@ -242,7 +243,7 @@ functions** — there is exactly one spelling to reuse, so the tag is
 unambiguous. (`toString(f)` printing `["self"]` as a *named function
 expression* is a separate matter: that is the printer working around
 JS's lack of an expression for self-reference, not a second function
-form in the AST.)
+form in the EDAG.)
 
 Word tags remain only where no unambiguous JS spelling exists:
 
@@ -323,7 +324,7 @@ Consequences:
   frame, so something must break that cycle. `["self"]` breaks it, and
   frames propagate it inward (as in the example above).
 
-`["self"]` is what makes recursion expressible in a nameless AST, and —
+`["self"]` is what makes recursion expressible in a nameless EDAG, and —
 more importantly — what keeps a recursive function **finite and
 acyclic**. Without it, self-reference would have to be a cycle in the
 graph: forbidden by subject 5, and unhashable, since a cyclic structure
@@ -355,9 +356,9 @@ recursion with no special machinery.
 `throw` keeps a word tag because JS spells it as a **statement**, not an
 expression — there is no operator symbol to reuse. Consequences:
 
-- **Assertions become expressible in the AST**:
+- **Assertions become expressible in the EDAG**:
   `["?:", cond, undefined, ["throw", …]]`. This matters more than
-  convenience — the AST has no way to *reference* a free variable
+  convenience — the EDAG has no way to *reference* a free variable
   (module `const`, import, built-in): `["args"]` and constants are its
   only leaves (see subject 10). A host `assert` function would need that
   machinery; an operation does not.
@@ -390,10 +391,10 @@ does not evaluate those operands either.
 **`?:` is the branch node — there is no `if` operation.** The
 hypothetical `["cond", …]` of subject 3 is not needed: the ternary
 operator is that node, spelled as JS spells it. If the *language* gains
-`if`, it is surface syntax that lowers to `"?:"`; the AST never grows a
+`if`, it is surface syntax that lowers to `"?:"`; the EDAG never grows a
 statement form for it.
 
-This generalizes: **the AST has no statement nodes at all.** Every
+This generalizes: **the EDAG has no statement nodes at all.** Every
 statement form in the source language lowers to an expression
 operation — `const x = …` to a shared node, an unused `const` or a bare
 `assert(…)` to a `","` operand, `return e` to the root node, `if` to
@@ -422,7 +423,7 @@ failure (A2, A4). Everything else about a node is just its value.
 Consequences:
 
 - the whole membership apparatus — `","`, subject 8, effect edges —
-  exists for this one effect. Were nothing able to throw, the AST would
+  exists for this one effect. Were nothing able to throw, the EDAG would
   be pure data flow: unreachable nodes could simply be dropped;
 - eager and lazy evaluation of an operand differ *only* in whether a
   failure can be introduced. So the ban on **speculating** a lazy
@@ -582,20 +583,20 @@ Still illegal with A4 rejected:
 
 **Status:** decided (revised)
 
-**Resolution: the AST is a DAG of operation nodes connected by real
-references; there is no index space and no normal form — the AST mirrors
+**Resolution: the EDAG is a DAG of operation nodes connected by real
+references; there is no index space and no normal form — the EDAG mirrors
 the source structure and the hash takes it as written.**
 
 History: this subject was first decided as "flat sequence with
 `["local", index]` references plus nesting, mirroring the source". The
 reference model replaces the index space entirely — the host language
-already has references, so the AST should not invent an index scheme on
+already has references, so the EDAG should not invent an index scheme on
 top of them ([DESIGN.md §8](../DESIGN.md) taken to its logical end). The
 `["local", i]` command is removed.
 
 Kept from the original decision, unchanged:
 
-- **The AST mirrors the source; no normalization.** A source subexpression
+- **The EDAG mirrors the source; no normalization.** A source subexpression
   is an anonymous nested operand; a source `const` is a shared interior
   node that other nodes reference — or an assert-branch root when its
   value is unused. Sharing cannot be inlined away (it is
@@ -615,24 +616,24 @@ Kept from the original decision, unchanged:
   ([vm-command-format](../spec/todo/vm-command-format.md),
   [call-like-instructions](../spec/todo/9100-call-like-instructions.md),
   [function-frame](../spec/todo/3111-function-frame.md)), whose generator
-  does liveness analysis. Restoring the AST from bytecode is neither
-  required nor generally possible: the function always carries its AST.
-- **The AST is the single input to multiple processors**: the bytecode
+  does liveness analysis. Restoring the EDAG from bytecode is neither
+  required nor generally possible: the function always carries its EDAG.
+- **The EDAG is the single input to multiple processors**: the bytecode
   interpreter, the `toString(f)` source printer (shared nodes print as
   `const` lines, anonymous operands as expressions), and AOT backends
   (Rust, potentially WASM or machine code). Its structure is preserved
   because those backends exploit it; the interpreter may realize scopes as
   dynamic frames and pass whole frames to closures, while a bytecode
-  backend may compute capture sets and copy — both derivable from the AST,
+  backend may compute capture sets and copy — both derivable from the EDAG,
   neither expressible in it.
 - Cost accepted: a tree-walking interpreter recurses on operand depth; a
-  hostile AST can threaten the native stack. Answer: a documented
+  hostile EDAG can threaten the native stack. Answer: a documented
   implementation limit and/or internal lowering to a stack form — the
   interpreter's concern, not the format's.
 
 Indices reappear only as **derived artifacts**: canonical serialization
 (subject 9) and bytecode both derive them from the graph; they are never
-authored and never part of the AST.
+authored and never part of the EDAG.
 
 ### 2. Arguments reference
 
@@ -647,7 +648,7 @@ arguments passed to the function.**
   arguments are simply present; forwarding is `["()", f, ["args"]]` —
   all ordinary array semantics, matching JS.
 - Declared parameters are a compiler-side naming convention over the
-  arguments array, not an AST concept; declared arity matters only for
+  arguments array, not an EDAG concept; declared arity matters only for
   `.length` and `toString(f)` fidelity (subject 7).
 - The rejected `["arg", i]` (single-argument access, no reified array)
   cannot express rest parameters (`(...xs) => xs`) or forwarding;
@@ -712,7 +713,7 @@ applied to object constructors. Duplicate keys are a validation error.
 **Status:** open (list agreed in direction, details when the RTTI schema
 is written)
 
-The AST is the `Function` constructor's public input and will see shapes
+The EDAG is the `Function` constructor's public input and will see shapes
 the FJS compiler would never emit. To validate:
 
 - constants: function values in constant position are a validation error
@@ -750,15 +751,15 @@ commands: `at`, `at_call`, `instance_property`, `instance_method_call`,
 
 Options:
 
-1. Adopt the existing names in the AST.
-2. AST keeps only the general layer (`"."`, `".()"`); 2330's
+1. Adopt the existing names in the EDAG.
+2. the EDAG keeps only the general layer (`"."`, `".()"`); 2330's
    `instance_property` / `instance_method_call` are noted as compile-time
-   specializations of the VM's internal bytecode, not AST-level
+   specializations of the VM's internal bytecode, not EDAG-level
    distinctions.
 
-Leaning toward 2 (minimal AST; bytecode is where performance distinctions
+Leaning toward 2 (minimal EDAG; bytecode is where performance distinctions
 live per [serialization](../spec/todo/serialization.md)). Consequence: the
-AST interpreter carries the safety burden 2330 assigns to compile-time
+EDAG interpreter carries the safety burden 2330 assigns to compile-time
 checks — `[".", obj, "constructor"]`, `__proto__`, and other prohibited
 names must be rejected at *runtime*.
 
@@ -773,13 +774,13 @@ earlier in this document.
 shorter and more readable tag, and `".()"` composes to read exactly like
 the method call it is.
 
-**Decided: the AST keeps three access operations, not one and not
+**Decided: the EDAG keeps three access operations, not one and not
 2330's five.** An earlier draft of this subject said `"."` was a single
 operation covering every access, with 2330's distinctions left to the
 bytecode. That was wrong — the distinction is a *safety* boundary, not
 an optimization:
 
-|AST|2330|key|
+|EDAG|2330|key|
 |---|----|---|
 |`[".", o, p]`|`instance_property` + `at`|string constant (permitted), or a number|
 |`[".()", o, p, args]`|`instance_method_call` + `at_call`|same|
@@ -836,7 +837,7 @@ without `","`; these rules bind the operation when it is introduced.
   an interior shared node. Only non-resulting roots — the asserts —
   need a `","` operand; at the source level, an unused `const` *is*
   the assert syntax. Identifying roots is **reachability, not effect
-  analysis**: the AST's shape does not depend on any analysis's
+  analysis**: the EDAG's shape does not depend on any analysis's
   precision, preserving hash stability across compiler versions.
 - **Well-formedness: merged operands are true roots** — an assert
   operand must not be reachable from any other operand of the same
@@ -946,7 +947,7 @@ the **graph**, not a tree expansion:
   semantically different, and a naive structural hash conflates them. The
   hash must be computed over the canonical graph serialization.
 - JSON output expands sharing ([spec/README.md](../spec/README.md)) and is
-  therefore not a valid AST carrier; DJS and tagged CBOR are.
+  therefore not a valid EDAG carrier; DJS and tagged CBOR are.
 - Nested functions no longer pose the binders-plus-sharing difficulty:
   the closed-scope model ([Operations](#operations)) makes each function
   body a self-contained graph, so it hashes independently and no
@@ -992,7 +993,7 @@ referring function is precisely "the value graph stays a DAG". It is
 sound because *textual order is not observable*: module consts are pure
 (A1) and their failures are opaque (A4), so a compiler may topologically
 reorder them. What must hold is the dependency DAG, not the source
-order — the AST encodes no source order at all.
+order — the EDAG encodes no source order at all.
 
 **For now the design is built around `["self"]`** — direct
 self-reference is a primitive, and everything else arrives through the
@@ -1015,7 +1016,7 @@ would capture `x` while `x` is still being constructed, a cycle in the
 *value* graph. It needs the group mechanism from subject 9 (or passing
 the partner as an argument), not just relaxed ordering.
 
-The AST's only leaves are constants and `["args"]`. Nothing references a
+The EDAG's only leaves are constants and `["args"]`. Nothing references a
 name the function did not compute itself:
 
 - a module-level `const` or `import` the body uses
@@ -1054,7 +1055,7 @@ accident:
    and the natural home for 3111's captured-consts frame.
 2. **Direct value embedding** — the referenced value *is* the constant,
    since imports and module consts are already evaluated DJS values by
-   the time a function is built. Simplest, and it fits "the AST is an
+   the time a function is built. Simplest, and it fits "the EDAG is an
    `Any`"; but it inlines a shared value into every referencing
    function, which matters for hashing and for `toString(f)` (a
    reference to a named const would print as its expansion).
@@ -1088,16 +1089,16 @@ an *expression* that evaluates to the final state.
 
 Two shapes to decide between:
 
-1. **A loop operation** — the AST gains a primitive whose operands are
+1. **A loop operation** — the EDAG gains a primitive whose operands are
    the initial state and a step (a `["=>", …]` node, subject 7)
    from state to state; source `let` + `while` lowers to it. Every
    backend emits a real loop; nothing depends on TCO. Costs: a new
    operation, and a second way to express iteration alongside recursion,
    so the compiler must pick canonically (subject 1's hash-as-written).
-2. **Recursion only, TCO in the backend** — the AST expresses loops as
+2. **Recursion only, TCO in the backend** — the EDAG expresses loops as
    tail calls, and backends that lack TCO implement it themselves:
    self-tail-calls become a `while` loop, mutual recursion a trampoline.
-   Keeps the AST minimal and iteration single-spelled; costs a required
+   Keeps the EDAG minimal and iteration single-spelled; costs a required
    transformation in every non-TCO backend, and trampolining overhead
    where the simple case does not apply.
 
@@ -1108,7 +1109,7 @@ practice — the reason `let` is on the roadmap at all.
 
 Related: [mutability](../spec/todo/mutability.md) treats `let` as stage
 zero of ownership tracking; whatever shape is chosen here must not
-require the AST to model mutable *objects*, only threaded state.
+require the EDAG to model mutable *objects*, only threaded state.
 
 ### 12. `toString(f)`: real, runnable source
 
@@ -1149,7 +1150,7 @@ What that requires of the printer:
   const b = y => /* … c0 … */          // ["frame"] slot 0 reads as c0
   ```
 
-  So **the AST's explicit frame is JS's implicit lexical capture**:
+  So **the EDAG's explicit frame is JS's implicit lexical capture**:
   printing turns frame slots into captured names, parsing turns captured
   names back into frame slots. `["frame"]` used as a whole array (rather
   than indexed) simply prints as a real array of those names.
@@ -1162,7 +1163,7 @@ What that requires of the printer:
   spelling, so the value domain is closed under printing.
 
 The property worth aiming at: **parse(toString(f)) reproduces the same
-AST**, and therefore the same hash (subject 9). That is what makes
+EDAG**, and therefore the same hash (subject 9). That is what makes
 `toString` trustworthy rather than merely informative — and it is a
 sharper test of the whole design than any single operation, since it
 fails the moment an operation has no faithful source form.
