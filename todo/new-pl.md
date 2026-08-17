@@ -67,7 +67,7 @@ Moving further, we will use FunctionalScript as a foundation to build our progra
 
 ## Multiple Syntaxes
 
-Because the canonical identity of a program is the content hash of its semantic representation (AST/IR), not its source text, syntax becomes a rendering preference. Multiple surface syntaxes can compile to the same semantic node and therefore share the same hash — they are literally the same program.
+Because the canonical identity of a program is the content hash of its semantic representation (EDAG/IR), not its source text, syntax becomes a rendering preference. Multiple surface syntaxes can compile to the same semantic node and therefore share the same hash — they are literally the same program.
 
 This means we could support, for example, both a JavaScript-style and a Python-style syntax:
 
@@ -111,7 +111,7 @@ export default assert(emptyArrayId1, emptyArrayId2)
 
 One invariant must always hold within a VM version: the same object always produces the same id. However, the concrete hash value is not guaranteed to be stable across VM versions — if a future VM switches to a different hash algorithm (e.g. for security or collision-resistance reasons), the same object would produce a different id. This means persisted ids are implicitly tied to the VM version that produced them, and cross-version id comparison requires a migration or a version-tagged id format.
 
-Function identity is a harder problem. Two functions are semantically equal if they produce the same output for every possible input, but proving that in general is undecidable (equivalent to the halting problem, see also [Rice's theorem](https://en.wikipedia.org/wiki/Rice's_theorem)). The practical solution is structural equality: two functions are considered the same if they have the same normalized AST (the stable, canonical representation of functions — bytecode is VM-internal and version-dependent). This is decidable and cheap to compute.
+Function identity is a harder problem. Two functions are semantically equal if they produce the same output for every possible input, but proving that in general is undecidable (equivalent to the halting problem, see also [Rice's theorem](https://en.wikipedia.org/wiki/Rice's_theorem)). The practical solution is structural equality: two functions are considered the same if they have the same normalized EDAG (the stable, canonical representation of functions — bytecode is VM-internal and version-dependent). This is decidable and cheap to compute.
 
 The catch is that normalization is not fixed forever — a smarter normalizer in a future VM version may canonicalize more aggressively, causing functions that were distinct under the old normalizer to become equal. This means function hashes are implicitly versioned by the normalizer that produced them. We likely need to encode the normalizer version in the hash (or the VM version), so that old and new hashes remain meaningful and comparable across VM generations.
 
@@ -244,22 +244,22 @@ This has several advantages:
 - Different modules in the same program can use different type systems
 - New type systems can be published as ordinary packages without changes to the core language
 
-### Serializable AST
+### Serializable EDAG
 
 JavaScript's `Function.prototype.toString()` exposes source text, but it is unreliable: all major engines produce incorrect output for closures that capture variables from an outer scope, because the returned string omits the surrounding context needed to reconstruct the function's meaning.
 
-The new PL exposes the AST directly as a serializable value:
+The new PL exposes the EDAG directly as a serializable value:
 
 ```js
 const add = (a, b) => a + b
 
-const ast = Function.getAst(add)   // returns a plain serializable object
-const add2 = Function.fromAst(ast) // reconstructs the function
+const edag = Function.getEdag(add)   // returns a plain serializable object
+const add2 = Function.fromEdag(edag) // reconstructs the function
 
 assert(add(1, 2) === add2(1, 2))
 ```
 
-Because the AST is a plain data value (most likely JSON), it can be stored, transmitted, inspected, and transformed without a parser. Combined with `Object.id`, the AST of a function is also its canonical identity (see Content-Addressability). `Function.fromAst` on a different VM or a future VM version must either reproduce the same behavior or reject the AST explicitly — it must never silently produce a different result.
+Because the EDAG is a plain data value (most likely JSON), it can be stored, transmitted, inspected, and transformed without a parser. Combined with `Object.id`, the EDAG of a function is also its canonical identity (see Content-Addressability). `Function.fromEdag` on a different VM or a future VM version must either reproduce the same behavior or reject the EDAG explicitly — it must never silently produce a different result.
 
 This also enables runtime metaprogramming and macro-like code generation without resorting to `eval` or string manipulation.
 
@@ -376,7 +376,7 @@ Notes and open questions:
 - [ ] Define lexicographic key ordering rules
 - [ ] Specify `undefined`-assignment removes property
 - [ ] Specify `Object.id` API and hash algorithm
-- [ ] Design function identity scheme (normalized AST hashing + VM/normalizer versioning)
+- [ ] Design function identity scheme (normalized EDAG hashing + VM/normalizer versioning)
 - [ ] Define hash-based module identity scheme
 - [ ] Specify last-expression-as-export semantics
 - [ ] Specify `effect`/`perform` syntax and handler protocol
@@ -386,4 +386,4 @@ Notes and open questions:
 - [ ] Specify `if`/`switch` expression semantics and pattern matching syntax
 - [ ] Design canonical semantic IR that multiple syntaxes compile to
 - [ ] Design library-based type system API (opt-in, runtime+compile-time)
-- [ ] Specify `Function.getAst`/`Function.fromAst` API and AST schema
+- [ ] Specify `Function.getEdag`/`Function.fromEdag` API and EDAG schema

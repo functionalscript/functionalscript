@@ -112,6 +112,6 @@ moved here from the main spec README and keeping their old section numbers:
 |[content-addressable-vm](./content-addressable-vm.md)|§6 — content-addressable VM, hashing|
 |[object-identity](./object-identity.md)|§7 — object identity, custom dictionaries, `Map`|
 |[mutability](./mutability.md)|§8 — mutable objects and ownership tracking|
-|[serialization](./serialization.md)|§9 — AST as data, CBOR, bytecode as VM-internal|
+|[serialization](./serialization.md)|§9 — EDAG as data, CBOR, bytecode as VM-internal|
 |[vm-command-format](./vm-command-format.md)|NPN command format of the VM|
 |[design-principles](./design-principles.md)|design principles of the "ideal" FS 0.*|

@@ -1,12 +1,12 @@
-## AST computation graph visualizer
+## EDAG computation graph visualizer
 
 **Priority:** P4
 **Status:** open
 
 ### Problem
 
-A function's AST is a **DAG whose sharing is semantic**
-([ast-spec](./ast-spec.md)): a node referenced twice is evaluated once,
+A function's EDAG is a **DAG whose sharing is semantic**
+([edag-spec](./edag-spec.md)): a node referenced twice is evaluated once,
 and `[x, x]` is a different function from `[{}, {}]`. Every textual view
 hides exactly that:
 
@@ -17,12 +17,12 @@ hides exactly that:
 - DJS — preserves sharing, but a reader must reconstruct the graph
   mentally from the `const` names.
 
-Reviewing an AST design, explaining it, or debugging *why two functions
+Reviewing an EDAG design, explaining it, or debugging *why two functions
 hash differently* all want the graph itself.
 
 ### Proposal
 
-A pure function from an AST value to a graph description — data in,
+A pure function from an EDAG value to a graph description — data in,
 text out, no side effects, so it is ordinary FunctionalScript and can
 eventually be part of the self-hosted toolchain.
 
@@ -49,7 +49,7 @@ What the rendering must show, beyond a plain tree:
 
 ### Uses
 
-- reviewing AST designs and teaching the format;
+- reviewing EDAG designs and teaching the format;
 - debugging hash mismatches — two functions that look the same in source
   but differ in sharing are obvious side by side as graphs;
 - inspecting compiler output: what the lowering of `if`, `assert`, or a
@@ -57,6 +57,6 @@ What the rendering must show, beyond a plain tree:
 
 ### Related
 
-- [ast-spec](./ast-spec.md) — the format being visualized.
+- [edag-spec](./edag-spec.md) — the format being visualized.
 - `toString(f)` is the *text* counterpart of the same data; the two
   together cover both audiences.

@@ -137,5 +137,5 @@ via the `Function` constructor — no rustc at the user's run time.
   stage-1 validation, declaration, and package prerequisite.
 - [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md) — broader
   package-publishing roadmap.
-- [ast-spec](./ast-spec.md) — the schema of the code-describing `Any`; the
+- [edag-spec](./edag-spec.md) — the schema of the code-describing `Any`; the
   `Function` constructor contract.

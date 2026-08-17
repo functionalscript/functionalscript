@@ -29,27 +29,27 @@ for individual items below are added only after discussion.
 
 ### Proposal
 
-#### Canonical representation: the AST as data (decided)
+#### Canonical representation: the EDAG as data (decided)
 
-The stable, canonical representation of functions is the **AST**, expressed
+The stable, canonical representation of functions is the **EDAG**, expressed
 as an FJS value (`Any`). Code is data: the `Function` constructor accepts an
 `Any` that describes the code, and the VM knows how to execute it. The
 reasons:
 
 1. We need a canonical data representation of functions in FunctionalScript —
    and in the future content-addressable VM (CAVM) — to compute a hash.
-2. The AST can be transformed back to source code; this transformation will
+2. The EDAG can be transformed back to source code; this transformation will
    be used in `toString(f)`.
 3. Because code is an FJS value, serializing functions requires no separate
    format: once the VM serializes `Any` values, it serializes code too.
 
 Bytecode is an advanced, performance-oriented representation that may vary
-across architectures, VM implementations, and versions, while the AST is the
+across architectures, VM implementations, and versions, while the EDAG is the
 stable representation. See
 [`spec/todo/serialization.md`](../../spec/todo/serialization.md).
 
 The exact shape of the code-describing `Any` is specified by the
-[ast-spec](../../todo/ast-spec.md) — the contract of the `Function`
+[edag-spec](../../todo/edag-spec.md) — the contract of the `Function`
 constructor.
 
 #### Execution: two paths (decided)
@@ -71,10 +71,10 @@ Invariants:
   control flow and dispatch.
 - A natively compiled function still **carries its `Any` code description**
   (as static data), so content hashing and `toString(f)` apply uniformly to
-  all functions: the AST is the identity of a function; native code is a
+  all functions: the EDAG is the identity of a function; native code is a
   cached acceleration of it. This invariant is **staged**: the MVP code
   generator omits the embedded description while the
-  [ast-spec](../../todo/ast-spec.md) (P2) is not yet defined — it must not
+  [edag-spec](../../todo/edag-spec.md) (P2) is not yet defined — it must not
   invent its own shapes ahead of the spec. Embedding becomes mandatory once
   the spec lands, and before the `Function` constructor, hashing, or
   `toString(f)` ship.
@@ -137,7 +137,7 @@ build until the twin catches up. Since `NodeOp` today is TypeScript types
 only and the code generator compiles FJS values, the vocabulary becomes an
 **RTTI schema** (the specification of record) from which both the TS types
 (`Ts<T>`) and the Rust stub are derived — the third instance of the
-single-source pattern, after the [ast-spec](../../todo/ast-spec.md) and the
+single-source pattern, after the [edag-spec](../../todo/edag-spec.md) and the
 operator tests. The stub is generated code: it is committed to the
 repository and regenerated through the same single-script / drift-check
 rules as the generated compiler source (see the distribution section
@@ -258,10 +258,10 @@ FJS source and diff against git. Once the crate ships, the check closes
 into a fixed point: the crate-shipped compiler regenerates its own
 packaged source, identically.
 
-#### What changed (vs. the earlier serialized-AST proposal)
+#### What changed (vs. the earlier serialized-EDAG proposal)
 
-Previously the MVP pipeline sent a CBOR-serialized AST from `fjs` to a
-`nanvm` executable, which required an AST wire-format spec, an FJS
+Previously the MVP pipeline sent a CBOR-serialized EDAG from `fjs` to a
+`nanvm` executable, which required an EDAG wire-format spec, an FJS
 serializer, and a Rust deserializer on the critical path. That interprocess
 handoff is replaced by Rust code generation: rustc takes the place of the
 deserializer. Serialization of `Any` values (binary encoding: **CBOR**,
@@ -308,15 +308,15 @@ as a generic `Any` facility, post-MVP.
 
 #### P2
 
-- [ ] **AST spec** — the RTTI schema of the code-describing `Any`; the
+- [ ] **EDAG spec** — the RTTI schema of the code-describing `Any`; the
       contract of the `Function` constructor, shared by the compiler, the
       interpreter, and the code generator (which embeds it as static data).
       Blocks the staged embedding invariant above and the `Function`
       constructor below — the MVP code generator does not embed code
       descriptions until this spec exists.
-      See [ast-spec](../../todo/ast-spec.md).
+      See [edag-spec](../../todo/edag-spec.md).
 - [ ] **`Function` constructor + interpreter** (Rust) — accepts an `Any`
-      described by the AST spec and executes it; behind a cargo feature
+      described by the EDAG spec and executes it; behind a cargo feature
       flag. Related: [fs-vm-load-save](./fs-vm-load-save.md).
 - [ ] **Basic control operator `?:`** (Rust).
 - [ ] **Nested functions** (function frame) (Rust).
@@ -381,10 +381,10 @@ compiler-compatibility migration rather than a separate rewrite.
 
 - [`spec/README.md`](../../spec/README.md) — the language spec;
   [`spec/todo/serialization.md`](../../spec/todo/serialization.md) records the
-  AST-as-data decision and the two execution paths.
+  EDAG-as-data decision and the two execution paths.
 - [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — source extension contract
   and incremental repository migration.
-- [ast-spec](../../todo/ast-spec.md) — the schema (RTTI) of the
+- [edag-spec](../../todo/edag-spec.md) — the schema (RTTI) of the
   code-describing `Any`; the `Function` constructor contract.
 - [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) — the
   walking-skeleton integration: the `.rs` output target and the harness.

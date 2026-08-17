@@ -4,7 +4,7 @@
 **Status:** open — working document for designing the stage 1 function
 EDAG (expression DAG — see the core invariant).
 Each subject below is resolved separately; once all are **decided**, the
-result is distilled into a concrete design in [ast-spec.md](./ast-spec.md)
+result is distilled into a concrete design in [edag-spec.md](./edag-spec.md)
 and this document is deleted.
 
 ## Baseline: an expression DAG with anchored evaluation
@@ -128,8 +128,9 @@ edges play the role of our `","` operands; *sea of nodes* is the same
 family but carries control edges and a scheduling phase this design
 does not have.
 
-`spec/` and [ast-spec](./ast-spec.md) still say *AST*; renaming them is
-a follow-up.
+*AST* is now reserved for **BNF parser output** ([fjs/bnf](../fjs/bnf/README.md),
+[fjs/djs](../fjs/djs/README.md)); the function representation is the EDAG
+everywhere else.
 
 "Behaves the same" means, precisely, under the assumptions:
 
