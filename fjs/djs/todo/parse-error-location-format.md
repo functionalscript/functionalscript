@@ -1,62 +1,62 @@
-## parse-error-location-format. `compile`: `undefined:undefined:undefined` when a `ParseError` has no metadata
+## An error without a position names the compiled file, not the failing one
 
 **Priority:** P4
 **Status:** open
 
 ### Problem
 
-`compile` in `fjs/djs/module.f.mjs` formats every `ParseError` as
-`<path>:<line>:<column> - error: <message>`, reading the three fields off
-`result[1].metadata`:
+`compile` in [`fjs/djs/module.f.mjs`](../module.f.mjs) prints
+`<path>:<line>:<column> - error: <message>` when the error carries a token's
+metadata, and the name of the file being compiled when it does not:
 
 ```js
-const metadata = result[1].metadata
-return step(
-    error(`${metadata?.path}:${metadata?.line}:${metadata?.column} - error: ${result[1].message}`),
-    () => pure(1))
+const errorLocation = inputFileName => ({ metadata }) => metadata === null
+    ? inputFileName
+    : `${metadata.path}:${metadata.line}:${metadata.column}`
 ```
 
-`ParseError.metadata` is `TokenMetadata | null`, and the transpiler raises two
-errors with no token to point at — `file not found` (`transpiler/module.f.mjs:41`)
-and `circular dependency` (`:80`) — both of which carry `metadata: null`. The
-optional chaining then prints the literal string `undefined` three times:
+That replaced a literal `undefined:undefined:undefined`, so the line is no
+longer a trap for anything reading it as `path:line:column`. What it still
+does is name the **wrong file** whenever the failure is not in the file named
+on the command line:
 
 ```sh
-$ fjs compile nope.f.mjs out.mjs
-undefined:undefined:undefined - error: file not found
+$ fjs compile main.f.js out.js      # main.f.js imports ./missing.f.js
+main.f.js - error: file not found   # which import? the line does not say
 ```
 
-The exit code is correct (`1`); only the location prefix is wrong. It is noise
-for a human and a trap for anything parsing the line as `path:line:column`.
+Three errors reach this branch, and none of them can point at a token:
+
+- `file not found` and `circular dependency`
+  ([`transpiler/module.f.mjs`](../transpiler/module.f.mjs)) know the path that
+  failed, but `TokenMetadata` has no shape for "this file, position unknown".
+- a `.json` input's parse error comes from
+  [`fjs/media/json/parser`](../../media/json/parser), which reports one shared
+  error value with no position at all — so a malformed JSON document is
+  reported as `a.json - error: unexpected token`, with the file right and the
+  position missing.
 
 ### Proposal
 
-Emit the prefix only when there is a location to report:
+Two independent halves, either useful alone.
 
-```js
-const { metadata, message } = result[1]
-const location = metadata === null
-    ? ''
-    : `${metadata.path}:${metadata.line}:${metadata.column} - `
-return step(error(`${location}error: ${message}`), () => pure(1))
-```
-
-A metadata-less error then reads `error: file not found`. An alternative worth
-weighing first: give these two errors real metadata — the importing module's
-path is known at both sites — which fixes the message *and* tells the user which
-import failed. That is the better output but a larger change, since
-`TokenMetadata` also wants a line and column.
+- Let a `ParseError` carry a path without a position — a `TokenMetadata` whose
+  line and column are absent rather than invented — and give the transpiler's
+  two errors the path that actually failed.
+- Give `fjs/media/json`'s tokenizer and parser real positions, so a `.json`
+  input reports `a.json:3:12` like a module does. The JSON tokenizer already
+  walks the text; the parser discards where it was.
 
 ### Tasks
 
-- [ ] Pick one of the two shapes above and implement it.
-- [ ] Assert the exact `stderr` text in `fjs/djs/proof.f.mjs`'s `fileNotFound`,
-      and cover the metadata-carrying branch too.
-- [ ] `npx tsc` clean; `fjs t` passes.
+- [ ] A path-without-position `ParseError`, used by `file not found` and
+      `circular dependency`.
+- [ ] Positions in `fjs/media/json`'s parse errors.
+- [ ] Assert the exact `stderr` for both, next to the cases
+      [`fjs/djs/proof.f.mjs`](../proof.f.mjs) already pins.
 
 ### Related
 
 - `fjs/djs/module.f.mjs` — the formatting site.
-- `fjs/djs/transpiler/module.f.mjs:41`, `:80` — the two `metadata: null` errors.
 - Split out of the `compile` exit-code issue, which fixed the exit status of
   this same branch and left the cosmetic half open.

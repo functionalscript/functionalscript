@@ -46,17 +46,16 @@ fjs compile input.f.js output.json   # {"__proto__":1}
 fjs compile input.json output.f.js   # reads {"__proto__":1} as a property
 ```
 
-An imported file is read as a FunctionalScript module however it is named. A
-JSON document is one — that is the subset claim — so the import works; only a
-document carrying this key is refused, because as a module that text means a
-prototype assignment. What would declare an import's language is the import
-statement, `with { type: "json" }`, which the language does not have yet
-([import-attributes](./todo/2140-import-attributes.md)).
-
 So a JSON document survives the loop `proto.json → a.f.js → out.json` byte for
 byte, each hop spelling the key its own language's way. The identifier
 spelling is not a key in either language: no JSON document contains one, so
-`{__proto__: 1}` stays an error whatever the input file is called.
+`{__proto__: 1}` is an error whatever the input file is called.
+
+An imported file is read as a FunctionalScript module however it is named, and
+a JSON document is not a module ([JSON](./1000-json.md)), so a JSON file
+cannot be imported at all yet. What would declare an import's language is the
+import statement, `with { type: "json" }`, which the language does not have
+([import-attributes](./todo/2140-import-attributes.md)).
 
 The extension is the declaration, not a guess about the content. JavaScript
 decides the same way: `import` takes a module's type from the extension — or,
@@ -70,23 +69,20 @@ it is the only spelling whose evaluation reproduces the property. In JSON
 output the plain key stays — `JSON.parse` has no prototype special case, so
 JSON already round-trips, and the computed form is not JSON at all.
 
-## JSON is a subset of FunctionalScript except here
+## The one key the two languages read differently
 
 `"__proto__"` is an ordinary data key in a JSON document — `JSON.parse` makes
-it an own property — so a JSON document containing that key is **not** a valid
-FunctionalScript module. This is the one documented exception to
-[JSON](./1000-json.md)'s subset claim; every other JSON document means the same
-thing in both languages.
+it an own property — and a prototype assignment in a JavaScript module. It is
+the only text the two languages disagree about; every other JSON document
+denotes the same value in both.
 
-The alternative would be for FunctionalScript to accept the spelling and read
-it as a data property, but then FunctionalScript source would mean something
-different from what a JavaScript engine gives it, breaking principle 2. A
-narrow, stated exception is the cheaper price.
+Each language keeps its own reading, because each is right about itself:
+JSON's reader gives the document the value `JSON.parse` gives it, and the
+module parser refuses the spelling rather than give a module a value no
+JavaScript engine would give it, which would break principle 2.
 
-The exception is about the *language a file is written in*, not about the
-value: such a document is still readable, as JSON. `fjs compile` reads the
-input it is given in the language its extension names, so the document
-compiles — into a module spelling the same key the JavaScript way. What it
-cannot be is a module, and importing it is exactly that.
+The disagreement is about a *text*, not a value, so nothing is unreachable: a
+document carrying the key compiles, into a module spelling that same key the
+JavaScript way ([JSON](./1000-json.md)).
 
 Depends on [computed-property](./2470-computed-property.md).

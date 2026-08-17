@@ -7,10 +7,10 @@ export default [a, b]
 ```
 
 A file that is not a module is imported with an attribute naming its type:
-`"json"` for a JSON document, `"text"` for a string. JavaScript requires the
-attribute — without it the first line is an error, so a FunctionalScript
-module that imports JSON today is not a JavaScript module, which is
-principle 2.
+`"json"` for a JSON document, `"text"` for a string. This is the only way to
+import either — an import resolves to a FunctionalScript module, and neither a
+JSON document nor a text file is one — and it is the spelling JavaScript
+requires, which is principle 2.
 
 The two types are at opposite ends of the same clause and arrive on different
 schedules: `"json"` is standard and shipping, and the parser is behind it;
@@ -20,9 +20,9 @@ of it.
 ## Why
 
 `fjs compile` reads its input as a JSON document when the extension says so
-([proto-property-key](../2480-proto-property-key.md)), and a module may import
-such a file. On a JavaScript engine that import behaves differently — Node 22,
-ESM:
+([1000-json](../1000-json.md)), but a module has no way to name one: an import
+resolves to a FunctionalScript module, and a JSON document is not a module. In
+JavaScript the attribute is what names it — Node 22, ESM:
 
 |`import`|result|
 |-|-|
@@ -32,8 +32,9 @@ ESM:
 |`import x from './a.json' with { foo: "bar" }`|`ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`|
 |`import x from './a.json' with { type: "text" }`|`ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`|
 
-The parser has it exactly backwards: it accepts the first line, which no
-JavaScript engine loads, and rejects the second with `unexpected token`.
+The parser recognizes none of these: the clause itself is `unexpected token`,
+so the second line — the one JavaScript wants — cannot be written, and the
+first fails in the imported file, which is not a module.
 
 ## Rules
 
@@ -74,17 +75,16 @@ fjs compile proto.json a.js   # read as JSON: nothing else can say so
 ```
 
 Until the clause exists, an import reads a FunctionalScript module however the
-file is named — which is what the compiler does today. Nothing has to change
-for that: JSON is a subset of FunctionalScript, so importing a JSON document
-already works, and the one document that stops at the door is the one carrying
-a `__proto__` key, which as a module means a prototype assignment.
+file is named — which is what the compiler does today — and a JSON document is
+not a module ([1000-json](../1000-json.md)), so **importing JSON does not work
+at all**. The clause is the only thing that would make it work.
 
-**So this feature is purely additive.** It adds the only spelling that reads
-an imported file as JSON, and no import changes meaning when it lands. The
-end state is the JavaScript one: the attribute is *required* to import a JSON
-document — a `.json` import without it is `ERR_IMPORT_ATTRIBUTE_MISSING` on
-any engine, so FunctionalScript should refuse it too rather than quietly
-reading the file as a module.
+**So this feature is purely additive**, and it is the whole feature rather
+than a spelling for one: no import changes meaning when it lands, because no
+import reads JSON today. It arrives already matching JavaScript, where the
+attribute is *required* — a `.json` import without one is
+`ERR_IMPORT_ATTRIBUTE_MISSING` on any engine, and here it is a parse error in
+the imported file.
 
 ## `type: "text"`
 
@@ -118,14 +118,14 @@ implementations, while `"json"` does not wait on anything.
 
 - The serializer never emits an `import`, so this is a parser-side feature
   only.
-- The transpiler already reads only its root file by extension (`parserFor` in
-  [`fjs/djs/transpiler`](../../fjs/djs/transpiler/module.f.mjs)) and every
-  import as FunctionalScript. What this feature adds is a reader per declared
-  type at the import site: a module's import list is `readonly string[]`
+- [`fjs/djs/transpiler`](../../fjs/djs/transpiler/module.f.mjs) already has
+  the two readers, chosen by the root file's extension: `transpileJson` for a
+  `.json` input, `transpileModule` for everything else, with every import
+  going to the latter. What this feature adds is that same choice at the
+  import site — a module's import list is `readonly string[]`
   ([`ast/types.ts`](../../fjs/djs/ast/types.ts)) and would carry each path's
-  type alongside it. A `"text"` import is not a module at all — it resolves to
-  a string without being parsed — so the type also decides whether the
-  imported file has imports of its own to resolve.
+  declared type alongside it. A `"text"` import needs a third reader, which is
+  no reader at all: the file is not parsed, so it has no imports to resolve.
 - `import type` ([namespace-import](./2220-namespace-import.md)) is a separate
   clause on the same statement and is unaffected.
 

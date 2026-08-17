@@ -19,6 +19,19 @@ import { errorExit, exitStep, writeUtf8File } from '../effects/node/module.f.mjs
 /** @typedef {ReadFile | WriteFile | Write} _CompileOp */
 
 /**
+ * Where an error happened, as much of it as is known: the token's
+ * `path:line:column` when the reader tracks positions, and otherwise the name
+ * of the file being compiled. A `.json` input is read by `fjs/media/json`,
+ * whose errors carry no position, and a missing file or a circular dependency
+ * has no token to point at either.
+ *
+ * @type {(inputFileName: string) => (parseError: ParseError) => string}
+ */
+const errorLocation = inputFileName => ({ metadata }) => metadata === null
+    ? inputFileName
+    : `${metadata.path}:${metadata.line}:${metadata.column}`
+
+/**
  * Compiles the DJS module `args[0]` into `args[1]`, serializing as a JSON tree
  * when the output name ends with `.json` and as a module otherwise.
  *
@@ -39,8 +52,7 @@ export const compile = args => {
         /** @type {(result: Result<Unknown, ParseError>) => Effect<_CompileOp, number>} */
         (result) => {
             if (result[0] === 'error') {
-                const metadata = result[1].metadata
-                return errorExit(`${metadata?.path}:${metadata?.line}:${metadata?.column} - error: ${result[1].message}`)
+                return errorExit(`${errorLocation(inputFileName)(result[1])} - error: ${result[1].message}`)
             }
             const content = outputFileName.endsWith('.json')
                 ? stringifyAsTree(sort)(result[1])
