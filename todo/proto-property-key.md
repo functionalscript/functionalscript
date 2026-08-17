@@ -87,6 +87,8 @@ key — which is still an improvement on expressing it *wrongly*.
 
 ### Related
 
+- [proto-key-compiler-bug](./proto-key-compiler-bug.md) — the state of
+  the current FJS compiler and what to change in it.
 - [edag-stage1-discussion](./edag-stage1-discussion.md) — subject 4
   (object constructor keys) and subject 12 (`toString(f)` must print the
   computed form for the same reason).
