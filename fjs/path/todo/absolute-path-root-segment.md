@@ -46,8 +46,8 @@ The file named in that message exists; the one that was not found is
 imports compiles from an absolute path, because the file named on the command
 line is read with the path as given and only imports go through `concat`.
 
-The limitation is already worked around at the one other call site that meets
-absolute paths, [`fjs/effects/node/module.mjs`](../../effects/node/module.mjs):
+The limitation is already worked around at the one other call site it breaks,
+[`fjs/effects/node/module.mjs`](../../effects/node/module.mjs):
 
 ```js
 const s0 = v.includes(':') || v.startsWith('/') ? v : concat(process.cwd())(v)
