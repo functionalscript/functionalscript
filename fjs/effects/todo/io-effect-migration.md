@@ -320,9 +320,9 @@ the bytes.
 
 ## Stage 4. Migrate consumers
 
-**In progress.** Migrate module by module; each module is its own pull request,
-and the worklist is the `unwrapStep` call sites — every one is a consumer that
-has not yet chosen a policy beyond "panic".
+**Done.** Migrated module by module, one pull request each, with the
+`unwrapStep` call sites as the worklist — every one a consumer that had not yet
+chosen a policy beyond "panic".
 
 Migrated: `fjs/ci`, `fjs/ci/nix`, `fjs/nanvm/update`, `fjs/dev/update`,
 `fjs/cas`, `cas list`, `fjs/emergent_testing`, `fjs/dev`, `fjs/cas/evo`,
@@ -350,9 +350,6 @@ site left to migrate.
       consumers that required them, and `allOk` with `fjs/emergent_testing`;
       `items` stays a **raw** effect in both folds, since no consumer produces
       its list fallibly.
-- [ ] Revisit `okStep`, `IoResult`, stream-fold helpers, and specialized
-      recovery adapters as consumers migrate; remove redundant APIs when
-      possible.
 - [x] Validate `npx tsc` and `fjs t` after each migration PR.
 
 What the migrated modules showed:
@@ -366,10 +363,36 @@ What the migrated modules showed:
   piggy-backed on is in the type.
 - `resultStep` is what a cleanup-on-failure site wants: `writeImpl` deletes its
   partial staging file and *then* reports, which propagation alone would skip.
+- **`all` needed an `ok`-channel twin.** Its envelope is the runner's, so
+  handing it `IoEffect`s nests one `Result` inside another and the caller
+  receives `readonly Result<T, E>[]` — the value-discarding hazard, one level
+  in. `allOk` (`fjs/effects/node/module.f.mjs`) collapses that to the first
+  error; every effect still runs, since the short-circuit is in the result and
+  not the execution.
+- **A tail is not always `exitStep`.** That one answers `0` for every success,
+  so a program whose success value *is* an exit code (`fjs t`) needs a sibling
+  that keeps the computed code and reports only the channel failure.
+- **What a failure becomes is decided by what the caller can be told**, not by
+  preference. At a protocol edge the same channel error is a JSON-RPC `-32603`
+  to a request, silence to a notification (no response frame exists), and a
+  propagated failure from the transport (no frame, but there is a caller). A
+  remote caller is also told *less*: `errorSummary` carries the OS error code
+  where `errorMessage` would carry the host path.
+- **One panic stayed, at a foreign boundary.** `Test` hands its callback to an
+  external framework whose contract is a raw `Effect<…, void>`, so there is no
+  channel to answer through, and a throw is what that framework already reports
+  as a failed test.
+- **The `unwrapStep` grep was necessary but not sufficient**, and this is the
+  part worth carrying into Stage 5. It cannot see a site that never used the
+  name — `fjs/dev`, `fjs/cas`'s `list` and the `fjs run` command were all found
+  by grepping for a bare `unwrap` or `throw` instead — and neither grep can see
+  an interface whose *type* leaves implementations no way to report a failure.
+  `Reporter` and `Cas.list` were both that, and both sat in modules already
+  ticked off as migrated. Read the published types, not just the call sites.
 
 ## Stage 5. Retire old `Effect`; rename `IoEffect` to `Effect`
 
-**Blocked by:** Stage 4.
+**Ready.** Stage 4 is done, so nothing blocks this.
 
 After public consumers use IoEffect semantics, make it canonical:
 
@@ -377,6 +400,11 @@ After public consumers use IoEffect semantics, make it canonical:
 Effect<O, T, E = NotImplemented>
 ```
 
+- [ ] Revisit `okStep`, `IoResult`, stream-fold helpers, and specialized
+      recovery adapters; remove redundant APIs when possible. Moved here from
+      Stage 4: the consumers have all migrated, and `okStep`'s only remaining
+      caller is the Io `step` itself, so inlining it belongs with the rest of
+      the raw layer's retirement rather than before it.
 - [ ] Retire the old public `Effect<O, T>` abstraction.
 - [ ] If the implementation still needs today's `Pure | Do` representation,
       keep it under an internal/private name such as `RawEffect` rather than

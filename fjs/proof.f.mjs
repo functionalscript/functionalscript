@@ -54,9 +54,21 @@ export const proof = {
         assertEq(code, 1)
         assert(state.stderr !== '', ['expected the storage error on stderr', state.stderr])
     },
-    throw: {
-        runImportError: () => {
-            run({})(['run', 'missing.f.ts'])
-        },
+    // A file that will not import is the user's command line, not a defect:
+    // it is reported with the name they typed and exits 1, where it used to
+    // panic out of the effect runner.
+    runImportError: () => {
+        const [state, code] = run({})(['run', 'missing.f.ts'])
+        assertEq(code, 1)
+        assert(state.stderr.startsWith('missing.f.ts: '), state.stderr)
+    },
+    // The file imports but is not a program. Same answer, different reason —
+    // and the reason is the half of it worth saying.
+    runNotANodeProgram: () => {
+        /** @type {Dir} */
+        const root = { 'app.f.ts': () => ({ notMain: 1 }) }
+        const [state, code] = run(root)(['run', 'app.f.ts'])
+        assertEq(code, 1)
+        assert(state.stderr.includes('not a NodeProgram'), state.stderr)
     },
 }

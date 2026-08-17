@@ -7,16 +7,14 @@
  * @import { Commands } from './cli/types.ts'
  */
 
-import { assert } from './asserts/module.f.mjs'
 import { compile } from './djs/module.f.mjs'
 import { main as testMain } from './emergent_testing/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'
 import { main as ciMain } from './ci/module.f.mjs'
-import { exitStep, import_ } from './effects/node/module.f.mjs'
+import { errorExit, errorMessage, exitStep, import_ } from './effects/node/module.f.mjs'
 import { dispatch } from './cli/module.f.mjs'
 import { casMcpServer } from './mcp/module.f.mjs'
-import { pure, step } from './effects/module.f.mjs'
-import { unwrap } from './types/result/module.f.mjs'
+import { step } from './effects/module.f.mjs'
 
 /** @type {Commands<NodeOp>} */
 const commands = [
@@ -51,16 +49,23 @@ const commands = [
     {
         names: ['run', 'r'],
         description: 'Run a FunctionalScript module as a NodeProgram',
+        // Both ways this can fail are the command line, not a defect: the
+        // named file may not import, and a module that does import may export
+        // no `main`. Neither deserves a stack trace, so both are reported on
+        // `stderr` and exit `1` — the same answer an unknown command gets a
+        // few lines up, and the same one every other command now gives.
         handler: options => {
             const [file, ...args] = options.args
             return step(
                 import_(file),
-                x => {
-                    const { main } = unwrap(x)
-                    // A module named on the command line may export anything;
-                    // fail here with the value rather than as `main is not a
-                    // function` from inside the effect runner.
-                    assert(typeof main === 'function', ['not a NodeProgram', file])
+                r => {
+                    if (r[0] === 'error') {
+                        return errorExit(`${file}: ${errorMessage(r[1])}`)
+                    }
+                    const { main } = r[1]
+                    if (typeof main !== 'function') {
+                        return errorExit(`${file}: not a NodeProgram — no exported \`main\` function`)
+                    }
                     return /** @type {NodeProgram} */ (main)({ ...options, args })
                 })
         },
