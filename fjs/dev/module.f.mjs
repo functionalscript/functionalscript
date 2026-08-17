@@ -3,16 +3,16 @@
  *
  * @module
  *
- * @import { Access, All, Env, Import, Readdir } from '../effects/node/types.ts'
- * @import { Effect } from '../effects/types.ts'
+ * @import { Access, All, Env, Import, IoError, Readdir } from '../effects/node/types.ts'
+ * @import { IoEffect, NotImplemented } from '../effects/io/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'
  * @import { Module, ModuleMap, LoadModuleOperations } from './types.ts'
  */
 
-import { all, import_, readdir } from '../effects/node/module.f.mjs'
+import { allOk, import_, readdir } from '../effects/node/module.f.mjs'
 import { cmp as strCmp } from '../types/string/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
-import { pure, step } from '../effects/module.f.mjs'
+import { mapStep, pureOk, step } from '../effects/io/module.f.mjs'
 import { join, relativize, toPosix } from '../path/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
@@ -49,16 +49,16 @@ export const shouldLoad = s =>
 const isSourceFile = path =>
     path.endsWith('.js') || path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.mjs')
 
-/** @type {(s: string, predicate: (path: string) => boolean) => Effect<Readdir | All, readonly string[]>} */
+/** @type {(s: string, predicate: (path: string) => boolean) => IoEffect<Readdir | All, readonly string[], NotImplemented | IoError>} */
 const allFiles = (s, predicate) => {
-    /** @type {(p: string) => Effect<Readdir | All, readonly string[]>} */
+    /** @type {(p: string) => IoEffect<Readdir | All, readonly string[], NotImplemented | IoError>} */
     const load = p => {
-        const x0 = step(
+        const listed = step(
             readdir(p, {}),
             d => {
-                /** @type {readonly Effect<Readdir | All, readonly string[]>[]} */
+                /** @type {readonly IoEffect<Readdir | All, readonly string[], NotImplemented | IoError>[]} */
                 let result = []
-                for (const i of unwrap(d)) {
+                for (const i of d) {
                     const { name } = i
                     if (name.startsWith('.')) { continue }
                     const file = join(p, name)
@@ -68,26 +68,19 @@ const allFiles = (s, predicate) => {
                         continue
                     }
                     if (predicate(file)) {
-                        result = [...result, pure([file])]
+                        result = [...result, pureOk([file])]
                     }
                 }
-                return all(...result)
+                return allOk(...result)
             })
-        // `all`'s own result is unwrapped like every other operation's in this
-        // module: a dev tool that cannot list a directory has no fallback, so
-        // the failure is a panic here rather than a value threaded upward.
-        return step(
-            x0,
-            v => pure(unwrap(v).flat()))
+        return mapStep(listed, v => v.flat())
     }
     return load(s)
 }
 
-/** @type {(f: string) => Effect<Access | Import, readonly (readonly [string, Module])[]>} */
+/** @type {(f: string) => IoEffect<Access | Import, readonly (readonly [string, Module])[], NotImplemented | IoError>} */
 const loadFile = f =>
-    step(
-        import_(f),
-        r => pure([/** @type {const} */ ([f, unwrap(r)])]))
+    mapStep(import_(f), m => [/** @type {const} */ ([f, m])])
 
 const { fromEntries } = Object
 
@@ -105,7 +98,13 @@ const { fromEntries } = Object
  * The result is sorted by path key using `string.cmp` so the order is
  * deterministic regardless of filesystem traversal order.
  *
- * @type {(env: Env) => Effect<LoadModuleOperations, ModuleMap>}
+ * A failure — a directory that cannot be listed, a module that will not import
+ * — propagates instead of panicking, so the program that asked for the map
+ * decides what a partial view of the source tree means for it. Discovery reads
+ * the whole tree, and a map missing the file it was asked about is worse than
+ * no map at all.
+ *
+ * @type {(env: Env) => IoEffect<LoadModuleOperations, ModuleMap, NotImplemented | IoError>}
  */
 export const loadModuleMap = env => {
     const initCwd = env['INIT_CWD']
@@ -115,17 +114,17 @@ export const loadModuleMap = env => {
     //       we should consider optimizing them by ALIQ technique or something similar.
     //       For example, we should be able to write it like `allFiles(s).flatMap(loadFile)`,
     //       then an effect runner can batch all file loading operations together.
-    const x0 = step(
+    const loaded = step(
         allFiles(s, shouldLoad),
-        files => all(...files.map(loadFile)))
-    return step(
-        x0,
-        entries => pure(fromEntries(
-            unwrap(entries)
+        files => allOk(...files.map(loadFile)))
+    return mapStep(
+        loaded,
+        entries => fromEntries(
+            entries
                 .flat()
                 .map(([k, v]) => /** @type {const} */ ([relativize(prefix, k), v]))
                 .toSorted(([a], [b]) => strCmp(a)(b))
-        )))
+        ))
 }
 
 export const proof = {
@@ -149,7 +148,7 @@ export const proof = {
             'd.mjs': [],
         }
         const [, result] = virtual({ ...emptyState, root })(allFiles('.', shouldLoad))
-        assertEq(result.join(','), './a.f.ts,./b.f.mjs,./c.f.mts')
+        assertEq(unwrap(result).join(','), './a.f.ts,./b.f.mjs,./c.f.mts')
     },
     allFilesSkipsNodeModules: () => {
         // `node_modules` is skipped without descending into it, even though
@@ -160,7 +159,7 @@ export const proof = {
             'a.f.ts': [],
         }
         const [, result] = virtual({ ...emptyState, root })(allFiles('.', shouldLoad))
-        assertEq(result.join(','), './a.f.ts')
+        assertEq(unwrap(result).join(','), './a.f.ts')
     },
     loadModuleMapDefaultsToCwdWhenInitCwdUnset: () => {
         // With no `INIT_CWD` (e.g. `fjs t` invoked outside `npm run`), `env`
@@ -169,7 +168,15 @@ export const proof = {
         /** @type {Dir} */
         const root = { 'a.f.ts': () => ({}) }
         const [, result] = virtual({ ...emptyState, root })(loadModuleMap({}))
-        assertEq(Object.keys(result).join(','), './a.f.ts')
+        assertEq(Object.keys(unwrap(result)).join(','), './a.f.ts')
+    },
+    loadModuleMapReportsUnreadableRoot: () => {
+        // A directory that cannot be listed is no longer a panic. Discovery
+        // hands the failure back, and the program that asked for the map is
+        // the one that decides what a source tree it cannot read means — for
+        // `fjs t` that is a message on `stderr` and exit `1`.
+        const [, result] = virtual({ ...emptyState, root: {} })(loadModuleMap({ INIT_CWD: 'missing' }))
+        assert(result[0] === 'error', result)
     },
     loadModuleMapStripsInitCwdPrefix: () => {
         // With `INIT_CWD` set (the normal `npm run` case), discovery starts
@@ -178,6 +185,6 @@ export const proof = {
         /** @type {Dir} */
         const root = { 'sub': { 'a.f.ts': () => ({}) } }
         const [, result] = virtual({ ...emptyState, root })(loadModuleMap({ INIT_CWD: 'sub' }))
-        assertEq(Object.keys(result).join(','), './a.f.ts')
+        assertEq(Object.keys(unwrap(result)).join(','), './a.f.ts')
     },
 }
