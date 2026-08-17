@@ -116,7 +116,7 @@ const jsonKeySerialize = stringSerialize
  * emitting that spelling would not read back the value it was given. The
  * computed form is the only spelling whose evaluation reproduces the property,
  * which makes it a requirement of round-tripping rather than a style choice.
- * See [spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md).
+ * See [spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key).
  *
  * @type {_KeySerialize}
  */

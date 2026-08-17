@@ -44,7 +44,7 @@ Asserts express **internal contract breaches**, not input validation: untrusted 
 
 This does not weaken the position on mutation: [let](./3220-let.md) remains the only case where an object can be mutated, and keeping its life-time tracking simple is unaffected by a comma operator whose operands are pure.
 
-Depends on [default-export](../2110-default-export.md) and [undefined](../2310-undefined.md).
+Depends on [export default](../README.md#exporting-a-value) and [undefined](../README.md#supported-value-types).
 
 For mutating operators, see [assignments](./3430-assignments.md).
 

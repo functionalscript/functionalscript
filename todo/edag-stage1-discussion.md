@@ -731,7 +731,7 @@ computed spelling `{ ["__proto__"]: … }`, the only JS form that
 reproduces the value. The identifier and string spellings assign a
 prototype instead and lose the property. This is the rule the DJS
 parser and serializer already follow —
-[spec/2480-proto-property-key](../spec/2480-proto-property-key.md).
+[spec: the `__proto__` key](../spec/README.md#the-__proto__-key).
 
 ### 5. Validation
 
@@ -766,7 +766,7 @@ the FJS compiler would never emit. To validate:
 - object-constructor key `"__proto__"`: **not** a validation error — it
   denotes an ordinary own property (subject 4) — but it constrains
   printing, since `{ "__proto__": v }` as JS assigns a prototype instead
-  ([spec/2480-proto-property-key](../spec/2480-proto-property-key.md),
+  ([spec: the `__proto__` key](../spec/README.md#the-__proto__-key),
   subject 12);
 - **acyclicity**: DJS cannot express cycles (const-before-use), but an
   `Any` handed to the `Function` constructor can be built by other means —
@@ -1049,8 +1049,8 @@ The EDAG's only leaves are constants and `["args"]`. Nothing references a
 name the function did not compute itself:
 
 - a module-level `const` or `import` the body uses
-  ([const](../spec/2120-const.md),
-  [default-import](../spec/2130-default-import.md));
+  ([const](../spec/README.md#shared-values-constants),
+  [default-import](../spec/README.md#importing-other-modules));
 - a captured const, once closures exist — the frame
   [function-frame](../spec/todo/3111-function-frame.md) designs;
 - a built-in namespace such as `Object` or `JSON`
@@ -1203,7 +1203,7 @@ What that requires of the printer:
 - **`__proto__` keys print computed.** `{ ["__proto__"]: … }` is the
   only spelling that evaluates back to an object *having* that
   property; the identifier and string forms assign a prototype and drop
-  it ([spec/2480-proto-property-key](../spec/2480-proto-property-key.md)).
+  it ([spec: the `__proto__` key](../spec/README.md#the-__proto__-key)).
   A printer that
   emits `"__proto__":` produces text that evaluates to a different
   value — the sharpest case of printing having to be correct rather

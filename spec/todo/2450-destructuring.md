@@ -7,6 +7,6 @@ export default {
 }
 ```
 
-Depends on [const](../2120-const.md) and [function parameters](./3120-parameters.md).
+Depends on [const](../README.md#shared-values-constants) and [function parameters](./3120-parameters.md).
 
 See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment.
