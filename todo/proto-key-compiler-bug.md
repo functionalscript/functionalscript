@@ -80,6 +80,60 @@ subset-exception note in
       above. The two rejections are not blocked and can land first.
 - [ ] Parser proof covering all three spellings.
 
+### Conformance tests
+
+Three fixtures, covering both halves and the subset exception.
+
+**`proto.json`** — JSON input, where the key is an ordinary data key:
+
+```json
+{"__proto__":{"a":42}}
+```
+
+```sh
+fjs compile proto.json protoOutput.js   # succeeds
+```
+
+**`protoBad.js`** — the string spelling, which is not valid
+FunctionalScript:
+
+```js
+export default {"__proto__":{"a":42}}
+```
+
+```sh
+fjs compile protoBad.js protoOutput.js  # must fail to compile
+```
+
+The identifier spelling `export default {__proto__:{"a":42}}` is the
+same case and must fail the same way.
+
+**`protoGood.js`** — the computed spelling, the only valid one:
+
+```js
+export default {["__proto__"]:{"a":42}}
+```
+
+```sh
+fjs compile protoGood.js protoOutput.js  # succeeds
+```
+
+**The assertions:**
+
+- `proto.json` and `protoGood.js` compile to **the same output** — this
+  is the whole point of the pair: a JSON document and the valid
+  FunctionalScript spelling denote the same value, and the emitter has
+  exactly one spelling for it.
+- that output uses `["__proto__"]:`, never `"__proto__":`.
+- `protoBad.js` fails to compile — a diagnostic, not silent acceptance.
+- semantic check behind the textual one: evaluating the output yields an
+  object whose own `__proto__` property is `{a: 42}` and whose prototype
+  is unchanged. The textual assertion alone would pass for a spelling
+  that happens to look right; this one states the property being tested.
+
+Compiling `proto.json` to `.json` output must keep `"__proto__":`, per
+the serializer scope note above.
+
 ### Why both halves matter
 
 Until part 1 lands, the compiler can produce a module whose meaning
