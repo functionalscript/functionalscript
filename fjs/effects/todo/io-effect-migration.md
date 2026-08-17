@@ -169,9 +169,11 @@ its mirror — it unions the success channel and replaces the error type;
 
 Expanded through the alias, `resultStep` is raw `step` at the Io
 instantiation — it adds no branch behavior of its own. It still earns its
-name: the three operations are the canonical vocabulary, and from Stage 5,
-when the raw representation goes private, `resultStep` is the public spelling
-of that instantiation. Declining `finallyStep` is the same principle — a
+name: the three operations are the canonical vocabulary, and `resultStep` is
+the spelling that says the both-branches case was meant rather than that the
+chain escaped the layer. (Stage 5 planned to make the raw representation
+private, which is where this sentence used to point; it stayed public instead —
+see that stage.) Declining `finallyStep` is the same principle — a
 derivable form earns a name only by being canonical vocabulary, and
 `finallyStep` has not shown it is; it is derivable from `resultStep` and adds
 no expressive power until real consumers demonstrate a repeated policy worth
@@ -429,8 +431,8 @@ RawEffect<O, T>                    // the Pure | Do representation
       recovery adapters; remove redundant APIs when possible. `okStep` was the
       only redundant one and is inlined into the Io `step` that was its sole
       caller; `IoResult` and the folds all still have consumers.
-- [x] Retire the old public `Effect<O, T>` abstraction — **superseded**. It is
-      renamed `RawEffect` and stays public, for the reason recorded above.
+- [x] Retire the old public raw abstraction — **superseded**. It is renamed
+      `RawEffect` and stays public, for the reason recorded above.
 - [x] Keep the `Pure | Do` representation under its own name — `RawEffect`,
       public rather than internal, because `List`, `Program`, `Step` and
       `ToolEntry.handle` are all built on it and none of them can fail.
@@ -449,11 +451,14 @@ RawEffect<O, T>                    // the Pure | Do representation
       than current behaviour, so they were left out of the rename itself.
 
 The rename silently changes what the second type parameter means — `T` becomes
-the `ok`-branch value rather than the raw result. The stage relies on `tsc` to
-catch stragglers: an un-migrated `Effect<O, IoResult<T>>` double-wraps into
-`Result<IoResult<T>, NotImplemented>` and fails at its use sites. Verify the
-sweep is actually clean (`npx tsc` over the whole repo) rather than assuming
-it.
+the `ok`-branch value rather than the raw result. **Relying on `tsc` to catch
+the stragglers was the plan and it was only half right**, which is the part
+worth carrying forward: an un-migrated *fallible* site double-wraps into
+`Result<IoResult<T>, NotImplemented>` and fails at its use sites, but an
+un-migrated *infallible* one — four fifths of them — would simply have acquired
+an error channel and compiled. What actually made the sweep safe was running it
+with the third type parameter **required**, so every such site was an error, and
+adding `E = NotImplemented` only once `tsc` was green.
 
 At this point `O` means the set of operations a computation may request, not a
 guarantee that every runner implements all of them.

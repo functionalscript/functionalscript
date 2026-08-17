@@ -256,7 +256,7 @@ constraint goes in braces before the parameter name:
 /**
  * @template {Operation} O
  * @template T
- * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T>} Cont
+ * @typedef {(_: Pr<O, O[0]>[1]) => RawEffect<O, T>} Cont
  */
 ```
 
@@ -266,7 +266,7 @@ the variance annotation. For example:
 
 ```ts
 export type Cont<out O extends Operation, T> =
-    (_: Pr<O, O[0]>[1]) => Effect<O, T>
+    (_: Pr<O, O[0]>[1]) => RawEffect<O, T>
 ```
 
 becomes:
@@ -275,7 +275,7 @@ becomes:
 /**
  * @template {Operation} out O
  * @template T
- * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T>} Cont
+ * @typedef {(_: Pr<O, O[0]>[1]) => RawEffect<O, T>} Cont
  */
 ```
 
