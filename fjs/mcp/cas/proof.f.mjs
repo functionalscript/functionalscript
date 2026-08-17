@@ -115,6 +115,16 @@ const meta = /** @type {const} */ ({
 const parseMeta = rttiParse(meta)
 
 export const proof = {
+    // cas_list: a store that exists but cannot be walked is a tool-level error
+    // carrying the host's own words — neither a panic (which is what it used
+    // to be, one `unwrap` deep) nor an empty listing, which would tell the
+    // client the store holds nothing.
+    casListStorageErrorReturnsError: () => {
+        const result = /** @type {ToolsCallResult} */ (
+            drive({ access: [error(ioError({ code: 'EACCES', message: 'permission denied' }))] })(toolHandle('cas_list')({}))
+        )
+        assert(result.isError === true, ['expected isError', result])
+    },
     // cas_add: a writeBytes failure mid-upload (disk full, permissions) is
     // reported as a tool-level error, not a thrown exception or a silent
     // success.

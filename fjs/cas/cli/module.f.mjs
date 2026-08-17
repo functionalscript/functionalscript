@@ -14,6 +14,7 @@ import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 
 import { errorExit, exitStep, log, writeFromStream } from '../../effects/node/module.f.mjs'
 import { forEachStep, step as ioStep } from '../../effects/io/module.f.mjs'
+import { pure } from '../../effects/module.f.mjs'
 import { dispatch } from '../../cli/module.f.mjs'
 import { casAddFile, fileCas } from '../module.f.mjs'
 
@@ -53,7 +54,12 @@ export const commands = [
         description: 'List all stored content hashes',
         handler: ({ home }) => {
             const c = fileCas(sha256)(home)
-            return exitStep(forEachStep(c.list(), j => log(vecToCBase32(j))))
+            // The fold's `items` is deliberately a raw effect, so a fallible
+            // producer composes with `step` ahead of it rather than the fold
+            // growing an error channel of its own.
+            return exitStep(ioStep(
+                c.list(),
+                hashes => forEachStep(pure(hashes), j => log(vecToCBase32(j)))))
         },
     },
 ]

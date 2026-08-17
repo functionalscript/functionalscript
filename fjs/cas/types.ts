@@ -33,8 +33,17 @@ export type Cas<O extends Operation> = {
      * and returns the content address. An error item aborts the upload.
      */
     readonly write: <O1 extends Operation>(payload: List<O1, IoResult<Vec>>) => Effect<O | O1, IoResult<Vec>>
-    /** Lists all stored content hashes. */
-    readonly list: () => Effect<O, readonly Vec[]>
+    /**
+     * Lists all stored content hashes.
+     *
+     * Fallible like its siblings: walking the store is IO, and a store that
+     * cannot be walked must be distinguishable from one that is empty. An
+     * absent store *is* empty and answers `ok([])` — that is the fresh-store
+     * case, not a failure — but a directory that exists and cannot be read is
+     * an error, and returning it is what lets a caller say so instead of
+     * reporting no content.
+     */
+    readonly list: () => Effect<O, IoResult<readonly Vec[]>>
 }
 
 export type FileCas = Cas<FileCasOperation> & {

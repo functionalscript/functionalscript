@@ -43,6 +43,8 @@
  * @module
  *
  * @import { Effect, Operation } from '../../effects/types.ts'
+ * @import { IoEffect, NotImplemented } from '../../effects/io/types.ts'
+ * @import { IoError } from '../../effects/node/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Cas } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -53,7 +55,12 @@
  */
 
 import { pure, foldStep, mapStep, step } from '../../effects/module.f.mjs'
-import { unwrapStep } from '../../effects/io/module.f.mjs'
+import {
+    foldStep as ioFoldStep,
+    mapStep as ioMapStep,
+    pureOk,
+    step as ioStep,
+} from '../../effects/io/module.f.mjs'
 import { create, read, write } from '../../effects/memory/module.f.mjs'
 import { collectRead } from '../module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
@@ -208,37 +215,44 @@ export const decodeRevisionBlob = cas => hash =>
  * Scans every hash in `cas` and builds a fresh {@link Cache} from the
  * `vnd.fjs.revision` blobs found among them. Non-revision blobs are ignored.
  *
+ * A store that cannot be listed is a failure of the scan, not an empty cache:
+ * the fold never starts, and the caller is told. Blobs that fail to *read*
+ * remain "not a revision" and are skipped — see {@link decodeRevisionBlob}.
+ *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {Effect<O, Cache>}
+ * @returns {IoEffect<O, Cache, NotImplemented | IoError>}
  */
-export const buildCache = cas =>
-    foldStep(
-        cas.list(),
-        emptyCache,
-        hash => cache =>
-            mapStep(
-                decodeRevisionBlob(cas)(hash),
-                revision =>
-                    revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache)))
+export const buildCache = cas => {
+    // Annotated rather than inferred: the body's `ok(…)` is an `Ok<Cache>`,
+    // which unifies with `Result<S, E>` for any `E`, so the fold's error type
+    // has nothing to pin it and drifts into the accumulator's.
+    /** @type {(hash: Vec) => (cache: Cache) => IoEffect<O, Cache, NotImplemented | IoError>} */
+    const foldOne = hash => cache =>
+        mapStep(
+            decodeRevisionBlob(cas)(hash),
+            revision => ok(
+                revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache)))
+    return ioStep(cas.list(), hashes => ioFoldStep(pure(hashes), emptyCache, foldOne))
+}
 
 /**
  * Scans `cas` once and allocates a memory slot holding the resulting {@link Cache}.
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {Effect<O | MemOp, Key<Cache>>}
+ * @returns {IoEffect<O | MemOp, Key<Cache>, NotImplemented | IoError>}
  */
 export const initEvo = cas =>
-    step(buildCache(cas), cache => unwrapStep(create(cache)))
+    ioStep(buildCache(cas), cache => create(cache))
 
 /** Reads, then rewrites, the cache at `cacheKey` with `revision` folded in at `hash`.
- * @type {(cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision) => Effect<MemOp, void>}
+ * @type {(cacheKey: Key<Cache>) => (hash: Hash) => (revision: Revision) => IoEffect<MemOp, void, NotImplemented>}
  */
 const foldIntoCache = cacheKey => hash => revision =>
-    step(
-        unwrapStep(read(cacheKey)),
-        cache => unwrapStep(write(cacheKey, addRevisionToCache(hash, revision)(cache))))
+    ioStep(
+        read(cacheKey),
+        cache => write(cacheKey, addRevisionToCache(hash, revision)(cache)))
 
 /**
  * Folds `value` — bytes already written to a `Cas` at `hash` by some other
@@ -248,11 +262,11 @@ const foldIntoCache = cacheKey => hash => revision =>
  * call can store a revision blob without going through {@link addRevision},
  * and this is what keeps the cache honest about it without rescanning the
  * whole store.
- * @type {(cacheKey: Key<Cache>) => (hash: Vec) => (value: Vec) => Effect<MemOp, void>}
+ * @type {(cacheKey: Key<Cache>) => (hash: Vec) => (value: Vec) => IoEffect<MemOp, void, NotImplemented>}
  */
 export const syncRevision = cacheKey => hash => value => {
     const revision = decodeRevisionVec(value)
-    return revision === null ? pure(undefined) : foldIntoCache(cacheKey)(vecToCBase32(hash))(revision)
+    return revision === null ? pureOk(undefined) : foldIntoCache(cacheKey)(vecToCBase32(hash))(revision)
 }
 
 /**
@@ -449,27 +463,32 @@ const buildRevision = input => parents => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {(cacheKey: Key<Cache>) => (input: RevisionData) => Effect<O | MemOp, Result<Hash, string>>}
+ * The domain verdict stays in the value and does not move into the effect's
+ * error channel — see {@link Evo.add}. Only the cache slot's own reachability
+ * travels there, which is why every branch below answers `pureOk` with a
+ * `Result` inside it rather than `pureError`.
+ *
+ * @returns {(cacheKey: Key<Cache>) => (input: RevisionData) => IoEffect<O | MemOp, Result<Hash, string>, NotImplemented>}
  */
 export const addRevision = cas => cacheKey => input =>
     step(
         resolveParents(cas)(input.parents),
         (/** @type {Result<readonly Revision[], string>} */ parentsResult) => {
             const revisionResult = okThen(buildRevision(input))(parentsResult)
-            if (revisionResult[0] === 'error') { return pure(revisionResult) }
+            if (revisionResult[0] === 'error') { return pureOk(revisionResult) }
             const canonicalRevision = revisionResult[1]
             const bytes = tryUtf8(encodeText(canonicalRevision))
             if (bytes === null) {
-                return pure(error('revision too large to encode'))
+                return pureOk(error('revision too large to encode'))
             }
             return step(
                 cas.write(nonEmpty(ok(bytes), elEmpty())),
                 (/** @type {IoResult<Vec>} */ writeResult) => {
                     if (writeResult[0] === 'error') {
-                        return /** @type {Effect<MemOp, Result<Hash, string>>} */ (pure(error('failed to write revision to CAS')))
+                        return /** @type {IoEffect<MemOp, Result<Hash, string>, NotImplemented>} */ (pureOk(error('failed to write revision to CAS')))
                     }
                     const hash = vecToCBase32(writeResult[1])
-                    return mapStep(foldIntoCache(cacheKey)(hash)(canonicalRevision), () => ok(hash))
+                    return ioMapStep(foldIntoCache(cacheKey)(hash)(canonicalRevision), () => ok(hash))
                 })
         })
 
@@ -566,12 +585,12 @@ export const readRevision = cas => hash => {
 export const evo = cas => cacheKey => ({
     list: archived => {
         const listed = subjectListed(archived)
-        return mapStep(
-            unwrapStep(read(cacheKey)),
+        return ioMapStep(
+            read(cacheKey),
             cache => definedEntries(cache.bySubject)
                 .flatMap(([subject, state]) => listed(state) ? [subject] : []))
     },
-    head: subject => mapStep(unwrapStep(read(cacheKey)), cache => {
+    head: subject => ioMapStep(read(cacheKey), cache => {
         const state = at(subject)(cache.bySubject)
         return state === null ? [] : headsOf(state)
     }),

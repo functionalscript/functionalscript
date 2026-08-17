@@ -12,7 +12,7 @@ import { compile } from './djs/module.f.mjs'
 import { main as testMain } from './emergent_testing/module.f.mjs'
 import { commands as casCommands } from './cas/cli/module.f.mjs'
 import { main as ciMain } from './ci/module.f.mjs'
-import { import_ } from './effects/node/module.f.mjs'
+import { exitStep, import_ } from './effects/node/module.f.mjs'
 import { dispatch } from './cli/module.f.mjs'
 import { casMcpServer } from './mcp/module.f.mjs'
 import { pure, step } from './effects/module.f.mjs'
@@ -38,9 +38,10 @@ const commands = [
     {
         names: ['mcp', 'm'],
         description: 'Run an MCP server over stdio exposing the CAS and Evo (subjects/heads) as tools',
-        handler: ({ home }) => step(
-            casMcpServer(home),
-            () => pure(0)),
+        // `exitStep`, not `step(…, () => pure(0))`: the server's bootstrap can
+        // fail now, and a `() => pure(0)` continuation would report a server
+        // that never started as a clean exit.
+        handler: ({ home }) => exitStep(casMcpServer(home)),
     },
     {
         names: ['ci', 'i'],
