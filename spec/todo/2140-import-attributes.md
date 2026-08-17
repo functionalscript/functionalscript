@@ -12,9 +12,10 @@ which is principle 2.
 
 ## Why
 
-`fjs compile` reads a `.json` input as a JSON document
+`fjs compile` reads its input as a JSON document when the extension says so
 ([proto-property-key](../2480-proto-property-key.md)), and a module may import
-one. On a JavaScript engine that import behaves differently — Node 22, ESM:
+such a file. On a JavaScript engine that import behaves differently — Node 22,
+ESM:
 
 |`import`|result|
 |-|-|
@@ -24,7 +25,7 @@ one. On a JavaScript engine that import behaves differently — Node 22, ESM:
 |`import x from './a.json' with { foo: "bar" }`|`ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`|
 
 The parser has it exactly backwards: it accepts the first line, which no
-JavaScript engine does, and rejects the second with `unexpected token`.
+JavaScript engine loads, and rejects the second with `unexpected token`.
 
 ## Rules
 
@@ -33,26 +34,23 @@ JavaScript engine does, and rejects the second with `unexpected token`.
   is an error, as it is in JavaScript.
 - The attribute declares the type, it does not reinterpret the file: it must
   agree with what the extension already says, so `type: "json"` on a
-  FunctionalScript module is an error. The extension names the language on both
-  sides of a compile ([proto-property-key](../2480-proto-property-key.md)), and
-  this is how a module states that in its own text.
+  FunctionalScript module is an error. The extension names the language of the
+  file `fjs compile` is given
+  ([proto-property-key](../2480-proto-property-key.md)); this is how a module
+  names the language of a file it imports.
 - The attribute value is a string literal, like an import path — not an
   expression.
 
 ## The attribute selects the reader
 
 **An imported file is parsed as JSON only when its import carries
-`with { type: "json" }`.** Without the attribute the file is read as a
-FunctionalScript module, whatever it is called: a `.json` extension alone no
-longer sends it to the JSON reader.
-
-That is the same rule as before, read from the right place. The extension
-declares a file's language to whoever names the file, and an import *is* that
-naming — the importing module says which language it expects, and the
-extension must agree ([proto-property-key](../2480-proto-property-key.md)). A
-file has no say in how it is read, which is what keeps
+`with { type: "json" }`.** The extension does not select it: a file has no say
+in how it is read, which is also what keeps
 `import x from './a.f.js' with { type: "json" }` an error rather than a
-reinterpretation.
+reinterpretation. The extension declares a file's language to whoever names
+the file, and an import *is* that naming — so the importing module says which
+language it expects, and the extension must agree
+([proto-property-key](../2480-proto-property-key.md)).
 
 The root input of `fjs compile` is the one file no import names, so its
 extension stays its declaration:
@@ -61,28 +59,27 @@ extension stays its declaration:
 fjs compile proto.json a.js   # read as JSON: nothing else can say so
 ```
 
-## Open question
+Until the clause exists, an import reads a FunctionalScript module however the
+file is named — which is what the compiler does today. Nothing has to change
+for that: JSON is a subset of FunctionalScript, so importing a JSON document
+already works, and the one document that stops at the door is the one carrying
+a `__proto__` key, which as a module means a prototype assignment.
 
-Whether the attribute becomes **required** for a `.json` import, matching
-JavaScript, or a bare import of one is read as a FunctionalScript module.
-Requiring it is the principle-2 answer and breaks every module importing JSON
-without one. Reading it as a module instead is a quiet migration — JSON is a
-subset of FunctionalScript, so every such import goes on meaning what it
-means today, except one: a document with a `__proto__` key, which stops
-compiling until the attribute is added
-([proto-property-key](../2480-proto-property-key.md)). Requiring the attribute
-is the intended end state either way; the question is only whether a release
-passes through the quieter form on the way.
+**So this feature is purely additive.** It adds the only spelling that reads
+an imported file as JSON, and no import changes meaning when it lands. The
+end state is the JavaScript one: the attribute is *required* to import a JSON
+document — a `.json` import without it is `ERR_IMPORT_ATTRIBUTE_MISSING` on
+any engine, so FunctionalScript should refuse it too rather than quietly
+reading the file as a module.
 
 ## Notes
 
 - The serializer never emits an `import`, so this is a parser-side feature
   only.
-- The transpiler picks its reader from the path of every file it reads
-  (`parserFor` in [`fjs/djs/transpiler`](../../fjs/djs/transpiler/module.f.mjs)).
-  Under the rule above that choice belongs to the import statement, so an
-  imported file's reader comes from the attribute and only the root file's
-  from its path. A module's import list is `readonly string[]`
+- The transpiler already reads only its root file by extension (`parserFor` in
+  [`fjs/djs/transpiler`](../../fjs/djs/transpiler/module.f.mjs)) and every
+  import as FunctionalScript. What this feature adds is the second reader at
+  the import site: a module's import list is `readonly string[]`
   ([`ast/types.ts`](../../fjs/djs/ast/types.ts)) and would carry each path's
   declared type alongside it.
 - `import type` ([namespace-import](./2220-namespace-import.md)) is a separate

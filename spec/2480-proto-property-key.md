@@ -37,14 +37,21 @@ A value may still carry a `__proto__` property; what a module cannot do is
 ## Compilation
 
 `fjs compile` reads and writes the key differently in each language, because
-the two disagree about it. The file extension names the language on both
-sides:
+the two disagree about it. The extension of each file **named on the command
+line** picks its language:
 
 ```sh
 fjs compile input.f.js output.f.js   # {["__proto__"]:1}
 fjs compile input.f.js output.json   # {"__proto__":1}
 fjs compile input.json output.f.js   # reads {"__proto__":1} as a property
 ```
+
+An imported file is read as a FunctionalScript module however it is named. A
+JSON document is one — that is the subset claim — so the import works; only a
+document carrying this key is refused, because as a module that text means a
+prototype assignment. What would declare an import's language is the import
+statement, `with { type: "json" }`, which the language does not have yet
+([import-attributes](./todo/2140-import-attributes.md)).
 
 So a JSON document survives the loop `proto.json → a.f.js → out.json` byte for
 byte, each hop spelling the key its own language's way. The identifier
@@ -77,8 +84,9 @@ different from what a JavaScript engine gives it, breaking principle 2. A
 narrow, stated exception is the cheaper price.
 
 The exception is about the *language a file is written in*, not about the
-value: such a document is still readable, as JSON. `fjs compile` reads a
-`.json` input as JSON and any other input as FunctionalScript, so the document
-compiles — into a module spelling the same key the JavaScript way.
+value: such a document is still readable, as JSON. `fjs compile` reads the
+input it is given in the language its extension names, so the document
+compiles — into a module spelling the same key the JavaScript way. What it
+cannot be is a module, and importing it is exactly that.
 
 Depends on [computed-property](./2470-computed-property.md).

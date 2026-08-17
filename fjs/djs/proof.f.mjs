@@ -152,6 +152,31 @@ export const proof = {
             assertEq(module, 'export default {["__proto__"]:{"a":42}}')
             assertEq(compileSource(module)('out.json'), document)
         },
+        // The extension speaks for the file named on the command line and for
+        // no other: an *imported* file's language is declared by the import,
+        // and the language has no `with { type: "json" }` clause yet, so an
+        // import reads a FunctionalScript module however the file is named.
+        // A JSON document is one — that is the subset claim — right up to the
+        // key the two languages disagree about.
+        jsonImportIsAModule: () => {
+            const root = {
+                'main.f.js': [utf8('import a from "./a.json"\nexport default [a]')],
+                'a.json': [utf8('{"a":42}')],
+            }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['main.f.js', 'out.json']))
+            assertEq(code, 0, state.stderr)
+            assertEq(readOutput(state.root, 'out.json'), '[{"a":42}]')
+        },
+        jsonImportWithProtoKeyRejected: () => {
+            const root = {
+                'main.f.js': [utf8('import a from "./proto.json"\nexport default [a]')],
+                'proto.json': [utf8('{"__proto__":5}')],
+            }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['main.f.js', 'out.json']))
+            assertEq(code, 1)
+            assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
+            assertEq(state.root['out.json'], undefined)
+        },
         // The identifier spelling is no JSON document's key, so it stays a
         // compilation error whatever the input file is called.
         jsonInputIdKeyRejected: () => {

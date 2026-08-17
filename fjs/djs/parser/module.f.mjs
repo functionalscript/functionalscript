@@ -616,11 +616,17 @@ export const parseFromTokens = parseIn('js')
  * data key. That is the one rule the two readers disagree about; everything a
  * FunctionalScript module may contain is still accepted here.
  *
- * The caller says which reading applies, and says it from the file extension
- * rather than from the text. That is how JavaScript decides too: `import`
+ * The caller says which reading applies, and says it from the file's name
+ * rather than from its text. That is how JavaScript decides too: `import`
  * takes a module's type from the extension (or the response MIME type) plus an
  * import attribute, and never from the content — a `.js` file of JSON imported
  * `with { type: 'json' }` is an error, not a JSON module.
+ *
+ * Only `fjs compile`'s own input is named this way today. An import declares
+ * its file's language with `with { type: "json" }`, a clause the language does
+ * not have yet, so the transpiler reads every imported file as a
+ * FunctionalScript module
+ * ([spec/todo/2140-import-attributes](../../../spec/todo/2140-import-attributes.md)).
  *
  * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
  */

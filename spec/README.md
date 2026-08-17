@@ -78,11 +78,13 @@ of the line; semicolons are not part of the language.
 - An import path is a string literal, resolved relative to the importing
   module. Each module is parsed and evaluated once per resolved path; a
   circular dependency is an error.
-- A `.json` path is imported without an attribute, which JavaScript does not
-  accept — it requires `with { type: "json" }`, a clause the parser does not
-  recognize yet ([import-attributes](./todo/2140-import-attributes.md)). This
-  is the one place a module the compiler accepts is not a module a JavaScript
-  engine loads.
+- An imported file is read as a FunctionalScript module whatever its
+  extension. A JSON document is one, so importing `.json` works; what the
+  extension cannot do is choose the language, because that is the import
+  statement's job and the language has no `with { type: "json" }` clause yet
+  ([import-attributes](./todo/2140-import-attributes.md)). Until it does, such
+  an import is also the one place a module the compiler accepts is not a
+  module a JavaScript engine loads, which requires the attribute.
 
 ### 2.2. Expressions
 
@@ -144,7 +146,9 @@ fjs compile input.f.js output.json   # JSON
   JSON document, anything else a FunctionalScript module. The two readers
   differ in one rule — a `"__proto__"` key — and a `__proto__` key is emitted
   as `["__proto__"]:` in a JavaScript module and as `"__proto__":` in JSON
-  ([proto-property-key](./2480-proto-property-key.md)).
+  ([proto-property-key](./2480-proto-property-key.md)). This applies to the
+  file named on the command line; every file it imports is read as a
+  FunctionalScript module (§2.1).
 
 See [fjs/djs/README.md](../fjs/djs/README.md) for the data language
 implementation and [fjs/fsc/README.md](../fjs/fsc/README.md) for the compiler.
