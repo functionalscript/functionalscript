@@ -1,6 +1,6 @@
 /**
  * @import { Unknown } from '../../media/json/types.ts'
- * @import { Effect, Operation } from '../../effects/types.ts'
+ * @import { RawEffect, Operation } from '../../effects/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import {
@@ -74,19 +74,19 @@ const handlers = {
 /** @typedef {readonly [unknown, McpSessionState]} _StepResult */
 
 // Run a memory effect against the mock, return the result.
-/** @type {<T>(effect: Effect<MemOp, T>) => T} */
+/** @type {<T>(effect: RawEffect<MemOp, T>) => T} */
 const runMem = effect =>
     run(mock)(initial)(effect)[1]
 
 // TypeScript infers O = Operation (the upper bound) rather than O = never when
 // O flows through McpHandlers<never>, so we cast the widened type down to MemOp.
-/** @type {<T>(e: Effect<Operation, T>) => Effect<MemOp, T>} */
-const asMemEffect = e => /** @type {Effect<MemOp, any>} */ (e)
+/** @type {<T>(e: RawEffect<Operation, T>) => RawEffect<MemOp, T>} */
+const asMemEffect = e => /** @type {RawEffect<MemOp, any>} */ (e)
 
 // Pairs the last step's response with the session state read back afterwards.
 // The response is still needed after the read, so it is carried forward in a
 // history rather than closed over by a nested continuation.
-/** @type {(key: Key<McpSessionState>) => (e: Effect<Operation, unknown>) => Effect<Operation, _StepResult>} */
+/** @type {(key: Key<McpSessionState>) => (e: RawEffect<Operation, unknown>) => RawEffect<Operation, _StepResult>} */
 const withState = key => e => {
     const read0 = historyStep(history(e), () => unwrapStep(read(key)))
     return mapStep(read0, ([state, resp]) => /** @type {const} */ ([resp, state]))

@@ -8,7 +8,7 @@
 
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import type { Unknown } from '../../media/json/types.ts'
-import type { Operation, Effect } from '../../effects/types.ts'
+import type { Operation, RawEffect } from '../../effects/types.ts'
 import type { Type } from '../../types/rtti/types.ts'
 import type { Response } from '../json_rpc/types.ts'
 import type {
@@ -43,8 +43,8 @@ export type ToolsCallResult = Ts<typeof toolsCallResult>
 
 /** Per-method handlers for a hello-world MCP tool server. */
 export type McpHandlers<O extends Operation> = {
-    readonly toolsList: (params: ToolsListParams) => Effect<O, ToolsListResult>
-    readonly toolsCall: (params: ToolsCallParams) => Effect<O, ToolsCallResult>
+    readonly toolsList: (params: ToolsListParams) => RawEffect<O, ToolsListResult>
+    readonly toolsCall: (params: ToolsCallParams) => RawEffect<O, ToolsCallResult>
 }
 
 /**
@@ -57,11 +57,11 @@ export type ToolEntry<O extends Operation> = {
     readonly name: string
     readonly description: string
     readonly inputRtti: Type
-    readonly handle: (args: Unknown) => Effect<O, ToolsCallResult>
+    readonly handle: (args: Unknown) => RawEffect<O, ToolsCallResult>
 }
 
 /** Top-level handler: maps a raw JSON value to a JSON-RPC response (or `null` for notifications). */
-export type Handle<O extends Operation> = (value: Unknown) => Effect<O, Response | null>
+export type Handle<O extends Operation> = (value: Unknown) => RawEffect<O, Response | null>
 
 /** State carried before the peer sends `initialize`. */
 export type Uninitialized = readonly ['uninitialized']

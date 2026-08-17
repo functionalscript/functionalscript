@@ -5,8 +5,8 @@
  *
  * @import { Sha2, State as Sha2State } from '../crypto/sha2/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
- * @import { Effect, Operation } from '../effects/types.ts'
- * @import { IoEffect, NotImplemented } from '../effects/io/types.ts'
+ * @import { RawEffect, Operation } from '../effects/types.ts'
+ * @import { Effect, NotImplemented } from '../effects/io/types.ts'
  * @import {
  *  IoError,
  *  IoResult,
@@ -82,10 +82,10 @@ export const toPath = key => {
  *
  * @template {Operation} O
  * @param {List<O, IoResult<Vec>>} stream
- * @returns {Effect<O, IoResult<Vec>>}
+ * @returns {RawEffect<O, IoResult<Vec>>}
  */
 export const collectRead = stream => {
-    /** @type {(acc: Vec) => (s: List<O, IoResult<Vec>>) => Effect<O, IoResult<Vec>>} */
+    /** @type {(acc: Vec) => (s: List<O, IoResult<Vec>>) => RawEffect<O, IoResult<Vec>>} */
     const loop = acc => s =>
         step(s, node => {
             if (node === undefined) { return pure(ok(acc)) }
@@ -144,7 +144,7 @@ const deadlineOf = name => Number(name.slice(0, name.indexOf('-')))
  * catches every failure it can produce, so an upload composing it cannot fail
  * because of a sweep.
  *
- * @type {(stageDir: string) => IoEffect<Now | Readdir | Rm, void, never>}
+ * @type {(stageDir: string) => Effect<Now | Readdir | Rm, void, never>}
  */
 const gcStage = stageDir => {
     // The `readdir` result and the `now()` timestamp are both needed by the last
@@ -183,14 +183,14 @@ const gcStage = stageDir => {
  * @param {string} path
  * @param {string} stageDir
  * @param {List<O1, IoResult<Vec>>} payload
- * @returns {Effect<O1 | FileCasOperation, IoResult<Vec>>}
+ * @returns {RawEffect<O1 | FileCasOperation, IoResult<Vec>>}
  */
 const writeImpl = (sha2, path, stageDir, payload) => {
     // Publish the finished staging file to its content-addressed shard. The three
     // filesystem steps run best-effort with their results ignored; success is decided
     // afterward by observing the target's size (see staging-lease.md "Publish ignores
     // results and checks the end state").
-    /** @type {(state: Sha2State, offset: number, curPath: string) => Effect<FileCasOperation, IoResult<Vec>>} */
+    /** @type {(state: Sha2State, offset: number, curPath: string) => RawEffect<FileCasOperation, IoResult<Vec>>} */
     const publish = (state, offset, curPath) => {
         const hash = sha2.end(state)
         const rel = toPath(hash)
@@ -204,13 +204,13 @@ const writeImpl = (sha2, path, stageDir, payload) => {
             st => st[0] === 'ok' && st[1].size === offset ? ok(hash) : error(ioError({ message: 'publish size mismatch' })))
     }
     // Any streaming error fails closed: delete the partial file, return the error.
-    /** @type {(curPath: string, e: NotImplemented | IoError) => Effect<FileCasOperation, IoResult<Vec>>} */
+    /** @type {(curPath: string, e: NotImplemented | IoError) => RawEffect<FileCasOperation, IoResult<Vec>>} */
     const fail = (curPath, e) =>
         mapStep(rm(curPath), () => error(e))
     const rndEffect = ioStep(gcStage(stageDir), () => random256)
     return ioStep(rndEffect, rnd => {
         const rndStr = vecToCBase32(rnd)
-        /** @type {(state: Sha2State, offset: number, curPath: string) => (stream: List<O1, IoResult<Vec>>) => Effect<O1 | FileCasOperation, IoResult<Vec>>} */
+        /** @type {(state: Sha2State, offset: number, curPath: string) => (stream: List<O1, IoResult<Vec>>) => RawEffect<O1 | FileCasOperation, IoResult<Vec>>} */
         const loop = (state, offset, curPath) =>
             stream =>
                 step(stream, node => {
@@ -314,7 +314,7 @@ export const fileCas = sha2 => path => {
 
 /** 256-bit random `Vec` built from 8 sequential `randomInt` (32-bit) calls.
  *
- * @type {IoEffect<RandomInt, Vec, NotImplemented>}
+ * @type {Effect<RandomInt, Vec, NotImplemented>}
  */
 const random256 =
     foldStep(
@@ -351,7 +351,7 @@ const streamFile = filePath => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {(path: string) => Effect<O | ReadBytes, IoResult<Vec>>}
+ * @returns {(path: string) => RawEffect<O | ReadBytes, IoResult<Vec>>}
  */
 export const casAddFile = cas => path =>
     // streamFile produces only ReadBytes effects. TypeScript can't prove ListEffect<ReadBytes,T>

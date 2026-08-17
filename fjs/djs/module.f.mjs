@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Effect } from '../effects/types.ts'
+ * @import { RawEffect } from '../effects/types.ts'
  * @import { WriteFile, ReadFile, Write } from '../effects/node/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Unknown } from './types.ts'
@@ -39,7 +39,7 @@ const errorLocation = inputFileName => ({ metadata }) => metadata === null
  * every failure — too few arguments, a missing input file, or a parse error —
  * so a caller can detect a failed compile from the exit status alone.
  *
- * @type {(args: readonly string[]) => Effect<_CompileOp, number>}
+ * @type {(args: readonly string[]) => RawEffect<_CompileOp, number>}
  */
 export const compile = args => {
     if (args.length < 2) {
@@ -49,7 +49,7 @@ export const compile = args => {
     const outputFileName = args[1]
     return step(
         transpile(inputFileName),
-        /** @type {(result: Result<Unknown, ParseError>) => Effect<_CompileOp, number>} */
+        /** @type {(result: Result<Unknown, ParseError>) => RawEffect<_CompileOp, number>} */
         (result) => {
             if (result[0] === 'error') {
                 return errorExit(`${errorLocation(inputFileName)(result[1])} - error: ${result[1].message}`)

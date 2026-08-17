@@ -1,6 +1,6 @@
 /**
  * @import { Cas } from '../types.ts'
- * @import { Effect } from '../../effects/types.ts'
+ * @import { RawEffect } from '../../effects/types.ts'
  * @import { NodeOp } from '../../effects/node/types.ts'
  * @import { State } from '../../effects/node/virtual/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -78,7 +78,7 @@ const fixedCas = entries => ({
  * outer one is unwrapped here, the inner domain verdict is what each proof
  * goes on to inspect.
  *
- * @type {(state: State) => <T, E>(e: Effect<NodeOp, Result<T, E>>) => readonly [State, T]}
+ * @type {(state: State) => <T, E>(e: RawEffect<NodeOp, Result<T, E>>) => readonly [State, T]}
  */
 const virtualOk = state => e => {
     const [s, r] = virtual(state)(e)

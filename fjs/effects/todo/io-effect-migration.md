@@ -167,9 +167,11 @@ its mirror — it unions the success channel and replaces the error type;
 
 Expanded through the alias, `resultStep` is raw `step` at the Io
 instantiation — it adds no branch behavior of its own. It still earns its
-name: the three operations are the canonical vocabulary, and from Stage 5,
-when the raw representation goes private, `resultStep` is the public spelling
-of that instantiation. Declining `finallyStep` is the same principle — a
+name: the three operations are the canonical vocabulary, and `resultStep` is
+the spelling that says the both-branches case was meant rather than that the
+chain escaped the layer. (Stage 5 planned to make the raw representation
+private, which is where this sentence used to point; it stayed public instead —
+see that stage.) Declining `finallyStep` is the same principle — a
 derivable form earns a name only by being canonical vocabulary, and
 `finallyStep` has not shown it is; it is derivable from `resultStep` and adds
 no expressive power until real consumers demonstrate a repeated policy worth
@@ -392,37 +394,75 @@ What the migrated modules showed:
 
 ## Stage 5. Retire old `Effect`; rename `IoEffect` to `Effect`
 
-**Ready.** Stage 4 is done, so nothing blocks this.
+**Done.** The rename landed, but not the premise it was written on.
 
-After public consumers use IoEffect semantics, make it canonical:
+**Two effect abstractions survive, and that is the finding.** This stage was
+planned as "retire the raw public `Effect`", keeping the representation under an
+internal name "rather than maintaining two public effect abstractions". The
+sweep says otherwise: of 251 raw `Effect<…>` annotations, **201 had a payload
+that is not a `Result`**, and several are public types that can never carry an
+error channel — `List<O, T>` is `RawEffect<O, Next<O, T>>`, whose payload is a
+cons cell; `Program<O>` answers an exit code; `Step<O>` and `ToolEntry.handle`
+answer a JSON-RPC response and a tool result, which *are* their error channels.
+Giving those a channel would put an `ok(…)` wrapper on every stream cell and
+every tool answer, for a failure that cannot happen. So `RawEffect` is public
+and load-bearing, not an implementation detail, and the two names now divide by
+meaning: `Effect` can fail, `RawEffect` cannot.
+
+**The rename was done without the default, then given one.** `Effect<O, T, E>`
+with `E = NotImplemented` makes `Effect<O, T>` legal and fallible — which is
+exactly what an un-migrated infallible site looks like. While the sweep was
+running the third parameter was therefore *required*, so every one of those 201
+sites was a compile error rather than a silent acquisition of an error channel;
+the default was added only once `tsc` was green. The `tsc`-catches-stragglers
+argument in this file was only ever true for the 50 fallible sites, where an
+un-migrated `Effect<O, IoResult<T>>` double-wraps. It was never true for the
+other 201, and that is worth remembering the next time a rename is described as
+mechanical.
 
 ```ts
-Effect<O, T, E = NotImplemented>
+Effect<O, T, E = NotImplemented>   // fallible; the one to reach for
+RawEffect<O, T>                    // the Pure | Do representation
 ```
 
-- [ ] Revisit `okStep`, `IoResult`, stream-fold helpers, and specialized
-      recovery adapters; remove redundant APIs when possible. Moved here from
-      Stage 4: the consumers have all migrated, and `okStep`'s only remaining
-      caller is the Io `step` itself, so inlining it belongs with the rest of
-      the raw layer's retirement rather than before it.
-- [ ] Retire the old public `Effect<O, T>` abstraction.
-- [ ] If the implementation still needs today's `Pure | Do` representation,
-      keep it under an internal/private name such as `RawEffect` rather than
-      maintaining two public effect abstractions.
-- [ ] Rename `IoEffect` to `Effect` and make `NotImplemented` the default
+- [x] Revisit `okStep`, `IoResult`, stream-fold helpers, and specialized
+      recovery adapters; remove redundant APIs when possible. `okStep` was the
+      only redundant one and is inlined into the Io `step` that was its sole
+      caller; `IoResult` and the folds all still have consumers.
+- [x] Retire the old public raw abstraction — **superseded**. It is renamed
+      `RawEffect` and stays public, for the reason recorded above.
+- [x] Keep the `Pure | Do` representation under its own name — `RawEffect`,
+      public rather than internal, because `List`, `Program`, `Step` and
+      `ToolEntry.handle` are all built on it and none of them can fail.
+- [x] Rename `IoEffect` to `Effect` and make `NotImplemented` the default
       error type unless migration experience shows a better default.
-- [ ] Make the IoEffect `step`, `catchStep`, and `resultStep` the canonical
+- [x] Make the Io `step`, `catchStep`, and `resultStep` the canonical
       composition API.
-- [ ] Remove migration-only raw APIs after their consumers are gone.
-- [ ] Update docs, examples, AGENTS.md, and CHANGELOG as needed for the
-      breaking change.
+- [x] Remove migration-only raw APIs after their consumers are gone —
+      `okStep` was the only one, inlined into the Io `step` that called it.
+- [x] Update docs, examples, AGENTS.md, and CHANGELOG as needed for the
+      breaking change — `fjs/AGENTS.md` §3.4, `fjs/effects/io/README.md`, and
+      the module docs.
+- [ ] Sweep the design docs that still spell the old names in proposed code:
+      the `todo/*.md` under `fjs/effects`, `fjs/cas`, `fjs/protocol/mcp` and
+      friends, plus `spec/todo/io-effects.md`. They describe future work rather
+      than current behaviour, so they were left out of the rename itself.
+      **Six of them also point at `okStep` as an existing export**
+      (`effect-list-fold`, `fold-stream-combinator`, `map-step-combinator`,
+      `step-continuation-operation-union`, `../node/todo/ornotfound-combinator`,
+      `../../cas/todo/write-closed-helpers`), which is a dangling reference
+      rather than a stale name: it is gone, not renamed, so each of those needs
+      a decision about what the proposal meant rather than a substitution.
 
 The rename silently changes what the second type parameter means — `T` becomes
-the `ok`-branch value rather than the raw result. The stage relies on `tsc` to
-catch stragglers: an un-migrated `Effect<O, IoResult<T>>` double-wraps into
-`Result<IoResult<T>, NotImplemented>` and fails at its use sites. Verify the
-sweep is actually clean (`npx tsc` over the whole repo) rather than assuming
-it.
+the `ok`-branch value rather than the raw result. **Relying on `tsc` to catch
+the stragglers was the plan and it was only half right**, which is the part
+worth carrying forward: an un-migrated *fallible* site double-wraps into
+`Result<IoResult<T>, NotImplemented>` and fails at its use sites, but an
+un-migrated *infallible* one — four fifths of them — would simply have acquired
+an error channel and compiled. What actually made the sweep safe was running it
+with the third type parameter **required**, so every such site was an error, and
+adding `E = NotImplemented` only once `tsc` was green.
 
 At this point `O` means the set of operations a computation may request, not a
 guarantee that every runner implements all of them.

@@ -1,5 +1,5 @@
 /**
- * Node.js effect runner: interprets `Effect<NodeOp, T>` directly against the
+ * Node.js effect runner: interprets `RawEffect<NodeOp, T>` directly against the
  * Node globals and built-in modules (`fs`, `http`, `child_process`, `process`,
  * `fetch`, …).
  *
@@ -12,7 +12,7 @@
  *
  * @module
  *
- * @import { Effect } from '../types.ts'
+ * @import { RawEffect } from '../types.ts'
  * @import { IoResult, Server as EffectServer, Headers, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
@@ -67,7 +67,7 @@ import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
  */
 const createServer = http.createServer
 
-/** @typedef {<T>(effect: Effect<NodeOp, T>) => Promise<T>} _EffectToPromise */
+/** @typedef {<T>(effect: RawEffect<NodeOp, T>) => Promise<T>} _EffectToPromise */
 
 /**
  * Performs host IO, reporting a thrown failure as an {@link IoResult} error.

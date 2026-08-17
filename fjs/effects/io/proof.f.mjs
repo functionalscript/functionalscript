@@ -1,7 +1,7 @@
 /**
  * @import { Result } from '../../types/result/types.ts'
- * @import { Effect, Operation } from '../types.ts'
- * @import { IoEffect } from './types.ts'
+ * @import { RawEffect, Operation } from '../types.ts'
+ * @import { Effect } from './types.ts'
  */
 
 import { assert, assertEq, todo } from '../../asserts/module.f.mjs'
@@ -12,7 +12,7 @@ import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureEr
 /**
  * A fallible operation, spelled the way stage 3 will spell every operation: the
  * `Result` is in the command's declared return type, so `do_` already builds an
- * `IoEffect` and the runner's handler already answers with `ok` / `error`.
+ * `Effect` and the runner's handler already answers with `ok` / `error`.
  * @typedef {readonly['div', (a: number, b: number) => Result<number, string>]} _DivOp
  */
 
@@ -24,12 +24,12 @@ import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureEr
 
 /** @typedef {_DivOp | _NegOp} _Op */
 
-/** @type {(command: 'div') => (a: number, b: number) => IoEffect<_DivOp, number, string>} */
+/** @type {(command: 'div') => (a: number, b: number) => Effect<_DivOp, number, string>} */
 const doDiv = do_
 
 const div = doDiv('div')
 
-/** @type {(command: 'neg') => (a: number) => IoEffect<_NegOp, number, string>} */
+/** @type {(command: 'neg') => (a: number) => Effect<_NegOp, number, string>} */
 const doNeg = do_
 
 const neg = doNeg('neg')
@@ -43,7 +43,7 @@ const next = match({
 /**
  * Runs an effect to completion against the two operations above — `asyncRun`'s
  * loop without the `await`, which is all a synchronous runner is.
- * @type {<T>(e: Effect<_Op, T>) => T}
+ * @type {<T>(e: RawEffect<_Op, T>) => T}
  */
 const run = e => {
     let current = e
@@ -56,7 +56,7 @@ const run = e => {
 
 /**
  * The `Result` an effect reaches without performing a command.
- * @type {<O extends Operation, T, E>(e: IoEffect<O, T, E>) => Result<T, E>}
+ * @type {<O extends Operation, T, E>(e: Effect<O, T, E>) => Result<T, E>}
  */
 const pureResult = e => {
     const o = runPure(e)
@@ -66,7 +66,7 @@ const pureResult = e => {
 
 /**
  * The `ok` value an effect reaches without performing a command.
- * @type {<O extends Operation, T, E>(e: IoEffect<O, T, E>) => T}
+ * @type {<O extends Operation, T, E>(e: Effect<O, T, E>) => T}
  */
 const unwrapPure = e => {
     const r = pureResult(e)
@@ -86,17 +86,17 @@ const assertError = (r, expected) => {
     assertEq(r[1], expected)
 }
 
-/** @type {(v: number) => IoEffect<never, number, string>} */
+/** @type {(v: number) => Effect<never, number, string>} */
 const positive = v => v > 0 ? pureOk(v) : pureError('not positive')
 
-/** @type {(v: number) => IoEffect<never, number, number>} */
+/** @type {(v: number) => Effect<never, number, number>} */
 const small = v => v < 10 ? pureOk(v) : pureError(v)
 
 /**
  * Two adjacent links failing in different ways. The annotation is the claim:
  * the chain's error channel is the **union** of theirs, so neither link had to
  * be pre-widened to the other's error type.
- * @type {(v: number) => IoEffect<never, number, string | number>}
+ * @type {(v: number) => Effect<never, number, string | number>}
  */
 const checked = v => {
     const x0 = step(pureOk(v), positive)
@@ -145,14 +145,14 @@ export const proof = {
         overFailedDo: () => {
             // `todo` never returns, so it pins none of the continuation's type
             // parameters; the annotation supplies the operation set `run` needs.
-            /** @type {IoEffect<_DivOp, never, string>} */
+            /** @type {Effect<_DivOp, never, string>} */
             const e = step(div(1, 0), todo)
             assertError(run(e), 'div by zero')
         },
         // Adjacent links performing different commands: the operation sets
         // union, so one runner interprets the whole chain.
         joinsOperations: () => {
-            /** @type {IoEffect<_Op, number, string>} */
+            /** @type {Effect<_Op, number, string>} */
             const e = step(div(6, 3), neg)
             assertOk(run(e), -2)
         },
@@ -190,7 +190,7 @@ export const proof = {
         // type than the value it stands in for, and the error channel becomes
         // `f`'s alone — `never` here, since every error is handled.
         unionsSuccess: () => {
-            /** @type {IoEffect<never, number | string, never>} */
+            /** @type {Effect<never, number | string, never>} */
             const e = catchStep(pureError('boom'), m => pureOk(m))
             assertOk(pureResult(e), 'boom')
         },

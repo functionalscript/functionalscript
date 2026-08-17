@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Effect, Operation } from '../types.ts'
+import type { RawEffect, Operation } from '../types.ts'
 
 export type NonEmpty<O extends Operation, T> = {
     readonly first: T
@@ -22,11 +22,11 @@ export type NonEmpty<O extends Operation, T> = {
  * streaming comes from cells produced inside a command's continuation, where
  * the tail is not reached until a runner performs the command.
  *
- * `Effect<O, Next<O, T>>` is used directly in places where `List<O, T>` cannot
+ * `RawEffect<O, Next<O, T>>` is used directly in places where `List<O, T>` cannot
  * be written as a return type (see `empty`).
  */
 export type Next<O extends Operation, T> =
     NonEmpty<O, T> | undefined
 
 export type List<O extends Operation, T> =
-    Effect<O, Next<O, T>>
+    RawEffect<O, Next<O, T>>

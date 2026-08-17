@@ -5,9 +5,9 @@
  */
 
 import type { NodeOp, NodeProgramOptions } from '../effects/node/types.ts'
-import type { Effect } from '../effects/types.ts'
+import type { RawEffect } from '../effects/types.ts'
 
-type Handler<O extends NodeOp> = (options: NodeProgramOptions) => Effect<O, number>
+type Handler<O extends NodeOp> = (options: NodeProgramOptions) => RawEffect<O, number>
 
 export type Command<O extends NodeOp> = {
     readonly names: readonly string[]

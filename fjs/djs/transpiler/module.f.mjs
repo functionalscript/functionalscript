@@ -7,7 +7,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { AstModule } from '../ast/types.ts'
- * @import { Effect } from '../../effects/types.ts'
+ * @import { RawEffect } from '../../effects/types.ts'
  * @import { ReadFile } from '../../effects/node/types.ts'
  * @import { ParseContext } from './types.ts'
  */
@@ -34,7 +34,7 @@ const mapDjs = context => path => {
     return res.djs
 }
 
-/** @type {(path: string) => Effect<ReadFile, Result<AstModule, ParseError>>} */
+/** @type {(path: string) => RawEffect<ReadFile, Result<AstModule, ParseError>>} */
 const parseModule = path => step(
     readUtf8File(path),
     result => {
@@ -44,7 +44,7 @@ const parseModule = path => step(
         return pure(parseFromTokens(tokenize(stringToList(result[1]))(path)))
     })
 
-/** @type {(path: string) => (parseModuleResult: Result<AstModule, ParseError>) => (context: ParseContext) => Effect<ReadFile, ParseContext>} */
+/** @type {(path: string) => (parseModuleResult: Result<AstModule, ParseError>) => (context: ParseContext) => RawEffect<ReadFile, ParseContext>} */
 const transpileWithImports = path => parseModuleResult => context => {
     if (parseModuleResult[0] === 'ok') {
         const dir = pathConcat(path)('..')
@@ -70,7 +70,7 @@ const transpileWithImports = path => parseModuleResult => context => {
     return pure({ ...context, error: parseModuleResult[1] })
 }
 
-/** @type {(path: string) => (context: ParseContext) => Effect<ReadFile, ParseContext>} */
+/** @type {(path: string) => (context: ParseContext) => RawEffect<ReadFile, ParseContext>} */
 const foldNextModuleOp = path => context => {
     if (context.error !== null) {
         return pure(context)
@@ -89,10 +89,10 @@ const foldNextModuleOp = path => context => {
         parseModuleResult => transpileWithImports(path)(parseModuleResult)(context))
 }
 
-/** @type {(path: string) => Effect<ReadFile, Result<Unknown, ParseError>>} */
+/** @type {(path: string) => RawEffect<ReadFile, Result<Unknown, ParseError>>} */
 const transpileModule = path => step(
     foldNextModuleOp(path)({ stack: null, complete: null, error: null }),
-    /** @type {(context: ParseContext) => Effect<ReadFile, Result<Unknown, ParseError>>} */
+    /** @type {(context: ParseContext) => RawEffect<ReadFile, Result<Unknown, ParseError>>} */
     (context) => {
         if (context.error !== null) {
             return pure(error(context.error))
@@ -110,7 +110,7 @@ const transpileModule = path => step(
  * no metadata and `fjs/djs`'s `compile` names the file instead of a line and
  * column.
  *
- * @type {(path: string) => Effect<ReadFile, Result<Unknown, ParseError>>}
+ * @type {(path: string) => RawEffect<ReadFile, Result<Unknown, ParseError>>}
  */
 const transpileJson = path => step(
     readUtf8File(path),
@@ -135,7 +135,7 @@ const transpileJson = path => step(
  * Returns `['ok', value]` on success, or `['error', ParseError]` on a parse
  * failure, a missing file, or a circular dependency.
  *
- * @type {(path: string) => Effect<ReadFile, Result<Unknown, ParseError>>}
+ * @type {(path: string) => RawEffect<ReadFile, Result<Unknown, ParseError>>}
  */
 export const transpile = path => path.endsWith('.json')
     ? transpileJson(path)
