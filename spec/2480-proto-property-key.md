@@ -51,6 +51,13 @@ byte, each hop spelling the key its own language's way. The identifier
 spelling is not a key in either language: no JSON document contains one, so
 `{__proto__: 1}` stays an error whatever the input file is called.
 
+The extension is the declaration, not a guess about the content. JavaScript
+decides the same way: `import` takes a module's type from the extension — or,
+in a browser, the response MIME type — together with an import attribute
+(`with { type: "json" }`), and never from the text. A `.js` file holding JSON
+is JavaScript there, and stating `type: "json"` for it is an error rather than
+a reinterpretation.
+
 In JavaScript output the computed form is what makes the module round-trip:
 it is the only spelling whose evaluation reproduces the property. In JSON
 output the plain key stays — `JSON.parse` has no prototype special case, so
