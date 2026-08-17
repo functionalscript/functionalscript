@@ -614,8 +614,10 @@ export const parseFromTokens = parseIn('js')
 /**
  * Reads the token list as a JSON document, where `"__proto__"` is an ordinary
  * data key. That is the one rule the two readers disagree about; everything a
- * FunctionalScript module may contain is still accepted here
- * ([todo/json-input-reader](../todo/json-input-reader.md)).
+ * FunctionalScript module may contain is still accepted here, and the caller
+ * says which reading applies — today from the file extension, which is what
+ * [todo/merged-json-djs-grammar](../todo/merged-json-djs-grammar.md) proposes
+ * to replace with one grammar covering both.
  *
  * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
  */
