@@ -87,10 +87,10 @@ Where a module genuinely has no answer to a failure, `unwrapStep` stays — the
 goal is a *considered* policy at every site, not zero panics. Say so in a
 comment when it stays.
 
-### What `fjs/emergent_testing` settled
+### What the migrated modules settled
 
-Its eight sites came down to one, and the three findings generalize to the
-modules still queued:
+`fjs/emergent_testing`'s eight sites came down to one, and the three findings
+generalize to the modules still queued:
 
 - **`all` needed an `ok`-channel twin, and it is shared.** `all`'s envelope is
   the runner's, so handing it `IoEffect`s nests one `Result` inside another and
@@ -109,11 +109,18 @@ modules still queued:
   failure. `register`, whose success carries nothing, uses `exitStep` unchanged.
   Expect the same split wherever a program already computes a code.
 
+`fjs/dev` then cost four `unwrap`s and no new vocabulary — `allOk` was already
+there for its two `all`s, which is what the ordering was for. It confirms the
+other half of that prediction too: `loadModuleMap` became fallible, so
+`testAll` and `register` turned their raw `step` into the Io one, and the two
+modules met at the tail exactly where this plan said they would. Discovery no
+longer panics on a tree it cannot read; `fjs t` reports it and exits `1`.
+
 ### Tasks
 
 - [x] `fjs/emergent_testing` — reporter, `registerModule`, `runModuleMap`,
       `defaultTest`; `Reporter<O>` member types.
-- [ ] `fjs/dev` — `loadModuleMap` and `allFiles`.
+- [x] `fjs/dev` — `loadModuleMap` and `allFiles`.
 - [x] `fjs/cas/evo` — the cache slot and the `Evo<O>` API, plus `fjs/mcp/evo`.
 - [ ] `fjs/protocol/mcp` and its stdio transport.
 - [ ] `fjs/mcp`.
