@@ -729,9 +729,9 @@ have no prototype chains at run time, so a key `"__proto__"` denotes
 an ordinary property — and printing it (subject 12) must use the
 computed spelling `{ ["__proto__"]: … }`, the only JS form that
 reproduces the value. The identifier and string spellings assign a
-prototype instead and lose the property. See
-[proto-property-key](./proto-property-key.md), which also records that
-the DJS serializer emits the unsafe form today.
+prototype instead and lose the property. This is the rule the DJS
+parser and serializer already follow —
+[spec/2480-proto-property-key](../spec/2480-proto-property-key.md).
 
 ### 5. Validation
 
@@ -766,7 +766,8 @@ the FJS compiler would never emit. To validate:
 - object-constructor key `"__proto__"`: **not** a validation error — it
   denotes an ordinary own property (subject 4) — but it constrains
   printing, since `{ "__proto__": v }` as JS assigns a prototype instead
-  ([proto-property-key](./proto-property-key.md), subject 12);
+  ([spec/2480-proto-property-key](../spec/2480-proto-property-key.md),
+  subject 12);
 - **acyclicity**: DJS cannot express cycles (const-before-use), but an
   `Any` handed to the `Function` constructor can be built by other means —
   cyclic node graphs must be rejected;
@@ -1202,7 +1203,8 @@ What that requires of the printer:
 - **`__proto__` keys print computed.** `{ ["__proto__"]: … }` is the
   only spelling that evaluates back to an object *having* that
   property; the identifier and string forms assign a prototype and drop
-  it ([proto-property-key](./proto-property-key.md)). A printer that
+  it ([spec/2480-proto-property-key](../spec/2480-proto-property-key.md)).
+  A printer that
   emits `"__proto__":` produces text that evaluates to a different
   value — the sharpest case of printing having to be correct rather
   than merely plausible.

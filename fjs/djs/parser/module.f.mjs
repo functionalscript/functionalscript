@@ -60,10 +60,22 @@ import { assertEq } from '../../asserts/module.f.mjs'
  *   readonly module: _ModuleState
  * }} _ExportState */
 
+/**
+ * Where the value parser stands inside the value it is reading.
+ *
+ * The object states spell a property out left to right: `'{'` expects a key,
+ * `'{k'` the `:` after one, `'{:'` the value, `'{v'` the `,` or `}` after it,
+ * and `'{,'` the next key. A computed key `["a"]` takes the two extra steps
+ * `'{['` (the string inside the brackets) and `'{[k'` (the closing `]`), then
+ * rejoins the plain path at `'{k'`.
+ *
+ * @typedef {'' | '[' | '[v' | '[,' | '{' | '{[' | '{[k' | '{k' | '{:' | '{v' | '{,'} _ValueState
+ */
+
 /** @typedef {{
  *   readonly state: 'constValue' | 'exportValue'
  *   readonly module: _ModuleState
- *   readonly valueState: '' | '[' | '[v' | '[,' | '{' | '{k' | '{:' | '{v' | '{,'
+ *   readonly valueState: _ValueState
  *   readonly top: _DjsStackElement | null
  *   readonly stack: _DjsStack
  * }} _ParseValueState */
@@ -230,11 +242,30 @@ const addValueToObject = obj => value => (['object', setReplace(obj[2])(value)(o
 /** @type {(array: _DjsStackArray) => (value: AstConst) => _DjsStackArray} */
 const addToArray = array => value => (['array', concat(array[1])([value])])
 
-/** @type {(state: _ParseValueState) => (key: string) => (metadata: TokenMetadata) => _ParserState} */
-const pushKey = state => key => metadata => {
-    if (state.top?.[0] === 'object') { return { ...state, valueState: '{k', top: addKeyToObject(state.top)(key), stack: state.stack } }
+/**
+ * The key of `{ __proto__: v }` and `{ "__proto__": v }`. JavaScript reads
+ * both as an instruction to replace the object's prototype instead of as a
+ * property, so FunctionalScript rejects them and accepts only the computed
+ * spelling `{ ["__proto__"]: v }`, which denotes an ordinary property.
+ * See [spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md).
+ */
+const protoKey = '__proto__'
+
+/** @type {(valueState: _ValueState) => (state: _ParseValueState) => (key: string) => (metadata: TokenMetadata) => _ParserState} */
+const pushKey = valueState => state => key => metadata => {
+    if (state.top?.[0] === 'object') { return { ...state, valueState, top: addKeyToObject(state.top)(key), stack: state.stack } }
     return { state: 'error', error: { message: 'error', metadata } }
 }
+
+/**
+ * A key written as an identifier or a string literal, which is every key but
+ * the computed one — so this is where `__proto__` is refused.
+ *
+ * @type {(state: _ParseValueState) => (key: string) => (metadata: TokenMetadata) => _ParserState}
+ */
+const pushPlainKey = state => key => metadata => key === protoKey
+    ? { state: 'error', error: { message: '__proto__ requires the computed key form', metadata } }
+    : pushKey('{k')(state)(key)(metadata)
 
 /** @type {(state: _ParseValueState) => (value: AstConst) => _ParserState} */
 const pushValue = state => value => {
@@ -398,8 +429,38 @@ const parseObjectStartOp = ({ token, metadata }) => state => {
     {
         case 'string':
         case 'id':
-            return pushKey(state)(String(token.value))(metadata)
+            return pushPlainKey(state)(String(token.value))(metadata)
+        case '[': return { ...state, valueState: '{[' }
         case '}': return endObject(state)
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+// computed property keys with a constant string key (#2470)
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseObjectComputedKeyOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case 'string': return pushKey('{[k')(state)(token.value)(metadata)
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseObjectComputedKeyEndOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case ']': return { ...state, valueState: '{k' }
         case 'ws':
         case 'nl':
         case '//':
@@ -462,7 +523,8 @@ const parseObjectCommaOp = ({ token, metadata }) => state => {
         case '}': return endObject(state)
         case 'string':
         case 'id':
-            return pushKey(state)(String(token.value))(metadata)
+            return pushPlainKey(state)(String(token.value))(metadata)
+        case '[': return { ...state, valueState: '{[' }
         case 'ws':
         case 'nl':
         case '//':
@@ -495,6 +557,8 @@ const foldOp = token => state => {
                 case '[v': return parseArrayValueOp(token)(state)
                 case '[,': return parseValueOp(token)(state)
                 case '{': return parseObjectStartOp(token)(state)
+                case '{[': return parseObjectComputedKeyOp(token)(state)
+                case '{[k': return parseObjectComputedKeyEndOp(token)(state)
                 case '{k': return parseObjectKeyOp(token)(state)
                 case '{:': return parseObjectColonOp(token)(state)
                 case '{v': return parseObjectNextOp(token)(state)
@@ -529,7 +593,7 @@ export const proof = {
                 top: null,
                 stack: null,
             }
-            const result = pushKey(state)('key')({ path: 'test', line: 0, column: 0 })
+            const result = pushKey('{k')(state)('key')({ path: 'test', line: 0, column: 0 })
             assertEq(result.state, 'error')
         },
     },

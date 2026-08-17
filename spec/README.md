@@ -45,7 +45,9 @@ repository migration plan.
 ## 1. JSON
 
 A JSON document forms a **tree** of values and is itself a valid
-FunctionalScript module: JSON is a subset of FunctionalScript.
+FunctionalScript module: JSON is a subset of FunctionalScript, with one
+documented exception — a document containing a `__proto__` key
+([proto-property-key](./2480-proto-property-key.md)).
 
 1. [JSON](./1000-json.md).
 
@@ -100,8 +102,13 @@ Notes:
   JSON escapes. Single quotes, and the full set of JS string spellings, are a
   deferred feature — see
   [js-string-literals](./todo/2460-js-string-literals.md).
-- An object property key is a string literal or an identifier
-  ([identifier-property](./2410-identifier-property.md)).
+- An object property key is a string literal, an identifier
+  ([identifier-property](./2410-identifier-property.md)), or a string literal
+  in brackets ([computed-property](./2470-computed-property.md)). The brackets
+  hold a literal, not an expression.
+- `__proto__` is a key only in the bracketed form: the other two spellings
+  assign a prototype in JavaScript and are compilation errors
+  ([proto-property-key](./2480-proto-property-key.md)).
 - Arrays and objects may have a trailing comma
   ([trailing-comma](./2430-trailing-comma.md)).
 
@@ -128,6 +135,9 @@ fjs compile input.f.js output.json   # JSON
 - A JSON output is a tree, so shared values are expanded, and types that JSON
   cannot express (`bigint`, `undefined`) are not available.
 - Object properties are emitted in sorted key order.
+- A `__proto__` key is emitted as `["__proto__"]:` in a JavaScript module and
+  as `"__proto__":` in JSON — the one key the two formats spell differently
+  ([proto-property-key](./2480-proto-property-key.md)).
 
 See [fjs/djs/README.md](../fjs/djs/README.md) for the data language
 implementation and [fjs/fsc/README.md](../fjs/fsc/README.md) for the compiler.
@@ -146,6 +156,8 @@ implementation and [fjs/fsc/README.md](../fjs/fsc/README.md) for the compiler.
 |2410|[identifier-property](./2410-identifier-property.md)|
 |2420|[line-comment](./2420-line-comment.md)|
 |2430|[trailing-comma](./2430-trailing-comma.md)|
+|2470|[computed-property](./2470-computed-property.md)|
+|2480|[proto-property-key](./2480-proto-property-key.md)|
 
 Everything not listed here — unimplemented language features (§1010, §2.x
 remainder, §3 FJS functions), ECMAScript proposals, I/O effects, the

@@ -1,0 +1,69 @@
+# `__proto__` Property Key
+
+JavaScript gives the three spellings of a `__proto__` key two different
+meanings:
+
+```js
+{ __proto__: v }      // sets [[Prototype]]; no own property
+{ "__proto__": v }    // sets [[Prototype]]; no own property
+{ ["__proto__"]: v }  // an ordinary own property named "__proto__"
+```
+
+Only the computed spelling ([computed-property](./2470-computed-property.md))
+denotes a property.
+
+## The rule
+
+The identifier and string spellings are **not** valid FunctionalScript: they
+are compilation errors.
+
+```js
+export default { __proto__: 1 }     // error
+export default { "__proto__": 1 }   // error
+export default { ["__proto__"]: 1 } // ok
+```
+
+FunctionalScript has no prototype chains at run time
+([property-accessor](./todo/2330-property-accessor.md)), so a spelling whose
+only meaning is "assign a prototype" has no meaning to give. Rejecting it is
+the whitelist principle rather than a special case, and it keeps principle 2:
+a module means on the FunctionalScript VM what it means on any other
+JavaScript engine.
+
+A value may still carry a `__proto__` property; what a module cannot do is
+*read* it with `o.__proto__`, which is a separate rule of
+[property-accessor](./todo/2330-property-accessor.md).
+
+## Compilation
+
+`fjs compile` writes the key differently in each output format, because the
+two languages disagree about it:
+
+```sh
+fjs compile input.f.js output.f.js   # {["__proto__"]:1}
+fjs compile input.f.js output.json   # {"__proto__":1}
+```
+
+In JavaScript output the computed form is what makes the module round-trip:
+it is the only spelling whose evaluation reproduces the property. In JSON
+output the plain key stays — `JSON.parse` has no prototype special case, so
+JSON already round-trips, and the computed form is not JSON at all.
+
+## JSON is a subset of FunctionalScript except here
+
+`"__proto__"` is an ordinary data key in a JSON document — `JSON.parse` makes
+it an own property — so a JSON document containing that key is **not** a valid
+FunctionalScript module. This is the one documented exception to
+[JSON](./1000-json.md)'s subset claim; every other JSON document means the same
+thing in both languages.
+
+The alternative would be for FunctionalScript to accept the spelling and read
+it as a data property, but then FunctionalScript source would mean something
+different from what a JavaScript engine gives it, breaking principle 2. A
+narrow, stated exception is the cheaper price.
+
+Because `fjs compile` reads every input as FunctionalScript, such a JSON
+document is rejected as *input* even though the same value compiles *to* that
+document.
+
+Depends on [computed-property](./2470-computed-property.md).
