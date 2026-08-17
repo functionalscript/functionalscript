@@ -88,11 +88,23 @@ export const proof = {
         const content = readOutput(state.root, 'output.json')
         assertEq(content, '42')
     },
-    fileNotFound: () => {
-        const [state, code] = virtual(emptyState)(compile(['missing.f.js', 'output.f.js']))
-        assertEq(code, 1)
-        assert(state.stderr.includes('file not found'), state.stderr)
-        assertEq(state.root['output.f.js'], undefined)
+    // An error with no token to point at names the file being compiled, not
+    // `undefined:undefined:undefined`. Each language reports its own missing
+    // file: the module reader and the JSON reader read their inputs
+    // separately.
+    fileNotFound: {
+        module: () => {
+            const [state, code] = virtual(emptyState)(compile(['missing.f.js', 'output.f.js']))
+            assertEq(code, 1)
+            assertEq(state.stderr.trim(), 'missing.f.js - error: file not found')
+            assertEq(state.root['output.f.js'], undefined)
+        },
+        json: () => {
+            const [state, code] = virtual(emptyState)(compile(['missing.json', 'output.f.js']))
+            assertEq(code, 1)
+            assertEq(state.stderr.trim(), 'missing.json - error: file not found')
+            assertEq(state.root['output.f.js'], undefined)
+        },
     },
     parseError: () => {
         const root = { 'bad.f.js': [utf8('export default @')] }
@@ -153,37 +165,36 @@ export const proof = {
             assertEq(compileSource(module)('out.json'), document)
         },
         // The extension speaks for the file named on the command line and for
-        // no other: an *imported* file's language is declared by the import,
-        // and the language has no `with { type: "json" }` clause yet, so an
-        // import reads a FunctionalScript module however the file is named.
-        // A JSON document is one — that is the subset claim — right up to the
-        // key the two languages disagree about.
-        jsonImportIsAModule: () => {
+        // no other: an import is resolved as a FunctionalScript module, and a
+        // JSON document is not one — a statement never begins with a value —
+        // so importing JSON fails until an import can say
+        // `with { type: "json" }` (spec/todo/2140).
+        jsonImportRejected: () => {
             const root = {
                 'main.f.js': [utf8('import a from "./a.json"\nexport default [a]')],
                 'a.json': [utf8('{"a":42}')],
             }
             const [state, code] = virtual({ ...emptyState, root })(compile(['main.f.js', 'out.json']))
-            assertEq(code, 0, state.stderr)
-            assertEq(readOutput(state.root, 'out.json'), '[{"a":42}]')
-        },
-        jsonImportWithProtoKeyRejected: () => {
-            const root = {
-                'main.f.js': [utf8('import a from "./proto.json"\nexport default [a]')],
-                'proto.json': [utf8('{"__proto__":5}')],
-            }
-            const [state, code] = virtual({ ...emptyState, root })(compile(['main.f.js', 'out.json']))
             assertEq(code, 1)
-            assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
+            assert(state.stderr.includes('a.json:1:1 - error: unexpected token'), state.stderr)
             assertEq(state.root['out.json'], undefined)
         },
-        // The identifier spelling is no JSON document's key, so it stays a
-        // compilation error whatever the input file is called.
+        // A `.json` input is read as JSON, and an identifier key is no JSON
+        // document's key — so this one fails in the JSON reader, which has no
+        // position to report and is named by its file instead.
         jsonInputIdKeyRejected: () => {
             const root = { 'proto.json': [utf8('{__proto__:5}')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
             assertEq(code, 1)
-            assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
+            assertEq(state.stderr.trim(), 'proto.json - error: unexpected token')
+            assertEq(state.root['a.js'], undefined)
+        },
+        // The `.json` reader is JSON, not DJS with a JSON flag: a bigint is
+        // not JSON, whatever DJS makes of it.
+        jsonInputRejectsDjsExtensions: () => {
+            const root = { 'a.json': [utf8('{"a":1n}')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['a.json', 'a.js']))
+            assertEq(code, 1)
             assertEq(state.root['a.js'], undefined)
         },
         // The statement behind the textual assertions: the property is an
