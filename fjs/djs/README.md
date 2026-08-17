@@ -26,7 +26,7 @@ See [examples/input.f.mjs](./examples/input.f.mjs).
 - [x] use JS tokenizer
 - [x] identifiers `{a:5}`
 - [x] computed keys `{["a"]:5}`, the only spelling of a `__proto__` key
-  ([spec/2480-proto-property-key](../../spec/2480-proto-property-key.md))
+  ([spec: the `__proto__` key](../../spec/README.md#the-__proto__-key))
 - [x] big int
 - [x] `export default ...`
 - [x] constants
