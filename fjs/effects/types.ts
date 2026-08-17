@@ -130,6 +130,44 @@ export type OperationMap<O extends Operation, R> = {
     readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => R
 }
 
+/**
+ * An {@link OperationMap} a runner may leave holes in: every handler it *does*
+ * provide has the same type, and any of them may be absent.
+ *
+ * Partiality is opt-in, and deliberately not the default. A total map means a
+ * runner that forgets a handler is a compile error, which is what should happen
+ * to the Node runner; this type is for a runner that is *meant* to lack
+ * operations — a virtual filesystem with no subprocesses, a mock that answers
+ * the three commands its proof issues. An absent handler here is an answer
+ * (`error(notImplemented)`), not an oversight.
+ */
+export type PartialOperationMap<O extends Operation, R> = {
+    readonly [K in O[0]]?: (...payload: Pr<O, K>[0]) => R
+}
+
+/**
+ * The runtime witness of `O`'s command set.
+ *
+ * A {@link PartialOperationMap} cannot say, at runtime, whether a command it
+ * has no handler for is one the operation set declares — types are erased, so
+ * an omitted `readFile` and a garbled `readFilee` reach the interpreter as the
+ * same missing lookup. They are not the same thing: the first is a capability
+ * this runner lacks and a program may recover from, the second is a `Do` node
+ * whose `command` was never the one its type claimed. Telling them apart needs
+ * `O`'s commands as data.
+ *
+ * Declare it as a record rather than an array — a `Record<O[0], null>` is
+ * checked for *completeness*, so a command added to `O` and forgotten here is a
+ * compile error, whereas an array literal only has its members checked and
+ * drifts silently.
+ */
+export type CommandSet<O extends Operation> =
+    Readonly<Record<O[0], null>>
+
+/** `O`'s commands, in the form {@link match} tests membership against. */
+export type Commands<O extends Operation> =
+    readonly O[0][]
+
 export type MatchResult<O extends Operation, T, R> =
     | readonly['done', T]
     | readonly['cont', R, Do<O, T>['continuation']]

@@ -24,12 +24,16 @@
  * because a `void` accumulator accepts a `Result` silently.
  *
  * **Three functions discriminate `Pure` from `Do`** — {@link step},
- * {@link match}, and {@link runPure} — plus the node proof in
+ * `_matchWith`, and {@link runPure} — plus the node proof in
  * `fjs/effects/proof.f.mjs` that pins the representation on purpose. Everything
- * else, interpreters included, goes through `match` or `runPure`. The count is
- * the point: a `typeof e === 'function'` check appearing in a fifth place is a
- * review flag, because the representation is only cheap to change while its
- * readers stay enumerable.
+ * else, interpreters included, goes through `match`, {@link partialMatch}, or
+ * `runPure`. The count is the point: a `typeof e === 'function'` check
+ * appearing in a fifth place is a review flag, because the representation is
+ * only cheap to change while its readers stay enumerable.
+ *
+ * `match` and `partialMatch` are two entry points, not two discriminators:
+ * they differ only in what a missing handler means and share `_matchWith` for
+ * the shape test, so adding the partial variant left the count where it was.
  *
  * A `decode` function (`(e: RawEffect<O, T>) => Decoded<O, T>`) once funnelled all
  * of that through a single `{ done, result }` / `{ done, command, payload,
@@ -117,7 +121,7 @@
  * @import { Option } from '../types/option/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Fold } from '../types/function/operator/types.ts'
- * @import { Cont, Do, RawEffect, F, History, MatchResult, Operation, OperationMap, Param, Pr, Pure, Return, ToAsyncOperationMap } from './types.ts'
+ * @import { Commands, Cont, Do, RawEffect, F, History, MatchResult, Operation, OperationMap, PartialOperationMap, Param, Pr, Pure, Return, ToAsyncOperationMap } from './types.ts'
  */
 
 import { assert } from '../asserts/module.f.mjs'
@@ -360,28 +364,81 @@ export const runPure = e =>
  * only ever sees own properties, so such a command yields `null` and never a
  * callable.
  *
- * A `null` handler is an invariant violation, not an outcome: every `O1 extends
- * O` the signature admits has its command in `map`, so reaching it means the
- * node's `command` was never the `O1[0]` it claimed to be. It therefore throws
- * (`assert`) rather than widening {@link MatchResult} with a variant no
- * type-correct caller could ever observe — a runner cannot resume a command it
- * has no handler for, so there is nothing for a recovery branch to do.
+ * **A `null` handler means one of two different things**, and this is the only
+ * place that can still tell them apart. With a total {@link OperationMap} every
+ * `O1 extends O` the signature admits has its command in `map`, so a miss means
+ * the node's `command` was never the `O1[0]` it claimed to be — a malformed
+ * node, and a panic. With a {@link PartialOperationMap} a miss may instead be an
+ * operation the runner deliberately does not implement, which is an *outcome*: a
+ * program receives `error(notImplemented)` through the ordinary continuation and
+ * decides for itself whether to recover, fall back, or panic. {@link partialMatch}
+ * is the variant that distinguishes the two; this one keeps the strict reading,
+ * because a total map has no second case to distinguish.
+ *
+ * The two share {@link _matchWith}, so `typeof e === 'function'` still appears
+ * in exactly the three places the module header names.
  *
  * @template {Operation} O
  * @template R
  * @param {OperationMap<O, R>} map
  */
 export const match = map =>
-    /**
-     * @template {O} O1
-     * @template T
-     * @param {RawEffect<O1, T>} e
-     * @returns {MatchResult<O1, T, R>}
-     */
-    e => {
-        if (typeof e === 'function') { return ['done', e()] }
-        const { command, payload, continuation } = e
-        const handler = at(command)(map)
-        assert(handler !== null, command)
-        return ['cont', handler(...payload), continuation]
-    }
+    _matchWith(/** @type {(command: O[0]) => R} */ (command => {
+        assert(false, command)
+    }))(map)
+
+/**
+ * {@link match} for a runner that is *meant* to lack operations.
+ *
+ * A command in `commands` with no handler in `map` is a capability this runner
+ * does not have: `onMissing` builds the answer and the program resumes with it,
+ * which is what lets `O` mean "the operations a computation may request" rather
+ * than "the operations every runner implements". A command outside `commands`
+ * is still a malformed node and still panics — an omitted handler and a garbled
+ * `command` are not the same failure, and collapsing them would turn a probable
+ * bug into a routine outcome.
+ *
+ * **`onMissing` is supplied by the caller because only the caller can build an
+ * `R`.** `R` is the *runner's* wrapper — `Promise<…>` for an async loop,
+ * `(state) => [state, …]` for a state-threading one — not the operation's
+ * return type, so this function has no way to construct one. Each runner writes
+ * the injector once, next to the loop that defines the shape.
+ *
+ * @template {Operation} O
+ * @template R
+ * @param {Commands<O>} commands
+ * @param {(command: O[0]) => R} onMissing
+ */
+export const partialMatch = (commands, onMissing) =>
+    _matchWith((/** @type {O[0]} */ command) => {
+        assert(commands.includes(command), command)
+        return onMissing(command)
+    })
+
+/**
+ * The shared body of {@link match} and {@link partialMatch}: decode the node,
+ * look the handler up by own property, and hand a miss to `onMissing`.
+ *
+ * @template {Operation} O
+ * @template R
+ * @param {(command: O[0]) => R} onMissing
+ */
+const _matchWith = onMissing =>
+    /** @param {PartialOperationMap<O, R>} map */
+    map =>
+        /**
+         * @template {O} O1
+         * @template T
+         * @param {RawEffect<O1, T>} e
+         * @returns {MatchResult<O1, T, R>}
+         */
+        e => {
+            if (typeof e === 'function') { return ['done', e()] }
+            const { command, payload, continuation } = e
+            const handler = at(command)(map)
+            return [
+                'cont',
+                handler === null ? onMissing(command) : handler(...payload),
+                continuation,
+            ]
+        }
