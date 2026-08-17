@@ -34,12 +34,11 @@
  */
 
 import { boolean, string, option, array, record, or } from '../../types/rtti/module.f.mjs'
-import { pure, step } from '../../effects/module.f.mjs'
-import { unwrapStep } from '../../effects/io/module.f.mjs'
+import { mapStep, pure, step } from '../../effects/module.f.mjs'
 import { read, write } from '../../effects/memory/module.f.mjs'
 import {
     decodeRequest,
-    rpcError, invalidRequest, invalidParams, methodNotFound,
+    rpcError, internalError, invalidRequest, invalidParams, methodNotFound,
     jsonrpc,
 } from '../json_rpc/module.f.mjs'
 import { parse } from '../../types/rtti/parse/module.f.mjs'
@@ -289,15 +288,18 @@ export const mcpStep = ({
                     // Malformed handshake — ignore it; the session stays gated.
                     return pure(null)
                 }
-                return step(
-                    unwrapStep(read(stateKey)),
-                    ([t]) => t === 'initializing'
-                        ? step(
-                            unwrapStep(write(stateKey, ['initialized', true])),
-                            () => pure(null),
-                        )
-                        : pure(null),
-                )
+                // A notification never receives a response, so a session-state
+                // failure here has nowhere to be reported: the transition is
+                // skipped and the session stays gated, which the client then
+                // observes as `notInitialized` on its next call. That is the
+                // honest degradation — better than a panic, and there is no
+                // response frame to put an error in.
+                return step(read(stateKey), r => {
+                    if (r[0] === 'error' || r[1][0] !== 'initializing') {
+                        return pure(null)
+                    }
+                    return mapStep(write(stateKey, ['initialized', true]), () => null)
+                })
             }
             return pure(null)
         }
@@ -314,9 +316,10 @@ export const mcpStep = ({
         // `initialize` transitions uninitialized → initializing; reject if already done.
         if (method === 'initialize') {
             return step(
-                unwrapStep(read(stateKey)),
-                ([t]) => {
-                    if (t !== 'uninitialized') {
+                read(stateKey),
+                r => {
+                    if (r[0] === 'error') { return pure(_errResponse(id)(internalError)) }
+                    if (r[1][0] !== 'uninitialized') {
                         return pure(_errResponse(id)(invalidRequest))
                     }
                     const [pr] = parse(initializeParams)(params)
@@ -329,19 +332,30 @@ export const mcpStep = ({
                         capabilities,
                         serverInfo,
                     }
+                    // The write's outcome decides the answer. It used to be
+                    // discarded by a `() =>` continuation, so a session that
+                    // failed to record the transition still replied with a
+                    // successful handshake and then rejected every call after
+                    // it as `notInitialized`.
                     return step(
                         write(stateKey, ['initializing']),
-                        () => pure(_okResponse(id)(result))
+                        w => pure(w[0] === 'error'
+                            ? _errResponse(id)(internalError)
+                            : _okResponse(id)(result)),
                     )
                 },
             )
         }
 
         // All other methods require fully initialized state — read it first.
+        // A session whose state cannot be read is an internal server error, not
+        // an uninitialized one: `notInitialized` tells the client to run the
+        // handshake it has already run, and it would run it again forever.
         return step(
-            unwrapStep(read(stateKey)),
-            ([t]) => {
-                if (t !== 'initialized') {
+            read(stateKey),
+            r => {
+                if (r[0] === 'error') { return pure(_errResponse(id)(internalError)) }
+                if (r[1][0] !== 'initialized') {
                     return pure(_errResponse(id)(notInitialized))
                 }
 

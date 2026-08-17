@@ -30,15 +30,13 @@
  * @import { IoError } from '../effects/node/types.ts'
  * @import { MemOp } from '../effects/memory/types.ts'
  * @import { Read, Write } from '../effects/node/types.ts'
- * @import { McpConfig, McpHandlers, McpSessionState } from '../protocol/mcp/types.ts'
+ * @import { McpConfig, McpHandlers } from '../protocol/mcp/types.ts'
  * @import { FileCasOperation } from '../cas/types.ts'
  * @import { Cache } from '../cas/evo/types.ts'
  * @import { Key } from '../effects/memory/types.ts'
  */
 
-import { mapStep } from '../effects/module.f.mjs'
 import { step as ioStep } from '../effects/io/module.f.mjs'
-import { ok } from '../types/result/module.f.mjs'
 import { create } from '../effects/memory/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import {
@@ -87,14 +85,8 @@ export const casMcpServer = home => ioStep(
     initEvo(fileCas(sha256)(home)),
     cacheKey => ioStep(
         create(uninitializedState),
-        /** @type {(sessionKey: Key<McpSessionState>) => IoEffect<Read | Write | MemOp | FileCasOperation, void, never>} */
-        (sessionKey =>
-            // The transport is still a raw effect — `fjs/protocol/mcp` migrates
-            // in its own change — so its `void` is lifted back into the layer
-            // here. Only the bootstrap above is fallible today: a server that
-            // cannot scan its store or allocate its session slot never starts,
-            // and now says so instead of throwing.
-            mapStep(stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)), ok)),
+        sessionKey =>
+            stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)),
     ),
 )
 

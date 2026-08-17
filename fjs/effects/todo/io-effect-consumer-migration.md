@@ -109,6 +109,18 @@ generalize to the modules still queued:
   failure. `register`, whose success carries nothing, uses `exitStep` unchanged.
   Expect the same split wherever a program already computes a code.
 
+`fjs/protocol/mcp` is where the "answer, don't panic" rule met a protocol that
+already had a way to say so. A session slot the runner cannot reach becomes a
+JSON-RPC `-32603`, not the `-32002` the gate would otherwise fall through to —
+telling a client to re-run a handshake it has already run is a loop, and the
+fault is the server's. A *notification* has no response frame at all, so there
+the failure is silent and the session simply stays gated. The transport is the
+opposite case: it has no frame either, but it does have a caller, so a stdin
+that cannot be read ends the loop and propagates to whoever started the server.
+Between them these are the three shapes a failure can take at a protocol edge —
+report it, drop it, or hand it back — and which one applies is decided by what
+the protocol gives you to answer with, not by preference.
+
 `fjs/dev` then cost four `unwrap`s and no new vocabulary — `allOk` was already
 there for its two `all`s, which is what the ordering was for. It confirms the
 other half of that prediction too: `loadModuleMap` became fallible, so
@@ -122,8 +134,8 @@ longer panics on a tree it cannot read; `fjs t` reports it and exits `1`.
       `defaultTest`; `Reporter<O>` member types.
 - [x] `fjs/dev` — `loadModuleMap` and `allFiles`.
 - [x] `fjs/cas/evo` — the cache slot and the `Evo<O>` API, plus `fjs/mcp/evo`.
-- [ ] `fjs/protocol/mcp` and its stdio transport.
-- [ ] `fjs/mcp`.
+- [x] `fjs/protocol/mcp` and its stdio transport.
+- [x] `fjs/mcp` — its bootstrap migrated with `fjs/cas/evo`.
 - [ ] `fjs` — the `run` command's bare `unwrap` of `import_`, which panics the
       CLI on a module that will not import. Found by the second sweep above,
       not by the `unwrapStep` grep.

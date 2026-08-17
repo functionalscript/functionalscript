@@ -15,8 +15,9 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { history, historyStep, mapStep, pure, step, runPure } from '../../effects/module.f.mjs'
 import { unwrapStep } from '../../effects/io/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { error, ok, unwrap as unwrapResult } from '../../types/result/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
+import { internalError } from '../json_rpc/module.f.mjs'
 import { asBase, asNominal, create, read } from '../../effects/memory/module.f.mjs'
 import {
     uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,
@@ -208,9 +209,49 @@ const initMsg = { jsonrpc: '2.0', method: 'initialize', id: 1,
 
 const initNotif = { jsonrpc: '2.0', method: 'notifications/initialized' }
 
+/** A memory handler that answers as a runner with no such operation. */
+const memNotImplemented = () => (/** @type {_MemoryState} */ state) =>
+    /** @type {const} */ ([state, error(/** @type {const} */ (['notImplemented', 'memRead']))])
+
+// Runs one step against a memory mock with `overrides` applied, from a session
+// slot created before them so the slot itself always exists.
+/** @type {(overrides: Partial<MemOperationMap<MemOp, _MemoryState>>) => (msg: Unknown) => unknown} */
+const failingStep = overrides => msg => {
+    const [state, key] = run(mock)(initial)(create(uninitializedState))
+    const runner = run(/** @type {MemOperationMap<MemOp, _MemoryState>} */ ({ ...mock, ...overrides }))
+    return runner(state)(asMemEffect(mcpStep(config)(handlers)(unwrapResult(key))(msg)))[1]
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 export const proof = {
+    // A session slot the runner cannot reach is `-32603`, not `-32002`.
+    // `notInitialized` tells the client to run the handshake it has already
+    // run, so it would run it forever; an internal error says the fault is the
+    // server's. Three sites answer it — the `initialize` read, the transition
+    // write, and the gate every other method passes through — and a
+    // notification, having no response frame at all, answers `null` instead.
+    sessionStateFailure: {
+        initializeRead: () => {
+            const resp = failingStep({ memRead: memNotImplemented })(initMsg)
+            assertEq(errorCode(resp), internalError.code)
+        },
+        initializeWrite: () => {
+            const resp = failingStep({ memWrite: memNotImplemented })(initMsg)
+            assertEq(errorCode(resp), internalError.code)
+        },
+        gatedMethod: () => {
+            const resp = failingStep({ memRead: memNotImplemented })(
+                { jsonrpc: '2.0', method: 'tools/list', id: 3 })
+            assertEq(errorCode(resp), internalError.code)
+        },
+        // The notification path has nowhere to report, so it stays silent and
+        // leaves the session gated rather than claiming the transition.
+        initializedNotification: () => {
+            const resp = failingStep({ memRead: memNotImplemented })(initNotif)
+            assertEq(resp, null)
+        },
+    },
     lifecycle: {
         initialStateIsUninitialized: () => {
             assert(uninitializedState[0] === 'uninitialized')
