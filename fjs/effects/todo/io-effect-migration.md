@@ -325,7 +325,7 @@ and the worklist is the `unwrapStep` call sites — every one is a consumer that
 has not yet chosen a policy beyond "panic".
 
 Migrated so far: `fjs/ci`, `fjs/ci/nix`, `fjs/nanvm/update`, `fjs/dev/update`,
-`fjs/cas` and `cas list`. Still on `unwrapStep`: `fjs/emergent_testing`,
+`fjs/cas`, `cas list` and `fjs/emergent_testing`. Still on `unwrapStep`:
 `fjs/cas/evo`, `fjs/mcp`, `fjs/protocol/mcp` (and its stdio transport),
 `fjs/dev`, and the proofs that drive them.
 
@@ -345,8 +345,9 @@ Migrated so far: `fjs/ci`, `fjs/ci/nix`, `fjs/nanvm/update`, `fjs/dev/update`,
 - [x] Add IoEffect variants of other combinators only when real consumers
       require them; do not mirror the whole raw-effect API speculatively.
       `history` / `historyStep` / `foldStep` / `forEachStep` landed with the
-      consumers that required them; `items` stays a **raw** effect in both
-      folds, since no consumer produces its list fallibly.
+      consumers that required them, and `allOk` with `fjs/emergent_testing`;
+      `items` stays a **raw** effect in both folds, since no consumer produces
+      its list fallibly.
 - [ ] Revisit `okStep`, `IoResult`, stream-fold helpers, and specialized
       recovery adapters as consumers migrate; remove redundant APIs when
       possible.
