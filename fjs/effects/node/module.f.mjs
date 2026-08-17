@@ -11,6 +11,7 @@
  * @module
  *
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Effect, Func, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoError, IoErrorInfo, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, OpResult, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
@@ -22,7 +23,7 @@ import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
-import { error as resultError } from '../../types/result/module.f.mjs'
+import { error as resultError, ok as resultOk, unwrap } from '../../types/result/module.f.mjs'
 import { do_, mapStep, pure, step } from '../module.f.mjs'
 import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../io/module.f.mjs'
 
@@ -84,6 +85,48 @@ export const isNotFound = ([tag, payload]) =>
 export const all =
     /** @type {<O extends Operation, T>(...a: readonly Effect<O, T>[]) => Effect<O | All, OpResult<readonly T[]>>} */
     (do_('all'))
+
+/**
+ * Collapses a list of results into a result of the list, keeping the **first**
+ * error in list order and discarding the later ones.
+ *
+ * Keeping one is what makes this a `Result` rather than a report: the callers
+ * that need it are chains, and a chain has one error channel. A site that wants
+ * every failure wants a different return type and should not reach for this.
+ *
+ * @type {<T, E>(list: readonly Result<T, E>[]) => Result<readonly T[], E>}
+ */
+const okList = list => {
+    for (const r of list) {
+        if (r[0] === 'error') { return r }
+    }
+    return resultOk(list.map(unwrap))
+}
+
+/**
+ * {@link all} in the `ok` channel: collects the values when every effect
+ * succeeded, and answers with the first failure otherwise.
+ *
+ * `all` alone cannot serve a fallible chain. Its envelope is the runner's
+ * (`OpResult`, saying whether the *operation* could be dispatched), so handing
+ * it `IoEffect`s nests one `Result` inside another and the caller receives
+ * `readonly Result<T, E>[]`. That has to be collapsed before the chain can
+ * `step` again, and a continuation that forgets to is the value-discarding
+ * hazard this migration exists to remove — one level in, where it is harder to
+ * see.
+ *
+ * **Every effect still runs.** The short-circuit is in the *result*, not in the
+ * execution: `all` performs them concurrently and this reads the answers once
+ * they are all in, so a failure does not cancel its siblings the way it stops
+ * the sequential `forEachStep` in `../io/module.f.mjs`. The error channel
+ * unions the runner's
+ * `NotImplemented` with the effects' own `E` for the same reason every other
+ * step does — either can be what went wrong.
+ *
+ * @type {<O extends Operation, T, E>(...a: readonly IoEffect<O, T, E>[]) => IoEffect<O | All, readonly T[], NotImplemented | E>}
+ */
+export const allOk = (...a) =>
+    ioStep(all(...a), rs => pure(okList(rs)))
 
 /**
  * @template {Operation} O0
