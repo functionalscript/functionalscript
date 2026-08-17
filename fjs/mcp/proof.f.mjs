@@ -11,7 +11,7 @@
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
-import { pure, step } from '../effects/module.f.mjs'
+import { mapStep as rawMapStep, pure, step } from '../effects/module.f.mjs'
 import { unwrapStep } from '../effects/io/module.f.mjs'
 import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
@@ -30,7 +30,7 @@ import {
 } from '../protocol/mcp/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { casConfig, casMcpHandlers } from './module.f.mjs'
-import { ok as resultOk, unwrap } from '../types/result/module.f.mjs'
+import { ok as resultOk, unwrap, unwrap as unwrapResult } from '../types/result/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import { fromVec } from '../types/uint8array/module.f.mjs'
 import { initEvo } from '../cas/evo/module.f.mjs'
@@ -79,7 +79,7 @@ const runSessionVirtual =
     (root, home = '/home/user') =>
     msgs => {
         const effect = step(
-            initEvo(fileCas(sha256)(home)),
+            rawMapStep(initEvo(fileCas(sha256)(home)), unwrapResult),
             cacheKey => step(
                 unwrapStep(create(uninitializedState)),
                 sessionKey => {
@@ -142,7 +142,7 @@ const runStdio =
     msgs => {
         const input = [init, initialized, ...msgs].map(m => JSON.stringify(m)).join('\n') + '\n'
         const effect = step(
-            initEvo(fileCas(sha256)(home)),
+            rawMapStep(initEvo(fileCas(sha256)(home)), unwrapResult),
             cacheKey => step(
                 unwrapStep(create(uninitializedState)),
                 sessionKey =>

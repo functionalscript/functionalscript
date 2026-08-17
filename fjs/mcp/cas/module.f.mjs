@@ -126,6 +126,7 @@ import {
     toolEntry, errorResult, okResult,
 } from '../../protocol/mcp/module.f.mjs'
 import { collectRead, fileCas } from '../../cas/module.f.mjs'
+import { errorSummary } from '../../effects/node/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
@@ -296,7 +297,9 @@ export const casToolRegistry = home => cacheKey => {
             casListArgs,
             () => step(
                 c.list(),
-                hashes => pure(okResult(hashes.map(vecToCBase32).join('\n')))
+                r => pure(r[0] === 'error'
+                    ? errorResult(errorSummary(r[1]))
+                    : okResult(r[1].map(vecToCBase32).join('\n')))
             ),
         ),
     ]

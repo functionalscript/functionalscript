@@ -420,6 +420,29 @@ export const errorMessage = ([tag, payload]) =>
     tag === 'notImplemented' ? `operation not implemented: ${payload}` : payload.message
 
 /**
+ * Renders a channel error for a **remote** caller: the command name for a
+ * {@link NotImplemented}, the OS error code for an `IoError`, and nothing else.
+ *
+ * {@link errorMessage} is for the operator of the program, who is entitled to
+ * the host's own words — including the path that failed. A protocol client is
+ * not, and the difference is not stylistic: `payload.message` is where the
+ * host puts the absolute path it could not read, so answering an MCP tool call
+ * with it publishes the server's filesystem layout to whoever is on the other
+ * end. The code (`ENOENT`, `EACCES`) says *what* went wrong without saying
+ * *where*, which is the part a client can act on anyway.
+ *
+ * A host that attached no code leaves nothing safe to forward, so the answer is
+ * the bare kind. That is deliberate: guessing which part of a free-text message
+ * is path-free is exactly the mistake this exists to prevent.
+ *
+ * @type {(e: NotImplemented | IoError) => string}
+ */
+export const errorSummary = ([tag, payload]) =>
+    tag === 'notImplemented'
+        ? `operation not implemented: ${payload}`
+        : payload.code === undefined ? 'io error' : `io error: ${payload.code}`
+
+/**
  * Ends a program with an exit code that reflects `e`: `ok` yields `0`, and a
  * failure is reported on `stderr` and yields `1` ({@link errorExit}).
  *

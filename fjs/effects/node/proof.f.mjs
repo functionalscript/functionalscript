@@ -11,7 +11,7 @@ import { empty, isVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match, pure, step } from "../module.f.mjs"
 import { step as ioStep } from "../io/module.f.mjs"
-import { both, errorMessage, exitStep, fetch, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, toIoError, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
+import { both, errorMessage, errorSummary, exitStep, fetch, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, toIoError, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -107,6 +107,19 @@ export const proof = {
         },
         notImplemented: () => {
             assertEq(errorMessage(['notImplemented', 'readFile']), 'operation not implemented: readFile')
+        },
+    },
+    errorSummary: {
+        // The distinction that matters: `errorMessage` hands back the host's
+        // words, which is where the path lives; `errorSummary` never does.
+        io: () => {
+            assertEq(errorSummary(ioError({ code: 'ENOENT', message: "no such file or directory, scandir '/home/u/.cas'" })), 'io error: ENOENT')
+        },
+        ioWithoutCode: () => {
+            assertEq(errorSummary(ioError({ message: "cannot read '/home/u/.cas'" })), 'io error')
+        },
+        notImplemented: () => {
+            assertEq(errorSummary(['notImplemented', 'readdir']), 'operation not implemented: readdir')
         },
     },
     exitStep: {

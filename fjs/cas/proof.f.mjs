@@ -13,7 +13,7 @@ import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
 import { fileCas, casAddFile, collectRead } from './module.f.mjs'
 import { match, pure, runPure, step } from '../effects/module.f.mjs'
 import { ioError, mkdir, writeFile, rm, readFile, access } from '../effects/node/module.f.mjs'
-import { error, ok } from '../types/result/module.f.mjs'
+import { error, ok, unwrap as unwrapResult } from '../types/result/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
 import { nonEmpty, empty } from '../effects/list/module.f.mjs'
@@ -297,7 +297,8 @@ export const proof = {
         const [state2, w2] = virtual(state1)(c.write(payload()))
         assert(!(w1[0] !== 'ok' || w2[0] !== 'ok'), ['expected both writes ok', w1, w2])
         assertEq(msb.cmp(w1[1])(w2[1]), 0, 'dedup hash mismatch')
-        const [, hashes] = virtual(state2)(c.list())
+        const [, listed] = virtual(state2)(c.list())
+        const hashes = unwrapResult(listed)
         assertEq(hashes.length, 1, ['expected one shard after dedup', hashes.length])
     },
     casWriteErrorItemAborts: () => {
@@ -312,7 +313,8 @@ export const proof = {
         const payload = nonEmpty(okItem, nonEmpty(errItem, /** @satisfies {List<FileCasOperation, IoResult<Vec>>} */ (empty())))
         const [state1, result] = virtual(emptyState)(c.write(payload))
         assert(result[0] === 'error', ['expected write error', result])
-        const [, hashes] = virtual(state1)(c.list())
+        const [, listed] = virtual(state1)(c.list())
+        const hashes = unwrapResult(listed)
         assertEq(hashes.length, 0, ['expected nothing published on abort', hashes])
     },
     casWriteReadExceedsMaxLength: () => {
@@ -490,19 +492,17 @@ export const proof = {
     },
     casListPropagatesNonNotFoundAccessError: () => {
         // A non-ENOENT `access` failure (permissions, corruption) is a genuine storage
-        // error and must propagate out of `list`, not be swallowed as an empty store.
+        // error and must propagate out of `list` as an `error`, neither swallowed as an
+        // empty store nor thrown: the caller decides what an unreadable store means.
         const c = fileCas(sha256)('.')
         const boom = ioError({ code: 'EACCES', message: 'permission denied' })
         const r = casCommand(c.list())
         assert(r[0] === 'cont', 'expected list() to issue an access command first')
         assertEq(r[1], 'access')
-        /** @type {unknown} */
-        let threw
-        try {
-            r[2](error(boom))
-        } catch (e) {
-            threw = e
-        }
-        assertEq(threw, boom)
+        const answered = runPure(r[2](error(boom)))
+        assert(answered.length === 1, ['expected list() to answer without another command', answered])
+        const result = answered[0]
+        assert(result[0] === 'error', ['expected the access failure to propagate', result])
+        assertEq(result[1], boom)
     },
 }
