@@ -710,6 +710,15 @@ the result. Sorted-key canonicalization (as `fjs compile` applies to
 data output, [spec/README.md](../spec/README.md)) must **not** be
 applied to object constructors. Duplicate keys are a validation error.
 
+**`__proto__` is a data key, never a prototype assignment.** FS has no
+run-time prototypes, so an object-constructor key `"__proto__"` denotes
+an ordinary property — and printing it (subject 12) must use the
+computed spelling `{ ["__proto__"]: … }`, the only JS form that
+reproduces the value. The identifier and string spellings assign a
+prototype instead and lose the property. See
+[proto-property-key](./proto-property-key.md), which also records that
+the DJS serializer emits the unsafe form today.
+
 ### 5. Validation
 
 **Status:** open (list agreed in direction, details when the RTTI schema
@@ -1159,6 +1168,13 @@ What that requires of the printer:
 - **Printing is recursive over values.** A captured *function* value
   prints as its own source; every other DJS value has a literal
   spelling, so the value domain is closed under printing.
+- **`__proto__` keys print computed.** `{ ["__proto__"]: … }` is the
+  only spelling that evaluates back to an object *having* that
+  property; the identifier and string forms assign a prototype and drop
+  it ([proto-property-key](./proto-property-key.md)). A printer that
+  emits `"__proto__":` produces text that evaluates to a different
+  value — the sharpest case of printing having to be correct rather
+  than merely plausible.
 
 The property worth aiming at: **parse(toString(f)) reproduces the same
 EDAG**, and therefore the same hash (subject 9). That is what makes
