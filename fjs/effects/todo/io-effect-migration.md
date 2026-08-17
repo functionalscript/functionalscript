@@ -324,10 +324,12 @@ the bytes.
 and the worklist is the `unwrapStep` call sites — every one is a consumer that
 has not yet chosen a policy beyond "panic".
 
-Migrated so far: `fjs/ci`, `fjs/ci/nix`, `fjs/nanvm/update`, `fjs/dev/update`,
-`fjs/cas`, `cas list`, `fjs/emergent_testing`, `fjs/dev` and `fjs/cas/evo`
-(with `fjs/mcp/evo` and `fjs/mcp`'s bootstrap). Still on `unwrapStep`:
-`fjs/protocol/mcp` (and its stdio transport), and the proofs that drive them.
+Migrated: `fjs/ci`, `fjs/ci/nix`, `fjs/nanvm/update`, `fjs/dev/update`,
+`fjs/cas`, `cas list`, `fjs/emergent_testing`, `fjs/dev`, `fjs/cas/evo`,
+`fjs/mcp` and `fjs/protocol/mcp` with its stdio transport. One `unwrapStep`
+remains in implementation code, in `fjs/emergent_testing`'s registered
+callback, and it is a considered panic at a foreign boundary rather than a
+site left to migrate.
 
 - [x] Migrate consumers module by module to IoEffect composition.
 - [x] Replace `step(e, okStep(f))` and equivalent manual propagation with
