@@ -5,7 +5,8 @@
  */
 
 import type { Effect, Operation } from '../effects/types.ts'
-import type { SandboxResult } from '../effects/node/types.ts'
+import type { IoEffect, NotImplemented } from '../effects/io/types.ts'
+import type { IoError, SandboxResult } from '../effects/node/types.ts'
 
 /** A zero-argument test function whose return value may contain sub-tests. */
 export type TestFn = () => unknown
@@ -43,11 +44,29 @@ export type Path = readonly (string | null)[]
  * leading to the current location; `null` marks a function-call boundary, e.g.
  * `['outer', null, 'inner']` means `outer` was invoked and its return value
  * contained `inner`.
+ *
+ * **Every method is fallible**, because reporting is IO and IO can fail: a
+ * write to a closed pipe, a runner that cannot dispatch `write` at all. The
+ * runner propagates what a method answers, so a reporter that cannot emit ends
+ * the run rather than being silently ignored.
+ *
+ * `result` and `summary` in particular *must* carry their `Result` in the type.
+ * They used to answer `Effect<O, void>`, and TypeScript accepts an effect of
+ * any value type where a `void` one is expected — so an implementation whose
+ * writes were fallible type-checked while its failures went nowhere. That is
+ * the hazard the Io layer exists to remove, and a `void` return position hides
+ * it exactly where a reporter's whole job is to perform IO.
+ *
+ * The channel is the standard node one (`NotImplemented | IoError`) rather than
+ * a type parameter: a reporter is free in which *operations* it performs, but
+ * it fails the way node IO fails, and pinning it here keeps the type — and the
+ * program tail that reports it — free of a parameter every caller would have to
+ * thread through unchanged.
  */
 export type Reporter<O extends Operation> = {
-    readonly result: (file: string, path: Path, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void>
-    readonly summary: (pass: number, fail: number, time: number) => Effect<O, void>
-    readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>>
+    readonly result: (file: string, path: Path, r: SandboxResult<unknown>, throws: boolean) => IoEffect<O, void, NotImplemented | IoError>
+    readonly summary: (pass: number, fail: number, time: number) => IoEffect<O, void, NotImplemented | IoError>
+    readonly test: (file: string, path: Path, set: TestEntry) => IoEffect<O, SandboxResult<unknown>, NotImplemented | IoError>
 }
 
 /** @internal */

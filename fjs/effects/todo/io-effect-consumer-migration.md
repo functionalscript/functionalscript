@@ -71,11 +71,40 @@ Where a module genuinely has no answer to a failure, `unwrapStep` stays — the
 goal is a *considered* policy at every site, not zero panics. Say so in a
 comment when it stays.
 
+### What the migrated modules settled
+
+`fjs/emergent_testing`'s eight sites came down to one, and the three findings
+generalize to the modules still queued:
+
+- **`all` needed an `ok`-channel twin, and it is shared.** `all`'s envelope is
+  the runner's, so handing it `IoEffect`s nests one `Result` inside another and
+  the caller receives `readonly Result<T, E>[]` — the value-discarding hazard,
+  one level in. `allOk` (`fjs/effects/node/module.f.mjs`) collapses that to the
+  first error. `fjs/dev`'s two `all`s want the same combinator, so it is already
+  where that migration needs it.
+- **The panic that stayed is at a foreign boundary.** `Test` hands its callback
+  to an external framework whose contract is a raw `Effect<…, void>`, so there
+  is no channel to answer through and a throw is what that framework reports as
+  a failed test. The remaining `unwrapStep` is there, with that reason in a
+  comment; every other site now propagates.
+- **A tail is not always `exitStep`.** That one answers `0` for every success,
+  and `testAll`'s success value *is* the exit code (`1` when a test failed), so
+  it needs a sibling that keeps the computed code and reports only the channel
+  failure. `register`, whose success carries nothing, uses `exitStep` unchanged.
+  Expect the same split wherever a program already computes a code.
+
+`fjs/dev` then cost four `unwrap`s and no new vocabulary — `allOk` was already
+there for its two `all`s, which is what the ordering was for. It confirms the
+other half of that prediction too: `loadModuleMap` became fallible, so
+`testAll` and `register` turned their raw `step` into the Io one, and the two
+modules met at the tail exactly where this plan said they would. Discovery no
+longer panics on a tree it cannot read; `fjs t` reports it and exits `1`.
+
 ### Tasks
 
-- [ ] `fjs/emergent_testing` — reporter, `registerModule`, `runModuleMap`,
+- [x] `fjs/emergent_testing` — reporter, `registerModule`, `runModuleMap`,
       `defaultTest`; `Reporter<O>` member types.
-- [ ] `fjs/dev` — `loadModuleMap` and `allFiles`.
+- [x] `fjs/dev` — `loadModuleMap` and `allFiles`.
 - [ ] `fjs/cas/evo` — the cache slot and the `Evo<O>` API, plus `fjs/mcp/evo`.
 - [ ] `fjs/protocol/mcp` and its stdio transport.
 - [ ] `fjs/mcp`.

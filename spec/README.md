@@ -44,8 +44,16 @@ repository migration plan.
 
 ## 1. JSON
 
-A JSON document forms a **tree** of values and is itself a valid
-FunctionalScript module: JSON is a subset of FunctionalScript.
+A JSON document forms a **tree** of values, and `fjs compile` reads one: a
+`.json` input is JSON, read by the JSON reader.
+
+A JSON document is **not** a FunctionalScript module, though. A module is a
+sequence of statements, and no statement begins with a value — as JavaScript,
+`{"a":1}` does not parse at all and `[1,2]` exports nothing, so reading such a
+text as a module would give it a meaning no JavaScript engine gives it. What
+the two languages share is values: every JSON value is a FunctionalScript
+value, and the one place they read the same text differently is a `__proto__`
+key ([proto-property-key](./2480-proto-property-key.md)).
 
 1. [JSON](./1000-json.md).
 
@@ -66,8 +74,12 @@ of the line; semicolons are not part of the language.
 |constant|`const name = expression`|[const](./2120-const.md)|
 |default export|`export default expression`|[default-export](./2110-default-export.md)|
 
-- `export default` is the last statement of a module; only comments and
-  whitespace may follow it.
+- The three forms are the whole language: a statement begins with `import`,
+  `const`, or `export`, and never with a value. More forms land as the
+  language grows ([`spec/todo/`](./todo/README.md)).
+- They appear in that order — every `import` before every `const` — and
+  `export default` is required and last; only comments and whitespace may
+  follow it.
 - Imported and constant names share one namespace: declaring the same name
   twice is an error.
 - A name must be declared before it is used;
@@ -76,6 +88,10 @@ of the line; semicolons are not part of the language.
 - An import path is a string literal, resolved relative to the importing
   module. Each module is parsed and evaluated once per resolved path; a
   circular dependency is an error.
+- An imported file is read as a FunctionalScript module whatever its
+  extension, so a JSON document cannot be imported: choosing the language is
+  the import statement's job, and the language has no `with { type: "json" }`
+  clause yet ([import-attributes](./todo/2140-import-attributes.md)).
 
 ### 2.2. Expressions
 
@@ -100,8 +116,13 @@ Notes:
   JSON escapes. Single quotes, and the full set of JS string spellings, are a
   deferred feature — see
   [js-string-literals](./todo/2460-js-string-literals.md).
-- An object property key is a string literal or an identifier
-  ([identifier-property](./2410-identifier-property.md)).
+- An object property key is a string literal, an identifier
+  ([identifier-property](./2410-identifier-property.md)), or a string literal
+  in brackets ([computed-property](./2470-computed-property.md)). The brackets
+  hold a literal, not an expression.
+- `__proto__` is a key only in the bracketed form: the other two spellings
+  assign a prototype in JavaScript and are compilation errors
+  ([proto-property-key](./2480-proto-property-key.md)).
 - Arrays and objects may have a trailing comma
   ([trailing-comma](./2430-trailing-comma.md)).
 
@@ -128,6 +149,17 @@ fjs compile input.f.js output.json   # JSON
 - A JSON output is a tree, so shared values are expanded, and types that JSON
   cannot express (`bigint`, `undefined`) are not available.
 - Object properties are emitted in sorted key order.
+- The input extension names its language the same way: a `.json` input is a
+  JSON document, read by the JSON reader, and anything else is a
+  FunctionalScript module, read by the module parser. Two languages, two
+  readers — a `.json` input is JSON and nothing more, so it may not use
+  `bigint`, `undefined`, comments, identifier keys, or any other spelling only
+  a module has.
+- This applies to the file named on the command line; every file it imports is
+  read as a module (§2.1).
+- A `__proto__` key is emitted as `["__proto__"]:` in a JavaScript module and
+  as `"__proto__":` in JSON — the one key the two languages spell differently
+  ([proto-property-key](./2480-proto-property-key.md)).
 
 See [fjs/djs/README.md](../fjs/djs/README.md) for the data language
 implementation and [fjs/fsc/README.md](../fjs/fsc/README.md) for the compiler.
@@ -146,6 +178,8 @@ implementation and [fjs/fsc/README.md](../fjs/fsc/README.md) for the compiler.
 |2410|[identifier-property](./2410-identifier-property.md)|
 |2420|[line-comment](./2420-line-comment.md)|
 |2430|[trailing-comma](./2430-trailing-comma.md)|
+|2470|[computed-property](./2470-computed-property.md)|
+|2480|[proto-property-key](./2480-proto-property-key.md)|
 
 Everything not listed here — unimplemented language features (§1010, §2.x
 remainder, §3 FJS functions), ECMAScript proposals, I/O effects, the

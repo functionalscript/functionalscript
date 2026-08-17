@@ -1,5 +1,6 @@
 /**
  * @import { Effect } from '../effects/types.ts'
+ * @import { IoEffect, NotImplemented } from '../effects/io/types.ts'
  * @import { NodeProgramOptions, OpResult, Sandbox, Write } from '../effects/node/types.ts'
  * @import { JsModule } from '../effects/node/virtual/types.ts'
  * @import { Reporter } from './types.ts'
@@ -20,8 +21,7 @@ import { shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { array, number as rttiNumber, or, string as rttiString } from '../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
-import { ok, unwrap } from '../types/result/module.f.mjs'
-import { unwrapStep } from '../effects/io/module.f.mjs'
+import { error, ok, unwrap } from '../types/result/module.f.mjs'
 
 /**
  * The mock reporter's stdout lines. A schema rather than a hand-written type:
@@ -44,8 +44,8 @@ const parseEvent = rttiParse(event)
 
 /** @typedef {Reporter<Sandbox | Write>} _TestReporter */
 
-/** @type {(e: _Event) => Effect<Write, void>} */
-const writeEvent = e => unwrapStep(log(JSON.stringify(e)))
+/** @type {(e: _Event) => IoEffect<Write, void, NotImplemented>} */
+const writeEvent = e => log(JSON.stringify(e))
 
 /** @type {(stdout: string) => readonly _Event[]} */
 const parseEvents = stdout =>
@@ -298,6 +298,40 @@ export const githubReporterOutput = () => {
         stderr,
         '::error file=./s.proof.f.ts,line=1,title=import("./s.proof.f.ts").proof["a%3Ab%2Cc%25d"]()::oops\n',
     )
+}
+
+/** @typedef {All | Import | Readdir | Sandbox | Write} _FailOps */
+
+// A reporter that cannot write neither panics nor reports success. The failed
+// `result` line short-circuits its own test, leaves `allOk` as the first error,
+// skips the summary, and reaches the program tail — which answers exit `1`.
+//
+// `write` fails for every stream here, including the one `errorExit` reports
+// the failure on, so the exit code rather than a message is what is observable:
+// a run that cannot say anything at all still says it failed.
+export const reporterWriteFailure = () => {
+    /** @type {(s: undefined) => <T>(e: Effect<_FailOps, T>) => readonly [undefined, T]} */
+    let runner
+    runner = mockRun(/** @type {Parameters<typeof mockRun<_FailOps, undefined>>[0]} */ ({
+        readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true }])],
+        import: _path => s => [s, ok({ proof: { x: () => { } } })],
+        all: (...effects) => s => {
+            const [st, rs] = effects.reduce(
+                ([st1, rs1], e) => {
+                    const [ns, r] = runner(st1)(e)
+                    return [ns, [...rs1, r]]
+                },
+                /** @type {readonly [undefined, readonly unknown[]]} */([s, []]),
+            )
+            return [st, ok(rs)]
+        },
+        sandbox: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) =>
+            [s, ok({ result: ok(f()), duration: 0 })],
+        write: (_stream, _data) => s => [s, error(/** @type {const} */(['notImplemented', 'write']))],
+    }))
+    const [, exitCode] = runner(undefined)(
+        /** @type {Effect<_FailOps, number>} */(main(options('.'))))
+    assertEq(exitCode, 1)
 }
 
 /** @typedef {readonly string[]} _RegisterMockState */
@@ -578,6 +612,7 @@ export const proof = {
     defaultReporterOutputLargeDuration,
     defaultReporterFailOutput,
     githubReporterOutput,
+    reporterWriteFailure,
     registerSuffixes,
     registerThrowsWithoutThrowing,
     registerEmptyProof,

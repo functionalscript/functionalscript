@@ -60,10 +60,22 @@ import { assertEq } from '../../asserts/module.f.mjs'
  *   readonly module: _ModuleState
  * }} _ExportState */
 
+/**
+ * Where the value parser stands inside the value it is reading.
+ *
+ * The object states spell a property out left to right: `'{'` expects a key,
+ * `'{k'` the `:` after one, `'{:'` the value, `'{v'` the `,` or `}` after it,
+ * and `'{,'` the next key. A computed key `["a"]` takes the two extra steps
+ * `'{['` (the string inside the brackets) and `'{[k'` (the closing `]`), then
+ * rejoins the plain path at `'{k'`.
+ *
+ * @typedef {'' | '[' | '[v' | '[,' | '{' | '{[' | '{[k' | '{k' | '{:' | '{v' | '{,'} _ValueState
+ */
+
 /** @typedef {{
  *   readonly state: 'constValue' | 'exportValue'
  *   readonly module: _ModuleState
- *   readonly valueState: '' | '[' | '[v' | '[,' | '{' | '{k' | '{:' | '{v' | '{,'
+ *   readonly valueState: _ValueState
  *   readonly top: _DjsStackElement | null
  *   readonly stack: _DjsStack
  * }} _ParseValueState */
@@ -78,7 +90,21 @@ import { assertEq } from '../../asserts/module.f.mjs'
  *   readonly error: ParseError
  * }} _ErrorState */
 
-/** @type {(token: DjsTokenWithMetadata) => (state: _InitialState) => _ParserState} */
+/**
+ * A statement begins with `import`, `const`, or `export` and with nothing
+ * else. The three are a whitelist that grows as the language does, not a
+ * closed set; what a statement may never begin with is a **value**. A text
+ * that does — `42`, `[1,2]`, `{"a":1}` — is a JSON document, and reading it
+ * as a module would give it a value no JavaScript engine gives it: as
+ * JavaScript `{"a":1}` does not parse at all, and `[1,2]` is an expression
+ * statement exporting nothing.
+ *
+ * The statements are also ordered: every `import` precedes every `const`, and
+ * `export default` ends the module. `eof` here is a module with no
+ * `export default`, which is what "unexpected end" reports.
+ *
+ * @type {(token: DjsTokenWithMetadata) => (state: _InitialState) => _ParserState}
+ */
 const parseInitialOp = ({ token, metadata }) => state => {
     switch (token.kind)
     {
@@ -88,13 +114,17 @@ const parseInitialOp = ({ token, metadata }) => state => {
         case '/*': return state
         case 'id': {
             switch (token.value) {
-                case 'import': return { ...state, state: 'import' }
+                case 'import': return length(state.module.consts) === 0
+                    ? { ...state, state: 'import' }
+                    : { state: 'error', error: { message: 'import must come before const', metadata } }
                 case 'const': return { ...state, state: 'const' }
                 case 'export': return { ...state, state: 'export' }
             }
+            break
         }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
     }
-    return foldOp({ token, metadata })({ ...state, state: 'exportValue', valueState: '', top: null, stack: null })
+    return { state: 'error', error: { message: 'unexpected token', metadata } }
 }
 
 /** @type {(token: DjsTokenWithMetadata) => (state: _NewLineRequiredState) => _ParserState} */
@@ -230,11 +260,33 @@ const addValueToObject = obj => value => (['object', setReplace(obj[2])(value)(o
 /** @type {(array: _DjsStackArray) => (value: AstConst) => _DjsStackArray} */
 const addToArray = array => value => (['array', concat(array[1])([value])])
 
-/** @type {(state: _ParseValueState) => (key: string) => (metadata: TokenMetadata) => _ParserState} */
-const pushKey = state => key => metadata => {
-    if (state.top?.[0] === 'object') { return { ...state, valueState: '{k', top: addKeyToObject(state.top)(key), stack: state.stack } }
+/**
+ * The key of `{ __proto__: v }` and `{ "__proto__": v }`. JavaScript reads
+ * both as an instruction to replace the object's prototype instead of as a
+ * property, so FunctionalScript rejects them and accepts only the computed
+ * spelling `{ ["__proto__"]: v }`, which denotes an ordinary property.
+ * See [spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md).
+ */
+const protoKey = '__proto__'
+
+/** @type {(valueState: _ValueState) => (state: _ParseValueState) => (key: string) => (metadata: TokenMetadata) => _ParserState} */
+const pushKey = valueState => state => key => metadata => {
+    if (state.top?.[0] === 'object') { return { ...state, valueState, top: addKeyToObject(state.top)(key), stack: state.stack } }
     return { state: 'error', error: { message: 'error', metadata } }
 }
+
+/**
+ * A key written as an identifier or a string literal, which is every key but
+ * the computed one — so this is where `__proto__` is refused. A JSON document
+ * spells that key the same way and means an ordinary property by it, but a
+ * JSON document is not a module and this parser does not read one
+ * ([spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md)).
+ *
+ * @type {(state: _ParseValueState) => (key: string) => (metadata: TokenMetadata) => _ParserState}
+ */
+const pushPlainKey = state => key => metadata => key === protoKey
+    ? { state: 'error', error: { message: '__proto__ requires the computed key form', metadata } }
+    : pushKey('{k')(state)(key)(metadata)
 
 /** @type {(state: _ParseValueState) => (value: AstConst) => _ParserState} */
 const pushValue = state => value => {
@@ -398,8 +450,38 @@ const parseObjectStartOp = ({ token, metadata }) => state => {
     {
         case 'string':
         case 'id':
-            return pushKey(state)(String(token.value))(metadata)
+            return pushPlainKey(state)(token.value)(metadata)
+        case '[': return { ...state, valueState: '{[' }
         case '}': return endObject(state)
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+// computed property keys with a constant string key (#2470)
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseObjectComputedKeyOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case 'string': return pushKey('{[k')(state)(token.value)(metadata)
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseObjectComputedKeyEndOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case ']': return { ...state, valueState: '{k' }
         case 'ws':
         case 'nl':
         case '//':
@@ -462,7 +544,8 @@ const parseObjectCommaOp = ({ token, metadata }) => state => {
         case '}': return endObject(state)
         case 'string':
         case 'id':
-            return pushKey(state)(String(token.value))(metadata)
+            return pushPlainKey(state)(token.value)(metadata)
+        case '[': return { ...state, valueState: '{[' }
         case 'ws':
         case 'nl':
         case '//':
@@ -495,6 +578,8 @@ const foldOp = token => state => {
                 case '[v': return parseArrayValueOp(token)(state)
                 case '[,': return parseValueOp(token)(state)
                 case '{': return parseObjectStartOp(token)(state)
+                case '{[': return parseObjectComputedKeyOp(token)(state)
+                case '{[k': return parseObjectComputedKeyEndOp(token)(state)
                 case '{k': return parseObjectKeyOp(token)(state)
                 case '{:': return parseObjectColonOp(token)(state)
                 case '{v': return parseObjectNextOp(token)(state)
@@ -504,7 +589,16 @@ const foldOp = token => state => {
     }
 }
 
-/** @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>} */
+/**
+ * Reads the token list as a FunctionalScript module: `import` statements, then
+ * `const` statements, then one `export default`.
+ *
+ * This is the only language the parser reads. A JSON document is data, not a
+ * module, and `fjs/media/json` is its reader
+ * ([spec/1000-json](../../../spec/1000-json.md)).
+ *
+ * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
+ */
 export const parseFromTokens = tokenList => {
     const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null } })(tokenList)
     switch (state.state) {
@@ -529,7 +623,7 @@ export const proof = {
                 top: null,
                 stack: null,
             }
-            const result = pushKey(state)('key')({ path: 'test', line: 0, column: 0 })
+            const result = pushKey('{k')(state)('key')({ path: 'test', line: 0, column: 0 })
             assertEq(result.state, 'error')
         },
     },

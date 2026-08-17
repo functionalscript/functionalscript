@@ -1,5 +1,5 @@
 import { countRefs, stringify, stringifyAsTree } from './module.f.mjs'
-import { sort } from '../../types/object/module.f.mjs'
+import { fromEntries, sort } from '../../types/object/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 import { setProperty } from '../../media/json/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
@@ -55,6 +55,28 @@ export const proof = {
             },
         }
     ],
+    // The one key the two output formats spell differently. A `__proto__`
+    // property is built with `fromEntries` because an object literal cannot
+    // hold one: `{__proto__: 3}` assigns a prototype instead (#2480).
+    protoKey: {
+        // JavaScript output: only the computed form evaluates back to the
+        // property, so the module emitter must use it.
+        module: () => {
+            const res = stringify(sort)(fromEntries([['__proto__', 3]]))
+            assertEq(res, 'export default {["__proto__"]:3}')
+        },
+        moduleShared: () => {
+            const shared = fromEntries([['__proto__', 3]])
+            const res = stringify(sort)([shared, shared])
+            assertEq(res, 'const c0 = {["__proto__"]:3}\nexport default [c0,c0]')
+        },
+        // JSON output: `JSON.parse` has no prototype special case, so the plain
+        // spelling already round-trips — and the computed form is not JSON.
+        json: () => {
+            const res = stringifyAsTree(sort)(fromEntries([['__proto__', 3]]))
+            assertEq(res, '{"__proto__":3}')
+        },
+    },
     stringifyAsTree: [
         {
             sort: () => {

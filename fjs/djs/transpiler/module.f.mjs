@@ -19,6 +19,7 @@ import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { concat as pathConcat } from '../../path/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
+import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { run } from '../ast/module.f.mjs'
 import { foldStep, pure, step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
@@ -40,8 +41,7 @@ const parseModule = path => step(
         if (result[0] === 'error') {
             return pure(error({ message: 'file not found', metadata: null }))
         }
-        const tokens = tokenize(stringToList(result[1]))(path)
-        return pure(parseFromTokens(tokens))
+        return pure(parseFromTokens(tokenize(stringToList(result[1]))(path)))
     })
 
 /** @type {(path: string) => (parseModuleResult: Result<AstModule, ParseError>) => (context: ParseContext) => Effect<ReadFile, ParseContext>} */
@@ -89,16 +89,8 @@ const foldNextModuleOp = path => context => {
         parseModuleResult => transpileWithImports(path)(parseModuleResult)(context))
 }
 
-/**
- * Transpiles a DJS module graph rooted at `path` into a single `Unknown` value.
- *
- * Reads each file via the `ReadFile` effect, resolves imports recursively, and
- * evaluates the AST. Returns `['ok', value]` on success, or `['error', ParseError]`
- * on a parse failure or circular dependency.
- *
- * @type {(path: string) => Effect<ReadFile, Result<Unknown, ParseError>>}
- */
-export const transpile = path => step(
+/** @type {(path: string) => Effect<ReadFile, Result<Unknown, ParseError>>} */
+const transpileModule = path => step(
     foldNextModuleOp(path)({ stack: null, complete: null, error: null }),
     /** @type {(context: ParseContext) => Effect<ReadFile, Result<Unknown, ParseError>>} */
     (context) => {
@@ -108,6 +100,46 @@ export const transpile = path => step(
         const result = at(path)(context.complete)?.djs
         return pure(ok(result))
     })
+
+/**
+ * A JSON document is a value, not a module: it imports nothing and names
+ * nothing, so it needs no AST and no evaluation — `fjs/media/json` reads it
+ * and the value is the result.
+ *
+ * That reader reports its errors without a position, so the `ParseError` has
+ * no metadata and `fjs/djs`'s `compile` names the file instead of a line and
+ * column.
+ *
+ * @type {(path: string) => Effect<ReadFile, Result<Unknown, ParseError>>}
+ */
+const transpileJson = path => step(
+    readUtf8File(path),
+    result => {
+        if (result[0] === 'error') {
+            return pure(error({ message: 'file not found', metadata: null }))
+        }
+        const json = jsonParse(result[1])
+        return pure(json[0] === 'error'
+            ? error({ message: json[1], metadata: null })
+            : ok(json[1]))
+    })
+
+/**
+ * Transpiles the file at `path` into a single `Unknown` value.
+ *
+ * The extension names its language: a `.json` file is a JSON document, read by
+ * `fjs/media/json`, and anything else is a FunctionalScript module, whose
+ * imports are resolved recursively — each of them a module too, whatever it is
+ * called ([spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md)).
+ *
+ * Returns `['ok', value]` on success, or `['error', ParseError]` on a parse
+ * failure, a missing file, or a circular dependency.
+ *
+ * @type {(path: string) => Effect<ReadFile, Result<Unknown, ParseError>>}
+ */
+export const transpile = path => path.endsWith('.json')
+    ? transpileJson(path)
+    : transpileModule(path)
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 

@@ -159,6 +159,108 @@ export const proof = {
             if (result !== '[[],[{"a":1}]]') { throw result }
         }
     ],
+    // A computed key `["a"]` is a third spelling of an ordinary key, next to
+    // the identifier and the string literal (#2470).
+    computedKey: [
+        () => {
+            const tokenList = tokenizeString('export default {["a"]:1}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"a":1}]]')
+        },
+        () => {
+            // all three spellings in one object, plus a trailing comma
+            const tokenList = tokenizeString('export default {a:1,"b":2,["c"]:3,}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"a":1,"b":2,"c":3}]]')
+        },
+        () => {
+            // trivia is trivia inside the brackets too
+            const tokenList = tokenizeString('export default { [ /* c */ \n // c \n "a" /* c */ \n // c \n ] : 1 }')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"a":1}]]')
+        },
+        () => {
+            // the key that has no other spelling
+            const tokenList = tokenizeString('export default {["__proto__"]:{"a":42}}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'ok', obj)
+            const result = stringifyDjsModule(obj[1])
+            assertEq(result, '[[],[{"__proto__":{"a":42}}]]')
+        },
+    ],
+    invalidComputedKey: [
+        () => {
+            // the brackets hold a string literal, not a number
+            const tokenList = tokenizeString('export default {[1]:2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // eof inside the brackets, before the key
+            const tokenList = tokenizeString('export default {[')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // the brackets are not closed
+            const tokenList = tokenizeString('export default {["a"}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // eof after the key, before ']'
+            const tokenList = tokenizeString('export default {["a"')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // a computed key still needs its ':'
+            const tokenList = tokenizeString('export default {["a"]}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+    ],
+    // `{__proto__: v}` and `{"__proto__": v}` assign a prototype in JavaScript
+    // instead of adding a property, so FunctionalScript rejects both spellings
+    // and accepts only the computed one (#2480).
+    protoKey: [
+        () => {
+            const tokenList = tokenizeString('export default {__proto__:1}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"__proto__":1}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            // the same two spellings after a ',', the parser's other key state
+            const tokenList = tokenizeString('export default {"a":1,__proto__:2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+        () => {
+            const tokenList = tokenizeString('export default {"a":1,"__proto__":2}')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, '__proto__ requires the computed key form')
+        },
+    ],
     invalid: [
         () => {
             const tokenList = tokenizeString('export default')
@@ -452,39 +554,90 @@ export const proof = {
             if (result !== '[[],[{"a":0,"b":1}]]') { throw result }
         },
     ],
-    validJson:[
+    // A JSON document is not a module: a statement begins with `import`,
+    // `const`, or `export` and never with a value. `fjs/media/json` is the
+    // reader for these texts.
+    jsonDocumentIsNotAModule: [
         () => {
             const tokenList = tokenizeString('null')
             const obj = parseFromTokens(tokenList)
-            assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[null]]')
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('1')
             const obj = parseFromTokens(tokenList)
-            assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[1]]')
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('[]')
             const obj = parseFromTokens(tokenList)
-            assert(obj[0] === 'ok', obj)
-            const result = stringifyDjsModule(obj[1])
-            assertEq(result, '[[],[["array",[]]]]')
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             const tokenList = tokenizeString('{"valid":"json"}')
             const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // an identifier that is not a statement keyword is no better
+            const tokenList = tokenizeString('a')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
+        () => {
+            // an empty module has no `export default`
+            const tokenList = tokenizeString('')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+        () => {
+            // …and neither has one that only declares constants
+            const tokenList = tokenizeString('const a = 1\n')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected end')
+        },
+    ],
+    // Statements are ordered: imports, then constants, then `export default`.
+    statementOrder: [
+        () => {
+            const tokenList = tokenizeString('import a from "a.f.js" \n const b = 1 \n export default [a,b]')
+            const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
-            if (result !== '[[],[{"valid":"json"}]]') { throw result }
-        }
+            assertEq(result, '[["a.f.js"],[1,["array",[["aref",0],["cref",0]]]]]')
+        },
+        () => {
+            const tokenList = tokenizeString('const b = 1 \n import a from "a.f.js" \n export default [a,b]')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'import must come before const')
+        },
+        () => {
+            // nothing follows `export default` but trivia
+            const tokenList = tokenizeString('export default 1 \n const a = 2')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token')
+        },
     ],
     invalidModule:[
         () => {
+            // `module` is not one of the statement keywords
             const tokenList = tokenizeString('module=null')
+            const obj = parseFromTokens(tokenList)
+            assert(obj[0] === 'error', obj)
+            assertEq(obj[1].message, 'unexpected token', obj)
+        },
+        () => {
+            // a reference the module never declared, in a value position
+            const tokenList = tokenizeString('export default a')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'const not found', obj)
