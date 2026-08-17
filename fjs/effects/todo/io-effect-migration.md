@@ -137,9 +137,9 @@ Two consequences follow, and both are Stage 3 work:
   currently-infallible operation starts wrapping its output in `ok(...)`;
   operations that already return `IoResult` need only their error type
   refined.
-- Until Stage 6 lands, runners remain **total** over their declared operation
-  maps: `NotImplemented` exists in the type model but no runner produces it
-  yet.
+- Until Stage 6 landed, runners remained **total** over their declared
+  operation maps: `NotImplemented` was in the type model with nothing producing
+  it. The virtual runner produces it now.
 
 ### Target composition
 
@@ -522,8 +522,12 @@ guarantee that every runner implements all of them.
       partial map would trade a compile-time guarantee for a runtime answer
       nothing asks for.
 
-Until Stage 6 lands, `NotImplemented` may exist in the type model while
-current runners remain total over their declared operation maps.
+A runner is no longer obliged to be total. `NotImplemented` was in the type
+model from Stage 1 with nothing producing it; the virtual runner produces it
+now, for the five operations it does not implement. The runners that *are*
+total — `asyncRun` and the Node one — stay that way by choice rather than by
+the type system's insistence, and keep the exhaustiveness check that goes with
+it.
 
 ### Invariants
 
@@ -551,7 +555,8 @@ current runners remain total over their declared operation maps.
 - [`../node/todo/ornotfound-combinator.md`](../node/todo/ornotfound-combinator.md)
 - [`node-module-layering.md`](./node-module-layering.md)
 - [`../../../todo/044-error-handling-pattern.md`](../../../todo/044-error-handling-pattern.md)
-- `fjs/effects/module.f.mjs` — raw `step`, `okStep`, `match` (whose
-  missing-handler `assert` Stage 6 reworks).
+- `fjs/effects/module.f.mjs` — raw `step`, `match` and `partialMatch`, whose
+  missing-handler `assert` Stage 6 reworked into the two-case split. `okStep`
+  used to be listed here; Stage 5 inlined it into the Io `step`.
 - `fjs/types/result/module.f.mjs` — `okThen`, the union-not-unify precedent
   for the signatures above.
