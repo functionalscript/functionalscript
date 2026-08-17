@@ -20,7 +20,7 @@ of it.
 ## Why
 
 `fjs compile` reads its input as a JSON document when the extension says so
-([1000-json](../1000-json.md)), but a module has no way to name one: an import
+([JSON input](../README.md#json-input)), but a module has no way to name one: an import
 resolves to a FunctionalScript module, and a JSON document is not a module. In
 JavaScript the attribute is what names it — Node 22, ESM:
 
@@ -45,7 +45,7 @@ first fails in the imported file, which is not a module.
   agree with what the extension already says, so `type: "json"` on a
   FunctionalScript module is an error. The extension names the language of the
   file `fjs compile` is given
-  ([proto-property-key](../2480-proto-property-key.md)); this is how a module
+  ([the `__proto__` key](../README.md#the-__proto__-key)); this is how a module
   names the language of a file it imports.
 - `type: "text"` is not a language claim — it says the file is not parsed at
   all — so whether it likewise has to agree with an extension is an open
@@ -65,7 +65,7 @@ in how it is read, which is also what keeps
 reinterpretation. The extension declares a file's language to whoever names
 the file, and an import *is* that naming — so the importing module says which
 language it expects, and the extension must agree
-([proto-property-key](../2480-proto-property-key.md)).
+([the `__proto__` key](../README.md#the-__proto__-key)).
 
 The root input of `fjs compile` is the one file no import names, so its
 extension stays its declaration:
@@ -76,7 +76,7 @@ fjs compile proto.json a.js   # read as JSON: nothing else can say so
 
 Until the clause exists, an import reads a FunctionalScript module however the
 file is named — which is what the compiler does today — and a JSON document is
-not a module ([1000-json](../1000-json.md)), so **importing JSON does not work
+not a module ([JSON input](../README.md#json-input)), so **importing JSON does not work
 at all**. The clause is the only thing that would make it work.
 
 **So this feature is purely additive**, and it is the whole feature rather
@@ -129,7 +129,7 @@ implementations, while `"json"` does not wait on anything.
 - `import type` ([namespace-import](./2220-namespace-import.md)) is a separate
   clause on the same statement and is unaffected.
 
-Depends on [default-import](../2130-default-import.md).
+Depends on [import](../README.md#importing-other-modules).
 
 See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#import_attributes
 and the TC39 [import attributes](https://github.com/tc39/proposal-import-attributes)

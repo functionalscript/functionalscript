@@ -265,7 +265,7 @@ const addToArray = array => value => (['array', concat(array[1])([value])])
  * both as an instruction to replace the object's prototype instead of as a
  * property, so FunctionalScript rejects them and accepts only the computed
  * spelling `{ ["__proto__"]: v }`, which denotes an ordinary property.
- * See [spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md).
+ * See [spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key).
  */
 const protoKey = '__proto__'
 
@@ -280,7 +280,7 @@ const pushKey = valueState => state => key => metadata => {
  * the computed one — so this is where `__proto__` is refused. A JSON document
  * spells that key the same way and means an ordinary property by it, but a
  * JSON document is not a module and this parser does not read one
- * ([spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md)).
+ * ([spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key)).
  *
  * @type {(state: _ParseValueState) => (key: string) => (metadata: TokenMetadata) => _ParserState}
  */
@@ -595,7 +595,7 @@ const foldOp = token => state => {
  *
  * This is the only language the parser reads. A JSON document is data, not a
  * module, and `fjs/media/json` is its reader
- * ([spec/1000-json](../../../spec/1000-json.md)).
+ * ([spec: JSON input](../../../spec/README.md#json-input)).
  *
  * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
  */

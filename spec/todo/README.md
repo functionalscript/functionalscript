@@ -5,11 +5,10 @@ yet, and design documents for parts of the system that are not implemented.
 Each file is a working draft: it may mix specification text with design
 notes, alternatives, and implementation sketches.
 
-When the parser recognizes a feature, its document moves up to
-[`spec/`](../README.md) (and its links are updated), where documents are kept
-in specification style. The features the compiler accepts today are indexed
-in the main [spec README](../README.md); the section numbering below
-continues the numbering used there.
+When the parser recognizes a feature, its document is folded into the single
+[language specification](../README.md) — the one document that describes what
+the compiler accepts today — and this file's entry is removed. The numbering
+below is this directory's own; the specification has no section numbers.
 
 ## 1. JSON
 
@@ -38,7 +37,7 @@ We need it to use JSDoc and TypeScript.
 5. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
 6. [ ] computed property key from an expression — `{ [name]: 0 }`. The
    constant-string form is implemented
-   ([computed-property](../2470-computed-property.md)); the general one waits
+   ([property keys](../README.md#property-keys)); the general one waits
    on expressions.
 
 ### 2.4. Syntactic Sugar

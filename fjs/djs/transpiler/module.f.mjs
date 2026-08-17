@@ -130,7 +130,7 @@ const transpileJson = path => step(
  * The extension names its language: a `.json` file is a JSON document, read by
  * `fjs/media/json`, and anything else is a FunctionalScript module, whose
  * imports are resolved recursively — each of them a module too, whatever it is
- * called ([spec/2480-proto-property-key](../../../spec/2480-proto-property-key.md)).
+ * called ([spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key)).
  *
  * Returns `['ok', value]` on success, or `['error', ParseError]` on a parse
  * failure, a missing file, or a circular dependency.
