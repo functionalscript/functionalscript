@@ -46,6 +46,36 @@ another thing in a browser.
 When we implement features of FunctionalScript, the first priority is a
 simplification of the VM.
 
+## Exporting a Value
+
+This is a complete module:
+
+```js
+export default 5
+```
+
+A module denotes exactly one value, and `export default` is how it says which.
+The statement is **required** and **last**: only comments and whitespace may
+follow it. A module without one is an error.
+
+Every module is this shape, however large the value gets:
+
+```js
+export default { "name": "fjs", "tags": ["data", "config"] }
+```
+
+`export default` alone already expresses everything JSON expresses — the value
+that follows it is the whole content of the module. What takes a module past a
+tree, and past what JSON can hold at all, is the rest of the language:
+[constants](#shared-values-constants) and [imports](#importing-other-modules)
+name shared parts, and [`bigint`](#supported-value-types) and
+[`undefined`](#supported-value-types) are values JSON has no spelling for.
+
+Named exports are not recognized yet ([export](./todo/3240-export.md)).
+
+See
+<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#using_the_default_export>.
+
 ## Command Line
 
 ```sh
@@ -442,25 +472,6 @@ export default [c1,c1,c0]
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/const>.
-
-## Exporting a Value
-
-```js
-export default 5
-```
-
-A module denotes exactly one value, and `export default` is how it says which.
-The statement is **required** and **last**: only comments and whitespace may
-follow it. A module without one is an error.
-
-`export default` alone is already enough to express everything JSON expresses;
-[constants](#shared-values-constants) and [imports](#importing-other-modules)
-are what take the module past a tree.
-
-Named exports are not recognized yet ([export](./todo/3240-export.md)).
-
-See
-<https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#using_the_default_export>.
 
 ## Module Structure
 
