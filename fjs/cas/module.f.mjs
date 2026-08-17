@@ -52,7 +52,7 @@ import {
     writeBytes,
 } from '../effects/node/module.f.mjs'
 import { toOption } from '../types/nullable/module.f.mjs'
-import { error, ok, unwrap } from '../types/result/module.f.mjs'
+import { error, ok } from '../types/result/module.f.mjs'
 import { splitAt } from '../types/string/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
 

@@ -37,7 +37,7 @@
  * @import { Key } from '../effects/memory/types.ts'
  */
 
-import { mapStep, step } from '../effects/module.f.mjs'
+import { mapStep } from '../effects/module.f.mjs'
 import { step as ioStep } from '../effects/io/module.f.mjs'
 import { ok } from '../types/result/module.f.mjs'
 import { create } from '../effects/memory/module.f.mjs'
