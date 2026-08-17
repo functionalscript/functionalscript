@@ -26,7 +26,6 @@
  *
  * @module
  *
- * @import { Effect } from '../effects/types.ts'
  * @import { IoEffect, NotImplemented } from '../effects/io/types.ts'
  * @import { IoError } from '../effects/node/types.ts'
  * @import { MemOp } from '../effects/memory/types.ts'

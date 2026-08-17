@@ -118,10 +118,10 @@ modules still queued:
 - [ ] `fjs/protocol/mcp` and its stdio transport.
 - [ ] `fjs/mcp`.
 - [ ] `fjs` — the `run` command's bare `unwrap` of `import_`, which panics the
-      CLI on a module that will not import. Found by the sweep below, not by
-      the `unwrapStep` grep.
-- [ ] Delete this file once **both** sweeps below come back clean, and check
-      off Stage 4 in
+      CLI on a module that will not import. Found by the second sweep above,
+      not by the `unwrapStep` grep.
+- [ ] Delete this file once **all three** sweeps above come back clean, and
+      check off Stage 4 in
       [io-effect-migration](./io-effect-migration.md).
 - [ ] `npx tsc`, `fjs t` and `npm run cov` after each pull request.
 

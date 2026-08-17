@@ -52,7 +52,7 @@
 import { string, option, array } from '../../types/rtti/module.f.mjs'
 import { lockField } from '../../media/revision/module.f.mjs'
 import { pure, step } from '../../effects/module.f.mjs'
-import { errorMessage } from '../../effects/node/module.f.mjs'
+import { errorSummary } from '../../effects/node/module.f.mjs'
 import {
     toolEntry, errorResult, okResult,
 } from '../../protocol/mcp/module.f.mjs'
@@ -128,7 +128,7 @@ export const evoToolRegistry = e => [
         (({ archived }) => step(
             e.list(archived),
             r => pure(r[0] === 'error'
-                ? errorResult(errorMessage(r[1]))
+                ? errorResult(errorSummary(r[1]))
                 : okResult(toJson(r[1])))
         )),
     ),
@@ -139,7 +139,7 @@ export const evoToolRegistry = e => [
         ({ subject }) => step(
             e.head(subject),
             r => pure(r[0] === 'error'
-                ? errorResult(errorMessage(r[1]))
+                ? errorResult(errorSummary(r[1]))
                 : okResult(r[1].join('\n'))),
         ),
     ),
@@ -169,7 +169,7 @@ export const evoToolRegistry = e => [
         input => step(
             e.add(input),
             r => {
-                if (r[0] === 'error') { return pure(errorResult(errorMessage(r[1]))) }
+                if (r[0] === 'error') { return pure(errorResult(errorSummary(r[1]))) }
                 const result = r[1]
                 return pure(result[0] === 'error' ? errorResult(result[1]) : okResult(result[1]))
             }

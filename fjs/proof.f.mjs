@@ -7,6 +7,7 @@ import { assert, assertEq } from './asserts/module.f.mjs'
 import { pure } from './effects/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from './effects/node/virtual/module.f.mjs'
 import { main } from './module.f.mjs'
+import { vec8 } from './types/bit_vec/module.f.mjs'
 
 /** @type {(args: readonly string[]) => NodeProgramOptions} */
 const makeOptions = args => ({ ...defaultNodeProgramOptions, args })
@@ -42,6 +43,16 @@ export const proof = {
         // (`initEvo`) also runs and finds nothing.
         const [, code] = run({})(['mcp'])
         assertEq(code, 0)
+    },
+    mcpCorruptStore: () => {
+        // The headline new error path, end to end: `.cas` exists but is a
+        // file, so `initEvo`'s scan cannot list it. The server never starts,
+        // and the failure travels out of the bootstrap to the command's
+        // `exitStep` — a message on stderr and exit 1, where it used to be a
+        // panic from inside `buildCache`.
+        const [state, code] = run({ '.cas': [vec8(0x2An)] })(['mcp'])
+        assertEq(code, 1)
+        assert(state.stderr !== '', ['expected the storage error on stderr', state.stderr])
     },
     throw: {
         runImportError: () => {
