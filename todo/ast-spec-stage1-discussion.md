@@ -93,6 +93,39 @@ export default [",",
 ]
 ```
 
+### The core invariant
+
+**Any validated ASDAG behaves on the VM exactly as the corresponding
+source behaves on a JavaScript engine.**
+
+(*ASDAG* — Abstract Syntax **Directed Acyclic Graph** — is the precise
+name for what this document builds: the sharing and the acyclicity are
+both semantic, so "tree" was never right. `spec/` and
+[ast-spec](./ast-spec.md) still say *AST*.)
+
+"Behaves the same" means, precisely, under the assumptions:
+
+- the same value whenever both complete (A1, A2);
+- failure exactly when JS always throws (A3) — plus engine interrupts,
+  which are not the function's behavior (A2);
+- order of evaluation and the identity of an error are **not** part of
+  behavior (A4).
+
+Two consequences worth stating plainly:
+
+- **Validation is a total gate.** The invariant binds *every* validated
+  graph, not just compiler output — the `Function` constructor accepts
+  an `Any` from anywhere, so "the FJS compiler would never emit that" is
+  never an admissible argument. This is why the property-key rule is
+  syntactic ([Operations](#operations)) rather than a convention:
+  anything a hostile graph could express, validation must have already
+  ruled out.
+- **The printed source is the semantic reference.** Every validated
+  ASDAG has a source form (subject 12), a JS engine runs that source,
+  and the two must agree — so `toString(f)` is not merely a feature but
+  the statement of what the graph *means*. It also makes the invariant
+  testable: print, run on a JS engine, run on the VM, compare.
+
 Agreed points (not under discussion):
 
 - Host-value reuse follows [DESIGN.md §8](../DESIGN.md): constants describe
