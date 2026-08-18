@@ -14,7 +14,7 @@
  * @import { Effect, NotImplemented } from '../effects/io/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
  * @import { TestFn, TestEntry, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts'
- * @import { All, Await, Env, IoError, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
+ * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
@@ -154,10 +154,10 @@ const zero = { time: 0, pass: 0, fail: 0 }
 /**
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(k: string, v: unknown) => (ts: _TestState) => Effect<O | All, _TestState, NotImplemented | IoError>}
+ * @returns {(k: string, v: unknown) => (ts: _TestState) => Effect<O | All, _TestState, IoChannel>}
  */
 const runModule = ({ result, test }) => (k, v) => ts => {
-    /** @type {(entry: _TestAndPath) => Effect<O | All, _TestState, NotImplemented | IoError>} */
+    /** @type {(entry: _TestAndPath) => Effect<O | All, _TestState, IoChannel>} */
     const one = ([testPath, set]) => {
         // The sandbox result is still needed after it has been reported, so the
         // reporting call is captured rather than nested inside its own step.
@@ -181,7 +181,7 @@ const runModule = ({ result, test }) => (k, v) => ts => {
                     sub => mergeState(addPass(duration)(zero), sub))
             })
     }
-    /** @type {(path: Path, throws: boolean, v: unknown) => Effect<O | All, _TestState, NotImplemented | IoError>} */
+    /** @type {(path: Path, throws: boolean, v: unknown) => Effect<O | All, _TestState, IoChannel>} */
     const walk = (path, throws, v) => {
         const effects = collectTests(path, throws, v).map(one)
         return mapStep(allOk(...effects), states => states.reduce(mergeState, zero))
@@ -201,7 +201,7 @@ const proofEntries = moduleMap =>
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(moduleMap: ModuleMap) => Effect<O | All, number, NotImplemented | IoError>}
+ * @returns {(moduleMap: ModuleMap) => Effect<O | All, number, IoChannel>}
  */
 export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
@@ -227,7 +227,7 @@ export const runModuleMap = reporter => moduleMap => {
  * only in what an `ok` means, and conflating them would report a failing suite
  * as a passing run.
  *
- * @type {<O extends Operation>(e: Effect<O, number, NotImplemented | IoError>) => RawEffect<O | Write, number>}
+ * @type {<O extends Operation>(e: Effect<O, number, IoChannel>) => RawEffect<O | Write, number>}
  */
 const exitCodeStep = e =>
     rawStep(e, r => r[0] === 'error' ? errorExit(errorMessage(r[1])) : pure(r[1]))

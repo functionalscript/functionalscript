@@ -12,8 +12,8 @@
  * @module
  *
  * @import { RawEffect } from '../../effects/types.ts'
- * @import { IoError, Mkdir, WriteFile } from '../../effects/node/types.ts'
- * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
+ * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
+ * @import { Effect } from '../../effects/io/types.ts'
  * @import { Expression } from '../../media/nix/types.ts'
  * @import { MetaStep } from '../common/types.ts'
  * @import { NixJob } from './types.ts'
@@ -74,7 +74,7 @@ const flake = ({ system, packages, shellHook }) => ['set',
 export const flakeText = job =>
     unwrapNullable(fromUndefined(nixToString(flake(job))))
 
-/** @type {(job: NixJob) => Effect<Mkdir | WriteFile, void, NotImplemented | IoError>} */
+/** @type {(job: NixJob) => Effect<Mkdir | WriteFile, void, IoChannel>} */
 const writeFlake = job => {
     const directory = `${generatedDirectory}/${job.id}`
     const created = mkdir(directory, { recursive: true })
@@ -86,7 +86,7 @@ const writeFlake = job => {
 /**
  * Writes one generated flake per job, stopping at the first failure.
  *
- * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void, NotImplemented | IoError>}
+ * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
 export const nixFlakes = jobs =>
     forEachStep(pure(jobs), writeFlake)

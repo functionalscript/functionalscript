@@ -44,12 +44,11 @@
  *
  * @import { RawEffect, Operation } from '../../effects/types.ts'
  * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
- * @import { IoError } from '../../effects/node/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Cas } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { IoResult } from '../../effects/node/types.ts'
+ * @import { IoChannel, IoResult } from '../../effects/node/types.ts'
  * @import { LockField, LockMap, Revision } from '../../media/revision/types.ts'
  * @import { Hash, Subject, RevisionData, SubjectState, Cache, Evo } from './types.ts'
  */
@@ -221,13 +220,13 @@ export const decodeRevisionBlob = cas => hash =>
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {Effect<O, Cache, NotImplemented | IoError>}
+ * @returns {Effect<O, Cache, IoChannel>}
  */
 export const buildCache = cas => {
     // Annotated rather than inferred: the body's `ok(…)` is an `Ok<Cache>`,
     // which unifies with `Result<S, E>` for any `E`, so the fold's error type
     // has nothing to pin it and drifts into the accumulator's.
-    /** @type {(hash: Vec) => (cache: Cache) => Effect<O, Cache, NotImplemented | IoError>} */
+    /** @type {(hash: Vec) => (cache: Cache) => Effect<O, Cache, IoChannel>} */
     const foldOne = hash => cache =>
         mapStep(
             decodeRevisionBlob(cas)(hash),
@@ -241,7 +240,7 @@ export const buildCache = cas => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {Effect<O | MemOp, Key<Cache>, NotImplemented | IoError>}
+ * @returns {Effect<O | MemOp, Key<Cache>, IoChannel>}
  */
 export const initEvo = cas =>
     ioStep(buildCache(cas), cache => create(cache))

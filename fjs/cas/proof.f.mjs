@@ -2,8 +2,8 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from './types.ts'
  * @import { RawEffect } from '../effects/types.ts'
- * @import { ReadFile, WriteFile, Rm, Mkdir, IoError, IoResult } from '../effects/node/types.ts'
- * @import { Effect, NotImplemented } from '../effects/io/types.ts'
+ * @import { IoChannel, IoResult, Mkdir, ReadFile, Rm, WriteFile } from '../effects/node/types.ts'
+ * @import { Effect } from '../effects/io/types.ts'
  * @import { Ok } from '../types/result/types.ts'
  * @import { List } from '../effects/list/types.ts'
  */
@@ -232,7 +232,7 @@ export const proof = {
         const hash = writeResult[1]
         assertEq(length(hash), 256n, ['expected 256-bit hash', length(hash)])
         assertEq(msb.cmp(hash)(computeSync(sha256)([content])), 0, 'write hash mismatch')
-        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, readonly Vec[], NotImplemented | IoError>} */
+        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, readonly Vec[], IoChannel>} */
         const drain = acc =>
             stream =>
                 step(
@@ -270,7 +270,7 @@ export const proof = {
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
         const hash = writeResult[1]
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'multi-chunk write hash mismatch')
-        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, readonly Vec[], NotImplemented | IoError>} */
+        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, readonly Vec[], IoChannel>} */
         const drain = acc =>
             stream =>
                 step(
@@ -337,7 +337,7 @@ export const proof = {
         const hash = w[1]
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'oversized write hash mismatch')
         // Fold the read stream straight into a fresh SHA-2 state — never one `Vec`.
-        /** @type {(state: typeof sha256.init) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, Vec, NotImplemented | IoError>} */
+        /** @type {(state: typeof sha256.init) => (stream: List<FileCasOperation, IoResult<Vec>>) => Effect<FileCasOperation, Vec, IoChannel>} */
         const rehash = state =>
             stream =>
                 step(

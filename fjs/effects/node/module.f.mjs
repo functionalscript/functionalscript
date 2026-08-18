@@ -14,7 +14,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, RawEffect, Func, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoError, IoErrorInfo, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
+ * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoChannel, IoError, IoErrorInfo, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
  * @import { Effect, NotImplemented } from '../io/types.ts'
  */
 
@@ -71,7 +71,7 @@ export const toIoError = e => {
  * collapse into one benign branch — which is exactly what a bare `unknown`
  * error channel used to allow.
  *
- * @type {(e: NotImplemented | IoError) => boolean}
+ * @type {(e: IoChannel) => boolean}
  */
 export const isNotFound = ([tag, payload]) =>
     tag === 'ioError' && payload.code === 'ENOENT'
@@ -191,7 +191,7 @@ export const readFile = do_('readFile')
  * pattern-match on it (e.g. convert a failure into a domain-specific error) or
  * `unwrap` at the call site.
  *
- * @type {(path: string) => Effect<ReadFile, string, NotImplemented | IoError>}
+ * @type {(path: string) => Effect<ReadFile, string, IoChannel>}
  */
 export const readUtf8File = path =>
     ioMapStep(readFile(path), utf8ToString)
@@ -209,7 +209,7 @@ export const writeFile = do_('writeFile')
 /**
  * Writes a string to `path` as UTF-8 bytes.
  *
- * @type {(path: string, content: string) => Effect<WriteFile, void, NotImplemented | IoError>}
+ * @type {(path: string, content: string) => Effect<WriteFile, void, IoChannel>}
  */
 export const writeUtf8File = (path, content) =>
     writeFile(path, utf8(content))
@@ -281,7 +281,7 @@ const writeLoop = path => {
  * @template {Operation} O
  * @param {string} path
  * @param {List<O, IoResult<Vec>>} e
- * @returns {Effect<O | WriteBytes | CreateExclusive, void, NotImplemented | IoError>}
+ * @returns {Effect<O | WriteBytes | CreateExclusive, void, IoChannel>}
  */
 export const writeFromStream = (path, e) =>
     ioStep(
@@ -446,7 +446,7 @@ export const errorExit = s =>
  * Renders a channel error as a human line: an {@link IoError}'s own message, or
  * the command name a runner could not dispatch.
  *
- * @type {(e: NotImplemented | IoError) => string}
+ * @type {(e: IoChannel) => string}
  */
 export const errorMessage = ([tag, payload]) =>
     tag === 'notImplemented' ? `operation not implemented: ${payload}` : payload.message
@@ -467,7 +467,7 @@ export const errorMessage = ([tag, payload]) =>
  * the bare kind. That is deliberate: guessing which part of a free-text message
  * is path-free is exactly the mistake this exists to prevent.
  *
- * @type {(e: NotImplemented | IoError) => string}
+ * @type {(e: IoChannel) => string}
  */
 export const errorSummary = ([tag, payload]) =>
     tag === 'notImplemented'
@@ -483,7 +483,7 @@ export const errorSummary = ([tag, payload]) =>
  * counterpart of {@link isNotFound} at the other end of the channel: where that
  * one asks which failure this is, this one stops asking and reports.
  *
- * @type {<O extends Operation, T>(e: Effect<O, T, NotImplemented | IoError>) => RawEffect<O | Write, number>}
+ * @type {<O extends Operation, T>(e: Effect<O, T, IoChannel>) => RawEffect<O | Write, number>}
  */
 export const exitStep = e =>
     step(e, r => r[0] === 'error' ? errorExit(errorMessage(r[1])) : pure(0))

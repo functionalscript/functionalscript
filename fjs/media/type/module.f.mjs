@@ -39,8 +39,8 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Operation } from '../../effects/types.ts'
  * @import { List } from '../../effects/list/types.ts'
- * @import { IoError, IoResult } from '../../effects/node/types.ts'
- * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
+ * @import { IoChannel, IoResult } from '../../effects/node/types.ts'
+ * @import { Effect } from '../../effects/io/types.ts'
  * @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts'
  */
 
@@ -255,10 +255,10 @@ export const detectVec = bytes => finish(push(detectInit)(bytes))
  *
  * @template {Operation} O
  * @param {List<O, IoResult<Vec>>} stream
- * @returns {Effect<O, DetectMeta, NotImplemented | IoError>}
+ * @returns {Effect<O, DetectMeta, IoChannel>}
  */
 export const detectStream = stream => {
-    /** @type {(s: DetectState) => (l: List<O, IoResult<Vec>>) => Effect<O, DetectMeta, NotImplemented | IoError>} */
+    /** @type {(s: DetectState) => (l: List<O, IoResult<Vec>>) => Effect<O, DetectMeta, IoChannel>} */
     const loop = s => l =>
         step(
             l,

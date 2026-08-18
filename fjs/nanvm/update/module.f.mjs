@@ -9,8 +9,8 @@
  * @module
  *
  * @import { RawEffect } from '../../effects/types.ts'
- * @import { IoError, Mkdir, NodeProgram, WriteFile } from '../../effects/node/types.ts'
- * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
+ * @import { IoChannel, Mkdir, NodeProgram, WriteFile } from '../../effects/node/types.ts'
+ * @import { Effect } from '../../effects/io/types.ts'
  */
 
 
@@ -22,7 +22,7 @@ import { directory, generate, path } from '../rust/module.f.mjs'
 /**
  * Regenerates `nanvm-lib/tests/test/generated.rs` from the shared test data.
  *
- * @type {() => Effect<Mkdir | WriteFile, void, NotImplemented | IoError>}
+ * @type {() => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
 export const generateRustTests = () => {
     const directoryReady = mkdir(directory, { recursive: true })

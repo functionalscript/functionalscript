@@ -1,7 +1,6 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
- * @import { IoError, IoResult, ReadFile } from "./types.ts"
- * @import { NotImplemented } from "../io/types.ts"
+ * @import { IoChannel, IoError, IoResult, ReadFile } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
  * @import { List } from "../list/types.ts"
  * @import { OperationMap } from "../types.ts"
@@ -35,7 +34,7 @@ const readHello = match(readHelloMap)
  * Asserts that a channel error is a host failure carrying `message`. Every
  * runner reports through the same normalized {@link IoError}, so a proof
  * against the virtual filesystem names the message rather than the shape.
- * @type {(e: NotImplemented | IoError, message: string) => void}
+ * @type {(e: IoChannel, message: string) => void}
  */
 const assertIoMessage = (e, message) => {
     assert(e[0] === 'ioError', e)

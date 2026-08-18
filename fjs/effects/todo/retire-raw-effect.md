@@ -80,7 +80,8 @@ derived per function (see the `IoChannel` decision below).
       `Effect<…, RevisionData, string>` (keeps today's meaning) or
       `Effect<…, Result<RevisionData, string>, NotImplemented>` (matches `add`,
       and is the one that can widen later without touching consumers).
-- [ ] **Name the standard channel.** `IoChannel = NotImplemented | IoError`.
+- [x] **Name the standard channel.** `IoChannel = NotImplemented | IoError`,
+      in `../node/types.ts` beside `IoError` and `IoResult`. Done in stage 1.
       `../../emergent_testing/types.ts` already reasons its way there in prose
       — "it fails the way node IO fails, and pinning it here keeps the type …
       free of a parameter every caller would have to thread through unchanged"
@@ -93,9 +94,10 @@ Each stage is independently mergeable, and the consumer sweep is **one PR per
 module**, as stage 4 was. The compiler does not catch the mistakes this
 migration makes, so each module's proofs are re-read as part of its PR.
 
-- [ ] **1. `IoChannel`.** Introduce the alias next to `IoError`/`IoResult` and
-      collapse the 50 spelled-out unions onto it. Mechanical; unblocks the rest
-      by making "cannot fail" → "fails like node IO" a no-op.
+- [x] **1. `IoChannel`.** The alias lives next to `IoError`/`IoResult`, all 50
+      spelled-out unions collapsed onto it, and `IoResult<T>` is now
+      `Result<T, IoChannel>`. "Cannot fail" → "fails like node IO" is a no-op
+      for anything already declaring it.
 - [ ] **2. `unwrapStep` panics on a channel it never read.** It is generic in `E`,
       so it compiles however far the channel widens: one fallible read added
       upstream enlarges what every downstream `unwrapStep` crashes on, with no
