@@ -96,7 +96,27 @@ migration makes, so each module's proofs are re-read as part of its PR.
 - [ ] **1. `IoChannel`.** Introduce the alias next to `IoError`/`IoResult` and
       collapse the 50 spelled-out unions onto it. Mechanical; unblocks the rest
       by making "cannot fail" → "fails like node IO" a no-op.
-- [ ] **2. `Program`.** `Program<O> = (options) => Effect<O, 0, number>`.
+- [ ] **2. `unwrapStep` panics on a channel it never read.** It is generic in `E`,
+      so it compiles however far the channel widens: one fallible read added
+      upstream enlarges what every downstream `unwrapStep` crashes on, with no
+      diagnostic. Its doc offers greppability as the safeguard — "every
+      occurrence is a site that has chosen to panic, so the choice can be
+      reviewed" — but grepping finds sites, not sites whose *scope* grew since
+      they were last reviewed. That is the `nothrow` defect again, in the one
+      place where the consequence is a crashing program rather than a compile
+      error.
+
+      Replace it with exhaustive panicking: `catchStep(e, err => …)` whose
+      handler narrows `err` to `never`, the idiom `_matchWith` already uses for
+      commands (`assert(false, command)`). Widening the channel then fails to
+      compile at exactly the site that decided to panic.
+
+      Exposure today is one library site — `../../emergent_testing/module.f.mjs`,
+      whose registered test callback panics because `Test`'s contract is a raw
+      `RawEffect<…, void>` with no channel to answer through. That justification
+      dissolves once the callback has one. The other 13 sites are proofs, where
+      crashing on a broken fixture is the wanted outcome.
+- [ ] **3. `Program`.** `Program<O> = (options) => Effect<O, 0, number>`.
       `RawEffect<O, number>` cannot say which numbers mean failure; `Result<0,
       number>` can, and `r[1]` is the exit code in **both** branches, so the
       boundary needs no `r[0] === 'ok' ? 0 : r[1]`. `errorExit` gets the honest
@@ -104,7 +124,7 @@ migration makes, so each module's proofs are re-read as part of its PR.
       carries a comment about a near-miss this makes unrepresentable: a
       `() => pure(0)` continuation reporting a server that never started as a
       clean exit.
-- [ ] **3. `List` cells.** `List<O, T, E> = Effect<O, Next<O, T>, E>`.
+- [ ] **4. `List` cells.** `List<O, T, E> = Effect<O, Next<O, T>, E>`.
       `collectRead`, `detectStream`, `writeLoop` and three proof folds all
       hand-roll the same `if (t === 'error') return pure(error(v))`
       short-circuit, and it cannot be factored today because the fallibility
@@ -116,9 +136,9 @@ migration makes, so each module's proofs are re-read as part of its PR.
       that an error is "a distinct error *item* … never collapsed into
       end-of-stream" enforces itself instead of being legislated.
       Gives up per-item failure with continuation; nothing does that today.
-- [ ] **4. Consumer sweep**, one module per PR, until `RawEffect` is imported
+- [ ] **5. Consumer sweep**, one module per PR, until `RawEffect` is imported
       nowhere outside `fjs/effects`.
-- [ ] **5. Delete `RawEffect`.** Constrain `Operation`'s return type to a
+- [ ] **6. Delete `RawEffect`.** Constrain `Operation`'s return type to a
       `Result` — it is `(..._: readonly never[]) => unknown` today, and all 27
       operations in the tree already return `OpResult<…>` or `IoResult<…>`; the
       only exception is `_AnyOp` in `../proof.f.mjs`, a proof operation that
@@ -131,13 +151,14 @@ migration makes, so each module's proofs are re-read as part of its PR.
       and `Cont<O, T, E>` returns one, so `Effect` is spelled directly as
       `Pure<Result<T, E>> | Do<O, T, E>`. `Pure` and `Do` stay; the union alias
       is what goes. `unwrapStep` is the one signature that needed a payload
-      without a `Result` — it becomes `Effect<O, T, never>`, which is honest,
-      since panicking on the error leaves no failure behind.
-- [ ] **6.** Delete this file.
+      without a `Result`; it becomes `Effect<O, T, never>` — where the `never`
+      records that the site *panicked*, not that nothing could fail. See stage 2,
+      which lands first.
+- [ ] **7.** Delete this file.
 
 ### Non-goals
 
-- Deleting `RawEffect` *early*. It is stage 5 and not stage 1 for the reason
+- Deleting `RawEffect` *early*. It is stage 6 and not stage 1 for the reason
   given under Goal — the cost is entirely a function of what infallible payloads
   are still around when it happens.
 - Cancellation in the resource-cleanup sense. A fallible `List` cell lets a
@@ -157,6 +178,8 @@ migration makes, so each module's proofs are re-read as part of its PR.
 - The channel is where short-circuiting lives, not specifically where a
   runner's refusal lives: a parse failure, a domain verdict and a non-zero exit
   code all belong in it.
+- A panic names the errors it panics on. Nothing absorbs a whole channel
+  generically, so widening a channel cannot quietly widen a crash.
 - Nothing in the migration changes runtime behaviour except where a stage says
   so explicitly.
 
