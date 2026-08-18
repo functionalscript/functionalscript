@@ -408,8 +408,20 @@ cons cell; `Program<O>` answers an exit code; `Step<O>` and `ToolEntry.handle`
 answer a JSON-RPC response and a tool result, which *are* their error channels.
 Giving those a channel would put an `ok(…)` wrapper on every stream cell and
 every tool answer, for a failure that cannot happen. So `RawEffect` is public
-and load-bearing, not an implementation detail, and the two names now divide by
-meaning: `Effect` can fail, `RawEffect` cannot.
+and load-bearing, not an implementation detail.
+
+> **Two of those four examples no longer hold.** `List<O, T, E>` and
+> `Program<O>` both carry channels now — a stream cell fails rather than
+> yielding an error item, and an exit code says which numbers mean failure —
+> and neither acquired an `ok(…)` wrapper for a failure that cannot happen,
+> because in both cases the failure could happen and was being carried
+> somewhere worse. `Step<O>` and `ToolEntry.handle` still hold, and for the
+> reason given: the protocol *is* their error channel.
+>
+> The conclusion survives its examples. `RawEffect` stays public, but the
+> division is *composition* against *representation* rather than `Effect` can
+> fail against `RawEffect` cannot — see `RawEffect`'s own doc in
+> `../types.ts`.
 
 **The rename was done without the default, then given one.** `Effect<O, T, E>`
 with `E = NotImplemented` makes `Effect<O, T>` legal and fallible — which is
@@ -434,8 +446,10 @@ RawEffect<O, T>                    // the Pure | Do representation
 - [x] Retire the old public raw abstraction — **superseded**. It is renamed
       `RawEffect` and stays public, for the reason recorded above.
 - [x] Keep the `Pure | Do` representation under its own name — `RawEffect`,
-      public rather than internal, because `List`, `Program`, `Step` and
-      `ToolEntry.handle` are all built on it and none of them can fail.
+      public rather than internal. The stated reason was that `List`,
+      `Program`, `Step` and `ToolEntry.handle` are built on it and none of them
+      can fail; two of those four have channels now, and the decision holds on
+      the narrower ground recorded above.
 - [x] Rename `IoEffect` to `Effect` and make `NotImplemented` the default
       error type unless migration experience shows a better default.
 - [x] Make the Io `step`, `catchStep`, and `resultStep` the canonical
