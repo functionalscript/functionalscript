@@ -1,20 +1,19 @@
 /**
  * @import { Unknown } from '../media/json/types.ts'
- * @import { RawEffect, Operation } from '../effects/types.ts'
+ * @import { Operation } from '../effects/types.ts'
  * @import { Response } from '../protocol/json_rpc/types.ts'
  * @import { Handle } from '../protocol/mcp/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from '../cas/types.ts'
  * @import { List } from '../effects/list/types.ts'
+ * @import { Effect } from '../effects/io/types.ts'
  * @import { ContentItem, ToolsCallResult } from '../protocol/mcp/types.ts'
  * @import { IoChannel, Mkdir, Now, RandomInt, ReadBytes, Rename } from '../effects/node/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
-import { mapStep as rawMapStep, pure, step } from '../effects/module.f.mjs'
-import { unwrapStep } from '../effects/io/module.f.mjs'
-import { errorSummary } from '../effects/node/module.f.mjs'
+import { pureOk, step } from '../effects/io/module.f.mjs'
 import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, string as rttiString } from '../types/rtti/module.f.mjs'
@@ -59,18 +58,18 @@ const parseCasGetResult = rttiParse(casGetResult)
 /**
  * @template {Operation} O
  * @param {Handle<O>} handler
- * @returns {(msgs: readonly unknown[]) => RawEffect<O, readonly unknown[]>}
+ * @returns {(msgs: readonly unknown[]) => Effect<O, readonly unknown[], never>}
  */
 const feed = handler => msgs => {
-    /** @type {(i: number, acc: readonly unknown[]) => RawEffect<O, readonly unknown[]>} */
+    /** @type {(i: number, acc: readonly unknown[]) => Effect<O, readonly unknown[], never>} */
     const go = (i, acc) => (
         i === msgs.length
-            ? pure(acc)
-            // `[, r]` because a `Handle` answers `Effect<…, never>`: it has
-            // absorbed its own failures into the response, so the `ok` is total.
+            ? pureOk(acc)
+            // The channel stays `never`: a `Handle` has absorbed its own
+            // failures into the response, so every message contributes one.
             : step(
                 handler(/** @type {Unknown} */ (msgs[i])),
-                ([, r]) => go(i + 1, [...acc, r]))
+                r => go(i + 1, [...acc, r]))
     )
     return go(0, [])
 }
@@ -83,14 +82,13 @@ const runSessionVirtual =
     (root, home = '/home/user') =>
     msgs => {
         const effect = step(
-            rawMapStep(initEvo(fileCas(sha256)(home)), unwrapResult),
+            initEvo(fileCas(sha256)(home)),
             cacheKey => step(
-                unwrapStep(create(uninitializedState), errorSummary),
-                sessionKey => {
-                    const step = mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)
-                    return feed(step)(msgs)
-                }))
-        return virtual({ ...emptyState, root })(effect)[1]
+                create(uninitializedState),
+                sessionKey => feed(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))(msgs)))
+        // A proof has nobody to report a channel failure to, so it panics: the
+        // session either ran or the test is meaningless.
+        return unwrapResult(virtual({ ...emptyState, root })(effect)[1])
     }
 
 // Seeds a blob directly into the virtual store via `c.write`, bypassing the
@@ -146,9 +144,9 @@ const runStdio =
     msgs => {
         const input = [init, initialized, ...msgs].map(m => JSON.stringify(m)).join('\n') + '\n'
         const effect = step(
-            rawMapStep(initEvo(fileCas(sha256)(home)), unwrapResult),
+            initEvo(fileCas(sha256)(home)),
             cacheKey => step(
-                unwrapStep(create(uninitializedState), errorSummary),
+                create(uninitializedState),
                 sessionKey =>
                     stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))
             )

@@ -1,7 +1,7 @@
 /**
  * @import { Unknown } from '../../media/json/types.ts'
- * @import { RawEffect, Operation } from '../../effects/types.ts'
- * @import { Effect } from '../../effects/io/types.ts'
+ * @import { Operation } from '../../effects/types.ts'
+ * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import {
@@ -14,9 +14,8 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { history, historyStep, mapStep, pure, step, runPure } from '../../effects/module.f.mjs'
-import { pureOk, unwrapStep } from '../../effects/io/module.f.mjs'
-import { errorSummary } from '../../effects/node/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { history, historyStep, mapStep, pureOk, step } from '../../effects/io/module.f.mjs'
 import { error, ok, unwrap as unwrapResult } from '../../types/result/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { internalError } from '../json_rpc/module.f.mjs'
@@ -75,40 +74,42 @@ const handlers = {
 
 /** @typedef {readonly [unknown, McpSessionState]} _StepResult */
 
-// Run a memory effect against the mock, return the result.
-/** @type {<T>(effect: RawEffect<MemOp, T>) => T} */
+// Run a memory effect against the mock and unwrap what it answered. The
+// channel stays generic because nothing here interprets it: a proof has nobody
+// to report a failure to, so an `error` is a panic and the tests read the `ok`.
+/** @type {<T, E>(effect: Effect<MemOp, T, E>) => T} */
 const runMem = effect =>
-    run(mock)(initial)(effect)[1]
+    unwrapResult(run(mock)(initial)(effect)[1])
 
 // TypeScript infers O = Operation (the upper bound) rather than O = never when
 // O flows through McpHandlers<never>, so we cast the widened type down to MemOp.
-/** @type {<T>(e: RawEffect<Operation, T>) => RawEffect<MemOp, T>} */
-const asMemEffect = e => /** @type {RawEffect<MemOp, any>} */ (e)
+/** @type {<T, E>(e: Effect<Operation, T, E>) => Effect<MemOp, T, E>} */
+const asMemEffect = e => /** @type {Effect<MemOp, any, any>} */ (e)
 
 // Pairs the last step's response with the session state read back afterwards.
 // The response is still needed after the read, so it is carried forward in a
 // history rather than closed over by a nested continuation.
-/** @type {(key: Key<McpSessionState>) => (e: Effect<Operation, unknown, never>) => RawEffect<Operation, _StepResult>} */
+/** @type {(key: Key<McpSessionState>) => (e: Effect<Operation, unknown, never>) => Effect<Operation, _StepResult, NotImplemented>} */
 const withState = key => e => {
-    const read0 = historyStep(history(e), () => unwrapStep(read(key), errorSummary))
-    // `[, resp]`: a `Handle` answers `Effect<…, Response | null, never>`, so
-    // what the history captured is the `ok` around the response. The `never`
-    // channel is what makes destructuring it total.
-    return mapStep(read0, ([state, [, resp]]) => /** @type {const} */ ([resp, state]))
+    const read0 = historyStep(history(e), () => read(key))
+    // An Io history holds `ok` values, so `resp` is the response itself rather
+    // than a `Result` around it: a failed link short-circuits, contributing
+    // nothing to the tuple and skipping this projection with it.
+    return mapStep(read0, ([state, resp]) => /** @type {const} */ ([resp, state]))
 }
 
 // Run one step from uninitializedState, return [response, newState].
 /** @type {(cfg: McpConfig) => (msg: Unknown) => _StepResult} */
 const step1 = cfg => msg =>
     runMem(asMemEffect(step(
-        unwrapStep(create(uninitializedState), errorSummary),
+        create(uninitializedState),
         key => withState(key)(mcpStep(cfg)(handlers)(key)(msg)))))
 
 // Run initialize then a second step, return [response, newState] of the second.
 /** @type {(cfg: McpConfig) => (msg1: Unknown) => (msg2: Unknown) => _StepResult} */
 const step2 = cfg => msg1 => msg2 =>
     runMem(asMemEffect(step(
-        unwrapStep(create(uninitializedState), errorSummary),
+        create(uninitializedState),
         key => {
             const r1 = mcpStep(cfg)(handlers)(key)(msg1)
             const r2 = step(r1, () => mcpStep(cfg)(handlers)(key)(msg2))
@@ -119,7 +120,7 @@ const step2 = cfg => msg1 => msg2 =>
 /** @type {(cfg: McpConfig) => (msg1: Unknown) => (msg2: Unknown) => (msg3: Unknown) => _StepResult} */
 const step3 = cfg => msg1 => msg2 => msg3 =>
     runMem(asMemEffect(step(
-        unwrapStep(create(uninitializedState), errorSummary),
+        create(uninitializedState),
         key => {
             const r1 = mcpStep(cfg)(handlers)(key)(msg1)
             const r2 = step(r1, () => mcpStep(cfg)(handlers)(key)(msg2))
@@ -224,10 +225,11 @@ const memNotImplemented = () => (/** @type {_MemoryState} */ state) =>
 const failingStep = overrides => msg => {
     const [state, key] = run(mock)(initial)(create(uninitializedState))
     const runner = run(/** @type {MemOperationMap<MemOp, _MemoryState>} */ ({ ...mock, ...overrides }))
-    // `[1][1]`: the runner hands back the effect's payload, and a `Handle`
-    // answers `Effect<…, Response | null, never>`, so that payload is the `ok`
-    // around the response. The `never` is what makes the second index total.
-    return runner(state)(asMemEffect(mcpStep(config)(handlers)(unwrapResult(key))(msg)))[1][1]
+    // A `Handle` answers `Effect<…, Response | null, never>`, so the payload
+    // the runner hands back is the `ok` around the response and the unwrap is
+    // total — the failures these tests inject are the ones `mcpStep` itself
+    // absorbs into an error response.
+    return unwrapResult(runner(state)(asMemEffect(mcpStep(config)(handlers)(unwrapResult(key))(msg)))[1])
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

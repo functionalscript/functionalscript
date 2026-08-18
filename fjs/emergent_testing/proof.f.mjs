@@ -1,5 +1,5 @@
 /**
- * @import { RawEffect } from '../effects/types.ts'
+ * @import { RunInstance } from '../effects/mock/types.ts'
  * @import { Effect, NotImplemented } from '../effects/io/types.ts'
  * @import { NodeProgramOptions, OpResult, Sandbox, Write } from '../effects/node/types.ts'
  * @import { JsModule } from '../effects/node/virtual/types.ts'
@@ -311,7 +311,7 @@ export const githubReporterOutput = () => {
 // the failure on, so the exit code rather than a message is what is observable:
 // a run that cannot say anything at all still says it failed.
 export const reporterWriteFailure = () => {
-    /** @type {(s: undefined) => <T>(e: RawEffect<_FailOps, T>) => readonly [undefined, T]} */
+    /** @type {RunInstance<_FailOps, undefined>} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_FailOps, undefined>>[0]} */ ({
         readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true }])],
@@ -339,9 +339,7 @@ export const reporterWriteFailure = () => {
 
 /** @typedef {Test | All | Await} _RegisterMockOps */
 
-/**
- * @typedef {(s: _RegisterMockState) => <T>(e: RawEffect<_RegisterMockOps, T>) => readonly [_RegisterMockState, T]} _RegisterRunner
- */
+/** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
 
 /**
  * The `test` op body for a `registerModule` mock; `runner` is threaded in explicitly (rather than closed over) so it can recurse into sub-effects returned by `fn`.
@@ -350,7 +348,7 @@ export const reporterWriteFailure = () => {
  *     ctx: TestContext,
  *     name: string,
  *     expectFailure: boolean,
- *     fn: (t: TestContext) => RawEffect<_RegisterMockOps, void>,
+ *     fn: (t: TestContext) => Effect<_RegisterMockOps, void, never>,
  * ) => (s: _RegisterMockState) => readonly [_RegisterMockState, OpResult<void>]} _RegisterTestOp
  */
 
@@ -494,7 +492,7 @@ export const registerSelectsContextAndStar = () => {
     const runRegister = extra => {
         /** @type {(readonly [TestContext, string])[]} */
         let calls = []
-        /** @type {(s: undefined) => <T>(e: RawEffect<_RegisterMockOps | Readdir | Import, T>) => readonly [undefined, T]} */
+        /** @type {RunInstance<_RegisterMockOps | Readdir | Import, undefined>} */
         let runner
         runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
             readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true }])],
