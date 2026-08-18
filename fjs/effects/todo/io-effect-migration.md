@@ -420,8 +420,8 @@ and load-bearing, not an implementation detail.
 >
 > The conclusion survives its examples. `RawEffect` stays public, but the
 > division is *composition* against *representation* rather than `Effect` can
-> fail against `RawEffect` cannot — see `RawEffect`'s own doc in
-> `../types.ts`.
+> fail against `RawEffect` cannot — see [`../io/README.md`](../io/README.md)
+> and `Effect`'s doc in [`../io/types.ts`](../io/types.ts).
 
 **The rename was done without the default, then given one.** `Effect<O, T, E>`
 with `E = NotImplemented` makes `Effect<O, T>` legal and fallible — which is
