@@ -1,7 +1,7 @@
 /**
  * @import { Dir } from './types.ts'
  * @import { NodeOp } from '../types.ts'
- * @import { RawEffect } from '../../types.ts'
+ * @import { Effect } from '../../types.ts'
  * @import { IoChannel } from '../types.ts'
  */
 
@@ -10,7 +10,7 @@ import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, read
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { emptyState, virtual } from './module.f.mjs'
 import { do_ } from '../../module.f.mjs'
-import { catchStep } from '../../io/module.f.mjs'
+import { catchStep } from '../../module.f.mjs'
 
 /**
  * Asserts that a channel error is a host failure carrying `message` — the
@@ -53,7 +53,7 @@ export const proof = {
                 // `do_` cannot build this from a well-typed call — that is the
                 // point: only a node assembled outside the type system reaches
                 // an interpreter with a command like this.
-                const bogus = /** @type {RawEffect<NodeOp, never>} */ (
+                const bogus = /** @type {Effect<NodeOp, never, never>} */ (
                     /** @type {any} */ (do_)('nope')())
                 virtual(emptyState)(bogus)
             },

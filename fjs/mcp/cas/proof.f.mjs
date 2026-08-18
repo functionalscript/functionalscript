@@ -1,5 +1,6 @@
 /**
- * @import { RawEffect } from '../../effects/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { FileCasOperation } from '../../cas/types.ts'
  * @import { MemOp } from '../../effects/memory/types.ts'
  * @import { Cache } from '../../cas/evo/types.ts'
@@ -55,7 +56,12 @@ const defaultResponse = cmd => {
  * branch `fjs/cas/proof.f.mjs` reaches with its own `drive` helper, applied
  * here one layer up at the MCP tool boundary.
  *
- * @type {(overrides: Partial<Record<string, unknown[]>>) => (e: RawEffect<FileCasOperation | MemOp, unknown>) => unknown}
+ * The result is unwrapped: a tool handler answers
+ * `Effect<…, ToolsCallResult, never>`, having absorbed its failures into
+ * `isError`, so callers want the answer rather than the `ok` around it. The
+ * `never` channel is what makes that unwrap total.
+ *
+ * @type {(overrides: Partial<Record<string, unknown[]>>) => (e: Effect<FileCasOperation | MemOp, unknown, never>) => unknown}
  */
 const drive = overrides => {
     /** @type {(cmd: string) => unknown} */
@@ -80,12 +86,12 @@ const drive = overrides => {
         memWrite: () => next('memWrite'),
     })
     const matcher = match(handlers)
-    /** @type {(e: RawEffect<FileCasOperation | MemOp, unknown>) => unknown} */
+    /** @type {(e: Effect<FileCasOperation | MemOp, unknown, unknown>) => Result<unknown, unknown>} */
     const run_ = e => {
         const m = matcher(e)
         return m[0] === 'done' ? m[1] : run_(m[2](/** @type {any} */ (m[1])))
     }
-    return run_
+    return e => unwrap(run_(e))
 }
 
 // `syncRevision` is only reached on a *successful* write, which none of these
@@ -95,7 +101,7 @@ const cacheKey = /** @type {Key<Cache>} */ (/** @type {any} */ ('unused-cache-ke
 
 const registry = casToolRegistry('.')(cacheKey)
 
-/** @type {(name: string) => (args: any) => RawEffect<FileCasOperation | MemOp, unknown>} */
+/** @type {(name: string) => (args: any) => Effect<FileCasOperation | MemOp, ToolsCallResult, never>} */
 const toolHandle = name => {
     const entry = registry.find(t => t.name === name)
     assert(entry !== undefined, `no such tool: ${name}`)

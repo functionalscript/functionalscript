@@ -42,8 +42,8 @@
  *
  * @module
  *
- * @import { RawEffect, Operation } from '../../effects/types.ts'
- * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
+ * @import { Operation } from '../../effects/types.ts'
+ * @import { Effect, NotImplemented } from '../../effects/types.ts'
  * @import { EvoChannel, EvoError } from './types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Cas } from '../types.ts'
@@ -56,15 +56,15 @@
  * @import { Hash, Subject, RevisionData, SubjectState, Cache, Evo } from './types.ts'
  */
 
-import { pure, foldStep, mapStep, step } from '../../effects/module.f.mjs'
 import {
     catchStep,
     foldStep as ioFoldStep,
     mapStep as ioMapStep,
     pureError,
     pureOk,
+    resultMapStep,
     step as ioStep,
-} from '../../effects/io/module.f.mjs'
+} from '../../effects/module.f.mjs'
 import { create, read, write } from '../../effects/memory/module.f.mjs'
 import { collectRead } from '../module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
@@ -229,12 +229,19 @@ export const decodeRevisionVec = value => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {(hash: Vec) => RawEffect<O, Revision | null>}
+ * The `never` is a decision, not an observation: reading the store *can* fail,
+ * and this maps that failure to `null` alongside "the bytes are not a
+ * revision". A scan wants exactly that — one unreadable blob must not fail the
+ * whole cache build — but the two are genuinely different answers, and this
+ * one loses the difference on purpose. Saying `never` puts that where a reader
+ * can disagree with it.
+ *
+ * @returns {(hash: Vec) => Effect<O, Revision | null, never>}
  */
 export const decodeRevisionBlob = cas => hash =>
-    mapStep(
+    resultMapStep(
         collectRead(cas.read(hash)),
-        ([tag, value]) => tag === 'error' ? null : decodeRevisionVec(value))
+        ([tag, value]) => ok(tag === 'error' ? null : decodeRevisionVec(value)))
 
 /**
  * Scans every hash in `cas` and builds a fresh {@link Cache} from the
@@ -254,10 +261,10 @@ export const buildCache = cas => {
     // has nothing to pin it and drifts into the accumulator's.
     /** @type {(hash: Vec) => (cache: Cache) => Effect<O, Cache, IoChannel>} */
     const foldOne = hash => cache =>
-        mapStep(
+        ioMapStep(
             decodeRevisionBlob(cas)(hash),
-            revision => ok(
-                revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache)))
+            revision =>
+                revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache))
     return ioStep(cas.list(), hashes => ioFoldStep(pureOk(hashes), emptyCache, foldOne))
 }
 
@@ -310,17 +317,17 @@ const resolveParent = cas => parentRef => {
     if (parentHash === null) {
         return pureError(evoError(`invalid parent hash: ${parentRef}`))
     }
-    return mapStep(
+    return ioStep(
         decodeRevisionBlob(cas)(parentHash),
         parent => parent === null
-            ? error(evoError(`parent is not a revision blob: ${parentRef}`))
-            : ok(parent))
+            ? pureError(evoError(`parent is not a revision blob: ${parentRef}`))
+            : pureOk(parent))
 }
 
 /**
  * Resolves and validates every entry of `parents`, in order, short-circuiting on the first failure.
  *
- * Short-circuiting is the Io `foldStep`'s, not this function's. It used to be
+ * Short-circuiting is `foldStep`'s, not this function's. It used to be
  * two hand-written `[0] === 'error'` tests, which is what a verdict costs when
  * it rides in the value instead of the channel.
  *
@@ -607,7 +614,7 @@ export const readRevision = cas => hash => {
     const hashVec = cBase32ToVec(hash)
     return hashVec === null
         ? pureError(evoError(`invalid hash: ${hash}`))
-        : mapStep(collectRead(cas.read(hashVec)), decodeReadRevision(hash))
+        : resultMapStep(collectRead(cas.read(hashVec)), decodeReadRevision(hash))
 }
 
 /**

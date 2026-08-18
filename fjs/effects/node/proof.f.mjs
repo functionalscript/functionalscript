@@ -8,8 +8,8 @@
 
 import { empty, isVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
-import { match, pure, step } from "../module.f.mjs"
-import { step as ioStep } from "../io/module.f.mjs"
+import { match } from "../module.f.mjs"
+import { mapStep, step as ioStep } from "../module.f.mjs"
 import { both, errorMessage, errorSummary, exitStep, fetch, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, toIoError, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
@@ -153,18 +153,15 @@ export const proof = {
         assert(!versionLessThan('26.1.1', '26.1.1'))
     },
     map: () => {
-        const e = step(
-            readFile('hello'),
-            ([k, v]) => {
-                assert(k !== 'error', v)
-                return pure(uint(v) * 2n)
-            })
+        const e = mapStep(readFile('hello'), v => uint(v) * 2n)
         //
         let r = readHello(e)
         while (r[0] === 'cont') {
             r = readHello(r[2](r[1]))
         }
-        assertEq(r[1], 0x2An)
+        // `done` carries the whole `Result`: an interpreter never separates the
+        // channels, so the projection's value is inside the `ok`.
+        assertEq(r[1][1], 0x2An)
     },
     fetch: () => {
         const [_, [t, result]] = virtual({

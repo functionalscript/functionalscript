@@ -6,7 +6,7 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import { run } from '../mock/module.f.mjs'
-import { pureOk, step } from '../io/module.f.mjs'
+import { pureOk, step } from '../module.f.mjs'
 import {
     asBase, asNominal,
     create, read, write,
@@ -45,7 +45,7 @@ const mock = {
     },
 }
 
-// The Io `step`: each link runs only because the previous one returned `ok`,
+// `step`: each link runs only because the previous one returned `ok`,
 // and a runner that omitted a handler would propagate rather than be ignored.
 const program = step(
     create(1),

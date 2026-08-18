@@ -3,18 +3,17 @@
  *
  * @module
  *
- * @import { RawEffect } from '../effects/types.ts'
  * @import { WriteFile, ReadFile, Write } from '../effects/node/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Unknown } from './types.ts'
  * @import { ParseError } from './parser/types.ts'
- * @import { Effect } from '../effects/io/types.ts'
+ * @import { Effect } from '../effects/types.ts'
  */
 
 import { transpile } from './transpiler/module.f.mjs'
 import { stringify, stringifyAsTree } from './serializer/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
-import { resultStep } from '../effects/io/module.f.mjs'
+import { resultStep } from '../effects/module.f.mjs'
 import { errorExit, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 
 /** @typedef {ReadFile | WriteFile | Write} _CompileOp */

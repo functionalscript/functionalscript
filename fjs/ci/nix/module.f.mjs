@@ -11,17 +11,16 @@
  *
  * @module
  *
- * @import { RawEffect } from '../../effects/types.ts'
  * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
- * @import { Effect } from '../../effects/io/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
  * @import { Expression } from '../../media/nix/types.ts'
  * @import { MetaStep } from '../common/types.ts'
  * @import { NixJob } from './types.ts'
  */
 
-import { pureOk } from '../../effects/io/module.f.mjs'
+import { pureOk } from '../../effects/module.f.mjs'
 import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
-import { forEachStep, step } from '../../effects/io/module.f.mjs'
+import { forEachStep, step } from '../../effects/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'

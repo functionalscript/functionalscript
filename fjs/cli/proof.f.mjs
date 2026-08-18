@@ -4,7 +4,7 @@
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { pureError, pureOk } from '../effects/io/module.f.mjs'
+import { pureError, pureOk } from '../effects/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { dispatch } from './module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'

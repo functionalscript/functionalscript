@@ -5,17 +5,16 @@
  *
  * @module
  *
- * @import { RawEffect } from '../effects/types.ts'
  * @import { NodeOp } from '../effects/node/types.ts'
  * @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts'
  * @import { NixJob } from './nix/types.ts'
  * @import { Setup } from './types.ts'
- * @import { Effect } from '../effects/io/types.ts'
+ * @import { Effect } from '../effects/types.ts'
  */
 
-import { resultStep } from '../effects/io/module.f.mjs'
+import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
-import { step as ioStep } from '../effects/io/module.f.mjs'
+import { step as ioStep } from '../effects/module.f.mjs'
 import { functionalscript, images } from './config/module.f.mjs'
 import {
     architecture,

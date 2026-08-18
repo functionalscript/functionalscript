@@ -1,10 +1,9 @@
 /**
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from './types.ts'
- * @import { RawEffect } from '../effects/types.ts'
- * @import { IoChannel, IoResult, Mkdir, ReadFile, Rm, WriteFile } from '../effects/node/types.ts'
- * @import { Effect } from '../effects/io/types.ts'
- * @import { Ok } from '../types/result/types.ts'
+ * @import { IoChannel, IoResult, Mkdir, ReadFile, WriteFile } from '../effects/node/types.ts'
+ * @import { Effect } from '../effects/types.ts'
+ * @import { Ok, Result } from '../types/result/types.ts'
  * @import { List } from '../effects/list/types.ts'
  */
 
@@ -12,9 +11,9 @@ import { length, maxLength, msb, vec, vec8 } from '../types/bit_vec/module.f.mjs
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
 import { computeSync, sha256 } from '../crypto/sha2/module.f.mjs'
 import { fileCas, casAddFile, collectRead } from './module.f.mjs'
-import { match, pure, runPure, step } from '../effects/module.f.mjs'
-import { pureError, pureOk, step as ioStep } from '../effects/io/module.f.mjs'
-import { ioError, mkdir, writeFile, rm, readFile, access } from '../effects/node/module.f.mjs'
+import { match, runPure } from '../effects/module.f.mjs'
+import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../effects/module.f.mjs'
+import { ioError, mkdir, writeFile, readFile, access } from '../effects/node/module.f.mjs'
 import { error, ok, unwrap as unwrapResult } from '../types/result/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { join } from '../path/module.f.mjs'
@@ -23,7 +22,7 @@ import { assert, assertEq, assertNotNullish } from '../asserts/module.f.mjs'
 
 const testDir = './test-cas-cli'
 
-/** @typedef {FileCasOperation | WriteFile | ReadFile | Rm | Mkdir} _TestOp */
+/** @typedef {FileCasOperation | WriteFile | ReadFile | Mkdir} _TestOp */
 
 // Names the command a `FileCasOperation` effect stops at, so a proof can assert
 // on it and resume the continuation without reading the `Do` layout. The map
@@ -79,7 +78,7 @@ const casDefaultResponse = cmd => {
  * failure path's own `rm` of the partial staging file was actually called,
  * not just that some code path returned the right error tag.
  *
- * @type {(overrides: Partial<Record<string, unknown[]>>) => (e: RawEffect<FileCasOperation, unknown>) => readonly [unknown, readonly string[]]}
+ * @type {(overrides: Partial<Record<string, unknown[]>>) => (e: Effect<FileCasOperation, unknown, unknown>) => readonly [Result<unknown, unknown>, readonly string[]]}
  */
 const drive = overrides => {
     /** @type {string[]} */
@@ -104,7 +103,7 @@ const drive = overrides => {
         writeBytes: () => next('writeBytes'),
     }
     const matcher = match(handlers)
-    /** @type {(e: RawEffect<FileCasOperation, unknown>) => unknown} */
+    /** @type {(e: Effect<FileCasOperation, unknown, unknown>) => Result<unknown, unknown>} */
     const run_ = e => {
         const m = matcher(e)
         return m[0] === 'done' ? m[1] : run_(m[2](m[1]))
@@ -115,11 +114,6 @@ const drive = overrides => {
 // Create a 128 KiB big file content (at the max Vec size limit)
 // This tests the boundary where files are at the chunk size limit
 /**
- * The message of an `IoResult` the driver returned as `unknown`. Checks the
- * result really is an `error` pair rather than assuming it: these proofs exist
- * to establish that a write fails closed, so the shape is the claim.
- */
-/**
  * Asserts that a channel error is a host failure carrying `message`.
  * @type {(e: unknown, message: string) => void}
  */
@@ -128,10 +122,15 @@ const assertIoMessage = (e, message) => {
     assertEq(e[1].message, message)
 }
 
-/** @type {(result: unknown) => unknown} */
+/**
+ * The error a `drive`d effect answered with. The tuple shape is the driver's
+ * declared result type now, so only the tag is checked — and it is still
+ * checked, because these proofs exist to establish that a write fails closed.
+ *
+ * @type {(result: Result<unknown, unknown>) => unknown}
+ */
 const errorMessage = result => {
-    assert(result instanceof Array && result.length === 2 && result[0] === 'error',
-        ['expected an error result', result])
+    assert(result[0] === 'error', ['expected an error result', result])
     return result[1]
 }
 
@@ -142,84 +141,67 @@ const createBigFileContent = () => {
     return vec(byteCount * 8n)(0x42424242n)
 }
 
-// Test adding a big file and verifying the hash
-/** @type {() => RawEffect<_TestOp, void>} */
+// Test adding a big file and verifying the hash.
+//
+// Each link is an `ioStep`, so a failure short-circuits the rest instead of
+// being asserted away link by link: the continuations below see values, and
+// the proof checks the one result at the end.
+//
+// Neither this chain nor the next one ends in cleanup any more. Both used to
+// finish with an `rm(testDir)` whose result the raw `step` then discarded —
+// and the virtual filesystem cannot remove a *non-empty* directory, so that
+// `rm` had been failing on every run without anything noticing. There is also
+// nothing to clean: each run interprets against a fresh `emptyState`.
+/** @type {() => Effect<_TestOp, void, IoChannel>} */
 const testAddBigFile = () => {
     const bigFilePath = `${testDir}/big-file.bin`
     const cas = fileCas(sha256)(testDir)
-    const x0 = step(
+    const x0 = ioStep(
         mkdir(testDir, { recursive: true }),
         () => writeFile(bigFilePath, createBigFileContent())
     )
-    const x1 = step(
-        x0,
-        writeRes => {
-            assert(writeRes[0] === 'ok', ['failed to write test file', writeRes])
-            return casAddFile(cas)(bigFilePath)
-        }
-    )
-    const x2 = step(
-        x1,
-        addRes => {
-            assert(addRes[0] === 'ok', ['failed to add file to CAS', addRes])
-            const hash = addRes[1]
-            // Verify hash is 256 bits (SHA-256)
-            assertEq(length(hash), 256n, ['expected 256-bit hash', length(hash)])
-            // Verify hash can be encoded/decoded
-            assertNotNullish(cBase32ToVec(vecToCBase32(hash)), 'failed to decode hash from cBase32')
-            return rm(testDir)
-        })
-    return step(
-        x2,
-        () => pure(undefined)
-    )
+    const x1 = ioStep(x0, () => casAddFile(cas)(bigFilePath))
+    return ioMapStep(x1, hash => {
+        // Verify hash is 256 bits (SHA-256)
+        assertEq(length(hash), 256n, ['expected 256-bit hash', length(hash)])
+        // Verify hash can be encoded/decoded
+        assertNotNullish(cBase32ToVec(vecToCBase32(hash)), 'failed to decode hash from cBase32')
+    })
 }
 
 // Test adding and retrieving a big file
-/** @type {() => RawEffect<_TestOp, void>} */
+/** @type {() => Effect<_TestOp, void, IoChannel>} */
 const testAddAndGetBigFile = () => {
     const bigContent = createBigFileContent()
     const bigFilePath = `${testDir}/big-file.bin`
     const cas = fileCas(sha256)(testDir)
-    const x0 = step(
+    const x0 = ioStep(
         mkdir(testDir, { recursive: true }),
         () => writeFile(bigFilePath, bigContent)
     )
-    const x1 = step(
-        x0,
-        writeRes => {
-            assert(writeRes[0] === 'ok', ['failed to write test file', writeRes])
-            return casAddFile(cas)(bigFilePath)
-        }
-    )
+    const x1 = ioStep(x0, () => casAddFile(cas)(bigFilePath))
     // Verify the file is stored at the expected location
-    const x2 = step(
-        x1,
-        addRes => {
-            assert(addRes[0] === 'ok', ['failed to add file to CAS', addRes])
-            return readFile(cas.url(addRes[1]))
-        }
-    )
-    const x3 = step(
-        x2,
-        readRes => {
-            assert(readRes[0] === 'ok', ['failed to read stored file', readRes])
-            // Verify content is the same size as original
-            assertEq(length(readRes[1]), length(bigContent), 'stored content size mismatch')
-            return rm(testDir)
-        })
-    return step(
-        x3,
-        () => pure(undefined)
-    )
+    const x2 = ioStep(x1, hash => readFile(cas.url(hash)))
+    return ioMapStep(x2, stored => {
+        // Verify content is the same size as original
+        assertEq(length(stored), length(bigContent), 'stored content size mismatch')
+    })
 }
 
 export const proof = {
-    // Both effects must be interpreted, not merely built: a `RawEffect` is inert
+    // Both effects must be interpreted, not merely built: an effect is inert
     // data, so returning one from a proof runs none of its continuations and
-    // asserts nothing.
-    addBigFile: () => { virtual(emptyState)(testAddBigFile()) },
-    addAndGetBigFile: () => { virtual(emptyState)(testAddAndGetBigFile()) },
+    // asserts nothing. The result is checked too — an error short-circuits the
+    // chain, so a run that never reached the asserts inside it would otherwise
+    // pass silently.
+    addBigFile: () => {
+        const [, r] = virtual(emptyState)(testAddBigFile())
+        assert(r[0] === 'ok', ['expected the big-file round trip to succeed', r])
+    },
+    addAndGetBigFile: () => {
+        const [, r] = virtual(emptyState)(testAddAndGetBigFile())
+        assert(r[0] === 'ok', ['expected the big-file read-back to succeed', r])
+    },
     //
     casWriteRead: () => {
         // Round-trip a single-chunk payload through the real streaming CAS: `write` returns
@@ -381,7 +363,7 @@ export const proof = {
             readdir: [ok([{ name: stale, parentPath: '_stage', isFile: true }])],
             rm: [error(ioError({ message: 'busy' }))],
         })(c.write(payload))
-        assert(result instanceof Array && result[0] === 'ok', ['expected write ok', result])
+        assert(result[0] === 'ok', ['expected write ok', result])
         assertEq(log[0], 'now', ['expected the sweep to run first', log])
     },
     casWriteGcSkipsLiveLease: () => {

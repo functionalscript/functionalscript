@@ -6,7 +6,6 @@
  * @module
  *
  * @import { NodeOp, Program, Write } from '../effects/node/types.ts'
- * @import { RawEffect } from '../effects/types.ts'
  * @import { Commands } from './types.ts'
  */
 

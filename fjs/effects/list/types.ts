@@ -5,7 +5,7 @@
  */
 
 import type { Operation } from '../types.ts'
-import type { Effect, NotImplemented } from '../io/types.ts'
+import type { Effect, NotImplemented } from '../types.ts'
 
 export type NonEmpty<O extends Operation, T, E> = {
     readonly first: T

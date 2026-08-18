@@ -30,7 +30,7 @@ return mapStep(all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))),
 ```
 
 `fjs/effects/module.f.mjs` already ships `forEachStep` (the *sequential* void
-combinator, line 90), and [allreduce-combinator](./allreduce-combinator.md)
+combinator), and [allreduce-combinator](./allreduce-combinator.md)
 covers the parallel *reduce* variant — but the parallel *void* sibling is
 missing, so every call site re-spells the whole fan-out-then-discard dance.
 
@@ -80,4 +80,4 @@ duplicating the `all(...map)` core — whichever reads better.
 
 - [allreduce-combinator](./allreduce-combinator.md) — the aggregating
   sibling; `allVoid` discards.
-- `fjs/effects/module.f.mjs:297` — `forEachStep`, the sequential sibling.
+- `fjs/effects/module.f.mjs` — `forEachStep`, the sequential sibling.

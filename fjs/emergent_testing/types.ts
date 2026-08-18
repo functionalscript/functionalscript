@@ -4,8 +4,7 @@
  * @module
  */
 
-import type { RawEffect, Operation } from '../effects/types.ts'
-import type { Effect } from '../effects/io/types.ts'
+import type { Effect, Operation } from '../effects/types.ts'
 import type { IoChannel, SandboxResult } from '../effects/node/types.ts'
 
 /** A zero-argument test function whose return value may contain sub-tests. */
@@ -51,10 +50,10 @@ export type Path = readonly (string | null)[]
  * the run rather than being silently ignored.
  *
  * `result` and `summary` in particular *must* carry their `Result` in the type.
- * They used to answer `RawEffect<O, void>`, and TypeScript accepts an effect of
+ * They used to answer a raw effect of `void`, and TypeScript accepts an effect of
  * any value type where a `void` one is expected — so an implementation whose
  * writes were fallible type-checked while its failures went nowhere. That is
- * the hazard the Io layer exists to remove, and a `void` return position hides
+ * the hazard the error channel exists to remove, and a `void` return position hides
  * it exactly where a reporter's whole job is to perform IO.
  *
  * The channel is the standard node one ({@link IoChannel}) rather than a type

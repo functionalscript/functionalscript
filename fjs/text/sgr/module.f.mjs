@@ -7,7 +7,6 @@
  * @module
  *
  * @import { Console, Write, WriteConsoles, NodeProgramOptions } from '../../effects/node/types.ts'
- * @import { RawEffect } from '../../effects/types.ts'
  * @import { Stdout, WriteText, CsiConsole } from './types.ts'
  */
 
@@ -88,7 +87,7 @@ const str = isTTY => s =>
     isTTY ? s : s.replace(/\x1b\[[0-9;]*m/g, '')
 
 /**
- * RawEffect-based TTY-aware write. Strips ANSI SGR sequences when the target
+ * Effect-based TTY-aware write. Strips ANSI SGR sequences when the target
  * stream is not a TTY, then encodes to UTF-8 and emits a `Write` effect.
  * Does NOT append `\n` — callers are responsible for line termination.
  *

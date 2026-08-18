@@ -2,7 +2,7 @@
  * @import { Cas } from '../types.ts'
  * @import { EvoChannel } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Effect } from '../../effects/io/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
  * @import { IoChannel, NodeOp } from '../../effects/node/types.ts'
  * @import { State } from '../../effects/node/virtual/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
@@ -17,7 +17,7 @@ import {
     assertStructurallySame,
 } from '../../asserts/module.f.mjs'
 import { pure } from '../../effects/module.f.mjs'
-import { pureError } from '../../effects/io/module.f.mjs'
+import { pureError } from '../../effects/module.f.mjs'
 import { ioError } from '../../effects/node/module.f.mjs'
 import { fileCas } from '../module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
@@ -120,7 +120,7 @@ export const proof = {
     },
     decodeRevisionBlobMissingHashIsNull: () => {
         const c = fileCas(sha256)(home)
-        const [, revision] = virtual(emptyState)(decodeRevisionBlob(c)(vec8(0x99n)))
+        const [, revision] = virtualOk(emptyState)(decodeRevisionBlob(c)(vec8(0x99n)))
         assertEq(revision, null)
     },
     decodeRevisionBlobNonUtf8IsNull: () => {
@@ -128,7 +128,7 @@ export const proof = {
         const oddVec = vec(5n)(0b10101n) // not a whole number of bytes
         const [state1, w] = virtual(emptyState)(c.write(nonEmpty(oddVec, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
-        const [, revision] = virtual(state1)(decodeRevisionBlob(c)(w[1]))
+        const [, revision] = virtualOk(state1)(decodeRevisionBlob(c)(w[1]))
         assertEq(revision, null)
     },
     decodeRevisionBlobInvalidJsonIsNull: () => {
@@ -136,7 +136,7 @@ export const proof = {
         const content = vec8(0x7bn) // '{' alone: valid UTF-8, not parseable JSON
         const [state1, w] = virtual(emptyState)(c.write(nonEmpty(content, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
-        const [, revision] = virtual(state1)(decodeRevisionBlob(c)(w[1]))
+        const [, revision] = virtualOk(state1)(decodeRevisionBlob(c)(w[1]))
         assertEq(revision, null)
     },
     decodeRevisionBlobValidRevisionRoundTrips: () => {
@@ -147,7 +147,7 @@ export const proof = {
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
         const [state1, w] = virtual(emptyState)(c.write(nonEmpty(bytes, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
-        const [, revision] = virtual(state1)(decodeRevisionBlob(c)(w[1]))
+        const [, revision] = virtualOk(state1)(decodeRevisionBlob(c)(w[1]))
         assert(revision !== null, 'expected a decoded revision')
         assertEq(revision?.subject, subjectHash)
     },
@@ -394,14 +394,14 @@ export const proof = {
         const subjectHash = vecToCBase32(vec8(0x71n))
         const [state1, rootResult] = virtualOk(state0)(e.add({ parents: [], subject: subjectHash }))
         const rootHashVec = unwrap(cBase32ToVec(rootResult))
-        const [state2, root] = virtual(state1)(decodeRevisionBlob(c)(rootHashVec))
+        const [state2, root] = virtualOk(state1)(decodeRevisionBlob(c)(rootHashVec))
         assert(root !== null, 'expected the stored root to decode')
         assertEq(root?.generation, 0)
         assertEq(root?.snapshot, subjectHash)
 
         const [state3, childResult] = virtualOk(state2)(e.add({ parents: [rootResult], subject: subjectHash }))
         const childHashVec = unwrap(cBase32ToVec(childResult))
-        const [, child] = virtual(state3)(decodeRevisionBlob(c)(childHashVec))
+        const [, child] = virtualOk(state3)(decodeRevisionBlob(c)(childHashVec))
         assert(child !== null, 'expected the stored child to decode')
         assertEq(child?.generation, 1)
         assertEq(child?.snapshot, subjectHash)
@@ -422,7 +422,7 @@ export const proof = {
         // Merge of b(gen2) and c(gen1) → gen3.
         const [state5, merge] = virtualOk(state4)(e.add({ parents: [b, cRev], subject: 'm', snapshot: snap }))
         const mergeHashVec = unwrap(cBase32ToVec(merge))
-        const [, mergeRev] = virtual(state5)(decodeRevisionBlob(c)(mergeHashVec))
+        const [, mergeRev] = virtualOk(state5)(decodeRevisionBlob(c)(mergeHashVec))
         assert(mergeRev !== null, 'expected the stored merge to decode')
         assertEq(mergeRev?.generation, 3)
     },

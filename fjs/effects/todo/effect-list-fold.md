@@ -30,7 +30,7 @@ in the store lives in memory at once, purely because `foldStep` cannot consume
 anything else.
 
 **The layering is inverted.** `fjs/effects/module.f.mjs` — the core effect module
-— imports `fjs/types/list` (line 95) for `fold` and `List`, and *nothing else in
+— imports `fjs/types/list` for `fold` and `List`, and *nothing else in
 that file uses either*. The two fold combinators are the module's only dependency
 on the strict list type.
 
@@ -79,7 +79,7 @@ export const fromList = <O extends Operation, T>(items: List<T>): EffectList<O, 
 built from `empty` / `nonEmpty`. The four `pure(...)` call sites below become
 `fromList(...)`.
 
-**Layering.** `fjs/effects/list/module.f.mjs` already imports `pure` from
+**Layering.** `fjs/effects/list/module.f.mjs` already imports `pureOk` from
 `../module.f.mjs` and `Effect`/`Operation` from `../types.ts`; adding `step` is
 the same direction, so no cycle. After the move, `fjs/effects/module.f.mjs` drops its
 `fjs/types/list` import entirely and the core effect module no longer depends on
@@ -158,5 +158,6 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
   it is specified over `List<T>` and will want the same treatment.
 - [write-closed-helpers](../../cas/todo/write-closed-helpers.md) — already
   blocked by `fold-stream-combinator`, so transitively affected.
-- `fjs/effects/module.f.mjs` header — the step-variant / `do`-notation rationale
-  that fixes the argument order.
+- `fjs/effects/module.f.mjs` — `foldStep`'s JSDoc carries the step-variant /
+  `do`-notation rationale that fixes the argument order; the header carries the
+  one-argument-per-line rule it refers to.

@@ -5,7 +5,7 @@
  */
 
 import type { Unknown } from '../../../media/json/types.ts'
-import type { RawEffect, Operation } from '../../../effects/types.ts'
+import type { Effect, Operation } from '../../../effects/types.ts'
 import type { Response } from '../../json_rpc/types.ts'
 
 /**
@@ -13,4 +13,4 @@ import type { Response } from '../../json_rpc/types.ts'
  * for a notification that needs no reply. The shape of
  * `mcpStep(config)(handlers)(key)`.
  */
-export type Step<O extends Operation> = (value: Unknown) => RawEffect<O, Response | null>
+export type Step<O extends Operation> = (value: Unknown) => Effect<O, Response | null, never>
