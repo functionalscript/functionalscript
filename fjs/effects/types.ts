@@ -14,9 +14,12 @@ import type { Ok, Error, Result } from '../types/result/types.ts'
  * command it was not given a handler for — `partialMatch` answers
  * `error(notImplemented(command))` through the command's own output — so an
  * operation whose return admitted no error would be a hole in that mechanism:
- * there would be nowhere to put the refusal. Every operation in the tree
- * already returned `OpResult<…>` or `IoResult<…>` when this constraint was
- * added; it writes down what was true and stops it drifting.
+ * there would be nowhere to put the refusal. Every *host* operation already
+ * returned `OpResult<…>` or `IoResult<…>` when this constraint was added; the
+ * operations declared inside proofs did not, and the commit that added the
+ * rule had to rewrite them. What the constraint returns is a `Result`, not
+ * either alias — those two are node conveniences, and the proofs still declare
+ * their own channels directly.
  *
  * It is also the latch the whole representation now rests on. An operation
  * *cannot* be declared infallible, so every {@link Effect} built from one has a

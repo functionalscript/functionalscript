@@ -34,9 +34,9 @@
  * to a panic is a decision the program makes explicitly, by `unwrap`ping what
  * {@link resultStep} hands it.
  *
- * The raw module's composition rules apply here unchanged: bind each link in a
- * sequence to its own name at one level, do not nest steps, and break a call
- * that does not fit one line after `(` with one argument per line.
+ * The composition rules: bind each link in a sequence to its own name at one
+ * level, do not nest steps, and break a call that does not fit one line after
+ * `(` with one argument per line.
  *
  * @module
  *
@@ -105,26 +105,27 @@ export const notImplemented = command => ['notImplemented', command]
  * const b = step(a, () => console('written'))
  * ```
  *
- * `'written'` is printed only when `writeFile` returned `ok`. The same line
- * written with raw `step` prints it either way, which is the hazard this
- * replaces — and note that it is the *value-discarding* continuation that hides
- * it, since one that reads the value would not have compiled.
+ * `'written'` is printed only when `writeFile` returned `ok`. Written with the
+ * `Result`-blind `step` this replaced, the same line printed it either way —
+ * and note that it was the *value-discarding* continuation that hid the
+ * hazard, since one that read the value would not have compiled.
  *
  * **The error types are unioned** (`E | F`), so `f` may fail in its own way
  * without either side being pre-widened; the operation sets union too, since
  * `f` performs effects of its own.
  *
- * The body is raw `step` over the one branch this layer is named for: an
- * `error` is handed back as the very tuple it arrived as rather than rebuilt to
- * retag it into a wider type, which is what makes `E | F` expressible instead
+ * The body is {@link resultStep} over the one branch this layer is named for:
+ * an `error` is handed back as the very tuple it arrived as rather than rebuilt
+ * to retag it into a wider type, which is what makes `E | F` expressible instead
  * of forcing both sides to one error type. The continuation is annotated for
  * that reason — its two branches have different types, and the annotation
  * states the union they belong to rather than leaving the compiler to infer it
  * from whichever it reads first.
  *
- * This used to route through an exported `okStep` in the raw module. Nothing
+ * This used to route through an `okStep` exported by the representation
+ * module. Nothing
  * else ever called it: the adapter *was* this function's body, one indirection
- * away, so it is written here now and the raw layer has one export fewer.
+ * away, so it is written here now and that module has one export fewer.
  *
  * @template {Operation} O
  * @template T
@@ -234,14 +235,12 @@ export const resultStep = (e, f) =>
  * unchanged: the functor `map` of this layer, and a {@link step} whose
  * continuation performs nothing further.
  *
- * It exists for the same reason the raw `mapStep` does — a trailing pure
- * projection is where a sequence *ends*, not another link in it, and spelling
- * it as a step misreports how many effects a chain runs
- * (`../todo/map-step-combinator.md`). Without it, every site converted in stage
- * 4 would regress to exactly that spelling, now with a `pureOk` inside it.
+ * A trailing pure projection is where a sequence *ends*, not another link in
+ * it, and spelling it as a step misreports how many effects a chain runs
+ * (`../todo/map-step-combinator.md`). Without this, every such site would
+ * regress to exactly that spelling, now with a `pureOk` inside it.
  *
- * **The operation set does not widen**, as with the raw `mapStep`: a pure
- * projection issues no commands. Neither does the error channel — `f` cannot
+ * **The operation set does not widen**: a pure projection issues no commands. Neither does the error channel — `f` cannot
  * fail, so a chain that only projects its value keeps the errors it already
  * had.
  *
@@ -318,8 +317,8 @@ export const unwrapStep = (e, summary) => resultMapStep(e, r => {
 
 /**
  * Starts a history from a fallible effect, lifting its `ok` value into a
- * one-element tuple that {@link historyStep} extends. The Io twin of the raw
- * `history`, and the entry point a chain needs exactly once.
+ * one-element tuple that {@link historyStep} extends — the entry point a chain
+ * needs exactly once.
  *
  * @type {<O extends Operation, T, E>(e: Effect<O, T, E>) => Effect<O, readonly[T], E>}
  */
@@ -333,10 +332,10 @@ export const history = e => mapStep(e, v => [v])
  * This is what keeps a **fallible** chain flat. Each `step`'s continuation sees
  * only the value it consumes, so a later link cannot reach an earlier one, and
  * the alternative — nesting so the inner continuation closes over the outer
- * one's parameter — is what `fjs/AGENTS.md` §3.4 rules out. The raw
- * `historyStep` cannot serve here: it would carry each link's `Result` into the
- * tuple rather than its value, so every later link would destructure results it
- * has no intention of handling.
+ * one's parameter — is what `fjs/AGENTS.md` §3.4 rules out. A `Result`-blind
+ * `historyStep` could not serve: it carried each link's `Result` into the tuple
+ * rather than its value, so every later link had to destructure results it had
+ * no intention of handling. That is why this one exists and that one does not.
  *
  * The history holds `ok` values only. An `error` short-circuits the chain, so a
  * failed link contributes nothing to the tuple — which is the point: a later
@@ -359,13 +358,13 @@ export const historyStep = (e, f) => {
 }
 
 /**
- * Threads a state through one fallible effect per item, short-circuiting on the
- * first `error`: the Io twin of the raw `foldStep`.
+ * Threads a state through one effect per item, short-circuiting on the first
+ * `error`.
  *
- * **`items` is an `Effect` like everything else here.** It was once raw, on the
- * argument that a held list has no error channel and requiring one would mean
- * lifting at every call site. Lifting is `pureOk` instead of `pure` — the same
- * one call — and the raw version made the *fallible* producer pay instead:
+ * **`items` is an `Effect` like everything else here.** Its payload was once
+ * unwrapped, on the argument that a held list has no error channel and
+ * requiring one would mean lifting at every call site. Lifting is one `pureOk`
+ * call, and that version made the *fallible* producer pay instead:
  * `fjs/cas/cli` wrapped the whole fold in a `step` whose only job was to unwrap
  * `list()` so `pure` could wrap it again. A producer that can fail now feeds
  * the fold directly, and one that cannot is unaffected when it later can.
@@ -390,9 +389,9 @@ export const foldStep = (items, init, f) => {
  * Runs `f(item)` for each item in order, stopping at the first failure and
  * propagating it. The `void` accumulator sibling of {@link foldStep}.
  *
- * Stopping is the difference that matters against the raw `forEachStep`: that
- * one runs every item whatever each one answered, because its `void`
- * accumulator has nothing to carry a failure in — and TypeScript's `void`
+ * Stopping is the difference against the `Result`-blind `forEachStep` this
+ * replaced: that one ran every item whatever each answered, because its `void`
+ * accumulator had nothing to carry a failure in — and TypeScript's `void`
  * return position accepts a `Result`-valued effect silently, so the discard
  * does not even show up as a type error.
  *

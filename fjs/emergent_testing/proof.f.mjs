@@ -404,12 +404,6 @@ export const registerSuffixes = () => {
     assertEq(inlineNames[1], 'import("./a.f.ts").proof.throw.a()')
 }
 
-// A `throw`-tagged test whose function completes without throwing (the
-// external framework, not this module, is responsible for turning that into
-// a failure via `expectFailure`). registerModule's own callback must still
-// short-circuit before walking the returned value for sub-tests: it invokes
-// the callback and returns without recursing, rather than treating the
-// returned object as a sub-tree.
 // The registered callback panics when its own effects cannot be dispatched.
 // `Test` hands the body to an external framework that reads a throw and
 // nothing else, so a body that could not run must not be reported as a pass —
@@ -437,6 +431,12 @@ const registerBodyPanicsOnUndispatchableEffect = () => {
     runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
 }
 
+// A `throw`-tagged test whose function completes without throwing (the
+// external framework, not this module, is responsible for turning that into
+// a failure via `expectFailure`). registerModule's own callback must still
+// short-circuit before walking the returned value for sub-tests: it invokes
+// the callback and returns without recursing, rather than treating the
+// returned object as a sub-tree.
 export const registerThrowsWithoutThrowing = () => {
     // Unlike registerSuffixes' mock, this one actually invokes the registered
     // callback so registerOne's inner `.step` body runs, and asserts the

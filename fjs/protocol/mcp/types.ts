@@ -60,7 +60,6 @@ export type ToolEntry<O extends Operation> = {
     readonly handle: (args: Unknown) => Effect<O, ToolsCallResult, never>
 }
 
-/** Top-level handler: maps a raw JSON value to a JSON-RPC response (or `null` for notifications). */
 /**
  * A JSON-RPC step: given a decoded message, produce the response to write, or
  * `null` for a notification.

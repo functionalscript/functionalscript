@@ -277,8 +277,8 @@ export const proof = {
         runs: () => {
             assertOk(pureResult(forEachStep(pureOk([1, 2, 3]), () => pureOk(undefined))), undefined)
         },
-        // Where the raw `forEachStep` would run every item regardless, this one
-        // stops — the difference the `void` accumulator hides in the raw form.
+        // Where a `Result`-blind `forEachStep` would run every item regardless,
+        // this one stops — the difference a `void` accumulator hides.
         stopsAtTheFirstError: () => {
             const e = forEachStep(pureOk([1, 2, 3]),
                 x => x === 2 ? pureError('two') : pureOk(undefined))
@@ -314,6 +314,34 @@ export const proof = {
         // `f` to the operation's `ok` value when the continuation resumes.
         overDo: () => {
             assertOk(run(mapStep(div(6, 3), v => v * 10)), 20)
+        },
+    },
+    resultMapStep: {
+        // Both branches reach `f`, which is the difference from `mapStep`: the
+        // error is handed over rather than passed around.
+        ok: () => {
+            assertOk(pureResult(resultMapStep(pureOk(3), r => ok(r[0]))), 'ok')
+        },
+        error: () => {
+            assertOk(pureResult(resultMapStep(pureError('boom'), r => ok(r[0]))), 'error')
+        },
+        // `f` chooses the outgoing channel, so a failure can be turned into a
+        // success — the discard `mapStep` cannot express, written as a function
+        // that says it took both branches.
+        absorbs: () => {
+            assertOk(pureResult(resultMapStep(pureError('boom'), () => ok(0))), 0)
+        },
+        // ...and the reverse: a success can be rejected.
+        rejects: () => {
+            assertError(pureResult(resultMapStep(pureOk(3), () => error('no'))), 'no')
+        },
+        // Over a `Do` node the command survives and `f` runs on the operation's
+        // whole answer, including when that answer is the operation's failure.
+        overDo: () => {
+            assertOk(run(resultMapStep(div(6, 3), r => ok(r[1]))), 2)
+        },
+        overFailedDo: () => {
+            assertOk(run(resultMapStep(div(1, 0), r => ok(r[0]))), 'error')
         },
     },
 }
