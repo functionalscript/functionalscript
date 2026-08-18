@@ -30,8 +30,8 @@
  * @module
  *
  * @import { Operation } from '../../../effects/types.ts'
- * @import { IoError, Read, Write } from '../../../effects/node/types.ts'
- * @import { Effect, NotImplemented } from '../../../effects/io/types.ts'
+ * @import { IoChannel, Read, Write } from '../../../effects/node/types.ts'
+ * @import { Effect } from '../../../effects/io/types.ts'
  * @import { Response } from '../../json_rpc/types.ts'
  * @import { Step } from './types.ts'
  */
@@ -57,7 +57,7 @@ const parseErrorResponse = { jsonrpc, error: parseError, id: null }
 const internalErrorResponse = id => ({ jsonrpc, error: internalError, id })
 
 /** Encodes a response as a newline-terminated UTF-8 line and writes it to `stdout`.
- * @type {(resp: Response) => Effect<Write, void, NotImplemented | IoError>}
+ * @type {(resp: Response) => Effect<Write, void, IoChannel>}
  */
 const writeResponse = resp => {
     const v = tryUtf8(stringifyJson(resp) + '\n')
@@ -80,7 +80,7 @@ const writeResponse = resp => {
  *
  * @template {Operation} O
  * @param {Step<O>} handler
- * @returns {Effect<Read | Write | O, void, NotImplemented | IoError>}
+ * @returns {Effect<Read | Write | O, void, IoChannel>}
  */
 export const stdioTransport = handler =>
     ioStep(
@@ -93,7 +93,7 @@ export const stdioTransport = handler =>
 /**
  * @template {Operation} O
  * @param {Step<O>} handler
- * @returns {(line: string) => Effect<Read | Write | O, void, NotImplemented | IoError>}
+ * @returns {(line: string) => Effect<Read | Write | O, void, IoChannel>}
  */
 const handleLine = handler => line => {
     const [t, value] = parse(line)

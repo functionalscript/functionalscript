@@ -30,7 +30,7 @@ import * as testContext from 'node:test'
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
-import { toIoError, usesInlineTestContext } from './module.f.mjs'
+import { exitCode, toIoError, usesInlineTestContext } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { asyncTryCatch } from '../../types/result/module.mjs'
@@ -382,8 +382,8 @@ const options = {
  * the program's code, use {@link run} instead.
  * @type {(p: NodeProgram) => Promise<number>}
  */
-export const runEffect = program =>
-    runNodeEffect(program(options))
+export const runEffect = async program =>
+    exitCode(await runNodeEffect(program(options)))
 
 /**
  * CLI entry point: runs a `NodeProgram` via {@link runEffect}, then calls

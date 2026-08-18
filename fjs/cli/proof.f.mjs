@@ -3,7 +3,8 @@
  * @import { Commands } from './types.ts'
  */
 
-import { pure } from '../effects/module.f.mjs'
+import { exitCode } from '../effects/node/module.f.mjs'
+import { pureError, pureOk } from '../effects/io/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { dispatch } from './module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
@@ -17,7 +18,7 @@ const echoCommands = [
     {
         names: ['echo', 'e'],
         description: 'Print the first argument',
-        handler: ({ args: [arg = ''] }) => pure(arg.length),
+        handler: ({ args: [arg = ''] }) => arg.length === 0 ? pureOk(0) : pureError(arg.length),
     },
 ]
 
@@ -27,25 +28,25 @@ const run = (/** @type {Commands<NodeOp>} */ commands) => (/** @type {readonly s
 export const proof = {
     knownCommand: () => {
         const [, code] = run(echoCommands)(['echo', 'hello'])
-        assertEq(code, 5, ['expected length 5', code])
+        assertEq(exitCode(code), 5, ['expected length 5', code])
     },
     alias: () => {
         const [, code] = run(echoCommands)(['e', 'hi'])
-        assertEq(code, 2, ['expected length 2', code])
+        assertEq(exitCode(code), 2, ['expected length 2', code])
     },
     noArgs: () => {
         const [state, code] = run(echoCommands)([])
-        assertEq(code, 1, ['expected exit 1', code])
+        assertEq(exitCode(code), 1, ['expected exit 1', code])
         assert(state.stderr.length !== 0, 'expected error in stderr')
     },
     unknownCommand: () => {
         const [state, code] = run(echoCommands)(['bogus'])
-        assertEq(code, 1, ['expected exit 1', code])
+        assertEq(exitCode(code), 1, ['expected exit 1', code])
         assert(state.stderr.length !== 0, 'expected error in stderr')
     },
     help: () => {
         const [state, code] = run(echoCommands)(['help'])
-        assertEq(code, 0, ['expected exit 0', code])
+        assertEq(exitCode(code), 0, ['expected exit 0', code])
         assert(state.stdout.includes('echo'), 'expected command name in stdout')
         assert(state.stdout.includes('help'), 'expected help entry in stdout')
     },
@@ -62,7 +63,7 @@ export const proof = {
             description: 'Capture args',
             handler: (/** @type {{ args: readonly string[] }} */ { args }) => {
                 captured.push(...args)
-                return pure(0)
+                return pureOk(0)
             },
         }]
         run(commands)(['grab', 'a', 'b', 'c'])
@@ -73,7 +74,7 @@ export const proof = {
         const inner = [{
             names: ['ping'],
             description: 'Inner ping',
-            handler: () => pure(42),
+            handler: () => pureError(42),
         }]
         /** @type {Commands<NodeOp>} */
         const outer = [{
@@ -82,14 +83,14 @@ export const proof = {
             handler: inner,
         }]
         const [, code] = run(outer)(['sub', 'ping'])
-        assertEq(code, 42, ['expected 42', code])
+        assertEq(exitCode(code), 42, ['expected 42', code])
     },
     nestedHelp: () => {
         /** @type {Commands<NodeOp>} */
         const inner = [{
             names: ['ping'],
             description: 'Inner ping',
-            handler: () => pure(0),
+            handler: () => pureOk(0),
         }]
         /** @type {Commands<NodeOp>} */
         const outer = [{
@@ -98,17 +99,17 @@ export const proof = {
             handler: inner,
         }]
         const [state, code] = run(outer)(['sub', 'help'])
-        assertEq(code, 0, ['expected exit 0', code])
+        assertEq(exitCode(code), 0, ['expected exit 0', code])
         assert(state.stdout.includes('ping'), 'expected inner command in help')
     },
     prototypeNameIsUnknownCommand: () => {
         const [state, code] = run(echoCommands)(['toString'])
-        assertEq(code, 1, ['expected exit 1 for prototype-name command', code])
+        assertEq(exitCode(code), 1, ['expected exit 1 for prototype-name command', code])
         assert(state.stderr.includes('unknown command'), 'expected unknown-command error in stderr')
     },
     helpPrototypeSafe: () => {
         const [state, code] = run(echoCommands)(['help', 'toString'])
-        assertEq(code, 0, ['expected exit 0, not a throw', code])
+        assertEq(exitCode(code), 0, ['expected exit 0, not a throw', code])
         assert(state.stdout.includes('echo'), 'expected top-level help for unknown target')
     },
     helpWithTarget: () => {
@@ -116,7 +117,7 @@ export const proof = {
         const inner = [{
             names: ['ping'],
             description: 'Inner ping',
-            handler: () => pure(0),
+            handler: () => pureOk(0),
         }]
         /** @type {Commands<NodeOp>} */
         const outer = [{
@@ -125,7 +126,7 @@ export const proof = {
             handler: inner,
         }]
         const [state, code] = run(outer)(['help', 'sub'])
-        assertEq(code, 0, ['expected exit 0', code])
+        assertEq(exitCode(code), 0, ['expected exit 0', code])
         assert(state.stdout.includes('ping'), 'expected inner command in help')
         assert(!(state.stdout.includes('Subcommand group')), 'expected inner help, not outer')
     },

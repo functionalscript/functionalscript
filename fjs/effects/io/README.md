@@ -3,8 +3,10 @@
 `Effect<O, T, E>` is `RawEffect<O, Result<T, E>>`: the raw effect from
 [`../module.f.mjs`](../module.f.mjs) with its failure made part of the type.
 It is the **abstraction to reach for**; `RawEffect<O, T>` is the representation
-both it and the raw combinators are built from, and it stays public for the
-computations that genuinely cannot fail.
+both it and the raw combinators are built from, and it stays public as that.
+The division is *composition* against *representation*, not fallible against
+infallible — a `List` cell and a `Program`'s exit code were once named here as
+computations that cannot fail, and both carry channels now.
 
 This directory is the layer itself — the types ([`./types.ts`](./types.ts)) and
 the composition API ([`./module.f.mjs`](./module.f.mjs)) — from the migration

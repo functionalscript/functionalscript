@@ -54,8 +54,8 @@ byte-accepting state machine**:
 ```ts
 import { detectStream, detectVec, push, finish, detectInit } from './module.f.mjs'
 
-// fold a CAS read stream (List<O, IoResult<Vec>>) into { length, mime_type, type }
-detectStream(stream)            // Effect<O, IoResult<DetectMeta>>
+// fold a CAS read stream (List<O, Vec, IoChannel>) into { length, mime_type, type }
+detectStream(stream)            // Effect<O, DetectMeta, IoChannel>
 
 // classify a whole Vec you already hold, through the same machine
 detectVec(bytes)                // { length, mime_type, type }

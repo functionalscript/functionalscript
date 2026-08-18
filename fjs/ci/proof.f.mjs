@@ -3,6 +3,7 @@
  * @import { Dir, State } from '../effects/node/virtual/types.ts'
  */
 
+import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main } from './module.f.mjs'
 import { functionalscript, node } from './config/module.f.mjs'
 import { nodeNixJobs } from './node/module.f.mjs'
@@ -69,14 +70,14 @@ const flake = (state, id) =>
 /** @type {(rust: boolean, nodeExtra?: (o: Os) => readonly MetaStep[]) => GitHubAction} */
 const run = (rust, nodeExtra = () => []) => {
     const [state, result] = virtual(makeState(rust, undefined))(ci({ nodeExtra }))
-    assertEq(result, 0)
+    assertEq(exitCode(result), 0)
     return workflow(state)
 }
 
 /** @type {(packageJson?: string) => GitHubAction} */
 const runDefault = packageJson => {
     const [state, result] = virtual(makeState(false, packageJson))(main())
-    assertEq(result, 0)
+    assertEq(exitCode(result), 0)
     return workflow(state)
 }
 
@@ -178,7 +179,7 @@ export const proof = {
     },
     nixFlakes: () => {
         const [state, result] = virtual(makeState(false, undefined))(main())
-        assertEq(result, 0)
+        assertEq(exitCode(result), 0)
         for (const { id, packages } of nodeNixJobs) {
             const [nodePackage] = packages
             assert(

@@ -2,7 +2,7 @@
 
 > **API note.** This document predates the current `Cas<O>` API in
 > `fjs/cas/module.f.mjs`, which is streaming-only (`read`/`write` over
-> `List<O, IoResult<Vec>>`) and has no `fileKvStore` or whole-blob
+> `List<O, Vec, IoChannel>`) and has no `fileKvStore` or whole-blob
 > `write(Vec) => hash` / `read(hash) => Vec` primitive. Below, `write`,
 > `read`, `readFile`, `writeFile`, and `fileKvStore` describe the *shape* of
 > the small-object (`<=maxLengthBytes`, single CAS object) primitive this

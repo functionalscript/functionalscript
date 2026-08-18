@@ -1,3 +1,4 @@
+import { exitCode } from '../effects/node/module.f.mjs'
 import { main } from './module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { assertEq, assertNotNullish } from '../asserts/module.f.mjs'
@@ -9,6 +10,6 @@ export const proof = {
     run: () => {
         const state = { ...emptyState, root: { '.github': { workflows: {} } } }
         const [_, result] = virtual(state)(main())
-        assertEq(result, 0)
+        assertEq(exitCode(result), 0)
     },
 }

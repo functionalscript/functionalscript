@@ -23,10 +23,19 @@ so no client has to interpret raw revision bytes itself.
 type Evo<O> = {
     list: (archived?: true) => Effect<MemOp, readonly Subject[]>
     head: (subject: Subject) => Effect<MemOp, readonly Hash[]>
-    add: (rev: RevisionData) => Effect<O | MemOp, Result<Hash, string>>
-    revision: (hash: Hash) => Effect<O | MemOp, Result<RevisionData, string>>
+    add: (rev: RevisionData) => Effect<O | MemOp, Hash, EvoChannel>
+    revision: (hash: Hash) => Effect<O | MemOp, RevisionData, EvoChannel>
 }
+
+type EvoChannel = EvoError | NotImplemented
+type EvoError = readonly['evoError', string]
 ```
+
+Every operation fails through one channel. A rejected revision (`evoError`) and
+an operation the runner could not dispatch (`notImplemented`) are told apart by
+their tag — `evoSummary` renders either — rather than by arriving in separate
+layers, so `step` short-circuits on both and no caller re-tests a verdict an
+earlier step already reached.
 
 - `list(archived?)` and `head(subject)` read only the in-memory cache — no
   store access, no rescanning. `list` filters by subject status: the active

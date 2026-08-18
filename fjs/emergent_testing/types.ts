@@ -5,8 +5,8 @@
  */
 
 import type { RawEffect, Operation } from '../effects/types.ts'
-import type { Effect, NotImplemented } from '../effects/io/types.ts'
-import type { IoError, SandboxResult } from '../effects/node/types.ts'
+import type { Effect } from '../effects/io/types.ts'
+import type { IoChannel, SandboxResult } from '../effects/node/types.ts'
 
 /** A zero-argument test function whose return value may contain sub-tests. */
 export type TestFn = () => unknown
@@ -57,16 +57,16 @@ export type Path = readonly (string | null)[]
  * the hazard the Io layer exists to remove, and a `void` return position hides
  * it exactly where a reporter's whole job is to perform IO.
  *
- * The channel is the standard node one (`NotImplemented | IoError`) rather than
- * a type parameter: a reporter is free in which *operations* it performs, but
- * it fails the way node IO fails, and pinning it here keeps the type — and the
- * program tail that reports it — free of a parameter every caller would have to
- * thread through unchanged.
+ * The channel is the standard node one ({@link IoChannel}) rather than a type
+ * parameter: a reporter is free in which *operations* it performs, but it fails
+ * the way node IO fails, and pinning it here keeps the type — and the program
+ * tail that reports it — free of a parameter every caller would have to thread
+ * through unchanged.
  */
 export type Reporter<O extends Operation> = {
-    readonly result: (file: string, path: Path, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void, NotImplemented | IoError>
-    readonly summary: (pass: number, fail: number, time: number) => Effect<O, void, NotImplemented | IoError>
-    readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>, NotImplemented | IoError>
+    readonly result: (file: string, path: Path, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void, IoChannel>
+    readonly summary: (pass: number, fail: number, time: number) => Effect<O, void, IoChannel>
+    readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>, IoChannel>
 }
 
 /** @internal */

@@ -6,13 +6,14 @@
  * @import { FileCasOperation } from '../cas/types.ts'
  * @import { List } from '../effects/list/types.ts'
  * @import { ContentItem, ToolsCallResult } from '../protocol/mcp/types.ts'
- * @import { IoResult, Mkdir, Now, RandomInt, ReadBytes, Rename } from '../effects/node/types.ts'
+ * @import { IoChannel, Mkdir, Now, RandomInt, ReadBytes, Rename } from '../effects/node/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { mapStep as rawMapStep, pure, step } from '../effects/module.f.mjs'
 import { unwrapStep } from '../effects/io/module.f.mjs'
+import { errorSummary } from '../effects/node/module.f.mjs'
 import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, string as rttiString } from '../types/rtti/module.f.mjs'
@@ -81,7 +82,7 @@ const runSessionVirtual =
         const effect = step(
             rawMapStep(initEvo(fileCas(sha256)(home)), unwrapResult),
             cacheKey => step(
-                unwrapStep(create(uninitializedState)),
+                unwrapStep(create(uninitializedState), errorSummary),
                 sessionKey => {
                     const step = mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)
                     return feed(step)(msgs)
@@ -99,8 +100,8 @@ const runSessionVirtual =
 const seedBlob = (root, home = '/home/user') => chunks => {
     const c = fileCas(sha256)(home)
     const stream = chunks.reduceRight(
-        (/** @type {List<never, IoResult<Vec>>} */ tail, chunk) => nonEmpty(resultOk(chunk), tail),
-        /** @satisfies {List<never, IoResult<Vec>>} */ (elEmpty()))
+        (/** @type {List<never, Vec, IoChannel>} */ tail, chunk) => nonEmpty(chunk, tail),
+        /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))
     const [state, result] = virtual({ ...emptyState, root })(c.write(stream))
     assert(result[0] === 'ok', result)
     return [state.root, vecToCBase32(result[1])]
@@ -144,7 +145,7 @@ const runStdio =
         const effect = step(
             rawMapStep(initEvo(fileCas(sha256)(home)), unwrapResult),
             cacheKey => step(
-                unwrapStep(create(uninitializedState)),
+                unwrapStep(create(uninitializedState), errorSummary),
                 sessionKey =>
                     stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))
             )

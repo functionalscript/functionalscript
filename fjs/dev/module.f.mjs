@@ -3,8 +3,8 @@
  *
  * @module
  *
- * @import { Access, All, Env, Import, IoError, Readdir } from '../effects/node/types.ts'
- * @import { Effect, NotImplemented } from '../effects/io/types.ts'
+ * @import { Access, All, Env, Import, IoChannel, Readdir } from '../effects/node/types.ts'
+ * @import { Effect } from '../effects/io/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'
  * @import { Module, ModuleMap, LoadModuleOperations } from './types.ts'
  */
@@ -49,14 +49,14 @@ export const shouldLoad = s =>
 const isSourceFile = path =>
     path.endsWith('.js') || path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.mjs')
 
-/** @type {(s: string, predicate: (path: string) => boolean) => Effect<Readdir | All, readonly string[], NotImplemented | IoError>} */
+/** @type {(s: string, predicate: (path: string) => boolean) => Effect<Readdir | All, readonly string[], IoChannel>} */
 const allFiles = (s, predicate) => {
-    /** @type {(p: string) => Effect<Readdir | All, readonly string[], NotImplemented | IoError>} */
+    /** @type {(p: string) => Effect<Readdir | All, readonly string[], IoChannel>} */
     const load = p => {
         const listed = step(
             readdir(p, {}),
             d => {
-                /** @type {readonly Effect<Readdir | All, readonly string[], NotImplemented | IoError>[]} */
+                /** @type {readonly Effect<Readdir | All, readonly string[], IoChannel>[]} */
                 let result = []
                 for (const i of d) {
                     const { name } = i
@@ -78,7 +78,7 @@ const allFiles = (s, predicate) => {
     return load(s)
 }
 
-/** @type {(f: string) => Effect<Access | Import, readonly (readonly [string, Module])[], NotImplemented | IoError>} */
+/** @type {(f: string) => Effect<Access | Import, readonly (readonly [string, Module])[], IoChannel>} */
 const loadFile = f =>
     mapStep(import_(f), m => [/** @type {const} */ ([f, m])])
 
@@ -104,7 +104,7 @@ const { fromEntries } = Object
  * the whole tree, and a map missing the file it was asked about is worse than
  * no map at all.
  *
- * @type {(env: Env) => Effect<LoadModuleOperations, ModuleMap, NotImplemented | IoError>}
+ * @type {(env: Env) => Effect<LoadModuleOperations, ModuleMap, IoChannel>}
  */
 export const loadModuleMap = env => {
     const initCwd = env['INIT_CWD']

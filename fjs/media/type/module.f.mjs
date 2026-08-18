@@ -39,15 +39,14 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Operation } from '../../effects/types.ts'
  * @import { List } from '../../effects/list/types.ts'
- * @import { IoError, IoResult } from '../../effects/node/types.ts'
- * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
+ * @import { IoChannel, IoResult } from '../../effects/node/types.ts'
+ * @import { Effect } from '../../effects/io/types.ts'
  * @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts'
  */
 
 import { msb, length, u8List } from '../../types/bit_vec/module.f.mjs'
 import { iterable } from '../../types/list/module.f.mjs'
-import { pure, step } from '../../effects/module.f.mjs'
-import { ok, error } from '../../types/result/module.f.mjs'
+import { pureOk, step as ioStep } from '../../effects/io/module.f.mjs'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
 
@@ -250,24 +249,23 @@ export const detectVec = bytes => finish(push(detectInit)(bytes))
 
 /**
  * Folds a CAS read stream through {@link push} and reads {@link finish} at EOF,
- * deriving `cas_get` metadata without ever materializing the blob. A read `error`
- * item short-circuits into the `IoResult` error.
+ * deriving `cas_get` metadata without ever materializing the blob. A stream that
+ * fails carries its failure out as this one's, through `step` rather than
+ * through a case in the loop.
  *
  * @template {Operation} O
- * @param {List<O, IoResult<Vec>>} stream
- * @returns {Effect<O, DetectMeta, NotImplemented | IoError>}
+ * @param {List<O, Vec, IoChannel>} stream
+ * @returns {Effect<O, DetectMeta, IoChannel>}
  */
 export const detectStream = stream => {
-    /** @type {(s: DetectState) => (l: List<O, IoResult<Vec>>) => Effect<O, DetectMeta, NotImplemented | IoError>} */
+    /** @type {(s: DetectState) => (l: List<O, Vec, IoChannel>) => Effect<O, DetectMeta, IoChannel>} */
     const loop = s => l =>
-        step(
+        ioStep(
             l,
             node => {
-                if (node === undefined) { return pure(ok(finish(s))) }
+                if (node === undefined) { return pureOk(finish(s)) }
                 const { first, tail } = node
-                const [t, v] = first
-                if (t === 'error') { return pure(error(v)) }
-                return loop(push(s)(v))(tail)
+                return loop(push(s)(first))(tail)
             })
     return loop(detectInit)(stream)
 }

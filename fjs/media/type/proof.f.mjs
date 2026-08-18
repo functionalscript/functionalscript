@@ -1,7 +1,7 @@
 /**
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { List } from '../../effects/list/types.ts'
- * @import { IoResult } from '../../effects/node/types.ts'
+ * @import { IoChannel } from '../../effects/node/types.ts'
  * @import { DetectMeta } from './types.ts'
  */
 
@@ -9,6 +9,7 @@ import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { msb, u8ListToVec, vec8, repeat, empty } from '../../types/bit_vec/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { nonEmpty, empty as emptyList } from '../../effects/list/module.f.mjs'
+import { pureError } from '../../effects/io/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { ioError } from '../../effects/node/module.f.mjs'
 import { detect, detectStream, detectVec } from './module.f.mjs'
@@ -20,12 +21,12 @@ const bytes = (...b) => u8ListToVec(msb)(b)
 
 // ── Streaming detector helpers ──────────────────────────────────────────────────
 
-// Builds a CAS-style read stream from a sequence of ok(chunk) items.
-/** @type {(...chunks: readonly Vec[]) => List<never, IoResult<Vec>>} */
+// Builds a CAS-style read stream from a sequence of chunks.
+/** @type {(...chunks: readonly Vec[]) => List<never, Vec, IoChannel>} */
 const stream = (...chunks) =>
     chunks.reduceRight(
-        (tail, c) => nonEmpty(ok(c), tail),
-        /** @satisfies {List<never, IoResult<Vec>>} */ (emptyList()))
+        (tail, c) => nonEmpty(c, tail),
+        /** @satisfies {List<never, Vec, IoChannel>} */ (emptyList()))
 
 // Runs the streaming detector over the given chunks and unwraps the metadata.
 /** @type {(...chunks: readonly Vec[]) => DetectMeta} */
@@ -290,11 +291,10 @@ export const proof = {
             assertEq(m.length, 8n)
         },
 
-        // A read `error` item short-circuits into the IoResult error.
+        // A stream that fails carries its failure out as the detector's own.
         readErrorSurfaces: () => {
-            /** @type {List<never, IoResult<Vec>>} */
-            const errStream =
-                nonEmpty(error(ioError({ message: 'boom' })), emptyList())
+            /** @type {List<never, Vec, IoChannel>} */
+            const errStream = pureError(ioError({ message: 'boom' }))
             const o = runPure(detectStream(errStream))
             assert(o.length === 1, 'effect is not pure')
             assert(o[0][0] === 'error')

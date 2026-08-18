@@ -4,8 +4,8 @@
  * @module
  *
  * @import { RawEffect } from '../../effects/types.ts'
- * @import { IoError, Mkdir, NodeProgram, ReadFile, WriteFile } from '../../effects/node/types.ts'
- * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
+ * @import { IoChannel, Mkdir, NodeProgram, ReadFile, WriteFile } from '../../effects/node/types.ts'
+ * @import { Effect } from '../../effects/io/types.ts'
  */
 
 
@@ -24,7 +24,7 @@ const target = /** @type {const} */ ('.vscode/mcp.json')
  * continuation — and the history holds the text itself, not the `Result` the
  * read returned.
  *
- * @type {() => Effect<Mkdir | ReadFile | WriteFile, void, NotImplemented | IoError>}
+ * @type {() => Effect<Mkdir | ReadFile | WriteFile, void, IoChannel>}
  */
 export const syncMcp = () => {
     const sourceText = history(readUtf8File(source))

@@ -13,8 +13,8 @@
 ### Problem
 
 `fjs/effects/module.f.mjs` ships `pure` (return) and `step` (bind), plus the
-derived combinators `historyStep`, `foldStep`, `forEachStep`, the `okStep`
-adapter — and now `mapStep`, the functor `map`: "run the effect, then apply a
+derived combinators `historyStep`, `foldStep`, `forEachStep` — and now
+`mapStep`, the functor `map`: "run the effect, then apply a
 pure function to its result". Before it existed, every call site re-derived it
 as `step(e, x => pure(f(x)))`, and **about 41 of them still do**, in 14 modules.
 
@@ -110,5 +110,5 @@ conversion as one 14-module diff.
 - [fold-stream-combinator](./fold-stream-combinator.md) — its pure consumers
   (`detectStream`, `collectRead`) end in `pure(ok(...))` projections.
 - `fjs/effects/module.f.mjs` — `mapStep`, `step`, `historyStep`, `foldStep`,
-  `forEachStep`, `okStep`; the "do not nest steps" rule in the module header.
+  `forEachStep`; the "do not nest steps" rule in the module header.
 </content>

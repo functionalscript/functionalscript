@@ -14,8 +14,8 @@
  * each `Result` by hand. The branch-aware `step` / `catchStep` / `resultStep`
  * that make it automatic live in `./io/module.f.mjs`, together with the
  * `history` / `historyStep` / `foldStep` / `forEachStep` a fallible chain
- * needs; the ones here stay for the infallible compositions and for the
- * representation itself.
+ * needs; the ones here stay for the representation itself — the runners,
+ * `match`, `runPure`, and anything generic over an effect's payload.
  *
  * **The composition rules below hold for both layers**, and a fallible chain
  * should follow them through the Io combinators — a raw `historyStep` over an
