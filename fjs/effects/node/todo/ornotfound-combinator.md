@@ -19,8 +19,8 @@ another site appears.
 ### Proposal
 
 A **step adapter**: a continuation factory passed to `.step`, not a wrapper
-taking the effect — the shape `okStep` (`fjs/effects/module.f.mjs`) already
-uses for the two-way ok/error case. The
+taking the effect — the shape the Io `step`
+(`fjs/effects/io/module.f.mjs`) already uses for the two-way ok/error case. The
 wrapper shape proposed earlier — `orNotFound(effect)(notFound)(onOk)` —
 recreates the nesting problem the moment two policies chain
 (`orNotFound(orNotFound(…)…)`); the adapter chains flat and leaves `Effect`
@@ -53,5 +53,6 @@ list: () => access(storePrefix).step(orNotFound<readonly Vec[]>([])(() =>
 
 ### Related
 
-- `okStep` (`fjs/effects/module.f.mjs`) — the step-adapter convention this
+- The Io `step` (`fjs/effects/io/module.f.mjs`) — the short-circuit convention
+  this
   follows; the two-way sibling of this three-way policy.

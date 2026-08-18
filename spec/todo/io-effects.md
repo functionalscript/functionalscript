@@ -114,7 +114,10 @@ The remaining combinators are `step` specializations, and
 [`fjs/effects/module.f.mjs`](../../fjs/effects/module.f.mjs) documents each one:
 `mapStep` (a pure projection ending a chain), `historyStep` (carries earlier
 values forward so a later link can read them without nesting), `foldStep` and
-`forEachStep` (sequential iteration), `okStep` (the `Result` short-circuit).
+`forEachStep` (sequential iteration). The `Result` short-circuit is not among
+them: it is what the Io `step`
+([`fjs/effects/io/module.f.mjs`](../../fjs/effects/io/module.f.mjs)) *is*, rather
+than an adapter placed around a raw one.
 
 Sequencing is thus ordinary function composition. `async`/`await`
 ([§3.4 of the roadmap](./README.md#34-syntactic-sugar)) is sugar for a

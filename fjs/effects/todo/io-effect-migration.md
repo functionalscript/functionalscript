@@ -1,9 +1,14 @@
 ## io-effect-migration. Migrate effects to explicit Result semantics
 
 **Priority:** P3
-**Status:** open — all six stages have landed; what is left is the sweep of
-design docs that still spell the pre-rename names, in Stage 5's task list.
-Delete this file when that is done.
+**Status:** done — all six stages landed and the design-doc sweep is finished.
+
+Kept rather than deleted, which its own last line used to instruct. Two live
+documents cite it for why the layer exists —
+[`../io/README.md`](../io/README.md) and
+[`spec/todo/io-effects.md`](../../../spec/todo/io-effects.md) — so it is the
+migration's record now rather than an open task, and deleting it would break
+both.
 
 ### Goal
 
@@ -459,7 +464,7 @@ RawEffect<O, T>                    // the Pure | Do representation
 - [x] Update docs, examples, AGENTS.md, and CHANGELOG as needed for the
       breaking change — `fjs/AGENTS.md` §3.4, `fjs/effects/io/README.md`, and
       the module docs.
-- [ ] Sweep the design docs that still spell the old names in proposed code:
+- [x] Sweep the design docs that still spell the old names in proposed code:
       the `todo/*.md` under `fjs/effects`, `fjs/cas`, `fjs/protocol/mcp` and
       friends, plus `spec/todo/io-effects.md`. They describe future work rather
       than current behaviour, so they were left out of the rename itself.
@@ -469,6 +474,18 @@ RawEffect<O, T>                    // the Pure | Do representation
       `../../cas/todo/write-closed-helpers`), which is a dangling reference
       rather than a stale name: it is gone, not renamed, so each of those needs
       a decision about what the proposal meant rather than a substitution.
+
+      Done. The dangling ones all meant the same thing — the `Result`
+      short-circuit — and it still exists: it is what the Io `step` *is*, not
+      an adapter placed around a raw one, so each now points there.
+      `IoResult<T>` needed no substitution at all; it survived the migration
+      and still names an operation's return. What did need it was
+      `List<O, IoResult<Vec>>` and the two-parameter `Effect<O, IoResult<T>>`,
+      which would now mean a doubly-wrapped `Result`.
+      `todo/inline-type-casts.md` was left alone on its own instruction — it is
+      an audit snapshot, and says a re-audit rather than a partial edit is how
+      to refresh it — with its two moved rows noted beside the nine already
+      recorded as moved.
 
 The rename silently changes what the second type parameter means — `T` becomes
 the `ok`-branch value rather than the raw result. **Relying on `tsc` to catch

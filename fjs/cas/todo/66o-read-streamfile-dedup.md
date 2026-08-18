@@ -16,9 +16,9 @@ the chunk as `ok` and recurse at `offset + chunkBytes`.
 `fileCas.read`'s inner `loop` (`fjs/cas/module.f.mjs:262-276`):
 
 ```ts
-const loop = (offset: number): List<FileCasOperation, IoResult<Vec>> =>
+const loop = (offset: number): List<FileCasOperation, Vec, IoChannel> =>
     readBytes(p, offset, chunkBytes)
-    .step((result): List<FileCasOperation, IoResult<Vec>> => {
+    .step((result): List<FileCasOperation, Vec, IoChannel> => {
         const [t, v] = result
         if (t === 'error') { return nonEmpty<FileCasOperation, IoResult<Vec>>(result, elEmpty()) }
         return length(v) === 0n ? elEmpty() : nonEmpty(ok(v), loop(offset + chunkBytes))
@@ -28,8 +28,8 @@ const loop = (offset: number): List<FileCasOperation, IoResult<Vec>> =>
 `streamFile`'s inner `loop` (`fjs/cas/module.f.mjs:323-333`):
 
 ```ts
-const loop = (offset: number): List<ReadBytes, IoResult<Vec>> =>
-    readBytes(filePath, offset, chunkBytes).step((result): List<ReadBytes, IoResult<Vec>> => {
+const loop = (offset: number): List<ReadBytes, Vec, IoChannel> =>
+    readBytes(filePath, offset, chunkBytes).step((result): List<ReadBytes, Vec, IoChannel> => {
         if (result[0] === 'error') { return nonEmpty<ReadBytes, IoResult<Vec>>(result, elEmpty()) }
         const chunk = result[1]
         return length(chunk) === 0n ? elEmpty() : nonEmpty(ok(chunk), loop(offset + chunkBytes))
@@ -48,7 +48,7 @@ maintained in two places that must stay in sync.
 byte-streaming loop:
 
 ```ts
-read: (hash: Vec): List<FileCasOperation, IoResult<Vec>> =>
+read: (hash: Vec): List<FileCasOperation, Vec, IoChannel> =>
     streamFile(join(path, toPath(hash))),
 ```
 

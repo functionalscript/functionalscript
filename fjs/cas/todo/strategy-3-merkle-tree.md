@@ -31,7 +31,7 @@ it into code.
 API: it describes reusing a whole-blob `write(Vec) => hash` / `read(hash) =>
 Vec` small-object primitive and `fileKvStore.list`-based directory
 filtering, but `fjs/cas/module.f.mjs` today has neither — `Cas<O>.read` /
-`.write` are streaming-only (`List<O, IoResult<Vec>>`), `fileKvStore` is
+`.write` are streaming-only (`List<O, Vec, IoChannel>`), `fileKvStore` is
 gone, and `write` always publishes to the single hash-derived shard path
 with no `_parts/` layout. Implementing this design against current code
 therefore starts with defining the small-object (`<=maxLengthBytes`, single
