@@ -10,9 +10,9 @@ import type { MemOp } from '../memory/types.ts'
 import type { Nominal } from '../../types/nominal/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
-import type { Effect, Operation, ToAsyncOperationMap } from '../types.ts'
+import type { RawEffect, Operation, ToAsyncOperationMap } from '../types.ts'
 import type { List } from '../list/types.ts'
-import type { NotImplemented } from '../io/types.ts'
+import type { Effect, NotImplemented } from '../io/types.ts'
 
 /**
  * A host failure, normalized: whatever the runtime threw reduced to a
@@ -54,7 +54,7 @@ export type IoResult<T> = Result<T, NotImplemented | IoError>
 
 // all
 
-export type All = ['all', <T>(...effects: Effect<never, T>[]) => OpResult<readonly T[]>]
+export type All = ['all', <T>(...effects: RawEffect<never, T>[]) => OpResult<readonly T[]>]
 
 // fetch
 
@@ -150,7 +150,7 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
 export type WriteBytes = readonly['writeBytes', (path: string, offset: number, data: Vec) => IoResult<void>]
 
 /** @internal */
-export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>) => Effect<O | WriteBytes, IoResult<void>>
+export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>) => Effect<O | WriteBytes, void, NotImplemented | IoError>
 
 // stat
 
@@ -185,7 +185,7 @@ export type ServerResponse = {
     readonly body: Vec
 }
 
-export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effect<O, ServerResponse>
+export type RequestListener<O extends Operation> = (_: IncomingMessage) => RawEffect<O, ServerResponse>
 
 export type CreateServer = ['createServer', (listener: RequestListener<Operation>) => OpResult<Server>]
 
@@ -219,7 +219,7 @@ export type WriteConsoles = 'stdout' | 'stderr'
  */
 export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => OpResult<void>]
 
-export type Console = (s: string) => Effect<Write, OpResult<void>>
+export type Console = (s: string) => Effect<Write, void>
 
 // read
 
@@ -295,9 +295,9 @@ export type TestContext = {
     readonly test: TestFn
 }
 
-/** Effect operation that registers a named test with the active `TestContext`. */
+/** RawEffect operation that registers a named test with the active `TestContext`. */
 export type Test =
-    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All | Await, void>) => OpResult<void>]
+    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => RawEffect<Test | All | Await, void>) => OpResult<void>]
 
 // Node
 
@@ -318,7 +318,7 @@ export type NodeOp =
     | Write
     | Test
 
-export type NodeEffect<T> = Effect<NodeOp, T>
+export type NodeEffect<T> = RawEffect<NodeOp, T>
 
 export type NodeOperationMap = ToAsyncOperationMap<NodeOp>
 
@@ -358,6 +358,6 @@ export type NodeProgramOptions = {
     readonly inlineTestContext: boolean
 }
 
-export type Program<O extends Operation> = (options: NodeProgramOptions) => Effect<O, number>
+export type Program<O extends Operation> = (options: NodeProgramOptions) => RawEffect<O, number>
 
 export type NodeProgram = Program<NodeOp>

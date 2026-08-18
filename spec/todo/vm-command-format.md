@@ -22,10 +22,10 @@ only on previous commands.
 
 |format|any                     |          |Notes                                           |
 |------|------------------------|----------|------------------------------------------------|
-|DJS   |const_ref               |u32       |[const](../2120-const.md)                       |
-|      |bigint_plus             |Array<u64>|[bigint](../2320-bigint.md)                     |
-|      |bigint_minus            |Array<u64>|[bigint](../2320-bigint.md)                     |
-|      |undefined               |          |[undefined](../2310-undefined.md)               |
+|DJS   |const_ref               |u32       |[const](../README.md#shared-values-constants)                       |
+|      |bigint_plus             |Array<u64>|[bigint](../README.md#supported-value-types)                     |
+|      |bigint_minus            |Array<u64>|[bigint](../README.md#supported-value-types)                     |
+|      |undefined               |          |[undefined](../README.md#supported-value-types)               |
 |      |own_property            |          |[property-accessor](./2330-property-accessor.md)|
 |      |instance_property       |          |[property-accessor](./2330-property-accessor.md)|
 |      |instance_method_call    |          |[property-accessor](./2330-property-accessor.md)|

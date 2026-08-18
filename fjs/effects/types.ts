@@ -8,24 +8,24 @@ export type Operation =
     readonly[string, (..._: readonly never[]) => unknown]
 
 /**
- * An `Effect<O, T>` is the raw value: a {@link Pure} thunk that yields `T`, or a
+ * A `RawEffect<O, T>` is the raw value: a {@link Pure} thunk that yields `T`, or a
  * {@link Do} node describing a command to perform. It is plain data — compose
  * effects with the external `step`, which is eager wherever the head is
  * `Pure`.
  *
  * **This is the low-level representation.** Work that can fail is written
- * against `IoEffect<O, T, E>` (`./io/types.ts`), the `Effect<O, Result<T, E>>`
+ * against `Effect<O, T, E>` (`./io/types.ts`), the `RawEffect<O, Result<T, E>>`
  * with an explicit error channel, which is the preferred high-level
- * abstraction — see [`./io/README.md`](./io/README.md). `Effect` is what that
+ * abstraction — see [`./io/README.md`](./io/README.md). `RawEffect` is what that
  * alias and the combinators here are built from, and it stays public as such.
  */
-export type Effect<O extends Operation, T> =
+export type RawEffect<O extends Operation, T> =
     Pure<T> | Do<O, T>
 
 /**
  * A pure effect: an *already-computed* `T` behind a thunk.
  *
- * The thunk is a **discriminator, not a suspension**. `Effect` is a union with
+ * The thunk is a **discriminator, not a suspension**. `RawEffect` is a union with
  * no tag field, so telling its two cases apart needs a runtime test, and
  * `typeof e === 'function'` is it — wrapping the value in a function is what
  * makes that test work. Deferral is not what the thunk is for. A `Pure` never
@@ -40,7 +40,7 @@ export type Effect<O extends Operation, T> =
  *   can be decoded repeatedly, and under the first rule that costs nothing and
  *   changes nothing.
  *
- * A `lazy` constructor (`<T>(t: () => T): Effect<never, T> => t`) once existed
+ * A `lazy` constructor (`<T>(t: () => T): RawEffect<never, T> => t`) once existed
  * to advertise the thunk as a suspension. It was the identity function, and it
  * promised a deferral this representation does not keep; it has been removed.
  * Reintroducing it would reintroduce the contradiction, not fix one.
@@ -66,12 +66,12 @@ export type Pr<O extends Operation, K extends O[0]> =
  * (`match` → runner), so a `write` node's continuation is only ever
  * called with `void`; the op-set can grow without any continuation ever being
  * handed the wrong output. `out` enables only the widening direction
- * (`Effect<A>` <: `Effect<A | B>`), never the unsound narrowing. Anyone changing
+ * (`RawEffect<A>` <: `RawEffect<A | B>`), never the unsound narrowing. Anyone changing
  * the continuation representation must re-check this argument before keeping the
  * annotation.
  */
 export type Cont<out O extends Operation, T> =
-    (_: Pr<O, O[0]>[1]) => Effect<O, T>
+    (_: Pr<O, O[0]>[1]) => RawEffect<O, T>
 
 /**
  * A `Do` node: the command to perform, its payload, and the continuation to
@@ -81,7 +81,7 @@ export type Cont<out O extends Operation, T> =
  *
  * It must be an object rather than a tuple, and that is not a style choice:
  * only object / function / mapped-type aliases may carry a variance annotation
- * (`TS2637` forbids `out` on a tuple), and the raw `Effect` union must be
+ * (`TS2637` forbids `out` on a tuple), and the raw `RawEffect` union must be
  * covariant in `O` end to end. `command` and `payload` are indexed/conditional
  * types over `O` that TypeScript will not widen generically on their own —
  * annotating only {@link Cont} is not enough — so the whole node carries
@@ -106,7 +106,7 @@ export type Do<out O extends Operation, T> = {
  * far, newest first. `History<O, readonly[C, B, A]>` is three links deep, with
  * `A` bound earliest.
  *
- * This is a transparent alias for `Effect`. It adds the tuple bound and
+ * This is a transparent alias for `RawEffect`. It adds the tuple bound and
  * nothing else, so any tuple-valued effect satisfies it whether or not
  * `history` produced it — it names the convention at the signatures that
  * rely on it rather than enforcing it.
@@ -115,7 +115,7 @@ export type Do<out O extends Operation, T> = {
  * `List` and nothing that folds or maps a list applies to it.
  */
 export type History<O extends Operation, H extends readonly unknown[]> =
-    Effect<O, H>
+    RawEffect<O, H>
 
 export type Param<O extends Operation> = F<O>[0]
 
@@ -130,6 +130,44 @@ export type OperationMap<O extends Operation, R> = {
     readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => R
 }
 
+/**
+ * An {@link OperationMap} a runner may leave holes in: every handler it *does*
+ * provide has the same type, and any of them may be absent.
+ *
+ * Partiality is opt-in, and deliberately not the default. A total map means a
+ * runner that forgets a handler is a compile error, which is what should happen
+ * to the Node runner; this type is for a runner that is *meant* to lack
+ * operations — a virtual filesystem with no subprocesses, a mock that answers
+ * the three commands its proof issues. An absent handler here is an answer
+ * (`error(notImplemented)`), not an oversight.
+ */
+export type PartialOperationMap<O extends Operation, R> = {
+    readonly [K in O[0]]?: (...payload: Pr<O, K>[0]) => R
+}
+
+/**
+ * The runtime witness of `O`'s command set.
+ *
+ * A {@link PartialOperationMap} cannot say, at runtime, whether a command it
+ * has no handler for is one the operation set declares — types are erased, so
+ * an omitted `readFile` and a garbled `readFilee` reach the interpreter as the
+ * same missing lookup. They are not the same thing: the first is a capability
+ * this runner lacks and a program may recover from, the second is a `Do` node
+ * whose `command` was never the one its type claimed. Telling them apart needs
+ * `O`'s commands as data.
+ *
+ * Declare it as a record rather than an array — a `Record<O[0], null>` is
+ * checked for *completeness*, so a command added to `O` and forgotten here is a
+ * compile error, whereas an array literal only has its members checked and
+ * drifts silently.
+ */
+export type CommandSet<O extends Operation> =
+    Readonly<Record<O[0], null>>
+
+/** `O`'s commands, in the form {@link match} tests membership against. */
+export type Commands<O extends Operation> =
+    readonly O[0][]
+
 export type MatchResult<O extends Operation, T, R> =
     | readonly['done', T]
     | readonly['cont', R, Do<O, T>['continuation']]
@@ -140,4 +178,4 @@ export type ToAsyncOperationMap<O extends Operation> = {
 
 export type F<O extends Operation> = Pr<O, O[0]>
 
-export type Func<O extends Operation> = (..._: Param<O>) => Effect<O, Return<O>>
+export type Func<O extends Operation> = (..._: Param<O>) => RawEffect<O, Return<O>>

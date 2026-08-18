@@ -1,10 +1,10 @@
-# IoEffect — effects with an explicit error channel
+# `Effect` — effects with an explicit error channel
 
-`IoEffect<O, T, E>` is `Effect<O, Result<T, E>>`: the raw effect from
+`Effect<O, T, E>` is `RawEffect<O, Result<T, E>>`: the raw effect from
 [`../module.f.mjs`](../module.f.mjs) with its failure made part of the type.
-It is the **preferred high-level abstraction for fallible work**; the raw
-`Effect<O, T>` remains the low-level representation both it and the raw
-combinators are built from.
+It is the **abstraction to reach for**; `RawEffect<O, T>` is the representation
+both it and the raw combinators are built from, and it stays public for the
+computations that genuinely cannot fail.
 
 This directory is the layer itself — the types ([`./types.ts`](./types.ts)) and
 the composition API ([`./module.f.mjs`](./module.f.mjs)) — from the migration
@@ -29,10 +29,10 @@ const b = step(a, () => console('written'))
 
 `writeFile` may return an error and `'written'` is still printed. The code looks
 like an ordinary sequence, but it means "run the next effect regardless". Every
-caller must remember to inspect each `Result` by hand, or wrap the continuation
-in `okStep`; missing one silently changes control flow.
+caller must remember to inspect each `Result` by hand; missing one silently
+changes control flow.
 
-With an `IoEffect`-aware `step`, that same line means what it looks like:
+With an error-aware `step`, that same line means what it looks like:
 `console('written')` runs only on `ok`, and an error propagates on its own. That
 gives FunctionalScript the default error-propagation path other languages get
 from exceptions or Rust's `?`, without giving it exceptions.
@@ -55,9 +55,11 @@ branches and replaces both. `types.ts` pins each of those signatures at a
 concrete instantiation, so a "simplification" that unified an error channel
 fails there rather than at some future call site.
 
-The new `step` conflicts with the raw one, which is why these live in their own
-module and can already use their final names. Stage 5 retires the raw public
-abstraction and renames `IoEffect` to `Effect`.
+The `step` here conflicts by name with the raw one, which is why the two live in
+separate modules. Both are public and both are load-bearing: this one for
+anything that can fail, `RawEffect` for the representation, for the runners and
+`do_` that speak it, and for a computation with no failure to report — a `List`
+cell, a `Program`'s exit code, an MCP tool result.
 
 ### `resultStep` is raw `step`, and still earns its name
 
@@ -66,9 +68,8 @@ instantiation — a continuation taking a `Result<T, E>` and returning an effect
 is what raw `step` already offers — so it adds no branch behavior and is
 implemented as that function with a narrower type. It is named anyway because
 the three operations are the canonical vocabulary: a chain that spells the
-both-branches case as a raw `step` reads as an escape from the layer, and from
-stage 5, when the raw representation goes private, this is the public spelling
-of that instantiation.
+both-branches case as a raw `step` reads as an escape from the layer, and this
+is the spelling that says the both-branches case was meant.
 
 `finallyStep` is declined on the same principle read the other way — a
 derivable form earns a name by being canonical vocabulary, and that one has not
@@ -84,15 +85,17 @@ them — which is every consumer during the migration — would have to alias on
 pair at each import. `pure` is not free to shadow either; it is the raw lift,
 and a module that uses both wants them distinguishable.
 
-### The raw `okStep` now unions its error types
+### The error types are unioned, not unified
 
-Io `step` is raw `step` over `okStep`, the adapter that already writes the
-`ok` / `error` branch — but `okStep` unified the two error types, which is
-exactly what this layer must not do. Its type now quantifies the incoming error
-on the second arrow (`<T, R, E>(f) => <F>(r) => …`), matching `okThen`, the
-pure sibling its documentation already claimed. The change is a strict
-generalization: every previous instantiation is `F = E`, so existing raw
-consumers are unaffected.
+`step`'s two error types union (`E | F`) rather than unifying, and an `error`
+is handed back as the very tuple it arrived as rather than rebuilt to retag it
+into a wider type. That is what lets adjacent links in one chain fail in
+different ways, and it follows `okThen` (`fjs/types/result/module.f.mjs`), the
+pure sibling of this bind.
+
+This used to route through an exported `okStep` in the raw module — an adapter
+whose only caller was `step`'s own body, one indirection away. It is written
+here now, and the raw layer has one export fewer.
 
 ## `NotImplemented`
 
@@ -143,7 +146,7 @@ something better with a failure wants `catchStep` or `resultStep`.
 - **No Io `historyStep`.** It is *expected* — `fjs/cas`'s chains reach back to
   earlier values, so migrating them will need one — but the first consumer
   should shape it. Until then the raw `historyStep` still applies to any
-  `IoEffect` whose links do not short-circuit.
+  `Effect` whose links do not short-circuit.
 - **No mirrored raw API.** Io variants of the other combinators (`foldStep`,
   `forEachStep`) arrive when real consumers require them, not speculatively.
   `mapStep` is here rather than deferred because without it every site

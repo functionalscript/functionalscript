@@ -72,8 +72,8 @@ export const mapOk = f => r => r[0] === 'ok' ? ok(f(r[1])) : r
 /**
  * Chains a `Result`-returning step onto a `Result`, passing an `error` through
  * unchanged. The monadic bind to {@link mapOk}'s functor map, and the pure
- * sibling of `fjs/effects`' `okStep` — which is the same combinator for a step
- * that also performs operations.
+ * sibling of the branch `fjs/effects/io`'s `step` writes for an effect that
+ * also performs operations.
  *
  * The two error types are **unioned, not unified**. A validation chain
  * typically widens its error as it goes — a JSON parse failure (`string`)

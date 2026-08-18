@@ -6,6 +6,6 @@ Group parts of an expression.
 export default (5)
 ```
 
-Depends on [export-default](../2110-default-export.md).
+Depends on [export default](../README.md#exporting-a-value).
 
 See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Grouping

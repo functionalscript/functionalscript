@@ -1,10 +1,10 @@
 /**
- * Impure effect interpretation: runs an `Effect` step by step against an
+ * Impure effect interpretation: runs a `RawEffect` step by step against an
  * asynchronous operation map.
  *
  * @module
  *
- * @import { Effect, Operation, ToAsyncOperationMap } from './types.ts'
+ * @import { RawEffect, Operation, ToAsyncOperationMap } from './types.ts'
  */
 
 import { match } from './module.f.mjs'
@@ -12,7 +12,7 @@ import { match } from './module.f.mjs'
 /**
  * @template {Operation} O
  * @param {ToAsyncOperationMap<O>} map
- * @returns {<T>(effect: Effect<O, T>) => Promise<T>}
+ * @returns {<T>(effect: RawEffect<O, T>) => Promise<T>}
  */
 export const asyncRun = map => async effect => {
     const next = match(map)

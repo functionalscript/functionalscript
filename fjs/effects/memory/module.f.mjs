@@ -7,7 +7,7 @@
  * generation strategy.
  *
  * Memory effects compose with other effects by unioning operation types, for
- * example `Effect<IoOp | MemOp, T>` for a program that performs both I/O and
+ * example `RawEffect<IoOp | MemOp, T>` for a program that performs both I/O and
  * memory operations.
  *
  * See `./types.ts` for the `Key`/`MemCreate`/`MemRead`/`MemWrite`/`MemOp`
@@ -16,8 +16,7 @@
  * @module
  *
  * @import { Nominal } from '../../types/nominal/types.ts'
- * @import { Effect } from '../types.ts'
- * @import { OpResult } from '../node/types.ts'
+ * @import { Effect } from '../io/types.ts'
  * @import { Key, MemCreate, MemRead, MemWrite, _MemKeyHash } from './types.ts'
  */
 
@@ -32,14 +31,14 @@ export const asNominal = nominalAsNominal
 
 /** Creates a new typed memory slot with `value` as its initial contents. */
 export const create =
-    /** @type {<T>(value: T) => Effect<MemCreate, OpResult<Key<T>>>} */
+    /** @type {<T>(value: T) => Effect<MemCreate, Key<T>>} */
     (do_('memCreate'))
 
 /** Reads the current contents of a typed memory slot. */
 export const read =
-    /** @type {<T>(key: Key<T>) => Effect<MemRead, OpResult<T>>} */
+    /** @type {<T>(key: Key<T>) => Effect<MemRead, T>} */
     (do_('memRead'))
 
 /** Replaces the current contents of a typed memory slot. */
-/** @type {<T>(key: Key<T>, value: T) => Effect<MemWrite, OpResult<void>>} */
+/** @type {<T>(key: Key<T>, value: T) => Effect<MemWrite, void>} */
 export const write = do_('memWrite')

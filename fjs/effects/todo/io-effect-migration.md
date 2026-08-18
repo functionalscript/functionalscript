@@ -1,7 +1,9 @@
 ## io-effect-migration. Migrate effects to explicit Result semantics
 
 **Priority:** P3
-**Status:** open
+**Status:** open — all six stages have landed; what is left is the sweep of
+design docs that still spell the pre-rename names, in Stage 5's task list.
+Delete this file when that is done.
 
 ### Goal
 
@@ -135,9 +137,9 @@ Two consequences follow, and both are Stage 3 work:
   currently-infallible operation starts wrapping its output in `ok(...)`;
   operations that already return `IoResult` need only their error type
   refined.
-- Until Stage 6 lands, runners remain **total** over their declared operation
-  maps: `NotImplemented` exists in the type model but no runner produces it
-  yet.
+- Until Stage 6 landed, runners remained **total** over their declared
+  operation maps: `NotImplemented` was in the type model with nothing producing
+  it. The virtual runner produces it now.
 
 ### Target composition
 
@@ -167,9 +169,11 @@ its mirror — it unions the success channel and replaces the error type;
 
 Expanded through the alias, `resultStep` is raw `step` at the Io
 instantiation — it adds no branch behavior of its own. It still earns its
-name: the three operations are the canonical vocabulary, and from Stage 5,
-when the raw representation goes private, `resultStep` is the public spelling
-of that instantiation. Declining `finallyStep` is the same principle — a
+name: the three operations are the canonical vocabulary, and `resultStep` is
+the spelling that says the both-branches case was meant rather than that the
+chain escaped the layer. (Stage 5 planned to make the raw representation
+private, which is where this sentence used to point; it stayed public instead —
+see that stage.) Declining `finallyStep` is the same principle — a
 derivable form earns a name only by being canonical vocabulary, and
 `finallyStep` has not shown it is; it is derivable from `resultStep` and adds
 no expressive power until real consumers demonstrate a repeated policy worth
@@ -320,9 +324,9 @@ the bytes.
 
 ## Stage 4. Migrate consumers
 
-**In progress.** Migrate module by module; each module is its own pull request,
-and the worklist is the `unwrapStep` call sites — every one is a consumer that
-has not yet chosen a policy beyond "panic".
+**Done.** Migrated module by module, one pull request each, with the
+`unwrapStep` call sites as the worklist — every one a consumer that had not yet
+chosen a policy beyond "panic".
 
 Migrated: `fjs/ci`, `fjs/ci/nix`, `fjs/nanvm/update`, `fjs/dev/update`,
 `fjs/cas`, `cas list`, `fjs/emergent_testing`, `fjs/dev`, `fjs/cas/evo`,
@@ -350,9 +354,6 @@ site left to migrate.
       consumers that required them, and `allOk` with `fjs/emergent_testing`;
       `items` stays a **raw** effect in both folds, since no consumer produces
       its list fallibly.
-- [ ] Revisit `okStep`, `IoResult`, stream-fold helpers, and specialized
-      recovery adapters as consumers migrate; remove redundant APIs when
-      possible.
 - [x] Validate `npx tsc` and `fjs t` after each migration PR.
 
 What the migrated modules showed:
@@ -366,68 +367,167 @@ What the migrated modules showed:
   piggy-backed on is in the type.
 - `resultStep` is what a cleanup-on-failure site wants: `writeImpl` deletes its
   partial staging file and *then* reports, which propagation alone would skip.
+- **`all` needed an `ok`-channel twin.** Its envelope is the runner's, so
+  handing it `IoEffect`s nests one `Result` inside another and the caller
+  receives `readonly Result<T, E>[]` — the value-discarding hazard, one level
+  in. `allOk` (`fjs/effects/node/module.f.mjs`) collapses that to the first
+  error; every effect still runs, since the short-circuit is in the result and
+  not the execution.
+- **A tail is not always `exitStep`.** That one answers `0` for every success,
+  so a program whose success value *is* an exit code (`fjs t`) needs a sibling
+  that keeps the computed code and reports only the channel failure.
+- **What a failure becomes is decided by what the caller can be told**, not by
+  preference. At a protocol edge the same channel error is a JSON-RPC `-32603`
+  to a request, silence to a notification (no response frame exists), and a
+  propagated failure from the transport (no frame, but there is a caller). A
+  remote caller is also told *less*: `errorSummary` carries the OS error code
+  where `errorMessage` would carry the host path.
+- **One panic stayed, at a foreign boundary.** `Test` hands its callback to an
+  external framework whose contract is a raw `Effect<…, void>`, so there is no
+  channel to answer through, and a throw is what that framework already reports
+  as a failed test.
+- **The `unwrapStep` grep was necessary but not sufficient**, and this is the
+  part worth carrying into Stage 5. It cannot see a site that never used the
+  name — `fjs/dev`, `fjs/cas`'s `list` and the `fjs run` command were all found
+  by grepping for a bare `unwrap` or `throw` instead — and neither grep can see
+  an interface whose *type* leaves implementations no way to report a failure.
+  `Reporter` and `Cas.list` were both that, and both sat in modules already
+  ticked off as migrated. Read the published types, not just the call sites.
 
 ## Stage 5. Retire old `Effect`; rename `IoEffect` to `Effect`
 
-**Blocked by:** Stage 4.
+**Done.** The rename landed, but not the premise it was written on.
 
-After public consumers use IoEffect semantics, make it canonical:
+**Two effect abstractions survive, and that is the finding.** This stage was
+planned as "retire the raw public `Effect`", keeping the representation under an
+internal name "rather than maintaining two public effect abstractions". The
+sweep says otherwise: of 251 raw `Effect<…>` annotations, **201 had a payload
+that is not a `Result`**, and several are public types that can never carry an
+error channel — `List<O, T>` is `RawEffect<O, Next<O, T>>`, whose payload is a
+cons cell; `Program<O>` answers an exit code; `Step<O>` and `ToolEntry.handle`
+answer a JSON-RPC response and a tool result, which *are* their error channels.
+Giving those a channel would put an `ok(…)` wrapper on every stream cell and
+every tool answer, for a failure that cannot happen. So `RawEffect` is public
+and load-bearing, not an implementation detail, and the two names now divide by
+meaning: `Effect` can fail, `RawEffect` cannot.
+
+**The rename was done without the default, then given one.** `Effect<O, T, E>`
+with `E = NotImplemented` makes `Effect<O, T>` legal and fallible — which is
+exactly what an un-migrated infallible site looks like. While the sweep was
+running the third parameter was therefore *required*, so every one of those 201
+sites was a compile error rather than a silent acquisition of an error channel;
+the default was added only once `tsc` was green. The `tsc`-catches-stragglers
+argument in this file was only ever true for the 50 fallible sites, where an
+un-migrated `Effect<O, IoResult<T>>` double-wraps. It was never true for the
+other 201, and that is worth remembering the next time a rename is described as
+mechanical.
 
 ```ts
-Effect<O, T, E = NotImplemented>
+Effect<O, T, E = NotImplemented>   // fallible; the one to reach for
+RawEffect<O, T>                    // the Pure | Do representation
 ```
 
-- [ ] Retire the old public `Effect<O, T>` abstraction.
-- [ ] If the implementation still needs today's `Pure | Do` representation,
-      keep it under an internal/private name such as `RawEffect` rather than
-      maintaining two public effect abstractions.
-- [ ] Rename `IoEffect` to `Effect` and make `NotImplemented` the default
+- [x] Revisit `okStep`, `IoResult`, stream-fold helpers, and specialized
+      recovery adapters; remove redundant APIs when possible. `okStep` was the
+      only redundant one and is inlined into the Io `step` that was its sole
+      caller; `IoResult` and the folds all still have consumers.
+- [x] Retire the old public raw abstraction — **superseded**. It is renamed
+      `RawEffect` and stays public, for the reason recorded above.
+- [x] Keep the `Pure | Do` representation under its own name — `RawEffect`,
+      public rather than internal, because `List`, `Program`, `Step` and
+      `ToolEntry.handle` are all built on it and none of them can fail.
+- [x] Rename `IoEffect` to `Effect` and make `NotImplemented` the default
       error type unless migration experience shows a better default.
-- [ ] Make the IoEffect `step`, `catchStep`, and `resultStep` the canonical
+- [x] Make the Io `step`, `catchStep`, and `resultStep` the canonical
       composition API.
-- [ ] Remove migration-only raw APIs after their consumers are gone.
-- [ ] Update docs, examples, AGENTS.md, and CHANGELOG as needed for the
-      breaking change.
+- [x] Remove migration-only raw APIs after their consumers are gone —
+      `okStep` was the only one, inlined into the Io `step` that called it.
+- [x] Update docs, examples, AGENTS.md, and CHANGELOG as needed for the
+      breaking change — `fjs/AGENTS.md` §3.4, `fjs/effects/io/README.md`, and
+      the module docs.
+- [ ] Sweep the design docs that still spell the old names in proposed code:
+      the `todo/*.md` under `fjs/effects`, `fjs/cas`, `fjs/protocol/mcp` and
+      friends, plus `spec/todo/io-effects.md`. They describe future work rather
+      than current behaviour, so they were left out of the rename itself.
+      **Six of them also point at `okStep` as an existing export**
+      (`effect-list-fold`, `fold-stream-combinator`, `map-step-combinator`,
+      `step-continuation-operation-union`, `../node/todo/ornotfound-combinator`,
+      `../../cas/todo/write-closed-helpers`), which is a dangling reference
+      rather than a stale name: it is gone, not renamed, so each of those needs
+      a decision about what the proposal meant rather than a substitution.
 
 The rename silently changes what the second type parameter means — `T` becomes
-the `ok`-branch value rather than the raw result. The stage relies on `tsc` to
-catch stragglers: an un-migrated `Effect<O, IoResult<T>>` double-wraps into
-`Result<IoResult<T>, NotImplemented>` and fails at its use sites. Verify the
-sweep is actually clean (`npx tsc` over the whole repo) rather than assuming
-it.
+the `ok`-branch value rather than the raw result. **Relying on `tsc` to catch
+the stragglers was the plan and it was only half right**, which is the part
+worth carrying forward: an un-migrated *fallible* site double-wraps into
+`Result<IoResult<T>, NotImplemented>` and fails at its use sites, but an
+un-migrated *infallible* one — four fifths of them — would simply have acquired
+an error channel and compiled. What actually made the sweep safe was running it
+with the third type parameter **required**, so every such site was an error, and
+adding `E = NotImplemented` only once `tsc` was green.
 
 At this point `O` means the set of operations a computation may request, not a
 guarantee that every runner implements all of them.
 
 ## Stage 6. Runners support `NotImplemented`
 
-**Blocked by:** Stage 5.
+**Done.**
 
-- [ ] Allow a runner to omit an operation handler.
-- [ ] A missing handler returns `error(NotImplemented(operation))` through the
+- [x] Allow a runner to omit an operation handler — `PartialOperationMap`
+      and `partialMatch`; partiality is opt-in, so a total map still makes a
+      forgotten handler a compile error.
+- [x] A missing handler returns `error(NotImplemented(operation))` through the
       normal effect continuation.
-- [ ] `NotImplemented` must be produced before the operation starts.
-- [ ] **Rework `match` and its documented invariant.** `match` in
-      `fjs/effects/module.f.mjs` asserts on a missing handler, with a
-      deliberate doc argument that "a runner cannot resume a command it has no
-      handler for, so there is nothing for a recovery branch to do." This stage
-      inverts that argument: the runner *can* resume, with
-      `error(NotImplemented)`. `match` is generic over `R` and cannot know
-      every return type admits that value, so this needs either a partial
-      operation-map type whose constraint guarantees every operation's return
-      admits `error(NotImplemented)`, or a separate Io-aware match. The
-      `assert` and the doc comment defending it are in scope, and per the
-      module header the change touches one of the three sanctioned
-      `Pure`/`Do` discriminators — update the header's count/argument
-      accordingly.
-- [ ] Supported operations keep their normal success or operation-specific
-      error behavior.
-- [ ] Add proof coverage showing that the program receives control after
-      `NotImplemented` and can choose a fallback operation.
-- [ ] Apply the same behavior to every runner/engine.
+- [x] `NotImplemented` must be produced before the operation starts — the
+      lookup precedes dispatch, so nothing is begun.
+- [x] **Rework `match` and its documented invariant.** Done, and the shape it
+      needed was not quite either of the two this file predicted.
 
-Until Stage 6 lands, `NotImplemented` may exist in the type model while
-current runners remain total over their declared operation maps.
+      The blocker was read correctly — `match` cannot know that every return
+      type admits `error(NotImplemented)` — but the reason is sharper than
+      "generic over `R`": `R` is the **runner's** wrapper (`Promise<…>` for an
+      async loop, `(state) => [state, …]` for a state-threading one), not the
+      operation's return type, so `match` cannot *construct* one however it is
+      constrained. A type-level constraint and a separate Io-aware `match` both
+      collapse into the same answer with extra ceremony: somebody has to pass a
+      value that builds an `R`, and only the runner can.
+
+      So `partialMatch(commands, onMissing)` takes the injector, and each
+      runner writes its own once, next to the loop that fixes the shape —
+      `partialRun` in `fjs/effects/mock` is the only one today.
+
+      Two consequences the plan did not anticipate:
+
+      - **Partiality is opt-in.** `OperationMap` stays total, so a runner that
+        merely *forgets* a handler is still a compile error;
+        `PartialOperationMap` is for a runner meant to lack operations.
+      - **A missing handler is two different things, and types are erased.**
+        An omitted `readFile` and a garbled `readFilee` reach the interpreter
+        as the same failed lookup, so telling "declared but unimplemented"
+        (recoverable) from "never a command at all" (a malformed node, still a
+        panic) needs `O`'s commands as *data*. `CommandSet<O>` is a
+        `Record<O[0], null>` for that reason — a record is checked for
+        completeness, so a command added to `O` and forgotten there is a
+        compile error, where an array literal would drift silently.
+- [x] Supported operations keep their normal success or operation-specific
+      error behavior.
+- [x] Add proof coverage showing that the program receives control after
+      `NotImplemented` and can choose a fallback operation —
+      `unimplemented.programChoosesAFallback` in the virtual runner's proof
+      catches an unavailable `exec` and writes instead.
+- [x] Make the behaviour available to every runner/engine — **and opt in
+      where a runner has operations it genuinely lacks**, which today is the
+      virtual one. `asyncRun` and the Node runner implement all of `NodeOp`, so
+      they stay total and keep their exhaustiveness check; giving them a
+      partial map would trade a compile-time guarantee for a runtime answer
+      nothing asks for.
+
+A runner is no longer obliged to be total. `NotImplemented` was in the type
+model from Stage 1 with nothing producing it; the virtual runner produces it
+now, for the five operations it does not implement. The runners that *are*
+total — `asyncRun` and the Node one — stay that way by choice rather than by
+the type system's insistence, and keep the exhaustiveness check that goes with
+it.
 
 ### Invariants
 
@@ -455,7 +555,8 @@ current runners remain total over their declared operation maps.
 - [`../node/todo/ornotfound-combinator.md`](../node/todo/ornotfound-combinator.md)
 - [`node-module-layering.md`](./node-module-layering.md)
 - [`../../../todo/044-error-handling-pattern.md`](../../../todo/044-error-handling-pattern.md)
-- `fjs/effects/module.f.mjs` — raw `step`, `okStep`, `match` (whose
-  missing-handler `assert` Stage 6 reworks).
+- `fjs/effects/module.f.mjs` — raw `step`, `match` and `partialMatch`, whose
+  missing-handler `assert` Stage 6 reworked into the two-case split. `okStep`
+  used to be listed here; Stage 5 inlined it into the Io `step`.
 - `fjs/types/result/module.f.mjs` — `okThen`, the union-not-unify precedent
   for the signatures above.

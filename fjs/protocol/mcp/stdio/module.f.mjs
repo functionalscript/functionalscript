@@ -2,7 +2,7 @@
  * stdio transport for JSON-RPC / MCP servers.
  *
  * `stdioTransport` wraps a step function — the `mcpStep`-shaped
- * `(value) => Effect<O, Response | null>` from `fjs/protocol/mcp/module.f.mjs` — in the
+ * `(value) => RawEffect<O, Response | null>` from `fjs/protocol/mcp/module.f.mjs` — in the
  * canonical read → parse → dispatch → write loop, expressed as a recursive
  * effect so it stays in the pure effect model and is fully testable against a
  * mock stdin / stdout (see `fjs/effects/node/virtual`) with no real process.
@@ -29,9 +29,9 @@
  *
  * @module
  *
- * @import { Effect, Operation } from '../../../effects/types.ts'
- * @import { IoError, IoResult, Read, Write } from '../../../effects/node/types.ts'
- * @import { IoEffect, NotImplemented } from '../../../effects/io/types.ts'
+ * @import { Operation } from '../../../effects/types.ts'
+ * @import { IoError, Read, Write } from '../../../effects/node/types.ts'
+ * @import { Effect, NotImplemented } from '../../../effects/io/types.ts'
  * @import { Response } from '../../json_rpc/types.ts'
  * @import { Step } from './types.ts'
  */
@@ -57,7 +57,7 @@ const parseErrorResponse = { jsonrpc, error: parseError, id: null }
 const internalErrorResponse = id => ({ jsonrpc, error: internalError, id })
 
 /** Encodes a response as a newline-terminated UTF-8 line and writes it to `stdout`.
- * @type {(resp: Response) => Effect<Write, IoResult<void>>}
+ * @type {(resp: Response) => Effect<Write, void, NotImplemented | IoError>}
  */
 const writeResponse = resp => {
     const v = tryUtf8(stringifyJson(resp) + '\n')
@@ -80,7 +80,7 @@ const writeResponse = resp => {
  *
  * @template {Operation} O
  * @param {Step<O>} handler
- * @returns {IoEffect<Read | Write | O, void, NotImplemented | IoError>}
+ * @returns {Effect<Read | Write | O, void, NotImplemented | IoError>}
  */
 export const stdioTransport = handler =>
     ioStep(
@@ -93,7 +93,7 @@ export const stdioTransport = handler =>
 /**
  * @template {Operation} O
  * @param {Step<O>} handler
- * @returns {(line: string) => IoEffect<Read | Write | O, void, NotImplemented | IoError>}
+ * @returns {(line: string) => Effect<Read | Write | O, void, NotImplemented | IoError>}
  */
 const handleLine = handler => line => {
     const [t, value] = parse(line)

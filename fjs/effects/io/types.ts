@@ -1,21 +1,20 @@
 /**
- * Type-level API for the IoEffect layer: `IoEffect`, the fallible effect
+ * Type-level API for the Effect layer: `Effect`, the fallible effect
  * abstraction whose error channel is explicit, and `NotImplemented`, the error
  * a runner answers with when it cannot dispatch an operation.
  *
  * The composition API — `step`, `catchStep`, `resultStep`, the two lifts, and
  * `mapStep` — is the sibling [`./module.f.mjs`](./module.f.mjs), whose
- * signatures the asserts at the bottom of this file pin. No operation, runner,
- * or consumer produces an `IoEffect` yet; that is stage 3 and stage 4. Why the
- * layer exists, why the `Result` sits where it does, and what is deliberately
- * absent: [`./README.md`](./README.md).
+ * signatures the asserts at the bottom of this file pin. Why the layer exists,
+ * why the `Result` sits where it does, and what is deliberately absent:
+ * [`./README.md`](./README.md).
  */
 
 import type { Assert } from '../../asserts/types.ts'
 import type { Unknown as Json } from '../../media/json/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
-import type { Do, Effect, Operation, Pure } from '../types.ts'
+import type { Do, RawEffect, Operation, Pure } from '../types.ts'
 import type { catchStep, mapStep, resultStep, step } from './module.f.mjs'
 
 /**
@@ -43,21 +42,45 @@ import type { catchStep, mapStep, resultStep, step } from './module.f.mjs'
 export type NotImplemented = readonly['notImplemented', string]
 
 /**
- * An effect with an explicit error channel: the raw {@link Effect} whose result
+ * An effect with an explicit error channel: the raw {@link RawEffect} whose result
  * is a {@link Result}.
  *
- * **This is the preferred high-level abstraction for fallible work**, and the
- * raw `Effect<O, T>` is the low-level representation it is built from. Both are
- * public during the migration — `IoEffect` for anything that can fail,
- * `Effect` for the representation and for the raw combinators in
- * [`../module.f.mjs`](../module.f.mjs).
+ * **This is the effect abstraction to reach for**, and `RawEffect<O, T>`
+ * ([`../types.ts`](../types.ts)) is the representation it is built from. Both
+ * names are public and both are load-bearing: `Effect` for anything that can
+ * fail, `RawEffect` for the representation, for the runners and `do_` that
+ * speak it, and for a computation that genuinely cannot fail — a `List` cell,
+ * a `Program`'s exit code, an MCP tool result. A channel is not free, so
+ * nothing is given one that has no failure to report.
+ *
+ * **A `Result`-valued raw effect is not automatically this one.** The alias is
+ * transparent, so `RawEffect<O, Result<T, E>>` and `Effect<O, T, E>` are the
+ * same type and the choice between them says only what the `Result` *means*.
+ * It is the effect channel — spell it `Effect` — when `E` carries
+ * {@link NotImplemented}, because that error can only have come from a runner
+ * that could not dispatch. It is ordinary returned data — leave it
+ * `RawEffect` — when `E` is a domain verdict the caller asked for and that has
+ * already absorbed whatever channel produced it: `evo.revision`'s
+ * `Result<RevisionData, string>`, where a runner failure and a blob that is
+ * not a revision are the same `string` to the caller, or the transpiler's
+ * `Result<Unknown, ParseError>`, where a missing file is reported as a parse
+ * error like any other. Collapsing the second kind into the channel would
+ * report "invalid parent hash" the way it reports a runner that cannot
+ * dispatch `memWrite`; keeping the first kind out of it hides a failure the
+ * error-propagating combinators exist to carry.
+ *
+ * **`E` defaults to {@link NotImplemented}**, the one error every operation can
+ * answer with, so the common case is written `Effect<Sandbox, T>`. The default
+ * is safe to have *now* and was not safe to have during the rename: while every
+ * site had to name its channel explicitly, an infallible computation left as
+ * `Effect<O, T>` was a compile error rather than a silent acquisition of an
+ * error channel it never wanted.
  *
  * `E` carries at least {@link NotImplemented}, and an operation with failures of
- * its own extends the channel — `IoEffect<ReadFile, Vec, NotImplemented |
- * IoError>`. That envelope belongs to the *operation's declared return type*
- * (stage 3), not to a wrapper a constructor puts around a raw operation, so
- * that a runner can eventually deliver `error(notImplemented)` through the
- * ordinary continuation.
+ * its own extends the channel — `Effect<ReadFile, Vec, NotImplemented |
+ * IoError>`. That envelope belongs to the *operation's declared return type*,
+ * not to a wrapper a constructor puts around a raw operation, so that a runner
+ * can deliver `error(notImplemented)` through the ordinary continuation.
  *
  * The alias is transparent, so every raw combinator already applies at this
  * instantiation. What the sibling module adds is the branch-aware vocabulary —
@@ -65,21 +88,21 @@ export type NotImplemented = readonly['notImplemented', string]
  * observes both. Recovery therefore never needs `try`/`catch`, which
  * FunctionalScript does not offer and whose `throw` stays reserved for panics.
  */
-export type IoEffect<O extends Operation, T, E> =
-    Effect<O, Result<T, E>>
+export type Effect<O extends Operation, T, E = NotImplemented> =
+    RawEffect<O, Result<T, E>>
 
 /** @see {@link _WidensOperations} — a second command to widen the op-set with. */
 type _AddOp = readonly['add', (a: number, b: number) => Result<number, NotImplemented>]
 
 type _MulOp = readonly['mul', (a: number, b: number) => Result<number, NotImplemented>]
 
-type _Add = IoEffect<_AddOp, number, NotImplemented>
+type _Add = Effect<_AddOp, number, NotImplemented>
 
-// The alias is transparent: an `IoEffect` *is* a raw effect whose result is a
+// The alias is transparent: an `Effect` *is* a raw effect whose result is a
 // `Result`. Nothing wraps, tags, or hides the representation, which is what
 // lets raw `step`, `match`, and `runPure` keep working at this instantiation
 // while the branch-aware operations are still being written.
-type _Transparent = Assert<Equal<_Add, Effect<_AddOp, Result<number, NotImplemented>>>>
+type _Transparent = Assert<Equal<_Add, RawEffect<_AddOp, Result<number, NotImplemented>>>>
 
 // ...so it is still the two-case union a runner discriminates, with the
 // `Result` inside the leaves rather than around them.
@@ -90,22 +113,22 @@ type _Cases = Assert<Equal<
 // The error channel widens, which is what lets `step` union `E | F` instead of
 // unifying the two sides: a branch that is passed through stays the very tuple
 // it arrived as.
-type _WidensError = Assert<_Add extends IoEffect<_AddOp, number, NotImplemented | string> ? true : false>
+type _WidensError = Assert<_Add extends Effect<_AddOp, number, NotImplemented | string> ? true : false>
 
 // ...and it widens in that direction only. A wider channel is not silently
 // usable where a narrower one is declared, so an unhandled error type is a
 // compile error rather than a value nobody looked at.
 type _NarrowsError = Assert<Equal<
-    IoEffect<_AddOp, number, NotImplemented | string> extends _Add ? true : false,
+    Effect<_AddOp, number, NotImplemented | string> extends _Add ? true : false,
     false>>
 
 // The success channel widens too — `catchStep` unions `T | R` for the same
 // reason `step` unions the errors.
-type _WidensOk = Assert<_Add extends IoEffect<_AddOp, number | string, NotImplemented> ? true : false>
+type _WidensOk = Assert<_Add extends Effect<_AddOp, number | string, NotImplemented> ? true : false>
 
-// `Effect`'s covariance in `O` survives the alias, so an effect keeps composing
+// `RawEffect`'s covariance in `O` survives the alias, so an effect keeps composing
 // with one that requests further commands.
-type _WidensOperations = Assert<_Add extends IoEffect<_AddOp | _MulOp, number, NotImplemented> ? true : false>
+type _WidensOperations = Assert<_Add extends Effect<_AddOp | _MulOp, number, NotImplemented> ? true : false>
 
 // The composition signatures, checked rather than merely declared. The union
 // rules are the subtle part of this layer — a "simplification" that unified an
@@ -117,26 +140,26 @@ type _WidensOperations = Assert<_Add extends IoEffect<_AddOp | _MulOp, number, N
 // type with the continuation's.
 type _StepSig = Assert<Equal<
     ReturnType<typeof step<_AddOp, number, NotImplemented, _MulOp, string, string>>,
-    IoEffect<_AddOp | _MulOp, string, NotImplemented | string>>>
+    Effect<_AddOp | _MulOp, string, NotImplemented | string>>>
 
 // `catchStep` mirrors it: the success channel is the union of the preserved
 // value and the recovery's, and the error type is the recovery's alone —
 // `never` when every error is handled.
 type _CatchStepSig = Assert<Equal<
     ReturnType<typeof catchStep<_AddOp, number, NotImplemented, _MulOp, string, never>>,
-    IoEffect<_AddOp | _MulOp, number | string, never>>>
+    Effect<_AddOp | _MulOp, number | string, never>>>
 
 // `resultStep` consumes both branches, so it replaces both channels and unions
 // only the operation sets.
 type _ResultStepSig = Assert<Equal<
     ReturnType<typeof resultStep<_AddOp, number, NotImplemented, _MulOp, string, string>>,
-    IoEffect<_AddOp | _MulOp, string, string>>>
+    Effect<_AddOp | _MulOp, string, string>>>
 
 // `mapStep` widens nothing: a pure projection issues no commands and cannot
 // fail, so only the success type changes.
 type _MapStepSig = Assert<Equal<
     ReturnType<typeof mapStep<_AddOp, number, NotImplemented, string>>,
-    IoEffect<_AddOp, string, NotImplemented>>>
+    Effect<_AddOp, string, NotImplemented>>>
 
 // `NotImplemented` is JSON data. This is the assert the "command name only"
 // rule exists to keep true: an operation's payload may hold functions, and

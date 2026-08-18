@@ -15,7 +15,7 @@
  *
  * @import { Unknown } from '../../media/json/types.ts'
  * @import { Ts } from '../../types/rtti/ts/types.ts'
- * @import { Operation, Effect } from '../../effects/types.ts'
+ * @import { Operation, RawEffect } from '../../effects/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Response, Id, RpcError } from '../json_rpc/types.ts'
  * @import { Type } from '../../types/rtti/types.ts'
@@ -159,14 +159,14 @@ export const toolsCallResult = /** @type {const} */ ({
  * @param {string} name - The tool name (used in `tools/call` requests)
  * @param {string} description - Human-readable description for `tools/list`
  * @param {T} inputRtti - Runtime type info for input validation
- * @param {(args: Ts<T>) => Effect<O, ToolsCallResult>} handle - Handler receiving validated arguments of type `Ts<inputRtti>`
+ * @param {(args: Ts<T>) => RawEffect<O, ToolsCallResult>} handle - Handler receiving validated arguments of type `Ts<inputRtti>`
  * @returns {ToolEntry<O>} A `ToolEntry` ready to be added to a registry
  */
 export const toolEntry = (name, description, inputRtti, handle) => ({
     name,
     description,
     inputRtti,
-    /** @type {(a: Unknown) => Effect<O, ToolsCallResult>} */
+    /** @type {(a: Unknown) => RawEffect<O, ToolsCallResult>} */
     handle: a => {
         const [t, r] = parse(/** @type {any} */ (inputRtti))(a)
         return t === 'error'
@@ -246,7 +246,7 @@ export const uninitializedState = ['uninitialized']
  * State-machine step for an MCP session using memory effects.
  *
  * Given configuration, handlers, and a memory key holding the session state,
- * returns a function `(value) => Effect<MemOp | O, Response | null>`.
+ * returns a function `(value) => RawEffect<MemOp | O, Response | null>`.
  *
  * Rules:
  * - `ping` returns an empty success regardless of session state; non-object
@@ -263,7 +263,7 @@ export const uninitializedState = ['uninitialized']
  *   to the handler; invalid params → -32602.
  *
  * @param {McpConfig} config
- * @returns {<O extends Operation>(handlers: McpHandlers<O>) => (stateKey: Key<McpSessionState>) => (value: Unknown) => Effect<MemOp | O, Response | null>}
+ * @returns {<O extends Operation>(handlers: McpHandlers<O>) => (stateKey: Key<McpSessionState>) => (value: Unknown) => RawEffect<MemOp | O, Response | null>}
  */
 export const mcpStep = ({
         protocolVersion,

@@ -1,8 +1,8 @@
 /**
- * @import { Effect, Operation } from './types.ts'
+ * @import { RawEffect, Operation } from './types.ts'
  */
 
-import { step, do_, foldStep, forEachStep, mapStep, match, okStep, history, pure, runPure, historyStep } from './module.f.mjs'
+import { step, do_, foldStep, forEachStep, mapStep, match, history, pure, runPure, historyStep } from './module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
@@ -15,7 +15,7 @@ import { assert, assertEq } from '../asserts/module.f.mjs'
  * the option's shape first, then compare the value inside it.
  * @template {Operation} O
  * @template T
- * @param {Effect<O, T>} e
+ * @param {RawEffect<O, T>} e
  * @param {T} expected
  */
 export const assertPure = (e, expected) => {
@@ -26,7 +26,7 @@ export const assertPure = (e, expected) => {
 
 /** @typedef {readonly['add', (a: number, b: number) => number]} _AddOp */
 
-/** @type {(command: 'add') => (a: number, b: number) => Effect<_AddOp, number>} */
+/** @type {(command: 'add') => (a: number, b: number) => RawEffect<_AddOp, number>} */
 const doAdd = do_
 
 const next = match({ add: (a, b) => a + b })
@@ -40,7 +40,7 @@ const next = match({ add: (a, b) => a + b })
  * @typedef {readonly[string, (a: number) => number]} _AnyOp
  */
 
-/** @type {(command: string) => (a: number) => Effect<_AnyOp, number>} */
+/** @type {(command: string) => (a: number) => RawEffect<_AnyOp, number>} */
 const doAny = do_
 
 const anyNext = match({ add: a => a + 1 })
@@ -68,27 +68,6 @@ export const proof = {
         runs: () => {
             const e = forEachStep(pure([1, 2, 3]), () => pure(undefined))
             assertPure(e, undefined)
-        },
-    },
-    okStep: {
-        ok: () => {
-            const e = step(pure(ok(5)), okStep((/** @type {number} */ v) => pure(ok(v * 2))))
-            const o = runPure(e)
-            assert(o.length === 1, e)
-            const [r] = o
-            assert(r[0] === 'ok', r)
-            assertEq(r[1], 10)
-        },
-        error: () => {
-            const e = step(
-                pure(error('oops')),
-                okStep(/** @type {(value: number) => Effect<never, import('../types/result/types.ts').Result<number, string>>} */
-                    (v => pure(ok(v * 2)))))
-            const o = runPure(e)
-            assert(o.length === 1, e)
-            const [r] = o
-            assert(r[0] === 'error', r)
-            assertEq(r[1], 'oops')
         },
     },
     runPure: {
