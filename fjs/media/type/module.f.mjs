@@ -46,7 +46,7 @@
 
 import { msb, length, u8List } from '../../types/bit_vec/module.f.mjs'
 import { iterable } from '../../types/list/module.f.mjs'
-import { pureOk, step as ioStep } from '../../effects/io/module.f.mjs'
+import { pureOk, step as ioStep } from '../../effects/module.f.mjs'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
 

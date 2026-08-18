@@ -13,7 +13,7 @@
 import { transpile } from './transpiler/module.f.mjs'
 import { stringify, stringifyAsTree } from './serializer/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
-import { resultStep } from '../effects/io/module.f.mjs'
+import { resultStep } from '../effects/module.f.mjs'
 import { errorExit, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 
 /** @typedef {ReadFile | WriteFile | Write} _CompileOp */

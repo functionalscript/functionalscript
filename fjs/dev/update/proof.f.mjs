@@ -8,7 +8,7 @@ import { utf8 } from '../../text/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { main, syncMcp } from './module.f.mjs'
-import { step as ioStep } from '../../effects/io/module.f.mjs'
+import { step as ioStep } from '../../effects/module.f.mjs'
 
 const mcp = /** @type {const} */ ('{"servers":{}}')
 const initial = /** @type {const} */ ({

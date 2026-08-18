@@ -9,7 +9,7 @@
 import { empty, isVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
-import { mapStep, step as ioStep } from "../io/module.f.mjs"
+import { mapStep, step as ioStep } from "../module.f.mjs"
 import { both, errorMessage, errorSummary, exitStep, fetch, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, toIoError, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"

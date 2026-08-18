@@ -21,7 +21,7 @@ import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import {
     catchStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step,
-} from '../effects/io/module.f.mjs'
+} from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
@@ -257,7 +257,7 @@ const exitCodeStep = e =>
  * `runModuleMap`. The composed effect is a `NodeProgram` entry point for the
  * `fjs t` test runner.
  *
- * The chain leaves the Io layer here, because this is where a `Program` ends
+ * The chain leaves the error channel here, because this is where a `Program` ends
  * and a `Program`'s answer is an exit code rather than a `Result`. A run that
  * could not report its own results is a failed run, so it exits `1` with the
  * reason on `stderr` instead of unwinding as a panic.
@@ -404,7 +404,7 @@ export const defaultReporter = options => {
                 ? csiLog(fmtResultLine(file, path, fgGreen, 'ok', duration) + (throws ? ' # EXPECTED TO THROW' : ''))
                 : isGitHub
                     ? csiError(`::error file=${file},line=1,title=${ghEscape(fmtImport(file, path))}::${ghEscape(String(v))}`)
-                    // Io `step`, so the detail line is attempted only when the
+                    // `step`, so the detail line is attempted only when the
                     // header line was written: two halves of one report, and
                     // half of it is worse than none.
                     : step(

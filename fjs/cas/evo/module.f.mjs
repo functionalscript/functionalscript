@@ -64,7 +64,7 @@ import {
     pureOk,
     resultMapStep,
     step as ioStep,
-} from '../../effects/io/module.f.mjs'
+} from '../../effects/module.f.mjs'
 import { create, read, write } from '../../effects/memory/module.f.mjs'
 import { collectRead } from '../module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
@@ -327,7 +327,7 @@ const resolveParent = cas => parentRef => {
 /**
  * Resolves and validates every entry of `parents`, in order, short-circuiting on the first failure.
  *
- * Short-circuiting is the Io `foldStep`'s, not this function's. It used to be
+ * Short-circuiting is `foldStep`'s, not this function's. It used to be
  * two hand-written `[0] === 'error'` tests, which is what a verdict costs when
  * it rides in the value instead of the channel.
  *

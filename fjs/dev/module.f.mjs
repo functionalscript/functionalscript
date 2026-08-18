@@ -12,7 +12,7 @@
 import { allOk, import_, readdir } from '../effects/node/module.f.mjs'
 import { cmp as strCmp } from '../types/string/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
-import { mapStep, pureOk, step } from '../effects/io/module.f.mjs'
+import { mapStep, pureOk, step } from '../effects/module.f.mjs'
 import { join, relativize, toPosix } from '../path/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'

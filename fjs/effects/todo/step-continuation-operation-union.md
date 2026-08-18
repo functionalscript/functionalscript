@@ -31,7 +31,7 @@ shaped `Q`:
 
 A branch returning `pure(error(…))` infers `Effect<never, Error<string>>`, and a
 branch returning an effect infers its own operation set; the two do not join to
-the declared union without help. The Io `step`'s own body shows the same shape.
+the declared union without help. `step`'s own body shows the same shape.
 
 Each cast is an override, not a check: if a continuation ever gains an operation
 the runner cannot interpret, the cast hides it and the failure surfaces as a

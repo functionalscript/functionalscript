@@ -758,25 +758,26 @@ than a single access.
 
 ### 3.4 Effects (`fjs/effects`)
 
-**There is one effect type.** `Effect<O, T, E>` (`fjs/effects/types.ts`) is a
-`Pure` thunk yielding `Result<T, E>` or a `Do` node — the error channel is part
-of the representation, not a wrapper over it. `E` defaults to `NotImplemented`.
+**There is one effect type, in one module.** `Effect<O, T, E>`
+(`fjs/effects/types.ts`) is a `Pure` thunk yielding `Result<T, E>` or a `Do`
+node — the error channel is part of the representation, not a wrapper over it.
+`E` defaults to `NotImplemented`. `fjs/effects/module.f.mjs` holds all of it:
+the representation, the interpreters `match` / `partialMatch` / `runPure`, and
+the combinators.
 
-**Compose it through `fjs/effects/io`.** `step` runs the continuation only on
-`ok`, propagating an `error` on its own. Reach for `catchStep` where a failure
-has a real fallback, `resultStep` where both branches genuinely matter,
-`mapStep` for a trailing projection over the value, `resultMapStep` for one that
-decides the outcome from both branches, and `unwrapStep` only where panicking is
-the considered answer. See
-[`fjs/effects/io/README.md`](./effects/io/README.md).
-`fjs/effects/module.f.mjs` holds the representation and its interpreters —
-`pure`, `do_`, `match`, `partialMatch`, `runPure` — and no combinators.
+**Compose with `step`**, which runs the continuation only on `ok` and
+propagates an `error` on its own. Reach for `catchStep` where a failure has a
+real fallback, `resultStep` where both branches genuinely matter, `mapStep` for
+a trailing projection over the value, `resultMapStep` for one that decides the
+outcome from both branches, and `unwrapStep` only where panicking is the
+considered answer. See [`fjs/effects/README.md`](./effects/README.md).
 
-There used to be two of each combinator, a `Result`-blind set beside these. They
-were a trap rather than a layer: an operation must return a `Result`, so every
-effect carries one, and a `step` that ignored it would run the next link after a
-failed one. `resultStep` **is** that former raw `step`, at the type that says
-what its continuation receives.
+There used to be two of each combinator, a `Result`-blind set in this module and
+a branch-aware set in an `fjs/effects/io/` subdirectory. They were a trap rather
+than a layer: an operation must return a `Result`, so every effect carries one,
+and a `step` that ignored it would run the next link after a failed one.
+`resultStep` **is** that former raw `step`, at the type that says what its
+continuation receives — and with the collision gone, so is the subdirectory.
 
 Nothing "genuinely cannot fail". A `List` cell and a `Program`'s exit code were
 once listed here as such; both carry channels now, and so does every **absorb

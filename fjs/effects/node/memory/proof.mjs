@@ -15,7 +15,7 @@ import {
 import { memoryOperationMap, run } from './module.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { unwrap } from "../../../types/result/module.f.mjs"
-import { step, unwrapStep } from '../../io/module.f.mjs'
+import { step, unwrapStep } from '../../module.f.mjs'
 
 export const proof = {
     nodeInterpreter: async () => {

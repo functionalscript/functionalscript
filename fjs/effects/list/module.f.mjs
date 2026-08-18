@@ -10,7 +10,7 @@
  * @import { List, Next } from "./types.ts"
  */
 
-import { pureOk } from "../io/module.f.mjs"
+import { pureOk } from "../module.f.mjs"
 
 /**
  * The empty `List`: a pure end-of-stream marker (`undefined`).

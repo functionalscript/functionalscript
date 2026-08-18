@@ -36,7 +36,7 @@
  * @import { Step } from './types.ts'
  */
 
-import { pureError, pureOk, resultStep, step } from '../../../effects/io/module.f.mjs'
+import { pureError, pureOk, resultStep, step } from '../../../effects/module.f.mjs'
 import { ioError, readLine, write } from '../../../effects/node/module.f.mjs'
 import { tryUtf8 } from '../../../text/module.f.mjs'
 import { parse, stringify } from '../../../media/json/module.f.mjs'

@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** open
 
-> **The API has landed.** `mapStep` is in `fjs/effects/io/module.f.mjs` with
+> **The API has landed.** `mapStep` is in `fjs/effects/module.f.mjs` with
 > proof coverage (it was in `fjs/effects/module.f.mjs` when this was written,
 > before that module gave up its combinators), and its first real consumers were
 > converted in the same change —
@@ -14,7 +14,7 @@
 
 ### Problem
 
-`fjs/effects/io/module.f.mjs` ships `step` (bind) — `pure` (return) is in
+`fjs/effects/module.f.mjs` ships `step` (bind) — `pure` (return) is in
 `fjs/effects/module.f.mjs` with the representation — plus the derived
 combinators `historyStep`, `foldStep`, `forEachStep` and `mapStep`, the functor
 `map`: "run the effect, then apply a
@@ -112,6 +112,6 @@ conversion as one 14-module diff.
   projection (`() => undefined`).
 - [fold-stream-combinator](./fold-stream-combinator.md) — its pure consumers
   (`detectStream`, `collectRead`) end in `pure(ok(...))` projections.
-- `fjs/effects/io/module.f.mjs` — `mapStep`, `step`, `historyStep`, `foldStep`,
+- `fjs/effects/module.f.mjs` — `mapStep`, `step`, `historyStep`, `foldStep`,
   `forEachStep`, and the "do not nest steps" rule in its header.
 </content>

@@ -27,7 +27,7 @@ import {
     resultMapStep,
     resultStep,
     step as ioStep,
-} from '../effects/io/module.f.mjs'
+} from '../effects/module.f.mjs'
 import {
     access,
     createExclusive,

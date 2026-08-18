@@ -13,7 +13,7 @@ import { sha256 } from '../../crypto/sha2/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 
 import { errorExit, exitStep, log, writeFromStream } from '../../effects/node/module.f.mjs'
-import { forEachStep, step as ioStep } from '../../effects/io/module.f.mjs'
+import { forEachStep, step as ioStep } from '../../effects/module.f.mjs'
 import { dispatch } from '../../cli/module.f.mjs'
 import { casAddFile, fileCas } from '../module.f.mjs'
 

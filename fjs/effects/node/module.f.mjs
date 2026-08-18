@@ -26,7 +26,7 @@ import { error as resultError, ok as resultOk, unwrap } from '../../types/result
 import { do_, pure } from '../module.f.mjs'
 import {
     mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
-} from '../io/module.f.mjs'
+} from '../module.f.mjs'
 
 /**
  * Builds a normalized host error. The constructor exists so the shape is
@@ -153,7 +153,7 @@ const okList = list => {
  * **Every effect still runs.** The short-circuit is in the *result*, not in the
  * execution: `all` performs them concurrently and this reads the answers once
  * they are all in, so a failure does not cancel its siblings the way it stops
- * the sequential `forEachStep` in `../io/module.f.mjs`. The error channel
+ * the sequential `forEachStep` in `./module.f.mjs`. The error channel
  * unions the runner's
  * `NotImplemented` with the effects' own `E` for the same reason every other
  * step does — either can be what went wrong.

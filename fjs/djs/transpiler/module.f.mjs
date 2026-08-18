@@ -24,7 +24,7 @@ import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { run } from '../ast/module.f.mjs'
 import { pure } from '../../effects/module.f.mjs'
-import { catchStep, foldStep, mapStep, pureError, pureOk, step } from '../../effects/io/module.f.mjs'
+import { catchStep, foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 
 /**

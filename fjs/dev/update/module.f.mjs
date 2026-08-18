@@ -9,7 +9,7 @@
 
 
 import { exitStep, mkdir, readUtf8File, writeUtf8File } from '../../effects/node/module.f.mjs'
-import { history, historyStep, step } from '../../effects/io/module.f.mjs'
+import { history, historyStep, step } from '../../effects/module.f.mjs'
 
 const source = /** @type {const} */ ('.copilot/mcp.json')
 const targetDirectory = /** @type {const} */ ('.vscode')

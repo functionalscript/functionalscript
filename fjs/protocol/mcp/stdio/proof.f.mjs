@@ -8,7 +8,7 @@
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { pure } from '../../../effects/module.f.mjs'
-import { pureOk } from '../../../effects/io/module.f.mjs'
+import { pureOk } from '../../../effects/module.f.mjs'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
 import { stringify } from '../../../media/json/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'

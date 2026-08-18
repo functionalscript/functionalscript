@@ -63,7 +63,7 @@ by a one-line JSDoc claim, as above. No fragment extraction.
 
 - [fold-stream-combinator](../../effects/todo/fold-stream-combinator.md) —
   covers the chunk loop; this issue covers the remaining nested helpers.
-- The Io `step` (`fjs/effects/io/module.f.mjs`) already short-circuits a step
+- `step` (`fjs/effects/module.f.mjs`) already short-circuits a step
   inside `write` (`createExclusive`). This once named `okStep`, an adapter in
   the raw module; it was inlined into that `step`, which is the only caller it
   ever had.

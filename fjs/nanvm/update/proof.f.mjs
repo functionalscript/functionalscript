@@ -6,7 +6,7 @@
 
 import { exitCode } from '../../effects/node/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { step as ioStep } from '../../effects/io/module.f.mjs'
+import { step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import {
     defaultNodeProgramOptions,

@@ -29,7 +29,7 @@ return mapStep(all(...tests.map(e => registerOne(ctx, e))), () => undefined)
 return mapStep(all(...modules.map(([k, v]) => registerModule(ctx, k, v, star))), () => undefined)
 ```
 
-`fjs/effects/io/module.f.mjs` already ships `forEachStep` (the *sequential* void
+`fjs/effects/module.f.mjs` already ships `forEachStep` (the *sequential* void
 combinator), and [allreduce-combinator](./allreduce-combinator.md)
 covers the parallel *reduce* variant — but the parallel *void* sibling is
 missing, so every call site re-spells the whole fan-out-then-discard dance.
@@ -38,7 +38,7 @@ missing, so every call site re-spells the whole fan-out-then-discard dance.
 
 Add the void sibling in `fjs/effects/node/module.f.mjs`, next to `all` /
 `All` / `both`. It cannot live next to `forEachStep` in
-`fjs/effects/io/module.f.mjs`: `all`/`All` are defined in the node module,
+`fjs/effects/module.f.mjs`: `all`/`All` are defined in the node module,
 which already imports the effect modules — placing `allVoid` in one of them
 would invert that dependency. (`fjs/emergent_testing` already imports `all` from
 the node module, so the call sites need no new import path.)
@@ -80,4 +80,4 @@ duplicating the `all(...map)` core — whichever reads better.
 
 - [allreduce-combinator](./allreduce-combinator.md) — the aggregating
   sibling; `allVoid` discards.
-- `fjs/effects/io/module.f.mjs` — `forEachStep`, the sequential sibling.
+- `fjs/effects/module.f.mjs` — `forEachStep`, the sequential sibling.

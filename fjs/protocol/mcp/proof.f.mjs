@@ -15,7 +15,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
-import { history, historyStep, mapStep, pureOk, step } from '../../effects/io/module.f.mjs'
+import { history, historyStep, mapStep, pureOk, step } from '../../effects/module.f.mjs'
 import { error, ok, unwrap as unwrapResult } from '../../types/result/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { internalError } from '../json_rpc/module.f.mjs'
@@ -92,7 +92,7 @@ const asMemEffect = e => /** @type {Effect<MemOp, any, any>} */ (e)
 /** @type {(key: Key<McpSessionState>) => (e: Effect<Operation, unknown, never>) => Effect<Operation, _StepResult, NotImplemented>} */
 const withState = key => e => {
     const read0 = historyStep(history(e), () => read(key))
-    // An Io history holds `ok` values, so `resp` is the response itself rather
+    // A history holds `ok` values, so `resp` is the response itself rather
     // than a `Result` around it: a failed link short-circuits, contributing
     // nothing to the tuple and skipping this projection with it.
     return mapStep(read0, ([state, resp]) => /** @type {const} */ ([resp, state]))

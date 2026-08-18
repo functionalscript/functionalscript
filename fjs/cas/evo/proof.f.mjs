@@ -17,7 +17,7 @@ import {
     assertStructurallySame,
 } from '../../asserts/module.f.mjs'
 import { pure } from '../../effects/module.f.mjs'
-import { pureError } from '../../effects/io/module.f.mjs'
+import { pureError } from '../../effects/module.f.mjs'
 import { ioError } from '../../effects/node/module.f.mjs'
 import { fileCas } from '../module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'

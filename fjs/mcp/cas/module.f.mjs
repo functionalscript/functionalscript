@@ -111,7 +111,7 @@
 
 import { string, option, or, boolean } from '../../types/rtti/module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
-import { pureOk, resultStep } from '../../effects/io/module.f.mjs'
+import { pureOk, resultStep } from '../../effects/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'

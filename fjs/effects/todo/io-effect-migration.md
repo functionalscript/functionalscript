@@ -5,7 +5,7 @@
 
 Kept rather than deleted, which its own last line used to instruct. Two live
 documents cite it for why the layer exists —
-[`../io/README.md`](../io/README.md) and
+[`../README.md`](../README.md) and
 [`spec/todo/io-effects.md`](../../../spec/todo/io-effects.md) — so it is the
 migration's record now rather than an open task, and deleting it would break
 both.
@@ -190,8 +190,8 @@ module so they can already use their final names.
 
 ## Stage 1. Introduce `IoEffect`
 
-**Done.** The stage landed as `fjs/effects/io/types.ts` plus
-[`fjs/effects/io/README.md`](../io/README.md); it is types only, so no
+**Done.** The stage landed as `fjs/effects/types.ts` plus
+[`fjs/effects/README.md`](../README.md); it is types only, so no
 operation, runner, or consumer changed.
 
 - [x] Add `IoEffect<O, T, E> = Effect<O, Result<T, E>>`.
@@ -214,7 +214,7 @@ fails to compile rather than merely contradicting a comment).
 
 ## Stage 2. Add IoEffect operations
 
-**Done.** The stage landed as `fjs/effects/io/module.f.mjs` and its proof.
+**Done.** The stage landed as `fjs/effects/module.f.mjs` and its proof.
 
 - [x] Add IoEffect `step`, `catchStep`, and `resultStep` with the signatures
       pinned above.
@@ -316,7 +316,7 @@ them to `IoResult` is a behavior change and belongs in its own issue.
 **The value-discarding sweep needed a vocabulary for policy**, since a site
 that discarded the outcome had to start stating what it wants instead:
 
-- `unwrapStep` (`fjs/effects/io/module.f.mjs`) — leave the layer by panicking.
+- `unwrapStep` (`fjs/effects/module.f.mjs`) — leave the layer by panicking.
   It is one greppable name rather than an `unwrap` buried in a continuation, so
   the set of sites that have *not* yet chosen a real policy is exactly the set
   Stage 4 has to visit.
@@ -428,7 +428,7 @@ and load-bearing, not an implementation detail.
 > `Operation` requires a `Result` return, so the payload the representation is
 > generic over is always a `Result`, and the second name described no reachable
 > case while giving every combinator a `Result`-blind twin. `Effect<O, T, E>` is
-> the representation now — see [`../io/README.md`](../io/README.md) and its doc
+> the representation now — see [`../README.md`](../README.md) and its doc
 > in [`../types.ts`](../types.ts).
 >
 > The arithmetic above is also wrong, and worth keeping as a warning. Of those
@@ -469,7 +469,7 @@ Effect<O, T, E = NotImplemented>   // the Pure | Do representation, channel incl
 - [x] Remove migration-only raw APIs after their consumers are gone —
       `okStep` was the only one, inlined into the Io `step` that called it.
 - [x] Update docs, examples, AGENTS.md, and CHANGELOG as needed for the
-      breaking change — `fjs/AGENTS.md` §3.4, `fjs/effects/io/README.md`, and
+      breaking change — `fjs/AGENTS.md` §3.4, `fjs/effects/README.md`, and
       the module docs.
 - [x] Sweep the design docs that still spell the old names in proposed code:
       the `todo/*.md` under `fjs/effects`, `fjs/cas`, `fjs/protocol/mcp` and

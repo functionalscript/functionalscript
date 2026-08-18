@@ -1,13 +1,13 @@
 # `Effect` — effects with an explicit error channel
 
-`Effect<O, T, E>` ([`../types.ts`](../types.ts)) is a `Pure` thunk yielding
+`Effect<O, T, E>` ([`./types.ts`](./types.ts)) is a `Pure` thunk yielding
 `Result<T, E>` or a `Do` node: the failure is part of the representation, not a
-wrapper around it. There is one effect type, and this directory is its
-**composition API** — [`../module.f.mjs`](../module.f.mjs) holds the
-representation and its interpreters.
+wrapper around it. One type, one module —
+[`./module.f.mjs`](./module.f.mjs) holds the representation, its interpreters
+and the combinators alike.
 
-It was two types. A payload-generic `RawEffect<O, T>` sat underneath, and
-`Effect` was an alias for `RawEffect<O, Result<T, E>>`; the division was called
+**It was two of each.** A payload-generic `RawEffect<O, T>` sat underneath, with
+`Effect` an alias for `RawEffect<O, Result<T, E>>`, and the division was called
 *composition* against *representation*. But an operation must return a `Result`,
 so the payload a runner is generic over is always a `Result` — the second name
 described no reachable case, while giving every combinator a `Result`-blind twin
@@ -15,10 +15,13 @@ that would run the next link after a failed one. Nothing "genuinely cannot
 fail": a `List` cell, a `Program`'s exit code, and an MCP tool result were each
 named here as such, and all three carry channels now.
 
-This directory is the layer itself — the types ([`./types.ts`](./types.ts)) and
-the composition API ([`./module.f.mjs`](./module.f.mjs)) — from the migration
-planned in
-[`../todo/io-effect-migration.md`](../todo/io-effect-migration.md), which is
+The combinators lived in an `io/` subdirectory while that lasted, because their
+`step` collided by name with the `Result`-blind one. It was never an IO layer —
+the name came from its being the *fallible* half — and with the twins gone there
+was neither a collision nor a second module to justify.
+
+The migration is recorded in
+[`./todo/io-effect-migration.md`](./todo/io-effect-migration.md) and is
 complete: every operation declares a `Result` return, every runner answers with
 one, and every consumer composes with `step` / `catchStep` / `resultStep`
 instead of stating a policy per site.
@@ -57,7 +60,7 @@ Three branch-aware operations, in [`./module.f.mjs`](./module.f.mjs):
 - `resultStep` — continue with the complete `Result`. Both paths, explicitly.
 
 The union rules follow `okThen` in
-[`../../types/result/module.f.mjs`](../../types/result/module.f.mjs): error
+[`../types/result/module.f.mjs`](../types/result/module.f.mjs): error
 types are **unioned, not unified**, so neither side is pre-widened and a branch
 that is passed through stays the very tuple it arrived as. `step` unions the
 error channel and replaces the success type; `catchStep` mirrors it, unioning
@@ -66,13 +69,12 @@ branches and replaces both. `types.ts` pins each of those signatures at a
 concrete instantiation, so a "simplification" that unified an error channel
 fails there rather than at some future call site.
 
-The composition API lives here and the representation lives next door: `pure`,
-`do_`, `match`, `partialMatch`, and `runPure` are in
-[`../module.f.mjs`](../module.f.mjs), which exports no combinator at all. That
-module used to export a second `step`, `mapStep`, `history`, `historyStep`,
-`foldStep` and `forEachStep` — the `Result`-blind twins — and the name collision
-is why the two directories exist. The twins are gone; the split now runs along
-representation against composition, which is what it always claimed to describe.
+The composition API and the representation share one module: `pure`, `do_`,
+`match`, `partialMatch` and `runPure` sit beside `step` and the rest in
+[`./module.f.mjs`](./module.f.mjs). They were split while that module also
+exported `Result`-blind twins of `step`, `mapStep`, `history`, `historyStep`,
+`foldStep` and `forEachStep`, since the names collided. The twins are gone, and
+so is the split.
 
 ### `resultStep` is the primitive
 
@@ -154,7 +156,7 @@ rather than discard it:
   `unwrap` buried in a continuation, so a site that has not chosen a real
   policy is exactly a site this name marks. The library has none left; the
   remaining calls are in test harnesses, where a missing fixture is fatal.
-- `exitStep` / `errorMessage` (`../node/module.f.mjs`) — a `NodeProgram`'s
+- `exitStep` / `errorMessage` (`./node/module.f.mjs`) — a `NodeProgram`'s
   exit-code policy: report the failure on `stderr` and exit `1`.
 
 Neither is composition, and neither should grow: a consumer that can do
@@ -175,6 +177,5 @@ what is still absent, and why.
   union has no third case meaning "not yet decided". That is the representation,
   not a gap in this API — a caller who needs to name a composition without
   performing it keeps the ingredients and defers the step itself.
-- **No second, `Result`-blind API.** There was one, in
-  [`../module.f.mjs`](../module.f.mjs), and it is gone: see the top of this file
-  for why one effect type means one set of combinators.
+- **No second, `Result`-blind API.** There was one, and it is gone: see the top
+  of this file for why one effect type means one set of combinators.

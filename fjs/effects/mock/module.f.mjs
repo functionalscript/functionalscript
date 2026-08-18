@@ -10,7 +10,7 @@
  */
 
 import { match, partialMatch } from "../module.f.mjs"
-import { notImplemented } from "../io/module.f.mjs"
+import { notImplemented } from "../module.f.mjs"
 import { error } from "../../types/result/module.f.mjs"
 
 /** @type {<O extends Operation, S>(o: MemOperationMap<O, S>) => RunInstance<O, S>} */

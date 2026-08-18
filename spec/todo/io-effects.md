@@ -24,7 +24,7 @@ behaviour:
 |------|-----|
 |[`fjs/effects/types.ts`](../../fjs/effects/types.ts)|the `Effect` type and its invariants|
 |[`fjs/effects/module.f.mjs`](../../fjs/effects/module.f.mjs)|the representation and its interpreters: `pure`, `do_`, `match`, `partialMatch`, `runPure`|
-|[`fjs/effects/io/module.f.mjs`](../../fjs/effects/io/module.f.mjs)|the combinators: `step`, `catchStep`, `resultStep` and the rest|
+|[`fjs/effects/module.f.mjs`](../../fjs/effects/module.f.mjs)|the combinators: `step`, `catchStep`, `resultStep` and the rest|
 
 ## 5.1. `Effect` — the value
 
@@ -112,7 +112,7 @@ observes nothing — and it is why a `defer` combinator cannot exist here: the
 third case meaning "not yet decided".
 
 The remaining combinators are `step` specializations, and
-[`fjs/effects/io/module.f.mjs`](../../fjs/effects/io/module.f.mjs) documents each
+[`fjs/effects/module.f.mjs`](../../fjs/effects/module.f.mjs) documents each
 one: `mapStep` (a pure projection ending a chain), `resultMapStep` (the same over
 both branches), `historyStep` (carries earlier values forward so a later link can
 read them without nesting), `foldStep` and `forEachStep` (sequential iteration).

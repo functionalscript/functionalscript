@@ -14,7 +14,7 @@
 
 
 import { exitStep, mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
-import { step } from '../../effects/io/module.f.mjs'
+import { step } from '../../effects/module.f.mjs'
 import { data } from '../module.f.mjs'
 import { directory, generate, path } from '../rust/module.f.mjs'
 

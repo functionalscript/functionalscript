@@ -13,7 +13,7 @@
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
-import { pureOk, step } from '../effects/io/module.f.mjs'
+import { pureOk, step } from '../effects/module.f.mjs'
 import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, string as rttiString } from '../types/rtti/module.f.mjs'

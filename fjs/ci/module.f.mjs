@@ -12,9 +12,9 @@
  * @import { Effect } from '../effects/types.ts'
  */
 
-import { resultStep } from '../effects/io/module.f.mjs'
+import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
-import { step as ioStep } from '../effects/io/module.f.mjs'
+import { step as ioStep } from '../effects/module.f.mjs'
 import { functionalscript, images } from './config/module.f.mjs'
 import {
     architecture,

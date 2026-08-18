@@ -10,7 +10,7 @@ import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, read
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { emptyState, virtual } from './module.f.mjs'
 import { do_ } from '../../module.f.mjs'
-import { catchStep } from '../../io/module.f.mjs'
+import { catchStep } from '../../module.f.mjs'
 
 /**
  * Asserts that a channel error is a host failure carrying `message` — the
