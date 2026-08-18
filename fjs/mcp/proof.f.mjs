@@ -13,6 +13,7 @@
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { mapStep as rawMapStep, pure, step } from '../effects/module.f.mjs'
 import { unwrapStep } from '../effects/io/module.f.mjs'
+import { errorSummary } from '../effects/node/module.f.mjs'
 import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { number as rttiNumber, option, string as rttiString } from '../types/rtti/module.f.mjs'
@@ -81,7 +82,7 @@ const runSessionVirtual =
         const effect = step(
             rawMapStep(initEvo(fileCas(sha256)(home)), unwrapResult),
             cacheKey => step(
-                unwrapStep(create(uninitializedState)),
+                unwrapStep(create(uninitializedState), errorSummary),
                 sessionKey => {
                     const step = mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)
                     return feed(step)(msgs)
@@ -144,7 +145,7 @@ const runStdio =
         const effect = step(
             rawMapStep(initEvo(fileCas(sha256)(home)), unwrapResult),
             cacheKey => step(
-                unwrapStep(create(uninitializedState)),
+                unwrapStep(create(uninitializedState), errorSummary),
                 sessionKey =>
                     stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))
             )

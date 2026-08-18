@@ -7,6 +7,7 @@
  */
 
 import { asyncRun } from '../../module.mjs'
+import { errorSummary } from '../module.f.mjs'
 import {
     asNominal,
     create, read, write,
@@ -28,9 +29,9 @@ export const proof = {
     },
     reusedOperationMapPersists: async () => {
         const runner = asyncRun(/** @type {import('../../types.ts').ToAsyncOperationMap<MemOp>} */ (memoryOperationMap()))
-        const key = await runner(unwrapStep(create(1)))
+        const key = await runner(unwrapStep(create(1), errorSummary))
         await runner(write(key, 2))
-        const result = await runner(unwrapStep(read(key)))
+        const result = await runner(unwrapStep(read(key), errorSummary))
         assertEq(result, 2)
     },
     missingKeyThrows: async () => {

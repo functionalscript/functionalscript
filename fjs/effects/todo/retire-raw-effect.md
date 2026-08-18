@@ -100,26 +100,26 @@ migration makes, so each module's proofs are re-read as part of its PR.
       spelled-out unions collapsed onto it, and `IoResult<T>` is now
       `Result<T, IoChannel>`. "Cannot fail" → "fails like node IO" is a no-op
       for anything already declaring it.
-- [ ] **2. `unwrapStep` panics on a channel it never read.** It is generic in `E`,
-      so it compiles however far the channel widens: one fallible read added
-      upstream enlarges what every downstream `unwrapStep` crashes on, with no
-      diagnostic. Its doc offers greppability as the safeguard — "every
-      occurrence is a site that has chosen to panic, so the choice can be
-      reviewed" — but grepping finds sites, not sites whose *scope* grew since
-      they were last reviewed. That is the `nothrow` defect again, in the one
-      place where the consequence is a crashing program rather than a compile
-      error.
+- [x] **2. `unwrapStep` panics on a channel it never read.** It was generic in
+      `E`, so it compiled however far the channel widened: one fallible read
+      added upstream enlarged what every downstream `unwrapStep` crashed on,
+      with no diagnostic. That is the `nothrow` defect in the one place where
+      the consequence is a crashing program rather than a compile error.
 
-      Replace it with exhaustive panicking: `catchStep(e, err => …)` whose
-      handler narrows `err` to `never`, the idiom `_matchWith` already uses for
-      commands (`assert(false, command)`). Widening the channel then fails to
-      compile at exactly the site that decided to panic.
+      Fixed by requiring a `summary: (e: E) => string`. A renderer written for
+      one channel cannot accept a wider one, so widening is a compile error at
+      the site that chose to panic — pinned by `_UnwrapStepPinsItsChannel` in
+      `../io/types.ts`, which fails if the argument ever goes back to accepting
+      anything. Exhaustive enumeration at each site would have bought the same
+      property for far more ceremony, and would not survive a channel that is a
+      named alias rather than a literal union.
 
-      Exposure today is one library site — `../../emergent_testing/module.f.mjs`,
-      whose registered test callback panics because `Test`'s contract is a raw
-      `RawEffect<…, void>` with no channel to answer through. That justification
-      dissolves once the callback has one. The other 13 sites are proofs, where
-      crashing on a broken fixture is the wanted outcome.
+      The single library site — `../../emergent_testing/module.f.mjs`, whose
+      test callback panics because `Test`'s contract is a raw
+      `RawEffect<…, void>` with no channel to answer through — now passes
+      `errorSummary`, so its scope is pinned to the node channel until someone
+      changes it deliberately. The other 13 sites are proofs.
+
 - [ ] **3. `Program`.** `Program<O> = (options) => Effect<O, 0, number>`.
       `RawEffect<O, number>` cannot say which numbers mean failure; `Result<0,
       number>` can, and `r[1]` is the exit code in **both** branches, so the

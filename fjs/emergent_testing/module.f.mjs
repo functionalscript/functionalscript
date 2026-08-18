@@ -18,7 +18,7 @@
  */
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
-import { allOk, awaitIfPromise, errorExit, errorMessage, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
+import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import { pure, step as rawStep } from '../effects/module.f.mjs'
 import { history, historyStep, mapStep, pureOk, step, unwrapStep } from '../effects/io/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
@@ -126,6 +126,11 @@ export const registerModule = (ctx, k, v, star) => {
         // A throw is what that framework *does* understand — it reports the
         // test as failed, which is the outcome a caller wants anyway. The `test`
         // operation's own result is propagated normally, just below.
+        //
+        // `errorSummary` names what is being panicked on, and pins it: this is
+        // the only panic in library code, so if the body's channel ever widens
+        // past the node one, the compiler asks here rather than turning a new
+        // recoverable failure into a crash.
         const body = (/** @type {TestContext} */ t) =>
             unwrapStep(step(awaitIfPromise(fn()), resolved => {
                 if (throws) {
@@ -136,7 +141,7 @@ export const registerModule = (ctx, k, v, star) => {
                     return pureOk(undefined)
                 }
                 return mapStep(allOk(...sub.map(e => registerOne(t, e))), () => undefined)
-            }))
+            }), errorSummary)
         return test(ctx, name, throws, body)
     }
     const tests = collectTests([], false, v)

@@ -49,7 +49,7 @@
  */
 
 import { fold } from '../../types/list/module.f.mjs'
-import { error, mapOk, ok, unwrap } from '../../types/result/module.f.mjs'
+import { error, mapOk, ok } from '../../types/result/module.f.mjs'
 import { mapStep as rawMapStep, pure, step as rawStep } from '../module.f.mjs'
 
 /**
@@ -230,7 +230,7 @@ export const mapStep = (e, f) => rawMapStep(e, mapOk(f))
 
 /**
  * Leaves the layer by **panicking** on the error branch: `ok` values continue
- * as an ordinary raw `RawEffect`, an `error` is thrown.
+ * as an ordinary raw `RawEffect`, an `error` is thrown as `summary(e)`.
  *
  * This is the program exercising its right to treat a failure as fatal, and it
  * is a policy — not a conversion. It belongs at a site that genuinely has no
@@ -239,14 +239,30 @@ export const mapStep = (e, f) => rawMapStep(e, mapOk(f))
  * {@link catchStep} or {@link resultStep} is the honest spelling, and a chain
  * that merely passes the failure along wants {@link step}.
  *
- * It is deliberately one greppable name rather than an `unwrap` buried in each
- * continuation. Every occurrence is a site that has chosen to panic, so the
- * choice can be reviewed, and the set of sites that have not yet chosen
- * anything better is exactly the set this name marks.
+ * **`summary` is what names the errors being panicked on, and it is required
+ * for that reason rather than for the message.** Without it this function was
+ * generic in `E` and therefore compiled however far a channel widened: one
+ * fallible read added upstream enlarged what every downstream call crashed on,
+ * silently. A renderer written for a particular channel cannot accept a wider
+ * one — parameters are contravariant — so widening becomes a compile error at
+ * the site that chose to panic, which is the site that has to choose again.
  *
- * @type {<O extends Operation, T, E>(e: Effect<O, T, E>) => RawEffect<O, T>}
+ * The `IoChannel` renderer is `errorSummary` (`../node/module.f.mjs`); pass a
+ * narrower one where the channel is narrower. An inline `e => String(e)`
+ * accepts anything and gives the old behaviour back — that is an escape hatch,
+ * and being written out at the call site is the point.
+ *
+ * This being one greppable name still matters: every occurrence is a site that
+ * has chosen to panic, so the choice can be reviewed. What the name alone
+ * could not do is tell a reviewer that a site's *scope* had grown since they
+ * last looked at it, which is what the argument adds.
+ *
+ * @type {<O extends Operation, T, E>(e: Effect<O, T, E>, summary: (e: E) => string) => RawEffect<O, T>}
  */
-export const unwrapStep = e => rawMapStep(e, unwrap)
+export const unwrapStep = (e, summary) => rawMapStep(e, r => {
+    if (r[0] === 'error') { throw summary(r[1]) }
+    return r[1]
+})
 
 /**
  * Starts a history from a fallible effect, lifting its `ok` value into a

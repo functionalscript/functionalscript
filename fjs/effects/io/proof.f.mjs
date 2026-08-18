@@ -103,6 +103,17 @@ const checked = v => {
     return step(x0, small)
 }
 
+/**
+ * The anything-accepting renderer {@link unwrapStep}'s doc calls an escape
+ * hatch. It is the honest choice *here* — these proofs are about `unwrapStep`
+ * itself, not about any particular channel — and the wrong one almost anywhere
+ * else, since accepting every error is what stops a widened channel from being
+ * a compile error.
+ *
+ * @type {(e: unknown) => string}
+ */
+const show = e => `${e}`
+
 export const proof = {
     pureOk: () => {
         assertOk(pureResult(pureOk(5)), 5)
@@ -282,7 +293,7 @@ export const proof = {
         // An `ok` leaves the layer as an ordinary raw effect, carrying the
         // value rather than the `Result` around it.
         ok: () => {
-            const o = runPure(unwrapStep(pureOk(5)))
+            const o = runPure(unwrapStep(pureOk(5), show))
             assert(o.length === 1, o)
             assertEq(o[0], 5)
         },
@@ -291,7 +302,7 @@ export const proof = {
         // `Pure` head immediately.
         throw: {
             error: () => {
-                unwrapStep(pureError('boom'))
+                unwrapStep(pureError('boom'), show)
             },
         },
     },

@@ -15,7 +15,7 @@ import type { Unknown as Json } from '../../media/json/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { Do, RawEffect, Operation, Pure } from '../types.ts'
-import type { catchStep, mapStep, resultStep, step } from './module.f.mjs'
+import type { catchStep, mapStep, resultStep, step, unwrapStep } from './module.f.mjs'
 
 /**
  * The runner cannot dispatch this operation and has **not** started it.
@@ -160,6 +160,24 @@ type _ResultStepSig = Assert<Equal<
 type _MapStepSig = Assert<Equal<
     ReturnType<typeof mapStep<_AddOp, number, NotImplemented, string>>,
     Effect<_AddOp, string, NotImplemented>>>
+
+// `unwrapStep` leaves the layer by panicking, so its result carries the bare
+// value rather than a `Result`.
+type _UnwrapStepSig = Assert<Equal<
+    ReturnType<typeof unwrapStep<_AddOp, number, NotImplemented>>,
+    RawEffect<_AddOp, number>>>
+
+// ...and the renderer it takes is what stops that panic from quietly growing.
+// A summary written for one channel is *not* usable where a wider channel's
+// summary is required — parameters are contravariant — so adding a failure
+// upstream breaks the site that chose to panic instead of silently enlarging
+// what it crashes on. This is the assert that makes the argument checkable:
+// were it to pass, `unwrapStep` would be back to absorbing anything.
+type _Summary<E> = Parameters<typeof unwrapStep<_AddOp, number, E>>[1]
+
+type _UnwrapStepPinsItsChannel = Assert<Equal<
+    _Summary<NotImplemented> extends _Summary<NotImplemented | string> ? true : false,
+    false>>
 
 // `NotImplemented` is JSON data. This is the assert the "command name only"
 // rule exists to keep true: an operation's payload may hold functions, and
