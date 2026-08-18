@@ -10,12 +10,12 @@
 survives as what it always was: the representation — `Pure`, `Do`, `Cont`, the
 runners, `match`/`runPure`, and what `unwrapStep` hands back.
 
-**This is not "delete `RawEffect`".** `Effect<O, T, E>` is *defined* as
-`RawEffect<O, Result<T, E>>`; deleting the name means making the
-`Result`-carrying union primitive, which forces every continuation in the
-system to hand back a `Result` and gives `List` cells, exit codes and runner
-returns an `Ok` wrapper each. The division to aim for is **composition against
-representation**, not fallible against infallible.
+The name can then go entirely (stage 5). `Effect<O, T, E>` is *defined* as
+`RawEffect<O, Result<T, E>>`, so removing it means making the
+`Result`-carrying union primitive — every continuation hands back a `Result`,
+and anything infallible acquires an `Ok` wrapper. **Done first that is
+expensive; done last it is free**, because by then nothing infallible is left
+to wrap. The ordering below is not a matter of taste.
 
 ### Why
 
@@ -118,11 +118,28 @@ migration makes, so each module's proofs are re-read as part of its PR.
       Gives up per-item failure with continuation; nothing does that today.
 - [ ] **4. Consumer sweep**, one module per PR, until `RawEffect` is imported
       nowhere outside `fjs/effects`.
-- [ ] **5.** Delete this file.
+- [ ] **5. Delete `RawEffect`.** Constrain `Operation`'s return type to a
+      `Result` — it is `(..._: readonly never[]) => unknown` today, and all 27
+      operations in the tree already return `OpResult<…>` or `IoResult<…>`; the
+      only exception is `_AnyOp` in `../proof.f.mjs`, a proof operation that
+      exists to exercise the raw layer. That promotes Stage 6's invariant from
+      convention to type rule: a runner may answer `error(notImplemented)`
+      through *any* command's output, which holds today only because every
+      operation happens to declare a `Result` return.
+
+      With the constraint in place `do_` produces an `Effect` by construction
+      and `Cont<O, T, E>` returns one, so `Effect` is spelled directly as
+      `Pure<Result<T, E>> | Do<O, T, E>`. `Pure` and `Do` stay; the union alias
+      is what goes. `unwrapStep` is the one signature that needed a payload
+      without a `Result` — it becomes `Effect<O, T, never>`, which is honest,
+      since panicking on the error leaves no failure behind.
+- [ ] **6.** Delete this file.
 
 ### Non-goals
 
-- Deleting `RawEffect`, or making the `Result`-carrying union primitive.
+- Deleting `RawEffect` *early*. It is stage 5 and not stage 1 for the reason
+  given under Goal — the cost is entirely a function of what infallible payloads
+  are still around when it happens.
 - Cancellation in the resource-cleanup sense. A fallible `List` cell lets a
   consumer stop; nothing tells an abandoned producer that it was abandoned.
 - Changing `fjs/types/result`. The `Ok`/`Error` tuples stay exactly as they
@@ -131,7 +148,9 @@ migration makes, so each module's proofs are re-read as part of its PR.
 
 ### Invariants
 
-- `RawEffect` is the representation; `Effect` is what one composes.
+- `RawEffect` is the representation; `Effect` is what one composes — until
+  stage 5, after which every operation returns a `Result` and the distinction
+  has nothing left to mark.
 - `E = never` means infallible **structurally** — a `pureOk` lift, a
   `catchStep` that handled everything — not "does not fail yet".
 - Widening a channel is source-compatible for consumers that only chain.
