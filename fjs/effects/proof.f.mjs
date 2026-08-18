@@ -1,5 +1,6 @@
 /**
  * @import { RawEffect, Operation } from './types.ts'
+ * @import { Ok } from '../types/result/types.ts'
  */
 
 import { step, do_, foldStep, forEachStep, mapStep, match, history, pure, runPure, historyStep } from './module.f.mjs'
@@ -24,12 +25,17 @@ export const assertPure = (e, expected) => {
     assertEq(o[0], expected)
 }
 
-/** @typedef {readonly['add', (a: number, b: number) => number]} _AddOp */
+/**
+ * `Operation` requires a `Result` return, so a runner always has somewhere to
+ * answer `error(notImplemented)` — these proofs are about the representation,
+ * not about failure, so the channel is `never` and every handler answers `ok`.
+ * @typedef {readonly['add', (a: number, b: number) => Ok<number>]} _AddOp
+ */
 
-/** @type {(command: 'add') => (a: number, b: number) => RawEffect<_AddOp, number>} */
+/** @type {(command: 'add') => (a: number, b: number) => RawEffect<_AddOp, Ok<number>>} */
 const doAdd = do_
 
-const next = match({ add: (a, b) => a + b })
+const next = match({ add: (a, b) => ok(a + b) })
 
 /**
  * An operation set whose command is any `string`, which is what a `Do` node
@@ -37,13 +43,13 @@ const next = match({ add: (a, b) => a + b })
  * nothing stops it naming a member `map` inherits from `Object.prototype`
  * rather than an own handler. `match` must refuse those, and this type is how a
  * proof says so without an `as` cast.
- * @typedef {readonly[string, (a: number) => number]} _AnyOp
+ * @typedef {readonly[string, (a: number) => Ok<number>]} _AnyOp
  */
 
-/** @type {(command: string) => (a: number) => RawEffect<_AnyOp, number>} */
+/** @type {(command: string) => (a: number) => RawEffect<_AnyOp, Ok<number>>} */
 const doAny = do_
 
-const anyNext = match({ add: a => a + 1 })
+const anyNext = match({ add: a => ok(a + 1) })
 
 export const proof = {
     foldStep: {
@@ -99,7 +105,14 @@ export const proof = {
         const [a, b] = payload
         assertEq(a, 2, payload)
         assertEq(b, 3, payload)
-        assertPure(continuation(5), 5)
+        // The command's output is a `Result` now — `Operation` requires one so
+        // a runner always has somewhere to answer a refusal — so this resumes
+        // with `ok(5)` rather than a bare `5`. Compared through the tuple for
+        // the reason `assertPure` documents: a fresh `ok(5)` is never `===` a
+        // returned one.
+        const resumed = runPure(continuation(ok(5)))
+        assert(resumed.length === 1, resumed)
+        assertEq(resumed[0][1], 5)
     },
     match: {
         done: () => {
@@ -110,10 +123,10 @@ export const proof = {
         cont: () => {
             const r = next(doAdd('add')(2, 3))
             assert(r[0] === 'cont', r)
-            assertEq(r[1], 5)
+            assertEq(r[1][1], 5)
             const r2 = next(r[2](r[1]))
             assert(r2[0] === 'done', r2)
-            assertEq(r2[1], 5)
+            assertEq(r2[1][1], 5)
         },
         ownCommand: () => {
             // The same map the two cases below dispatch against: an own
@@ -121,7 +134,7 @@ export const proof = {
             // inherited names, not a map that dispatches nothing.
             const r = anyNext(doAny('add')(41))
             assert(r[0] === 'cont', r)
-            assertEq(r[1], 42)
+            assertEq(r[1][1], 42)
         },
         // A `command` naming an `Object.prototype` member must not dispatch to
         // the inherited value. `map['constructor']` is `Object` and
@@ -148,10 +161,10 @@ export const proof = {
         overDo: () => {
             // Stepping a Do node preserves the command and threads the result
             // through the rebuilt continuation.
-            const e = step(doAdd('add')(2, 3), r => pure(r * 10))
+            const e = step(doAdd('add')(2, 3), r => pure(r[1] * 10))
             const r = next(e)
             assert(r[0] === 'cont', r)
-            assertEq(r[1], 5)
+            assertEq(r[1][1], 5)
             assertPure(r[2](r[1]), 50)
         },
     },
@@ -166,9 +179,9 @@ export const proof = {
         overDo: () => {
             // A projection over a `Do` node keeps the command intact and is
             // applied to the command's output when the continuation resumes.
-            const r = next(mapStep(doAdd('add')(2, 3), v => v * 10))
+            const r = next(mapStep(doAdd('add')(2, 3), v => v[1] * 10))
             assert(r[0] === 'cont', r)
-            assertEq(r[1], 5)
+            assertEq(r[1][1], 5)
             assertPure(r[2](r[1]), 50)
         },
     },
@@ -183,13 +196,15 @@ export const proof = {
         overDo: () => {
             // The captured value survives a command boundary: the history is
             // rebuilt inside the continuation rather than lost when `e` is a Do.
-            const c = next(historyStep(history(doAdd('add')(2, 3)), r => pure(r * 10)))
+            const c = next(historyStep(history(doAdd('add')(2, 3)), r => pure(r[1] * 10)))
             assert(c[0] === 'cont', c)
-            assertEq(c[1], 5)
+            assertEq(c[1][1], 5)
             const o = runPure(c[2](c[1]))
             assert(o.length === 1, o)
             const [[result, param]] = o
-            assertEq(param, 5)
+            // `param` is the command's output, so it is the `Result` the
+            // history captured rather than the number inside it.
+            assertEq(param[1], 5)
             assertEq(result, 50)
         },
         chain: () => {
