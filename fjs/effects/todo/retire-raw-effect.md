@@ -74,12 +74,14 @@ derived per function (see the `IoChannel` decision below).
 
 ### Decisions still open
 
-- [ ] **`cas/evo`'s layering.** `Evo.add` is
-      `Effect<…, Result<Hash, string>, NotImplemented>` — two layers, with a
-      doc arguing they must stay apart. Its sibling `revision` has one. Either
-      `Effect<…, RevisionData, string>` (keeps today's meaning) or
-      `Effect<…, Result<RevisionData, string>, NotImplemented>` (matches `add`,
-      and is the one that can widen later without touching consumers).
+- [x] **`cas/evo`'s layering.** Settled by flattening: the nesting went, not
+      the distinction. `EvoError` is a tagged tuple joining `NotImplemented` in
+      one `EvoChannel`, so a rejected revision and an undispatchable operation
+      stay tellable apart by tag — which is all any consumer used the layers
+      for. The doc argued the two must not collapse, but what it described was
+      choosing a *renderer*, which a union serves identically, while the
+      layering cost `resolveParents` two hand-written short-circuits that the
+      Io `foldStep` now does.
 - [x] **Name the standard channel.** `IoChannel = NotImplemented | IoError`,
       in `../node/types.ts` beside `IoError` and `IoResult`. Done in stage 1.
       `../../emergent_testing/types.ts` already reasons its way there in prose

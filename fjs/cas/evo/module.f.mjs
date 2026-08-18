@@ -44,10 +44,13 @@
  *
  * @import { RawEffect, Operation } from '../../effects/types.ts'
  * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
+ * @import { EvoChannel, EvoError } from './types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Cas } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Ok } from '../../types/result/types.ts'
+ * @import { List } from '../../effects/list/types.ts'
  * @import { IoChannel, IoResult } from '../../effects/node/types.ts'
  * @import { LockField, LockMap, Revision } from '../../media/revision/types.ts'
  * @import { Hash, Subject, RevisionData, SubjectState, Cache, Evo } from './types.ts'
@@ -55,8 +58,10 @@
 
 import { pure, foldStep, mapStep, step } from '../../effects/module.f.mjs'
 import {
+    catchStep,
     foldStep as ioFoldStep,
     mapStep as ioMapStep,
+    pureError,
     pureOk,
     step as ioStep,
 } from '../../effects/io/module.f.mjs'
@@ -69,8 +74,29 @@ import { ok, error, okThen } from '../../types/result/module.f.mjs'
 import { nonEmpty, empty as elEmpty } from '../../effects/list/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { unwrap } from '../../types/nullable/module.f.mjs'
-import { isNotFound } from '../../effects/node/module.f.mjs'
+import { errorSummary, isNotFound } from '../../effects/node/module.f.mjs'
 import { decodeText, encodeText, dialect, checkReferences, isHash } from '../../media/revision/module.f.mjs'
+
+/**
+ * A rejected revision, tagged so it renders alongside `notImplemented` and
+ * `ioError` rather than needing a `typeof` test to be told from them.
+ *
+ * @type {(message: string) => EvoError}
+ */
+export const evoError = message => ['evoError', message]
+
+/**
+ * Renders an {@link EvoChannel} failure as a message.
+ *
+ * The two cases are told apart by tag and nothing else — which is the whole
+ * reason {@link EvoError} is a tuple. A rejected revision already carries a
+ * message written for a caller; a runner that could not dispatch is described
+ * by `errorSummary`, the same renderer the node channel uses, so there is one
+ * phrasing of "operation not implemented" rather than two.
+ *
+ * @type {(e: EvoChannel) => string}
+ */
+export const evoSummary = e => e[0] === 'evoError' ? e[1] : errorSummary(e)
 
 /** A cache with no known subjects yet — the starting point for {@link buildCache}. */
 /** @type {Cache} */
@@ -277,38 +303,39 @@ export const syncRevision = cacheKey => hash => value => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {(parentRef: Hash) => RawEffect<O, Result<Revision, string>>}
+ * @returns {(parentRef: Hash) => Effect<O, Revision, EvoError>}
  */
 const resolveParent = cas => parentRef => {
     const parentHash = cBase32ToVec(parentRef)
     if (parentHash === null) {
-        return pure(error(`invalid parent hash: ${parentRef}`))
+        return pureError(evoError(`invalid parent hash: ${parentRef}`))
     }
     return mapStep(
         decodeRevisionBlob(cas)(parentHash),
-        parent => parent === null ? error(`parent is not a revision blob: ${parentRef}`) : ok(parent))
+        parent => parent === null
+            ? error(evoError(`parent is not a revision blob: ${parentRef}`))
+            : ok(parent))
 }
 
 /**
  * Resolves and validates every entry of `parents`, in order, short-circuiting on the first failure.
  *
+ * Short-circuiting is the Io `foldStep`'s, not this function's. It used to be
+ * two hand-written `[0] === 'error'` tests, which is what a verdict costs when
+ * it rides in the value instead of the channel.
+ *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {(parents: readonly Hash[]) => RawEffect<O, Result<readonly Revision[], string>>}
+ * @returns {(parents: readonly Hash[]) => Effect<O, readonly Revision[], EvoError>}
  */
 const resolveParents = cas => parents => {
-    /** @type {Result<readonly Revision[], string>} */
-    const init = ok([])
-    return foldStep(
+    /** @type {readonly Revision[]} */
+    const init = []
+    return ioFoldStep(
         pure(parents),
         init,
-        parentRef => (/** @type {Result<readonly Revision[], string>} */ acc) => {
-            if (acc[0] === 'error') { return pure(acc) }
-            return mapStep(
-                resolveParent(cas)(parentRef),
-                (/** @type {Result<Revision, string>} */ parentResult) =>
-                    parentResult[0] === 'error' ? parentResult : ok([...acc[1], parentResult[1]]))
-        })
+        parentRef => (/** @type {readonly Revision[]} */ acc) =>
+            ioMapStep(resolveParent(cas)(parentRef), parent => [...acc, parent]))
 }
 
 /**
@@ -462,32 +489,41 @@ const buildRevision = input => parents => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * The domain verdict stays in the value and does not move into the effect's
- * error channel — see {@link Evo.add}. Only the cache slot's own reachability
- * travels there, which is why every branch below answers `pureOk` with a
- * `Result` inside it rather than `pureError`.
+ * A rejected revision and an unreachable cache slot share one channel — see
+ * {@link Evo.add} — so every branch below answers `pureError`, and the
+ * successful path never re-tests what an earlier step already decided.
  *
- * @returns {(cacheKey: Key<Cache>) => (input: RevisionData) => Effect<O | MemOp, Result<Hash, string>, NotImplemented>}
+ * The `Cas` write is the one place a host failure is *translated* rather than
+ * propagated: {@link catchStep} turns any `IoChannel` error into one
+ * {@link EvoError}, because a caller of this API has the same recourse to a
+ * full disk as to a malformed parent, and the store's own error vocabulary is
+ * not part of this contract.
+ *
+ * @returns {(cacheKey: Key<Cache>) => (input: RevisionData) => Effect<O | MemOp, Hash, EvoChannel>}
  */
 export const addRevision = cas => cacheKey => input =>
-    step(
+    ioStep(
         resolveParents(cas)(input.parents),
-        (/** @type {Result<readonly Revision[], string>} */ parentsResult) => {
-            const revisionResult = okThen(buildRevision(input))(parentsResult)
-            if (revisionResult[0] === 'error') { return pureOk(revisionResult) }
+        (/** @type {readonly Revision[]} */ parents) => {
+            const revisionResult = buildRevision(input)(parents)
+            if (revisionResult[0] === 'error') { return pureError(evoError(revisionResult[1])) }
             const canonicalRevision = revisionResult[1]
             const bytes = tryUtf8(encodeText(canonicalRevision))
             if (bytes === null) {
-                return pureOk(error('revision too large to encode'))
+                return pureError(evoError('revision too large to encode'))
             }
-            return step(
-                cas.write(nonEmpty(ok(bytes), elEmpty())),
-                (/** @type {IoResult<Vec>} */ writeResult) => {
-                    if (writeResult[0] === 'error') {
-                        return /** @type {Effect<MemOp, Result<Hash, string>, NotImplemented>} */ (pureOk(error('failed to write revision to CAS')))
-                    }
-                    const hash = vecToCBase32(writeResult[1])
-                    return ioMapStep(foldIntoCache(cacheKey)(hash)(canonicalRevision), () => ok(hash))
+            // Annotated so the payload's operation set infers as `never`: the
+            // list is built from `pure` cells and requests no commands of its
+            // own, which `cas.write`'s `O1` has nothing else to pin it to.
+            /** @type {Effect<O, Vec, EvoError>} */
+            const written = catchStep(
+                cas.write(/** @satisfies {List<never, Ok<Vec>>} */ (nonEmpty(ok(bytes), elEmpty()))),
+                () => pureError(evoError('failed to write revision to CAS')))
+            return ioStep(
+                written,
+                (/** @type {Vec} */ writtenHash) => {
+                    const hash = vecToCBase32(writtenHash)
+                    return ioMapStep(foldIntoCache(cacheKey)(hash)(canonicalRevision), () => hash)
                 })
         })
 
@@ -536,17 +572,17 @@ const toRevisionData = ({ subject, parents, snapshot, generation, archived, lock
  * how far it got; recovering that difference would mean folding the chunk
  * stream here instead of reusing `collectRead`, for a distinction no client
  * can act on differently.
- * @type {(hash: Hash) => (result: IoResult<Vec>) => Result<RevisionData, string>}
+ * @type {(hash: Hash) => (result: IoResult<Vec>) => Result<RevisionData, EvoError>}
  */
 const decodeReadRevision = hash => ([tag, value]) => {
     if (tag === 'error') {
-        return error(isNotFound(value)
+        return error(evoError(isNotFound(value)
             ? `revision not found: ${hash}`
-            : `failed to read revision: ${hash}`)
+            : `failed to read revision: ${hash}`))
     }
     const revision = decodeRevisionVec(value)
     return revision === null
-        ? error(`not a revision blob: ${hash}`)
+        ? error(evoError(`not a revision blob: ${hash}`))
         : ok(toRevisionData(revision))
 }
 
@@ -565,12 +601,12 @@ const decodeReadRevision = hash => ([tag, value]) => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {(hash: Hash) => RawEffect<O, Result<RevisionData, string>>}
+ * @returns {(hash: Hash) => Effect<O, RevisionData, EvoError>}
  */
 export const readRevision = cas => hash => {
     const hashVec = cBase32ToVec(hash)
     return hashVec === null
-        ? pure(error(`invalid hash: ${hash}`))
+        ? pureError(evoError(`invalid hash: ${hash}`))
         : mapStep(collectRead(cas.read(hashVec)), decodeReadRevision(hash))
 }
 

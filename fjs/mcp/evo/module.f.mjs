@@ -52,7 +52,7 @@
 import { string, option, array } from '../../types/rtti/module.f.mjs'
 import { lockField } from '../../media/revision/module.f.mjs'
 import { pure, step } from '../../effects/module.f.mjs'
-import { errorSummary } from '../../effects/node/module.f.mjs'
+import { evoSummary } from '../../cas/evo/module.f.mjs'
 import {
     toolEntry, errorResult, okResult,
 } from '../../protocol/mcp/module.f.mjs'
@@ -128,7 +128,7 @@ export const evoToolRegistry = e => [
         (({ archived }) => step(
             e.list(archived),
             r => pure(r[0] === 'error'
-                ? errorResult(errorSummary(r[1]))
+                ? errorResult(evoSummary(r[1]))
                 : okResult(toJson(r[1])))
         )),
     ),
@@ -139,7 +139,7 @@ export const evoToolRegistry = e => [
         ({ subject }) => step(
             e.head(subject),
             r => pure(r[0] === 'error'
-                ? errorResult(errorSummary(r[1]))
+                ? errorResult(evoSummary(r[1]))
                 : okResult(r[1].join('\n'))),
         ),
     ),
@@ -154,25 +154,21 @@ export const evoToolRegistry = e => [
 
         (({ hash }) => step(
             e.revision(hash),
-            result => pure(result[0] === 'error' ? errorResult(result[1]) : okResult(toJson(result[1])))
+            r => pure(r[0] === 'error' ? errorResult(evoSummary(r[1])) : okResult(toJson(r[1])))
         )),
     ),
     toolEntry(
         'evo_add',
         'Add a new revision (a `vnd.fjs.revision` blob) and return its hash (cBase32). `subject` is required unless there is exactly one parent, from which it is inherited. `snapshot`, when omitted, is resolved from the parents (zero parents → `subject`, one parent → the parent\'s snapshot; a merge requires an explicit `snapshot`) and written explicitly. `generation` is computed by the server. `lock` is optional resolver input: a map from dependency subject to the cBase32 hash of the content it resolves to, or to a nested map scoping further bindings under that subject (use nesting only for conflicting choices a flat map cannot express, e.g. two dependencies needing different versions of a third). Pass a cBase32 hash instead of a map to share one already stored as a `vnd.fjs.lock` blob; the server records the reference and does not follow it.',
         evoAddArgs,
-        // Two `Result`s, two different failures, one MCP shape. The outer one
-        // is the effect channel — the cache slot was unreachable; the inner is
-        // the domain verdict — the revision itself was rejected. Both are
-        // `isError` to the client, but only the inner one carries a message it
-        // can act on, so they are rendered separately rather than collapsed.
+        // Two failures, one MCP shape: a rejected revision and an unreachable
+        // cache slot are both `isError` to the client, and both carry a message
+        // it can read. They stay distinguishable by tag — `evoSummary` is the
+        // renderer that switches on it — so telling them apart never needed
+        // them to arrive in separate layers.
         input => step(
             e.add(input),
-            r => {
-                if (r[0] === 'error') { return pure(errorResult(errorSummary(r[1]))) }
-                const result = r[1]
-                return pure(result[0] === 'error' ? errorResult(result[1]) : okResult(result[1]))
-            }
+            r => pure(r[0] === 'error' ? errorResult(evoSummary(r[1])) : okResult(r[1]))
         ),
     ),
 ]

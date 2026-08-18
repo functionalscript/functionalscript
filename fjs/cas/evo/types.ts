@@ -5,12 +5,36 @@
  * @module
  */
 
-import type { Operation, RawEffect } from '../../effects/types.ts'
+import type { Operation } from '../../effects/types.ts'
 import type { Effect, NotImplemented } from '../../effects/io/types.ts'
 import type { MemOp } from '../../effects/memory/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
 import type { LockField } from '../../media/revision/types.ts'
+
+/**
+ * A revision was rejected on its own terms: a parent that does not resolve, a
+ * hash that is not cBase32, a blob that holds something other than a
+ * `vnd.fjs.revision`, a store that would not take the write.
+ *
+ * A tagged tuple rather than a bare `string` so it joins {@link NotImplemented}
+ * and `IoError` as a discriminated union rather than a structural one — a
+ * renderer switches on the tag it already switches on, instead of testing
+ * `typeof`.
+ */
+export type EvoError = readonly['evoError', string]
+
+/**
+ * The error channel of the Evo API: the revision was rejected, or the runner
+ * could not dispatch an operation.
+ *
+ * Host IO failures do **not** appear here as `IoError`. A store that cannot be
+ * read or written is reported as an {@link EvoError} whose message says so,
+ * because from this API's outside a blob that cannot be delivered and a blob
+ * that is not a revision are the same answer — "no revision at that hash" —
+ * and the caller has the same recourse to both.
+ */
+export type EvoChannel = EvoError | NotImplemented
 
 /** A cBase32 content hash, as accepted/returned by `Cas<O>`. */
 export type Hash = string
@@ -114,16 +138,14 @@ export type Evo<O extends Operation> = {
     /**
      * Adds a new head; see {@link addRevision}.
      *
-     * **The two `Result`s are not the same answer and do not collapse.** The
-     * inner one is the domain verdict — a parent that does not resolve, a
-     * revision too large to encode, a `Cas` write that failed — which is
-     * information the caller asked for. The outer one is the effect channel:
-     * whether the cache slot could be reached at all. Folding the first into
-     * the second would report "invalid parent hash" the way it reports a
-     * runner that cannot dispatch `memWrite`, and a caller wants to answer
-     * those differently.
+     * A rejected revision and an undispatchable operation are both failures and
+     * share the channel, as {@link EvoChannel}'s two cases. They stay tellable
+     * apart — that is what the tags are for, and a caller that renders them
+     * differently switches on one — but they do not need separate *layers* to
+     * be told apart, and giving them separate layers costs every intermediate
+     * step a hand-written short-circuit that `step` would otherwise do.
      */
-    readonly add: (input: RevisionData) => Effect<O | MemOp, Result<Hash, string>, NotImplemented>
+    readonly add: (input: RevisionData) => Effect<O | MemOp, Hash, EvoChannel>
     /**
      * The revision at `hash`, decoded, validated, and canonicalized; see
      * {@link readRevision}. Served from the store today, so the `MemOp` in the
@@ -132,5 +154,5 @@ export type Evo<O extends Operation> = {
      * operations read, which must not become a breaking change to this type
      * when it happens.
      */
-    readonly revision: (hash: Hash) => RawEffect<O | MemOp, Result<RevisionData, string>>
+    readonly revision: (hash: Hash) => Effect<O | MemOp, RevisionData, EvoChannel>
 }
