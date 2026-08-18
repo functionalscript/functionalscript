@@ -5,10 +5,9 @@
  *
  * The composition API — `step`, `catchStep`, `resultStep`, the two lifts, and
  * `mapStep` — is the sibling [`./module.f.mjs`](./module.f.mjs), whose
- * signatures the asserts at the bottom of this file pin. No operation, runner,
- * or consumer produces an `Effect` yet; that is stage 3 and stage 4. Why the
- * layer exists, why the `Result` sits where it does, and what is deliberately
- * absent: [`./README.md`](./README.md).
+ * signatures the asserts at the bottom of this file pin. Why the layer exists,
+ * why the `Result` sits where it does, and what is deliberately absent:
+ * [`./README.md`](./README.md).
  */
 
 import type { Assert } from '../../asserts/types.ts'
@@ -54,6 +53,22 @@ export type NotImplemented = readonly['notImplemented', string]
  * a `Program`'s exit code, an MCP tool result. A channel is not free, so
  * nothing is given one that has no failure to report.
  *
+ * **A `Result`-valued raw effect is not automatically this one.** The alias is
+ * transparent, so `RawEffect<O, Result<T, E>>` and `Effect<O, T, E>` are the
+ * same type and the choice between them says only what the `Result` *means*.
+ * It is the effect channel — spell it `Effect` — when `E` carries
+ * {@link NotImplemented}, because that error can only have come from a runner
+ * that could not dispatch. It is ordinary returned data — leave it
+ * `RawEffect` — when `E` is a domain verdict the caller asked for and that has
+ * already absorbed whatever channel produced it: `evo.revision`'s
+ * `Result<RevisionData, string>`, where a runner failure and a blob that is
+ * not a revision are the same `string` to the caller, or the transpiler's
+ * `Result<Unknown, ParseError>`, where a missing file is reported as a parse
+ * error like any other. Collapsing the second kind into the channel would
+ * report "invalid parent hash" the way it reports a runner that cannot
+ * dispatch `memWrite`; keeping the first kind out of it hides a failure the
+ * error-propagating combinators exist to carry.
+ *
  * **`E` defaults to {@link NotImplemented}**, the one error every operation can
  * answer with, so the common case is written `Effect<Sandbox, T>`. The default
  * is safe to have *now* and was not safe to have during the rename: while every
@@ -63,10 +78,9 @@ export type NotImplemented = readonly['notImplemented', string]
  *
  * `E` carries at least {@link NotImplemented}, and an operation with failures of
  * its own extends the channel — `Effect<ReadFile, Vec, NotImplemented |
- * IoError>`. That envelope belongs to the *operation's declared return type*
- * (stage 3), not to a wrapper a constructor puts around a raw operation, so
- * that a runner can eventually deliver `error(notImplemented)` through the
- * ordinary continuation.
+ * IoError>`. That envelope belongs to the *operation's declared return type*,
+ * not to a wrapper a constructor puts around a raw operation, so that a runner
+ * can deliver `error(notImplemented)` through the ordinary continuation.
  *
  * The alias is transparent, so every raw combinator already applies at this
  * instantiation. What the sibling module adds is the branch-aware vocabulary —

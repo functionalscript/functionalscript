@@ -29,8 +29,8 @@
  *
  * @module
  *
- * @import { RawEffect, Operation } from '../../../effects/types.ts'
- * @import { IoError, IoResult, Read, Write } from '../../../effects/node/types.ts'
+ * @import { Operation } from '../../../effects/types.ts'
+ * @import { IoError, Read, Write } from '../../../effects/node/types.ts'
  * @import { Effect, NotImplemented } from '../../../effects/io/types.ts'
  * @import { Response } from '../../json_rpc/types.ts'
  * @import { Step } from './types.ts'
@@ -57,7 +57,7 @@ const parseErrorResponse = { jsonrpc, error: parseError, id: null }
 const internalErrorResponse = id => ({ jsonrpc, error: internalError, id })
 
 /** Encodes a response as a newline-terminated UTF-8 line and writes it to `stdout`.
- * @type {(resp: Response) => RawEffect<Write, IoResult<void>>}
+ * @type {(resp: Response) => Effect<Write, void, NotImplemented | IoError>}
  */
 const writeResponse = resp => {
     const v = tryUtf8(stringifyJson(resp) + '\n')

@@ -12,7 +12,7 @@ import type { Result } from '../../types/result/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
 import type { RawEffect, Operation, ToAsyncOperationMap } from '../types.ts'
 import type { List } from '../list/types.ts'
-import type { NotImplemented } from '../io/types.ts'
+import type { Effect, NotImplemented } from '../io/types.ts'
 
 /**
  * A host failure, normalized: whatever the runtime threw reduced to a
@@ -150,7 +150,7 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
 export type WriteBytes = readonly['writeBytes', (path: string, offset: number, data: Vec) => IoResult<void>]
 
 /** @internal */
-export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>) => RawEffect<O | WriteBytes, IoResult<void>>
+export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>) => Effect<O | WriteBytes, void, NotImplemented | IoError>
 
 // stat
 
@@ -219,7 +219,7 @@ export type WriteConsoles = 'stdout' | 'stderr'
  */
 export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => OpResult<void>]
 
-export type Console = (s: string) => RawEffect<Write, OpResult<void>>
+export type Console = (s: string) => Effect<Write, void>
 
 // read
 

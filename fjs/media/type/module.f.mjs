@@ -37,9 +37,10 @@
  *
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
- * @import { RawEffect, Operation } from '../../effects/types.ts'
+ * @import { Operation } from '../../effects/types.ts'
  * @import { List } from '../../effects/list/types.ts'
- * @import { IoResult } from '../../effects/node/types.ts'
+ * @import { IoError, IoResult } from '../../effects/node/types.ts'
+ * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
  * @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts'
  */
 
@@ -254,10 +255,10 @@ export const detectVec = bytes => finish(push(detectInit)(bytes))
  *
  * @template {Operation} O
  * @param {List<O, IoResult<Vec>>} stream
- * @returns {RawEffect<O, IoResult<DetectMeta>>}
+ * @returns {Effect<O, DetectMeta, NotImplemented | IoError>}
  */
 export const detectStream = stream => {
-    /** @type {(s: DetectState) => (l: List<O, IoResult<Vec>>) => RawEffect<O, IoResult<DetectMeta>>} */
+    /** @type {(s: DetectState) => (l: List<O, IoResult<Vec>>) => Effect<O, DetectMeta, NotImplemented | IoError>} */
     const loop = s => l =>
         step(
             l,
