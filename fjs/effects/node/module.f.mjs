@@ -14,7 +14,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, RawEffect, Func, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoError, IoErrorInfo, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, OpResult, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
+ * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoError, IoErrorInfo, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
  * @import { Effect, NotImplemented } from '../io/types.ts'
  */
 
@@ -115,7 +115,7 @@ export const nodeCommands = /** @type {Commands<NodeOp>} */ (Object.keys(nodeCom
  * This is the reason why we merge `O` with `All` in the resulted `RawEffect`.
  */
 export const all =
-    /** @type {<O extends Operation, T>(...a: readonly RawEffect<O, T>[]) => RawEffect<O | All, OpResult<readonly T[]>>} */
+    /** @type {<O extends Operation, T>(...a: readonly RawEffect<O, T>[]) => Effect<O | All, readonly T[]>} */
     (do_('all'))
 
 /**
@@ -164,7 +164,7 @@ export const allOk = (...a) =>
  * @template {Operation} O0
  * @template T0
  * @param {RawEffect<O0, T0>} a
- * @returns {<O1 extends Operation, T1>(b: RawEffect<O1, T1>) => RawEffect<O0 | O1 | All, OpResult<readonly[T0, T1]>>}
+ * @returns {<O1 extends Operation, T1>(b: RawEffect<O1, T1>) => Effect<O0 | O1 | All, readonly[T0, T1]>}
  */
 export const both = a => b =>
     /** @type {any} */ (all)(a, b)
@@ -281,7 +281,7 @@ const writeLoop = path => {
  * @template {Operation} O
  * @param {string} path
  * @param {List<O, IoResult<Vec>>} e
- * @returns {RawEffect<O | WriteBytes | CreateExclusive, IoResult<void>>}
+ * @returns {Effect<O | WriteBytes | CreateExclusive, void, NotImplemented | IoError>}
  */
 export const writeFromStream = (path, e) =>
     ioStep(
@@ -296,7 +296,7 @@ export const stat = do_('stat')
 // createServer
 
 export const createServer =
-    /** @type {<O extends Operation>(listener: RequestListener<O>) => RawEffect<O | CreateServer, OpResult<Server>>} */
+    /** @type {<O extends Operation>(listener: RequestListener<O>) => Effect<O | CreateServer, Server>} */
     (do_('createServer'))
 
 // listen

@@ -5,9 +5,10 @@
  */
 
 import type { Vec } from '../types/bit_vec/types.ts'
-import type { RawEffect, Operation } from '../effects/types.ts'
+import type { Operation } from '../effects/types.ts'
 import type { List } from '../effects/list/types.ts'
-import type { IoResult, Mkdir, Now, RandomInt, ReadBytes, Readdir, Rename, Rm, CreateExclusive, WriteBytes, Access, Stat } from '../effects/node/types.ts'
+import type { Effect, NotImplemented } from '../effects/io/types.ts'
+import type { IoError, IoResult, Mkdir, Now, RandomInt, ReadBytes, Readdir, Rename, Rm, CreateExclusive, WriteBytes, Access, Stat } from '../effects/node/types.ts'
 
 /**
  * The filesystem effects the streaming CAS performs: `read` pulls shards
@@ -32,7 +33,7 @@ export type Cas<O extends Operation> = {
      * Consumes a chunk stream — each item `ok(chunk)` or `error` — hashing incrementally,
      * and returns the content address. An error item aborts the upload.
      */
-    readonly write: <O1 extends Operation>(payload: List<O1, IoResult<Vec>>) => RawEffect<O | O1, IoResult<Vec>>
+    readonly write: <O1 extends Operation>(payload: List<O1, IoResult<Vec>>) => Effect<O | O1, Vec, NotImplemented | IoError>
     /**
      * Lists all stored content hashes.
      *
@@ -43,7 +44,7 @@ export type Cas<O extends Operation> = {
      * an error, and returning it is what lets a caller say so instead of
      * reporting no content.
      */
-    readonly list: () => RawEffect<O, IoResult<readonly Vec[]>>
+    readonly list: () => Effect<O, readonly Vec[], NotImplemented | IoError>
 }
 
 export type FileCas = Cas<FileCasOperation> & {
