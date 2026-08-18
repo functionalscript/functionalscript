@@ -14,13 +14,13 @@
  * @import { Effect, NotImplemented } from '../effects/io/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
  * @import { TestFn, TestEntry, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts'
- * @import { All, Await, Env, IoError, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
+ * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
-import { allOk, awaitIfPromise, errorExit, errorMessage, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
+import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import { pure, step as rawStep } from '../effects/module.f.mjs'
-import { history, historyStep, mapStep, pureOk, step, unwrapStep } from '../effects/io/module.f.mjs'
+import { history, historyStep, mapStep, pureError, pureOk, step, unwrapStep } from '../effects/io/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
@@ -126,6 +126,11 @@ export const registerModule = (ctx, k, v, star) => {
         // A throw is what that framework *does* understand — it reports the
         // test as failed, which is the outcome a caller wants anyway. The `test`
         // operation's own result is propagated normally, just below.
+        //
+        // `errorSummary` names what is being panicked on, and pins it: this is
+        // the only panic in library code, so if the body's channel ever widens
+        // past the node one, the compiler asks here rather than turning a new
+        // recoverable failure into a crash.
         const body = (/** @type {TestContext} */ t) =>
             unwrapStep(step(awaitIfPromise(fn()), resolved => {
                 if (throws) {
@@ -136,7 +141,7 @@ export const registerModule = (ctx, k, v, star) => {
                     return pureOk(undefined)
                 }
                 return mapStep(allOk(...sub.map(e => registerOne(t, e))), () => undefined)
-            }))
+            }), errorSummary)
         return test(ctx, name, throws, body)
     }
     const tests = collectTests([], false, v)
@@ -154,10 +159,10 @@ const zero = { time: 0, pass: 0, fail: 0 }
 /**
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(k: string, v: unknown) => (ts: _TestState) => Effect<O | All, _TestState, NotImplemented | IoError>}
+ * @returns {(k: string, v: unknown) => (ts: _TestState) => Effect<O | All, _TestState, IoChannel>}
  */
 const runModule = ({ result, test }) => (k, v) => ts => {
-    /** @type {(entry: _TestAndPath) => Effect<O | All, _TestState, NotImplemented | IoError>} */
+    /** @type {(entry: _TestAndPath) => Effect<O | All, _TestState, IoChannel>} */
     const one = ([testPath, set]) => {
         // The sandbox result is still needed after it has been reported, so the
         // reporting call is captured rather than nested inside its own step.
@@ -181,7 +186,7 @@ const runModule = ({ result, test }) => (k, v) => ts => {
                     sub => mergeState(addPass(duration)(zero), sub))
             })
     }
-    /** @type {(path: Path, throws: boolean, v: unknown) => Effect<O | All, _TestState, NotImplemented | IoError>} */
+    /** @type {(path: Path, throws: boolean, v: unknown) => Effect<O | All, _TestState, IoChannel>} */
     const walk = (path, throws, v) => {
         const effects = collectTests(path, throws, v).map(one)
         return mapStep(allOk(...effects), states => states.reduce(mergeState, zero))
@@ -201,7 +206,7 @@ const proofEntries = moduleMap =>
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(moduleMap: ModuleMap) => Effect<O | All, number, NotImplemented | IoError>}
+ * @returns {(moduleMap: ModuleMap) => Effect<O | All, number, IoChannel>}
  */
 export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
@@ -227,10 +232,20 @@ export const runModuleMap = reporter => moduleMap => {
  * only in what an `ok` means, and conflating them would report a failing suite
  * as a passing run.
  *
- * @type {<O extends Operation>(e: Effect<O, number, NotImplemented | IoError>) => RawEffect<O | Write, number>}
+ * A non-zero code therefore leaves through the *error* branch, which is what it
+ * means — a suite with failures is a failed program — and is why a caller
+ * cannot chain past it by accident.
+ *
+ * @type {<O extends Operation>(e: Effect<O, number, IoChannel>) => Effect<O | Write, 0, number>}
  */
 const exitCodeStep = e =>
-    rawStep(e, r => r[0] === 'error' ? errorExit(errorMessage(r[1])) : pure(r[1]))
+    rawStep(e, r => {
+        /** @type {Effect<Write, 0, number>} */
+        const code = r[0] === 'error'
+            ? errorExit(errorMessage(r[1]))
+            : r[1] === 0 ? pureOk(0) : pureError(r[1])
+        return code
+    })
 
 /**
  * Discovers all test modules via `loadModuleMap`, then runs them through

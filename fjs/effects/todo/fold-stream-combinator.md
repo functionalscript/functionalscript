@@ -1,22 +1,27 @@
 ## fold-stream-combinator. `foldStream` combinator for `IoResult<Vec>` streams
 
 **Priority:** P3
-**Status:** open
+**Status:** open, but **narrower than written**. A `List` cell can fail now
+(`List<O, T, E> = Effect<O, Next<O, T, E>, E>`), so the "error item →
+propagate" case below no longer exists — `step` propagates it — and every
+consumer named here has already lost that branch. What is left of the problem
+is the two-case fold, *EOF → finalize; item → fold and recurse*, which is an
+ordinary fold and a much weaker argument for a combinator. Re-scope or close.
 **May be subsumed by:** [effect-list-fold](./effect-list-fold.md) — if `foldStep`
 moves to `fjs/effects/list` and is retyped over `EffectList<O, T>`, `foldStream`
-becomes `foldStep` plus an `okStep`-shaped short-circuit rather than a separate
-combinator. Settle the scope of this issue after that one is reviewed.
+becomes an ordinary `foldStep` rather than a separate combinator — the
+short-circuit is the Io `step`'s, not an adapter's. Settle the scope of this issue after that one is reviewed.
 
 ### Problem
 
-Every consumer of a `List<O, IoResult<Vec>>` re-hand-writes the same
+Every consumer of a `List<O, Vec, IoChannel>` re-hand-writes the same
 three-case fold: *EOF → finalize; error item → propagate; chunk → fold and
 recurse on the tail.* The skeleton currently appears four times:
 
 `detectStream` (`fjs/media/type/module.f.mjs:268-281`) — pure fold:
 
 ```ts
-const loop = (s: DetectState) => (l: List<O, IoResult<Vec>>): Effect<O, IoResult<DetectMeta>> =>
+const loop = (s: DetectState) => (l: List<O, Vec, IoChannel>): Effect<O, IoResult<DetectMeta>> =>
     l.step((node): Effect<O, IoResult<DetectMeta>> => {
         if (node === undefined) { return pure(ok(finish(s))) }
         const { first, tail } = node
@@ -30,7 +35,7 @@ const loop = (s: DetectState) => (l: List<O, IoResult<Vec>>): Effect<O, IoResult
 overflow guard in the per-chunk step:
 
 ```ts
-const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
+const loop = (acc: Vec) => (s: List<O, Vec, IoChannel>): Effect<O, IoResult<Vec>> =>
     s.step((node): Effect<O, IoResult<Vec>> => {
         if (node === undefined) { return pure(ok(acc)) }
         const { first, tail } = node
@@ -118,7 +123,7 @@ consumers first; the writers follow only if the shape stays clean.
   abstraction; `foldStream` is the consumer-side generalization.
 - [allreduce-combinator](./allreduce-combinator.md) — sibling combinator for
   parallel effects.
-- `okStep` (`fjs/effects/module.f.mjs`) — the step-adapter helper shape; this
+- The Io `step` (`fjs/effects/io/module.f.mjs`) — the short-circuit shape; this
   combinator's per-chunk step is a Kleisli function of the same shape.
 - [write-closed-helpers](../../cas/todo/write-closed-helpers.md) — hoists
   `fileCas.write`'s remaining nested helpers; its loop conversion depends on

@@ -145,8 +145,12 @@ This table is an audit snapshot, and its counts above are derived from it, so
 rows are kept as they were recorded even when the code has since moved. The
 nine `fjs/types/rtti/validate/` rows describe a module that has been deleted —
 `parse` is now the only schema-form reader — so those nine sites no longer
-exist. They are left in place rather than removed with the totals re-derived
-around them; a re-audit is the way to refresh this file, not a partial edit.
+exist. Two more have since moved: `fjs/cas/evo/module.f.mjs:466`'s cast went
+with the flattening of `Evo.add`'s nested `Result`, and
+`fjs/cas/module.f.mjs:348` now reads `Effect<Rm, Vec, IoChannel>` — the same
+type, spelled through the three-parameter `Effect`. All are left in place
+rather than removed with the totals re-derived around them; a re-audit is the
+way to refresh this file, not a partial edit.
 
 | File | Line | `@type {T}` | Why it stays |
 | --- | --- | --- | --- |

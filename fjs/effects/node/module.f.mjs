@@ -14,7 +14,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, RawEffect, Func, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoError, IoErrorInfo, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
+ * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  * @import { Effect, NotImplemented } from '../io/types.ts'
  */
 
@@ -71,7 +71,7 @@ export const toIoError = e => {
  * collapse into one benign branch — which is exactly what a bare `unknown`
  * error channel used to allow.
  *
- * @type {(e: NotImplemented | IoError) => boolean}
+ * @type {(e: IoChannel) => boolean}
  */
 export const isNotFound = ([tag, payload]) =>
     tag === 'ioError' && payload.code === 'ENOENT'
@@ -191,7 +191,7 @@ export const readFile = do_('readFile')
  * pattern-match on it (e.g. convert a failure into a domain-specific error) or
  * `unwrap` at the call site.
  *
- * @type {(path: string) => Effect<ReadFile, string, NotImplemented | IoError>}
+ * @type {(path: string) => Effect<ReadFile, string, IoChannel>}
  */
 export const readUtf8File = path =>
     ioMapStep(readFile(path), utf8ToString)
@@ -209,7 +209,7 @@ export const writeFile = do_('writeFile')
 /**
  * Writes a string to `path` as UTF-8 bytes.
  *
- * @type {(path: string, content: string) => Effect<WriteFile, void, NotImplemented | IoError>}
+ * @type {(path: string, content: string) => Effect<WriteFile, void, IoChannel>}
  */
 export const writeUtf8File = (path, content) =>
     writeFile(path, utf8(content))
@@ -258,14 +258,11 @@ export const writeBytes = do_('writeBytes')
 const writeLoop = path => {
     /** @type {_WriteLoop} */
     const f = (offset, e) =>
-        step(e, r => {
-            if (r === undefined) {
+        ioStep(e, node => {
+            if (node === undefined) {
                 return pureOk(undefined)
             }
-            const { first: [t, v], tail } = r
-            if (t === 'error') {
-                return pure(resultError(v))
-            }
+            const { first: v, tail } = node
             const lenV = length(v)
             if ((lenV & 0b111n) !== 0n) {
                 return pureError(ioError({ message: 'invalid buffer size' }))
@@ -280,8 +277,8 @@ const writeLoop = path => {
 /**
  * @template {Operation} O
  * @param {string} path
- * @param {List<O, IoResult<Vec>>} e
- * @returns {Effect<O | WriteBytes | CreateExclusive, void, NotImplemented | IoError>}
+ * @param {List<O, Vec, IoChannel>} e
+ * @returns {Effect<O | WriteBytes | CreateExclusive, void, IoChannel>}
  */
 export const writeFromStream = (path, e) =>
     ioStep(
@@ -427,9 +424,16 @@ export const test = do_('test')
 // Node
 
 /**
- * Writes an error line to `stderr` and yields exit code `1`. The canonical
+ * Writes an error line to `stderr` and fails with exit code `1`. The canonical
  * "fail with a message" program for a `NodeProgram`. For non-`1` exit codes,
- * compose `mapStep(error(s), () => n)` directly.
+ * compose `mapStep(error(s), () => resultError(n))` directly.
+ *
+ * **It never succeeds, and the type says so.** `E` is `number` and `T` is
+ * `never`, so `step`'s continuation takes a `never` and can never run. That is
+ * a continuation nobody reaches, not a compile error: writing one still type-
+ * checks, because a function accepting `never` accepts anything. What the type
+ * buys is that no *value* can be invented for the success branch, so nothing
+ * downstream can proceed as if this had succeeded.
  *
  * **The write's own outcome is deliberately discarded**, which is why this is
  * the raw `mapStep` rather than the Io one. The program is already failing and
@@ -437,16 +441,32 @@ export const test = do_('test')
  * here would hand every caller a "failed to report a failure" branch with no
  * better answer available to it than the one taken here.
  *
- * @type {(s: string) => RawEffect<Write, number>}
+ * @type {(s: string) => Effect<Write, never, number>}
  */
 export const errorExit = s =>
-    mapStep(error(s), () => 1)
+    mapStep(error(s), () => resultError(1))
+
+/**
+ * The exit code a {@link Program} answered, from whichever branch it came.
+ *
+ * `Result<0, number>` puts a number at `[1]` on both sides — `ok(0)` for
+ * success, `error(n)` for failure — so reading the code never asks which
+ * branch produced it, while a caller that cares *whether* it failed still asks
+ * `[0]`. That is why the success type is the literal `0` rather than `void`.
+ *
+ * A non-zero code belongs in the `error` branch and `0` in the `ok` branch; the
+ * type cannot say so, since there is no "non-zero number", and nothing depends
+ * on it — this reads `[1]` either way.
+ *
+ * @type {(r: Result<0, number>) => number}
+ */
+export const exitCode = ([, code]) => code
 
 /**
  * Renders a channel error as a human line: an {@link IoError}'s own message, or
  * the command name a runner could not dispatch.
  *
- * @type {(e: NotImplemented | IoError) => string}
+ * @type {(e: IoChannel) => string}
  */
 export const errorMessage = ([tag, payload]) =>
     tag === 'notImplemented' ? `operation not implemented: ${payload}` : payload.message
@@ -467,7 +487,7 @@ export const errorMessage = ([tag, payload]) =>
  * the bare kind. That is deliberate: guessing which part of a free-text message
  * is path-free is exactly the mistake this exists to prevent.
  *
- * @type {(e: NotImplemented | IoError) => string}
+ * @type {(e: IoChannel) => string}
  */
 export const errorSummary = ([tag, payload]) =>
     tag === 'notImplemented'
@@ -483,10 +503,18 @@ export const errorSummary = ([tag, payload]) =>
  * counterpart of {@link isNotFound} at the other end of the channel: where that
  * one asks which failure this is, this one stops asking and reports.
  *
- * @type {<O extends Operation, T>(e: Effect<O, T, NotImplemented | IoError>) => RawEffect<O | Write, number>}
+ * @type {<O extends Operation, T>(e: Effect<O, T, IoChannel>) => Effect<O | Write, 0, number>}
  */
 export const exitStep = e =>
-    step(e, r => r[0] === 'error' ? errorExit(errorMessage(r[1])) : pure(0))
+    step(e, r => {
+        // Bound rather than returned inline: the two branches are
+        // `Effect<Write, never, number>` and `Effect<never, 0, never>`, both
+        // assignable to this, but `step` infers its continuation's type from
+        // the union and picks neither.
+        /** @type {Effect<Write, 0, number>} */
+        const code = r[0] === 'error' ? errorExit(errorMessage(r[1])) : pureOk(0)
+        return code
+    })
 
 /** @type {(version: string) => readonly number[]} */
 const versionParts = version =>

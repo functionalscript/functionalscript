@@ -4,6 +4,7 @@
  * @module
  */
 
+import { exitCode } from '../../effects/node/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { step as ioStep } from '../../effects/io/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
@@ -27,6 +28,6 @@ export const proof = {
     },
     main: () => {
         const [, result] = virtual(emptyState)(main(defaultNodeProgramOptions))
-        assertEq(result, 0)
+        assertEq(exitCode(result), 0)
     },
 }

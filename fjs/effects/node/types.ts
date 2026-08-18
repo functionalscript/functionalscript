@@ -47,10 +47,30 @@ export type IoErrorInfo = {
 export type OpResult<T> = Result<T, NotImplemented>
 
 /**
+ * The error channel of anything that performs host IO: a normalized host
+ * failure, or the report that the runner does not implement the operation.
+ *
+ * It is one name rather than a union spelled at each site, and that is a
+ * migration property rather than brevity. An effect that does no IO *yet* is
+ * one added `readFile` away from doing some, and if each signature names its
+ * own errors, that one change walks up every enclosing signature — the failure
+ * mode that sank `throws` clauses elsewhere, where engineers eventually
+ * declared everything throwing rather than maintain the cascade. Declaring the
+ * standard channel once is that concession made deliberately: an IO-touching
+ * effect says it fails *the way node IO fails*, and gaining a new way to do so
+ * changes nothing above it.
+ *
+ * It is not a licence to widen. An operation with failures of its own extends
+ * the channel (`IoChannel | ParseError`), and a computation whose errors are
+ * genuinely narrower should say so — this is the default for IO, not a ceiling.
+ */
+export type IoChannel = NotImplemented | IoError
+
+/**
  * The result of an operation that performs host IO: its value, a normalized
  * host failure, or the missing-handler report.
  */
-export type IoResult<T> = Result<T, NotImplemented | IoError>
+export type IoResult<T> = Result<T, IoChannel>
 
 // all
 
@@ -150,7 +170,7 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
 export type WriteBytes = readonly['writeBytes', (path: string, offset: number, data: Vec) => IoResult<void>]
 
 /** @internal */
-export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>) => Effect<O | WriteBytes, void, NotImplemented | IoError>
+export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, IoChannel>) => Effect<O | WriteBytes, void, IoChannel>
 
 // stat
 
@@ -358,6 +378,21 @@ export type NodeProgramOptions = {
     readonly inlineTestContext: boolean
 }
 
-export type Program<O extends Operation> = (options: NodeProgramOptions) => RawEffect<O, number>
+/**
+ * A program: run it, and it answers an exit code.
+ *
+ * The code lives in a `Result` rather than in a bare `number`, and the two
+ * branches say which kind of code it is — `ok(0)` for success, `error(n)` for
+ * failure. A bare `number` could not: nothing could short-circuit on it, so a
+ * chain that ran one program and then another had to re-test the code by hand,
+ * and `step(…, () => pure(0))` was a way to report a failed program as a clean
+ * exit that the type system had no opinion about.
+ *
+ * **`T` is the literal `0`**, so a success carries no information beyond
+ * having succeeded, and `r[1]` is the exit code in *either* branch. A runner
+ * reads the code without asking which branch it came from; a caller that cares
+ * whether the program failed asks `r[0]`.
+ */
+export type Program<O extends Operation> = (options: NodeProgramOptions) => Effect<O, 0, number>
 
 export type NodeProgram = Program<NodeOp>

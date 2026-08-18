@@ -1,9 +1,14 @@
 ## io-effect-migration. Migrate effects to explicit Result semantics
 
 **Priority:** P3
-**Status:** open — all six stages have landed; what is left is the sweep of
-design docs that still spell the pre-rename names, in Stage 5's task list.
-Delete this file when that is done.
+**Status:** done — all six stages landed and the design-doc sweep is finished.
+
+Kept rather than deleted, which its own last line used to instruct. Two live
+documents cite it for why the layer exists —
+[`../io/README.md`](../io/README.md) and
+[`spec/todo/io-effects.md`](../../../spec/todo/io-effects.md) — so it is the
+migration's record now rather than an open task, and deleting it would break
+both.
 
 ### Goal
 
@@ -408,8 +413,20 @@ cons cell; `Program<O>` answers an exit code; `Step<O>` and `ToolEntry.handle`
 answer a JSON-RPC response and a tool result, which *are* their error channels.
 Giving those a channel would put an `ok(…)` wrapper on every stream cell and
 every tool answer, for a failure that cannot happen. So `RawEffect` is public
-and load-bearing, not an implementation detail, and the two names now divide by
-meaning: `Effect` can fail, `RawEffect` cannot.
+and load-bearing, not an implementation detail.
+
+> **Two of those four examples no longer hold.** `List<O, T, E>` and
+> `Program<O>` both carry channels now — a stream cell fails rather than
+> yielding an error item, and an exit code says which numbers mean failure —
+> and neither acquired an `ok(…)` wrapper for a failure that cannot happen,
+> because in both cases the failure could happen and was being carried
+> somewhere worse. `Step<O>` and `ToolEntry.handle` still hold, and for the
+> reason given: the protocol *is* their error channel.
+>
+> The conclusion survives its examples. `RawEffect` stays public, but the
+> division is *composition* against *representation* rather than `Effect` can
+> fail against `RawEffect` cannot — see [`../io/README.md`](../io/README.md)
+> and `Effect`'s doc in [`../io/types.ts`](../io/types.ts).
 
 **The rename was done without the default, then given one.** `Effect<O, T, E>`
 with `E = NotImplemented` makes `Effect<O, T>` legal and fallible — which is
@@ -434,8 +451,10 @@ RawEffect<O, T>                    // the Pure | Do representation
 - [x] Retire the old public raw abstraction — **superseded**. It is renamed
       `RawEffect` and stays public, for the reason recorded above.
 - [x] Keep the `Pure | Do` representation under its own name — `RawEffect`,
-      public rather than internal, because `List`, `Program`, `Step` and
-      `ToolEntry.handle` are all built on it and none of them can fail.
+      public rather than internal. The stated reason was that `List`,
+      `Program`, `Step` and `ToolEntry.handle` are built on it and none of them
+      can fail; two of those four have channels now, and the decision holds on
+      the narrower ground recorded above.
 - [x] Rename `IoEffect` to `Effect` and make `NotImplemented` the default
       error type unless migration experience shows a better default.
 - [x] Make the Io `step`, `catchStep`, and `resultStep` the canonical
@@ -445,7 +464,7 @@ RawEffect<O, T>                    // the Pure | Do representation
 - [x] Update docs, examples, AGENTS.md, and CHANGELOG as needed for the
       breaking change — `fjs/AGENTS.md` §3.4, `fjs/effects/io/README.md`, and
       the module docs.
-- [ ] Sweep the design docs that still spell the old names in proposed code:
+- [x] Sweep the design docs that still spell the old names in proposed code:
       the `todo/*.md` under `fjs/effects`, `fjs/cas`, `fjs/protocol/mcp` and
       friends, plus `spec/todo/io-effects.md`. They describe future work rather
       than current behaviour, so they were left out of the rename itself.
@@ -455,6 +474,18 @@ RawEffect<O, T>                    // the Pure | Do representation
       `../../cas/todo/write-closed-helpers`), which is a dangling reference
       rather than a stale name: it is gone, not renamed, so each of those needs
       a decision about what the proposal meant rather than a substitution.
+
+      Done. The dangling ones all meant the same thing — the `Result`
+      short-circuit — and it still exists: it is what the Io `step` *is*, not
+      an adapter placed around a raw one, so each now points there.
+      `IoResult<T>` needed no substitution at all; it survived the migration
+      and still names an operation's return. What did need it was
+      `List<O, IoResult<Vec>>` and the two-parameter `Effect<O, IoResult<T>>`,
+      which would now mean a doubly-wrapped `Result`.
+      `todo/inline-type-casts.md` was left alone on its own instruction — it is
+      an audit snapshot, and says a re-audit rather than a partial edit is how
+      to refresh it — with its two moved rows noted beside the nine already
+      recorded as moved.
 
 The rename silently changes what the second type parameter means — `T` becomes
 the `ok`-branch value rather than the raw result. **Relying on `tsc` to catch

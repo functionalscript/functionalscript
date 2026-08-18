@@ -14,7 +14,7 @@ import { main as ciMain } from './ci/module.f.mjs'
 import { errorExit, errorMessage, exitStep, import_ } from './effects/node/module.f.mjs'
 import { dispatch } from './cli/module.f.mjs'
 import { casMcpServer } from './mcp/module.f.mjs'
-import { step } from './effects/module.f.mjs'
+import { resultStep } from './effects/io/module.f.mjs'
 
 /** @type {Commands<NodeOp>} */
 const commands = [
@@ -36,9 +36,16 @@ const commands = [
     {
         names: ['mcp', 'm'],
         description: 'Run an MCP server over stdio exposing the CAS and Evo (subjects/heads) as tools',
-        // `exitStep`, not `step(…, () => pure(0))`: the server's bootstrap can
-        // fail now, and a `() => pure(0)` continuation would report a server
-        // that never started as a clean exit.
+        // `exitStep`, not `resultStep(…, () => pureOk(0))`: the server's
+        // bootstrap can fail, and a continuation that ignores its result would
+        // report a server that never started as a clean exit.
+        //
+        // The types do *not* rule that out. `Program`'s exit code being a
+        // `Result` catches the old spelling — `() => pure(0)` hands back a bare
+        // number, which no longer fits — but `() => pureOk(0)` still compiles,
+        // because discarding a result you were handed is exactly what a
+        // continuation is allowed to do. This comment guards a mistake that is
+        // still available.
         handler: ({ home }) => exitStep(casMcpServer(home)),
     },
     {
@@ -56,7 +63,7 @@ const commands = [
         // few lines up, and the same one every other command now gives.
         handler: options => {
             const [file, ...args] = options.args
-            return step(
+            return resultStep(
                 import_(file),
                 r => {
                     if (r[0] === 'error') {

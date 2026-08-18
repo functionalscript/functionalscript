@@ -2,8 +2,7 @@
  * @import { Dir } from './types.ts'
  * @import { NodeOp } from '../types.ts'
  * @import { RawEffect } from '../../types.ts'
- * @import { IoError } from '../types.ts'
- * @import { NotImplemented } from '../../io/types.ts'
+ * @import { IoChannel } from '../types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
@@ -16,7 +15,7 @@ import { catchStep } from '../../io/module.f.mjs'
 /**
  * Asserts that a channel error is a host failure carrying `message` — the
  * normalized shape every runner reports, virtual and Node alike.
- * @type {(e: NotImplemented | IoError, message: string) => void}
+ * @type {(e: IoChannel, message: string) => void}
  */
 const assertIoMessage = (e, message) => {
     assert(e[0] === 'ioError', e)

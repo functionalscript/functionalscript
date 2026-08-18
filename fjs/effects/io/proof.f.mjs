@@ -103,6 +103,17 @@ const checked = v => {
     return step(x0, small)
 }
 
+/**
+ * The anything-accepting renderer {@link unwrapStep}'s doc calls an escape
+ * hatch. It is the honest choice *here* — these proofs are about `unwrapStep`
+ * itself, not about any particular channel — and the wrong one almost anywhere
+ * else, since accepting every error is what stops a widened channel from being
+ * a compile error.
+ *
+ * @type {(e: unknown) => string}
+ */
+const show = e => `${e}`
+
 export const proof = {
     pureOk: () => {
         assertOk(pureResult(pureOk(5)), 5)
@@ -247,16 +258,15 @@ export const proof = {
     },
     foldStep: {
         empty: () => {
-            assertOk(pureResult(foldStep(pure([]), 10, x => s => pureOk(s + x))), 10)
+            assertOk(pureResult(foldStep(pureOk([]), 10, x => s => pureOk(s + x))), 10)
         },
         threadsState: () => {
-            assertOk(pureResult(foldStep(pure([1, 2, 3, 4]), 0, x => s => pureOk(s + x))), 10)
+            assertOk(pureResult(foldStep(pureOk([1, 2, 3, 4]), 0, x => s => pureOk(s + x))), 10)
         },
         // The first failure stops the fold: `4` never reaches the accumulator,
         // and the error is the result.
         shortCircuits: () => {
-            const e = foldStep(
-                pure([1, 2, 4]),
+            const e = foldStep(pureOk([1, 2, 4]),
                 0,
                 x => s => x === 2 ? pureError('two') : pureOk(s + x))
             assertError(pureResult(e), 'two')
@@ -264,16 +274,15 @@ export const proof = {
     },
     forEachStep: {
         empty: () => {
-            assertOk(pureResult(forEachStep(pure([]), todo)), undefined)
+            assertOk(pureResult(forEachStep(pureOk([]), todo)), undefined)
         },
         runs: () => {
-            assertOk(pureResult(forEachStep(pure([1, 2, 3]), () => pureOk(undefined))), undefined)
+            assertOk(pureResult(forEachStep(pureOk([1, 2, 3]), () => pureOk(undefined))), undefined)
         },
         // Where the raw `forEachStep` would run every item regardless, this one
         // stops — the difference the `void` accumulator hides in the raw form.
         stopsAtTheFirstError: () => {
-            const e = forEachStep(
-                pure([1, 2, 3]),
+            const e = forEachStep(pureOk([1, 2, 3]),
                 x => x === 2 ? pureError('two') : pureOk(undefined))
             assertError(pureResult(e), 'two')
         },
@@ -282,7 +291,7 @@ export const proof = {
         // An `ok` leaves the layer as an ordinary raw effect, carrying the
         // value rather than the `Result` around it.
         ok: () => {
-            const o = runPure(unwrapStep(pureOk(5)))
+            const o = runPure(unwrapStep(pureOk(5), show))
             assert(o.length === 1, o)
             assertEq(o[0], 5)
         },
@@ -291,7 +300,7 @@ export const proof = {
         // `Pure` head immediately.
         throw: {
             error: () => {
-                unwrapStep(pureError('boom'))
+                unwrapStep(pureError('boom'), show)
             },
         },
     },

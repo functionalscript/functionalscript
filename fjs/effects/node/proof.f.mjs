@@ -1,7 +1,6 @@
 /**
  * @import { Vec } from "../../types/bit_vec/types.ts"
- * @import { IoError, IoResult, ReadFile } from "./types.ts"
- * @import { NotImplemented } from "../io/types.ts"
+ * @import { IoChannel, IoError, IoResult, ReadFile } from "./types.ts"
  * @import { Result } from "../../types/result/types.ts"
  * @import { List } from "../list/types.ts"
  * @import { OperationMap } from "../types.ts"
@@ -35,7 +34,7 @@ const readHello = match(readHelloMap)
  * Asserts that a channel error is a host failure carrying `message`. Every
  * runner reports through the same normalized {@link IoError}, so a proof
  * against the virtual filesystem names the message rather than the shape.
- * @type {(e: NotImplemented | IoError, message: string) => void}
+ * @type {(e: IoChannel, message: string) => void}
  */
 const assertIoMessage = (e, message) => {
     assert(e[0] === 'ioError', e)
@@ -126,13 +125,17 @@ export const proof = {
         // The exit-code policy a `NodeProgram` ends with: success is `0`...
         ok: () => {
             const [state, code] = virtual(emptyState)(exitStep(writeFile('hello', vec8(0x2An))))
-            assertEq(code, 0)
+            assertEq(code[0], 'ok')
+            assertEq(code[1], 0)
             assertEq(state.stderr, '')
         },
         // ...and a failure is reported on `stderr` and exits `1`.
+        // ...and the code is `[1]` either way, which is what lets a runner
+        // read it without asking which branch it came from.
         error: () => {
             const [state, code] = virtual(emptyState)(exitStep(readFile('missing')))
-            assertEq(code, 1)
+            assertEq(code[0], 'error')
+            assertEq(code[1], 1)
             assertEq(state.stderr, 'no such file or directory\n')
         },
     },
@@ -538,7 +541,7 @@ export const proof = {
         createExclusiveFails: () => {
             // The destination already exists, so `createExclusive` fails (EEXIST) and
             // the error propagates without ever touching `writeBytes`.
-            /** @type {List<never, IoResult<Vec>>} */
+            /** @type {List<never, Vec, IoChannel>} */
             const chunks = listEmpty()
             const [state, [t, result]] = virtual({
                 ...emptyState,
@@ -551,8 +554,8 @@ export const proof = {
         invalidBufferSize: () => {
             // A chunk whose bit length isn't a multiple of 8 trips the
             // byte-alignment guard before `writeBytes` is ever called.
-            /** @type {List<never, IoResult<Vec>>} */
-            const chunks = listNonEmpty(['ok', vec(4n)(0b1010n)], listEmpty())
+            /** @type {List<never, Vec, IoChannel>} */
+            const chunks = listNonEmpty(vec(4n)(0b1010n), listEmpty())
             const [_, [t, result]] = virtual(emptyState)(
                 writeFromStream('hello', chunks)
             )

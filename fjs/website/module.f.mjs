@@ -5,6 +5,7 @@
  *
  * @import { Write, WriteFile } from '../effects/node/types.ts'
  * @import { RawEffect } from '../effects/types.ts'
+ * @import { Effect } from '../effects/io/types.ts'
  */
 
 import { htmlUtf8 } from '../media/html/module.f.mjs'
@@ -16,7 +17,7 @@ const html = htmlUtf8()(
         'GitHub Repository'
     ])
 
-/** @type {RawEffect<WriteFile | Write, number>} */
+/** @type {Effect<WriteFile | Write, 0, number>} */
 const program = exitStep(writeFile('index.html', html))
 
 export const main = () => program

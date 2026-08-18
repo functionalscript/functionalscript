@@ -2,6 +2,7 @@
  * Proofs for local development configuration generation.
  */
 
+import { exitCode } from '../../effects/node/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
@@ -27,13 +28,13 @@ export const proof = {
     },
     main: () => {
         const [, result] = virtual(initial)(main(defaultNodeProgramOptions))
-        assertEq(result, 0)
+        assertEq(exitCode(result), 0)
     },
     // A missing source is no longer a panic: it propagates through the chain
     // and the program reports it and exits 1.
     missingSource: () => {
         const [state, code] = virtual(emptyState)(main(defaultNodeProgramOptions))
-        assertEq(code, 1)
+        assertEq(exitCode(code), 1)
         assertEq(state.stderr, 'no such file or directory\n', state.stderr)
     },
 }

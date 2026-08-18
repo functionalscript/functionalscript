@@ -1,7 +1,10 @@
 ## effect-list-fold. Move `foldStep` / `forEachStep` into `fjs/effects/list` and fold streams
 
 **Priority:** P3
-**Status:** open
+**Status:** open. Unaffected in substance by the fallible-cell change — this is
+about folding a *stream* rather than a materialized list, which is still true —
+but any `List<O, IoResult<Vec>>` spelling below is now
+`List<O, Vec, IoChannel>`, and the error-item case the sketches carry is gone.
 
 ### Problem
 
@@ -101,9 +104,10 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
 ### What it unblocks
 
 - **`foldStream` mostly dissolves.**
-  [fold-stream-combinator](./fold-stream-combinator.md) becomes `foldStep` plus
-  an `okStep`-shaped short-circuit over `Result`, rather than a fourth
-  hand-written skeleton. Re-scope or close that issue once this lands.
+  [fold-stream-combinator](./fold-stream-combinator.md) becomes an ordinary
+  `foldStep`, rather than a fourth hand-written skeleton. The short-circuit it
+  described is no longer part of the shape at all: a `List` cell carries its own
+  failure now, so the Io `step` propagates it. Re-scope or close that issue.
 - **`cas.list()` can stream.** `Effect<O, readonly Vec[]>` → `EffectList<O, Vec>`,
   so a large store's hash list never materializes. This is where the memory win
   actually is — `foldStep` taking a stream buys nothing until the producer
