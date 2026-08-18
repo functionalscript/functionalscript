@@ -249,8 +249,9 @@ export const detectVec = bytes => finish(push(detectInit)(bytes))
 
 /**
  * Folds a CAS read stream through {@link push} and reads {@link finish} at EOF,
- * deriving `cas_get` metadata without ever materializing the blob. A read `error`
- * item short-circuits into the `IoResult` error.
+ * deriving `cas_get` metadata without ever materializing the blob. A stream that
+ * fails carries its failure out as this one's, through `step` rather than
+ * through a case in the loop.
  *
  * @template {Operation} O
  * @param {List<O, Vec, IoChannel>} stream

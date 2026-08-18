@@ -301,7 +301,7 @@ export const proof = {
         const hashes = unwrapResult(listed)
         assertEq(hashes.length, 1, ['expected one shard after dedup', hashes.length])
     },
-    casWriteErrorItemAborts: () => {
+    casWriteStreamFailureAborts: () => {
         // A stream that fails mid-way deletes the partial staging file and fails; nothing is
         // published, so the store stays empty.
         const c = fileCas(sha256)('.')

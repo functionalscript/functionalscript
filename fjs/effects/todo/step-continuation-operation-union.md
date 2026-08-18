@@ -16,9 +16,13 @@ union. In practice six call sites cast the continuation — or its result — to
 union the caller wants, because inference lands on a narrower or differently
 shaped `Q`:
 
+> **One site is gone.** `fjs/cas/evo/module.f.mjs:456`'s cast around
+> `pure(error(…))` went with the flattening of `Evo.add`'s nested `Result`; the
+> line is an object-literal field now. Five call sites, not six — the shape of
+> the problem is unchanged.
+
 | Site | Cast |
 | --- | --- |
-| `fjs/cas/evo/module.f.mjs:456` | `Effect<MemOp, Result<Hash, string>>` around `pure(error(…))` |
 | `fjs/cas/module.f.mjs:348` | `(v: Vec) => Effect<Rm, IoResult<Vec>>` |
 | `fjs/djs/module.f.mjs:41` | `(result: Result<Unknown, ParseError>) => Effect<_CompileOp, number>` |
 | `fjs/djs/transpiler/module.f.mjs:103` | `(context: ParseContext) => Effect<ReadFile, Result<Unknown, ParseError>>` |

@@ -78,7 +78,8 @@ export type NotImplemented = readonly['notImplemented', string]
  * error channel it never wanted.
  *
  * An operation's own failures extend the channel — `Effect<ReadFile, Vec,
- * NotImplemented | IoError>`. That envelope belongs to the *operation's declared return type*,
+ * IoChannel>`, that alias being the node standard of
+ * `NotImplemented | IoError`. The envelope belongs to the *operation's declared return type*,
  * not to a wrapper a constructor puts around a raw operation, so that a runner
  * can deliver `error(notImplemented)` through the ordinary continuation.
  *

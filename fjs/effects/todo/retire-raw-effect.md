@@ -1,7 +1,8 @@
 ## retire-raw-effect. Make `RawEffect` internal to `fjs/effects`
 
 **Priority:** P3
-**Status:** open — design settled in #1640; two decisions still open (below).
+**Status:** open — design settled in #1640; both decisions below are now
+settled, and stages 1 through 4 have landed.
 
 ### Goal
 
@@ -42,7 +43,8 @@ records a case that already bit: `result` and `summary` "used to answer
 a `void` one is expected — so an implementation whose writes were fallible
 type-checked while its failures went nowhere." That migration has been paid
 once already, as stage 4 of [`io-effect-migration.md`](./io-effect-migration.md):
-five PRs, 46 files, +962/−555, with real test failures found in review.
+five PRs (#1615, #1629, #1630, #1632, #1633), 44 files, +1250/−483, with real
+test failures found in review.
 
 **One vocabulary instead of two.** `RawEffect` needs a parallel combinator set
 — raw `step`/`mapStep`/`foldStep`/`forEachStep`/`history`/`historyStep` beside
