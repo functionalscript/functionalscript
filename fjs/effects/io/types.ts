@@ -47,27 +47,28 @@ export type NotImplemented = readonly['notImplemented', string]
  *
  * **This is the effect abstraction to reach for**, and `RawEffect<O, T>`
  * ([`../types.ts`](../types.ts)) is the representation it is built from. Both
- * names are public and both are load-bearing: `Effect` for anything that can
- * fail, `RawEffect` for the representation, for the runners and `do_` that
- * speak it, and for a computation that genuinely cannot fail — a `List` cell,
- * a `Program`'s exit code, an MCP tool result. A channel is not free, so
- * nothing is given one that has no failure to report.
+ * names are public, and the division between them is not "fallible" against
+ * "infallible" — it is *composition* against *representation*.
  *
- * **A `Result`-valued raw effect is not automatically this one.** The alias is
- * transparent, so `RawEffect<O, Result<T, E>>` and `Effect<O, T, E>` are the
- * same type and the choice between them says only what the `Result` *means*.
- * It is the effect channel — spell it `Effect` — when `E` carries
- * {@link NotImplemented}, because that error can only have come from a runner
- * that could not dispatch. It is ordinary returned data — leave it
- * `RawEffect` — when `E` is a domain verdict the caller asked for and that has
- * already absorbed whatever channel produced it: `evo.revision`'s
- * `Result<RevisionData, string>`, where a runner failure and a blob that is
- * not a revision are the same `string` to the caller, or the transpiler's
- * `Result<Unknown, ParseError>`, where a missing file is reported as a parse
- * error like any other. Collapsing the second kind into the channel would
- * report "invalid parent hash" the way it reports a runner that cannot
- * dispatch `memWrite`; keeping the first kind out of it hides a failure the
- * error-propagating combinators exist to carry.
+ * **Prefer this over a `Result`-valued `RawEffect`, and prefer it even where
+ * nothing fails yet.** The two spellings are the same type, so the choice costs
+ * nothing today and is not free later. Every effect holding a {@link Do} node is
+ * dispatched by a runner that may decline the command (`partialMatch`), so an
+ * infallible effect states something about today's implementation rather than
+ * about the computation. When that changes, widening `Effect<O, T, never>` to
+ * `Effect<O, T, E>` leaves every consumer that merely chains untouched —
+ * {@link step} is generic in the channel and unions it, so a continuation still
+ * sees only the `ok` value — and errors at exactly the sites that declared the
+ * effect infallible. Widening a `RawEffect<O, T>` instead rewrites every
+ * consumer *body*, because the raw `step`'s continuation goes from receiving
+ * `T` to receiving `Result<T, E>`.
+ *
+ * The channel is where **short-circuiting** lives, not specifically where a
+ * runner's refusal lives. A parse failure, a domain verdict, or a non-zero exit
+ * code belongs in it for the same reason {@link NotImplemented} does: `step`
+ * should stop the chain and carry it out. `RawEffect` is for the representation
+ * itself — `Pure`, `Do`, the runners, `match`, `runPure`, and what
+ * `unwrapStep` hands back.
  *
  * **`E` defaults to {@link NotImplemented}**, the one error every operation can
  * answer with, so the common case is written `Effect<Sandbox, T>`. The default
@@ -76,9 +77,8 @@ export type NotImplemented = readonly['notImplemented', string]
  * `Effect<O, T>` was a compile error rather than a silent acquisition of an
  * error channel it never wanted.
  *
- * `E` carries at least {@link NotImplemented}, and an operation with failures of
- * its own extends the channel — `Effect<ReadFile, Vec, NotImplemented |
- * IoError>`. That envelope belongs to the *operation's declared return type*,
+ * An operation's own failures extend the channel — `Effect<ReadFile, Vec,
+ * NotImplemented | IoError>`. That envelope belongs to the *operation's declared return type*,
  * not to a wrapper a constructor puts around a raw operation, so that a runner
  * can deliver `error(notImplemented)` through the ordinary continuation.
  *

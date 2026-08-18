@@ -8,6 +8,7 @@
  * @import { ParseError } from '../parser/types.ts'
  * @import { AstModule } from '../ast/types.ts'
  * @import { RawEffect } from '../../effects/types.ts'
+ * @import { Effect } from '../../effects/io/types.ts'
  * @import { ReadFile } from '../../effects/node/types.ts'
  * @import { ParseContext } from './types.ts'
  */
@@ -34,7 +35,7 @@ const mapDjs = context => path => {
     return res.djs
 }
 
-/** @type {(path: string) => RawEffect<ReadFile, Result<AstModule, ParseError>>} */
+/** @type {(path: string) => Effect<ReadFile, AstModule, ParseError>} */
 const parseModule = path => step(
     readUtf8File(path),
     result => {
@@ -89,10 +90,10 @@ const foldNextModuleOp = path => context => {
         parseModuleResult => transpileWithImports(path)(parseModuleResult)(context))
 }
 
-/** @type {(path: string) => RawEffect<ReadFile, Result<Unknown, ParseError>>} */
+/** @type {(path: string) => Effect<ReadFile, Unknown, ParseError>} */
 const transpileModule = path => step(
     foldNextModuleOp(path)({ stack: null, complete: null, error: null }),
-    /** @type {(context: ParseContext) => RawEffect<ReadFile, Result<Unknown, ParseError>>} */
+    /** @type {(context: ParseContext) => Effect<ReadFile, Unknown, ParseError>} */
     (context) => {
         if (context.error !== null) {
             return pure(error(context.error))
@@ -110,7 +111,7 @@ const transpileModule = path => step(
  * no metadata and `fjs/djs`'s `compile` names the file instead of a line and
  * column.
  *
- * @type {(path: string) => RawEffect<ReadFile, Result<Unknown, ParseError>>}
+ * @type {(path: string) => Effect<ReadFile, Unknown, ParseError>}
  */
 const transpileJson = path => step(
     readUtf8File(path),
@@ -135,7 +136,7 @@ const transpileJson = path => step(
  * Returns `['ok', value]` on success, or `['error', ParseError]` on a parse
  * failure, a missing file, or a circular dependency.
  *
- * @type {(path: string) => RawEffect<ReadFile, Result<Unknown, ParseError>>}
+ * @type {(path: string) => Effect<ReadFile, Unknown, ParseError>}
  */
 export const transpile = path => path.endsWith('.json')
     ? transpileJson(path)
