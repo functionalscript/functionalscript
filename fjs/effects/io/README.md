@@ -117,9 +117,9 @@ into a wider type. That is what lets adjacent links in one chain fail in
 different ways, and it follows `okThen` (`fjs/types/result/module.f.mjs`), the
 pure sibling of this bind.
 
-This used to route through an exported `okStep` in the raw module — an adapter
-whose only caller was `step`'s own body, one indirection away. It is written
-here now, and the raw layer has one export fewer.
+This used to route through an `okStep` exported by the representation module —
+an adapter whose only caller was `step`'s own body, one indirection away. It is
+written here now, and that module has one export fewer.
 
 ## `NotImplemented`
 

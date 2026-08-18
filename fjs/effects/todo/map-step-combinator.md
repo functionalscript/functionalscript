@@ -113,6 +113,5 @@ conversion as one 14-module diff.
 - [fold-stream-combinator](./fold-stream-combinator.md) — its pure consumers
   (`detectStream`, `collectRead`) end in `pure(ok(...))` projections.
 - `fjs/effects/io/module.f.mjs` — `mapStep`, `step`, `historyStep`, `foldStep`,
-  `forEachStep`; the "do not nest steps" rule lives in
-  `fjs/effects/module.f.mjs`'s header.
+  `forEachStep`, and the "do not nest steps" rule in its header.
 </content>

@@ -50,5 +50,5 @@ per-test bodies keep only what they actually vary.
 ### Related
 
 - `fjs/effects/proof.f.mjs` — `assertPure`, a proof helper of the same shape.
-  It was exported and is not any more, having never gained a cross-file
-  importer.
+  It was exported and is a local `const` again, its last cross-file importer
+  having gone with the `Eff` experiment.

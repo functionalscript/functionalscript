@@ -89,8 +89,10 @@ built from `empty` / `nonEmpty`. The four `pure(...)` call sites below become
 **Layering.** `fjs/effects/list/module.f.mjs` already imports `pureOk` from
 `../io/module.f.mjs` and `Effect`/`Operation` from `../types.ts`; adding `step`
 is the same direction, so no cycle. After the move,
-`fjs/effects/io/module.f.mjs` drops its `fjs/types/list` import entirely and no
-effect module depends on the strict list type.
+`fjs/effects/io/module.f.mjs` drops its `fjs/types/list` import entirely, and
+the combinator modules no longer depend on the strict list type at all.
+`fjs/effects/node` still does — `reverse` in the module, `List` in its types —
+but for its own reasons, untouched by this move.
 
 ### Call sites
 
