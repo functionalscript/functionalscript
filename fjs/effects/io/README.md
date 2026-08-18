@@ -151,9 +151,9 @@ rather than discard it:
 - `unwrapStep` (here) — panic on the error branch. It belongs where the caller
   genuinely has no answer: a build tool that cannot read its own sources, a
   reporter that cannot reach stdout. It is one greppable name rather than an
-  `unwrap` buried in a continuation, so the sites that have not yet chosen a
-  real policy are exactly the sites this name marks — and that is the worklist
-  stage 4 starts from.
+  `unwrap` buried in a continuation, so a site that has not chosen a real
+  policy is exactly a site this name marks. The library has none left; the
+  remaining calls are in test harnesses, where a missing fixture is fatal.
 - `exitStep` / `errorMessage` (`../node/module.f.mjs`) — a `NodeProgram`'s
   exit-code policy: report the failure on `stderr` and exit `1`.
 
@@ -162,18 +162,19 @@ something better with a failure wants `catchStep` or `resultStep`.
 
 ## What is deliberately absent
 
-- **No `notImplemented` value.** Nothing produces this error until stage 6,
-  where a runner may omit a handler; until then it exists in the type model and
-  runners stay total over their declared operation maps. The lifts do not
-  produce it either — it arrives through an operation's own continuation, not
-  from a program lifting it.
-- **No Io `historyStep`.** It is *expected* — `fjs/cas`'s chains reach back to
-  earlier values, so migrating them will need one — but the first consumer
-  should shape it. Until then the raw `historyStep` still applies to any
-  `Effect` whose links do not short-circuit.
-- **No mirrored raw API.** Io variants of the other combinators (`foldStep`,
-  `forEachStep`) arrive when real consumers require them, not speculatively.
-  `mapStep` is here rather than deferred because without it every site
-  converted in stage 4 would spell its trailing pure projection as a step,
-  which [`../todo/map-step-combinator.md`](../todo/map-step-combinator.md)
-  establishes is the wrong shape.
+This section used to list `notImplemented`, `historyStep`, `foldStep` and
+`forEachStep` as things the layer had not needed yet, to be shaped by their
+first consumer. All four exist now, and the list outlived them; what follows is
+what is still absent, and why.
+
+- **No `finallyStep`.** It is `resultStep` plus a policy. A derivable form earns
+  a name by being canonical vocabulary, and no repeated policy has shown up to
+  make this one canonical.
+- **No `defer`.** `(() => Effect<O, T, E>) => Effect<O, T, E>` cannot be
+  written: composition reads the `Pure` / `Do` tag before anything runs, and the
+  union has no third case meaning "not yet decided". That is the representation,
+  not a gap in this API — a caller who needs to name a composition without
+  performing it keeps the ingredients and defers the step itself.
+- **No second, `Result`-blind API.** There was one, in
+  [`../module.f.mjs`](../module.f.mjs), and it is gone: see the top of this file
+  for why one effect type means one set of combinators.

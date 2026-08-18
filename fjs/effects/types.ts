@@ -15,11 +15,11 @@ import type { Ok, Error, Result } from '../types/result/types.ts'
  * `error(notImplemented(command))` through the command's own output — so an
  * operation whose return admitted no error would be a hole in that mechanism:
  * there would be nowhere to put the refusal. Every *host* operation already
- * returned `OpResult<…>` or `IoResult<…>` when this constraint was added; the
- * operations declared inside proofs did not, and the commit that added the
- * rule had to rewrite them. What the constraint returns is a `Result`, not
- * either alias — those two are node conveniences, and the proofs still declare
- * their own channels directly.
+ * returned `OpResult<…>` or `IoResult<…>` when this constraint was added, and
+ * so did four of the six declared inside proofs — through a bare `Result`
+ * rather than either alias, since those two are node conveniences. The two in
+ * `./proof.f.mjs` returned a bare `number`, and the commit that added the rule
+ * rewrote them.
  *
  * It is also the latch the whole representation now rests on. An operation
  * *cannot* be declared infallible, so every {@link Effect} built from one has a

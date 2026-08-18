@@ -54,8 +54,8 @@ import { pure } from '../module.f.mjs'
  * Lifts a value into a successful `Effect` — `pure(ok(v))` written once.
  *
  * One of the two entry points into the layer: {@link step} and its siblings
- * compose `Effect`s but cannot produce the first one, and until stage 3 gives
- * the operations their `Result` envelope, nothing else does either.
+ * compose `Effect`s but cannot produce the first one, and the only other source
+ * is an operation's own `Result`.
  *
  * The error channel is `never`, which is not a special case to handle but the
  * ordinary consequence of the union rules: `never | E` is `E`, so a lifted
@@ -71,8 +71,8 @@ export const pureOk = v => pure(ok(v))
  *
  * This is how a program *originates* a failure: a fallback that has run out of
  * options, or a guard that rejects its input before performing anything. A
- * runner producing `error(notImplemented)` is stage 6 and does not go through
- * here — that error arrives through an operation's own continuation.
+ * A runner producing `error(notImplemented)` does not go through here — that
+ * error arrives through an operation's own continuation.
  *
  * @type {<E>(e: E) => Effect<never, never, E>}
  */

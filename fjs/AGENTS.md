@@ -819,9 +819,9 @@ A later link needing a value from an earlier one is **not** a reason to nest —
 nested continuation only reaches back because it closes over the enclosing scope.
 Use `historyStep`, which carries every earlier value forward in a newest-first
 tuple (a `History`) so they stay reachable downstream and the chain stays flat.
-A fallible chain uses the Io `historyStep`: the raw one would carry each link's
-`Result` into the tuple, so every later link would destructure results it has no
-intention of handling.
+`historyStep` carries `ok` values, which is why a `Result`-blind one could not
+serve: it carried each link's `Result` into the tuple, so every later link had
+to destructure results it had no intention of handling.
 `history(e)` starts a history from a plain effect; `historyStep` takes a history
 and returns one, so it composes with itself to any depth and only the entry point
 needs `history`.
