@@ -3,7 +3,8 @@
  *
  * @module
  *
- * @import { RawEffect, ToAsyncOperationMap } from '../../types.ts'
+ * @import { Effect, ToAsyncOperationMap } from '../../types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
  * @import { Key, MemOp } from '../../memory/types.ts'
  */
 
@@ -56,7 +57,7 @@ export const memoryOperationMap = (uuid = randomUUID) => {
 
 /**
  * Runs a memory-only effect using a fresh memory store.
- * @type {<T>(effect: RawEffect<MemOp, T>) => Promise<T>}
+ * @type {<T, E>(effect: Effect<MemOp, T, E>) => Promise<Result<T, E>>}
  */
 export const run = effect =>
     asyncRun(/** @type {ToAsyncOperationMap<MemOp>} */ (memoryOperationMap()))(effect)

@@ -1,5 +1,5 @@
 /**
- * Node.js effect runner: interprets `RawEffect<NodeOp, T>` directly against the
+ * Node.js effect runner: interprets `Effect<NodeOp, T, E>` directly against the
  * Node globals and built-in modules (`fs`, `http`, `child_process`, `process`,
  * `fetch`, …).
  *
@@ -12,7 +12,7 @@
  *
  * @module
  *
- * @import { RawEffect } from '../types.ts'
+ * @import { Effect } from '../types.ts'
  * @import { IoResult, Server as EffectServer, Headers, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
@@ -32,7 +32,7 @@ import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { exitCode, toIoError, usesInlineTestContext } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { asyncTryCatch } from '../../types/result/module.mjs'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
@@ -67,7 +67,7 @@ import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
  */
 const createServer = http.createServer
 
-/** @typedef {<T>(effect: RawEffect<NodeOp, T>) => Promise<T>} _EffectToPromise */
+/** @typedef {<T, E>(effect: Effect<NodeOp, T, E>) => Promise<Result<T, E>>} _EffectToPromise */
 
 /**
  * Performs host IO, reporting a thrown failure as an {@link IoResult} error.
@@ -305,12 +305,15 @@ const runNodeEffect = asyncRun({
         const nodeRl = async (req, res) => {
             const reqBody = await collect(req)
             const { method, url, headers } = req
-            const { status, headers: outHeaders, body: outBody } = await runNodeEffect(erl({
+            // `RequestListener` answers `Effect<…, ServerResponse, never>` —
+            // the response frame is where a listener puts its failures — so
+            // this unwrap is total.
+            const { status, headers: outHeaders, body: outBody } = unwrap(await runNodeEffect(erl({
                 method,
                 url,
                 headers,
                 body: listToVec(reqBody)
-            }))
+            })))
             res
                 .writeHead(status, outHeaders)
                 .end(fromVec(outBody))
@@ -329,7 +332,10 @@ const runNodeEffect = asyncRun({
     write: async (stream, data) => ok(await writeAll(streams[stream], fromVec(data))),
     read: async () => ok(await readStdinByte()),
     test: async (ctx, name, expectFailure, test) =>
-        ok(await ctx.test(name, { expectFailure }, async t => runNodeEffect(test(t)))),
+        // The body's answer is `ok(undefined)` — a `Test` callback absorbs its
+        // own failures by panicking, which is the only signal these frameworks
+        // read — so it is awaited and discarded rather than returned.
+        ok(await ctx.test(name, { expectFailure }, async t => { await runNodeEffect(test(t)) })),
 })
 
 /** @type {TestFn} */

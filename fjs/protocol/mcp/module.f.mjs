@@ -15,26 +15,16 @@
  *
  * @import { Unknown } from '../../media/json/types.ts'
  * @import { Ts } from '../../types/rtti/ts/types.ts'
- * @import { Operation, RawEffect } from '../../effects/types.ts'
+ * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Response, Id, RpcError } from '../json_rpc/types.ts'
  * @import { Type } from '../../types/rtti/types.ts'
- * @import {
- *   Implementation,
- *   ServerCapabilities,
- *   InitializeResult,
- *   Tool,
- *   ToolsListParams,
- *   ToolsCallResult,
- *   McpHandlers,
- *   ToolEntry,
- *   McpSessionState,
- *   McpConfig,
- * } from './types.ts'
+ * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig } from './types.ts'
  */
 
 import { boolean, string, option, array, record, or } from '../../types/rtti/module.f.mjs'
-import { mapStep, pure, step } from '../../effects/module.f.mjs'
+import { pureOk, resultMapStep, resultStep, step as ioStep } from '../../effects/module.f.mjs'
+import { ok } from '../../types/result/module.f.mjs'
 import { read, write } from '../../effects/memory/module.f.mjs'
 import {
     decodeRequest,
@@ -159,18 +149,18 @@ export const toolsCallResult = /** @type {const} */ ({
  * @param {string} name - The tool name (used in `tools/call` requests)
  * @param {string} description - Human-readable description for `tools/list`
  * @param {T} inputRtti - Runtime type info for input validation
- * @param {(args: Ts<T>) => RawEffect<O, ToolsCallResult>} handle - Handler receiving validated arguments of type `Ts<inputRtti>`
+ * @param {(args: Ts<T>) => Effect<O, ToolsCallResult, never>} handle - Handler receiving validated arguments of type `Ts<inputRtti>`
  * @returns {ToolEntry<O>} A `ToolEntry` ready to be added to a registry
  */
 export const toolEntry = (name, description, inputRtti, handle) => ({
     name,
     description,
     inputRtti,
-    /** @type {(a: Unknown) => RawEffect<O, ToolsCallResult>} */
+    /** @type {(a: Unknown) => Effect<O, ToolsCallResult, never>} */
     handle: a => {
         const [t, r] = parse(/** @type {any} */ (inputRtti))(a)
         return t === 'error'
-            ? pure(errorResult(`invalid arguments: ${r.message}`))
+            ? pureOk(errorResult(`invalid arguments: ${r.message}`))
             : handle(/** @type {Ts<T>} */ (r))
     }
 })
@@ -213,12 +203,12 @@ export const fromRegistry = registry => ({
             description: entry.description,
             inputSchema: toJsonSchema(entry.inputRtti),
         }))
-        return pure({ tools })
+        return pureOk({ tools })
     },
     toolsCall: ({ name, arguments: args }) => {
         const entry = registry.find(e => e.name === name)
         return entry === undefined
-            ? pure(errorResult(`unknown tool: ${name}`))
+            ? pureOk(errorResult(`unknown tool: ${name}`))
             : entry.handle(args === undefined ? {} : args)
     },
 })
@@ -246,7 +236,7 @@ export const uninitializedState = ['uninitialized']
  * State-machine step for an MCP session using memory effects.
  *
  * Given configuration, handlers, and a memory key holding the session state,
- * returns a function `(value) => RawEffect<MemOp | O, Response | null>`.
+ * returns a function `(value) => Effect<MemOp | O, Response | null, never>`.
  *
  * Rules:
  * - `ping` returns an empty success regardless of session state; non-object
@@ -263,7 +253,7 @@ export const uninitializedState = ['uninitialized']
  *   to the handler; invalid params → -32602.
  *
  * @param {McpConfig} config
- * @returns {<O extends Operation>(handlers: McpHandlers<O>) => (stateKey: Key<McpSessionState>) => (value: Unknown) => RawEffect<MemOp | O, Response | null>}
+ * @returns {<O extends Operation>(handlers: McpHandlers<O>) => (stateKey: Key<McpSessionState>) => (value: Unknown) => Effect<MemOp | O, Response | null, never>}
  */
 export const mcpStep = ({
         protocolVersion,
@@ -275,7 +265,7 @@ export const mcpStep = ({
     value => {
         const [t, message] = decodeRequest(value)
         if (t === 'error') {
-            return pure(_errResponse(null)(invalidRequest))
+            return pureOk(_errResponse(null)(invalidRequest))
         }
         const { id, method, params } = message
 
@@ -286,7 +276,7 @@ export const mcpStep = ({
                 const [pt] = parse(_noParams)(params)
                 if (pt === 'error') {
                     // Malformed handshake — ignore it; the session stays gated.
-                    return pure(null)
+                    return pureOk(null)
                 }
                 // A notification never receives a response, so a session-state
                 // failure here has nowhere to be reported: the transition is
@@ -294,14 +284,17 @@ export const mcpStep = ({
                 // observes as `notInitialized` on its next call. That is the
                 // honest degradation — better than a panic, and there is no
                 // response frame to put an error in.
-                return step(read(stateKey), r => {
+                return resultStep(read(stateKey), r => {
                     if (r[0] === 'error' || r[1][0] !== 'initializing') {
-                        return pure(null)
+                        return pureOk(null)
                     }
-                    return mapStep(write(stateKey, ['initialized', true]), () => null)
+                    // `resultMapStep`: a notification has no response frame, so
+                    // the write's own outcome is absorbed here for the same
+                    // reason the read's is above.
+                    return resultMapStep(write(stateKey, ['initialized', true]), () => ok(null))
                 })
             }
-            return pure(null)
+            return pureOk(null)
         }
 
         // `ping` is always valid regardless of session state, but its params
@@ -309,22 +302,22 @@ export const mcpStep = ({
         if (method === 'ping') {
             const [pt] = parse(_noParams)(params)
             return pt === 'error'
-                ? pure(_errResponse(id)(invalidParams))
-                : pure(_okResponse(id)({}))
+                ? pureOk(_errResponse(id)(invalidParams))
+                : pureOk(_okResponse(id)({}))
         }
 
         // `initialize` transitions uninitialized → initializing; reject if already done.
         if (method === 'initialize') {
-            return step(
+            return resultStep(
                 read(stateKey),
                 r => {
-                    if (r[0] === 'error') { return pure(_errResponse(id)(internalError)) }
+                    if (r[0] === 'error') { return pureOk(_errResponse(id)(internalError)) }
                     if (r[1][0] !== 'uninitialized') {
-                        return pure(_errResponse(id)(invalidRequest))
+                        return pureOk(_errResponse(id)(invalidRequest))
                     }
                     const [pr] = parse(initializeParams)(params)
                     if (pr === 'error') {
-                        return pure(_errResponse(id)(invalidParams))
+                        return pureOk(_errResponse(id)(invalidParams))
                     }
                     /** @type {InitializeResult} */
                     const result = {
@@ -337,9 +330,9 @@ export const mcpStep = ({
                     // failed to record the transition still replied with a
                     // successful handshake and then rejected every call after
                     // it as `notInitialized`.
-                    return step(
+                    return resultStep(
                         write(stateKey, ['initializing']),
-                        w => pure(w[0] === 'error'
+                        w => pureOk(w[0] === 'error'
                             ? _errResponse(id)(internalError)
                             : _okResponse(id)(result)),
                     )
@@ -351,42 +344,42 @@ export const mcpStep = ({
         // A session whose state cannot be read is an internal server error, not
         // an uninitialized one: `notInitialized` tells the client to run the
         // handshake it has already run, and it would run it again forever.
-        return step(
+        return resultStep(
             read(stateKey),
             r => {
-                if (r[0] === 'error') { return pure(_errResponse(id)(internalError)) }
+                if (r[0] === 'error') { return pureOk(_errResponse(id)(internalError)) }
                 if (r[1][0] !== 'initialized') {
-                    return pure(_errResponse(id)(notInitialized))
+                    return pureOk(_errResponse(id)(notInitialized))
                 }
 
                 if (method === 'tools/list') {
                     if (capabilities.tools === undefined) {
-                        return pure(_errResponse(id)(methodNotFound))
+                        return pureOk(_errResponse(id)(methodNotFound))
                     }
                     // `params` may be absent — `tools/list` without a cursor.
                     const [t, pr] = parse(toolsListParams)(params === undefined ? {} : params)
                     return t === 'error'
-                        ? pure(_errResponse(id)(invalidParams))
-                        : step(
+                        ? pureOk(_errResponse(id)(invalidParams))
+                        : ioStep(
                             handlers.toolsList(pr),
-                            r => pure(_okResponse(id)(r)),
+                            r => pureOk(_okResponse(id)(r)),
                         )
                 }
 
                 if (method === 'tools/call') {
                     if (capabilities.tools === undefined) {
-                        return pure(_errResponse(id)(methodNotFound))
+                        return pureOk(_errResponse(id)(methodNotFound))
                     }
                     const [t, pr] = parse(toolsCallParams)(params)
                     return t === 'error'
-                        ? pure(_errResponse(id)(invalidParams))
-                        : step(
+                        ? pureOk(_errResponse(id)(invalidParams))
+                        : ioStep(
                             handlers.toolsCall(pr),
-                            r => pure(_okResponse(id)(r)),
+                            r => pureOk(_okResponse(id)(r)),
                         )
                 }
 
-                return pure(_errResponse(id)(methodNotFound))
+                return pureOk(_errResponse(id)(methodNotFound))
             },
         )
     }

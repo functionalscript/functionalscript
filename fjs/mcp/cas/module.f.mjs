@@ -111,7 +111,7 @@
 
 import { string, option, or, boolean } from '../../types/rtti/module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
-import { pure, step } from '../../effects/module.f.mjs'
+import { pureOk, resultStep } from '../../effects/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { decode as base64Decode, encode as base64Encode } from '../../basen/base64/module.f.mjs'
 import { tryUtf8 } from '../../text/module.f.mjs'
@@ -195,16 +195,16 @@ export const casToolRegistry = home => cacheKey => {
                     ? base64Decode(content)
                     : tryUtf8(content)
                 return x === null
-                    ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
+                    ? pureOk(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
                     // The resolved content fits in one chunk; feed it as a single-item stream.
-                    : step(
+                    : resultStep(
                         c.write(nonEmpty(x, elEmpty())),
                         writeResult => {
-                            if (writeResult[0] === 'error') { return pure(errorResult('write')) }
+                            if (writeResult[0] === 'error') { return pureOk(errorResult('write')) }
                             const hash = writeResult[1]
-                            return step(
+                            return resultStep(
                                 syncRevision(cacheKey)(hash)(x),
-                                () => pure(okResult(vecToCBase32(hash)))
+                                () => pureOk(okResult(vecToCBase32(hash)))
                             )
                         },
                     )
@@ -217,14 +217,14 @@ export const casToolRegistry = home => cacheKey => {
             r => {
                 const key = cBase32ToVec(r.hash)
                 if (key === null) {
-                    return pure(errorResult(`invalid cBase32 hash: ${r.hash}`))
+                    return pureOk(errorResult(`invalid cBase32 hash: ${r.hash}`))
                 }
                 const uri = c.url(key)
-                return step(
+                return resultStep(
                     detectStream(c.read(key)),
                     ([tag, detected]) => {
                         if (tag === 'error') {
-                            return pure(errorResult(`no such hash: ${r.hash}`))
+                            return pureOk(errorResult(`no such hash: ${r.hash}`))
                         }
                         const { length, mime_type: mimeType, type } = detected
                         /** @type {_Meta} */
@@ -234,17 +234,17 @@ export const casToolRegistry = home => cacheKey => {
                             // only attempt the extra bounded read when it stands a chance
                             // (whole-blob text within the same cap `content: true` allows).
                             if (type !== 'text' || length > maxLengthBytes) {
-                                return pure(okResult(toJson(meta)))
+                                return pureOk(okResult(toJson(meta)))
                             }
-                            return step(
+                            return resultStep(
                                 collectRead(c.read(key)),
                                 ([collectTag, value]) => {
                                     // Already known to fit from the streaming pass above, so an
                                     // error here means the hash vanished between reads; fall back
                                     // to the streaming verdict rather than fail the whole request.
-                                    if (collectTag === 'error') { return pure(okResult(toJson(meta))) }
+                                    if (collectTag === 'error') { return pureOk(okResult(toJson(meta))) }
                                     const refined = detectDialect(value)
-                                    return pure(okResult(toJson({ ...meta, mimeType: refined.mime_type })))
+                                    return pureOk(okResult(toJson({ ...meta, mimeType: refined.mime_type })))
                                 }
                             )
                         }
@@ -253,14 +253,14 @@ export const casToolRegistry = home => cacheKey => {
                         // size and point at the size-independent alternatives instead of
                         // misreporting an existing blob as `no such hash`.
                         if (length > maxLengthBytes) {
-                            return pure(errorResult(
+                            return pureOk(errorResult(
                                 `blob too large to fetch inline (${length} bytes, limit ${maxLengthBytes} bytes); use the uri field (${uri}) or omit content for metadata`))
                         }
-                        return step(
+                        return resultStep(
                             collectRead(c.read(key)),
                             ([collectTag, value]) => {
                                 if (collectTag === 'error') {
-                                    return pure(errorResult(`no such hash: ${r.hash}`))
+                                    return pureOk(errorResult(`no such hash: ${r.hash}`))
                                 }
                                 // Re-derive the verdict from the now-materialized blob so a
                                 // dialect match — only decidable with the whole parsed JSON in
@@ -276,7 +276,7 @@ export const casToolRegistry = home => cacheKey => {
                                     // `fromVec` checks, via the same decoder — so `fromVec`
                                     // cannot return `null` here (mirrors `media`'s own `detect`).
                                     const str = assertNotNullish(fromVec(value), 'cas_get: type text implies fromVec succeeds')
-                                    return pure(okResult(toJson({ ...refinedMeta, text: str })))
+                                    return pureOk(okResult(toJson({ ...refinedMeta, text: str })))
                                 }
                                 // Every byte ever written through `cas_add`/the CAS store is
                                 // whole-byte chunks (UTF-8 text or already-decoded base64), so
@@ -284,7 +284,7 @@ export const casToolRegistry = home => cacheKey => {
                                 // classified it — `base64Encode` only rejects a non-byte-aligned
                                 // input.
                                 const blob = assertNotNullish(base64Encode(value), 'cas_get: stored content is always byte-aligned')
-                                return pure(okResult(toJson({ ...refinedMeta, blob })))
+                                return pureOk(okResult(toJson({ ...refinedMeta, blob })))
                             },
                         )
                     },
@@ -295,9 +295,9 @@ export const casToolRegistry = home => cacheKey => {
             'cas_list',
             'List all stored content hashes (cBase32), one per line.',
             casListArgs,
-            () => step(
+            () => resultStep(
                 c.list(),
-                r => pure(r[0] === 'error'
+                r => pureOk(r[0] === 'error'
                     ? errorResult(errorSummary(r[1]))
                     : okResult(r[1].map(vecToCBase32).join('\n')))
             ),

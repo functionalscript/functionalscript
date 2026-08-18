@@ -6,11 +6,11 @@
  * @module
  *
  * @import { Operation } from "../types.ts"
- * @import { Effect } from "../io/types.ts"
+ * @import { Effect } from "../types.ts"
  * @import { List, Next } from "./types.ts"
  */
 
-import { pureOk } from "../io/module.f.mjs"
+import { pureOk } from "../module.f.mjs"
 
 /**
  * The empty `List`: a pure end-of-stream marker (`undefined`).

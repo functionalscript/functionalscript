@@ -26,7 +26,7 @@
  *
  * @module
  *
- * @import { Effect } from '../effects/io/types.ts'
+ * @import { Effect } from '../effects/types.ts'
  * @import { MemOp } from '../effects/memory/types.ts'
  * @import { IoChannel, Read, Write } from '../effects/node/types.ts'
  * @import { McpConfig, McpHandlers } from '../protocol/mcp/types.ts'
@@ -35,7 +35,7 @@
  * @import { Key } from '../effects/memory/types.ts'
  */
 
-import { step as ioStep } from '../effects/io/module.f.mjs'
+import { step as ioStep } from '../effects/module.f.mjs'
 import { create } from '../effects/memory/module.f.mjs'
 import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
 import {

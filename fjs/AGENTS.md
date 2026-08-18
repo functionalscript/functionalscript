@@ -256,7 +256,8 @@ constraint goes in braces before the parameter name:
 /**
  * @template {Operation} O
  * @template T
- * @typedef {(_: Pr<O, O[0]>[1]) => RawEffect<O, T>} Cont
+ * @template E
+ * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T, E>} Cont
  */
 ```
 
@@ -265,8 +266,8 @@ Translate TypeScript `in` / `out` directly on `@template` instead of dropping
 the variance annotation. For example:
 
 ```ts
-export type Cont<out O extends Operation, T> =
-    (_: Pr<O, O[0]>[1]) => RawEffect<O, T>
+export type Cont<out O extends Operation, T, E> =
+    (_: Pr<O, O[0]>[1]) => Effect<O, T, E>
 ```
 
 becomes:
@@ -275,7 +276,8 @@ becomes:
 /**
  * @template {Operation} out O
  * @template T
- * @typedef {(_: Pr<O, O[0]>[1]) => RawEffect<O, T>} Cont
+ * @template E
+ * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T, E>} Cont
  */
 ```
 
@@ -756,32 +758,35 @@ than a single access.
 
 ### 3.4 Effects (`fjs/effects`)
 
-**Fallible work composes through `fjs/effects/io`.** An `Effect<O, T, E>` is a
-`RawEffect` whose result is a `Result`, and its `step` runs the continuation
-only on `ok`, propagating an `error` on its own. Every operation returns one, so
-this is the layer ordinary code writes against; the raw `step` in
-`fjs/effects/module.f.mjs` knows nothing of `Result` and will happily run the
-next link after a failed one. Reach for `catchStep` where a failure has a real
-fallback, `resultStep` where both branches genuinely matter, and `unwrapStep`
-only where panicking is the considered answer. See
-[`fjs/effects/io/README.md`](./effects/io/README.md).
+**There is one effect type, in one module.** `Effect<O, T, E>`
+(`fjs/effects/types.ts`) is a `Pure` thunk yielding `Result<T, E>` or a `Do`
+node — the error channel is part of the representation, not a wrapper over it.
+`E` defaults to `NotImplemented`. `fjs/effects/module.f.mjs` holds all of it:
+the representation, the interpreters `match` / `partialMatch` / `runPure`, and
+the combinators.
 
-**The two names say which one you mean**, and the division is *composition*
-against *representation* rather than fallible against infallible.
-`Effect<O, T, E>` is what you compose, with `E` defaulting to
-`NotImplemented`; `RawEffect<O, T>` (`fjs/effects/types.ts`) is the `Pure | Do`
-representation, for the runners, `match`/`runPure`, and `do_` that speak it.
+**Compose with `step`**, which runs the continuation only on `ok` and
+propagates an `error` on its own. Reach for `catchStep` where a failure has a
+real fallback, `resultStep` where both branches genuinely matter, `mapStep` for
+a trailing projection over the value, `resultMapStep` for one that decides the
+outcome from both branches, and `unwrapStep` only where panicking is the
+considered answer. See [`fjs/effects/README.md`](./effects/README.md).
 
-Prefer `Effect` even where nothing fails yet: widening `Effect<O, T, never>`
-leaves every consumer that merely chains untouched, where widening a
-`RawEffect` rewrites every consumer *body*. A `List` cell and a `Program`'s
-exit code were once listed here as things that "genuinely cannot fail"; both
-carry channels now. What stays raw is the representation, and the **absorb
-points** where a module deliberately converts a channel into its own vocabulary
-and nothing behind it should carry the node channel — an MCP handler, whose
-protocol *is* the error channel.
+There used to be two of each combinator, a `Result`-blind set in this module and
+a branch-aware set in an `fjs/effects/io/` subdirectory. They were a trap rather
+than a layer: an operation must return a `Result`, so every effect carries one,
+and a `step` that ignored it would run the next link after a failed one.
+`resultStep` **is** that former raw `step`, at the type that says what its
+continuation receives — and with the collision gone, so is the subdirectory.
 
-The rules below apply to both layers, and to the Io `step` first.
+Nothing "genuinely cannot fail". A `List` cell and a `Program`'s exit code were
+once listed here as such; both carry channels now, and so does every **absorb
+point** — a module that converts a channel into its own vocabulary, such as an
+MCP handler whose protocol *is* its error channel, says `Effect<O, T, never>`.
+That `never` is a claim a reader can disagree with, and widening it later leaves
+every consumer that merely chains untouched.
+
+The rules below apply to the whole family, and to `step` first.
 
 Bind every effect in a sequence to its own name, all at one level, so the
 sequence reads top-to-bottom in evaluation order instead of inside-out.
@@ -815,9 +820,9 @@ A later link needing a value from an earlier one is **not** a reason to nest —
 nested continuation only reaches back because it closes over the enclosing scope.
 Use `historyStep`, which carries every earlier value forward in a newest-first
 tuple (a `History`) so they stay reachable downstream and the chain stays flat.
-A fallible chain uses the Io `historyStep`: the raw one would carry each link's
-`Result` into the tuple, so every later link would destructure results it has no
-intention of handling.
+`historyStep` carries `ok` values, which is why a `Result`-blind one could not
+serve: it carried each link's `Result` into the tuple, so every later link had
+to destructure results it had no intention of handling.
 `history(e)` starts a history from a plain effect; `historyStep` takes a history
 and returns one, so it composes with itself to any depth and only the entry point
 needs `history`.

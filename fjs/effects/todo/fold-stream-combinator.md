@@ -10,7 +10,7 @@ ordinary fold and a much weaker argument for a combinator. Re-scope or close.
 **May be subsumed by:** [effect-list-fold](./effect-list-fold.md) — if `foldStep`
 moves to `fjs/effects/list` and is retyped over `EffectList<O, T>`, `foldStream`
 becomes an ordinary `foldStep` rather than a separate combinator — the
-short-circuit is the Io `step`'s, not an adapter's. Settle the scope of this issue after that one is reviewed.
+short-circuit is `step`'s, not an adapter's. Settle the scope of this issue after that one is reviewed.
 
 ### Problem
 
@@ -123,7 +123,7 @@ consumers first; the writers follow only if the shape stays clean.
   abstraction; `foldStream` is the consumer-side generalization.
 - [allreduce-combinator](./allreduce-combinator.md) — sibling combinator for
   parallel effects.
-- The Io `step` (`fjs/effects/io/module.f.mjs`) — the short-circuit shape; this
+- `step` (`fjs/effects/module.f.mjs`) — the short-circuit shape; this
   combinator's per-chunk step is a Kleisli function of the same shape.
 - [write-closed-helpers](../../cas/todo/write-closed-helpers.md) — hoists
   `fileCas.write`'s remaining nested helpers; its loop conversion depends on

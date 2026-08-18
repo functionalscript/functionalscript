@@ -1,6 +1,6 @@
 /**
- * @import { RawEffect } from '../effects/types.ts'
- * @import { Effect, NotImplemented } from '../effects/io/types.ts'
+ * @import { RunInstance } from '../effects/mock/types.ts'
+ * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { NodeProgramOptions, OpResult, Sandbox, Write } from '../effects/node/types.ts'
  * @import { JsModule } from '../effects/node/virtual/types.ts'
  * @import { Reporter } from './types.ts'
@@ -311,7 +311,7 @@ export const githubReporterOutput = () => {
 // the failure on, so the exit code rather than a message is what is observable:
 // a run that cannot say anything at all still says it failed.
 export const reporterWriteFailure = () => {
-    /** @type {(s: undefined) => <T>(e: RawEffect<_FailOps, T>) => readonly [undefined, T]} */
+    /** @type {RunInstance<_FailOps, undefined>} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_FailOps, undefined>>[0]} */ ({
         readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true }])],
@@ -339,9 +339,7 @@ export const reporterWriteFailure = () => {
 
 /** @typedef {Test | All | Await} _RegisterMockOps */
 
-/**
- * @typedef {(s: _RegisterMockState) => <T>(e: RawEffect<_RegisterMockOps, T>) => readonly [_RegisterMockState, T]} _RegisterRunner
- */
+/** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
 
 /**
  * The `test` op body for a `registerModule` mock; `runner` is threaded in explicitly (rather than closed over) so it can recurse into sub-effects returned by `fn`.
@@ -350,7 +348,7 @@ export const reporterWriteFailure = () => {
  *     ctx: TestContext,
  *     name: string,
  *     expectFailure: boolean,
- *     fn: (t: TestContext) => RawEffect<_RegisterMockOps, void>,
+ *     fn: (t: TestContext) => Effect<_RegisterMockOps, void, never>,
  * ) => (s: _RegisterMockState) => readonly [_RegisterMockState, OpResult<void>]} _RegisterTestOp
  */
 
@@ -404,6 +402,33 @@ export const registerSuffixes = () => {
     assertEq(inlineNames.length, 2)
     assert(inlineNames[0] === 'import("./a.f.ts").proof.ok() ...')
     assertEq(inlineNames[1], 'import("./a.f.ts").proof.throw.a()')
+}
+
+// The registered callback panics when its own effects cannot be dispatched.
+// `Test` hands the body to an external framework that reads a throw and
+// nothing else, so a body that could not run must not be reported as a pass —
+// which is why `registerOne` ends in a `catchStep` that throws rather than in
+// a channel nobody reads.
+const registerBodyPanicsOnUndispatchableEffect = () => {
+    /** @type {_RegisterRunner} */
+    let runner
+    runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
+        test: (ctx, _name, _xf, fn) => s => [runner(s)(fn(ctx))[0], ok(undefined)],
+        all: (...effects) => s => {
+            const [st, rs] = effects.reduce(
+                ([st1, rs1], e) => {
+                    const [ns, r] = runner(st1)(e)
+                    return [ns, [...rs1, r]]
+                },
+                /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([s, []]),
+            )
+            return [st, ok(rs)]
+        },
+        // The runner has no `await`, which is what the body's channel carries.
+        await: _p => s => [s, error(/** @type {const} */ (['notImplemented', 'await']))],
+    }))
+    const proof = /** @type {const} */ ({ a: () => Promise.resolve(undefined) })
+    runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
 }
 
 // A `throw`-tagged test whose function completes without throwing (the
@@ -467,7 +492,7 @@ export const registerSelectsContextAndStar = () => {
     const runRegister = extra => {
         /** @type {(readonly [TestContext, string])[]} */
         let calls = []
-        /** @type {(s: undefined) => <T>(e: RawEffect<_RegisterMockOps | Readdir | Import, T>) => readonly [undefined, T]} */
+        /** @type {RunInstance<_RegisterMockOps | Readdir | Import, undefined>} */
         let runner
         runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
             readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true }])],
@@ -598,6 +623,9 @@ const defaultReporterExpectedToThrow = () => {
 }
 
 export const proof = {
+    throw: {
+        registerBodyPanicsOnUndispatchableEffect,
+    },
     flat,
     nested,
     throwKey,

@@ -6,7 +6,7 @@
  * @import { Sha2, State as Sha2State } from '../crypto/sha2/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { Operation } from '../effects/types.ts'
- * @import { Effect, NotImplemented } from '../effects/io/types.ts'
+ * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { IoChannel, Now, RandomInt, ReadBytes, Readdir, Rm } from '../effects/node/types.ts'
  *  @import { List } from '../effects/list/types.ts'
  * @import { Cas, FileCas, FileCasOperation } from './types.ts'
@@ -15,7 +15,6 @@
 import { join, normalize, parse } from '../path/module.f.mjs'
 import { empty, length, maxLength, maxLengthBytes, msb, vec } from '../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../basen/cbase32/module.f.mjs'
-import { mapStep, pure, step } from '../effects/module.f.mjs'
 import {
     catchStep,
     foldStep,
@@ -25,9 +24,10 @@ import {
     mapStep as ioMapStep,
     pureError,
     pureOk,
+    resultMapStep,
     resultStep,
     step as ioStep,
-} from '../effects/io/module.f.mjs'
+} from '../effects/module.f.mjs'
 import {
     access,
     createExclusive,
@@ -185,17 +185,22 @@ const writeImpl = (sha2, path, stageDir, payload) => {
         const rel = toPath(hash)
         const dst = join(path, rel)
         const dstDir = join(path, ...parse(rel).slice(0, -1))
-        const created = step(mkdir(dstDir, { recursive: true }), () => rename(curPath, dst))
-        const removed = step(created, () => rm(curPath))
-        const stated = step(removed, () => stat(dst))
-        return mapStep(
+        // `resultStep` throughout, and that is the "ignores results" above
+        // written in the type: each link runs whatever the previous one
+        // answered, and only the closing `stat` decides the outcome.
+        const created = resultStep(mkdir(dstDir, { recursive: true }), () => rename(curPath, dst))
+        const removed = resultStep(created, () => rm(curPath))
+        const stated = resultStep(removed, () => stat(dst))
+        return resultMapStep(
             stated,
             st => st[0] === 'ok' && st[1].size === offset ? ok(hash) : error(ioError({ message: 'publish size mismatch' })))
     }
     // Any streaming error fails closed: delete the partial file, return the error.
     /** @type {(curPath: string, e: IoChannel) => Effect<FileCasOperation, Vec, IoChannel>} */
     const fail = (curPath, e) =>
-        mapStep(rm(curPath), () => error(e))
+        // The cleanup's own outcome is discarded on purpose: `e` is what the
+        // caller needs to hear, and a failed `rm` has no better answer.
+        resultMapStep(rm(curPath), () => error(e))
     const rndEffect = ioStep(gcStage(stageDir), () => random256)
     return ioStep(rndEffect, rnd => {
         const rndStr = vecToCBase32(rnd)

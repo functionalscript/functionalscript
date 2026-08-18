@@ -4,7 +4,8 @@
  * @module
  */
 
-import type { RawEffect, Operation, Pr } from "../types.ts"
+import type { Result } from "../../types/result/types.ts"
+import type { Effect, Operation, Pr } from "../types.ts"
 
 /**
  * A synchronous, state-threading operation map. An entry takes the command's
@@ -26,5 +27,5 @@ export type PartialMemOperationMap<O extends Operation, S> = {
 
 export type RunInstance<O extends Operation, S> =
     (state: S) =>
-    <O1 extends O, T>(effect: RawEffect<O1, T>) =>
-    readonly[S, T]
+    <O1 extends O, T, E>(effect: Effect<O1, T, E>) =>
+    readonly[S, Result<T, E>]

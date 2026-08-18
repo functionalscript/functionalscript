@@ -7,7 +7,7 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { step as ioStep } from '../../effects/io/module.f.mjs'
+import { step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { nixpkgs } from '../config/module.f.mjs'
