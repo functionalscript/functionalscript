@@ -12,7 +12,7 @@
  * @module
  *
  * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
- * @import { Effect } from '../../effects/io/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
  * @import { Expression } from '../../media/nix/types.ts'
  * @import { MetaStep } from '../common/types.ts'
  * @import { NixJob } from './types.ts'

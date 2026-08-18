@@ -8,8 +8,7 @@
 
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import type { Unknown } from '../../media/json/types.ts'
-import type { Operation } from '../../effects/types.ts'
-import type { Effect } from '../../effects/io/types.ts'
+import type { Effect, Operation } from '../../effects/types.ts'
 import type { Type } from '../../types/rtti/types.ts'
 import type { Response } from '../json_rpc/types.ts'
 import type {
@@ -72,7 +71,7 @@ export type ToolEntry<O extends Operation> = {
  * request's failure becomes `_errResponse(id)(internalError)` and a
  * notification's is dropped, there being no frame to put it in. Spelling that
  * as `Effect<…, never>` puts the decision in the type where a reader can
- * disagree with it, which `RawEffect` could not.
+ * disagree with it, which an opaque payload could not.
  */
 export type Handle<O extends Operation> = (value: Unknown) => Effect<O, Response | null, never>
 

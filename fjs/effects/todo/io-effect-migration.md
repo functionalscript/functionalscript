@@ -415,18 +415,27 @@ Giving those a channel would put an `ok(…)` wrapper on every stream cell and
 every tool answer, for a failure that cannot happen. So `RawEffect` is public
 and load-bearing, not an implementation detail.
 
-> **Two of those four examples no longer hold.** `List<O, T, E>` and
-> `Program<O>` both carry channels now — a stream cell fails rather than
-> yielding an error item, and an exit code says which numbers mean failure —
-> and neither acquired an `ok(…)` wrapper for a failure that cannot happen,
-> because in both cases the failure could happen and was being carried
-> somewhere worse. `Step<O>` and `ToolEntry.handle` still hold, and for the
-> reason given: the protocol *is* their error channel.
+> **All four examples fell, and then the finding did.** `List<O, T, E>` and
+> `Program<O>` took channels first — a stream cell fails rather than yielding an
+> error item, and an exit code says which numbers mean failure — and neither
+> acquired an `ok(…)` wrapper for a failure that cannot happen, because in both
+> cases the failure could happen and was being carried somewhere worse.
+> `Step<O>` and `ToolEntry.handle` held longer on the stated ground that the
+> protocol *is* their error channel; they now say `Effect<O, T, never>`, which
+> states that absorption as a claim instead of leaving the question unasked.
 >
-> The conclusion survives its examples. `RawEffect` stays public, but the
-> division is *composition* against *representation* rather than `Effect` can
-> fail against `RawEffect` cannot — see [`../io/README.md`](../io/README.md)
-> and `Effect`'s doc in [`../io/types.ts`](../io/types.ts).
+> With no example left, the conclusion went too. `RawEffect` is **deleted**.
+> `Operation` requires a `Result` return, so the payload the representation is
+> generic over is always a `Result`, and the second name described no reachable
+> case while giving every combinator a `Result`-blind twin. `Effect<O, T, E>` is
+> the representation now — see [`../io/README.md`](../io/README.md) and its doc
+> in [`../types.ts`](../types.ts).
+>
+> The arithmetic above is also wrong, and worth keeping as a warning. Of those
+> "201 payloads that are not a `Result`", most were `<T>(e: RawEffect<O, T>)`
+> *type parameters* rather than payload shapes; they became
+> `<T, E>(e: Effect<O, T, E>)`, as general as before and wrapping nothing. A
+> count of annotations is not a count of values.
 
 **The rename was done without the default, then given one.** `Effect<O, T, E>`
 with `E = NotImplemented` makes `Effect<O, T>` legal and fallible — which is
@@ -440,21 +449,19 @@ other 201, and that is worth remembering the next time a rename is described as
 mechanical.
 
 ```ts
-Effect<O, T, E = NotImplemented>   // fallible; the one to reach for
-RawEffect<O, T>                    // the Pure | Do representation
+Effect<O, T, E = NotImplemented>   // the Pure | Do representation, channel included
 ```
 
 - [x] Revisit `okStep`, `IoResult`, stream-fold helpers, and specialized
       recovery adapters; remove redundant APIs when possible. `okStep` was the
       only redundant one and is inlined into the Io `step` that was its sole
       caller; `IoResult` and the folds all still have consumers.
-- [x] Retire the old public raw abstraction — **superseded**. It is renamed
-      `RawEffect` and stays public, for the reason recorded above.
-- [x] Keep the `Pure | Do` representation under its own name — `RawEffect`,
-      public rather than internal. The stated reason was that `List`,
-      `Program`, `Step` and `ToolEntry.handle` are built on it and none of them
-      can fail; two of those four have channels now, and the decision holds on
-      the narrower ground recorded above.
+- [x] Retire the old public raw abstraction. It was renamed `RawEffect` and
+      kept public for a while; it is deleted now, for the reason recorded above.
+- [x] Keep the `Pure | Do` representation under its own name — **reversed**.
+      The stated reason was that `List`, `Program`, `Step` and
+      `ToolEntry.handle` are built on it and none of them can fail. All four
+      carry channels now, and `Effect` names the representation itself.
 - [x] Rename `IoEffect` to `Effect` and make `NotImplemented` the default
       error type unless migration experience shows a better default.
 - [x] Make the Io `step`, `catchStep`, and `resultStep` the canonical

@@ -10,9 +10,8 @@ import type { MemOp } from '../memory/types.ts'
 import type { Nominal } from '../../types/nominal/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
-import type { RawEffect, Operation, ToAsyncOperationMap } from '../types.ts'
+import type { Effect, NotImplemented, Operation, ToAsyncOperationMap } from '../types.ts'
 import type { List } from '../list/types.ts'
-import type { Effect, NotImplemented } from '../io/types.ts'
 
 /**
  * A host failure, normalized: whatever the runtime threw reduced to a
@@ -74,7 +73,15 @@ export type IoResult<T> = Result<T, IoChannel>
 
 // all
 
-export type All = ['all', <T>(...effects: RawEffect<never, T>[]) => OpResult<readonly T[]>]
+/**
+ * Runs its effects concurrently and answers each one's whole `Result`.
+ *
+ * The nesting is deliberate and belongs to the runner: this envelope says
+ * whether `all` itself could be dispatched, and each inner `Result` is what
+ * that effect answered. `allOk` (`./module.f.mjs`) is the collapse a fallible
+ * chain wants.
+ */
+export type All = ['all', <T, E>(...effects: Effect<never, T, E>[]) => OpResult<readonly Result<T, E>[]>]
 
 // fetch
 
@@ -205,7 +212,12 @@ export type ServerResponse = {
     readonly body: Vec
 }
 
-export type RequestListener<O extends Operation> = (_: IncomingMessage) => RawEffect<O, ServerResponse>
+/**
+ * An HTTP request handler. The channel is `never` because the response frame
+ * *is* where a failure goes — a listener that cannot answer still has a status
+ * code to answer with, so absorbing is the contract rather than an omission.
+ */
+export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effect<O, ServerResponse, never>
 
 export type CreateServer = ['createServer', (listener: RequestListener<Operation>) => OpResult<Server>]
 
@@ -346,7 +358,7 @@ export type NodeOp =
     | Write
     | Test
 
-export type NodeEffect<T> = RawEffect<NodeOp, T>
+export type NodeEffect<T, E = IoChannel> = Effect<NodeOp, T, E>
 
 export type NodeOperationMap = ToAsyncOperationMap<NodeOp>
 

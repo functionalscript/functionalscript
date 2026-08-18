@@ -1,20 +1,19 @@
 /**
  * The Effect composition API: the branch-aware {@link step},
  * {@link catchStep}, and {@link resultStep}, the two lifts that enter the
- * layer, and {@link mapStep}.
+ * layer, and the two projections {@link mapStep} and {@link resultMapStep}.
  *
- * An `Effect<O, T, E>` is `RawEffect<O, Result<T, E>>` (`./types.ts`) — the raw
- * effect from [`../module.f.mjs`](../module.f.mjs) with its failure in the
- * type. These operations are what makes that alias worth naming: raw `step`
- * knows nothing of `Result`, so it runs its continuation whether or not the
- * previous effect failed, and a fallible chain written with it continues past
- * an error unless every caller forwards each `Result` by hand.
+ * The `Effect<O, T, E>` these compose is defined in
+ * [`../types.ts`](../types.ts), alongside the representation and the
+ * interpreters that read it. This module is the **composition**, that one is
+ * the **representation**, and neither exports what the other does.
  *
- * They live in their own module because {@link step} and {@link mapStep}
- * collide with the raw ones, which stay available for consumers still written
- * against the raw contracts. Nothing here has a consumer yet: stage 3 moves the
- * `Result` envelope into the operations' declared return types, and stage 4
- * migrates the consumers ([`./README.md`](./README.md)).
+ * They were separate for a different reason once: the representation module
+ * carried a `Result`-blind `step` and `mapStep` that these collided with by
+ * name. Those are gone — a `step` that ran its continuation whether or not the
+ * previous effect failed described no case worth having, since every effect
+ * carries a `Result` — and {@link resultStep} is that former general function
+ * at the type that says what its continuation receives.
  *
  * The three branch-aware operations are the whole vocabulary:
  *
@@ -44,13 +43,12 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { Fold } from '../../types/function/operator/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { RawEffect, History, Operation } from '../types.ts'
- * @import { Effect, NotImplemented } from './types.ts'
+ * @import { Effect, ErrOf, NotImplemented, OkOf, Operation } from '../types.ts'
  */
 
 import { fold } from '../../types/list/module.f.mjs'
 import { error, mapOk, ok } from '../../types/result/module.f.mjs'
-import { mapStep as rawMapStep, pure, step as rawStep } from '../module.f.mjs'
+import { pure } from '../module.f.mjs'
 
 /**
  * Lifts a value into a successful `Effect` — `pure(ok(v))` written once.
@@ -141,7 +139,7 @@ export const notImplemented = command => ['notImplemented', command]
 export const step = (e, f) => {
     /** @type {(r: Result<T, E>) => Effect<Q, R, E | F>} */
     const cont = r => r[0] === 'error' ? pure(r) : f(r[1])
-    return rawStep(e, cont)
+    return resultStep(e, cont)
 }
 
 /**
@@ -177,7 +175,7 @@ export const step = (e, f) => {
 export const catchStep = (e, f) => {
     /** @type {(r: Result<T, E>) => Effect<Q, T | R, F>} */
     const cont = r => r[0] === 'error' ? f(r[1]) : pure(r)
-    return rawStep(e, cont)
+    return resultStep(e, cont)
 }
 
 /**
@@ -186,27 +184,50 @@ export const catchStep = (e, f) => {
  * that records the failure, a retry policy, or the point where a program
  * escalates an error to a panic by `unwrap`ping it.
  *
- * Expanded through the alias this **is** the raw `step` at the Io
- * instantiation: a continuation that takes a `Result<T, E>` and returns an
- * effect is what raw `step` already offers, so this adds no branch behavior of
- * its own and is that function with a narrower type.
+ * **This is the layer's primitive**, and {@link step} and {@link catchStep} are
+ * written in terms of it — each is this function with a continuation that
+ * inspects the tag first. It used to be the other way round: a `step` in the
+ * representation module composed effects with opaque payloads, and this was
+ * that function re-exported under a narrower type. Since every effect carries a
+ * `Result`, the opaque spelling described nothing the `Result`-shaped one does
+ * not, so the general function lives here now, at the type that says what its
+ * continuation receives.
  *
- * It still earns the name. The three operations are the canonical vocabulary of
- * the layer, and a chain that spells one of them as a raw `step` reads as an
- * escape from the layer rather than as the deliberate both-branches case. This
- * is the spelling that says the both-branches case was meant.
+ * `finallyStep` is declined on the principle that a derivable form earns a name
+ * by being canonical vocabulary, and that one has not shown it is. It is
+ * `resultStep` plus a policy, and adds no expressive power until real consumers
+ * demonstrate a repeated policy worth naming.
  *
- * `finallyStep` is declined on the same principle read the other way: a
- * derivable form earns a name by being canonical vocabulary, and that one has
- * not shown it is. It is `resultStep` plus a policy, and adds no expressive
- * power until real consumers demonstrate a repeated policy worth naming.
+ * **It is not lazy.** It reads `e`'s shape immediately, so a `Pure` head is
+ * forced and `f` is called right there: `resultStep(pure(r), f)` *is* `f(r)`,
+ * evaluated where the composition is written rather than where the effect is
+ * run. Only the `Do` case defers — the continuation rebuilt around `f` runs
+ * when a runner reaches that node.
+ *
+ * That is sound rather than an oversight, and it is sound only because of
+ * `Pure`'s contract: a `Pure` holds a result that has already been computed, so
+ * forcing it early observes nothing, repeats nothing, and can throw nothing.
+ * Composing never performs a `Do` node, which is where anything real lives.
+ * Break the contract — hide work behind the thunk — and merely composing a
+ * chain starts running the program.
+ *
+ * A composition cannot be suspended, and no combinator can fix that:
+ * `defer: (() => Effect<O, T, E>) => Effect<O, T, E>` cannot be written, because
+ * the `Pure` / `Do` tag must be known before anything runs and the union has no
+ * third case meaning "not yet decided". That is inherent to the representation,
+ * not a gap in this module's API. A caller that needs to name a composition
+ * without performing it yet has to keep the ingredients and defer the step
+ * itself.
  *
  * @type {<O extends Operation, T, E, Q extends Operation, R, F>(
  *     e: Effect<O, T, E>,
  *     f: (r: Result<T, E>) => Effect<Q, R, F>
  * ) => Effect<O | Q, R, F>}
  */
-export const resultStep = rawStep
+export const resultStep = (e, f) =>
+    typeof e === 'function'
+        ? f(e())
+        : { ...e, continuation: x => resultStep(e.continuation(x), f) }
 
 /**
  * Applies a pure function to the `ok` value, passing an `error` through
@@ -226,11 +247,42 @@ export const resultStep = rawStep
  *
  * @type {<O extends Operation, T, E, R>(e: Effect<O, T, E>, f: (t: T) => R) => Effect<O, R, E>}
  */
-export const mapStep = (e, f) => rawMapStep(e, mapOk(f))
+export const mapStep = (e, f) => resultMapStep(e, mapOk(f))
 
 /**
- * Leaves the layer by **panicking** on the error branch: `ok` values continue
- * as an ordinary raw `RawEffect`, an `error` is thrown as `summary(e)`.
+ * Applies a pure function to the whole {@link Result}: the both-branches
+ * sibling of {@link mapStep}, and the {@link resultStep} whose continuation
+ * performs nothing further.
+ *
+ * Reach for it where a projection genuinely decides the outcome rather than
+ * transforming a value — turning any answer into a fixed one, replacing a
+ * channel wholesale, re-tagging a failure. Where only the success is being
+ * transformed, {@link mapStep} says so and leaves the channel alone.
+ *
+ * **Neither channel is preserved**, which is the difference that matters
+ * against `mapStep`: `f` returns a `Result<R, F>` of its own, so a caller can
+ * discard errors here. That is exactly what makes it the honest spelling for a
+ * site that means to — the discarding is written down, in a function that says
+ * it takes both branches, instead of being implied by a value-shaped `map` that
+ * quietly received a `Result`.
+ *
+ * Its two output channels are read off `f`'s return type with {@link OkOf} /
+ * {@link ErrOf}, for the reason `pure` gives: inference against the `Result`
+ * union cannot place a one-sided return, so a projection that always answers
+ * `ok` would otherwise acquire an error channel it never produces.
+ *
+ * @type {<O extends Operation, T, E, R extends Result<unknown, unknown>>(
+ *     e: Effect<O, T, E>,
+ *     f: (r: Result<T, E>) => R
+ * ) => Effect<O, OkOf<R>, ErrOf<R>>}
+ */
+export const resultMapStep = (e, f) => resultStep(e, r => pure(f(r)))
+
+/**
+ * Empties the error channel by **panicking** on it: `ok` values continue
+ * unchanged, an `error` is thrown as `summary(e)`, and what comes back is an
+ * `Effect<O, T, never>` — a `never` that is earned rather than asserted, since
+ * the only way past this point is success.
  *
  * This is the program exercising its right to treat a failure as fatal, and it
  * is a policy — not a conversion. It belongs at a site that genuinely has no
@@ -257,11 +309,11 @@ export const mapStep = (e, f) => rawMapStep(e, mapOk(f))
  * could not do is tell a reviewer that a site's *scope* had grown since they
  * last looked at it, which is what the argument adds.
  *
- * @type {<O extends Operation, T, E>(e: Effect<O, T, E>, summary: (e: E) => string) => RawEffect<O, T>}
+ * @type {<O extends Operation, T, E>(e: Effect<O, T, E>, summary: (e: E) => string) => Effect<O, T, never>}
  */
-export const unwrapStep = (e, summary) => rawMapStep(e, r => {
+export const unwrapStep = (e, summary) => resultMapStep(e, r => {
     if (r[0] === 'error') { throw summary(r[1]) }
-    return r[1]
+    return r
 })
 
 /**

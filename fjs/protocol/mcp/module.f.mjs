@@ -15,8 +15,7 @@
  *
  * @import { Unknown } from '../../media/json/types.ts'
  * @import { Ts } from '../../types/rtti/ts/types.ts'
- * @import { Operation } from '../../effects/types.ts'
- * @import { Effect } from '../../effects/io/types.ts'
+ * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Response, Id, RpcError } from '../json_rpc/types.ts'
  * @import { Type } from '../../types/rtti/types.ts'
@@ -24,8 +23,7 @@
  */
 
 import { boolean, string, option, array, record, or } from '../../types/rtti/module.f.mjs'
-import { mapStep, pure, step } from '../../effects/module.f.mjs'
-import { pureOk, resultStep, step as ioStep } from '../../effects/io/module.f.mjs'
+import { pureOk, resultMapStep, resultStep, step as ioStep } from '../../effects/io/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import { read, write } from '../../effects/memory/module.f.mjs'
 import {
@@ -290,7 +288,10 @@ export const mcpStep = ({
                     if (r[0] === 'error' || r[1][0] !== 'initializing') {
                         return pureOk(null)
                     }
-                    return mapStep(write(stateKey, ['initialized', true]), () => ok(null))
+                    // `resultMapStep`: a notification has no response frame, so
+                    // the write's own outcome is absorbed here for the same
+                    // reason the read's is above.
+                    return resultMapStep(write(stateKey, ['initialized', true]), () => ok(null))
                 })
             }
             return pureOk(null)

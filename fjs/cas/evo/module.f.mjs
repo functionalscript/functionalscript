@@ -43,7 +43,7 @@
  * @module
  *
  * @import { Operation } from '../../effects/types.ts'
- * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
+ * @import { Effect, NotImplemented } from '../../effects/types.ts'
  * @import { EvoChannel, EvoError } from './types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Cas } from '../types.ts'
@@ -56,13 +56,13 @@
  * @import { Hash, Subject, RevisionData, SubjectState, Cache, Evo } from './types.ts'
  */
 
-import { pure, foldStep, mapStep, step } from '../../effects/module.f.mjs'
 import {
     catchStep,
     foldStep as ioFoldStep,
     mapStep as ioMapStep,
     pureError,
     pureOk,
+    resultMapStep,
     step as ioStep,
 } from '../../effects/io/module.f.mjs'
 import { create, read, write } from '../../effects/memory/module.f.mjs'
@@ -239,7 +239,7 @@ export const decodeRevisionVec = value => {
  * @returns {(hash: Vec) => Effect<O, Revision | null, never>}
  */
 export const decodeRevisionBlob = cas => hash =>
-    mapStep(
+    resultMapStep(
         collectRead(cas.read(hash)),
         ([tag, value]) => ok(tag === 'error' ? null : decodeRevisionVec(value)))
 
@@ -614,7 +614,7 @@ export const readRevision = cas => hash => {
     const hashVec = cBase32ToVec(hash)
     return hashVec === null
         ? pureError(evoError(`invalid hash: ${hash}`))
-        : mapStep(collectRead(cas.read(hashVec)), decodeReadRevision(hash))
+        : resultMapStep(collectRead(cas.read(hashVec)), decodeReadRevision(hash))
 }
 
 /**

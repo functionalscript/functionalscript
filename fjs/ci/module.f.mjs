@@ -9,7 +9,7 @@
  * @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts'
  * @import { NixJob } from './nix/types.ts'
  * @import { Setup } from './types.ts'
- * @import { Effect } from '../effects/io/types.ts'
+ * @import { Effect } from '../effects/types.ts'
  */
 
 import { resultStep } from '../effects/io/module.f.mjs'

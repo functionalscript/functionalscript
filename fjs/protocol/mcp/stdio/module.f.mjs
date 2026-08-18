@@ -31,13 +31,12 @@
  *
  * @import { Operation } from '../../../effects/types.ts'
  * @import { IoChannel, Read, Write } from '../../../effects/node/types.ts'
- * @import { Effect } from '../../../effects/io/types.ts'
+ * @import { Effect } from '../../../effects/types.ts'
  * @import { Response } from '../../json_rpc/types.ts'
  * @import { Step } from './types.ts'
  */
 
-import { pure, step } from '../../../effects/module.f.mjs'
-import { pureOk, step as ioStep } from '../../../effects/io/module.f.mjs'
+import { pureError, pureOk, resultStep, step } from '../../../effects/io/module.f.mjs'
 import { ioError, readLine, write } from '../../../effects/node/module.f.mjs'
 import { tryUtf8 } from '../../../text/module.f.mjs'
 import { parse, stringify } from '../../../media/json/module.f.mjs'
@@ -62,7 +61,7 @@ const internalErrorResponse = id => ({ jsonrpc, error: internalError, id })
 const writeResponse = resp => {
     const v = tryUtf8(stringifyJson(resp) + '\n')
     return v === null
-        ? pure(error(ioError({ message: 'response does not encode as UTF-8' })))
+        ? pureError(ioError({ message: 'response does not encode as UTF-8' }))
         : write('stdout', v)
 }
 
@@ -83,7 +82,7 @@ const writeResponse = resp => {
  * @returns {Effect<Read | Write | O, void, IoChannel>}
  */
 export const stdioTransport = handler =>
-    ioStep(
+    step(
         readLine('stdin'),
         line => line === null
             ? pureOk(undefined)
@@ -97,21 +96,23 @@ export const stdioTransport = handler =>
  */
 const handleLine = handler => line => {
     const [t, value] = parse(line)
-    return step(
+    return resultStep(
         t === 'error'
             ? writeResponse(parseErrorResponse)
-            // Raw `step` with the `ok` destructured, not `ioStep`: a `Handle`
-            // answers `Effect<O, Response | null, never>` — it absorbs its own
-            // failures into the response body — but this chain leaves the layer
-            // to write bytes, so it cannot stay `Result`-valued. The `never`
-            // channel is why `[, resp]` is total.
+            // `step`, because a `Handle` answers `Effect<O, Response | null,
+            // never>` — it absorbs its own failures into the response body — so
+            // the continuation receives the response itself and there is no
+            // error branch left for this chain to consider.
             : step(
                 handler(value),
-                ([, resp]) => resp === null
-                    ? pure(undefined)
-                    : step(
+                resp => resp === null
+                    ? pureOk(undefined)
+                    // `resultStep` from here down: each write's *failure* is
+                    // what selects the next, smaller fallback, so these are the
+                    // both-branches case rather than a chain to short-circuit.
+                    : resultStep(
                         writeResponse(resp),
-                        ([t2]) => t2 === 'error'
+                        r2 => r2[0] === 'error'
                             // The real response didn't fit. Retry with a fixed, small
                             // internal-error body carrying `resp.id` — but a
                             // caller-controlled `id` (e.g. a very large string) can
@@ -119,17 +120,19 @@ const handleLine = handler => line => {
                             // that retry is bounded by one more: an `id: null`
                             // internal-error, whose fully-constant shape is the only
                             // line in this transport guaranteed to always encode.
-                            ? step(
+                            ? resultStep(
                                 writeResponse(internalErrorResponse(resp.id)),
-                                ([t3]) => t3 === 'error'
-                                    ? step(
+                                r3 => r3[0] === 'error'
+                                    ? resultStep(
                                         writeResponse(internalErrorResponse(null)),
-                                        () => pure(undefined),
+                                        () => pureOk(undefined),
                                     )
-                                    : pure(undefined)
+                                    : pureOk(undefined)
                             )
-                            : pure(undefined)),
+                            : pureOk(undefined)),
             ),
+        // The loop continues whatever the line's own handling answered: a
+        // transport that could not write one response still serves the next.
         () => stdioTransport(handler),
     )
 }

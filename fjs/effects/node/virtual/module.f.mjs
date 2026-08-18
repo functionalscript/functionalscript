@@ -6,6 +6,7 @@
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
  * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
+ * @import { Result } from '../../../types/result/types.ts'
  * @import { Error } from '../../../types/result/types.ts'
  * @import { Dir, State, _Entity } from './types.ts'
  */
@@ -362,7 +363,10 @@ const statOp = readOperation((dir, path) => {
 /** @type {PartialMemOperationMap<NodeOp, State>} */
 const map = {
     all: (...a) => state => {
-        /** @type {readonly unknown[]} */
+        // Each entry is the effect's whole `Result`: `all`'s own envelope says
+        // only whether the runner could dispatch it, so the inner answers pass
+        // through untouched for `allOk` to collapse.
+        /** @type {readonly Result<unknown, unknown>[]} */
         let e = []
         for (const i of a) {
             const [ns, ei] = virtual(state)(i)

@@ -1,41 +1,45 @@
 /**
- * @import { RawEffect, Operation } from './types.ts'
- * @import { Ok } from '../types/result/types.ts'
+ * @import { Effect, Operation } from './types.ts'
+ * @import { Result } from '../types/result/types.ts'
  */
 
-import { step, do_, foldStep, forEachStep, mapStep, match, history, pure, runPure, historyStep } from './module.f.mjs'
+import { do_, match, partialMatch, pure, runPure } from './module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { assert, assertEq } from '../asserts/module.f.mjs'
 
 /**
- * Asserts that `e` yields `expected` without performing a command. Exported so
- * other proofs can share this definition instead of repeating it.
+ * Asserts that `e` reaches `expected` without performing a command.
  *
  * Not `assertEq(runPure(e), [expected])`: `assertEq` compares with `===`, so a
- * freshly allocated `[expected]` is never equal to the returned option. Assert
- * the option's shape first, then compare the value inside it.
+ * freshly allocated option or `Result` is never equal to the returned one.
+ * Assert the option's shape first, then compare the value inside it.
+ *
  * @template {Operation} O
  * @template T
- * @param {RawEffect<O, T>} e
- * @param {T} expected
+ * @template E
+ * @param {Effect<O, T, E>} e
+ * @param {Result<T, E>} expected
  */
-export const assertPure = (e, expected) => {
+const assertPure = (e, expected) => {
     const o = runPure(e)
     assert(o.length === 1, e)
-    assertEq(o[0], expected)
+    assertEq(o[0][0], expected[0])
+    assertEq(o[0][1], expected[1])
 }
 
 /**
  * `Operation` requires a `Result` return, so a runner always has somewhere to
- * answer `error(notImplemented)` — these proofs are about the representation,
- * not about failure, so the channel is `never` and every handler answers `ok`.
- * @typedef {readonly['add', (a: number, b: number) => Ok<number>]} _AddOp
+ * answer `error(notImplemented)` — and that requirement is what lets an effect
+ * carry its error channel in the type rather than inside an opaque payload.
+ * @typedef {readonly['add', (a: number, b: number) => Result<number, string>]} _AddOp
  */
 
-/** @type {(command: 'add') => (a: number, b: number) => RawEffect<_AddOp, Ok<number>>} */
+/** @type {(command: 'add') => (a: number, b: number) => Effect<_AddOp, number, string>} */
 const doAdd = do_
 
-const next = match({ add: (a, b) => ok(a + b) })
+const next = match({
+    add: (/** @type {number} */ a, /** @type {number} */ b) => ok(a + b),
+})
 
 /**
  * An operation set whose command is any `string`, which is what a `Do` node
@@ -43,51 +47,41 @@ const next = match({ add: (a, b) => ok(a + b) })
  * nothing stops it naming a member `map` inherits from `Object.prototype`
  * rather than an own handler. `match` must refuse those, and this type is how a
  * proof says so without an `as` cast.
- * @typedef {readonly[string, (a: number) => Ok<number>]} _AnyOp
+ * @typedef {readonly[string, (a: number) => Result<number, string>]} _AnyOp
  */
 
-/** @type {(command: string) => (a: number) => RawEffect<_AnyOp, Ok<number>>} */
+/** @type {(command: string) => (a: number) => Effect<_AnyOp, number, string>} */
 const doAny = do_
 
-const anyNext = match({ add: a => ok(a + 1) })
+const anyNext = match({ add: (/** @type {number} */ a) => ok(a + 1) })
+
+/**
+ * The same map, reached through the runner that may decline a command. The
+ * handler's return is annotated so it and `onMissing` agree on one `R` — a
+ * runner's answer type is shared by both, which is the whole reason
+ * `partialMatch` takes the injector from its caller.
+ */
+const anyPartial = partialMatch(
+    /** @type {readonly string[]} */ (['add', 'sub']),
+    (/** @type {string} */ command) =>
+        /** @type {Result<number, string>} */ (error(`declined: ${command}`)),
+)({
+    add: (/** @type {number} */ a) => /** @type {Result<number, string>} */ (ok(a + 1)),
+})
 
 export const proof = {
-    foldStep: {
-        empty: () => {
-            const e = foldStep(pure([]), 10, x => s => pure(s + x))
-            assertPure(e, 10)
-        },
-        threadsState: () => {
-            const e = foldStep(pure([1, 2, 3, 4]), 0, x => s => pure(s + x))
-            assertPure(e, 10)
-        },
-        order: () => {
-            const e = foldStep(pure(['a', 'b', 'c']), '', x => s => pure(s + x))
-            assertPure(e, 'abc')
-        },
-    },
-    forEachStep: {
-        empty: () => {
-            const e = forEachStep(pure([]), () => pure(undefined))
-            assertPure(e, undefined)
-        },
-        runs: () => {
-            const e = forEachStep(pure([1, 2, 3]), () => pure(undefined))
-            assertPure(e, undefined)
-        },
-    },
     runPure: {
-        pure: () => {
-            const o = runPure(pure(5))
-            assert(o.length === 1, o)
-            assertEq(o[0], 5)
+        ok: () => {
+            assertPure(pure(ok(5)), ok(5))
         },
-        // A pure `null` is `[null]`, never `[]`. Collapsing the two is what a
-        // `T | null` result would do, and why the option is tagged.
+        error: () => {
+            assertPure(pure(error('boom')), error('boom'))
+        },
+        // A pure `null` is `[ok(null)]`, never `[]`. Collapsing the two is what
+        // a bare `T | null` result would do, and why the option is tagged
+        // separately from the `Result` inside it.
         pureNull: () => {
-            const o = runPure(pure(null))
-            assertEq(o.length, 1, o)
-            assertEq(o[0], null)
+            assertPure(pure(ok(null)), ok(null))
         },
         do_: () => {
             assertEq(runPure(doAdd('add')(2, 3)).length, 0)
@@ -95,8 +89,8 @@ export const proof = {
     },
     // The one place a `Do` node is opened on purpose: `do_` builds the command,
     // the payload it was called with, and a continuation that resumes with the
-    // command's output. Everything else goes through `step`, `match`, or
-    // `runPure`.
+    // command's output. Everything else goes through `match`, `partialMatch`,
+    // or `runPure`.
     doNode: () => {
         const e = doAdd('add')(2, 3)
         assert(typeof e !== 'function', e)
@@ -105,20 +99,26 @@ export const proof = {
         const [a, b] = payload
         assertEq(a, 2, payload)
         assertEq(b, 3, payload)
-        // The command's output is a `Result` now — `Operation` requires one so
-        // a runner always has somewhere to answer a refusal — so this resumes
-        // with `ok(5)` rather than a bare `5`. Compared through the tuple for
-        // the reason `assertPure` documents: a fresh `ok(5)` is never `===` a
-        // returned one.
-        const resumed = runPure(continuation(ok(5)))
-        assert(resumed.length === 1, resumed)
-        assertEq(resumed[0][1], 5)
+        // The command's output is the whole `Result` — `Operation` requires one
+        // so a runner always has somewhere to answer a refusal — so this
+        // resumes with `ok(5)` rather than a bare `5`.
+        assertPure(continuation(ok(5)), ok(5))
+    },
+    // A runner hands a failed command back through the *ordinary* continuation,
+    // which is what makes `error(notImplemented)` something a program can
+    // recover from. Pinned here because it is the property the whole error
+    // channel rests on: had the representation short-circuited, there would be
+    // nothing for `catchStep` to catch.
+    failedCommandResumes: () => {
+        const e = doAdd('add')(2, 3)
+        assert(typeof e !== 'function', e)
+        assertPure(e.continuation(error('declined')), error('declined'))
     },
     match: {
         done: () => {
-            const r = next(pure(7))
+            const r = next(pure(ok(7)))
             assert(r[0] === 'done', r)
-            assertEq(r[1], 7)
+            assertEq(r[1][1], 7)
         },
         cont: () => {
             const r = next(doAdd('add')(2, 3))
@@ -150,79 +150,28 @@ export const proof = {
             },
         },
     },
-    step: {
-        pure: () => {
-            assertPure(step(pure(3), v => pure(v + 1)), 4)
-        },
-        chain: () => {
-            // Chains as step(step(e, f), g), raw effect in and out.
-            assertPure(step(step(pure(3), v => pure(v + 1)), v => pure(v * 2)), 8)
-        },
-        overDo: () => {
-            // Stepping a Do node preserves the command and threads the result
-            // through the rebuilt continuation.
-            const e = step(doAdd('add')(2, 3), r => pure(r[1] * 10))
-            const r = next(e)
+    partialMatch: {
+        // A command the runner does implement dispatches as usual.
+        implemented: () => {
+            const r = anyPartial(doAny('add')(41))
             assert(r[0] === 'cont', r)
-            assertEq(r[1][1], 5)
-            assertPure(r[2](r[1]), 50)
+            assertEq(r[1][1], 42)
         },
-    },
-    mapStep: {
-        pure: () => {
-            assertPure(mapStep(pure(3), v => v + 1), 4)
-        },
-        constant: () => {
-            // The `() => v` shape a `constStep` would have covered.
-            assertPure(mapStep(pure('ignored'), () => 1), 1)
-        },
-        overDo: () => {
-            // A projection over a `Do` node keeps the command intact and is
-            // applied to the command's output when the continuation resumes.
-            const r = next(mapStep(doAdd('add')(2, 3), v => v[1] * 10))
+        // A command in the set with no handler is an *outcome*: the answer
+        // travels back through the ordinary continuation, and the program
+        // decides what a runner without that capability means for it.
+        declined: () => {
+            const r = anyPartial(doAny('sub')(1))
             assert(r[0] === 'cont', r)
-            assertEq(r[1][1], 5)
-            assertPure(r[2](r[1]), 50)
+            assert(r[1][0] === 'error' && r[1][1] === 'declined: sub', r)
+            assertPure(r[2](r[1]), error('declined: sub'))
         },
-    },
-    historyStep: {
-        pure: () => {
-            const o = runPure(historyStep(history(pure(3)), v => pure(v * 2)))
-            assert(o.length === 1, o)
-            const [[result, param]] = o
-            assertEq(param, 3)
-            assertEq(result, 6)
-        },
-        overDo: () => {
-            // The captured value survives a command boundary: the history is
-            // rebuilt inside the continuation rather than lost when `e` is a Do.
-            const c = next(historyStep(history(doAdd('add')(2, 3)), r => pure(r[1] * 10)))
-            assert(c[0] === 'cont', c)
-            assertEq(c[1][1], 5)
-            const o = runPure(c[2](c[1]))
-            assert(o.length === 1, o)
-            const [[result, param]] = o
-            // `param` is the command's output, so it is the `Result` the
-            // history captured rather than the number inside it.
-            assertEq(param[1], 5)
-            assertEq(result, 50)
-        },
-        chain: () => {
-            // `historyStep` takes a history and returns one, so link two is
-            // spelled exactly like link one. The tuple is newest first, so a
-            // destructuring reads reverse-chronologically.
-            const a = historyStep(history(pure(1)), x => pure(x + 1))
-            const b = historyStep(a, (result, param) => pure(result + param))
-            assertPure(
-                step(b, ([z, y, x]) => pure(`${x}${y}${z}`)),
-                '123')
-        },
-        fReceivesWholeHistory: () => {
-            // `f` is handed the whole history spread as arguments, not just the
-            // most recent value - which is what lets a later link reach back.
-            const a = historyStep(history(pure(1)), x => pure(x + 1))
-            const b = historyStep(a, (...p) => pure(p[1] * 100 + p[0]))
-            assertPure(step(b, ([result]) => pure(result)), 102)
+        // A command outside the set is a malformed node, not a capability the
+        // runner lacks, and still panics.
+        throw: {
+            unknownCommand: () => {
+                anyPartial(doAny('nope')(1))
+            },
         },
     },
 }

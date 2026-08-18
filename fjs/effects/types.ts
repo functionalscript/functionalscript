@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Result } from '../types/result/types.ts'
+import type { Ok, Error, Result } from '../types/result/types.ts'
 
 /**
  * A command name paired with the signature a runner implements it at.
@@ -18,70 +18,91 @@ import type { Result } from '../types/result/types.ts'
  * already returned `OpResult<…>` or `IoResult<…>` when this constraint was
  * added; it writes down what was true and stops it drifting.
  *
- * It is also a latch. Afterwards a new operation *cannot* be declared
- * infallible, which is what lets `do_` produce an `Effect` by construction and
- * `Cont` return one, rather than by the author of each operation remembering.
+ * It is also the latch the whole representation now rests on. An operation
+ * *cannot* be declared infallible, so every {@link Effect} built from one has a
+ * `Result` to carry — which is what lets {@link Effect} name its error channel
+ * rather than leaving it inside an opaque payload.
  */
 export type Operation =
     readonly[string, (..._: readonly never[]) => Result<unknown, unknown>]
 
 /**
- * A `RawEffect<O, T>` is the raw value: a {@link Pure} thunk that yields `T`, or a
- * {@link Do} node describing a command to perform. It is plain data — compose
- * effects with the external `step`, which is eager wherever the head is
- * `Pure`.
+ * The runner cannot dispatch this operation and has **not** started it.
  *
- * **This is the low-level representation.** Work that can fail is written
- * against `Effect<O, T, E>` (`./io/types.ts`), the `RawEffect<O, Result<T, E>>`
- * with an explicit error channel, which is the preferred high-level
- * abstraction — see [`./io/README.md`](./io/README.md). `RawEffect` is what that
- * alias and the combinators here are built from, and it stays public as such.
+ * It is ordinary recoverable effect data rather than a fatal runner condition:
+ * the program receives control back and decides what an incompatible runner
+ * means for it — recover, choose a fallback operation, or treat it as fatal and
+ * panic itself (`throw`, e.g. via `unwrap`). Escalation belongs to the program,
+ * so the missing-handler path answers with `error(notImplemented)` rather than
+ * panicking on the program's behalf.
  *
- * **It was planned for deletion, the plan was rejected, and half the reason
- * given for rejecting it has since been falsified.** The argument ran: migrate
- * every fallible thing to `Effect`, and once nothing infallible is left, make
- * the `Result`-carrying union primitive and this name has nothing to describe.
- * The migration happened — the standard channel got a name, `Program` exit
- * codes and `List` cells got channels, `cas/evo` stopped nesting, `unwrapStep`
- * stopped absorbing — and two kinds of permanently-infallible payload were
- * claimed to be left over. Only one of them was real.
+ * **It identifies the operation by command name only.** An operation's payload
+ * may hold functions — `createServer`'s listener, `sandbox`'s thunk, `test`'s
+ * body — so carrying it would break the serializability the asserts in
+ * [`./io/types.ts`](./io/types.ts) pin against the JSON data model.
  *
- * **The representation itself is real**, and it is why this name stays. It is
- * generic over its payload by definition — {@link Pure}, {@link Do}, the
- * runners, {@link match}, `runPure`, and the combinators here — and it is what
- * `Effect` is *written in terms of*: the alias expands to
- * `RawEffect<O, Result<T, E>>`, so the name cannot be dropped in favour of
- * the thing defined from it.
+ * **It is not a security boundary.** A runner keeps its authority over
+ * execution through a separate, out-of-band mechanism: it may interrupt or
+ * terminate a program that is malicious, over budget, or violating host policy,
+ * and nothing in the error channel obliges it to hand control back. A
+ * capability the runner merely lacks is answered with this error; a refusal to
+ * continue is an interruption, never dressed up as `NotImplemented`.
  *
- * **"Absorb points" were not.** The claim was that a module converting a
- * channel into its own vocabulary should stay raw behind the conversion, with
- * the MCP handler as the clearest case — the protocol *is* its error channel,
- * so `(value) => RawEffect<O, Response | null>` was called the honest
- * contract. Those handlers say `Effect<O, Response | null, never>` now, and
- * that is the better spelling: `never` is a *claim* — this code absorbs its
- * own failures, here — where the raw form left the question unasked. A reader
- * who thinks the absorption is wrong has something to point at.
- *
- * The arithmetic offered alongside it was wrong in the same direction. Most of
- * the payloads that were counted as needing an `Ok` were
- * `<T>(e: RawEffect<O, T>) => …` *type parameters* rather than payload shapes;
- * they become `<T, E>(e: Effect<O, T, E>) => …`, as general as before and
- * wrapping nothing.
- *
- * The distinction the name draws — composition against representation — is
- * what survived, which is why {@link Operation} now *requires* a `Result`
- * return: that is the part of the plan that was right, and it makes every
- * operation fallible at the leaf without making every effect fallible at the
- * type.
+ * **It is why there is no infallible effect.** Every {@link Do} node is
+ * dispatched by a runner that may decline the command, so an effect that
+ * declared no error channel would be describing today's runner rather than the
+ * computation. That observation is what collapsed the representation into this
+ * one type — see {@link Effect}.
  */
-export type RawEffect<O extends Operation, T> =
-    Pure<T> | Do<O, T>
+export type NotImplemented = readonly['notImplemented', string]
 
 /**
- * A pure effect: an *already-computed* `T` behind a thunk.
+ * An `Effect<O, T, E>` is the raw value: a {@link Pure} thunk yielding
+ * `Result<T, E>`, or a {@link Do} node describing a command to perform. It is
+ * plain data — compose effects with the combinators in
+ * [`./io/module.f.mjs`](./io/module.f.mjs), which are eager wherever the head
+ * is `Pure`.
  *
- * The thunk is a **discriminator, not a suspension**. `RawEffect` is a union with
- * no tag field, so telling its two cases apart needs a runtime test, and
+ * **The error channel is part of the representation, not a wrapper over it.**
+ * This used to be two types: a `RawEffect<O, T>` with an opaque payload, and an
+ * `Effect<O, T, E>` alias for `RawEffect<O, Result<T, E>>`. The division was
+ * described as *composition* against *representation*, and it was defended on
+ * the grounds that the representation is generic over its payload by
+ * definition — the runners, {@link match}, `runPure`, `do_`. That is true and
+ * it is not a reason for two names: {@link Operation} requires a `Result`
+ * return, so the payload a runner is generic over is *always* `Result<T, E>`
+ * already. Naming its two halves costs nothing and lets every signature in the
+ * system say which half it means.
+ *
+ * **`E` defaults to {@link NotImplemented}**, the one error every operation can
+ * answer with, so the common case is written `Effect<Sandbox, T>`. An
+ * operation's own failures extend the channel — `Effect<ReadFile, Vec,
+ * IoChannel>`, that alias being the node standard of
+ * `NotImplemented | IoError`.
+ *
+ * **`Effect<O, T, never>` is a claim, not an absence.** It says this code
+ * absorbs its own failures *here* — an MCP handler turning one into a JSON-RPC
+ * error response, a decoder turning one into `null`, a test body turning one
+ * into a panic. A reader who thinks the absorption is wrong has something to
+ * point at, which is what the opaque payload could not offer.
+ *
+ * The channel is where **short-circuiting** lives, not specifically where a
+ * runner's refusal lives. A parse failure, a domain verdict, or a non-zero exit
+ * code belongs in it for the same reason {@link NotImplemented} does: `step`
+ * should stop the chain and carry it out.
+ *
+ * It widens and does not narrow, in both channels and in `O` — the asserts in
+ * [`./io/types.ts`](./io/types.ts) pin each direction, so an unhandled error
+ * type is a compile error rather than a value nobody looked at.
+ */
+export type Effect<O extends Operation, T, E = NotImplemented> =
+    Pure<T, E> | Do<O, T, E>
+
+/**
+ * A pure effect: an *already-computed* `Result<T, E>` behind a thunk.
+ *
+ * The thunk is a **discriminator, not a suspension**. {@link Effect} is a union
+ * with no tag field, so telling its two cases apart needs a runtime test, and
  * `typeof e === 'function'` is it — wrapping the value in a function is what
  * makes that test work. Deferral is not what the thunk is for. A `Pure` never
  * holds work that has yet to happen; everything that *does* something is a
@@ -95,20 +116,20 @@ export type RawEffect<O extends Operation, T> =
  *   can be decoded repeatedly, and under the first rule that costs nothing and
  *   changes nothing.
  *
- * A `lazy` constructor (`<T>(t: () => T): RawEffect<never, T> => t`) once existed
+ * A `lazy` constructor (`<T>(t: () => T): Effect<never, T> => t`) once existed
  * to advertise the thunk as a suspension. It was the identity function, and it
  * promised a deferral this representation does not keep; it has been removed.
  * Reintroducing it would reintroduce the contradiction, not fix one.
  */
-export type Pure<T> =
-    () => T
+export type Pure<T, E> =
+    () => Result<T, E>
 
 export type Pr<O extends Operation, K extends O[0]> =
     O extends readonly[K, (...args: infer P) => infer R] ? readonly[P, R] : never
 
 /**
- * A `Do` node's continuation: given the command's output, produce the rest of
- * the effect.
+ * A {@link Do} node's continuation: given the command's output, produce the
+ * rest of the effect.
  *
  * The `out O` annotation asserts a covariance TypeScript cannot derive through
  * the conditional `Pr` type: the command's output sits in the *contravariant*
@@ -121,12 +142,12 @@ export type Pr<O extends Operation, K extends O[0]> =
  * (`match` → runner), so a `write` node's continuation is only ever
  * called with `void`; the op-set can grow without any continuation ever being
  * handed the wrong output. `out` enables only the widening direction
- * (`RawEffect<A>` <: `RawEffect<A | B>`), never the unsound narrowing. Anyone changing
+ * (`Effect<A>` <: `Effect<A | B>`), never the unsound narrowing. Anyone changing
  * the continuation representation must re-check this argument before keeping the
  * annotation.
  */
-export type Cont<out O extends Operation, T> =
-    (_: Pr<O, O[0]>[1]) => RawEffect<O, T>
+export type Cont<out O extends Operation, T, E> =
+    (_: Pr<O, O[0]>[1]) => Effect<O, T, E>
 
 /**
  * A `Do` node: the command to perform, its payload, and the continuation to
@@ -136,7 +157,7 @@ export type Cont<out O extends Operation, T> =
  *
  * It must be an object rather than a tuple, and that is not a style choice:
  * only object / function / mapped-type aliases may carry a variance annotation
- * (`TS2637` forbids `out` on a tuple), and the raw `RawEffect` union must be
+ * (`TS2637` forbids `out` on a tuple), and the {@link Effect} union must be
  * covariant in `O` end to end. `command` and `payload` are indexed/conditional
  * types over `O` that TypeScript will not widen generically on their own —
  * annotating only {@link Cont} is not enough — so the whole node carries
@@ -150,31 +171,29 @@ export type Cont<out O extends Operation, T> =
  * tuple's price without being a tuple. Named fields make the node
  * self-describing at every read and leave no layout to memorize.
  */
-export type Do<out O extends Operation, T> = {
+export type Do<out O extends Operation, T, E> = {
     readonly command: O[0]
     readonly payload: Pr<O, O[0]>[0]
-    readonly continuation: Cont<O, T>
+    readonly continuation: Cont<O, T, E>
 }
-
-/**
- * An effect whose result is a **history tuple**: the values a chain has bound so
- * far, newest first. `History<O, readonly[C, B, A]>` is three links deep, with
- * `A` bound earliest.
- *
- * This is a transparent alias for `RawEffect`. It adds the tuple bound and
- * nothing else, so any tuple-valued effect satisfies it whether or not
- * `history` produced it — it names the convention at the signatures that
- * rely on it rather than enforcing it.
- *
- * Heterogeneous by design: each element has its own type, so this is not a
- * `List` and nothing that folds or maps a list applies to it.
- */
-export type History<O extends Operation, H extends readonly unknown[]> =
-    RawEffect<O, H>
 
 export type Param<O extends Operation> = F<O>[0]
 
 export type Return<O extends Operation> = F<O>[1]
+
+/**
+ * The success half of a {@link Result} type, and {@link ErrOf} the error half.
+ *
+ * These read an operation's *declared* return apart so that {@link Func} can
+ * state the effect `do_` builds from it. {@link Operation} guarantees the
+ * return is a `Result`, so neither is ever the `never` its fallback branch
+ * names; and both distribute over the union, which is what makes
+ * `Result<T, E>` decompose back into exactly `T` and `E`.
+ */
+export type OkOf<R> = R extends Ok<infer T> ? T : never
+
+/** The error half of a {@link Result} type — see {@link OkOf}. */
+export type ErrOf<R> = R extends Error<infer E> ? E : never
 
 /**
  * An operation map whose entries take a command's payload and return some
@@ -223,9 +242,18 @@ export type CommandSet<O extends Operation> =
 export type Commands<O extends Operation> =
     readonly O[0][]
 
-export type MatchResult<O extends Operation, T, R> =
-    | readonly['done', T]
-    | readonly['cont', R, Do<O, T>['continuation']]
+/**
+ * What one decoding step of an effect yields: the finished `Result`, or the
+ * operation's output `R` paired with the continuation to resume with.
+ *
+ * The `done` payload is the whole `Result`, not its `ok` half. An interpreter
+ * is the one reader that must not short-circuit — a runner hands a failed
+ * command's `error` back *through* the continuation, so the two channels only
+ * separate above this layer.
+ */
+export type MatchResult<O extends Operation, T, E, R> =
+    | readonly['done', Result<T, E>]
+    | readonly['cont', R, Cont<O, T, E>]
 
 export type ToAsyncOperationMap<O extends Operation> = {
     readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
@@ -233,4 +261,10 @@ export type ToAsyncOperationMap<O extends Operation> = {
 
 export type F<O extends Operation> = Pr<O, O[0]>
 
-export type Func<O extends Operation> = (..._: Param<O>) => RawEffect<O, Return<O>>
+/**
+ * The effect-returning function `do_` builds for a single operation: its
+ * payload in, an {@link Effect} whose two channels are the halves of the
+ * operation's declared `Result` out.
+ */
+export type Func<O extends Operation> =
+    (..._: Param<O>) => Effect<O, OkOf<Return<O>>, ErrOf<Return<O>>>

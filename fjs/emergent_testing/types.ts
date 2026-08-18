@@ -4,8 +4,7 @@
  * @module
  */
 
-import type { Operation } from '../effects/types.ts'
-import type { Effect } from '../effects/io/types.ts'
+import type { Effect, Operation } from '../effects/types.ts'
 import type { IoChannel, SandboxResult } from '../effects/node/types.ts'
 
 /** A zero-argument test function whose return value may contain sub-tests. */

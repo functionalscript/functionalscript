@@ -1,7 +1,7 @@
 /**
  * @import { Unknown } from '../../media/json/types.ts'
  * @import { Operation } from '../../effects/types.ts'
- * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
+ * @import { Effect, NotImplemented } from '../../effects/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import {

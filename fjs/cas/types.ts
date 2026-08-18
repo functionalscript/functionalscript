@@ -5,9 +5,8 @@
  */
 
 import type { Vec } from '../types/bit_vec/types.ts'
-import type { Operation } from '../effects/types.ts'
+import type { Effect, Operation } from '../effects/types.ts'
 import type { List } from '../effects/list/types.ts'
-import type { Effect } from '../effects/io/types.ts'
 import type { Access, CreateExclusive, IoChannel, Mkdir, Now, RandomInt, ReadBytes, Readdir, Rename, Rm, Stat, WriteBytes } from '../effects/node/types.ts'
 
 /**

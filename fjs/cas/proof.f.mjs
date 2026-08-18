@@ -2,7 +2,7 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from './types.ts'
  * @import { IoChannel, IoResult, Mkdir, ReadFile, WriteFile } from '../effects/node/types.ts'
- * @import { Effect } from '../effects/io/types.ts'
+ * @import { Effect } from '../effects/types.ts'
  * @import { Ok, Result } from '../types/result/types.ts'
  * @import { List } from '../effects/list/types.ts'
  */

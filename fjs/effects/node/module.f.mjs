@@ -12,10 +12,9 @@
  *
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Commands, CommandSet, RawEffect, Func, Operation } from '../types.ts'
+ * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
- * @import { Effect, NotImplemented } from '../io/types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -24,8 +23,10 @@ import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { error as resultError, ok as resultOk, unwrap } from '../../types/result/module.f.mjs'
-import { do_, mapStep, pure, step } from '../module.f.mjs'
-import { mapStep as ioMapStep, pureError, pureOk, step as ioStep } from '../io/module.f.mjs'
+import { do_, pure } from '../module.f.mjs'
+import {
+    mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
+} from '../io/module.f.mjs'
 
 /**
  * Builds a normalized host error. The constructor exists so the shape is
@@ -112,11 +113,13 @@ export const nodeCommands = /** @type {Commands<NodeOp>} */ (Object.keys(nodeCom
 
 /**
  * To run the operation `O` should be known by the runner/engine.
- * This is the reason why we merge `O` with `All` in the resulted `RawEffect`.
+ * This is the reason why we merge `O` with `All` in the resulting effect.
  */
 export const all =
-    /** @type {<O extends Operation, T>(...a: readonly RawEffect<O, T>[]) => Effect<O | All, readonly T[]>} */
-    (do_('all'))
+    // `Func` cannot express a variadic generic operation, so the declared type
+    // is written out here and `do_`'s is set aside.
+    /** @type {<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O | All, readonly Result<T, E>[], NotImplemented>} */
+    (/** @type {unknown} */ (do_('all')))
 
 /**
  * Collapses a list of results into a result of the list, keeping the **first**
@@ -163,8 +166,9 @@ export const allOk = (...a) =>
 /**
  * @template {Operation} O0
  * @template T0
- * @param {RawEffect<O0, T0>} a
- * @returns {<O1 extends Operation, T1>(b: RawEffect<O1, T1>) => Effect<O0 | O1 | All, readonly[T0, T1]>}
+ * @template E0
+ * @param {Effect<O0, T0, E0>} a
+ * @returns {<O1 extends Operation, T1, E1>(b: Effect<O1, T1, E1>) => Effect<O0 | O1 | All, readonly[Result<T0, E0>, Result<T1, E1>], NotImplemented>}
  */
 export const both = a => b =>
     /** @type {any} */ (all)(a, b)
@@ -426,7 +430,7 @@ export const test = do_('test')
 /**
  * Writes an error line to `stderr` and fails with exit code `1`. The canonical
  * "fail with a message" program for a `NodeProgram`. For non-`1` exit codes,
- * compose `mapStep(error(s), () => resultError(n))` directly.
+ * compose `resultMapStep(error(s), () => resultError(n))` directly.
  *
  * **It never succeeds, and the type says so.** `E` is `number` and `T` is
  * `never`, so `step`'s continuation takes a `never` and can never run. That is
@@ -436,7 +440,7 @@ export const test = do_('test')
  * downstream can proceed as if this had succeeded.
  *
  * **The write's own outcome is deliberately discarded**, which is why this is
- * the raw `mapStep` rather than the Io one. The program is already failing and
+ * `resultMapStep` rather than `mapStep`. The program is already failing and
  * the exit code is `1` whether or not `stderr` accepted the bytes; propagating
  * here would hand every caller a "failed to report a failure" branch with no
  * better answer available to it than the one taken here.
@@ -444,7 +448,7 @@ export const test = do_('test')
  * @type {(s: string) => Effect<Write, never, number>}
  */
 export const errorExit = s =>
-    mapStep(error(s), () => resultError(1))
+    resultMapStep(error(s), () => resultError(1))
 
 /**
  * The exit code a {@link Program} answered, from whichever branch it came.
@@ -506,7 +510,7 @@ export const errorSummary = ([tag, payload]) =>
  * @type {<O extends Operation, T>(e: Effect<O, T, IoChannel>) => Effect<O | Write, 0, number>}
  */
 export const exitStep = e =>
-    step(e, r => {
+    resultStep(e, r => {
         // Bound rather than returned inline: the two branches are
         // `Effect<Write, never, number>` and `Effect<never, 0, never>`, both
         // assignable to this, but `step` infers its continuation's type from

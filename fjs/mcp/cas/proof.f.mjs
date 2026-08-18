@@ -1,5 +1,5 @@
 /**
- * @import { Effect } from '../../effects/io/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { FileCasOperation } from '../../cas/types.ts'
  * @import { MemOp } from '../../effects/memory/types.ts'

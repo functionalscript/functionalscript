@@ -6,7 +6,7 @@
  * @module
  *
  * @import { Operation } from "../types.ts"
- * @import { Effect } from "../io/types.ts"
+ * @import { Effect } from "../types.ts"
  * @import { List, Next } from "./types.ts"
  */
 

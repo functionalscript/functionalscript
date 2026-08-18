@@ -40,7 +40,7 @@
  * @import { Operation } from '../../effects/types.ts'
  * @import { List } from '../../effects/list/types.ts'
  * @import { IoChannel, IoResult } from '../../effects/node/types.ts'
- * @import { Effect } from '../../effects/io/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
  * @import { DetectMeta, DetectState, _MagicState, _Signature, _Utf8Detect } from './types.ts'
  */
 

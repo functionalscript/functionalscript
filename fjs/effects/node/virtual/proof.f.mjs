@@ -1,7 +1,7 @@
 /**
  * @import { Dir } from './types.ts'
  * @import { NodeOp } from '../types.ts'
- * @import { RawEffect } from '../../types.ts'
+ * @import { Effect } from '../../types.ts'
  * @import { IoChannel } from '../types.ts'
  */
 
@@ -53,7 +53,7 @@ export const proof = {
                 // `do_` cannot build this from a well-typed call — that is the
                 // point: only a node assembled outside the type system reaches
                 // an interpreter with a command like this.
-                const bogus = /** @type {RawEffect<NodeOp, never>} */ (
+                const bogus = /** @type {Effect<NodeOp, never, never>} */ (
                     /** @type {any} */ (do_)('nope')())
                 virtual(emptyState)(bogus)
             },

@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Access, All, Env, Import, IoChannel, Readdir } from '../effects/node/types.ts'
- * @import { Effect } from '../effects/io/types.ts'
+ * @import { Effect } from '../effects/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'
  * @import { Module, ModuleMap, LoadModuleOperations } from './types.ts'
  */

@@ -256,7 +256,8 @@ constraint goes in braces before the parameter name:
 /**
  * @template {Operation} O
  * @template T
- * @typedef {(_: Pr<O, O[0]>[1]) => RawEffect<O, T>} Cont
+ * @template E
+ * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T, E>} Cont
  */
 ```
 
@@ -265,8 +266,8 @@ Translate TypeScript `in` / `out` directly on `@template` instead of dropping
 the variance annotation. For example:
 
 ```ts
-export type Cont<out O extends Operation, T> =
-    (_: Pr<O, O[0]>[1]) => RawEffect<O, T>
+export type Cont<out O extends Operation, T, E> =
+    (_: Pr<O, O[0]>[1]) => Effect<O, T, E>
 ```
 
 becomes:
@@ -275,7 +276,8 @@ becomes:
 /**
  * @template {Operation} out O
  * @template T
- * @typedef {(_: Pr<O, O[0]>[1]) => RawEffect<O, T>} Cont
+ * @template E
+ * @typedef {(_: Pr<O, O[0]>[1]) => Effect<O, T, E>} Cont
  */
 ```
 
@@ -756,33 +758,34 @@ than a single access.
 
 ### 3.4 Effects (`fjs/effects`)
 
-**Fallible work composes through `fjs/effects/io`.** An `Effect<O, T, E>` is a
-`RawEffect` whose result is a `Result`, and its `step` runs the continuation
-only on `ok`, propagating an `error` on its own. Every operation returns one, so
-this is the layer ordinary code writes against; the raw `step` in
-`fjs/effects/module.f.mjs` knows nothing of `Result` and will happily run the
-next link after a failed one. Reach for `catchStep` where a failure has a real
-fallback, `resultStep` where both branches genuinely matter, and `unwrapStep`
-only where panicking is the considered answer. See
+**There is one effect type.** `Effect<O, T, E>` (`fjs/effects/types.ts`) is a
+`Pure` thunk yielding `Result<T, E>` or a `Do` node — the error channel is part
+of the representation, not a wrapper over it. `E` defaults to `NotImplemented`.
+
+**Compose it through `fjs/effects/io`.** `step` runs the continuation only on
+`ok`, propagating an `error` on its own. Reach for `catchStep` where a failure
+has a real fallback, `resultStep` where both branches genuinely matter,
+`mapStep` for a trailing projection over the value, `resultMapStep` for one that
+decides the outcome from both branches, and `unwrapStep` only where panicking is
+the considered answer. See
 [`fjs/effects/io/README.md`](./effects/io/README.md).
+`fjs/effects/module.f.mjs` holds the representation and its interpreters —
+`pure`, `do_`, `match`, `partialMatch`, `runPure` — and no combinators.
 
-**The two names say which one you mean**, and the division is *composition*
-against *representation* rather than fallible against infallible.
-`Effect<O, T, E>` is what you compose, with `E` defaulting to
-`NotImplemented`; `RawEffect<O, T>` (`fjs/effects/types.ts`) is the `Pure | Do`
-representation, for the runners, `match`/`runPure`, and `do_` that speak it.
+There used to be two of each combinator, a `Result`-blind set beside these. They
+were a trap rather than a layer: an operation must return a `Result`, so every
+effect carries one, and a `step` that ignored it would run the next link after a
+failed one. `resultStep` **is** that former raw `step`, at the type that says
+what its continuation receives.
 
-Prefer `Effect` even where nothing fails yet: widening `Effect<O, T, never>`
-leaves every consumer that merely chains untouched, where widening a
-`RawEffect` rewrites every consumer *body*. A `List` cell and a `Program`'s
-exit code were once listed here as things that "genuinely cannot fail"; both
-carry channels now, and so do the **absorb points** — a module that converts a
-channel into its own vocabulary, such as an MCP handler whose protocol *is* its
-error channel, says `Effect<O, T, never>` rather than staying raw. `never` is a
-claim a reader can disagree with; raw leaves the question unasked. What stays
-raw is the representation, and nothing else.
+Nothing "genuinely cannot fail". A `List` cell and a `Program`'s exit code were
+once listed here as such; both carry channels now, and so does every **absorb
+point** — a module that converts a channel into its own vocabulary, such as an
+MCP handler whose protocol *is* its error channel, says `Effect<O, T, never>`.
+That `never` is a claim a reader can disagree with, and widening it later leaves
+every consumer that merely chains untouched.
 
-The rules below apply to both layers, and to the Io `step` first.
+The rules below apply to the whole family, and to `step` first.
 
 Bind every effect in a sequence to its own name, all at one level, so the
 sequence reads top-to-bottom in evaluation order instead of inside-out.

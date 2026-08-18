@@ -7,7 +7,7 @@
  * generation strategy.
  *
  * Memory effects compose with other effects by unioning operation types, for
- * example `RawEffect<IoOp | MemOp, T>` for a program that performs both I/O and
+ * example `Effect<IoOp | MemOp, T, E>` for a program that performs both I/O and
  * memory operations.
  *
  * See `./types.ts` for the `Key`/`MemCreate`/`MemRead`/`MemWrite`/`MemOp`
@@ -16,7 +16,7 @@
  * @module
  *
  * @import { Nominal } from '../../types/nominal/types.ts'
- * @import { Effect } from '../io/types.ts'
+ * @import { Effect } from '../types.ts'
  * @import { Key, MemCreate, MemRead, MemWrite, _MemKeyHash } from './types.ts'
  */
 

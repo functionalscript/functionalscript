@@ -11,7 +11,7 @@
  * @module
  *
  * @import { Operation } from '../effects/types.ts'
- * @import { Effect, NotImplemented } from '../effects/io/types.ts'
+ * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
  * @import { TestFn, TestEntry, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts'
  * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
@@ -19,8 +19,9 @@
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
-import { pure, step as rawStep } from '../effects/module.f.mjs'
-import { catchStep, history, historyStep, mapStep, pureError, pureOk, step } from '../effects/io/module.f.mjs'
+import {
+    catchStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step,
+} from '../effects/io/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
@@ -243,7 +244,7 @@ export const runModuleMap = reporter => moduleMap => {
  * @type {<O extends Operation>(e: Effect<O, number, IoChannel>) => Effect<O | Write, 0, number>}
  */
 const exitCodeStep = e =>
-    rawStep(e, r => {
+    resultStep(e, r => {
         /** @type {Effect<Write, 0, number>} */
         const code = r[0] === 'error'
             ? errorExit(errorMessage(r[1]))

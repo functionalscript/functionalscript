@@ -7,7 +7,7 @@
  * @import { Result } from '../types/result/types.ts'
  * @import { Unknown } from './types.ts'
  * @import { ParseError } from './parser/types.ts'
- * @import { Effect } from '../effects/io/types.ts'
+ * @import { Effect } from '../effects/types.ts'
  */
 
 import { transpile } from './transpiler/module.f.mjs'

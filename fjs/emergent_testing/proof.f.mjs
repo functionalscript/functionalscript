@@ -1,6 +1,6 @@
 /**
  * @import { RunInstance } from '../effects/mock/types.ts'
- * @import { Effect, NotImplemented } from '../effects/io/types.ts'
+ * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { NodeProgramOptions, OpResult, Sandbox, Write } from '../effects/node/types.ts'
  * @import { JsModule } from '../effects/node/virtual/types.ts'
  * @import { Reporter } from './types.ts'

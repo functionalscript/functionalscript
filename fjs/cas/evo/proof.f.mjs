@@ -2,7 +2,7 @@
  * @import { Cas } from '../types.ts'
  * @import { EvoChannel } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Effect } from '../../effects/io/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
  * @import { IoChannel, NodeOp } from '../../effects/node/types.ts'
  * @import { State } from '../../effects/node/virtual/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'

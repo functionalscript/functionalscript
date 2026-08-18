@@ -6,7 +6,7 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from '../cas/types.ts'
  * @import { List } from '../effects/list/types.ts'
- * @import { Effect } from '../effects/io/types.ts'
+ * @import { Effect } from '../effects/types.ts'
  * @import { ContentItem, ToolsCallResult } from '../protocol/mcp/types.ts'
  * @import { IoChannel, Mkdir, Now, RandomInt, ReadBytes, Rename } from '../effects/node/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'

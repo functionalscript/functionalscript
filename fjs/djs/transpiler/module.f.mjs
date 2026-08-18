@@ -9,7 +9,7 @@
  * @import { AstModule } from '../ast/types.ts'
  * @import { Operation } from '../../effects/types.ts'
  * @import { IoChannel } from '../../effects/node/types.ts'
- * @import { Effect } from '../../effects/io/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
  * @import { ReadFile } from '../../effects/node/types.ts'
  * @import { ParseContext } from './types.ts'
  */

@@ -5,7 +5,7 @@
  *
  * @module
  *
- * @import { Commands, MatchResult, Operation, RawEffect } from '../types.ts'
+ * @import { Commands, Effect, MatchResult, Operation } from '../types.ts'
  * @import { MemOperationMap, PartialMemOperationMap, RunInstance } from './types.ts'
  */
 
@@ -42,7 +42,7 @@ export const partialRun = commands => o => {
  * through the handler's transition, resume with the command's output.
  *
  * @type {<O extends Operation, S>(
- *     next: <O1 extends O, T>(e: RawEffect<O1, T>) => MatchResult<O1, T, (state: S) => readonly[S, any]>
+ *     next: <O1 extends O, T, E>(e: Effect<O1, T, E>) => MatchResult<O1, T, E, (state: S) => readonly[S, any]>
  * ) => RunInstance<O, S>}
  */
 const _loop = next => state => effect => {

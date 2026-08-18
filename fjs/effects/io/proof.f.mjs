@@ -1,13 +1,15 @@
 /**
  * @import { Result } from '../../types/result/types.ts'
- * @import { RawEffect, Operation } from '../types.ts'
- * @import { Effect } from './types.ts'
+ * @import { Effect, Func, Operation } from '../types.ts'
  */
 
 import { assert, assertEq, todo } from '../../asserts/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { do_, match, pure, runPure } from '../module.f.mjs'
-import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step, unwrapStep } from './module.f.mjs'
+import {
+    catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk,
+    resultMapStep, resultStep, step, unwrapStep,
+} from './module.f.mjs'
 
 /**
  * A fallible operation, spelled the way stage 3 will spell every operation: the
@@ -24,15 +26,11 @@ import { catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureEr
 
 /** @typedef {_DivOp | _NegOp} _Op */
 
-/** @type {(command: 'div') => (a: number, b: number) => Effect<_DivOp, number, string>} */
-const doDiv = do_
+/** @type {Func<_DivOp>} */
+const div = do_('div')
 
-const div = doDiv('div')
-
-/** @type {(command: 'neg') => (a: number) => Effect<_NegOp, number, string>} */
-const doNeg = do_
-
-const neg = doNeg('neg')
+/** @type {Func<_NegOp>} */
+const neg = do_('neg')
 
 const next = match({
     div: (/** @type {number} */ a, /** @type {number} */ b) =>
@@ -43,7 +41,7 @@ const next = match({
 /**
  * Runs an effect to completion against the two operations above — `asyncRun`'s
  * loop without the `await`, which is all a synchronous runner is.
- * @type {<T>(e: RawEffect<_Op, T>) => T}
+ * @type {<T, E>(e: Effect<_Op, T, E>) => Result<T, E>}
  */
 const run = e => {
     let current = e
@@ -288,12 +286,10 @@ export const proof = {
         },
     },
     unwrapStep: {
-        // An `ok` leaves the layer as an ordinary raw effect, carrying the
-        // value rather than the `Result` around it.
+        // An `ok` passes through untouched — what the panic empties is the
+        // error channel, so the value is still carried in an `ok`.
         ok: () => {
-            const o = runPure(unwrapStep(pureOk(5), show))
-            assert(o.length === 1, o)
-            assertEq(o[0], 5)
+            assertOk(pureResult(unwrapStep(pureOk(5), show)), 5)
         },
         // An `error` is a panic — the policy the name exists to make greppable.
         // It throws where the composition is written, since `mapStep` forces a

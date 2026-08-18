@@ -1,40 +1,49 @@
 # `Effect` — effects with an explicit error channel
 
-`Effect<O, T, E>` is `RawEffect<O, Result<T, E>>`: the raw effect from
-[`../module.f.mjs`](../module.f.mjs) with its failure made part of the type.
-It is the **abstraction to reach for**; `RawEffect<O, T>` is the representation
-both it and the raw combinators are built from, and it stays public as that.
-The division is *composition* against *representation*, not fallible against
-infallible — a `List` cell and a `Program`'s exit code were once named here as
-computations that cannot fail, and both carry channels now.
+`Effect<O, T, E>` ([`../types.ts`](../types.ts)) is a `Pure` thunk yielding
+`Result<T, E>` or a `Do` node: the failure is part of the representation, not a
+wrapper around it. There is one effect type, and this directory is its
+**composition API** — [`../module.f.mjs`](../module.f.mjs) holds the
+representation and its interpreters.
+
+It was two types. A payload-generic `RawEffect<O, T>` sat underneath, and
+`Effect` was an alias for `RawEffect<O, Result<T, E>>`; the division was called
+*composition* against *representation*. But an operation must return a `Result`,
+so the payload a runner is generic over is always a `Result` — the second name
+described no reachable case, while giving every combinator a `Result`-blind twin
+that would run the next link after a failed one. Nothing "genuinely cannot
+fail": a `List` cell, a `Program`'s exit code, and an MCP tool result were each
+named here as such, and all three carry channels now.
 
 This directory is the layer itself — the types ([`./types.ts`](./types.ts)) and
 the composition API ([`./module.f.mjs`](./module.f.mjs)) — from the migration
 planned in
-[`../todo/io-effect-migration.md`](../todo/io-effect-migration.md). Every
-operation now declares a `Result` return and every runner answers with one
-(stage 3); what remains is migrating the consumers to compose with `step` /
-`catchStep` / `resultStep` instead of stating a policy per site (stage 4).
+[`../todo/io-effect-migration.md`](../todo/io-effect-migration.md), which is
+complete: every operation declares a `Result` return, every runner answers with
+one, and every consumer composes with `step` / `catchStep` / `resultStep`
+instead of stating a policy per site.
 
 ## Why the layer exists
 
 `throw` in FunctionalScript is a panic, and the language offers no
-`try`/`catch`, so the effect system itself has to carry the recovery path.
-Today it does not: raw `step` does not understand `Result`, and a continuation
-that ignores its argument runs on the success path whether or not the previous
-effect failed.
+`try`/`catch`, so the effect system itself has to carry the recovery path. It
+once did not: the `step` that composed effects did not understand `Result`, and
+a continuation that ignored its argument ran on the success path whether or not
+the previous effect failed.
 
 ```js
 const a = writeFile(...)
 const b = step(a, () => console('written'))
 ```
 
-`writeFile` may return an error and `'written'` is still printed. The code looks
-like an ordinary sequence, but it means "run the next effect regardless". Every
-caller must remember to inspect each `Result` by hand; missing one silently
-changes control flow.
+`writeFile` could return an error and `'written'` was still printed. The code
+looked like an ordinary sequence, but it meant "run the next effect
+regardless". Every caller had to remember to inspect each `Result` by hand;
+missing one silently changed control flow. That spelling no longer exists — the
+`Result`-blind combinators are gone, and the one remaining way to say "whatever
+it answered" is `resultStep`, which hands the answer over.
 
-With an error-aware `step`, that same line means what it looks like:
+With the error-aware `step`, that same line means what it looks like:
 `console('written')` runs only on `ok`, and an error propagates on its own. That
 gives FunctionalScript the default error-propagation path other languages get
 from exceptions or Rust's `?`, without giving it exceptions.
@@ -57,28 +66,38 @@ branches and replaces both. `types.ts` pins each of those signatures at a
 concrete instantiation, so a "simplification" that unified an error channel
 fails there rather than at some future call site.
 
-The `step` here conflicts by name with the raw one, which is why the two live in
-separate modules. Both are public and both are load-bearing: this one for
-everything a program composes, `RawEffect` for the representation alone — the
-runners, `match`, `runPure`, and the `do_` that speak it. A `List` cell, a
-`Program`'s exit code, and an MCP tool result were once listed here as
-computations with no failure to report; all three carry channels now, the last
-of them a `never` that says the module absorbs its own failures rather than
-that it has none.
+The composition API lives here and the representation lives next door: `pure`,
+`do_`, `match`, `partialMatch`, and `runPure` are in
+[`../module.f.mjs`](../module.f.mjs), which exports no combinator at all. That
+module used to export a second `step`, `mapStep`, `history`, `historyStep`,
+`foldStep` and `forEachStep` — the `Result`-blind twins — and the name collision
+is why the two directories exist. The twins are gone; the split now runs along
+representation against composition, which is what it always claimed to describe.
 
-### `resultStep` is raw `step`, and still earns its name
+### `resultStep` is the primitive
 
-Expanded through the alias, `resultStep` **is** the raw `step` at the Io
-instantiation — a continuation taking a `Result<T, E>` and returning an effect
-is what raw `step` already offers — so it adds no branch behavior and is
-implemented as that function with a narrower type. It is named anyway because
-the three operations are the canonical vocabulary: a chain that spells the
-both-branches case as a raw `step` reads as an escape from the layer, and this
-is the spelling that says the both-branches case was meant.
+`resultStep` **is** the former raw `step`: a continuation that takes the whole
+`Result<T, E>` and returns an effect. `step` and `catchStep` are written in
+terms of it — each is this function with a tag test in front — so the
+both-branches case is not a third variant beside them but the thing they are
+derived from.
 
-`finallyStep` is declined on the same principle read the other way — a
-derivable form earns a name by being canonical vocabulary, and that one has not
-shown it is.
+That direction used to be reversed. The general function lived in the
+representation module with an opaque payload, and `resultStep` was it
+re-exported under a narrower type; the narrower type was doing all the work,
+because the payload was always a `Result` anyway. Now the function lives where
+its type is honest, and nothing above it can spell the both-branches case by
+accident.
+
+`resultMapStep` is its trailing-projection form, as `mapStep` is `step`'s.
+Reach for it where a projection decides the *outcome* — turning any answer into
+a fixed one, replacing a channel wholesale — and for `mapStep` where only the
+value is being transformed. `resultMapStep` is also the honest spelling for a
+site that means to discard an error: the discarding is written down, in a
+function that says it takes both branches.
+
+`finallyStep` is declined on the principle that a derivable form earns a name by
+being canonical vocabulary, and that one has not shown it is.
 
 ### `pureOk` / `pureError`, not `ok` / `error`
 

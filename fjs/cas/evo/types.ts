@@ -5,8 +5,7 @@
  * @module
  */
 
-import type { Operation } from '../../effects/types.ts'
-import type { Effect, NotImplemented } from '../../effects/io/types.ts'
+import type { Effect, NotImplemented, Operation } from '../../effects/types.ts'
 import type { MemOp } from '../../effects/memory/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { StringMap } from '../../types/object/types.ts'

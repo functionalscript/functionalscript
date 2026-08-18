@@ -26,7 +26,7 @@
  *
  * @module
  *
- * @import { Effect } from '../effects/io/types.ts'
+ * @import { Effect } from '../effects/types.ts'
  * @import { MemOp } from '../effects/memory/types.ts'
  * @import { IoChannel, Read, Write } from '../effects/node/types.ts'
  * @import { McpConfig, McpHandlers } from '../protocol/mcp/types.ts'
