@@ -156,6 +156,17 @@ migration makes, so each module's proofs are re-read as part of its PR.
       without a `Result`; it becomes `Effect<O, T, never>` — where the `never`
       records that the site *panicked*, not that nothing could fail. See stage 2,
       which lands first.
+
+      **It is what makes precision optional.** The channel is one axis —
+      `Effect<O, T, never>` ⊆ `Effect<O, T, IoChannel>` ⊆ `Effect<O, T, unknown>`,
+      each assignable into the next — so how precisely a signature names its
+      errors becomes a type *argument*, changeable in place. `E = unknown` is a
+      legitimate entry point: everything composes, nothing must be enumerated,
+      and tightening it later breaks no consumer that merely chains, because a
+      precise channel flows wherever a loose one is declared. That is the
+      opposite of widening, which cascades. `RawEffect<O, T>` is not the loose
+      end of this axis; it is a different type constructor, off it entirely, so
+      today reaching for any point on the dial is a rewrite rather than an edit.
 - [ ] **7.** Delete this file.
 
 ### Non-goals
