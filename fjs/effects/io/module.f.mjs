@@ -310,18 +310,20 @@ export const historyStep = (e, f) => {
  * Threads a state through one fallible effect per item, short-circuiting on the
  * first `error`: the Io twin of the raw `foldStep`.
  *
- * **`items` is a raw effect.** Both of the shapes that need this fold — a list
- * the caller already holds (`pure(jobs)`) and one an infallible operation
- * produced — reach it without an error channel of their own, so requiring one
- * would mean lifting at every call site to express something no consumer has.
- * A fallible producer composes with {@link step} ahead of the fold instead.
+ * **`items` is an `Effect` like everything else here.** It was once raw, on the
+ * argument that a held list has no error channel and requiring one would mean
+ * lifting at every call site. Lifting is `pureOk` instead of `pure` — the same
+ * one call — and the raw version made the *fallible* producer pay instead:
+ * `fjs/cas/cli` wrapped the whole fold in a `step` whose only job was to unwrap
+ * `list()` so `pure` could wrap it again. A producer that can fail now feeds
+ * the fold directly, and one that cannot is unaffected when it later can.
  *
  * @template {Operation} O
  * @template T
  * @template {Operation} Q
  * @template S
  * @template E
- * @param {RawEffect<O, List<T>>} items
+ * @param {Effect<O, List<T>, E>} items
  * @param {S} init
  * @param {(item: T) => (state: S) => Effect<Q, S, E>} f
  * @returns {Effect<O | Q, S, E>}
@@ -329,7 +331,7 @@ export const historyStep = (e, f) => {
 export const foldStep = (items, init, f) => {
     /** @type {Fold<T, Effect<Q, S, E>>} */
     const op = item => acc => step(acc, f(item))
-    return rawStep(items, fold(op)(pureOk(init)))
+    return step(items, fold(op)(pureOk(init)))
 }
 
 /**
@@ -343,7 +345,7 @@ export const foldStep = (items, init, f) => {
  * does not even show up as a type error.
  *
  * @type {<O extends Operation, T, Q extends Operation, E>(
- *     items: RawEffect<O, List<T>>,
+ *     items: Effect<O, List<T>, E>,
  *     f: (item: T) => Effect<Q, void, E>
  * ) => Effect<O | Q, void, E>}
  */

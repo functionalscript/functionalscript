@@ -19,7 +19,7 @@
  * @import { NixJob } from './types.ts'
  */
 
-import { pure } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/io/module.f.mjs'
 import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
 import { forEachStep, step } from '../../effects/io/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
@@ -89,7 +89,7 @@ const writeFlake = job => {
  * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
 export const nixFlakes = jobs =>
-    forEachStep(pure(jobs), writeFlake)
+    forEachStep(pureOk(jobs), writeFlake)
 
 /** Path a workflow passes to `nix develop`, for the job of the given id. */
 /** @type {(id: string) => string} */

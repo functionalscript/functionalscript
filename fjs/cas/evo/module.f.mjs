@@ -258,7 +258,7 @@ export const buildCache = cas => {
             decodeRevisionBlob(cas)(hash),
             revision => ok(
                 revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache)))
-    return ioStep(cas.list(), hashes => ioFoldStep(pure(hashes), emptyCache, foldOne))
+    return ioStep(cas.list(), hashes => ioFoldStep(pureOk(hashes), emptyCache, foldOne))
 }
 
 /**
@@ -332,7 +332,7 @@ const resolveParents = cas => parents => {
     /** @type {readonly Revision[]} */
     const init = []
     return ioFoldStep(
-        pure(parents),
+        pureOk(parents),
         init,
         parentRef => (/** @type {readonly Revision[]} */ acc) =>
             ioMapStep(resolveParent(cas)(parentRef), parent => [...acc, parent]))

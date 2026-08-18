@@ -150,7 +150,7 @@ const gcStage = stageDir => {
             // Each `rm` recovers on its own, so one undeletable file does not
             // stop the sweep at the file before it.
             return forEachStep(
-                pure(expired),
+                pureOk(expired),
                 name => catchStep(rm(join(stageDir, name)), () => pureOk(undefined)))
         })
     // A fresh store has no `_stage/` yet, and a sweep that cannot run must not
@@ -306,7 +306,7 @@ export const fileCas = sha2 => path => {
  */
 const random256 =
     foldStep(
-        pure([0, 1, 2, 3, 4, 5, 6, 7]),
+        pureOk([0, 1, 2, 3, 4, 5, 6, 7]),
         empty,
         () => (/** @type {Vec} */ acc) =>
             ioMapStep(randomInt(), r => msb.concat(acc)(vec(32n)(BigInt(r)))))
