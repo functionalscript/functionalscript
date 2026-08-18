@@ -120,14 +120,20 @@ migration makes, so each module's proofs are re-read as part of its PR.
       `errorSummary`, so its scope is pinned to the node channel until someone
       changes it deliberately. The other 13 sites are proofs.
 
-- [ ] **3. `Program`.** `Program<O> = (options) => Effect<O, 0, number>`.
-      `RawEffect<O, number>` cannot say which numbers mean failure; `Result<0,
-      number>` can, and `r[1]` is the exit code in **both** branches, so the
-      boundary needs no `r[0] === 'ok' ? 0 : r[1]`. `errorExit` gets the honest
-      `Effect<Write, never, number>` — it never succeeds. `fjs/module.f.mjs`
-      carries a comment about a near-miss this makes unrepresentable: a
-      `() => pure(0)` continuation reporting a server that never started as a
-      clean exit.
+- [x] **3. `Program`.** `Program<O> = (options) => Effect<O, 0, number>`.
+      `RawEffect<O, number>` could not say which numbers meant failure, so
+      nothing short-circuited on one and `step(…, () => pure(0))` was a way to
+      report a failed program as a clean exit — a mistake `fjs/module.f.mjs`
+      carried a comment about, and which no longer type-checks.
+
+      `T` is the literal `0`, which is what makes `exitCode` a projection
+      rather than a branch: `r[1]` is the code on either side, so a runner reads
+      it without asking which branch produced it while a caller that cares
+      whether the program failed still asks `r[0]`. `errorExit` is
+      `Effect<Write, never, number>` — it never succeeds, and the type says so.
+      `emergent_testing`'s tail moved a non-zero code into the *error* branch,
+      which is what a suite with failures means.
+
 - [ ] **4. `List` cells.** `List<O, T, E> = Effect<O, Next<O, T>, E>`.
       `collectRead`, `detectStream`, `writeLoop` and three proof folds all
       hand-roll the same `if (t === 'error') return pure(error(v))`

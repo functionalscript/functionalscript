@@ -10,6 +10,7 @@
  * @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts'
  * @import { NixJob } from './nix/types.ts'
  * @import { Setup } from './types.ts'
+ * @import { Effect } from '../effects/io/types.ts'
  */
 
 import { step } from '../effects/module.f.mjs'
@@ -58,7 +59,7 @@ const canonicalJobs = rust => ({
     'nix-flakes': nixFlakeJob,
 })
 
-/** @type {(setup: Setup) => RawEffect<NodeOp, number>} */
+/** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
 export const ci = ({ nodeExtra }) => step(
     access('Cargo.toml'),
     result => {

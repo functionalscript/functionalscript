@@ -427,9 +427,13 @@ export const test = do_('test')
 // Node
 
 /**
- * Writes an error line to `stderr` and yields exit code `1`. The canonical
+ * Writes an error line to `stderr` and fails with exit code `1`. The canonical
  * "fail with a message" program for a `NodeProgram`. For non-`1` exit codes,
- * compose `mapStep(error(s), () => n)` directly.
+ * compose `mapStep(error(s), () => resultError(n))` directly.
+ *
+ * **It never succeeds, and the type says so.** `E` is `number` and `T` is
+ * `never`, so a chain that continues past this is a compile error rather than a
+ * continuation nobody reaches.
  *
  * **The write's own outcome is deliberately discarded**, which is why this is
  * the raw `mapStep` rather than the Io one. The program is already failing and
@@ -437,10 +441,26 @@ export const test = do_('test')
  * here would hand every caller a "failed to report a failure" branch with no
  * better answer available to it than the one taken here.
  *
- * @type {(s: string) => RawEffect<Write, number>}
+ * @type {(s: string) => Effect<Write, never, number>}
  */
 export const errorExit = s =>
-    mapStep(error(s), () => 1)
+    mapStep(error(s), () => resultError(1))
+
+/**
+ * The exit code a {@link Program} answered, from whichever branch it came.
+ *
+ * `Result<0, number>` puts a number at `[1]` on both sides — `ok(0)` for
+ * success, `error(n)` for failure — so reading the code never asks which
+ * branch produced it, while a caller that cares *whether* it failed still asks
+ * `[0]`. That is why the success type is the literal `0` rather than `void`.
+ *
+ * A non-zero code belongs in the `error` branch and `0` in the `ok` branch; the
+ * type cannot say so, since there is no "non-zero number", and nothing depends
+ * on it — this reads `[1]` either way.
+ *
+ * @type {(r: Result<0, number>) => number}
+ */
+export const exitCode = ([, code]) => code
 
 /**
  * Renders a channel error as a human line: an {@link IoError}'s own message, or
@@ -483,10 +503,18 @@ export const errorSummary = ([tag, payload]) =>
  * counterpart of {@link isNotFound} at the other end of the channel: where that
  * one asks which failure this is, this one stops asking and reports.
  *
- * @type {<O extends Operation, T>(e: Effect<O, T, IoChannel>) => RawEffect<O | Write, number>}
+ * @type {<O extends Operation, T>(e: Effect<O, T, IoChannel>) => Effect<O | Write, 0, number>}
  */
 export const exitStep = e =>
-    step(e, r => r[0] === 'error' ? errorExit(errorMessage(r[1])) : pure(0))
+    step(e, r => {
+        // Bound rather than returned inline: the two branches are
+        // `Effect<Write, never, number>` and `Effect<never, 0, never>`, both
+        // assignable to this, but `step` infers its continuation's type from
+        // the union and picks neither.
+        /** @type {Effect<Write, 0, number>} */
+        const code = r[0] === 'error' ? errorExit(errorMessage(r[1])) : pureOk(0)
+        return code
+    })
 
 /** @type {(version: string) => readonly number[]} */
 const versionParts = version =>

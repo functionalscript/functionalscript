@@ -8,6 +8,7 @@
  * @import { Ts } from '../types/rtti/ts/types.ts'
  */
 
+import { exitCode } from '../effects/node/module.f.mjs'
 import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
@@ -76,8 +77,8 @@ const ok1 = () => ({ result: /** @type {const} */ (['ok', undefined]), duration:
 const run = (dir, initCwd = '.') => {
     const reporter = makeReporter()
     const state = { ...emptyState, root: dir }
-    const [finalState, exitCode] = virtual(state)(testAll(reporter)(options(initCwd)))
-    return [parseEvents(finalState.stdout), exitCode]
+    const [finalState, code] = virtual(state)(testAll(reporter)(options(initCwd)))
+    return [parseEvents(finalState.stdout), exitCode(code)]
 }
 
 // Runs the `fjs t` entry point (`main`) and returns its captured stdout/stderr
@@ -86,8 +87,8 @@ const run = (dir, initCwd = '.') => {
 const runMain = (dir, github = false) => {
     const state = { ...emptyState, root: dir }
     const opts = options('.', github)
-    const [finalState, exitCode] = virtual(state)(main(opts))
-    return [finalState.stdout, finalState.stderr, exitCode]
+    const [finalState, code] = virtual(state)(main(opts))
+    return [finalState.stdout, finalState.stderr, exitCode(code)]
 }
 
 // flat object: two passing tests
@@ -329,9 +330,9 @@ export const reporterWriteFailure = () => {
             [s, ok({ result: ok(f()), duration: 0 })],
         write: (_stream, _data) => s => [s, error(/** @type {const} */(['notImplemented', 'write']))],
     }))
-    const [, exitCode] = runner(undefined)(
-        /** @type {RawEffect<_FailOps, number>} */(main(options('.'))))
-    assertEq(exitCode, 1)
+    const [, code] = runner(undefined)(
+        /** @type {Effect<_FailOps, 0, number>} */(main(options('.'))))
+    assertEq(exitCode(code), 1)
 }
 
 /** @typedef {readonly string[]} _RegisterMockState */
@@ -444,8 +445,8 @@ export const registerEmptyProof = () => {
 // without hitting the virtual harness's `test: todo` stub.
 export const registerEmptyModuleMap = () => {
     const state = { ...emptyState, root: {} }
-    const [, exitCode] = virtual(state)(register(options('.')))
-    assertEq(exitCode, 0)
+    const [, code] = virtual(state)(register(options('.')))
+    assertEq(exitCode(code), 0)
 }
 
 // register's `star`/`ctx` selection, proven observably: the virtual harness's
@@ -484,7 +485,7 @@ export const registerSelectsContextAndStar = () => {
             await: p => s => [s, ok([p])],
             test: (ctx, name, _xf, _fn) => s => { calls = [...calls, [ctx, name]]; return [s, ok(undefined)] },
         }))
-        runner(undefined)(/** @type {RawEffect<_RegisterMockOps | Readdir | Import, number>} */ (register({
+        runner(undefined)(/** @type {Effect<_RegisterMockOps | Readdir | Import, 0, number>} */ (register({
             ...defaultNodeProgramOptions, env: {}, testContext: nodeCtx, bunTestContext: bunCtx, ...extra,
         })))
         return calls

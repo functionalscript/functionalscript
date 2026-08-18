@@ -36,9 +36,12 @@ const commands = [
     {
         names: ['mcp', 'm'],
         description: 'Run an MCP server over stdio exposing the CAS and Evo (subjects/heads) as tools',
-        // `exitStep`, not `step(…, () => pure(0))`: the server's bootstrap can
-        // fail now, and a `() => pure(0)` continuation would report a server
-        // that never started as a clean exit.
+        // `exitStep`, not `step(…, () => pureOk(0))`: the server's bootstrap can
+        // fail, and a `() => pureOk(0)` continuation would report a server that
+        // never started as a clean exit. `Program`'s exit code is a `Result`
+        // now, so a chain that drops the failure and answers `ok(0)` no longer
+        // type-checks — this comment records why the shape is what it is,
+        // rather than guarding a mistake that is still available.
         handler: ({ home }) => exitStep(casMcpServer(home)),
     },
     {

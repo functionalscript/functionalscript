@@ -2,6 +2,7 @@
  * @import { Unknown } from './types.ts'
  */
 
+import { exitCode } from '../effects/node/module.f.mjs'
 import { compile } from './module.f.mjs'
 import { transpile } from './transpiler/module.f.mjs'
 import { stringify } from './serializer/module.f.mjs'
@@ -21,7 +22,7 @@ const readOutput = (root, path) => {
 const compileSource = source => outputFileName => {
     const root = { 'input.f.js': [utf8(source)] }
     const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', outputFileName]))
-    assertEq(code, 0, state.stderr)
+    assertEq(exitCode(code), 0, state.stderr)
     return readOutput(state.root, outputFileName)
 }
 
@@ -65,26 +66,26 @@ export const proof = {
     tooFewArgs: {
         noArgs: () => {
             const [state, code] = virtual(emptyState)(compile([]))
-            assertEq(code, 1)
+            assertEq(exitCode(code), 1)
             assert(state.stderr.includes('Requires 2 or more arguments'), state.stderr)
         },
         oneArg: () => {
             const [state, code] = virtual(emptyState)(compile(['input.f.js']))
-            assertEq(code, 1)
+            assertEq(exitCode(code), 1)
             assert(state.stderr.includes('Requires 2 or more arguments'), state.stderr)
         },
     },
     success: () => {
         const root = { 'input.f.js': [utf8('export default 42')] }
         const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
-        assertEq(code, 0)
+        assertEq(exitCode(code), 0)
         const content = readOutput(state.root, 'output.f.js')
         assertEq(content, 'export default 42')
     },
     jsonOutput: () => {
         const root = { 'input.f.js': [utf8('export default 42')] }
         const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
-        assertEq(code, 0)
+        assertEq(exitCode(code), 0)
         const content = readOutput(state.root, 'output.json')
         assertEq(content, '42')
     },
@@ -95,13 +96,13 @@ export const proof = {
     fileNotFound: {
         module: () => {
             const [state, code] = virtual(emptyState)(compile(['missing.f.js', 'output.f.js']))
-            assertEq(code, 1)
+            assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'missing.f.js - error: file not found')
             assertEq(state.root['output.f.js'], undefined)
         },
         json: () => {
             const [state, code] = virtual(emptyState)(compile(['missing.json', 'output.f.js']))
-            assertEq(code, 1)
+            assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'missing.json - error: file not found')
             assertEq(state.root['output.f.js'], undefined)
         },
@@ -109,7 +110,7 @@ export const proof = {
     parseError: () => {
         const root = { 'bad.f.js': [utf8('export default @')] }
         const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.f.js']))
-        assertEq(code, 1)
+        assertEq(exitCode(code), 1)
         assert(state.stderr !== '', 'expected error output')
         assertEq(state.root['output.f.js'], undefined)
     },
@@ -149,7 +150,7 @@ export const proof = {
         jsonInput: () => {
             const root = { 'proto.json': [utf8('{"__proto__":5}')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
-            assertEq(code, 0, state.stderr)
+            assertEq(exitCode(code), 0, state.stderr)
             assertEq(readOutput(state.root, 'a.js'), 'export default {["__proto__"]:5}')
         },
         // …and back, byte for byte: a JSON document survives the loop
@@ -159,7 +160,7 @@ export const proof = {
             const document = '{"__proto__":{"a":42}}'
             const root = { 'proto.json': [utf8(document)] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
-            assertEq(code, 0, state.stderr)
+            assertEq(exitCode(code), 0, state.stderr)
             const module = readOutput(state.root, 'a.js')
             assertEq(module, 'export default {["__proto__"]:{"a":42}}')
             assertEq(compileSource(module)('out.json'), document)
@@ -175,7 +176,7 @@ export const proof = {
                 'a.json': [utf8('{"a":42}')],
             }
             const [state, code] = virtual({ ...emptyState, root })(compile(['main.f.js', 'out.json']))
-            assertEq(code, 1)
+            assertEq(exitCode(code), 1)
             assert(state.stderr.includes('a.json:1:1 - error: unexpected token'), state.stderr)
             assertEq(state.root['out.json'], undefined)
         },
@@ -185,7 +186,7 @@ export const proof = {
         jsonInputIdKeyRejected: () => {
             const root = { 'proto.json': [utf8('{__proto__:5}')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
-            assertEq(code, 1)
+            assertEq(exitCode(code), 1)
             assertEq(state.stderr.trim(), 'proto.json - error: unexpected token')
             assertEq(state.root['a.js'], undefined)
         },
@@ -194,7 +195,7 @@ export const proof = {
         jsonInputRejectsDjsExtensions: () => {
             const root = { 'a.json': [utf8('{"a":1n}')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['a.json', 'a.js']))
-            assertEq(code, 1)
+            assertEq(exitCode(code), 1)
             assertEq(state.root['a.js'], undefined)
         },
         // The statement behind the textual assertions: the property is an
@@ -214,14 +215,14 @@ export const proof = {
         idKeyRejected: () => {
             const root = { 'input.f.js': [utf8('export default {__proto__:{"a":42}}')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
-            assertEq(code, 1)
+            assertEq(exitCode(code), 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
             assertEq(state.root['output.f.js'], undefined)
         },
         stringKeyRejected: () => {
             const root = { 'input.f.js': [utf8('export default {"__proto__":{"a":42}}')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
-            assertEq(code, 1)
+            assertEq(exitCode(code), 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
             assertEq(state.root['output.f.js'], undefined)
         },

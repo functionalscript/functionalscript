@@ -378,6 +378,21 @@ export type NodeProgramOptions = {
     readonly inlineTestContext: boolean
 }
 
-export type Program<O extends Operation> = (options: NodeProgramOptions) => RawEffect<O, number>
+/**
+ * A program: run it, and it answers an exit code.
+ *
+ * The code lives in a `Result` rather than in a bare `number`, and the two
+ * branches say which kind of code it is — `ok(0)` for success, `error(n)` for
+ * failure. A bare `number` could not: nothing could short-circuit on it, so a
+ * chain that ran one program and then another had to re-test the code by hand,
+ * and `step(…, () => pure(0))` was a way to report a failed program as a clean
+ * exit that the type system had no opinion about.
+ *
+ * **`T` is the literal `0`**, so a success carries no information beyond
+ * having succeeded, and `r[1]` is the exit code in *either* branch. A runner
+ * reads the code without asking which branch it came from; a caller that cares
+ * whether the program failed asks `r[0]`.
+ */
+export type Program<O extends Operation> = (options: NodeProgramOptions) => Effect<O, 0, number>
 
 export type NodeProgram = Program<NodeOp>

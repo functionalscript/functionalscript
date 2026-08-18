@@ -20,7 +20,7 @@
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import { pure, step as rawStep } from '../effects/module.f.mjs'
-import { history, historyStep, mapStep, pureOk, step, unwrapStep } from '../effects/io/module.f.mjs'
+import { history, historyStep, mapStep, pureError, pureOk, step, unwrapStep } from '../effects/io/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
@@ -232,10 +232,20 @@ export const runModuleMap = reporter => moduleMap => {
  * only in what an `ok` means, and conflating them would report a failing suite
  * as a passing run.
  *
- * @type {<O extends Operation>(e: Effect<O, number, IoChannel>) => RawEffect<O | Write, number>}
+ * A non-zero code therefore leaves through the *error* branch, which is what it
+ * means — a suite with failures is a failed program — and is why a caller
+ * cannot chain past it by accident.
+ *
+ * @type {<O extends Operation>(e: Effect<O, number, IoChannel>) => Effect<O | Write, 0, number>}
  */
 const exitCodeStep = e =>
-    rawStep(e, r => r[0] === 'error' ? errorExit(errorMessage(r[1])) : pure(r[1]))
+    rawStep(e, r => {
+        /** @type {Effect<Write, 0, number>} */
+        const code = r[0] === 'error'
+            ? errorExit(errorMessage(r[1]))
+            : r[1] === 0 ? pureOk(0) : pureError(r[1])
+        return code
+    })
 
 /**
  * Discovers all test modules via `loadModuleMap`, then runs them through

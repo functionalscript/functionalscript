@@ -125,13 +125,17 @@ export const proof = {
         // The exit-code policy a `NodeProgram` ends with: success is `0`...
         ok: () => {
             const [state, code] = virtual(emptyState)(exitStep(writeFile('hello', vec8(0x2An))))
-            assertEq(code, 0)
+            assertEq(code[0], 'ok')
+            assertEq(code[1], 0)
             assertEq(state.stderr, '')
         },
         // ...and a failure is reported on `stderr` and exits `1`.
+        // ...and the code is `[1]` either way, which is what lets a runner
+        // read it without asking which branch it came from.
         error: () => {
             const [state, code] = virtual(emptyState)(exitStep(readFile('missing')))
-            assertEq(code, 1)
+            assertEq(code[0], 'error')
+            assertEq(code[1], 1)
             assertEq(state.stderr, 'no such file or directory\n')
         },
     },
