@@ -23,8 +23,7 @@ behaviour:
 |Source|Holds|
 |------|-----|
 |[`fjs/effects/types.ts`](../../fjs/effects/types.ts)|the `Effect` type and its invariants|
-|[`fjs/effects/module.f.mjs`](../../fjs/effects/module.f.mjs)|the representation and its interpreters: `pure`, `do_`, `match`, `partialMatch`, `runPure`|
-|[`fjs/effects/module.f.mjs`](../../fjs/effects/module.f.mjs)|the combinators: `step`, `catchStep`, `resultStep` and the rest|
+|[`fjs/effects/module.f.mjs`](../../fjs/effects/module.f.mjs)|`pure`, `do_`, `step` and the other combinators, `match`|
 
 ## 5.1. `Effect` — the value
 
@@ -112,12 +111,12 @@ observes nothing — and it is why a `defer` combinator cannot exist here: the
 third case meaning "not yet decided".
 
 The remaining combinators are `step` specializations, and
-[`fjs/effects/module.f.mjs`](../../fjs/effects/module.f.mjs) documents each
-one: `mapStep` (a pure projection ending a chain), `resultMapStep` (the same over
-both branches), `historyStep` (carries earlier values forward so a later link can
-read them without nesting), `foldStep` and `forEachStep` (sequential iteration).
-The `Result` short-circuit is not among them: it is what `step` *is*, rather than
-an adapter placed around something blind to it.
+[`fjs/effects/module.f.mjs`](../../fjs/effects/module.f.mjs) documents each one:
+`mapStep` (a pure projection ending a chain), `historyStep` (carries earlier
+values forward so a later link can read them without nesting), `foldStep` and
+`forEachStep` (sequential iteration). The `Result` short-circuit is not among
+them: it is what `step` *is*, rather than an adapter placed around something
+blind to it.
 
 Sequencing is thus ordinary function composition. `async`/`await`
 ([§3.4 of the roadmap](./README.md#34-syntactic-sugar)) is sugar for a

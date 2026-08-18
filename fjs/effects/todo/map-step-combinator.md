@@ -3,10 +3,8 @@
 **Priority:** P3
 **Status:** open
 
-> **The API has landed.** `mapStep` is in `fjs/effects/module.f.mjs` with
-> proof coverage (it was in `fjs/effects/module.f.mjs` when this was written,
-> before that module gave up its combinators), and its first real consumers were
-> converted in the same change —
+> **The API has landed.** `mapStep` is in `fjs/effects/module.f.mjs` with proof
+> coverage, and its first real consumers were converted in the same change —
 > `readUtf8File`, `awaitIfPromise` and `errorExit`
 > (`fjs/effects/node/module.f.mjs`) and `decodeRevisionBlob`
 > (`fjs/cas/evo/module.f.mjs`). What remains is the mechanical part: the other
@@ -14,10 +12,9 @@
 
 ### Problem
 
-`fjs/effects/module.f.mjs` ships `step` (bind) — `pure` (return) is in
-`fjs/effects/module.f.mjs` with the representation — plus the derived
-combinators `historyStep`, `foldStep`, `forEachStep` and `mapStep`, the functor
-`map`: "run the effect, then apply a
+`fjs/effects/module.f.mjs` ships `pure` (return) and `step` (bind), plus the
+derived combinators `historyStep`, `foldStep`, `forEachStep` — and now
+`mapStep`, the functor `map`: "run the effect, then apply a
 pure function to its result". Before it existed, every call site re-derived it
 as `step(e, x => pure(f(x)))`, and **about 41 of them still do**, in 14 modules.
 
@@ -113,5 +110,5 @@ conversion as one 14-module diff.
 - [fold-stream-combinator](./fold-stream-combinator.md) — its pure consumers
   (`detectStream`, `collectRead`) end in `pure(ok(...))` projections.
 - `fjs/effects/module.f.mjs` — `mapStep`, `step`, `historyStep`, `foldStep`,
-  `forEachStep`, and the "do not nest steps" rule in its header.
+  `forEachStep`; the "do not nest steps" rule in the module header.
 </content>

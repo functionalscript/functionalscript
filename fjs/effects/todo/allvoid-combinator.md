@@ -37,10 +37,10 @@ missing, so every call site re-spells the whole fan-out-then-discard dance.
 ### Proposal
 
 Add the void sibling in `fjs/effects/node/module.f.mjs`, next to `all` /
-`All` / `both`. It cannot live next to `forEachStep` in
+`All` / `both`. It cannot live next to `forEachStep` in the core
 `fjs/effects/module.f.mjs`: `all`/`All` are defined in the node module,
-which already imports the effect modules — placing `allVoid` in one of them
-would invert that dependency. (`fjs/emergent_testing` already imports `all` from
+which already imports the core module — placing `allVoid` in core would
+invert that dependency. (`fjs/emergent_testing` already imports `all` from
 the node module, so the call sites need no new import path.)
 
 Use the standalone `step` combinator — `all(...)` returns a raw `Effect`, which
