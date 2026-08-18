@@ -12,7 +12,7 @@ import {
 } from './module.f.mjs'
 
 /**
- * A fallible operation, spelled the way stage 3 will spell every operation: the
+ * A fallible operation, spelled the way every operation is spelled: the
  * `Result` is in the command's declared return type, so `do_` already builds an
  * `Effect` and the runner's handler already answers with `ok` / `error`.
  * @typedef {readonly['div', (a: number, b: number) => Result<number, string>]} _DivOp
@@ -188,9 +188,9 @@ export const proof = {
             const e = pureOk(5)
             assertEq(pureResult(catchStep(e, todo)), pureResult(e))
         },
-        // Recovery after a performed command, which is the `NotImplemented`
-        // fallback shape stage 6 relies on: the program regains control and
-        // chooses what the failure means for it.
+        // Recovery after a performed command, which is the shape a runner's
+        // `NotImplemented` takes: the program regains control and chooses what
+        // the failure means for it.
         overFailedDo: () => {
             const e = catchStep(div(1, 0), () => pureOk(0))
             assertOk(run(e), 0)

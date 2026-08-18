@@ -71,7 +71,7 @@ export const pureOk = v => pure(ok(v))
  *
  * This is how a program *originates* a failure: a fallback that has run out of
  * options, or a guard that rejects its input before performing anything. A
- * A runner producing `error(notImplemented)` does not go through here — that
+ * runner producing `error(notImplemented)` does not go through here — that
  * error arrives through an operation's own continuation.
  *
  * @type {<E>(e: E) => Effect<never, never, E>}
@@ -368,6 +368,21 @@ export const historyStep = (e, f) => {
  * `fjs/cas/cli` wrapped the whole fold in a `step` whose only job was to unwrap
  * `list()` so `pure` could wrap it again. A producer that can fail now feeds
  * the fold directly, and one that cannot is unaffected when it later can.
+ *
+ * **The argument order is deliberately not `fold`'s** from `fjs/types/list`, and
+ * the difference is what the two combinators are *for*. `fold` is a data
+ * pipeline: it is curried `f`-first because the list is the thing being threaded
+ * through, and nothing about it happens in time. A step variant is a sequencing
+ * construct — this module's `do` notation — and reading one top-to-bottom is
+ * reading the order the program executes in. The effect therefore has to come
+ * first, because it is what happens first. Currying `f` ahead of `items` would
+ * put the *body* of the loop above the thing it loops over, which is exactly the
+ * inversion `do` exists to remove.
+ *
+ * That is also why the whole family — {@link step}, {@link historyStep},
+ * `foldStep`, {@link forEachStep} — takes its effect first and breaks one
+ * argument per line when it wraps: every such call is a statement list, and each
+ * line is one statement in execution order.
  *
  * @template {Operation} O
  * @template T

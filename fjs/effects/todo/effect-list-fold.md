@@ -5,6 +5,9 @@
 about folding a *stream* rather than a materialized list, which is still true —
 but any `List<O, IoResult<Vec>>` spelling below is now
 `List<O, Vec, IoChannel>`, and the error-item case the sketches carry is gone.
+Step 2 has also moved half-way on its own: both folds now live in
+`fjs/effects/io/module.f.mjs` rather than the core module, so what remains of
+that step is the retyping over `EffectList`.
 
 ### Problem
 
@@ -29,10 +32,12 @@ combinators speak the wrong one. Three consequences:
 in the store lives in memory at once, purely because `foldStep` cannot consume
 anything else.
 
-**The layering is inverted.** `fjs/effects/module.f.mjs` — the core effect module
-— imports `fjs/types/list` (line 95) for `fold` and `List`, and *nothing else in
-that file uses either*. The two fold combinators are the module's only dependency
-on the strict list type.
+**The layering is inverted.** The module holding the folds imports
+`fjs/types/list` for `fold` and `List`, and *nothing else in that file uses
+either*. The two fold combinators are its only dependency on the strict list
+type. This was written of `fjs/effects/module.f.mjs`, which no longer holds any
+combinator and no longer imports the list module at all; the observation now
+applies to `fjs/effects/io/module.f.mjs`, which does.
 
 **The stream fold is being hand-written separately.** See
 [fold-stream-combinator](./fold-stream-combinator.md): the *EOF → finalize;
@@ -47,8 +52,9 @@ and the eight importers currently alias around the clash — `elEmpty` in
 `fjs/cas`, `fjs/cas/evo`, `fjs/mcp`; `emptyList` in `fjs/media/type/proof`.
 The rename has value independent of the rest of this issue.
 
-**2. Move `foldStep` / `forEachStep`** out of `fjs/effects/module.f.mjs` and into
-`fjs/effects/list/module.f.mjs`, retyped over `EffectList`:
+**2. Move `foldStep` / `forEachStep`** into `fjs/effects/list/module.f.mjs`,
+retyped over `EffectList`. They have since left `fjs/effects/module.f.mjs` for
+`fjs/effects/io/module.f.mjs`, so this is now a move from there:
 
 ```ts
 export const foldStep = <O extends Operation, T, Q extends Operation, S>(
@@ -67,7 +73,8 @@ Keep the step-variant shape — effect first, one argument per line when the cal
 wraps. That is not a style preference: a step variant is this module's `do`
 notation, so the argument list is a statement list in execution order and the
 effect comes first because it happens first. The rationale currently lives on
-`foldStep`'s JSDoc and in the `fjs/effects/module.f.mjs` header; carry both over.
+`foldStep`'s JSDoc in `fjs/effects/io/module.f.mjs`, and the line-breaking rule
+it refers to is in that module's header; carry both over.
 
 **3. Add a strict-list converter.** All six current call sites hold a strict
 list, so the move needs a way in:
@@ -79,11 +86,11 @@ export const fromList = <O extends Operation, T>(items: List<T>): EffectList<O, 
 built from `empty` / `nonEmpty`. The four `pure(...)` call sites below become
 `fromList(...)`.
 
-**Layering.** `fjs/effects/list/module.f.mjs` already imports `pure` from
-`../module.f.mjs` and `Effect`/`Operation` from `../types.ts`; adding `step` is
-the same direction, so no cycle. After the move, `fjs/effects/module.f.mjs` drops its
-`fjs/types/list` import entirely and the core effect module no longer depends on
-the strict list type at all.
+**Layering.** `fjs/effects/list/module.f.mjs` already imports `pureOk` from
+`../io/module.f.mjs` and `Effect`/`Operation` from `../types.ts`; adding `step`
+is the same direction, so no cycle. After the move,
+`fjs/effects/io/module.f.mjs` drops its `fjs/types/list` import entirely and no
+effect module depends on the strict list type.
 
 ### Call sites
 
@@ -143,7 +150,7 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
 - [ ] Move `foldStep` / `forEachStep` there, retyped over `EffectList`, carrying
       their JSDoc and the step-variant rationale.
 - [ ] Remove the now-unused `fjs/types/list` import from
-      `fjs/effects/module.f.mjs`.
+      `fjs/effects/io/module.f.mjs`.
 - [ ] Migrate the six call sites; the four strict ones go through `fromList`.
 - [ ] Create `fjs/effects/list/proof.f.mjs` with full coverage.
 - [ ] Re-scope or close [fold-stream-combinator](./fold-stream-combinator.md).
@@ -158,5 +165,5 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
   it is specified over `List<T>` and will want the same treatment.
 - [write-closed-helpers](../../cas/todo/write-closed-helpers.md) — already
   blocked by `fold-stream-combinator`, so transitively affected.
-- `fjs/effects/module.f.mjs` header — the step-variant / `do`-notation rationale
-  that fixes the argument order.
+- `fjs/effects/io/module.f.mjs` — `foldStep`'s JSDoc carries the step-variant /
+  `do`-notation rationale that fixes the argument order.
