@@ -18,3 +18,8 @@ export type Error<E> = readonly ['error', E]
  * Represents a result that can be either successful or failed.
  */
 export type Result<T, E> = Ok<T> | Error<E>
+
+export type ResultInfo<R extends Result<unknown, unknown>> = {
+    readonly ok: R extends readonly['ok', infer T] ? T : never
+    readonly error: R extends readonly['error', infer E] ? E : never
+}
