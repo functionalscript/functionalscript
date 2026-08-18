@@ -517,7 +517,7 @@ export const addRevision = cas => cacheKey => input =>
             // own, which `cas.write`'s `O1` has nothing else to pin it to.
             /** @type {Effect<O, Vec, EvoError>} */
             const written = catchStep(
-                cas.write(/** @satisfies {List<never, Ok<Vec>>} */ (nonEmpty(ok(bytes), elEmpty()))),
+                cas.write((nonEmpty(bytes, elEmpty()))),
                 () => pureError(evoError('failed to write revision to CAS')))
             return ioStep(
                 written,

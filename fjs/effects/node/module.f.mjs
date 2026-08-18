@@ -14,7 +14,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, RawEffect, Func, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoChannel, IoError, IoErrorInfo, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
+ * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  * @import { Effect, NotImplemented } from '../io/types.ts'
  */
 
@@ -258,14 +258,11 @@ export const writeBytes = do_('writeBytes')
 const writeLoop = path => {
     /** @type {_WriteLoop} */
     const f = (offset, e) =>
-        step(e, r => {
-            if (r === undefined) {
+        ioStep(e, node => {
+            if (node === undefined) {
                 return pureOk(undefined)
             }
-            const { first: [t, v], tail } = r
-            if (t === 'error') {
-                return pure(resultError(v))
-            }
+            const { first: v, tail } = node
             const lenV = length(v)
             if ((lenV & 0b111n) !== 0n) {
                 return pureError(ioError({ message: 'invalid buffer size' }))
@@ -280,7 +277,7 @@ const writeLoop = path => {
 /**
  * @template {Operation} O
  * @param {string} path
- * @param {List<O, IoResult<Vec>>} e
+ * @param {List<O, Vec, IoChannel>} e
  * @returns {Effect<O | WriteBytes | CreateExclusive, void, IoChannel>}
  */
 export const writeFromStream = (path, e) =>

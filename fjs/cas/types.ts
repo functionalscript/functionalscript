@@ -8,7 +8,7 @@ import type { Vec } from '../types/bit_vec/types.ts'
 import type { Operation } from '../effects/types.ts'
 import type { List } from '../effects/list/types.ts'
 import type { Effect } from '../effects/io/types.ts'
-import type { Access, CreateExclusive, IoChannel, IoResult, Mkdir, Now, RandomInt, ReadBytes, Readdir, Rename, Rm, Stat, WriteBytes } from '../effects/node/types.ts'
+import type { Access, CreateExclusive, IoChannel, Mkdir, Now, RandomInt, ReadBytes, Readdir, Rename, Rm, Stat, WriteBytes } from '../effects/node/types.ts'
 
 /**
  * The filesystem effects the streaming CAS performs: `read` pulls shards
@@ -24,16 +24,21 @@ export type FileCasOperation =
 
 export type Cas<O extends Operation> = {
     /**
-     * Streams the content for `hash` out in `<=128 KiB` chunks. Every pull yields an
-     * explicit `ok(chunk)` or `error` item, so a missing shard or I/O error is a distinct
-     * error *item* in the stream, never collapsed into end-of-stream (`undefined`).
+     * Streams the content for `hash` out in `<=128 KiB` chunks.
+     *
+     * A missing shard or an I/O error **fails the stream** rather than ending
+     * it, so it can never be mistaken for end-of-stream. That distinction used
+     * to be a rule this comment had to state, with an `ok(chunk)`/`error` item
+     * union that every consumer kept apart by hand; it is now the difference
+     * between an `error` cell and an `ok(undefined)` one, which nothing can
+     * confuse.
      */
-    readonly read: (hash: Vec) => List<O, IoResult<Vec>>
+    readonly read: (hash: Vec) => List<O, Vec, IoChannel>
     /**
-     * Consumes a chunk stream — each item `ok(chunk)` or `error` — hashing incrementally,
-     * and returns the content address. An error item aborts the upload.
+     * Consumes a chunk stream, hashing incrementally, and returns the content
+     * address. A stream that fails aborts the upload with that failure.
      */
-    readonly write: <O1 extends Operation>(payload: List<O1, IoResult<Vec>>) => Effect<O | O1, Vec, IoChannel>
+    readonly write: <O1 extends Operation>(payload: List<O1, Vec, IoChannel>) => Effect<O | O1, Vec, IoChannel>
     /**
      * Lists all stored content hashes.
      *

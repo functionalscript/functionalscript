@@ -541,7 +541,7 @@ export const proof = {
         createExclusiveFails: () => {
             // The destination already exists, so `createExclusive` fails (EEXIST) and
             // the error propagates without ever touching `writeBytes`.
-            /** @type {List<never, IoResult<Vec>>} */
+            /** @type {List<never, Vec, IoChannel>} */
             const chunks = listEmpty()
             const [state, [t, result]] = virtual({
                 ...emptyState,
@@ -554,8 +554,8 @@ export const proof = {
         invalidBufferSize: () => {
             // A chunk whose bit length isn't a multiple of 8 trips the
             // byte-alignment guard before `writeBytes` is ever called.
-            /** @type {List<never, IoResult<Vec>>} */
-            const chunks = listNonEmpty(['ok', vec(4n)(0b1010n)], listEmpty())
+            /** @type {List<never, Vec, IoChannel>} */
+            const chunks = listNonEmpty(vec(4n)(0b1010n), listEmpty())
             const [_, [t, result]] = virtual(emptyState)(
                 writeFromStream('hello', chunks)
             )

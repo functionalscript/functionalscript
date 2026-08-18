@@ -7,7 +7,7 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { Operation } from '../effects/types.ts'
  * @import { Effect, NotImplemented } from '../effects/io/types.ts'
- * @import { IoChannel, IoResult, Now, RandomInt, ReadBytes, Readdir, Rm } from '../effects/node/types.ts'
+ * @import { IoChannel, Now, RandomInt, ReadBytes, Readdir, Rm } from '../effects/node/types.ts'
  *  @import { List } from '../effects/list/types.ts'
  * @import { Cas, FileCas, FileCasOperation } from './types.ts'
  */
@@ -66,28 +66,25 @@ export const toPath = key => {
 /**
  * Drains a `Cas<O>.read` chunk stream into a single `Vec`. Used by any caller
  * that needs the whole blob at once (an MCP `content: true` fetch, an Evo
- * revision decode): the chunk stream is concatenated and an error item is
- * surfaced as the result. A single `Vec` cannot exceed `maxLength` bits;
- * concatenating past it would overflow the runtime's `bigint` constraint, so
- * that case is surfaced as an error item too, rather than crashing the
- * process.
+ * revision decode): the chunk stream is concatenated, and a stream that fails
+ * fails this. A single `Vec` cannot exceed `maxLength` bits; concatenating past
+ * it would overflow the runtime's `bigint` constraint, so that case fails here
+ * too rather than crashing the process.
  *
  * @template {Operation} O
- * @param {List<O, IoResult<Vec>>} stream
+ * @param {List<O, Vec, IoChannel>} stream
  * @returns {Effect<O, Vec, IoChannel>}
  */
 export const collectRead = stream => {
-    /** @type {(acc: Vec) => (s: List<O, IoResult<Vec>>) => Effect<O, Vec, IoChannel>} */
+    /** @type {(acc: Vec) => (s: List<O, Vec, IoChannel>) => Effect<O, Vec, IoChannel>} */
     const loop = acc => s =>
-        step(s, node => {
-            if (node === undefined) { return pure(ok(acc)) }
+        ioStep(s, node => {
+            if (node === undefined) { return pureOk(acc) }
             const { first, tail } = node
-            const [t, v] = first
-            if (t === 'error') { return pure(first) }
-            if (length(acc) + length(v) > maxLength) {
-                return pure(error(ioError({ message: `cas blob exceeds maximum vector length of ${maxLength} bits` })))
+            if (length(acc) + length(first) > maxLength) {
+                return pureError(ioError({ message: `cas blob exceeds maximum vector length of ${maxLength} bits` }))
             }
-            return loop(msb.concat(acc)(v))(tail)
+            return loop(msb.concat(acc)(first))(tail)
         })
     return loop(empty)(stream)
 }
@@ -174,7 +171,7 @@ const gcStage = stageDir => {
  * @param {Sha2} sha2
  * @param {string} path
  * @param {string} stageDir
- * @param {List<O1, IoResult<Vec>>} payload
+ * @param {List<O1, Vec, IoChannel>} payload
  * @returns {Effect<O1 | FileCasOperation, Vec, IoChannel>}
  */
 const writeImpl = (sha2, path, stageDir, payload) => {
@@ -202,18 +199,21 @@ const writeImpl = (sha2, path, stageDir, payload) => {
     const rndEffect = ioStep(gcStage(stageDir), () => random256)
     return ioStep(rndEffect, rnd => {
         const rndStr = vecToCBase32(rnd)
-        /** @type {(state: Sha2State, offset: number, curPath: string) => (stream: List<O1, IoResult<Vec>>) => Effect<O1 | FileCasOperation, Vec, IoChannel>} */
+        /** @type {(state: Sha2State, offset: number, curPath: string) => (stream: List<O1, Vec, IoChannel>) => Effect<O1 | FileCasOperation, Vec, IoChannel>} */
         const loop = (state, offset, curPath) =>
             stream =>
-                step(stream, node => {
+                // `resultStep`, not `step`: a stream that fails must still be
+                // cleaned up after, so this handles the failure rather than
+                // letting it propagate past the partial file.
+                resultStep(stream, r => {
+                    if (r[0] === 'error') {
+                        return fail(curPath, r[1])
+                    }
+                    const node = r[1]
                     if (node === undefined) {
                         return publish(state, offset, curPath)
                     }
-                    const { first, tail } = node
-                    if (first[0] === 'error') {
-                        return fail(curPath, first[1])
-                    }
-                    const chunk = first[1]
+                    const { first: chunk, tail } = node
                     // Both branches matter: a failed write is cleaned up after,
                     // rather than propagated with the partial file left behind.
                     return resultStep(writeBytes(curPath, offset, chunk), wb => {
@@ -260,28 +260,24 @@ export const fileCas = sha2 => path => {
     return {
         read: hash => {
             const p = join(path, toPath(hash))
-            /** @type {(offset: number) => List<FileCasOperation, IoResult<Vec>>} */
+            /** @type {(offset: number) => List<FileCasOperation, Vec, IoChannel>} */
             const loop = offset =>
-                step(
+                // A missing shard or read error fails the stream, and `step`
+                // propagates it — the cell's own failure can never be mistaken
+                // for the `undefined` that ends one.
+                ioStep(
                     readBytes(p, offset, chunkBytes),
-                    (result) => {
-                        const [t, v] = result
-                        // A missing shard or read error is an explicit error item, never EOF.
-                        if (t === 'error') {
-                            return nonEmpty(result, elEmpty())
-                        }
-                        // End the stream only on an empty read; every non-empty read — including a
-                        // final short (`< CHUNK_BYTES`) chunk — is emitted as an `ok` item.
-                        return length(v) === 0n
-                            ? elEmpty()
-                            : nonEmpty(ok(v), loop(offset + chunkBytes))
-                    })
+                    // End the stream only on an empty read; every non-empty read — including a
+                    // final short (`< CHUNK_BYTES`) chunk — is emitted as a cell.
+                    chunk => length(chunk) === 0n
+                        ? elEmpty()
+                        : nonEmpty(chunk, loop(offset + chunkBytes)))
             return loop(0)
         },
         write: payload => writeImpl(sha2, path, stageDir, payload),
         list: () =>
             // A fresh store has no `.cas` directory yet. Treat *only* that case as an
-            // empty store, mirroring how `read` maps a missing shard to an error item.
+            // empty store, mirroring how `read` fails a stream on a missing shard.
             // A `.cas` that exists but cannot be read (permissions, corruption) is a
             // genuine storage error and is surfaced, not masked as "no hashes".
             //
@@ -317,22 +313,19 @@ const random256 =
 
 /** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items.
  *
- * @type {(filePath: string) => List<ReadBytes, IoResult<Vec>>}
+ * A failed read fails the stream. It used to be yielded as an error *item*
+ * followed by an explicit empty tail — a tail no consumer would ever pull.
+ *
+ * @type {(filePath: string) => List<ReadBytes, Vec, IoChannel>}
  */
 const streamFile = filePath => {
-    /** @type {(offset: number) => List<ReadBytes, IoResult<Vec>>} */
+    /** @type {(offset: number) => List<ReadBytes, Vec, IoChannel>} */
     const loop = offset =>
-        step(
+        ioStep(
             readBytes(filePath, offset, chunkBytes),
-            (result) => {
-                if (result[0] === 'error') {
-                    return nonEmpty(result, elEmpty())
-                }
-                const chunk = result[1]
-                return length(chunk) === 0n
-                    ? elEmpty()
-                    : nonEmpty(ok(chunk), loop(offset + chunkBytes))
-            })
+            chunk => length(chunk) === 0n
+                ? elEmpty()
+                : nonEmpty(chunk, loop(offset + chunkBytes)))
     return loop(0)
 }
 

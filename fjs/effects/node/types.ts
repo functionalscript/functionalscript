@@ -170,7 +170,7 @@ export type CreateExclusive = readonly['createExclusive', (path: string) => IoRe
 export type WriteBytes = readonly['writeBytes', (path: string, offset: number, data: Vec) => IoResult<void>]
 
 /** @internal */
-export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, IoResult<Vec>>) => Effect<O | WriteBytes, void, NotImplemented | IoError>
+export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, IoChannel>) => Effect<O | WriteBytes, void, NotImplemented | IoError>
 
 // stat
 

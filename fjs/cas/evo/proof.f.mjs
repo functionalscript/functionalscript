@@ -3,7 +3,7 @@
  * @import { EvoChannel } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { Effect } from '../../effects/io/types.ts'
- * @import { NodeOp } from '../../effects/node/types.ts'
+ * @import { IoChannel, NodeOp } from '../../effects/node/types.ts'
  * @import { State } from '../../effects/node/virtual/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Ok } from '../../types/result/types.ts'
@@ -17,6 +17,7 @@ import {
     assertStructurallySame,
 } from '../../asserts/module.f.mjs'
 import { pure } from '../../effects/module.f.mjs'
+import { pureError } from '../../effects/io/module.f.mjs'
 import { ioError } from '../../effects/node/module.f.mjs'
 import { fileCas } from '../module.f.mjs'
 import { sha256 } from '../../crypto/sha2/module.f.mjs'
@@ -48,7 +49,7 @@ const writeFailingCas = {
 // large for `collectRead` to buffer looks like to a caller.
 /** @type {Cas<never>} */
 const readFailingCas = {
-    read: () => nonEmpty(error(ioError({ message: 'boom' })), elEmpty()),
+    read: () => pureError(ioError({ message: 'boom' })),
     write: () => pure(error(ioError({ message: 'write not supported' }))),
     list: () => pure(ok([])),
 }
@@ -62,8 +63,8 @@ const fixedCas = entries => ({
     read: hash => {
         const found = entries.find(([h]) => vecToCBase32(h) === vecToCBase32(hash))
         return found === undefined
-            ? nonEmpty(error(ioError({ message: 'not found' })), elEmpty())
-            : nonEmpty(ok(found[1]), elEmpty())
+            ? pureError(ioError({ message: 'not found' }))
+            : nonEmpty(found[1], elEmpty())
     },
     write: () => pure(error(ioError({ message: 'write not supported' }))),
     list: () => pure(ok(entries.map(([h]) => h))),
@@ -113,7 +114,7 @@ export const proof = {
     buildCacheSkipsNonRevisionBlob: () => {
         const c = fileCas(sha256)(home)
         const content = vec8(0x41n) // 'A' — valid UTF-8, not revision JSON
-        const [state1] = virtual(emptyState)(c.write(nonEmpty(ok(content), /** @satisfies {List<never, Ok<Vec>>} */ (elEmpty()))))
+        const [state1] = virtual(emptyState)(c.write(nonEmpty(content, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
         const [, cache] = virtualOk(state1)(buildCache(c))
         assertEq(Object.keys(cache.bySubject).length, 0)
     },
@@ -125,7 +126,7 @@ export const proof = {
     decodeRevisionBlobNonUtf8IsNull: () => {
         const c = fileCas(sha256)(home)
         const oddVec = vec(5n)(0b10101n) // not a whole number of bytes
-        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(ok(oddVec), /** @satisfies {List<never, Ok<Vec>>} */ (elEmpty()))))
+        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(oddVec, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, revision] = virtual(state1)(decodeRevisionBlob(c)(w[1]))
         assertEq(revision, null)
@@ -133,7 +134,7 @@ export const proof = {
     decodeRevisionBlobInvalidJsonIsNull: () => {
         const c = fileCas(sha256)(home)
         const content = vec8(0x7bn) // '{' alone: valid UTF-8, not parseable JSON
-        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(ok(content), /** @satisfies {List<never, Ok<Vec>>} */ (elEmpty()))))
+        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(content, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, revision] = virtual(state1)(decodeRevisionBlob(c)(w[1]))
         assertEq(revision, null)
@@ -144,7 +145,7 @@ export const proof = {
         const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[],"snapshot":"${subjectHash}","generation":0}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
-        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(ok(bytes), /** @satisfies {List<never, Ok<Vec>>} */ (elEmpty()))))
+        const [state1, w] = virtual(emptyState)(c.write(nonEmpty(bytes, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, revision] = virtual(state1)(decodeRevisionBlob(c)(w[1]))
         assert(revision !== null, 'expected a decoded revision')
@@ -160,7 +161,7 @@ export const proof = {
         const text = `{"dialect":"${revisionDialect}","subject":"${subjectHash}","parents":[],"snapshot":"${subjectHash}","generation":0}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
-        const [state1, w] = virtual(emptyState)(fileCas(sha256)(home).write(nonEmpty(ok(bytes), /** @satisfies {List<never, Ok<Vec>>} */ (elEmpty()))))
+        const [state1, w] = virtual(emptyState)(fileCas(sha256)(home).write(nonEmpty(bytes, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, cache] = virtualOk(state1)(buildCache(c))
         assertEq(cache.bySubject[subjectHash]?.hashes.length, 1)
@@ -583,7 +584,7 @@ export const proof = {
         const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
         const e = evo(c)(cacheKey)
         const content = vec8(0x41n) // 'A' — valid UTF-8, not revision JSON
-        const [state1, w] = virtual(state0)(c.write(nonEmpty(ok(content), /** @satisfies {List<never, Ok<Vec>>} */ (elEmpty()))))
+        const [state1, w] = virtual(state0)(c.write(nonEmpty(content, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, result] = virtual(state1)(e.revision(vecToCBase32(w[1])))
         assertEvoError(result, 'not a revision blob')
@@ -606,7 +607,7 @@ export const proof = {
         const text = `{"dialect":"${revisionDialect}","subject":"doc","parents":["${parentAlias}"],"snapshot":"${snapshotAlias}","generation":1}`
         const bytes = tryUtf8(text)
         assert(bytes !== null, 'expected the sample revision text to encode as UTF-8')
-        const [state1, w] = virtual(state0)(c.write(nonEmpty(ok(bytes), /** @satisfies {List<never, Ok<Vec>>} */ (elEmpty()))))
+        const [state1, w] = virtual(state0)(c.write(nonEmpty(bytes, /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))))
         assert(w[0] === 'ok', ['expected write ok', w])
         const [, result] = virtual(state1)(e.revision(vecToCBase32(w[1])))
         assert(result[0] === 'ok', ['expected revision ok', result])

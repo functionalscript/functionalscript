@@ -135,18 +135,24 @@ migration makes, so each module's proofs are re-read as part of its PR.
       `emergent_testing`'s tail moved a non-zero code into the *error* branch,
       which is what a suite with failures means.
 
-- [ ] **4. `List` cells.** `List<O, T, E> = Effect<O, Next<O, T>, E>`.
-      `collectRead`, `detectStream`, `writeLoop` and three proof folds all
-      hand-roll the same `if (t === 'error') return pure(error(v))`
-      short-circuit, and it cannot be factored today because the fallibility
-      lives in `T`, which a generic combinator cannot inspect. Moving it to the
-      cell short-circuits once, in the library, and `Cas.read` gets the
-      signature `(hash) => List<O, Vec, IoChannel>`. It also makes the
-      "error item then dead tail" state unconstructible — today a failing
-      producer must supply a tail no consumer will pull — so `Cas.read`'s rule
-      that an error is "a distinct error *item* … never collapsed into
-      end-of-stream" enforces itself instead of being legislated.
-      Gives up per-item failure with continuation; nothing does that today.
+- [x] **4. `List` cells.** `List<O, T, E> = Effect<O, Next<O, T, E>, E>`.
+      `collectRead`, `detectStream`, `writeLoop`, `fileCas.read`, `streamFile`,
+      `writeImpl`'s loop and three proof folds all hand-rolled the same
+      `if (t === 'error') return …`; the Io `step` does it now, and a search for
+      that shape returns nothing. `Cas.read` is
+      `(hash) => List<O, Vec, IoChannel>`.
+
+      It also removed a state that used to be constructible: a failing producer
+      had to supply a tail no consumer would pull
+      (`nonEmpty(error(…), elEmpty())`), and `Cas.read`'s doc had to *legislate*
+      that an error item is never end-of-stream. An `error` cell and an
+      `ok(undefined)` cell are different values of different shapes now, so the
+      rule enforces itself and the comment stating it is gone.
+
+      A stream can no longer report one bad item and continue. Nothing did; a
+      reader that wants to would carry a `Result` in `T` deliberately, which
+      stays expressible and now means what it says.
+
 - [ ] **5. Consumer sweep**, one module per PR, until `RawEffect` is imported
       nowhere outside `fjs/effects`.
 - [ ] **6. Delete `RawEffect`.** Constrain `Operation`'s return type to a

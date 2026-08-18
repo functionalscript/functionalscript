@@ -5,32 +5,34 @@
  *
  * @module
  *
- * @import { RawEffect, Operation } from "../types.ts"
+ * @import { Operation } from "../types.ts"
+ * @import { Effect } from "../io/types.ts"
  * @import { List, Next } from "./types.ts"
  */
 
-import { pure } from "../module.f.mjs"
+import { pureOk } from "../io/module.f.mjs"
 
 /**
  * The empty `List`: a pure end-of-stream marker (`undefined`).
  *
- * The explicit `RawEffect<O, Next<O, T>>` return type lets the contextual type drive the
- * check, so the recursive payload type-checks without a cast. Construct streams through
- * these two combinators.
+ * The explicit `Effect<O, Next<O, T, E>, E>` return type lets the contextual
+ * type drive the check, so the recursive payload type-checks without a cast.
+ * Construct streams through these two combinators, and end a stream that
+ * *failed* with `pureError` rather than with either of them.
  *
- * Note: we use `RawEffect<O, Next<O, T>>` because TypeScript can't convert `pure(...)` to
- *       `List<O, T>`.
+ * Note: the expanded type is written out because TypeScript cannot convert
+ *       `pureOk(...)` to `List<O, T, E>`.
  *
- * @type {<O extends Operation, T>() => RawEffect<O, Next<O, T>>}
+ * @type {<O extends Operation, T, E>() => Effect<O, Next<O, T, E>, E>}
  */
 export const empty = () =>
-    pure(undefined)
+    pureOk(undefined)
 
 /**
  * Prepends `first` to a {@link List} `tail`, as a pure cons cell. `tail` is an
  * ordinary argument, so it is built before the cell is — see {@link Next}.
  *
- * @type {<O extends Operation, T>(first: T, tail: List<O, T>) => RawEffect<O, Next<O, T>>}
+ * @type {<O extends Operation, T, E>(first: T, tail: List<O, T, E>) => Effect<O, Next<O, T, E>, E>}
  */
 export const nonEmpty = (first, tail) =>
-    pure({ first, tail })
+    pureOk({ first, tail })

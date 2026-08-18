@@ -6,7 +6,7 @@
  * @import { FileCasOperation } from '../cas/types.ts'
  * @import { List } from '../effects/list/types.ts'
  * @import { ContentItem, ToolsCallResult } from '../protocol/mcp/types.ts'
- * @import { IoResult, Mkdir, Now, RandomInt, ReadBytes, Rename } from '../effects/node/types.ts'
+ * @import { IoChannel, Mkdir, Now, RandomInt, ReadBytes, Rename } from '../effects/node/types.ts'
  * @import { Dir } from '../effects/node/virtual/types.ts'
  */
 
@@ -100,8 +100,8 @@ const runSessionVirtual =
 const seedBlob = (root, home = '/home/user') => chunks => {
     const c = fileCas(sha256)(home)
     const stream = chunks.reduceRight(
-        (/** @type {List<never, IoResult<Vec>>} */ tail, chunk) => nonEmpty(resultOk(chunk), tail),
-        /** @satisfies {List<never, IoResult<Vec>>} */ (elEmpty()))
+        (/** @type {List<never, Vec, IoChannel>} */ tail, chunk) => nonEmpty(chunk, tail),
+        /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))
     const [state, result] = virtual({ ...emptyState, root })(c.write(stream))
     assert(result[0] === 'ok', result)
     return [state.root, vecToCBase32(result[1])]

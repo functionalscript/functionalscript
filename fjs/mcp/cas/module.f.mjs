@@ -198,7 +198,7 @@ export const casToolRegistry = home => cacheKey => {
                     ? pure(errorResult('too large or malformed — for large content, run `npx functionalscript cas add <path>` (or have the user run it) instead'))
                     // The resolved content fits in one chunk; feed it as a single-item stream.
                     : step(
-                        c.write(nonEmpty(ok(x), elEmpty())),
+                        c.write(nonEmpty(x, elEmpty())),
                         writeResult => {
                             if (writeResult[0] === 'error') { return pure(errorResult('write')) }
                             const hash = writeResult[1]

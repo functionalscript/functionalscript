@@ -46,8 +46,7 @@
 
 import { msb, length, u8List } from '../../types/bit_vec/module.f.mjs'
 import { iterable } from '../../types/list/module.f.mjs'
-import { pure, step } from '../../effects/module.f.mjs'
-import { ok, error } from '../../types/result/module.f.mjs'
+import { pureOk, step as ioStep } from '../../effects/io/module.f.mjs'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
 
@@ -254,20 +253,18 @@ export const detectVec = bytes => finish(push(detectInit)(bytes))
  * item short-circuits into the `IoResult` error.
  *
  * @template {Operation} O
- * @param {List<O, IoResult<Vec>>} stream
+ * @param {List<O, Vec, IoChannel>} stream
  * @returns {Effect<O, DetectMeta, IoChannel>}
  */
 export const detectStream = stream => {
-    /** @type {(s: DetectState) => (l: List<O, IoResult<Vec>>) => Effect<O, DetectMeta, IoChannel>} */
+    /** @type {(s: DetectState) => (l: List<O, Vec, IoChannel>) => Effect<O, DetectMeta, IoChannel>} */
     const loop = s => l =>
-        step(
+        ioStep(
             l,
             node => {
-                if (node === undefined) { return pure(ok(finish(s))) }
+                if (node === undefined) { return pureOk(finish(s)) }
                 const { first, tail } = node
-                const [t, v] = first
-                if (t === 'error') { return pure(error(v)) }
-                return loop(push(s)(v))(tail)
+                return loop(push(s)(first))(tail)
             })
     return loop(detectInit)(stream)
 }
