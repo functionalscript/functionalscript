@@ -37,34 +37,42 @@ export type Operation =
  * abstraction — see [`./io/README.md`](./io/README.md). `RawEffect` is what that
  * alias and the combinators here are built from, and it stays public as such.
  *
- * **It was planned for deletion, and the plan was wrong.** The argument ran:
- * migrate every fallible thing to `Effect`, and once nothing infallible is
- * left, make the `Result`-carrying union primitive and this name has nothing
- * to describe. The migration happened — the standard channel got a name,
- * `Program` exit codes and `List` cells got channels, `cas/evo` stopped
- * nesting, `unwrapStep` stopped absorbing — and at the end the infallible
- * payloads had not gone away. They had sorted themselves into two kinds that
- * are *permanently* infallible:
+ * **It was planned for deletion, the plan was rejected, and half the reason
+ * given for rejecting it has since been falsified.** The argument ran: migrate
+ * every fallible thing to `Effect`, and once nothing infallible is left, make
+ * the `Result`-carrying union primitive and this name has nothing to describe.
+ * The migration happened — the standard channel got a name, `Program` exit
+ * codes and `List` cells got channels, `cas/evo` stopped nesting, `unwrapStep`
+ * stopped absorbing — and two kinds of permanently-infallible payload were
+ * claimed to be left over. Only one of them was real.
  *
- * - **The representation itself**, which is generic over its payload by
- *   definition: the runners, {@link match}, `runPure`, and the combinators
- *   here. `<T>(e: RawEffect<O, T>) => …` cannot be `Result`-valued without
- *   ceasing to be generic.
- * - **Absorb points**, where a module converts a channel into its own
- *   vocabulary and nothing behind it should carry the node channel. An MCP
- *   handler is the clearest: the protocol *is* its error channel, a request's
- *   channel failure becomes `_errResponse(id)(internalError)`, and a
- *   notification has no response frame to put an error in — so
- *   `(value) => RawEffect<O, Response | null>` is the honest contract, and
- *   `Effect<O, Response | null, never>` would only wrap a value that cannot
- *   fail in an `ok` nobody reads.
+ * **The representation itself is real**, and it is why this name stays. It is
+ * generic over its payload by definition — {@link Pure}, {@link Do}, the
+ * runners, {@link match}, `runPure`, and the combinators here — and it is what
+ * `Effect` is *written in terms of*: the alias expands to
+ * `RawEffect<O, Result<T, E>>`, so the name cannot be dropped in favour of
+ * the thing defined from it.
  *
- * Deleting the name would put an `Ok` around roughly seventy such payloads to
- * remove one alias. The distinction it draws — composition against
- * representation — turned out to be the thing worth keeping, which is why
- * {@link Operation} now *requires* a `Result` return: that is the part of the
- * plan that was right, and it makes every operation fallible at the leaf
- * without making every effect fallible at the type.
+ * **"Absorb points" were not.** The claim was that a module converting a
+ * channel into its own vocabulary should stay raw behind the conversion, with
+ * the MCP handler as the clearest case — the protocol *is* its error channel,
+ * so `(value) => RawEffect<O, Response | null>` was called the honest
+ * contract. Those handlers say `Effect<O, Response | null, never>` now, and
+ * that is the better spelling: `never` is a *claim* — this code absorbs its
+ * own failures, here — where the raw form left the question unasked. A reader
+ * who thinks the absorption is wrong has something to point at.
+ *
+ * The arithmetic offered alongside it was wrong in the same direction. Most of
+ * the payloads that were counted as needing an `Ok` were
+ * `<T>(e: RawEffect<O, T>) => …` *type parameters* rather than payload shapes;
+ * they become `<T, E>(e: Effect<O, T, E>) => …`, as general as before and
+ * wrapping nothing.
+ *
+ * The distinction the name draws — composition against representation — is
+ * what survived, which is why {@link Operation} now *requires* a `Result`
+ * return: that is the part of the plan that was right, and it makes every
+ * operation fallible at the leaf without making every effect fallible at the
+ * type.
  */
 export type RawEffect<O extends Operation, T> =
     Pure<T> | Do<O, T>

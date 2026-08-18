@@ -59,9 +59,12 @@ fails there rather than at some future call site.
 
 The `step` here conflicts by name with the raw one, which is why the two live in
 separate modules. Both are public and both are load-bearing: this one for
-anything that can fail, `RawEffect` for the representation, for the runners and
-`do_` that speak it, and for a computation with no failure to report — a `List`
-cell, a `Program`'s exit code, an MCP tool result.
+everything a program composes, `RawEffect` for the representation alone — the
+runners, `match`, `runPure`, and the `do_` that speak it. A `List` cell, a
+`Program`'s exit code, and an MCP tool result were once listed here as
+computations with no failure to report; all three carry channels now, the last
+of them a `never` that says the module absorbs its own failures rather than
+that it has none.
 
 ### `resultStep` is raw `step`, and still earns its name
 

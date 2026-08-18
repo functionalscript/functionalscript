@@ -776,10 +776,11 @@ Prefer `Effect` even where nothing fails yet: widening `Effect<O, T, never>`
 leaves every consumer that merely chains untouched, where widening a
 `RawEffect` rewrites every consumer *body*. A `List` cell and a `Program`'s
 exit code were once listed here as things that "genuinely cannot fail"; both
-carry channels now. What stays raw is the representation, and the **absorb
-points** where a module deliberately converts a channel into its own vocabulary
-and nothing behind it should carry the node channel — an MCP handler, whose
-protocol *is* the error channel.
+carry channels now, and so do the **absorb points** — a module that converts a
+channel into its own vocabulary, such as an MCP handler whose protocol *is* its
+error channel, says `Effect<O, T, never>` rather than staying raw. `never` is a
+claim a reader can disagree with; raw leaves the question unasked. What stays
+raw is the representation, and nothing else.
 
 The rules below apply to both layers, and to the Io `step` first.
 
