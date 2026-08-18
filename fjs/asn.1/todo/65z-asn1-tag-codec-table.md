@@ -5,11 +5,11 @@
 
 ### Problem
 
-`fjs/asn.1/module.f.ts` dispatches on the same set of universal tags twice — once
+`fjs/asn.1/module.f.mjs` dispatches on the same set of universal tags twice — once
 to encode, once to decode — in two separate `switch (tag)` statements:
 
 ```ts
-// fjs/asn.1/module.f.ts:303
+// fjs/asn.1/module.f.mjs:303
 const recordToRaw = ([tag, value]: SupportedRecord): Vec => {
     switch (tag) {
         case boolean:           return encodeBoolean(value)
@@ -21,7 +21,7 @@ const recordToRaw = ([tag, value]: SupportedRecord): Vec => {
     }
 }
 
-// fjs/asn.1/module.f.ts:320
+// fjs/asn.1/module.f.mjs:320
 const rawToRecord = (raw: Raw): Record => {
     const [tag, value] = raw
     switch (tag) {
@@ -82,7 +82,7 @@ declaration site per (tag, encode, decode) triple.
 
 ### Caveats
 
-- `SupportedRecord` is a discriminated union keyed by tag (`fjs/asn.1/module.f.ts:272-278`),
+- `SupportedRecord` is a discriminated union keyed by tag (`fjs/asn.1/types.ts:45-51`),
   so the codec values are heterogeneously typed. The table approach loses the
   per-branch payload typing that the switch currently gives `recordToRaw`. A
   small per-tag helper that types `encode` against the union branch may be

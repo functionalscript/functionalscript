@@ -22,8 +22,8 @@ The remainder of this issue follows the AGENTS.md ladder
 each carry a per-VM-wrapper impl set that is byte-identical modulo a
 variant name and a type argument. These are the same kind of nominal-
 newtype repetition that [i159](todo.md)
-addresses for `Serializable` / `SizedIndex` / `Index` / `PartialEq` /
-`Le`, but the conversion traits are **not covered** there.
+addresses for `SizedIndex` / `Index` / `PartialEq`, but the conversion
+traits are **not covered** there.
 
 #### `From<X> for Unpacked<A>` — 7 copies (`from.rs:42–87`)
 
@@ -58,10 +58,10 @@ Both groups share one axis-of-difference: `(wrapper, variant)`.
 #### A. Status quo — keep the hand-written impls
 
 14 copies, ~120 lines, no churn. Adding a new VM variant (`Symbol<A>`)
-costs four lockstep edits (`Unpacked` enum, `from.rs`, `try_from.rs`,
-`serializable.rs`); the asymmetry between `From` and `TryFrom` for the
-same `(wrapper, variant)` pair is invisible at compile time and
-detected only by tests.
+costs three lockstep edits (`Unpacked` enum, `from.rs`, `try_from.rs`);
+the asymmetry between `From` and `TryFrom` for the same
+`(wrapper, variant)` pair is invisible at compile time and detected only
+by tests.
 
 This is the cheapest option *today*; it remains a viable answer if
 none of B/C lands a clean enough improvement.
@@ -163,18 +163,17 @@ What this buys:
   one row.
 - Generated code is plain Rust visible to rust-analyzer (after the
   first build) — no macro expansion mystery at call sites.
-- The same table can drive the `serializable.rs` tag list and the
-  `Unpacked` enum's variant list, which closes the broader drift
-  hazard between `from.rs` / `try_from.rs` / `serializable.rs` /
+- The same table can drive the `Unpacked` enum's variant list, which
+  closes the broader drift hazard between `from.rs` / `try_from.rs` /
   `Unpacked`.
 
 What it costs:
 
 - New `build.rs` infrastructure for a problem that has 14 hand-written
   lines today. Worth it only if the generator is reused for the i159
-  `Serializable` / `SizedIndex` / `Index` / `PartialEq` / `Le` work
-  too — otherwise the boilerplate moves from `from.rs` to `build.rs`
-  and the win is marginal.
+  `SizedIndex` / `Index` / `PartialEq` work too — otherwise the
+  boilerplate moves from `from.rs` to `build.rs` and the win is
+  marginal.
 - IDE story is weaker than B: rust-analyzer sees the generated file
   but jumping to definition lands on generated code, not on a source
   table.
@@ -185,7 +184,7 @@ The natural endpoint of C, if it pays off: write a small
 FunctionalScript program that consumes the variant table and emits
 Rust source. `fjs/djs/transpiler` already turns DJS into JS; a
 parallel Rust emitter would let the variant table live in
-`fjs/nanvm/conversions.f.ts` (or similar) as plain data, with the
+`fjs/nanvm/conversions.f.mjs` (or similar) as plain data, with the
 emitter as the only Rust-aware piece. This is large enough that it
 should be filed separately if and when there is appetite — flagging
 it here only because PR feedback asked.
@@ -201,8 +200,8 @@ because the variant choice lives in one place per type.
 
 Hold **C (`build.rs`)** in reserve for the broader i159 cleanup. If
 that work also benefits from a single variant table — and it
-plausibly does, since `Serializable`/`SizedIndex`/`Index` follow the
-same axis — `build.rs` becomes the right shared answer.
+plausibly does, since `SizedIndex`/`Index` follow the same axis —
+`build.rs` becomes the right shared answer.
 
 Treat the `macro_rules!` approach previously outlined in this file as
 rejected.
@@ -244,17 +243,13 @@ rejected.
 ### Related
 
 - [i159](todo.md) — the same boilerplate-
-  collapse exercise for `Serializable` / `SizedIndex` / `Index` /
-  `PartialEq` / `Le`. That issue currently proposes `macro_rules!`;
+  collapse exercise for `SizedIndex` / `Index` / `PartialEq`. That
+  issue currently proposes `macro_rules!`;
   the constraint surfaced here should be applied there too — update
   i159's "Proposal" sections to follow the same B / C / D / status-quo
   ladder before any code lands.
 - `nanvm-lib/src/vm/impls/from.rs:42–87` — seven `From<X> for Unpacked<A>` impls.
 - `nanvm-lib/src/vm/impls/try_from.rs:7–85` — seven `TryFrom<Any<A>> for X` impls.
-- `nanvm-lib/src/vm/impls/serializable.rs:37–86` — the parallel
-  `Unpacked::serialize` / `deserialize` match that gains a new arm in
-  lockstep with every new variant. If option C lands, this becomes
-  the third generated file driven from the same variant table.
 - `AGENTS.md` — the "avoid Rust macros" guidance referenced at the
   top of this file. Documents the constraint for parallel Rust work,
   including i159.

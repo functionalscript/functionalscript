@@ -23,22 +23,27 @@
 ## Now — Layers 1 + 2 + 3
 
 **Layer 1 — Base (done)**
-- `cas_add`, `cas_get`, `cas_list` implemented in `fjs/cas/mcp/module.f.ts` ✓
-- stdio transport implemented in `fjs/mcp/stdio/module.f.ts` ✓
-- `fjs cas mcp` CLI subcommand registered in `fjs/cas/module.f.ts` ✓
+- `cas_add`, `cas_get`, `cas_list` implemented in `fjs/mcp/cas/module.f.mjs` ✓
+- stdio transport implemented in `fjs/protocol/mcp/stdio/module.f.mjs` ✓
+- `fjs cas mcp` CLI subcommand registered in `fjs/cas/module.f.mjs` ✓
 - Remaining: refactor to extract `casMcpStep` for transport-agnostic shape
 
-**Layer 2 — Content encoding**
-- Switch `cas_add` / `cas_get` content from cBase32 to base64 (MCP-idiomatic for binary)
-- Hashes stay as cBase32
-- `fjs/base64/module.f.ts` (`encode`/`decode`) already implemented ✓; only MCP wiring remains
-- Tracked: [i66E-cas-mcp-base64-content](../66E-cas-mcp-base64-content.md)
+**Layer 2 — Content encoding (done)**
+- No more cBase32 for content — replaced by text/base64 (MCP-idiomatic for
+  binary), wired in `fjs/mcp/cas/module.f.mjs` via `fjs/basen/base64/module.f.mjs`
+  (`encode`/`decode`) ✓
+- `cas_add`: caller declares the encoding via `type` (`'text'`, the default,
+  or `'base64'`) — decoding follows what the caller says, not autodetection ✓
+- `cas_get`: encoding is chosen by the server — a magic-byte hit or non-UTF-8
+  fallback returns `type: 'base64'`; whole-blob-valid, all-text UTF-8 (no
+  NUL/other control code points) returns `type: 'text'` ✓
+- Hashes stay as cBase32 ✓
 
 **Layer 3 — Type detection (done)**
 - Detection via magic bytes: PNG, JPEG, GIF, WebP, PDF, ZIP → `null` for unrecognized bytes ✓
-- Pure logic in `fjs/media/type/module.f.ts` ✓
+- Pure logic in `fjs/media/type/module.f.mjs` ✓
 - `cas_get`: when type is detected → returns `EmbeddedResource` with `mimeType`; when `null` → falls back to existing `textContent` response for backward compatibility ✓
-- `fjs/mcp/module.f.ts` gained `blobResource` / `embeddedResource` schemas and a `contentItem` union ✓
+- `fjs/protocol/mcp/module.f.mjs` gained `blobResource` / `embeddedResource` schemas and a `contentItem` union ✓
 - A separate on-demand `cas_type` tool is a possible extension; needs its own design issue before implementation
 
 ---
@@ -103,10 +108,34 @@ See [architecture.md §Human-readable paths](./architecture.md).
 3. Rust code generator (FJS) — compiles FJS modules into Rust code calling the `nanvm-lib` API;
    the MVP pipeline, the compiler-bootstrap vehicle, and the AOT backend
    (see [`nanvm-lib/todo/mvp-roadmap.md`](../../nanvm-lib/todo/mvp-roadmap.md))
-4. `Function` constructor + interpreter in `nanvm-lib` — executes the AST as data
-   (see [`todo/lang/README.md` §9](../lang/README.md#9-serialization-ast-as-data-not-bytecode));
+4. `Function` constructor + interpreter in `nanvm-lib` — executes the EDAG as data
+   (see [`spec/todo/serialization.md`](../../spec/todo/serialization.md));
    bytecode is an optional, VM-internal, performance-oriented representation
 5. Generic `Any` serialization (CBOR) in `nanvm-lib` — covers code as data; needed for CAS/CAVM
+
+**Repository source migration and compiler coverage:**
+
+The repository source-language migration is independent of compiler feature
+coverage and is tracked in
+[`todo/migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md):
+
+1. Stage 1 migrates authored `.f.ts` to `.f.mjs` dependency-first, moving types
+   to JSDoc. `.f.mjs` means FunctionalScript-intent JavaScript and may contain
+   syntax the current compiler does not support.
+2. The compiler may validate any migrated `.f.mjs` module it already supports,
+   and synthetic compiler fixtures may land earlier, but compiler readiness does
+   not decide whether Stage-1 source or proof files migrate.
+3. After all authored TypeScript is gone, Stage 2 migrates compiler-supported
+   dependency-closed groups from `.f.mjs` to `.f.js`.
+4. An authored `.f.js` is the compiler-compatibility marker: the parser/compiler
+   in the same repository revision must accept it. Unsupported modules remain
+   `.f.mjs` until their compiler features land.
+
+This lets TypeScript removal and compiler implementation proceed independently
+without either one blocking unrelated progress. The authoritative extension
+contract and detailed workflow are documented in
+[`fjs/fsc/README.md`](../../fjs/fsc/README.md), and the Stage-2 compiler migration
+is tracked in [`todo/fjs-nanvm-integration.md`](../fjs-nanvm-integration.md).
 
 This is the longest dependency chain. Everything after it depends on it.
 
@@ -116,7 +145,7 @@ This is the longest dependency chain. Everything after it depends on it.
 
 Prerequisite: VM complete in `nanvm-lib`.
 
-Canonical serialization where structural equality implies hash equality — same shape, same hash. To be implemented in `nanvm-lib` (Rust); requires canonicalization of property order and a content-hashing layer, neither of which exists yet. The canonicalization scheme will be derived from the AST's own grammar — not SUL, which is designed for data of unknown structure and would impose the wrong tree shape onto a semantically structured AST.
+Canonical serialization where structural equality implies hash equality — same shape, same hash. To be implemented in `nanvm-lib` (Rust); requires canonicalization of property order and a content-hashing layer, neither of which exists yet. The canonicalization scheme will be derived from the EDAG's own grammar — not SUL, which is designed for data of unknown structure and would impose the wrong tree shape onto a semantically structured EDAG.
 
 ---
 
@@ -125,7 +154,7 @@ Canonical serialization where structural equality implies hash equality — same
 Prerequisite: compiler + CA FunctionalScript complete.
 
 - FunctionalScript modules stored in DISOT by content hash
-- New tool: `cas_run(hash, input?)` — loads the serialized AST, executes on nanvm with hard memory/time limits
+- New tool: `cas_run(hash, input?)` — loads the serialized EDAG, executes on nanvm with hard memory/time limits
 - Pure functions only; no side effects escape the sandbox
 
 ---
@@ -134,8 +163,8 @@ Prerequisite: compiler + CA FunctionalScript complete.
 
 | Layer | What exists | What's missing |
 |---|---|---|
-| 1. Base MCP (add/get/list) | `fjs/cas/mcp/`, `fjs/mcp/stdio/`, CLI ✓ | `casMcpStep` extraction |
-| 2. Content encoding (base64) | `fjs/base64/` ✓ | MCP wiring only |
+| 1. Base MCP (add/get/list) | `fjs/mcp/cas/`, `fjs/protocol/mcp/stdio/`, CLI ✓ | `casMcpStep` extraction |
+| 2. Content encoding (base64) | `fjs/basen/base64/`, `fjs/mcp/cas/` wiring ✓ | — |
 | 3. Type detection | `fjs/media/type/` magic-byte detection (PNG/JPEG/GIF/WebP/PDF/ZIP), `cas_get` wiring, `embeddedResource` schema ✓ | — |
 | 4. Signatures | `fjs/crypto/sign/` (sign only), `fjs/crypto/secp/` ✓ | ECDSA verify + MCP wiring |
 | 5. Trusted timestamps | — | RFC 3161 client + MCP tool |
@@ -145,6 +174,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
 | Compiler (parsing) | `fjs/djs/` data pipeline ✓, `fjs/bnf/` framework ✓ | Function support, FS grammar |
 | Compiler (codegen) | — | Rust code generator (FJS), `Function` constructor + interpreter in `nanvm-lib` |
-| CA FunctionalScript | — | Depends on VM + AST canonicalization |
+| Compiler (repository coverage) | Stage-1 `.f.mjs` source migration is compiler-independent | Validate supported `.f.mjs` as coverage grows; after Stage 1, rename supported groups `.f.mjs` → `.f.js` |
+| CA FunctionalScript | — | Depends on VM + EDAG canonicalization |
 | Sandboxed execution | — | Depends on CA FS |
 | Hybrid intelligence | — | Depends on all above |

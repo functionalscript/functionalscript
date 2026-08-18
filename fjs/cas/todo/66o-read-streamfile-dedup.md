@@ -1,32 +1,35 @@
 ## 66O-read-streamfile-dedup. `fileCas.read` should delegate to `streamFile`
 
 **Priority:** P3
-**Status:** open
+**Status:** open, and **closer than written**. A `List` cell can fail now, so
+neither `read` nor `streamFile` emits an error item and stops; both loops are
+two-case, which is most of what the sketches below spend their length on. The
+duplication is still real and smaller than described.
 
 ### Problem
 
-`fjs/cas/module.f.ts` contains two near-identical recursive chunk-reader loops
+`fjs/cas/module.f.mjs` contains two near-identical recursive chunk-reader loops
 with the same control flow: read a `chunkBytes` chunk at `offset`; on `error`
 emit a single error item and stop; on an empty read `elEmpty()`; otherwise emit
 the chunk as `ok` and recurse at `offset + chunkBytes`.
 
-`fileCas.read`'s inner `loop` (`fjs/cas/module.f.ts:140-153`):
+`fileCas.read`'s inner `loop` (`fjs/cas/module.f.mjs:262-276`):
 
 ```ts
-const loop = (offset: number): List<FileCasOperation, IoResult<Vec>> =>
+const loop = (offset: number): List<FileCasOperation, Vec, IoChannel> =>
     readBytes(p, offset, chunkBytes)
-    .step((result): List<FileCasOperation, IoResult<Vec>> => {
+    .step((result): List<FileCasOperation, Vec, IoChannel> => {
         const [t, v] = result
         if (t === 'error') { return nonEmpty<FileCasOperation, IoResult<Vec>>(result, elEmpty()) }
         return length(v) === 0n ? elEmpty() : nonEmpty(ok(v), loop(offset + chunkBytes))
     })
 ```
 
-`streamFile`'s inner `loop` (`fjs/cas/module.f.ts:251-259`):
+`streamFile`'s inner `loop` (`fjs/cas/module.f.mjs:323-333`):
 
 ```ts
-const loop = (offset: number): List<ReadBytes, IoResult<Vec>> =>
-    readBytes(filePath, offset, chunkBytes).step((result): List<ReadBytes, IoResult<Vec>> => {
+const loop = (offset: number): List<ReadBytes, Vec, IoChannel> =>
+    readBytes(filePath, offset, chunkBytes).step((result): List<ReadBytes, Vec, IoChannel> => {
         if (result[0] === 'error') { return nonEmpty<ReadBytes, IoResult<Vec>>(result, elEmpty()) }
         const chunk = result[1]
         return length(chunk) === 0n ? elEmpty() : nonEmpty(ok(chunk), loop(offset + chunkBytes))
@@ -34,7 +37,7 @@ const loop = (offset: number): List<ReadBytes, IoResult<Vec>> =>
 ```
 
 (`nonEmpty` / `elEmpty` are `nonEmpty` and `empty as elEmpty` from
-`fjs/effects/list/module.f.ts`.) The only real difference is the declared effect
+`fjs/effects/list/module.f.mjs`.) The only real difference is the declared effect
 type: `FileCasOperation` in `read` vs. `ReadBytes` in `streamFile`, with
 `ReadBytes ⊆ FileCasOperation`. So the EOF/error streaming invariant is
 maintained in two places that must stay in sync.
@@ -45,11 +48,11 @@ maintained in two places that must stay in sync.
 byte-streaming loop:
 
 ```ts
-read: (hash: Vec): List<FileCasOperation, IoResult<Vec>> =>
+read: (hash: Vec): List<FileCasOperation, Vec, IoChannel> =>
     streamFile(join(path, toPath(hash))),
 ```
 
-**Caveat on the type.** `casAddFile` (`fjs/cas/module.f.ts:267-271`) is *not* a
+**Caveat on the type.** `casAddFile` (`fjs/cas/module.f.mjs:347-351`) is *not* a
 reusable precedent here: it does not perform an `as` cast — it declares its
 return type as the union `Effect<O | ReadBytes, …>` and lets `cas.write`'s
 generic absorb `ReadBytes` (the word "cast" appears only in its comment). `read`
@@ -70,11 +73,11 @@ ordering).
       `List<ReadBytes,…>` → `List<FileCasOperation,…>` conversion.
 - [ ] Confirm definition ordering compiles; keep the `read` JSDoc about
       "missing shard / read error is an explicit error item, never EOF".
-- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/cas/proof.f.ts` still passes,
+- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/cas/proof.f.mjs` still passes,
       including the short-final-chunk and read-error paths.
 
 ### Related
 
-- `fjs/cas/module.f.ts:267-271` — `casAddFile`, which absorbs `ReadBytes` via a
+- `fjs/cas/module.f.mjs:347-351` — `casAddFile`, which absorbs `ReadBytes` via a
   union return type (not an `as` cast); noted here because `read` cannot reuse
   that mechanism.

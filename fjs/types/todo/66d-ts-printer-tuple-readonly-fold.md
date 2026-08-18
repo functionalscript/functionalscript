@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/types/ts/module.f.ts`'s `printer` already computes the readonly prefix once
+`fjs/types/ts/module.f.mjs`'s `printer` already computes the readonly prefix once
 as `ro`, then uses it for `struct`, `array`, and `record` — but `tuple`
 re-derives the same `mut` distinction with a whole second `complex(...)` call
 instead of reusing `ro`:
@@ -51,10 +51,11 @@ touched anyway, not on its own.
 ### Tasks
 
 - [ ] Replace the `tuple` ternary with `complex(\`${ro}[\`, ']')`.
-- [ ] Confirm `fjs/types/ts/proof.f.ts` still passes (`fjs t`) with both the
+- [ ] Confirm `fjs/types/ts/proof.f.mjs` still passes (`fjs t`) with both the
       mutable and readonly tuple paths covered and `npx tsc` is clean.
 
 ### Related
 
-- [i662-rtti-ts-printer-visit](todo.md) — adjacent
-  `ts` printer work.
+- [`fjs/types/rtti/ts`](../rtti/ts/module.f.mjs) — the rtti printer consuming
+  this `Printer` (data-driven; the former i662 proposal to route it through
+  `visit` was superseded when it stopped walking the thunk ADT at all).

@@ -44,6 +44,6 @@ Add a periodic background task (e.g., every hour or on startup) that:
 
 ### Related
 
-- `fileCas.write` / `casAddFile` (`fjs/cas/module.f.ts`) — the staging directory
+- `fileCas.write` / `casAddFile` (`fjs/cas/module.f.mjs`) — the staging directory
   and streaming upload implementation (design formerly tracked as
   `66j-cas-large-file-support`, now implemented and deleted)

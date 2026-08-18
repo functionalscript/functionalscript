@@ -41,7 +41,7 @@ set over HTTP(S):
   natural fit for this transport where MCP is capped at 128 KiB of inline
   content. But the current HTTP effects do not stream:
   `IncomingMessage.body` / `ServerResponse.body`
-  (`fjs/effects/node/module.f.ts`) are single `Vec`s, and the Node runner
+  (`fjs/effects/node/module.f.mjs`) are single `Vec`s, and the Node runner
   buffers the whole request (`collect(req)` → `listToVec`) — past the
   128 KiB `Vec` limit it throws. The CAS store side already streams
   (`Cas.read`/`Cas.write` deal in chunk lists), so lifting the cap needs
@@ -96,6 +96,6 @@ HTML form is an exposure-matrix decision for
   navigable DAG.
 - `fjs/effects/node/todo/requestlistener-stateful.md` — HTTP listener
   effects groundwork.
-- `fjs/effects/node/module.f.ts` (`IncomingMessage`/`ServerResponse`) — the
+- `fjs/effects/node/module.f.mjs` (`IncomingMessage`/`ServerResponse`) — the
   whole-body `Vec` HTTP effects that need a streaming redesign before this
   transport can carry blobs past 128 KiB.

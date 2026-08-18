@@ -11,7 +11,7 @@ booleans, null, structural symbols — wrapped in a `<span>` so CSS can colour i
 
 ### Proposal
 
-A module `fjs/media/json/html/module.f.ts` that converts a JSON `Unknown` value to a
+A module `fjs/media/json/html/module.f.mjs` that converts a JSON `Unknown` value to a
 syntax-highlighted HTML representation, using the project's existing virtual-DOM
 format (`['tag', {attrs}, ...children]`).
 
@@ -81,11 +81,12 @@ Which serialises to:
 
 ### Tasks
 
-- [ ] `fjs/media/json/html/module.f.ts` — `toHtml(value: Unknown): VDom` converter
-- [ ] `proof.f.ts` covering each value type and a nested example
+- [ ] `fjs/media/json/html/module.f.mjs` — `toHtml(value: Unknown): VDom` converter
+- [ ] `proof.f.mjs` covering each value type and a nested example
 - [ ] Register in `deno.json` exports
 
 ### Related
 
-- `fjs/media/json/module.f.ts` — the `Unknown` type and `serialize`
-- `fjs/media/json/schema/module.f.ts` — sibling JSON-dialect module
+- `fjs/media/json/types.ts` — the `Unknown` type
+- `fjs/media/json/module.f.mjs` — `serialize`
+- `fjs/media/json/schema/module.f.mjs` — sibling JSON-dialect module

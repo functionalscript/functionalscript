@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/crypto/sign/module.f.ts:53-55` defines and **exports** an n-ary
+`fjs/crypto/sign/module.f.mjs:53-55` defines and **exports** an n-ary
 bit-vector concatenation:
 
 ```ts
@@ -17,15 +17,15 @@ export const concat = (...x: readonly Vec[]): Vec => listToVec(x)
 Nothing about it is signing-specific — it is the variadic sibling of the
 binary `msb.concat`, pure `bit_vec` logic living in (and widening the
 public API of) the ECDSA module. It has no external consumer besides the
-module's own `proof.f.ts`, which awkwardly imports this `concat` *and*
-separately reaches for the binary `msb.concat` (`proof.f.ts:7,72`).
+module's own `proof.f.mjs`, which awkwardly imports this `concat` *and*
+separately reaches for the binary `msb.concat` (`proof.f.mjs:7,72`).
 `AGENTS.md`: path-style logic belongs in its natural module even with a
 single consumer, and a declaration should only be `export`ed for a real
 external consumer.
 
 ### Proposal
 
-Move the variadic form into `fjs/types/bit_vec/module.f.ts` as part of the
+Move the variadic form into `fjs/types/bit_vec/module.f.mjs` as part of the
 bit-order namespace (both `msb` and `lsb` get it for symmetry, since it is
 one line over the existing `listToVec`):
 
@@ -45,14 +45,14 @@ readonly Vec[]): Vec => listToVec(x)` kept **private** in `crypto/sign`
 
 ### Tasks
 
-- [ ] Add `concatAll` to `BitOrder` in `fjs/types/bit_vec/module.f.ts` with
+- [ ] Add `concatAll` to `BitOrder` in `fjs/types/bit_vec/module.f.mjs` with
       proof coverage (0, 1, n arguments; both bit orders).
-- [ ] Replace `concat` uses in `fjs/crypto/sign/module.f.ts` and
-      `proof.f.ts`; delete the local export.
+- [ ] Replace `concat` uses in `fjs/crypto/sign/module.f.mjs` and
+      `proof.f.mjs`; delete the local export.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related
 
-- `fjs/types/bit_vec/module.f.ts` — `listToVec`, `concat` (binary), the
+- `fjs/types/bit_vec/module.f.mjs` — `listToVec`, `concat` (binary), the
   natural home.
 - `AGENTS.md` — separation-of-concerns and export-only-with-consumer rules.

@@ -8,7 +8,7 @@ hoisting can proceed independently at any time.
 
 ### Problem
 
-`fileCas.write` (`fjs/cas/module.f.ts:162-220`) defines its helpers nested:
+`fileCas.write` (`fjs/cas/module.f.mjs:173-247`) defines its helpers nested:
 `publish` (`:167-177`), `fail` (`:179-180`), and the chunk `loop`
 (`:184-207`), capturing `sha2`, `path`, `stageDir`, `rndStr`, and `payload`
 from the enclosing scopes.
@@ -34,11 +34,11 @@ no-speculative-export rule:
 ```ts
 /** Publishes the finished staging file to its content-addressed shard. */
 const publish = (sha2: Sha2) => (path: string) =>
-    (state: Sha2State, offset: number, curPath: string): Effect<FileCasOperation, IoResult<Vec>> => …
+    (state: Sha2State, offset: number, curPath: string): Effect<FileCasOperation, Vec, IoChannel> => …
 
 /** Deletes the partial staging file and fails with `e`. */
-const fail = (curPath: string) => (e: unknown): Effect<Rm, IoResult<Vec>> =>
-    rm(curPath).step(() => pure(error(e)))
+const fail = (curPath: string) => (e: IoChannel): Effect<Rm, Vec, IoChannel> =>
+    rm(curPath).step(() => pureError(e))
 ```
 
 The chunk `loop` is one of the four consumers listed in
@@ -63,5 +63,7 @@ by a one-line JSDoc claim, as above. No fragment extraction.
 
 - [fold-stream-combinator](../../effects/todo/fold-stream-combinator.md) —
   covers the chunk loop; this issue covers the remaining nested helpers.
-- `okStep` (`fjs/effects/module.f.ts`) already applies to two steps inside
-  `write` (`createExclusive`, and `casUpload` beside it).
+- The Io `step` (`fjs/effects/io/module.f.mjs`) already short-circuits a step
+  inside `write` (`createExclusive`). This once named `okStep`, an adapter in
+  the raw module; it was inlined into that `step`, which is the only caller it
+  ever had.

@@ -3,23 +3,22 @@
 **Priority:** P4
 **Status:** open
 
-`fjs/` has 28 top-level directories mixing foundational data structures (`types`), byte/character encoders (`base64`, `base128`, `cbase32`), language tooling (`json`, `djs`, `fjs`, `fsc`, `bnf`, `js`, `html`), crypto, storage (`cas`, `sul`), and project infrastructure (`ci`, `dev`, `website`). Regroup incrementally — not a big-bang reorg, since every cross-module import is a relative `.f.ts` path.
+`fjs/` has 28 top-level directories mixing foundational data structures (`types`), byte/character encoders (`base64`, `base128`, `cbase32`), language tooling (`json`, `djs`, `fjs`, `fsc`, `bnf`, `js`, `html`), crypto, storage (`cas`, `sul`), and project infrastructure (`ci`, `dev`, `website`). Regroup incrementally — not a big-bang reorg, since every cross-module import is a relative `.f.mjs` path.
 
 ### 1. `fjs/basen/` — group base-N encoders
 
 Move `base64`, `base128`, `cbase32` under `fjs/basen/`. They are sibling alphabet-parameterised encoders sharing a codec factory.
 
-The three codecs have moved, but the codec factory they share has not: it is
-still `fjs/base_n/module.f.ts`, a top-level directory whose name differs from
-`fjs/basen/` by one underscore. Two directories one character apart, one holding
-the factory and the other its consumers, is a live confusion hazard in imports
-and in `grep`. Finish the group by moving the factory to `fjs/basen/module.f.ts`
-— the parent of the codecs that call it, which is where a shared factory belongs
-— and delete `fjs/base_n/`. The whole directory moves, not just the module:
-`fjs/base_n/proof.f.ts` becomes `fjs/basen/proof.f.ts` (it is the factory's only
-proof — it covers `normalize`, invalid input, chunk boundaries and large inputs,
-so leaving it behind would silently drop `baseN`'s coverage), and the two open
-issues move to `fjs/basen/todo/`.
+Done. The three codecs moved first, then the codec factory they share followed:
+`fjs/base_n/` was a top-level directory whose name differed from `fjs/basen/` by
+one underscore, and two directories one character apart — one holding the
+factory, the other its consumers — was a live confusion hazard in imports and in
+`grep`. The whole directory moved, not just the module: the factory is now
+`fjs/basen/module.f.mjs`, the parent of the codecs that call it, and its proof is
+`fjs/basen/proof.f.mjs` (it is the factory's only proof — it covers `normalize`,
+invalid input, chunk boundaries and large inputs, so leaving it behind would have
+silently dropped `baseN`'s coverage). The two open issues moved to
+`fjs/basen/todo/` and `fjs/base_n/` is deleted.
 
 ### 2. `fjs/common/` — common algorithms
 
@@ -27,7 +26,7 @@ Create `fjs/common/` for cross-cutting reusable algorithms, starting by moving `
 
 ### 3. Promote `fjs` bin to `fjs/` root
 
-`fjs/fjs/module.f.ts` is the top-level CLI dispatcher — nothing imports it as a library. Move `fjs/fjs/{module.ts, module.f.ts, proof.f.ts, README.md}` to `fjs/`. Update `package.json` (`bin.fjs`, scripts) and `deno.json` (`fjs` task). Fix relative imports (drop one `../`).
+`fjs/fjs/module.f.mjs` is the top-level CLI dispatcher — nothing imports it as a library. Move `fjs/fjs/{module.ts, module.f.mjs, proof.f.mjs, README.md}` to `fjs/`. Update `package.json` (`bin.fjs`, scripts) and `deno.json` (`fjs` task). Fix relative imports (drop one `../`).
 
 ### Later candidates
 
@@ -47,6 +46,12 @@ fjs/media/
                 application/vnd.fjs.revision+json (format only, new code —
                 landed; see fjs/media/revision/README.md)
 ```
+
+A fourth followed by the same membership rule: `media/lock/` — dialect
+`vnd.fjs.lock`, served as `application/vnd.fjs.lock+json`, a revision's `lock`
+map stored on its own so several revisions can share one resolution. It sits
+beside `revision/` for the same cycle reason (see below), and imports the map
+schema from it rather than restating it.
 
 Later candidates for the same bucket, deliberately deferred to keep each PR
 small:
@@ -126,7 +131,7 @@ per-format branches.
 **Cycle rule** (the reason `revision` is in the list): whatever the detector
 must import to recognize a format — its schema, its `dialect` constant — must
 be a `media/` sibling, never live inside a store or adapter. Concretely:
-`fjs/cas/mcp` depends on the detector, and detecting revision blobs requires the
+`fjs/mcp` depends on the detector, and detecting revision blobs requires the
 revision schema, so a revision format inside `fjs/cas` would create a
 `cas` ↔ detector cycle. The revision *format* (schema, tag, encode/decode)
 therefore lives at `fjs/media/revision/`, while the store-touching evolution
@@ -141,7 +146,7 @@ it — see [fjs/media/revision/README.md](../media/revision/README.md) and
   media formats, not an implementation of `text/plain`. Remains top-level.
 - `js/` — `identifier` + `tokenizer` only, i.e. language tooling consumed by
   `djs`/`fsc`, closer in kind to `bnf`; decide with the tooling bucket, not here.
-- `base64`/`base_n`/`cbase32`/`base128` — transfer encodings, not media types
+- `base64`/`basen`/`cbase32`/`base128` — transfer encodings, not media types
   (they move under `fjs/basen/`, item 1 above).
 
 **Rejected names** for the bucket: `mime/` (collides with the existing detector
@@ -156,7 +161,7 @@ API (no `exports` map), so every move is a breaking change. The first wave is
 ### Tasks
 
 - [x] Create `fjs/basen/` and move `base64`, `base128`, `cbase32` into it.
-- [ ] Move the shared codec factory `fjs/base_n/module.f.ts` to `fjs/basen/module.f.ts` **together with `fjs/base_n/proof.f.ts`** (→ `fjs/basen/proof.f.ts`), move `fjs/base_n/todo/*` to `fjs/basen/todo/`, and delete `fjs/base_n/`.
+- [x] Move the shared codec factory `fjs/base_n/module.f.ts` to `fjs/basen/module.f.mjs` **together with `fjs/base_n/proof.f.ts`** (→ `fjs/basen/proof.f.mjs`), move `fjs/base_n/todo/*` to `fjs/basen/todo/`, and delete `fjs/base_n/`.
 - [x] Create `fjs/common/` and move `monoid` from `fjs/types/` into it.
 - [x] Promote the `fjs` bin to `fjs/` root; update `package.json`/`deno.json` script paths and fix relative imports.
 - [x] Move `fjs/json/` → `fjs/media/json/` (one PR; establishes the `fjs/media/` bucket).
@@ -165,5 +170,5 @@ API (no `exports` map), so every move is a breaking change. The first wave is
 - [x] Rename `fjs/mime/` → `fjs/media/type/`.
 - [ ] Later: move `fjs/djs/` → `fjs/media/djs/`.
 - [x] Update all relative imports referencing the moved modules.
-- [ ] Update `deno.json` `exports` map and run `npm run update` (no `exports` map exists in `deno.json` currently; nothing to update). **When a map is first introduced it must enumerate every `module.f.ts` then present** — a partial map silently restricts a package that is unrestricted today. Modules proposed meanwhile are counting on this: `fjs/media/json/grammar` ([bnf-grammar-single-owner](../media/json/todo/bnf-grammar-single-owner.md)) and `fjs/effects/{all,sandbox,console,test}` ([node-module-layering](../effects/todo/node-module-layering.md)) each record that their registration lands here rather than in their own change.
+- [ ] Update `deno.json` `exports` map and run `npm run update` (no `exports` map exists in `deno.json` currently; nothing to update). **When a map is first introduced it must enumerate every `module.f.mjs` then present** — a partial map silently restricts a package that is unrestricted today. Modules proposed meanwhile are counting on this: `fjs/media/json/grammar` ([bnf-grammar-single-owner](../media/json/todo/bnf-grammar-single-owner.md)) and `fjs/effects/{all,sandbox,console,test}` ([node-module-layering](../effects/todo/node-module-layering.md)) each record that their registration lands here rather than in their own change.
 - [x] Verify `npx tsc` and `fjs t` pass.

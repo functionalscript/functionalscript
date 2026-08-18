@@ -3,7 +3,7 @@
     "functionalscriptCas": {
       "type": "stdio",
       "command": "node",
-      "args": ["./fjs/module.ts", "m"],
+      "args": ["./fjs/module.mjs", "m"],
       "cwd": "${workspaceFolder}"
     }
   }

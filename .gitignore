@@ -128,7 +128,6 @@ _*
 .DS_Store
 **/*.d.mts
 **/*.d.ts
-**/*.js
 
 test-results/
 
@@ -137,3 +136,5 @@ index.html
 .cas/
 .claude
 
+# Generated Nix flake locks
+/nix/generated/**/flake.lock

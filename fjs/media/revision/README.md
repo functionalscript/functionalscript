@@ -9,7 +9,7 @@ updates to one logical mutable object a shared shape, without any mutable
 pointer anywhere in the store itself.
 
 ```ts
-import { revisionSchema, dialect, mediaType, validate, decodeText } from './module.f.ts'
+import { revisionSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.mjs'
 ```
 
 ## Shape
@@ -22,7 +22,12 @@ export const revisionSchema = {
     snapshot: hash,
     generation: number,
     archived: option(true),
+    lock: option(lockField),
 } as const
+
+export const lock = () => ['record', lockValue] as const
+const lockValue = () => ['or', string, lock] as const
+export const lockField = () => ['or', hash, lock] as const
 ```
 
 | Field        | Type                    | Meaning                                                              |
@@ -33,6 +38,7 @@ export const revisionSchema = {
 | `snapshot`   | `hash`                  | Complete materialized content of this revision. Always stated explicitly. |
 | `generation` | `number`                | Generation number — `0` for the first revision, else `1 + max(parent.generation)` for conforming writers. |
 | `archived`   | `true` (optional)       | Marks the mutable object as archived/inactive.                         |
+| `lock`       | `hash \| { [subject: string]?: hash \| LockMap }` (optional) | Resolver input binding dependency subjects to immutable content, optionally scoped — inline as a map (see [Lock maps](#lock-maps)) or as the hash of a `vnd.fjs.lock` blob holding one (see [Shared lock references](#shared-lock-references)). |
 
 `hash` is a cbase32 native CAS address ([fjs/basen/cbase32](../../basen/cbase32/)).
 It is the only snapshot-reference type this dialect accepts: `parents` and
@@ -40,6 +46,108 @@ It is the only snapshot-reference type this dialect accepts: `parents` and
 other location-addressed reference form. `subject` is a pure identity string,
 never a snapshot reference, so it is never validated as a hash — any string is
 a valid `subject`.
+
+## Lock maps
+
+Held inline, `lock` is an optional open map from subject to either a **direct
+hash** or a **nested lock map**, to any depth. (The field also accepts a hash
+in place of the whole map — see
+[Shared lock references](#shared-lock-references) — which is a different thing
+from the hashes described here, and the only position where it is.) Each direct
+value selects immutable content, like `snapshot`; it is not a revision-object
+hash. Missing bindings have no format-defined fallback or inheritance
+behavior: dependency discovery,
+precedence, conflict handling, ancestry inspection, and mutable-head fallback
+belong to resolvers. An omitted lock means no bindings were recorded, while an
+explicit empty lock remains distinct as `{}`. A binding for the revision's own
+subject is structurally valid.
+
+A flat map is the normal representation. Nest only when one flat binding
+cannot express the available scoped choices — the incompatible diamond being
+the case that motivates nesting at all:
+
+```text
+A -> B        B -> D(v1)
+A -> C        C -> D(v2)
+```
+
+```json
+{
+  "B": { "B": "snapshot-hash-of-B", "D": "snapshot-hash-of-D-v1" },
+  "C": { "C": "snapshot-hash-of-C", "D": "snapshot-hash-of-D-v2" }
+}
+```
+
+The format **records** that information and stops there. It defines no
+overlay, replacement, inheritance, or lookup rule for a nested map, exactly as
+it defines none for a flat one — a nested map may be sparse and may omit the
+subject it appears under. What a scope means, and which of two enclosing
+bindings wins, is a resolver's decision; two resolvers reading the same
+revision may legitimately answer differently, and the blob has not lost
+anything either of them needs.
+
+Because entries select *content* hashes and never revisions containing further
+lock maps, a lock map cannot introduce a revision-hash cycle: a logical
+dependency cycle between subjects is expressible without one.
+
+Nesting only widens the value domain, so every flat map remains valid and
+means what it always did. It stays inside this dialect rather than becoming
+`vnd.fjs.revision2` — see [Widening `lock`](#widening-lock) below.
+
+## Shared lock references
+
+In place of the map, `lock` may be a **hash naming a
+[`vnd.fjs.lock`](../lock/) blob** that holds one. A revision whose bindings are
+unchanged from its parent's then re-serializes one hash instead of the whole
+map, and several subjects resolving the same dependency set can point at one
+agreed resolution rather than each carrying a copy that nothing checks stays
+equal.
+
+```json
+{ "dialect": "vnd.fjs.revision", "subject": "app", "parents": [], "snapshot": "…", "generation": 0, "lock": "…" }
+```
+
+Only the top level admits a hash. A string *inside* a map is a dependency's
+content, exactly as before; a string *as* the field is where the whole map
+lives. Nothing is ambiguous, because the two are never in the same position.
+
+**The field is validated as a cbase32 hash and nothing more.** This module is
+pure format with no store access, so it does not check that the blob exists, or
+that what is under it is a `vnd.fjs.lock` at all — the same contract `snapshot`
+already has. Following the reference is a resolver's job, and a resolver keeps
+every semantic the format still declines to define.
+
+**A revision states one or the other, never both.** The two forms are
+alternatives in one field, so "an inline map *and* a reference" cannot be
+written down, and the format therefore defines no precedence between them —
+consistent with its refusal to define overlay or inheritance for nested maps.
+Nor is a chain possible: a lock blob's own `lock` is a map, never a hash
+([Composition](../lock/README.md#composition)), so following a reference
+terminates in one step.
+
+**Interpretability in isolation is unaffected in the sense the rule means it.**
+`snapshot` and `generation` remain required, so materializing a revision's
+content and ordering it still needs nothing but the blob. A reference is a
+reference, like `snapshot` and `parents` — dereferencing one is fetching, not
+inference: no algorithm, no ancestry walk, no third case. What a resolver had
+to fetch to *use* the bindings, it fetched already.
+
+The reference is spelled as a **widening of the existing field** rather than as
+a new `lockRef` sibling, and that choice is a compatibility one, not a
+stylistic one — see
+[Widening `lock` again](#widening-lock-again) once the versioning rule below
+is in view.
+
+## Canonical serialization
+
+Conforming writers serialize revision JSON canonically by sorting every
+object's property names lexicographically. Sorting is recursive, so it applies
+to the top-level revision, `lock` at every depth, and future nested JSON
+objects; arrays retain their declared order. Names are compared as strings
+(`"10"` precedes `"2"`).
+Consequently parsed revisions that differ only in whitespace, escape spelling,
+or property construction order converge to identical bytes and one CAS address.
+Existing non-canonical blobs remain valid input and normalize when rewritten.
 
 Because rtti struct schemas can't express string-content refinements, `hash`
 is `string` at the schema level and `generation` is `number`; cbase32
@@ -55,7 +163,10 @@ Every field a revision needs is present in the revision itself: `snapshot` and
 another blob. A reader can materialize a revision's content (`snapshot`) and
 order it (`generation`) from the blob alone — there is no inheritance to
 resolve, no ancestry to walk, no third-case algorithm. This is the property
-every future field proposal is measured against.
+every future field proposal is measured against — including a
+[shared lock reference](#shared-lock-references), which passes it because
+dereferencing a hash is fetching, not inference, exactly as it is for
+`snapshot` and `parents`.
 
 The rule that produces it: **a field whose absent value would have to be
 *derived from other data* is required; optional is reserved for fields whose
@@ -90,8 +201,18 @@ dialect:   vnd.fjs.revision
 mediaType: application/vnd.fjs.revision+json
 ```
 
-No registry entry is required for the vendor tree; the string is stable, and
+No IANA registration is required for the vendor tree; the string is stable, and
 it is validated by the schema itself since the literal is part of the schema.
+
+**Recognizing a blob of unknown provenance.** `fjs/media`'s `detect` is told
+which dialects to recognize rather than knowing any itself; this module
+contributes `revisionDialect` — `revisionSchema` plus `checkReferences` as its
+refinement — so a blob is classified as `application/vnd.fjs.revision+json`
+exactly when `decodeText` would accept it, and the media type is derived from
+the schema's own `dialect` literal by the rule above rather than named a second
+time. Any format following this convention registers the same way, with
+`dialectEntry`; a caller that already knows what it is validating needs none of
+this and calls `decodeText` / `validate` directly.
 
 **Versioning rule:** additive, compatible changes keep the tag — rtti struct
 validation accepts undeclared keys by design, so a blob with extra fields
@@ -105,6 +226,24 @@ reader would still validate such a blob and materialize the base, silently
 ignoring the changes). Incremental changes are a future separate dialect,
 `vnd.fjs.change`, served as `application/vnd.fjs.change+json`.
 
+### Widening `lock`
+
+Allowing a nested map where only a hash string used to be legal is neither of
+those cases, and it keeps the tag. The versioning rule forbids reusing a tag
+when an old reader would still validate a new blob and **misread** it; a
+reader that validates `lock` as a map of strings rejects a nested map outright
+instead. So the two failure modes on offer are:
+
+- **keep the tag** — a nested-lock revision is unreadable to old readers, and
+  every flat-lock revision (the normal representation) keeps working;
+- **new tag** — *every* revision becomes unreadable to old readers, including
+  the flat ones, to announce a capability most blobs never use.
+
+The dialect tag is per blob, not per field, so the second option cannot be
+scoped to the revisions that actually nest. Widening keeps the tag, and an
+older reader's rejection of a nested map is the intended, fail-closed outcome
+rather than a compatibility break to route around.
+
 **Relaxing a required field is also incompatible.** Making a currently
 required field (`snapshot`, `generation`) optional again is allowed, but only
 together with a *specified inference algorithm* for the absent value — and,
@@ -114,6 +253,33 @@ algorithm are one decision. (This was possible in-place for the current
 requirement only because the format is still being designed and no
 `vnd.fjs.revision` records have ever been stored — that window closes the
 moment the first revision is written.)
+
+### Widening `lock` again
+
+[Shared lock references](#shared-lock-references) is the same decision a second
+time, and it is why the reference is a widening of `lock` rather than a
+`lockRef` sibling.
+
+A sibling field would be schema-additive — rtti structs are open, so an older
+reader would still validate the blob — and it would then read `lock` as absent:
+*no bindings were recorded*, the field's documented constant meaning. It would
+resolve dependencies through mutable heads and believe the result reproducible.
+That is precisely the silent misread this rule exists to prevent, and the same
+trap that keeps incremental diffs out of this dialect. A `lockRef` field would
+therefore have required `vnd.fjs.revision2`, making *every* revision unreadable
+to older readers — including the ones that never share a lock.
+
+Widening the field fails **closed** instead, exactly as nesting did: a reader
+that validates `lock` as a map rejects a string outright rather than misreading
+it. Only revisions that actually reference a shared lock are unreadable to an
+older reader, and the tag stays `vnd.fjs.revision`.
+
+The cost is one field carrying both "the bindings" and "where the bindings
+are", which reads slightly worse in the schema. It is worth it twice over: it
+trades a per-dialect compatibility cost for a per-blob one, and it makes
+carrying an inline map and a reference at once unstatable rather than merely
+discouraged — so the format has no precedence rule to define, just as it has
+none for nested maps.
 
 ## Tagged-JSON detection
 
@@ -204,6 +370,9 @@ the existing `option(true)` idiom (a presence-only flag) rather than
   `hash.generation` alone does not pin a version across branches; undefined
   for now, only hashes are used). Subject identity strings are already
   unconstrained, since `subject` is never a snapshot reference.
+- A dependency-resolution algorithm. The format records bindings; precedence,
+  inheritance, and conflict rules are a resolver's, and are deliberately
+  absent here (see [Lock maps](#lock-maps)).
 - Digital signatures for filtering changes from unknown users — a future,
   separate spec. Further out, a `{public-key}/{name}.{generation}` reference
   form, where the key's owner defines what `{name}` means: anchoring the

@@ -24,32 +24,32 @@ building/running them is an ordinary cargo workflow. Each ecosystem keeps its
 native tool. The self-hosted `nanvm` crate is the post-MVP milestone below
 (see [console-program](./console-program.md)).
 
-See [`todo/lang/`](../../todo/lang/README.md) for language details. Details
+See [`spec/`](../../spec/README.md) for language details. Details
 for individual items below are added only after discussion.
 
 ### Proposal
 
-#### Canonical representation: the AST as data (decided)
+#### Canonical representation: the EDAG as data (decided)
 
-The stable, canonical representation of functions is the **AST**, expressed
+The stable, canonical representation of functions is the **EDAG**, expressed
 as an FJS value (`Any`). Code is data: the `Function` constructor accepts an
 `Any` that describes the code, and the VM knows how to execute it. The
 reasons:
 
 1. We need a canonical data representation of functions in FunctionalScript —
    and in the future content-addressable VM (CAVM) — to compute a hash.
-2. The AST can be transformed back to source code; this transformation will
+2. The EDAG can be transformed back to source code; this transformation will
    be used in `toString(f)`.
 3. Because code is an FJS value, serializing functions requires no separate
    format: once the VM serializes `Any` values, it serializes code too.
 
 Bytecode is an advanced, performance-oriented representation that may vary
-across architectures, VM implementations, and versions, while the AST is the
+across architectures, VM implementations, and versions, while the EDAG is the
 stable representation. See
-[`todo/lang/README.md` §9](../../todo/lang/README.md#9-serialization-ast-as-data-not-bytecode).
+[`spec/todo/serialization.md`](../../spec/todo/serialization.md).
 
-The exact shape of the code-describing `Any` (tags/shapes) is specified by
-the [ast-spec](../../todo/ast-spec.md) — the contract of the `Function`
+The exact shape of the code-describing `Any` is specified by the
+[edag-spec](../../todo/edag-spec.md) — the contract of the `Function`
 constructor.
 
 #### Execution: two paths (decided)
@@ -71,10 +71,10 @@ Invariants:
   control flow and dispatch.
 - A natively compiled function still **carries its `Any` code description**
   (as static data), so content hashing and `toString(f)` apply uniformly to
-  all functions: the AST is the identity of a function; native code is a
+  all functions: the EDAG is the identity of a function; native code is a
   cached acceleration of it. This invariant is **staged**: the MVP code
   generator omits the embedded description while the
-  [ast-spec](../../todo/ast-spec.md) (P2) is not yet defined — it must not
+  [edag-spec](../../todo/edag-spec.md) (P2) is not yet defined — it must not
   invent its own shapes ahead of the spec. Embedding becomes mandatory once
   the spec lands, and before the `Function` constructor, hashing, or
   `toString(f)` ship.
@@ -85,7 +85,7 @@ Invariants:
 #### Rust code generation: an output target of `fjs compile` (decided)
 
 `fjs compile <input> <output>` already dispatches on the output extension
-(`.json` vs. DJS — see [`fjs/djs/module.f.ts`](../../fjs/djs/module.f.ts));
+(`.json` vs. DJS — see [`fjs/djs/module.f.mjs`](../../fjs/djs/module.f.mjs));
 Rust code generation is a third branch, selected by the `.rs` extension. No
 new CLI surface: the previously proposed `fjs vm build` / `fjs vm run`
 command group is dropped.
@@ -100,13 +100,21 @@ testing, self-hosting, and AOT embedding.
 #### Effects: the `nanvm-effects-node` runner crate (decided)
 
 The compiler CLI is pure FJS that *returns* effect descriptions
-(`Effect<NodeOp, T>`); all actual impurity lives in thin `.ts` runner
-modules (e.g. [`fjs/effects/node/module.ts`](../../fjs/effects/node/module.ts)),
-which are not FJS and never pass through the code generator. The
-`.f.ts`/`.ts` split is exactly the compiled/hand-written boundary: every
-`.f.ts` module compiles to Rust; every impure `.ts` runner needs a
-hand-written Rust twin interpreting the same operation vocabulary against
-the OS (`std::fs`, `std::process`, stdio) instead of Node built-ins.
+(`Effect<NodeOp, T>`); all actual impurity lives in thin runner modules
+(e.g. [`fjs/effects/node/module.mjs`](../../fjs/effects/node/module.mjs)),
+which are not FJS and never pass through the code generator. Stage 1 of the
+repository migration moves authored `.ts` / `.f.ts` to `.mjs` / `.f.mjs` with
+JSDoc independently of compiler support, so `.f.mjs` is **not** the compiled
+source marker. After Stage 1 and authored `.f.js` package support are complete,
+compiler-supported `.f.mjs` modules may move to authored `.f.js`; `.f.js` is the
+repository compiler-compatibility marker. The extension contract and migration
+strategy are documented in [`fjs/fsc/README.md`](../../fjs/fsc/README.md).
+
+Impure runner modules remain outside the FJS compiler regardless of whether their
+authored JavaScript extension is `.ts` during migration or `.mjs` afterward. A
+native build therefore still needs a hand-written Rust twin interpreting the
+same operation vocabulary against the OS (`std::fs`, `std::process`, stdio)
+instead of Node built-ins.
 
 The Rust twin of `fjs/effects/node` is the **`nanvm-effects-node`** library
 crate — named to mirror the effect directory structure: this specific
@@ -116,7 +124,7 @@ It is a separate crate in the same workspace, published on crates.io:
 `nanvm-lib` stays pure (no OS dependencies — keeping a future `no_std`
 embedded profile open), and the `nanvm` binary depends on both. It serves
 any AOT-compiled effectful FJS program, not just the embedded compiler —
-it is to native FJS what `fjs/effects/node/module.ts` is to Node FJS.
+it is to native FJS what `fjs/effects/node/module.mjs` is to Node FJS.
 
 **Generated stub — the vocabulary is machine-checked.** The Rust side of
 the effect vocabulary is not written by hand: a **generated stub** (op,
@@ -129,7 +137,7 @@ build until the twin catches up. Since `NodeOp` today is TypeScript types
 only and the code generator compiles FJS values, the vocabulary becomes an
 **RTTI schema** (the specification of record) from which both the TS types
 (`Ts<T>`) and the Rust stub are derived — the third instance of the
-single-source pattern, after the [ast-spec](../../todo/ast-spec.md) and the
+single-source pattern, after the [edag-spec](../../todo/edag-spec.md) and the
 operator tests. The stub is generated code: it is committed to the
 repository and regenerated through the same single-script / drift-check
 rules as the generated compiler source (see the distribution section
@@ -149,10 +157,13 @@ Scoping notes:
   not a syscall port.
 - **Testing comes cheap.** The pure in-memory interpreters
   ([`fjs/effects/mock`](../../fjs/effects/mock),
-  [`fjs/effects/node/virtual`](../../fjs/effects/node/virtual)) are `.f.ts`
-  code, so they compile through the code generator unchanged: the compiled
-  CLI can run against in-memory effects with no Rust twins, and the
-  `nanvm-effects-node` runner can be cross-checked against the pure
+  [`fjs/effects/node/virtual`](../../fjs/effects/node/virtual)) are currently
+  `.f.ts` code. Stage 1 migrates them to `.f.mjs` when their JavaScript/JSDoc
+  and dependency closure are ready, independently of parser support. Once the
+  compiler supports their complete syntax in Stage 2, rename them to `.f.js`;
+  from that point they compile through the code generator unchanged, so the
+  compiled CLI can run against in-memory effects with no Rust twins. The
+  `nanvm-effects-node` runner can then be cross-checked against the pure
   interpreter operation by operation. The exception is
   [`fjs/effects/node/memory`](../../fjs/effects/node/memory) — the runner for
   the mutable memory effects (`MemOp`) — which is an impure `.ts` module
@@ -247,10 +258,10 @@ FJS source and diff against git. Once the crate ships, the check closes
 into a fixed point: the crate-shipped compiler regenerates its own
 packaged source, identically.
 
-#### What changed (vs. the earlier serialized-AST proposal)
+#### What changed (vs. the earlier serialized-EDAG proposal)
 
-Previously the MVP pipeline sent a CBOR-serialized AST from `fjs` to a
-`nanvm` executable, which required an AST wire-format spec, an FJS
+Previously the MVP pipeline sent a CBOR-serialized EDAG from `fjs` to a
+`nanvm` executable, which required an EDAG wire-format spec, an FJS
 serializer, and a Rust deserializer on the critical path. That interprocess
 handoff is replaced by Rust code generation: rustc takes the place of the
 deserializer. Serialization of `Any` values (binary encoding: **CBOR**,
@@ -269,39 +280,48 @@ as a generic `Any` facility, post-MVP.
 - [ ] **Harness + walking skeleton** — a harness crate (or generated tests
       in `nanvm-lib`) whose `main` evaluates a generated module's
       `export default` and prints the result as JSON; wire the pipeline
-      end-to-end early with a minimal subset (e.g. a constant default
-      export), driven by `cargo test` in CI, so every later feature lands
-      into a working pipeline. See
+      end-to-end early with a minimal synthetic FunctionalScript JavaScript
+      fixture (e.g. a constant default export), driven by `cargo test` in CI,
+      so every later feature lands into a working pipeline. This synthetic
+      fixture may use `.f.mjs`; it does not define the repository extension
+      contract. See
       [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md).
-- [ ] **Test generation for operators** — one test-data module drives both
-      the FJS proof (JS engine reference) and the generated Rust tests.
-      Implement **before** the operators task below, so every new operator is
-      tested once, not twice. Doubly important now: the shared operator layer
-      is what keeps the interpreter and the generated code in agreement. See
-      [single-source-of-truth-for-operator-tests](./single-source-of-truth-for-operator-tests.md).
+- [x] **Test generation for operators** — one test-data module drives both
+      the FJS proof (JS engine reference) and the generated Rust tests, so
+      every new operator is tested once, not twice. Doubly important now: the
+      shared operator layer is what keeps the interpreter and the generated
+      code in agreement. See
+      [`nanvm-lib/tests/README.md`](../tests/README.md).
 - [ ] **Complete all basic FunctionalScript operators** (Rust), including the
       short-circuit operators `&&`, `||`, `??` (lazy evaluation, like `?:`).
-      Preceded by the test-generation task above.
+      Each operator arrives as cases in
+      [`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs), which is what
+      tests it on both sides.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
-      Spec: [operators](../../todo/lang/2340-operators.md).
+      Spec: [operators](../../spec/todo/2340-operators.md).
 - [ ] **Parser**, using [`fjs/bnf/`](../../fjs/bnf/README.md) (FJS).
+- [ ] **Incremental repository compiler coverage** — this is not an MVP gate.
+      First complete the repository TypeScript-to-JavaScript Stage 1 and authored
+      `.f.js` package support. Then, as compiler coverage grows, rename eligible
+      dependency-closed `.f.mjs` modules to `.f.js` and keep them in the
+      end-to-end compiler test set. Unsupported modules remain `.f.mjs`.
 
 #### P2
 
-- [ ] **AST spec** — the RTTI schema of the code-describing `Any`; the
+- [ ] **EDAG spec** — the RTTI schema of the code-describing `Any`; the
       contract of the `Function` constructor, shared by the compiler, the
       interpreter, and the code generator (which embeds it as static data).
       Blocks the staged embedding invariant above and the `Function`
       constructor below — the MVP code generator does not embed code
       descriptions until this spec exists.
-      See [ast-spec](../../todo/ast-spec.md).
+      See [edag-spec](../../todo/edag-spec.md).
 - [ ] **`Function` constructor + interpreter** (Rust) — accepts an `Any`
-      described by the AST spec and executes it; behind a cargo feature
+      described by the EDAG spec and executes it; behind a cargo feature
       flag. Related: [fs-vm-load-save](./fs-vm-load-save.md).
 - [ ] **Basic control operator `?:`** (Rust).
 - [ ] **Nested functions** (function frame) (Rust).
-      See [function](../../todo/lang/3110-function.md),
-      [function-frame](../../todo/lang/3111-function-frame.md).
+      See [function](../../spec/todo/3110-function.md),
+      [function-frame](../../spec/todo/3111-function-frame.md).
 - [ ] **`nanvm-effects-node` crate** (Rust) — the effect runner: implements
       the generated stub trait against the OS; sync subset (fs, console)
       first. Preceded by defining the effect vocabulary as an RTTI schema
@@ -312,7 +332,7 @@ as a generic `Any` facility, post-MVP.
 #### P3
 
 - [ ] **Control statements**: `if`, `while`, etc. (Rust).
-      See [`todo/lang/README.md` §3.2](../../todo/lang/README.md).
+      See [`spec/todo/README.md` §3.2](../../spec/todo/README.md).
 - [ ] **`Any` serialization (CBOR)** — generic serialization of `Any`
       values, which covers code as data; includes the deterministic profile
       needed for CAVM hashing (see open questions).
@@ -326,14 +346,16 @@ as a generic `Any` facility, post-MVP.
 Compile the compiler itself (written in FJS) to Rust with the code generator
 and ship it as the `nanvm` crate
 ([console-program](./console-program.md)): a single native executable that
-parses and runs `.f.js` directly — no Node/Deno, no rustc at the user's run
-time — executing code via the interpreter behind the `Function` constructor,
-with its I/O interpreted by the `nanvm-effects-node` runner (see the effects
-section above).
+parses and runs FunctionalScript JavaScript directly — no Node/Deno, no rustc at
+the user's run time — executing code via the interpreter behind the `Function`
+constructor, with its I/O interpreted by the `nanvm-effects-node` runner (see the
+effects section above).
 
-Reached incrementally: the code generator's language coverage grows with the
-operator/function/control tasks above until it covers everything the
-compiler's own code uses.
+Reached incrementally: Stage 1 first removes authored TypeScript from the
+compiler source into `.f.mjs` independently of parser coverage. As the code
+generator's language coverage grows, compiler-supported modules move from
+`.f.mjs` to `.f.js`; self-hosting is the completion of that same Stage-2
+compiler-compatibility migration rather than a separate rewrite.
 
 ### Open questions
 
@@ -357,15 +379,17 @@ compiler's own code uses.
 
 ### Related
 
-- [`todo/lang/README.md`](../../todo/lang/README.md) — the language spec and
-  tag tables; §9 records the AST-as-data decision and the two execution
-  paths.
-- [ast-spec](../../todo/ast-spec.md) — the schema (RTTI) of the
+- [`spec/README.md`](../../spec/README.md) — the language spec;
+  [`spec/todo/serialization.md`](../../spec/todo/serialization.md) records the
+  EDAG-as-data decision and the two execution paths.
+- [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — source extension contract
+  and incremental repository migration.
+- [edag-spec](../../todo/edag-spec.md) — the schema (RTTI) of the
   code-describing `Any`; the `Function` constructor contract.
 - [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) — the
   walking-skeleton integration: the `.rs` output target and the harness.
 - [console-program](./console-program.md) — the self-hosted `nanvm` crate
   (post-MVP).
-- [single-source-of-truth-for-operator-tests](./single-source-of-truth-for-operator-tests.md)
-  — test generation preceding the operators task.
+- [`nanvm-lib/tests/README.md`](../tests/README.md) — the shared operator test
+  data driving both the FJS proof and the generated Rust tests.
 - [fs-vm-load-save](./fs-vm-load-save.md) — load/execute/save semantics.

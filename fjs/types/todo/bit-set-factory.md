@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/types/nibble_set/module.f.ts` and `fjs/types/byte_set/module.f.ts`
+`fjs/types/nibble_set/module.f.mjs` and `fjs/types/byte_set/module.f.mjs`
 implement the same bitmask-as-set algebra, line for line, differing only in
 the numeric domain (`number` with `universe = 0xFFFF` vs `bigint` with the
 256-bit universe) and the `BigInt(n)` shift-operand conversion. The
@@ -14,22 +14,22 @@ bitmask-as-set algebra as `byte_set`"*.
 
 | operation | `byte_set` (bigint) | `nibble_set` (number) |
 |-----------|---------------------|-----------------------|
-| `has` | `n => s => ((s >> BigInt(n)) & 1n) === 1n` (`:15`) | `n => s => ((s >> n) & 1) === 1` (`:31`) |
-| `one` | `n => 1n << BigInt(n)` (`:24`) | `n => 1 << n` (`:28`) |
-| `range` | `([b, e]) => one(e - b + 1) - 1n << BigInt(b)` (`:27`) | `([a, b]) => one(b - a + 1) - 1 << a` (`:43`) |
-| `complement` | `n => universe ^ n` (`:38`) | `s => universe ^ s` (`:37`) |
-| `set` / `setRange` / `unset` | `:45-52` | `:34-46` |
+| `has` | `n => s => ((s >> BigInt(n)) & 1n) === 1n` (`:15`) | `n => s => ((s >> n) & 1) === 1` (`:30`) |
+| `one` | `n => 1n << BigInt(n)` (`:24`) | `n => 1 << n` (`:27`) |
+| `range` | `([b, e]) => one(e - b + 1) - 1n << BigInt(b)` (`:27`) | `([a, b]) => one(b - a + 1) - 1 << a` (`:42`) |
+| `complement` | `n => universe ^ n` (`:38`) | `s => universe ^ s` (`:36`) |
+| `set` / `setRange` / `unset` | `:45-52` | `:33-45` |
 
 `nibble_set` is also an *incomplete* copy: it lacks the binary set ops
 (`union`/`intersect`/`difference`) that `byte_set` has (`:32-42`).
 
 This is exactly the AGENTS.md DRY case: same algorithm, two real consumers,
-differing only in constants — the situation `fjs/base_n` already solves for
+differing only in constants — the situation `fjs/basen` already solves for
 base-N codecs with a parameterized factory.
 
 ### Proposal
 
-Introduce a factory, e.g. `fjs/types/bit_set/module.f.ts`:
+Introduce a factory, e.g. `fjs/types/bit_set/module.f.mjs`:
 
 ```ts
 export type BitSetOps<T> = {
@@ -54,7 +54,7 @@ AGENTS.md). `byte_set`'s `toRangeMap` stays local — it is genuinely
 byte-specific.
 
 Rider: both modules inline `readonly [number, number]` for `range`'s
-parameter; the factory should use `Range` from `fjs/types/range/module.f.ts`.
+parameter; the factory should use `Range` from `fjs/types/range/types.ts`.
 
 `has` on a `bigint` set may deserve a domain-specific override if the
 generic form costs (see [185](./185.md) for the mask-based direction) —
@@ -63,7 +63,7 @@ generic `has`.
 
 ### Tasks
 
-- [ ] Add `fjs/types/bit_set/module.f.ts` (+ `proof.f.ts`, register in
+- [ ] Add `fjs/types/bit_set/module.f.mjs` (+ `proof.f.mjs`, register in
       `deno.json` exports) with the parameterized algebra.
 - [ ] Rewrite `byte_set` and `nibble_set` as instantiations, preserving
       their public APIs and JSDoc (including nibble_set's
@@ -74,5 +74,5 @@ generic `has`.
 
 - [185](./185.md) — `byte_set`-internal `range`/`one` via `bigint.mask`;
   orthogonal — the shared `range` can use `mask` internally once extracted.
-- `fjs/base_n/module.f.ts` — the codebase's precedent for
+- `fjs/basen/module.f.mjs` — the codebase's precedent for
   constants-parameterized codec factories.

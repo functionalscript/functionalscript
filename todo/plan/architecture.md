@@ -45,14 +45,14 @@ stdioTransport(step)             ← local, current
 httpTransport(step, port)        ← remote, future
 ```
 
-Planned refactor: extract `casMcpStep` from `casMcpServer` in `fjs/cas/mcp/module.f.ts`. Currently `casMcpServer` wires stdio directly; once extracted, the stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
+Planned refactor: extract `casMcpStep` from `casMcpServer` in `fjs/mcp/module.f.mjs`. Currently `casMcpServer` wires stdio directly; once extracted, the stdio server becomes a one-liner and the HTTP server is additive, not a rewrite.
 
-The HTTP effect infrastructure (`CreateServer`, `Listen`, `Fetch`) already exists in `fjs/effects/node/module.f.ts` — only the transport wrapper is missing.
+The HTTP effect infrastructure (`CreateServer`, `Listen`, `Fetch`) already exists in `fjs/effects/node/module.f.mjs` — only the transport wrapper is missing.
 
 ## Content encoding
 
 **Current:** content crosses the MCP wire as **cBase32** (same encoding as hashes).
-**Target (Layer 2):** switch content to **base64** (MCP-idiomatic for binary data); hashes stay as cBase32. The base64 codec (`fjs/base64/module.f.ts`) is already implemented — only the MCP wiring remains.
+**Target (Layer 2):** switch content to **base64** (MCP-idiomatic for binary data); hashes stay as cBase32. The base64 codec (`fjs/base64/module.f.mjs`) is already implemented — only the MCP wiring remains.
 
 ## Addressing
 
@@ -81,7 +81,7 @@ Every hop is verifiable: each directory is a signed DISOT block, so you know exa
 
 SUL is "synthetic" and "universal" because it imposes a tree structure on data where no structure is known — any raw bit sequence, regardless of its actual internal layout. The tree is synthetic: it is not derived from the data's semantics, just from its bytes. This is precisely its strength for unstructured or opaque data: an array of items where nothing tells you how to group the elements into a tree, a binary BLOB of unknown format, a stream of bytes — SUL gives all of these a stable, content-addressed root ID with structural deduplication across shared sub-sequences.
 
-This also means SUL is **not** appropriate where the structure is known. A FunctionalScript AST has a well-defined, semantically meaningful tree structure that is completely different from the balanced binary byte-tree SUL would impose. Using SUL for an AST would destroy the semantic structure and produce a different, less useful tree. CA FunctionalScript will use its own canonicalization scheme derived from the AST's actual grammar — not SUL.
+This also means SUL is **not** appropriate where the structure is known. A FunctionalScript EDAG has a well-defined, semantically meaningful tree structure that is completely different from the balanced binary byte-tree SUL would impose. Using SUL for an EDAG would destroy the semantic structure and produce a different, less useful tree. CA FunctionalScript will use its own canonicalization scheme derived from the EDAG's actual grammar — not SUL.
 
 - **For large BLOBs in DISOT** — structural deduplication without a separate index; shared sub-sequences across different BLOBs are stored once as shared tree nodes
 - **For opaque sequences** — e.g. a flat array of items where the grouping into a tree is not specified by the data format; SUL provides a canonical, stable decomposition

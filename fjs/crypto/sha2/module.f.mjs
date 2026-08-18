@@ -1,0 +1,433 @@
+/**
+ * See https://www.rfc-editor.org/rfc/rfc6234
+ *
+ * @module
+ *
+ * @import { Tuple } from '../../types/array/types.ts'
+ * @import { Reduce } from '../../types/bigint/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Fold } from '../../types/function/operator/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Base, Sha2, State, V16, V8 } from './types.ts'
+ */
+
+import { divUp8, mask } from '../../types/bigint/module.f.mjs'
+import {
+    vec,
+    length,
+    empty,
+    msb,
+    chunkList,
+    uint,
+} from '../../types/bit_vec/module.f.mjs'
+import { fold } from '../../types/list/module.f.mjs'
+
+const { concat, front } = msb
+
+// `chunkList(msb)` depends on neither `chunkLength` nor `v`/`state` — shared
+// across every `base(...)` config (32-bit and 64-bit SHA-2 variants).
+const chunkListMsb = chunkList(msb)
+
+/** @typedef {Tuple<3, bigint>} _V3 */
+
+/** @typedef {Tuple<4, bigint>} _V4 */
+
+/**
+ * @typedef {{
+ *   readonly logBitLen: bigint,
+ *   readonly k: readonly V16[],
+ *   readonly bs0: _V3,
+ *   readonly bs1: _V3,
+ *   readonly ss0: _V3,
+ *   readonly ss1: _V3,
+ * }} _BaseInit
+ */
+
+/** @type {Vec} */
+const lastOne = vec(1n)(1n)
+
+/** @type {(init: _BaseInit) => Base} */
+const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
+
+    const bitLength = 1n << logBitLen
+
+    /** @type {Reduce} */
+    const rotr = d => {
+        const r = bitLength - d
+        return n => n >> d | n << r
+    }
+
+    /** @type {(third: Reduce) => (..._: _V3) => (x: bigint) => bigint} */
+    const sigma = third => (a, b, c) => {
+        const ra = rotr(a)
+        const rb = rotr(b)
+        const rc = third(c)
+        return x => ra(x) ^ rb(x) ^ rc(x)
+    }
+
+    const bigSigma = sigma(rotr)
+
+    const smallSigma = sigma(c => x => x >> c)
+
+    const bigSigma0 = bigSigma(...bs0)
+
+    const bigSigma1 = bigSigma(...bs1)
+
+    const smallSigma0 = smallSigma(...ss0)
+
+    const smallSigma1 = smallSigma(...ss1)
+
+    /** @type {(x: bigint, y: bigint, z: bigint) => bigint} */
+    const ch = (x, y, z) => x & y ^ ~x & z
+
+    /** @type {(x: bigint, y: bigint, z: bigint) => bigint} */
+    const maj = (x, y, z) => x & y ^ x & z ^ y & z
+
+    const m = mask(bitLength)
+
+    /** @type {(..._: _V4) => bigint} */
+    const wi = (a0, a1, a2, a3) =>
+        (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) & m
+
+    /** @type {(...w: V16) => V16} */
+    const nextW
+    = (w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF) => {
+        w0 = wi(wE, w9, w1, w0)
+        w1 = wi(wF, wA, w2, w1)
+        w2 = wi(w0, wB, w3, w2)
+        w3 = wi(w1, wC, w4, w3)
+        w4 = wi(w2, wD, w5, w4)
+        w5 = wi(w3, wE, w6, w5)
+        w6 = wi(w4, wF, w7, w6)
+        w7 = wi(w5, w0, w8, w7)
+        w8 = wi(w6, w1, w9, w8)
+        w9 = wi(w7, w2, wA, w9)
+        wA = wi(w8, w3, wB, wA)
+        wB = wi(w9, w4, wC, wB)
+        wC = wi(wA, w5, wD, wC)
+        wD = wi(wB, w6, wE, wD)
+        wE = wi(wC, w7, wF, wE)
+        wF = wi(wD, w8, w0, wF)
+        return [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, wA, wB, wC, wD, wE, wF]
+    }
+
+    const kLength = k.length
+
+    /** @type {(..._: V8) => (_: V16) => V8} */
+    const compressV16 = (a0, b0, c0, d0, e0, f0, g0, h0) => w => {
+        let a = a0
+        let b = b0
+        let c = c0
+        let d = d0
+        let e = e0
+        let f = f0
+        let g = g0
+        let h = h0
+
+        let i = 0
+        while (true) {
+            const ki = k[i]
+            for (let j = 0; j < 16; ++j) {
+                const t1 = h + bigSigma1(e) + ch(e, f, g) + ki[j] + w[j]
+                const t2 = bigSigma0(a) + maj(a, b, c)
+                h = g
+                g = f
+                f = e
+                e = (d + t1) & m
+                d = c
+                c = b
+                b = a
+                a = (t1 + t2) & m
+            }
+            ++i
+            if (i === kLength) { break }
+            w = nextW(...w)
+        }
+
+        return [
+            (a0 + a) & m,
+            (b0 + b) & m,
+            (c0 + c) & m,
+            (d0 + d) & m,
+            (e0 + e) & m,
+            (f0 + f) & m,
+            (g0 + g) & m,
+            (h0 + h) & m,
+        ]
+    }
+
+    /** @type {Reduce} */
+    const at = u => i =>
+        (u >> (i << logBitLen)) & m
+
+    /** @type {(i: V8) => (u: bigint) => V8} */
+    const compress = i => u => {
+        const a = at(u)
+        return compressV16(...i)([
+            a(15n),
+            a(14n),
+            a(13n),
+            a(12n),
+            a(11n),
+            a(10n),
+            a(9n),
+            a(8n),
+            a(7n),
+            a(6n),
+            a(5n),
+            a(4n),
+            a(3n),
+            a(2n),
+            a(1n),
+            a(0n),
+        ])
+    }
+
+    const chunkLength = bitLength << 4n // * 16
+
+    // `chunkListMsb(chunkLength)` depends on `chunkLength` but not `v`/`state`
+    // — computed once per `base(...)` config, not once per `append` call.
+    const chunkListChunkLength = chunkListMsb(chunkLength)
+
+    // Folds one block (or the final, shorter-than-`chunkLength` leftover) into
+    // `State`. `chunkList` yields chunks of exactly `chunkLength` bits except
+    // possibly the last one, which is why `remainder` only ever holds that
+    // last chunk (`empty` otherwise) — same shape as `State` itself, so no
+    // separate accumulator type is needed.
+    /** @type {Fold<Vec, State>} */
+    const appendChunk = chunk => state =>
+        length(chunk) === chunkLength
+            ? { hash: compress(state.hash)(uint(chunk)), len: state.len + chunkLength, remainder: empty }
+            : { ...state, remainder: chunk }
+
+    // `fold(appendChunk)` depends on neither `v` nor `state` — only the
+    // starting accumulator passed to it per `append` call does.
+    const foldChunks = fold(appendChunk)
+
+    /** @type {(a: V8) => bigint} */
+    const fromV8 = a => a.reduce((p, v) => (p << bitLength) | v)
+
+    // See https://www.rfc-editor.org/rfc/rfc6234#section-4
+    const lastChunkLength = chunkLength - 1n - (bitLength << 1n)
+
+    return {
+        bitLength,
+        chunkLength,
+        compress,
+        fromV8,
+        append: v => state =>
+            foldChunks({ ...state, remainder: empty })(chunkListChunkLength(concat(state.remainder)(v))),
+        end: hashLength => {
+            const offset = (bitLength << 3n) - hashLength
+            const result = vec(hashLength)
+            return state => {
+                const { len, remainder } = state
+                let { hash } = state
+                const rLen = length(remainder)
+                let u = front(chunkLength)(concat(remainder)(lastOne))
+                // last chunk overflow
+                if (rLen > lastChunkLength) {
+                    hash = compress(hash)(u)
+                    u = 0n
+                }
+                return result(fromV8(compress(hash)(u | (len + rLen))) >> offset)
+            }
+        }
+    }
+}
+
+/**
+ * SHA2. See https://en.wikipedia.org/wiki/SHA-2
+ *
+ * `hashLength` is a hash length, `blockLength` an internal block length,
+ * `init` the initial state of the SHA-2 algorithm, `append` adds data to a
+ * state and returns the new state, and `end` finalizes the hash of a state.
+ *
+ * @example
+ *
+ * ```js
+ * const s = msbUtf8("The quick brown fox jumps over the lazy dog.")
+ * let state = sha224.init
+ * state = sha224.append(state)(s)
+ * const h = sha224.end(state) // 0x1_619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn
+ * ```
+ */
+
+/** @type {(base: Base, hash: V8, hashLength: bigint) => Sha2} */
+const sha2 = ({ append, end, chunkLength }, hash, hashLength) => ({
+    hashLength,
+    blockLength: chunkLength,
+    hashBytes: divUp8(hashLength),
+    blockBytes: divUp8(chunkLength),
+    init: {
+        hash,
+        len: 0n,
+        remainder: empty,
+    },
+    append,
+    end: end(hashLength),
+})
+
+/**
+ * Computes a SHA-2 hash from a list of message chunks.
+ *
+ * @type {(sha2: Sha2) => (list: List<Vec>) => Vec}
+ */
+export const computeSync = ({ append, init, end }) => {
+    const f = fold(append)(init)
+    return list => end(f(list))
+}
+
+/**
+ * 32-bit SHA-2 base configuration shared by SHA-224 and SHA-256.
+ *
+ * @type {Base}
+ */
+export const base32 = base({
+    logBitLen: 5n,
+    k: [
+        [
+            0x428a2f98n, 0x71374491n, 0xb5c0fbcfn, 0xe9b5dba5n, 0x3956c25bn, 0x59f111f1n, 0x923f82a4n, 0xab1c5ed5n,
+            0xd807aa98n, 0x12835b01n, 0x243185ben, 0x550c7dc3n, 0x72be5d74n, 0x80deb1fen, 0x9bdc06a7n, 0xc19bf174n,
+        ],
+        [
+            0xe49b69c1n, 0xefbe4786n, 0x0fc19dc6n, 0x240ca1ccn, 0x2de92c6fn, 0x4a7484aan, 0x5cb0a9dcn, 0x76f988dan,
+            0x983e5152n, 0xa831c66dn, 0xb00327c8n, 0xbf597fc7n, 0xc6e00bf3n, 0xd5a79147n, 0x06ca6351n, 0x14292967n,
+        ],
+        [
+            0x27b70a85n, 0x2e1b2138n, 0x4d2c6dfcn, 0x53380d13n, 0x650a7354n, 0x766a0abbn, 0x81c2c92en, 0x92722c85n,
+            0xa2bfe8a1n, 0xa81a664bn, 0xc24b8b70n, 0xc76c51a3n, 0xd192e819n, 0xd6990624n, 0xf40e3585n, 0x106aa070n,
+        ],
+        [
+            0x19a4c116n, 0x1e376c08n, 0x2748774cn, 0x34b0bcb5n, 0x391c0cb3n, 0x4ed8aa4an, 0x5b9cca4fn, 0x682e6ff3n,
+            0x748f82een, 0x78a5636fn, 0x84c87814n, 0x8cc70208n, 0x90befffan, 0xa4506cebn, 0xbef9a3f7n, 0xc67178f2n,
+        ],
+    ],
+    bs0: [2n, 13n, 22n],
+    bs1: [6n, 11n, 25n],
+    ss0: [7n, 18n, 3n],
+    ss1: [17n, 19n, 10n],
+})
+
+/**
+ * 64-bit SHA-2 base configuration shared by SHA-384, SHA-512, SHA-512/224 and SHA-512/256.
+ *
+ * @type {Base}
+ */
+export const base64 = base({
+    logBitLen: 6n,
+    k: [
+        [
+            0x428a2f98d728ae22n, 0x7137449123ef65cdn, 0xb5c0fbcfec4d3b2fn, 0xe9b5dba58189dbbcn,
+            0x3956c25bf348b538n, 0x59f111f1b605d019n, 0x923f82a4af194f9bn, 0xab1c5ed5da6d8118n,
+            0xd807aa98a3030242n, 0x12835b0145706fben, 0x243185be4ee4b28cn, 0x550c7dc3d5ffb4e2n,
+            0x72be5d74f27b896fn, 0x80deb1fe3b1696b1n, 0x9bdc06a725c71235n, 0xc19bf174cf692694n,
+        ],
+        [
+            0xe49b69c19ef14ad2n, 0xefbe4786384f25e3n, 0x0fc19dc68b8cd5b5n, 0x240ca1cc77ac9c65n,
+            0x2de92c6f592b0275n, 0x4a7484aa6ea6e483n, 0x5cb0a9dcbd41fbd4n, 0x76f988da831153b5n,
+            0x983e5152ee66dfabn, 0xa831c66d2db43210n, 0xb00327c898fb213fn, 0xbf597fc7beef0ee4n,
+            0xc6e00bf33da88fc2n, 0xd5a79147930aa725n, 0x06ca6351e003826fn, 0x142929670a0e6e70n,
+        ],
+        [
+            0x27b70a8546d22ffcn, 0x2e1b21385c26c926n, 0x4d2c6dfc5ac42aedn, 0x53380d139d95b3dfn,
+            0x650a73548baf63den, 0x766a0abb3c77b2a8n, 0x81c2c92e47edaee6n, 0x92722c851482353bn,
+            0xa2bfe8a14cf10364n, 0xa81a664bbc423001n, 0xc24b8b70d0f89791n, 0xc76c51a30654be30n,
+            0xd192e819d6ef5218n, 0xd69906245565a910n, 0xf40e35855771202an, 0x106aa07032bbd1b8n,
+        ],
+        [
+            0x19a4c116b8d2d0c8n, 0x1e376c085141ab53n, 0x2748774cdf8eeb99n, 0x34b0bcb5e19b48a8n,
+            0x391c0cb3c5c95a63n, 0x4ed8aa4ae3418acbn, 0x5b9cca4f7763e373n, 0x682e6ff3d6b2b8a3n,
+            0x748f82ee5defb2fcn, 0x78a5636f43172f60n, 0x84c87814a1f0ab72n, 0x8cc702081a6439ecn,
+            0x90befffa23631e28n, 0xa4506cebde82bde9n, 0xbef9a3f7b2c67915n, 0xc67178f2e372532bn,
+        ],
+        [
+            0xca273eceea26619cn, 0xd186b8c721c0c207n, 0xeada7dd6cde0eb1en, 0xf57d4f7fee6ed178n,
+            0x06f067aa72176fban, 0x0a637dc5a2c898a6n, 0x113f9804bef90daen, 0x1b710b35131c471bn,
+            0x28db77f523047d84n, 0x32caab7b40c72493n, 0x3c9ebe0a15c9bebcn, 0x431d67c49c100d4cn,
+            0x4cc5d4becb3e42b6n, 0x597f299cfc657e2an, 0x5fcb6fab3ad6faecn, 0x6c44198c4a475817n,
+        ],
+    ],
+    bs0: [28n, 34n, 39n],
+    bs1: [14n, 18n, 41n],
+    ss0: [1n, 8n, 7n],
+    ss1: [19n, 61n, 6n],
+})
+
+/**
+ * SHA-256
+ *
+ * @type {Sha2}
+ */
+export const sha256 = sha2(
+    base32,
+    [0x6a09e667n, 0xbb67ae85n, 0x3c6ef372n, 0xa54ff53an, 0x510e527fn, 0x9b05688cn, 0x1f83d9abn, 0x5be0cd19n],
+    256n,
+)
+
+/**
+ * SHA-224
+ *
+ * @type {Sha2}
+ */
+export const sha224 = sha2(
+    base32,
+    [0xc1059ed8n, 0x367cd507n, 0x3070dd17n, 0xf70e5939n, 0xffc00b31n, 0x68581511n, 0x64f98fa7n, 0xbefa4fa4n],
+    224n,
+)
+
+/**
+ * SHA-512
+ *
+ * @type {Sha2}
+ */
+export const sha512 = sha2(
+    base64,
+    [
+        0x6a09e667f3bcc908n, 0xbb67ae8584caa73bn, 0x3c6ef372fe94f82bn, 0xa54ff53a5f1d36f1n,
+        0x510e527fade682d1n, 0x9b05688c2b3e6c1fn, 0x1f83d9abfb41bd6bn, 0x5be0cd19137e2179n,
+    ],
+    512n,
+)
+
+/**
+ * SHA-384
+ *
+ * @type {Sha2}
+ */
+export const sha384 = sha2(
+    base64,
+    [
+        0xcbbb9d5dc1059ed8n, 0x629a292a367cd507n, 0x9159015a3070dd17n, 0x152fecd8f70e5939n,
+        0x67332667ffc00b31n, 0x8eb44a8768581511n, 0xdb0c2e0d64f98fa7n, 0x47b5481dbefa4fa4n,
+    ],
+    384n,
+)
+
+/**
+ * SHA-512/256
+ *
+ * @type {Sha2}
+ */
+export const sha512x256 = sha2(
+    base64,
+    [
+        0x22312194fc2bf72cn, 0x9f555fa3c84c64c2n, 0x2393b86b6f53b151n, 0x963877195940eabdn,
+        0x96283ee2a88effe3n, 0xbe5e1e2553863992n, 0x2b0199fc2c85b8aan, 0x0eb72ddC81c52ca2n,
+    ],
+    256n,
+)
+
+/**
+ * SHA-512/224
+ *
+ * @type {Sha2}
+ */
+export const sha512x224 = sha2(
+    base64,
+    [
+        0x8c3d37c819544da2n, 0x73e1996689dcd4d6n, 0x1dfab7ae32ff9c82n, 0x679dd514582f9fcfn,
+        0x0f6d2b697bd44da8n, 0x77e36f7304C48942n, 0x3f9d85a86a1d36C8n, 0x1112e6ad91d692a1n,
+    ],
+    224n,
+)

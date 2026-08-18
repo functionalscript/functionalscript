@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/text/sgr/module.f.ts` bundles two unrelated concerns. Alongside the ANSI
+`fjs/text/sgr/module.f.mjs` bundles two unrelated concerns. Alongside the ANSI
 CSI/SGR machinery (`csi`, `sgr`, `reset`/`bold`/`fgRed`/`fgGreen`,
 `csiWrite`) it carries a backspace-based *in-place text rewriter*
 (`:52-78`):
@@ -24,14 +24,14 @@ export const createConsoleText = (stdout: Stdout): WriteText => { … }
 `replace`/`createConsoleText`/`WriteText`/`Stdout` use only `backspace` (a C0
 control), never an SGR/CSI escape — it is a generic "overwrite the previously
 printed text" progress writer. It is also `export`ed with no non-proof
-consumer (only `fjs/text/sgr/proof.f.ts:17` calls `createConsoleText`), which
+consumer (only `fjs/text/sgr/proof.f.mjs:17` calls `createConsoleText`), which
 the AGENTS.md export rule ("only `export` when at least one external consumer
 exists") discourages.
 
 ### Proposal
 
 When a real consumer appears, move the in-place rewriter to its own module
-(e.g. `fjs/text/console/module.f.ts`), leaving `sgr` focused on
+(e.g. `fjs/text/console/module.f.mjs`), leaving `sgr` focused on
 escape-sequence construction. Until then, at minimum stop exporting
 `createConsoleText`/`WriteText`/`Stdout` — or, if the writer has no planned
 consumer at all, delete it with its proof (speculative code per AGENTS.md).

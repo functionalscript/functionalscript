@@ -1,76 +1,107 @@
-## 65Z-ci-scenario-docker. Replace Ubuntu CI jobs with cached Docker images
+## 65Z-ci-scenario-docker. Design OCI after one direct Nix job works
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md),
+Phase 1 through Phase 3 for one selected Linux job
 
 ### Problem
 
-Ubuntu CI jobs currently install every tool (Node, Bun, Deno, Rust, Wasmtime,
-Wasmer, etc.) from scratch on every run. This is slow and duplicates effort
-already paid on the previous run. Additionally:
+We do not yet know whether packaging a Nix CI environment as an OCI image improves total
+CI behavior. Selecting a builder, image layout, runtime model, identity, caching, or
+publication workflow before a direct-Nix job works would turn an optimization experiment
+into speculative implementation.
 
-- Playwright is kept in a **separate** job on Ubuntu solely because its
-  installation is expensive, fragmenting the matrix.
-- The scenario tests (`./fjs/emergent_testing/scenarios/run.sh`) are not run in CI at all
-  because no single job has all required runners (Node, Bun, Deno, Playwright)
-  at once.
+The first direct-Nix milestone should therefore remain independent of OCI work.
 
 ### Proposal
 
-Replace the Ubuntu jobs with Docker-container jobs that pull a pre-built,
-cached image. The image is rebuilt only when a tool version changes; between
-rebuilds it is pulled from the GitHub Actions cache in seconds.
+First prove this path for at least one Linux job:
 
-#### What changes
-
-| | Today | After |
-|---|---|---|
-| Ubuntu (Intel + ARM) | installs tools inline each run | pulls cached Docker image |
-| Playwright | separate Ubuntu job | merged into Docker Ubuntu job |
-| Scenario tests | not run in CI | run inside Docker Ubuntu job |
-| macOS / Windows | unchanged | unchanged (no Playwright) |
-
-#### Image contents
-
-The Dockerfile should be **generated from `fjs/ci/`** so that tool versions are
-single-sourced in `fjs/ci/config/module.f.ts`. The image must include everything
-needed for Ubuntu CI, matching what macOS and Windows jobs install inline:
-
-| Tool | Version source |
-|------|----------------|
-| Node (default) | `config.node.default` |
-| Deno | `config.deno` |
-| Bun | `config.bun` |
-| Playwright + browsers | `config.playwright` |
-| Rust toolchain | `config.actions['dtolnay/rust-toolchain']` |
-| Wasmtime | `config.wasmtime` |
-| Wasmer | `config.wasmer` |
-
-`docker/Dockerfile` will be replaced by the generated one. The existing file
-can serve as a reference during implementation.
-
-#### Cache key
-
-```
-linux-<arch>-node<NODE>-deno<DENO>-bun<BUN>-playwright<PW>-rust<RUST>-wasmtime<WT>-wasmer<WM>
+```text
+declarative CI job -> generated flake.nix -> direct CI execution
 ```
 
-Derived entirely from version constants so it self-updates on any version bump.
+Then use the working job and measurements to write and review a concrete OCI design.
+Do not implement an OCI output in this task. Rust, Playwright, and other unfinished
+complex jobs do not block this design work.
 
-#### Architectures
+#### Principles
 
-Both `ubuntu-24.04` (Intel x86-64) and `ubuntu-24.04-arm` (ARM64) run Docker
-jobs — the same pair as the current Ubuntu jobs.
+- direct Nix CI is the reference behavior and fallback;
+- OCI is an optional optimization;
+- design from a validated job and measured bottlenecks;
+- do not select a builder, image layout, or publication workflow before that evidence;
+- do not introduce a Dockerfile unless the reviewed design requires one;
+- preserve immutable identities and safe publication boundaries;
+- keep OCI-specific details out of the first generated flakes;
+- create a separate implementation TODO after the design is reviewed.
 
-#### What runs inside the Docker job
+#### Entry criteria
 
-All tests that currently run on Ubuntu, plus:
-- Playwright tests (currently a separate job)
-- Scenario tests across all runners: `fjs`, `node`, `bun`, `deno`, `playwright`
+Begin this design task after one selected Linux job has completed Phase 1 through Phase
+3 and has:
+
+- a simple committed self-contained flake;
+- a pinned Nix bootstrap in CI;
+- successful direct-Nix execution of its existing commands;
+- a reliable direct path that can serve as the fallback and comparison;
+- basic cold/warm build and cache measurements.
+
+Completion of the full [65Z-ci-nix](65z-ci-nix.md) task is not required.
+
+#### Design deliverable
+
+For the selected proven job, the proposal must decide and explain:
+
+- the OCI builder/provider;
+- which files, packages, and runtime dependencies enter the image;
+- the image entry point or command-execution model;
+- how the existing CI command sequence runs inside the image;
+- the immutable output identity and tag policy;
+- the required Linux architecture;
+- expected build, pull, and cache behavior compared with direct Nix;
+- credential and publication boundaries;
+- the direct-Nix fallback;
+- validation and acceptance criteria.
+
+Keep this design specific to one job. Do not generalize to combined images, additional
+architectures, or repository-wide publication until the first implementation produces
+real results.
+
+#### Handoff
+
+After the design is reviewed:
+
+1. create a separate implementation TODO containing the selected concrete design;
+2. implement the first OCI output there;
+3. run the same CI commands through direct Nix and OCI;
+4. compare image size, build time, pull time, and cache reuse;
+5. adopt OCI only if it improves total CI behavior.
+
+#### Publication constraints
+
+Any later implementation must:
+
+- publish only immutable identities;
+- avoid exposing package-write credentials to pull-request code;
+- validate before publishing;
+- keep direct Nix as the fallback/reference path.
+
+### Tasks
+
+- [ ] Complete Phase 1 through Phase 3 of
+      [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) for one
+      selected Linux job.
+- [ ] Record direct-Nix build and cache measurements for that job.
+- [ ] Change this TODO from `blocked` to `open` when those criteria pass.
+- [ ] Write the job-specific OCI design covering every item in the design deliverable.
+- [ ] Review and accept or reject the OCI design.
+- [ ] Create a separate implementation TODO only after the design is accepted.
 
 ### Related
 
-- i095 — original Docker CI idea
-- i145 — Docker containers for Linux CI jobs (broader scope)
-- i183 — scenario test infrastructure
-- i65Y-scenarios-proof — scenario files converted to `export const proof`; prerequisite
+- [65Z-ci-nix](65z-ci-nix.md) — declarative per-job Nix architecture.
+- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — direct Nix
+  implementation and prerequisite.
+- [i096](96.md) — CI caching.

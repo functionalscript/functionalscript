@@ -5,13 +5,13 @@
 
 ### Problem
 
-The same public type is declared in two modules. `fjs/bnf/module.f.ts:23`:
+The same public type is declared in two modules. `fjs/bnf/types.ts:30`:
 
 ```ts
 export type TerminalRange = number
 ```
 
-and `fjs/bnf/data/module.f.ts:25-27`:
+and `fjs/bnf/data/types.ts:11-14`:
 
 ```ts
 /**
@@ -29,10 +29,10 @@ changes from a plain `number`).
 
 ### Proposal
 
-Define `TerminalRange` once in `fjs/bnf/module.f.ts` (the module that owns the
-range encode/decode primitives) and have `fjs/bnf/data/module.f.ts` import and
-re-export it rather than redeclaring. Per `AGENTS.md`: "When a sibling module
-already has the type you need, import it" instead of duplicating.
+Define `TerminalRange` once in `fjs/bnf/types.ts` (the module that owns the
+range encode/decode primitives' types) and have `fjs/bnf/data/types.ts` import
+and re-export it rather than redeclaring. Per `AGENTS.md`: "When a sibling
+module already has the type you need, import it" instead of duplicating.
 
 ### Tasks
 
@@ -43,5 +43,7 @@ already has the type you need, import it" instead of duplicating.
 
 ### Related
 
-- `fjs/bnf/todo/669-bnf-data-shared-helpers.md` — other `bnf/data` DRY cleanups
-  (different functions; this type duplication is not covered there).
+- [`fjs/bnf/matcher`](../matcher) — the same one-owner move, done, for the
+  matcher backends' cursor, AST, and result constructors. It covers different
+  declarations; this type duplication was explicitly out of its scope and is
+  still open.

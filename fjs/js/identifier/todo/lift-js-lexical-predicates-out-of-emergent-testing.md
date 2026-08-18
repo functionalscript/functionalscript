@@ -3,12 +3,12 @@
 **Priority:** P4
 **Status:** open
 
-`fjs/emergent_testing/module.f.ts` carries four predicates (`isAlpha`, `isDigit`, `isInteger`, `isIdentifier`) that encode JavaScript lexical rules, not test logic. They are even exported from the test module, polluting its public surface.
+`fjs/emergent_testing/module.f.mjs` carries four predicates (`isAlpha`, `isDigit`, `isInteger`, `isIdentifier`) that encode JavaScript lexical rules, not test logic. They are even exported from the test module, polluting its public surface.
 
-Create `fjs/js/identifier/module.f.ts` with `isInteger` and `isIdentifier` (private `isAlpha`/`isDigit`), and have `emergent_testing` import them instead.
+Create `fjs/js/identifier/module.f.mjs` with `isInteger` and `isIdentifier` (private `isAlpha`/`isDigit`), and have `emergent_testing` import them instead.
 
 ```ts
-// fjs/js/identifier/module.f.ts
+// fjs/js/identifier/module.f.mjs
 const isAlpha = (c: string): boolean =>
     (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c === '_' || c === '$'
 
@@ -27,10 +27,10 @@ A future consumer: the DJS serializer currently quotes every object key; with `i
 
 ### Tasks
 
-- [ ] Create `fjs/js/identifier/module.f.ts` with the two exports.
-- [ ] Add co-located `proof.f.ts` with 100% coverage (reuse cases from `fjs/emergent_testing/proof.f.ts:313-328`).
+- [ ] Create `fjs/js/identifier/module.f.mjs` with the two exports.
+- [ ] Add co-located `proof.f.mjs` with 100% coverage (reuse cases from `fjs/emergent_testing/proof.f.mjs:406-421`).
 - [ ] Register in `deno.json` `exports` map.
-- [ ] Remove the four definitions from `fjs/emergent_testing/module.f.ts`; repoint `emergent_testing/proof.f.ts` at the new module.
+- [ ] Remove the four definitions from `fjs/emergent_testing/module.f.mjs`; repoint `emergent_testing/proof.f.mjs` at the new module.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ### Related

@@ -1,0 +1,783 @@
+/**
+ * @import { Unknown } from '../media/json/types.ts'
+ * @import { RawEffect, Operation } from '../effects/types.ts'
+ * @import { Response } from '../protocol/json_rpc/types.ts'
+ * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { FileCasOperation } from '../cas/types.ts'
+ * @import { List } from '../effects/list/types.ts'
+ * @import { ContentItem, ToolsCallResult } from '../protocol/mcp/types.ts'
+ * @import { IoChannel, Mkdir, Now, RandomInt, ReadBytes, Rename } from '../effects/node/types.ts'
+ * @import { Dir } from '../effects/node/virtual/types.ts'
+ */
+
+import { assert, assertEq } from '../asserts/module.f.mjs'
+import { mapStep as rawMapStep, pure, step } from '../effects/module.f.mjs'
+import { unwrapStep } from '../effects/io/module.f.mjs'
+import { errorSummary } from '../effects/node/module.f.mjs'
+import { create } from '../effects/memory/module.f.mjs'
+import { parse as parseJson } from '../media/json/module.f.mjs'
+import { number as rttiNumber, option, string as rttiString } from '../types/rtti/module.f.mjs'
+import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
+import { msb, u8ListToVec, vec8, repeat, length, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
+import { vecToCBase32 } from '../basen/cbase32/module.f.mjs'
+import { encode as base64Encode } from '../basen/base64/module.f.mjs'
+import { utf8 } from '../text/module.f.mjs'
+import { fileCas } from '../cas/module.f.mjs'
+import { dialect as revisionDialect, mediaType as revisionMediaType } from '../media/revision/module.f.mjs'
+import { sha256 } from '../crypto/sha2/module.f.mjs'
+import { nonEmpty, empty as elEmpty } from '../effects/list/module.f.mjs'
+import {
+    mcpStep, uninitializedState,
+} from '../protocol/mcp/module.f.mjs'
+import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import { casConfig, casMcpHandlers } from './module.f.mjs'
+import { ok as resultOk, unwrap, unwrap as unwrapResult } from '../types/result/module.f.mjs'
+import { stdioTransport } from '../protocol/mcp/stdio/module.f.mjs'
+import { fromVec } from '../types/uint8array/module.f.mjs'
+import { initEvo } from '../cas/evo/module.f.mjs'
+
+// `cas_get`'s result JSON. As an rtti schema it both describes the shape and
+// checks it, so reading a field needs neither a hand-written type nor an `as`
+// cast — a response that drifts from this fails the test at the parse, not
+// silently at the assertion. `uri` is always emitted; only the payload
+// (`text` for `type: 'text'`, `blob` for `type: 'base64'`) is conditional.
+const casGetResult = /** @type {const} */ ({
+    length: rttiNumber,
+    mimeType: rttiString,
+    type: rttiString,
+    uri: rttiString,
+    text: option(rttiString),
+    blob: option(rttiString),
+})
+
+const parseCasGetResult = rttiParse(casGetResult)
+
+// ── Session driver ──────────────────────────────────────────────────────────────
+
+// Feeds each message to `handler` in order, collecting every response.
+/**
+ * @template {Operation} O
+ * @param {(v: Unknown) => RawEffect<O, Response | null>} handler
+ * @returns {(msgs: readonly unknown[]) => RawEffect<O, readonly unknown[]>}
+ */
+const feed = handler => msgs => {
+    /** @type {(i: number, acc: readonly unknown[]) => RawEffect<O, readonly unknown[]>} */
+    const go = (i, acc) => (
+        i === msgs.length
+            ? pure(acc)
+            : step(
+                handler(/** @type {Unknown} */ (msgs[i])),
+                r => go(i + 1, [...acc, r]))
+    )
+    return go(0, [])
+}
+
+// Runs a session backed by the virtual node runner (for cas_upload which uses
+// Rename/ReadBytes/RandomInt/Mkdir). Uses fileKvStore so upload and get share
+// the same filesystem-backed CAS.
+/** @type {(root: Dir, home?: string) => (msgs: readonly unknown[]) => readonly unknown[]} */
+const runSessionVirtual =
+    (root, home = '/home/user') =>
+    msgs => {
+        const effect = step(
+            rawMapStep(initEvo(fileCas(sha256)(home)), unwrapResult),
+            cacheKey => step(
+                unwrapStep(create(uninitializedState), errorSummary),
+                sessionKey => {
+                    const step = mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)
+                    return feed(step)(msgs)
+                }))
+        return virtual({ ...emptyState, root })(effect)[1]
+    }
+
+// Seeds a blob directly into the virtual store via `c.write`, bypassing the
+// MCP `cas_add` tool entirely — used by tests that need a stored blob larger
+// than `cas_add`'s inline limit, now that the removed `type:'url'` path is no
+// longer available to stage one through MCP. Returns the resulting root
+// `Dir` (with the new shard written) and the blob's cBase32 hash so a
+// subsequent `runSessionVirtual` call can read it back via `cas_get`.
+/** @type {(root: Dir, home?: string) => (chunks: readonly Vec[]) => readonly [Dir, string]} */
+const seedBlob = (root, home = '/home/user') => chunks => {
+    const c = fileCas(sha256)(home)
+    const stream = chunks.reduceRight(
+        (/** @type {List<never, Vec, IoChannel>} */ tail, chunk) => nonEmpty(chunk, tail),
+        /** @satisfies {List<never, Vec, IoChannel>} */ (elEmpty()))
+    const [state, result] = virtual({ ...emptyState, root })(c.write(stream))
+    assert(result[0] === 'ok', result)
+    return [state.root, vecToCBase32(result[1])]
+}
+
+// ── Messages ────────────────────────────────────────────────────────────────────
+
+const init = { jsonrpc: '2.0', method: 'initialize', id: 1,
+    params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'c', version: '0' } } }
+
+const initialized = { jsonrpc: '2.0', method: 'notifications/initialized' }
+
+/** @type {(id: number, name: string, args: unknown) => unknown} */
+const call = (id, name, args) =>
+    ({ jsonrpc: '2.0', method: 'tools/call', id, params: { name, arguments: args } })
+
+/** @type {(id: number) => unknown} */
+const list = id => ({ jsonrpc: '2.0', method: 'tools/list', id })
+
+// Runs `init`, `notifications/initialized`, then `msgs`; returns the tool responses.
+/** @type {(...msgs: readonly unknown[]) => readonly unknown[]} */
+const session = (...msgs) =>
+    runSessionVirtual({}, '/home/user')([init, initialized, ...msgs]).slice(2)
+
+// UTF-8 bytes of `s` as a plain array — the virtual stdin byte stream.
+/** @type {(s: string) => readonly number[]} */
+const toBytes = s => [...fromVec(utf8(s))]
+
+// Runs `init`, `notifications/initialized`, then `msgs` through the *real*
+// stdio pipeline — `mcpStep` wrapped in `stdioTransport`, driving
+// `writeResponse`'s `tryUtf8` encode over actual stdin/stdout bytes. Unlike
+// `session`/`runSessionVirtual`, which collect `mcpStep`'s `Response` values
+// as plain JS objects and never serialize/encode them, this is the only
+// helper that can observe the transport's oversized-response fallback (see
+// `fjs/protocol/mcp/stdio/module.f.mjs` `writeResponse`).
+/** @type {(root: Dir, home?: string) => (msgs: readonly unknown[]) => readonly unknown[]} */
+const runStdio =
+    (root, home = '/home/user') =>
+    msgs => {
+        const input = [init, initialized, ...msgs].map(m => JSON.stringify(m)).join('\n') + '\n'
+        const effect = step(
+            rawMapStep(initEvo(fileCas(sha256)(home)), unwrapResult),
+            cacheKey => step(
+                unwrapStep(create(uninitializedState), errorSummary),
+                sessionKey =>
+                    stdioTransport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))
+            )
+        )
+        const stdout = virtual({ ...emptyState, root, stdin: toBytes(input) })(effect)[0].stdout
+        // Only requests get a written line (notifications, like `initialized`,
+        // write nothing) — drop the `init` response, keep one line per `msgs` entry.
+        return stdout.split('\n').filter(line => line.length > 0).slice(1).map(line => unwrap(parseJson(line)))
+    }
+
+/**
+ * The `result` of a `tools/call` response.
+ *
+ * This is the one place a response crosses from `unknown` to a typed
+ * {@link ToolsCallResult}. The structural essentials are checked here so the
+ * accessors below — and every call site — do not have to assume them; only the
+ * final step from a checked `content` array to `ToolsCallResult` is taken on
+ * trust, because rtti's `parse` reads `Unknown`, and getting there from
+ * `unknown` is the same problem one level down.
+ */
+/** @type {(resp: unknown) => ToolsCallResult} */
+const resultOf = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'result' in resp, resp)
+    const { result } = resp
+    assert(typeof result === 'object' && result !== null && 'content' in result, result)
+    const { content } = result
+    assert(content instanceof Array, content)
+    return /** @type {ToolsCallResult} */ (result)
+}
+
+/** @type {(resp: unknown) => ContentItem} */
+const item0 = resp => {
+    const [item] = resultOf(resp).content
+    assert(item !== undefined, resp)
+    return item
+}
+
+/** @type {(resp: unknown) => string} */
+const textOf = resp => {
+    const item = item0(resp)
+    assert(item.type === 'text', item)
+    return item.text
+}
+
+// The accessors below read a response that is `unknown` at this boundary. They
+// check their way in rather than casting, so a malformed response fails at the
+// read with the offending value attached.
+
+/** Whether `resp` is an object carrying `key`. */
+/** @type {(resp: unknown, key: 'error' | 'result') => boolean} */
+const has = (resp, key) => typeof resp === 'object' && resp !== null && key in resp
+
+/** @type {(resp: unknown) => number} */
+const errorCode = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'error' in resp, resp)
+    const { error } = resp
+    assert(typeof error === 'object' && error !== null && 'code' in error, error)
+    const { code } = error
+    assert(typeof code === 'number', code)
+    return code
+}
+
+/** @type {(resp: unknown) => unknown} */
+const idOf = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'id' in resp, resp)
+    return resp.id
+}
+
+/** The `name` and `inputSchema.type` of each tool in a `tools/list` result. */
+/** @type {(resp: unknown) => readonly { readonly name: string, readonly schemaType: unknown }[]} */
+const toolsOf = resp => {
+    assert(typeof resp === 'object' && resp !== null && 'result' in resp, resp)
+    const { result } = resp
+    assert(typeof result === 'object' && result !== null && 'tools' in result, result)
+    const { tools } = result
+    assert(tools instanceof Array, tools)
+    return tools.map(t => {
+        assert(typeof t === 'object' && t !== null && 'name' in t && 'inputSchema' in t, t)
+        const { name, inputSchema } = t
+        assert(typeof name === 'string', name)
+        assert(typeof inputSchema === 'object' && inputSchema !== null && 'type' in inputSchema, inputSchema)
+        return { name, schemaType: inputSchema.type }
+    })
+}
+
+/** The `text` payload of a `cas_get` response, parsed and checked against {@link casGetResult}. */
+const casGetResultOf = (/** @type {unknown} */ resp) =>
+    unwrap(parseCasGetResult(unwrap(parseJson(textOf(resp)))))
+
+// A plain text sample for text add→get round-trips.
+const textSample = 'hello, world!'
+
+// A valid `vnd.fjs.revision` blob: every required field present, including the
+// explicit `snapshot` and `generation` the format now mandates.
+const revisionSample = `{"dialect":"${revisionDialect}","subject":"8","parents":[],"snapshot":"8","generation":0}`
+
+// A base64-encoded binary payload for binary add→get round-trips.
+const binarySample = base64Encode(vec8(0x2An))
+
+// A base64 blob whose leading bytes are the PNG magic-byte signature, so
+// `cas_get` detects its type and returns base64 with mimeType image/png.
+const pngSample = base64Encode(
+    u8ListToVec(msb)([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]))
+
+// Returns the RFC 4648 base64 encoding of `n` zero bytes, computed directly
+// without bigint arithmetic — independent of `base64.encode` so these tests
+// don't rely on the correctness of the function they're indirectly exercising
+// (`cas_add` decodes the string via `base64.decode`). Handles every n%3
+// residue: rem=0 → no padding, rem=1 → 'AA==', rem=2 → 'AAA='.
+/** @type {(n: bigint) => string} */
+const base64OfA = n => {
+    const groups = Number(n / 3n)
+    const rem = Number(n % 3n)
+    const body = 'AAAA'.repeat(groups)
+    if (rem === 0) { return body }
+    if (rem === 1) { return body + 'AA==' }
+    return body + 'AAA='
+}
+
+// ── Tests ───────────────────────────────────────────────────────────────────────
+
+// A blob larger than one read chunk (> 128 KiB) used to fail metadata-only
+// cas_get because `collectRead` overflowed `maxLength`. With `detectStream`,
+// content:false returns correct metadata regardless of size. Each chunk is
+// exactly `maxLengthBytes` (the largest single `Vec` the runtime allows), so the
+// two-chunk blob spans two read chunks without any one `Vec` exceeding the cap.
+const largeMultiChunkBlobMeta =
+    (/** @type {Vec} */ chunk0, /** @type {Vec} */ chunk1, /** @type {string} */ expectedType,
+        /** @type {string} */ expectedMime) => () => {
+        const [root, hash] = seedBlob({})([chunk0, chunk1])
+        const [metaResp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_get', { hash }),
+        ]).slice(2)
+        assert(!resultOf(metaResp).isError)
+        const meta = casGetResultOf(metaResp)
+        assertEq(meta.type, expectedType)
+        assertEq(meta.mimeType, expectedMime)
+        assertEq(meta.length, Number((length(chunk0) + length(chunk1)) / 8n))
+        assertEq(meta.text, undefined)
+        assertEq(meta.blob, undefined)
+    }
+
+// A full `maxLengthBytes`-long chunk of repeated ASCII 'a' — valid UTF-8.
+const asciiChunk = repeat(maxLengthBytes)(vec8(0x61n))
+// The same length, but repeated 2-byte "é" (C3 A9) — valid UTF-8 of multi-byte symbols.
+const symbolChunk = repeat(maxLengthBytes / 2n)(u8ListToVec(msb)([0xc3, 0xa9]))
+// A full chunk of 0xFF — an invalid UTF-8 lead byte, so binary (no magic match).
+const binaryChunk = repeat(maxLengthBytes)(vec8(0xffn))
+
+// 100,000 raw bytes of 0xFF: comfortably under `maxLengthBytes` (so `cas_get`'s
+// own `length > maxLengthBytes` guard does not fire), but base64 inflates it to
+// ceil(100_000/3)*4 = 133,336 chars — already past `maxLength` (131,072 bytes)
+// before the JSON-RPC envelope adds anything.
+const oversizedBase64Chunk = repeat(100_000n)(vec8(0xffn))
+// 90,000 raw bytes: base64 inflates to 120,000 chars, leaving ~11 KiB of margin
+// under `maxLength` once the envelope is added — the paired "still succeeds" case.
+const boundaryBase64Chunk = repeat(90_000n)(vec8(0xffn))
+
+// 33,000 `"` bytes (0x22): valid UTF-8, so `cas_get` classifies it as text and
+// takes the double-JSON-escaping path (`toJson` builds the inner CAS JSON, then
+// the outer `stringifyJson` embeds that as the `text` field). Each quote costs
+// 4 final bytes (2 on each escaping pass), so 33,000 of them alone push the
+// encoded line past `maxLength` (131,072 bytes) — well above the strict 32,769
+// minimum needed, without approaching any other size-related edge case.
+const quotesChunk = repeat(33_000n)(vec8(0x22n))
+
+export const proof = {
+    // Both chunks repeated ASCII → text/plain, no error on a > 128 KiB blob.
+    getMetaLargeMultiChunkBlobNoError:
+        largeMultiChunkBlobMeta(asciiChunk, asciiChunk, 'text', 'text/plain'),
+
+    // Both chunks valid UTF-8 sequences of multi-byte symbols → text/plain.
+    getMetaLargeMultiChunkUtf8Symbols:
+        largeMultiChunkBlobMeta(symbolChunk, symbolChunk, 'text', 'text/plain'),
+
+    // First chunk valid UTF-8, second chunk binary → base64/octet-stream. The
+    // streaming validator must see the trailing binary chunk to reject text.
+    getMetaLargeMultiChunkTextThenBinary:
+        largeMultiChunkBlobMeta(asciiChunk, binaryChunk, 'base64', 'application/octet-stream'),
+
+    // content:true on a present blob larger than `maxLength` reports a distinct
+    // "too large" error, not "no such hash" — the blob exists, it just can't be
+    // buffered inline. The metadata-only path (above) still returns its size/type.
+    getContentLargeBlobTooLargeError: () => {
+        const [root, hash] = seedBlob({})([asciiChunk, asciiChunk])
+        const [getResp] = runSessionVirtual(root)([
+            init, initialized,
+            call(2, 'cas_get', { hash, content: true }),
+        ]).slice(2)
+        assertEq(resultOf(getResp).isError, true)
+        const text = textOf(getResp)
+        assert(text.includes('too large'))
+        assert(!text.includes('no such hash'))
+    },
+
+    // content:true on a genuinely absent hash still reports "no such hash" — the
+    // oversized branch above must not absorb the absent case.
+    getContentMissingHashIsError: () => {
+        const absent = vecToCBase32(vec8(0x55n))
+        const [resp] = session(call(2, 'cas_get', { hash: absent, content: true }))
+        assertEq(resultOf(resp).isError, true)
+        assert(textOf(resp).includes('no such hash'))
+    },
+
+    // A blob at exactly `maxLengthBytes` passes cas_get's own raw-length guard
+    // (it checks the *stored* size, not the encoded response), but base64
+    // inflation of a 100,000-byte blob alone already exceeds `maxLength` before
+    // the JSON-RPC envelope is even added. The transport's `writeResponse`
+    // (`tryUtf8`) must catch this and write a JSON-RPC internal-error response —
+    // carrying the *original request's* `id` — instead of crashing the process.
+    // See `fjs/protocol/mcp/stdio/module.f.mjs` `writeResponse`.
+    //
+    // This test originally timed out under `bun test`'s native 5s per-test
+    // limit (12-14s observed in CI on PR #1201) — the cost was in
+    // `base64Encode`, quadratic before the `baseN.vecToString` fix (see
+    // `fjs/basen/base64/proof.f.mjs` `encodeLargeVecIsSlow`). Now well under budget on
+    // both engines.
+    getContentBase64InflationOverflowWritesInternalError: () => {
+        const [root, hash] = seedBlob({})([oversizedBase64Chunk])
+        const [getResp] = runStdio(root)([
+            call(2, 'cas_get', { hash, content: true }),
+        ])
+        assertEq(errorCode(getResp), -32603)
+        assertEq(idOf(getResp), 2)
+    },
+
+    // The paired boundary case: a blob whose base64 inflation leaves enough
+    // margin under `maxLength` for the envelope — confirms the fallback above
+    // only triggers on genuine overflow, not on every `content:true` binary read.
+    getContentBase64NearBoundarySucceeds: () => {
+        const [root, hash] = seedBlob({})([boundaryBase64Chunk])
+        const [getResp] = runStdio(root)([
+            call(2, 'cas_get', { hash, content: true }),
+        ])
+        assert(!resultOf(getResp).isError)
+        const result = casGetResultOf(getResp)
+        assertEq(result.type, 'base64')
+        assertEq(result.length, 90_000)
+    },
+
+    // A text blob made entirely of `"` characters keeps the *raw* content
+    // (33,000 bytes) well under `maxLengthBytes`, but each quote costs 2 bytes on
+    // the inner CAS-JSON escape and 4 bytes once the outer JSON-RPC envelope
+    // re-escapes that backslash-quote pair — no `cas_get`-level size guard could
+    // see this coming, only the transport's real encode attempt can. Seeded
+    // directly into the store via `seedBlob` (not an inlined `cas_add` JSON
+    // string) so the test exercises `cas_get`'s response-side escaping without
+    // also paying for parsing a huge inline `content` argument on the request
+    // side. Confirms `writeResponse`'s
+    // `tryUtf8` fallback (not a crash) handles double-escaping overflow, again
+    // preserving the request's `id`.
+    getContentDoubleEscapedOverflowWritesInternalError: () => {
+        const [root, hash] = seedBlob({})([quotesChunk])
+        const [getResp] = runStdio(root)([
+            call(2, 'cas_get', { hash, content: true }),
+        ])
+        assertEq(errorCode(getResp), -32603)
+        assertEq(idOf(getResp), 2)
+    },
+
+    toolsListAdvertisesSevenTools: () => {
+        const [resp] = runSessionVirtual({})([init, initialized, list(2)]).slice(2)
+        const tools = toolsOf(resp)
+        assertEq(tools.length, 7)
+        assertEq(tools.map(t => t.name).join(','), 'cas_add,cas_get,cas_list,evo_list,evo_head,evo_revision,evo_add')
+        const [add] = tools
+        assert(add !== undefined, tools)
+        assertEq(add.schemaType, 'object')
+    },
+
+    // The same server also exposes Evo (fjs/cas/evo): add a revision, then
+    // find it via evo_list/evo_head — one process, one store, one cache.
+    evoAddListHeadRoundTripsThroughCasServer: () => {
+        const [addResp, listResp, headResp] = session(
+            call(2, 'evo_add', { parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x1n)) }),
+            call(3, 'evo_list', {}),
+            call(4, 'evo_head', { subject: 'doc' }),
+        )
+        assert(!resultOf(addResp).isError)
+        const hash = textOf(addResp)
+        assert(hash.length > 0)
+        assertEq(textOf(listResp), '["doc"]')
+        assertEq(textOf(headResp), hash)
+    },
+
+    evoAddDomainErrorIsErrorThroughCasServer: () => {
+        // Valid arguments, but the domain rule fails: `subject` is required
+        // unless there is exactly one parent.
+        const [resp] = session(call(2, 'evo_add', { parents: [] }))
+        assertEq(resultOf(resp).isError, true)
+        assert(textOf(resp).includes('subject is required'))
+    },
+
+    // A plain `cas_add` of `vnd.fjs.revision` content is folded into the Evo
+    // cache too (`syncRevision`), not just `evo_add` — `cas_add`/`evo_add`
+    // are two ways to reach the same store and cache.
+    casAddSyncsEvoCacheForRevisionContent: () => {
+        const [addResp, listResp, headResp] = session(
+            call(2, 'cas_add', { content: revisionSample }),
+            call(3, 'evo_list', {}),
+            call(4, 'evo_head', { subject: '8' }),
+        )
+        assert(!resultOf(addResp).isError)
+        const hash = textOf(addResp)
+        assertEq(textOf(listResp), '["8"]')
+        assertEq(textOf(headResp), hash)
+    },
+
+    addReturnsHash: () => {
+        const [resp] = session(call(2, 'cas_add', { content: textSample }))
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
+    // Text add→get round-trip: store as UTF-8 text, retrieve metadata.
+    textAddGetMetaRoundTrips: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: textSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: textSample }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = casGetResultOf(getResp)
+        assertEq(result.mimeType, 'text/plain')
+        assertEq(result.type, 'text')
+        assertEq(result.length, textSample.length)
+        assertEq(result.text, undefined)
+    },
+
+    // cas_get with content:true returns inline content.
+    textAddGetContentRoundTrips: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: textSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: textSample }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = casGetResultOf(getResp)
+        assertEq(result.type, 'text')
+        assertEq(result.mimeType, 'text/plain')
+        assertEq(result.text, textSample)
+    },
+
+    // Binary add→get round-trip: store as base64, retrieve metadata without content.
+    binaryAddGetMetaRoundTrips: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: binarySample, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: binarySample, type: 'base64' }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = casGetResultOf(getResp)
+        assertEq(result.text, undefined)
+        assertEq(result.type, 'text')
+        assertEq(result.mimeType, 'text/plain')
+    },
+
+    // Binary add→get with content:true returns inline base64 content.
+    binaryAddGetContentRoundTrips: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: binarySample, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: binarySample, type: 'base64' }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = casGetResultOf(getResp)
+        assertEq(result.type, 'text')
+        assertEq(result.text, '*')
+    },
+
+    addGetRoundTrips: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: textSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: textSample }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = casGetResultOf(getResp)
+        assertEq(result.text, textSample)
+    },
+
+    // Text content (no magic-byte match, valid UTF-8) comes back with type:'text' when content requested.
+    getUntypedReturnsText: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: textSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: textSample }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assertEq(item0(getResp).type, 'text')
+        const result = casGetResultOf(getResp)
+        assertEq(result.type, 'text')
+        assertEq(result.mimeType, 'text/plain')
+    },
+
+    // Bytes with a recognised PNG signature come back as base64 with mimeType image/png when content requested.
+    getTypedReturnsBinaryJson: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: pngSample, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: pngSample, type: 'base64' }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        assertEq(item0(getResp).type, 'text')
+        const result = casGetResultOf(getResp)
+        assertEq(result.type, 'base64')
+        assertEq(result.mimeType, 'image/png')
+        assertEq(result.blob, pngSample)
+    },
+
+    // A stored `vnd.fjs.revision` blob is recognized by metadata-only
+    // `cas_get` (content:false, the default) — the CAS read path routes the
+    // bounded, whole-blob-text case through the dialect-aware detector rather
+    // than only reporting the streaming text/plain verdict.
+    getMetaRecognizesRevisionDialect: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: revisionSample }))
+        const hash = textOf(addResp)
+        const [, metaResp] = session(
+            call(2, 'cas_add', { content: revisionSample }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(metaResp).isError)
+        const meta = casGetResultOf(metaResp)
+        assertEq(meta.mimeType, revisionMediaType)
+        assertEq(meta.type, 'text')
+    },
+
+    // Same dialect recognition on the `content: true` path, alongside the
+    // inline text payload.
+    getContentRecognizesRevisionDialect: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: revisionSample }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: revisionSample }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = casGetResultOf(getResp)
+        assertEq(result.mimeType, revisionMediaType)
+        assertEq(result.type, 'text')
+        assertEq(result.text, revisionSample)
+    },
+
+    listEnumeratesStoredHashes: () => {
+        const [addResp, listResp] = session(
+            call(2, 'cas_add', { content: textSample }),
+            call(3, 'cas_list', {}),
+        )
+        const hash = textOf(addResp)
+        assert(!resultOf(listResp).isError)
+        assertEq(textOf(listResp), hash)
+    },
+
+    addInvalidContentIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'not valid!', type: 'base64' }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    addBadLengthContentIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'A', type: 'base64' }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    // 174_764 'A' chars × 6 bits = 1_048_584 bits, 8 over maxLength — base64Decode
+    // returns null and cas_add surfaces an error.
+    addBase64OverLimitIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'A'.repeat(174_764), type: 'base64' }))
+        assertEq(resultOf(resp).isError, true)
+        assert(textOf(resp).includes('too large or malformed'))
+        assert(textOf(resp).includes('cas add'))
+    },
+
+    // One ASCII byte past maxLengthBytes — tryUtf8 returns null and cas_add
+    // surfaces an error.
+    addTextOverLimitIsError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(Number(maxLengthBytes) + 1) }))
+        assertEq(resultOf(resp).isError, true)
+        assert(textOf(resp).includes('too large or malformed'))
+        assert(textOf(resp).includes('cas add'))
+    },
+
+    // Exactly maxLengthBytes (131,072) ASCII bytes — tryUtf8 returns a non-null
+    // Vec (len === maxLength, not over), so cas_add stores cleanly.
+    addTextAtLimitSucceeds: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'a'.repeat(Number(maxLengthBytes)) }))
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
+    // base64 of exactly maxLengthBytes — base64Decode trims the encoding's
+    // padding bits from the last character before measuring the result
+    // against maxLength, so a payload landing exactly at the limit decodes
+    // and stores cleanly.
+    addBase64AtLimitSucceeds: () => {
+        const [resp] = session(call(2, 'cas_add', { content: base64OfA(maxLengthBytes), type: 'base64' }))
+        assert(!resultOf(resp).isError)
+        assert(textOf(resp).length > 0)
+    },
+
+    getUnterminatedHashIsError: () => {
+        const [resp] = session(call(2, 'cas_get', { hash: '0' }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    addMissingContentIsError: () => {
+        const [resp] = session(call(2, 'cas_add', {}))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    getMissingHashArgumentIsError: () => {
+        const [resp] = session(call(2, 'cas_get', {}))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    getInvalidHashIsError: () => {
+        const [resp] = session(call(2, 'cas_get', { hash: 'not valid!' }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    getMissingHashIsError: () => {
+        const absent = vecToCBase32(vec8(0x99n))
+        const [resp] = session(call(2, 'cas_get', { hash: absent }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    unknownToolIsError: () => {
+        const [resp] = session(call(2, 'cas_remove', { hash: binarySample }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    toolErrorIsNotJsonRpcError: () => {
+        const [resp] = session(call(2, 'cas_add', { content: 'not valid!', type: 'base64' }))
+        assert(!has(resp, 'error'), resp)
+        assert(has(resp, 'result'), resp)
+    },
+
+    // cas_get without content:true returns only metadata.
+    getMetaReturnsLengthAndMimeType: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: 'text content' }))
+        const hash = textOf(addResp)
+        const [, metaResp] = session(
+            call(2, 'cas_add', { content: 'text content' }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(metaResp).isError)
+        const meta = casGetResultOf(metaResp)
+        assertEq(meta.mimeType, 'text/plain')
+        assertEq(meta.type, 'text')
+        assertEq(meta.length, 12)
+        assertEq(meta.text, undefined)
+    },
+
+    getMetaBinaryBlob: () => {
+        const [addResp] = session(call(2, 'cas_add', { content: pngSample, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, metaResp] = session(
+            call(2, 'cas_add', { content: pngSample, type: 'base64' }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(metaResp).isError)
+        const meta = casGetResultOf(metaResp)
+        assertEq(meta.mimeType, 'image/png')
+        assertEq(meta.type, 'base64')
+        assertEq(meta.length, 10)
+        assertEq(meta.blob, undefined)
+    },
+
+    getMetaOctetStreamForUnknownBinary: () => {
+        const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
+        const binaryB64 = base64Encode(binaryContent)
+        const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, metaResp] = session(
+            call(2, 'cas_add', { content: binaryB64, type: 'base64' }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(metaResp).isError)
+        const meta = casGetResultOf(metaResp)
+        assertEq(meta.mimeType, 'application/octet-stream')
+        assertEq(meta.type, 'base64')
+        assertEq(meta.blob, undefined)
+    },
+
+    // A NUL-bearing blob is valid UTF-8 yet binary: cas_get must report
+    // base64/octet-stream, not text/plain.
+    getMetaOctetStreamForNulBlob: () => {
+        const nulContent = u8ListToVec(msb)([0x00, 0x00, 0x00])
+        const nulB64 = base64Encode(nulContent)
+        const [addResp] = session(call(2, 'cas_add', { content: nulB64, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, metaResp] = session(
+            call(2, 'cas_add', { content: nulB64, type: 'base64' }),
+            call(3, 'cas_get', { hash }),
+        )
+        assert(!resultOf(metaResp).isError)
+        const meta = casGetResultOf(metaResp)
+        assertEq(meta.mimeType, 'application/octet-stream')
+        assertEq(meta.type, 'base64')
+    },
+
+    getMetaMissingHashIsError: () => {
+        const absent = vecToCBase32(vec8(0x77n))
+        const [resp] = session(call(2, 'cas_get', { hash: absent }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    getMetaInvalidHashIsError: () => {
+        const [resp] = session(call(2, 'cas_get', { hash: 'bad!' }))
+        assertEq(resultOf(resp).isError, true)
+    },
+
+    // cas_get with content:true on octet-stream (no magic bytes, not UTF-8) returns inline base64.
+    getOctetStreamWithContentIncludesBase64: () => {
+        const binaryContent = u8ListToVec(msb)([0xFF, 0xFE, 0x00, 0x01])
+        const binaryB64 = base64Encode(binaryContent)
+        const [addResp] = session(call(2, 'cas_add', { content: binaryB64, type: 'base64' }))
+        const hash = textOf(addResp)
+        const [, getResp] = session(
+            call(2, 'cas_add', { content: binaryB64, type: 'base64' }),
+            call(3, 'cas_get', { hash, content: true }),
+        )
+        assert(!resultOf(getResp).isError)
+        const result = casGetResultOf(getResp)
+        assertEq(result.mimeType, 'application/octet-stream')
+        assertEq(result.type, 'base64')
+        assertEq(result.blob, binaryB64)
+    },
+}

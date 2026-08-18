@@ -7,9 +7,9 @@ rescanning the store on every query.
 A `Cas<O>` stores `vnd.fjs.revision` blobs like any other content: immutable
 bytes under a hash. Resolving "what are the current heads of subject X"
 means walking every stored revision and reversing the `parents` links — too
-expensive to redo per request. `fjs/cas/evo/module.f.ts` scans the whole store
+expensive to redo per request. `fjs/cas/evo/module.f.mjs` scans the whole store
 once into an in-memory `Cache` (keyed with
-[`fjs/effects/memory`](../../effects/memory/module.f.ts)) mapping subject →
+[`fjs/effects/memory`](../../effects/memory/module.f.mjs)) mapping subject →
 head hashes, then keeps that cache current as new revisions are `add`ed
 through it.
 
@@ -21,15 +21,26 @@ so no client has to interpret raw revision bytes itself.
 
 ```ts
 type Evo<O> = {
-    list: () => Effect<MemOp, readonly Subject[]>
+    list: (archived?: true) => Effect<MemOp, readonly Subject[]>
     head: (subject: Subject) => Effect<MemOp, readonly Hash[]>
-    add: (rev: RevisionData) => Effect<O | MemOp, Result<Hash, string>>
-    revision: (hash: Hash) => Effect<O | MemOp, Result<RevisionData, string>>
+    add: (rev: RevisionData) => Effect<O | MemOp, Hash, EvoChannel>
+    revision: (hash: Hash) => Effect<O | MemOp, RevisionData, EvoChannel>
 }
+
+type EvoChannel = EvoError | NotImplemented
+type EvoError = readonly['evoError', string]
 ```
 
-- `list()` and `head(subject)` read only the in-memory cache — no store
-  access, no rescanning.
+Every operation fails through one channel. A rejected revision (`evoError`) and
+an operation the runner could not dispatch (`notImplemented`) are told apart by
+their tag — `evoSummary` renders either — rather than by arriving in separate
+layers, so `step` short-circuits on both and no caller re-tests a verdict an
+earlier step already reached.
+
+- `list(archived?)` and `head(subject)` read only the in-memory cache — no
+  store access, no rescanning. `list` filters by subject status: the active
+  subjects by default, the archived ones with `archived: true` — see
+  [Subject status](#subject-status).
 - `add(rev)` resolves `rev`'s `subject` (explicit, or inherited from a single
   parent — see below), assembles and checks a `vnd.fjs.revision` blob, writes
   it to the store, and folds it into the cache in one step.
@@ -49,6 +60,7 @@ type RevisionData = {
     readonly subject?: Subject
     readonly archived?: true
     readonly generation?: number
+    readonly lock?: LockMap
 }
 ```
 
@@ -70,6 +82,21 @@ documented rather than typed (no extension or intersection types):
 | `snapshot`   | absent → resolved from the parents         | always present, canonical   |
 | `archived`   | optional                                   | optional (the only one)     |
 | `generation` | **ignored** — the server computes it       | always present              |
+| `lock`       | optional inline map or shared-lock hash; every hash validated and canonicalized | optional; present exactly when stored, in the form it was stored in, hashes canonicalized |
+
+`lock` is the format's own field as
+[`fjs/media/revision`](../../media/revision/) defines it: an inline map whose
+values are direct hashes or nested scopes, or a hash naming a
+[`vnd.fjs.lock`](../../media/lock/) blob holding one to share. `add` and
+`revision` walk a map to the bottom — validating and re-spelling every direct
+hash, preserving every scope — so a nested lock round-trips like a flat one and
+neither direction has a depth of its own; a reference is validated and
+re-spelled as the single hash it is.
+
+Evo never **follows** a reference. It stores and reads revisions; resolving
+dependencies is a resolver's job, and the format deliberately defines no
+semantics for one — so `revision(hash)` hands back the reference exactly as
+stored, and `add` writes back whatever it was given.
 
 `generation` is an input field purely so the round trip needs no field
 stripping; `add` always writes the value it computes itself.
@@ -154,6 +181,42 @@ converges to the same result. `buildCache` does this once for the whole
 store at startup; `addRevision` repeats the same fold for a single new
 revision, incrementally.
 
+## Subject status
+
+`archived` is a flag on a *revision*, but "is this thing still being worked
+on" is a question about a *subject*. `list` bridges the two through the
+subject's current heads, since the heads are exactly the revisions anything
+new would be built on:
+
+- **active** — at least one current head is not archived. `list()`.
+- **archived** — the subject has at least one current head, and every one of
+  them is archived. `list(true)`.
+
+Concurrent heads can disagree, and both rules resolve that the same way: a
+single unarchived head keeps the whole subject active. Archiving is a
+statement that a subject is done evolving, and while a head remains that
+something can still be built on, it isn't. This also makes archiving
+reversible in the ordinary way — a new unarchived revision on top of an
+archived head demotes it out of the head set, and the subject is active again,
+with no separate "unarchive" operation and no rewriting of stored revisions.
+
+A subject with no current heads is in neither result: the status is a
+statement about heads, and there are none to make it about. A hash-consistent
+store cannot produce one (that would need a cycle among content hashes), but
+nothing here verifies that a blob hashes to the key it sits under, so this is
+what a corrupt or hand-crafted store gets rather than an arbitrary status.
+
+There is deliberately no all-subjects mode. Nothing needs one yet, and only
+this direction is reversible: adding a third value to the filter later is a
+compatible extension, while removing one would break callers.
+
+The cache stores each revision's `archived` flag keyed by its own revision
+hash, next to the `hashes` and `parents` sets, and applies it to the heads
+derived at read time. A per-subject flag maintained during the fold would be
+wrong for the same reason a running head list is (see
+[Head resolution](#head-resolution)): which revisions are heads is not known
+until the whole store has been folded in.
+
 ## Cross-subject parents
 
 `add` requires every parent to belong to the revision's own `subject`. The
@@ -192,19 +255,19 @@ undecodable hash, a hash the store has nothing under, a read that failed for
 any other reason, a blob that is not a revision — comes back as
 `error(message)` (`fjs/types/result`), never a
 `throw`, so a transport (e.g. the MCP adapter,
-[`fjs/cas/evo/mcp`](mcp/)) can surface it to the caller directly.
+[`fjs/mcp/evo`](../../mcp/evo/)) can surface it to the caller directly.
 
 ## Front ends
 
-- [`fjs/cas/evo/mcp`](mcp/) — MCP tool definitions (`evo_list` / `evo_head` /
+- [`fjs/mcp/evo`](../../mcp/evo/) — MCP tool definitions (`evo_list` / `evo_head` /
   `evo_revision` / `evo_add`) for agents, served by the same process as
-  [`fjs/cas/mcp`](../mcp/)'s `cas_add`/`cas_get`/`cas_list` — one
-  `~/.cas/` store, one Evo cache, one server (`npx functionalscript m`).
+  [`fjs/mcp`](../../mcp/)'s `cas_add`/`cas_get`/`cas_list` — one
+  `~/.cas/` store, one Evo cache, one server (`npx functionalscript mcp`).
 
 ## In-memory cache is per process
 
 The cache lives in one process's memory, so every `cas`/`evo` MCP server
-instance ([`fjs/cas/mcp`](../mcp/)) builds and holds its own — there is no
+instance ([`fjs/mcp`](../../mcp/)) builds and holds its own — there is no
 sharing across concurrently running instances. An HTTP(S) MCP server would
 let many clients share one cache and one process; two possible shapes for
 that, neither implemented yet:

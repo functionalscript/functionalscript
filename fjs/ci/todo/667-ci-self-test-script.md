@@ -60,6 +60,6 @@ npm uninstall <package.json.name> -g
 
 - [ ] Choose and document the script name.
 - [ ] Move FunctionalScript's demo compile check into that package script.
-- [ ] Update `fjs/ci/module.f.ts` to call the optional script instead of checking
+- [ ] Update `fjs/ci/module.f.mjs` to call the optional script instead of checking
   for `package.json.name === "functionalscript"` for the demo compile step.
 - [ ] Update CI proofs for package-specific and absent-script behavior.

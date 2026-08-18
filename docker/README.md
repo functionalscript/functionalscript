@@ -25,7 +25,10 @@ docker run --rm -it --network none functionalscript
 - `cargo test`
 - `npm test`
 - `deno task test`
-- `bun ./dev/test/module.ts`
+- `bun test`
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md#ways-to-run-the-functionalscript-test-suite)
+for the full list of equivalent ways to run the FunctionalScript test suite.
 
 ## Codex Setup
 

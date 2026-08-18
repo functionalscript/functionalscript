@@ -7,15 +7,15 @@
 
 [PR #1295](https://github.com/functionalscript/functionalscript/pull/1295) replaced every
 hand-rolled `try`/`catch` throw-test with the structural [`throw`](../README.md#throw-tests)
-marker, and [AGENTS.md](../../../AGENTS.md) now flatly bans `try`/`catch` in `.f.ts` files
+marker, and [AGENTS.md](../../../AGENTS.md) now flatly bans `try`/`catch` in `.f.mjs` files
 (FunctionalScript itself has no `try`/`catch` and isn't planning one soon). Codex flagged the
 regression this causes on that PR
-([`fjs/asserts/proof.f.ts:17`](../../asserts/proof.f.ts#L17)): `defaultTest` in
-[`module.f.ts`](../module.f.ts) treats *any* caught exception under `throw` as a pass — it
+([`fjs/asserts/proof.f.mjs:17`](../../asserts/proof.f.mjs#L17)): `defaultTest` in
+[`module.f.mjs`](../module.f.mjs) treats *any* caught exception under `throw` as a pass — it
 never inspects *what* was thrown. The `try`/`catch` versions it replaced did:
 
 ```ts
-// before (fjs/asserts/proof.f.ts, pre-#1295)
+// before (fjs/asserts/proof.f.mjs, pre-#1295)
 assertThrowsCustomMsg: () => { throws(() => assert(false, 'oops'), 'oops') },
 assertEqThrowsOnUnequal: () => {
     try { assertEq(1, 2) } catch (e) {
@@ -27,9 +27,9 @@ assertEqThrowsOnUnequal: () => {
 
 Under the plain `throw` key, `assert(false, 'oops')` throwing `'anything'` instead of `'oops'`,
 `assertEq(1, 2)` throwing the wrong tuple, or `todo()` throwing the wrong sentinel would all
-still pass. The same gap exists in `fjs/types/result/proof.f.ts`'s `unwrapError` (dropped the
+still pass. The same gap exists in `fjs/types/result/proof.f.mjs`'s `unwrapError` (dropped the
 check that `unwrap(error('oops'))` throws exactly `'oops'`, not some wrapped value) and
-`fjs/cas/cli/proof.f.ts`'s `mainListCorruptStore` (only checks *that* the storage error
+`fjs/cas/cli/proof.f.mjs`'s `mainListCorruptStore` (only checks *that* the storage error
 surfaces, which was already all it checked).
 
 **Why this is low-severity, not a correctness gap.** In FunctionalScript, `throw` is closer to
@@ -65,18 +65,18 @@ checks turn out to come up often enough to justify the framework work.
 
 No new rule or framework change needed — the distinction already exists and is documented in
 [fjs/todo/document-file-type-naming-conventions.md](../../todo/document-file-type-naming-conventions.md#proof--a-module-that-proves-other-modules):
-`proof.f.ts` is FunctionalScript (no `try`/`catch`, ever), `proof.ts` is vanilla TS and is
-already exempt from that rule — [`fjs/effects/node/memory/proof.ts`](../../effects/node/memory/proof.ts)
+`proof.f.mjs` is FunctionalScript (no `try`/`catch`, ever), `proof.ts` is vanilla TS and is
+already exempt from that rule — [`fjs/effects/node/memory/proof.mjs`](../../effects/node/memory/proof.mjs)
 is a live example (it isn't the shape we need here, since it captures a rejected `Promise` via
 `.then(onFulfilled, onRejected)` rather than `try`/`catch`, but it proves the file-type split
 already works and is already discovered by `fjs t` — `shouldLoad` in
-[`fjs/dev/module.f.ts`](../../dev/module.f.ts#L41) matches any `*proof.ts` filename alongside
-`*.f.ts`). AGENTS.md's `.f.ts` rule needs no change: it never applied to `proof.ts` in the first
-place. The fix for `fjs/asserts/proof.f.ts` and `fjs/types/result/proof.f.ts` is simply to move
+[`fjs/dev/module.f.mjs`](../../dev/module.f.mjs#L44) matches any `*proof.ts` filename alongside
+`*.f.ts` / `*.f.mjs`). AGENTS.md's `.f.mjs` rule needs no change: it never applied to `proof.ts` in the first
+place. The fix for `fjs/asserts/proof.f.mjs` and `fjs/types/result/proof.f.mjs` is simply to move
 just the payload-checking cases (`assertThrowsCustomMsg`, `assertEqThrowsOnUnequal`,
 `assertEqThrowsOnUnequal3`, `todoThrows`, `unwrapError`) into a sibling `proof.ts` in the same
 directory, using ordinary `try`/`catch`, while the rest of each module's coverage stays in
-`proof.f.ts`. `loadModuleMap` treats the two files as independent module-map entries, so both
+`proof.f.mjs`. `loadModuleMap` treats the two files as independent module-map entries, so both
 `proof` exports run.
 
 This is a workaround, not the destination: it splits one module's proof coverage across two
@@ -104,9 +104,9 @@ export const proof = {
 - If `try` throws, `catch` is called with the thrown value. `catch` is ordinary proof code —
   it can call `assert`/`assertEq`, and throwing (i.e. an assertion failing) is the leaf's real
   failure signal.
-- No raw `try`/`catch` is needed in `module.f.ts` to implement this: the module already routes
-  every leaf call through the `sandbox` effect (`fjs/effects/node/module.f.ts`), which is
-  implemented in the host runtime (not `.f.ts`) and already exposes the thrown value as
+- No raw `try`/`catch` is needed in `module.f.mjs` to implement this: the module already routes
+  every leaf call through the `sandbox` effect (`fjs/effects/node/module.f.mjs`), which is
+  implemented in the host runtime (not `.f.mjs`) and already exposes the thrown value as
   `SandboxResult.result`'s `error` case. `defaultTest` can sandbox `try`, and on an `error`
   result sandbox `() => catchFn(thrownValue)` as the leaf's real verdict — two effect calls,
   no bare `try`/`catch` written in FunctionalScript.
@@ -114,10 +114,22 @@ export const proof = {
   already encodes "expected to throw" on its own. Nesting one under `throw` should probably be
   a static error (redundant/contradictory expectation) rather than silently accepted.
 
-This keeps the flat "`.f.ts` never uses `try`/`catch`" rule intact, keeps payload checks
-inline in the same `proof.f.ts` and same structural-marker style as `throw`/`todo`/`skip`, and
+This keeps the flat "`.f.mjs` never uses `try`/`catch`" rule intact, keeps payload checks
+inline in the same `proof.f.mjs` and same structural-marker style as `throw`/`todo`/`skip`, and
 gives every proof author a supported way to check a thrown payload without reaching for a
 second file — the outcome A only approximates.
+
+#### Runner integration
+
+The structural marker and its evaluation semantics belong to the shared emergent-testing
+core. Surviving process adapters register the resulting tests through their existing Node,
+Deno, or Bun integration as applicable.
+
+The browser-side runner must implement the same `{ try, catch }` semantics directly inside
+the page and include the checked result in `BrowserTestReport`. A Playwright Test adapter
+only opens that shared application and interprets the report; it must not extend
+`registerModule`, create one Playwright test per proof, or restore the removed Node-side
+Playwright bridge.
 
 ### Open questions
 
@@ -142,20 +154,22 @@ second file — the outcome A only approximates.
 **Step 2 — long-term fix (B), only if payload checks prove common:**
 
 - [ ] Add the `{ try, catch }` leaf shape to `parseTestSet`/`collectTests`/`TestEntry` in
-      `fjs/emergent_testing/module.f.ts`, wire `defaultTest` to sandbox `catch` on a caught
-      throw, and extend `registerModule` for the external-framework path (Node `--test`,
-      Bun, Playwright).
+      `fjs/emergent_testing/module.f.mjs`, wire `defaultTest` to sandbox `catch` on a caught
+      throw, and extend only the surviving process-framework registration paths.
+- [ ] Implement identical `{ try, catch }` behavior in the shared browser-side runner and
+      include its result in the serializable browser report.
 - [ ] Document the `{ try, catch }` marker in `fjs/emergent_testing/README.md` next to
       [Throw tests](../README.md#throw-tests).
-- [ ] Migrate the `proof.ts` siblings from A back into `proof.f.ts` using the new marker, and
+- [ ] Migrate the `proof.ts` siblings from A back into `proof.f.mjs` using the new marker, and
       delete the now-empty `proof.ts` files.
 - [ ] Confirm `fjs t` proofs pass with full branch coverage and `npx tsc` is clean.
 
 ### Related
 
 - [PR #1295](https://github.com/functionalscript/functionalscript/pull/1295) — introduced the
-  `.f.ts` `try`/`catch` ban and, as a side effect, dropped the payload checks this issue
+  FunctionalScript `try`/`catch` ban and, as a side effect, dropped the payload checks this issue
   proposes to restore.
 - [todo-property](./todo-property.md), [skip-property](./skip-property.md) — the same
   structural-marker mechanism this proposal extends.
-- `fjs/asserts/proof.f.ts`, `fjs/types/result/proof.f.ts` — the sites that lost payload checks.
+- [browser-testing](./browser-testing.md) — shared browser-side execution and reporting.
+- `fjs/asserts/proof.f.mjs`, `fjs/types/result/proof.f.mjs` — the sites that lost payload checks.

@@ -82,10 +82,13 @@ and never affect the exit code. Instead:
 - The `fjs t` reporter prints each skipped leaf with a `# SKIP` annotation
   (paired with `# TODO` — TAP has exactly this directive pair) and adds a
   `skip` tally to the summary (`pass / fail / todo / skip`).
-- Unlike the `todo` tally, `skip` maps onto external runners **natively**:
-  Node `--test` accepts a `skip` option, and Bun and Playwright both have
-  `test.skip`. So the `register` path reports skips in the framework's own
-  output rather than silently dropping them.
+- The surviving external adapters map skips onto their own APIs: Node and Deno
+  use their native skip option, while Bun delegates through its existing
+  wrapper to `test.skip`.
+- The browser-native runner records skipped leaves directly in the shared
+  browser report and HTML UI. An optional Playwright Test adapter consumes that
+  report; it does not register individual FunctionalScript proofs through the
+  removed Node-side Playwright wrapper.
 
 #### Rejected alternative: informational run
 
@@ -98,8 +101,8 @@ triggers prove too weak in practice.
 
 ### Implementation
 
-Mirrors the `throws` plumbing in `fjs/emergent_testing/module.f.ts` plus one
-option on the `test` effect:
+Mirrors the `throws` plumbing in `fjs/emergent_testing/module.f.mjs` plus one
+option on the test effect used by the surviving process-based adapters:
 
 - **`TestEntry`** — add `readonly skip: boolean` next to `throws`.
 - **`parseTestSet` / `collectTests`** — inherit `skip` exactly like `throws`
@@ -111,10 +114,14 @@ option on the `test` effect:
   change, no return-value walk).
 - **`registerModule`** — register skipped leaves with a `skip` flag instead of
   a test body; no subtest registration, no ` ...` star suffix.
-- **`TestFn` / `Test` effect (`fjs/effects/node/module.f.ts`)** — extend the
+- **`TestFn` / `Test` effect (`fjs/effects/node/module.f.mjs`)** — extend the
   options record `{ expectFailure }` with `skip`; the Node implementation
-  passes `{ skip: true }` through to `node:test` natively; the Bun/Playwright
-  inline wrappers delegate to the framework's `test.skip`.
+  passes `{ skip: true }` through to `node:test`, and the surviving Bun/Deno
+  integrations map it to their framework behavior.
+- **Browser runner** — implement the same structural `skip` semantics inside
+  the browser-side emergent-test runner described by
+  [browser-testing](browser-testing.md), without importing Node adapters or
+  Playwright APIs into the page.
 - **Reporter** — print `# SKIP` lines via `Reporter.result` (or a dedicated
   `skipped` event) and extend `Reporter.summary` with the `skip` count;
   `defaultReporter` prints `pass / fail / todo / skip`.
@@ -125,6 +132,9 @@ option on the `test` effect:
 
 No existing proof uses a `skip` key (verified by grep over `fjs/**/*.f.ts`), so
 this marker reinterprets nothing.
+
+The removed Node-side Playwright wrapper is not a migration target. Future
+Playwright execution obtains skip results from the shared browser application.
 
 ### Open questions
 
@@ -141,12 +151,13 @@ this marker reinterprets nothing.
       like `throws`.
 - [ ] Short-circuit skipped leaves in `runModule` (no execution, no walk) and
       count them in a new `TestState.skip`.
-- [ ] Extend the `test` effect options with `skip`; map to `node:test`'s
-      native `skip` option and to `test.skip` in the Bun/Playwright wrappers;
-      use it in `registerModule`.
+- [ ] Extend the test-effect options with `skip`; map it to Node, Deno, and Bun
+      without adding or restoring a Playwright branch in the Node effect runner.
+- [ ] Implement equivalent skip collection and reporting in the shared
+      browser-side runner, independently of the Playwright Test adapter.
 - [ ] Print `# SKIP` per leaf and `pass / fail / todo / skip` in
       `defaultReporter` (`fjs t`).
-- [ ] Add proofs in `fjs/emergent_testing/proof.f.ts`: skipped leaf not
+- [ ] Add proofs in `fjs/emergent_testing/proof.f.mjs`: skipped leaf not
       executed, skipped subtree collected as individual paths, skipped
       generator reported as one leaf, `skip` dominating `throw`/`todo`,
       counters unaffected by skips.
@@ -163,7 +174,10 @@ this marker reinterprets nothing.
 - [todo-property](./todo-property.md) — `todo` covers engine-independent
   captured bugs and self-removes by flipping red; `skip` covers what `todo`
   structurally cannot: engine-dependent outcomes and harmful-to-run tests.
+- [browser-testing](browser-testing.md) — browser-native execution and the
+  shared report consumed by the HTML UI, `fjs browser-test`, and optional
+  Playwright Test integration.
 - `todo/README.md` "Blocked by third parties" — the unskip-trigger convention
   mirrors the **Trigger** requirement of `todo/blocked/` issues.
-- `fjs/effects/node/module.f.ts` `TestFn` — the options record extended with
-  `skip` for native framework skipping.
+- `fjs/effects/node/module.f.mjs` `TestFn` — the options record extended with
+  `skip` for surviving process-based framework integrations.

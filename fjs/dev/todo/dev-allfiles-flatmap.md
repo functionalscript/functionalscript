@@ -5,7 +5,7 @@
 
 ### Problem
 
-`allFiles` (`fjs/dev/module.f.ts:53-71`) builds its effect array with an
+`allFiles` (`fjs/dev/module.f.mjs:52-80`) builds its effect array with an
 imperative `for` loop, a reassigned accumulator, and three `continue`s:
 
 ```ts
@@ -31,8 +31,8 @@ spread) over loop-and-reassign accumulators. Each directory entry yields
 zero or one effect, which is exactly the `flatMap` shape. The repeated
 `result = [...result, x]` is also O(n²) in entry count.
 
-Secondary: line 82 destructures `const { fromEntries } = Object` while
-`AGENTS.md` mandates the typed helpers from `fjs/types/object/module.f.ts`
+Secondary: line 88 destructures `const { fromEntries } = Object` while
+`AGENTS.md` mandates the typed helpers from `fjs/types/object/module.f.mjs`
 for string-keyed maps (`fjs/cli` already imports from there).
 
 ### Proposal
@@ -50,14 +50,14 @@ readdir(p, {}).step(d => all(...unwrap(d).flatMap(i => {
 
 No `let`, no `continue`, no accumulator reassignment; the 0-or-1 mapping per
 entry is explicit. Also replace the `Object.fromEntries` destructuring with
-the appropriate helper from `fjs/types/object/module.f.ts` (or file a
+the appropriate helper from `fjs/types/object/module.f.mjs` (or file a
 follow-up if no typed `fromEntries` exists there yet).
 
 ### Tasks
 
 - [ ] Rewrite the `load` body with `flatMap` as above.
 - [ ] Replace `const { fromEntries } = Object` with the typed equivalent
-      from `fjs/types/object/module.f.ts`, adding one there if missing (it
+      from `fjs/types/object/module.f.mjs`, adding one there if missing (it
       has consumers waiting: this module and future map-builders).
 - [ ] Run `npx tsc` and `fjs t`.
 

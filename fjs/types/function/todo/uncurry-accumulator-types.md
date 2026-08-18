@@ -10,13 +10,13 @@
 Several sibling accumulator types still curry their data parameters, contradicting that precedent:
 
 ```ts
-// fjs/types/function/operator/module.f.ts
+// fjs/types/function/operator/module.f.mjs
 export type Fold<I, O> = Binary<I, O, O>   // (input: I) => (acc: O) => O
 export type Reduce<T>  = Fold<T, T>        // (value: T) => (acc: T) => T
 
-// fjs/types/sorted_list/module.f.ts
-export type ReduceOp<T, S>   = (state: S) => (a: T) => (b: T) => readonly[Nullable<T>, Sign, S]
-export type TailReduce<T, S> = (state: S) => (tail: List<T>) => List<T>
+// fjs/types/sorted_list/module.f.mjs
+/** @typedef {(state: S) => (a: T) => (b: T) => readonly [Nullable<T>, Sign, S]} ReduceOp */
+/** @typedef {(state: S) => (tail: List<T>) => List<T>} TailReduce */
 ```
 
 ### Proposal
@@ -35,7 +35,7 @@ This removes the partial-application footgun and drops one closure allocation pe
 
 ### Considerations
 
-- **Broad mechanical refactor.** ~20+ operator definitions across `bigint`, `prime_field`, `bit_vec`, `string`, `monoid`, `number`, `range_map`, plus `operator` itself and the `foldToScan`/`reduceToScan`/`fold`/`reduce` plumbing in `list`. `genericMerge`/`cmpReduce`/`mergeTail` in `sorted_list` and the `range_map` merge consumers change accordingly.
+- **Broad mechanical refactor.** ~20+ operator definitions across `bigint`, `prime_field`, `bit_vec`, `string`, `monoid`, `number`, `range_map`, plus `operator` itself and the `foldToScan`/`reduceToScan`/`fold`/`reduce` plumbing in `list`. `genericMerge`/`cmpReduce`/`keepTail` in `sorted_list` and the `range_map` merge consumers change accordingly.
 - **`Fold` can no longer be `Binary<I, O, O>`.** This draws a clean line between combinators where currying is genuinely useful (`Binary`/`Equal`/`Unary`) and accumulators where currying is dangerous (`Fold`/`Reduce`/`StateScan`/`ReduceOp`/`TailReduce`).
 - Could be split: `Fold`/`Reduce` first, `sorted_list`'s `ReduceOp`/`TailReduce` as a follow-up.
 

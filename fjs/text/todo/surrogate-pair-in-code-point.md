@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/text/code_point/module.f.ts` owns the surrogate/BMP boundary as named
+`fjs/text/code_point/module.f.mjs` owns the surrogate/BMP boundary as named
 constants and derives every classification predicate from them (`:50-54`):
 
 ```ts
@@ -18,7 +18,7 @@ const maxCodePoint = 0x10_ffff as const
 
 with the stated intent that "the surrogate bounds and the maximum appear
 exactly once". But the surrogate-pair *arithmetic* — the inverse of those
-predicates — re-hardcodes the same numbers in `fjs/text/utf16/module.f.ts`:
+predicates — re-hardcodes the same numbers in `fjs/text/utf16/module.f.mjs`:
 
 Encode (`:90-93`):
 
@@ -51,7 +51,7 @@ Move the inverse pair into `code_point`, derived from the existing constants
 consumer today):
 
 ```ts
-// fjs/text/code_point/module.f.ts
+// fjs/text/code_point/module.f.mjs
 const supplementaryBase = bmpMax + 1
 
 /** Splits a supplementary-plane code point into a `[high, low]` surrogate pair. */
@@ -65,7 +65,7 @@ export const fromSurrogatePair = (high: number) => (low: number): number =>
     ((high - surrogateMin) << 10) + (low - lowSurrogateMin) + supplementaryBase
 ```
 
-`codePointToUtf16` (`fjs/text/utf16/module.f.ts:87-96`) and
+`codePointToUtf16` (`fjs/text/utf16/module.f.mjs:87-96`) and
 `utf16ByteToCodePointOp`'s low-surrogate branch (`:199-203`) then call these
 instead of re-deriving the constants. Every surrogate number then appears in
 exactly one module, and a future consumer (e.g. a WTF-8/CESU-8 codec or a JS
@@ -74,13 +74,13 @@ string escape encoder) gets the arithmetic for free.
 ### Tasks
 
 - [ ] Add `toSurrogatePair`/`fromSurrogatePair` (and `supplementaryBase`) to
-      `fjs/text/code_point/module.f.ts`; cover them in its proof.
+      `fjs/text/code_point/module.f.mjs`; cover them in its proof.
 - [ ] Rewrite the two utf16 sites through them.
 - [ ] `npx tsc` clean; `fjs t` passes (code_point/utf16 proofs).
 
 ### Related
 
-- `fjs/text/code_point/module.f.ts:50-54` — the constants and their
+- `fjs/text/code_point/module.f.mjs:50-54` — the constants and their
   "appear exactly once" intent.
 - [666-utf16-encode-errormask](./666-utf16-encode-errormask.md) — touches
   only the invalid branch of `codePointToUtf16`; orthogonal.

@@ -1,22 +1,27 @@
 ## fold-stream-combinator. `foldStream` combinator for `IoResult<Vec>` streams
 
 **Priority:** P3
-**Status:** open
+**Status:** open, but **narrower than written**. A `List` cell can fail now
+(`List<O, T, E> = Effect<O, Next<O, T, E>, E>`), so the "error item →
+propagate" case below no longer exists — `step` propagates it — and every
+consumer named here has already lost that branch. What is left of the problem
+is the two-case fold, *EOF → finalize; item → fold and recurse*, which is an
+ordinary fold and a much weaker argument for a combinator. Re-scope or close.
 **May be subsumed by:** [effect-list-fold](./effect-list-fold.md) — if `foldStep`
 moves to `fjs/effects/list` and is retyped over `EffectList<O, T>`, `foldStream`
-becomes `foldStep` plus an `okStep`-shaped short-circuit rather than a separate
-combinator. Settle the scope of this issue after that one is reviewed.
+becomes an ordinary `foldStep` rather than a separate combinator — the
+short-circuit is the Io `step`'s, not an adapter's. Settle the scope of this issue after that one is reviewed.
 
 ### Problem
 
-Every consumer of a `List<O, IoResult<Vec>>` re-hand-writes the same
+Every consumer of a `List<O, Vec, IoChannel>` re-hand-writes the same
 three-case fold: *EOF → finalize; error item → propagate; chunk → fold and
 recurse on the tail.* The skeleton currently appears four times:
 
-`detectStream` (`fjs/media/type/module.f.ts:290-299`) — pure fold:
+`detectStream` (`fjs/media/type/module.f.mjs:268-281`) — pure fold:
 
 ```ts
-const loop = (s: DetectState) => (l: List<O, IoResult<Vec>>): Effect<O, IoResult<DetectMeta>> =>
+const loop = (s: DetectState) => (l: List<O, Vec, IoChannel>): Effect<O, IoResult<DetectMeta>> =>
     l.step((node): Effect<O, IoResult<DetectMeta>> => {
         if (node === undefined) { return pure(ok(finish(s))) }
         const { first, tail } = node
@@ -26,11 +31,11 @@ const loop = (s: DetectState) => (l: List<O, IoResult<Vec>>): Effect<O, IoResult
     })
 ```
 
-`collectRead` (`fjs/cas/mcp/module.f.ts:132-147`) — pure fold with an
+`collectRead` (`fjs/cas/module.f.mjs:79-95`) — pure fold with an
 overflow guard in the per-chunk step:
 
 ```ts
-const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>> =>
+const loop = (acc: Vec) => (s: List<O, Vec, IoChannel>): Effect<O, IoResult<Vec>> =>
     s.step((node): Effect<O, IoResult<Vec>> => {
         if (node === undefined) { return pure(ok(acc)) }
         const { first, tail } = node
@@ -41,8 +46,8 @@ const loop = (acc: Vec) => (s: List<O, IoResult<Vec>>): Effect<O, IoResult<Vec>>
     })
 ```
 
-`writeLoop` (`fjs/effects/node/module.f.ts:205-228`) and `fileCas.write`'s
-inner `loop` (`fjs/cas/module.f.ts:184-207`) are the same skeleton with an
+`writeLoop` (`fjs/effects/node/module.f.mjs:149-169`) and `fileCas.write`'s
+inner `loop` (`fjs/cas/module.f.mjs:201-234`) are the same skeleton with an
 *effectful* per-chunk step (`writeBytes` and `writeBytes` + hash + lease
 renewal respectively).
 
@@ -53,20 +58,20 @@ in sync.
 
 ### Proposal
 
-Add a `foldStream` combinator to `fjs/effects/list/module.f.ts` whose step
+Add a `foldStream` combinator to `fjs/effects/list/module.f.mjs` whose step
 returns an `Effect`, so it subsumes both the pure folds (step = `pure(...)`)
 and the effectful writers.
 
 **Layering note:** `IoResult` cannot appear in this module's signature —
-it is exported by `fjs/effects/node/module.f.ts`, which already imports
-`List` from `fjs/effects/list/module.f.ts`, so importing it back would be
+it is exported by `fjs/effects/node/module.f.mjs`, which already imports
+`List` from `fjs/effects/list/module.f.mjs`, so importing it back would be
 a cycle. But `IoResult<T>` is just an alias for `Result<T, unknown>` from
 `fjs/types/result` (a types-layer module `effects/list` can import freely),
 so write the signature in terms of `Result` — call sites that hold
 `IoResult` values type-check unchanged:
 
 ```ts
-import type { Result } from '../../types/result/module.f.ts'
+import type { Result } from '../../types/result/types.ts'
 
 export const foldStream =
     <O extends Operation, A>(step: (acc: A) => (chunk: Vec) => Effect<O, Result<A, unknown>>) =>
@@ -78,7 +83,7 @@ export const foldStream =
 that is judged too specific for `effects/list`, generalize the element
 type to a parameter `I` in place of `Vec` — the combinator never inspects
 the chunks. Alternatively the helper can live in
-`fjs/effects/node/module.f.ts` next to the I/O types, but the `Result`
+`fjs/effects/node/module.f.mjs` next to the I/O types, but the `Result`
 spelling keeps it in the layer where `List` is defined, which is
 preferred.)
 
@@ -101,8 +106,8 @@ consumers first; the writers follow only if the shape stays clean.
 
 ### Tasks
 
-- [ ] Add `foldStream` to `fjs/effects/list/module.f.ts` with proof coverage.
-- [ ] Convert `detectStream` (`fjs/media/type`) and `collectRead` (`fjs/cas/mcp`).
+- [ ] Add `foldStream` to `fjs/effects/list/module.f.mjs` with proof coverage.
+- [ ] Convert `detectStream` (`fjs/media/type`) and `collectRead` (`fjs/cas`).
 - [ ] Convert `writeLoop` (`fjs/effects/node`) if the effectful step fits
       without contortion; otherwise document why in this issue and keep it.
 - [ ] Evaluate `fileCas.write`'s loop; convert or document why not.
@@ -118,7 +123,7 @@ consumers first; the writers follow only if the shape stays clean.
   abstraction; `foldStream` is the consumer-side generalization.
 - [allreduce-combinator](./allreduce-combinator.md) — sibling combinator for
   parallel effects.
-- `okStep` (`fjs/effects/module.f.ts`) — the step-adapter helper shape; this
+- The Io `step` (`fjs/effects/io/module.f.mjs`) — the short-circuit shape; this
   combinator's per-chunk step is a Kleisli function of the same shape.
 - [write-closed-helpers](../../cas/todo/write-closed-helpers.md) — hoists
   `fileCas.write`'s remaining nested helpers; its loop conversion depends on

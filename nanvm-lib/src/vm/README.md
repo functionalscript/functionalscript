@@ -20,11 +20,11 @@ struct String<T: IVm>;
 // ...
 ```
 
-## AST
+## EDAG
 
-The AST is VM-agnostic and is the stable, serializable representation of functions
-(see [`todo/lang/README.md` §9](../../../todo/lang/README.md#9-serialization-ast-as-data-not-bytecode)).
-A VM implementation may transform it into internal bytecode on loading, or use the AST itself
+The EDAG is VM-agnostic and is the stable, serializable representation of functions
+(see [`spec/todo/serialization.md`](../../../spec/todo/serialization.md)).
+A VM implementation may transform it into internal bytecode on loading, or use the EDAG itself
 as its byte code, interpreting it directly.
 
 ```rust

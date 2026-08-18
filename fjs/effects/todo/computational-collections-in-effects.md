@@ -5,7 +5,7 @@
 
 ### Current situation
 
-`fjs/dev/module.f.ts` — `loadModuleMap` — issues two sequential `all` effects:
+`fjs/dev/module.f.mjs` — `loadModuleMap` — issues two sequential `all` effects:
 
 ```ts
 return allFiles(s)

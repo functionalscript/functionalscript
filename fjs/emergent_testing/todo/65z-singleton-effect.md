@@ -12,8 +12,13 @@ time and can produce confusing duplicate output.
 
 #### Concrete example: scenario runner
 
+(The scenario runner was deleted in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520) —
+recreation documented in [`../scenarios.md`](../scenarios.md) — but the
+double-load mechanism it illustrates is general, so the example is kept.)
+
 `run.sh` hard-links `all.ts` → `_all.test.ts` and a scenario file →
-`_scenario.proof.ts`, then runs a test framework (node, bun, deno, playwright)
+`_scenario.proof.ts`, then runs a test framework (node, bun, deno)
 in the `scenarios/` directory. If the framework scans the directory it may
 discover **both** `all.ts` and `_all.test.ts` (both end in `.ts` and both
 export a `run()` call). Each discovered file loads and executes the module
@@ -69,7 +74,7 @@ once and its exports are shared by all importers that resolve to the same URL.
 A dedicated registry module can exploit this:
 
 ```ts
-// ./fjs/emergent_testing/registry.f.ts
+// ./fjs/emergent_testing/registry.f.mjs
 export const seen = new Set<string>()
 ```
 
@@ -80,7 +85,7 @@ copies). No `globalThis` pollution needed.
 
 ```ts
 // all.ts
-import { seen } from './registry.f.ts'
+import { seen } from './registry.f.mjs'
 import { run } from './module.ts'
 
 if (!seen.has('all')) {
@@ -90,7 +95,7 @@ if (!seen.has('all')) {
 ```
 
 This is the simplest approach and requires no new effect type. The trade-off
-is that it only works when all copies share the same `registry.f.ts` URL —
+is that it only works when all copies share the same `registry.f.mjs` URL —
 which holds for hard links in the same directory tree, but not for copies in
 entirely separate trees.
 

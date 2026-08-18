@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/sul/id/module.f.ts` implements the "a 256-bit id is tagged by its top
+`fjs/sul/id/module.f.mjs` implements the "a 256-bit id is tagged by its top
 set bit at `offset`; membership is `asBase(v) >> offset === 1n`" scheme
 twice, byte-identical modulo the offset:
 
@@ -53,7 +53,7 @@ so, since it is what makes `isRaw` false for hash ids.
 
 - [ ] Add `prefixTag`; instantiate `raw`/`hash`; keep the exported
       `isRaw`/`isHash` signatures unchanged.
-- [ ] `npx tsc`, `fjs t`; `fjs/sul/proof.f.ts` passes unchanged.
+- [ ] `npx tsc`, `fjs t`; `fjs/sul/proof.f.mjs` passes unchanged.
 
 ### Related
 

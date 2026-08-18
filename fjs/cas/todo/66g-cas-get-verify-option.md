@@ -6,13 +6,14 @@
 
 ### Problem
 
-`Cas.read` / `fileKvStore.read` (`fjs/cas/module.f.ts:51-57, 85-92`) and the `cas get`
-command (`fjs/cas/module.f.ts:126-146`) return the bytes stored at an address without
-recomputing their hash. If a blob was corrupted, truncated, or misnamed — for example by
-disk corruption or by a copy-files synchronization that has not yet been verified — a reader
-between the copy and a later scrub can consume invalid content under a hash that was signed
-or referenced elsewhere. The reader has no way to ask "and prove these bytes actually hash
-to the address I requested."
+`fileCas(sha2)(path).read` (`fjs/cas/module.f.mjs`, the `read` method on the `FileCas`
+returned by `fileCas`) streams the bytes stored at an address, chunk by chunk, without
+recomputing their hash, and the `cas get` command (`fjs/cas/cli/module.f.mjs`) pipes that
+stream straight to the output file via `writeFromStream`. If a blob was corrupted, truncated,
+or misnamed — for example by disk corruption or by a copy-files synchronization that has not
+yet been verified — a reader between the copy and a later scrub can consume invalid content
+under a hash that was signed or referenced elsewhere. The reader has no way to ask "and prove
+these bytes actually hash to the address I requested."
 
 A separate batch [`cas verify`](66g-cas-verify-command.md) command catches corruption
 eventually, but there is a window before it runs, and some callers want certainty at the

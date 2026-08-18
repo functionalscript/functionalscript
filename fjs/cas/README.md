@@ -1,16 +1,16 @@
 # CAS
 
 Content-addressable storage: blobs on disk, addressed by content hash
-([fjs/cas/module.f.ts](module.f.ts)). The store is type-agnostic — it keeps
+([fjs/cas/module.f.mjs](module.f.mjs)). The store is type-agnostic — it keeps
 raw bytes only, sharded by cBase32 hash under `~/.cas/` — and never records a
 mutable pointer or a per-blob type tag; both are recovered at the edges that
 need them.
 
-- [fjs/cas/mcp](mcp/) — an MCP front end for agents, including read-time
+- [fjs/mcp](../mcp/) — an MCP front end for agents, including read-time
   media-type detection: `cas_add` / `cas_get` / `cas_list` plus
   [fjs/cas/evo](evo/)'s `evo_list` / `evo_head` / `evo_revision` / `evo_add`,
   all served from one process.
-- [`cas` CLI](cli/module.f.ts) — direct filesystem access for content larger
+- [`cas` CLI](cli/module.f.mjs) — direct filesystem access for content larger
   than the MCP inline-content cap.
 - [fjs/cas/evo](evo/) — the Evo API: subjects and revision heads
   ([vnd.fjs.revision](../media/revision/)) cached in memory over this
@@ -32,3 +32,9 @@ schema.
   `application/vnd.fjs.revision+json`; see
   [fjs/media/revision/README.md](../media/revision/README.md) for the full
   spec.
+- [vnd.fjs.lock](../media/lock/) — a revision's `lock` map stored on its own,
+  so several revisions can point at one agreed dependency resolution instead
+  of each carrying a copy. History-free by design: history for lock content is
+  an ordinary revision whose `snapshot` is one of these blobs. Served as
+  `application/vnd.fjs.lock+json`; see
+  [fjs/media/lock/README.md](../media/lock/README.md) for the full spec.

@@ -1,10 +1,11 @@
 # MIME detection
 
-Magic-byte MIME type detection: a pure table lookup over the leading bytes of a
-`Vec`. No I/O, no dependencies beyond [`fjs/types/bit_vec`](../../types/bit_vec/).
+Magic-byte MIME type detection: the leading bytes of a `Vec` are eliminated
+against one signature list. No I/O, no dependencies beyond
+[`fjs/types/bit_vec`](../../types/bit_vec/).
 
 ```ts
-import { detect } from './module.f.ts'
+import { detect } from './module.f.mjs'
 
 detect(pngBytes)   // 'image/png'
 detect(textBytes)  // null
@@ -35,8 +36,13 @@ distinguishing UTF-8 from arbitrary bytes is not a magic-byte test, and the
 caller's `null` branch already handles "treat as opaque/text".
 
 WebP is the only non-contiguous signature: the four-byte little-endian file size
-sits between the `RIFF` and `WEBP` markers, so it is matched as a prefix plus a
-second marker at byte offset 8.
+sits between the `RIFF` and `WEBP` markers, so its pattern carries four wildcard
+bytes in that gap.
+
+The table above is documentation; the signatures themselves are declared once, as
+the `signatures` list in [`module.f.mjs`](./module.f.mjs). `detect` and the
+streaming detector both eliminate against that one list through the same
+`magicStep`, so adding or correcting a signature is a single edit.
 
 ## Streaming detector (`detectStream`)
 
@@ -46,10 +52,10 @@ the module also exports `detectStream` — the streaming form of the **same
 byte-accepting state machine**:
 
 ```ts
-import { detectStream, detectVec, push, finish, detectInit } from './module.f.ts'
+import { detectStream, detectVec, push, finish, detectInit } from './module.f.mjs'
 
-// fold a CAS read stream (List<O, IoResult<Vec>>) into { length, mime_type, type }
-detectStream(stream)            // Effect<O, IoResult<DetectMeta>>
+// fold a CAS read stream (List<O, Vec, IoChannel>) into { length, mime_type, type }
+detectStream(stream)            // Effect<O, DetectMeta, IoChannel>
 
 // classify a whole Vec you already hold, through the same machine
 detectVec(bytes)                // { length, mime_type, type }
@@ -62,7 +68,7 @@ detectVec(bytes)                // { length, mime_type, type }
 | factor  | what it does                                                        | absorbing                |
 |---------|---------------------------------------------------------------------|--------------------------|
 | length  | running byte count (`+chunkLen` per chunk)                          | never                    |
-| magic   | signature elimination — the streaming form of the table above       | matched / dead (≤12 B)   |
+| magic   | signature elimination — the same `magicStep` `detect` folds with     | matched / dead (≤12 B)   |
 | utf8    | UTF-8 validity-and-text DFA over `fjs/text/utf8`'s decoder            | invalid / non-text       |
 
 `finish` reads the same three-way verdict as the pure path: magic hit → `base64`
@@ -95,7 +101,7 @@ blob costs ≈ length counting past the settling point.
 the exact shape a declarative BNF→DFA recognizer backend would generate — see
 [`fjs/bnf` recognizer-backend](../../bnf/todo/recognizer-backend.md). That backend
 does not exist yet, so the two factors are hand-written here: `magicStep` does
-signature elimination (the streaming form of the table above) and `utf8Step`
+signature elimination over the `signatures` list and `utf8Step`
 rides the existing `fjs/text/utf8` decoder. When the backend lands, these should
 be lowered onto it; `length` (an FSM cannot count) and `finish` stay outside it
 regardless. The factors are independent — adding a property (e.g. a streaming
@@ -104,7 +110,7 @@ clause, touching no existing transition.
 
 ## Consumers
 
-- [`fjs/cas/mcp`](../../cas/mcp/) — `cas_get` classifies with the state machine on
+- [`fjs/mcp/cas`](../../mcp/cas/) — `cas_get` classifies with the state machine on
   both paths: `detectStream` folds the read stream for the default metadata-only
   call (size-independent), and `detectVec` classifies the collected blob when
   `content: true` is requested, so the three-way verdict has a single

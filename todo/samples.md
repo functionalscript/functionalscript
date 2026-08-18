@@ -12,7 +12,7 @@ like, end to end, to someone who has not read the source.
   (a purely functional subset of JavaScript), lists the `fjs` CLI commands,
   and documents CAS and MCP usage — but contains no FunctionalScript code.
   The nearest thing to a language example is the specification draft in
-  [lang/README.md](./lang/README.md), which is a spec, not a tutorial.
+  [spec/README.md](../spec/README.md), which is a spec, not a tutorial.
 - [demo/README.md](./demo/README.md) has the examples a newcomer wants
   (`math.f.js`, shared-reference data modules, a test module), but it is a
   presentation script parked under `todo/`, not linked from anywhere a
@@ -42,7 +42,7 @@ thing to keep in sync:
   build. A sample that is not executed will rot.
 - **Samples use only shipped features.** The parser is still a work in
   progress; a sample that needs an unimplemented feature belongs in
-  [lang/](./lang/README.md) as a spec example, not in `samples/`.
+  [spec/](../spec/README.md) as a spec example, not in `samples/`.
 - **The root README embeds the smallest one** — a reader should see
   FunctionalScript code without leaving the front page.
 
@@ -56,7 +56,7 @@ Candidate samples, from #233:
 - consuming a FunctionalScript module from an existing TypeScript project;
 - consuming a FunctionalScript module from an existing JavaScript project.
 
-The last two are the ones that answer #485 directly — the claim that `.f.ts`
+The last two are the ones that answer #485 directly — the claim that `.f.mjs`
 modules import into ordinary TS/JS with no build step is the project's main
 selling point and is currently unillustrated.
 
@@ -85,6 +85,6 @@ delete it.
 - [GitHub issue #485](https://github.com/functionalscript/functionalscript/issues/485)
   — README does not explain how the library is used.
 - [fjs/website/todo/generate-website.md](../fjs/website/todo/generate-website.md)
-  — the `page.f.ts` convention and README→HTML publishing; samples should
+  — the `page.f.mjs` convention and README→HTML publishing; samples should
   feed the website rather than duplicate it.
 - [demo/README.md](./demo/README.md) — existing examples to salvage.

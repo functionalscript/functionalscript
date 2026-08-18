@@ -10,12 +10,12 @@ independently in two modules, once unchecked and once checked, with no shared
 helper:
 
 ```ts
-// fjs/text/module.f.ts:61-62 — unchecked, top module reaching into three modules
-export const utf8ToString = (msbV: Utf8): string =>
+// fjs/text/module.f.mjs:70-71 — unchecked, top module reaching into three modules
+export const utf8ToString = msbV =>
     codePointListToString(toCodePointList(u8List(msb)(msbV)))
 
-// fjs/text/utf8/module.f.ts:283-290 — checked / Nullable, in the utf8 module
-export const fromVec = (v: Vec): string | null => {
+// fjs/text/utf8/module.f.mjs:293-300 — checked / Nullable, in the utf8 module
+export const fromVec = v => {
     if ((length(v) & 0b111n) !== 0n) { return null }
     const arr = toArray(toCodePointList(u8List(msb)(v)))
     for (const cp of arr) {
@@ -28,7 +28,7 @@ export const fromVec = (v: Vec): string | null => {
 Both hardcode the same core chain — `u8List(msb)` bit-unpack →
 `toCodePointList` utf8-decode → `codePointListToString` utf16 re-string —
 and `fromVec` merely wraps it with an octet-alignment check and an
-`isValidCodePoint` filter. `fjs/media/module.f.ts:48-50` even documents that
+`isValidCodePoint` filter. `fjs/media/module.f.mjs:142-145` even documents that
 its own detector re-proves "the same two conditions `fromVec` checks, via the
 same decoder" — evidence the pipeline is being re-derived in several places.
 The unchecked and checked forms also live in *different* modules (top `text`
@@ -42,21 +42,23 @@ Give the utf8 module sole ownership of the `Vec` → code-point decode and
 express both string forms through it:
 
 ```ts
-// fjs/text/utf8/module.f.ts
+// fjs/text/utf8/module.f.mjs
 export const vecToCodePointList = (v: Vec): List<I32> => toCodePointList(u8List(msb)(v))
 ```
 
 `fromVec` builds on it (adding its alignment/validity checks), and
-`text/module.f.ts`'s `utf8ToString` becomes
+`text/module.f.mjs`'s `utf8ToString` becomes
 `codePointListToString(vecToCodePointList(msbV))`. Consider going further and
-moving `utf8ToString` into `fjs/text/utf8/module.f.ts` as the unchecked
-sibling of `fromVec` (re-exported from `fjs/text/module.f.ts` for existing
-importers, or migrated as a breaking change) — mirroring how the encode
-direction already pairs `tryUtf8`/`utf8` in one place.
+moving `utf8ToString` into `fjs/text/utf8/module.f.mjs` as the unchecked
+sibling of `fromVec` — mirroring how the encode direction already pairs
+`tryUtf8`/`utf8` in one place. If it moves, migrate it as a breaking change
+with every importer updated in the same PR; a re-export left in
+`fjs/text/module.f.mjs` for existing importers is the stale-re-export case
+`changelog/README.md` rules out.
 
 ### Tasks
 
-- [ ] Add `vecToCodePointList` to `fjs/text/utf8/module.f.ts`; rewrite
+- [ ] Add `vecToCodePointList` to `fjs/text/utf8/module.f.mjs`; rewrite
       `fromVec` and `utf8ToString` through it.
 - [ ] Decide whether `utf8ToString` moves next to `fromVec`; update importers
       if so.
@@ -67,5 +69,5 @@ direction already pairs `tryUtf8`/`utf8` in one place.
 - [../../todo/190.md](../../todo/190.md) — single-character
   `String.fromCharCode`/`codePointAt` boundary; this is the whole-`Vec`
   pipeline, a different layer.
-- `fjs/media/module.f.ts:46-50` — the detector's documented re-proof of
+- `fjs/media/module.f.mjs:138-145` — the detector's documented re-proof of
   `fromVec`'s checks; a cleaner shared decode API may simplify it.

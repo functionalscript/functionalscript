@@ -1,12 +1,16 @@
 # FunctionalScript
 
+> **Note:** This file is parked and stale; see [todo/samples.md](../samples.md) for
+> the plan to migrate its usable content into a top-level `samples/` directory
+> and delete this file.
+
 ## 1. What is FunctionalScript?
 
 FunctionalScript is a **purely functional subset of JavaScript**.
 
 ### What does that mean?
 
-* **Subset**: `.f.js` modules can be imported and used in JavaScript or TypeScript code without transpilation.
+* **Subset**: `.f.mjs` modules can be imported and used in JavaScript or TypeScript code without transpilation.
 * **Functional**: Functions are first-class citizens and support composition and currying.
 * **Purely functional**: No side effects. Execution is deterministic and reproducible:
 
@@ -18,7 +22,7 @@ FunctionalScript is a **purely functional subset of JavaScript**.
 FunctionalScript modules look like this:
 
 ```js
-// math.f.js
+// math.f.mjs
 export default {
   add: a => b => a + b,
   mul: a => b => a * b,
@@ -29,7 +33,7 @@ You can use them from regular JavaScript:
 
 ```js
 // app.js
-import math from "./math.f.js"
+import math from "./math.f.mjs"
 
 const add2 = math.add(2)
 console.log("5 ===", add2(3))
@@ -78,23 +82,23 @@ Install the CLI:
 npm install --global functionalscript
 ```
 
-Convert `.f.js` files:
+Convert `.f.mjs` files:
 
 ```sh
 # From JSON to FJS
-fjs compile tree.json _tree.f.js
+fjs compile tree.json _tree.f.mjs
 
 # To FunctionalScript (FJS)
-fjs compile data.f.js _data.f.js
+fjs compile data.f.mjs _data.f.mjs
 
 # To JSON
-fjs compile data.f.js _data.json
+fjs compile data.f.mjs _data.json
 ```
 
 ## 5. Test Framework in FunctionalScript
 
 ```js
-// test.f.js
+// test.f.mjs
 const arrayOfTests = [
   () => {
     if (2 + 2 !== 4) throw "It's the end of the world as we know it!"
@@ -113,7 +117,7 @@ export default {
 Run it with:
 
 ```sh
-fjs t
+fjs test
 ```
 
 ## 6. Roadmap
@@ -125,7 +129,6 @@ We are gradually adding more features:
   * Function support
   * Operators and control flow
   * Non-default exports
-  * `.f.ts` files (TypeScript type erasure)
 * Tooling:
 
   * BAST: Binary Abstract Syntax Tree for FunctionalScript
@@ -141,6 +144,5 @@ We are gradually adding more features:
 * **Contribute**: We host **weekly contributor meetings**: everyone’s welcome.
 * **License**:
 
-  * Currently: AGPL (copyleft).
-  * Planning to adjust for broader adoption once we receive funding.
+  * Currently: MIT.
   * Need a custom license? Contact us: `sergey.oss@proton.me`

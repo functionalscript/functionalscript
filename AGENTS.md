@@ -4,752 +4,95 @@ This repository is a monorepo with two code bases:
 
 | Directory    | Language                                | Notes                                       |
 | ------------ | --------------------------------------- | ------------------------------------------- |
-| `fjs/`       | FunctionalScript (`.f.ts`) / TypeScript | The language, its standard modules, and the `fjs` CLI |
+| `fjs/`       | FunctionalScript (`.f.mjs`) / TypeScript (`types.ts`) | The language, its standard modules, and the `fjs` CLI |
 | `nanvm-lib/` | Rust                                    | NaNVM, the native FunctionalScript VM       |
 
 Issues live in `todo/` directories, **not** on GitHub. Check them for existing
-work before starting — see [todo/README.md](./todo/README.md).
+work before starting.
+
+Run the full check set before submitting:
+
+```bash
+npx tsc                  # type-check with the repo's TypeScript
+fjs test                 # or any equivalent runner
+cargo test               # only if you touched Rust
+cargo clippy
+cargo fmt -- --check
+```
+
+Two principles outrank everything else. **Always prefer simplicity and quality
+over optimization** — never optimize prematurely, and never at the cost of
+simplicity. **The API is the most important part of quality** — if a new version
+can have a better, simpler API, change it; breaking changes are the right call
+whenever they improve the API. The full set, which governs both code bases, is
+[DESIGN.md](./DESIGN.md).
+
+This file is a map: each section below holds the facts you must not violate and
+links to the document that holds the rest. Read a linked document when the task
+actually touches its subject.
 
 ## Contents
 
-1. [Development environment](#1-development-environment)
-2. [Everyday workflow](#2-everyday-workflow)
-3. [Testing and proof coverage](#3-testing-and-proof-coverage)
-4. [Documentation](#4-documentation)
-5. [Design principles](#5-design-principles)
-6. [Coding style](#6-coding-style)
-7. [Issues (`todo/`)](#7-issues-todo)
-8. [Pull requests](#8-pull-requests)
+1. [Workflow](#1-workflow)
+2. [Environment and running tests](#2-environment-and-running-tests)
+3. [FunctionalScript and TypeScript (`fjs/`)](#3-functionalscript-and-typescript-fjs)
+4. [Rust (`nanvm-lib/`)](#4-rust-nanvm-lib)
+5. [Pull requests and releases](#5-pull-requests-and-releases)
 
 ---
 
-## 1. Development environment
+## 1. Workflow
 
-### 1.1 What to install
+Find or file the issue in `todo/` first, next to the code it describes; for
+anything non-trivial make sure it contains a concrete design before writing
+code. Write the code plus its proof, run `npm run update` after changing source,
+run the check set above, and delete the `todo/` issue file in the same PR that
+fixes it.
 
-| Tool     | Version              | Required for                                                       |
-| -------- | -------------------- | ------------------------------------------------------------------ |
-| Node.js  | **latest** (22 min.) | Everything. Node 24+ for `node --test` — see [1.3](#13-the-node-version-caveat). |
-| Rust     | **latest**           | NaNVM (`nanvm-lib`) development only.                              |
-| Deno     | latest               | Updating dependencies; an alternative test runtime.                |
-| Bun      | latest               | Updating dependencies; an alternative test runtime.                |
+Format, priorities, where each issue file belongs, and how GitHub-reported bugs
+become `todo/` files: [todo/README.md](./todo/README.md).
 
-[docker/Dockerfile](./docker/Dockerfile) sets all of this up and is the easiest
-way to get a known-good environment.
+## 2. Environment and running tests
 
-### 1.2 Installing dependencies
+`npm ci` installs Node dependencies and `cargo fetch` the Rust ones. `npm test`
+runs `tsc` plus the FunctionalScript suite; `fjs test` and its Deno, Bun, and
+published-CLI equivalents run the same suite. To run only the tests under a
+subtree, `cd` into it and run the runner from there.
 
-```bash
-npm ci        # Node dependencies
-cargo fetch   # Rust dependencies
-```
+Required tool versions, every equivalent way to run the suite, and the
+dependency-update procedure: [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-### 1.3 The Node version caveat
+## 3. FunctionalScript and TypeScript (`fjs/`)
 
-**Node's built-in test runner (`node --test`, and `npm run cov` which wraps it)
-needs Node 24 or later.** On Node 22 it runs to completion but reports every
-`throw`-tagged test (see [§3.4](#34-never-use-trycatch-test-throwing-with-the-throw-key))
-as a failure — the runner's expected-throw inversion doesn't take effect, so a
-clean tree looks broken.
+Every new `.f.mjs` module ships a co-located `proof.f.mjs` with **100% proof
+coverage** — every export called, every line executed, every branch taken.
+Values are immutable (no in-place mutation, no `.push`/`Map#set`/index
+assignment), there is no `try`/`catch` and no regular expressions, and types are
+written in JSDoc with a sibling `types.ts` for a type-level API.
 
-Use the latest Node if you can. Everything else in the table below works on
-Node 22, including the repo's own runner (`npm start t`) and the Deno and Bun
-runtimes.
+Testing, documentation, and the full coding style: [fjs/AGENTS.md](./fjs/AGENTS.md).
 
-### 1.4 Ways to run the FunctionalScript test suite
+## 4. Rust (`nanvm-lib/`)
 
-Every row below runs the same suite; pick the first one that fits your
-environment.
+`cargo test`, `cargo clippy`, and `cargo fmt -- --check` all have to pass. Avoid
+`macro_rules!` — declarative macros hide types from tooling and contradict this
+repository's preference for explicit, locally-readable code.
 
-| Command                                | Runtime  | Needs internet | Notes                                      |
-| -------------------------------------- | -------- | -------------- | ------------------------------------------ |
-| `npm test`                             | Node 22+ | no             | `tsc` + the repo's runner.                  |
-| `npm start t`                          | Node 22+ | no             | The repo's runner, no type-check step.      |
-| `node --test`                          | Node 24+ | no             | Node's native test runner.                  |
-| `npm run cov`                          | Node 24+ | no             | `node --test` plus coverage.                |
-| `deno task fjs t`                      | Deno     | no             | The repo's runner under Deno.               |
-| `deno task test` / `deno task cov`     | Deno     | no             | Deno's native test runner / coverage.       |
-| `bun fjs/module.ts t`                  | Bun      | no             | The repo's runner under Bun.                |
-| `bun test`                             | Bun      | no             | Bun's native test runner.                   |
-| `fjs t`                                | Node 22+ | to install     | After `npm install -g functionalscript`.    |
-| `npx functionalscript t`               | Node 22+ | yes            | No install step.                            |
-| `deno run -A npm:functionalscript t`   | Deno     | yes            | No install step.                            |
-| `bunx functionalscript t`              | Bun      | yes            | No install step.                            |
+Commands and Rust coding style: [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md).
 
-The last four rows run a **published** FunctionalScript rather than this working
-tree's version. `npx`, `deno run`, and `bunx` resolve the latest release each
-time; `fjs` runs whatever you installed globally, which goes stale as new
-versions ship — re-run `npm install -g functionalscript` to update it.
+## 5. Pull requests and releases
 
-Deno needs explicit permissions: `-A` is the short form, or pass the same set as
-the `fjs` task in [deno.json](./deno.json) (`--allow-read --allow-write
---allow-env --allow-net --allow-sys`). Deno also holds back very recently
-published versions; add `--minimum-dependency-age=0` to force the newest.
+A PR implements only one feature or improvement, with minimal code changes, and
+every check above passing. Its title and description become the squash commit on
+`main`, so write them as one: a `<topic>: <short description>` title and a
+description ending in a mandatory `Changelog:` section. A PR that changes
+behavior or the public API adds `changelog/unreleased/<PR>.md`, named by the
+real PR number once the PR exists; a PR that doesn't — internal refactors,
+test-only changes, and PRs that only touch `todo/`, `AGENTS.md`, or other
+documentation — writes `Changelog: none` instead. Breaking changes are welcome
+when they improve the API — prefix the entry with `**BREAKING CHANGES:**` and
+update every importer in the same PR.
 
-CI exercises these same combinations — see the `node22`, `node24`, `node26`,
-`deno`, `bun`, and `playwright` jobs in
-[.github/workflows/ci.yml](./.github/workflows/ci.yml) for the exact commands
-and pinned runtime versions.
-
-To run only the tests under a subtree, `cd` into that directory and run the
-runner from there (e.g. `cd fjs/base64 && fjs t`). Module discovery starts at
-the current working directory, and results are reported per test.
-
-### 1.5 Updating dependencies
-
-```bash
-npm run update
-```
-
-This requires **Node, Deno, and Bun to all be installed**: `package-lock.json`,
-`deno.lock`, and `bun.lock` are all under Git control, and the update refreshes
-each of them (plus the generated CI workflow).
-
-### 1.6 Rust commands
-
-```bash
-cargo test               # test the nanvm-lib crate
-cargo clippy             # lint
-cargo fmt -- --check     # verify formatting
-```
-
----
-
-## 2. Everyday workflow
-
-1. Find or file the issue in `todo/` ([§7](#7-issues-todo)). For anything
-   non-trivial, make sure it contains a concrete design first.
-2. Write the code, plus a co-located `proof.f.ts` for every new `.f.ts` module
-   ([§3](#3-testing-and-proof-coverage)).
-3. Run `npm run update` after changing source code.
-4. Run the full check set before submitting:
-   ```bash
-   npx tsc                  # type-check with the repo's TypeScript
-   fjs t                    # or any equivalent from §1.4
-   cargo test               # only if you touched Rust
-   cargo clippy
-   cargo fmt -- --check
-   ```
-5. Delete the `todo/` issue file in the same PR that fixes it.
-6. Open the PR. If it changes code, add the CHANGELOG entry using the real PR
-   number ([§8.3](#83-changelog)) — PRs that only touch `todo/`, `AGENTS.md`, or
-   other documentation don't need one.
-
----
-
-## 3. Testing and proof coverage
-
-### 3.1 Commands
-
-- `npx tsc` — type-check using the repository's version of TypeScript.
-- `fjs t` (or any equivalent from [§1.4](#14-ways-to-run-the-functionalscript-test-suite))
-  — test FunctionalScript (`.f.ts`) files.
-- `cargo test`, `cargo clippy`, `cargo fmt -- --check` — the Rust crate.
-
-### 3.2 Proof coverage is mandatory
-
-New FunctionalScript (`.f.ts`) modules and functions must have **100% proof
-coverage** across every dimension: every exported function called, every line
-executed, and every branch (both sides of each conditional) taken. A new
-`module.f.ts` ships with a co-located `proof.f.ts` (its `proof` export) that
-exercises all of its exports along all code paths — partial coverage of new code
-is not acceptable. If a line or branch genuinely cannot be reached, restructure
-the code so it isn't there rather than leaving it uncovered.
-
-### 3.3 Use `assert` / `assertEq`, never a hand-written `if`/`throw`
-
-Assert results in `proof` code with `assert`/`assertEq` from
-`fjs/asserts/module.f.ts`, not a hand-written `if (cond) { throw ... }`.
-
-A local `if`/`throw` in a test is itself a new branch for the coverage tool to
-track, and its failure side is normally never exercised (the test is expected to
-pass), so it lands as a permanently-uncovered branch in the very module meant to
-close coverage gaps. `assert`/`assertEq` push that branch into a shared helper
-whose own branches are already fully covered elsewhere, so the call site adds no
-new uncovered branch.
-
-### 3.4 Never use `try`/`catch`; test throwing with the `throw` key
-
-Never use `try`/`catch` in `.f.ts` files — FunctionalScript itself has no
-`try`/`catch` and isn't planning to add it soon. To test that a call throws,
-nest the test function under a `throw` property key instead of wrapping it in
-`try`/`catch` (see `fjs/asserts/proof.f.ts`).
-
-The test runner (`fjs/emergent_testing/module.f.ts`) treats `throw` as a
-structural marker: any function reachable under a `throw` key gets
-`throws: true`, and the runner inverts the sandboxed result so a thrown error
-counts as a pass — with no manual `caught`/`threw` flag or `assert` needed.
-
-Treat `throw` in FunctionalScript as a panic (like Rust's `panic!`, Go's
-`panic`, or Java/C#'s unchecked `RuntimeException`), not as a language-level
-`Result`/checked-exception value: nothing in FunctionalScript can catch it, so a
-thrown payload is never pattern-matched or branched on by other FunctionalScript
-code, and a correctly working program should never throw at all. Recoverable
-failure belongs in `Result` (`fjs/types/result`), which callers actually
-destructure and is worth asserting on precisely; a `throw`'s payload is read
-only by a human or external tooling after something has already gone wrong, so
-don't over-invest proof effort in checking its exact value — whether it threw is
-normally the part of the contract that matters.
-
----
-
-## 4. Documentation
-
-Use JSDoc for documenting TypeScript files. Every module should start with this
-header:
-
-```ts
-/**
- * <...Module documentation...>
- *
- * @module
- */
-```
-
-where `<...Module documentation...>` should be documentation for the module.
-
-Where each kind of documentation belongs:
-
-| Content                                          | Home                             |
-| ------------------------------------------------ | -------------------------------- |
-| API shape and invariants                         | JSDoc on `module.f.ts` exports   |
-| Architectural choices, *why this / why not that* | the relevant `README.md`         |
-| What changed in a release                        | `CHANGELOG.md` (short, see §8.3) |
-| Rationale, measurements, alternatives considered | the PR description               |
-
----
-
-## 5. Design principles
-
-### 5.1 Simplicity first
-
-**Always prefer simplicity and quality over optimization.** Never optimize
-prematurely, and especially never at the cost of simplicity. A simple, correct,
-generic solution comes first; optimization work starts only after confirming it
-is actually needed (a measured problem or a real limit being hit, not a hunch),
-and even then it is a **separate task**: file it as its own `todo/` issue instead
-of folding it into the current change.
-
-When that task is taken up, still solve the problem in a generic way — improve
-the algorithm, the data structure, or the API — instead of hacking special cases
-into an otherwise general design (byte-prefix sniffing instead of real parsing,
-key-order assumptions, hardcoded fast paths). A documented implementation limit
-that a later generic improvement can lift (e.g. a size bound on a buffering
-parser) is an acceptable interim answer; a semantic assumption baked into a
-format or contract for speed is not.
-
-### 5.2 The API is the most important part of quality
-
-**Quality is the main priority, and the API is the most important part of it.**
-A clean, readable, simple API for the modules that consume it outweighs the cost
-of changing it. Never cut corners, hack, or bend a caller's input/output to fit
-an existing API's shape just to avoid touching that API.
-
-When the existing design is the obstacle, **fix the design**: rewrite the API and
-make a breaking change (update every importer in the same PR — see
-[§8.4](#84-breaking-changes-and-versioning)), or, when a hard cutover is
-impractical, introduce a clean transitional API alongside the old one and migrate
-callers to it. Adjusting a call site to work around a poor API, instead of
-improving the API, is the wrong trade-off here.
-
-**If you see a way to improve an API — or a new API that would make consuming
-modules simpler and more readable — propose it as soon as you notice it.** Don't
-defer or silently work around it. File a `todo/` issue with a concrete design
-(see [§7](#7-issues-todo) and [todo/README.md](./todo/README.md)) so it can be
-reviewed promptly; if the improvement is in scope for what you're already doing,
-raise it before building on top of the weaker design.
-
-### 5.3 Design before implementation
-
-- Before implementing a non-trivial feature, ensure the corresponding issue
-  document in `todo/` contains a concrete design. If the issue exists but the
-  design is absent, vague, or contradicts the codebase or runtime behavior,
-  update the issue first and wait for review — do not write code against an
-  incomplete or incorrect design.
-- When a discrepancy is found between an issue's design and reality (a missing
-  API, a wrong environment variable, an incompatible type), correct the design
-  document and surface the problem rather than silently working around it.
-- Before relying on an undocumented or assumed runtime behavior (environment
-  variable names, API shape, framework detection), verify it with a small test or
-  source check rather than assuming.
-
-### 5.4 Reuse, DRY, and separation of concerns
-
-- **Reuse code.**
-- **Don't Repeat Yourself (DRY)** — a core principle of FunctionalScript, not
-  just a stylistic preference. When two or more modules share an algorithm and
-  differ only in constants, alphabets, or small helpers, extract a parameterized
-  factory into a shared module rather than copy-pasting. Combined with the
-  previous point: only extract once the second real consumer exists.
-- **Separation of concerns** — move logic to its natural module even with a
-  single consumer when the logic is conceptually distinct (e.g. path manipulation
-  belongs in `fjs/path`, not inline in a loader). First search for an appropriate
-  existing module; create a new one only if no good fit exists. This is different
-  from DRY extraction: it is always appropriate.
-- **Avoid side effects and mutability.**
-
-#### Exception to DRY: performance measurement
-
-Time measurement must capture immediately after an operation completes to avoid
-measuring the wrapper code itself. This naturally leads to duplication when both
-success and error paths must measure. Readability is more important than
-eliminating the duplication — keep each measurement explicit and close to its
-operation:
-
-```ts
-sandbox: async <T>(f: () => T) => {
-    let result: Result<T, unknown>
-    let after: number
-    const before = performance.now()
-    try {
-        const value = await f()
-        after = performance.now()
-        result = ok(value)
-    } catch (e) {
-        after = performance.now()
-        result = error(e)
-    }
-    return { result, duration: after - before }
-}
-```
-
-Why this pattern is good:
-
-- The two `after = performance.now()` calls are necessary on the critical path —
-  extracting them into a helper would measure the helper function's overhead
-  instead of just the operation.
-- TypeScript tracks uninitialized values: declaring `let after: number` without
-  initialization lets the type checker verify that `after` is assigned in all
-  code paths before the final `return` statement.
-- We still avoid duplication of non-critical computations: the return value of
-  the function (`{ result, duration: after - before }`) is formed once, not
-  duplicated. Only the timing capture (which must be immediate) appears twice.
-
-### 5.5 Declarative over imperative
-
-**Prefer declarative style over imperative.** When defining tools, handlers,
-dispatchers, or similar abstractions, favor data-driven definitions (metadata +
-schema + handler together in an array or registry) over imperative switch
-statements or hardcoded conditionals. Declarative patterns are easier to extend,
-test, and reason about. For example: define tools as an array of
-self-descriptive objects (name, description, schema, handler) and dispatch
-generically over them, rather than hardcoding a switch on tool name.
-
-### 5.6 Never precompute a size to predict whether something fits
-
-**Never precompute or estimate an encoding/decoding size to predict whether it
-will fit a limit.** Attempt the real decode/encode and branch on its result
-instead. Size estimates (string-length lower bounds, base64's 3/4 ratio,
-JSON-escaping multipliers, …) are easy to get subtly wrong — and a
-wrong-in-the-unsafe-direction estimate reintroduces the exact crash the check was
-meant to prevent — while the real operation is always exactly right.
-
-Express the fallible operation as a `try*` function returning `Nullable<T>` (see
-`tryUtf8`, `tryListToVec`, `tryU8ListToVec`, `base64Decode` in `fjs/text`,
-`fjs/types/bit_vec`, `fjs/base64`), add a new `try*` variant if one doesn't exist
-yet for the operation you need (including effect primitives like `write`), and
-have the caller check the `null` result rather than a precomputed bound.
-
-### 5.7 CLI parameters over environment variables
-
-CLI parameters are preferred over environment variables when adding new
-features.
-
----
-
-## 6. Coding style
-
-### 6.1 Immutability and purity
-
-- Don't mutate arrays, sets, maps, or objects in place. Avoid `.push`, `.pop`,
-  `.shift`, `.unshift`, `.splice`, `.sort`, `.reverse`, `Set#add`, `Set#delete`,
-  `Map#set`, `Map#delete`, and index/property assignment on accumulators. Build
-  new values with `.map`, `.filter`, `.flatMap`, spread, `new Set([...prev, x])`,
-  `new Map([...prev, [k, v]])`, and `Object.fromEntries(entries.map(...))`.
-- Use `let` variables only within the function body where they are declared.
-
-### 6.2 Types
-
-#### Prefer inference
-
-Let TypeScript infer the type of private constants, local variables, and return
-types of non-exported functions — write `const f = () => () => null` rather than
-`const f: TailReduce<unknown, unknown> = () => () => null`. Add an explicit
-annotation only when inference gives the wrong type (e.g. a literal that would
-widen — covered below), when the inferred type is not precise enough for a call
-site, or on `export`ed declarations where the annotation documents the intended
-public contract. Annotating things TypeScript already knows correctly adds noise,
-couples the annotation to the implementation, and can introduce `as` casts to
-paper over mismatches.
-
-#### Pin literal `const`s
-
-A `const` with a **literal** initializer (string / number / bigint / boolean /
-array / object literal) must pin its type — either an explicit annotation
-(`const a: T = …`) or a trailing `as const`. Never rely on TypeScript's default
-widening.
-
-FunctionalScript data is immutable, but stock `tsc` widens literals by default
-(`'2.0'` → `string`, `42n` → `bigint`, `[1, 2]` → `number[]`, dropping
-`readonly`), which both misrepresents immutable data and silently breaks literal-
-and tuple-dependent typing (`Ts<>` over an rtti schema, tagged-tuple
-discriminants in the effect system). The rule scopes to literals because a const
-assertion is only legal on a literal or enum member (TS1355) — calls,
-conditionals, and references (`or(...)`, `option(...)`, a bare `string`) already
-carry precise, non-widening types and are exempt. The mistake is invisible at
-runtime (the value is correct; only the type widens), which is exactly why it
-must be a style rule.
-
-Example: `const jsonrpc = '2.0' as const` and
-`const request = { jsonrpc, method } as const`, but
-`const id = or(string, number, null)` needs nothing.
-
-#### Avoid `as` type assertions
-
-Avoid `as` type assertions (except `as const`). Treat them like `unsafe` in Rust
-— a last resort that bypasses the type system's safety guarantees and must be
-justified. They silence the type checker and hide real bugs; if a cast is needed,
-it usually means the types or the code structure should be improved instead.
-
-#### Avoid type predicates
-
-Avoid TypeScript type predicates (`(x: T): x is U`). They are error-prone: the
-compiler trusts the annotation unconditionally, so if the runtime check diverges
-from the declared type the error is silent. Use `instanceof` for
-class/constructor discrimination, or restructure the union so a structural check
-(e.g. `instanceof Array`) narrows correctly without a predicate.
-
-**Exception:** a type predicate is acceptable when every alternative is
-materially worse — in particular when the only other way to narrow is an `as`
-cast (which is *unsafe*, strictly worse). Use it only where the predicate body
-**is** exactly the structural check that defines membership in `U` (e.g.
-`(e: Entity): e is readonly Vec[] => e instanceof Array`), so there is nothing
-for the compiler to trust beyond what it could verify itself. Be careful: this
-safety is not enforced — if the type definition of `T` or `U` changes later (a
-member added to the union, a field's shape changed), the predicate's body can
-silently stop matching its asserted type and narrow incorrectly with no compile
-error. Keep such predicates next to the type they discriminate, and revisit them
-whenever that type changes.
-
-#### `StringMap` for string-keyed records
-
-Use `StringMap<K, T>` from `fjs/types/object/module.f.ts` for all string-keyed
-record types. `StringMap<string, T>` resolves to `{ readonly[k in string]?: T }`
-(infinite key set, optional) and `StringMap<'a' | 'b', T>` resolves to
-`{ readonly a: T; readonly b: T }` (finite key set, required).
-
-Do not write inline `{ readonly[k in string]: T }` without `?` — TypeScript types
-every access as `T` but the value can be `undefined` at runtime. **Exception:**
-mutually-recursive types (e.g. `type Obj = { readonly[k in string]?: Obj }`) must
-use the inline form because TypeScript's circular-reference detection cannot
-resolve through conditional types.
-
-When iterating all defined entries of a `StringMap<string, T>`, use
-`definedEntries` from `fjs/types/object/module.f.ts` instead of `Object.entries`;
-use `definedValues` instead of `Object.values`.
-
-#### `flatMap` over a filtering type predicate
-
-Prefer `.flatMap(e => e !== undefined ? [e] : [])` over
-`.filter((e): e is T => e !== undefined)` to remove `undefined` entries from an
-array. Type predicates in `filter` are error-prone: if the element type changes,
-the predicate silently becomes wrong. `flatMap` narrows correctly without a
-manual type annotation.
-
-#### Composition over intersection
-
-Prefer composition over intersection types. When a type needs an existing record
-plus extra fields, embed the record as a named field rather than mixing it in
-with `&`. Write `type Signer = { rfc6979: Rfc6979, nf: PrimeField, g: Point }`,
-not `type Signer = Rfc6979 & { nf: PrimeField, g: Point }`.
-
-Intersection blurs where each field came from, couples the composite to the exact
-shape of the part, and tempts you to widen the part to fit the whole (e.g.
-bolting curve fields onto an `Rfc6979` that is also built and consumed on its own
-from a bare subgroup order). A named field keeps the part **unchanged** —
-independently constructed and consumed — and reads as plain data you destructure
-(`const { rfc6979, nf, g } = signer`). This mirrors the data-first preference
-behind avoiding `as` and type predicates: make the structure explicit instead of
-deriving it.
-
-#### String literals instead of enum-like aliases
-
-Use string literals as strongly-typed values directly — don't introduce enum-like
-aliases (`enum`, named constants such as `const FOO = 'foo'`) the way other
-languages require. TypeScript narrows string literals precisely, so the string
-*is* the typed value at runtime. Prefer, in order:
-
-1. a literal-union type when you only need the type — `type My = 'foo' | 'bar'`;
-2. `const my = ['foo', 'bar'] as const` with `type My = typeof my[number]` when
-   you also need to iterate the values at runtime;
-3. `const my = { foo: 'v5', bar: 'v6' } as const` when you need a key→value
-   mapping (and `keyof typeof my` gives you the key type).
-
-Existing examples: `os` / `Os` and `architecture` / `Architecture` in
-`fjs/ci/common/module.f.ts`, and `actions` in `fjs/ci/config/module.f.ts`.
-
-### 6.3 Structure and scoping
-
-#### Import instead of duplicating
-
-When a sibling module already has the type or helper you need, import it — add
-`export` to the existing declaration if it's not yet exported, rather than
-duplicating it (e.g. `parse` reuses `Path`, `ValidationError`, `verror`,
-`prependPath`, `primitive0Validate`, `constPrimitiveValidate` from `validate`).
-
-#### Hoist helpers to module scope
-
-Hoist helpers (functions, types, constants) to module scope when they don't
-capture local state — don't redeclare them inside another function on every call.
-If a `reduce`/`map` callback needs context that varies per call, thread it
-through the accumulator rather than closing over a local, so the step function
-itself can live at module scope.
-
-Treat "doesn't capture local state" as a target to restructure toward, not just a
-condition to check: for any nested helper meaningful enough to carry a name, lift
-its captures into leading curried parameters and hoist it — even a helper with a
-single call site and no per-call cost. A closed, module-scope function has a
-context-free identity: content-addressable FunctionalScript can deduplicate
-structurally identical closed functions across modules (and repositories), while
-a helper that captures enclosing locals hashes uniquely to its context.
-
-Don't split below the semantic seam, though — if a fragment can't be described by
-a one-line JSDoc claim ("renews the lease", "publishes the staging file"),
-restructure until it can rather than extracting an unnameable piece.
-
-#### Hoist call-invariant computations
-
-If a sub-expression does not depend on a function's parameters, evaluate it once
-in the enclosing scope and capture the result instead of recomputing it on every
-call. This includes property accesses and destructuring of a module-level value:
-prefer `const { listToVec } = msb` at module scope and call `listToVec(x)` over
-calling `msb.listToVec(x)` inside a per-call function.
-
-#### Place curried partial applications at their dependency's scope
-
-When building a value through a chain of curried partial applications
-(`f(a)(b)(c)`), place each partial application at the scope matching what it
-depends on. This is not primarily the previous rule's performance concern — it
-makes the computation's dependency structure visible: the scope a binding lives
-in tells the reader which arguments it needs without tracing the whole call
-chain.
-
-Example (`fjs/base_n/module.f.ts`): `chunkList(msb)` depends on neither `bits`
-nor `v`, so it's bound once at module scope (`chunkListMsb`), shared by every
-`baseN(...)` codec; `chunkListMsb(bits)` depends on `bits` but not `v`, so it's
-applied once inside `baseN`'s body, not once per `vecToString(v)` call. When the
-fully-applied chain is itself the thing captured once — assigned directly as an
-object property, e.g.
-`vecToString: compose(chunkListMsb(bits))(fold(chunkToString)(''))` — naming the
-intermediate halves separately adds nothing: the composition already shows,
-structurally, that neither operand depends on `v`. Content addressing gives a
-second reason beyond readability: each partial application bound at its own scope
-is a closed value with its own identity, shareable wherever the same layer
-recurs — a monolithic body that re-derives the whole chain per call shares
-nothing.
-
-#### Factor out what two branches share
-
-When two code branches share most of their structure, refactor so the shared part
-appears once and only the difference lives in the conditional. Forcing the reader
-to mentally diff two near-identical blocks is a readability cost, not just a DRY
-violation. Prefer `{ ...shared, ...(cond ? { extra } : {}) }` over two object
-literals that repeat every field, and `cond ? a : b` over duplicated
-`if`/`return` arms whose bodies only differ in one expression. Hoist
-call-invariant computations above the branch so the conditional contains only
-what actually varies.
-
-#### Prefer destructuring over indexed/property access
-
-Bind tuple elements and record fields with a pattern
-(`const [tag, value] = result`, `const { length, mime_type } = meta`,
-`([tag, value]) => …` in a callback) instead of reaching for
-`result[0]`/`result[1]`/`obj.field` at each use. It names the parts once, reads
-closer to the data's shape, and avoids repeating the container.
-
-For tagged tuples this is also safe: TypeScript narrows a destructured
-discriminated union after a guard on the tag
-(`const [tag, value] = result; if (tag === 'error') { … } /* value is the ok payload here */`),
-so there is no reason to keep index access for narrowing. **Exception:** when you
-genuinely need only one deeply-nested element and a full pattern would be noisier
-than a single access.
-
-### 6.4 Effects (`fjs/effects`)
-
-Bind every effect in a sequence to its own name, all at one level, so the
-sequence reads top-to-bottom in evaluation order instead of inside-out.
-
-```ts
-// avoid
-step(a, x => step(f(x), y => step(g(y), z => h(z))))
-// prefer
-const x0 = step(a, f)
-const x1 = step(x0, g)
-return step(x1, h)
-```
-
-In practice this means not nesting `step` calls from `fjs/effects` — but the
-requirement is the *visible sequence*, not the absence of the token `step(`
-inside another `step(`. Nesting costs more than indentation: it hides how many
-effects run, it puts every continuation's parameter in scope for everything below
-it (inviting accidental shadowing), and it makes inserting or reordering a link a
-re-indentation of the whole block.
-
-Lifting a nested continuation into a named helper does **not** satisfy this rule
-— `step(a, cont)` with `const cont = x => step(f(x), …)` beta-reduces to the
-nested form, so nothing was flattened and the sequence is now split across two
-definitions instead of being visible in one. Extract a continuation when it is a
-meaningful named operation in its own right, never to relocate a nesting you were
-asked to remove.
-
-#### Reaching back to an earlier value: use `historyStep`
-
-A later link needing a value from an earlier one is **not** a reason to nest — a
-nested continuation only reaches back because it closes over the enclosing scope.
-Use `historyStep`, which carries every earlier value forward in a newest-first
-tuple (a `History`) so they stay reachable downstream and the chain stays flat.
-`history(e)` starts a history from a plain effect; `historyStep` takes a history
-and returns one, so it composes with itself to any depth and only the entry point
-needs `history`.
-
-```ts
-// avoid — nested only so `h` can still see `x`
-step(a, x => step(f(x), y => h(x, y)))
-// prefer
-const x0 = historyStep(history(a), f)
-return step(x0, ([y, x]) => h(x, y))
-```
-
-A position in the tuple is distance back from the current link, not evaluation
-order, so a destructuring reads reverse-chronologically (`([z, y, x]) => …` binds
-`x` earliest). Reaching further back costs an index rather than a traversal, but
-a long chain makes the positions hard to count; when that starts to hurt,
-collapse it into a record of named fields (`pure({ x, y } as const)`) and start a
-fresh history from there. Before reaching for either, check whether the nesting is
-forced only by a local declared inside a continuation that doesn't depend on it —
-hoist such locals per [§6.3](#hoist-call-invariant-computations) and the nesting
-often dissolves on its own.
-
-#### Why the combinators themselves nest
-
-This rule governs sequences of effects in **consuming** code, and the combinators
-in `fjs/effects` are what make it followable. The nesting has to exist somewhere:
-a name cannot be bound to an effect that has not been produced yet, so `f(param)`
-cannot become `const x0` until `e` resolves. `step` recurses into itself inside
-the continuation it rebuilds, `foldStep` composes one step per item, and
-`historyStep` runs `f` inside `e`'s continuation. Each writes that nesting down
-**once**, in one line, so no caller ever writes it again. That is the point of the
-combinator, not an exemption from the rule: without `historyStep` the rule would
-be unfollowable the moment a later link needed an earlier link's value. Read a
-nested `step` in a `fjs/effects` combinator as the rule being paid for, and one
-anywhere else as the rule being broken.
-
-### 6.5 FunctionalScript module rules
-
-- Only import other `.f.ts` files from FunctionalScript modules. Avoid references
-  to built-in or external Node modules such as `node:path` in `.f.ts` files.
-- No `try`/`catch` — see [§3.4](#34-never-use-trycatch-test-throwing-with-the-throw-key).
-
-### 6.6 Formatting
-
-Don't vertically align code with padding spaces (e.g. extra spaces before `:` /
-`=` to line up values across rows). It churns on every edit and makes
-`git blame` noisy. Write `'actions/checkout': 'v5',` not
-`'actions/checkout':                          'v5',`. Vertical alignment is fine
-in markdown, documentation, and comments.
-
-### 6.7 Rust
-
-Avoid `macro_rules!` in Rust code. Declarative macros hide types from
-rust-analyzer, break grep and jump-to-definition, and encourage "invisible code"
-that contradicts FunctionalScript's preference for explicit, locally-readable
-values. When per-type trait boilerplate looks like a macro candidate (e.g. one
-impl block per nominal newtype, byte-identical modulo names), prefer in this
-order:
-
-1. a sealed helper trait carrying the variant choice with one-line per-type impls
-   and a single blanket `impl<T: Trait>` deriving the boilerplate;
-2. a `build.rs` code generator driven from a small source-of-truth table written
-   in plain Rust (or a FunctionalScript module if the same table drives other
-   artifacts too);
-3. accept the hand-written duplication as the cost of readability.
-
-Reach for `macro_rules!` only when no other option is materially better for
-readers.
-
----
-
-## 7. Issues (`todo/`)
-
-Issues are tracked in `todo/` directories, not on GitHub. See
-[todo/README.md](./todo/README.md) for the full format and priority/status
-conventions.
-
-GitHub issues are an **intake** channel, not a tracker: external contributors
-cannot add `todo/` files, so they report there instead (see
-[CONTRIBUTING.md](./CONTRIBUTING.md)). A maintainer turns each such report into a
-`todo/` file — see the table below.
-
-| Situation                  | What to do                                                                                                                                                              |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Where to file**          | Next to the code it describes. A bug scoped to `fjs/foo/bar/` goes in `fjs/foo/bar/todo/{slug-kebab}.md`. Cross-cutting or language-design issues go in the top-level `todo/`. |
-| **How to file**            | Create `todo/{slug-kebab}.md` using a short kebab-case slug. Follow the issue format in `todo/README.md`: title, priority, status, problem, proposal, tasks, related links. |
-| **Reported on GitHub**     | Create the `todo/` file for the report, linking the GitHub issue from its `Related` section. The `todo/` file is the tracked issue from then on; the GitHub issue stays open only as the reporter's thread and is closed when the fix ships. |
-| **After fixing**           | Delete the issue file immediately in the same PR. Before deleting, ensure design decisions are captured in the codebase (see the documentation table in [§4](#4-documentation)). |
-| **Won't fix**              | Document the reason in the relevant `README.md`, in a code comment, or in another issue — then delete the issue file. Do not leave a status-only tombstone.                |
-| **Blocked by a third party** | File under `todo/blocked/{slug-kebab}.md`. Every file there **must** include a **Trigger** section stating the precise condition that unblocks it. Do not put third-party-blocked items in regular `todo/` directories. |
-
-Reference issues with an explicit link, not GitHub's `#` prefix. `#NNN` is
-reserved for GitHub PR/issue numbers.
-
----
-
-## 8. Pull requests
-
-### 8.1 Scope
-
-The PR should implement only one feature/improvement with minimal code changes.
-
-### 8.2 Before submitting
-
-Ensure all of the checks in [§2](#2-everyday-workflow) pass.
-
-### 8.3 CHANGELOG
-
-To add a CHANGELOG entry, first open the PR to obtain its number, then add the
-entry at the **top** of `## Unreleased` in [./CHANGELOG.md](./CHANGELOG.md) using
-the real PR number. Follow the same `Topic: short description [#NNN](url)` style
-as existing entries. New entries always go above existing ones. CHANGELOG entries
-are created after the PR exists because they reference the PR number.
-
-Only add CHANGELOG entries for code changes — PRs that only touch `todo/`,
-`AGENTS.md`, or other documentation files do not need a CHANGELOG entry.
-
-- **Keep it short.** An entry is **at most a few lines** (about three wrapped
-  lines, ~250 characters) — what changed and, when it isn't obvious, why. It is a
-  release note for users of the package, not a design document. Rationale,
-  migration walkthroughs, measurements, and alternatives-considered belong in the
-  PR description, the relevant `README.md`, or JSDoc on the affected exports; the
-  CHANGELOG links to the PR so a reader can go there for the full story.
-- **Link the PR, and nothing else.** The single link in an entry must point to
-  the pull request (`/pull/NNN`). Do not link to — or name in plain text — an
-  issue or `todo/` file: issue files are deleted when the work is done, so those
-  references rot and mean nothing to a reader of the published package.
-- These two rules govern **new** entries. Don't rewrite a released section as a
-  side effect of an unrelated PR — a feature PR touches its own entry and nothing
-  else. A deliberate cleanup pass over past sections is a legitimate PR of its
-  own (this convention arrived as one), and no released text is lost when it
-  happens: each entry keeps its PR link, and the full prior wording stays in the
-  PR and in git history. Where an entry predates the convention and its PR cannot
-  be identified, leave it unlinked rather than guessing one.
-
-### 8.4 Breaking changes and versioning
-
-- Make breaking changes when they are the right design — don't preserve a worse
-  API (e.g. a stale re-export or a non-canonical export location) just to avoid
-  churn. When a change breaks the public API, prefix its CHANGELOG entry with
-  `**BREAKING CHANGES:**` and update every importer in the same PR rather than
-  keeping a compatibility shim.
-- When the version is bumped in `deno.json`/`package.json`, create a new
-  `## X.Y.Z` section in `CHANGELOG.md` immediately after `## Unreleased` and move
-  all entries from `## Unreleased` into it, leaving `## Unreleased` empty.
+Commit-message format and the PR checklist: [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
+Changelog entry rules, breaking changes, and versioning:
+[changelog/README.md](./changelog/README.md).

@@ -5,14 +5,14 @@
 
 ### Problem
 
-`fjs/bnf/data/module.f.ts` defines two `NewRule` builders, `sequence` and
+`fjs/bnf/data/module.f.mjs` defines two `NewRule` builders, `sequence` and
 `variant`, that walk a rule's children, register each child via `toDataAdd`, and
 thread the resulting `FRuleMap`/`RuleSet` while building a result. They share the
 same accumulation skeleton and differ only in (a) what they iterate and (b) how
 the result is shaped:
 
 ```ts
-// fjs/bnf/data/module.f.ts:172
+// fjs/bnf/data/module.f.mjs:114
 const sequence = (list: FSequence): NewRule => map => {
     let result: Sequence = []
     let set = {}
@@ -25,7 +25,7 @@ const sequence = (list: FSequence): NewRule => map => {
     return [map, set, result]
 }
 
-// fjs/bnf/data/module.f.ts:184
+// fjs/bnf/data/module.f.mjs:129
 const variant = (fr: FRule): NewRule => map => {
     let set: RuleSet = {}
     let rule: Variant = {}
@@ -101,9 +101,9 @@ removing the four mutated `let`s.
 
 ### Tasks
 
-- [ ] Add `foldChildren` (private) to `fjs/bnf/data/module.f.ts`.
+- [ ] Add `foldChildren` (private) to `fjs/bnf/data/module.f.mjs`.
 - [ ] Rewrite `sequence` and `variant` as instantiations of it.
-- [ ] Confirm `fjs/bnf/data/proof.f.ts` coverage still exercises both result
+- [ ] Confirm `fjs/bnf/data/proof.f.mjs` coverage still exercises both result
       shapes (array and keyed) and the multi-child map-threading path.
 - [ ] `npm test` + `npx tsc` green.
 

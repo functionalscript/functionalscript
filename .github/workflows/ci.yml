@@ -24,11 +24,11 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.0"
+            "node-version": "26.7.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.38.0"
+          "run": "npm install -g functionalscript@0.45.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -61,7 +61,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -77,11 +77,11 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.0"
+            "node-version": "26.7.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.38.0"
+          "run": "npm install -g functionalscript@0.45.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -102,7 +102,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -118,11 +118,11 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.0"
+            "node-version": "26.7.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.38.0"
+          "run": "npm install -g functionalscript@0.45.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -143,7 +143,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -159,11 +159,11 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.0"
+            "node-version": "26.7.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.38.0"
+          "run": "npm install -g functionalscript@0.45.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -184,7 +184,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -201,11 +201,11 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.0"
+            "node-version": "26.7.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.38.0"
+          "run": "npm install -g functionalscript@0.45.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -238,7 +238,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -254,11 +254,11 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.0"
+            "node-version": "26.7.0"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.38.0"
+          "run": "npm install -g functionalscript@0.45.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -279,7 +279,7 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
         }
       ]
     },
@@ -296,7 +296,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1.1.3",
           "with": {
-            "version": "47.0.2"
+            "version": "47.0.3"
           }
         },
         {
@@ -385,23 +385,23 @@
         {
           "uses": "denoland/setup-deno@v2.0.5",
           "with": {
-            "deno-version": "2.9.4"
+            "deno-version": "2.9.5"
           }
         },
         {
-          "run": "deno install -g -A --minimum-dependency-age=0 npm:functionalscript@0.38.0"
+          "run": "deno install -g -A --minimum-dependency-age=0 npm:functionalscript@0.45.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "deno run -A --minimum-dependency-age=0 npm:functionalscript@0.38.0 t"
+          "run": "deno run -A --minimum-dependency-age=0 npm:functionalscript@0.45.0 test"
         },
         {
           "run": "deno install --frozen"
         },
         {
-          "run": "deno test --allow-read --allow-env --allow-sys --coverage && deno coverage --include='.*module\\.f\\.ts'"
+          "run": "deno task cov"
         }
       ]
     },
@@ -415,7 +415,7 @@
           }
         },
         {
-          "run": "bun install -g functionalscript@0.38.0"
+          "run": "bun install -g functionalscript@0.45.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -424,7 +424,7 @@
           "run": "bun install --frozen-lockfile"
         },
         {
-          "run": "bunx functionalscript@0.38.0 t"
+          "run": "bunx functionalscript@0.45.0 test"
         },
         {
           "run": "bun test --coverage"
@@ -437,11 +437,11 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "22.23.1"
+            "node-version": "22.23.2"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.38.0"
+          "run": "npm install -g functionalscript@0.45.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -450,7 +450,10 @@
           "run": "npm ci"
         },
         {
-          "run": "fjs t"
+          "run": "fjs test"
+        },
+        {
+          "run": "node --test"
         }
       ]
     },
@@ -460,7 +463,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "24.18.0"
+            "node-version": "24.18.1"
           }
         },
         {
@@ -480,7 +483,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.5.0"
+            "node-version": "26.7.0"
           }
         },
         {
@@ -506,45 +509,23 @@
         }
       ]
     },
-    "playwright": {
+    "nix-flakes": {
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "actions/setup-node@v7.0.0",
-          "with": {
-            "node-version": "26.5.0"
-          }
-        },
-        {
-          "uses": "actions/cache@v6.1.0",
-          "with": {
-            "path": "~/.cache/ms-playwright",
-            "key": "ubuntu-26.04-arm-playwright-1.62.0"
-          }
-        },
-        {
-          "run": "npm install -g playwright@1.62.0"
-        },
-        {
-          "run": "playwright install-deps"
-        },
-        {
-          "run": "playwright install"
+          "uses": "cachix/install-nix-action@v31.11.1"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "npm ci"
+          "run": "test \"$(nix develop ./nix/generated/node22 --command node --version)\" = v22.23.2"
         },
         {
-          "run": "npx playwright test --browser=chromium"
+          "run": "test \"$(nix develop ./nix/generated/node24 --command node --version)\" = v24.18.1"
         },
         {
-          "run": "npx playwright test --browser=firefox"
-        },
-        {
-          "run": "npx playwright test --browser=webkit"
+          "run": "test \"$(nix develop ./nix/generated/node26 --command node --version)\" = v26.7.0"
         }
       ]
     }

@@ -6,19 +6,19 @@
 ## Problem
 
 The operator vocabulary is declared twice in
-`fjs/djs/tokenizer/module.f.ts`, and the two copies have already drifted.
+`fjs/djs/tokenizer/module.f.mjs`, and the two copies have already drifted.
 
 The grammar's `operator` variant lists every operator as an object key
-(`fjs/djs/tokenizer/module.f.ts:135-193`); the descent parser emits the
+(`fjs/djs/tokenizer/module.f.mjs:147-203`); the descent parser emits the
 matched branch's **key** as the `AstTag`. Then `operatorTags`
-(`fjs/djs/tokenizer/module.f.ts:266-275`) re-lists the same strings by hand
+(`fjs/djs/tokenizer/module.f.mjs:306-315`) re-lists the same strings by hand
 as a `Set`, whose only consumer is `filterFunc`
-(`fjs/djs/tokenizer/module.f.ts:277-295`): a grammar tag survives as a token
+(`fjs/djs/tokenizer/module.f.mjs:318-333`): a grammar tag survives as a token
 only if `operatorTags.has(tk)`.
 
 The drift is live, and both copies are wrong in different ways. JavaScript
 has no `<<<` / `<<<=` operators — the old tokenizer's `OperatorToken` union
-(`fjs/js/tokenizer/module.f.ts:126-127`) includes `<<`, `<<=`, `>>`, `>>=`,
+(`fjs/js/tokenizer/types.ts:67-68`) includes `<<`, `<<=`, `>>`, `>>=`,
 `>>>`, `>>>=` but nothing with three `<`. Yet the grammar declares both
 entries. **Update:** at the time this was written the key was typo'd
 (`'<<<<=': '<<<='`), so `operatorTags`' hand-copy of `'<<<='` never actually
@@ -75,7 +75,7 @@ keys vs. downstream filter set), so it is tracked separately.
       `'<<<='`/`'<<<'` set entries; add a proof case showing `<<<`-containing
       input tokenizes old-tokenizer-compatibly (as `<<` + `<`, never as one
       token). Done — verified `<<<` → `<<`+`<` and `<<<=` → `<<`+`<=` via a
-      new `tokenizer/proof.f.ts` case.
+      new `tokenizer/proof.f.mjs` case.
 - [ ] Hoist `operator` to module scope; derive `operatorTags` from
       `Object.keys(operator)`.
 - [ ] Single-source the ws/newline character lists shared by the grammar rules,

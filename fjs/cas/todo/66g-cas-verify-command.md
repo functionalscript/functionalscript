@@ -5,8 +5,9 @@
 
 ### Problem
 
-`fileKvStore.read` (`fjs/cas/module.f.ts:51-57`) returns whatever bytes live at the
-addressed path without recomputing the hash. After **synchronization by copying files**
+`fileCas(sha2)(path).read` (`fjs/cas/module.f.mjs`, the `read` method on the `FileCas`
+returned by `fileCas`) streams whatever bytes live at the addressed path without
+recomputing the hash. After **synchronization by copying files**
 (see `issues/plan/vision.md`), or simply over time on a faulty disk, a blob can become
 corrupted, truncated, or misnamed and no longer hash to the address it sits under. Nothing
 in the store currently detects this, so the `same hash = same content` invariant the rest
@@ -40,7 +41,7 @@ Open design points:
 ### Tasks
 
 - [ ] Add a `verify` function over `Cas`/`KvStore` that rehashes and reports mismatches
-- [ ] Wire it as a `cas verify` CLI command in `fjs/cas/module.f.ts`
+- [ ] Wire it as a `cas verify` CLI command in `fjs/cas/cli/module.f.mjs`
 - [ ] Decide delete vs. quarantine for corrupted blobs and implement it
 - [ ] Tests: seed a store with a corrupted/truncated/misnamed blob and assert it is caught
 - [ ] Document the command in `fjs/cas/README.md`

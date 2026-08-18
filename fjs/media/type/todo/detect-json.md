@@ -9,7 +9,7 @@
 The MCP server classifies stored content by content-sniffing, not by any
 stored type: `cas_get` folds the read stream through the `fjs/media/type` detector
 (`detectStream`) and reports `{ length, mime_type, type }`. The detector's
-`finish` (`fjs/media/type/module.f.ts:264-272`) produces a three-way verdict:
+`finish` (`fjs/media/type/module.f.mjs:238-246`) produces a three-way verdict:
 
 1. magic-byte hit (PNG/JPEG/GIF/WebP/PDF/ZIP) → `base64` + the detected mime;
 2. whole-blob-valid UTF-8 text → `text` + `text/plain`;
@@ -23,7 +23,7 @@ well-formed JSON and report `application/json` (RFC 8259 / RFC 6838; UTF-8 is
 the assumed charset, so no `charset` parameter is emitted).
 
 Because the classifier is shared, fixing it in `fjs/media/type` fixes it everywhere:
-`cas_get` (`fjs/cas/mcp/module.f.ts:204`) picks up `application/json`
+`cas_get` (`fjs/mcp/cas/module.f.mjs:212`) picks up `application/json`
 automatically for both the metadata-only and `content: true` paths, and any
 future `fjs/media/type` consumer inherits it.
 
@@ -31,7 +31,7 @@ future `fjs/media/type` consumer inherits it.
 
 Add JSON as a **refinement of the text branch**, keeping the single-classifier
 design (one machine, read off at EOF — no second, divergent copy of the rules)
-that the module documents at `fjs/media/type/module.f.ts:96-105`.
+that the module documents at `fjs/media/type/module.f.mjs:107-117`.
 
 #### 1. A fourth fold factor: a streaming JSON recognizer
 
@@ -126,7 +126,7 @@ type). The object/array gate matches how JSON is used as a data format and is
 what §1's `top` tag enforces (`jsonValid` requires `top ∈ { '{', '[' }`). The
 externally visible contract, then: `cas_get` returns `application/json` only for
 object/array documents; scalar-only blobs report `text/plain`. Document this
-next to the signature table (`:18-31`) and in `fjs/cas/mcp/module.f.ts`'s
+next to the signature table (`:18-31`) and in `fjs/mcp/cas/module.f.mjs`'s
 `cas_get` output section. NDJSON / JSON Lines / JSON5 are out of scope.
 
 #### 5. `isSettled` / performance
@@ -157,24 +157,23 @@ exactly the path `cas_get` uses.
       in `push`.
 - [ ] Refine `finish` to emit `application/json` for whole-blob-valid UTF-8 that
       is valid JSON **with an object/array top level** (§4 decision).
-- [ ] Add `fjs/media/type/proof.f.ts` cases: `{"a":1}` and `[1,2,3]` (incl. split
+- [ ] Add `fjs/media/type/proof.f.mjs` cases: `{"a":1}` and `[1,2,3]` (incl. split
       across chunks) → `application/json`/`text`; trailing garbage after valid
       JSON and truncated JSON → `text/plain`; non-JSON prose → `text/plain`;
       a raw TAB inside a string (`{"a":"⟨TAB⟩"}`) → `text/plain`, not
       `application/json`; bare scalars (`42`, `null`, `"hi"`, `true`) →
       `text/plain` (top-level object/array rule).
-- [ ] Update `fjs/media/type/module.f.ts` module doc (recognised-types table) and the
-      `cas_get` output section in `fjs/cas/mcp/module.f.ts` to list
+- [ ] Update `fjs/media/type/module.f.mjs` module doc (recognised-types table) and the
+      `cas_get` output section in `fjs/mcp/cas/module.f.mjs` to list
       `application/json`.
 - [ ] `npx tsc` clean; `fjs t` green with both branches of the JSON verdict
       covered.
 
 ### Related
 
-- `fjs/media/type/module.f.ts:264-272` — `finish`, where the text→JSON refinement lands.
-- `fjs/media/type/module.f.ts:180-195` — the UTF-8 factor whose decoded code points feed the JSON factor.
+- `fjs/media/type/module.f.mjs:221-229` — `finish`, where the text→JSON refinement lands.
+- `fjs/media/type/module.f.mjs:140-161` — the UTF-8 factor whose decoded code points feed the JSON factor.
 - `fjs/media/json/todo/streaming-recognizer.md` — **blocks this**; the payload-free, O(depth) validity recognizer `A_json` wraps.
-- `fjs/js/tokenizer/module.f.ts` — `parseStringStateOp`; already rejects raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
-- `fjs/media/json/parser/module.f.ts:205-238` — `foldOp` / `parse`, the grammar the recognizer reuses value-free.
-- `fjs/cas/mcp/module.f.ts:196-204` — `cas_get`, the consumer that gains `application/json` for free.
-- `fjs/media/type/todo/single-signature-table.md` — the sibling "one source of truth" cleanup; same single-classifier principle.
+- `fjs/js/tokenizer/module.f.mjs` — `parseStringStateOp`; already rejects raw U+0000–U+001F inside strings, so `A_json` inherits the correct verdict without re-deriving it.
+- `fjs/media/json/parser/module.f.mjs:205-238` — `foldOp` / `parse`, the grammar the recognizer reuses value-free.
+- `fjs/mcp/cas/module.f.mjs:211-213` — `cas_get`, the consumer that gains `application/json` for free.

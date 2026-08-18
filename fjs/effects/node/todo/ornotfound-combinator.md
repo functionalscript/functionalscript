@@ -7,24 +7,24 @@
 
 ### Problem
 
-`fileCas.list` (`fjs/cas/module.f.ts:226-236`) spells out the three-way
+`fileCas.list` (`fjs/cas/module.f.mjs:280-298`) spells out the three-way
 `IoResult` policy inline: `ok → continue`, `ENOENT → benign default`,
 `other error → throw`.
 
 An earlier revision of this issue cited `read` as a second site, but `read`
-now streams explicit error items and no longer uses this policy — `list` is
-the only live site today. Per the second-consumer rule, implement this when
+fails the stream rather than applying this policy — `list` is the only live
+site today. Per the second-consumer rule, implement this when
 another site appears.
 
 ### Proposal
 
 A **step adapter**: a continuation factory passed to `.step`, not a wrapper
-taking the effect — the shape `okStep` (`fjs/effects/module.f.ts`) already
-uses for the two-way ok/error case. The
+taking the effect — the shape the Io `step`
+(`fjs/effects/io/module.f.mjs`) already uses for the two-way ok/error case. The
 wrapper shape proposed earlier — `orNotFound(effect)(notFound)(onOk)` —
 recreates the nesting problem the moment two policies chain
 (`orNotFound(orNotFound(…)…)`); the adapter chains flat and leaves `Effect`
-unextended. Add it beside `isNotFound` in `fjs/effects/node/module.f.ts`:
+unextended. Add it beside `isNotFound` in `fjs/effects/node/module.f.mjs`:
 
 ```ts
 export const orNotFound =
@@ -46,12 +46,13 @@ list: () => access(storePrefix).step(orNotFound<readonly Vec[]>([])(() =>
 
 ### Tasks
 
-- [ ] Add `orNotFound` beside `isNotFound` in `fjs/effects/node/module.f.ts`
+- [ ] Add `orNotFound` beside `isNotFound` in `fjs/effects/node/module.f.mjs`
       (once a second consumer exists).
-- [ ] Rewrite `list` in `fjs/cas/module.f.ts` on top of it.
-- [ ] Cover all three branches (`ok`, `ENOENT`, non-`ENOENT` throw) in `fjs/effects/node/proof.f.ts`.
+- [ ] Rewrite `list` in `fjs/cas/module.f.mjs` on top of it.
+- [ ] Cover all three branches (`ok`, `ENOENT`, non-`ENOENT` throw) in `fjs/effects/node/proof.f.mjs`.
 
 ### Related
 
-- `okStep` (`fjs/effects/module.f.ts`) — the step-adapter convention this
+- The Io `step` (`fjs/effects/io/module.f.mjs`) — the short-circuit convention
+  this
   follows; the two-way sibling of this three-way policy.

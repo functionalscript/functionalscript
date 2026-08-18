@@ -71,7 +71,7 @@ matches. A canonical FS blob carries no wrapper (see the producer rule below),
 so its first byte is an ordinary CBOR header (e.g. a map header such as
 `0xA4`): no magic signature matches and the UTF-8 factor goes invalid almost
 immediately — exactly the state today's `isSettled`
-(`fjs/media/type/module.f.ts`) treats as terminal `application/octet-stream`,
+(`fjs/media/type/module.f.mjs`) treats as terminal `application/octet-stream`,
 which would freeze the verdict before this tier ever decodes the buffer. Tier 2
 must add a detector factor that keeps such streams unsettled — buffering up to
 the 128 KiB cap — until the CBOR decode + schema validation succeeds or
@@ -127,7 +127,7 @@ the honest answer.
 - [ ] Surface the derived type in `cas_get` / resource read alongside the JSON
       path (same rules, different suffix); extend the optional `dialect`
       field/header to CBOR blobs — see
-      [fjs/cas/mcp cas-get-mcp-resource-response](../../cas/mcp/todo/cas-get-mcp-resource-response.md)
+      [fjs/mcp cas-get-mcp-resource-response](../../mcp/todo/cas-get-mcp-resource-response.md)
 - [ ] Decide per dialect what CBOR-only values (bigint, byte strings, non-string
       keys) are admitted beyond the JSON data model — each dialect's README owns
       this; the JSON-compatible subset is the default
@@ -149,5 +149,5 @@ the honest answer.
   the same detector; tier 3 would be its CBOR sibling
 - [fjs/media/json streaming-recognizer](../json/todo/streaming-recognizer.md) —
   the payload-free recognizer pattern a tier-3 CBOR recognizer would follow
-- `fjs/media/type/module.f.ts` — the magic table (tier 1) and `detectStream` (tiers 2–3)
+- `fjs/media/type/module.f.mjs` — the magic table (tier 1) and `detectStream` (tiers 2–3)
   this lands in

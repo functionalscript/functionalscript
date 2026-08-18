@@ -1,7 +1,8 @@
 ## Recognizer backend (no AST) and BNF→DFA for regular grammars
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [Separate alphabet-specific BNF helpers](./unicode-rules.md)
 
 ### Problem
 
@@ -15,7 +16,7 @@ hand-written representations.
 Separately, several callers need to **recognize** input without building an
 AST — they only want "did it match, and what is the final state":
 
-- `fjs/cas/mcp` `cas_get` metadata detection (magic-byte MIME + UTF-8 validity)
+- `fjs/mcp/cas` `cas_get` metadata detection (magic-byte MIME + UTF-8 validity)
   over a streaming blob — shipped in `fjs/media/type` `detectStream` with the
   `A_magic`/`A_utf8` factors hand-rolled, ready to lower onto this backend;
 - "is this valid JSON / valid identifier" checks that should not allocate a tree;
@@ -24,6 +25,20 @@ AST — they only want "did it match, and what is the final state":
 
 Today the only way to "run a grammar" is the LL(1) dispatch that produces an
 AST, which is the wrong shape (and wrong cost) for these.
+
+This TODO previously also assigned ownership of binary BNF authoring helpers to
+the recognizer work. That responsibility now belongs to
+[Separate alphabet-specific BNF helpers](./unicode-rules.md), which establishes
+`fjs/bnf/byte/module.f.mjs` alongside `fjs/bnf/unicode/module.f.mjs`. Implement the
+alphabet split first so the recognizer can consume those helpers instead of
+creating a second byte-helper API or restoring alphabet-specific syntax in core
+BNF.
+
+The recognizer must also preserve the logical EOF contract that core BNF already
+ships ([`fjs/bnf/README.md`](../README.md#logical-eof-in-parser-input)): `EOF = -1`,
+synthesized once by the backend rather than appended by the caller. Incremental
+chunk boundaries are not end-of-input; EOF is synthesized only when the complete
+stream is explicitly finalized.
 
 ### Proposal
 
@@ -38,16 +53,78 @@ type StateScan<I, S, O> = (input: I, prior: S) => readonly[O, S]    // Mealy ste
 type Scan<I, O>         = (input: I) => readonly[O, Scan<I, O>]     // state-hidden form; stateScanToScan unifies
 ```
 
-- A **recognizer** is the output-less case: `Fold<Symbol, State>` for `δ`, plus
-  a separate `λ: (State) => Verdict` on the final state. Driven by `foldScan`
-  (stream of states) / `fold` (final state) — exactly what `fjs/fsm`'s
-  `run = foldScan(runOp)` already does.
+- A **recognizer** uses `Fold<Symbol, State>` for its per-physical-symbol `δ`,
+  plus an explicit finalization operation that provides exactly one logical EOF
+  transition opportunity while preserving acceptance already established at the
+  physical end of input. Driven by `foldScan` (stream of states) / `fold` (state
+  after physical input) — exactly what `fjs/fsm`'s `run = foldScan(runOp)`
+  already does.
 - A **transducer** is `StateScan<Symbol, State, Out>` (the Mealy step that emits
   output), driven by `stateScan(op)(init): List<Out>`.
 
 `δ` being a pure step is what makes both **streamable** (fold/scan over an
 incremental input, including the effectful CAS chunk stream) and lets callers
 **short-circuit** once the state reaches an absorbing sink.
+
+#### Logical EOF finalization
+
+The ordinary streaming step consumes physical symbols only. It must never inject
+EOF merely because one array/chunk ended. State is carried unchanged across chunk
+boundaries until the caller knows the complete input stream has ended.
+
+At true end-of-stream, use one explicit finalization operation. Conceptually:
+
+```text
+state = fold(physicalSymbols, init)
+verdict = finish(state)
+```
+
+Logical EOF is available exactly once at finalization, but existing whole-input
+grammars must not be forced to add an explicit `eof` terminal. A grammar that is
+already accepting after the complete physical stream remains accepted; a grammar
+that requires `eof` may instead become accepting after consuming the synthesized
+EOF.
+
+If the backend exposes an internal terminal transition `δTerminal` and an
+accepting-state classifier `λ`, the observable semantics are equivalent to:
+
+```text
+beforeEOF = λ(state)
+afterEOF  = λ(δTerminal(EOF, state))
+finish(state) = beforeEOF || afterEOF
+```
+
+The EOF transition is therefore not allowed to erase acceptance that was already
+established at the physical end. For example, if an ordinary grammar reaches an
+accepting state after its last physical symbol and the EOF transition would move
+that state to a rejecting sink, `finish` still returns true. Conversely, a
+grammar whose final rule explicitly requires `eof` can return false before EOF
+and true after the one synthesized transition.
+
+A backend may encode the same behavior by compiling an optional final EOF path
+rather than literally evaluating both states, but the semantics must be
+identical. The exact internal representation may differ by backend; the contract
+is about the accepted language and one-time EOF availability.
+
+The finalization semantics are fixed:
+
+- physical folds/chunks never contain or synthesize EOF;
+- chunk boundaries do not invoke finalization;
+- finalization provides exactly one logical EOF transition opportunity;
+- acceptance at the physical end is preserved even if the EOF transition would
+  reject;
+- a grammar that explicitly requires EOF may accept through the synthesized EOF
+  transition;
+- rejection means neither the pre-EOF nor post-EOF state is accepting;
+- empty input is handled by the same rule from the initial state;
+- callers do not append `-1` and do not manufacture EOF metadata;
+- repeated chunking of the same physical stream must produce the same finalized
+  verdict as processing it as one chunk.
+
+This finalization rule applies to the DFA recognizer and the AST-less LL(1)
+recognizer. It preserves the existing "recognized and consumed the complete
+physical input" contract while also making the EOF terminal available to grammars
+that use it explicitly.
 
 #### Build from the data representation, not the functional one
 
@@ -138,24 +215,19 @@ Two backends, distinguished by grammar class — this distinction is load-bearin
    configuration. `S` is a parser configuration (stack), **not** finite. This is
    the tier above the scanner (PL/structure recognition).
 
-**BNF is symbol-agnostic; the alphabet is the runner's choice.** Both BNF
-levels — functional and the serializable data IR — are neutral about what a
-symbol *is*: a `Rule` over ranges/sequence/variant does not know whether symbol
-`0x41` is the code point `A` or the byte `0x41`. `TerminalRange`'s 24 bits are
-just capacity (enough for Unicode `0x10FFFF`, and bytes trivially), not a
-code-point commitment, and `step` is symbol-numeric. So a **byte runner** for
-UTF-8/magic and a **code-point runner** for the PL/Markdown tier are just two
-consumers feeding different symbol streams to the *same* `RuleSet`.
+**BNF core is symbol-agnostic; alphabet-specific authoring lives in adapters.**
+Both BNF levels — functional and the serializable data IR — are neutral about
+whether a symbol originated as a byte, Unicode code point, token symbol, or some
+future intermediate alphabet. The concrete `Symbol` representation may change,
+but generic `Rule` / `TerminalRange` semantics do not assign Unicode or byte
+meaning to it.
 
-There is no code-point coupling in BNF itself. The string-literal constructors
-(`str` / `set` / `range`, via `stringToCodePointList`) are just **text-authoring
-helpers** sitting *above* the agnostic core; a parallel family of **binary
-helpers** — byte / hex literals, byte sequences, byte-range sets — would author
-byte grammars the same way, all bottoming out in the agnostic `rangeEncode` /
-`oneEncode` primitives. (`fjs/media/type`'s `fromSentinel` hex-signature notation,
-`0x1_89_50_4e_47…n`, is a precedent for compact byte-sequence literals — just
-targeting `Vec` today rather than `RuleSet` terminals. The matcher's
-`CodePoint[]` typing is likewise nominal — structurally numbers.)
+After the alphabet split, text constructors such as `str` / `set` / `range` live
+in `fjs/bnf/unicode/module.f.mjs`, while byte / hex literals, byte sequences, and
+byte-range helpers live in `fjs/bnf/byte/module.f.mjs`. They are authoring adapters
+that lower to ordinary generic BNF rules before automaton construction. The
+recognizer/DFA backends consume the resulting `RuleSet`; they do not define a
+second family of binary helpers.
 
 The grand goal — recognize programming languages, Markdown, etc. — is the
 **layered** composition of the two:
@@ -195,10 +267,22 @@ Bigger automata are built from BNF pieces in two complementary ways:
       IR; new backends land as sibling modules (`fjs/bnf/recognizer`,
       `fjs/bnf/dfa`)
 - [ ] Use the existing `Scan` family as the streaming contract (no new type):
-      `Fold<I, S>` for a recognizer + a separate `λ: (S) => Verdict`,
+      `Fold<I, S>` for the physical-symbol recognizer step and
       `StateScan<I, S, O>` for a transducer; drivers `foldScan` / `stateScan` /
-      `scan`. Keep it parametric in the symbol space (byte vs code-point runner)
-      over the same `RuleSet`. (`fjs/fsm`'s `run = foldScan(runOp)` is precedent.)
+      `scan`. Keep it parametric in the symbol space over the same generic
+      `RuleSet`. (`fjs/fsm`'s `run = foldScan(runOp)` is precedent.)
+- [ ] Add explicit end-of-stream finalization for DFA and AST-less LL(1)
+      recognizers: ordinary/chunk folds consume only physical symbols; `finish`
+      preserves an accepting pre-EOF state and also evaluates the one synthesized
+      EOF transition so grammars that explicitly require `eof` can accept.
+- [ ] Prove both finalization acceptance paths: an existing whole-input grammar
+      without `eof` remains accepted at physical end, and a grammar that requires
+      `eof` becomes accepted only after the synthesized transition. Also prove a
+      grammar rejecting both states remains rejected.
+- [ ] Prove finalization on empty/non-empty inputs and chunking independence:
+      splitting the same physical input into different chunk boundaries must not
+      change the finalized verdict or create additional EOF transition
+      opportunities.
 - [ ] Tokenizer stage needs maximal munch (emit at the longest accepting
       prefix, then restart) — a mechanism over plain recognition
 - [ ] DFA backend: `RuleSet` (regular subset) → finite DFA, built as a sibling
@@ -207,9 +291,10 @@ Bigger automata are built from BNF pieces in two complementary ways:
       (no DFA exists) — do not fall back to another engine
 - [ ] AST-less LL(1) recognizer: derive from the existing `fjs/bnf/data` matcher
       by dropping `AstRule` accumulation; return accept/reject + final config
-- [ ] Add binary terminal helpers (byte / hex literals, byte sequences,
-      byte-range sets) as a sibling to the text `str` / `set` / `range` helpers,
-      for authoring byte grammars like magic-bytes / UTF-8
+- [ ] Consume binary terminal helpers from `fjs/bnf/byte/module.f.mjs` after the
+      alphabet split for byte/hex literals, byte sequences, and byte ranges used
+      by grammars such as magic-byte and UTF-8 recognizers; do **not** create a
+      recognizer-local or second binary-helper family.
 - [ ] Union/product (grammar combination) for the DFA backend via subset
       construction; document the analogous state-pairing for the LL recognizer
 - [ ] First consumer: the `cas_get` magic-byte + UTF-8 detector consumes the
@@ -217,6 +302,11 @@ Bigger automata are built from BNF pieces in two complementary ways:
 
 ### Related
 
+- [`fjs/bnf/README.md`](../README.md#logical-eof-in-parser-input) — the logical
+  EOF semantics every recognizer backend must preserve.
+- [Separate alphabet-specific BNF helpers](./unicode-rules.md) — owns Unicode and
+  byte authoring helpers; this recognizer work consumes the generic rules they
+  produce.
 - [layered-parser](./layered-parser.md) — same "one BNF engine, multiple layers"
   instinct; the DFA backend is the scanner tier
 - [parser-structure](./parser-structure.md) — the AST-producing backend

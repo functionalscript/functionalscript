@@ -17,21 +17,21 @@ This is the same shape as [i190-text-char-code-boundary](../text/todo.md)
 
 #### 1. bigint literal `${a}n` — owner exists, one consumer already uses it
 
-`fjs/types/bigint/module.f.ts:90` owns the bigint → source-literal renderer and
+`fjs/types/bigint/module.f.mjs:90` owns the bigint → source-literal renderer and
 exports it:
 
 ```ts
-// fjs/types/bigint/module.f.ts:90
+// fjs/types/bigint/module.f.mjs:90
 /** A string representation of the bigint (e.g., '123n'). */
 export const serialize = (a: bigint): string => `${a}n`
 ```
 
-`fjs/djs/serializer/module.f.ts` is a good citizen — it imports the owner rather
+`fjs/djs/serializer/module.f.mjs` is a good citizen — it imports the owner rather
 than re-spelling the template:
 
 ```ts
-// fjs/djs/serializer/module.f.ts:14
-import { serialize as bigintSerialize } from '../../types/bigint/module.f.ts'
+// fjs/djs/serializer/module.f.mjs:14
+import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
 // :113
 case 'bigint': { return [bigintSerialize(value)] }
 ```
@@ -40,7 +40,7 @@ But the sibling emitter `fjs/types/ts` re-implements the exact same literal by
 hand:
 
 ```ts
-// fjs/types/ts/module.f.ts:45
+// fjs/types/ts/module.f.mjs:45
 case 'bigint': return `${c}n`
 ```
 
@@ -55,7 +55,7 @@ string syntax, and `fjs/media/json/serializer` already concentrates it: it alias
 built-in privately and wraps it as `stringSerialize`.
 
 ```ts
-// fjs/media/json/serializer/module.f.ts:28
+// fjs/media/json/serializer/module.f.mjs:28
 const jsonStringify = JSON.stringify
 // :33
 export const stringSerialize: (_: string) => List<string> = input => [jsonStringify(input)]
@@ -66,16 +66,16 @@ where a bare quoted string is needed. As a result, two other modules reach for
 the raw built-in to do the same quoting:
 
 ```ts
-// fjs/types/ts/module.f.ts:36 — struct field key
+// fjs/types/ts/module.f.mjs:36 — struct field key
 structX(fields.map(([k, v]) => `${ro}${JSON.stringify(k)}:${v}`))
-// fjs/types/ts/module.f.ts:46 — string primitive literal
+// fjs/types/ts/module.f.mjs:46 — string primitive literal
 case 'string': return JSON.stringify(c)
 
-// fjs/emergent_testing/module.f.ts:281 — property access  obj["key"]
+// fjs/emergent_testing/module.f.mjs:282 — property access  obj["key"]
 : `[${JSON.stringify(k)}]`
-// fjs/emergent_testing/module.f.ts:298 — import("path")
+// fjs/emergent_testing/module.f.mjs:303 — import("path")
 `import(${JSON.stringify(file)}).proof${fmtPath(path)}()`
-// fjs/emergent_testing/module.f.ts:311 — terminal output
+// fjs/emergent_testing/module.f.mjs:318 — terminal output
 `${indent}${isInteger(last) || isIdentifier(last) ? last : JSON.stringify(last)}`
 ```
 
@@ -85,11 +85,11 @@ but isn't exposed in a reusable (bare-string) form.
 
 ### Proposal
 
-1. **bigint (do now, unambiguous).** In `fjs/types/ts/module.f.ts`, import the
+1. **bigint (do now, unambiguous).** In `fjs/types/ts/module.f.mjs`, import the
    owner and drop the inline template:
 
    ```ts
-   import { serialize as bigintSerialize } from '../bigint/module.f.ts'
+   import { serialize as bigintSerialize } from '../bigint/module.f.mjs'
    // ...
    case 'bigint': return bigintSerialize(c)
    ```
@@ -128,7 +128,7 @@ but isn't exposed in a reusable (bare-string) form.
 
 ### Tasks
 
-- [ ] `fjs/types/ts`: import `serialize` from `../bigint/module.f.ts`; replace
+- [ ] `fjs/types/ts`: import `serialize` from `../bigint/module.f.mjs`; replace
       `case 'bigint': return \`${c}n\`` with `bigintSerialize(c)`.
 - [ ] `fjs/media/json/serializer`: export `stringLiteral`; redefine `stringSerialize`
       in terms of it (no behavior change).

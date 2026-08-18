@@ -5,31 +5,25 @@
 
 ### Problem
 
-`cas get` currently reads the full file content through `fileKvStore.read` →
-`readFile`, which is capped at `maxLengthBytes` (128 KiB). Files uploaded via the
-streaming path (`cas upload`) can exceed this limit: the hash is stored and the
-source is removed, but `cas get <hash>` silently reports the file as missing
-because `readFile` rejects oversized reads and `fileKvStore.read` maps that error
-to `undefined`.
+`fileCas(sha2)(path).read` (`fjs/cas/module.f.mjs`) already streams the stored blob in
+`<=128 KiB` chunks (`readBytes` in a loop, capped by `chunkBytes`/`maxLengthBytes` per
+chunk, not per file), and `cas get` (`fjs/cas/cli/module.f.mjs`) pipes that stream to the
+destination file via `writeFromStream`, so it no longer holds the whole file in memory and
+is not limited to 128 KiB files. `FileCas` also already exposes a `url` method
+(`fjs/cas/module.f.mjs`, and see `fjs/cas/types.ts`) that returns the path to a hash's
+shard without reading its content.
 
-More broadly, copying the full byte content through the effect layer is the wrong
-model for large files: it requires a `Vec` allocation the size of the file, passes
-it back to the caller, and forces the caller to write it out again — doubling peak
-memory use.
+What is still missing: `cas get` always copies the blob's bytes into a fresh destination
+file. There is no way to ask it to just print the existing shard path (or a `file://` URL)
+instead, so a caller that only wants to know where the content lives — to hard-link, open
+directly, or hand the path to another tool — still pays for a full copy.
 
 ### Proposal
 
-Change `cas get` (and the underlying read path) to return the filesystem **path**
-of the stored object rather than its contents. Callers that need the bytes can
-open the file themselves, stream it, or hard-link / copy it at the OS level with
-no size restriction.
-
-Two concrete forms to consider (may coexist):
-
-- **Path** — return the absolute path string to the `.cas/…` shard file; the
-  caller issues a system-level copy or `rename` as needed.
-- **`file://` URL** — same information, useful when the result is consumed by a
-  web client or another tool that already speaks URLs.
+Add a mode where `cas get` prints the filesystem **path** (or a `file://` URL) of the
+stored object instead of copying it to a destination file. Callers that need a private
+copy can still request the current copy-out behavior; callers that only need to locate
+the content use the new mode and open/stream/hard-link it themselves.
 
 Additionally, mark the stored object **read-only** (e.g. `chmod 444`) immediately
 after the final `rename` in the upload pipeline. This:
@@ -42,19 +36,16 @@ after the final `rename` in the upload pipeline. This:
 
 ### Tasks
 
-- [ ] Add a `stat` / `lstat` primitive (or extend an existing one) to retrieve
-      file size without loading content, so callers can branch on size
 - [ ] Add a `chmod` (or `setReadOnly`) effect for marking files immutable after
       write
-- [ ] Change `cas get` to print the shard path (and optionally a `file://` URL)
-      instead of copying bytes to a destination file
-- [ ] Update `fileKvStore` (or add a parallel interface) with a `getPath` method
-      that returns the path for a given hash without reading content
+- [ ] Add a `cas get` mode (flag or subcommand) that prints the shard path — via
+      the existing `FileCas.url` — instead of copying bytes to a destination file
 - [ ] Apply `setReadOnly` in the `cas upload` pipeline after the final `rename`
 - [ ] Update proof tests and documentation
 
 ### Related
 
-- `fileCas.write` / `casAddFile` (`fjs/cas/module.f.ts`) — streaming upload
-  pipeline that stores files `cas get` cannot currently read back (design
-  formerly tracked as `66j-cas-large-file-support`, now implemented and deleted)
+- `fileCas.write` / `casAddFile` (`fjs/cas/module.f.mjs`) — streaming upload
+  pipeline; `cas get` now reads uploaded files back via the streaming `read`
+  path (design formerly tracked as `66j-cas-large-file-support`, now
+  implemented and deleted)

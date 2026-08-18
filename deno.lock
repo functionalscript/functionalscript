@@ -1,20 +1,12 @@
 {
   "version": "5",
   "specifiers": {
-    "npm:@playwright/test@1.62.0": "1.62.0",
-    "npm:@types/node@26.1.2": "26.1.2",
+    "npm:@types/node@26.0.0": "26.0.0",
     "npm:typescript@7.0.2": "7.0.2"
   },
   "npm": {
-    "@playwright/test@1.62.0": {
-      "integrity": "sha512-9zOJ6ZQRAena31MpOH9VSzIz8Ou3YJ/wtY/eQm5T2uhfhG7/U3COrMS8xOtUrZrp9OgdmzEnIYODye3nY1VqzA==",
-      "dependencies": [
-        "playwright"
-      ],
-      "bin": true
-    },
-    "@types/node@26.1.2": {
-      "integrity": "sha512-Vu4a5UFA9rIIFJ7rB/Vaafh9lrCQszopTCx6KjFboXTGQbPNasehVR5TEiithSDGyd1DEiUByggTZsg8jukeIg==",
+    "@types/node@26.0.0": {
+      "integrity": "sha512-vf2YFi1iY9lHGwNJMs01biZFbKJkrZR1T6/MlzjhJLPdntOHLhTrDSnSVcdtvjihi4VQNlrFRIxLsDBlQpAipA==",
       "dependencies": [
         "undici-types"
       ]
@@ -119,25 +111,6 @@
       "os": ["win32"],
       "cpu": ["x64"]
     },
-    "fsevents@2.3.2": {
-      "integrity": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==",
-      "os": ["darwin"],
-      "scripts": true
-    },
-    "playwright-core@1.62.0": {
-      "integrity": "sha512-nsNRyq0r2zsG8AcRHWknc9QRA5XCueC7gWMrs+Gx2tlZn9hcl8zudfh00lhJPY1DE7NmZ6bDsT9g2yey8mXljA==",
-      "bin": true
-    },
-    "playwright@1.62.0": {
-      "integrity": "sha512-Z14dG305dgaLu6foB1TXQagFiW8JfSUIUaUuPaKQ6NtBPKF1P/qXcqfh6c6K/icPqdy37JmjbiBXf6JNg6Sylw==",
-      "dependencies": [
-        "playwright-core"
-      ],
-      "optionalDependencies": [
-        "fsevents"
-      ],
-      "bin": true
-    },
     "typescript@7.0.2": {
       "integrity": "sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==",
       "optionalDependencies": [
@@ -171,8 +144,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
-        "npm:@playwright/test@1.62.0",
-        "npm:@types/node@26.1.2",
+        "npm:@types/node@26.0.0",
         "npm:typescript@7.0.2"
       ]
     }

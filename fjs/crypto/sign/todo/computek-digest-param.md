@@ -6,7 +6,7 @@
 ### Problem
 
 A single `sign(c)(hf)(x)(m)` runs the message hash **twice** over
-identical inputs. In `sign` itself (`fjs/crypto/sign/module.f.ts:150-151`):
+identical inputs. In `sign` itself (`fjs/crypto/sign/module.f.mjs:150-151`):
 
 ```ts
 const hm = computeSync(hf)([m])
@@ -14,7 +14,7 @@ const h = bits2int(hm) % q
 ```
 
 and then `sign` calls `computeK(a)(hf)(x)(m)`, whose body recomputes the
-same digest (`fjs/crypto/sign/module.f.ts:86`):
+same digest (`fjs/crypto/sign/module.f.mjs:86`):
 
 ```ts
 // a. Process m through the hash function H, yielding:
@@ -48,7 +48,7 @@ is a breaking API change — update all importers in the same PR per
 
 - [ ] Change `computeK`'s last parameter from message `m` to digest `h1`;
       update `sign` to pass `hm`.
-- [ ] Update `proof.f.ts` call sites and JSDoc.
+- [ ] Update `proof.f.mjs` call sites and JSDoc.
 - [ ] Run `npx tsc` and `fjs t`; verify the RFC 6979 test vectors still
       pass.
 

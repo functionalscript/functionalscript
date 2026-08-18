@@ -27,15 +27,14 @@ export const allReduce =
 ```
 
 Note the standalone `step`: `all(...)` returns a raw `Effect`, which is plain
-data with no methods — `.step` exists only on the `Eff` wrapper
-(`fjs/effects/eff/module.f.ts`). An earlier draft of this issue wrote
-`all(...).step(...)`, which would not compile. If
+data with no methods, so `all(...).step(...)` — as an earlier draft of this
+issue wrote it — would not compile. If
 [map-step-combinator](./map-step-combinator.md) lands first, the body is
 `mapStep(all(...toArray(items).map(f)), rs => rs.reduce(...))`.
 
 `op` must be **commutative** — results may arrive in any order when the runner schedules sub-effects in parallel.
 
-After adding `allReduce`, `runModuleMap` in `fjs/emergent_testing/module.f.ts` simplifies to:
+After adding `allReduce`, `runModuleMap` in `fjs/emergent_testing/module.f.mjs` simplifies to:
 
 ```ts
 return allReduce
@@ -53,5 +52,5 @@ return allReduce
 
 - `foldStep` / `forEachStep` — the sequential sibling.
 - Computational collections issue above — `allReduce` is the result-aggregating variant.
-- `fjs/common/monoid/module.f.ts` — if `allReduce` takes a `Monoid<R>` it composes naturally with existing monoid definitions.
+- `fjs/common/monoid/module.f.mjs` — if `allReduce` takes a `Monoid<R>` it composes naturally with existing monoid definitions.
 - #885 review — origin of this issue.

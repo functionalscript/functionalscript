@@ -11,22 +11,22 @@ re-named at every use site instead of existing once under one name.
 
 Source modules:
 
-- `fjs/mcp/stdio/module.f.ts:49` — `const stringifyJson = stringify(sort)`
-- `fjs/djs/module.f.ts:44` — `stringify(sort)(result[1])` inline
+- `fjs/protocol/mcp/stdio/module.f.mjs:53` — `const stringifyJson = stringify(sort)`
+- `fjs/djs/module.f.mjs:42` — `stringify(sort)(result[1])` inline
 
 Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
 `stringifyJson`):
 
-- `fjs/types/btree/proof.f.ts:11`, `fjs/types/btree/find/proof.f.ts:10`,
-  `fjs/types/btree/set/proof.f.ts:11`, `fjs/types/btree/remove/proof.f.ts:16`
-- `fjs/types/array/proof.f.ts:6`, `fjs/types/byte_set/proof.f.ts:8`,
-  `fjs/types/range_map/proof.f.ts:12`, `fjs/types/sorted_list/proof.f.ts:10`,
-  `fjs/types/sorted_set/proof.f.ts:10`, `fjs/types/list/proof.f.ts:37`
-- `fjs/text/ascii/proof.f.ts:6`, `fjs/text/utf8/proof.f.ts:8`,
-  `fjs/text/utf16/proof.f.ts:15`
-- `fjs/media/json/parser/proof.f.ts:13`, `fjs/mcp/stdio/proof.f.ts:13`
-- `fjs/bnf/data/proof.f.ts` (10 inline calls), `fjs/djs/parser/proof.f.ts:306`,
-  `fjs/djs/serializer/proof.f.ts:47`
+- `fjs/types/btree/proof.f.mjs:14`, `fjs/types/btree/find/proof.f.mjs:13`,
+  `fjs/types/btree/set/proof.f.mjs:16`, `fjs/types/btree/remove/proof.f.mjs:17`
+- `fjs/types/array/proof.f.mjs:6`, `fjs/types/byte_set/proof.f.mjs:10`,
+  `fjs/types/range_map/proof.f.mjs:15`, `fjs/types/sorted_list/proof.f.mjs:12`,
+  `fjs/types/sorted_set/proof.f.mjs:12`, `fjs/types/list/proof.f.mjs:11`
+- `fjs/text/ascii/proof.f.mjs:6`, `fjs/text/utf8/proof.f.mjs:8`,
+  `fjs/text/utf16/proof.f.mjs:18`
+- `fjs/media/json/parser/proof.f.mjs:16`, `fjs/protocol/mcp/stdio/proof.f.mjs:20`
+- `fjs/bnf/data/proof.f.mjs` (10 inline calls), `fjs/djs/parser/proof.f.mjs:309`,
+  `fjs/djs/serializer/proof.f.mjs:47`
 
 Each site is one line, so no single site is a problem — the issue is that
 the canonical-serialization idiom has ~20 different local names and no
@@ -37,7 +37,7 @@ no single point of definition.
 
 ## Proposal
 
-Export the composition once from `fjs/media/json/module.f.ts`, which already
+Export the composition once from `fjs/media/json/module.f.mjs`, which already
 imports from `fjs/types/object` (so the `sort` dependency adds nothing new):
 
 ```ts
@@ -46,22 +46,23 @@ export const stringifySorted: (value: Unknown) => string = stringify(sort)
 ```
 
 Then replace the local bindings at the sites above with an import. Sites
-that wrap it further (`fjs/types/list/proof.f.ts`'s `toArray` composition,
-`fjs/text/utf16/proof.f.ts`) keep their wrapper but call `stringifySorted`
+that wrap it further (`fjs/types/list/proof.f.mjs`'s `toArray` composition,
+`fjs/text/utf16/proof.f.mjs`) keep their wrapper but call `stringifySorted`
 inside. Hoisting the composition to module scope at each consumer also
 aligns with the `AGENTS.md` rule on binding call-invariant partial
 applications once.
 
 ## Tasks
 
-- [ ] Add `stringifySorted` to `fjs/media/json/module.f.ts` with proof
-      coverage in `fjs/media/json/proof.f.ts` (which itself calls
+- [ ] Add `stringifySorted` to `fjs/media/json/module.f.mjs` with proof
+      coverage in `fjs/media/json/proof.f.mjs` (which itself calls
       `stringify(sort)` seven times today).
-- [ ] Migrate the two source-module sites (`fjs/mcp/stdio/module.f.ts`,
-      `fjs/djs/module.f.ts`), then the proof files.
+- [ ] Migrate the two source-module sites (`fjs/protocol/mcp/stdio/module.f.mjs`,
+      `fjs/djs/module.f.mjs`), then the proof files.
 - [ ] Run `npx tsc` and `fjs t`.
 
 ## Related
 
-- `fjs/media/json/todo/serializer-shared-atoms.md` — separate serializer
-  deduplication inside `fjs/media/json`; no overlap.
+- `fjs/media/json/serializer/module.f.mjs` — `colon` is exported there and
+  shared with the djs serializer; that deduplication was separate from this
+  issue and is done.

@@ -9,8 +9,8 @@
 
 ## AST
 
-A DJS module parses into [ast/module.f.ts](./ast/module.f.ts); the types
-there carry the shape and its invariants.
+A DJS module parses into [ast/module.f.mjs](./ast/module.f.mjs); the types
+in [ast/types.ts](./ast/types.ts) carry the shape and its invariants.
 
 Why a flat list of constants with index references, rather than a value tree:
 a DJS module denotes a **graph**, and `import` and `const` are how it names
@@ -19,12 +19,14 @@ holding the same reference must yield the same object, not two equal copies —
 so the AST keeps the constants addressable and refers to them by index
 instead of inlining them. That is also what makes serialization a real
 choice: a value referenced more than once is emitted as a `const` and reused.
-See [examples/input.f.ts](./examples/input.f.ts).
+See [examples/input.f.mjs](./examples/input.f.mjs).
 
 ## Next steps
 
 - [x] use JS tokenizer
 - [x] identifiers `{a:5}`
+- [x] computed keys `{["a"]:5}`, the only spelling of a `__proto__` key
+  ([spec: the `__proto__` key](../../spec/README.md#the-__proto__-key))
 - [x] big int
 - [x] `export default ...`
 - [x] constants

@@ -8,7 +8,7 @@
 `fjs/cli`'s `dispatch` owns command routing and help, but no arity
 validation, so each handler re-implements "exactly N required positional
 args, else `errorExit`". Two consumers today, in
-`fjs/cas/cli/module.f.ts`:
+`fjs/cas/cli/module.f.mjs`:
 
 ```ts
 // add (:26-29)
@@ -25,8 +25,8 @@ handler: ({ home, args: [hashCBase32, path, ...rest] }) => {
 
 ### Proposal
 
-A combinator in `fjs/cli/module.f.ts`, the layer that already owns
-`Command`/`dispatch`:
+A combinator in `fjs/cli/module.f.mjs`, the layer that already owns
+`dispatch` (`Command` is defined in `fjs/cli/types.ts`):
 
 ```ts
 export const exact = <O extends NodeOp>(name: string, n: number) =>
@@ -56,4 +56,4 @@ alongside that work rather than as a standalone micro-PR.
 
 - `fjs/todo/66g-fjs-run-commands.md` — the `Commands` reshaping this
   should ride along with.
-- `fjs/cas/cli/module.f.ts:26-29,40-43` — the two current copies.
+- `fjs/cas/cli/module.f.mjs:24-26,43-45` — the two current copies.

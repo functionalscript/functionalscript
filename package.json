@@ -1,28 +1,30 @@
 {
   "name": "functionalscript",
-  "version": "0.39.0",
+  "version": "0.45.0",
   "type": "module",
   "files": [
     "**/*.js",
-    "**/*.d.ts"
+    "**/*.d.ts",
+    "**/*.mjs",
+    "**/*.d.mts"
   ],
   "description": "FunctionalScript is a purely functional subset of JavaScript",
   "scripts": {
-    "prepack": "tsc --NoEmit false",
-    "test": "tsc && node ./fjs/module.ts t",
-    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.ts",
-    "start": "node ./fjs/module.ts",
-    "ci-update": "node ./fjs/module.ts ci",
-    "dev-update": "node ./fjs/module.ts r ./fjs/dev/update/module.f.ts",
-    "update": "npx npm-check-updates -u && npm install && deno install && bun install && npm run ci-update",
-    "index-html": "node ./fjs/module.ts r ./fjs/website/module.f.ts",
+    "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc",
+    "test": "tsc && node ./fjs/module.mjs t",
+    "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100",
+    "start": "node ./fjs/module.mjs",
+    "ci-update": "node ./fjs/module.mjs ci && node ./fjs/module.mjs r ./fjs/nanvm/update/module.f.mjs",
+    "dev-update": "node ./fjs/module.mjs r ./fjs/dev/update/module.f.mjs",
+    "update": "npm run ci-update && npm install && deno install && bun install",
+    "index-html": "node ./fjs/module.mjs r ./fjs/website/module.f.mjs",
     "website": "npm run prepack && npm run index-html"
   },
   "engines": {
     "node": ">=22"
   },
   "bin": {
-    "fjs": "fjs/module.js"
+    "fjs": "fjs/module.mjs"
   },
   "repository": {
     "type": "git",
@@ -44,8 +46,7 @@
   },
   "homepage": "https://github.com/functionalscript/functionalscript#readme",
   "devDependencies": {
-    "@playwright/test": "1.62.0",
-    "@types/node": "26.1.2",
-    "typescript": "7.0.2"
+    "@types/node": "=26.0.0",
+    "typescript": "=7.0.2"
   }
 }

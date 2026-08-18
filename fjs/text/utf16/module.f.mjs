@@ -1,0 +1,353 @@
+/**
+ * UTF-16 utilities: convert between strings, UTF-16 code units, and Unicode
+ * code points, including surrogate-pair encoding/decoding via streaming
+ * `stateScan` operations.
+ *
+ * @module
+ *
+ * @import { List, Result, Thunk } from '../../types/list/types.ts'
+ * @import { StateScan } from '../../types/function/operator/types.ts'
+ * @import { CodePoint, U16 } from './types.ts'
+ */
+
+import {
+    map,
+    reduce,
+    flatMap,
+    empty,
+} from '../../types/list/module.f.mjs'
+
+import { concat } from '../../types/function/operator/module.f.mjs'
+import { contains } from '../../types/range/module.f.mjs'
+import { fn } from '../../types/function/module.f.mjs'
+
+import {
+    decoder,
+    eofFlush,
+    errorMask,
+    isBmpCodePoint,
+    isHighSurrogate,
+    isLowSurrogate,
+    isSupplementaryPlane,
+} from '../code_point/module.f.mjs'
+
+/**
+ * Optional Utf16State - represents the state of utf16 decoding operation or null.
+ * - number is used an unsigned integer.
+ *
+ * @typedef {number | null} _Utf16State
+ */
+
+/**
+ * The BMP / surrogate / supplementary-plane predicates used below live in
+ * `code_point`, the shared Unicode contract; see that module for their ranges.
+ *
+ * Converts a Unicode code point to its corresponding UTF-16 representation.
+ *
+ * This function handles:
+ * 1. Code points in the Basic Multilingual Plane (BMP) [0x0000–0xFFFF],
+ *    which map directly to a single 16-bit value (U16).
+ * 2. Supplementary Plane code points [0x10000–0x10FFFF],
+ *    which are represented as surrogate pairs in UTF-16.
+ *
+ * @param {CodePoint} codePoint - A valid Unicode code point.
+ * @returns {readonly U16[]} A list of 16-bit unsigned integers (U16) representing the UTF-16 encoding
+ *          of the input code point. If the code point is in the BMP range, a single U16
+ *          value is returned. For code points in the supplementary planes, two U16
+ *          values (a high and a low surrogate) are returned.
+ * @example
+ *
+ * ```ts
+ * const exampleCodePoints: List<CodePoint> = [
+ *     0x0041,       // 'A' (BMP, single U16)
+ *     0x1F600,      // 😀 (Emoji, supplementary plane, surrogate pair)
+ *     0xD7FF,       // Last code point in the low BMP range
+ *     0xE000,       // First code point in the high BMP range
+ *     0x10FFFF,     // Maximum valid code point in Unicode
+ *     0x110000,     // Invalid code point (outside Unicode range)
+ * ]
+ * exampleCodePoints.forEach((codePoint) => {
+ *     const utf16Result = codePointToUtf16(codePoint)
+ *     console.log(`Code Point: U+${codePoint.toString(16).toUpperCase()}`)
+ *     console.log(`UTF-16: ${utf16Result.map(u16 => u16.toString(16).toUpperCase()).join(' ')}`)
+ * })
+ * ```
+ */
+const codePointToUtf16 = codePoint => {
+    if (isBmpCodePoint(codePoint)) { return [codePoint] }
+    if (isSupplementaryPlane(codePoint)) {
+        const n = codePoint - 0x1_0000
+        const high = (n >> 10) + 0xd800
+        const low = (n & 0b0011_1111_1111) + 0xdc00
+        return [high, low]
+    }
+    return [codePoint & 0xffff]
+}
+
+/**
+ * Converts a UTF-16 sequence to its corresponding Unicode code points.
+ *
+ * This function handles:
+ * 1. Single U16 values in the Basic Multilingual Plane (BMP) [0x0000–0xFFFF].
+ * 2. Surrogate pairs representing code points in the Supplementary Plane [0x10000–0x10FFFF].
+ * 3. Invalid input sequences by applying an error mask to the resulting code point.
+ *
+ * @example
+ *
+ * ```ts
+ * const exampleUtf16: List<U16> = [
+ *     0x0041,       // 'A' (BMP, single U16)
+ *     0xD83D, 0xDE00, // 😀 (Emoji, surrogate pair)
+ *     0xD800,       // Unpaired high surrogate
+ *     0xDC00,       // Unpaired low surrogate
+ * ]
+ *
+ * const codePoints = toCodePointList(exampleUtf16)
+ * codePoints.forEach((codePoint) => {
+ *     if (codePoint & errorMask) {
+ *         console.log(`Invalid sequence detected: ${codePoint.toString(16).toUpperCase()}`)
+ *     } else {
+ *         console.log(`Code Point: U+${codePoint.toString(16).toUpperCase()}`)
+ *     }
+ * })
+ * ```
+ *
+ * @type {(input: List<CodePoint>) => Thunk<U16>}
+ */
+export const fromCodePointList
+    = flatMap(codePointToUtf16)
+
+const isInU16Range = contains(0x0000, 0xFFFF)
+
+/**
+ * Validates whether a given 16-bit unsigned integer (U16) falls within the valid range for UTF-16 code units.
+ *
+ * UTF-16 uses 16-bit code units to encode characters. The valid range for these code units is [0x0000, 0xFFFF].
+ * This function is used to verify that a number is within this range.
+ *
+ * @example
+ *
+ * ```ts
+ * const validU16 = u16(0x0041)  // true: U+0041 ('A')
+ * const invalidU16 = u16(0x110000)  // false: Value is outside the valid range
+ * const edgeCaseLow = u16(0x0000)  // true: Minimum valid value for UTF-16
+ * const edgeCaseHigh = u16(0xFFFF)  // true: Maximum valid value for UTF-16
+ * ```
+ *
+ * `U16` is just `number`, so this also rejects non-integers — `isBmpCodePoint`,
+ * `isHighSurrogate`, and `isLowSurrogate` only partition the *integers* in
+ * `0x0000`–`0xFFFF` with no gap; a fractional value would fall between two of
+ * those ranges and be misclassified downstream if it were let through here.
+ *
+ * @type {(i: U16) => boolean}
+ */
+const u16 = i => Number.isInteger(i) && isInU16Range(i)
+
+/**
+ * A stateful operation that converts a UTF-16 word (U16) to a list of Unicode code points (CodePoint),
+ * while maintaining the state of surrogate pair decoding.
+ *
+ * This operation processes UTF-16 code units and decodes them into Unicode code points. It handles:
+ * 1. BMP code points (single U16).
+ * 2. Surrogate pairs (two U16s representing a single code point in the supplementary planes).
+ * 3. Invalid or malformed code units.
+ *
+ * It also manages the internal state, which is necessary to handle surrogate pairs. If the state is null,
+ * it expects a valid BMP code point or a high surrogate. If the state is not null, it processes a low surrogate
+ * and combines the pair into a single supplementary code point.
+ *
+ * @param state - The current state of the UTF-16 decoding operation.
+ *               This can be either `null` (no state) or the previous high surrogate value.
+ * @param word - The current UTF-16 word (U16) to process.
+ * @returns A tuple where the first element is a list of decoded Unicode code points (`CodePoint`), and
+ *          the second element is the updated state. A word outside the `U16`
+ *          domain is reported as one bare `errorMask` unit, the same shape the
+ *          UTF-8 decoder's out-of-range guard emits.
+ *
+ * @example
+ *
+ * ```ts
+ * const state: Utf16State = null;
+ * const word: U16 = 0xD83D;  // High surrogate for 😀 emoji
+ * const [decodedCodePoints, newState] = utf16ByteToCodePointOp(word, state);
+ * ```
+ *
+ * @example
+ *
+ * ```ts
+ * const state: Utf16State = 0xD83D;  // High surrogate already stored
+ * const word: U16 = 0xDC00;  // Low surrogate for 😀 emoji
+ * const [decodedCodePoints, newState] = utf16ByteToCodePointOp(word, state);
+ * ```
+ *
+ * @type {StateScan<U16, _Utf16State, List<CodePoint>>}
+ */
+const utf16ByteToCodePointOp = (word, state) => {
+    if (!u16(word)) {
+        // Out of domain, so there is no payload to tag: emit the bare mask,
+        // matching `utf8ByteToCodePointOp`'s guard. Every other error path
+        // below tags a real code unit with `| errorMask`.
+        return [[errorMask], state]
+    }
+    if (state === null) {
+        if (isBmpCodePoint(word)) { return [[word], null] }
+        if (isHighSurrogate(word)) { return [[], word] }
+        return [[word | errorMask], null]
+    }
+    if (isLowSurrogate(word)) {
+        const high = state - 0xd800
+        const low = word - 0xdc00
+        return [[(high << 10) + low + 0x10000], null]
+    }
+    // `isLowSurrogate`, `isBmpCodePoint`, and `isHighSurrogate` partition the
+    // full `u16` range with no gap, and `isLowSurrogate` was already ruled out
+    // above, so a non-BMP `word` here is always a high surrogate.
+    if (isBmpCodePoint(word)) { return [[state | errorMask, word], null] }
+    return [[state | errorMask], word]
+}
+
+/**
+ * Converts a pending UTF-16 decoding state — an unpaired high surrogate
+ * (0xD800–0xDBFF) left from an earlier input — to an error code.
+ *
+ * @type {(state: number) => CodePoint}
+ */
+const utf16StateToError = state => state | errorMask
+
+/**
+ * Handles the EOF (end-of-file) condition during UTF-16 decoding.
+ *
+ * If there is no pending state (`state === null`), it returns an empty list of
+ * code points, indicating no further input to process. If there is a pending
+ * state, it is treated as an unpaired surrogate and the `errorMask` is applied
+ * to flag the invalid sequence. The flush itself is `eofFlush` from
+ * `code_point`, shared with UTF-8.
+ *
+ * @type {(state: _Utf16State) => readonly[List<CodePoint>, _Utf16State]}
+ */
+const utf16EofToCodePointOp = eofFlush(utf16StateToError)
+
+/**
+ * Converts a list of UTF-16 code units to a list of Unicode code points (CodePoint).
+ * This function processes each UTF-16 code unit, decoding them into their corresponding Unicode code points.
+ * The input list of `U16` values may represent characters in the Basic Multilingual Plane (BMP) or supplementary planes,
+ * with surrogate pairs handled correctly. The function also handles EOF (`null`).
+ *
+ * @example
+ *
+ * ```ts
+ * const utf16List: List<U16> = [0x0041, 0xD83D, 0xDE00] // 'A' and 😀 (surrogate pair)
+ * const codePoints = toCodePointList(utf16List)
+ * ```
+ *
+ * @type {(input: List<U16>) => List<CodePoint>}
+ */
+export const toCodePointList =
+    decoder(utf16ByteToCodePointOp, utf16EofToCodePointOp)
+
+/**
+ * Converts a string to a list of UTF-16 code units (U16).
+ *
+ * This function processes each character in the input string and converts it to its corresponding UTF-16 code unit(s).
+ * Characters in the Basic Multilingual Plane (BMP) will produce a single `U16`, while supplementary plane characters
+ * (those requiring surrogate pairs) will produce two `U16` values.
+ * @param {string} s - The input string to convert to UTF-16 code units.
+ * @returns {List<U16>} A list of UTF-16 code units (`U16`) representing the string.
+ *
+ * @example
+ *
+ * ```js
+ * const inputString = "Hello, 😀"
+ * const utf16List = stringToList(inputString)
+ * ```
+ */
+export const stringToList = s => {
+    /** @type {(i: number) => Result<number>} */
+    const at = i => {
+        const first = s.charCodeAt(i)
+        return isNaN(first) ? empty : { first, tail: () => at(i + 1) }
+    }
+    return at(0)
+}
+
+/**
+ * Converts a string to a list of Unicode code points (CodePoint).
+ * This function first converts the string to a list of UTF-16 code units (U16) using `stringToList`,
+ * then it converts the UTF-16 code units to Unicode code points using `toCodePointList`. This is useful for handling
+ * Unicode characters, including supplementary characters represented by surrogate pairs in UTF-16.
+ *
+ * @param {string} input - The input string to convert.
+ * @returns {List<CodePoint>} A list of Unicode code points (`CodePoint`) corresponding to the characters in the string.
+ *
+ * @example
+ *
+ * ```js
+ * const inputString = "Hello, 😀"
+ * const codePoints = stringToCodePointList(inputString)
+ * ```
+ */
+export const stringToCodePointList = input =>
+    toCodePointList(stringToList(input))
+
+/**
+ * Converts a list of UTF-16 code units (U16) to a string.
+ * This function takes a list of `U16` values (UTF-16 code units) and reconstructs the original string by mapping
+ * each code unit back to its character using `String.fromCharCode`. The resulting characters are concatenated
+ * to form the final string.
+ *
+ * @example
+ *
+ * ```ts
+ * const utf16List: List<U16> = [0x0041, 0x0042, 0x0043] // 'ABC'
+ * const outputString = listToString(utf16List)
+ * ```
+ *
+ * @type {(input: List<U16>) => string}
+ */
+export const listToString = fn(map(String.fromCharCode))
+    .map(reduce(concat)(''))
+    .result
+
+/**
+ * Converts a list of Unicode code points (CodePoint) to a string.
+ * This function first converts the list of Unicode code points to a list of UTF-16 code units using `fromCodePointList`,
+ * then it uses `listToString` to reconstruct the string from the UTF-16 code units.
+ *
+ * @param {List<CodePoint>} input - A list of Unicode code points (`CodePoint`).
+ * @returns {string} A string representing the characters encoded by the input code points.
+ *
+ * @example
+ *
+ * ```ts
+ * const codePoints: List<CodePoint> = [0x48, 0x65, 0x6C, 0x6C, 0x6F]
+ * const outputString = codePointListToString(codePoints)
+ * ```
+ */
+export const codePointListToString = input =>
+    listToString(fromCodePointList(input))
+
+/**
+ * Converts a single Unicode code point to a string — the scalar counterpart of
+ * {@link codePointListToString}, for callers that hold one code point rather
+ * than a list of them and would otherwise wrap it in a single-element list.
+ *
+ * Input outside the assignable range — a surrogate, a value above
+ * `0x10FFFF`, or a negative one — is truncated to its low 16 bits and encoded
+ * as that code unit, rather than rejected. This matches
+ * {@link codePointListToString}, which reports malformed input through the
+ * decoder's `errorMask` on the way *in* rather than through a failure on the
+ * way out.
+ *
+ * @param {CodePoint} codePoint - A Unicode code point (`CodePoint`).
+ * @returns {string} The one- or two-code-unit string encoding it.
+ *
+ * @example
+ *
+ * ```ts
+ * codePointToString(0x48)      // 'H'
+ * codePointToString(0x1F600)   // the 😀 surrogate pair
+ * codePointToString(0x110000)  // '\u0000' — out of range, low 16 bits kept
+ * ```
+ */
+export const codePointToString = codePoint =>
+    String.fromCharCode(...codePointToUtf16(codePoint))

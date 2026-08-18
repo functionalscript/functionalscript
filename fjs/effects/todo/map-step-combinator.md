@@ -1,21 +1,20 @@
-## map-step-combinator. Convert the remaining `step(e, x => pure(f(x)))` sites to `mapStep` / `Eff.map`
+## map-step-combinator. Convert the remaining `step(e, x => pure(f(x)))` sites to `mapStep`
 
 **Priority:** P3
 **Status:** open
 
-> **The APIs have landed.** `mapStep` is in `fjs/effects/module.f.ts` and
-> `Eff.map` in `fjs/effects/eff/module.f.ts`, each with proof coverage and with
-> its first real consumers converted in the same change — `readUtf8File`,
-> `awaitIfPromise` and `errorExit` (`fjs/effects/node/module.f.ts`),
-> `decodeRevisionBlob` (`fjs/cas/evo/module.f.ts`), and `Eff`'s own `.step`,
-> whose history projection is now a `mapStep`. What remains is the mechanical
-> part: the other call sites, module by module.
+> **The API has landed.** `mapStep` is in `fjs/effects/module.f.mjs` with proof
+> coverage, and its first real consumers were converted in the same change —
+> `readUtf8File`, `awaitIfPromise` and `errorExit`
+> (`fjs/effects/node/module.f.mjs`) and `decodeRevisionBlob`
+> (`fjs/cas/evo/module.f.mjs`). What remains is the mechanical part: the other
+> call sites, module by module.
 
 ### Problem
 
-`fjs/effects/module.f.ts` ships `pure` (return) and `step` (bind), plus the
-derived combinators `historyStep`, `foldStep`, `forEachStep`, the `okStep`
-adapter — and now `mapStep`, the functor `map`: "run the effect, then apply a
+`fjs/effects/module.f.mjs` ships `pure` (return) and `step` (bind), plus the
+derived combinators `historyStep`, `foldStep`, `forEachStep` — and now
+`mapStep`, the functor `map`: "run the effect, then apply a
 pure function to its result". Before it existed, every call site re-derived it
 as `step(e, x => pure(f(x)))`, and **about 41 of them still do**, in 14 modules.
 
@@ -24,36 +23,36 @@ Two shapes, both the same thing:
 *Projection* (`x => pure(f(x))`):
 
 ```ts
-// fjs/mcp/module.f.ts:394-396
+// fjs/protocol/mcp/module.f.mjs:347-350
 : step(
     handlers.toolsList(pr),
     r => pure(_okResponse(id)(r)),
 )
 ```
 
-Also `fjs/dev/module.f.ts`, `fjs/cas/evo/module.f.ts`,
-`fjs/cas/evo/mcp/module.f.ts`, `fjs/cas/module.f.ts`, `fjs/cas/mcp/module.f.ts`,
-`fjs/mcp/module.f.ts`, `fjs/emergent_testing/module.f.ts`.
+Also `fjs/dev/module.f.mjs`, `fjs/cas/evo/module.f.mjs`,
+`fjs/mcp/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/mcp/cas/module.f.mjs`,
+`fjs/protocol/mcp/module.f.mjs`, `fjs/emergent_testing/module.f.mjs`.
 
 *Constant projection* (`() => pure(v)`), overwhelmingly the "do the work, then
 yield an exit code" shape of a `NodeProgram`:
 
 ```ts
-// fjs/cli/module.f.ts:38-40
+// fjs/cli/module.f.mjs:39-41
 return step(
     log(helpText),
     () => pure(0))
 
-// fjs/website/module.f.ts:17-19
-const program: Effect<WriteFile, number> = step(
+// fjs/website/module.f.mjs:19-21
+const program = step(
     writeFile('index.html', html),
     () => pure(0))
 ```
 
-Also `fjs/djs/module.f.ts`, `fjs/module.f.ts`, `fjs/ci/module.f.ts`,
-`fjs/cas/evo/module.f.ts`, `fjs/cas/module.f.ts`, `fjs/cas/cli/module.f.ts`,
-`fjs/cas/mcp/module.f.ts`, `fjs/mcp/module.f.ts`, `fjs/mcp/stdio/module.f.ts`,
-`fjs/emergent_testing/module.f.ts`.
+Also `fjs/djs/module.f.mjs`, `fjs/module.f.mjs`, `fjs/ci/module.f.mjs`,
+`fjs/cas/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/cas/cli/module.f.mjs`,
+`fjs/mcp/cas/module.f.mjs`, `fjs/protocol/mcp/module.f.mjs`, `fjs/protocol/mcp/stdio/module.f.mjs`,
+`fjs/emergent_testing/module.f.mjs`.
 
 Beyond the repetition, the old spelling **misreports the shape of the chain**.
 A `step` whose continuation returns `pure` is not a link in a sequence of
@@ -69,12 +68,8 @@ step(a, x => step(f(x), y => pure(g(x, y))))
 
 ### Proposal
 
-Rewrite each remaining site with the combinator that already exists:
-
-```ts
-mapStep(e, f)                       // raw Effect
-eff(e).map(f).value                 // fluent Eff
-```
+Rewrite each remaining site with the combinator that already exists —
+`mapStep(e, f)`.
 
 `mapStep` does **not** widen the operation set (`Effect<O, R>`, not
 `Effect<O | Q, R>`) — a pure projection adds no commands. That is a small typing
@@ -88,17 +83,9 @@ construction rather than inside the continuation), which is invisible for the
 cheap pure values used today but is a semantic difference not worth introducing
 for brevity. The rationale is recorded in `mapStep`'s JSDoc.
 
-**Conversion hazard: callback arity.** `Eff`'s docs warn that the history is
-positional, so "every parameter a callback declares is meaningful … a defaulted
-or rest parameter after the current value is a bug, not a convenience." A
-conversion from `.step(y => pure(f(y)))` to `.map(f)` is only safe when `f` is
-genuinely unary — the explicit lambda pins arity at one, while passing `f`
-point-free exposes it to the prior values. This is `["1","2","3"].map(parseInt)`
-with a longer history tuple. When converting, either keep the lambda or confirm
-the callee takes exactly one argument; `mapOk(utf8ToString)` and `vecToCBase32`
-qualify, and anything with optional parameters does not. `mapStep` is not exposed
-to this — it applies `f` to exactly one argument — so only the fluent sites need
-the check.
+**No callback-arity hazard here.** `mapStep` applies `f` to exactly one
+argument, so passing a callee point-free cannot expose it to extra arguments the
+way `["1","2","3"].map(parseInt)` does.
 
 **Scope.** `AGENTS.md` asks one improvement per PR. Take one module or one
 closely related group per PR; what must **not** happen is landing the whole
@@ -106,13 +93,11 @@ conversion as one 14-module diff.
 
 ### Tasks
 
-- [ ] The `NodeProgram` exit-code sites (`fjs/module.f.ts`, `fjs/cli`, `fjs/ci`,
+- [ ] The `NodeProgram` exit-code sites (`fjs/module.f.mjs`, `fjs/cli`, `fjs/ci`,
       `fjs/djs`, `fjs/website`, `fjs/cas/cli`).
-- [ ] `fjs/mcp` + `fjs/mcp/stdio`.
-- [ ] `fjs/cas` + `fjs/cas/evo` + `fjs/cas/evo/mcp` + `fjs/cas/mcp`.
+- [ ] `fjs/protocol/mcp` + `fjs/protocol/mcp/stdio`.
+- [ ] `fjs/cas` + `fjs/cas/evo` + `fjs/mcp/evo` + `fjs/mcp`.
 - [ ] `fjs/emergent_testing`, `fjs/dev`.
-- [ ] When converting fluent sites, check callback arity (see the hazard note
-      above) rather than mechanically dropping the lambda.
 - [ ] `npx tsc` clean; `fjs t` passes after each PR.
 
 ### Related
@@ -124,6 +109,6 @@ conversion as one 14-module diff.
   projection (`() => undefined`).
 - [fold-stream-combinator](./fold-stream-combinator.md) — its pure consumers
   (`detectStream`, `collectRead`) end in `pure(ok(...))` projections.
-- `fjs/effects/module.f.ts` — `mapStep`, `step`, `historyStep`, `foldStep`,
-  `forEachStep`, `okStep`; the "do not nest steps" rule in the module header.
+- `fjs/effects/module.f.mjs` — `mapStep`, `step`, `historyStep`, `foldStep`,
+  `forEachStep`; the "do not nest steps" rule in the module header.
 </content>

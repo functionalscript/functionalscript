@@ -5,7 +5,7 @@
 
 ### Problem
 
-Whenever a state in `fjs/js/tokenizer/module.f.ts` ends its current token on a
+Whenever a state in `fjs/js/tokenizer/module.f.mjs` ends its current token on a
 character that belongs to the *next* token, it performs the same two-step
 dance: re-run the tokenizer on the same input from a fresh state, then prepend
 the finished (or error) token to whatever that re-dispatch produced:

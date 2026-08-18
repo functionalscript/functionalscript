@@ -3,14 +3,17 @@
 `fjs` is the FunctionalScript command-line tool. It is invoked directly via Node:
 
 ```sh
-node ./fjs/module.ts <command> [args]
+node ./fjs/module.mjs <command> [args]
 ```
 
 or via `npx` without a global install:
 
 ```sh
-npx fjs <command> [args]
+npx functionalscript <command> [args]
 ```
+
+`npx` resolves the **package** name, not the bin name: `fjs` is an unrelated
+package on npm, so `npx fjs …` would run somebody else's code.
 
 or, once the package is installed globally:
 
@@ -20,37 +23,49 @@ fjs <command> [args]
 
 ## Commands
 
-| Command | Alias | Description |
-|---------|-------|-------------|
-| `test`   | `t`   | Run the FunctionalScript test suite |
-| `compile`| `c`   | Compile a FunctionalScript module to JavaScript |
-| `cas`    | `s`   | Content-addressable storage operations |
-| `mcp`    | `m`   | Run an MCP server over stdio exposing the CAS as tools |
-| `ci`     | `i`   | Generate the GitHub Actions CI workflow |
-| `run`    | `r`   | Run a FunctionalScript module as a program |
-| `help`   | `h`, `?` | Print available commands |
+| Command | Description | Documentation |
+|---------|-------------|---------------|
+| `test`   | Run the FunctionalScript test suite | [emergent_testing](emergent_testing/README.md) |
+| `compile`| Compile a FunctionalScript module to JavaScript or JSON | [djs](djs/README.md), [fsc](fsc/README.md) |
+| `cas`    | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
+| `mcp`    | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
+| `ci`     | Generate the GitHub Actions CI workflow | [ci](ci/README.md) |
+| `run`    | Run a FunctionalScript module as a program | [below](#fjs-run--running-a-module-as-a-program) |
+| `help`   | Print available commands | |
+
+Each command also accepts a short alias (`fjs t` for `fjs test`, and so on).
+`fjs help` prints them; this documentation uses the full names throughout.
+
+## `fjs compile` — compiling a module
+
+```sh
+fjs compile <input> <output>
+```
+
+The output extension picks the format: `.json` emits a tree (shared values are
+expanded), anything else emits a JavaScript module that preserves sharing by
+naming reused values as `const`s. Imports are resolved and inlined in both
+cases. See [djs/README.md](djs/README.md) for the accepted subset.
 
 ## `fjs ci` — generating the standard CI workflow
 
 ```sh
 fjs ci
-fjs i
 ```
 
-`fjs ci` runs the built-in CI generator from `fjs/ci/module.f.ts`, writing
+`fjs ci` runs the built-in CI generator from `fjs/ci/module.f.mjs`, writing
 `.github/workflows/ci.yml`. It is the standard entry point for projects that want
 FunctionalScript's default workflow. Projects with custom CI setup code should keep
-using `fjs r <custom-ci-module>`, so their module can call `ci(setup)` with its own
+using `fjs run <custom-ci-module>`, so their module can call `ci(setup)` with its own
 extra runtime steps.
 
 ## `fjs run` — running a module as a program
 
 ```sh
 fjs run <module> [args...]
-fjs r   <module> [args...]
 ```
 
-`fjs r` dynamically imports `<module>` and calls its `main` export as a
+`fjs run` dynamically imports `<module>` and calls its `main` export as a
 `NodeProgram`:
 
 ```ts
@@ -59,11 +74,11 @@ fjs r   <module> [args...]
 
 ### Convention: `export const main`
 
-A module intended to be run with `fjs r` must export a named `main` constant
+A module intended to be run with `fjs run` must export a named `main` constant
 of type `NodeProgram`:
 
 ```ts
-import type { NodeProgram } from '../effects/node/module.f.ts'
+import type { NodeProgram } from '../effects/node/types.ts'
 
 export const main: NodeProgram = options => {
     // options.args — command-line arguments passed after the module path
@@ -75,21 +90,21 @@ This mirrors:
 
 - `export const proof` — the convention for proof/test modules.
 - `main` entry-point naming from C, C++, and Rust.
-- `fjs/module.f.ts` itself, which uses `export const main`.
+- `fjs/module.f.mjs` itself, which uses `export const main`.
 
 ### Passing arguments
 
 Any arguments after `<module>` are forwarded to `main` via `options.args`:
 
 ```sh
-fjs r ./my-tool.f.ts foo bar   # options.args === ['foo', 'bar']
+fjs run ./my-tool.f.mjs foo bar   # options.args === ['foo', 'bar']
 ```
 
 
 ## Architecture
 
 ```
-fjs/module.ts          — Node.js entry point (runs main via the node runner)
-fjs/module.f.ts        — FunctionalScript command dispatcher (Commands list + dispatch)
-fjs/cli/module.f.ts    — generic Command/Commands/dispatch primitives
+fjs/module.mjs         — Node.js entry point (runs main via the node runner)
+fjs/module.f.mjs       — FunctionalScript command dispatcher (Commands list + dispatch)
+fjs/cli/module.f.mjs   — generic dispatch primitive (Command/Commands types in fjs/cli/types.ts)
 ```

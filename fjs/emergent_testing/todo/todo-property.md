@@ -20,7 +20,7 @@ A proof author needs a way to say "this test documents a known bug; it is
 *expected to fail today*, so a failure must not break CI — but the moment the
 behaviour is fixed, flip the test red so we are reminded to remove the marker."
 
-The existing `throw` marker (`fjs/emergent_testing/module.f.ts`) already
+The existing `throw` marker (`fjs/emergent_testing/module.f.mjs`) already
 demonstrates the mechanism: a structural property in the proof tree that
 *inverts* a leaf's pass/fail expectation.
 
@@ -168,7 +168,7 @@ same change that deletes the issue file.
 
 ### Implementation
 
-All changes are local to `fjs/emergent_testing/module.f.ts` plus its proof and
+All changes are local to `fjs/emergent_testing/module.f.mjs` plus its proof and
 docs, mirroring the existing `throws` plumbing:
 
 - **`TestEntry`** — add a `readonly todo: boolean` next to `throws`. Derive
@@ -197,7 +197,7 @@ docs, mirroring the existing `throws` plumbing:
 
 ### Migration
 
-This rule reinterprets existing `fjs/emergent_testing/example.f.ts`:
+This rule reinterprets existing `fjs/emergent_testing/example.f.mjs`:
 
 ```ts
 export const todo = () => { throw "not implemented" }
@@ -220,7 +220,7 @@ out from under `throw`) as part of landing this change.
 ### Tasks
 
 - [ ] Add `todo` to `TestEntry`; derive `expectFailure` (XOR) and `leafOnly`
-      (OR) in `fjs/emergent_testing/module.f.ts`.
+      (OR) in `fjs/emergent_testing/module.f.mjs`.
 - [ ] Set `todo` from the leaf's last key in `parseTestSet` / `collectTests`,
       keep `throws` inherited, and add the "`todo` key holds a zero-arg function"
       static guard.
@@ -231,8 +231,8 @@ out from under `throw`) as part of landing this change.
 - [ ] Add a `todo` counter to `TestState`/`Reporter.summary` and print
       `pass / fail / todo` in `defaultReporter` (`fjs t` only; `register`
       unchanged).
-- [ ] Migrate `fjs/emergent_testing/example.f.ts` off `throw: { todo }`.
-- [ ] Add proofs in `fjs/emergent_testing/proof.f.ts` for: `todo` green on throw,
+- [ ] Migrate `fjs/emergent_testing/example.f.mjs` off `throw: { todo }`.
+- [ ] Add proofs in `fjs/emergent_testing/proof.f.mjs` for: `todo` green on throw,
       `todo` red when it returns, `throw.todo` green on return / red on throw, the
       never-walk-subtests rule, and the static guard rejecting a non-function
       `todo`.
@@ -246,7 +246,7 @@ out from under `throw`) as part of landing this change.
 
 ### Related
 
-- `fjs/emergent_testing/module.f.ts` "Throw tests" — `todo` reuses the same
+- `fjs/emergent_testing/module.f.mjs` "Throw tests" — `todo` reuses the same
   structural-key inversion mechanism; this proposal adds a second, *local* flag
   combined with the inherited `throws` flag via XOR (inversion) and OR
   (leaf-ness).

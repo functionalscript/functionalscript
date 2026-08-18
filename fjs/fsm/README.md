@@ -107,7 +107,7 @@ const b = { ...a, z: 7 }
 ## How to Add a Property # 2
 
 ```ts
-import map from './types/map/module.f.ts'
+import map from './types/map/module.f.mjs'
 const a = map.fromEntries(Object.entries({ x: 5, y: 6 }))
 const b = map.setReplace('z')(7)(a)
 ```
