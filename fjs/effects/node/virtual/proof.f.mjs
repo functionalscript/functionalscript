@@ -1,13 +1,17 @@
 /**
  * @import { Dir } from './types.ts'
+ * @import { NodeOp } from '../types.ts'
+ * @import { RawEffect } from '../../types.ts'
  * @import { IoError } from '../types.ts'
  * @import { NotImplemented } from '../../io/types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { access, awaitIfPromise, fetch, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive } from '../module.f.mjs'
+import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { emptyState, virtual } from './module.f.mjs'
+import { do_ } from '../../module.f.mjs'
+import { catchStep } from '../../io/module.f.mjs'
 
 /**
  * Asserts that a channel error is a host failure carrying `message` — the
@@ -20,6 +24,42 @@ const assertIoMessage = (e, message) => {
 }
 
 export const proof = {
+    // The two ways a command can have no handler here, which are not the same
+    // failure and must not answer alike.
+    unimplemented: {
+        // `exec` is a `NodeOp` this runner deliberately lacks — an in-memory
+        // filesystem has no subprocesses. It used to be a `todo` handler that
+        // threw; the program now gets its control back and can decide.
+        declaredButAbsent: () => {
+            const [, result] = virtual(emptyState)(exec('ls'))
+            assert(result[0] === 'error', result)
+            assertEq(result[1][0], 'notImplemented', result[1])
+            assertEq(result[1][1], 'exec', result[1])
+        },
+        // What the whole stage is for: the program receives control back and
+        // chooses. `exec` is unavailable here, so this one falls back to
+        // writing a note instead of dying, and the run completes normally.
+        programChoosesAFallback: () => {
+            const e = catchStep(exec('ls'), () => log('exec unavailable'))
+            const [state, result] = virtual(emptyState)(e)
+            assert(result[0] === 'ok', result)
+            assertEq(state.stdout, 'exec unavailable\n')
+        },
+        // A `command` that is not a `NodeOp` at all is a malformed node: the
+        // type said it was one, so something built it from data that was never
+        // checked. That stays a panic — collapsing it into `notImplemented`
+        // would turn a probable bug into a routine outcome.
+        throw: {
+            undeclaredCommand: () => {
+                // `do_` cannot build this from a well-typed call — that is the
+                // point: only a node assembled outside the type system reaches
+                // an interpreter with a command like this.
+                const bogus = /** @type {RawEffect<NodeOp, never>} */ (
+                    /** @type {any} */ (do_)('nope')())
+                virtual(emptyState)(bogus)
+            },
+        },
+    },
     rm: {
         success: () => {
             /** @type {Dir} */

@@ -45,7 +45,7 @@
  * @import { Fold } from '../../types/function/operator/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { RawEffect, History, Operation } from '../types.ts'
- * @import { Effect } from './types.ts'
+ * @import { Effect, NotImplemented } from './types.ts'
  */
 
 import { fold } from '../../types/list/module.f.mjs'
@@ -79,6 +79,19 @@ export const pureOk = v => pure(ok(v))
  * @type {<E>(e: E) => Effect<never, never, E>}
  */
 export const pureError = e => pure(error(e))
+
+/**
+ * Builds the {@link NotImplemented} a runner answers with when it cannot
+ * dispatch `command`.
+ *
+ * It names the command and nothing else. A `Do` node's payload may hold
+ * functions — `createServer`'s listener, `sandbox`'s thunk, `test`'s body — so
+ * carrying it would break the serializability this error type promises, and the
+ * command name is the part a program can act on anyway.
+ *
+ * @type {(command: string) => NotImplemented}
+ */
+export const notImplemented = command => ['notImplemented', command]
 
 /**
  * The normal path: run `e`, and continue with `f` **only** if it succeeded. An

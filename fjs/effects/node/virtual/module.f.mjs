@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
- * @import { MemOperationMap, RunInstance } from '../../mock/types.ts'
+ * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
  * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
  * @import { Error } from '../../../types/result/types.ts'
  * @import { Dir, State, _Entity } from './types.ts'
@@ -15,8 +15,8 @@ import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
-import { ioError } from '../module.f.mjs'
-import { run } from '../../mock/module.f.mjs'
+import { ioError, nodeCommands } from '../module.f.mjs'
+import { partialRun } from '../../mock/module.f.mjs'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
 
 /** @type {State} */
@@ -359,7 +359,7 @@ const statOp = readOperation((dir, path) => {
     return ok({ size: fileSizeBytes(file) })
 })
 
-/** @type {MemOperationMap<NodeOp, State>} */
+/** @type {PartialMemOperationMap<NodeOp, State>} */
 const map = {
     all: (...a) => state => {
         /** @type {readonly unknown[]} */
@@ -406,10 +406,6 @@ const map = {
     writeBytes: writeBytesOp,
     stat: statOp,
     randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, ok(state.randomNext)],
-    exec: todo,
-    createServer: todo,
-    listen: todo,
-    forever: todo,
     now: () => state => [state, ok(state.epochNs)],
     // Virtual sandbox is a pass-through: the fixture's test function is
     // expected to return a `SandboxResult` directly (encoding pass/fail and a
@@ -420,7 +416,6 @@ const map = {
     // See: issues/156-tf-virtual-tests.md
     sandbox: f => state => [state, ok(/** @type {SandboxResult<unknown>} */ (f()))],
     await: p => state => [state, ok([p])],
-    test: todo,
     write: (stream, data) => state => {
         const s = utf8ToString(data)
         return [{ ...state, [stream]: `${state[stream]}${s}` }, okVoid]
@@ -433,8 +428,21 @@ const map = {
     },
 }
 
-/** @type {RunInstance<NodeOp, State>} */
-export const virtual = run(map)
+/**
+ * The virtual runner.
+ *
+ * **It implements part of `NodeOp`, and says so.** `exec`, `createServer`,
+ * `listen`, `forever` and `test` have no meaning against an in-memory
+ * filesystem, and they used to be present as `todo` handlers — entries that
+ * existed only to satisfy a total operation map and threw when reached. They
+ * are simply absent now, so a program that asks for one gets
+ * `error(notImplemented)` back through its own continuation and decides what an
+ * incompatible runner means for it, which is what `NotImplemented` was
+ * introduced for. A command that is not a `NodeOp` at all still panics.
+ *
+ * @type {RunInstance<NodeOp, State>}
+ */
+export const virtual = partialRun(nodeCommands)(map)
 
 const testContext = { test: todo }
 

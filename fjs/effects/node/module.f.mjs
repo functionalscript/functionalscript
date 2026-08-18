@@ -12,7 +12,7 @@
  *
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { RawEffect, Func, Operation } from '../types.ts'
+ * @import { Commands, CommandSet, RawEffect, Func, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
  * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoError, IoErrorInfo, IoResult, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, OpResult, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop, } from './types.ts'
  * @import { Effect, NotImplemented } from '../io/types.ts'
@@ -75,6 +75,38 @@ export const toIoError = e => {
  */
 export const isNotFound = ([tag, payload]) =>
     tag === 'ioError' && payload.code === 'ENOENT'
+
+/**
+ * `NodeOp`'s commands as data, so a runner that implements only part of them
+ * can still tell an operation it lacks from a `Do` node whose `command` was
+ * never a `NodeOp` at all — see `CommandSet` in `../types.ts` for why the
+ * distinction needs the set at runtime.
+ *
+ * Declared as a record because `CommandSet<NodeOp>` is checked for
+ * *completeness*: adding a command to `NodeOp` and forgetting it here is a
+ * compile error, where an array literal would only have its members checked and
+ * would drift silently.
+ *
+ * @type {CommandSet<NodeOp>}
+ */
+const nodeCommandSet = {
+    access: null, all: null, await: null, createExclusive: null,
+    createServer: null, exec: null, fetch: null, forever: null,
+    import: null, listen: null, memCreate: null, memRead: null,
+    memWrite: null, mkdir: null, now: null, randomInt: null,
+    read: null, readBytes: null, readFile: null, readdir: null,
+    rename: null, rm: null, sandbox: null, stat: null,
+    test: null, write: null, writeBytes: null, writeFile: null,
+}
+
+/**
+ * The commands of {@link nodeCommandSet}, in the form a partial runner tests
+ * membership against. The cast is the one `Object.keys` always needs: it
+ * answers `string[]` for a record whose keys the type system knows exactly.
+ *
+ * @type {Commands<NodeOp>}
+ */
+export const nodeCommands = /** @type {Commands<NodeOp>} */ (Object.keys(nodeCommandSet))
 
 // all
 

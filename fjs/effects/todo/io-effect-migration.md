@@ -1,7 +1,9 @@
 ## io-effect-migration. Migrate effects to explicit Result semantics
 
 **Priority:** P3
-**Status:** open
+**Status:** open — all six stages have landed; what is left is the sweep of
+design docs that still spell the pre-rename names, in Stage 5's task list.
+Delete this file when that is done.
 
 ### Goal
 
@@ -135,9 +137,9 @@ Two consequences follow, and both are Stage 3 work:
   currently-infallible operation starts wrapping its output in `ok(...)`;
   operations that already return `IoResult` need only their error type
   refined.
-- Until Stage 6 lands, runners remain **total** over their declared operation
-  maps: `NotImplemented` exists in the type model but no runner produces it
-  yet.
+- Until Stage 6 landed, runners remained **total** over their declared
+  operation maps: `NotImplemented` was in the type model with nothing producing
+  it. The virtual runner produces it now.
 
 ### Target composition
 
@@ -469,33 +471,63 @@ guarantee that every runner implements all of them.
 
 ## Stage 6. Runners support `NotImplemented`
 
-**Blocked by:** Stage 5.
+**Done.**
 
-- [ ] Allow a runner to omit an operation handler.
-- [ ] A missing handler returns `error(NotImplemented(operation))` through the
+- [x] Allow a runner to omit an operation handler — `PartialOperationMap`
+      and `partialMatch`; partiality is opt-in, so a total map still makes a
+      forgotten handler a compile error.
+- [x] A missing handler returns `error(NotImplemented(operation))` through the
       normal effect continuation.
-- [ ] `NotImplemented` must be produced before the operation starts.
-- [ ] **Rework `match` and its documented invariant.** `match` in
-      `fjs/effects/module.f.mjs` asserts on a missing handler, with a
-      deliberate doc argument that "a runner cannot resume a command it has no
-      handler for, so there is nothing for a recovery branch to do." This stage
-      inverts that argument: the runner *can* resume, with
-      `error(NotImplemented)`. `match` is generic over `R` and cannot know
-      every return type admits that value, so this needs either a partial
-      operation-map type whose constraint guarantees every operation's return
-      admits `error(NotImplemented)`, or a separate Io-aware match. The
-      `assert` and the doc comment defending it are in scope, and per the
-      module header the change touches one of the three sanctioned
-      `Pure`/`Do` discriminators — update the header's count/argument
-      accordingly.
-- [ ] Supported operations keep their normal success or operation-specific
-      error behavior.
-- [ ] Add proof coverage showing that the program receives control after
-      `NotImplemented` and can choose a fallback operation.
-- [ ] Apply the same behavior to every runner/engine.
+- [x] `NotImplemented` must be produced before the operation starts — the
+      lookup precedes dispatch, so nothing is begun.
+- [x] **Rework `match` and its documented invariant.** Done, and the shape it
+      needed was not quite either of the two this file predicted.
 
-Until Stage 6 lands, `NotImplemented` may exist in the type model while
-current runners remain total over their declared operation maps.
+      The blocker was read correctly — `match` cannot know that every return
+      type admits `error(NotImplemented)` — but the reason is sharper than
+      "generic over `R`": `R` is the **runner's** wrapper (`Promise<…>` for an
+      async loop, `(state) => [state, …]` for a state-threading one), not the
+      operation's return type, so `match` cannot *construct* one however it is
+      constrained. A type-level constraint and a separate Io-aware `match` both
+      collapse into the same answer with extra ceremony: somebody has to pass a
+      value that builds an `R`, and only the runner can.
+
+      So `partialMatch(commands, onMissing)` takes the injector, and each
+      runner writes its own once, next to the loop that fixes the shape —
+      `partialRun` in `fjs/effects/mock` is the only one today.
+
+      Two consequences the plan did not anticipate:
+
+      - **Partiality is opt-in.** `OperationMap` stays total, so a runner that
+        merely *forgets* a handler is still a compile error;
+        `PartialOperationMap` is for a runner meant to lack operations.
+      - **A missing handler is two different things, and types are erased.**
+        An omitted `readFile` and a garbled `readFilee` reach the interpreter
+        as the same failed lookup, so telling "declared but unimplemented"
+        (recoverable) from "never a command at all" (a malformed node, still a
+        panic) needs `O`'s commands as *data*. `CommandSet<O>` is a
+        `Record<O[0], null>` for that reason — a record is checked for
+        completeness, so a command added to `O` and forgotten there is a
+        compile error, where an array literal would drift silently.
+- [x] Supported operations keep their normal success or operation-specific
+      error behavior.
+- [x] Add proof coverage showing that the program receives control after
+      `NotImplemented` and can choose a fallback operation —
+      `unimplemented.programChoosesAFallback` in the virtual runner's proof
+      catches an unavailable `exec` and writes instead.
+- [x] Make the behaviour available to every runner/engine — **and opt in
+      where a runner has operations it genuinely lacks**, which today is the
+      virtual one. `asyncRun` and the Node runner implement all of `NodeOp`, so
+      they stay total and keep their exhaustiveness check; giving them a
+      partial map would trade a compile-time guarantee for a runtime answer
+      nothing asks for.
+
+A runner is no longer obliged to be total. `NotImplemented` was in the type
+model from Stage 1 with nothing producing it; the virtual runner produces it
+now, for the five operations it does not implement. The runners that *are*
+total — `asyncRun` and the Node one — stay that way by choice rather than by
+the type system's insistence, and keep the exhaustiveness check that goes with
+it.
 
 ### Invariants
 
@@ -523,7 +555,8 @@ current runners remain total over their declared operation maps.
 - [`../node/todo/ornotfound-combinator.md`](../node/todo/ornotfound-combinator.md)
 - [`node-module-layering.md`](./node-module-layering.md)
 - [`../../../todo/044-error-handling-pattern.md`](../../../todo/044-error-handling-pattern.md)
-- `fjs/effects/module.f.mjs` — raw `step`, `okStep`, `match` (whose
-  missing-handler `assert` Stage 6 reworks).
+- `fjs/effects/module.f.mjs` — raw `step`, `match` and `partialMatch`, whose
+  missing-handler `assert` Stage 6 reworked into the two-case split. `okStep`
+  used to be listed here; Stage 5 inlined it into the Io `step`.
 - `fjs/types/result/module.f.mjs` — `okThen`, the union-not-unify precedent
   for the signatures above.
