@@ -73,11 +73,13 @@ const fixedCas = entries => ({
  * Runs `e` against the virtual runner and unwraps the effect channel.
  *
  * These proofs drive a runner that implements every operation they use, so a
- * channel failure here is a broken fixture rather than a case under test — and
- * the cases that *are* about failure assert on the value's own `Result`, which
- * this leaves untouched. `evo.add`'s two `Result`s are exactly that split: the
- * outer one is unwrapped here, the inner domain verdict is what each proof
- * goes on to inspect.
+ * channel failure here is a broken fixture rather than a case under test, and
+ * panicking on one is the wanted outcome.
+ *
+ * The cases that *are* about failure therefore do not come through here: a
+ * rejected revision now travels in the same channel as an undispatchable
+ * operation, so unwrapping would panic on the thing under test. Those use the
+ * raw `virtual` and `assertEvoError`.
  *
  * @type {(state: State) => <T, E>(e: Effect<NodeOp, T, E>) => readonly [State, T]}
  */
@@ -276,8 +278,8 @@ export const proof = {
         const [state1, root] = virtualOk(state0)(e.add({ parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x42n)) }))
         // The two children differ only in `archived`, which is enough to make
         // them distinct blobs, hence two concurrent heads of one root.
-        const [state2, kept] = virtualOk(state1)(e.add({ parents: [root], subject: 'doc' }))
-        const [state3, dropped] = virtualOk(state2)(e.add({ parents: [root], subject: 'doc', archived: true }))
+        const [state2] = virtualOk(state1)(e.add({ parents: [root], subject: 'doc' }))
+        const [state3] = virtualOk(state2)(e.add({ parents: [root], subject: 'doc', archived: true }))
         const [state4, heads] = virtualOk(state3)(e.head('doc'))
         assertEq(heads.length, 2)
         const [state5, active] = virtualOk(state4)(e.list())
@@ -294,7 +296,7 @@ export const proof = {
         const [state0, cacheKey] = virtualOk(emptyState)(initEvo(c))
         const e = evo(c)(cacheKey)
         const [state1, root] = virtualOk(state0)(e.add({ parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x45n)), archived: true }))
-        const [state2, revived] = virtualOk(state1)(e.add({ parents: [root], subject: 'doc' }))
+        const [state2] = virtualOk(state1)(e.add({ parents: [root], subject: 'doc' }))
         const [state3, active] = virtualOk(state2)(e.list())
         assertEq(active.length, 1)
         assertEq(active[0], 'doc')

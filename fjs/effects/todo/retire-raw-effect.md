@@ -67,10 +67,11 @@ derived per function (see the `IoChannel` decision below).
 - 24 files import the raw combinators; most take only `pure` and `step`, which
   have direct equivalents in `pureOk` and the Io `step`. `match` and `runPure`
   are runner-level and legitimately stay raw.
-- `NotImplemented | IoError` is spelled out 50 times, 41 of them as an `Effect`
-  channel.
+- `NotImplemented | IoError` was spelled out 51 times across 50 lines (one line
+  in `fjs/cas/module.f.mjs` carried two), 41 of them as an `Effect` channel.
 - Every effect-`List` already carries a `Result` payload — all 45 occurrences.
   There is no infallible stream, so a fallible cell costs no wrapper anywhere.
+- All 28 operations already return `OpResult<…>` or `IoResult<…>`.
 
 ### Decisions still open
 
@@ -149,7 +150,7 @@ migration makes, so each module's proofs are re-read as part of its PR.
 - [ ] **5. Consumer sweep**, one module per PR, until `RawEffect` is imported
       nowhere outside `fjs/effects`.
 - [ ] **6. Delete `RawEffect`.** Constrain `Operation`'s return type to a
-      `Result` — it is `(..._: readonly never[]) => unknown` today, and all 27
+      `Result` — it is `(..._: readonly never[]) => unknown` today, and all 28
       operations in the tree already return `OpResult<…>` or `IoResult<…>`; the
       only exception is `_AnyOp` in `../proof.f.mjs`, a proof operation that
       exists to exercise the raw layer. That promotes Stage 6's invariant from
@@ -207,7 +208,10 @@ migration makes, so each module's proofs are re-read as part of its PR.
 ### Related
 
 - [`io-effect-migration.md`](./io-effect-migration.md) — the six-stage
-  migration this continues; stage 4 is the precedent for the consumer sweep.
+  migration this continues; stage 4 is the precedent for the consumer sweep,
+  and its stage 5 (#1636) is where these two names came from: `IoEffect` became
+  `Effect` and the representation became `RawEffect`. #1640 then settled which
+  of them a `Result`-valued effect should be spelled as.
 - [`effect-list-fold.md`](./effect-list-fold.md),
   [`fold-stream-combinator.md`](./fold-stream-combinator.md) — both describe
   stream folds that stage 3 would subsume.
