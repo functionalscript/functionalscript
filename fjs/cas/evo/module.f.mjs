@@ -42,7 +42,7 @@
  *
  * @module
  *
- * @import { RawEffect, Operation } from '../../effects/types.ts'
+ * @import { Operation } from '../../effects/types.ts'
  * @import { Effect, NotImplemented } from '../../effects/io/types.ts'
  * @import { EvoChannel, EvoError } from './types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
@@ -229,12 +229,19 @@ export const decodeRevisionVec = value => {
  *
  * @template {Operation} O
  * @param {Cas<O>} cas
- * @returns {(hash: Vec) => RawEffect<O, Revision | null>}
+ * The `never` is a decision, not an observation: reading the store *can* fail,
+ * and this maps that failure to `null` alongside "the bytes are not a
+ * revision". A scan wants exactly that — one unreadable blob must not fail the
+ * whole cache build — but the two are genuinely different answers, and this
+ * one loses the difference on purpose. Saying `never` puts that where a reader
+ * can disagree with it.
+ *
+ * @returns {(hash: Vec) => Effect<O, Revision | null, never>}
  */
 export const decodeRevisionBlob = cas => hash =>
     mapStep(
         collectRead(cas.read(hash)),
-        ([tag, value]) => tag === 'error' ? null : decodeRevisionVec(value))
+        ([tag, value]) => ok(tag === 'error' ? null : decodeRevisionVec(value)))
 
 /**
  * Scans every hash in `cas` and builds a fresh {@link Cache} from the
@@ -254,10 +261,10 @@ export const buildCache = cas => {
     // has nothing to pin it and drifts into the accumulator's.
     /** @type {(hash: Vec) => (cache: Cache) => Effect<O, Cache, IoChannel>} */
     const foldOne = hash => cache =>
-        mapStep(
+        ioMapStep(
             decodeRevisionBlob(cas)(hash),
-            revision => ok(
-                revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache)))
+            revision =>
+                revision === null ? cache : addRevisionToCache(vecToCBase32(hash), revision)(cache))
     return ioStep(cas.list(), hashes => ioFoldStep(pureOk(hashes), emptyCache, foldOne))
 }
 
@@ -310,11 +317,11 @@ const resolveParent = cas => parentRef => {
     if (parentHash === null) {
         return pureError(evoError(`invalid parent hash: ${parentRef}`))
     }
-    return mapStep(
+    return ioStep(
         decodeRevisionBlob(cas)(parentHash),
         parent => parent === null
-            ? error(evoError(`parent is not a revision blob: ${parentRef}`))
-            : ok(parent))
+            ? pureError(evoError(`parent is not a revision blob: ${parentRef}`))
+            : pureOk(parent))
 }
 
 /**

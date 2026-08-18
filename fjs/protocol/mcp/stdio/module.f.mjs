@@ -2,7 +2,7 @@
  * stdio transport for JSON-RPC / MCP servers.
  *
  * `stdioTransport` wraps a step function — the `mcpStep`-shaped
- * `(value) => RawEffect<O, Response | null>` from `fjs/protocol/mcp/module.f.mjs` — in the
+ * `(value) => Effect<O, Response | null, never>` from `fjs/protocol/mcp/module.f.mjs` — in the
  * canonical read → parse → dispatch → write loop, expressed as a recursive
  * effect so it stays in the pure effect model and is fully testable against a
  * mock stdin / stdout (see `fjs/effects/node/virtual`) with no real process.
@@ -100,9 +100,14 @@ const handleLine = handler => line => {
     return step(
         t === 'error'
             ? writeResponse(parseErrorResponse)
+            // Raw `step` with the `ok` destructured, not `ioStep`: a `Handle`
+            // answers `Effect<O, Response | null, never>` — it absorbs its own
+            // failures into the response body — but this chain leaves the layer
+            // to write bytes, so it cannot stay `Result`-valued. The `never`
+            // channel is why `[, resp]` is total.
             : step(
                 handler(value),
-                resp => resp === null
+                ([, resp]) => resp === null
                     ? pure(undefined)
                     : step(
                         writeResponse(resp),

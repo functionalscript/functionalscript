@@ -315,9 +315,17 @@ export type TestContext = {
     readonly test: TestFn
 }
 
-/** RawEffect operation that registers a named test with the active `TestContext`. */
+/**
+ * Operation that registers a named test with the active `TestContext`.
+ *
+ * The callback's `never` is the honest reading of what an external framework
+ * accepts. Node `--test`, Bun and Deno take a body that either returns or
+ * throws; there is no channel to answer a failure through, so the body absorbs
+ * its own — which `emergent_testing` does, by panicking, since a throw is the
+ * one failure signal those frameworks understand.
+ */
 export type Test =
-    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => RawEffect<Test | All | Await, void>) => OpResult<void>]
+    readonly['test', (ctx: TestContext, name: string, expectFailure: boolean, test: (t: TestContext) => Effect<Test | All | Await, void, never>) => OpResult<void>]
 
 // Node
 

@@ -67,7 +67,8 @@ export const proof = {
             ['evo_head', { subject: 'x' }],
             ['evo_add', { parents: [] }],
         ])) {
-            const [result] = runPure(findEntry(registry, name).handle(args))
+            const [r] = runPure(findEntry(registry, name).handle(args))
+            const result = r === undefined ? undefined : r[1]
             assert(result !== undefined && result.isError === true, ['expected isError', name, result])
             assert(textOf(result).includes('memRead'), ['expected the command name in the message', name])
         }
@@ -87,7 +88,7 @@ export const proof = {
         const [state0, cacheKey] = virtual(emptyState)(mapStep(initEvo(c), unwrapResult))
         const e = evo(c)(cacheKey)
         const entry = findEntry(evoToolRegistry(e), 'evo_list')
-        const [, result] = virtual(state0)(entry.handle({}))
+        const [, [, result]] = virtual(state0)(entry.handle({}))
         assert(!result.isError)
         assertEq(textOf(result), '[]')
     },
@@ -103,7 +104,7 @@ export const proof = {
         const [state1] = virtual(state0)(rawMapStep(e.add({ parents: [], subject: 'line one\nline two', snapshot: vecToCBase32(vec8(0x2an)) }), unwrapResult))
         const [state2] = virtual(state1)(rawMapStep(e.add({ parents: [], subject: '', snapshot: vecToCBase32(vec8(0x2bn)) }), unwrapResult))
         const entry = findEntry(evoToolRegistry(e), 'evo_list')
-        const [, result] = virtual(state2)(entry.handle({}))
+        const [, [, result]] = virtual(state2)(entry.handle({}))
         assert(!result.isError)
         const subjects = unwrap(parseSubjects(unwrap(parseJson(textOf(result)))))
         assertEq(subjects.length, 2)
@@ -118,10 +119,10 @@ export const proof = {
         const e = evo(c)(cacheKey)
         const [state1] = virtual(state0)(rawMapStep(e.add({ parents: [], subject: 'gone', snapshot: vecToCBase32(vec8(0x2cn)), archived: true }), unwrapResult))
         const entry = findEntry(evoToolRegistry(e), 'evo_list')
-        const [state2, active] = virtual(state1)(entry.handle({}))
+        const [state2, [, active]] = virtual(state1)(entry.handle({}))
         assert(!active.isError)
         assertEq(textOf(active), '[]')
-        const [, archived] = virtual(state2)(entry.handle({ archived: true }))
+        const [, [, archived]] = virtual(state2)(entry.handle({ archived: true }))
         assert(!archived.isError)
         assertEq(textOf(archived), '["gone"]')
     },
@@ -130,7 +131,7 @@ export const proof = {
         const [state0, cacheKey] = virtual(emptyState)(mapStep(initEvo(c), unwrapResult))
         const e = evo(c)(cacheKey)
         const entry = findEntry(evoToolRegistry(e), 'evo_head')
-        const [, result] = virtual(state0)(entry.handle({ subject: 'nope' }))
+        const [, [, result]] = virtual(state0)(entry.handle({ subject: 'nope' }))
         assert(!result.isError)
         assertEq(textOf(result), '')
     },
@@ -139,7 +140,7 @@ export const proof = {
         const [state0, cacheKey] = virtual(emptyState)(mapStep(initEvo(c), unwrapResult))
         const e = evo(c)(cacheKey)
         const entry = findEntry(evoToolRegistry(e), 'evo_head')
-        const [, result] = virtual(state0)(entry.handle({}))
+        const [, [, result]] = virtual(state0)(entry.handle({}))
         assertEq(result.isError, true)
     },
     // Covers evo_revision's success branch: the stored revision comes back as
@@ -152,7 +153,7 @@ export const proof = {
         const subject = vecToCBase32(vec8(0x3n))
         const [state1, added] = virtual(state0)(rawMapStep(e.add({ parents: [], subject }), unwrapResult))
         const entry = findEntry(evoToolRegistry(e), 'evo_revision')
-        const [, result] = virtual(state1)(entry.handle({ hash: added }))
+        const [, [, result]] = virtual(state1)(entry.handle({ hash: added }))
         assert(!result.isError)
         assertEq(textOf(result), `{"subject":"${subject}","parents":[],"snapshot":"${subject}","generation":0}`)
     },
@@ -163,7 +164,7 @@ export const proof = {
         const [state0, cacheKey] = virtual(emptyState)(mapStep(initEvo(c), unwrapResult))
         const e = evo(c)(cacheKey)
         const entry = findEntry(evoToolRegistry(e), 'evo_revision')
-        const [, result] = virtual(state0)(entry.handle({ hash: vecToCBase32(vec8(0x4n)) }))
+        const [, [, result]] = virtual(state0)(entry.handle({ hash: vecToCBase32(vec8(0x4n)) }))
         assertEq(result.isError, true)
         assert(textOf(result).includes('revision not found'))
     },
@@ -175,7 +176,7 @@ export const proof = {
         const e = evo(c)(cacheKey)
         const entry = findEntry(evoToolRegistry(e), 'evo_add')
         const args = { parents: [], subject: 'doc', snapshot: vecToCBase32(vec8(0x1n)) }
-        const [, result] = virtual(state0)(entry.handle(args))
+        const [, [, result]] = virtual(state0)(entry.handle(args))
         assert(!result.isError)
         assert(textOf(result).length > 0)
     },
@@ -194,9 +195,9 @@ export const proof = {
             parents: [], subject: 'doc', snapshot,
             lock: { B: { D: d1 }, C: { D: d2 } },
         }
-        const [state1, added] = virtual(state0)(findEntry(registry, 'evo_add').handle(args))
+        const [state1, [, added]] = virtual(state0)(findEntry(registry, 'evo_add').handle(args))
         assert(!added.isError)
-        const [, read] = virtual(state1)(findEntry(registry, 'evo_revision').handle({ hash: textOf(added) }))
+        const [, [, read]] = virtual(state1)(findEntry(registry, 'evo_revision').handle({ hash: textOf(added) }))
         assert(!read.isError)
         assertEq(
             textOf(read),
@@ -230,7 +231,7 @@ export const proof = {
         const [state0, cacheKey] = virtual(emptyState)(mapStep(initEvo(c), unwrapResult))
         const e = evo(c)(cacheKey)
         const entry = findEntry(evoToolRegistry(e), 'evo_add')
-        const [, result] = virtual(state0)(entry.handle({ parents: [] }))
+        const [, [, result]] = virtual(state0)(entry.handle({ parents: [] }))
         assertEq(result.isError, true)
         assert(textOf(result).includes('subject is required'))
     },

@@ -412,6 +412,33 @@ export const registerSuffixes = () => {
 // short-circuit before walking the returned value for sub-tests: it invokes
 // the callback and returns without recursing, rather than treating the
 // returned object as a sub-tree.
+// The registered callback panics when its own effects cannot be dispatched.
+// `Test` hands the body to an external framework that reads a throw and
+// nothing else, so a body that could not run must not be reported as a pass —
+// which is why `registerOne` ends in a `catchStep` that throws rather than in
+// a channel nobody reads.
+const registerBodyPanicsOnUndispatchableEffect = () => {
+    /** @type {_RegisterRunner} */
+    let runner
+    runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
+        test: (ctx, _name, _xf, fn) => s => [runner(s)(fn(ctx))[0], ok(undefined)],
+        all: (...effects) => s => {
+            const [st, rs] = effects.reduce(
+                ([st1, rs1], e) => {
+                    const [ns, r] = runner(st1)(e)
+                    return [ns, [...rs1, r]]
+                },
+                /** @type {readonly [_RegisterMockState, readonly unknown[]]} */ ([s, []]),
+            )
+            return [st, ok(rs)]
+        },
+        // The runner has no `await`, which is what the body's channel carries.
+        await: _p => s => [s, error(/** @type {const} */ (['notImplemented', 'await']))],
+    }))
+    const proof = /** @type {const} */ ({ a: () => Promise.resolve(undefined) })
+    runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
+}
+
 export const registerThrowsWithoutThrowing = () => {
     // Unlike registerSuffixes' mock, this one actually invokes the registered
     // callback so registerOne's inner `.step` body runs, and asserts the
@@ -598,6 +625,9 @@ const defaultReporterExpectedToThrow = () => {
 }
 
 export const proof = {
+    throw: {
+        registerBodyPanicsOnUndispatchableEffect,
+    },
     flat,
     nested,
     throwKey,

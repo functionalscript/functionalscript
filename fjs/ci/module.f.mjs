@@ -5,7 +5,6 @@
  *
  * @module
  *
- * @import { RawEffect } from '../effects/types.ts'
  * @import { NodeOp } from '../effects/node/types.ts'
  * @import { Architecture, GitHubAction, Job, Jobs, MetaStep, Os } from './common/types.ts'
  * @import { NixJob } from './nix/types.ts'

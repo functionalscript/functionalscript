@@ -10,7 +10,7 @@
  *
  * @module
  *
- * @import { RawEffect, Operation } from '../effects/types.ts'
+ * @import { Operation } from '../effects/types.ts'
  * @import { Effect, NotImplemented } from '../effects/io/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
  * @import { TestFn, TestEntry, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts'
@@ -20,7 +20,7 @@
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import { pure, step as rawStep } from '../effects/module.f.mjs'
-import { history, historyStep, mapStep, pureError, pureOk, step, unwrapStep } from '../effects/io/module.f.mjs'
+import { catchStep, history, historyStep, mapStep, pureError, pureOk, step } from '../effects/io/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
@@ -120,19 +120,23 @@ export const registerModule = (ctx, k, v, star) => {
         const base = fmtImport(k, path)
         const name = throws ? base : `${base}${star}`
         // The registered callback panics on failure, deliberately. `Test` hands
-        // it to an external framework (node `--test`, Bun, Deno) whose contract
-        // is a raw `RawEffect<…, void>`: there is no channel to answer a failure
-        // through, so propagating it here would only discard it one level up.
+        // it to an external framework (node `--test`, Bun, Deno) that takes a
+        // body which either returns or throws: there is no channel to answer a
+        // failure through, so propagating it here would only discard it one
+        // level up.
         // A throw is what that framework *does* understand — it reports the
         // test as failed, which is the outcome a caller wants anyway. The `test`
         // operation's own result is propagated normally, just below.
         //
-        // `errorSummary` names what is being panicked on, and pins it: this is
-        // the only panic in library code, so if the body's channel ever widens
+        // `catchStep` rather than `unwrapStep`, so the absorption is visible in
+        // the type: the body answers `Effect<…, void, never>`, and the `never`
+        // is *because* this handler panics. `errorSummary` still names what is
+        // being panicked on and pins it, so if the body's channel ever widens
         // past the node one, the compiler asks here rather than turning a new
         // recoverable failure into a crash.
-        const body = (/** @type {TestContext} */ t) =>
-            unwrapStep(step(awaitIfPromise(fn()), resolved => {
+        /** @type {(t: TestContext) => Effect<Test | All | Await, void, never>} */
+        const body = t =>
+            catchStep(step(awaitIfPromise(fn()), resolved => {
                 if (throws) {
                     return pureOk(undefined)
                 }
@@ -141,7 +145,7 @@ export const registerModule = (ctx, k, v, star) => {
                     return pureOk(undefined)
                 }
                 return mapStep(allOk(...sub.map(e => registerOne(t, e))), () => undefined)
-            }), errorSummary)
+            }), e => { throw errorSummary(e) })
         return test(ctx, name, throws, body)
     }
     const tests = collectTests([], false, v)

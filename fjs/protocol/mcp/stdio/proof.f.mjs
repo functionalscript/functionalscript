@@ -1,6 +1,5 @@
 /**
  * @import { Unknown } from '../../../media/json/types.ts'
- * @import { RawEffect } from '../../../effects/types.ts'
  * @import { State } from '../../../effects/node/virtual/types.ts'
  * @import { Id } from '../../json_rpc/types.ts'
  * @import { Step } from './types.ts'
@@ -9,6 +8,7 @@
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { pure } from '../../../effects/module.f.mjs'
+import { pureOk } from '../../../effects/io/module.f.mjs'
 import { emptyState, virtual } from '../../../effects/node/virtual/module.f.mjs'
 import { stringify } from '../../../media/json/module.f.mjs'
 import { utf8 } from '../../../text/module.f.mjs'
@@ -35,7 +35,7 @@ const idOf = value =>
 /** @type {Step<never>} */
 const echoStep = value => {
     const id = idOf(value)
-    return pure(id === undefined
+    return pureOk(id === undefined
         ? null
         : { jsonrpc, result: { ok: true }, id })
 }
@@ -153,7 +153,7 @@ export const proof = {
         /** @type {Step<never>} */
         const step = value => {
             const id = idOf(value)
-            return pure(id === undefined
+            return pureOk(id === undefined
                 ? null
                 : { jsonrpc, result: { ok: true, nextCursor: undefined }, id })
         }
@@ -170,7 +170,7 @@ export const proof = {
         /** @type {Step<never>} */
         const step = value => {
             const id = idOf(value)
-            return pure(id === undefined
+            return pureOk(id === undefined
                 ? null
                 : { jsonrpc, result: { big: oversizedString }, id })
         }
@@ -184,7 +184,7 @@ export const proof = {
         /** @type {Step<never>} */
         const step = value => {
             const id = idOf(value)
-            return pure(id === undefined
+            return pureOk(id === undefined
                 ? null
                 : id === 1
                     ? { jsonrpc, result: { big: oversizedString }, id }
@@ -204,7 +204,7 @@ export const proof = {
         /** @type {Step<never>} */
         const step = value => {
             const id = idOf(value)
-            return pure(id === undefined
+            return pureOk(id === undefined
                 ? null
                 : { jsonrpc, result: { ok: true }, id: oversizedString })
         }

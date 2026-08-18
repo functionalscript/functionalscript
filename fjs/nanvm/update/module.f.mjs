@@ -8,7 +8,6 @@
  *
  * @module
  *
- * @import { RawEffect } from '../../effects/types.ts'
  * @import { IoChannel, Mkdir, NodeProgram, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/io/types.ts'
  */

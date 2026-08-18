@@ -3,7 +3,6 @@
  *
  * @module
  *
- * @import { RawEffect } from '../effects/types.ts'
  * @import { WriteFile, ReadFile, Write } from '../effects/node/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Unknown } from './types.ts'

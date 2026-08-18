@@ -329,7 +329,10 @@ const runNodeEffect = asyncRun({
     write: async (stream, data) => ok(await writeAll(streams[stream], fromVec(data))),
     read: async () => ok(await readStdinByte()),
     test: async (ctx, name, expectFailure, test) =>
-        ok(await ctx.test(name, { expectFailure }, async t => runNodeEffect(test(t)))),
+        // The body's answer is `ok(undefined)` — a `Test` callback absorbs its
+        // own failures by panicking, which is the only signal these frameworks
+        // read — so it is awaited and discarded rather than returned.
+        ok(await ctx.test(name, { expectFailure }, async t => { await runNodeEffect(test(t)) })),
 })
 
 /** @type {TestFn} */

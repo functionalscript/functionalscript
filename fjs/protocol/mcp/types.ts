@@ -8,7 +8,8 @@
 
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import type { Unknown } from '../../media/json/types.ts'
-import type { Operation, RawEffect } from '../../effects/types.ts'
+import type { Operation } from '../../effects/types.ts'
+import type { Effect } from '../../effects/io/types.ts'
 import type { Type } from '../../types/rtti/types.ts'
 import type { Response } from '../json_rpc/types.ts'
 import type {
@@ -43,8 +44,8 @@ export type ToolsCallResult = Ts<typeof toolsCallResult>
 
 /** Per-method handlers for a hello-world MCP tool server. */
 export type McpHandlers<O extends Operation> = {
-    readonly toolsList: (params: ToolsListParams) => RawEffect<O, ToolsListResult>
-    readonly toolsCall: (params: ToolsCallParams) => RawEffect<O, ToolsCallResult>
+    readonly toolsList: (params: ToolsListParams) => Effect<O, ToolsListResult, never>
+    readonly toolsCall: (params: ToolsCallParams) => Effect<O, ToolsCallResult, never>
 }
 
 /**
@@ -57,11 +58,23 @@ export type ToolEntry<O extends Operation> = {
     readonly name: string
     readonly description: string
     readonly inputRtti: Type
-    readonly handle: (args: Unknown) => RawEffect<O, ToolsCallResult>
+    readonly handle: (args: Unknown) => Effect<O, ToolsCallResult, never>
 }
 
 /** Top-level handler: maps a raw JSON value to a JSON-RPC response (or `null` for notifications). */
-export type Handle<O extends Operation> = (value: Unknown) => RawEffect<O, Response | null>
+/**
+ * A JSON-RPC step: given a decoded message, produce the response to write, or
+ * `null` for a notification.
+ *
+ * **`never` is a claim, not an absence.** The handler behind this does perform
+ * effects and they can fail — a session-state read is dispatched by a runner
+ * that may decline it. It says `never` because it has *absorbed* those: a
+ * request's failure becomes `_errResponse(id)(internalError)` and a
+ * notification's is dropped, there being no frame to put it in. Spelling that
+ * as `Effect<…, never>` puts the decision in the type where a reader can
+ * disagree with it, which `RawEffect` could not.
+ */
+export type Handle<O extends Operation> = (value: Unknown) => Effect<O, Response | null, never>
 
 /** State carried before the peer sends `initialize`. */
 export type Uninitialized = readonly ['uninitialized']

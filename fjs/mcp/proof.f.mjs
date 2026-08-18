@@ -2,6 +2,7 @@
  * @import { Unknown } from '../media/json/types.ts'
  * @import { RawEffect, Operation } from '../effects/types.ts'
  * @import { Response } from '../protocol/json_rpc/types.ts'
+ * @import { Handle } from '../protocol/mcp/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { FileCasOperation } from '../cas/types.ts'
  * @import { List } from '../effects/list/types.ts'
@@ -57,7 +58,7 @@ const parseCasGetResult = rttiParse(casGetResult)
 // Feeds each message to `handler` in order, collecting every response.
 /**
  * @template {Operation} O
- * @param {(v: Unknown) => RawEffect<O, Response | null>} handler
+ * @param {Handle<O>} handler
  * @returns {(msgs: readonly unknown[]) => RawEffect<O, readonly unknown[]>}
  */
 const feed = handler => msgs => {
@@ -65,9 +66,11 @@ const feed = handler => msgs => {
     const go = (i, acc) => (
         i === msgs.length
             ? pure(acc)
+            // `[, r]` because a `Handle` answers `Effect<…, never>`: it has
+            // absorbed its own failures into the response, so the `ok` is total.
             : step(
                 handler(/** @type {Unknown} */ (msgs[i])),
-                r => go(i + 1, [...acc, r]))
+                ([, r]) => go(i + 1, [...acc, r]))
     )
     return go(0, [])
 }

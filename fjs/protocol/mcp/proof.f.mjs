@@ -1,6 +1,7 @@
 /**
  * @import { Unknown } from '../../media/json/types.ts'
  * @import { RawEffect, Operation } from '../../effects/types.ts'
+ * @import { Effect } from '../../effects/io/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import {
@@ -14,7 +15,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { history, historyStep, mapStep, pure, step, runPure } from '../../effects/module.f.mjs'
-import { unwrapStep } from '../../effects/io/module.f.mjs'
+import { pureOk, unwrapStep } from '../../effects/io/module.f.mjs'
 import { errorSummary } from '../../effects/node/module.f.mjs'
 import { error, ok, unwrap as unwrapResult } from '../../types/result/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
@@ -65,11 +66,11 @@ const configNoTools = { ...config, capabilities: {} }
 const handlers = {
     // Echoes a received cursor as `nextCursor` so tests can observe pagination params.
     toolsList: (/** @type {ToolsListParams} */ p) =>
-        pure(p.cursor === undefined
+        pureOk(p.cursor === undefined
             ? { tools: [{ name: 'greet', inputSchema: {} }] }
             : { tools: [], nextCursor: p.cursor }),
     toolsCall: (/** @type {ToolsCallParams} */ _p) =>
-        pure({ content: [{ type: 'text', text: 'hello' }] }),
+        pureOk({ content: [{ type: 'text', text: 'hello' }] }),
 }
 
 /** @typedef {readonly [unknown, McpSessionState]} _StepResult */
@@ -87,10 +88,13 @@ const asMemEffect = e => /** @type {RawEffect<MemOp, any>} */ (e)
 // Pairs the last step's response with the session state read back afterwards.
 // The response is still needed after the read, so it is carried forward in a
 // history rather than closed over by a nested continuation.
-/** @type {(key: Key<McpSessionState>) => (e: RawEffect<Operation, unknown>) => RawEffect<Operation, _StepResult>} */
+/** @type {(key: Key<McpSessionState>) => (e: Effect<Operation, unknown, never>) => RawEffect<Operation, _StepResult>} */
 const withState = key => e => {
     const read0 = historyStep(history(e), () => unwrapStep(read(key), errorSummary))
-    return mapStep(read0, ([state, resp]) => /** @type {const} */ ([resp, state]))
+    // `[, resp]`: a `Handle` answers `Effect<…, Response | null, never>`, so
+    // what the history captured is the `ok` around the response. The `never`
+    // channel is what makes destructuring it total.
+    return mapStep(read0, ([state, [, resp]]) => /** @type {const} */ ([resp, state]))
 }
 
 // Run one step from uninitializedState, return [response, newState].
@@ -220,7 +224,10 @@ const memNotImplemented = () => (/** @type {_MemoryState} */ state) =>
 const failingStep = overrides => msg => {
     const [state, key] = run(mock)(initial)(create(uninitializedState))
     const runner = run(/** @type {MemOperationMap<MemOp, _MemoryState>} */ ({ ...mock, ...overrides }))
-    return runner(state)(asMemEffect(mcpStep(config)(handlers)(unwrapResult(key))(msg)))[1]
+    // `[1][1]`: the runner hands back the effect's payload, and a `Handle`
+    // answers `Effect<…, Response | null, never>`, so that payload is the `ok`
+    // around the response. The `never` is what makes the second index total.
+    return runner(state)(asMemEffect(mcpStep(config)(handlers)(unwrapResult(key))(msg)))[1][1]
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -446,11 +453,11 @@ export const proof = {
         toolsCallAbsentArgumentsDefaultsToEmptyObject: () => {
             const echoArgs = /** @type {const} */ ({})
             const entry = toolEntry('echo', 'echoes', echoArgs,
-                () => pure(okResult('ok')))
+                () => pureOk(okResult('ok')))
             const handlers = fromRegistry([entry])
-            const [result] = runPure(handlers.toolsCall({ name: 'echo' }))
-            assert(result !== undefined)
-            const [item] = result.content
+            const [r] = runPure(handlers.toolsCall({ name: 'echo' }))
+            assert(r !== undefined && r[0] === 'ok', r)
+            const [item] = r[1].content
             assert(item.type === 'text', item)
             assertEq(item.text, 'ok')
         },

@@ -51,7 +51,7 @@
 
 import { string, option, array } from '../../types/rtti/module.f.mjs'
 import { lockField } from '../../media/revision/module.f.mjs'
-import { pure, step } from '../../effects/module.f.mjs'
+import { pureOk, resultStep } from '../../effects/io/module.f.mjs'
 import { evoSummary } from '../../cas/evo/module.f.mjs'
 import {
     toolEntry, errorResult, okResult,
@@ -125,9 +125,9 @@ export const evoToolRegistry = e => [
         // A cache slot the runner cannot reach is a tool-level error, not a
         // panic: the client asked a question the server could not answer, and
         // saying so is an ordinary `isError` result.
-        (({ archived }) => step(
+        (({ archived }) => resultStep(
             e.list(archived),
-            r => pure(r[0] === 'error'
+            r => pureOk(r[0] === 'error'
                 ? errorResult(evoSummary(r[1]))
                 : okResult(toJson(r[1])))
         )),
@@ -136,9 +136,9 @@ export const evoToolRegistry = e => [
         'evo_head',
         'List the current head hashes (cBase32) of a subject, one per line. Empty when the subject is unknown.',
         evoHeadArgs,
-        ({ subject }) => step(
+        ({ subject }) => resultStep(
             e.head(subject),
-            r => pure(r[0] === 'error'
+            r => pureOk(r[0] === 'error'
                 ? errorResult(evoSummary(r[1]))
                 : okResult(r[1].join('\n'))),
         ),
@@ -152,9 +152,9 @@ export const evoToolRegistry = e => [
         // the transport's `-32603`, not a tool-level error — see "Result size"
         // in the module doc.
 
-        (({ hash }) => step(
+        (({ hash }) => resultStep(
             e.revision(hash),
-            r => pure(r[0] === 'error' ? errorResult(evoSummary(r[1])) : okResult(toJson(r[1])))
+            r => pureOk(r[0] === 'error' ? errorResult(evoSummary(r[1])) : okResult(toJson(r[1])))
         )),
     ),
     toolEntry(
@@ -166,9 +166,9 @@ export const evoToolRegistry = e => [
         // it can read. They stay distinguishable by tag — `evoSummary` is the
         // renderer that switches on it — so telling them apart never needed
         // them to arrive in separate layers.
-        input => step(
+        input => resultStep(
             e.add(input),
-            r => pure(r[0] === 'error' ? errorResult(evoSummary(r[1])) : okResult(r[1]))
+            r => pureOk(r[0] === 'error' ? errorResult(evoSummary(r[1])) : okResult(r[1]))
         ),
     ),
 ]

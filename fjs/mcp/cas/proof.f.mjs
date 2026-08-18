@@ -55,6 +55,11 @@ const defaultResponse = cmd => {
  * branch `fjs/cas/proof.f.mjs` reaches with its own `drive` helper, applied
  * here one layer up at the MCP tool boundary.
  *
+ * The result is unwrapped: a tool handler answers
+ * `Effect<…, ToolsCallResult, never>`, having absorbed its failures into
+ * `isError`, so callers want the answer rather than the `ok` around it. The
+ * `never` channel is what makes that unwrap total.
+ *
  * @type {(overrides: Partial<Record<string, unknown[]>>) => (e: RawEffect<FileCasOperation | MemOp, unknown>) => unknown}
  */
 const drive = overrides => {
@@ -85,7 +90,7 @@ const drive = overrides => {
         const m = matcher(e)
         return m[0] === 'done' ? m[1] : run_(m[2](/** @type {any} */ (m[1])))
     }
-    return run_
+    return e => /** @type {readonly[string, unknown]} */ (run_(e))[1]
 }
 
 // `syncRevision` is only reached on a *successful* write, which none of these

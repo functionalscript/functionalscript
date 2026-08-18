@@ -4,7 +4,6 @@
  * @module
  *
  * @import { Write, WriteFile } from '../effects/node/types.ts'
- * @import { RawEffect } from '../effects/types.ts'
  * @import { Effect } from '../effects/io/types.ts'
  */
 
