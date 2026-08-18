@@ -14,7 +14,7 @@
 import { transpile } from './transpiler/module.f.mjs'
 import { stringify, stringifyAsTree } from './serializer/module.f.mjs'
 import { sort } from '../types/object/module.f.mjs'
-import { step } from '../effects/module.f.mjs'
+import { resultStep } from '../effects/io/module.f.mjs'
 import { errorExit, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 
 /** @typedef {ReadFile | WriteFile | Write} _CompileOp */
@@ -48,7 +48,7 @@ export const compile = args => {
     }
     const inputFileName = args[0]
     const outputFileName = args[1]
-    return step(
+    return resultStep(
         transpile(inputFileName),
         /** @type {(result: Result<Unknown, ParseError>) => Effect<_CompileOp, 0, number>} */
         (result) => {

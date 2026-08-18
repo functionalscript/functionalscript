@@ -13,7 +13,7 @@
  * @import { Effect } from '../effects/io/types.ts'
  */
 
-import { step } from '../effects/module.f.mjs'
+import { resultStep } from '../effects/io/module.f.mjs'
 import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/io/module.f.mjs'
 import { functionalscript, images } from './config/module.f.mjs'
@@ -60,7 +60,7 @@ const canonicalJobs = rust => ({
 })
 
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
-export const ci = ({ nodeExtra }) => step(
+export const ci = ({ nodeExtra }) => resultStep(
     access('Cargo.toml'),
     result => {
         const rust = result[0] === 'ok'

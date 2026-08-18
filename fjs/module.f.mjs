@@ -14,7 +14,7 @@ import { main as ciMain } from './ci/module.f.mjs'
 import { errorExit, errorMessage, exitStep, import_ } from './effects/node/module.f.mjs'
 import { dispatch } from './cli/module.f.mjs'
 import { casMcpServer } from './mcp/module.f.mjs'
-import { step } from './effects/module.f.mjs'
+import { resultStep } from './effects/io/module.f.mjs'
 
 /** @type {Commands<NodeOp>} */
 const commands = [
@@ -36,7 +36,7 @@ const commands = [
     {
         names: ['mcp', 'm'],
         description: 'Run an MCP server over stdio exposing the CAS and Evo (subjects/heads) as tools',
-        // `exitStep`, not `step(…, () => pureOk(0))`: the server's bootstrap can
+        // `exitStep`, not `resultStep(…, () => pureOk(0))`: the server's bootstrap can
         // fail, and a `() => pureOk(0)` continuation would report a server that
         // never started as a clean exit. `Program`'s exit code is a `Result`
         // now, so a chain that drops the failure and answers `ok(0)` no longer
@@ -59,7 +59,7 @@ const commands = [
         // few lines up, and the same one every other command now gives.
         handler: options => {
             const [file, ...args] = options.args
-            return step(
+            return resultStep(
                 import_(file),
                 r => {
                     if (r[0] === 'error') {

@@ -155,6 +155,28 @@ migration makes, so each module's proofs are re-read as part of its PR.
 
 - [ ] **5. Consumer sweep**, one module per PR, until `RawEffect` is imported
       nowhere outside `fjs/effects`.
+
+      Smaller than it looked. Of the sites outside `fjs/effects`, most are mock
+      runners in proofs — they interpret arbitrary effects, which is the
+      representation layer and correctly raw — and the rest are **absorb
+      points**, where a module deliberately converts a channel into its own
+      vocabulary and nothing behind it should carry the node channel:
+
+      - `protocol/mcp`'s `Handle`, `Step`, `toolsCall`, `toolsList`. The
+        protocol *is* the error channel: a request's channel failure becomes
+        `_errResponse(id)(internalError)`, and a notification has, in its own
+        doc's words, "no response frame to put an error in". A handler that
+        always answers `Response | null` is the honest contract; giving it a
+        channel would claim a failure mode JSON-RPC cannot express.
+      - `cas/evo`'s `decodeRevisionBlob`, which maps a read failure to `null`
+        on purpose so a store scan can skip blobs that are not revisions.
+      - `djs/transpiler`'s `notFound` — done, and the pattern the others follow.
+
+      What is left is naming intent where a consumer observes both branches:
+      raw `step` and `resultStep` are the same function, so the rename is free,
+      and Io's narrower type *checks* it — a chain that leaves the layer to
+      produce a non-`Result` (every MCP tool handler) is rejected, which is the
+      right answer rather than an obstacle.
 - [ ] **6. Delete `RawEffect`.** Constrain `Operation`'s return type to a
       `Result` — it is `(..._: readonly never[]) => unknown` today, and all 28
       operations in the tree already return `OpResult<…>` or `IoResult<…>`; the
