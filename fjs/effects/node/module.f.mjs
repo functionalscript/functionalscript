@@ -429,8 +429,11 @@ export const test = do_('test')
  * compose `mapStep(error(s), () => resultError(n))` directly.
  *
  * **It never succeeds, and the type says so.** `E` is `number` and `T` is
- * `never`, so a chain that continues past this is a compile error rather than a
- * continuation nobody reaches.
+ * `never`, so `step`'s continuation takes a `never` and can never run. That is
+ * a continuation nobody reaches, not a compile error: writing one still type-
+ * checks, because a function accepting `never` accepts anything. What the type
+ * buys is that no *value* can be invented for the success branch, so nothing
+ * downstream can proceed as if this had succeeded.
  *
  * **The write's own outcome is deliberately discarded**, which is why this is
  * the raw `mapStep` rather than the Io one. The program is already failing and

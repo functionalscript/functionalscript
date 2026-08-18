@@ -54,7 +54,7 @@ export const proof = {
     },
     mainAddMissingFile: () => {
         // The source path doesn't exist, so `streamFile`'s first read comes back as an
-        // error item; `write` fails closed with that error and the handler exits 1
+        // stream failure; `write` fails closed with that error and the handler exits 1
         // without ever calling `log` — covers `exitStep`'s error branch.
         const [finalState, code] = virtual(emptyState)(main(makeOptions(['add', 'missing'])))
         assertEq(exitCode(code), 1)

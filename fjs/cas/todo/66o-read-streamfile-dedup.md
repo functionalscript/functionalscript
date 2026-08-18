@@ -1,7 +1,10 @@
 ## 66O-read-streamfile-dedup. `fileCas.read` should delegate to `streamFile`
 
 **Priority:** P3
-**Status:** open
+**Status:** open, and **closer than written**. A `List` cell can fail now, so
+neither `read` nor `streamFile` emits an error item and stops; both loops are
+two-case, which is most of what the sketches below spend their length on. The
+duplication is still real and smaller than described.
 
 ### Problem
 

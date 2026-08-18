@@ -62,7 +62,7 @@ derived per function (see the `IoChannel` decision below).
 
 ### Measurements at the time of writing
 
-- 40 non-`Result` `RawEffect<…>` occurrences outside `fjs/effects`, across 23
+- 40 non-`Result` `RawEffect<…>` occurrences outside `fjs/effects`, across 24
   files.
 - 24 files import the raw combinators; most take only `pure` and `step`, which
   have direct equivalents in `pureOk` and the Io `step`. `match` and `runPure`
@@ -72,6 +72,7 @@ derived per function (see the `IoChannel` decision below).
 - Every effect-`List` already carries a `Result` payload — all 45 occurrences.
   There is no infallible stream, so a fallible cell costs no wrapper anywhere.
 - All 28 operations already return `OpResult<…>` or `IoResult<…>`.
+- 11 `unwrapStep` call sites: 10 in proofs, 1 in library code.
 
 ### Decisions still open
 
@@ -119,7 +120,8 @@ migration makes, so each module's proofs are re-read as part of its PR.
       test callback panics because `Test`'s contract is a raw
       `RawEffect<…, void>` with no channel to answer through — now passes
       `errorSummary`, so its scope is pinned to the node channel until someone
-      changes it deliberately. The other 13 sites are proofs.
+      changes it deliberately. Of 11 call sites, that is the only one outside
+      a proof.
 
 - [x] **3. `Program`.** `Program<O> = (options) => Effect<O, 0, number>`.
       `RawEffect<O, number>` could not say which numbers meant failure, so

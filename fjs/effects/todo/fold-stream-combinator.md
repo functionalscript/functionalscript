@@ -1,7 +1,12 @@
 ## fold-stream-combinator. `foldStream` combinator for `IoResult<Vec>` streams
 
 **Priority:** P3
-**Status:** open
+**Status:** open, but **narrower than written**. A `List` cell can fail now
+(`List<O, T, E> = Effect<O, Next<O, T, E>, E>`), so the "error item →
+propagate" case below no longer exists — `step` propagates it — and every
+consumer named here has already lost that branch. What is left of the problem
+is the two-case fold, *EOF → finalize; item → fold and recurse*, which is an
+ordinary fold and a much weaker argument for a combinator. Re-scope or close.
 **May be subsumed by:** [effect-list-fold](./effect-list-fold.md) — if `foldStep`
 moves to `fjs/effects/list` and is retyped over `EffectList<O, T>`, `foldStream`
 becomes `foldStep` plus an `okStep`-shaped short-circuit rather than a separate

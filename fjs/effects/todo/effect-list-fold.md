@@ -1,7 +1,10 @@
 ## effect-list-fold. Move `foldStep` / `forEachStep` into `fjs/effects/list` and fold streams
 
 **Priority:** P3
-**Status:** open
+**Status:** open. Unaffected in substance by the fallible-cell change — this is
+about folding a *stream* rather than a materialized list, which is still true —
+but any `List<O, IoResult<Vec>>` spelling below is now
+`List<O, Vec, IoChannel>`, and the error-item case the sketches carry is gone.
 
 ### Problem
 
