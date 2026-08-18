@@ -311,7 +311,7 @@ const random256 =
         () => (/** @type {Vec} */ acc) =>
             ioMapStep(randomInt(), r => msb.concat(acc)(vec(32n)(BigInt(r)))))
 
-/** Streams any file at `filePath` in `<=128 KiB` chunks as a `ListEffect` of `ok` items.
+/** Streams any file at `filePath` in `<=128 KiB` chunks.
  *
  * A failed read fails the stream. It used to be yielded as an error *item*
  * followed by an explicit empty tail — a tail no consumer would ever pull.

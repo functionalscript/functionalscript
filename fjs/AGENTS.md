@@ -766,13 +766,20 @@ fallback, `resultStep` where both branches genuinely matter, and `unwrapStep`
 only where panicking is the considered answer. See
 [`fjs/effects/io/README.md`](./effects/io/README.md).
 
-**The two names say which one you mean.** `Effect<O, T, E>` can fail and
-`E` defaults to `NotImplemented`; `RawEffect<O, T>` (`fjs/effects/types.ts`) is
-the `Pure | Do` representation, and it is the right type for something that
-genuinely cannot fail — a `List` cell, a `Program`'s exit code, an MCP tool
-result — as well as for the runners and `do_` that speak the representation.
-Do not give a computation an error channel it has no failure to report through;
-do not leave one off something that does.
+**The two names say which one you mean**, and the division is *composition*
+against *representation* rather than fallible against infallible.
+`Effect<O, T, E>` is what you compose, with `E` defaulting to
+`NotImplemented`; `RawEffect<O, T>` (`fjs/effects/types.ts`) is the `Pure | Do`
+representation, for the runners, `match`/`runPure`, and `do_` that speak it.
+
+Prefer `Effect` even where nothing fails yet: widening `Effect<O, T, never>`
+leaves every consumer that merely chains untouched, where widening a
+`RawEffect` rewrites every consumer *body*. A `List` cell and a `Program`'s
+exit code were once listed here as things that "genuinely cannot fail"; both
+carry channels now. What stays raw is the representation, and the **absorb
+points** where a module deliberately converts a channel into its own vocabulary
+and nothing behind it should carry the node channel — an MCP handler, whose
+protocol *is* the error channel.
 
 The rules below apply to both layers, and to the Io `step` first.
 

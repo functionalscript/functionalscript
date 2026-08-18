@@ -12,8 +12,8 @@
 `other error → throw`.
 
 An earlier revision of this issue cited `read` as a second site, but `read`
-now streams explicit error items and no longer uses this policy — `list` is
-the only live site today. Per the second-consumer rule, implement this when
+fails the stream rather than applying this policy — `list` is the only live
+site today. Per the second-consumer rule, implement this when
 another site appears.
 
 ### Proposal

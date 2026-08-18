@@ -44,9 +44,9 @@ const writeFailingCas = {
     list: () => pure(ok([])),
 }
 
-// A `Cas<never>` whose `read` yields an error item that is *not* a missing
-// shard — what a permission error, a mid-stream I/O failure, or a blob too
-// large for `collectRead` to buffer looks like to a caller.
+// A `Cas<never>` whose `read` fails the stream with something that is *not* a
+// missing shard — what a permission error, a mid-stream I/O failure, or a blob
+// too large for `collectRead` to buffer looks like to a caller.
 /** @type {Cas<never>} */
 const readFailingCas = {
     read: () => pureError(ioError({ message: 'boom' })),
