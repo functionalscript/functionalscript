@@ -21,6 +21,13 @@ specifiers separately, `['aref', i]` denotes the `i`-th imported value, and the
 last `AstBody` entry is the result. Replace this temporary sequential AST execution
 model with the EDAG model directly.
 
+The current parser/AST also cannot preserve the ordered object-entry representation
+required by EDAG. Object parsing accumulates properties in an `OrderedMap` with
+`setReplace` and eventually produces a plain `AstObject`; duplicate keys are therefore
+collapsed and integer-like keys can lose their written order before EDAG conversion.
+This task must preserve object entries as an ordered sequence in the parser/AST until
+they are converted to `['{}', ...entry]`.
+
 ### Proposal
 
 Split module compilation/loading into two phases.
@@ -39,7 +46,7 @@ For example:
 import a from './a.f.js'
 
 const x = [a, 1]
-export default { x, y: x }
+export default { x: x, y: x }
 ```
 
 can compile conceptually to the EDAG serialized as DJS:
@@ -168,6 +175,9 @@ are represented by their constructors.
       and extensible to the full EDAG specification later.
 - [ ] Make EDAG validation iterative so hostile nesting cannot overflow the host
       language call stack.
+- [ ] Change the DJS parser/AST object representation to retain an ordered entry list
+      until EDAG conversion; do not collapse duplicate keys or reorder integer-like
+      keys through a plain JavaScript object/`OrderedMap` representation.
 - [ ] Convert parsed module bodies to an EDAG root without reading or resolving any
       imported module.
 - [ ] Replace `['aref', i]` with EDAG import-parameter access and replace `cref`
@@ -197,8 +207,10 @@ are represented by their constructors.
 - [ ] Make the source-to-EDAG result cacheable; add an initial cache if useful, with
       compiler/EDAG versioning for persistent entries.
 - [ ] Add proofs that compilation does not read imports, the interpreter preserves
-      shared `const` identity, imports are passed in source order, and a multi-module
-      program produces the same final value as the current transpiler.
+      shared `const` identity, imports are passed in source order, object-entry order
+      (including integer-like keys and duplicate keys) survives parsing/EDAG
+      conversion, and a multi-module program produces the same final value as the
+      current transpiler.
 - [ ] Add proofs that instruction-limit and structure-growth-limit exhaustion stop
       deterministically and never throw.
 - [ ] Add a deeply nested validated EDAG proof that validation and interpretation do
@@ -210,8 +222,8 @@ are represented by their constructors.
 
 - [`../transpiler/module.f.mjs`](../transpiler/module.f.mjs) — currently loads imports
   recursively before calling `run(module[1])(args)`.
-- [`../ast/types.ts`](../ast/types.ts) — current `AstModule`/`AstBody`, `aref`, and
-  `cref` representation to replace.
+- [`../ast/types.ts`](../ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
+  and plain-object representation to replace.
 - [`../ast/module.f.mjs`](../ast/module.f.mjs) — current sequential AST evaluator.
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md) — EDAG
   semantics and structural operations.
