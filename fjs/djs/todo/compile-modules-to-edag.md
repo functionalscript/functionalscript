@@ -103,6 +103,13 @@ parameter positions in the importing module EDAG. The import array order therefo
 remains significant: position `i` in `imports` corresponds to import parameter `i` in
 the EDAG.
 
+One link operation must memoize resolved modules by the resolver's canonical module
+path. If the same module is reached more than once, including through a diamond import,
+reuse the same resolved EDAG rather than resolving/splicing a fresh copy. EDAG node
+identity is semantic, so duplicating a shared dependency can change reference identity
+for exported arrays/objects. This in-memory link memo is required independently of the
+optional `.fjs/modules/` source cache.
+
 After all module dependencies are resolved, the temporary module wrappers disappear.
 The **final compilation result is an EDAG, not a `Module`**:
 
@@ -189,6 +196,8 @@ object and array values are represented by their constructors.
       sequencing with shared EDAG node identity.
 - [ ] Resolve imported `Module`s recursively and bind each resolved result to the
       corresponding import parameter position.
+- [ ] Memoize resolved modules during one link operation by canonical module path so
+      repeated/diamond imports reuse the same resolved EDAG node identities.
 - [ ] Remove the temporary `Module` layer after resolution so the root compilation
       result is a plain EDAG with no unresolved module paths or module metadata.
 - [ ] Split the current transpiler flow into source-to-`Module` compilation and
@@ -204,6 +213,8 @@ object and array values are represented by their constructors.
       conversion, non-string object-entry keys are rejected by initial validation,
       and resolving a multi-module program produces one final EDAG with no unresolved
       module metadata.
+- [ ] Add a diamond-import proof showing repeated resolution of one canonical module
+      reuses the same resolved EDAG and preserves shared exported object/array identity.
 - [ ] Add serialization proofs covering `.f.js` and JSON-when-representable output,
       including `Object.is(roundTrip(-0), -0)` and a case where JSON must not be used
       because it would lose EDAG information.
