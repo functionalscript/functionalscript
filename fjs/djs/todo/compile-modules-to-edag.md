@@ -123,8 +123,15 @@ The final EDAG can then be serialized as a FunctionalScript JavaScript artifact:
 ```
 
 or as JSON when the particular EDAG is representable without losing information.
-For example, JSON must not be used when it would lose semantic graph sharing or values
-that JSON cannot represent. DJS/`.f.js` remains the general representation.
+Serialization must preserve every observable primitive value exactly, including
+**negative zero**. In particular, serializing `-0` as `0` is not acceptable because
+`Object.is(-0, 0)` is false. The EDAG/DJS serializer must therefore emit a form that
+round-trips `-0`, and JSON output is allowed only when the JSON serializer also
+preserves that value and all other EDAG information.
+
+JSON must not be used when it would lose semantic graph sharing or values that the
+chosen JSON representation cannot preserve. DJS/`.f.js` remains the general
+representation.
 
 Executing the final EDAG is a separate concern. This task establishes the
 source-to-temporary-`Module` and module-resolution-to-final-EDAG pipeline. Direct EDAG
@@ -188,6 +195,8 @@ object and array values are represented by their constructors.
       recursive module resolution/linking.
 - [ ] Serialize the final EDAG to `.f.js`; allow JSON output only when it preserves
       the EDAG completely.
+- [ ] Preserve `-0` explicitly in EDAG/DJS serialization and in JSON output whenever
+      JSON output is selected.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
 - [ ] Add proofs that source-to-`Module` compilation does not read imports, import
       paths and parameter positions preserve source order, object-entry order
@@ -196,8 +205,8 @@ object and array values are represented by their constructors.
       and resolving a multi-module program produces one final EDAG with no unresolved
       module metadata.
 - [ ] Add serialization proofs covering `.f.js` and JSON-when-representable output,
-      including a case where JSON must not be used because it would lose EDAG
-      information.
+      including `Object.is(roundTrip(-0), -0)` and a case where JSON must not be used
+      because it would lose EDAG information.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
@@ -209,6 +218,8 @@ object and array values are represented by their constructors.
 - [`../ast/module.f.mjs`](../ast/module.f.mjs) — current sequential AST evaluator.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
   persistence/incremental-compilation task for `.fjs/modules/{hash}.f.js`.
+- [`interpret-edag.md`](./interpret-edag.md) — separate baseline direct-interpreter
+  execution strategy for the final EDAG.
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
   lower-priority resource/time/memory hardening for EDAG processing.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) —
