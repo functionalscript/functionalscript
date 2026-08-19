@@ -16,9 +16,8 @@ of dependency loading. A source module should be compilable before its imports a
 resolved, with imported values represented as parameters of its EDAG.
 
 EDAG alone is not enough to represent an unresolved parsed module: module resolution
-also needs source identity and the module paths imported by that source file. Keep
-that information in a small temporary wrapper rather than adding module metadata to
-EDAG itself.
+also needs the module paths imported by that source file. Keep that information in a
+small temporary wrapper rather than adding module metadata to EDAG itself.
 
 The current parser/AST also cannot preserve the ordered object-entry representation
 required by EDAG. Object parsing accumulates properties in an `OrderedMap` with
@@ -39,26 +38,18 @@ Use the temporary representation:
 
 ```ts
 type Module = {
-    readonly hash: string
-    readonly path: string
     readonly imports: readonly string[]
     readonly edag: EDAG
 }
 ```
 
-The fields have different roles:
+`imports` is an **array of module paths, not a map**. Its order defines the import
+parameter positions in `edag`. `edag` is the parameterized computation for the module,
+with `export default` as its root/result.
 
-- `hash` is the CBase32-encoded hash of the original source file contents;
-- `path` is the source module path relative to the `.fjs/` / current-working-directory
-  context used by the compiler;
-- `imports` is an **array of module paths, not a map**. Its order defines the import
-  parameter positions in `edag`;
-- `edag` is the parameterized computation for the module, with `export default` as
-  its root/result.
-
-`Module` is a compiler/loading structure only. It is **not part of EDAG**. In
-particular, `hash`, `path`, and imported module paths must not be embedded into EDAG
-merely to make an unresolved module self-contained.
+`Module` is a compiler/loading structure only. It is **not part of EDAG**, and imported
+module paths must not be embedded into EDAG merely to make an unresolved module
+self-contained.
 
 For example:
 
@@ -82,12 +73,10 @@ const edag = ['{}',
 ]
 ```
 
-with temporary module metadata such as:
+with temporary module metadata:
 
 ```js
 {
-    hash: '<CBase32 source hash>',
-    path: 'src/example.f.js',
     imports: ['./a.f.js'],
     edag,
 }
@@ -97,11 +86,11 @@ with temporary module metadata such as:
 array. DJS `const` is serialization-level sharing, not an EDAG operation.
 
 The general `['=>', ...]` function operation is not required merely to represent the
-module boundary. The temporary `Module` supplies the source/import metadata; its EDAG
-is the parameterized computation associated with those imports.
+module boundary. The temporary `Module` supplies the import list; its EDAG is the
+parameterized computation associated with those imports.
 
-Persisting these temporary modules under `.fjs/modules/` and using them for
-incremental compilation is deliberately a separate task; see
+Persisting temporary modules under `.fjs/modules/` and using them for incremental
+compilation is deliberately a separate task; see
 [`cache-compiled-modules.md`](./cache-compiled-modules.md).
 
 #### 2. Resolve modules to one EDAG
@@ -119,7 +108,7 @@ The **final compilation result is an EDAG, not a `Module`**:
 
 ```text
 source module
-  -> Module { hash, path, imports, edag }
+  -> Module { imports, edag }
   -> recursively resolve imported Modules
   -> EDAG
 ```
@@ -175,12 +164,8 @@ object and array values are represented by their constructors.
 
 ### Tasks
 
-- [ ] Define the temporary `Module` type as
-      `{ hash, path, imports, edag }`; keep all four fields outside the EDAG schema.
-- [ ] Compute `Module.hash` from the original source-file contents and encode it in
-      CBase32.
-- [ ] Define `Module.path` relative to the compiler's `.fjs/` / current-working-
-      directory context so source identity is stable during module resolution.
+- [ ] Define the temporary `Module` type as `{ imports, edag }`; keep it outside the
+      EDAG schema.
 - [ ] Keep `Module.imports` as a source-ordered array of module paths, not a map, and
       make import parameter positions correspond to its indices.
 - [ ] Define the minimal DJS EDAG types/validation for the forms above, consistent
@@ -191,8 +176,8 @@ object and array values are represented by their constructors.
 - [ ] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation.
-- [ ] Convert a parsed source module to `Module { hash, path, imports, edag }` without
-      reading or resolving any imported module.
+- [ ] Convert a parsed source module to `Module { imports, edag }` without reading or
+      resolving any imported module.
 - [ ] Replace `['aref', i]` with EDAG import-parameter access and replace `cref`
       sequencing with shared EDAG node identity.
 - [ ] Resolve imported `Module`s recursively and bind each resolved result to the
@@ -205,12 +190,11 @@ object and array values are represented by their constructors.
       the EDAG completely.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
 - [ ] Add proofs that source-to-`Module` compilation does not read imports, import
-      paths and parameter positions preserve source order, `hash` matches the source
-      contents, `path` identifies the source relative to the compilation context,
-      object-entry order (including integer-like keys and duplicate keys) survives
-      parsing/EDAG conversion, non-string object-entry keys are rejected by initial
-      validation, and resolving a multi-module program produces one final EDAG with
-      no unresolved module metadata.
+      paths and parameter positions preserve source order, object-entry order
+      (including integer-like keys and duplicate keys) survives parsing/EDAG
+      conversion, non-string object-entry keys are rejected by initial validation,
+      and resolving a multi-module program produces one final EDAG with no unresolved
+      module metadata.
 - [ ] Add serialization proofs covering `.f.js` and JSON-when-representable output,
       including a case where JSON must not be used because it would lose EDAG
       information.
@@ -224,7 +208,7 @@ object and array values are represented by their constructors.
   and plain-object representation to replace.
 - [`../ast/module.f.mjs`](../ast/module.f.mjs) — current sequential AST evaluator.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
-  persistence/incremental-compilation task for `.fjs/modules/{pathHash}.f.js`.
+  persistence/incremental-compilation task for `.fjs/modules/{hash}.f.js`.
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
   lower-priority resource/time/memory hardening for EDAG processing.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) —
