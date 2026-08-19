@@ -1,7 +1,7 @@
 ## Associate compiled functions with their EDAG
 
 **Priority:** P4
-**Status:** parked — design note
+**Status:** on-hold
 
 ### Idea
 
