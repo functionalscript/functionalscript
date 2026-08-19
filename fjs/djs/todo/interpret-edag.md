@@ -62,6 +62,26 @@ operation-node identities shared across function boundaries; otherwise a single
 semantic node could produce different runtime values in different invocation contexts.
 Sharing within one body remains valid and is memoized per invocation.
 
+### Existing value-producing API integration
+
+The preceding P2 compiler work deliberately adds the EDAG-producing path **alongside**
+the current value-producing DJS transpiler/CLI. Once this interpreter is available,
+migrate the existing value-producing path to use EDAG internally:
+
+```text
+source modules
+  -> final EDAG
+  -> validate EDAG
+  -> interpret EDAG
+  -> exported value
+  -> existing output serialization
+```
+
+This integration must preserve the public contract. `transpile` still returns the
+module's evaluated exported value on success, and `fjs compile <input> <output>` still
+serializes that value rather than serializing the EDAG as if it were the module result.
+The separately serializable final EDAG remains a compiler artifact/API from the P2 task.
+
 This TODO does not define resource budgets, deterministic stopped outcomes, iterative
 host-stack hardening, or production limits. Those concerns belong to the resource
 hardening TODO after the baseline interpreter exists.
@@ -83,6 +103,8 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Reject EDAGs that share an operation node across a function boundary; keep body
       graphs disjoint while allowing sharing inside one body.
 - [ ] Return the interpreted value for a valid final EDAG.
+- [ ] Integrate final-EDAG interpretation behind the existing value-producing DJS
+      `transpile` / `fjs compile` path without changing its success result/output.
 - [ ] Add proofs that primitive, array, object, property-access, import-resolved, and
       shared-node EDAGs evaluate to the expected values.
 - [ ] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
@@ -96,12 +118,16 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Add an integration proof that a multi-module program compiled/resolved to one
       final EDAG and then interpreted produces the same final value as the current DJS
       transpiler.
+- [ ] Add a CLI/API compatibility proof that the existing value-producing `transpile`
+      result and `fjs compile` output remain unchanged after switching their internals
+      to final-EDAG interpretation.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
 
 - [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — produces the final
-  EDAG this interpreter executes.
+  EDAG this interpreter executes while keeping the old value-producing callers in
+  place until this integration lands.
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
   adds deterministic resource and host-stack hardening after this baseline exists.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) — records
