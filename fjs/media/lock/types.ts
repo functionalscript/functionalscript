@@ -10,8 +10,6 @@ import type { ValidationError } from '../../types/rtti/common/types.ts'
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import type { lockSchema } from './module.f.mjs'
 
-export type { LockMap } from '../revision/types.ts'
-
 /** The TypeScript type derived from `lockSchema` — the single source of truth. */
 export type Lock = Ts<typeof lockSchema>
 
