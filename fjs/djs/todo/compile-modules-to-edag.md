@@ -155,6 +155,16 @@ computation, reject that module as unsupported for this stage rather than changi
 behavior. This restriction can be removed when the EDAG has an operation that can
 anchor such non-resulting computations.
 
+The same restriction applies across a **module boundary**. The current transpiler loads
+and evaluates every imported module before running the importing module body, even when
+the imported binding is never referenced. Without anchoring, replacing an unused import
+parameter with nothing would discard the imported module root and could suppress its
+failure. Therefore Stage 1 rejects a source module when an import parameter is not
+reachable from the module EDAG root. This is deliberately a reachability rule, not an
+effect analysis: Stage 1 does not inspect whether the dependency happens to throw.
+Once EDAG can anchor non-resulting computations, unused imported roots can be preserved
+instead of rejected.
+
 Persisting unresolved values under `.fjs/unresolved/` and using them for incremental
 compilation is deliberately a separate task; see
 [`cache-compiled-modules.md`](./cache-compiled-modules.md).
@@ -379,6 +389,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Do not silently drop required body evaluation. Until an anchoring/sequencing
       operation is available, reject a Stage 1 source module if conversion would omit
       an unreachable potentially throwing body computation.
+- [ ] Until anchoring exists, reject a Stage 1 source module when any import parameter
+      is unreachable from its EDAG root; do not silently discard eager imported-module
+      evaluation just because the binding is unused.
 - [ ] Replace `['aref', i]` with `['.', ['args'], i]` and replace `cref` sequencing
       with shared EDAG node identity.
 - [ ] Resolve imported `Unresolved` values recursively and bind each resolved result
@@ -436,6 +449,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Add a Stage 1 proof that `const check = null.x; export default 1` is not silently
       compiled to the successful constant `1`; until anchoring exists it is rejected
       as unsupported rather than changing current evaluation behavior.
+- [ ] Add a Stage 1 proof that an unused import is not silently discarded: for example,
+      `import bad from './bad.f.js'; export default 1` is rejected as unsupported until
+      imported module roots can be anchored, so a failure in `bad.f.js` cannot disappear.
 - [ ] Add a diamond-import proof showing repeated resolution of one canonical module
       reuses the same resolved EDAG and preserves shared exported object/array identity.
 - [ ] Add DJS number round-trip proofs for `-0`, `NaN`, `Infinity`, and `-Infinity`,
