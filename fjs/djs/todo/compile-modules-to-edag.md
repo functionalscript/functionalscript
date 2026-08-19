@@ -47,10 +47,23 @@ a.b
 a[b]
 ```
 
-Both forms compile to the EDAG `.` operation. This stage is required before EDAG can
-replace the current AST as the representation of an **unresolved module**, because
-imported values are parameters and module EDAGs need to access those parameters, for
-example:
+Both forms lower to the EDAG `.` operation only when the property operand satisfies the
+canonical EDAG property-access restriction. The full EDAG rule permits:
+
+- a permitted **string constant** (not a prohibited prototype-chain name such as
+  `constructor` or `__proto__`);
+- a **number constant**;
+- later, a unary `+` or `Number` node that is guaranteed to yield a number or throw.
+
+Stage 1 does not introduce unary `+` or `Number`, so its parser/compiler accepts only
+the permitted string-constant and number-constant cases. A runtime-computed string,
+a prohibited string literal, or any other unsupported property expression is rejected
+rather than compiled to `.`. For example, `a.x`, `a['x']`, and `a[0]` can lower to `.`,
+while `a['constructor']` and `a[x]` (when `x` is a runtime string value) do not.
+
+This stage is required before EDAG can replace the current AST as the representation of
+an **unresolved module**, because imported values are parameters and module EDAGs need
+to access those parameters, for example:
 
 ```js
 ['.', ['args'], 0]
@@ -214,7 +227,8 @@ The staged work builds on the basic structural forms already being defined for E
   the current DJS parser produces;
 - array constructors: `['[]', ...node]`;
 - the argument array: `['args']`;
-- Stage 1 property access: `['.', object, property]`;
+- Stage 1 property access: `['.', object, property]`, with the restricted property
+  operands described above;
 - Stage 2 non-capturing functions: `['=>', ['[]'], body]`;
 - Stage 2 calls: `['()', object, args]` and
   `['.()', object, property, args]`;
@@ -303,9 +317,13 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 #### Stage 1
 
-- [ ] Introduce `['.', object, property]` into EDAG and its validation/type schema.
-- [ ] Introduce parser support for `a.b` and `a[b]`, compiling both to the EDAG `.`
-      operation.
+- [ ] Introduce `['.', object, property]` into EDAG and its validation/type schema,
+      enforcing the canonical property-operand restriction: permitted string constants,
+      number constants, and only later the approved unary numeric-conversion forms when
+      those operations exist.
+- [ ] Introduce parser support for `a.b` and `a[b]`, compiling only permitted Stage 1
+      static-string/number property cases to `.`, and reject runtime-computed strings,
+      prohibited property names, and other unsupported property expressions.
 - [ ] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
       the EDAG schema.
 - [ ] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
@@ -363,14 +381,15 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Serialize the final EDAG to `.f.js`; allow JSON output only when it preserves
       the EDAG completely.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
-- [ ] Add Stage 1 proofs that `a.b` and `a[b]` produce property-access EDAGs,
-      source-to-`Unresolved` compilation does not read imports, import paths and
-      parameter positions preserve source order, object-entry order **including
-      integer-like keys and duplicate keys** survives parsing/EDAG conversion,
-      non-string object-entry keys are rejected by initial validation, aliased entry
-      descriptor containers are rejected while shared key/value nodes remain valid,
-      and resolving a multi-module program produces one final EDAG with no unresolved
-      module metadata.
+- [ ] Add Stage 1 proofs that permitted `a.b`, `a['x']`, and numeric `a[0]` forms
+      produce property-access EDAGs, while prohibited names and runtime-computed string
+      properties are rejected; source-to-`Unresolved` compilation does not read imports,
+      import paths and parameter positions preserve source order, object-entry order
+      **including integer-like keys and duplicate keys** survives parsing/EDAG
+      conversion, non-string object-entry keys are rejected by initial validation,
+      aliased entry descriptor containers are rejected while shared key/value nodes
+      remain valid, and resolving a multi-module program produces one final EDAG with
+      no unresolved module metadata.
 - [ ] Add a Stage 1 proof that `const check = null.x; export default 1` is not silently
       compiled to the successful constant `1`; until anchoring exists it is rejected
       as unsupported rather than changing current evaluation behavior.
