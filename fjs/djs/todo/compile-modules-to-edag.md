@@ -98,29 +98,13 @@ array constructor node is referenced from several places, it must be evaluated o
 and the same resulting object/array reused. A memo table keyed by EDAG node identity
 is sufficient for the initial interpreter.
 
-Validate the EDAG shape before interpretation. Resource hardening — deterministic
-work/time limits, memory/structure-growth limits, native-stack-independent traversal,
-and stopped-outcome propagation — is intentionally deferred to
-[`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md). Those
-concerns should not block the first working compile/load/interpret pipeline.
+Resource/time/memory hardening of validation and interpretation is intentionally
+separate from this task; see
+[`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md).
+This task only establishes the basic compile/load/interpret pipeline.
 
-Conceptually:
-
-```text
-source
-  -> compile without imports
-  -> { imports, edag }
-
-imports
-  -> recursively load values
-  -> args
-
-interpret(edag, args)
-  -> value
-```
-
-For the root module, the result is the complete compiled module/program value.
-Circular dependency detection remains a loading concern, as it is today.
+For the root module, the interpreted result is the complete compiled module/program
+value. Circular dependency detection remains a loading concern, as it is today.
 
 ### Initial EDAG subset
 
@@ -140,8 +124,9 @@ Implement only the EDAG forms required by the DJS loader today:
 The object constructor is an ordered operation rather than a plain EDAG object. This
 preserves source property order and leaves room for future computed keys and entry
 forms such as object spread, for example `['...', object]`. Computed key nodes are
-**not** part of this initial interpreter; their coercion/failure semantics can be
-specified when that extension is introduced. Plain objects have no EDAG meaning in
+**not** part of this initial interpreter: allowing arbitrary key expressions would
+introduce JavaScript `ToPropertyKey` failure cases and therefore needs explicit
+semantics before validation can admit them. Plain objects have no EDAG meaning in
 this initial subset and remain reserved for a future use.
 
 Do **not** add the rest of EDAG yet: arbitrary property access, calls, method calls,
@@ -188,13 +173,16 @@ object and array values are represented by their constructors.
 
 ### Related
 
-- [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
-  lower-priority hardening for deterministic time/work and memory limits.
 - [`../transpiler/module.f.mjs`](../transpiler/module.f.mjs) — currently loads imports
   recursively before calling `run(module[1])(args)`.
 - [`../ast/types.ts`](../ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
   and plain-object representation to replace.
 - [`../ast/module.f.mjs`](../ast/module.f.mjs) — current sequential AST evaluator.
+- [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
+  lower-priority resource/time/memory hardening for EDAG validation and execution.
+- [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) —
+  low-priority note on compiling an EDAG to an executable function while retaining
+  the EDAG through `edagAdd` / `edagGet` Effects.
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md) — EDAG
   semantics and structural operations.
 - [`todo/edag-spec.md`](../../../todo/edag-spec.md) — future complete canonical EDAG
