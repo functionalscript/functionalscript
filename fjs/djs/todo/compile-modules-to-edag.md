@@ -179,6 +179,15 @@ parameter positions in the importing module EDAG. The import array order therefo
 remains significant: position `i` in `imports` corresponds to import parameter `i` in
 the EDAG.
 
+**Import binding is scope-aware.** At module scope, `['args']` is the import-parameter
+array described above. A nested `['=>', frame, body]` introduces a new function scope,
+where `['args']` means that function invocation's arguments instead. Module linking must
+therefore never descend into a nested function `body` while substituting module import
+parameters. The `frame` operand belongs to the enclosing scope and may be traversed
+there; Stage 2 restricts it to the empty `['[]']` form anyway. Import reachability checks
+must use the same scope boundary so function-local `['args']` nodes cannot be mistaken
+for module import parameters.
+
 One link operation must memoize resolved modules by the resolver's canonical module
 path. If the same module is reached more than once, including through a diamond import,
 reuse the same resolved EDAG rather than resolving/splicing a fresh copy. EDAG node
@@ -295,8 +304,9 @@ objects different graph identities. Sharing of the descriptor's `key` and `value
 nodes remains normal semantic EDAG sharing.
 
 Do **not** add unrelated EDAG operations in these stages: arithmetic/logical operators,
-comma, loops, `throw`, object spread, frame access/captures, or other later operations
-remain outside this task unless they become necessary for the staged parser work above.
+comma, loops, `throw`, object spread, frame access/captures, `own`, or other later
+operations remain outside this task unless they become necessary for the staged parser
+work above.
 
 ### Number parsing and serialization
 
@@ -333,6 +343,33 @@ The exact tests must distinguish the edge cases semantically:
 This parser/serializer support is required independently of module-to-EDAG conversion,
 because `.f.js` is the general representation used to persist EDAG and unresolved
 artifacts.
+
+### Existing compile API boundary
+
+This task adds an **EDAG-producing compilation path**; it does not change the public
+success result of the existing value-producing DJS transpiler/CLI yet. Until an EDAG
+execution path is integrated, existing `transpile` callers and `fjs compile` continue
+to evaluate the module and serialize its exported value exactly as they do today.
+
+In particular, the final EDAG artifact described below is a distinct compiler artifact,
+not a replacement for the current `fjs compile <input> <output>` result during this
+stage. Land the EDAG-producing path alongside the current value-producing path rather
+than routing existing callers to an EDAG value that they would accidentally stringify
+as the module result.
+
+After the baseline interpreter exists, [`interpret-edag.md`](./interpret-edag.md) owns
+the migration of the existing value-producing path to:
+
+```text
+source modules
+  -> final EDAG
+  -> interpret EDAG
+  -> exported value
+  -> existing output serialization
+```
+
+That migration changes the internal execution path, not the public value/output
+contract.
 
 ### Final EDAG serialization
 
@@ -395,13 +432,17 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Replace `['aref', i]` with `['.', ['args'], i]` and replace `cref` sequencing
       with shared EDAG node identity.
 - [ ] Resolve imported `Unresolved` values recursively and bind each resolved result
-      to the corresponding import parameter position.
+      to the corresponding **module-scope** import parameter position; when Stage 2
+      functions exist, do not descend into nested `=>` bodies while substituting imports.
+- [ ] Apply the same function-scope boundary to module-import reachability checks so
+      nested function-local `['args']` nodes are never interpreted as import parameters.
 - [ ] Memoize resolved modules during one link operation by canonical module path so
       repeated/diamond imports reuse the same resolved EDAG node identities.
 - [ ] Remove the temporary `Unresolved` layer after resolution so the root compilation
       result is a plain EDAG with no unresolved module paths or temporary metadata.
-- [ ] Split the current transpiler flow into source-to-`Unresolved` compilation and
-      recursive module resolution/linking.
+- [ ] Add a distinct EDAG-producing compiler path/API alongside the current
+      value-producing transpiler; do not redirect existing `transpile` / `fjs compile`
+      callers until EDAG execution is available.
 
 #### Stage 2
 
@@ -422,6 +463,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Add proofs for non-capturing nested functions and ordinary/method calls in the
       supported Stage 2 subset, including accepted static/numeric `.()` properties and
       rejection of prohibited/runtime-computed string properties.
+- [ ] Add a scope-aware linking proof such as
+      `import y from './y.f.js'; export default [y, (x) => x]`: resolving `y` must not
+      rewrite the nested function body's `['args']`, and calling that function still
+      returns its invocation argument.
 - [ ] Add a validation proof that reusing one operation node both outside and inside a
       nested function body is rejected.
 
@@ -434,8 +479,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       policy as a side effect of this task.
 - [ ] Coordinate any shared parser/serializer extraction with [`157.md`](./157.md)
       instead of adding another duplicate JSON/DJS walker or numeric-policy layer.
-- [ ] Serialize the final EDAG to `.f.js`; allow JSON output only when it preserves
-      the EDAG completely.
+- [ ] Serialize the final EDAG to `.f.js` through the EDAG-producing artifact path;
+      allow JSON output only when it preserves the EDAG completely.
+- [ ] Preserve the existing value-producing `transpile` / `fjs compile` success output
+      until `interpret-edag.md` integrates EDAG execution behind that API.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
 - [ ] Add Stage 1 proofs that permitted `a.b`, `a['x']`, and numeric `a[0]` forms
       produce property-access EDAGs, while prohibited names and runtime-computed string
@@ -462,7 +509,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 ### Related
 
 - [`../transpiler/module.f.mjs`](../transpiler/module.f.mjs) — currently loads imports
-  recursively before calling `run(module[1])(args)`.
+  recursively before calling `run(module[1])(args)`; keep its value-producing public
+  contract until EDAG interpretation is integrated.
 - [`../parser/module.f.mjs`](../parser/module.f.mjs) — DJS parser that must support the
   chosen special-number `.f.js` spellings.
 - [`../serializer/module.f.mjs`](../serializer/module.f.mjs) — DJS serializer where
@@ -480,7 +528,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
   persistence/incremental-compilation task for `.fjs/unresolved/{hash}.f.js`.
 - [`interpret-edag.md`](./interpret-edag.md) — separate baseline direct-interpreter
-  execution strategy for the final EDAG.
+  execution strategy for the final EDAG and later integration behind the existing
+  value-producing transpile/compile API.
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
   lower-priority resource/time/memory hardening for EDAG processing.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) —
