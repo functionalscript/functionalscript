@@ -58,7 +58,11 @@ the generic `Any` serialization (CBOR, including the deterministic profile
 for CAVM hashing) covers it — see the P3 task and open question in
 [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md). DJS `const` declarations and
 references are a serialization mechanism for semantic node sharing, not a
-separate `const_ref` EDAG operation.
+separate `const_ref` EDAG operation. DJS `.f.js` parser/serializer rollout,
+including special-number round trips, belongs to
+[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md);
+standard JSON numeric policy remains separate in
+[`number-edge-cases.md`](../fjs/media/json/todo/number-edge-cases.md).
 
 ### Tasks
 
@@ -83,6 +87,10 @@ separate `const_ref` EDAG operation.
   semantics, operation vocabulary, validation rules, and staging decisions.
 - [`fjs/djs/todo/compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md)
   — concrete parser/module rollout for Stage 1 and Stage 2.
+- [`fjs/djs/todo/157.md`](../fjs/djs/todo/157.md) — existing JSON/DJS
+  parser/serializer structural deduplication work.
+- [`fjs/media/json/todo/number-edge-cases.md`](../fjs/media/json/todo/number-edge-cases.md)
+  — existing owner of standard JSON numeric edge-case policy.
 - [`spec/todo/2330-property-accessor.md`](../spec/todo/2330-property-accessor.md)
   — property/method-access safety rules used by `.` and `.()`.
 - [`spec/todo/3110-function.md`](../spec/todo/3110-function.md) — source-level
