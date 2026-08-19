@@ -72,11 +72,21 @@ rest of the compilation. The files contain the EDAG serialization, not loaded
 dependency values or the final compiled module. They are build artifacts and must
 not be source-controlled.
 
-#### 2. Load imports and execute the EDAG
+#### 2. Load imports and interpret the EDAG
 
 The loader recursively resolves and loads the module's import specifiers. After all
-required imported values are available, execute the module EDAG with those values as
+required imported values are available, evaluate the module EDAG with those values as
 its arguments, in import-source order.
+
+For this first task, evaluation is performed by a **small EDAG interpreter written in
+FunctionalScript**. Do not turn the EDAG back into JavaScript and execute it through
+the host JavaScript engine. The interpreter only needs to support the initial EDAG
+subset listed below and can grow together with the EDAG format later.
+
+The interpreter must preserve EDAG node identity. In particular, if one object or
+array constructor node is referenced from several places, it must be evaluated once
+and the same resulting object/array reused. A memo table keyed by EDAG node identity
+is sufficient for the initial interpreter.
 
 Conceptually:
 
@@ -89,7 +99,7 @@ imports
   -> recursively load values
   -> args
 
-execute(edag, args)
+interpret(edag, args)
   -> compiled module value
 ```
 
@@ -125,18 +135,22 @@ are represented by their constructors.
       sequencing with shared EDAG node identity.
 - [ ] Keep import specifiers alongside the EDAG in source order so the loader can
       construct the argument array deterministically.
+- [ ] Implement a small EDAG interpreter in FunctionalScript for the initial EDAG
+      subset; do not execute generated EDAGs as JavaScript.
+- [ ] Memoize interpreter results by EDAG node identity so shared object/array nodes
+      evaluate once and preserve reference identity in the compiled value.
 - [ ] Split the current transpiler flow into source-to-EDAG compilation and recursive
-      loading/evaluation.
+      loading/interpretation.
 - [ ] Allow compiled module EDAGs to be emitted as DJS files under `./.fjs/edag/`
       and ignore the FunctionalScript build directory in source control.
-- [ ] Execute each module EDAG only after all of its imported values have been loaded;
-      the root module's result is the final compiled value.
+- [ ] Interpret each module EDAG only after all of its imported values have been
+      loaded; the root module's result is the final compiled value.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
 - [ ] Make the source-to-EDAG result cacheable; add an initial cache if useful, with
       compiler/EDAG versioning for persistent entries.
-- [ ] Add proofs that compilation does not read imports, shared `const` values retain
-      identity, imports are passed in source order, and a multi-module program
-      produces the same final value as the current transpiler.
+- [ ] Add proofs that compilation does not read imports, the interpreter preserves
+      shared `const` identity, imports are passed in source order, and a multi-module
+      program produces the same final value as the current transpiler.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
