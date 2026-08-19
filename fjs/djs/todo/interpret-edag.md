@@ -32,6 +32,12 @@ source modules
   -> value
 ```
 
+Interpret the EDAG directly. Do **not** serialize or translate the EDAG back to
+JavaScript and execute that generated JavaScript through the host engine; that would
+make this an indirect code-generation path rather than an EDAG interpreter. Compiling
+EDAG to an executable function is a separate strategy and can be developed
+independently.
+
 The interpreter must preserve EDAG node identity. If the same object/array constructor
 node is referenced more than once, evaluate it once and reuse the same resulting
 value. A memo table keyed by EDAG node identity is sufficient for the initial
@@ -45,6 +51,8 @@ hardening TODO after the baseline interpreter exists.
 
 - [ ] Implement a FunctionalScript interpreter for the compiler-supported EDAG subset.
 - [ ] Validate the final EDAG before interpretation.
+- [ ] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
+      it through the host JavaScript engine.
 - [ ] Memoize results by EDAG node identity so shared constructors preserve reference
       identity.
 - [ ] Return the interpreted value for a valid final EDAG.
@@ -52,6 +60,9 @@ hardening TODO after the baseline interpreter exists.
       evaluate to the expected values.
 - [ ] Add a diamond/shared-node proof showing one shared EDAG node produces one shared
       runtime value.
+- [ ] Add an integration proof that a multi-module program compiled/resolved to one
+      final EDAG and then interpreted produces the same final value as the current DJS
+      transpiler.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
