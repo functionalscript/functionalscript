@@ -20,7 +20,7 @@ memory, and hostile-depth hardening are separate work in
 ### Proposal
 
 Implement a small FunctionalScript EDAG interpreter for the EDAG forms supported by
-the compiler.
+the staged compiler work.
 
 Conceptually:
 
@@ -43,6 +43,9 @@ node is referenced more than once, evaluate it once and reuse the same resulting
 value. A memo table keyed by EDAG node identity is sufficient for the initial
 implementation.
 
+As the compiler lands the staged operators, the direct interpreter should support the
+same EDAG forms: Stage 1 adds `.` property access; Stage 2 adds `=>`, `()`, and `.()`.
+
 This TODO does not define resource budgets, deterministic stopped outcomes, iterative
 host-stack hardening, or production limits. Those concerns belong to the resource
 hardening TODO after the baseline interpreter exists.
@@ -53,11 +56,15 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Validate the final EDAG before interpretation.
 - [ ] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
       it through the host JavaScript engine.
+- [ ] Support Stage 1 `['.', object, property]` property access.
+- [ ] Support Stage 2 `['=>', frame, body]`, `['()', object, args]`, and
+      `['.()', object, property, args]` when those operators land.
 - [ ] Memoize results by EDAG node identity so shared constructors preserve reference
       identity.
 - [ ] Return the interpreted value for a valid final EDAG.
-- [ ] Add proofs that primitive, array, object, import-resolved, and shared-node EDAGs
-      evaluate to the expected values.
+- [ ] Add proofs that primitive, array, object, property-access, import-resolved, and
+      shared-node EDAGs evaluate to the expected values.
+- [ ] Add Stage 2 proofs for functions, ordinary calls, and method calls.
 - [ ] Add a diamond/shared-node proof showing one shared EDAG node produces one shared
       runtime value.
 - [ ] Add an integration proof that a multi-module program compiled/resolved to one
