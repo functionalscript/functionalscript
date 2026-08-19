@@ -40,8 +40,8 @@ Questions to answer:
    identifier derivable from the EDAG without storing metadata inside it.
 
 2. **Can the standard JavaScript Source Map format be reused?**
-   Since compiled EDAGs may be emitted as DJS files, a normal source map could map
-   positions in that generated DJS text back to the source module. Determine whether
+   Since final EDAGs may be serialized as `.f.js`, a normal source map could map
+   positions in that generated DJS text back to the source modules. Determine whether
    mapping each uniquely serialized/shared EDAG node by its generated DJS position
    is sufficient, or whether graph-specific metadata is required.
 
@@ -56,12 +56,22 @@ Questions to answer:
    map itself must not participate in EDAG identity/hash.
 
 5. **Where should source-map artifacts live?**
-   Coordinate with the module-to-EDAG compilation task: if EDAGs are emitted under
-   `./.fjs/edag/`, consider adjacent sidecars such as `*.map` or a separate
-   `./.fjs/source-map/` directory. These are temporary compiler artifacts and are
-   not source-controlled.
+   Coordinate with the final EDAG output, not the temporary module cache. A final
+   `<name>.f.js` could use an adjacent `<name>.f.js.map`, or source maps could live in
+   a separate FunctionalScript-owned directory such as `./.fjs/source-map/`.
 
-6. **What metadata is required initially?**
+   The existing `./.fjs/modules/{hash}.f.js` path is a cache of temporary
+   `Module { imports, edag }` values, not a directory of final EDAG artifacts, so it
+   should not be treated as the final source-map location.
+
+6. **How should source maps interact with the module cache?**
+   The source-to-`Module` cache can skip parsing and therefore does not automatically
+   reconstruct source ranges. Until a compatible cached per-module source-map artifact
+   is designed, compilation that requests source maps should bypass that cache and
+   parse the source normally. Investigate whether a per-module mapping sidecar can
+   later make warm and cold builds produce equivalent source mappings.
+
+7. **What metadata is required initially?**
    Start with the minimum needed for diagnostics: source file and source range
    (line/column or byte/UTF-16 offsets). Names, scopes, comments, and richer debugger
    information can be deferred.
@@ -72,28 +82,35 @@ Questions to answer:
 - Do not make source metadata part of EDAG serialization or content identity.
 - Preserve semantic sharing: structurally equal but distinct nodes must not collapse
   to one source-map entry merely because their contents are equal.
+- Warm builds must not silently lose source-map information compared with cold builds.
 - The design should work with EDAG serialized as DJS and should remain extensible as
   the EDAG operation set grows.
 
 ### Tasks
 
-- [ ] Prototype mapping a compiled module EDAG to a separate source-map artifact.
-- [ ] Evaluate standard Source Map v3 against the DJS serialization approach.
+- [ ] Prototype mapping a compiled final EDAG to a separate source-map artifact.
+- [ ] Evaluate standard Source Map v3 against the final `.f.js` DJS serialization.
 - [ ] Define how shared EDAG nodes and reference occurrences map to source ranges.
 - [ ] Determine a stable external node-addressing scheme that requires no metadata in
       EDAG nodes.
-- [ ] Decide the sidecar file format, naming, and placement under the FunctionalScript
-      temporary build directory.
-- [ ] Add a small example showing source module -> EDAG DJS -> separate source map ->
-      recovered original location for an EDAG node.
+- [ ] Decide whether source-map sidecars are adjacent to final `.f.js` output or live
+      under a separate FunctionalScript build directory.
+- [ ] Investigate a compatible per-module source-map cache; until then, require source-
+      map-enabled builds to bypass the `.fjs/modules/{hash}.f.js` cache.
+- [ ] Add a small example showing source modules -> final EDAG DJS -> separate source
+      map -> recovered original location for an EDAG node.
+- [ ] Add a warm-vs-cold build proof showing source mappings are equivalent once cache
+      reuse for source-map-enabled builds is supported.
 - [ ] Record the chosen design in the relevant compiler/EDAG documentation before
       implementing full debugger/source-map support.
 
 ### Related
 
-- [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — compiles modules to
-  cacheable EDAGs before loading imports and may emit those EDAGs as DJS build
-  artifacts.
+- [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — resolves source
+  modules into one final EDAG and serializes it to `.f.js` or JSON when representable.
+- [`cache-compiled-modules.md`](./cache-compiled-modules.md) — caches temporary
+  `Module { imports, edag }` values and currently bypasses that cache when source maps
+  are requested.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — EDAG sharing and node-identity semantics.
 - [`../../../todo/edag-spec.md`](../../../todo/edag-spec.md) — future canonical EDAG
