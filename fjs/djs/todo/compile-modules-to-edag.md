@@ -140,9 +140,31 @@ interpret(edag, args, limits)
   -> completed(value) | stopped(reason)
 ```
 
+The stopped outcome must also be represented by the transpiler/compiler API; it must
+not be disguised as a `ParseError`. Extend the current
+`Result<Unknown, ParseError>` shape conceptually to:
+
+```text
+Result<CompileOutcome<Unknown>, ParseError>
+
+CompileOutcome<T> = completed(T) | stopped(StopReason)
+StopReason = instruction-limit | structure-growth-limit
+```
+
+Parse/load errors therefore remain errors in `Result`, while deterministic resource
+exhaustion is an explicit non-throwing compilation outcome. Thread the interpreter
+limits through the loader/transpiler API. `fjs compile` supplies documented,
+deterministic default limits; callers may override them explicitly. Choosing and
+documenting the concrete default values is part of this task rather than an implicit
+host-dependent decision.
+
+If interpretation of an imported module returns `stopped`, propagate that outcome
+unchanged through every importing module and do not interpret dependent parent EDAGs.
+A root `stopped` outcome makes `fjs compile` terminate cleanly as an unsuccessful
+compilation without throwing or reporting a parse error.
+
 For the root module, a completed result is the complete compiled module/program
-value. A stopped result makes compilation stop cleanly without throwing. Circular
-dependency detection remains a loading concern, as it is today.
+value. Circular dependency detection remains a loading concern, as it is today.
 
 ### Initial EDAG subset
 
@@ -151,7 +173,8 @@ Implement only the EDAG forms required by the DJS loader today:
 - primitive constants directly: `null`, `undefined`, boolean, number, string,
   `bigint`;
 - object constructors: `['{}', ...entry]`, where the initial entry form is
-  `[':', key, value]` and the current DJS parser supplies string keys;
+  `[':', key, value]` and **`key` is a string constant** in this task, matching what
+  the current DJS parser produces;
 - array constructors: `['[]', ...node]`;
 - the argument array: `['args']`;
 - import-parameter access: `['.', ['args'], index]`;
@@ -159,20 +182,25 @@ Implement only the EDAG forms required by the DJS loader today:
   needed.
 
 The object constructor is an ordered operation rather than a plain EDAG object. This
-preserves source property order and leaves room for computed keys and future entry
-forms such as object spread, for example `['...', object]`. Plain objects have no
-EDAG meaning in this initial subset and remain reserved for a future use.
+preserves source property order and leaves room for future computed keys and entry
+forms such as object spread, for example `['...', object]`. Computed key nodes are
+**not** part of this initial interpreter: allowing arbitrary key expressions would
+introduce JavaScript `ToPropertyKey` failure cases and therefore needs an explicit
+semantic-failure outcome/semantics before validation can admit them. Plain objects
+have no EDAG meaning in this initial subset and remain reserved for a future use.
 
 Do **not** add the rest of EDAG yet: arbitrary property access, calls, method calls,
-operators, comma, closures/functions, `throw`, or other later operations are outside
-this task. Do not add plain object or array constant nodes; object and array values
-are represented by their constructors.
+operators, comma, closures/functions, `throw`, computed object keys, or other later
+operations are outside this task. Do not add plain object or array constant nodes;
+object and array values are represented by their constructors.
 
 ### Tasks
 
 - [ ] Define the minimal DJS EDAG types/validation for the forms above, consistent
       with [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
       and extensible to the full EDAG specification later.
+- [ ] Restrict initial `[':', key, value]` validation to string-constant keys; defer
+      arbitrary computed key nodes until their coercion/failure semantics are defined.
 - [ ] Make EDAG validation iterative so hostile nesting cannot overflow the host
       language call stack.
 - [ ] Change the DJS parser/AST object representation to retain an ordered entry list
@@ -188,6 +216,12 @@ are represented by their constructors.
       subset; do not execute generated EDAGs as JavaScript.
 - [ ] Make the interpreter non-throwing: return an explicit completed or stopped
       outcome for every validated EDAG.
+- [ ] Define `CompileOutcome`/`StopReason` (or equivalent) and update the
+      transpiler/compiler result type so `stopped` is distinct from `ParseError`.
+- [ ] Thread interpreter limits through loading/transpilation, define documented
+      deterministic defaults for `fjs compile`, and allow explicit overrides.
+- [ ] Propagate an imported module's `stopped` outcome unchanged to the root without
+      interpreting dependent parent EDAGs.
 - [ ] Implement interpreter traversal iteratively with an explicit work stack rather
       than recursive host calls; count traversal/work-stack progress against the
       deterministic instruction budget.
@@ -209,10 +243,12 @@ are represented by their constructors.
 - [ ] Add proofs that compilation does not read imports, the interpreter preserves
       shared `const` identity, imports are passed in source order, object-entry order
       (including integer-like keys and duplicate keys) survives parsing/EDAG
-      conversion, and a multi-module program produces the same final value as the
-      current transpiler.
+      conversion, non-string object-entry keys are rejected by initial validation,
+      and a multi-module program produces the same final value as the current
+      transpiler.
 - [ ] Add proofs that instruction-limit and structure-growth-limit exhaustion stop
-      deterministically and never throw.
+      deterministically and never throw, including propagation from an imported
+      module through the root compiler result.
 - [ ] Add a deeply nested validated EDAG proof that validation and interpretation do
       not throw `RangeError`; it either completes or stops through a deterministic
       budget.
