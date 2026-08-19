@@ -23,6 +23,14 @@ Several components must agree on the exact shape of that value:
 there is no single specification of record, so the implementations have
 nothing precise to be checked against.
 
+The working semantic design lives in
+[`edag-stage1-discussion.md`](./edag-stage1-discussion.md). The concrete DJS
+rollout is staged separately in
+[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md):
+Stage 1 adds property access and unresolved modules; Stage 2 adds non-capturing
+functions and calls. Those TODOs define implementation order, while this file
+owns the eventual complete schema.
+
 ### Proposal
 
 Define the EDAG with **RTTI** ([`fjs/types/rtti`](../fjs/types/rtti/README.md)):
@@ -48,13 +56,20 @@ their features.
 Serialization needs no separate treatment here: the EDAG is an `Any` value, so
 the generic `Any` serialization (CBOR, including the deterministic profile
 for CAVM hashing) covers it — see the P3 task and open question in
-[mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md).
+[mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md). DJS `const` declarations and
+references are a serialization mechanism for semantic node sharing, not a
+separate `const_ref` EDAG operation.
 
 ### Tasks
 
-- [ ] Define the EDAG schema as an RTTI schema (FJS module) covering all MVP
-      nodes: JSON level (§1), DJS level (§2: `const_ref`, `bigint`,
-      operators, …), FJS level (§3: function, parameters, captured consts).
+- [ ] Define the EDAG schema as an RTTI schema (FJS module) covering the
+      canonical operation forms decided in
+      [`edag-stage1-discussion.md`](./edag-stage1-discussion.md), including
+      semantic node sharing without a `const_ref` EDAG node.
+- [ ] Keep the schema compatible with the staged DJS implementation in
+      [`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md)
+      while allowing later operations to be added without changing existing
+      canonical forms.
 - [ ] Implement a Rust code generator from RTTI schemas: EDAG types +
       validation of the `Any` shape accepted by the `Function` constructor
       (following the pattern of the TypeScript printer in
@@ -64,6 +79,19 @@ for CAVM hashing) covers it — see the P3 task and open question in
 
 ### Related
 
+- [`edag-stage1-discussion.md`](./edag-stage1-discussion.md) — working EDAG
+  semantics, operation vocabulary, validation rules, and staging decisions.
+- [`fjs/djs/todo/compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md)
+  — concrete parser/module rollout for Stage 1 and Stage 2.
+- [`spec/todo/2330-property-accessor.md`](../spec/todo/2330-property-accessor.md)
+  — property/method-access safety rules used by `.` and `.()`.
+- [`spec/todo/3110-function.md`](../spec/todo/3110-function.md) — source-level
+  function support.
+- [`spec/todo/3111-function-frame.md`](../spec/todo/3111-function-frame.md) —
+  captured-frame and VM-internal function-object design; frame support is later
+  than the initial non-capturing EDAG stage.
+- [`spec/todo/9100-call-like-instructions.md`](../spec/todo/9100-call-like-instructions.md)
+  — VM-internal lowering of calls; it is not the stable EDAG call format.
 - [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — the
   `Function` constructor and interpreter tasks are blocked by this spec.
 - [`spec/todo/serialization.md`](../spec/todo/serialization.md)
