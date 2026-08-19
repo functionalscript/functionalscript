@@ -56,14 +56,14 @@ example:
 ['.', ['args'], 0]
 ```
 
-#### Temporary unresolved `Module`
+#### Temporary `Unresolved`
 
 Compile each FunctionalScript source module **without loading its imports**.
 
 Use the temporary representation:
 
 ```ts
-type Module = {
+type Unresolved = {
     readonly imports: readonly string[]
     readonly edag: EDAG
 }
@@ -73,9 +73,9 @@ type Module = {
 parameter positions in `edag`. `edag` is the parameterized computation for the module,
 with `export default` as its root/result.
 
-`Module` is a compiler/loading structure only. It is **not part of EDAG**, and imported
-module paths must not be embedded into EDAG merely to make an unresolved module
-self-contained.
+`Unresolved` is a compiler/loading structure only. It is **not part of EDAG**, and
+imported module paths must not be embedded into EDAG merely to make an unresolved
+module self-contained.
 
 For example:
 
@@ -99,7 +99,7 @@ const edag = ['{}',
 ]
 ```
 
-with temporary module metadata:
+with temporary unresolved metadata:
 
 ```js
 {
@@ -111,14 +111,14 @@ with temporary module metadata:
 `x` is one shared EDAG node, so both object properties reference the same constructed
 array. DJS `const` is serialization-level sharing, not an EDAG operation.
 
-Persisting unresolved modules under `.fjs/unresolved/` and using them for incremental
+Persisting unresolved values under `.fjs/unresolved/` and using them for incremental
 compilation is deliberately a separate task; see
 [`cache-compiled-modules.md`](./cache-compiled-modules.md).
 
 #### Resolve unresolved modules to one EDAG
 
-Recursively resolve the paths in `Module.imports`. Each imported source is compiled to
-its own temporary `Module`, then its imports are resolved in the same way.
+Recursively resolve the paths in `Unresolved.imports`. Each imported source is compiled
+to its own temporary `Unresolved`, then its imports are resolved in the same way.
 
 Resolution binds the resolved imported module results to the corresponding import
 parameter positions in the importing module EDAG. The import array order therefore
@@ -132,18 +132,18 @@ identity is semantic, so duplicating a shared dependency can change reference id
 for exported arrays/objects. This in-memory link memo is required independently of the
 optional `.fjs/unresolved/` source cache.
 
-After all module dependencies are resolved, the temporary module wrappers disappear.
-The **final compilation result is an EDAG, not a `Module`**:
+After all module dependencies are resolved, the temporary unresolved wrappers
+disappear. The **final compilation result is an EDAG, not an `Unresolved`**:
 
 ```text
 source module
-  -> Module { imports, edag }
-  -> recursively resolve imported Modules
+  -> Unresolved { imports, edag }
+  -> recursively resolve imported Unresolved values
   -> EDAG
 ```
 
 The resulting EDAG contains the complete compiled program and no unresolved module
-paths or temporary module metadata.
+paths or temporary unresolved metadata.
 
 ### Stage 2: functions and calls
 
@@ -236,27 +236,27 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Introduce `['.', object, property]` into EDAG and its validation/type schema.
 - [ ] Introduce parser support for `a.b` and `a[b]`, compiling both to the EDAG `.`
       operation.
-- [ ] Define the temporary `Module` type as `{ imports, edag }`; keep it outside the
-      EDAG schema.
-- [ ] Keep `Module.imports` as a source-ordered array of module paths, not a map, and
-      make import parameter positions correspond to its indices.
+- [ ] Define the temporary `Unresolved` type as `{ imports, edag }`; keep it outside
+      the EDAG schema.
+- [ ] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
+      and make import parameter positions correspond to its indices.
 - [ ] Restrict initial `[':', key, value]` object-constructor validation to
       string-constant keys; defer arbitrary computed constructor keys until their
       coercion/failure semantics are defined.
 - [ ] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation.
-- [ ] Convert a parsed source module to `Module { imports, edag }` without reading or
-      resolving any imported module.
+- [ ] Convert a parsed source module to `Unresolved { imports, edag }` without reading
+      or resolving any imported module.
 - [ ] Replace `['aref', i]` with `['.', ['args'], i]` and replace `cref` sequencing
       with shared EDAG node identity.
-- [ ] Resolve imported `Module`s recursively and bind each resolved result to the
-      corresponding import parameter position.
+- [ ] Resolve imported `Unresolved` values recursively and bind each resolved result
+      to the corresponding import parameter position.
 - [ ] Memoize resolved modules during one link operation by canonical module path so
       repeated/diamond imports reuse the same resolved EDAG node identities.
-- [ ] Remove the temporary `Module` layer after resolution so the root compilation
-      result is a plain EDAG with no unresolved module paths or module metadata.
-- [ ] Split the current transpiler flow into source-to-`Module` compilation and
+- [ ] Remove the temporary `Unresolved` layer after resolution so the root compilation
+      result is a plain EDAG with no unresolved module paths or temporary metadata.
+- [ ] Split the current transpiler flow into source-to-`Unresolved` compilation and
       recursive module resolution/linking.
 
 #### Stage 2
@@ -277,10 +277,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       JSON output is selected.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
 - [ ] Add Stage 1 proofs that `a.b` and `a[b]` produce property-access EDAGs,
-      source-to-`Module` compilation does not read imports, import paths and parameter
-      positions preserve source order, object-entry order survives parsing/EDAG
-      conversion, and resolving a multi-module program produces one final EDAG with no
-      unresolved module metadata.
+      source-to-`Unresolved` compilation does not read imports, import paths and
+      parameter positions preserve source order, object-entry order survives
+      parsing/EDAG conversion, and resolving a multi-module program produces one final
+      EDAG with no unresolved module metadata.
 - [ ] Add a diamond-import proof showing repeated resolution of one canonical module
       reuses the same resolved EDAG and preserves shared exported object/array identity.
 - [ ] Add serialization proofs covering `.f.js` and JSON-when-representable output,
