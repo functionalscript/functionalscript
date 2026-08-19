@@ -7,6 +7,17 @@ Each subject below is resolved separately; once all are **decided**, the
 result is distilled into a concrete design in [edag-spec.md](./edag-spec.md)
 and this document is deleted.
 
+The concrete DJS rollout is tracked in
+[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md):
+Stage 1 introduces `.` and unresolved modules; Stage 2 introduces
+non-capturing `=>`, `()`, and `.()`. This document owns the EDAG semantics,
+not parser scheduling. Property/method-access safety is shared with
+[property-accessor](../spec/todo/2330-property-accessor.md); source functions
+and later captured frames are tracked by [function](../spec/todo/3110-function.md)
+and [function-frame](../spec/todo/3111-function-frame.md); VM-internal call
+lowering belongs to
+[call-like-instructions](../spec/todo/9100-call-like-instructions.md).
+
 ## Baseline: an expression DAG with anchored evaluation
 
 *This baseline supersedes the original index-based sequence proposal; the
@@ -179,7 +190,9 @@ Agreed points (not under discussion):
 ## Operations
 
 The operations we want, with their stage. Every operand is an operation
-node; `node` below means any of them.
+node; `node` below means any of them. The stage numbers match the concrete
+DJS rollout in
+[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md).
 
 ### Structural operations
 
@@ -190,12 +203,12 @@ node; `node` below means any of them.
 |`["{}", ...entry]`|`{ … }`|1|ordered object constructor; initial entry form is `[":", key, value]` (subject 4)|
 |`["args"]`|—|1|the arguments array (subject 2)|
 |`[".", object, property]`|`o.p`, `o[p]`|1|property access; `property` is restricted (see below)|
-|`["()", object, args]`|`f(...args)`|1|call; `args` is one node yielding an array|
-|`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|1|method call; keeps `this` binding; same `property` restriction|
+|`["()", object, args]`|`f(...args)`|2|call; `args` is one node yielding an array|
+|`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|2|method call; keeps `this` binding; same `property` restriction|
 |`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|1|own property by a computed **string**; no prototype chain|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
-|`["=>", frame, body]`|`(…) => …`|later|closures; `frame` yields the captured array (see below)|
+|`["=>", frame, body]`|`(…) => …`|2|function; initial Stage 2 accepts only an empty frame, captured frames come later|
 
 `["{}", ...entry]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries. The entry list preserves the source
@@ -823,10 +836,13 @@ the FJS compiler would never emit. To validate:
 - **acyclicity**: DJS cannot express cycles (const-before-use), but an
   `Any` handed to the `Function` constructor can be built by other means —
   cyclic node graphs must be rejected;
-- aliasing of **operation nodes** is not an error — referencing the same EDAG node
-  from many operand positions is the sharing mechanism (subject 1). Structural
-  containers that are not nodes, such as object-entry descriptors, follow their
-  operation-specific canonicality rules above instead.
+- aliasing of **operation nodes is valid only within one function EDAG scope**:
+  referencing the same node from many operand positions in that scope is the sharing
+  mechanism (subject 1), but an operation-node identity must not cross a `"=>"`
+  function boundary (the closed-scope model above). Structural containers that are not
+  nodes, such as object-entry descriptors, follow their operation-specific canonicality
+  rules above instead. The initial Stage 2 validator/proofs for this boundary are tracked
+  by [`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md).
 
 ### 6. Command vocabulary vs. the existing spec names
 
