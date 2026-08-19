@@ -205,7 +205,7 @@ DJS rollout in
 |`[".", object, property]`|`o.p`, `o[p]`|1|property access; `property` is restricted (see below)|
 |`["()", object, args]`|`f(...args)`|2|call; `args` is one node yielding an array|
 |`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|2|method call; keeps `this` binding; same `property` restriction|
-|`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|1|own property by a computed **string**; no prototype chain|
+|`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|later|own property by a computed **string**; no prototype chain|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
 |`["=>", frame, body]`|`(…) => …`|2|function; initial Stage 2 accepts only an empty frame, captured frames come later|
@@ -252,7 +252,7 @@ the EDAG at all.
 Unary `+` throws on a **bigint**, so `["Number", node]` exists as the
 converting alternative; it is spelled by its JS built-in, `Number(x)`.
 
-Accessing a property by a **computed string** is a different operation,
+Accessing a property by a **computed string** is a different, later operation,
 `["own", object, key]` — own properties only, no prototype chain, so a
 computed name is harmless. Its JS spelling is a pattern rather than
 syntax:
