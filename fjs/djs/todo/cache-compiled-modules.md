@@ -56,9 +56,16 @@ source bytes
   -> .fjs/modules/{hash}.f.js
 ```
 
-If that cache file exists, load its `Module` and reuse `imports` and `edag` without
-parsing the source module again. If it does not exist, parse/compile the source to a
-`Module` and save that module at the content-addressed cache path.
+If that cache file exists, parse and validate the cached `Module`. Reuse `imports` and
+`edag` without parsing the source module only when the cache artifact itself is valid.
+
+Any cache read, parse, schema-validation, or EDAG-validation failure is an ordinary
+**cache miss**. The compiler must fall back to parsing/compiling the original source;
+a corrupt, truncated, manually modified, or stale cache artifact must not make the
+build fail merely because the cache exists.
+
+If the cache file does not exist or is invalid, parse/compile the source to a `Module`
+and save a replacement cache entry.
 
 Conceptually:
 
@@ -67,13 +74,25 @@ source bytes
   -> hash
   -> cached Module?
        |
-       +-- yes --> reuse Module
+       +-- valid ----------> reuse Module
        |
-       +-- no  --> parse -> Module -> cache
+       +-- missing/invalid -> parse -> Module -> cache
 ```
 
 A changed source file naturally produces a different hash and therefore a different
 cache path. No source hash needs to be duplicated inside the cached `Module`.
+
+### Source maps
+
+The module cache must not make warm builds lose source information.
+
+The source-map design is intentionally separate and source metadata must not be
+embedded into `Module.edag`. Until a compatible per-module source-map cache/sidecar is
+defined, **bypass the module cache when source maps are requested** and parse the
+source normally so the same source ranges are available as in a cold build.
+
+A future source-map cache may remove that restriction, but a cache hit must then
+restore the same mapping information as parsing the source.
 
 ### Cache invalidation beyond source contents
 
@@ -100,12 +119,17 @@ second-level cache yet.
 - [ ] Store temporary modules as `.fjs/modules/{hash}.f.js`, where `hash` is computed
       from the original source-file bytes.
 - [ ] Serialize and load the unchanged `Module { imports, edag }` representation.
-- [ ] Reuse a cached `Module` without parsing when the content-addressed cache entry
-      exists.
-- [ ] Parse/compile and create the cache entry when it does not exist.
+- [ ] Validate cached `Module` schema and EDAG before reuse.
+- [ ] Treat every cache read/parse/validation failure as a cache miss and recompile
+      from source rather than failing the build.
+- [ ] Reuse a valid cached `Module` without parsing the source file.
+- [ ] Parse/compile and create or replace the cache entry when it is missing/invalid.
+- [ ] Bypass this cache when source maps are requested until a compatible cached
+      source-map artifact is defined.
 - [ ] Define compiler/EDAG-version cache invalidation outside the `Module` structure.
 - [ ] Ignore `.fjs/` cache artifacts in source control.
-- [ ] Add proofs/tests for cache hit, cache miss after source changes, and
+- [ ] Add proofs/tests for valid cache hits, malformed/truncated cache entries,
+      cache miss after source changes, source-map-enabled builds, and
       compiler/EDAG-version invalidation.
 - [ ] Keep the possible resolved-module second-level cache as future work until its
       identity and representation are designed.
@@ -115,3 +139,5 @@ second-level cache yet.
 - [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — defines the unchanged
   temporary `Module { imports, edag }` and resolves temporary modules into one final
   EDAG.
+- [`investigate-edag-source-maps.md`](./investigate-edag-source-maps.md) — investigates
+  source-map artifacts that must remain separate from EDAG.
