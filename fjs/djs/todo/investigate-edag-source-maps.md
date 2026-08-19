@@ -49,17 +49,37 @@ validator, serializer, or other EDAG traversal already knows which child it is v
 so it can carry the current path in parallel with traversal without adding metadata to
 the EDAG itself.
 
-This raises an important sharing question rather than resolving it: in a DAG, one
-shared node may be reachable through multiple paths. A path therefore naturally
-identifies a traversal occurrence/reference from the root, not necessarily a unique
-node identity. The source-map design must decide how paths for shared definitions and
-shared references relate to each other.
+A path naturally identifies a traversal occurrence/reference from the root. For shared
+nodes, use a flattened index representation as a candidate way to avoid duplicating the
+same source-map payload. Conceptually, a flattened source-map entry can either contain
+the source metadata value or point to another entry index whose value should be used.
+Thus several EDAG paths that reach one shared node can converge on one source-map value
+through index references rather than repeating that value.
+
+For example, the representation might conceptually have the shape:
+
+```text
+path -> entry index
+
+entry -> source value
+      | reference to another entry index
+```
+
+The exact encoding is intentionally open. In particular, decide later whether
+references must point directly to a value-bearing entry, whether reference chains are
+allowed, and which occurrence becomes the value-bearing/canonical entry.
+
+This flattened-reference idea does not make paths into intrinsic node IDs. Paths still
+identify occurrences in a particular EDAG structure; the index references are an
+external source-map mechanism for expressing that several occurrences correspond to a
+shared node/source mapping.
 
 EDAG transformations also need source-map composition. If compilation/linking combines
 several EDAGs or constructs a new EDAG from existing EDAGs, the corresponding source
 map may need to be constructed/transformed **in parallel** so its paths describe the
-new EDAG. Do not assume a source map for an input EDAG remains valid after the EDAG is
-embedded, reordered, or otherwise transformed.
+new EDAG. A flattened representation would likewise need its entry indexes/references
+rebuilt or remapped for the new EDAG. Do not assume a source map for an input EDAG
+remains valid after the EDAG is embedded, reordered, or otherwise transformed.
 
 Questions to answer:
 
@@ -68,30 +88,36 @@ Questions to answer:
    Determine whether they are sufficient for diagnostics, execution/traversal, DJS
    serialization, and shared-node references.
 
-2. **How should sharing and multiple paths be represented?**
-   The same EDAG node can be reachable through more than one path. Determine whether
-   mappings are attached to occurrences/paths, whether one path is treated specially
-   as the defining occurrence, or whether additional graph-specific information is
-   required.
+2. **Can shared mappings use flattened index references?**
+   Investigate a flattened source-map table where a path resolves to an entry and an
+   entry either contains source metadata or redirects to another entry index. Determine
+   whether this represents shared EDAG nodes compactly and unambiguously without
+   duplicating source metadata.
 
-3. **How should source maps be transformed when EDAGs are combined?**
+3. **How should defining and reference occurrences differ?**
+   The same EDAG node can be reachable through more than one path. Determine which
+   occurrence, if any, stores the source value directly and how other paths point to
+   it. Keep open whether reference chains are useful or should be normalized to direct
+   references.
+
+4. **How should source maps be transformed when EDAGs are combined?**
    Module resolution and later EDAG transformations can create a new EDAG from one or
    more existing EDAGs. Determine how the new EDAG and its new source map are produced
    together so every retained/moved/new node occurrence receives the appropriate new
-   path and source provenance.
+   path and source provenance, and flattened references are remapped consistently.
 
-4. **Can the standard JavaScript Source Map format be reused?**
+5. **Can the standard JavaScript Source Map format be reused?**
    Since final EDAGs may be serialized as `.f.js`, a normal source map could map
    positions in that generated DJS text back to the source modules. Determine whether
    EDAG-path mappings can be converted to Source Map v3 during serialization, or
    whether graph-specific metadata is required in addition to a standard source map.
 
-5. **How stable does the mapping need to be?**
+6. **How stable does the mapping need to be?**
    Determine whether source metadata is valid only for one exact EDAG structure or
    serialized artifact, or whether some mapping can survive deterministic
    reserialization. The source map itself must not participate in EDAG identity/hash.
 
-6. **Where should source-map artifacts live?**
+7. **Where should source-map artifacts live?**
    Coordinate with the final EDAG output, not the temporary unresolved cache. A final
    `<name>.f.js` could use an adjacent `<name>.f.js.map`, or source maps could live in
    a separate FunctionalScript-owned directory such as
@@ -101,14 +127,14 @@ Questions to answer:
    `Unresolved { imports, edag }` values, not a directory of final EDAG artifacts, so
    it should not be treated as the final source-map location.
 
-7. **How should source maps interact with the unresolved cache?**
+8. **How should source maps interact with the unresolved cache?**
    The source-to-`Unresolved` cache can skip parsing and therefore does not
    automatically reconstruct source ranges. Until a compatible cached source-map
    artifact is designed, compilation that requests source maps should bypass that
    cache and parse the source normally. Investigate whether an `Unresolved` mapping
    sidecar can later make warm and cold builds produce equivalent source mappings.
 
-8. **What metadata is required initially?**
+9. **What metadata is required initially?**
    Start with the minimum needed for diagnostics: source file and source range
    (line/column or byte/UTF-16 offsets). Names, scopes, comments, and richer debugger
    information can be deferred.
@@ -121,8 +147,11 @@ Questions to answer:
   to one source-map entry merely because their contents are equal.
 - Treat an EDAG path as an external structural/traversal address; do not assume it is
   an intrinsic identity for a shared DAG node.
+- Allow a shared-node occurrence to refer to another flattened source-map entry rather
+  than duplicating its source metadata; keep the exact redirect encoding open.
 - When an operation constructs or combines EDAGs, keep source-map transformation in
-  step with the EDAG transformation rather than reusing stale paths.
+  step with the EDAG transformation and remap flattened references rather than reusing
+  stale paths/indexes.
 - Warm builds must not silently lose source-map information compared with cold builds.
 - The design should work with EDAG serialized as DJS and should remain extensible as
   the EDAG operation set grows.
@@ -132,9 +161,12 @@ Questions to answer:
 - [ ] Prototype an EDAG source map indexed by array paths such as `[1, 3, 5]`.
 - [ ] Carry the current EDAG path during a simple traversal and recover source metadata
       for the visited occurrence.
-- [ ] Define how shared EDAG nodes and multiple reference paths map to source ranges.
+- [ ] Prototype a flattened source-map table whose entries are either source values or
+      references to other entry indexes for shared EDAG nodes.
+- [ ] Compare direct-reference-only and reference-chain variants without committing to
+      either representation yet.
 - [ ] Prototype combining/transforming EDAGs while constructing the corresponding new
-      source map in parallel.
+      source map in parallel and remapping path/index references.
 - [ ] Evaluate standard Source Map v3 against EDAG-path mappings and the final `.f.js`
       DJS serialization.
 - [ ] Decide whether source-map sidecars are adjacent to final `.f.js` output or live
