@@ -161,7 +161,7 @@ source module
 The resulting EDAG contains the complete compiled program and no unresolved module
 paths or temporary unresolved metadata.
 
-### Stage 2: functions and calls
+### Stage 2: functions and calls, without frames
 
 After unresolved modules can be represented as EDAG, add functions and calls.
 
@@ -171,22 +171,25 @@ Introduce the function operation into EDAG:
 ['=>', frame, body]
 ```
 
-A nested function body is a closed EDAG. Captured values are supplied by the `frame`
-operand, and the body accesses its invocation frame through:
+**Stage 2 does not implement frames/captures.** The `frame` operand is present in the
+operation shape so later frame support does not require changing `=>`, but Stage 2
+accepts only an empty frame and does not introduce `['frame']` access. Source functions
+that capture values from an enclosing function/module scope are outside this stage.
+For the initial canonical form, a function is therefore represented with an empty frame,
+for example:
 
 ```js
-['frame']
-['.', ['frame'], index]
+['=>', ['[]'], body]
 ```
 
-This keeps outer-scope EDAG nodes from being shared illegally across a function
-boundary while still allowing closures such as `a => () => a` to be represented.
-
-Then introduce the initial arrow-function form into the parser:
+Then introduce the initial non-capturing arrow-function form into the parser:
 
 ```js
 (...a) => exp
 ```
+
+The parser/compiler must reject a Stage 2 function whose body requires a captured outer
+value rather than silently sharing an outer EDAG node into the nested body.
 
 Also introduce call operations into EDAG:
 
@@ -198,7 +201,7 @@ Also introduce call operations into EDAG:
 This stage is intentionally after Stage 1: property access is the minimum operation
 needed for unresolved-module parameter access, while function creation and calls extend
 the set of source modules that can be represented after that basic module pipeline is
-in place.
+in place. Frame/capture support is a later extension.
 
 ### EDAG forms used by these stages
 
@@ -212,13 +215,18 @@ The staged work builds on the basic structural forms already being defined for E
 - array constructors: `['[]', ...node]`;
 - the argument array: `['args']`;
 - Stage 1 property access: `['.', object, property]`;
-- Stage 2 frame access: `['frame']` and property access such as
-  `['.', ['frame'], index]`;
-- Stage 2 functions: `['=>', frame, body]`;
+- Stage 2 non-capturing functions: `['=>', ['[]'], body]`;
 - Stage 2 calls: `['()', object, args]` and
   `['.()', object, property, args]`;
 - semantic sharing by node identity, serialized with DJS `const` references when
   needed.
+
+A function body is its own EDAG scope. Validation must reject an operation-node identity
+that is shared across a function boundary (for example, the same constructor node used
+both outside a function and as a node in its body). Otherwise per-invocation evaluation
+could give one semantic node multiple runtime values. Normal sharing remains valid
+inside one function body. Stage 2's compiler should naturally produce disjoint body
+graphs; validation must enforce the same rule for arbitrary public EDAG input.
 
 The object constructor is an ordered operation rather than a plain EDAG object. This
 preserves source property order and leaves room for future computed keys and entry
@@ -236,8 +244,36 @@ objects different graph identities. Sharing of the descriptor's `key` and `value
 nodes remains normal semantic EDAG sharing.
 
 Do **not** add unrelated EDAG operations in these stages: arithmetic/logical operators,
-comma, loops, `throw`, object spread, or other later operations remain outside this
-task unless they become necessary for the staged parser work above.
+comma, loops, `throw`, object spread, frame access/captures, or other later operations
+remain outside this task unless they become necessary for the staged parser work above.
+
+### Number parsing and serialization
+
+DJS must round-trip every admitted JavaScript `number` value needed by EDAG. In
+particular, the parser and serializer must explicitly support:
+
+```text
+Infinity
+-Infinity
+NaN
+-0
+```
+
+Do not rely on ordinary `JSON.stringify(number)` for the general DJS representation:
+it serializes non-finite values as `null` and loses the sign of `-0`. Define accepted
+DJS spellings for these four cases, make the parser map those spellings back to the
+exact numeric values, and make the serializer emit matching spellings.
+
+The exact tests must distinguish the edge cases semantically:
+
+- `Object.is(roundTrip(-0), -0)`;
+- `Number.isNaN(roundTrip(NaN))`;
+- `roundTrip(Infinity) === Infinity`;
+- `roundTrip(-Infinity) === -Infinity`.
+
+This parser/serializer support is required independently of module-to-EDAG conversion,
+because `.f.js` is the general representation used to persist EDAG and unresolved
+artifacts.
 
 ### Final EDAG serialization
 
@@ -248,14 +284,9 @@ The final EDAG can be serialized as a FunctionalScript JavaScript artifact:
 ```
 
 or as JSON when the particular EDAG is representable without losing information.
-Serialization must preserve every observable primitive value exactly. For `number`,
-this explicitly includes `-0`, `NaN`, `Infinity`, and `-Infinity`; ordinary
-`JSON.stringify` spellings such as `0` for `-0` or `null` for non-finite numbers are
-not acceptable for the general DJS representation.
-
-The EDAG/DJS serializer must emit forms that round-trip those values. JSON output is
-allowed only when the chosen JSON representation preserves the value and all other
-EDAG information; otherwise JSON output must be rejected for that EDAG.
+The DJS parser/serializer round-trip above is the general path. JSON output is allowed
+only when the chosen JSON representation preserves every value and all EDAG information;
+otherwise JSON output must be rejected for that EDAG.
 
 JSON must not be used when it would lose semantic graph sharing or values that the
 chosen JSON representation cannot preserve. DJS/`.f.js` remains the general
@@ -306,24 +337,31 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 #### Stage 2
 
-- [ ] Introduce `['=>', frame, body]` into EDAG and its validation/type schema.
-- [ ] Introduce `['frame']` as the nested body's invocation-frame leaf and lower
-      captured-variable reads to indexed access such as `['.', ['frame'], i]`.
-- [ ] Introduce parser support for the initial `(...a) => exp` function form,
-      including construction of the capture frame for nested functions.
+- [ ] Introduce `['=>', frame, body]` into EDAG and its validation/type schema, with
+      Stage 2 restricted to the canonical empty frame `['[]']`.
+- [ ] Do **not** introduce `['frame']` or captured-variable access in Stage 2.
+- [ ] Introduce parser support for the initial non-capturing `(...a) => exp` function
+      form; reject functions that require captures.
+- [ ] Validate that a nested function body is a disjoint EDAG scope: operation nodes
+      must not be shared across a function boundary, while sharing within the body is
+      preserved.
 - [ ] Introduce `['()', object, args]` into EDAG.
 - [ ] Introduce `['.()', object, property, args]` into EDAG.
 - [ ] Convert the corresponding parser call expressions to the new EDAG call forms.
-- [ ] Add proofs for nested functions with captures, including `a => () => a`, and
-      ordinary/method calls in the supported Stage 2 subset.
+- [ ] Add proofs for non-capturing nested functions and ordinary/method calls in the
+      supported Stage 2 subset.
+- [ ] Add a validation proof that reusing one operation node both outside and inside a
+      nested function body is rejected.
 
 #### Shared/final
 
+- [ ] Add explicit DJS parser support for the chosen spellings of `Infinity`,
+      `-Infinity`, `NaN`, and `-0`.
+- [ ] Update the DJS number serializer to emit spellings that the parser round-trips to
+      exactly `Infinity`, `-Infinity`, `NaN`, and `-0`; do not delegate these cases to
+      ordinary `JSON.stringify` behavior.
 - [ ] Serialize the final EDAG to `.f.js`; allow JSON output only when it preserves
       the EDAG completely.
-- [ ] Preserve `-0`, `NaN`, `Infinity`, and `-Infinity` explicitly in EDAG/DJS
-      serialization; select JSON output only when its representation round-trips them
-      and every other EDAG value exactly.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
 - [ ] Add Stage 1 proofs that `a.b` and `a[b]` produce property-access EDAGs,
       source-to-`Unresolved` compilation does not read imports, import paths and
@@ -338,15 +376,20 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       as unsupported rather than changing current evaluation behavior.
 - [ ] Add a diamond-import proof showing repeated resolution of one canonical module
       reuses the same resolved EDAG and preserves shared exported object/array identity.
-- [ ] Add serialization proofs covering `.f.js` and JSON-when-representable output,
-      including exact round trips for `-0`, `NaN`, `Infinity`, and `-Infinity`, plus a
-      case where JSON must not be used because it would lose EDAG information.
+- [ ] Add DJS number round-trip proofs for `-0`, `NaN`, `Infinity`, and `-Infinity`,
+      plus JSON-when-representable proofs showing JSON is not selected when its chosen
+      representation would lose an EDAG value or graph information.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
 
 - [`../transpiler/module.f.mjs`](../transpiler/module.f.mjs) — currently loads imports
   recursively before calling `run(module[1])(args)`.
+- [`../parser/module.f.mjs`](../parser/module.f.mjs) — current number parsing uses
+  `parseFloat` for number tokens and must participate in the special-number round trip.
+- [`../../media/json/serializer/module.f.mjs`](../../media/json/serializer/module.f.mjs)
+  — current `numberSerialize` delegates to `JSON.stringify` and therefore needs explicit
+  handling for the special-number cases used by DJS.
 - [`../ast/types.ts`](../ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
   and plain-object representation to replace.
 - [`../ast/module.f.mjs`](../ast/module.f.mjs) — current sequential AST evaluator.
