@@ -199,11 +199,14 @@ node; `node` below means any of them.
 
 `["{}", ...entry]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries. The entry list preserves the source
-property sequence and permits computed keys because the key is itself a
-node. Entry forms are local to the object constructor rather than general
-expressions. Later, new entry forms can be added without changing the
-outer operation; for example `["...", object]` can represent `{ ...object }`.
-Plain objects remain reserved and have no EDAG meaning yet.
+property sequence. The key position is a node so the shape can support
+computed keys later, but **current validation admits only a string-constant
+key**; arbitrary computed-key nodes stay invalid until their coercion and
+failure semantics are defined. Entry forms are local to the object
+constructor rather than general expressions. Later, new entry forms can be
+added without changing the outer operation; for example `["...", object]`
+can represent `{ ...object }`. Plain objects remain reserved and have no EDAG
+meaning yet.
 
 Tags are **JS syntax wherever JS has syntax for the operation** — hence
 `"."`, `"()"`, `".()"`, `"{}"`, `":"` and `","` above, and the operator
@@ -714,9 +717,11 @@ open:
 
 **Resolution: an object constructor is `["{}", ...entries]`, and the
 entry sequence is semantic.** Stage 1 uses one entry form,
-`[":", key, value]`. The key and value are nodes, so the representation
-supports computed keys without changing the constructor shape. Entry forms
-belong to the object constructor rather than to the general expression
+`[":", key, value]`. The key and value positions contain EDAG nodes, so
+the representation can support computed keys without changing the constructor shape;
+**current validation nevertheless accepts only string-constant keys**. Arbitrary
+computed-key nodes remain invalid until their coercion/failure semantics are defined.
+Entry forms belong to the object constructor rather than to the general expression
 vocabulary.
 
 History: this subject previously represented an object constructor as a
@@ -725,12 +730,18 @@ representation uses the tagged `["{}", ...entries]` operation, reserves plain
 objects for future use, and keeps duplicate entries so construction can follow
 JavaScript overwrite semantics and later support computed keys.
 
+Entry descriptor arrays such as `[":", key, value]` are **structural operands**, not
+independently evaluated EDAG nodes. Their container identity therefore has no semantic
+meaning and must not add another graph/hash distinction. Validation rejects reusing the
+same descriptor-array identity in more than one object-entry position. The `key` and
+`value` operands are real EDAG nodes, so their identities may be shared normally.
+
 The sequence is retained exactly as written. It matters for several
 independent reasons:
 
 - JavaScript evaluates object-literal definitions in source order;
-- duplicate and computed keys can overwrite properties created by earlier
-  entries, so the final object can depend on entry order;
+- duplicate keys and, once admitted, computed keys can overwrite properties created
+  by earlier entries, so the final object can depend on entry order;
 - insertion order of non-index string properties is observable through
   `Object.keys`, iteration, and `JSON.stringify`.
 
@@ -752,7 +763,7 @@ Sorted-key canonicalization (as `fjs compile` applies to data output,
 constructor entries.
 
 Duplicate properties are allowed, as in JavaScript; the later entry wins.
-This is also required once keys can be computed, because equality of two keys
+This is also required once computed keys are admitted, because equality of two keys
 may not be knowable during EDAG validation.
 
 The entry vocabulary is extensible. A later `["...", object]` entry can
@@ -786,9 +797,12 @@ the FJS compiler would never emit. To validate:
   subject 8);
 - unknown command tags: validation error;
 - object constructors: every `["{}", ...]` operand must be a recognized
-  entry form; stage 1 accepts `[":", key, value]`. Duplicate property
-  keys/entries are valid and are applied in order (subject 4). Plain objects
-  are not EDAG nodes;
+  entry form; stage 1 accepts `[":", key, value]` only when `key` is a
+  **string constant**. Duplicate property keys/entries are valid and are
+  applied in order (subject 4). Entry descriptor containers are structural,
+  so the same descriptor-array identity must not appear in more than one entry
+  position; key/value EDAG nodes inside descriptors may still be shared. Plain
+  objects are not EDAG nodes;
 - **property operands** of `"."` and `".()"`: a permitted string
   constant, a number constant, or a **unary** `"+"` / `"Number"` node.
   Anything else is a validation error, which is what keeps
@@ -809,8 +823,10 @@ the FJS compiler would never emit. To validate:
 - **acyclicity**: DJS cannot express cycles (const-before-use), but an
   `Any` handed to the `Function` constructor can be built by other means —
   cyclic node graphs must be rejected;
-- aliasing is *not* an error anywhere — referencing the same node from
-  many positions is the sharing mechanism (subject 1).
+- aliasing of **operation nodes** is not an error — referencing the same EDAG node
+  from many operand positions is the sharing mechanism (subject 1). Structural
+  containers that are not nodes, such as object-entry descriptors, follow their
+  operation-specific canonicality rules above instead.
 
 ### 6. Command vocabulary vs. the existing spec names
 
@@ -866,9 +882,10 @@ The earlier objection — that `["[]", a, b]` would read as both a
 two-element array and `a[b]` — disappeared with access moved to `"."`.
 
 **Decided: the object constructor is `"{}"` with ordered entries.**
-`["{}", [":", key, value], …]` preserves construction order, permits
-computed keys, and can later accept additional entry forms such as
-`["...", object]`. Plain objects are deliberately left unused by EDAG.
+`["{}", [":", key, value], …]` preserves construction order and leaves
+room for computed keys once their semantics are admitted; it can later accept
+additional entry forms such as `["...", object]`. Plain objects are
+deliberately left unused by EDAG.
 
 Word tags now survive only where JS genuinely has no expression spelling:
 `"args"`, `"frame"`, `"self"`, `"throw"`, `"own"`.
