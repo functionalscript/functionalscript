@@ -63,6 +63,13 @@ of imported-module contents. A persistent cache must include the compiler/EDAG
 version in its identity; dependency values are not part of the source-to-EDAG cache
 key.
 
+The compiler may also materialize these intermediate EDAGs as **DJS files** in a
+temporary build directory, analogous to `./target/`, for example
+`./target/edag/`. This makes the independently compiled module representation easy
+to inspect, debug, and reuse during the rest of the compilation. The files contain
+the EDAG serialization, not loaded dependency values or the final compiled module.
+They are build artifacts and must not be source-controlled.
+
 #### 2. Load imports and execute the EDAG
 
 The loader recursively resolves and loads the module's import specifiers. After all
@@ -118,6 +125,8 @@ are represented by their constructors.
       construct the argument array deterministically.
 - [ ] Split the current transpiler flow into source-to-EDAG compilation and recursive
       loading/evaluation.
+- [ ] Allow compiled module EDAGs to be emitted as DJS files under a temporary build
+      directory such as `./target/edag/`; keep the directory out of source control.
 - [ ] Execute each module EDAG only after all of its imported values have been loaded;
       the root module's result is the final compiled value.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
