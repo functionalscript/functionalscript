@@ -23,7 +23,8 @@ type Unresolved = {
 }
 ```
 
-Source identity belongs to the cache key, not to `Unresolved`.
+Source identity and compiler/cache identity belong to the cache machinery, not to
+`Unresolved`.
 
 ### Cache layout
 
@@ -39,11 +40,38 @@ Store the compiled unresolved value at:
 .fjs/unresolved/{hash}.f.js
 ```
 
-The filename is therefore content-addressed by the original source file itself. The
-cached `.f.js` value contains only the normal temporary `Unresolved { imports, edag }`.
-There is no `hash` or `path` field inside `Unresolved`.
+The `.f.js` filename remains content-addressed by the original source file itself. The
+cached value contains only the normal temporary `Unresolved { imports, edag }`; there
+is no `hash`, source `path`, or compiler-version field inside `Unresolved`.
 
 The cache files are build artifacts and must not be source-controlled.
+
+### Compiler/cache identity
+
+Source bytes alone are not sufficient to decide whether a cached compilation result is
+reusable: a compiler semantic change or EDAG-format change can make an old artifact
+stale even when the source hash is unchanged.
+
+Define an explicit `cacheVersion` owned by the compiler. Bump it whenever a change can
+alter source-to-`Unresolved` output or the accepted/serialized EDAG/cache format.
+
+Keep the `.fjs/unresolved/{hash}.f.js` path unchanged and store a companion version
+marker for each reusable entry, for example:
+
+```text
+.fjs/unresolved/{hash}.version
+```
+
+The marker contains the `cacheVersion` that produced the corresponding `.f.js` entry.
+A lookup is a hit only when **both** files exist, the version marker exactly matches the
+current compiler's `cacheVersion`, and the cached `Unresolved` parses and validates.
+A missing or mismatched marker is a cache miss.
+
+Write the `.f.js` artifact successfully before publishing/updating its version marker.
+That ordering prevents a new version marker from blessing an older artifact when an
+artifact write fails. The exact atomic-write/rename mechanism can follow the normal
+cache implementation, but correctness must never depend on trusting an entry whose
+matching version marker was not written for it.
 
 ### Incremental lookup
 
@@ -54,30 +82,36 @@ source bytes
   -> SHA-256
   -> CBase32
   -> .fjs/unresolved/{hash}.f.js
+     + .fjs/unresolved/{hash}.version
 ```
 
-If that cache file exists, parse and validate the cached `Unresolved`. Reuse `imports`
-and `edag` without parsing the source module only when the cache artifact itself is
-valid.
+If the version marker matches the current `cacheVersion`, parse and validate the cached
+`Unresolved`. Reuse `imports` and `edag` without parsing the source module only when
+that cache artifact itself is valid.
 
-Any cache read, parse, schema-validation, or EDAG-validation failure is an ordinary
-**cache miss**. The compiler must fall back to parsing/compiling the original source;
-a corrupt, truncated, manually modified, or stale cache artifact must not make the
-build fail merely because the cache exists.
+Any cache read, version-check, parse, schema-validation, or EDAG-validation failure is
+an ordinary **cache miss**. The compiler must fall back to parsing/compiling the
+original source; a corrupt, truncated, manually modified, stale, or compiler-incompatible
+cache artifact must not make the build fail merely because the cache exists.
 
-If the cache file does not exist or is invalid, parse/compile the source to an
-`Unresolved` and save a replacement cache entry.
+If the cache entry is missing or invalid, parse/compile the source to an `Unresolved`
+and attempt to save a replacement cache entry.
+
+Cache writes are **best-effort**. Failure to create the cache directory, write or rename
+the `.f.js` artifact, or write/publish the version marker must not turn a successful
+source compilation into a compilation failure. Return the freshly compiled
+`Unresolved`; the failed cache update merely means a later compilation may miss again.
 
 Conceptually:
 
 ```text
 source bytes
   -> hash
-  -> cached Unresolved?
+  -> matching-version valid cached Unresolved?
        |
-       +-- valid ----------> reuse Unresolved
+       +-- yes -----------> reuse Unresolved
        |
-       +-- missing/invalid -> parse -> Unresolved -> cache
+       +-- no ------------> parse -> Unresolved -> best-effort cache
 ```
 
 A changed source file naturally produces a different hash and therefore a different
@@ -96,13 +130,6 @@ in a cold build.
 A future source-map cache may remove that restriction, but a cache hit must then
 restore the same mapping information as parsing the source.
 
-### Cache invalidation beyond source contents
-
-The source hash identifies the source bytes, but compiler or EDAG-format changes may
-still make an old cached `Unresolved` unusable even when the source bytes are unchanged.
-Define cache-version invalidation separately from `Unresolved`; do not add cache
-metadata to the temporary structure merely for persistence.
-
 ### Possible second-level cache
 
 This first cache stores the **unresolved** temporary `Unresolved` produced directly
@@ -120,20 +147,30 @@ second-level cache yet.
 - [ ] Define the exact SHA-256 -> CBase32 encoding used for source cache keys.
 - [ ] Store temporary unresolved values as `.fjs/unresolved/{hash}.f.js`, where `hash`
       is computed from the original source-file bytes.
+- [ ] Define the compiler-owned `cacheVersion` and exactly which semantic/EDAG/cache
+      changes require it to be bumped.
+- [ ] Store a matching `.fjs/unresolved/{hash}.version` companion marker and require
+      it to match the current `cacheVersion` before an artifact can be reused.
+- [ ] Publish/update the version marker only after the corresponding `.f.js` artifact
+      write succeeds, so a failed write cannot validate an older artifact.
 - [ ] Serialize and load the unchanged `Unresolved { imports, edag }` representation.
 - [ ] Validate cached `Unresolved` schema and EDAG before reuse.
-- [ ] Treat every cache read/parse/validation failure as a cache miss and recompile
-      from source rather than failing the build.
-- [ ] Reuse a valid cached `Unresolved` without parsing the source file.
-- [ ] Parse/compile and create or replace the cache entry when it is missing/invalid.
+- [ ] Treat every cache read/version/parse/validation failure as a cache miss and
+      recompile from source rather than failing the build.
+- [ ] Reuse a valid, matching-version cached `Unresolved` without parsing the source
+      file.
+- [ ] Parse/compile when the entry is missing/invalid and attempt to create or replace
+      the cache entry.
+- [ ] Make every cache-directory/artifact/version-marker write failure non-fatal; return
+      the freshly compiled `Unresolved` even when persistence fails.
 - [ ] Bypass this cache when source maps are requested until a compatible cached
       source-map artifact is defined.
-- [ ] Define compiler/EDAG-version cache invalidation outside the `Unresolved`
-      structure.
 - [ ] Ignore `.fjs/` cache artifacts in source control.
 - [ ] Add proofs/tests for valid cache hits, malformed/truncated cache entries,
-      cache miss after source changes, source-map-enabled builds, and
-      compiler/EDAG-version invalidation.
+      cache miss after source changes, missing/mismatched compiler versions, a compiler
+      version bump with unchanged source bytes, read-only/unwritable cache locations,
+      source-map-enabled builds, and failed cache writes that still return the freshly
+      compiled result.
 - [ ] Keep the possible resolved-module second-level cache as future work until its
       identity and representation are designed.
 
