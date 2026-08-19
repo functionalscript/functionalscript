@@ -98,49 +98,11 @@ array constructor node is referenced from several places, it must be evaluated o
 and the same resulting object/array reused. A memo table keyed by EDAG node identity
 is sufficient for the initial interpreter.
 
-Validation and interpretation are both **non-throwing**. Validation rejects malformed
-EDAGs before interpretation, but validation itself may stop when its deterministic
-traversal budget is exhausted. Interpretation of a successfully validated EDAG
-returns either the computed value or a stopped outcome when a deterministic resource
-limit is reached.
-
-Initially support two limits:
-
-- **instruction limit** — a shared per-module budget consumed by both EDAG validation
-  and interpretation. Count validator/interpreter traversal and evaluation steps
-  rather than wall-clock time, so the limit is deterministic across machines;
-- **structure-growth limit** — consumed only by interpretation; stop if evaluation
-  materializes too much object or array structure. Define a simple deterministic
-  accounting rule for constructed nodes/properties/elements so computations that
-  grow data without bound cannot exhaust host memory.
-
-The validator and interpreter must not depend on the host language call stack for
-EDAG traversal. A valid EDAG can be arbitrarily deep, so recursive traversal could
-throw a host `RangeError` before a limit is reached. Use an explicit work
-stack/continuation structure and iterative traversal instead.
-
-Validation receives the module's instruction budget first. Every traversal
-transition — including descending into/scheduling another child — consumes budget
-**before** growing the explicit work stack. Do not bulk-push an unbounded operand
-list. Therefore both traversal work and validator work-stack growth are bounded by
-the deterministic instruction limit. Validation returns one of:
-
-```text
-invalid(validationError)
-valid(remainingInstructionBudget)
-stopped(instruction-limit)
-```
-
-Only `valid` proceeds to interpretation, which receives the remaining instruction
-budget rather than resetting it. Thus validation cannot perform unbounded work before
-the interpreter's resource accounting begins.
-
-The limits are compiler inputs/options, not fields in the EDAG, so they do not change
-the EDAG's canonical representation or identity. Each module receives a fresh budget
-initialized from the requested/default limits; within that module, validation and
-interpretation share the instruction budget. Reaching either limit is a normal
-stopped result with a reason, not an exception. This mechanism can later bound
-evaluation of general EDAG functions as the operation set grows.
+Validate the EDAG shape before interpretation. Resource hardening — deterministic
+work/time limits, memory/structure-growth limits, native-stack-independent traversal,
+and stopped-outcome propagation — is intentionally deferred to
+[`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md). Those
+concerns should not block the first working compile/load/interpret pipeline.
 
 Conceptually:
 
@@ -153,44 +115,12 @@ imports
   -> recursively load values
   -> args
 
-validate(edag, limits.instruction)
-  -> invalid(error)
-   | stopped(instruction-limit)
-   | valid(remainingInstructionBudget)
-
-interpret(edag, args, {
-    instruction: remainingInstructionBudget,
-    structureGrowth: limits.structureGrowth,
-})
-  -> completed(value) | stopped(reason)
+interpret(edag, args)
+  -> value
 ```
 
-The stopped outcome must also be represented by the transpiler/compiler API; it must
-not be disguised as a `ParseError`. Extend the current
-`Result<Unknown, ParseError>` shape conceptually to:
-
-```text
-Result<CompileOutcome<Unknown>, ParseError>
-
-CompileOutcome<T> = completed(T) | stopped(StopReason)
-StopReason = instruction-limit | structure-growth-limit
-```
-
-Parse/load errors therefore remain errors in `Result`, while deterministic resource
-exhaustion is an explicit non-throwing compilation outcome. A validation failure for
-an EDAG produced by this compiler indicates an internal compiler defect; it must not
-be reported as a source `ParseError`. Thread the compile limits through the
-loader/transpiler API. `fjs compile` supplies documented, deterministic default
-limits; callers may override them explicitly. Choosing and documenting the concrete
-default values is part of this task rather than an implicit host-dependent decision.
-
-If validation or interpretation of an imported module returns `stopped`, propagate
-that outcome unchanged through every importing module and do not interpret dependent
-parent EDAGs. A root `stopped` outcome makes `fjs compile` terminate cleanly as an
-unsuccessful compilation without throwing or reporting a parse error.
-
-For the root module, a completed result is the complete compiled module/program
-value. Circular dependency detection remains a loading concern, as it is today.
+For the root module, the result is the complete compiled module/program value.
+Circular dependency detection remains a loading concern, as it is today.
 
 ### Initial EDAG subset
 
@@ -210,10 +140,9 @@ Implement only the EDAG forms required by the DJS loader today:
 The object constructor is an ordered operation rather than a plain EDAG object. This
 preserves source property order and leaves room for future computed keys and entry
 forms such as object spread, for example `['...', object]`. Computed key nodes are
-**not** part of this initial interpreter: allowing arbitrary key expressions would
-introduce JavaScript `ToPropertyKey` failure cases and therefore needs an explicit
-semantic-failure outcome/semantics before validation can admit them. Plain objects
-have no EDAG meaning in this initial subset and remain reserved for a future use.
+**not** part of this initial interpreter; their coercion/failure semantics can be
+specified when that extension is introduced. Plain objects have no EDAG meaning in
+this initial subset and remain reserved for a future use.
 
 Do **not** add the rest of EDAG yet: arbitrary property access, calls, method calls,
 operators, comma, closures/functions, `throw`, computed object keys, or other later
@@ -227,14 +156,6 @@ object and array values are represented by their constructors.
       and extensible to the full EDAG specification later.
 - [ ] Restrict initial `[':', key, value]` validation to string-constant keys; defer
       arbitrary computed key nodes until their coercion/failure semantics are defined.
-- [ ] Make EDAG validation iterative so hostile nesting cannot overflow the host
-      language call stack.
-- [ ] Make validation consume the same per-module instruction budget as
-      interpretation; return `stopped(instruction-limit)` if validation exhausts it
-      and pass the remaining budget to interpretation after successful validation.
-- [ ] Count validator child scheduling/work-stack growth against the instruction
-      budget before allocating/pushing more work; do not bulk-push unbounded operand
-      lists.
 - [ ] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation.
@@ -246,21 +167,6 @@ object and array values are represented by their constructors.
       construct the argument array deterministically.
 - [ ] Implement a small EDAG interpreter in FunctionalScript for the initial EDAG
       subset; do not execute generated EDAGs as JavaScript.
-- [ ] Make the interpreter non-throwing: return an explicit completed or stopped
-      outcome for every validated EDAG.
-- [ ] Define `CompileOutcome`/`StopReason` (or equivalent) and update the
-      transpiler/compiler result type so `stopped` is distinct from `ParseError`.
-- [ ] Thread compile limits through loading/transpilation, define documented
-      deterministic defaults for `fjs compile`, and allow explicit overrides.
-- [ ] Propagate an imported module's validation/interpreter `stopped` outcome
-      unchanged to the root without interpreting dependent parent EDAGs.
-- [ ] Implement interpreter traversal iteratively with an explicit work stack rather
-      than recursive host calls; count traversal/work-stack progress against the
-      deterministic instruction budget.
-- [ ] Add a deterministic instruction budget, shared by validation and interpretation
-      of each module and decremented by deterministic traversal/evaluation steps.
-- [ ] Add a deterministic structure-growth budget for materialized object/array
-      structure; reaching it returns a stopped result rather than exhausting memory.
 - [ ] Memoize interpreter results by EDAG node identity so shared object/array nodes
       evaluate once and preserve reference identity in the compiled value.
 - [ ] Split the current transpiler flow into source-to-EDAG compilation and recursive
@@ -268,7 +174,7 @@ object and array values are represented by their constructors.
 - [ ] Allow compiled module EDAGs to be emitted as DJS files under `./.fjs/edag/`
       and ignore the FunctionalScript build directory in source control.
 - [ ] Interpret each module EDAG only after all of its imported values have been
-      loaded; the root module's completed result is the final compiled value.
+      loaded; the root module's result is the final compiled value.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
 - [ ] Make the source-to-EDAG result cacheable; add an initial cache if useful, with
       compiler/EDAG versioning for persistent entries.
@@ -278,16 +184,12 @@ object and array values are represented by their constructors.
       conversion, non-string object-entry keys are rejected by initial validation,
       and a multi-module program produces the same final value as the current
       transpiler.
-- [ ] Add proofs that instruction-limit and structure-growth-limit exhaustion stop
-      deterministically and never throw, including validation exhaustion and
-      propagation from an imported module through the root compiler result.
-- [ ] Add a deeply nested valid EDAG proof that validation and interpretation do not
-      throw `RangeError`; with enough budget it completes, otherwise validation or
-      interpretation stops through the deterministic instruction limit.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
 
+- [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
+  lower-priority hardening for deterministic time/work and memory limits.
 - [`../transpiler/module.f.mjs`](../transpiler/module.f.mjs) — currently loads imports
   recursively before calling `run(module[1])(args)`.
 - [`../ast/types.ts`](../ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
