@@ -1,4 +1,4 @@
-## Cache compiled modules for incremental compilation
+## Cache unresolved modules for incremental compilation
 
 **Priority:** P3
 **Status:** open
@@ -7,7 +7,7 @@
 
 ### Goal
 
-Persist the temporary compiled `Module` representation so incremental compilation can
+Persist the temporary unresolved `Module` representation so incremental compilation can
 reuse a module without parsing it again when the source file has not changed.
 
 This cache is an optimization around the temporary module representation. It does not
@@ -33,10 +33,10 @@ Hash the original source-file bytes with SHA-256 and encode the digest in CBase3
 hash = CBase32(SHA256(source bytes))
 ```
 
-Store the compiled temporary module at:
+Store the compiled unresolved module at:
 
 ```text
-.fjs/modules/{hash}.f.js
+.fjs/unresolved/{hash}.f.js
 ```
 
 The filename is therefore content-addressed by the original source file itself. The
@@ -53,7 +53,7 @@ For a source module:
 source bytes
   -> SHA-256
   -> CBase32
-  -> .fjs/modules/{hash}.f.js
+  -> .fjs/unresolved/{hash}.f.js
 ```
 
 If that cache file exists, parse and validate the cached `Module`. Reuse `imports` and
@@ -84,12 +84,12 @@ cache path. No source hash needs to be duplicated inside the cached `Module`.
 
 ### Source maps
 
-The module cache must not make warm builds lose source information.
+The unresolved-module cache must not make warm builds lose source information.
 
 The source-map design is intentionally separate and source metadata must not be
 embedded into `Module.edag`. Until a compatible per-module source-map cache/sidecar is
-defined, **bypass the module cache when source maps are requested** and parse the
-source normally so the same source ranges are available as in a cold build.
+defined, **bypass the unresolved-module cache when source maps are requested** and
+parse the source normally so the same source ranges are available as in a cold build.
 
 A future source-map cache may remove that restriction, but a cache hit must then
 restore the same mapping information as parsing the source.
@@ -116,8 +116,8 @@ second-level cache yet.
 ### Tasks
 
 - [ ] Define the exact SHA-256 -> CBase32 encoding used for source cache keys.
-- [ ] Store temporary modules as `.fjs/modules/{hash}.f.js`, where `hash` is computed
-      from the original source-file bytes.
+- [ ] Store temporary modules as `.fjs/unresolved/{hash}.f.js`, where `hash` is
+      computed from the original source-file bytes.
 - [ ] Serialize and load the unchanged `Module { imports, edag }` representation.
 - [ ] Validate cached `Module` schema and EDAG before reuse.
 - [ ] Treat every cache read/parse/validation failure as a cache miss and recompile
