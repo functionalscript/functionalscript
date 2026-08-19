@@ -65,7 +65,7 @@ guards, A4) are merged into the graph by the **`","` operation**:
     `false`, `undefined`, `null`, `34n`;
   - an **array** — a tagged tuple `[tag, ...operands]`; the tags are
     listed in [Operations](#operations) below.
-  Plain objects are reserved and currently have no EDAG meaning.
+- **Plain objects are reserved and currently have no EDAG meaning.**
 - operand positions hold **real references** to nodes, not indices.
   Referencing the same node from two positions is **semantic sharing**: the
   node is evaluated once and its result reused. `const x = ["{}"]` then
@@ -710,7 +710,7 @@ open:
 
 ### 4. Object constructor: ordered entries
 
-**Status:** decided
+**Status:** decided (revised)
 
 **Resolution: an object constructor is `["{}", ...entries]`, and the
 entry sequence is semantic.** Stage 1 uses one entry form,
@@ -718,6 +718,12 @@ entry sequence is semantic.** Stage 1 uses one entry form,
 supports computed keys without changing the constructor shape. Entry forms
 belong to the object constructor rather than to the general expression
 vocabulary.
+
+History: this subject previously represented an object constructor as a
+plain EDAG object and rejected duplicate keys during validation. The revised
+representation uses the tagged `["{}", ...entries]` operation, reserves plain
+objects for future use, and keeps duplicate entries so construction can follow
+JavaScript overwrite semantics and later support computed keys.
 
 The sequence is retained exactly as written. It matters for several
 independent reasons:
@@ -728,10 +734,15 @@ independent reasons:
 - insertion order of non-index string properties is observable through
   `Object.keys`, iteration, and `JSON.stringify`.
 
-Integer-index properties are enumerated first in ascending numeric order,
-regardless of insertion order, but that does not make their constructor
-entries reorderable in the representation: computed keys and overwrites can
-still make the sequence relevant.
+One caveat remains: two EDAGs that differ only in the order of distinct,
+static integer-index keys can still produce the same JavaScript value. For
+example, `["{}", [":", "2", a], [":", "1", b]]` and
+`["{}", [":", "1", b], [":", "2", a]]` both enumerate as `"1", "2"`.
+Hash-as-written still distinguishes the EDAGs, but the core invariant's
+print-run-compare test cannot distinguish this pair. Computed keys,
+duplicate keys, and key/value computation can make entry order observable;
+the caveat is specifically that not every distinct written order denotes a
+distinct JavaScript value.
 
 A4's opaque-error contract permits an engine to schedule independent key and
 value computations differently when doing so is unobservable, but the object
@@ -776,8 +787,8 @@ the FJS compiler would never emit. To validate:
 - unknown command tags: validation error;
 - object constructors: every `["{}", ...]` operand must be a recognized
   entry form; stage 1 accepts `[":", key, value]`. Duplicate property
-  values are valid and are applied in order (subject 4). Plain objects are
-  not EDAG nodes;
+  keys/entries are valid and are applied in order (subject 4). Plain objects
+  are not EDAG nodes;
 - **property operands** of `"."` and `".()"`: a permitted string
   constant, a number constant, or a **unary** `"+"` / `"Number"` node.
   Anything else is a validation error, which is what keeps
@@ -1131,6 +1142,7 @@ none of this ([Operations](#operations)).
 
 
 ### 11. `let`, loops, and tail calls
+
 **Status:** open
 
 Everything expressible by looping is expressible by recursion —
