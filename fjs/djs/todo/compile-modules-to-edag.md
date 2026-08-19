@@ -28,9 +28,35 @@ they are converted to `['{}', ...entry]`.
 
 ### Proposal
 
-Split module compilation and module resolution.
+Split module compilation and module resolution, and introduce the missing EDAG/parser
+operations in two stages.
 
-#### 1. Compile source to a temporary `Module`
+### Stage 1: property access and unresolved modules
+
+The first missing EDAG operation is property access:
+
+```js
+['.', object, property]
+```
+
+Introduce `.` into EDAG first. Then introduce the corresponding source syntax into the
+DJS parser:
+
+```js
+a.b
+a[b]
+```
+
+Both forms compile to the EDAG `.` operation. This stage is required before EDAG can
+replace the current AST as the representation of an **unresolved module**, because
+imported values are parameters and module EDAGs need to access those parameters, for
+example:
+
+```js
+['.', ['args'], 0]
+```
+
+#### Temporary unresolved `Module`
 
 Compile each FunctionalScript source module **without loading its imports**.
 
@@ -85,15 +111,11 @@ with temporary module metadata:
 `x` is one shared EDAG node, so both object properties reference the same constructed
 array. DJS `const` is serialization-level sharing, not an EDAG operation.
 
-The general `['=>', ...]` function operation is not required merely to represent the
-module boundary. The temporary `Module` supplies the import list; its EDAG is the
-parameterized computation associated with those imports.
-
-Persisting temporary modules under `.fjs/modules/` and using them for incremental
+Persisting unresolved modules under `.fjs/unresolved/` and using them for incremental
 compilation is deliberately a separate task; see
 [`cache-compiled-modules.md`](./cache-compiled-modules.md).
 
-#### 2. Resolve modules to one EDAG
+#### Resolve unresolved modules to one EDAG
 
 Recursively resolve the paths in `Module.imports`. Each imported source is compiled to
 its own temporary `Module`, then its imports are resolved in the same way.
@@ -108,7 +130,7 @@ path. If the same module is reached more than once, including through a diamond 
 reuse the same resolved EDAG rather than resolving/splicing a fresh copy. EDAG node
 identity is semantic, so duplicating a shared dependency can change reference identity
 for exported arrays/objects. This in-memory link memo is required independently of the
-optional `.fjs/modules/` source cache.
+optional `.fjs/unresolved/` source cache.
 
 After all module dependencies are resolved, the temporary module wrappers disappear.
 The **final compilation result is an EDAG, not a `Module`**:
@@ -123,7 +145,67 @@ source module
 The resulting EDAG contains the complete compiled program and no unresolved module
 paths or temporary module metadata.
 
-The final EDAG can then be serialized as a FunctionalScript JavaScript artifact:
+### Stage 2: functions and calls
+
+After unresolved modules can be represented as EDAG, add functions and calls.
+
+Introduce the function operation into EDAG:
+
+```js
+['=>', frame, body]
+```
+
+Then introduce the initial arrow-function form into the parser:
+
+```js
+(...a) => exp
+```
+
+Also introduce call operations into EDAG:
+
+```js
+['()', object, args]
+['.()', object, property, args]
+```
+
+This stage is intentionally after Stage 1: property access is the minimum operation
+needed for unresolved-module parameter access, while function creation and calls extend
+the set of source modules that can be represented after that basic module pipeline is
+in place.
+
+### EDAG forms used by these stages
+
+The staged work builds on the basic structural forms already being defined for EDAG:
+
+- primitive constants directly: `null`, `undefined`, boolean, number, string,
+  `bigint`;
+- object constructors: `['{}', ...entry]`, where the initial entry form is
+  `[':', key, value]` and **`key` is a string constant** in this task, matching what
+  the current DJS parser produces;
+- array constructors: `['[]', ...node]`;
+- the argument array: `['args']`;
+- Stage 1 property access: `['.', object, property]`;
+- Stage 2 functions: `['=>', frame, body]`;
+- Stage 2 calls: `['()', object, args]` and
+  `['.()', object, property, args]`;
+- semantic sharing by node identity, serialized with DJS `const` references when
+  needed.
+
+The object constructor is an ordered operation rather than a plain EDAG object. This
+preserves source property order and leaves room for future computed keys and entry
+forms such as object spread, for example `['...', object]`. Computed object-constructor
+key nodes are **not** part of this initial work: allowing arbitrary key expressions
+would introduce JavaScript `ToPropertyKey` failure cases and therefore needs explicit
+semantics before validation can admit them. Plain objects have no EDAG meaning here
+and remain reserved for a future use.
+
+Do **not** add unrelated EDAG operations in these stages: arithmetic/logical operators,
+comma, loops, `throw`, object spread, or other later operations remain outside this
+task unless they become necessary for the staged parser work above.
+
+### Final EDAG serialization
+
+The final EDAG can be serialized as a FunctionalScript JavaScript artifact:
 
 ```text
 <name>.f.js
@@ -140,60 +222,34 @@ JSON must not be used when it would lose semantic graph sharing or values that t
 chosen JSON representation cannot preserve. DJS/`.f.js` remains the general
 representation.
 
-Executing the final EDAG is a separate concern. This task establishes the
-source-to-temporary-`Module` and module-resolution-to-final-EDAG pipeline. Direct EDAG
-interpretation, compilation of EDAG to executable functions, and execution policy can
-be layered on top of the resulting EDAG.
+Executing the final EDAG is a separate concern. Direct EDAG interpretation,
+compilation of EDAG to executable functions, and execution policy can be layered on
+top of the resulting EDAG.
 
 Resource/time/memory hardening of EDAG processing is intentionally separate from this
 task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md).
 
-### Initial EDAG subset
-
-Implement only the EDAG forms required by the current DJS compiler path:
-
-- primitive constants directly: `null`, `undefined`, boolean, number, string,
-  `bigint`;
-- object constructors: `['{}', ...entry]`, where the initial entry form is
-  `[':', key, value]` and **`key` is a string constant** in this task, matching what
-  the current DJS parser produces;
-- array constructors: `['[]', ...node]`;
-- the argument array: `['args']`;
-- import-parameter access: `['.', ['args'], index]`;
-- semantic sharing by node identity, serialized with DJS `const` references when
-  needed.
-
-The object constructor is an ordered operation rather than a plain EDAG object. This
-preserves source property order and leaves room for future computed keys and entry
-forms such as object spread, for example `['...', object]`. Computed key nodes are
-**not** part of this initial subset: allowing arbitrary key expressions would
-introduce JavaScript `ToPropertyKey` failure cases and therefore needs explicit
-semantics before validation can admit them. Plain objects have no EDAG meaning in
-this initial subset and remain reserved for a future use.
-
-Do **not** add the rest of EDAG yet: arbitrary property access, calls, method calls,
-operators, comma, closures/functions, `throw`, computed object keys, or other later
-operations are outside this task. Do not add plain object or array constant nodes;
-object and array values are represented by their constructors.
-
 ### Tasks
 
+#### Stage 1
+
+- [ ] Introduce `['.', object, property]` into EDAG and its validation/type schema.
+- [ ] Introduce parser support for `a.b` and `a[b]`, compiling both to the EDAG `.`
+      operation.
 - [ ] Define the temporary `Module` type as `{ imports, edag }`; keep it outside the
       EDAG schema.
 - [ ] Keep `Module.imports` as a source-ordered array of module paths, not a map, and
       make import parameter positions correspond to its indices.
-- [ ] Define the minimal DJS EDAG types/validation for the forms above, consistent
-      with [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
-      and extensible to the full EDAG specification later.
-- [ ] Restrict initial `[':', key, value]` validation to string-constant keys; defer
-      arbitrary computed key nodes until their coercion/failure semantics are defined.
+- [ ] Restrict initial `[':', key, value]` object-constructor validation to
+      string-constant keys; defer arbitrary computed constructor keys until their
+      coercion/failure semantics are defined.
 - [ ] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation.
 - [ ] Convert a parsed source module to `Module { imports, edag }` without reading or
       resolving any imported module.
-- [ ] Replace `['aref', i]` with EDAG import-parameter access and replace `cref`
-      sequencing with shared EDAG node identity.
+- [ ] Replace `['aref', i]` with `['.', ['args'], i]` and replace `cref` sequencing
+      with shared EDAG node identity.
 - [ ] Resolve imported `Module`s recursively and bind each resolved result to the
       corresponding import parameter position.
 - [ ] Memoize resolved modules during one link operation by canonical module path so
@@ -202,17 +258,29 @@ object and array values are represented by their constructors.
       result is a plain EDAG with no unresolved module paths or module metadata.
 - [ ] Split the current transpiler flow into source-to-`Module` compilation and
       recursive module resolution/linking.
+
+#### Stage 2
+
+- [ ] Introduce `['=>', frame, body]` into EDAG and its validation/type schema.
+- [ ] Introduce parser support for the initial `(...a) => exp` function form.
+- [ ] Introduce `['()', object, args]` into EDAG.
+- [ ] Introduce `['.()', object, property, args]` into EDAG.
+- [ ] Convert the corresponding parser call expressions to the new EDAG call forms.
+- [ ] Add proofs for nested functions and ordinary/method calls in the supported
+      Stage 2 subset.
+
+#### Shared/final
+
 - [ ] Serialize the final EDAG to `.f.js`; allow JSON output only when it preserves
       the EDAG completely.
 - [ ] Preserve `-0` explicitly in EDAG/DJS serialization and in JSON output whenever
       JSON output is selected.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
-- [ ] Add proofs that source-to-`Module` compilation does not read imports, import
-      paths and parameter positions preserve source order, object-entry order
-      (including integer-like keys and duplicate keys) survives parsing/EDAG
-      conversion, non-string object-entry keys are rejected by initial validation,
-      and resolving a multi-module program produces one final EDAG with no unresolved
-      module metadata.
+- [ ] Add Stage 1 proofs that `a.b` and `a[b]` produce property-access EDAGs,
+      source-to-`Module` compilation does not read imports, import paths and parameter
+      positions preserve source order, object-entry order survives parsing/EDAG
+      conversion, and resolving a multi-module program produces one final EDAG with no
+      unresolved module metadata.
 - [ ] Add a diamond-import proof showing repeated resolution of one canonical module
       reuses the same resolved EDAG and preserves shared exported object/array identity.
 - [ ] Add serialization proofs covering `.f.js` and JSON-when-representable output,
@@ -228,7 +296,7 @@ object and array values are represented by their constructors.
   and plain-object representation to replace.
 - [`../ast/module.f.mjs`](../ast/module.f.mjs) — current sequential AST evaluator.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
-  persistence/incremental-compilation task for `.fjs/modules/{hash}.f.js`.
+  persistence/incremental-compilation task for `.fjs/unresolved/{hash}.f.js`.
 - [`interpret-edag.md`](./interpret-edag.md) — separate baseline direct-interpreter
   execution strategy for the final EDAG.
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
@@ -239,4 +307,4 @@ object and array values are represented by their constructors.
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md) — EDAG
   semantics and structural operations.
 - [`todo/edag-spec.md`](../../../todo/edag-spec.md) — future complete canonical EDAG
-  schema; this task intentionally implements only the compiler-required subset first.
+  schema.
