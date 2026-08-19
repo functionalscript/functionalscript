@@ -48,7 +48,10 @@ can compile conceptually to the EDAG serialized as DJS:
 const args = ['args']
 const a = ['.', args, 0]
 const x = ['[]', a, 1]
-export default { x, y: x }
+export default ['{}',
+    [':', 'x', x],
+    [':', 'y', x],
+]
 ```
 
 `x` is one shared EDAG node, so both object properties receive the same array.
@@ -140,16 +143,22 @@ Implement only the EDAG forms required by the DJS loader today:
 
 - primitive constants directly: `null`, `undefined`, boolean, number, string,
   `bigint`;
-- object constructors: `{ key: node, ... }`;
+- object constructors: `['{}', ...entry]`, where the initial entry form is
+  `[':', key, value]` and the current DJS parser supplies string keys;
 - array constructors: `['[]', ...node]`;
 - the argument array: `['args']`;
 - import-parameter access: `['.', ['args'], index]`;
 - semantic sharing by node identity, serialized with DJS `const` references when
   needed.
 
+The object constructor is an ordered operation rather than a plain EDAG object. This
+preserves source property order and leaves room for computed keys and future entry
+forms such as object spread, for example `['...', object]`. Plain objects have no
+EDAG meaning in this initial subset and remain reserved for a future use.
+
 Do **not** add the rest of EDAG yet: arbitrary property access, calls, method calls,
 operators, comma, closures/functions, `throw`, or other later operations are outside
-this task. Do not add plain object or array constant nodes; object and array literals
+this task. Do not add plain object or array constant nodes; object and array values
 are represented by their constructors.
 
 ### Tasks
