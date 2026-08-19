@@ -31,6 +31,19 @@ they are converted to `['{}', ...entry]`.
 Split module compilation and module resolution, and introduce the missing EDAG/parser
 operations in two stages.
 
+This TODO coordinates the **DJS parser/module rollout**; it does not replace the
+existing semantic and VM-design TODOs. The canonical EDAG vocabulary and validation
+rules are developed in
+[`edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md), property and
+method-access safety is owned by
+[`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md), source
+function support and later captures are tracked by
+[`3110-function.md`](../../../spec/todo/3110-function.md) and
+[`3111-function-frame.md`](../../../spec/todo/3111-function-frame.md), and VM-internal
+call lowering belongs to
+[`9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md).
+This task should reuse and cross-reference those decisions rather than duplicate them.
+
 ### Stage 1: property access and unresolved modules
 
 The first missing EDAG operation is property access:
@@ -48,7 +61,9 @@ a[b]
 ```
 
 Both forms lower to the EDAG `.` operation only when the property operand satisfies the
-canonical EDAG property-access restriction. The full EDAG rule permits:
+canonical EDAG property-access restriction from
+[`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md). The full
+EDAG rule permits:
 
 - a permitted **string constant** (not a prohibited prototype-chain name such as
   `constructor` or `__proto__`);
@@ -202,7 +217,9 @@ Then introduce the initial non-capturing arrow-function form into the parser:
 ```
 
 The parser/compiler must reject a Stage 2 function whose body requires a captured outer
-value rather than silently sharing an outer EDAG node into the nested body.
+value rather than silently sharing an outer EDAG node into the nested body. Full frame
+semantics remain owned by
+[`3111-function-frame.md`](../../../spec/todo/3111-function-frame.md).
 
 Also introduce call operations into EDAG:
 
@@ -210,6 +227,15 @@ Also introduce call operations into EDAG:
 ['()', object, args]
 ['.()', object, property, args]
 ```
+
+The property operand of `.()` follows **the same canonical safety restriction as `.`**.
+In this stage that means a permitted string constant or number constant; prohibited
+names, runtime-computed strings, and other unsupported property expressions are
+rejected. This is the EDAG form of the method-call distinction and safety rules already
+described by
+[`2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md). The
+VM-specific lowering of these call forms is separate work in
+[`9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md).
 
 This stage is intentionally after Stage 1: property access is the minimum operation
 needed for unresolved-module parameter access, while function creation and calls extend
@@ -231,7 +257,8 @@ The staged work builds on the basic structural forms already being defined for E
   operands described above;
 - Stage 2 non-capturing functions: `['=>', ['[]'], body]`;
 - Stage 2 calls: `['()', object, args]` and
-  `['.()', object, property, args]`;
+  `['.()', object, property, args]`, with `.()` using the same property restriction as
+  `.`;
 - semantic sharing by node identity, serialized with DJS `const` references when
   needed.
 
@@ -263,8 +290,8 @@ remain outside this task unless they become necessary for the staged parser work
 
 ### Number parsing and serialization
 
-DJS must round-trip every admitted JavaScript `number` value needed by EDAG. In
-particular, the parser and serializer must explicitly support:
+DJS `.f.js` must round-trip every admitted JavaScript `number` value needed by EDAG. In
+particular, the DJS parser and serializer must explicitly support:
 
 ```text
 Infinity
@@ -273,10 +300,18 @@ NaN
 -0
 ```
 
-Do not rely on ordinary `JSON.stringify(number)` for the general DJS representation:
-it serializes non-finite values as `null` and loses the sign of `-0`. Define accepted
-DJS spellings for these four cases, make the parser map those spellings back to the
-exact numeric values, and make the serializer emit matching spellings.
+This is a **DJS-specific representation requirement**, not a decision about standard
+JSON. The standard FunctionalScript JSON codec already has its own P3 policy TODO,
+[`number-edge-cases.md`](../../media/json/todo/number-edge-cases.md), covering these
+same runtime values under the stricter requirement that output remain JSON. Do not
+resolve that TODO implicitly by changing shared JSON behavior for DJS.
+
+The current DJS serializer reuses JSON serialization primitives, so ordinary
+`JSON.stringify(number)` cannot be the DJS fallback for these values: it serializes
+non-finite values as `null` and loses the sign of `-0`. Add DJS-specific handling so
+the chosen `.f.js` spellings parse back to the exact values. If common parser/serializer
+machinery is extracted, coordinate with [`157.md`](./157.md), which already owns the
+JSON/DJS structural deduplication; codec policy remains separate.
 
 The exact tests must distinguish the edge cases semantically:
 
@@ -300,7 +335,9 @@ The final EDAG can be serialized as a FunctionalScript JavaScript artifact:
 or as JSON when the particular EDAG is representable without losing information.
 The DJS parser/serializer round-trip above is the general path. JSON output is allowed
 only when the chosen JSON representation preserves every value and all EDAG information;
-otherwise JSON output must be rejected for that EDAG.
+otherwise JSON output must be rejected for that EDAG. The standard JSON codec's own
+number policy remains defined by
+[`number-edge-cases.md`](../../media/json/todo/number-edge-cases.md).
 
 JSON must not be used when it would lose semantic graph sharing or values that the
 chosen JSON representation cannot preserve. DJS/`.f.js` remains the general
@@ -364,20 +401,26 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       must not be shared across a function boundary, while sharing within the body is
       preserved.
 - [ ] Introduce `['()', object, args]` into EDAG.
-- [ ] Introduce `['.()', object, property, args]` into EDAG.
-- [ ] Convert the corresponding parser call expressions to the new EDAG call forms.
+- [ ] Introduce `['.()', object, property, args]` into EDAG with the same
+      property-operand validation as `.`.
+- [ ] Convert the corresponding parser call expressions to the new EDAG call forms;
+      reject prohibited or runtime-computed string properties for `.()` rather than
+      bypassing the property-access safety rule.
 - [ ] Add proofs for non-capturing nested functions and ordinary/method calls in the
-      supported Stage 2 subset.
+      supported Stage 2 subset, including accepted static/numeric `.()` properties and
+      rejection of prohibited/runtime-computed string properties.
 - [ ] Add a validation proof that reusing one operation node both outside and inside a
       nested function body is rejected.
 
 #### Shared/final
 
-- [ ] Add explicit DJS parser support for the chosen spellings of `Infinity`,
-      `-Infinity`, `NaN`, and `-0`.
-- [ ] Update the DJS number serializer to emit spellings that the parser round-trips to
-      exactly `Infinity`, `-Infinity`, `NaN`, and `-0`; do not delegate these cases to
-      ordinary `JSON.stringify` behavior.
+- [ ] Add explicit **DJS** parser support for the chosen `.f.js` spellings of
+      `Infinity`, `-Infinity`, `NaN`, and `-0`.
+- [ ] Add DJS-specific number serialization that the DJS parser round-trips to exactly
+      `Infinity`, `-Infinity`, `NaN`, and `-0`; do not change the standard JSON codec's
+      policy as a side effect of this task.
+- [ ] Coordinate any shared parser/serializer extraction with [`157.md`](./157.md)
+      instead of adding another duplicate JSON/DJS walker or numeric-policy layer.
 - [ ] Serialize the final EDAG to `.f.js`; allow JSON output only when it preserves
       the EDAG completely.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
@@ -404,11 +447,17 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 - [`../transpiler/module.f.mjs`](../transpiler/module.f.mjs) — currently loads imports
   recursively before calling `run(module[1])(args)`.
-- [`../parser/module.f.mjs`](../parser/module.f.mjs) — current number parsing uses
-  `parseFloat` for number tokens and must participate in the special-number round trip.
+- [`../parser/module.f.mjs`](../parser/module.f.mjs) — DJS parser that must support the
+  chosen special-number `.f.js` spellings.
+- [`../serializer/module.f.mjs`](../serializer/module.f.mjs) — DJS serializer where
+  special-number handling belongs.
 - [`../../media/json/serializer/module.f.mjs`](../../media/json/serializer/module.f.mjs)
-  — current `numberSerialize` delegates to `JSON.stringify` and therefore needs explicit
-  handling for the special-number cases used by DJS.
+  — shared JSON serialization primitives currently reused by DJS; DJS-specific number
+  syntax must not silently change standard JSON behavior.
+- [`../../media/json/todo/number-edge-cases.md`](../../media/json/todo/number-edge-cases.md)
+  — existing owner of the standard FunctionalScript JSON policy for `-0`, `NaN`, and
+  infinities.
+- [`157.md`](./157.md) — existing JSON/DJS parser/serializer deduplication task.
 - [`../ast/types.ts`](../ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
   and plain-object representation to replace.
 - [`../ast/module.f.mjs`](../ast/module.f.mjs) — current sequential AST evaluator.
@@ -425,3 +474,11 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   semantics and structural operations.
 - [`todo/edag-spec.md`](../../../todo/edag-spec.md) — future complete canonical EDAG
   schema.
+- [`spec/todo/2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
+  — property/method-access safety rules reused by `.` and `.()`.
+- [`spec/todo/3110-function.md`](../../../spec/todo/3110-function.md) — source-level
+  function support.
+- [`spec/todo/3111-function-frame.md`](../../../spec/todo/3111-function-frame.md) —
+  later captured-frame design; Stage 2 here remains non-capturing.
+- [`spec/todo/9100-call-like-instructions.md`](../../../spec/todo/9100-call-like-instructions.md)
+  — VM-internal call lowering, separate from stable EDAG call syntax.
