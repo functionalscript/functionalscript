@@ -56,21 +56,21 @@ Questions to answer:
    map itself must not participate in EDAG identity/hash.
 
 5. **Where should source-map artifacts live?**
-   Coordinate with the final EDAG output, not the temporary unresolved-module cache.
-   A final `<name>.f.js` could use an adjacent `<name>.f.js.map`, or source maps could
-   live in a separate FunctionalScript-owned directory such as
+   Coordinate with the final EDAG output, not the temporary unresolved cache. A final
+   `<name>.f.js` could use an adjacent `<name>.f.js.map`, or source maps could live in
+   a separate FunctionalScript-owned directory such as
    `./.fjs/source-map/`.
 
    The existing `./.fjs/unresolved/{hash}.f.js` path is a cache of temporary
-   `Module { imports, edag }` values, not a directory of final EDAG artifacts, so it
-   should not be treated as the final source-map location.
+   `Unresolved { imports, edag }` values, not a directory of final EDAG artifacts, so
+   it should not be treated as the final source-map location.
 
-6. **How should source maps interact with the unresolved-module cache?**
-   The source-to-`Module` cache can skip parsing and therefore does not automatically
-   reconstruct source ranges. Until a compatible cached per-module source-map artifact
-   is designed, compilation that requests source maps should bypass that cache and
-   parse the source normally. Investigate whether a per-module mapping sidecar can
-   later make warm and cold builds produce equivalent source mappings.
+6. **How should source maps interact with the unresolved cache?**
+   The source-to-`Unresolved` cache can skip parsing and therefore does not
+   automatically reconstruct source ranges. Until a compatible cached source-map
+   artifact is designed, compilation that requests source maps should bypass that
+   cache and parse the source normally. Investigate whether a per-unresolved mapping
+   sidecar can later make warm and cold builds produce equivalent source mappings.
 
 7. **What metadata is required initially?**
    Start with the minimum needed for diagnostics: source file and source range
@@ -96,8 +96,8 @@ Questions to answer:
       EDAG nodes.
 - [ ] Decide whether source-map sidecars are adjacent to final `.f.js` output or live
       under a separate FunctionalScript build directory.
-- [ ] Investigate a compatible per-module source-map cache; until then, require source-
-      map-enabled builds to bypass the `.fjs/unresolved/{hash}.f.js` cache.
+- [ ] Investigate a compatible source-map cache for `Unresolved`; until then, require
+      source-map-enabled builds to bypass the `.fjs/unresolved/{hash}.f.js` cache.
 - [ ] Add a small example showing source modules -> final EDAG DJS -> separate source
       map -> recovered original location for an EDAG node.
 - [ ] Add a warm-vs-cold build proof showing source mappings are equivalent once cache
@@ -110,7 +110,7 @@ Questions to answer:
 - [`compile-modules-to-edag.md`](./compile-modules-to-edag.md) — resolves source
   modules into one final EDAG and serializes it to `.f.js` or JSON when representable.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — caches temporary
-  `Module { imports, edag }` values under `.fjs/unresolved/` and currently bypasses
+  `Unresolved { imports, edag }` values under `.fjs/unresolved/` and currently bypasses
   that cache when source maps are requested.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — EDAG sharing and node-identity semantics.
