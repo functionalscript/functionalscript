@@ -12,14 +12,13 @@ The current DJS transpiler couples two separate operations:
    with `run(module[1])(args)`.
 
 This means the source-to-computation representation is not available independently
-of dependency loading. A module cannot be compiled once and cached before its
+of dependency loading. A source module cannot be compiled once and cached before its
 imports are resolved, even though its computation depends only on its source and
 treats imported values as parameters.
 
-The existing AST already approximates this model: `AstModule` stores import
-specifiers separately, `['aref', i]` denotes the `i`-th imported value, and the
-last `AstBody` entry is the result. Replace this temporary sequential AST execution
-model with the EDAG model directly.
+EDAG alone is not enough to represent an unresolved parsed module: the loader also
+needs the module paths imported by that source file. Keep that information in a small
+temporary wrapper rather than adding module metadata to EDAG itself.
 
 The current parser/AST also cannot preserve the ordered object-entry representation
 required by EDAG. Object parsing accumulates properties in an `OrderedMap` with
@@ -30,15 +29,28 @@ they are converted to `['{}', ...entry]`.
 
 ### Proposal
 
-Split module compilation/loading into two phases.
+Split module compilation and module resolution.
 
-#### 1. Compile source to a parameterized EDAG
+#### 1. Compile source to a temporary `Module`
 
-Compile each FunctionalScript module **without loading its imports**.
+Compile each FunctionalScript source module **without loading its imports**.
 
-The compiled-module representation keeps the import specifiers in source order and
-an EDAG root for the module body. Imported values are parameters of that EDAG, and
-`export default` is the root/result of the computation.
+Use a temporary representation such as:
+
+```ts
+type Module = {
+    readonly imports: readonly string[]
+    readonly edag: EDAG
+}
+```
+
+`imports` is an **array of module paths, not a map**. The array preserves the import
+parameter positions from the source module. The module EDAG refers to imported values
+by those positions, and `export default` is the root/result of the module EDAG.
+
+`Module` is a compiler/loading structure only. It is **not part of EDAG**, and the
+module paths must not be embedded into the EDAG merely to make an unresolved module
+self-contained.
 
 For example:
 
@@ -49,66 +61,94 @@ const x = [a, 1]
 export default { x: x, y: x }
 ```
 
-can compile conceptually to the EDAG serialized as DJS:
+can compile conceptually to:
 
 ```js
 const args = ['args']
 const a = ['.', args, 0]
 const x = ['[]', a, 1]
-export default ['{}',
+
+const edag = ['{}',
     [':', 'x', x],
     [':', 'y', x],
 ]
 ```
 
-`x` is one shared EDAG node, so both object properties receive the same array.
-`const` is serialization-level sharing, not an EDAG operation.
+with the temporary module metadata:
 
-The general `['=>', ...]` function operation is not required for this stage. The
-loader treats the compiled EDAG as an implicit module function whose argument array
-contains the imported module values.
+```js
+{
+    imports: ['./a.f.js'],
+    edag,
+}
+```
 
-Because this phase does not read dependencies, its result is cacheable independently
-of imported-module contents. A persistent cache must include the compiler/EDAG
-version in its identity; dependency values are not part of the source-to-EDAG cache
-key.
+`x` is one shared EDAG node, so both object properties reference the same constructed
+array. DJS `const` is serialization-level sharing, not an EDAG operation.
 
-The compiler may also materialize these intermediate EDAGs as **DJS files** in a
-FunctionalScript-owned temporary build directory such as `./.fjs/edag/`. This keeps
-FunctionalScript artifacts separate from Cargo's `./target/`, while leaving room for
-other FunctionalScript build artifacts under `./.fjs/` later. The independently
-compiled module representation is then easy to inspect, debug, and reuse during the
-rest of the compilation. The files contain the EDAG serialization, not loaded
-dependency values or the final compiled module. They are build artifacts and must
-not be source-controlled.
+The general `['=>', ...]` function operation is not required merely to represent the
+module boundary. The temporary `Module` supplies the import list; its EDAG is the
+parameterized computation associated with those imports.
 
-#### 2. Load imports and interpret the EDAG
+Because this phase does not read dependencies, the `Module` result is cacheable
+independently of imported-module contents. A persistent cache must include the
+compiler/EDAG version in its identity; dependency contents are not part of the
+source-to-`Module` cache key.
 
-The loader recursively resolves and loads the module's import specifiers. After all
-required imported values are available, evaluate the module EDAG with those values as
-its arguments, in import-source order.
+The compiler may materialize these temporary module artifacts under:
 
-For this first task, evaluation is performed by a **small EDAG interpreter written in
-FunctionalScript**. Do not turn the EDAG back into JavaScript and execute it through
-the host JavaScript engine. The interpreter only needs to support the initial EDAG
-subset listed below and can grow together with the EDAG format later.
+```text
+./.fjs/modules/
+```
 
-The interpreter must preserve EDAG node identity. In particular, if one object or
-array constructor node is referenced from several places, it must be evaluated once
-and the same resulting object/array reused. A memo table keyed by EDAG node identity
-is sufficient for the initial interpreter.
+They are intermediate compiler artifacts and must not be source-controlled. The
+concrete serialization can use DJS when graph sharing or other non-JSON values require
+it.
 
-Resource/time/memory hardening of validation and interpretation is intentionally
-separate from this task; see
-[`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md).
-This task only establishes the basic compile/load/interpret pipeline.
+#### 2. Resolve modules to one EDAG
 
-For the root module, the interpreted result is the complete compiled module/program
-value. Circular dependency detection remains a loading concern, as it is today.
+Recursively resolve the paths in `Module.imports`. Each imported module is compiled to
+its own temporary `Module`, then its imports are resolved in the same way.
+
+Resolution binds the resolved imported module results to the corresponding import
+parameter positions in the importing module EDAG. The import array order therefore
+remains significant: position `i` in `imports` corresponds to import parameter `i` in
+the EDAG.
+
+After all module dependencies are resolved, the temporary module wrappers disappear.
+The **final compilation result is an EDAG, not a `Module`**:
+
+```text
+source module
+  -> Module { imports, edag }
+  -> recursively resolve imported Modules
+  -> EDAG
+```
+
+The resulting EDAG contains the complete compiled program and no unresolved module
+paths.
+
+The final EDAG can then be serialized as a FunctionalScript JavaScript artifact:
+
+```text
+<name>.f.js
+```
+
+or as JSON when the particular EDAG is representable without losing information.
+For example, JSON must not be used when it would lose semantic graph sharing or values
+that JSON cannot represent. DJS/`.f.js` remains the general representation.
+
+Executing the final EDAG is a separate concern. This task establishes the
+source-to-temporary-`Module` and module-resolution-to-final-EDAG pipeline. Direct EDAG
+interpretation, compilation of EDAG to executable functions, and execution policy can
+be layered on top of the resulting EDAG.
+
+Resource/time/memory hardening of EDAG processing is intentionally separate from this
+task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md).
 
 ### Initial EDAG subset
 
-Implement only the EDAG forms required by the DJS loader today:
+Implement only the EDAG forms required by the current DJS compiler path:
 
 - primitive constants directly: `null`, `undefined`, boolean, number, string,
   `bigint`;
@@ -124,7 +164,7 @@ Implement only the EDAG forms required by the DJS loader today:
 The object constructor is an ordered operation rather than a plain EDAG object. This
 preserves source property order and leaves room for future computed keys and entry
 forms such as object spread, for example `['...', object]`. Computed key nodes are
-**not** part of this initial interpreter: allowing arbitrary key expressions would
+**not** part of this initial subset: allowing arbitrary key expressions would
 introduce JavaScript `ToPropertyKey` failure cases and therefore needs explicit
 semantics before validation can admit them. Plain objects have no EDAG meaning in
 this initial subset and remain reserved for a future use.
@@ -136,6 +176,11 @@ object and array values are represented by their constructors.
 
 ### Tasks
 
+- [ ] Define the temporary `Module` type with exactly the unresolved import-path array
+      and parameterized EDAG needed by module resolution; keep it outside the EDAG
+      schema.
+- [ ] Keep `Module.imports` as a source-ordered array of module paths, not a map, and
+      make import parameter positions correspond to its indices.
 - [ ] Define the minimal DJS EDAG types/validation for the forms above, consistent
       with [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
       and extensible to the full EDAG specification later.
@@ -144,31 +189,33 @@ object and array values are represented by their constructors.
 - [ ] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation.
-- [ ] Convert parsed module bodies to an EDAG root without reading or resolving any
-      imported module.
+- [ ] Convert a parsed source module to `Module { imports, edag }` without reading or
+      resolving any imported module.
 - [ ] Replace `['aref', i]` with EDAG import-parameter access and replace `cref`
       sequencing with shared EDAG node identity.
-- [ ] Keep import specifiers alongside the EDAG in source order so the loader can
-      construct the argument array deterministically.
-- [ ] Implement a small EDAG interpreter in FunctionalScript for the initial EDAG
-      subset; do not execute generated EDAGs as JavaScript.
-- [ ] Memoize interpreter results by EDAG node identity so shared object/array nodes
-      evaluate once and preserve reference identity in the compiled value.
-- [ ] Split the current transpiler flow into source-to-EDAG compilation and recursive
-      loading/interpretation.
-- [ ] Allow compiled module EDAGs to be emitted as DJS files under `./.fjs/edag/`
-      and ignore the FunctionalScript build directory in source control.
-- [ ] Interpret each module EDAG only after all of its imported values have been
-      loaded; the root module's result is the final compiled value.
+- [ ] Resolve imported `Module`s recursively and bind each resolved result to the
+      corresponding import parameter position.
+- [ ] Remove the temporary `Module` layer after resolution so the root compilation
+      result is a plain EDAG with no unresolved module paths.
+- [ ] Split the current transpiler flow into source-to-`Module` compilation and
+      recursive module resolution/linking.
+- [ ] Allow temporary compiled `Module` artifacts to be emitted under
+      `./.fjs/modules/` and ignore the FunctionalScript build directory in source
+      control.
+- [ ] Serialize the final EDAG to `.f.js`; allow JSON output only when it preserves
+      the EDAG completely.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
-- [ ] Make the source-to-EDAG result cacheable; add an initial cache if useful, with
-      compiler/EDAG versioning for persistent entries.
-- [ ] Add proofs that compilation does not read imports, the interpreter preserves
-      shared `const` identity, imports are passed in source order, object-entry order
+- [ ] Make the source-to-`Module` result cacheable; add an initial cache if useful,
+      with compiler/EDAG versioning for persistent entries.
+- [ ] Add proofs that source-to-`Module` compilation does not read imports, import
+      paths and parameter positions preserve source order, object-entry order
       (including integer-like keys and duplicate keys) survives parsing/EDAG
       conversion, non-string object-entry keys are rejected by initial validation,
-      and a multi-module program produces the same final value as the current
-      transpiler.
+      and resolving a multi-module program produces one final EDAG with no unresolved
+      module paths.
+- [ ] Add serialization proofs covering `.f.js` and JSON-when-representable output,
+      including a case where JSON must not be used because it would lose EDAG
+      information.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
@@ -179,11 +226,11 @@ object and array values are represented by their constructors.
   and plain-object representation to replace.
 - [`../ast/module.f.mjs`](../ast/module.f.mjs) — current sequential AST evaluator.
 - [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resources.md) —
-  lower-priority resource/time/memory hardening for EDAG validation and execution.
+  lower-priority resource/time/memory hardening for EDAG processing.
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) —
   low-priority note on compiling an EDAG to an executable function while retaining
   the EDAG through `edagAdd` / `edagGet` Effects.
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md) — EDAG
   semantics and structural operations.
 - [`todo/edag-spec.md`](../../../todo/edag-spec.md) — future complete canonical EDAG
-  schema; this task intentionally implements only the loader-required subset first.
+  schema; this task intentionally implements only the compiler-required subset first.
