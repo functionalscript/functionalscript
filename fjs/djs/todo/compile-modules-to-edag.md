@@ -111,6 +111,22 @@ with temporary unresolved metadata:
 `x` is one shared EDAG node, so both object properties reference the same constructed
 array. DJS `const` is serialization-level sharing, not an EDAG operation.
 
+Stage 1 must also preserve the current module body's failure behavior. The current
+`run` evaluates every body entry, including a `const` whose value is not reachable from
+`export default`. For example:
+
+```js
+const check = null.x
+export default 1
+```
+
+must not silently become the successful EDAG constant `1`. Stage 1 intentionally does
+not introduce the later `','` anchoring/sequencing operation, so if source-to-
+`Unresolved` conversion would discard an otherwise-required potentially throwing body
+computation, reject that module as unsupported for this stage rather than changing its
+behavior. This restriction can be removed when the EDAG has an operation that can
+anchor such non-resulting computations.
+
 Persisting unresolved values under `.fjs/unresolved/` and using them for incremental
 compilation is deliberately a separate task; see
 [`cache-compiled-modules.md`](./cache-compiled-modules.md).
@@ -155,6 +171,17 @@ Introduce the function operation into EDAG:
 ['=>', frame, body]
 ```
 
+A nested function body is a closed EDAG. Captured values are supplied by the `frame`
+operand, and the body accesses its invocation frame through:
+
+```js
+['frame']
+['.', ['frame'], index]
+```
+
+This keeps outer-scope EDAG nodes from being shared illegally across a function
+boundary while still allowing closures such as `a => () => a` to be represented.
+
 Then introduce the initial arrow-function form into the parser:
 
 ```js
@@ -185,6 +212,8 @@ The staged work builds on the basic structural forms already being defined for E
 - array constructors: `['[]', ...node]`;
 - the argument array: `['args']`;
 - Stage 1 property access: `['.', object, property]`;
+- Stage 2 frame access: `['frame']` and property access such as
+  `['.', ['frame'], index]`;
 - Stage 2 functions: `['=>', frame, body]`;
 - Stage 2 calls: `['()', object, args]` and
   `['.()', object, property, args]`;
@@ -199,6 +228,13 @@ would introduce JavaScript `ToPropertyKey` failure cases and therefore needs exp
 semantics before validation can admit them. Plain objects have no EDAG meaning here
 and remain reserved for a future use.
 
+Object-entry descriptors such as `[':', key, value]` are structural operands of the
+object constructor, not independently evaluated EDAG nodes. Validation must therefore
+reject reusing the same descriptor-array identity in multiple entry positions; otherwise
+DJS could preserve descriptor sharing that has no semantic meaning and give equivalent
+objects different graph identities. Sharing of the descriptor's `key` and `value` EDAG
+nodes remains normal semantic EDAG sharing.
+
 Do **not** add unrelated EDAG operations in these stages: arithmetic/logical operators,
 comma, loops, `throw`, object spread, or other later operations remain outside this
 task unless they become necessary for the staged parser work above.
@@ -212,11 +248,14 @@ The final EDAG can be serialized as a FunctionalScript JavaScript artifact:
 ```
 
 or as JSON when the particular EDAG is representable without losing information.
-Serialization must preserve every observable primitive value exactly, including
-**negative zero**. In particular, serializing `-0` as `0` is not acceptable because
-`Object.is(-0, 0)` is false. The EDAG/DJS serializer must therefore emit a form that
-round-trips `-0`, and JSON output is allowed only when the JSON serializer also
-preserves that value and all other EDAG information.
+Serialization must preserve every observable primitive value exactly. For `number`,
+this explicitly includes `-0`, `NaN`, `Infinity`, and `-Infinity`; ordinary
+`JSON.stringify` spellings such as `0` for `-0` or `null` for non-finite numbers are
+not acceptable for the general DJS representation.
+
+The EDAG/DJS serializer must emit forms that round-trip those values. JSON output is
+allowed only when the chosen JSON representation preserves the value and all other
+EDAG information; otherwise JSON output must be rejected for that EDAG.
 
 JSON must not be used when it would lose semantic graph sharing or values that the
 chosen JSON representation cannot preserve. DJS/`.f.js` remains the general
@@ -243,11 +282,17 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Restrict initial `[':', key, value]` object-constructor validation to
       string-constant keys; defer arbitrary computed constructor keys until their
       coercion/failure semantics are defined.
+- [ ] Treat object-entry descriptor arrays as structural/non-shareable containers;
+      reject descriptor identity reuse while retaining normal sharing of their key and
+      value EDAG nodes.
 - [ ] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation.
 - [ ] Convert a parsed source module to `Unresolved { imports, edag }` without reading
       or resolving any imported module.
+- [ ] Do not silently drop required body evaluation. Until an anchoring/sequencing
+      operation is available, reject a Stage 1 source module if conversion would omit
+      an unreachable potentially throwing body computation.
 - [ ] Replace `['aref', i]` with `['.', ['args'], i]` and replace `cref` sequencing
       with shared EDAG node identity.
 - [ ] Resolve imported `Unresolved` values recursively and bind each resolved result
@@ -262,30 +307,40 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 #### Stage 2
 
 - [ ] Introduce `['=>', frame, body]` into EDAG and its validation/type schema.
-- [ ] Introduce parser support for the initial `(...a) => exp` function form.
+- [ ] Introduce `['frame']` as the nested body's invocation-frame leaf and lower
+      captured-variable reads to indexed access such as `['.', ['frame'], i]`.
+- [ ] Introduce parser support for the initial `(...a) => exp` function form,
+      including construction of the capture frame for nested functions.
 - [ ] Introduce `['()', object, args]` into EDAG.
 - [ ] Introduce `['.()', object, property, args]` into EDAG.
 - [ ] Convert the corresponding parser call expressions to the new EDAG call forms.
-- [ ] Add proofs for nested functions and ordinary/method calls in the supported
-      Stage 2 subset.
+- [ ] Add proofs for nested functions with captures, including `a => () => a`, and
+      ordinary/method calls in the supported Stage 2 subset.
 
 #### Shared/final
 
 - [ ] Serialize the final EDAG to `.f.js`; allow JSON output only when it preserves
       the EDAG completely.
-- [ ] Preserve `-0` explicitly in EDAG/DJS serialization and in JSON output whenever
-      JSON output is selected.
+- [ ] Preserve `-0`, `NaN`, `Infinity`, and `-Infinity` explicitly in EDAG/DJS
+      serialization; select JSON output only when its representation round-trips them
+      and every other EDAG value exactly.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
 - [ ] Add Stage 1 proofs that `a.b` and `a[b]` produce property-access EDAGs,
       source-to-`Unresolved` compilation does not read imports, import paths and
-      parameter positions preserve source order, object-entry order survives
-      parsing/EDAG conversion, and resolving a multi-module program produces one final
-      EDAG with no unresolved module metadata.
+      parameter positions preserve source order, object-entry order **including
+      integer-like keys and duplicate keys** survives parsing/EDAG conversion,
+      non-string object-entry keys are rejected by initial validation, aliased entry
+      descriptor containers are rejected while shared key/value nodes remain valid,
+      and resolving a multi-module program produces one final EDAG with no unresolved
+      module metadata.
+- [ ] Add a Stage 1 proof that `const check = null.x; export default 1` is not silently
+      compiled to the successful constant `1`; until anchoring exists it is rejected
+      as unsupported rather than changing current evaluation behavior.
 - [ ] Add a diamond-import proof showing repeated resolution of one canonical module
       reuses the same resolved EDAG and preserves shared exported object/array identity.
 - [ ] Add serialization proofs covering `.f.js` and JSON-when-representable output,
-      including `Object.is(roundTrip(-0), -0)` and a case where JSON must not be used
-      because it would lose EDAG information.
+      including exact round trips for `-0`, `NaN`, `Infinity`, and `-Infinity`, plus a
+      case where JSON must not be used because it would lose EDAG information.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
