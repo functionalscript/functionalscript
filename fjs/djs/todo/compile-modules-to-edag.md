@@ -103,6 +103,13 @@ Initially support two limits:
   nodes/properties/elements so computations that grow data without bound cannot
   exhaust host memory.
 
+The validator and interpreter must not depend on the host language call stack for
+EDAG traversal. A valid EDAG can be arbitrarily deep, so recursive traversal could
+throw a host `RangeError` before an interpreter limit is reached. Use an explicit
+work stack/continuation structure and iterative traversal instead. Advancing that
+work must count toward the deterministic instruction/traversal budget, so hostile
+operand depth stops cleanly rather than overflowing the native stack.
+
 The limits are interpreter inputs/options, not fields in the EDAG, so they do not
 change the EDAG's canonical representation or identity. Reaching either limit is a
 normal stopped result with a reason, not an exception. This mechanism can later
@@ -150,6 +157,8 @@ are represented by their constructors.
 - [ ] Define the minimal DJS EDAG types/validation for the forms above, consistent
       with [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
       and extensible to the full EDAG specification later.
+- [ ] Make EDAG validation iterative so hostile nesting cannot overflow the host
+      language call stack.
 - [ ] Convert parsed module bodies to an EDAG root without reading or resolving any
       imported module.
 - [ ] Replace `['aref', i]` with EDAG import-parameter access and replace `cref`
@@ -160,6 +169,9 @@ are represented by their constructors.
       subset; do not execute generated EDAGs as JavaScript.
 - [ ] Make the interpreter non-throwing: return an explicit completed or stopped
       outcome for every validated EDAG.
+- [ ] Implement interpreter traversal iteratively with an explicit work stack rather
+      than recursive host calls; count traversal/work-stack progress against the
+      deterministic instruction budget.
 - [ ] Add a deterministic instruction budget, incremented by interpreter evaluation
       steps rather than measured with wall-clock time.
 - [ ] Add a deterministic structure-growth budget for materialized object/array
@@ -180,6 +192,9 @@ are represented by their constructors.
       program produces the same final value as the current transpiler.
 - [ ] Add proofs that instruction-limit and structure-growth-limit exhaustion stop
       deterministically and never throw.
+- [ ] Add a deeply nested validated EDAG proof that validation and interpretation do
+      not throw `RangeError`; it either completes or stops through a deterministic
+      budget.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
