@@ -60,6 +60,28 @@ The second direction is not expected to reconstruct an EDAG by decompiling the
 function. It retrieves the EDAG that was registered for that function. If no EDAG was
 registered, or the runtime cannot provide one, `edagGet` returns an error.
 
+### Open problem: nested functions and frames
+
+The association is less obvious for functions created dynamically from nested
+functions/closures, because the resulting function value may depend on a captured
+frame.
+
+For example:
+
+```js
+const f = a => b => a + b
+const g = f(2)
+```
+
+`g` is a new function value created by evaluating `f`, with `a` captured in its
+frame. If later code calls `edagGet(g)`, it is not yet specified what EDAG should have
+been registered for `g`, when that registration should happen, or how the captured
+frame participates in that association.
+
+This note intentionally does **not** choose a representation or solve the problem.
+Nested functions, closure creation, and frames must be considered before the
+`edagAdd` / `edagGet` contract can be treated as complete.
+
 ### Notes
 
 - Do not require every function to have an EDAG. Host/native functions may have no
@@ -76,6 +98,8 @@ registered, or the runtime cannot provide one, `edagGet` returns an error.
 ### Possible future work
 
 - [ ] Decide the canonical Effect type definitions and module location.
+- [ ] Decide how nested functions/closures and captured frames participate in
+      function-to-EDAG registration.
 - [ ] Implement `edagAdd` / `edagGet` in a runtime when function-to-EDAG lookup is
       needed.
 - [ ] Consider a NaNVM implementation that stores the EDAG alongside its internal
