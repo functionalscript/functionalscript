@@ -88,6 +88,26 @@ array constructor node is referenced from several places, it must be evaluated o
 and the same resulting object/array reused. A memo table keyed by EDAG node identity
 is sufficient for the initial interpreter.
 
+The interpreter **never throws**. Validation rejects malformed EDAGs before
+interpretation; interpretation of a validated EDAG returns an explicit outcome.
+Normally that outcome contains the computed value, but the interpreter may stop
+when a deterministic resource limit is reached.
+
+Initially support two limits:
+
+- **instruction limit** — count interpreter instructions/EDAG evaluation steps rather
+  than wall-clock time. This is the interpreter's measure of how long a computation
+  takes and is deterministic across machines;
+- **structure-growth limit** — stop if interpretation materializes too much object or
+  array structure. Define a simple deterministic accounting rule for constructed
+  nodes/properties/elements so computations that grow data without bound cannot
+  exhaust host memory.
+
+The limits are interpreter inputs/options, not fields in the EDAG, so they do not
+change the EDAG's canonical representation or identity. Reaching either limit is a
+normal stopped result with a reason, not an exception. This mechanism can later
+bound evaluation of general EDAG functions as the operation set grows.
+
 Conceptually:
 
 ```text
@@ -99,12 +119,13 @@ imports
   -> recursively load values
   -> args
 
-interpret(edag, args)
-  -> compiled module value
+interpret(edag, args, limits)
+  -> completed(value) | stopped(reason)
 ```
 
-For the root module, the result is the complete compiled module/program value.
-Circular dependency detection remains a loading concern, as it is today.
+For the root module, a completed result is the complete compiled module/program
+value. A stopped result makes compilation stop cleanly without throwing. Circular
+dependency detection remains a loading concern, as it is today.
 
 ### Initial EDAG subset
 
@@ -137,6 +158,12 @@ are represented by their constructors.
       construct the argument array deterministically.
 - [ ] Implement a small EDAG interpreter in FunctionalScript for the initial EDAG
       subset; do not execute generated EDAGs as JavaScript.
+- [ ] Make the interpreter non-throwing: return an explicit completed or stopped
+      outcome for every validated EDAG.
+- [ ] Add a deterministic instruction budget, incremented by interpreter evaluation
+      steps rather than measured with wall-clock time.
+- [ ] Add a deterministic structure-growth budget for materialized object/array
+      structure; reaching it returns a stopped result rather than exhausting memory.
 - [ ] Memoize interpreter results by EDAG node identity so shared object/array nodes
       evaluate once and preserve reference identity in the compiled value.
 - [ ] Split the current transpiler flow into source-to-EDAG compilation and recursive
@@ -144,13 +171,15 @@ are represented by their constructors.
 - [ ] Allow compiled module EDAGs to be emitted as DJS files under `./.fjs/edag/`
       and ignore the FunctionalScript build directory in source control.
 - [ ] Interpret each module EDAG only after all of its imported values have been
-      loaded; the root module's result is the final compiled value.
+      loaded; the root module's completed result is the final compiled value.
 - [ ] Preserve current missing-file, parse-error, and circular-dependency behavior.
 - [ ] Make the source-to-EDAG result cacheable; add an initial cache if useful, with
       compiler/EDAG versioning for persistent entries.
 - [ ] Add proofs that compilation does not read imports, the interpreter preserves
       shared `const` identity, imports are passed in source order, and a multi-module
       program produces the same final value as the current transpiler.
+- [ ] Add proofs that instruction-limit and structure-growth-limit exhaustion stop
+      deterministically and never throw.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
