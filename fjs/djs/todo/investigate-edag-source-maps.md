@@ -69,7 +69,7 @@ Questions to answer:
    The source-to-`Unresolved` cache can skip parsing and therefore does not
    automatically reconstruct source ranges. Until a compatible cached source-map
    artifact is designed, compilation that requests source maps should bypass that
-   cache and parse the source normally. Investigate whether a per-unresolved mapping
+   cache and parse the source normally. Investigate whether an `Unresolved` mapping
    sidecar can later make warm and cold builds produce equivalent source mappings.
 
 7. **What metadata is required initially?**
