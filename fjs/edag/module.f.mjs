@@ -281,8 +281,8 @@ const _sub = /** @type {const} */(['-', exp, exp])
 export const sub = _sub
 
 /**
- * @typedef {Assert<Check<Sub, typeof _sub>>} _Minus0
- * @typedef {Assert<Check<Sub, typeof sub>>} _Minus1
+ * @typedef {Assert<Check<Sub, typeof _sub>>} _Sub0
+ * @typedef {Assert<Check<Sub, typeof sub>>} _Sub1
  */
 
 // Negation (aka a unary minus) — tagged `"-"`, same as `sub`; arity
