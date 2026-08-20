@@ -279,8 +279,8 @@ export const sub = _sub
 
 // Negation (aka a unary minus) — a word tag, `"neg"`, not `"-"`'s unary
 // arity (an earlier draft overloaded `"-"` the way JS itself does; see
-// `todo/edag-stage1-discussion.md`'s "Operators" section for why that was
-// dropped). `sub` and `neg` therefore don't share a tag, so — unlike a
+// `../../todo/edag-stage1-discussion.md`'s "Operators" section for why that
+// was dropped). `sub` and `neg` therefore don't share a tag, so — unlike a
 // shared-tag pair would — neither's position in `exp`'s `or` list matters
 // relative to the other.
 
@@ -313,7 +313,7 @@ export const comma = _comma
  * an array node for several — decided by whatever constructs `Fn`, not by
  * this shape. The operand is present in `=>`'s shape today so that switch
  * doesn't require changing `=>` itself. See
- * `../../djs/todo/compile-modules-to-edag.md`.
+ * `../djs/todo/compile-modules-to-edag.md`.
  */
 export const frame = null
 
