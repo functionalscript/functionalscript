@@ -16,7 +16,10 @@
  *  Object,
  *  PropertyCall,
  *  UndefinedOp,
- *  Plus,
+ *  Add,
+ *  Sub,
+ *  Neg,
+ *  Own,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -54,7 +57,10 @@ import {
  *  typeof propertyAccessor,
  *  typeof call,
  *  typeof propertyCall,
- *  typeof plus,
+ *  typeof own,
+ *  typeof add,
+ *  typeof sub,
+ *  typeof neg,
  * ]}
  */
 export const exp = () => (['or',
@@ -67,7 +73,16 @@ export const exp = () => (['or',
     propertyAccessor,
     call,
     propertyCall,
-    plus,
+    own,
+    add,
+    sub,
+    // `neg` must be tried after `sub`: both are tagged `"-"`, and a tuple's
+    // trailing positions are open (see the module doc comment above), so
+    // `neg`'s one-operand schema would also match `['-', a, b]` — silently
+    // dropping `b` — if it were checked first. `or` returns the first match
+    // (`../types/rtti/common/module.f.mjs`'s `orVisit`), so this order is
+    // load-bearing, not cosmetic.
+    neg,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -231,14 +246,51 @@ export const propertyCall = _propertyCall
  * @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall1
  */
 
-// +
+// own, `const own = (a, b) => Object.getOwnPropertyDescriptor(a, k)?.value`
 
-const _plus = /** @type {const} */(['+', exp, exp])
+const _own = /** @type {const} */(['own', exp, exp])
 
-/** @type {Phantom<typeof _plus, Plus>} */
-export const plus = _plus
+/** @type {Phantom<typeof _own, Own>} */
+export const own = _own
 
 /**
- * @typedef {Assert<Check<Plus, typeof _plus>>} _Plus0
- * @typedef {Assert<Check<Plus, typeof plus>>} _Plus1
+ * @typedef {Assert<Check<Own, typeof _own>>} _Own0
+ * @typedef {Assert<Check<Own, typeof own>>} _Own1
+ */
+
+// Binary +
+
+const _add = /** @type {const} */(['+', exp, exp])
+
+/** @type {Phantom<typeof _add, Add>} */
+export const add = _add
+
+/**
+ * @typedef {Assert<Check<Add, typeof _add>>} _Add0
+ * @typedef {Assert<Check<Add, typeof add>>} _Add1
+ */
+
+// Binary -
+
+const _sub = /** @type {const} */(['-', exp, exp])
+
+/** @type {Phantom<typeof _sub, Sub>} */
+export const sub = _sub
+
+/**
+ * @typedef {Assert<Check<Sub, typeof _sub>>} _Sub0
+ * @typedef {Assert<Check<Sub, typeof sub>>} _Sub1
+ */
+
+// Negation (aka a unary minus) — tagged `"-"`, same as `sub`; arity
+// distinguishes them (see the ordering note on `exp` above)
+
+const _neg = /** @type {const} */(['-', exp])
+
+/** @type {Phantom<typeof _neg, Neg>} */
+export const neg = _neg
+
+/**
+ * @typedef {Assert<Check<Neg, typeof _neg>>} _Neg0
+ * @typedef {Assert<Check<Neg, typeof neg>>} _Neg1
  */

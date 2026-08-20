@@ -19,7 +19,10 @@ export type Exp =
     | PropertyAccessor
     | Call
     | PropertyCall
-    | Plus
+    | Own
+    | Add
+    | Sub
+    | Neg
 
 // undefinedOp
 
@@ -70,6 +73,18 @@ export type Call = readonly['()', Exp, Exp]
 
 export type PropertyCall = readonly['.()', Exp, Index, Exp]
 
-// +
+// own
 
-export type Plus = readonly['+', Exp, Exp]
+export type Own = readonly ['own', Exp, Exp]
+
+// Binary +
+
+export type Add = readonly['+', Exp, Exp]
+
+// Binary -
+
+export type Sub = readonly['-', Exp, Exp]
+
+// negation (aka a unary minus — arity, not tag, distinguishes it from `Sub`)
+
+export type Neg = readonly['-', Exp]
