@@ -7,7 +7,13 @@ import {
     array as rttiArray,
 } from "../types/rtti/module.f.mjs";
 
-export const exp = () => /** @type {const} */(['or', primitive, array, object, args])
+export const exp = () => /** @type {const} */(['or',
+    primitive,
+    array,
+    object,
+    args,
+    // propertyAccessor,
+])
 
 export const primitive = or(undefined, null, boolean, number, string, bigint)
 
@@ -19,4 +25,4 @@ export const object = /** @type {const} */(['{}', rttiArray(property)])
 
 export const args = /** @type {const} */(['args'])
 
-export const propertyAccessor = /** @type {const} */([exp, exp])
+export const propertyAccessor = /** @type {const} */(['.', exp, exp])

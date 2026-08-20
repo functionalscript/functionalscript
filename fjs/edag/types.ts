@@ -5,53 +5,46 @@ import type { args, array, exp, object, primitive, property, propertyAccessor } 
 
 // exp
 
-export type Exp = Ts<typeof exp>
-
-type _Exp =
+export type Exp =
     | Primitive
     | Array
     | Object
     | Args
-type _ExpAssert = Assert<Equal<Exp, _Exp>>
+
+type _ExpAssert = Assert<Equal<Exp, Ts<typeof exp>>>
 
 // primitive
 
-export type Primitive = Ts<typeof primitive>
+export type Primitive = undefined | null | boolean | number | string | bigint
 
-type _Primitive = undefined | null | boolean | number | string | bigint
-type _PrimitiveAssert = Assert<Equal<Primitive, _Primitive>>
+type _PrimitiveAssert = Assert<Equal<Primitive, Ts<typeof primitive>>>
 
 // array
 
-export type Array = Ts<typeof array>
+type Array = readonly['[]', readonly Exp[]]
 
-type _Array = readonly['[]', readonly Exp[]]
-type _ArrayAssert = Assert<Equal<Array, _Array>>
+type _ArrayAssert = Assert<Equal<Array, Ts<typeof array>>>
 
 // property
 
-export type Property = Ts<typeof property>
+export type Property = readonly[Exp, Exp]
 
-type _Property = readonly[Exp, Exp]
-type _PropertyAssert = Assert<Equal<Property, Property>>
+type _PropertyAssert = Assert<Equal<Property, Ts<typeof property>>>
 
 // object
 
-export type Object = Ts<typeof object>
+export type Object = readonly['{}', readonly Property[]]
 
-type _Object = readonly['{}', readonly Property[]]
-type _ObjectAssert = Assert<Equal<Object, _Object>>
+type _ObjectAssert = Assert<Equal<Object, Ts<typeof object>>>
 
 // args
 
-export type Args = Ts<typeof args>
+export type Args = readonly['args']
 
-type _Args = readonly['args']
-type _ArgsAssert = Assert<Equal<Args, _Args>>
+type _ArgsAssert = Assert<Equal<Args, Ts<typeof args>>>
 
 // propertyAccessor
 
-export type PropertyAccessor = Ts<typeof propertyAccessor>
+export type PropertyAccessor = readonly['.', Exp, Exp]
 
-type _PropertyAccessor = readonly[Exp, Exp]
-type _PropertyAccessorAssert = Assert<Equal<PropertyAccessor, _PropertyAccessor>>
+type _PropertyAccessorAssert = Assert<Equal<PropertyAccessor, Ts<typeof propertyAccessor>>>
