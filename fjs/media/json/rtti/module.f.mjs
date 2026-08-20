@@ -12,7 +12,7 @@
  *
  * The TypeScript counterparts live in the sibling
  * [`../types.ts`](../types.ts), which pins them against these schemas with
- * `Assert<Equal<Unknown, Ts<typeof unknown>>>`.
+ * `Assert<Check<Unknown, typeof unknown>>`.
  *
  * @module
  */

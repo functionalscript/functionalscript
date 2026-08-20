@@ -131,8 +131,8 @@ export type StructTs<T extends Struct> =
  * phantom-wrapped `my` (catches the two drifting apart):
  *
  * ```ts
- * type _Check0 = Assert<Equal<MyType, Ts<typeof myThunk>>>
- * type _Check1 = Assert<Equal<MyType, Ts<typeof my>>>
+ * type _Check0 = Assert<Check<MyType, typeof myThunk>>
+ * type _Check1 = Assert<Check<MyType, typeof my>>
  * ```
  *
  * See `fjs/edag/module.f.mjs` for this in practice. Note also that the phantom
@@ -175,6 +175,15 @@ export type Ts<T extends Type> =
         never
     ) :
     ConstTs<T>
+
+/**
+ * Pins a hand-written TypeScript type `A` against the type an rtti schema `B`
+ * actually derives to — `Assert<Check<A, B>>` reads as "`A` is `Ts<B>`".
+ * This is the assertion the {@link Ts} doc above uses for the two-Phantom-check
+ * pattern, and the one every hand-written recursive type in this codebase (a
+ * `Tree`, a `LockMap`, …) pins against its rtti schema with.
+ */
+export type Check<A, B extends Type> = Equal<A, Ts<B>>
 
 // Fast-path: Ts<any> resolves to Unknown without TS2589 overflow.
 type _any = Assert<Equal<Ts<any>, Unknown>>

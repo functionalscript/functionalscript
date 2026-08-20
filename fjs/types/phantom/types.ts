@@ -27,14 +27,15 @@ export type { phantomKey }
  * `Phantom<typeof rawThunk, T>` with two asserts: one against the
  * un-annotated `rawThunk` (forces the real structural check, catching a
  * wrong `T`) and one against the phantom-wrapped export (catches the export
- * and the raw thunk drifting apart). See `fjs/edag/module.f.mjs`
+ * and the raw thunk drifting apart), using `Check` from
+ * `fjs/types/rtti/ts/types.ts`. See `fjs/edag/module.f.mjs`
  * (`propertyAccessor`/`call`/`propertyCall`) for the pattern:
  *
  * ```ts
  * const rawThunk = () => [...] as const
  * export const thunk: Phantom<typeof rawThunk, MyType> = rawThunk
- * type _Check0 = Assert<Equal<MyType, Ts<typeof rawThunk>>>
- * type _Check1 = Assert<Equal<MyType, Ts<typeof thunk>>>
+ * type _Check0 = Assert<Check<MyType, typeof rawThunk>>
+ * type _Check1 = Assert<Check<MyType, typeof thunk>>
  * ```
  */
 export type Phantom<S, T> = S & { readonly [phantomKey]?: T }

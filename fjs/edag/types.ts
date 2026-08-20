@@ -1,8 +1,4 @@
-import type { Ts } from "../types/rtti/ts/types.ts"
-import type { Type } from "../types/rtti/types.ts"
-import type { Equal } from "../types/ts/types.ts"
-
-export type Check<A, B extends Type> = Equal<A, Ts<B>>
+export type { Check } from "../types/rtti/ts/types.ts"
 
 // exp
 
