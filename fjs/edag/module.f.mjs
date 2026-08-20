@@ -107,8 +107,19 @@ export const numberCast = /** @type {const} */(['Number', exp])
 
 /** @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast */
 
-// Type
+// Index
 
+/**
+ * A property/index operand: a plain `string` or `number` key, or a `Number`
+ * cast around a computed `exp` (`arr[i]`, where `i` is itself an expression).
+ *
+ * This schema only restricts *shape* — a `string` here can still be
+ * `'constructor'`, `'__proto__'`, `'prototype'`, or any other name that is
+ * unsafe to use as a real property accessor. It does not describe everything
+ * a consumer needs: validating an untrusted EDAG before evaluating it
+ * requires an additional denylist check on top of this schema, not a change
+ * to it.
+ */
 export const index = or(numberCast, string, number)
 
 // Property Accessor

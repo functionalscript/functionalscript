@@ -35,7 +35,8 @@ export type Args = readonly['args']
 
 export type NumberCast = readonly['Number', Exp]
 
-// Index
+// Index — shape only; see `index` in `module.f.mjs` for what this doesn't
+// cover (e.g. denylisted property names like `constructor`)
 
 export type Index = number | NumberCast | string
 
