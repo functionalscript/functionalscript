@@ -10,6 +10,7 @@
  *  Exp,
  *  Primitive,
  *  Property,
+ *  NumberCast,
  *  PropertyAccessor,
  *  Object,
  *  PropertyCall,
@@ -20,7 +21,7 @@
 import {
     bigint,
     boolean,
-    number,
+    number as number,
     or,
     string,
     array as rttiArray,
@@ -102,13 +103,17 @@ export const args = /** @type {const} */(['args'])
 
 // Number
 
-// export const numberCast = /** @type {const} */(['Number', exp])
+export const numberCast = /** @type {const} */(['Number', exp])
 
-// /** @typedef {Assert<Check<NumberCast>} _NumberCast */
+/** @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast */
+
+// Type
+
+export const index = or(numberCast, string, number)
 
 // Property Accessor
 
-const _propertyAccessor = /** @type {const} */(['.', exp, exp])
+const _propertyAccessor = /** @type {const} */(['.', exp, index])
 
 /**
  * ```js

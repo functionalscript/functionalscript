@@ -31,9 +31,17 @@ export type Object = readonly['{}', readonly Property[]]
 
 export type Args = readonly['args']
 
+// Number
+
+export type NumberCast = readonly['Number', Exp]
+
+// Index
+
+export type Index = number | NumberCast | string
+
 // propertyAccessor
 
-export type PropertyAccessor = readonly['.', Exp, Exp]
+export type PropertyAccessor = readonly['.', Exp, Index]
 
 // call
 
