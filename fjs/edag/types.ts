@@ -19,8 +19,10 @@ export type Exp =
     | PropertyAccessor
     | Call
     | PropertyCall
+    | Own
     | Add
     | Sub
+    | Neg
 
 // undefinedOp
 
@@ -83,6 +85,6 @@ export type Add = readonly['+', Exp, Exp]
 
 export type Sub = readonly['-', Exp, Exp]
 
-// negation
+// negation (aka a unary minus — arity, not tag, distinguishes it from `Sub`)
 
-export type Neg = readonly['neg', Exp]
+export type Neg = readonly['-', Exp]

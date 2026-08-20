@@ -19,7 +19,7 @@
  *  Add,
  *  Sub,
  *  Neg,
- Own
+ *  Own,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -57,8 +57,10 @@ import {
  *  typeof propertyAccessor,
  *  typeof call,
  *  typeof propertyCall,
+ *  typeof own,
  *  typeof add,
  *  typeof sub,
+ *  typeof neg,
  * ]}
  */
 export const exp = () => (['or',
@@ -71,8 +73,16 @@ export const exp = () => (['or',
     propertyAccessor,
     call,
     propertyCall,
+    own,
     add,
     sub,
+    // `neg` must be tried after `sub`: both are tagged `"-"`, and a tuple's
+    // trailing positions are open (see the module doc comment above), so
+    // `neg`'s one-operand schema would also match `['-', a, b]` — silently
+    // dropping `b` — if it were checked first. `or` returns the first match
+    // (`../types/rtti/common/module.f.mjs`'s `orVisit`), so this order is
+    // load-bearing, not cosmetic.
+    neg,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -272,9 +282,15 @@ export const sub = _sub
  * @typedef {Assert<Check<Sub, typeof sub>>} _Minus1
  */
 
-// Negation (aka a unary minus)
+// Negation (aka a unary minus) — tagged `"-"`, same as `sub`; arity
+// distinguishes them (see the ordering note on `exp` above)
 
-const _neg = /** @type {const} */(['neg', exp])
+const _neg = /** @type {const} */(['-', exp])
 
 /** @type {Phantom<typeof _neg, Neg>} */
 export const neg = _neg
+
+/**
+ * @typedef {Assert<Check<Neg, typeof _neg>>} _Neg0
+ * @typedef {Assert<Check<Neg, typeof neg>>} _Neg1
+ */

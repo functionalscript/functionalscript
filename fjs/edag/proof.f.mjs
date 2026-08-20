@@ -8,6 +8,7 @@
  */
 
 import { validate } from '../types/rtti/validate/module.f.mjs'
+import { parse } from '../types/rtti/parse/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { exp } from './module.f.mjs'
 
@@ -30,6 +31,9 @@ const assertNoMatch = r => {
 
 /** @type {(value: Unknown) => readonly [string, unknown]} */
 const v = value => validate(exp)(value)
+
+/** @type {(value: Unknown) => readonly [string, unknown]} */
+const p = value => parse(exp)(value)
 
 export const proof = {
     primitive: {
@@ -158,7 +162,25 @@ export const proof = {
             assertNoMatch(v(['.()', 'o', 'k']))
         },
     },
-    plus: {
+    own: {
+        ok: () => assertOk(v(['own', 'o', 'k'])),
+        // A missing operand reads as `undefined`, no longer a valid bare
+        // `exp` — see `undefinedOp`.
+        missingTailIsError: () => assertNoMatch(v(['own', 'o'])),
+        extraTailIsIgnored: () => assertOk(v(['own', 'o', 'k', 'extra'])),
+        error: () => assertNoMatch(v(['ownz', 'o', 'k'])),
+        // `own`'s point is bypassing the prototype chain — including the
+        // `__proto__` special case a computed key already avoids in JS.
+        // Demonstrates the pattern `own` denotes; not a schema check.
+        js: () => {
+            /** @type {<T>(a: StringMap<T>, k: string) => T|undefined } */
+            const own = (a, k) => Object.getOwnPropertyDescriptor(a, k)?.value
+            const a = { ['__proto__']: 42 }
+            assertEq(own(a, '__proto__'), 42)
+            assertEq(own(a, 'x'), undefined)
+        },
+    },
+    add: {
         ok: () => {
             assertOk(v(['+', 1, 2]))
             assertOk(v(['+', ['+', 1, 2], 3])) // an exp nested inside an operand
@@ -172,6 +194,39 @@ export const proof = {
         extraTailIsIgnored: () => assertOk(v(['+', 1, 2, 3])),
         error: () => assertNoMatch(v(['+z', 1, 2])),
     },
+    sub: {
+        ok: () => {
+            assertOk(v(['-', 1, 2]))
+            assertOk(v(['-', ['-', 1, 2], 3])) // an exp nested inside an operand
+        },
+        extraTailIsIgnored: () => assertOk(v(['-', 1, 2, 3])),
+        error: () => assertNoMatch(v(['-z', 1, 2])),
+        // Unlike `add`, a missing second operand is *not* an error here:
+        // `sub` and `neg` share the `"-"` tag, and `or` tries `sub` (two
+        // operands) before falling through to `neg` (one) — see `neg`
+        // below and the ordering note on `exp` in module.f.mjs.
+        oneOperandFallsThroughToNeg: () => assertOk(v(['-', 1])),
+        // `validate` returns the input unchanged regardless of which `or`
+        // alternative matched, so it can't tell `sub` matching first from
+        // `neg` matching first (open-tailed, `neg` would also accept
+        // `['-', 1, 2]` and just ignore the second operand). `parse`
+        // rebuilds only the matched schema's own declared positions, so it
+        // is what actually distinguishes them: if `neg` were tried before
+        // `sub`, this would rebuild `['-', 1]`, silently dropping `2`.
+        binaryMatchesSubNotNeg: () => {
+            const [tag, r] = p(['-', 1, 2])
+            assertEq(tag, 'ok')
+            assertStructurallySame(r, ['-', 1, 2], 'expected sub, not neg, to match first')
+        },
+    },
+    neg: {
+        ok: () => {
+            assertOk(v(['-', 1]))
+            assertOk(v(['-', ['-', 1]])) // an exp nested inside the operand
+        },
+        // With no operands at all, both `sub` and `neg` fail to match.
+        error: () => assertNoMatch(v(['-'])),
+    },
     // `f(args)[k](obj.a)` in AST form — exercises the mutual recursion through
     // `exp` rather than any one node kind in isolation.
     nested: () => {
@@ -182,16 +237,4 @@ export const proof = {
         ])
         assertOk(v(value))
     },
-    own: {
-        js: () => {
-            /** @type {<T>(a: StringMap<T>, k: string) => T|undefined } */
-            const own = (a, k) => Object.getOwnPropertyDescriptor(a, k)?.value
-            //
-            const a = { ['__proto__']: 42 }
-            const v = own(a, '__proto__')
-            assertEq(v, 42)
-            const x = own(a, 'x')
-            assertEq(x, undefined)
-        }
-    }
 }
