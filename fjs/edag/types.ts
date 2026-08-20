@@ -23,6 +23,7 @@ export type Exp =
     | Neg
     | Comma
     | Fn
+    | Frame
 
 // undefinedOp
 

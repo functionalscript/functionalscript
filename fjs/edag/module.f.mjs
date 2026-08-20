@@ -65,7 +65,8 @@ import {
  *  typeof sub,
  *  typeof neg,
  *  typeof comma,
- *  typeof fn
+ *  typeof fn,
+ *  typeof frame
  * ]}
  */
 export const exp = () => (['or',
@@ -84,6 +85,7 @@ export const exp = () => (['or',
     neg,
     comma,
     fn,
+    frame,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
