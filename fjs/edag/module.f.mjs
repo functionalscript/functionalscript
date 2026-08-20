@@ -233,7 +233,7 @@ export const propertyCall = _propertyCall
 
 // +
 
-export const _plus = /** @type {const} */(['+', exp, exp])
+const _plus = /** @type {const} */(['+', exp, exp])
 
 /** @type {Phantom<typeof _plus, Plus>} */
 export const plus = _plus

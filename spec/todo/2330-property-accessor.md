@@ -8,8 +8,8 @@ const a = { b: 45, c: [3] }
 const c0 = a.b
 // Only string literals allowed (excluding prohibited names). instance_property(a, "c")
 const c1 = a["c"]
-// at(c1, +0)
-const c2 = c1[+0] // [+...] is required when index type is unknown at compile time
+// at(c1, Number(0))
+const c2 = c1[Number(0)] // Number(...) is required when index type is unknown at compile time
 // own_property(a, c2)
 const c3 = Object.getOwnPropertyDescriptor(a, c2)?.value
 ```
@@ -147,7 +147,7 @@ const c4 = a.b(c)
 // instance_method_call(a, "b", c)
 const c5 = a["b"](c)
 // at_call(a, b, c)
-const c6 = a[+b](c)
+const c6 = a[Number(b)](c)
 ```
 
 Instance method call is different from property access in JS because of `this` considerations.
