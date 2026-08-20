@@ -28,6 +28,7 @@ import {
     or,
     string,
     array as rttiArray,
+    option,
 } from "../types/rtti/module.f.mjs";
 
 /**
@@ -54,6 +55,7 @@ import {
  *  typeof propertyAccessor,
  *  typeof call,
  *  typeof propertyCall,
+ *  typeof plus,
  * ]}
  */
 export const exp = () => (['or',
@@ -66,6 +68,7 @@ export const exp = () => (['or',
     propertyAccessor,
     call,
     propertyCall,
+    plus,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */

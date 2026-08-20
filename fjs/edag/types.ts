@@ -19,6 +19,7 @@ export type Exp =
     | PropertyAccessor
     | Call
     | PropertyCall
+    | Plus
 
 // undefinedOp
 
