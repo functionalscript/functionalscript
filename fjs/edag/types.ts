@@ -3,9 +3,9 @@
  * node kind (`Primitive`, `Array`, `Object`, `Args`, `NumberCast`,
  * `PropertyAccessor`, `Call`, `PropertyCall`), each pinned against its rtti
  * schema in the sibling module with `Assert<Check<..., typeof ...>>`.
+ *
+ * @module
  */
-
-export type { Check } from "../types/rtti/ts/types.ts"
 
 // exp
 
@@ -96,3 +96,7 @@ export type Neg = readonly['-', Exp]
 // Comma
 
 export type Comma = readonly[',', Exps]
+
+// Fn
+
+export type Fn = readonly['=>', Exp, Exp]

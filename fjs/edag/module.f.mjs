@@ -2,8 +2,8 @@
  * @module
  *
  * @import { Assert } from '../asserts/types.ts'
+ * @import { Check, Check3 } from '../types/rtti/ts/types.ts'
  * @import {
- *  Check,
  *  Args,
  *  Array,
  *  Call,
@@ -20,7 +20,8 @@
  *  Sub,
  *  Neg,
  *  Own,
- Comma,
+ *  Comma,
+ *  Fn
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -161,8 +162,7 @@ const _numberCast = /** @type {const} */(['Number', exp])
 export const numberCast = _numberCast
 
 /**
- * @typedef {Assert<Check<NumberCast, typeof _numberCast>>} _NumberCast0
- * @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast1
+ * @typedef {Assert<Check3<NumberCast, typeof _numberCast, typeof numberCast>>} _NumberCast
  */
 
 // String
@@ -179,8 +179,7 @@ const _stringCast = /** @type {const} */(['String', exp])
 export const stringCast = _stringCast
 
 /**
- * @typedef {Assert<Check<StringCast, typeof _stringCast>>} _StringCast0
- * @typedef {Assert<Check<StringCast, typeof stringCast>>} _StringCast1
+ * @typedef {Assert<Check3<StringCast, typeof _stringCast, typeof stringCast>>} _StringCast
  */
 
 // Index
@@ -209,8 +208,7 @@ const _propertyAccessor = /** @type {const} */(['.', exp, index])
 export const propertyAccessor = _propertyAccessor
 
 /**
- * @typedef {Assert<Check<PropertyAccessor, typeof _propertyAccessor>>} _PropertyAccessor0
- * @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor1
+ * @typedef {Assert<Check3<PropertyAccessor, typeof _propertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
  */
 
 // Call
@@ -227,8 +225,7 @@ const _call = /** @type {const} */(['()', exp, exp])
 export const call = _call
 
 /**
- * @typedef {Assert<Check<Call, typeof _call>>} _Call0
- * @typedef {Assert<Check<Call, typeof call>>} _Call1
+ * @typedef {Assert<Check3<Call, typeof _call, typeof call>>} _Call
  */
 
 // Property Call
@@ -245,8 +242,7 @@ const _propertyCall = /** @type {const} */(['.()', exp, index, exp])
 export const propertyCall = _propertyCall
 
 /**
- * @typedef {Assert<Check<PropertyCall, typeof _propertyCall>>} _PropertyCall0
- * @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall1
+ * @typedef {Assert<Check3<PropertyCall, typeof _propertyCall, typeof propertyCall>>} _PropertyCall
  */
 
 // own, `const own = (a, b) => Object.getOwnPropertyDescriptor(a, k)?.value`
@@ -257,8 +253,7 @@ const _own = /** @type {const} */(['own', exp, exp])
 export const own = _own
 
 /**
- * @typedef {Assert<Check<Own, typeof _own>>} _Own0
- * @typedef {Assert<Check<Own, typeof own>>} _Own1
+ * @typedef {Assert<Check3<Own, typeof _own, typeof own>>} _Own
  */
 
 // Binary +
@@ -269,8 +264,7 @@ const _add = /** @type {const} */(['+', exp, exp])
 export const add = _add
 
 /**
- * @typedef {Assert<Check<Add, typeof _add>>} _Add0
- * @typedef {Assert<Check<Add, typeof add>>} _Add1
+ * @typedef {Assert<Check3<Add, typeof _add, typeof add>>} _Add
  */
 
 // Binary -
@@ -281,8 +275,7 @@ const _sub = /** @type {const} */(['-', exp, exp])
 export const sub = _sub
 
 /**
- * @typedef {Assert<Check<Sub, typeof _sub>>} _Sub0
- * @typedef {Assert<Check<Sub, typeof sub>>} _Sub1
+ * @typedef {Assert<Check3<Sub, typeof _sub, typeof sub>>} _Sub
  */
 
 // Negation (aka a unary minus) — tagged `"-"`, same as `sub`; arity
@@ -294,8 +287,7 @@ const _neg = /** @type {const} */(['-', exp])
 export const neg = _neg
 
 /**
- * @typedef {Assert<Check<Neg, typeof _neg>>} _Neg0
- * @typedef {Assert<Check<Neg, typeof neg>>} _Neg1
+ * @typedef {Assert<Check3<Neg, typeof _neg, typeof neg>>} _Neg
  */
 
 // Comma
@@ -306,6 +298,16 @@ const _comma = /** @type {const} */([',', exps])
 export const comma = _comma
 
 /**
- * @typedef {Assert<Check<Comma, typeof _comma>>} _Comma0
- * @typedef {Assert<Check<Comma, typeof comma>>} _Comma1
+ * @typedef {Assert<Check3<Comma, typeof _comma, typeof comma>>} _Comma
+ */
+
+// Function
+
+const _fn = /** @type {const} */(['=>', exp, exp])
+
+/** @type {Phantom<typeof _fn, Fn>} */
+export const fn = _fn
+
+/**
+ * @typedef {Assert<Check3<Fn, typeof _fn, typeof fn>>} _Fn
  */
