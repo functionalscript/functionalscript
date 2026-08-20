@@ -5,8 +5,8 @@
 
 ### Problem
 
-Every `cas_get` result carries the blob's absolute path on the server's
-filesystem. `../cas/module.f.mjs:222` computes it unconditionally
+A `cas_get` that finds a blob carries that blob's absolute path on the
+server's filesystem. `../cas/module.f.mjs:222` computes it before the read
 
 ```js
 const uri = c.url(key)
@@ -24,9 +24,20 @@ uri = /Users/<username>/.cas/g0/00/00000000000000000000000000000000000938nkrj2nw
 ```
 
 So the field is not a URI in the `scheme:` sense at all — it is a host path, and
-it names the account the server runs under. Every client that calls `cas_get`
-once learns the server's home directory, its username, and the store layout,
-whether or not it can reach that path.
+it names the account the server runs under.
+
+**Precisely which calls emit it**, since the priority rests on this: a
+successful lookup does, in both content shapes (`:231`, `:271`), and so does the
+oversized-blob refusal (`:257`). The two failure paths do **not** — an invalid
+cBase32 hash is rejected at `:219-220` before `uri` is computed, and a well-formed
+hash with no blob behind it answers `no such hash` at `:226-227`. So a client learns
+the path by naming a hash that exists, not by calling the tool at all.
+
+That narrows the wording and not the exposure: `cas_list` answers *"All stored
+content hashes (cBase32), one per line"* (`../cas/module.f.mjs:295-303`) to any
+client that can call `cas_get`, and `cas_add` returns the hash of whatever the
+client just stored. A caller who wants the path is one call away from a hash
+that produces it, and needs no prior knowledge of the store. **P2 stands.**
 
 This is deliberate, which is why it wants a decision rather than a fix.
 `README.md`'s store-location section states it outright — "the `uri` field
@@ -102,7 +113,12 @@ Pick one; each is a different answer to "what is `uri` *for*".
    know the root cannot use it, so the shortcut is preserved only for clients
    for whom the disclosure was harmless anyway.
 3. **Resolver-supplied, absent by default.** The server is constructed with an
-   optional `toUrl` resolver and omits `uri` when there is none. **This is a
+   optional `toUrl` resolver and omits `uri` when there is none. **Absent is the
+   default, and that is the whole contract** — an earlier draft of this file also
+   said option 3 "subsumes option 1 as its default-resolver choice", which is
+   the opposite default and cannot hold at the same time. Option 1's
+   `cas:<hash>` is *expressible* under option 3, as one resolver a server may
+   choose to install; it is not what option 3 does when nobody installs one. **This is a
    restoration, and it is worth knowing which kind.** `toUrl` shipped in
    [#1102](https://github.com/functionalscript/functionalscript/pull/1102) and
    `deb4f122`
@@ -123,8 +139,15 @@ Pick one; each is a different answer to "what is `uri` *for*".
    absolute path available to the local case that wants it while removing it
    from the default.
 
-Option 3 subsumes option 1 as its default-resolver choice, and is the one
-[remote-url.md](./remote-url.md) already points at from the other direction.
+The three are genuinely alternatives, not a ladder: option 1 makes `uri`
+always present and never a host path, option 3 makes it absent unless a server
+opts in. Option 3 is the one [remote-url.md](./remote-url.md) points at from the
+other direction, and it is the only one that keeps the absolute path reachable
+for a local caller that wants it — but it is also the only one that leaves
+`uri` optional, which is a cost for
+[cas-get-mcp-resource-response.md](./cas-get-mcp-resource-response.md). The
+choice is the maintainer's; this issue's job is to make it an informed one.
+
 Whatever is chosen, `README.md`'s two statements about `uri` have to end up
 agreeing with the code — today they contradict each other.
 
