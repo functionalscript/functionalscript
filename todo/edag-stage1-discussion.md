@@ -209,6 +209,7 @@ DJS rollout in
 |`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|2|method call; keeps `this` binding; same `property` restriction|
 |`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|later|own property by a computed **string**; no prototype chain|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
+|`["String", node]`|`String(x)`|later|string coercion|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
 |`["=>", frame, body]`|`(…) => …`|2|function; initial Stage 2 accepts only an empty frame, captured frames come later|
 
