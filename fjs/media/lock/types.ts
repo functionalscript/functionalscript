@@ -2,8 +2,7 @@
  * Type-level API for `fjs/media/lock/module.f.mjs`: `Lock` and `LockError`.
  *
  * The map type itself is not restated here — it is `fjs/media/revision`'s
- * `LockMap`, re-exported so a consumer of the shared form needs only one
- * import, and so nothing can define a second, drifting spelling of it.
+ * `LockMap`; import it from there directly rather than through this module.
  */
 
 import type { ValidationError } from '../../types/rtti/common/types.ts'
