@@ -38,7 +38,7 @@ One important detail regarding run-time access to instance properties, methods i
 `obj[<expression>]` syntax when <expression> can evaluate to a string. On one hand,
 in JS that syntax enables possibilities to abuse; on another hand, it's a regular
 syntax for array indexing, legit in FS. Our current approach is to force FS users to
-add '+' in front of <expression> in cases when <expression> type is not known at
+wrap `<expression>` in `Number(...)` in cases when `<expression>` type is not known at
 compile time.
 
 ```js
@@ -146,7 +146,7 @@ Syntax examples:
 const c4 = a.b(c)
 // instance_method_call(a, "b", c)
 const c5 = a["b"](c)
-// at_call(a, b, c)
+// at_call(a, Number(b), c)
 const c6 = a[Number(b)](c)
 ```
 
