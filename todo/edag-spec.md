@@ -102,7 +102,9 @@ standard JSON numeric policy remains separate in
 
 ### Tasks
 
-- [ ] Create `fjs/edag/` as the canonical FunctionalScript EDAG module.
+- [x] Create `fjs/edag/` as the canonical FunctionalScript EDAG module.
+      Its stage 1 node types and `validate` are in place; the stage 2 forms
+      and the RTTI schema below are still open.
 - [ ] Keep the `EDAG`/operation types, canonical operation definitions, RTTI
       schema, and EDAG-only validation in `fjs/edag/`; do not duplicate those
       definitions under `fjs/djs/` or another consumer.

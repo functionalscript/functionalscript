@@ -401,7 +401,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 #### Stage 1
 
-- [ ] Introduce `['.', object, property]` into EDAG and its validation/type schema,
+- [x] Introduce `['.', object, property]` into EDAG and its validation/type schema,
       enforcing the canonical property-operand restriction: permitted string constants,
       number constants, and only later the approved unary numeric-conversion forms when
       those operations exist.
@@ -412,10 +412,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       the EDAG schema.
 - [ ] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
       and make import parameter positions correspond to its indices.
-- [ ] Restrict initial `[':', key, value]` object-constructor validation to
+- [x] Restrict initial `[':', key, value]` object-constructor validation to
       string-constant keys; defer arbitrary computed constructor keys until their
       coercion/failure semantics are defined.
-- [ ] Treat object-entry descriptor arrays as structural/non-shareable containers;
+- [x] Treat object-entry descriptor arrays as structural/non-shareable containers;
       reject descriptor identity reuse while retaining normal sharing of their key and
       value EDAG nodes.
 - [ ] Change the DJS parser/AST object representation to retain an ordered entry list
@@ -535,6 +535,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`associate-edag-with-functions.md`](./associate-edag-with-functions.md) —
   low-priority note on compiling an EDAG to an executable function while retaining
   the EDAG through `edagAdd` / `edagGet` Effects.
+- [`../../edag/README.md`](../../edag/README.md) — the canonical EDAG module:
+  stage 1 node types, the property-operand restriction, and `validate`.
 - [`todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md) — EDAG
   semantics and structural operations.
 - [`todo/edag-spec.md`](../../../todo/edag-spec.md) — future complete canonical EDAG
