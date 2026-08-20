@@ -63,11 +63,12 @@ emits `Any::unary_plus(...)` when generating `nanvm-lib/tests/test/generated.rs`
   `ToNumeric` then, for a `BigInt`, `BigInt::toNumber` (lossy double conversion) instead of
   an error. This needs a real `BigInt<A> → f64` conversion that doesn't exist anywhere in
   `nanvm-lib/src/vm/bigint/` today.
-- **Do not touch `NumberCoercion`/`to_number()`.** Its doc comment already says it is used
-  "for internals in places where ECMAScript's abstract function `ToNumber` is needed" —
-  that's the correct algorithm for arithmetic/comparison operators, which legitimately
-  reject `BigInt` mixing the same way JS does. The two coercions differ only in their
-  `BigInt` arm; keep both, under names that say which is which.
+- **Do not touch `NumberCoercion`/`to_number()`.** `Any::unary_plus`'s own doc comment
+  (`any/mod.rs:44-45`) already says `to_number` is used "for internals in places where
+  ECMAScript's abstract function `ToNumber` is needed" — that's the correct algorithm for
+  arithmetic/comparison operators, which legitimately reject `BigInt` mixing the same way
+  JS does. The two coercions differ only in their `BigInt` arm; keep both, under names
+  that say which is which.
 - In `fjs/nanvm/types.ts`, replace `'unaryPlus'` in the `Op` union with a coercion-named
   member — `'numberCoercion'`, matching the existing `'stringCoercion'` precedent, not an
   operator-shaped name.
