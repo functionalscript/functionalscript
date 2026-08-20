@@ -307,12 +307,16 @@ export const comma = _comma
 // Function
 
 /**
- * Stage 2 accepts only the empty frame — `['[]']`, not the `array` node
- * `['[]', []]` — since it doesn't implement frames/captures yet; the
- * operand exists so later frame support doesn't require changing `=>`'s
- * shape. See `../../djs/todo/compile-modules-to-edag.md`.
+ * Same shape as `array` — a frame's contents are captured bindings, and an
+ * empty one is spelled the same way an empty array node is, `['[]', []]`.
+ * A distinct type from `Array` even so, so that later frame/capture support
+ * can diverge from `array`'s shape without changing `=>`'s own shape.
+ * Stage 2 doesn't implement frames/captures yet, so the compiler only ever
+ * emits the empty form — validation doesn't enforce that here, same as
+ * every other exact-arity gap tracked by `../types/rtti/todo/close-type.md`.
+ * See `../../djs/todo/compile-modules-to-edag.md`.
  */
-const _frame = /** @type {const} */(['[]'])
+const _frame = /** @type {const} */(['[]', exps])
 
 /** @type {Phantom<typeof _frame, Frame>} */
 export const frame = _frame

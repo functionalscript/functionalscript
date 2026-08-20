@@ -220,29 +220,34 @@ export const proof = {
     },
     fn: {
         ok: () => {
-            assertOk(v(['=>', ['[]'], 1]))
-            assertOk(v(['=>', ['[]'], ['=>', ['[]'], 1]])) // an exp nested inside the body
+            assertOk(v(['=>', ['[]', []], 1]))
+            assertOk(v(['=>', ['[]', []], ['=>', ['[]', []], 1]])) // an exp nested inside the body
         },
         // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp`/`Frame` — see `undefinedOp`. True whether one or both are
-        // missing.
+        // `exp`/`Frame` — see `undefinedOp`. True of the body, and of the
+        // frame's own elements position (`isArray(undefined)` is false, so
+        // that's a structural mismatch rather than a missing-`exp` one, but
+        // still an error either way).
         missingTailIsError: () => {
+            assertNoMatch(v(['=>', ['[]', []]]))
             assertNoMatch(v(['=>', ['[]']]))
             assertNoMatch(v(['=>']))
         },
-        extraTailIsIgnored: () => assertOk(v(['=>', ['[]'], 1, 'extra'])),
+        extraTailIsIgnored: () => assertOk(v(['=>', ['[]', []], 1, 'extra'])),
         error: () => {
-            assertNoMatch(v(['=>z', ['[]'], 1]))
-            // The frame must be tagged `'[]'` — a wrong tag never matches,
-            // unlike the open-trailing-content case below.
-            assertNoMatch(v(['=>', ['x'], 1]))
+            assertNoMatch(v(['=>z', ['[]', []], 1]))
+            // The frame must be tagged `'[]'` — a wrong tag is a real
+            // error, unlike the non-empty-elements case below.
+            assertNoMatch(v(['=>', ['x', []], 1]))
         },
-        // `frame`'s schema (`['[]']`) is a one-entry tuple, so — same
-        // "trailing positions are open" rule as every other node here —
-        // content after the tag is never visited and can't reject. Not a
+        // `frame` has the same shape as `array`, and array length isn't a
+        // constraint this rtti system can express (same gap
+        // `../types/rtti/todo/close-type.md` tracks for exact arity, one
+        // level down) — so a non-empty frame validates structurally even
+        // though Stage 2's compiler only ever emits the empty one. Not a
         // gap specific to `frame`; pinning it so a future reader doesn't
         // mistake it for one.
-        nonEmptyFrameContentIsIgnored: () => assertOk(v(['=>', ['[]', 'ignored'], 1])),
+        nonEmptyFrameIsAccepted: () => assertOk(v(['=>', ['[]', [1, 2]], 1])),
     },
     // `f(args)[k](obj.a)` in AST form — exercises the mutual recursion through
     // `exp` rather than any one node kind in isolation.

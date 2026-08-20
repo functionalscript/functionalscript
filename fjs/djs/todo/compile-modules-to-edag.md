@@ -187,7 +187,7 @@ array described above. A nested `['=>', frame, body]` introduces a new function 
 where `['args']` means that function invocation's arguments instead. Module linking must
 therefore never descend into a nested function `body` while substituting module import
 parameters. The `frame` operand belongs to the enclosing scope and may be traversed
-there; Stage 2 restricts it to the empty `['[]']` form anyway. Import reachability checks
+there; Stage 2 restricts it to the empty `['[]', []]` form anyway. Import reachability checks
 must use the same scope boundary so function-local `['args']` nodes cannot be mistaken
 for module import parameters.
 
@@ -229,7 +229,7 @@ For the initial canonical form, a function is therefore represented with an empt
 for example:
 
 ```js
-['=>', ['[]'], body]
+['=>', ['[]', []], body]
 ```
 
 Then introduce the initial non-capturing arrow-function form into the parser:
@@ -278,7 +278,7 @@ The staged work builds on the basic structural forms already being defined for E
 - the argument array: `['args']`;
 - Stage 1 property access: `['.', object, property]`, with the restricted property
   operands described above;
-- Stage 2 non-capturing functions: `['=>', ['[]'], body]`;
+- Stage 2 non-capturing functions: `['=>', ['[]', []], body]`;
 - Stage 2 calls: `['()', object, args]` and
   `['.()', object, property, args]`, with `.()` using the same property restriction as
   `.`;
@@ -453,7 +453,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 #### Stage 2
 
 - [ ] Introduce `['=>', frame, body]` into EDAG and its validation/type schema, with
-      Stage 2 restricted to the canonical empty frame `['[]']`.
+      Stage 2 restricted to the canonical empty frame `['[]', []]`.
 - [ ] Do **not** introduce `['frame']` or captured-variable access in Stage 2.
 - [ ] Introduce parser support for the initial non-capturing `(...a) => exp` function
       form; reject functions that require captures.
