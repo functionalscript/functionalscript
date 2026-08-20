@@ -19,7 +19,7 @@
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Response, Id, RpcError } from '../json_rpc/types.ts'
  * @import { Type } from '../../types/rtti/types.ts'
- * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig } from './types.ts'
+ * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig, ProtocolVersions } from './types.ts'
  */
 
 import { boolean, string, option, array, record, or } from '../../types/rtti/module.f.mjs'
@@ -233,6 +233,20 @@ const _noParams = option(record(unknown))
 export const uninitializedState = ['uninitialized']
 
 /**
+ * Version negotiation: the revision to answer an `initialize` with. The
+ * requested one when this server speaks it, the latest one it does speak
+ * otherwise — a counter-proposal, not an error, because the
+ * [lifecycle spec](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation)
+ * leaves the decision to the client (`SHOULD disconnect`). `supported` is
+ * non-empty by type, so there is always something to propose.
+ * @type {(supported: ProtocolVersions, requested: string) => string}
+ */
+const _negotiateVersion = (supported, requested) => {
+    const [latest] = supported
+    return supported.includes(requested) ? requested : latest
+}
+
+/**
  * State-machine step for an MCP session using memory effects.
  *
  * Given configuration, handlers, and a memory key holding the session state,
@@ -242,7 +256,12 @@ export const uninitializedState = ['uninitialized']
  * - `ping` returns an empty success regardless of session state; non-object
  *   params → -32602.
  * - `initialize` is accepted only while uninitialized; a second call returns -32600.
- *   On success the state moves to `initializing`, not `initialized`.
+ *   On success the state moves to `initializing`, not `initialized`. The answered
+ *   `protocolVersion` is negotiated against `config.protocolVersions`: the client's
+ *   requested revision when the server supports it, the latest supported one
+ *   otherwise. A counter-proposal is a success frame like any other — the client,
+ *   not the server, decides whether the answer is usable — so the state moves the
+ *   same way in both cases.
  * - `notifications/initialized` (no `id`) transitions `initializing` → `initialized`;
  *   a malformed one (non-object params) is ignored and the session stays gated;
  *   other notifications are silently ignored in any state.
@@ -256,7 +275,7 @@ export const uninitializedState = ['uninitialized']
  * @returns {<O extends Operation>(handlers: McpHandlers<O>) => (stateKey: Key<McpSessionState>) => (value: Unknown) => Effect<MemOp | O, Response | null, never>}
  */
 export const mcpStep = ({
-        protocolVersion,
+        protocolVersions,
         capabilities,
         serverInfo,
     }) =>
@@ -315,13 +334,13 @@ export const mcpStep = ({
                     if (r[1][0] !== 'uninitialized') {
                         return pureOk(_errResponse(id)(invalidRequest))
                     }
-                    const [pr] = parse(initializeParams)(params)
+                    const [pr, pv] = parse(initializeParams)(params)
                     if (pr === 'error') {
                         return pureOk(_errResponse(id)(invalidParams))
                     }
                     /** @type {InitializeResult} */
                     const result = {
-                        protocolVersion,
+                        protocolVersion: _negotiateVersion(protocolVersions, pv.protocolVersion),
                         capabilities,
                         serverInfo,
                     }
