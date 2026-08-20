@@ -22,7 +22,7 @@ to write a first batch, read the answer to it, then write a second batch before
 the child exits has no operation to reach for — `exec` has already committed
 its whole input and will not answer until the process is gone. There is no
 handle, no incremental read or write, no close-stdin and no wait anywhere in
-`./types.ts`; `Fs` is `Mkdir | ReadFile | ReadBytes | Readdir | WriteFile | Rm |
+`../types.ts`; `Fs` is `Mkdir | ReadFile | ReadBytes | Readdir | WriteFile | Rm |
 Rename | Exec | Access | CreateExclusive | WriteBytes | Stat`.
 
 That shape is what a *protocol* over a child process needs, and this repo ships
@@ -52,7 +52,8 @@ export type ChildWrite = readonly['childWrite', (child: Child, data: Vec) => IoR
 export type ChildRead = readonly['childRead', (child: Child, stream: ChildStreams) => IoResult<Vec | null>]
 export type ChildStreams = 'stdout' | 'stderr'
 export type ChildEnd = readonly['childEnd', (child: Child) => IoResult<void>]
-export type ChildWait = readonly['childWait', (child: Child) => IoResult<number>]
+export type ChildWait = readonly['childWait', (child: Child) => IoResult<ExitStatus>]
+export type ExitStatus = readonly['exited', number] | readonly['signaled', string]
 ```
 
 Notes on the shape:
@@ -64,25 +65,44 @@ Notes on the shape:
 - **`Vec` in and out, not `string`.** `Read`/`Write` (the console pair) are
   byte-granular and encoding-agnostic for the same reason: framing is pure code,
   not the interpreter's business. Chunks are bounded like `readBytes`/
-  `writeBytes` — ≤128 KiB, the Bun `bigint` limit — and `childWrite` writes the
-  whole vector or fails, the runner looping over short writes.
+  `writeBytes` — ≤128 KiB, the Bun `bigint` limit.
+- **`childWrite` submits its vector once and never resubmits it.** Node's
+  `Writable.write()` returning `false` is not a short write — the whole chunk
+  has already been accepted into the stream's buffer, and `false` means only
+  "do not write again until `'drain'`". A runner that looped "over short
+  writes" would resend bytes the child already holds, which over a framed
+  protocol duplicates frames. This module settled it once already:
+  `../module.mjs:156-175`'s `writeAll` says *"the data is already buffered at
+  that point (no retry needed) but the caller must not issue more writes until
+  the `'drain'` event fires"*, and issues exactly one `write`. `childWrite` is
+  the same, plus the two failures a child's stdin has and the console does not:
+  a stream `'error'`, and a pipe closed by an exited child (`EPIPE`) — both
+  answer `IoError` rather than ok.
 - **`null` is EOF**, matching `Read`'s `number | null`.
 - **`childRead` names the stream** rather than shipping two operations; `exec`'s
   callers want `stderr` separately and so will these.
 - **`argv`, not a shell string.** A `cmd`/`args` split has no shell to quote for.
   That is a side benefit, not the reason for the issue.
-- **`childWait` answers the exit code**, in the `ok` branch — an exit code is not
-  an IO failure, and a caller that treats non-zero as fatal has `Program`'s
-  `error(n)` convention to convert into.
+- **`childWait` answers an exit *status*, not a number.** Node reports
+  `('exit', code, signal)` with `code === null` whenever the child was
+  terminated by a signal — `SIGTERM` from a supervisor, or one it sent itself.
+  `IoResult<number>` cannot represent that outcome, so a runner would have to
+  invent a code (`128 + n` is a shell convention, not a Node one, and not
+  portable) or misreport an ordinary termination as an IO failure. `ExitStatus`
+  is a tagged pair in this module's own idiom — `IoError` is
+  `readonly['ioError', IoErrorInfo]` (`../types.ts:31`). Both tags live in the
+  `ok` branch: a child that exited non-zero or was killed still ran, which is
+  all the operation promised. A caller that treats either as fatal has
+  `Program`'s `error(n)` convention to convert into.
 
-The virtual runner (`./virtual/`) does not implement this family, for the same
+The virtual runner (`../virtual/`) does not implement this family, for the same
 reason it does not implement `exec`, `createServer`, `listen`, `forever` or
 `test`: there is no in-memory meaning for a real child process. Its module
 documentation lists what it leaves out and gains these names.
 
 Open for review before code:
 
-- Whether `childWait` should also be the only way to observe the exit code, or
+- Whether `childWait` should be the only way to observe the exit status, or
   whether `childRead` returning `null` on both streams plus a `wait` is one
   operation too many.
 - Whether `spawn` should take the initial `cwd`/`env` at all, given no other
@@ -91,22 +111,24 @@ Open for review before code:
 ### Tasks
 
 - [ ] Settle the signatures above.
-- [ ] `./types.ts`: the five operations, `Child`, `SpawnOptions`; add them to
-      `NodeOp`.
-- [ ] `./module.f.mjs`: `do_` constructors and the `nodeCommandSet` keys.
-- [ ] `./module.mjs`: the runner over `node:child_process.spawn`, with the
-      handle table and backpressure.
-- [ ] A runner test in the shape of `./memory/proof.mjs` — spawn `node -e`,
-      round-trip two batches, close, wait.
-- [ ] `./virtual/module.f.mjs`: extend the not-implemented list in its docs.
+- [ ] `../types.ts`: the five operations, `Child`, `SpawnOptions`, `ExitStatus`;
+      add them to `NodeOp`.
+- [ ] `../module.f.mjs`: `do_` constructors and the `nodeCommandSet` keys.
+- [ ] `../module.mjs`: the runner over `node:child_process.spawn`, with the
+      handle table, `writeAll`-style backpressure, and the `('exit', code,
+      signal)` mapping onto `ExitStatus`.
+- [ ] A runner test in the shape of `../memory/proof.mjs` — spawn `node -e`,
+      round-trip two batches, close, wait; and one that kills the child, so the
+      `signaled` branch is exercised rather than assumed.
+- [ ] `../virtual/module.f.mjs`: extend the not-implemented list in its docs.
 - [ ] `npx tsc`, `npm test`, `npm run cov`.
 
 ### Related
 
-- `./types.ts` — `Exec`, and `Server`/`CreateServer`/`Listen`, the handle
+- `../types.ts` — `Exec`, and `Server`/`CreateServer`/`Listen`, the handle
   precedent.
-- `./module.mjs:296` — the `exec` runner, the closest existing implementation.
-- `../../protocol/mcp/stdio/` — the framing a spawned MCP server speaks; the
+- `../module.mjs:296` — the `exec` runner, the closest existing implementation.
+- `../../../protocol/mcp/stdio/` — the framing a spawned MCP server speaks; the
   first caller.
 - [requestlistener-stateful](./requestlistener-stateful.md) — the other place a
   long-lived host object needs state threaded through effects.
