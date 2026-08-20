@@ -54,7 +54,8 @@ same EDAG forms: Stage 1 adds `.` property access; Stage 2 adds non-capturing `=
 and `.()`.
 
 Stage 2 deliberately has **no frame support**. `['=>', frame, body]` is accepted only
-with the canonical empty frame `['[]']`; `['frame']` is not part of the Stage 2
+with `frame` as the placeholder `null` (`fjs/edag/module.f.mjs`'s `frame`, expected to
+become an `Exp` once frame/capture design lands); `['frame']` is not part of the Stage 2
 interpreter subset. Captured closures are deferred to later work.
 
 A function body is a separate EDAG scope. Validation before interpretation must reject
@@ -93,7 +94,7 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
       it through the host JavaScript engine.
 - [ ] Support Stage 1 `['.', object, property]` property access.
-- [ ] Support Stage 2 `['=>', ['[]'], body]`, `['()', object, args]`, and
+- [ ] Support Stage 2 `['=>', null, body]`, `['()', object, args]`, and
       `['.()', object, property, args]` when those operators land.
 - [ ] Do **not** implement `['frame']` or non-empty closure frames in Stage 2.
 - [ ] Memoize results by EDAG node identity within one evaluation context so shared

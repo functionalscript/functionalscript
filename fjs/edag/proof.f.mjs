@@ -1,6 +1,9 @@
 /**
  * Runtime behavior of the edag `exp` schema — one section per node kind, plus
  * a value nested through several kinds to exercise the mutual recursion.
+ * Exception: `comma` has no section yet — its shape (`[',', exps]`) is a
+ * known-incomplete placeholder pending a redesign that can express "at
+ * least one operand, last is the result", not a settled node to pin.
  *
  * @import { ValidationError } from '../types/rtti/common/types.ts'
  * @import { Unknown } from '../types/rtti/ts/types.ts'
@@ -8,7 +11,6 @@
  */
 
 import { validate } from '../types/rtti/validate/module.f.mjs'
-import { parse } from '../types/rtti/parse/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { exp } from './module.f.mjs'
 
@@ -31,9 +33,6 @@ const assertNoMatch = r => {
 
 /** @type {(value: Unknown) => readonly [string, unknown]} */
 const v = value => validate(exp)(value)
-
-/** @type {(value: Unknown) => readonly [string, unknown]} */
-const p = value => parse(exp)(value)
 
 export const proof = {
     primitive: {
@@ -199,33 +198,52 @@ export const proof = {
             assertOk(v(['-', 1, 2]))
             assertOk(v(['-', ['-', 1, 2], 3])) // an exp nested inside an operand
         },
+        // A missing operand reads as `undefined`, no longer a valid bare
+        // `exp` — see `undefinedOp`. `neg` is a distinct word tag (`"neg"`,
+        // not `"-"`), so this doesn't fall through to it — unlike `add`
+        // and `numberCast`, there's no other alternative tagged `"-"` at
+        // all, missing one or two operands is equally an error.
+        missingTailIsError: () => {
+            assertNoMatch(v(['-', 1]))
+            assertNoMatch(v(['-']))
+        },
         extraTailIsIgnored: () => assertOk(v(['-', 1, 2, 3])),
         error: () => assertNoMatch(v(['-z', 1, 2])),
-        // Unlike `add`, a missing second operand is *not* an error here:
-        // `sub` and `neg` share the `"-"` tag, and `or` tries `sub` (two
-        // operands) before falling through to `neg` (one) — see `neg`
-        // below and the ordering note on `exp` in module.f.mjs.
-        oneOperandFallsThroughToNeg: () => assertOk(v(['-', 1])),
-        // `validate` returns the input unchanged regardless of which `or`
-        // alternative matched, so it can't tell `sub` matching first from
-        // `neg` matching first (open-tailed, `neg` would also accept
-        // `['-', 1, 2]` and just ignore the second operand). `parse`
-        // rebuilds only the matched schema's own declared positions, so it
-        // is what actually distinguishes them: if `neg` were tried before
-        // `sub`, this would rebuild `['-', 1]`, silently dropping `2`.
-        binaryMatchesSubNotNeg: () => {
-            const [tag, r] = p(['-', 1, 2])
-            assertEq(tag, 'ok')
-            assertStructurallySame(r, ['-', 1, 2], 'expected sub, not neg, to match first')
-        },
     },
     neg: {
         ok: () => {
-            assertOk(v(['-', 1]))
-            assertOk(v(['-', ['-', 1]])) // an exp nested inside the operand
+            assertOk(v(['neg', 1]))
+            assertOk(v(['neg', ['neg', 1]])) // an exp nested inside the operand
         },
-        // With no operands at all, both `sub` and `neg` fail to match.
-        error: () => assertNoMatch(v(['-'])),
+        // A missing operand reads as `undefined`, no longer a valid bare
+        // `exp` — see `undefinedOp`.
+        missingTailIsError: () => assertNoMatch(v(['neg'])),
+        extraTailIsIgnored: () => assertOk(v(['neg', 1, 'extra'])),
+        error: () => assertNoMatch(v(['negz', 1])),
+    },
+    fn: {
+        ok: () => {
+            assertOk(v(['=>', null, 1]))
+            assertOk(v(['=>', null, ['=>', null, 1]])) // an exp nested inside the body
+        },
+        // A missing operand reads as `undefined`, no longer a valid bare
+        // `exp` — see `undefinedOp`. True of the body. The frame position
+        // is a placeholder (`null`, see `frame` in module.f.mjs) checked by
+        // exact equality (`Object.is`), so `undefined` fails it too, same
+        // conclusion by a different rule.
+        missingTailIsError: () => {
+            assertNoMatch(v(['=>', null]))
+            assertNoMatch(v(['=>']))
+        },
+        extraTailIsIgnored: () => assertOk(v(['=>', null, 1, 'extra'])),
+        error: () => {
+            assertNoMatch(v(['=>z', null, 1]))
+            // Unlike the array-shaped frame this replaced, exact equality
+            // means anything but `null` is rejected outright — no
+            // open-tail-style looseness to pin here.
+            assertNoMatch(v(['=>', 0, 1]))
+            assertNoMatch(v(['=>', ['[]', []], 1]))
+        },
     },
     // `f(args)[k](obj.a)` in AST form — exercises the mutual recursion through
     // `exp` rather than any one node kind in isolation.

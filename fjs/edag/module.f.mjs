@@ -2,8 +2,8 @@
  * @module
  *
  * @import { Assert } from '../asserts/types.ts'
+ * @import { Check, Check3 } from '../types/rtti/ts/types.ts'
  * @import {
- *  Check,
  *  Args,
  *  Array,
  *  Call,
@@ -20,6 +20,9 @@
  *  Sub,
  *  Neg,
  *  Own,
+ *  Comma,
+ *  Frame,
+ *  Fn
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -61,6 +64,8 @@ import {
  *  typeof add,
  *  typeof sub,
  *  typeof neg,
+ *  typeof comma,
+ *  typeof fn
  * ]}
  */
 export const exp = () => (['or',
@@ -76,13 +81,9 @@ export const exp = () => (['or',
     own,
     add,
     sub,
-    // `neg` must be tried after `sub`: both are tagged `"-"`, and a tuple's
-    // trailing positions are open (see the module doc comment above), so
-    // `neg`'s one-operand schema would also match `['-', a, b]` — silently
-    // dropping `b` — if it were checked first. `or` returns the first match
-    // (`../types/rtti/common/module.f.mjs`'s `orVisit`), so this order is
-    // load-bearing, not cosmetic.
     neg,
+    comma,
+    fn,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -99,6 +100,8 @@ export const primitive = or(undefinedOp, null, boolean, number, string, bigint)
 
 /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
 
+const exps = rttiArray(exp)
+
 // Array
 
 /**
@@ -106,7 +109,7 @@ export const primitive = or(undefinedOp, null, boolean, number, string, bigint)
  * [exp0, exp1]
  * ```
  */
-export const array = /** @type {const} */(['[]', rttiArray(exp)])
+export const array = /** @type {const} */(['[]', exps])
 
 /** @typedef {Assert<Check<Array, typeof array>>} _Array */
 
@@ -158,8 +161,7 @@ const _numberCast = /** @type {const} */(['Number', exp])
 export const numberCast = _numberCast
 
 /**
- * @typedef {Assert<Check<NumberCast, typeof _numberCast>>} _NumberCast0
- * @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast1
+ * @typedef {Assert<Check3<NumberCast, typeof _numberCast, typeof numberCast>>} _NumberCast
  */
 
 // String
@@ -176,8 +178,7 @@ const _stringCast = /** @type {const} */(['String', exp])
 export const stringCast = _stringCast
 
 /**
- * @typedef {Assert<Check<StringCast, typeof _stringCast>>} _StringCast0
- * @typedef {Assert<Check<StringCast, typeof stringCast>>} _StringCast1
+ * @typedef {Assert<Check3<StringCast, typeof _stringCast, typeof stringCast>>} _StringCast
  */
 
 // Index
@@ -206,8 +207,7 @@ const _propertyAccessor = /** @type {const} */(['.', exp, index])
 export const propertyAccessor = _propertyAccessor
 
 /**
- * @typedef {Assert<Check<PropertyAccessor, typeof _propertyAccessor>>} _PropertyAccessor0
- * @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor1
+ * @typedef {Assert<Check3<PropertyAccessor, typeof _propertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
  */
 
 // Call
@@ -224,8 +224,7 @@ const _call = /** @type {const} */(['()', exp, exp])
 export const call = _call
 
 /**
- * @typedef {Assert<Check<Call, typeof _call>>} _Call0
- * @typedef {Assert<Check<Call, typeof call>>} _Call1
+ * @typedef {Assert<Check3<Call, typeof _call, typeof call>>} _Call
  */
 
 // Property Call
@@ -242,8 +241,7 @@ const _propertyCall = /** @type {const} */(['.()', exp, index, exp])
 export const propertyCall = _propertyCall
 
 /**
- * @typedef {Assert<Check<PropertyCall, typeof _propertyCall>>} _PropertyCall0
- * @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall1
+ * @typedef {Assert<Check3<PropertyCall, typeof _propertyCall, typeof propertyCall>>} _PropertyCall
  */
 
 // own, `const own = (a, b) => Object.getOwnPropertyDescriptor(a, k)?.value`
@@ -254,8 +252,7 @@ const _own = /** @type {const} */(['own', exp, exp])
 export const own = _own
 
 /**
- * @typedef {Assert<Check<Own, typeof _own>>} _Own0
- * @typedef {Assert<Check<Own, typeof own>>} _Own1
+ * @typedef {Assert<Check3<Own, typeof _own, typeof own>>} _Own
  */
 
 // Binary +
@@ -266,8 +263,7 @@ const _add = /** @type {const} */(['+', exp, exp])
 export const add = _add
 
 /**
- * @typedef {Assert<Check<Add, typeof _add>>} _Add0
- * @typedef {Assert<Check<Add, typeof add>>} _Add1
+ * @typedef {Assert<Check3<Add, typeof _add, typeof add>>} _Add
  */
 
 // Binary -
@@ -278,19 +274,56 @@ const _sub = /** @type {const} */(['-', exp, exp])
 export const sub = _sub
 
 /**
- * @typedef {Assert<Check<Sub, typeof _sub>>} _Sub0
- * @typedef {Assert<Check<Sub, typeof sub>>} _Sub1
+ * @typedef {Assert<Check3<Sub, typeof _sub, typeof sub>>} _Sub
  */
 
-// Negation (aka a unary minus) — tagged `"-"`, same as `sub`; arity
-// distinguishes them (see the ordering note on `exp` above)
+// Negation (aka a unary minus) — a word tag, `"neg"`, not `"-"`'s unary
+// arity (an earlier draft overloaded `"-"` the way JS itself does; see
+// `../../todo/edag-stage1-discussion.md`'s "Operators" section for why that
+// was dropped). `sub` and `neg` therefore don't share a tag, so — unlike a
+// shared-tag pair would — neither's position in `exp`'s `or` list matters
+// relative to the other.
 
-const _neg = /** @type {const} */(['-', exp])
+const _neg = /** @type {const} */(['neg', exp])
 
 /** @type {Phantom<typeof _neg, Neg>} */
 export const neg = _neg
 
 /**
- * @typedef {Assert<Check<Neg, typeof _neg>>} _Neg0
- * @typedef {Assert<Check<Neg, typeof neg>>} _Neg1
+ * @typedef {Assert<Check3<Neg, typeof _neg, typeof neg>>} _Neg
+ */
+
+// Comma
+
+const _comma = /** @type {const} */([',', exps])
+
+/** @type {Phantom<typeof _comma, Comma>} */
+export const comma = _comma
+
+/**
+ * @typedef {Assert<Check3<Comma, typeof _comma, typeof comma>>} _Comma
+ */
+
+// Function
+
+/**
+ * A placeholder, not yet a real operand: Stage 2 doesn't implement
+ * frames/captures, so `frame` is `null` for now. It is expected to become
+ * an `Exp` once frame/capture design lands — a bare value for one capture,
+ * an array node for several — decided by whatever constructs `Fn`, not by
+ * this shape. The operand is present in `=>`'s shape today so that switch
+ * doesn't require changing `=>` itself. See
+ * `../djs/todo/compile-modules-to-edag.md`.
+ */
+export const frame = null
+
+/** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */
+
+const _fn = /** @type {const} */(['=>', frame, exp])
+
+/** @type {Phantom<typeof _fn, Fn>} */
+export const fn = _fn
+
+/**
+ * @typedef {Assert<Check3<Fn, typeof _fn, typeof fn>>} _Fn
  */

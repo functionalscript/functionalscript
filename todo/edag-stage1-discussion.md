@@ -297,14 +297,20 @@ Symbol tags never collide with word tags, so both live in one namespace.
 
 ### Operators
 
-**Arity distinguishes unary from binary**: `["-", a]` is negation and
-`["-", a, b]` is subtraction — the same overloading JS itself uses, and
-unambiguous because no JS operator has two different meanings at the
-same arity.
+**Negation is a word tag, `"neg"`, not `"-"`'s unary arity.** An earlier
+draft of this document overloaded `"-"` by arity instead — `["-", a]`
+negation, `["-", a, b]` subtraction — the same overloading JS itself
+uses for its own `-`. The `fjs/edag` prototype decided against that: a
+tag shared between two `exp` alternatives at different arities makes a
+tuple-typed `or`'s alternative order load-bearing (trailing positions
+are open here, so the one-operand form would also match a two-operand
+value unless checked after it), and this avoids that constraint for no
+loss — `neg` simply joins `"args"`/`"own"` as a tag that doesn't reuse
+its JS spelling.
 
 |Symbols|Arity|JS|Lazy|Notes|
 |-------|-----|--|----|-----|
-|`-`|1|`-a`|no|negation; no unary `+` — [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
+|`neg`|1|`-a`|no|negation, tagged `"neg"` (see above), not `"-"`; no unary `+` — [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
 |`!` `~`|1|`!a`, `~a`|no|unary only|
 |`+` `-` `*` `/` `%` `**`|2|`a + b`|no|arithmetic|
 |`===` `!==` `<` `<=` `>` `>=`|2|`a === b`|no|`==` and `!=` are not allowed by [operators](../spec/todo/2340-operators.md)|
