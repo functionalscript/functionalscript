@@ -18,7 +18,8 @@
  *  UndefinedOp,
  *  Add,
  *  Sub,
- *  Neg
+ *  Neg,
+ Own
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -233,6 +234,18 @@ export const propertyCall = _propertyCall
 /**
  * @typedef {Assert<Check<PropertyCall, typeof _propertyCall>>} _PropertyCall0
  * @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall1
+ */
+
+// own
+
+const _own = /** @type {const} */(['own', exp, exp])
+
+/** @type {Phantom<typeof _own, Own>} */
+export const own = _own
+
+/**
+ * @typedef {Assert<Check<Own, typeof _own>>} _Own0
+ * @typedef {Assert<Check<Own, typeof own>>} _Own1
  */
 
 // Binary +

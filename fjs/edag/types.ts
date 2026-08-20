@@ -71,6 +71,10 @@ export type Call = readonly['()', Exp, Exp]
 
 export type PropertyCall = readonly['.()', Exp, Index, Exp]
 
+// own
+
+export type Own = readonly ['own', Exp, Exp]
+
 // Binary +
 
 export type Add = readonly['+', Exp, Exp]
