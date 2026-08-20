@@ -205,7 +205,7 @@ export const proof = {
         // `sub` and `neg` share the `"-"` tag, and `or` tries `sub` (two
         // operands) before falling through to `neg` (one) — see `neg`
         // below and the ordering note on `exp` in module.f.mjs.
-        oneOperandFallsThroughToNeg: () => assertOk(v(['-', 1])),
+        oneOperandFallsThroughToNeg: () => assertOk(v(['neg', 1])),
         // `validate` returns the input unchanged regardless of which `or`
         // alternative matched, so it can't tell `sub` matching first from
         // `neg` matching first (open-tailed, `neg` would also accept
@@ -221,8 +221,8 @@ export const proof = {
     },
     neg: {
         ok: () => {
-            assertOk(v(['-', 1]))
-            assertOk(v(['-', ['-', 1]])) // an exp nested inside the operand
+            assertOk(v(['neg', 1]))
+            assertOk(v(['neg', ['neg', 1]])) // an exp nested inside the operand
         },
         // With no operands at all, both `sub` and `neg` fail to match.
         error: () => assertNoMatch(v(['-'])),

@@ -3,8 +3,6 @@
  * node kind (`Primitive`, `Array`, `Object`, `Args`, `NumberCast`,
  * `PropertyAccessor`, `Call`, `PropertyCall`), each pinned against its rtti
  * schema in the sibling module with `Assert<Check<..., typeof ...>>`.
- *
- * @module
  */
 
 // exp
