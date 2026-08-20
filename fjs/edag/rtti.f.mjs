@@ -19,7 +19,7 @@ export const exp = () => /** @type {const} */(['or',
     array,
     object,
     args,
-    // propertyAccessor,
+    propertyAccessor,
 ])
 
 /** @typedef {Assert<Equal<Exp, Ts<typeof exp>>>} _0 */
