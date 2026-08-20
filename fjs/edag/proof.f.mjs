@@ -86,7 +86,7 @@ export const proof = {
         // itself a valid `Exp` (see `Primitive`) — so a short accessor still
         // validates. The mirror of `args`'s open trailing side, on the
         // missing side instead.
-        missingTailIsUndefined: () => assertOk(v(['.', 'a'])),
+        throw: () => assertOk(v(['.', 'a'])),
         error: () => {
             assertNoMatch(v(['x', 'a', 'b']))
             assertNoMatch(v(['.', {}, 'b']))
