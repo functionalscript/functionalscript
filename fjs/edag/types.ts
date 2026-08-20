@@ -10,6 +10,7 @@ export type Exp = Ts<typeof exp>
 type _Exp =
     | Primitive
     | Array
+    | Object
 type _ExpAssert = Assert<Equal<Exp, _Exp>>
 
 // primitive
