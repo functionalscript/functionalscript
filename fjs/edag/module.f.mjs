@@ -20,6 +20,7 @@
  *  Sub,
  *  Neg,
  *  Own,
+ Comma,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -99,6 +100,8 @@ export const primitive = or(undefinedOp, null, boolean, number, string, bigint)
 
 /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
 
+const exps = rttiArray(exp)
+
 // Array
 
 /**
@@ -106,7 +109,7 @@ export const primitive = or(undefinedOp, null, boolean, number, string, bigint)
  * [exp0, exp1]
  * ```
  */
-export const array = /** @type {const} */(['[]', rttiArray(exp)])
+export const array = /** @type {const} */(['[]', exps])
 
 /** @typedef {Assert<Check<Array, typeof array>>} _Array */
 
@@ -293,4 +296,16 @@ export const neg = _neg
 /**
  * @typedef {Assert<Check<Neg, typeof _neg>>} _Neg0
  * @typedef {Assert<Check<Neg, typeof neg>>} _Neg1
+ */
+
+// Comma
+
+const _comma = /** @type {const} */([',', exps])
+
+/** @type {Phantom<typeof _comma, Comma>} */
+export const comma = _comma
+
+/**
+ * @typedef {Assert<Check<Comma, typeof _comma>>} _Comma0
+ * @typedef {Assert<Check<Comma, typeof comma>>} _Comma1
  */

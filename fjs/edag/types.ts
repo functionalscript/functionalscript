@@ -32,9 +32,13 @@ export type UndefinedOp = readonly['undefined']
 
 export type Primitive = UndefinedOp | null | boolean | number | string | bigint
 
+// expressions
+
+export type Exps = readonly Exp[]
+
 // array
 
-export type Array = readonly['[]', readonly Exp[]]
+export type Array = readonly['[]', Exps]
 
 // property
 
@@ -88,3 +92,7 @@ export type Sub = readonly['-', Exp, Exp]
 // negation (aka a unary minus — arity, not tag, distinguishes it from `Sub`)
 
 export type Neg = readonly['-', Exp]
+
+// Comma
+
+export type Comma = readonly[',', Exps]
