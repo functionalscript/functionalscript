@@ -28,7 +28,6 @@ import {
     or,
     string,
     array as rttiArray,
-    option,
 } from "../types/rtti/module.f.mjs";
 
 /**
