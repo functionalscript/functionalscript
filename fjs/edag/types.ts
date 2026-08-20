@@ -1,39 +1,25 @@
 import type { Assert } from '../asserts/types.ts'
 import type { Ts } from '../types/rtti/ts/types.ts'
 import type { Equal } from '../types/ts/types.ts'
-import type { primitive } from './rtti.f.mjs'
+import type { array, exp, primitive } from './rtti.f.mjs'
 
-export type Exp =
-    | Types
-    // Operators
-    | Args
-    | PropertyAccessor
-    | Own
-    | Comma
+//
 
-export type ExpArray = readonly Exp[]
+export type Exp = Ts<typeof exp>
 
-// Types:
+type _Exp = Primitive
+type _ExpAssert = Assert<Equal<Exp, _Exp>>
 
-export type Primitive = boolean | null | undefined | number | string | bigint
+//
 
-export type Array = readonly['[]', ExpArray]
+export type Array = Ts<typeof array>
 
-export type Object = readonly['{}', readonly Property[]]
+type _Array = readonly['[]', readonly Exp[]]
+type _ArrayAssert = Assert<Equal<Array, _Array>>
 
-export type Property = readonly[Exp, Exp]
+//
 
-export type Types =
-    | Primitive
-    | Array
-    | Object
+export type Primitive = Ts<typeof primitive>
 
-// Operators:
-
-export type Args = readonly['args']
-
-export type PropertyAccessor = readonly['.', readonly[Exp, Exp]]
-
-export type Own = readonly['own', Exp, Exp]
-
-export type Comma = readonly[',', ExpArray]
+type _Primitive = undefined | null | boolean | number | string | bigint
+type _PrimitiveAssert = Assert<Equal<Primitive, _Primitive>>
