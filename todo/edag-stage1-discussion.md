@@ -57,7 +57,7 @@ guards, A4) are merged into the graph by the **`","` operation**:
   its value is discarded by `","`. The guard itself is either an
   ordinary function value that throws on a falsy argument, or, with no
   free-variable machinery needed,
-  `["?:", cond, undefined, ["throw", …]]` ([Operations](#operations),
+  `["?:", cond, ["undefined"], ["throw", …]]` ([Operations](#operations),
   subject 10).
   [operators](../spec/todo/2340-operators.md) allows the comma operator
   for exactly this reason: it was rejected as "useful only when we want
@@ -73,9 +73,10 @@ guards, A4) are merged into the graph by the **`","` operation**:
 
 - an operation node is:
   - a **non-object, non-array value** — a constant: `"hello world"`, `2.5`,
-    `false`, `undefined`, `null`, `34n`;
+    `false`, `null`, `34n`;
   - an **array** — a tagged tuple `[tag, ...operands]`; the tags are
-    listed in [Operations](#operations) below.
+    listed in [Operations](#operations) below. `["undefined"]` is one of
+    these, not a bare constant — see [Operations](#operations) for why.
 - **Plain objects are reserved and currently have no EDAG meaning.**
 - operand positions hold **real references** to nodes, not indices.
   Referencing the same node from two positions is **semantic sharing**: the
@@ -198,7 +199,8 @@ DJS rollout in
 
 |Form|JS|Stage|Notes|
 |----|--|-----|-----|
-|`2.5`, `"a"`, `true`, `null`, `undefined`, `34n`|itself|1|constant — any non-object, non-array value|
+|`2.5`, `"a"`, `true`, `null`, `34n`|itself|1|constant — any non-object, non-array value|
+|`["undefined"]`|`undefined`|1|the value `undefined`, as its own node — a bare `undefined` would be indistinguishable from a missing tuple position (a position past a node's arity reads as `undefined` too), so it is not a bare constant like the row above|
 |`["[]", ...node]`|`[…]`|1|array constructor|
 |`["{}", ...entry]`|`{ … }`|1|ordered object constructor; initial entry form is `[":", key, value]` (subject 4)|
 |`["args"]`|—|1|the arguments array (subject 2)|
@@ -207,15 +209,17 @@ DJS rollout in
 |`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|2|method call; keeps `this` binding; same `property` restriction|
 |`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|later|own property by a computed **string**; no prototype chain|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
+|`["String", node]`|`String(x)`|later|string coercion|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
 |`["=>", frame, body]`|`(…) => …`|2|function; initial Stage 2 accepts only an empty frame, captured frames come later|
 
 `["{}", ...entry]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries. The entry list preserves the source
-property sequence. The key position is a node so the shape can support
-computed keys later, but **current validation admits only a string-constant
-key**; arbitrary computed-key nodes stay invalid until their coercion and
-failure semantics are defined. Entry forms are local to the object
+property sequence. The key position is a node, and validation admits any
+node there — a computed key like `{ ["sss" + 3]: x }` is valid JS and a
+validly-shaped EDAG, even though today's compiler only lowers the trivial
+computed-key form; see subject 4 for why validation does not narrow this to
+a string constant. Entry forms are local to the object
 constructor rather than general expressions. Later, new entry forms can be
 added without changing the outer operation; for example `["...", object]`
 can represent `{ ...object }`. Plain objects remain reserved and have no EDAG
@@ -387,7 +391,7 @@ recursion with no special machinery.
 expression — there is no operator symbol to reuse. Consequences:
 
 - **Assertions become expressible in the EDAG**:
-  `["?:", cond, undefined, ["throw", …]]`. This matters more than
+  `["?:", cond, ["undefined"], ["throw", …]]`. This matters more than
   convenience — the EDAG has no way to *reference* a free variable
   (module `const`, import, built-in): `["args"]` and constants are its
   only leaves (see subject 10). A host `assert` function would need that
@@ -438,7 +442,7 @@ because hash-as-written (subject 1) makes two spellings two functions.
 
 ```js
 ["?:", ok, v, ["throw", e]]           // branch on the result
-[",", ["?:", ok, undefined, ["throw", e]], v]   // guard, then result
+[",", ["?:", ok, ["undefined"], ["throw", e]], v]   // guard, then result
 ```
 
 — the same function, different hashes. Which lowering is canonical is
@@ -730,12 +734,25 @@ open:
 
 **Resolution: an object constructor is `["{}", ...entries]`, and the
 entry sequence is semantic.** Stage 1 uses one entry form,
-`[":", key, value]`. The key and value positions contain EDAG nodes, so
-the representation can support computed keys without changing the constructor shape;
-**current validation nevertheless accepts only string-constant keys**. Arbitrary
-computed-key nodes remain invalid until their coercion/failure semantics are defined.
-Entry forms belong to the object constructor rather than to the general expression
-vocabulary.
+`[":", key, value]`. Both the key and value positions are ordinary EDAG
+nodes — `{ ["sss" + 3]: x }` is valid JS, the key is a computed expression
+coerced via `ToPropertyKey` at runtime, and validation admits it: an `Any`
+handed to the `Function` constructor can contain any key node, and "the FJS
+compiler would never emit that" is not an admissible reason to narrow what
+validation accepts (subject 1). Entry forms belong to the object constructor
+rather than to the general expression vocabulary.
+
+*Revised: validation does not restrict the key to a string constant.* An
+earlier draft of this resolution stated "current validation nevertheless
+accepts only string-constant keys" — dropped for the same reason subject 1
+gives above: today's DJS compiler happening to emit only trivial computed-key
+forms (`{ ["sss"]: x }`, not yet `{ ["sss" + 3]: x }`) describes the
+compiler's current lowering, not a bound on what a validly-shaped EDAG value
+is. The two are independent: the compiler can under-produce (emit only a
+subset of what validation accepts, expanding its lowering over time without
+ever needing validation to change) but validation must not under-accept
+relative to the value model, or it rejects `Any` values that are
+perfectly well-formed EDAGs.
 
 History: this subject previously represented an object constructor as a
 plain EDAG object and rejected duplicate keys during validation. The revised
@@ -744,10 +761,36 @@ objects for future use, and keeps duplicate entries so construction can follow
 JavaScript overwrite semantics and later support computed keys.
 
 Entry descriptor arrays such as `[":", key, value]` are **structural operands**, not
-independently evaluated EDAG nodes. Their container identity therefore has no semantic
-meaning and must not add another graph/hash distinction. Validation rejects reusing the
-same descriptor-array identity in more than one object-entry position. The `key` and
-`value` operands are real EDAG nodes, so their identities may be shared normally.
+independently evaluated EDAG nodes: nothing in the interpreter ever evaluates a
+descriptor as a value, so no running program can ever observe whether one was reused by
+reference or merely built twice with equal content. The `key` and `value` operands
+*are* real EDAG nodes, and their identities are shared normally, exactly like any other
+node.
+
+*Rejected: forbidding descriptor-array identity reuse.* An earlier draft of this
+resolution required validation to reject a descriptor array reused across more than one
+entry position (`["{}", e, e]` for one shared `e`), reasoning that unobserved sharing
+should not add a hidden graph/hash distinction. Dropped, because the rule cannot be
+stated in a way that means the same thing on every conforming VM:
+
+- A content-addressed VM interns pure data unconditionally — two descriptors with equal
+  content (`[":", "x", 1]` written twice, an explicitly allowed duplicate entry) become
+  the same reference the moment they are interned, authored sharing or not. A validator
+  that rejects `e === e` after interning has already happened rejects that ordinary,
+  legal object too — it cannot tell "the author shared this" from "the VM unified it."
+- A non-content-addressed VM never does this unification, so the same check never fires
+  there for the same written EDAG.
+
+The same input would therefore pass on one conforming VM and fail on another, which is
+not a validation rule at all — it is VM-dependent behavior, and the core invariant rules
+that out for anything a running program can observe. Since descriptor identity is
+*not* observable, there is also nothing it would protect: the two VM kinds may legally
+disagree about whether a `["{}", ...]` node's descriptor arrays are the same reference
+after a serialize/parse round-trip (a non-CA VM keeps two distinct, equal arrays; a CA
+VM unifies them into one), and both are correct, because a running program can only ever
+observe the `key`/`value` nodes inside a descriptor, never the descriptor itself. A rule
+with no observable purpose and no VM-independent statement is not worth the demand it
+places on every implementation — it is simply removed rather than kept "for safety."
 
 The sequence is retained exactly as written. It matters for several
 independent reasons:
@@ -810,12 +853,14 @@ the FJS compiler would never emit. To validate:
   subject 8);
 - unknown command tags: validation error;
 - object constructors: every `["{}", ...]` operand must be a recognized
-  entry form; stage 1 accepts `[":", key, value]` only when `key` is a
-  **string constant**. Duplicate property keys/entries are valid and are
-  applied in order (subject 4). Entry descriptor containers are structural,
-  so the same descriptor-array identity must not appear in more than one entry
-  position; key/value EDAG nodes inside descriptors may still be shared. Plain
-  objects are not EDAG nodes;
+  entry form; `[":", key, value]` admits any node in `key`, not just a
+  string constant (subject 4). Duplicate property keys/entries are valid and are
+  applied in order (subject 4). Entry descriptor containers are structural
+  and never independently evaluated, so their identity is not checked —
+  reusing one across entry positions is unobservable and, on a
+  content-addressed VM, indistinguishable from an ordinary duplicate entry
+  (subject 4); key/value EDAG nodes inside descriptors may of course be
+  shared, like any other node. Plain objects are not EDAG nodes;
 - **property operands** of `"."` and `".()"`: a permitted string
   constant, a number constant, or a **unary** `"+"` / `"Number"` node.
   Anything else is a validation error, which is what keeps

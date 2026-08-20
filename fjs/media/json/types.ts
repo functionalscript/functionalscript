@@ -5,7 +5,7 @@
  * `Unknown` is written by hand rather than derived, so that the recursion
  * reads directly, and is then pinned against the rtti schemas in the sibling
  * [`./rtti/module.f.mjs`](./rtti/module.f.mjs) with
- * `Assert<Equal<Unknown, Ts<typeof unknown>>>`. The pin is what keeps the two
+ * `Assert<Check<Unknown, typeof unknown>>`. The pin is what keeps the two
  * descriptions of the same data model from drifting apart — and it holds the
  * `Tree<Primitive>` spelling to the same data model the schemas describe.
  *
@@ -14,8 +14,7 @@
 
 import type { Entry as ObjectEntry } from '../../types/object/types.ts'
 import type { Assert } from '../../asserts/types.ts'
-import type { Ts } from '../../types/rtti/ts/types.ts'
-import type { Equal } from '../../types/ts/types.ts'
+import type { Ts, Check } from '../../types/rtti/ts/types.ts'
 import type { primitive, unknown } from './rtti/module.f.mjs'
 import type { List } from '../../types/list/types.ts'
 
@@ -47,7 +46,7 @@ export type Object = TreeObject<Primitive>
 
 export type Array = TreeArray<Primitive>
 
-type _Unknown = Assert<Equal<Unknown, Ts<typeof unknown>>>
+type _Unknown = Assert<Check<Unknown, typeof unknown>>
 
 export type TreeEntry<P> = ObjectEntry<Tree<P>>
 
