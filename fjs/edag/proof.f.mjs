@@ -104,6 +104,22 @@ export const proof = {
         asCallee: () => assertOk(v(['()', ['Number', 1], 2])),
         error: () => assertNoMatch(v(['Numberz', 'x'])),
     },
+    stringCast: {
+        ok: () => {
+            assertOk(v(['String', 'x']))
+            assertOk(v(['String', ['args']])) // an exp nested inside the cast
+        },
+        // A missing operand reads as `undefined`, which is no longer a
+        // valid bare `exp` (see `undefinedOp`) — so this is a real error,
+        // not the open-tail case `args` has. An extra trailing operand is
+        // still ignored, same as `args`.
+        missingTailIsError: () => assertNoMatch(v(['String'])),
+        extraTailIsIgnored: () => assertOk(v(['String', 'x', 'extra'])),
+        // `stringCast` composes through `exp`'s recursion like any other node.
+        asArrayElement: () => assertOk(v(['[]', [['String', 1]]])),
+        asCallee: () => assertOk(v(['()', ['String', 1], 2])),
+        error: () => assertNoMatch(v(['Stringz', 'x'])),
+    },
     propertyAccessor: {
         ok: () => {
             assertOk(v(['.', 'a', 'b']))

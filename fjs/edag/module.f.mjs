@@ -155,7 +155,7 @@ const _stringCast = /** @type {const} */(['String', exp])
  *
  * @type {Phantom<typeof _stringCast, StringCast>}
  */
-const stringCast = _stringCast
+export const stringCast = _stringCast
 
 /**
  * @typedef {Assert<Check<StringCast, typeof _stringCast>>} _StringCast0
