@@ -316,7 +316,7 @@ export const comma = _comma
  * every other exact-arity gap tracked by `../types/rtti/todo/close-type.md`.
  * See `../../djs/todo/compile-modules-to-edag.md`.
  */
-const _frame = /** @type {const} */(['[]', exps])
+const _frame = /** @type {const} */(['[]', []])
 
 /** @type {Phantom<typeof _frame, Frame>} */
 export const frame = _frame

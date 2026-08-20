@@ -102,7 +102,7 @@ export type Comma = readonly[',', Exps]
 // still its own type, and why Stage 2's "empty only" restriction isn't
 // encoded in this shape
 
-export type Frame = readonly['[]', Exps]
+export type Frame = readonly['[]', readonly[]]
 
 // Fn
 
