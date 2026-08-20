@@ -103,8 +103,8 @@ export type Comma = readonly[',', Exps]
 // value for one capture, an array node for several, decided by whatever
 // constructs `Fn`, not by this shape
 
-export type Frame = null
+export type FrameCtor = null
 
 // Fn
 
-export type Fn = readonly['=>', Frame, Exp]
+export type Fn = readonly['=>', FrameCtor, Exp]

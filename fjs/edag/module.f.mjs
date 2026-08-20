@@ -21,7 +21,7 @@
  *  Neg,
  *  Own,
  *  Comma,
- *  Frame,
+ *  FrameCtor,
  *  Fn
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
@@ -315,11 +315,11 @@ export const comma = _comma
  * doesn't require changing `=>` itself. See
  * `../djs/todo/compile-modules-to-edag.md`.
  */
-export const frame = null
+export const frameCtor = null
 
-/** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */
+/** @typedef {Assert<Check<FrameCtor, typeof frameCtor>>} _FrameCtor */
 
-const _fn = /** @type {const} */(['=>', frame, exp])
+const _fn = /** @type {const} */(['=>', frameCtor, exp])
 
 /** @type {Phantom<typeof _fn, Fn>} */
 export const fn = _fn
