@@ -24,6 +24,8 @@ import {
     array as rttiArray,
 } from "../types/rtti/module.f.mjs";
 
+// Exp
+
 export const exp = () => /** @type {const} */(['or',
     primitive,
     array,
@@ -34,15 +36,39 @@ export const exp = () => /** @type {const} */(['or',
     propertyCall,
 ])
 
+/** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
+
+// Primitive
+
 export const primitive = or(undefined, null, boolean, number, string, bigint)
+
+/** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
+
+// Array
 
 export const array = /** @type {const} */(['[]', rttiArray(exp)])
 
+/** @typedef {Assert<Check<Array, typeof array>>} _Array */
+
+// Property
+
 export const property = /** @type {const} */([exp, exp])
+
+/** @typedef {Assert<Check<Property, typeof property>>} _Property */
+
+// Object
 
 export const object = /** @type {const} */(['{}', rttiArray(property)])
 
+/** @typedef {Assert<Check<Object, typeof object>>} _Object */
+
+// Args
+
 export const args = /** @type {const} */(['args'])
+
+/** @typedef {Assert<Check<Args, typeof args>>} _Args */
+
+// Property Accessor
 
 const _propertyAccessor = /** @type {const} */(['.', exp, exp])
 
@@ -56,6 +82,11 @@ const _propertyAccessor = /** @type {const} */(['.', exp, exp])
  */
 export const propertyAccessor = _propertyAccessor
 
+/** @typedef {Assert<Check<PropertyAccessor, typeof _propertyAccessor>>} _PropertyAccessor0 */
+/** @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor1 */
+
+// Call
+
 const _call = /** @type {const} */(['()', exp, exp])
 
 /**
@@ -67,20 +98,21 @@ const _call = /** @type {const} */(['()', exp, exp])
  */
 export const call = _call
 
+/** @typedef {Assert<Check<Call, typeof _call>>} _Call0 */
+/** @typedef {Assert<Check<Call, typeof call>>} _Call1 */
+
+// Property Call
+
 const _propertyCall = /** @type {const} */(['.()', exp, exp, exp])
 
-/** @type {Phantom<typeof _propertyCall, PropertyCall>} */
+/**
+ * ```js
+ * exp0[exp1](exp2)
+ * ```
+ *
+ * @type {Phantom<typeof _propertyCall, PropertyCall>}
+ */
 export const propertyCall = _propertyCall
 
-/**
- * @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert
- * @typedef {Assert<Check<Primitive, typeof primitive>>} _PrimitiveAssert
- * @typedef {Assert<Check<Array, typeof array>>} _ArrayAssert
- * @typedef {Assert<Check<Property, typeof property>>} _PropertyAssert
- * @typedef {Assert<Check<Object, typeof object>>} _ObjectAssert
- * @typedef {Assert<Check<Args, typeof args>>} _ArgsAssert
- * @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
- * @typedef {Assert<Check<Call, typeof _call>>} _CallAssert0
- * @typedef {Assert<Check<Call, typeof call>>} _CallAssert
- * @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall
- */
+/** @typedef {Assert<Check<PropertyCall, typeof _propertyCall>>} _PropertyCall0 */
+/** @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall1 */
