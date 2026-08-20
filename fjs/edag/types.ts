@@ -23,6 +23,7 @@ export type Exp =
     | Add
     | Sub
     | Neg
+    | Comma
 
 // undefinedOp
 
@@ -91,7 +92,7 @@ export type Sub = readonly['-', Exp, Exp]
 
 // negation (aka a unary minus — arity, not tag, distinguishes it from `Sub`)
 
-export type Neg = readonly['-', Exp]
+export type Neg = readonly['neg', Exp]
 
 // Comma
 
