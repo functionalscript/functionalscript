@@ -11,6 +11,7 @@
  *  Primitive,
  *  Property,
  *  NumberCast,
+ *  StringCast,
  *  PropertyAccessor,
  *  Object,
  *  PropertyCall,
@@ -48,6 +49,7 @@ import {
  *  typeof object,
  *  typeof args,
  *  typeof numberCast,
+ *  typeof stringCast,
  *  typeof propertyAccessor,
  *  typeof call,
  *  typeof propertyCall
@@ -59,6 +61,7 @@ export const exp = () => (['or',
     object,
     args,
     numberCast,
+    stringCast,
     propertyAccessor,
     call,
     propertyCall,
@@ -80,6 +83,11 @@ export const primitive = or(undefinedOp, null, boolean, number, string, bigint)
 
 // Array
 
+/**
+ * ```js
+ * [exp0, exp1]
+ * ```
+ */
 export const array = /** @type {const} */(['[]', rttiArray(exp)])
 
 /** @typedef {Assert<Check<Array, typeof array>>} _Array */
@@ -96,12 +104,24 @@ export const property = /** @type {const} */([':', exp, exp])
 
 // Object — same nesting as `array` above, one position further in
 
+/**
+ * ```js
+ * {
+ *     a: exp0,
+ *     "a": exp1,
+ *     [exp2]: exp3,
+ * }
+ * ```
+ */
 export const object = /** @type {const} */(['{}', rttiArray(property)])
 
 /** @typedef {Assert<Check<Object, typeof object>>} _Object */
 
 // Args
 
+/**
+ * A function arguments.
+ */
 export const args = /** @type {const} */(['args'])
 
 /** @typedef {Assert<Check<Args, typeof args>>} _Args */
@@ -110,12 +130,36 @@ export const args = /** @type {const} */(['args'])
 
 const _numberCast = /** @type {const} */(['Number', exp])
 
-/** @type {Phantom<typeof _numberCast, NumberCast>} */
+/**
+ * ```js
+ * Number(exp)
+ * ```
+ *
+ * @type {Phantom<typeof _numberCast, NumberCast>}
+ */
 export const numberCast = _numberCast
 
 /**
  * @typedef {Assert<Check<NumberCast, typeof _numberCast>>} _NumberCast0
  * @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast1
+ */
+
+// String
+
+const _stringCast = /** @type {const} */(['String', exp])
+
+/**
+ * ```js
+ * String(exp)
+ * ```
+ *
+ * @type {Phantom<typeof _stringCast, StringCast>}
+ */
+const stringCast = _stringCast
+
+/**
+ * @typedef {Assert<Check<StringCast, typeof _stringCast>>} _StringCast0
+ * @typedef {Assert<Check<StringCast, typeof stringCast>>} _StringCast1
  */
 
 // Index
