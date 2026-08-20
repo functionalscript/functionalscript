@@ -19,9 +19,13 @@ export type Exp =
     | Call
     | PropertyCall
 
+// undefinedOp
+
+export type UndefinedOp = readonly['undefined']
+
 // primitive
 
-export type Primitive = undefined | null | boolean | number | string | bigint
+export type Primitive = UndefinedOp | null | boolean | number | string | bigint
 
 // array
 

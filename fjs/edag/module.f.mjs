@@ -14,6 +14,7 @@
  *  PropertyAccessor,
  *  Object,
  *  PropertyCall,
+ *  UndefinedOp,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -65,9 +66,19 @@ export const exp = () => (['or',
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
 
+// Undefined
+
+export const undefinedOp = /** @type {const} */(['undefined'])
+
+/** @typedef {Assert<Check<UndefinedOp, typeof undefinedOp>>} _UndefinedOp */
+
 // Primitive
 
-export const primitive = or(undefined, null, boolean, number, string, bigint)
+/**
+ * Bare `undefined` here is indistinguishable from a missing tuple position —
+ * TODO, see `./todo/undefined-node.md`.
+ */
+export const primitive = or(undefinedOp, null, boolean, number, string, bigint)
 
 /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
 
