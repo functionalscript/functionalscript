@@ -51,6 +51,7 @@ import {
  *  typeof array,
  *  typeof object,
  *  typeof args,
+ *  typeof numberCast,
  *  typeof propertyAccessor,
  *  typeof call,
  *  typeof propertyCall
@@ -61,7 +62,7 @@ export const exp = () => (['or',
     array,
     object,
     args,
-    //numberCast,
+    numberCast,
     propertyAccessor,
     call,
     propertyCall,
@@ -119,9 +120,13 @@ export const args = /** @type {const} */(['args'])
 
 // Number
 
-export const numberCast = /** @type {const} */(['Number', exp])
+const _numberCast = /** @type {const} */(['Number', exp])
 
-/** @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast */
+/** @type {Phantom<typeof _numberCast, NumberCast>} */
+export const numberCast = _numberCast
+
+/** @typedef {Assert<Check<NumberCast, typeof _numberCast>>} _NumberCast0 */
+/** @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast1 */
 
 // Index
 

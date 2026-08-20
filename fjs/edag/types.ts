@@ -7,7 +7,7 @@ export type Exp =
     | Array
     | Object
     | Args
-    //| NumberCast
+    | NumberCast
     | PropertyAccessor
     | Call
     | PropertyCall
