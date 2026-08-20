@@ -28,43 +28,14 @@ import {
 } from "../types/rtti/module.f.mjs";
 
 /**
- * `args`, `propertyAccessor`, `call`, and `propertyCall` are rtti tuple
- * schemas, and tuple schemas are intentionally *open* — see "Structs and
- * tuples are open" in `../types/rtti/README.md`. `validate`/`parse` only
- * visit the positions a schema declares, so a value with a trailing extra —
- * `['args', 'ignored']`, `['.', 'a', 'b', 'extra']` — validates today:
- * `validate` accepts it and leaves it in place, `parse` drops it on the way
- * out. `array` and `object` are open the same way, on their element/entry
- * list rather than the tag.
+ * `args`, `propertyAccessor`, `call`, and `propertyCall` (like `array`/`object`)
+ * are open on trailing/extra elements — see "Structs and tuples are open" in
+ * `../types/rtti/README.md`. Exact arity is tracked as future work in
+ * `../types/rtti/todo/close-type.md`, not implemented here yet.
  *
- * Exact arity for these fixed-shape nodes will matter once EDAG values are
- * content-addressed — two byte sequences for "the same" node must not both
- * validate — but that is future work behind the planned `close` schema form
- * (`../types/rtti/todo/close-type.md`), not implemented here yet.
- *
- * `parse(exp)` is not used here, and should not be, without reading
- * `../types/rtti/todo/identity-aware-parse.md` first: the generic `parse`
- * rebuilds a fresh container per schema position, with no notion that two
- * positions came from the same input reference. For most schemas that is
- * fine — but here, node identity between operand positions is part of the
- * value's meaning (`["[]", x, x]` vs. two separately-built copies are
- * different functions), so reading an `exp` value back from a serialized or
- * otherwise untrusted form needs an identity-preserving reader, which does
- * not exist yet.
- *
- * `validate(exp)` does not check for cycles, and a genuinely cyclic value
- * (an array that is its own ancestor) would recurse until `RangeError`
- * rather than returning a validation error. Deliberately not handled here:
- * FunctionalScript itself cannot construct a self-referential value — there
- * is no mutation, so nothing can make an array contain itself — and neither
- * can any realistic serialized form (JSON, or a future byte format) without
- * its own explicit back-reference encoding, which is exactly the missing
- * piece `identity-aware-parse.md` above tracks. So a cyclic value can only
- * reach `validate(exp)` from a caller already writing JS to construct one
- * directly, at which point they already have arbitrary code execution and a
- * `RangeError` here is not the interesting attack. If `edag` ever gains a
- * wire format with back-references, cycles become reachable through that
- * channel too, and this reasoning should be revisited then.
+ * Do not call `parse(exp)` or rely on `validate(exp)` rejecting cycles
+ * without reading `../types/rtti/todo/identity-aware-parse.md` first —
+ * neither is identity-aware, and that TODO covers why and what's missing.
  */
 
 // Exp
@@ -100,43 +71,17 @@ export const primitive = or(undefined, null, boolean, number, string, bigint)
 
 /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
 
-/**
- * `['[]', ...elements]` and `['{}', ...properties]` — the flat, variadic
- * spelling the EDAG spec uses — cannot be written as an rtti schema. A `Tuple`
- * (see `Const` in `../types/rtti/types.ts`) declares one schema per position,
- * so it can pin a fixed prefix like the `'[]'`/`'{}'` tag, but the `Type` ADT
- * has no variant for "then any number of further positions, all matching
- * this one schema" — `array`/`record` say exactly that, but only as their
- * *own* single schema position, not spread inline into a bigger tuple's
- * remaining slots. So `array` and `object` below nest the variadic part in
- * that second position instead: `['[]', [elem, elem, ...]]` and
- * `['{}', [prop, prop, ...]]` — one array/record position holding the whole
- * tail, rather than a tail of positions.
- */
-
 // Array
 
 export const array = /** @type {const} */(['[]', rttiArray(exp)])
 
+/** @typedef {Assert<Check<Array, typeof array>>} _Array */
+
 // Property
 
 /**
- * The key stays `exp`, not narrowed to a string constant. `{ ["sss" + 3]: x }`
- * is valid JS — the key is a computed expression, coerced via
- * `ToPropertyKey` at runtime, no different in kind from `array[5]` needing
- * `index` (below) to accept more than a bare string. A key position that
- * only admitted string constants would describe less than the value model
- * actually is.
- *
- * This deliberately does not follow `edag-stage1-discussion.md` subjects 4
- * and 5, which state "current validation nevertheless accepts only
- * string-constant keys" as a decided rule — that text is being revised to
- * match this schema instead, not the other way around. Today's DJS compiler
- * only ever emits a trivial computed-key form anyway (`{ ["sss"]: x }`, not
- * `{ ["sss" + 3]: x }`), but the schema describes the value model, not the
- * compiler's current output, and per subject 1: "the `Function` constructor
- * accepts an `Any` from anywhere, so 'the FJS compiler would never emit
- * that' is never an admissible argument" for narrowing a schema.
+ * The key stays `exp`, not narrowed to a string constant — see
+ * `../../todo/edag-stage1-discussion.md` subject 4.
  */
 export const property = /** @type {const} */([':', exp, exp])
 
@@ -172,14 +117,8 @@ export const numberCast = _numberCast
  * A property/index operand: a plain `string` or `number` key, or a `Number`
  * cast around a computed `exp` (`arr[i]`, where `i` is itself an expression).
  *
- * This schema only restricts *shape* — a `string` here can still be
- * `'constructor'`, `'__proto__'`, or any other name that is unsafe to use as
- * a real property accessor. rtti's `Type` ADT has no negation — no way to
- * say "any string except these" — so this can't be stated as part of the
- * schema today; see `../types/rtti/todo/excluded-string-values.md`. It does
- * not describe everything a consumer needs: validating an untrusted EDAG
- * before evaluating it requires an additional denylist check on top of this
- * schema (not implemented here yet), not a change to it.
+ * Does not exclude `'constructor'`/`'__proto__'` — TODO, see
+ * `../types/rtti/todo/excluded-string-values.md`.
  */
 export const index = or(numberCast, string, number)
 

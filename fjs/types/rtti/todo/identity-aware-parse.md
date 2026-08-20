@@ -54,6 +54,21 @@ data's meaning — two structurally equal values are just two equal values, and 
 fresh containers is what makes `parse` a safe reader of untrusted, possibly-aliased
 input in the first place (see `../README.md`, "The two schema-form readers").
 
+### `validate`'s cycle-unsafety
+
+A genuinely cyclic value (an array that is its own ancestor) makes `validate(exp)`
+recurse until `RangeError`, instead of returning a validation error.
+
+Not yet handled, deliberately: FunctionalScript itself cannot construct a
+self-referential value — there is no mutation, so nothing can make an array contain
+itself — and neither can any realistic serialized form (JSON, or a future byte format)
+without its own explicit back-reference encoding, which is exactly the missing piece
+this TODO tracks above. So a cyclic value can only reach `validate(exp)` from a caller
+already writing JS to construct one directly, at which point they already have
+arbitrary code execution and a `RangeError` here is not the interesting attack. If
+`edag` ever gains a wire format with back-references, cycles become reachable through
+that channel too, and this reasoning should be revisited then.
+
 ## Why it matters for `../../../edag`
 
 The EDAG is the one schema in this codebase where reference identity between operand
