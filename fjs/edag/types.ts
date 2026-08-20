@@ -68,3 +68,7 @@ export type Call = readonly['()', Exp, Exp]
 // propertyCall
 
 export type PropertyCall = readonly['.()', Exp, Index, Exp]
+
+// +
+
+export type Plus = readonly['+', Exp]
