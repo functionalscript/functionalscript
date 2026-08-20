@@ -51,6 +51,20 @@ import {
  * different functions), so reading an `exp` value back from a serialized or
  * otherwise untrusted form needs an identity-preserving reader, which does
  * not exist yet.
+ *
+ * `validate(exp)` does not check for cycles, and a genuinely cyclic value
+ * (an array that is its own ancestor) would recurse until `RangeError`
+ * rather than returning a validation error. Deliberately not handled here:
+ * FunctionalScript itself cannot construct a self-referential value — there
+ * is no mutation, so nothing can make an array contain itself — and neither
+ * can any realistic serialized form (JSON, or a future byte format) without
+ * its own explicit back-reference encoding, which is exactly the missing
+ * piece `identity-aware-parse.md` above tracks. So a cyclic value can only
+ * reach `validate(exp)` from a caller already writing JS to construct one
+ * directly, at which point they already have arbitrary code execution and a
+ * `RangeError` here is not the interesting attack. If `edag` ever gains a
+ * wire format with back-references, cycles become reachable through that
+ * channel too, and this reasoning should be revisited then.
  */
 
 // Exp
@@ -112,6 +126,18 @@ export const array = /** @type {const} */(['[]', rttiArray(exp)])
 
 // Property
 
+/**
+ * The key stays `exp`, not narrowed to a string constant. `edag-stage1-discussion.md`
+ * subject 4 notes today's DJS *compiler* only ever emits a string-constant
+ * key — computed keys like `{ [2 + 2]: 'hello' }` aren't lowered yet, since
+ * their coercion/failure semantics aren't defined. But that is a statement
+ * about what the compiler currently produces, not about what an `Exp` value
+ * can be: the key position is a real operand here precisely so a future
+ * computed key is representable without changing this shape. Narrowing it to
+ * `string` now would describe the compiler's current output, not the value
+ * model — the same distinction `../types/rtti/README.md`'s "Structs and
+ * tuples are open" section makes about `Ts<T>` vs. the schema it renders.
+ */
 export const property = /** @type {const} */([':', exp, exp])
 
 /** @typedef {Assert<Check<Property, typeof property>>} _Property */
@@ -145,11 +171,13 @@ export const numberCast = _numberCast
  * cast around a computed `exp` (`arr[i]`, where `i` is itself an expression).
  *
  * This schema only restricts *shape* — a `string` here can still be
- * `'constructor'`, `'__proto__'`, `'prototype'`, or any other name that is
- * unsafe to use as a real property accessor. It does not describe everything
- * a consumer needs: validating an untrusted EDAG before evaluating it
- * requires an additional denylist check on top of this schema, not a change
- * to it.
+ * `'constructor'`, `'__proto__'`, or any other name that is unsafe to use as
+ * a real property accessor. rtti's `Type` ADT has no negation — no way to
+ * say "any string except these" — so this can't be stated as part of the
+ * schema today; see `../types/rtti/todo/excluded-string-values.md`. It does
+ * not describe everything a consumer needs: validating an untrusted EDAG
+ * before evaluating it requires an additional denylist check on top of this
+ * schema (not implemented here yet), not a change to it.
  */
 export const index = or(numberCast, string, number)
 

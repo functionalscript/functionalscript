@@ -77,19 +77,42 @@ export const proof = {
             assertNoMatch(v(['argz']))
         },
     },
+    numberCast: {
+        ok: () => {
+            assertOk(v(['Number', 'x']))
+            assertOk(v(['Number', ['args']])) // an exp nested inside the cast
+        },
+        // Same open-tuple behavior as `args`: a missing operand reads as
+        // `undefined` (a valid exp), and an extra trailing operand is never
+        // visited.
+        missingTailIsUndefined: () => assertOk(v(['Number'])),
+        extraTailIsIgnored: () => assertOk(v(['Number', 'x', 'extra'])),
+        // `numberCast` composes through `exp`'s recursion like any other node.
+        asArrayElement: () => assertOk(v(['[]', [['Number', 1]]])),
+        asCallee: () => assertOk(v(['()', ['Number', 1], 2])),
+        error: () => assertNoMatch(v(['Numberz', 'x'])),
+    },
     propertyAccessor: {
         ok: () => {
             assertOk(v(['.', 'a', 'b']))
             assertOk(v(['.', ['[]', [1, 2]], 0]))
+            // `index`'s three accepted shapes, pinned explicitly: string,
+            // number (above), and a `numberCast` (below) — not `boolean`
+            // (see `error`).
+            assertOk(v(['.', 'a', ['Number', 1]]))
         },
-        // An absent tuple element reads as `undefined`, and `undefined` is
-        // itself a valid `Exp` (see `Primitive`) — so a short accessor still
-        // validates. The mirror of `args`'s open trailing side, on the
-        // missing side instead.
-        throw: () => assertOk(v(['.', 'a'])),
+        // Unlike `call`'s second position (still plain `exp`, which includes
+        // `undefined`), `propertyAccessor`'s index is `index` — string,
+        // number, or `numberCast` — none of which admit `undefined`. So a
+        // missing index is a real validation error, not the open-tail case
+        // `args`/`call` have.
+        missingIndexIsError: () => assertNoMatch(v(['.', 'a'])),
         error: () => {
             assertNoMatch(v(['x', 'a', 'b']))
             assertNoMatch(v(['.', {}, 'b']))
+            // `index` excludes `boolean` on purpose — not narrowed to just
+            // `string`/`number` by accident.
+            assertNoMatch(v(['.', 'a', true]))
         },
     },
     call: {
