@@ -21,7 +21,8 @@
  *  Neg,
  *  Own,
  *  Comma,
- *  Fn
+ *  Fn,
+ *  Frame,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -313,3 +314,9 @@ export const fn = _fn
 /**
  * @typedef {Assert<Check3<Fn, typeof _fn, typeof fn>>} _Fn
  */
+
+// Frame
+
+export const frame = /** @type {const} */(['frame'])
+
+/** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */

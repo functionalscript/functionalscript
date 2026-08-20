@@ -101,3 +101,7 @@ export type Comma = readonly[',', Exps]
 // Fn
 
 export type Fn = readonly['=>', Exp, Exp]
+
+// Frame
+
+export type Frame = readonly['frame']
