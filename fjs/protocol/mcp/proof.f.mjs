@@ -55,10 +55,15 @@ const mock = {
 const config = {
     serverInfo: { name: 'test-server', version: '0.1.0' },
     capabilities: { tools: {} },
-    protocolVersion: '2024-11-05',
+    protocolVersions: ['2024-11-05'],
 }
 
 const configNoTools = { ...config, capabilities: {} }
+
+// A server speaking two revisions, latest first — the case a single
+// `protocolVersion` string could not describe.
+/** @type {McpConfig} */
+const configTwoVersions = { ...config, protocolVersions: ['2025-06-18', '2024-11-05'] }
 
 /** @typedef {never} _Op */
 /** @type {McpHandlers<_Op>} */
@@ -210,8 +215,12 @@ const firstText = resp => {
 
 // ── Test messages ─────────────────────────────────────────────────────────────
 
-const initMsg = { jsonrpc: '2.0', method: 'initialize', id: 1,
-    params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'client', version: '0.0.1' } } }
+/** An `initialize` request asking for `protocolVersion`. */
+/** @type {(protocolVersion: string) => Unknown} */
+const initMsgFor = protocolVersion => ({ jsonrpc: '2.0', method: 'initialize', id: 1,
+    params: { protocolVersion, capabilities: {}, clientInfo: { name: 'client', version: '0.0.1' } } })
+
+const initMsg = initMsgFor('2024-11-05')
 
 const initNotif = { jsonrpc: '2.0', method: 'notifications/initialized' }
 
@@ -373,6 +382,35 @@ export const proof = {
             const [resp] = step1(config)(bad)
             assertEq(errorCode(resp), -32600)
             assertEq(errorId(resp), null)
+        },
+    },
+
+    // Version negotiation, per the lifecycle spec: answer with the requested
+    // revision when the server speaks it, and with the latest one it does speak
+    // otherwise. The counter-proposal is a success frame, so what distinguishes
+    // the two branches is the answered version, never the session state.
+    versionNegotiation: {
+        supportedRequestIsEchoed: () => {
+            // `2024-11-05` is supported but not the latest — the case a
+            // single-string config had to counter-propose out of.
+            const [resp] = step1(configTwoVersions)(initMsgFor('2024-11-05'))
+            assertEq(protocolVersion(resp), '2024-11-05')
+        },
+
+        unsupportedRequestGetsLatestSupported: () => {
+            const [resp, newState] = step1(configTwoVersions)(initMsgFor('2030-01-01'))
+            assertEq(protocolVersion(resp), '2025-06-18')
+            assert(newState[0] === 'initializing')
+        },
+
+        // A one-element list answers exactly as the `protocolVersion` string
+        // field did: its only revision, whichever branch is taken. The echo
+        // half is `lifecycle.initializeReturnsResult`, which asks `config` for
+        // the one version it has; this is the counter-proposal half.
+        oneVersionCounterProposesItsOnlyVersion: () => {
+            const [resp, newState] = step1(config)(initMsgFor('2030-01-01'))
+            assertEq(protocolVersion(resp), '2024-11-05')
+            assert(newState[0] === 'initializing')
         },
     },
 
