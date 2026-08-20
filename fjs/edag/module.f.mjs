@@ -1,4 +1,6 @@
 /**
+ * @module
+ *
  * @import { Assert } from '../asserts/types.ts'
  * @import {
  *  Check,
@@ -60,6 +62,20 @@ export const primitive = or(undefined, null, boolean, number, string, bigint)
 
 /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
 
+/**
+ * `['[]', ...elements]` and `['{}', ...properties]` — the flat, variadic
+ * spelling the EDAG spec uses — cannot be written as an rtti schema. A `Tuple`
+ * (see `Const` in `../types/rtti/types.ts`) declares one schema per position,
+ * so it can pin a fixed prefix like the `'[]'`/`'{}'` tag, but the `Type` ADT
+ * has no variant for "then any number of further positions, all matching
+ * this one schema" — `array`/`record` say exactly that, but only as their
+ * *own* single schema position, not spread inline into a bigger tuple's
+ * remaining slots. So `array` and `object` below nest the variadic part in
+ * that second position instead: `['[]', [elem, elem, ...]]` and
+ * `['{}', [prop, prop, ...]]` — one array/record position holding the whole
+ * tail, rather than a tail of positions.
+ */
+
 // Array
 
 export const array = /** @type {const} */(['[]', rttiArray(exp)])
@@ -72,7 +88,7 @@ export const property = /** @type {const} */([exp, exp])
 
 /** @typedef {Assert<Check<Property, typeof property>>} _Property */
 
-// Object
+// Object — same nesting as `array` above, one position further in
 
 export const object = /** @type {const} */(['{}', rttiArray(property)])
 
