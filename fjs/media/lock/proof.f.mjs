@@ -1,6 +1,6 @@
 /**
  * @import { Object as JsonObject } from '../json/types.ts'
- * @import { LockMap } from './types.ts'
+ * @import { LockMap } from '../revision/types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
