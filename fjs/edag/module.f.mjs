@@ -45,11 +45,23 @@ import {
 
 // Exp
 
-export const exp = () => /** @type {const} */(['or',
+/**
+ * @type {() => readonly['or',
+ *  typeof primitive,
+ *  typeof array,
+ *  typeof object,
+ *  typeof args,
+ *  typeof propertyAccessor,
+ *  typeof call,
+ *  typeof propertyCall
+ * ]}
+ */
+export const exp = () => (['or',
     primitive,
     array,
     object,
     args,
+    //numberCast,
     propertyAccessor,
     call,
     propertyCall,
@@ -81,7 +93,11 @@ export const primitive = or(undefined, null, boolean, number, string, bigint)
 
 export const array = /** @type {const} */(['[]', rttiArray(exp)])
 
-/** @typedef {Assert<Check<Array, typeof array>>} _Array */
+// /** @type {Phantom<typeof _array, Array>} */
+// export const array = _array
+
+// /** @typedef {Assert<Check<Array, typeof _array>>} _Array0 */
+/** @typedef {Assert<Check<Array, typeof array>>} _Array1 */
 
 // Property
 
