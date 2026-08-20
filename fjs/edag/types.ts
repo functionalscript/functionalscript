@@ -1,7 +1,7 @@
 import type { Assert } from '../asserts/types.ts'
 import type { Ts } from '../types/rtti/ts/types.ts'
 import type { Equal } from '../types/ts/types.ts'
-import type { array, exp, primitive, property } from './rtti.f.mjs'
+import type { array, exp, object, primitive, property } from './rtti.f.mjs'
 
 // exp
 
@@ -32,3 +32,10 @@ export type Property = Ts<typeof property>
 
 type _Property = readonly[Exp, Exp]
 type _PropertyAssert = Assert<Equal<Property, Property>>
+
+// object
+
+export type Object = Ts<typeof object>
+
+type _Object = readonly['{}', readonly Property[]]
+type _ObjectAssert = Assert<Equal<Object, _Object>>
