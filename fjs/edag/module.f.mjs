@@ -41,6 +41,16 @@ import {
  * content-addressed — two byte sequences for "the same" node must not both
  * validate — but that is future work behind the planned `close` schema form
  * (`../types/rtti/todo/close-type.md`), not implemented here yet.
+ *
+ * `parse(exp)` is not used here, and should not be, without reading
+ * `../types/rtti/todo/identity-aware-parse.md` first: the generic `parse`
+ * rebuilds a fresh container per schema position, with no notion that two
+ * positions came from the same input reference. For most schemas that is
+ * fine — but here, node identity between operand positions is part of the
+ * value's meaning (`["[]", x, x]` vs. two separately-built copies are
+ * different functions), so reading an `exp` value back from a serialized or
+ * otherwise untrusted form needs an identity-preserving reader, which does
+ * not exist yet.
  */
 
 // Exp
