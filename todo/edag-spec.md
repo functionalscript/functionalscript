@@ -23,10 +23,54 @@ Several components must agree on the exact shape of that value:
 there is no single specification of record, so the implementations have
 nothing precise to be checked against.
 
+The working semantic design lives in
+[`edag-stage1-discussion.md`](./edag-stage1-discussion.md). The concrete DJS
+rollout is staged separately in
+[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md):
+Stage 1 adds property access and unresolved modules; Stage 2 adds non-capturing
+functions and calls. Those TODOs define implementation order, while this file
+owns the eventual complete schema.
+
+### Module boundary
+
+Keep the canonical FunctionalScript EDAG implementation in a separate module:
+
+```text
+fjs/edag/
+```
+
+`fjs/edag/` owns the **EDAG data model itself**:
+
+- the `EDAG` and operation-related types;
+- the canonical operation tags, operand shapes, and structural entry forms;
+- the RTTI schema used to define those types;
+- EDAG validation and canonicality rules that depend only on the EDAG value.
+
+Other layers consume that module rather than defining parallel EDAG types. In
+particular, `fjs/djs/` imports `fjs/edag/` when lowering parsed DJS source to an
+EDAG.
+
+The dependency is intentionally one-way:
+
+```text
+fjs/edag/
+    ↑
+fjs/djs/
+```
+
+`fjs/edag/` must not depend on DJS parsing, module loading, or serialization.
+The temporary `Unresolved { imports, edag }` wrapper stays in the DJS/module
+compiler layer because import paths are not part of EDAG. Likewise, recursive
+module resolution, `.fjs/unresolved/` caching, and `.f.js` serialization stay
+outside `fjs/edag/`.
+
+The exact internal file split under `fjs/edag/` can be chosen during
+implementation; the directory/module boundary is the important part.
+
 ### Proposal
 
 Define the EDAG with **RTTI** ([`fjs/types/rtti`](../fjs/types/rtti/README.md)):
-an RTTI schema (an FJS module) is the specification of record, and Rust code
+an RTTI schema in `fjs/edag/` is the specification of record, and Rust code
 for the EDAG types and the `Function` constructor's input
 validation/construction is **generated** from it.
 
@@ -41,20 +85,38 @@ Why RTTI:
 - RTTI already supports the shapes an EDAG needs: structs, tuples, `or`
   (unions), and recursion via `Thunk`.
 
-The RTTI schema is the only specification of the EDAG shape;
+The RTTI schema in `fjs/edag/` is the only specification of the EDAG shape;
 [`spec/`](../spec/README.md) stays a prose overview of the levels and
 their features.
 
 Serialization needs no separate treatment here: the EDAG is an `Any` value, so
 the generic `Any` serialization (CBOR, including the deterministic profile
 for CAVM hashing) covers it — see the P3 task and open question in
-[mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md).
+[mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md). DJS `const` declarations and
+references are a serialization mechanism for semantic node sharing, not a
+separate `const_ref` EDAG operation. DJS `.f.js` parser/serializer rollout,
+including special-number round trips, belongs to
+[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md);
+standard JSON numeric policy remains separate in
+[`number-edge-cases.md`](../fjs/media/json/todo/number-edge-cases.md).
 
 ### Tasks
 
-- [ ] Define the EDAG schema as an RTTI schema (FJS module) covering all MVP
-      nodes: JSON level (§1), DJS level (§2: `const_ref`, `bigint`,
-      operators, …), FJS level (§3: function, parameters, captured consts).
+- [ ] Create `fjs/edag/` as the canonical FunctionalScript EDAG module.
+- [ ] Keep the `EDAG`/operation types, canonical operation definitions, RTTI
+      schema, and EDAG-only validation in `fjs/edag/`; do not duplicate those
+      definitions under `fjs/djs/` or another consumer.
+- [ ] Keep the module dependency one-way: `fjs/djs/` may import `fjs/edag/`,
+      but `fjs/edag/` must not import DJS parser/module-loader/serializer code.
+- [ ] Keep temporary module-compilation structures such as
+      `Unresolved { imports, edag }` outside `fjs/edag/`.
+- [ ] Define the EDAG schema as an RTTI schema covering the canonical operation
+      forms decided in [`edag-stage1-discussion.md`](./edag-stage1-discussion.md),
+      including semantic node sharing without a `const_ref` EDAG node.
+- [ ] Keep the schema compatible with the staged DJS implementation in
+      [`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md)
+      while allowing later operations to be added without changing existing
+      canonical forms.
 - [ ] Implement a Rust code generator from RTTI schemas: EDAG types +
       validation of the `Any` shape accepted by the `Function` constructor
       (following the pattern of the TypeScript printer in
@@ -64,6 +126,24 @@ for CAVM hashing) covers it — see the P3 task and open question in
 
 ### Related
 
+- [`edag-stage1-discussion.md`](./edag-stage1-discussion.md) — working EDAG
+  semantics, operation vocabulary, validation rules, and staging decisions.
+- [`fjs/djs/todo/compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md)
+  — concrete parser/module rollout for Stage 1 and Stage 2; it consumes the
+  canonical definitions from `fjs/edag/`.
+- [`fjs/djs/todo/157.md`](../fjs/djs/todo/157.md) — existing JSON/DJS
+  parser/serializer structural deduplication work.
+- [`fjs/media/json/todo/number-edge-cases.md`](../fjs/media/json/todo/number-edge-cases.md)
+  — existing owner of standard JSON numeric edge-case policy.
+- [`spec/todo/2330-property-accessor.md`](../spec/todo/2330-property-accessor.md)
+  — property/method-access safety rules used by `.` and `.()`.
+- [`spec/todo/3110-function.md`](../spec/todo/3110-function.md) — source-level
+  function support.
+- [`spec/todo/3111-function-frame.md`](../spec/todo/3111-function-frame.md) —
+  captured-frame and VM-internal function-object design; frame support is later
+  than the initial non-capturing EDAG stage.
+- [`spec/todo/9100-call-like-instructions.md`](../spec/todo/9100-call-like-instructions.md)
+  — VM-internal lowering of calls; it is not the stable EDAG call format.
 - [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — the
   `Function` constructor and interpreter tasks are blocked by this spec.
 - [`spec/todo/serialization.md`](../spec/todo/serialization.md)

@@ -7,6 +7,17 @@ Each subject below is resolved separately; once all are **decided**, the
 result is distilled into a concrete design in [edag-spec.md](./edag-spec.md)
 and this document is deleted.
 
+The concrete DJS rollout is tracked in
+[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md):
+Stage 1 introduces `.` and unresolved modules; Stage 2 introduces
+non-capturing `=>`, `()`, and `.()`. This document owns the EDAG semantics,
+not parser scheduling. Property/method-access safety is shared with
+[property-accessor](../spec/todo/2330-property-accessor.md); source functions
+and later captured frames are tracked by [function](../spec/todo/3110-function.md)
+and [function-frame](../spec/todo/3111-function-frame.md); VM-internal call
+lowering belongs to
+[call-like-instructions](../spec/todo/9100-call-like-instructions.md).
+
 ## Baseline: an expression DAG with anchored evaluation
 
 *This baseline supersedes the original index-based sequence proposal; the
@@ -63,15 +74,14 @@ guards, A4) are merged into the graph by the **`","` operation**:
 - an operation node is:
   - a **non-object, non-array value** — a constant: `"hello world"`, `2.5`,
     `false`, `undefined`, `null`, `34n`;
-  - an **object** — an object constructor; each property value is an
-    operation node;
   - an **array** — a tagged tuple `[tag, ...operands]`; the tags are
     listed in [Operations](#operations) below.
+- **Plain objects are reserved and currently have no EDAG meaning.**
 - operand positions hold **real references** to nodes, not indices.
   Referencing the same node from two positions is **semantic sharing**: the
-  node is evaluated once and its result reused. `const x = {}` then
-  `[x, x]` yields an array with `a[0] === a[1]`, while `[{}, {}]` yields
-  two distinct objects.
+  node is evaluated once and its result reused. `const x = ["{}"]` then
+  `["[]", x, x]` yields an array with `a[0] === a[1]`, while
+  `["[]", ["{}"], ["{}"]]` yields two distinct objects.
 - evaluation: the root node is established (subject 8) and its value is
   the function's result; a `","` establishes all its operands, in any
   order, possibly in parallel (A4); every node is memoized by its
@@ -116,9 +126,10 @@ represent basic blocks for local optimization. **FunctionalScript
 inverts its status.** There a DAG is *derived* from a tree by common
 subexpression elimination, and the two denote the same computation
 because sharing is unobservable — an optimization. Here the EDAG is
-**primary**: sharing is observable (`[x, x]` and `[{}, {}]` are
-different functions, subject 1), so no tree denotes what an EDAG
-denotes, and the sharing is authored rather than recovered by analysis.
+**primary**: sharing is observable (`["[]", x, x]` and
+`["[]", ["{}"], ["{}"]]` are different functions, subject 1), so no
+tree denotes what an EDAG denotes, and the sharing is authored rather
+than recovered by analysis.
 
 Related representations, for orientation: *term graphs* in the
 term-rewriting literature are the same structure (though often
@@ -179,30 +190,43 @@ Agreed points (not under discussion):
 ## Operations
 
 The operations we want, with their stage. Every operand is an operation
-node; `node` below means any of them.
+node; `node` below means any of them. The stage numbers match the concrete
+DJS rollout in
+[`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md).
 
 ### Structural operations
 
 |Form|JS|Stage|Notes|
 |----|--|-----|-----|
 |`2.5`, `"a"`, `true`, `null`, `undefined`, `34n`|itself|1|constant — any non-object, non-array value|
-|`{ key: node, … }`|`{ key: … }`|1|object constructor; key order is part of the value (subject 4)|
 |`["[]", ...node]`|`[…]`|1|array constructor|
+|`["{}", ...entry]`|`{ … }`|1|ordered object constructor; initial entry form is `[":", key, value]` (subject 4)|
 |`["args"]`|—|1|the arguments array (subject 2)|
 |`[".", object, property]`|`o.p`, `o[p]`|1|property access; `property` is restricted (see below)|
-|`["()", object, args]`|`f(...args)`|1|call; `args` is one node yielding an array|
-|`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|1|method call; keeps `this` binding; same `property` restriction|
-|`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|1|own property by a computed **string**; no prototype chain|
+|`["()", object, args]`|`f(...args)`|2|call; `args` is one node yielding an array|
+|`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|2|method call; keeps `this` binding; same `property` restriction|
+|`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|later|own property by a computed **string**; no prototype chain|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
-|`["=>", frame, body]`|`(…) => …`|later|closures; `frame` yields the captured array (see below)|
+|`["=>", frame, body]`|`(…) => …`|2|function; initial Stage 2 accepts only an empty frame, captured frames come later|
+
+`["{}", ...entry]` is an ordered object-construction operation. Stage 1
+uses `[":", key, value]` entries. The entry list preserves the source
+property sequence. The key position is a node so the shape can support
+computed keys later, but **current validation admits only a string-constant
+key**; arbitrary computed-key nodes stay invalid until their coercion and
+failure semantics are defined. Entry forms are local to the object
+constructor rather than general expressions. Later, new entry forms can be
+added without changing the outer operation; for example `["...", object]`
+can represent `{ ...object }`. Plain objects remain reserved and have no EDAG
+meaning yet.
 
 Tags are **JS syntax wherever JS has syntax for the operation** — hence
-`"."`, `"()"`, `".()"` and `","` above, and the operator symbols
-below. This is [DESIGN.md §8](../DESIGN.md) again: the host language
-already spells these, so the EDAG reuses the spelling instead of
-inventing a vocabulary to be memorized and translated. `".()"` reads as
-the method call it denotes, `o.p(…)`.
+`"."`, `"()"`, `".()"`, `"{}"`, `":"` and `","` above, and the operator
+symbols below. This is [DESIGN.md §8](../DESIGN.md) again: the host language
+already spells these, so the EDAG reuses the spelling instead of inventing
+a vocabulary to be memorized and translated. `".()"` reads as the method
+call it denotes, `o.p(…)`.
 
 **The property operand is restricted**, in `"."` and `".()"` alike. It
 must be one of:
@@ -228,7 +252,7 @@ the EDAG at all.
 Unary `+` throws on a **bigint**, so `["Number", node]` exists as the
 converting alternative; it is spelled by its JS built-in, `Number(x)`.
 
-Accessing a property by a **computed string** is a different operation,
+Accessing a property by a **computed string** is a different, later operation,
 `["own", object, key]` — own properties only, no prototype chain, so a
 computed name is harmless. Its JS spelling is a pattern rather than
 syntax:
@@ -700,37 +724,72 @@ open:
   shared across a function boundary, and "whose arguments?" never
   arises.
 
-### 4. Object constructor: key order and duplicate keys
+### 4. Object constructor: ordered entries
 
-**Status:** decided
+**Status:** decided (revised)
 
-**Resolution: property order is semantic** — the written key order is
-part of the constructed *value*, not of the schedule: JS objects
-preserve insertion order for string keys (`Object.keys`, iteration,
-`JSON.stringify`), so reordering an object constructor's keys changes
-the resulting object.
+**Resolution: an object constructor is `["{}", ...entries]`, and the
+entry sequence is semantic.** Stage 1 uses one entry form,
+`[":", key, value]`. The key and value positions contain EDAG nodes, so
+the representation can support computed keys without changing the constructor shape;
+**current validation nevertheless accepts only string-constant keys**. Arbitrary
+computed-key nodes remain invalid until their coercion/failure semantics are defined.
+Entry forms belong to the object constructor rather than to the general expression
+vocabulary.
 
-One exception, which limits the *rationale* but not the conclusion:
-**integer-index keys always come first, in ascending order**, whatever
-the source order — `Object.keys({"2":a,"1":b})` and
-`Object.keys({"1":b,"2":a})` are both `["1","2"]`. Two EDAGs differing
-only in the order of index keys are therefore one JS value with two
-hashes, which the core invariant's print-run-compare test cannot
-distinguish. The conclusion stands on the non-index cases.
+History: this subject previously represented an object constructor as a
+plain EDAG object and rejected duplicate keys during validation. The revised
+representation uses the tagged `["{}", ...entries]` operation, reserves plain
+objects for future use, and keeps duplicate entries so construction can follow
+JavaScript overwrite semantics and later support computed keys.
 
-This holds with A4 rejected — the evaluation *order* of property
-operands is as free as any other (subject 8); what is fixed is the
-result. Sorted-key canonicalization (as `fjs compile` applies to
-data output, [spec/README.md](../spec/README.md)) must **not** be
-applied to object constructors. Duplicate keys are a validation error.
+Entry descriptor arrays such as `[":", key, value]` are **structural operands**, not
+independently evaluated EDAG nodes. Their container identity therefore has no semantic
+meaning and must not add another graph/hash distinction. Validation rejects reusing the
+same descriptor-array identity in more than one object-entry position. The `key` and
+`value` operands are real EDAG nodes, so their identities may be shared normally.
 
-**`__proto__` is a data key, never a prototype assignment.** FS plans to
-have no prototype chains at run time, so a key `"__proto__"` denotes
-an ordinary property — and printing it (subject 12) must use the
-computed spelling `{ ["__proto__"]: … }`, the only JS form that
-reproduces the value. The identifier and string spellings assign a
-prototype instead and lose the property. This is the rule the DJS
-parser and serializer already follow —
+The sequence is retained exactly as written. It matters for several
+independent reasons:
+
+- JavaScript evaluates object-literal definitions in source order;
+- duplicate keys and, once admitted, computed keys can overwrite properties created
+  by earlier entries, so the final object can depend on entry order;
+- insertion order of non-index string properties is observable through
+  `Object.keys`, iteration, and `JSON.stringify`.
+
+One caveat remains: two EDAGs that differ only in the order of distinct,
+static integer-index keys can still produce the same JavaScript value. For
+example, `["{}", [":", "2", a], [":", "1", b]]` and
+`["{}", [":", "1", b], [":", "2", a]]` both enumerate as `"1", "2"`.
+Hash-as-written still distinguishes the EDAGs, but the core invariant's
+print-run-compare test cannot distinguish this pair. Computed keys,
+duplicate keys, and key/value computation can make entry order observable;
+the caveat is specifically that not every distinct written order denotes a
+distinct JavaScript value.
+
+A4's opaque-error contract permits an engine to schedule independent key and
+value computations differently when doing so is unobservable, but the object
+must be produced **as if the entries were applied in their EDAG order**.
+Sorted-key canonicalization (as `fjs compile` applies to data output,
+[spec/README.md](../spec/README.md)) must therefore not be applied to object
+constructor entries.
+
+Duplicate properties are allowed, as in JavaScript; the later entry wins.
+This is also required once computed keys are admitted, because equality of two keys
+may not be knowable during EDAG validation.
+
+The entry vocabulary is extensible. A later `["...", object]` entry can
+represent object spread, `{ ...object }`, without changing `["{}", ...]`.
+Plain objects remain reserved for a future EDAG use.
+
+**`__proto__` is a data key, never a prototype assignment.** In an EDAG
+entry, `[":", "__proto__", value]` defines an ordinary own property. When
+printing it as JavaScript (subject 12), the printer must use the computed
+spelling `{ ["__proto__"]: … }`, the only object-literal form that
+reproduces that value. The identifier and string spellings assign a prototype
+instead and lose the property. This is the rule the DJS parser and serializer
+already follow —
 [spec: the `__proto__` key](../spec/README.md#the-__proto__-key).
 
 ### 5. Validation
@@ -750,6 +809,13 @@ the FJS compiler would never emit. To validate:
   from another operand of the same `","` is redundant (well-formedness,
   subject 8);
 - unknown command tags: validation error;
+- object constructors: every `["{}", ...]` operand must be a recognized
+  entry form; stage 1 accepts `[":", key, value]` only when `key` is a
+  **string constant**. Duplicate property keys/entries are valid and are
+  applied in order (subject 4). Entry descriptor containers are structural,
+  so the same descriptor-array identity must not appear in more than one entry
+  position; key/value EDAG nodes inside descriptors may still be shared. Plain
+  objects are not EDAG nodes;
 - **property operands** of `"."` and `".()"`: a permitted string
   constant, a number constant, or a **unary** `"+"` / `"Number"` node.
   Anything else is a validation error, which is what keeps
@@ -762,7 +828,6 @@ the FJS compiler would never emit. To validate:
   [property-accessor](../spec/todo/2330-property-accessor.md), and
   because the key is a *constant* the check happens once, at
   construction, not on every access;
-- duplicate object-constructor keys: validation error (subject 4);
 - object-constructor key `"__proto__"`: **not** a validation error — it
   denotes an ordinary own property (subject 4) — but it constrains
   printing, since `{ "__proto__": v }` as JS assigns a prototype instead
@@ -771,8 +836,13 @@ the FJS compiler would never emit. To validate:
 - **acyclicity**: DJS cannot express cycles (const-before-use), but an
   `Any` handed to the `Function` constructor can be built by other means —
   cyclic node graphs must be rejected;
-- aliasing is *not* an error anywhere — referencing the same node from
-  many positions is the sharing mechanism (subject 1).
+- aliasing of **operation nodes is valid only within one function EDAG scope**:
+  referencing the same node from many operand positions in that scope is the sharing
+  mechanism (subject 1), but an operation-node identity must not cross a `"=>"`
+  function boundary (the closed-scope model above). Structural containers that are not
+  nodes, such as object-entry descriptors, follow their operation-specific canonicality
+  rules above instead. The initial Stage 2 validator/proofs for this boundary are tracked
+  by [`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md).
 
 ### 6. Command vocabulary vs. the existing spec names
 
@@ -795,10 +865,10 @@ never reaches `"."` at all.
 
 **Decided for the structural tags: they are JS syntax too** —
 `[".", object, property]`, `["()", object, args]`,
-`[".()", object, property, args]`, `[",", …]`. Syntax is as much a host
-spelling as an operator symbol is, and `".()"` reads as the `o.p(…)` it
-denotes. This supersedes the `at` / `call` / `bindCall` names used
-earlier in this document.
+`[".()", object, property, args]`, `["{}", …]`, `[":", key, value]`,
+`[",", …]`. Syntax is as much a host spelling as an operator symbol is,
+and `".()"` reads as the `o.p(…)` it denotes. This supersedes the
+`at` / `call` / `bindCall` names used earlier in this document.
 
 **Decided: `"."` and `".()"`, not `"[]"` and `"[]()"`.** `"."` is the
 shorter and more readable tag, and `".()"` composes to read exactly like
@@ -818,16 +888,23 @@ an optimization:
 
 `"."` merges 2330's static-name and numeric-index commands because the
 operand restriction ([Operations](#operations)) covers both safely; the
-static/numeric split that remains is a bytecode specialization. But `own_property` cannot be folded in: it is what makes
-computed-string access *possible at all*, precisely by skipping the
-prototype chain.
+static/numeric split that remains is a bytecode specialization. But
+`own_property` cannot be folded in: it is what makes computed-string access
+*possible at all*, precisely by skipping the prototype chain.
 
 **Decided: the array constructor is `"[]"`.** Choosing `"."` for access
 freed the tag, and `[a, b]` is precisely how JS spells an array literal.
 The earlier objection — that `["[]", a, b]` would read as both a
 two-element array and `a[b]` — disappeared with access moved to `"."`.
-Word tags now survive only where JS genuinely has no expression
-spelling: `"args"`, `"frame"`, `"self"`, `"throw"`, `"own"`.
+
+**Decided: the object constructor is `"{}"` with ordered entries.**
+`["{}", [":", key, value], …]` preserves construction order and leaves
+room for computed keys once their semantics are admitted; it can later accept
+additional entry forms such as `["...", object]`. Plain objects are
+deliberately left unused by EDAG.
+
+Word tags now survive only where JS genuinely has no expression spelling:
+`"args"`, `"frame"`, `"self"`, `"throw"`, `"own"`.
 
 ### 7. Top-level shape of a function
 
@@ -972,9 +1049,10 @@ the **graph**, not a tree expansion:
   are **derived** from the graph, never authored (subject 1). Affects
   the CBOR task in [mvp-roadmap](../nanvm-lib/todo/mvp-roadmap.md).
 - Hash-consing / content-addressed dedup must **not** merge structurally
-  identical constructor nodes: `[{}, {}]` and `const x = {}; [x, x]` are
-  semantically different, and a naive structural hash conflates them. The
-  hash must be computed over the canonical graph serialization.
+  identical constructor nodes: `["[]", ["{}"], ["{}"]]` and
+  `const x = ["{}"]; ["[]", x, x]` are semantically different, and a
+  naive structural hash conflates them. The hash must be computed over
+  the canonical graph serialization.
 - JSON output expands sharing ([spec/README.md](../spec/README.md)) and is
   therefore not a valid EDAG carrier; DJS and tagged CBOR are.
 - Nested functions no longer pose the binders-plus-sharing difficulty:
@@ -1170,10 +1248,11 @@ What that requires of the printer:
   renders, and it is why built-in namespaces are still open in
   subject 10.
 - **Sharing must be preserved.** A node referenced twice must print as
-  one `const` used twice, never as two copies: `[x, x]` and `[{}, {}]`
-  are different functions (subject 1). This is the same graph-flattening
-  hazard as JSON output ([spec/README.md](../spec/README.md)) — a
-  printer that expands sharing silently changes semantics.
+  one `const` used twice, never as two copies: `["[]", x, x]` and
+  `["[]", ["{}"], ["{}"]]` are different functions (subject 1). This is
+  the same graph-flattening hazard as JSON output
+  ([spec/README.md](../spec/README.md)) — a printer that expands sharing
+  silently changes semantics.
 - **The printed source must be closed.** `eval` has no module scope, so
   nothing may print as a bare imported or module-level name; captured
   values are materialized in the text. This is exactly what the
