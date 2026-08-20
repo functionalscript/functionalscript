@@ -84,7 +84,7 @@ export const array = /** @type {const} */(['[]', rttiArray(exp)])
 
 // Property
 
-export const property = /** @type {const} */([exp, exp])
+export const property = /** @type {const} */([':', exp, exp])
 
 /** @typedef {Assert<Check<Property, typeof property>>} _Property */
 
@@ -99,6 +99,12 @@ export const object = /** @type {const} */(['{}', rttiArray(property)])
 export const args = /** @type {const} */(['args'])
 
 /** @typedef {Assert<Check<Args, typeof args>>} _Args */
+
+// Number
+
+// export const numberCast = /** @type {const} */(['Number', exp])
+
+// /** @typedef {Assert<Check<NumberCast>} _NumberCast */
 
 // Property Accessor
 

@@ -60,9 +60,12 @@ export const proof = {
     object: {
         ok: () => {
             assertOk(v(['{}', []]))
-            assertOk(v(['{}', [['a', 1], ['b', 'x']]]))
+            assertOk(v(['{}', [[':', 'a', 1], [':', 'b', 'x']]]))
         },
-        error: () => assertNoMatch(v(['{}', [['a', {}]]])),
+        error: () => {
+            assertNoMatch(v(['{}', [[':', 'a', {}]]])) // bad value
+            assertNoMatch(v(['{}', [['a', 1]]])) // missing the `:` tag
+        },
     },
     args: {
         ok: () => assertOk(v(['args'])),

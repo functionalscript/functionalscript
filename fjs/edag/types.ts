@@ -21,7 +21,7 @@ export type Array = readonly['[]', readonly Exp[]]
 
 // property
 
-export type Property = readonly[Exp, Exp]
+export type Property = readonly[':', Exp, Exp]
 
 // object
 
