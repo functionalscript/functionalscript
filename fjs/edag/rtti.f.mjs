@@ -2,7 +2,8 @@
  * @import { Ts } from '../types/rtti/ts/types.ts'
  * @import { Assert } from '../asserts/types.ts'
  * @import { Equal } from '../types/ts/types.ts'
- * @import { Exp, Primitive } from './types.ts'
+ * @import { Exp, Primitive, PropertyAccessor } from './types.ts'
+ * @import { Phantom } from '../types/phantom/types.ts'
  */
 
 import {
@@ -14,12 +15,13 @@ import {
     array as rttiArray,
 } from "../types/rtti/module.f.mjs";
 
-export const exp = () => /** @type {const} */(['or',
+/** @type {() => ['or', typeof primitive, typeof array, typeof object, typeof args]} */
+export const exp = () => (['or',
     primitive,
     array,
     object,
     args,
-    propertyAccessor,
+    // propertyAccessor,
 ])
 
 /** @typedef {Assert<Equal<Exp, Ts<typeof exp>>>} _0 */
@@ -37,3 +39,5 @@ export const object = /** @type {const} */(['{}', rttiArray(property)])
 export const args = /** @type {const} */(['args'])
 
 export const propertyAccessor = /** @type {const} */(['.', exp, exp])
+
+/** @typedef {Assert<Equal<PropertyAccessor, Ts<typeof propertyAccessor>>>} _2 */

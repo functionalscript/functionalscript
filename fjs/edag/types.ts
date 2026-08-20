@@ -10,7 +10,7 @@ export type Exp =
     | Array
     | Object
     | Args
-    | PropertyAccessor
+    // | PropertyAccessor
 
 // primitive
 
