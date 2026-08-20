@@ -124,6 +124,24 @@ export type StructTs<T extends Struct> =
  * // Ts<typeof my>  →  MyType
  * ```
  *
+ * `MyType` here is an unchecked annotation — nothing derives it, so a typo
+ * (the wrong type, or one that has drifted from `myConst`) is trusted
+ * silently. Pin it down with two asserts, one against the un-annotated
+ * `myThunk` (forces the real structural walk) and one against the
+ * phantom-wrapped `my` (catches the two drifting apart):
+ *
+ * ```ts
+ * type _Check0 = Assert<Equal<MyType, Ts<typeof myThunk>>>
+ * type _Check1 = Assert<Equal<MyType, Ts<typeof my>>>
+ * ```
+ *
+ * See `fjs/edag/module.f.mjs` for this in practice. Note also that the phantom
+ * branch below does `Exclude<O, undefined>`, so a `MyType` that legitimately
+ * includes bare `undefined` at its top level will never satisfy `_Check1` —
+ * phantom-wrap the recursive node type itself (e.g. `PropertyAccessor`, which
+ * has no top-level `undefined`), not a wider union (`Exp`) that folds
+ * `undefined` in through one of its members.
+ *
  * @example
  * ```ts
  * type A = Ts<typeof string>          // string

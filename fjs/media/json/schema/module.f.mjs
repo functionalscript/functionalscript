@@ -21,6 +21,8 @@
  * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../types/rtti/data/types.ts'
  * @import { Ts } from '../../../types/rtti/ts/types.ts'
  * @import { Phantom } from '../../../types/phantom/types.ts'
+ * @import { Equal } from '../../../types/ts/types.ts'
+ * @import { Assert } from '../../../asserts/types.ts'
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
@@ -37,6 +39,13 @@ const unknownThunk = () => ['const', unknownConst]
  * @type {Phantom<typeof unknownThunk, _UnknownConst>}
  */
 export const unknown = unknownThunk
+
+/**
+ * Checked against the un-annotated thunk, so a wrong `_UnknownConst` above
+ * would be caught here instead of silently trusted via the `Phantom` lie.
+ * @typedef {Assert<Equal<_UnknownConst, Ts<typeof unknownThunk>>>} _UnknownCheck0
+ */
+/** @typedef {Assert<Equal<_UnknownConst, Ts<typeof unknown>>>} _UnknownCheck1 */
 
 /** A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits. */
 /** @typedef {Ts<typeof unknown>} Unknown */
