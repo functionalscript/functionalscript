@@ -17,6 +17,7 @@
  *  PropertyCall,
  *  UndefinedOp,
  *  Plus,
+ *  Minus
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -28,6 +29,7 @@ import {
     or,
     string,
     array as rttiArray,
+    option,
 } from "../types/rtti/module.f.mjs";
 
 /**
@@ -241,4 +243,15 @@ export const plus = _plus
 /**
  * @typedef {Assert<Check<Plus, typeof _plus>>} _Plus0
  * @typedef {Assert<Check<Plus, typeof plus>>} _Plus1
+ */
+
+// -
+
+export const _minus = /** @type {const} */(['-', exp, option(exp)])
+
+export const minus = _minus
+
+/**
+ * @typedef {Assert<Check<Minus, typeof _minus>>} _Minus0
+ * @typedef {Assert<Check<Minus, typeof minus>>} _Minus1
  */

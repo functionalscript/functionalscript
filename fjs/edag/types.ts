@@ -73,3 +73,7 @@ export type PropertyCall = readonly['.()', Exp, Index, Exp]
 // +
 
 export type Plus = readonly['+', Exp, Exp]
+
+// -
+
+export type Minus = readonly['-', Exp, Exp | undefined]
