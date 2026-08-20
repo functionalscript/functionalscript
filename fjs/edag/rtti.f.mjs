@@ -1,8 +1,15 @@
 /**
- * @import { Ts } from '../types/rtti/ts/types.ts'
  * @import { Assert } from '../asserts/types.ts'
- * @import { Equal } from '../types/ts/types.ts'
- * @import { Exp, Primitive, PropertyAccessor } from './types.ts'
+ * @import {
+ *  Check,
+ *  Args,
+ *  Array,
+ *  Exp,
+ *  Primitive,
+ *  Property,
+ *  PropertyAccessor,
+ *  Object
+ * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
 
@@ -23,11 +30,7 @@ export const exp = () => /** @type {const} */(['or',
     propertyAccessor,
 ])
 
-/** @typedef {Assert<Equal<Exp, Ts<typeof exp>>>} _0 */
-
 export const primitive = or(undefined, null, boolean, number, string, bigint)
-
-/** @typedef {Assert<Equal<Primitive, Ts<typeof primitive>>>} _1 */
 
 export const array = /** @type {const} */(['[]', rttiArray(exp)])
 
@@ -42,4 +45,12 @@ const _propertyAccessor = /** @type {const} */(['.', exp, exp])
 /** @type {Phantom<typeof _propertyAccessor, PropertyAccessor>} */
 export const propertyAccessor = _propertyAccessor
 
-/** @typedef {Assert<Equal<PropertyAccessor, Ts<typeof propertyAccessor>>>} _2 */
+/**
+ * @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert
+ * @typedef {Assert<Check<Primitive, typeof primitive>>} _PrimitiveAssert
+ * @typedef {Assert<Check<Array, typeof array>>} _ArrayAssert
+ * @typedef {Assert<Check<Property, typeof property>>} _PropertyAssert
+ * @typedef {Assert<Check<Object, typeof object>>} _ObjectAssert
+ * @typedef {Assert<Check<Args, typeof args>>} _ArgsAssert =
+ * @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
+ */
