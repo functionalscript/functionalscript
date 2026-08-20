@@ -107,6 +107,7 @@ export const option = t =>
 
 /**
  * Schema that never matches any value — the empty union, corresponding to TypeScript's `never`.
+ *
  * @type {Or<readonly []>}
  */
 export const never = or()
