@@ -29,11 +29,10 @@ becoming the canonical FunctionalScript computation representation and already n
 own exactly this information: the operator spelling and the shape/arity of its operands.
 NaNVM should not define a second semantic operator format that can drift from EDAG.
 
-For example, EDAG distinguishes unary and binary operators by the canonical tagged-array
-shape itself:
+For example, EDAG operations have the canonical tagged-array shape itself:
 
 ```js
-['-', a]
+['neg', a]
 ['-', a, b]
 ['*', a, b]
 ['===', a, b]
@@ -60,11 +59,15 @@ should refer to the EDAG definition for:
 ['*', left, right]
 ```
 
-and derive that its case arguments are a two-element tuple. Unary `-` (negation) and
-binary `-` (subtraction) remain distinct because their EDAG operation shapes have
-different arities; NaNVM does not need a second disambiguation scheme. (The EDAG has no
-unary `+` — see `edag-stage1-discussion.md`'s "Operators" table — so NaNVM's own
-`unaryPlus` op, if kept, has no EDAG operation to derive its shape from.)
+and derive that its case arguments are a two-element tuple. Negation and binary `-`
+(subtraction) don't share a tag — negation is `"neg"`, not an arity-overloaded `"-"` (an
+earlier draft spelled it `['-', a]`, matching JS's own overloading of unary and binary
+`-`, but the design settled on a distinct word tag instead specifically so no `or`
+alternative's position is order-sensitive relative to another; see
+`edag-stage1-discussion.md`'s "Operators" section). NaNVM therefore does not need an
+arity-disambiguation scheme at all: every EDAG tag is unique, so deriving operand shape
+from a tag lookup is unambiguous. (The EDAG also has no unary `+` — same section — so
+NaNVM's own `unaryPlus` op, if kept, has no EDAG operation to derive its shape from.)
 
 This does **not** mean the NaNVM corpus becomes an EDAG program or that all test values
 must be encoded as EDAG nodes. The corpus still owns test-only data such as:
