@@ -23,7 +23,7 @@
 import {
     bigint,
     boolean,
-    number as number,
+    number,
     or,
     string,
     array as rttiArray,
