@@ -68,9 +68,12 @@ EDAG rule permits:
 - a permitted **string constant** (not a prohibited prototype-chain name such as
   `constructor` or `__proto__`);
 - a **number constant**;
-- later, a unary `+` or `Number` node that is guaranteed to yield a number or throw.
+- later, a `Number` node — guaranteed to yield a number, or throw. The EDAG has no
+  unary `+` operator (see `edag-stage1-discussion.md`'s "Operators" table): JS's own
+  unary `+` throws on a `bigint` rather than converting it, so `Number` is the
+  language's one numeric-coercion form.
 
-Stage 1 does not introduce unary `+` or `Number`, so its parser/compiler accepts only
+Stage 1 does not introduce `Number`, so its parser/compiler accepts only
 the permitted string-constant and number-constant cases. A runtime-computed string,
 a prohibited string literal, or any other unsupported property expression is rejected
 rather than compiled to `.`. For example, `a.x`, `a['x']`, and `a[0]` can lower to `.`,
@@ -412,8 +415,8 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 - [ ] Introduce `['.', object, property]` into EDAG and its validation/type schema,
       enforcing the canonical property-operand restriction: permitted string constants,
-      number constants, and only later the approved unary numeric-conversion forms when
-      those operations exist.
+      number constants, and only later the `Number` numeric-conversion node once it
+      exists.
 - [ ] Introduce parser support for `a.b` and `a[b]`, compiling only permitted Stage 1
       static-string/number property cases to `.`, and reject runtime-computed strings,
       prohibited property names, and other unsupported property expressions.

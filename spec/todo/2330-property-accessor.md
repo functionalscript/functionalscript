@@ -284,7 +284,7 @@ f(i) // returns 0 thanks to side effects!
 
 ```js
 obj[42]
-obj[+index]
+obj[Number(index)]
 ```
 
 It's translated into VM command `at`:
@@ -301,13 +301,14 @@ import m from './m.f.js'
 const a = [2, 3]
 export default {
     "a": a[0],
-    // we don't know what is the type of `m` so we force it to be a `number` or `bigint`.
-    "b": a[+m]
+    // we don't know what is the type of `m` so we force it to be a `number` via `Number(...)`.
+    "b": a[Number(m)]
 }
 ```
 
-In `obj[index]`, `index` has to be a `number`. If we don't know what is `index`, `+` requires before `index`. It means the byte
-code for the expression inside the `[]` should be either the unary `+`, a number literal, or a string literal (excluding some strings).
+In `obj[index]`, `index` has to be a `number`. If we don't know what `index` is, wrap it in
+`Number(...)`. It means the byte code for the expression inside the `[]` should be either
+`Number(...)`, a number literal, or a string literal (excluding some strings).
 If it references an object, FS gives up. FS may try deeper analyses in the future, and type inference can help a lot.
 
 ## Iterators

@@ -239,13 +239,12 @@ must be one of:
   ([property-accessor](../spec/todo/2330-property-accessor.md):
   `constructor`, `__proto__`, the instance methods, …);
 - a **number constant**;
-- a node tagged `"+"` (unary) or `"Number"` — each guaranteed to yield
-  a number or throw.
+- a `"Number"` node — guaranteed to yield a number, or throw.
 
 So a run-time-computed **string** can never reach `"."`. This is a
 *syntactic* rule, checkable when the `Function` constructor validates
 its input (subject 5), which is what 2330 already asks of the byte code:
-the expression inside `[]` must be a unary `+`, a number literal, or a
+the expression inside `[]` must be `Number(...)`, a number literal, or a
 permitted string literal.
 
 The point is that the dangerous case becomes **unrepresentable rather
@@ -253,8 +252,10 @@ than checked**: prototype-chain lookup by a computed name — the abuse
 2330 documents (`f.constructor("…")`, `__proto__`) — has no spelling in
 the EDAG at all.
 
-Unary `+` throws on a **bigint**, so `["Number", node]` exists as the
-converting alternative; it is spelled by its JS built-in, `Number(x)`.
+The EDAG has no unary `+` operator. JS's own unary `+` would do the same
+coercion job for every type except **bigint**, where it throws instead of
+converting; `Number(x)` accepts bigints, so `["Number", node]` is the
+language's one numeric-coercion form, spelled by its JS built-in.
 
 Accessing a property by a **computed string** is a different, later operation,
 `["own", object, key]` — own properties only, no prototype chain, so a
@@ -303,7 +304,7 @@ same arity.
 
 |Symbols|Arity|JS|Lazy|Notes|
 |-------|-----|--|----|-----|
-|`+` `-`|1|`+a`, `-a`|no|`+` is also the coercion [property-accessor](../spec/todo/2330-property-accessor.md) requires before a run-time index|
+|`-`|1|`-a`|no|negation; no unary `+` — [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
 |`!` `~`|1|`!a`, `~a`|no|unary only|
 |`+` `-` `*` `/` `%` `**`|2|`a + b`|no|arithmetic|
 |`===` `!==` `<` `<=` `>` `>=`|2|`a === b`|no|`==` and `!=` are not allowed by [operators](../spec/todo/2340-operators.md)|
@@ -862,14 +863,14 @@ the FJS compiler would never emit. To validate:
   (subject 4); key/value EDAG nodes inside descriptors may of course be
   shared, like any other node. Plain objects are not EDAG nodes;
 - **property operands** of `"."` and `".()"`: a permitted string
-  constant, a number constant, or a **unary** `"+"` / `"Number"` node.
-  Anything else is a validation error, which is what keeps
-  computed-string prototype access unrepresentable
-  ([Operations](#operations)). The arity qualifier is load-bearing:
-  binary `"+"` concatenates, so `[".", o, ["+", "constr", "uctor"]]`
-  would rebuild a prohibited name at run time and reach `Object`; only
-  the unary form is guaranteed to yield a number or throw. The
-  prohibited-name list comes from
+  constant, a number constant, or a `"Number"` node. Anything else is a
+  validation error, which is what keeps computed-string prototype access
+  unrepresentable ([Operations](#operations)). `"Number"` never returns a
+  string, so it can never rebuild a prohibited name at run time — unlike
+  `"+"`, which concatenates at its binary arity
+  (`[".", o, ["+", "constr", "uctor"]]` would reach `Object`) and does
+  not exist at all at unary arity (above). The prohibited-name list comes
+  from
   [property-accessor](../spec/todo/2330-property-accessor.md), and
   because the key is a *constant* the check happens once, at
   construction, not on every access;
