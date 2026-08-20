@@ -21,6 +21,7 @@
  *  Neg,
  *  Own,
  *  Comma,
+ *  Frame,
  *  Fn
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
@@ -276,8 +277,12 @@ export const sub = _sub
  * @typedef {Assert<Check3<Sub, typeof _sub, typeof sub>>} _Sub
  */
 
-// Negation (aka a unary minus) — tagged `"-"`, same as `sub`; arity
-// distinguishes them (see the ordering note on `exp` above)
+// Negation (aka a unary minus) — a word tag, `"neg"`, not `"-"`'s unary
+// arity (an earlier draft overloaded `"-"` the way JS itself does; see
+// `todo/edag-stage1-discussion.md`'s "Operators" section for why that was
+// dropped). `sub` and `neg` therefore don't share a tag, so — unlike a
+// shared-tag pair would — neither's position in `exp`'s `or` list matters
+// relative to the other.
 
 const _neg = /** @type {const} */(['neg', exp])
 
@@ -301,7 +306,22 @@ export const comma = _comma
 
 // Function
 
-const _fn = /** @type {const} */(['=>', exp, exp])
+/**
+ * Stage 2 accepts only the empty frame — `['[]']`, not the `array` node
+ * `['[]', []]` — since it doesn't implement frames/captures yet; the
+ * operand exists so later frame support doesn't require changing `=>`'s
+ * shape. See `../../djs/todo/compile-modules-to-edag.md`.
+ */
+const _frame = /** @type {const} */(['[]'])
+
+/** @type {Phantom<typeof _frame, Frame>} */
+export const frame = _frame
+
+/**
+ * @typedef {Assert<Check3<Frame, typeof _frame, typeof frame>>} _Frame
+ */
+
+const _fn = /** @type {const} */(['=>', frame, exp])
 
 /** @type {Phantom<typeof _fn, Fn>} */
 export const fn = _fn

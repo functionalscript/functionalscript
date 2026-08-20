@@ -89,7 +89,8 @@ export type Add = readonly['+', Exp, Exp]
 
 export type Sub = readonly['-', Exp, Exp]
 
-// negation (aka a unary minus — arity, not tag, distinguishes it from `Sub`)
+// negation (aka a unary minus — a word tag, `"neg"`, not `"-"`'s unary
+// arity, so it doesn't share a tag with `Sub`)
 
 export type Neg = readonly['neg', Exp]
 
@@ -97,6 +98,11 @@ export type Neg = readonly['neg', Exp]
 
 export type Comma = readonly[',', Exps]
 
+// the empty frame — the only frame Stage 2 accepts; see `frame` in
+// module.f.mjs
+
+export type Frame = readonly['[]']
+
 // Fn
 
-export type Fn = readonly['=>', Exp, Exp]
+export type Fn = readonly['=>', Frame, Exp]
