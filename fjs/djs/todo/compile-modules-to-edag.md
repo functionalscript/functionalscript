@@ -290,12 +290,15 @@ inside one function body. Stage 2's compiler should naturally produce disjoint b
 graphs; validation must enforce the same rule for arbitrary public EDAG input.
 
 The object constructor is an ordered operation rather than a plain EDAG object. This
-preserves source property order and leaves room for future computed keys and entry
-forms such as object spread, for example `['...', object]`. Computed object-constructor
-key nodes are **not** part of this initial work: allowing arbitrary key expressions
-would introduce JavaScript `ToPropertyKey` failure cases and therefore needs explicit
-semantics before validation can admit them. Plain objects have no EDAG meaning here
-and remain reserved for a future use.
+preserves source property order and leaves room for future entry forms such as object
+spread, for example `['...', object]`. Validation already admits computed
+object-constructor key nodes: `[':', key, value]`'s `key` position is ordinary `exp`,
+not narrowed to a string constant — see
+[`edag-stage1-discussion.md`, subject 4](../../../todo/edag-stage1-discussion.md#4-object-constructor-ordered-entries).
+This task's Stage 1 compiler only emits string-constant keys, matching what the
+current DJS parser produces, but that is a property of the compiler, not of
+validation. Plain objects have no EDAG meaning here and remain reserved for a future
+use.
 
 Object-entry descriptors such as `[':', key, value]` are structural operands of the
 object constructor, not independently evaluated EDAG nodes: nothing evaluates a
