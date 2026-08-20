@@ -74,10 +74,6 @@ export const undefinedOp = /** @type {const} */(['undefined'])
 
 // Primitive
 
-/**
- * Bare `undefined` here is indistinguishable from a missing tuple position —
- * TODO, see `./todo/undefined-node.md`.
- */
 export const primitive = or(undefinedOp, null, boolean, number, string, bigint)
 
 /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */

@@ -57,7 +57,7 @@ guards, A4) are merged into the graph by the **`","` operation**:
   its value is discarded by `","`. The guard itself is either an
   ordinary function value that throws on a falsy argument, or, with no
   free-variable machinery needed,
-  `["?:", cond, undefined, ["throw", …]]` ([Operations](#operations),
+  `["?:", cond, ["undefined"], ["throw", …]]` ([Operations](#operations),
   subject 10).
   [operators](../spec/todo/2340-operators.md) allows the comma operator
   for exactly this reason: it was rejected as "useful only when we want
@@ -73,9 +73,10 @@ guards, A4) are merged into the graph by the **`","` operation**:
 
 - an operation node is:
   - a **non-object, non-array value** — a constant: `"hello world"`, `2.5`,
-    `false`, `undefined`, `null`, `34n`;
+    `false`, `null`, `34n`;
   - an **array** — a tagged tuple `[tag, ...operands]`; the tags are
-    listed in [Operations](#operations) below.
+    listed in [Operations](#operations) below. `["undefined"]` is one of
+    these, not a bare constant — see [Operations](#operations) for why.
 - **Plain objects are reserved and currently have no EDAG meaning.**
 - operand positions hold **real references** to nodes, not indices.
   Referencing the same node from two positions is **semantic sharing**: the
@@ -198,7 +199,8 @@ DJS rollout in
 
 |Form|JS|Stage|Notes|
 |----|--|-----|-----|
-|`2.5`, `"a"`, `true`, `null`, `undefined`, `34n`|itself|1|constant — any non-object, non-array value|
+|`2.5`, `"a"`, `true`, `null`, `34n`|itself|1|constant — any non-object, non-array value|
+|`["undefined"]`|`undefined`|1|the value `undefined`, as its own node — a bare `undefined` would be indistinguishable from a missing tuple position (a position past a node's arity reads as `undefined` too), so it is not a bare constant like the row above|
 |`["[]", ...node]`|`[…]`|1|array constructor|
 |`["{}", ...entry]`|`{ … }`|1|ordered object constructor; initial entry form is `[":", key, value]` (subject 4)|
 |`["args"]`|—|1|the arguments array (subject 2)|
@@ -388,7 +390,7 @@ recursion with no special machinery.
 expression — there is no operator symbol to reuse. Consequences:
 
 - **Assertions become expressible in the EDAG**:
-  `["?:", cond, undefined, ["throw", …]]`. This matters more than
+  `["?:", cond, ["undefined"], ["throw", …]]`. This matters more than
   convenience — the EDAG has no way to *reference* a free variable
   (module `const`, import, built-in): `["args"]` and constants are its
   only leaves (see subject 10). A host `assert` function would need that
@@ -439,7 +441,7 @@ because hash-as-written (subject 1) makes two spellings two functions.
 
 ```js
 ["?:", ok, v, ["throw", e]]           // branch on the result
-[",", ["?:", ok, undefined, ["throw", e]], v]   // guard, then result
+[",", ["?:", ok, ["undefined"], ["throw", e]], v]   // guard, then result
 ```
 
 — the same function, different hashes. Which lowering is canonical is

@@ -33,7 +33,6 @@ const v = value => validate(exp)(value)
 export const proof = {
     primitive: {
         ok: () => {
-            assertOk(v(undefined))
             assertOk(v(null))
             assertOk(v(true))
             assertOk(v(false))
@@ -41,10 +40,21 @@ export const proof = {
             assertOk(v('hello'))
             assertOk(v(7n))
         },
-        // `{}` is a legal `Unknown` value (an object with no properties) but
-        // matches none of `exp`'s alternatives — not a primitive, and not a
-        // tagged tuple with an index 0.
-        error: () => assertNoMatch(v({})),
+        error: () => {
+            // `{}` is a legal `Unknown` value (an object with no properties)
+            // but matches none of `exp`'s alternatives — not a primitive,
+            // and not a tagged tuple with an index 0.
+            assertNoMatch(v({}))
+            // Bare `undefined` is not a primitive here — see `undefinedOp`.
+            // A bare `undefined` would be indistinguishable from a missing
+            // tuple position, so `['undefined']` is its own node instead.
+            assertNoMatch(v(undefined))
+        },
+    },
+    undefinedOp: {
+        ok: () => assertOk(v(['undefined'])),
+        extraTailIsIgnored: () => assertOk(v(['undefined', 'ignored'])),
+        error: () => assertNoMatch(v(['undefinedz'])),
     },
     array: {
         ok: () => {
@@ -65,6 +75,7 @@ export const proof = {
         error: () => {
             assertNoMatch(v(['{}', [[':', 'a', {}]]])) // bad value
             assertNoMatch(v(['{}', [['a', 1]]])) // missing the `:` tag
+            assertNoMatch(v(['{}', [[':', 'a']]])) // missing the value
         },
     },
     args: {
@@ -82,10 +93,11 @@ export const proof = {
             assertOk(v(['Number', 'x']))
             assertOk(v(['Number', ['args']])) // an exp nested inside the cast
         },
-        // Same open-tuple behavior as `args`: a missing operand reads as
-        // `undefined` (a valid exp), and an extra trailing operand is never
-        // visited.
-        missingTailIsUndefined: () => assertOk(v(['Number'])),
+        // A missing operand reads as `undefined`, which is no longer a
+        // valid bare `exp` (see `undefinedOp`) — so this is a real error,
+        // not the open-tail case `args` has. An extra trailing operand is
+        // still ignored, same as `args`.
+        missingTailIsError: () => assertNoMatch(v(['Number'])),
         extraTailIsIgnored: () => assertOk(v(['Number', 'x', 'extra'])),
         // `numberCast` composes through `exp`'s recursion like any other node.
         asArrayElement: () => assertOk(v(['[]', [['Number', 1]]])),
@@ -101,11 +113,9 @@ export const proof = {
             // (see `error`).
             assertOk(v(['.', 'a', ['Number', 1]]))
         },
-        // Unlike `call`'s second position (still plain `exp`, which includes
-        // `undefined`), `propertyAccessor`'s index is `index` — string,
-        // number, or `numberCast` — none of which admit `undefined`. So a
-        // missing index is a real validation error, not the open-tail case
-        // `args`/`call` have.
+        // `index` — string, number, or `numberCast` — never admitted
+        // `undefined`, so a missing index has always been a real error, not
+        // the open-tail case `args`'s trailing side has.
         missingIndexIsError: () => assertNoMatch(v(['.', 'a'])),
         error: () => {
             assertNoMatch(v(['x', 'a', 'b']))
@@ -117,12 +127,19 @@ export const proof = {
     },
     call: {
         ok: () => assertOk(v(['()', 'f', 1])),
-        missingTailIsUndefined: () => assertOk(v(['()', 'f'])),
+        // A missing operand reads as `undefined`, no longer a valid bare
+        // `exp` — see `undefinedOp`.
+        missingTailIsError: () => assertNoMatch(v(['()', 'f'])),
         error: () => assertNoMatch(v(['(x)', 'f', 1])),
     },
     propertyCall: {
         ok: () => assertOk(v(['.()', 'o', 'k', 1])),
-        error: () => assertNoMatch(v(['.(x)', 'o', 'k', 1])),
+        error: () => {
+            assertNoMatch(v(['.(x)', 'o', 'k', 1]))
+            // The third operand missing reads as `undefined` — an error,
+            // same as `call`'s `missingTailIsError`.
+            assertNoMatch(v(['.()', 'o', 'k']))
+        },
     },
     // `f(args)[k](obj.a)` in AST form — exercises the mutual recursion through
     // `exp` rather than any one node kind in isolation.

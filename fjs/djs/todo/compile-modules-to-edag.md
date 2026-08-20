@@ -265,8 +265,9 @@ in place. Frame/capture support is a later extension.
 
 The staged work builds on the basic structural forms already being defined for EDAG:
 
-- primitive constants directly: `null`, `undefined`, boolean, number, string,
-  `bigint`;
+- primitive constants directly: `null`, boolean, number, string, `bigint`
+  (`undefined` is `['undefined']`, not a bare constant — see
+  `edag-stage1-discussion.md`'s "Structural operations" table);
 - object constructors: `['{}', ...entry]`, where the initial entry form is
   `[':', key, value]` and **`key` is a string constant** in this task, matching what
   the current DJS parser produces;
