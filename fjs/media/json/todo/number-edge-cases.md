@@ -15,6 +15,12 @@ require the default `fjs/media/json` API to mimic native `JSON.parse` /
 `JSON.stringify`. Exact native `JSON.*` compatibility is P5 follow-up work in
 [native JSON compatibility](./native-json-compatibility.md).
 
+It also does **not** own DJS `.f.js` spellings. DJS is a JavaScript-syntax
+superset and can represent values that standard JSON cannot. The DJS requirement
+to round-trip `-0`, `NaN`, `Infinity`, and `-Infinity` is tracked by
+[`compile-modules-to-edag.md`](../../../djs/todo/compile-modules-to-edag.md).
+That work must not silently redefine the standard JSON codec's policy here.
+
 The extended codec's decisions are settled and shipped (below). What remains
 open is the **standard** bigint-free codec, whose serializer still delegates
 finite-number spelling to the host's `JSON.stringify`.
@@ -102,3 +108,7 @@ or adding a separate compatible API, is deliberately deferred to P5.
   not block this investigation.
 - [`fjs/media/json/serializer/module.f.mjs`](../serializer/module.f.mjs) — current
   primitive serialization implementation to replace/self-host.
+- [`fjs/djs/todo/compile-modules-to-edag.md`](../../../djs/todo/compile-modules-to-edag.md)
+  — owns DJS `.f.js` round-tripping of special number values needed by EDAG artifacts.
+- [`fjs/djs/todo/157.md`](../../../djs/todo/157.md) — shared JSON/DJS parser and
+  serializer extraction; coordinate reusable machinery without merging codec policy.
