@@ -113,6 +113,17 @@ expressiveness does not define the value model — a schema describes a set of
 values, `Ts<T>` renders that set into TypeScript as well as TypeScript allows,
 and where it cannot, `Ts<T>` is what is incomplete.
 
+Concretely: **`Struct`'s open-ness is free, `Tuple`'s is not**, and that
+asymmetry is TypeScript's, not this renderer's. An object type is
+structurally open in TypeScript by default — a wider object is assignable to
+a narrower one — so `StructTs` already renders `Struct` openly with no extra
+work. A tuple type is exact-length by default, and expressing "these
+positions, plus anything after" needs a rest element applied *generically*
+over an arbitrary schema tuple `T`; that specific derivation is what
+TypeScript can't carry through (`TupleTs`'s doc comment has the two concrete
+errors). So `Ts<T>` renders `Tuple` closed even though the schema is open —
+one kind needed no workaround, the other has none.
+
 `parse/proof.f.mjs` and `validate/proof.f.mjs` pin openness on both kinds.
 
 ## Built-in schemas

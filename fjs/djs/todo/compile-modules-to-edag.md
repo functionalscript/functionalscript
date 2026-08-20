@@ -265,8 +265,9 @@ in place. Frame/capture support is a later extension.
 
 The staged work builds on the basic structural forms already being defined for EDAG:
 
-- primitive constants directly: `null`, `undefined`, boolean, number, string,
-  `bigint`;
+- primitive constants directly: `null`, boolean, number, string, `bigint`
+  (`undefined` is `['undefined']`, not a bare constant — see
+  `edag-stage1-discussion.md`'s "Structural operations" table);
 - object constructors: `['{}', ...entry]`, where the initial entry form is
   `[':', key, value]` and **`key` is a string constant** in this task, matching what
   the current DJS parser produces;
@@ -289,19 +290,27 @@ inside one function body. Stage 2's compiler should naturally produce disjoint b
 graphs; validation must enforce the same rule for arbitrary public EDAG input.
 
 The object constructor is an ordered operation rather than a plain EDAG object. This
-preserves source property order and leaves room for future computed keys and entry
-forms such as object spread, for example `['...', object]`. Computed object-constructor
-key nodes are **not** part of this initial work: allowing arbitrary key expressions
-would introduce JavaScript `ToPropertyKey` failure cases and therefore needs explicit
-semantics before validation can admit them. Plain objects have no EDAG meaning here
-and remain reserved for a future use.
+preserves source property order and leaves room for future entry forms such as object
+spread, for example `['...', object]`. Validation already admits computed
+object-constructor key nodes: `[':', key, value]`'s `key` position is ordinary `exp`,
+not narrowed to a string constant — see
+[`edag-stage1-discussion.md`, subject 4](../../../todo/edag-stage1-discussion.md#4-object-constructor-ordered-entries).
+This task's Stage 1 compiler only emits string-constant keys, matching what the
+current DJS parser produces, but that is a property of the compiler, not of
+validation. Plain objects have no EDAG meaning here and remain reserved for a future
+use.
 
 Object-entry descriptors such as `[':', key, value]` are structural operands of the
-object constructor, not independently evaluated EDAG nodes. Validation must therefore
-reject reusing the same descriptor-array identity in multiple entry positions; otherwise
-DJS could preserve descriptor sharing that has no semantic meaning and give equivalent
-objects different graph identities. Sharing of the descriptor's `key` and `value` EDAG
-nodes remains normal semantic EDAG sharing.
+object constructor, not independently evaluated EDAG nodes: nothing evaluates a
+descriptor as a value, so no running program can observe whether one was reused by
+reference across entries or merely built twice with equal content. Validation does
+**not** check descriptor-array identity — see
+[`edag-stage1-discussion.md`, subject 4](../../../todo/edag-stage1-discussion.md#4-object-constructor-ordered-entries)
+for why a rule like that cannot be stated the same way on a content-addressed VM (which
+interns equal descriptors unconditionally, authored sharing or not) and a
+non-content-addressed one (which never does), so it isn't a validation rule at all.
+Sharing of the descriptor's `key` and `value` EDAG nodes remains normal semantic EDAG
+sharing.
 
 Do **not** add unrelated EDAG operations in these stages: arithmetic/logical operators,
 comma, loops, `throw`, object spread, frame access/captures, `own`, or other later
@@ -412,12 +421,6 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       the EDAG schema.
 - [ ] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
       and make import parameter positions correspond to its indices.
-- [ ] Restrict initial `[':', key, value]` object-constructor validation to
-      string-constant keys; defer arbitrary computed constructor keys until their
-      coercion/failure semantics are defined.
-- [ ] Treat object-entry descriptor arrays as structural/non-shareable containers;
-      reject descriptor identity reuse while retaining normal sharing of their key and
-      value EDAG nodes.
 - [ ] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation.
@@ -489,10 +492,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       properties are rejected; source-to-`Unresolved` compilation does not read imports,
       import paths and parameter positions preserve source order, object-entry order
       **including integer-like keys and duplicate keys** survives parsing/EDAG
-      conversion, non-string object-entry keys are rejected by initial validation,
-      aliased entry descriptor containers are rejected while shared key/value nodes
-      remain valid, and resolving a multi-module program produces one final EDAG with
-      no unresolved module metadata.
+      conversion, and resolving a multi-module program produces one final EDAG with
+      no unresolved module metadata. (Object-entry keys are not restricted to string
+      constants — see `edag-stage1-discussion.md` subject 4 — and entry-descriptor
+      identity is not checked — see the same subject — so neither belongs in this list.)
 - [ ] Add a Stage 1 proof that `const check = null.x; export default 1` is not silently
       compiled to the successful constant `1`; until anchoring exists it is rejected
       as unsupported rather than changing current evaluation behavior.
