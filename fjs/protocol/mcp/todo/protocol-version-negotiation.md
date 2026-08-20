@@ -74,10 +74,18 @@ Two things are deliberately **not** the problem here:
 Only worth doing when a server here needs to support more than one revision.
 When it does:
 
-- Widen `McpConfig.protocolVersion` to accept a non-empty list of supported
-  versions, latest first, keeping the single-string form working (either as an
-  overload or by treating a string as a one-element list). The current field is
-  public API; a breaking change is acceptable if the list form reads better.
+- **Replace** `McpConfig.protocolVersion: string` with one list-shaped field:
+  `protocolVersions: readonly[string, ...readonly string[]]`, latest first,
+  non-empty by construction. **One shape, not two.** Keeping the string form
+  alongside the list — as an overload or as an accepted alternative — would make
+  every consumer normalise a union and would leave a singular name responsible
+  for several values, which is complexity bought to avoid a rename. AGENTS.md
+  settles that trade directly: *"the API is the most important part of quality
+  — breaking changes are the right call whenever they improve the API"*.
+- **Move the in-repo producers in the same change**, not later. There is exactly
+  one — `casConfig` (`../../../mcp/module.f.mjs:71`) — plus the `McpConfig`
+  literals in `../proof.f.mjs`; each becomes a one-element list. This is a
+  rename, so it is unconditional; it does not wait for a second revision.
 - In the `initialize` branch, bind the validated params (`const [pr, pv] = …`),
   and answer with `pv.protocolVersion` when it is in the supported list, the
   first (latest) supported version otherwise.
@@ -87,11 +95,14 @@ When it does:
 
 ### Tasks
 
-- [ ] Widen `McpConfig` to a supported-version list.
+- [ ] Replace `McpConfig.protocolVersion` with the non-empty `protocolVersions`
+      list — the string form goes away rather than staying as an alternative.
+- [ ] Move `casConfig` and the `McpConfig` literals in the proofs to the
+      one-element list form, in the same PR as the type change.
 - [ ] Bind the validated params and select the answer from that list.
 - [ ] Proofs: requested version supported → echoed; not supported → latest
-      supported; single-version config unchanged in behaviour.
-- [ ] Update `casConfig` only if `fjs/mcp` gains a second supported revision.
+      supported; a one-element config answers exactly as the string field did.
+- [ ] Changelog: the field rename is a breaking change to a public type.
 
 ### Related
 
