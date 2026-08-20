@@ -98,12 +98,6 @@ export type Neg = readonly['neg', Exp]
 
 export type Comma = readonly[',', Exps]
 
-// the frame *construction* expression, evaluated in the enclosing scope to
-// build what `['frame']` reads inside the body — `null` for now (Stage 2
-// doesn't implement frames/captures); see `frameCtor` in module.f.mjs
-
-export type FrameCtor = null
-
 // Fn
 
-export type Fn = readonly['=>', FrameCtor, Exp]
+export type Fn = readonly['=>', Exp, Exp]

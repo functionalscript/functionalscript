@@ -21,7 +21,6 @@
  *  Neg,
  *  Own,
  *  Comma,
- *  FrameCtor,
  *  Fn
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
@@ -306,25 +305,7 @@ export const comma = _comma
 
 // Function
 
-/**
- * The frame *construction* expression — evaluated in the enclosing scope
- * when the function value is created, building the array `['frame']` reads
- * inside the body (a hidden parameter, the way `this` is, but explicit and
- * per-function). AST analysis extends this expression whenever the body
- * references an external const, so it always builds exactly the values the
- * body captures. See "Frame construction mirrors a call" in
- * `../../todo/edag-stage1-discussion.md`.
- *
- * A placeholder, not yet a real operand: Stage 2 doesn't implement
- * frames/captures, so `frameCtor` is `null` for now — the operand exists in
- * `=>`'s shape today so that later switch to a real `Exp` doesn't require
- * changing `=>` itself. See `../djs/todo/compile-modules-to-edag.md`.
- */
-export const frameCtor = null
-
-/** @typedef {Assert<Check<FrameCtor, typeof frameCtor>>} _FrameCtor */
-
-const _fn = /** @type {const} */(['=>', frameCtor, exp])
+const _fn = /** @type {const} */(['=>', exp, exp])
 
 /** @type {Phantom<typeof _fn, Fn>} */
 export const fn = _fn

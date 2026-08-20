@@ -223,27 +223,17 @@ export const proof = {
     },
     fn: {
         ok: () => {
-            assertOk(v(['=>', null, 1]))
-            assertOk(v(['=>', null, ['=>', null, 1]])) // an exp nested inside the body
+            assertOk(v(['=>', 1, 2]))
+            assertOk(v(['=>', 1, ['=>', 1, 2]])) // an exp nested inside an operand
         },
         // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`. True of the body. The frame-ctor
-        // position is a placeholder (`null`, see `frameCtor` in
-        // module.f.mjs) checked by exact equality (`Object.is`), so
-        // `undefined` fails it too, same conclusion by a different rule.
+        // `exp` — see `undefinedOp`. True whether one or both are missing.
         missingTailIsError: () => {
-            assertNoMatch(v(['=>', null]))
+            assertNoMatch(v(['=>', 1]))
             assertNoMatch(v(['=>']))
         },
-        extraTailIsIgnored: () => assertOk(v(['=>', null, 1, 'extra'])),
-        error: () => {
-            assertNoMatch(v(['=>z', null, 1]))
-            // Unlike the array-shaped frame-ctor this replaced, exact
-            // equality means anything but `null` is rejected outright — no
-            // open-tail-style looseness to pin here.
-            assertNoMatch(v(['=>', 0, 1]))
-            assertNoMatch(v(['=>', ['[]', []], 1]))
-        },
+        extraTailIsIgnored: () => assertOk(v(['=>', 1, 2, 'extra'])),
+        error: () => assertNoMatch(v(['=>z', 1, 2])),
     },
     // `f(args)[k](obj.a)` in AST form — exercises the mutual recursion through
     // `exp` rather than any one node kind in isolation.
