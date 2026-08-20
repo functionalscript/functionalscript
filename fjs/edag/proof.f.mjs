@@ -235,6 +235,16 @@ export const proof = {
         extraTailIsIgnored: () => assertOk(v(['=>', 1, 2, 'extra'])),
         error: () => assertNoMatch(v(['=>z', 1, 2])),
     },
+    frame: {
+        ok: () => assertOk(v(['frame'])),
+        // Tuples are open on the trailing side — an element past the schema's
+        // own entries is never visited, so it can't fail validation.
+        extraTailIsIgnored: () => assertOk(v(['frame', 'ignored'])),
+        error: () => {
+            assertNoMatch(v([]))
+            assertNoMatch(v(['framez']))
+        },
+    },
     // `f(args)[k](obj.a)` in AST form — exercises the mutual recursion through
     // `exp` rather than any one node kind in isolation.
     nested: () => {
