@@ -297,11 +297,16 @@ semantics before validation can admit them. Plain objects have no EDAG meaning h
 and remain reserved for a future use.
 
 Object-entry descriptors such as `[':', key, value]` are structural operands of the
-object constructor, not independently evaluated EDAG nodes. Validation must therefore
-reject reusing the same descriptor-array identity in multiple entry positions; otherwise
-DJS could preserve descriptor sharing that has no semantic meaning and give equivalent
-objects different graph identities. Sharing of the descriptor's `key` and `value` EDAG
-nodes remains normal semantic EDAG sharing.
+object constructor, not independently evaluated EDAG nodes: nothing evaluates a
+descriptor as a value, so no running program can observe whether one was reused by
+reference across entries or merely built twice with equal content. Validation does
+**not** check descriptor-array identity — see
+[`edag-stage1-discussion.md`, subject 4](../../../todo/edag-stage1-discussion.md#4-object-constructor-ordered-entries)
+for why a rule like that cannot be stated the same way on a content-addressed VM (which
+interns equal descriptors unconditionally, authored sharing or not) and a
+non-content-addressed one (which never does), so it isn't a validation rule at all.
+Sharing of the descriptor's `key` and `value` EDAG nodes remains normal semantic EDAG
+sharing.
 
 Do **not** add unrelated EDAG operations in these stages: arithmetic/logical operators,
 comma, loops, `throw`, object spread, frame access/captures, `own`, or other later
@@ -415,9 +420,6 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Restrict initial `[':', key, value]` object-constructor validation to
       string-constant keys; defer arbitrary computed constructor keys until their
       coercion/failure semantics are defined.
-- [ ] Treat object-entry descriptor arrays as structural/non-shareable containers;
-      reject descriptor identity reuse while retaining normal sharing of their key and
-      value EDAG nodes.
 - [ ] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation.

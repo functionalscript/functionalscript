@@ -744,10 +744,36 @@ objects for future use, and keeps duplicate entries so construction can follow
 JavaScript overwrite semantics and later support computed keys.
 
 Entry descriptor arrays such as `[":", key, value]` are **structural operands**, not
-independently evaluated EDAG nodes. Their container identity therefore has no semantic
-meaning and must not add another graph/hash distinction. Validation rejects reusing the
-same descriptor-array identity in more than one object-entry position. The `key` and
-`value` operands are real EDAG nodes, so their identities may be shared normally.
+independently evaluated EDAG nodes: nothing in the interpreter ever evaluates a
+descriptor as a value, so no running program can ever observe whether one was reused by
+reference or merely built twice with equal content. The `key` and `value` operands
+*are* real EDAG nodes, and their identities are shared normally, exactly like any other
+node.
+
+*Rejected: forbidding descriptor-array identity reuse.* An earlier draft of this
+resolution required validation to reject a descriptor array reused across more than one
+entry position (`["{}", e, e]` for one shared `e`), reasoning that unobserved sharing
+should not add a hidden graph/hash distinction. Dropped, because the rule cannot be
+stated in a way that means the same thing on every conforming VM:
+
+- A content-addressed VM interns pure data unconditionally — two descriptors with equal
+  content (`[":", "x", 1]` written twice, an explicitly allowed duplicate entry) become
+  the same reference the moment they are interned, authored sharing or not. A validator
+  that rejects `e === e` after interning has already happened rejects that ordinary,
+  legal object too — it cannot tell "the author shared this" from "the VM unified it."
+- A non-content-addressed VM never does this unification, so the same check never fires
+  there for the same written EDAG.
+
+The same input would therefore pass on one conforming VM and fail on another, which is
+not a validation rule at all — it is VM-dependent behavior, and the core invariant rules
+that out for anything a running program can observe. Since descriptor identity is
+*not* observable, there is also nothing it would protect: the two VM kinds may legally
+disagree about whether a `["{}", ...]` node's descriptor arrays are the same reference
+after a serialize/parse round-trip (a non-CA VM keeps two distinct, equal arrays; a CA
+VM unifies them into one), and both are correct, because a running program can only ever
+observe the `key`/`value` nodes inside a descriptor, never the descriptor itself. A rule
+with no observable purpose and no VM-independent statement is not worth the demand it
+places on every implementation — it is simply removed rather than kept "for safety."
 
 The sequence is retained exactly as written. It matters for several
 independent reasons:
@@ -812,10 +838,12 @@ the FJS compiler would never emit. To validate:
 - object constructors: every `["{}", ...]` operand must be a recognized
   entry form; stage 1 accepts `[":", key, value]` only when `key` is a
   **string constant**. Duplicate property keys/entries are valid and are
-  applied in order (subject 4). Entry descriptor containers are structural,
-  so the same descriptor-array identity must not appear in more than one entry
-  position; key/value EDAG nodes inside descriptors may still be shared. Plain
-  objects are not EDAG nodes;
+  applied in order (subject 4). Entry descriptor containers are structural
+  and never independently evaluated, so their identity is not checked —
+  reusing one across entry positions is unobservable and, on a
+  content-addressed VM, indistinguishable from an ordinary duplicate entry
+  (subject 4); key/value EDAG nodes inside descriptors may of course be
+  shared, like any other node. Plain objects are not EDAG nodes;
 - **property operands** of `"."` and `".()"`: a permitted string
   constant, a number constant, or a **unary** `"+"` / `"Number"` node.
   Anything else is a validation error, which is what keeps
