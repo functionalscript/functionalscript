@@ -80,13 +80,28 @@ export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
  * **The commented-out line is the accurate mapping.** A tuple schema is *open*
  * — a longer array is a member of the set it describes (see "Structs and
  * tuples are open" in `../README.md`) — and the open form below says so. It is
- * commented out because TypeScript could not handle it, so this renders the
- * closed approximation instead.
+ * commented out because TypeScript could not render it generically over an
+ * arbitrary schema `T`, so this renders the closed approximation instead.
+ *
+ * `Struct`'s open-ness costs nothing to render: object types are structurally
+ * open in TypeScript by default (a wider object is assignable to a narrower
+ * one), which is exactly what `StructTs` already produces. `Tuple`'s open-ness
+ * has no default counterpart — TypeScript tuples are exact-length — so
+ * expressing "these positions, plus anything after" needs a rest element:
+ * `readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]`.
+ * That concrete shape is fine on its own; it breaks specifically because `T`
+ * is generic here. TypeScript raises two errors trying it: TS2574 ("a rest
+ * element type must be an array type"), because it cannot prove a mapped type
+ * over a generic `keyof T` is array-shaped, and separately TS2589
+ * (excessively deep instantiation) — confirmed by temporarily restoring the
+ * line and running `tsc`.
  *
  * That is a limitation of this renderer, **not** a statement about the value
  * model. Do not cite the exact mapping as evidence that tuples are closed and
  * add a length check to `../parse/module.f.mjs`; that inference is what
- * produced #1622.
+ * produced #1622. A schema that wants exact members says so explicitly — see
+ * the planned `close` form in `../todo/close-type.md`, which also covers
+ * `Ts<T>`'s gap here (`['close', S]` renders fine; `['close', S, R]` may not).
  */
 export type TupleTs<T extends Tuple> =
     // readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]

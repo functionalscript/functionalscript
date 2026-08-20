@@ -24,6 +24,22 @@ import {
     array as rttiArray,
 } from "../types/rtti/module.f.mjs";
 
+/**
+ * `args`, `propertyAccessor`, `call`, and `propertyCall` are rtti tuple
+ * schemas, and tuple schemas are intentionally *open* — see "Structs and
+ * tuples are open" in `../types/rtti/README.md`. `validate`/`parse` only
+ * visit the positions a schema declares, so a value with a trailing extra —
+ * `['args', 'ignored']`, `['.', 'a', 'b', 'extra']` — validates today:
+ * `validate` accepts it and leaves it in place, `parse` drops it on the way
+ * out. `array` and `object` are open the same way, on their element/entry
+ * list rather than the tag.
+ *
+ * Exact arity for these fixed-shape nodes will matter once EDAG values are
+ * content-addressed — two byte sequences for "the same" node must not both
+ * validate — but that is future work behind the planned `close` schema form
+ * (`../types/rtti/todo/close-type.md`), not implemented here yet.
+ */
+
 // Exp
 
 export const exp = () => /** @type {const} */(['or',
