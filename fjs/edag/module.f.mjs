@@ -4,6 +4,7 @@
  *  Check,
  *  Args,
  *  Array,
+ *  Call,
  *  Exp,
  *  Primitive,
  *  Property,
@@ -28,6 +29,7 @@ export const exp = () => /** @type {const} */(['or',
     object,
     args,
     propertyAccessor,
+    call,
 ])
 
 export const primitive = or(undefined, null, boolean, number, string, bigint)
@@ -45,12 +47,18 @@ const _propertyAccessor = /** @type {const} */(['.', exp, exp])
 /** @type {Phantom<typeof _propertyAccessor, PropertyAccessor>} */
 export const propertyAccessor = _propertyAccessor
 
+const _call = /** @type {const} */(['()', exp, exp])
+
+/** @type {Phantom<typeof _call, Call>} */
+export const call = _call
+
 /**
  * @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert
  * @typedef {Assert<Check<Primitive, typeof primitive>>} _PrimitiveAssert
  * @typedef {Assert<Check<Array, typeof array>>} _ArrayAssert
  * @typedef {Assert<Check<Property, typeof property>>} _PropertyAssert
  * @typedef {Assert<Check<Object, typeof object>>} _ObjectAssert
- * @typedef {Assert<Check<Args, typeof args>>} _ArgsAssert =
+ * @typedef {Assert<Check<Args, typeof args>>} _ArgsAssert
  * @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
+ * @typedef {Assert<Check<Call, typeof call>>} _CallAssert
  */
