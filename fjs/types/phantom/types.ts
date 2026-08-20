@@ -19,5 +19,23 @@ export type { phantomKey }
  * The field is optional (`?`) so it never needs to be present at runtime.
  * Use `phantomKey` to read the phantom type back out via a conditional type:
  * `S extends Phantom<unknown, infer T> ? T : never`.
+ *
+ * **`T` is an unchecked annotation, not a derivation** — nothing stops it from
+ * being wrong, and once something reads it back (e.g. `Ts<>` in
+ * `fjs/types/rtti/ts/types.ts`, which short-circuits to `T` instead of
+ * structurally recursing), a wrong `T` is trusted silently. Guard every
+ * `Phantom<typeof rawThunk, T>` with two asserts: one against the
+ * un-annotated `rawThunk` (forces the real structural check, catching a
+ * wrong `T`) and one against the phantom-wrapped export (catches the export
+ * and the raw thunk drifting apart), using `Check` from
+ * `fjs/types/rtti/ts/types.ts`. See `fjs/edag/module.f.mjs`
+ * (`propertyAccessor`/`call`/`propertyCall`) for the pattern:
+ *
+ * ```ts
+ * const rawThunk = () => [...] as const
+ * export const thunk: Phantom<typeof rawThunk, MyType> = rawThunk
+ * type _Check0 = Assert<Check<MyType, typeof rawThunk>>
+ * type _Check1 = Assert<Check<MyType, typeof thunk>>
+ * ```
  */
 export type Phantom<S, T> = S & { readonly [phantomKey]?: T }
