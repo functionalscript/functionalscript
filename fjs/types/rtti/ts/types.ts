@@ -80,13 +80,28 @@ export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
  * **The commented-out line is the accurate mapping.** A tuple schema is *open*
  * — a longer array is a member of the set it describes (see "Structs and
  * tuples are open" in `../README.md`) — and the open form below says so. It is
- * commented out because TypeScript could not handle it, so this renders the
- * closed approximation instead.
+ * commented out because TypeScript could not render it generically over an
+ * arbitrary schema `T`, so this renders the closed approximation instead.
+ *
+ * `Struct`'s open-ness costs nothing to render: object types are structurally
+ * open in TypeScript by default (a wider object is assignable to a narrower
+ * one), which is exactly what `StructTs` already produces. `Tuple`'s open-ness
+ * has no default counterpart — TypeScript tuples are exact-length — so
+ * expressing "these positions, plus anything after" needs a rest element:
+ * `readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]`.
+ * That concrete shape is fine on its own; it breaks specifically because `T`
+ * is generic here. TypeScript raises two errors trying it: TS2574 ("a rest
+ * element type must be an array type"), because it cannot prove a mapped type
+ * over a generic `keyof T` is array-shaped, and separately TS2589
+ * (excessively deep instantiation) — confirmed by temporarily restoring the
+ * line and running `tsc`.
  *
  * That is a limitation of this renderer, **not** a statement about the value
  * model. Do not cite the exact mapping as evidence that tuples are closed and
  * add a length check to `../parse/module.f.mjs`; that inference is what
- * produced #1622.
+ * produced #1622. A schema that wants exact members says so explicitly — see
+ * the planned `close` form in `../todo/close-type.md`, which also covers
+ * `Ts<T>`'s gap here (`['close', S]` renders fine; `['close', S, R]` may not).
  */
 export type TupleTs<T extends Tuple> =
     // readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]
@@ -124,6 +139,24 @@ export type StructTs<T extends Struct> =
  * // Ts<typeof my>  →  MyType
  * ```
  *
+ * `MyType` here is an unchecked annotation — nothing derives it, so a typo
+ * (the wrong type, or one that has drifted from `myConst`) is trusted
+ * silently. Pin it down with two asserts, one against the un-annotated
+ * `myThunk` (forces the real structural walk) and one against the
+ * phantom-wrapped `my` (catches the two drifting apart):
+ *
+ * ```ts
+ * type _Check0 = Assert<Check<MyType, typeof myThunk>>
+ * type _Check1 = Assert<Check<MyType, typeof my>>
+ * ```
+ *
+ * See `fjs/edag/module.f.mjs` for this in practice. Note also that the phantom
+ * branch below does `Exclude<O, undefined>`, so a `MyType` that legitimately
+ * includes bare `undefined` at its top level will never satisfy `_Check1` —
+ * phantom-wrap the recursive node type itself (e.g. `PropertyAccessor`, which
+ * has no top-level `undefined`), not a wider union (`Exp`) that folds
+ * `undefined` in through one of its members.
+ *
  * @example
  * ```ts
  * type A = Ts<typeof string>          // string
@@ -157,6 +190,15 @@ export type Ts<T extends Type> =
         never
     ) :
     ConstTs<T>
+
+/**
+ * Pins a hand-written TypeScript type `A` against the type an rtti schema `B`
+ * actually derives to — `Assert<Check<A, B>>` reads as "`A` is `Ts<B>`".
+ * This is the assertion the {@link Ts} doc above uses for the two-Phantom-check
+ * pattern, and the one every hand-written recursive type in this codebase (a
+ * `Tree`, a `LockMap`, …) pins against its rtti schema with.
+ */
+export type Check<A, B extends Type> = Equal<A, Ts<B>>
 
 // Fast-path: Ts<any> resolves to Unknown without TS2589 overflow.
 type _any = Assert<Equal<Ts<any>, Unknown>>

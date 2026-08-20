@@ -131,6 +131,11 @@ spellings of the same set must not compare unequal. `['close', S]` and
 - [`../../../media/json/todo/rtti-parse.md`](../../../media/json/todo/rtti-parse.md)
   — the RTTI-aware JSON parser reuses `../parse/module.f.mjs`'s container
   behavior, so it needs a `close` case too; whichever lands second picks it up.
+- [`../../../edag/module.f.mjs`](../../../edag/module.f.mjs) — `args`,
+  `propertyAccessor`, `call`, and `propertyCall` are fixed-arity nodes that
+  are open today only because every rtti tuple is; once EDAG values are
+  content-addressed, exact arity for these becomes a correctness requirement,
+  not just a nicety, and `close` is what states it.
 - `../data/types.ts:22-55` — `ArraySet` / `ObjectSet`; the `rest` field this
   maps onto.
 - `../data/module.f.mjs:296-320` — `arraySet` / `objectSet` normalization,
