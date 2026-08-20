@@ -19,6 +19,7 @@ export type Exp =
     | PropertyAccessor
     | Call
     | PropertyCall
+    | Plus
 
 // undefinedOp
 
@@ -68,3 +69,7 @@ export type Call = readonly['()', Exp, Exp]
 // propertyCall
 
 export type PropertyCall = readonly['.()', Exp, Index, Exp]
+
+// +
+
+export type Plus = readonly['+', Exp, Exp]

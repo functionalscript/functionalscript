@@ -7,7 +7,7 @@
  * @import { Includes } from '../array/types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../ts/types.ts'
- * @import { Tag0, Primitive0, _Type0, Bigint, Unknown, Tag1, _MakeType1, Array, Record, Or, Type } from './types.ts'
+ * @import { Tag0, Primitive0, _Type0, Bigint, Unknown, Tag1, _MakeType1, Or, Type } from './types.ts'
  */
 
 import { includes } from '../array/module.f.mjs'
@@ -107,6 +107,7 @@ export const option = t =>
 
 /**
  * Schema that never matches any value — the empty union, corresponding to TypeScript's `never`.
+ *
  * @type {Or<readonly []>}
  */
 export const never = or()

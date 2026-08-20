@@ -8,8 +8,8 @@ const a = { b: 45, c: [3] }
 const c0 = a.b
 // Only string literals allowed (excluding prohibited names). instance_property(a, "c")
 const c1 = a["c"]
-// at(c1, +0)
-const c2 = c1[+0] // [+...] is required when index type is unknown at compile time
+// at(c1, Number(0))
+const c2 = c1[Number(0)] // Number(...) is required when index type is unknown at compile time
 // own_property(a, c2)
 const c3 = Object.getOwnPropertyDescriptor(a, c2)?.value
 ```
@@ -38,7 +38,7 @@ One important detail regarding run-time access to instance properties, methods i
 `obj[<expression>]` syntax when <expression> can evaluate to a string. On one hand,
 in JS that syntax enables possibilities to abuse; on another hand, it's a regular
 syntax for array indexing, legit in FS. Our current approach is to force FS users to
-add '+' in front of <expression> in cases when <expression> type is not known at
+wrap `<expression>` in `Number(...)` in cases when `<expression>` type is not known at
 compile time.
 
 ```js
@@ -146,8 +146,8 @@ Syntax examples:
 const c4 = a.b(c)
 // instance_method_call(a, "b", c)
 const c5 = a["b"](c)
-// at_call(a, b, c)
-const c6 = a[+b](c)
+// at_call(a, Number(b), c)
+const c6 = a[Number(b)](c)
 ```
 
 Instance method call is different from property access in JS because of `this` considerations.
@@ -284,7 +284,7 @@ f(i) // returns 0 thanks to side effects!
 
 ```js
 obj[42]
-obj[+index]
+obj[Number(index)]
 ```
 
 It's translated into VM command `at`:
@@ -301,13 +301,14 @@ import m from './m.f.js'
 const a = [2, 3]
 export default {
     "a": a[0],
-    // we don't know what is the type of `m` so we force it to be a `number` or `bigint`.
-    "b": a[+m]
+    // we don't know what is the type of `m` so we force it to be a `number` via `Number(...)`.
+    "b": a[Number(m)]
 }
 ```
 
-In `obj[index]`, `index` has to be a `number`. If we don't know what is `index`, `+` requires before `index`. It means the byte
-code for the expression inside the `[]` should be either the unary `+`, a number literal, or a string literal (excluding some strings).
+In `obj[index]`, `index` has to be a `number`. If we don't know what `index` is, wrap it in
+`Number(...)`. It means the byte code for the expression inside the `[]` should be either
+`Number(...)`, a number literal, or a string literal (excluding some strings).
 If it references an object, FS gives up. FS may try deeper analyses in the future, and type inference can help a lot.
 
 ## Iterators

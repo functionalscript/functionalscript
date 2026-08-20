@@ -423,4 +423,12 @@ export const proof = {
             assertError(x({ a: 42 }))
         },
     },
+    arrayOptional: () => {
+        const a = /** @type {const} */([number, option(string)])
+        const v = validate(a)
+        assertOk(v([5]))
+        assertError(v(["n"]))
+        assertOk(v([6, "3"]))
+        assertError(v([6, 9]))
+    }
 }
