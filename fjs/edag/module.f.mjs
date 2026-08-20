@@ -118,25 +118,25 @@ export const primitive = or(undefined, null, boolean, number, string, bigint)
 
 export const array = /** @type {const} */(['[]', rttiArray(exp)])
 
-// /** @type {Phantom<typeof _array, Array>} */
-// export const array = _array
-
-// /** @typedef {Assert<Check<Array, typeof _array>>} _Array0 */
-/** @typedef {Assert<Check<Array, typeof array>>} _Array1 */
-
 // Property
 
 /**
- * The key stays `exp`, not narrowed to a string constant. `edag-stage1-discussion.md`
- * subject 4 notes today's DJS *compiler* only ever emits a string-constant
- * key — computed keys like `{ [2 + 2]: 'hello' }` aren't lowered yet, since
- * their coercion/failure semantics aren't defined. But that is a statement
- * about what the compiler currently produces, not about what an `Exp` value
- * can be: the key position is a real operand here precisely so a future
- * computed key is representable without changing this shape. Narrowing it to
- * `string` now would describe the compiler's current output, not the value
- * model — the same distinction `../types/rtti/README.md`'s "Structs and
- * tuples are open" section makes about `Ts<T>` vs. the schema it renders.
+ * The key stays `exp`, not narrowed to a string constant. `{ ["sss" + 3]: x }`
+ * is valid JS — the key is a computed expression, coerced via
+ * `ToPropertyKey` at runtime, no different in kind from `array[5]` needing
+ * `index` (below) to accept more than a bare string. A key position that
+ * only admitted string constants would describe less than the value model
+ * actually is.
+ *
+ * This deliberately does not follow `edag-stage1-discussion.md` subjects 4
+ * and 5, which state "current validation nevertheless accepts only
+ * string-constant keys" as a decided rule — that text is being revised to
+ * match this schema instead, not the other way around. Today's DJS compiler
+ * only ever emits a trivial computed-key form anyway (`{ ["sss"]: x }`, not
+ * `{ ["sss" + 3]: x }`), but the schema describes the value model, not the
+ * compiler's current output, and per subject 1: "the `Function` constructor
+ * accepts an `Any` from anywhere, so 'the FJS compiler would never emit
+ * that' is never an admissible argument" for narrowing a schema.
  */
 export const property = /** @type {const} */([':', exp, exp])
 
@@ -161,8 +161,10 @@ const _numberCast = /** @type {const} */(['Number', exp])
 /** @type {Phantom<typeof _numberCast, NumberCast>} */
 export const numberCast = _numberCast
 
-/** @typedef {Assert<Check<NumberCast, typeof _numberCast>>} _NumberCast0 */
-/** @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast1 */
+/**
+ * @typedef {Assert<Check<NumberCast, typeof _numberCast>>} _NumberCast0
+ * @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast1
+ */
 
 // Index
 
@@ -195,8 +197,10 @@ const _propertyAccessor = /** @type {const} */(['.', exp, index])
  */
 export const propertyAccessor = _propertyAccessor
 
-/** @typedef {Assert<Check<PropertyAccessor, typeof _propertyAccessor>>} _PropertyAccessor0 */
-/** @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor1 */
+/**
+ * @typedef {Assert<Check<PropertyAccessor, typeof _propertyAccessor>>} _PropertyAccessor0
+ * @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor1
+ */
 
 // Call
 
@@ -211,8 +215,10 @@ const _call = /** @type {const} */(['()', exp, exp])
  */
 export const call = _call
 
-/** @typedef {Assert<Check<Call, typeof _call>>} _Call0 */
-/** @typedef {Assert<Check<Call, typeof call>>} _Call1 */
+/**
+ * @typedef {Assert<Check<Call, typeof _call>>} _Call0
+ * @typedef {Assert<Check<Call, typeof call>>} _Call1
+ */
 
 // Property Call
 
@@ -227,5 +233,7 @@ const _propertyCall = /** @type {const} */(['.()', exp, index, exp])
  */
 export const propertyCall = _propertyCall
 
-/** @typedef {Assert<Check<PropertyCall, typeof _propertyCall>>} _PropertyCall0 */
-/** @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall1 */
+/**
+ * @typedef {Assert<Check<PropertyCall, typeof _propertyCall>>} _PropertyCall0
+ * @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall1
+ */

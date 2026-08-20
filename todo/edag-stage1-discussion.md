@@ -212,10 +212,11 @@ DJS rollout in
 
 `["{}", ...entry]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries. The entry list preserves the source
-property sequence. The key position is a node so the shape can support
-computed keys later, but **current validation admits only a string-constant
-key**; arbitrary computed-key nodes stay invalid until their coercion and
-failure semantics are defined. Entry forms are local to the object
+property sequence. The key position is a node, and validation admits any
+node there — a computed key like `{ ["sss" + 3]: x }` is valid JS and a
+validly-shaped EDAG, even though today's compiler only lowers the trivial
+computed-key form; see subject 4 for why validation does not narrow this to
+a string constant. Entry forms are local to the object
 constructor rather than general expressions. Later, new entry forms can be
 added without changing the outer operation; for example `["...", object]`
 can represent `{ ...object }`. Plain objects remain reserved and have no EDAG
@@ -730,12 +731,25 @@ open:
 
 **Resolution: an object constructor is `["{}", ...entries]`, and the
 entry sequence is semantic.** Stage 1 uses one entry form,
-`[":", key, value]`. The key and value positions contain EDAG nodes, so
-the representation can support computed keys without changing the constructor shape;
-**current validation nevertheless accepts only string-constant keys**. Arbitrary
-computed-key nodes remain invalid until their coercion/failure semantics are defined.
-Entry forms belong to the object constructor rather than to the general expression
-vocabulary.
+`[":", key, value]`. Both the key and value positions are ordinary EDAG
+nodes — `{ ["sss" + 3]: x }` is valid JS, the key is a computed expression
+coerced via `ToPropertyKey` at runtime, and validation admits it: an `Any`
+handed to the `Function` constructor can contain any key node, and "the FJS
+compiler would never emit that" is not an admissible reason to narrow what
+validation accepts (subject 1). Entry forms belong to the object constructor
+rather than to the general expression vocabulary.
+
+*Revised: validation does not restrict the key to a string constant.* An
+earlier draft of this resolution stated "current validation nevertheless
+accepts only string-constant keys" — dropped for the same reason subject 1
+gives above: today's DJS compiler happening to emit only trivial computed-key
+forms (`{ ["sss"]: x }`, not yet `{ ["sss" + 3]: x }`) describes the
+compiler's current lowering, not a bound on what a validly-shaped EDAG value
+is. The two are independent: the compiler can under-produce (emit only a
+subset of what validation accepts, expanding its lowering over time without
+ever needing validation to change) but validation must not under-accept
+relative to the value model, or it rejects `Any` values that are
+perfectly well-formed EDAGs.
 
 History: this subject previously represented an object constructor as a
 plain EDAG object and rejected duplicate keys during validation. The revised
@@ -836,8 +850,8 @@ the FJS compiler would never emit. To validate:
   subject 8);
 - unknown command tags: validation error;
 - object constructors: every `["{}", ...]` operand must be a recognized
-  entry form; stage 1 accepts `[":", key, value]` only when `key` is a
-  **string constant**. Duplicate property keys/entries are valid and are
+  entry form; `[":", key, value]` admits any node in `key`, not just a
+  string constant (subject 4). Duplicate property keys/entries are valid and are
   applied in order (subject 4). Entry descriptor containers are structural
   and never independently evaluated, so their identity is not checked —
   reusing one across entry positions is unobservable and, on a

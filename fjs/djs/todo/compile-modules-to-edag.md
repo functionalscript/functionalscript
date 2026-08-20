@@ -417,9 +417,6 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       the EDAG schema.
 - [ ] Keep `Unresolved.imports` as a source-ordered array of module paths, not a map,
       and make import parameter positions correspond to its indices.
-- [ ] Restrict initial `[':', key, value]` object-constructor validation to
-      string-constant keys; defer arbitrary computed constructor keys until their
-      coercion/failure semantics are defined.
 - [ ] Change the DJS parser/AST object representation to retain an ordered entry list
       until EDAG conversion; do not collapse duplicate keys or reorder integer-like
       keys through a plain JavaScript object/`OrderedMap` representation.
@@ -491,10 +488,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
       properties are rejected; source-to-`Unresolved` compilation does not read imports,
       import paths and parameter positions preserve source order, object-entry order
       **including integer-like keys and duplicate keys** survives parsing/EDAG
-      conversion, non-string object-entry keys are rejected by initial validation,
-      aliased entry descriptor containers are rejected while shared key/value nodes
-      remain valid, and resolving a multi-module program produces one final EDAG with
-      no unresolved module metadata.
+      conversion, and resolving a multi-module program produces one final EDAG with
+      no unresolved module metadata. (Object-entry keys are not restricted to string
+      constants — see `edag-stage1-discussion.md` subject 4 — and entry-descriptor
+      identity is not checked — see the same subject — so neither belongs in this list.)
 - [ ] Add a Stage 1 proof that `const check = null.x; export default 1` is not silently
       compiled to the successful constant `1`; until anchoring exists it is rejected
       as unsupported rather than changing current evaluation behavior.
