@@ -19,7 +19,8 @@ export type Exp =
     | PropertyAccessor
     | Call
     | PropertyCall
-    | Plus
+    | Add
+    | Sub
 
 // undefinedOp
 
@@ -70,10 +71,14 @@ export type Call = readonly['()', Exp, Exp]
 
 export type PropertyCall = readonly['.()', Exp, Index, Exp]
 
-// +
+// Binary +
 
-export type Plus = readonly['+', Exp, Exp]
+export type Add = readonly['+', Exp, Exp]
 
-// -
+// Binary -
 
-export type Minus = readonly['-', Exp, Exp | undefined]
+export type Sub = readonly['-', Exp, Exp]
+
+// negation
+
+export type Neg = readonly['neg', Exp]

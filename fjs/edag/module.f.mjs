@@ -16,8 +16,9 @@
  *  Object,
  *  PropertyCall,
  *  UndefinedOp,
- *  Plus,
- *  Minus
+ *  Add,
+ *  Sub,
+ *  Neg
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -29,7 +30,6 @@ import {
     or,
     string,
     array as rttiArray,
-    option,
 } from "../types/rtti/module.f.mjs";
 
 /**
@@ -56,7 +56,8 @@ import {
  *  typeof propertyAccessor,
  *  typeof call,
  *  typeof propertyCall,
- *  typeof plus,
+ *  typeof add,
+ *  typeof sub,
  * ]}
  */
 export const exp = () => (['or',
@@ -69,7 +70,8 @@ export const exp = () => (['or',
     propertyAccessor,
     call,
     propertyCall,
-    plus,
+    add,
+    sub,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -233,25 +235,33 @@ export const propertyCall = _propertyCall
  * @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall1
  */
 
-// +
+// Binary +
 
-const _plus = /** @type {const} */(['+', exp, exp])
+const _add = /** @type {const} */(['+', exp, exp])
 
-/** @type {Phantom<typeof _plus, Plus>} */
-export const plus = _plus
-
-/**
- * @typedef {Assert<Check<Plus, typeof _plus>>} _Plus0
- * @typedef {Assert<Check<Plus, typeof plus>>} _Plus1
- */
-
-// -
-
-export const _minus = /** @type {const} */(['-', exp, option(exp)])
-
-export const minus = _minus
+/** @type {Phantom<typeof _add, Add>} */
+export const add = _add
 
 /**
- * @typedef {Assert<Check<Minus, typeof _minus>>} _Minus0
- * @typedef {Assert<Check<Minus, typeof minus>>} _Minus1
+ * @typedef {Assert<Check<Add, typeof _add>>} _Add0
+ * @typedef {Assert<Check<Add, typeof add>>} _Add1
  */
+
+// Binary -
+
+const _sub = /** @type {const} */(['-', exp, exp])
+
+/** @type {Phantom<typeof _sub, Sub>} */
+export const sub = _sub
+
+/**
+ * @typedef {Assert<Check<Sub, typeof _sub>>} _Minus0
+ * @typedef {Assert<Check<Sub, typeof sub>>} _Minus1
+ */
+
+// Negation (aka a unary minus)
+
+const _neg = /** @type {const} */(['neg', exp])
+
+/** @type {Phantom<typeof _neg, Neg>} */
+export const neg = _neg
