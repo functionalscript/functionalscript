@@ -13,4 +13,6 @@ export const primitive = or(undefined, null, boolean, number, string, bigint)
 
 export const array = /** @type {const} */(['[]', rttiArray(exp)])
 
+export const property = /** @type {const} */([exp, exp])
+
 // export const object = /** @type {const} */(['{}', rttiArray(property)])
