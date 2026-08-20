@@ -227,10 +227,10 @@ export const proof = {
             assertOk(v(['=>', null, ['=>', null, 1]])) // an exp nested inside the body
         },
         // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`. True of the body. The frame position
-        // is a placeholder (`null`, see `frame` in module.f.mjs) checked by
-        // exact equality (`Object.is`), so `undefined` fails it too, same
-        // conclusion by a different rule.
+        // `exp` — see `undefinedOp`. True of the body. The frame-ctor
+        // position is a placeholder (`null`, see `frameCtor` in
+        // module.f.mjs) checked by exact equality (`Object.is`), so
+        // `undefined` fails it too, same conclusion by a different rule.
         missingTailIsError: () => {
             assertNoMatch(v(['=>', null]))
             assertNoMatch(v(['=>']))
@@ -238,8 +238,8 @@ export const proof = {
         extraTailIsIgnored: () => assertOk(v(['=>', null, 1, 'extra'])),
         error: () => {
             assertNoMatch(v(['=>z', null, 1]))
-            // Unlike the array-shaped frame this replaced, exact equality
-            // means anything but `null` is rejected outright — no
+            // Unlike the array-shaped frame-ctor this replaced, exact
+            // equality means anything but `null` is rejected outright — no
             // open-tail-style looseness to pin here.
             assertNoMatch(v(['=>', 0, 1]))
             assertNoMatch(v(['=>', ['[]', []], 1]))

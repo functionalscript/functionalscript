@@ -98,10 +98,9 @@ export type Neg = readonly['neg', Exp]
 
 export type Comma = readonly[',', Exps]
 
-// a frame — `null` for now (Stage 2 doesn't implement frames/captures), a
-// placeholder for a later `Exp` once frame/capture design lands: a bare
-// value for one capture, an array node for several, decided by whatever
-// constructs `Fn`, not by this shape
+// the frame *construction* expression, evaluated in the enclosing scope to
+// build what `['frame']` reads inside the body — `null` for now (Stage 2
+// doesn't implement frames/captures); see `frameCtor` in module.f.mjs
 
 export type FrameCtor = null
 
