@@ -146,7 +146,7 @@ export const call = _call
 
 // Property Call
 
-const _propertyCall = /** @type {const} */(['.()', exp, exp, exp])
+const _propertyCall = /** @type {const} */(['.()', exp, index, exp])
 
 /**
  * ```js

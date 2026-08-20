@@ -49,4 +49,4 @@ export type Call = readonly['()', Exp, Exp]
 
 // propertyCall
 
-export type PropertyCall = readonly['.()', Exp, Exp, Exp]
+export type PropertyCall = readonly['.()', Exp, Index, Exp]
