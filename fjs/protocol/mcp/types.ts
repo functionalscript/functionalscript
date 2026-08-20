@@ -89,9 +89,22 @@ export type McpSessionState =
     | Initializing
     | readonly ['initialized', InitializedState]
 
+/**
+ * The protocol revisions a server supports, **latest first** and non-empty by
+ * construction — the tuple's head is what an unsupported request is answered
+ * with, so "the server supports nothing" is not a state that can be reached.
+ */
+export type ProtocolVersions = readonly[string, ...readonly string[]]
+
 /** Static configuration supplied by the server implementer. */
 export type McpConfig = {
     readonly serverInfo: Implementation
     readonly capabilities: ServerCapabilities
-    readonly protocolVersion: string
+    /**
+     * Every revision this server speaks, latest first. `initialize` answers
+     * with the client's requested version when it is in this list and with the
+     * head — the latest supported one — otherwise, which is the counter-proposal
+     * the lifecycle spec prescribes.
+     */
+    readonly protocolVersions: ProtocolVersions
 }

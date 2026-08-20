@@ -214,8 +214,10 @@ server-answers-request.
   Schema, and what is unrepresentable in each direction? Do we generate JSON
   Schema from rtti (preferred — describe tools once), accept raw JSON Schema, or
   both?
-- **Protocol version.** MCP revises its version string; pin a supported set and
-  decide how to negotiate / reject.
+- **Protocol version.** Answered: `McpConfig.protocolVersions` is the supported
+  set, latest first, and `initialize` echoes the requested revision when it is
+  in that set and counter-proposes the head otherwise. Nothing is rejected — the
+  lifecycle spec leaves that to the client.
 - **Transport order.** stdio first (simplest, local); Streamable HTTP later.
 - **Spec coverage.** Target a minimal viable subset (initialize + tools) first,
   then resources / prompts / logging.

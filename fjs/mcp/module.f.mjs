@@ -62,13 +62,15 @@ export const casMcpHandlers = home => cacheKey =>
 
 /**
  * Static MCP configuration for the CAS server: advertises the `tools`
- * capability, identifies the server, and pins the protocol version.
+ * capability, identifies the server, and lists the protocol revisions it
+ * speaks — one, so every client is answered with `2024-11-05`, whether that is
+ * an echo or a counter-proposal.
  * @type {McpConfig}
  */
 export const casConfig = {
     serverInfo: { name: 'functionalscript-cas', version: '0.30.0' },
     capabilities: { tools: {} },
-    protocolVersion: '2024-11-05',
+    protocolVersions: ['2024-11-05'],
 }
 
 // ── Server ──────────────────────────────────────────────────────────────────────
