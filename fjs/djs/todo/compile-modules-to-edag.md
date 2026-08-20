@@ -221,14 +221,16 @@ Introduce the function operation into EDAG:
 ['=>', frame, body]
 ```
 
-**Stage 2 does not implement frames/captures.** The `frame` operand is present in the
-operation shape so later frame support does not require changing `=>`, but Stage 2
-uses `null` as a placeholder for it and does not introduce `['frame']` access. Source
+**Stage 2 does not implement frames/captures.** This is a restriction on *this task's*
+compiler and interpreter, not on the EDAG schema: `frame` is a general `exp` in
+`fjs/edag/module.f.mjs`, and `['frame']` is already a validated node there, ahead of
+any consumer using either. Something not implemented in a parser or interpreter doesn't
+mean it's absent from the EDAG definition — the schema is free to change independently
+of what a given task supports. Stage 2's parser only ever emits a placeholder frame and
+its interpreter (`interpret-edag.md`) only ever accepts that placeholder; source
 functions that capture values from an enclosing function/module scope are outside this
-stage. `frame` is expected to become an `Exp` once frame/capture design lands — a bare
-value for one capture, an array node for several — decided by whatever constructs the
-function, not by `=>`'s shape. For the initial canonical form, a function is therefore
-represented with the placeholder frame, for example:
+stage. For the initial canonical form, a function is therefore represented with the
+placeholder frame, for example:
 
 ```js
 ['=>', null, body]
@@ -280,8 +282,9 @@ The staged work builds on the basic structural forms already being defined for E
 - the argument array: `['args']`;
 - Stage 1 property access: `['.', object, property]`, with the restricted property
   operands described above;
-- Stage 2 non-capturing functions: `['=>', null, body]` (`null` is a placeholder for
-  `frame`, not yet a real operand);
+- Stage 2 non-capturing functions: `['=>', null, body]` (`frame` is a general `exp` in
+  the schema; `null` is what *this task's* parser and interpreter are scoped to, not a
+  schema-level restriction);
 - Stage 2 calls: `['()', object, args]` and
   `['.()', object, property, args]`, with `.()` using the same property restriction as
   `.`;
@@ -455,9 +458,12 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 #### Stage 2
 
-- [ ] Introduce `['=>', frame, body]` into EDAG and its validation/type schema, with
-      Stage 2 using the placeholder `null` for `frame`.
-- [ ] Do **not** introduce `['frame']` or captured-variable access in Stage 2.
+- [x] `['=>', frame, body]` is in the EDAG validation/type schema (`fjs/edag/`), with
+      `frame` a general `exp` there and `['frame']` itself a separate validated node —
+      neither restricted to Stage 2's scope.
+- [ ] Stage 2's own parser and interpreter are narrower than the schema: emit/accept
+      only the placeholder `null` for `frame`, and do **not** emit or interpret
+      `['frame']` or other captured-variable access.
 - [ ] Introduce parser support for the initial non-capturing `(...a) => exp` function
       form; reject functions that require captures.
 - [ ] Validate that a nested function body is a disjoint EDAG scope: operation nodes

@@ -53,10 +53,11 @@ As the compiler lands the staged operators, the direct interpreter should suppor
 same EDAG forms: Stage 1 adds `.` property access; Stage 2 adds non-capturing `=>`, `()`,
 and `.()`.
 
-Stage 2 deliberately has **no frame support**. `['=>', frame, body]` is accepted only
-with `frame` as the placeholder `null` (`fjs/edag/module.f.mjs`'s `frame`, expected to
-become an `Exp` once frame/capture design lands); `['frame']` is not part of the Stage 2
-interpreter subset. Captured closures are deferred to later work.
+Stage 2 deliberately has **no frame support** — a restriction on *this interpreter*, not
+on the EDAG schema: `fjs/edag/module.f.mjs` already validates `frame` as a general `exp`
+and `['frame']` as its own node, ahead of any interpreter using either. This interpreter
+accepts only the placeholder `null` for `frame` and does not evaluate `['frame']`.
+Captured closures are deferred to later work.
 
 A function body is a separate EDAG scope. Validation before interpretation must reject
 operation-node identities shared across function boundaries; otherwise a single
