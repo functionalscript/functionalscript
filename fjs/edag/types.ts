@@ -11,6 +11,7 @@ type _Exp =
     | Primitive
     | Array
     | Object
+    | Args
 type _ExpAssert = Assert<Equal<Exp, _Exp>>
 
 // primitive

@@ -7,7 +7,7 @@ import {
     array as rttiArray,
 } from "../types/rtti/module.f.mjs";
 
-export const exp = () => /** @type {const} */(['or', primitive, array, object])
+export const exp = () => /** @type {const} */(['or', primitive, array, object, args])
 
 export const primitive = or(undefined, null, boolean, number, string, bigint)
 
