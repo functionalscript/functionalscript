@@ -24,6 +24,7 @@ export type Exp =
     | Sub
     | Neg
     | Comma
+    | Fn
 
 // undefinedOp
 
