@@ -16,6 +16,7 @@
  *  Object,
  *  PropertyCall,
  *  UndefinedOp,
+ *  Plus,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -23,7 +24,7 @@
 import {
     bigint,
     boolean,
-    number as number,
+    number,
     or,
     string,
     array as rttiArray,
@@ -52,7 +53,8 @@ import {
  *  typeof stringCast,
  *  typeof propertyAccessor,
  *  typeof call,
- *  typeof propertyCall
+ *  typeof propertyCall,
+ *  typeof plus,
  * ]}
  */
 export const exp = () => (['or',
@@ -65,6 +67,7 @@ export const exp = () => (['or',
     propertyAccessor,
     call,
     propertyCall,
+    plus,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -226,4 +229,16 @@ export const propertyCall = _propertyCall
 /**
  * @typedef {Assert<Check<PropertyCall, typeof _propertyCall>>} _PropertyCall0
  * @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall1
+ */
+
+// +
+
+const _plus = /** @type {const} */(['+', exp, exp])
+
+/** @type {Phantom<typeof _plus, Plus>} */
+export const plus = _plus
+
+/**
+ * @typedef {Assert<Check<Plus, typeof _plus>>} _Plus0
+ * @typedef {Assert<Check<Plus, typeof plus>>} _Plus1
  */

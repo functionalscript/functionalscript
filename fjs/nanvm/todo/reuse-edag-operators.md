@@ -33,9 +33,8 @@ For example, EDAG distinguishes unary and binary operators by the canonical tagg
 shape itself:
 
 ```js
-['+', a]
-['+', a, b]
 ['-', a]
+['-', a, b]
 ['*', a, b]
 ['===', a, b]
 ```
@@ -61,9 +60,11 @@ should refer to the EDAG definition for:
 ['*', left, right]
 ```
 
-and derive that its case arguments are a two-element tuple. Unary `+` and binary `+`
-remain distinct because their EDAG operation shapes have different arities; NaNVM does
-not need a second disambiguation scheme.
+and derive that its case arguments are a two-element tuple. Unary `-` (negation) and
+binary `-` (subtraction) remain distinct because their EDAG operation shapes have
+different arities; NaNVM does not need a second disambiguation scheme. (The EDAG has no
+unary `+` — see `edag-stage1-discussion.md`'s "Operators" table — so NaNVM's own
+`unaryPlus` op, if kept, has no EDAG operation to derive its shape from.)
 
 This does **not** mean the NaNVM corpus becomes an EDAG program or that all test values
 must be encoded as EDAG nodes. The corpus still owns test-only data such as:
