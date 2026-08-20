@@ -236,7 +236,7 @@ export const propertyCall = _propertyCall
  * @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall1
  */
 
-// own
+// own, `const own = (a, b) => Object.getOwnPropertyDescriptor(a, k)?.value`
 
 const _own = /** @type {const} */(['own', exp, exp])
 

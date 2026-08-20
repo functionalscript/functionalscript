@@ -4,6 +4,7 @@
  *
  * @import { ValidationError } from '../types/rtti/common/types.ts'
  * @import { Unknown } from '../types/rtti/ts/types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
  */
 
 import { validate } from '../types/rtti/validate/module.f.mjs'
@@ -181,4 +182,16 @@ export const proof = {
         ])
         assertOk(v(value))
     },
+    own: {
+        js: () => {
+            /** @type {<T>(a: StringMap<T>, k: string) => T|undefined } */
+            const own = (a, k) => Object.getOwnPropertyDescriptor(a, k)?.value
+            //
+            const a = { ['__proto__']: 42 }
+            const v = own(a, '__proto__')
+            assertEq(v, 42)
+            const x = own(a, 'x')
+            assertEq(x, undefined)
+        }
+    }
 }
