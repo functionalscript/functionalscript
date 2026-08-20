@@ -9,7 +9,8 @@
  *  Primitive,
  *  Property,
  *  PropertyAccessor,
- *  Object
+ *  Object,
+ *  PropertyCall,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -30,6 +31,7 @@ export const exp = () => /** @type {const} */(['or',
     args,
     propertyAccessor,
     call,
+    propertyCall,
 ])
 
 export const primitive = or(undefined, null, boolean, number, string, bigint)
@@ -44,13 +46,31 @@ export const args = /** @type {const} */(['args'])
 
 const _propertyAccessor = /** @type {const} */(['.', exp, exp])
 
-/** @type {Phantom<typeof _propertyAccessor, PropertyAccessor>} */
+/**
+ * ```js
+ * exp0[exp1]
+ * exp0.exp1
+ * ```
+ *
+ * @type {Phantom<typeof _propertyAccessor, PropertyAccessor>}
+ */
 export const propertyAccessor = _propertyAccessor
 
 const _call = /** @type {const} */(['()', exp, exp])
 
-/** @type {Phantom<typeof _call, Call>} */
+/**
+ * ```js
+ * exp0(exp1)
+ * ```
+ *
+ * @type {Phantom<typeof _call, Call>}
+ */
 export const call = _call
+
+const _propertyCall = /** @type {const} */(['.()', exp, exp, exp])
+
+/** @type {Phantom<typeof _propertyCall, PropertyCall>} */
+export const propertyCall = _propertyCall
 
 /**
  * @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert
@@ -60,5 +80,7 @@ export const call = _call
  * @typedef {Assert<Check<Object, typeof object>>} _ObjectAssert
  * @typedef {Assert<Check<Args, typeof args>>} _ArgsAssert
  * @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
+ * @typedef {Assert<Check<Call, typeof _call>>} _CallAssert0
  * @typedef {Assert<Check<Call, typeof call>>} _CallAssert
+ * @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall
  */

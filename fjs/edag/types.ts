@@ -13,6 +13,7 @@ export type Exp =
     | Args
     | PropertyAccessor
     | Call
+    | PropertyCall
 
 // primitive
 
@@ -41,3 +42,7 @@ export type PropertyAccessor = readonly['.', Exp, Exp]
 // call
 
 export type Call = readonly['()', Exp, Exp]
+
+// propertyCall
+
+export type PropertyCall = readonly['.()', Exp, Exp, Exp]
