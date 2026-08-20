@@ -5,8 +5,6 @@
  * schema in the sibling module with `Assert<Check<..., typeof ...>>`.
  */
 
-export type { Check } from "../types/rtti/ts/types.ts"
-
 // exp
 
 export type Exp =
@@ -23,6 +21,8 @@ export type Exp =
     | Add
     | Sub
     | Neg
+    | Comma
+    | Fn
 
 // undefinedOp
 
@@ -32,9 +32,13 @@ export type UndefinedOp = readonly['undefined']
 
 export type Primitive = UndefinedOp | null | boolean | number | string | bigint
 
+// expressions
+
+export type Exps = readonly Exp[]
+
 // array
 
-export type Array = readonly['[]', readonly Exp[]]
+export type Array = readonly['[]', Exps]
 
 // property
 
@@ -85,6 +89,22 @@ export type Add = readonly['+', Exp, Exp]
 
 export type Sub = readonly['-', Exp, Exp]
 
-// negation (aka a unary minus — arity, not tag, distinguishes it from `Sub`)
+// negation (aka a unary minus — a word tag, `"neg"`, not `"-"`'s unary
+// arity, so it doesn't share a tag with `Sub`)
 
-export type Neg = readonly['-', Exp]
+export type Neg = readonly['neg', Exp]
+
+// Comma
+
+export type Comma = readonly[',', Exps]
+
+// a frame — `null` for now (Stage 2 doesn't implement frames/captures), a
+// placeholder for a later `Exp` once frame/capture design lands: a bare
+// value for one capture, an array node for several, decided by whatever
+// constructs `Fn`, not by this shape
+
+export type Frame = null
+
+// Fn
+
+export type Fn = readonly['=>', Frame, Exp]

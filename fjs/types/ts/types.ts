@@ -12,6 +12,14 @@ export type Equal<A, B> =
         ? true
         : false
 
+export type And<A extends boolean, B extends boolean> =
+    [A, B] extends [true, true] ? true : false
+
+type _AndFF = Assert<Equal<And<false, false>, false>>
+type _AndFT = Assert<Equal<And<false, true>, false>>
+type _AndTF = Assert<Equal<And<true, false>, false>>
+type _AndTT = Assert<Equal<And<true, true>, true>>
+
 /**
  * A `struct` field: the key, its type expression, and — when the third
  * element is `true` — an optional-key marker (`"key"?: type`).

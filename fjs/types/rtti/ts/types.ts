@@ -10,7 +10,7 @@
  * @module
  */
 
-import type { Equal } from '../../ts/types.ts'
+import type { And, Equal } from '../../ts/types.ts'
 import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../types.ts'
 import type { Assert } from '../../../asserts/types.ts'
 import type { phantomKey } from '../../phantom/types.ts'
@@ -200,61 +200,59 @@ export type Ts<T extends Type> =
  */
 export type Check<A, B extends Type> = Equal<A, Ts<B>>
 
+export type Check3<T, R0 extends Type, R1 extends Type> = And<Equal<T, Ts<R0>>, Equal<T, Ts<R1>>>
+
 // Fast-path: Ts<any> resolves to Unknown without TS2589 overflow.
-type _any = Assert<Equal<Ts<any>, Unknown>>
+type _any = Assert<Check<Unknown, any>>
 
-type _null = Assert<Equal<Ts<null>, null>>
-type _undefined = Assert<Equal<Ts<undefined>, undefined>>
+type _null = Assert<Check<null, null>>
+type _undefined = Assert<Check<undefined, undefined>>
 
-type _true = Assert<Equal<Ts<true>, true>>
-type _32 = Assert<Equal<Ts<32>, 32>>
-type _42n = Assert<Equal<Ts<42n>, 42n>>
-type _hello = Assert<Equal<Ts<'hello'>, 'hello'>>
+type _true = Assert<Check<true, true>>
+type _32 = Assert<Check<32, 32>>
+type _42n = Assert<Check<42n, 42n>>
+type _hello = Assert<Check<'hello', 'hello'>>
 
-type _tuple = Assert<Equal<Ts<readonly[12, true]>, readonly[12, true]>>
-type _struct = Assert<Equal<
-    Ts<{ readonly a: 'hello', readonly b: readonly[]}>,
+type _tuple = Assert<Check<readonly[12, true], readonly[12, true]>>
+type _struct = Assert<Check<
+    { readonly a: 'hello', readonly b: readonly[]},
     { readonly a: 'hello', readonly b: readonly[]}
 >>
-type _structOption = Assert<Equal<
-    Ts<{ readonly a: RttiString, readonly b: Or<readonly[RttiString, undefined]> }>,
-    { readonly a: string } & { readonly b?: string | undefined }
+type _structOption = Assert<Check<
+    { readonly a: string } & { readonly b?: string | undefined },
+    { readonly a: RttiString, readonly b: Or<readonly[RttiString, undefined]> }
 >>
 
-type _const = Assert<Equal<Ts<() => readonly['const', 12]>, 12>>
+type _const = Assert<Check<12, () => readonly['const', 12]>>
 
-type _boolean = Assert<Equal<Ts<() => readonly['boolean']>, boolean>>
-type _number = Assert<Equal<Ts<() => readonly['number']>, number>>
-type _string = Assert<Equal<Ts<() => readonly['string']>, string>>
-type _bigint = Assert<Equal<Ts<() => readonly['bigint']>, bigint>>
+type _boolean = Assert<Check<boolean, () => readonly['boolean']>>
+type _number = Assert<Check<number, () => readonly['number']>>
+type _string = Assert<Check<string, () => readonly['string']>>
+type _bigint = Assert<Check<bigint, () => readonly['bigint']>>
 
 type _unknown = Assert<Equal<Ts<() => readonly['unknown']>, Unknown>>
 
-type _array = Assert<Equal<Ts<
-    () => readonly['array', 12]>,
-    readonly 12[]
->>
-type _record = Assert<Equal<
-    Ts<() => readonly['record', () => readonly['boolean']]>,
-    StringMap<boolean>
->>
+type _array = Assert<Check<
+    readonly 12[],
+    () => readonly['array', 12]>>
 
-type _tupleString = Assert<Equal<
-    Ts<readonly[() => readonly['string']]>,
-    readonly[string]
->>
+type _record = Assert<Check<
+    StringMap<boolean>,
+    () => readonly['record', () => readonly['boolean']]>>
 
-type _orConst = Assert<Equal<
-    Ts<() => readonly['or', false, 42, 'hello']>,
-    false | 42 | 'hello'
->>
+type _tupleString = Assert<Check<
+    readonly[string],
+    readonly[() => readonly['string']]>>
 
-type _orStringNumber = Assert<Equal<
-    Ts<() => readonly['or', 13, () => readonly['string']]>,
-    13 | string
->>
+type _orConst = Assert<Check<
+    false | 42 | 'hello',
+    () => readonly['or', false, 42, 'hello']>>
+
+type _orStringNumber = Assert<Check<
+    13 | string,
+    () => readonly['or', 13, () => readonly['string']]>>
 
 type _SelfArray = readonly _SelfArray[]
 type _SelfArrayType = () => readonly['array', _SelfArrayType]
 
-type _selfArray = Assert<Equal<Ts<_SelfArrayType>, _SelfArray>>
+type _selfArray = Assert<Check<_SelfArray, _SelfArrayType>>
