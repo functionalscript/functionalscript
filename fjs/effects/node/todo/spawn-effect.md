@@ -79,6 +79,26 @@ Notes on the shape:
   a stream `'error'`, and a pipe closed by an exited child (`EPIPE`) — both
   answer `IoError` rather than ok.
 - **`null` is EOF**, matching `Read`'s `number | null`.
+- **The handle IS the branded child — there is no table.** `createServer` sets
+  the precedent exactly: `ok(asNominal(createServer(nodeRl)))`
+  (`../module.mjs:321`) mints the brand around the host object itself and
+  `listen` recovers it with `asBase(server)` (`:324`). A `Map` from an integer
+  id to a `ChildProcess` would need `Map#set` on every spawn and a delete on
+  every exit path — in-place mutation of shared state, which
+  [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 forbids outright — and it would buy
+  nothing the brand does not already give.
+- **`spawn` resolves the lifecycle BEFORE it answers.** Node reports a missing
+  executable through an asynchronous `'error'` event (`ENOENT`) and emits no
+  `'exit'` at all, so a runner that returns a handle immediately hands the
+  caller something that can only hang. `spawn` races `'spawn'` against that
+  first `'error'` and answers `error(...)` on the latter, minting no handle: a
+  command that does not exist cannot reach `childWrite` or `childWait`.
+- **`childWait` reads before it listens.** A child may exit before anyone waits
+  on it, and an `'exit'` listener attached afterwards never fires. Node keeps
+  the outcome on the object — `exitCode` and `signalCode` are non-null once the
+  process is gone — so `childWait` checks those first and only subscribes when
+  both are `null`. That is what keeps "no table" honest: the state a cache would
+  have held is already held by the child, and the brand can reach it.
 - **`childRead` names the stream** rather than shipping two operations; `exec`'s
   callers want `stderr` separately and so will these.
 - **`argv`, not a shell string.** A `cmd`/`args` split has no shell to quote for.
@@ -114,12 +134,17 @@ Open for review before code:
 - [ ] `../types.ts`: the five operations, `Child`, `SpawnOptions`, `ExitStatus`;
       add them to `NodeOp`.
 - [ ] `../module.f.mjs`: `do_` constructors and the `nodeCommandSet` keys.
-- [ ] `../module.mjs`: the runner over `node:child_process.spawn`, with the
-      handle table, `writeAll`-style backpressure, and the `('exit', code,
-      signal)` mapping onto `ExitStatus`.
+- [ ] `../module.mjs`: the runner over `node:child_process.spawn` — brand the
+      `ChildProcess` itself with `asNominal`, recover it with `asBase`, no
+      table; `writeAll`-style backpressure; the `('exit', code, signal)`
+      mapping onto `ExitStatus`.
 - [ ] A runner test in the shape of `../memory/proof.mjs` — spawn `node -e`,
-      round-trip two batches, close, wait; and one that kills the child, so the
-      `signaled` branch is exercised rather than assumed.
+      round-trip two batches, close, wait; one that kills the child, so the
+      `signaled` branch is exercised rather than assumed; one that spawns a
+      command that does not exist; and one that calls `childWait` AFTER the
+      child has already exited. The last two are the hang cases — a test that
+      hangs is worse than one that fails, so they are named here rather than
+      left to be discovered.
 - [ ] `../virtual/module.f.mjs`: extend the not-implemented list in its docs.
 - [ ] `npx tsc`, `npm test`, `npm run cov`.
 
