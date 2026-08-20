@@ -307,23 +307,17 @@ export const comma = _comma
 // Function
 
 /**
- * Same shape as `array` — a frame's contents are captured bindings, and an
- * empty one is spelled the same way an empty array node is, `['[]', []]`.
- * A distinct type from `Array` even so, so that later frame/capture support
- * can diverge from `array`'s shape without changing `=>`'s own shape.
- * Stage 2 doesn't implement frames/captures yet, so the compiler only ever
- * emits the empty form — validation doesn't enforce that here, same as
- * every other exact-arity gap tracked by `../types/rtti/todo/close-type.md`.
- * See `../../djs/todo/compile-modules-to-edag.md`.
+ * A placeholder, not yet a real operand: Stage 2 doesn't implement
+ * frames/captures, so `frame` is `null` for now. It is expected to become
+ * an `Exp` once frame/capture design lands — a bare value for one capture,
+ * an array node for several — decided by whatever constructs `Fn`, not by
+ * this shape. The operand is present in `=>`'s shape today so that switch
+ * doesn't require changing `=>` itself. See
+ * `../../djs/todo/compile-modules-to-edag.md`.
  */
-const _frame = /** @type {const} */(['[]', []])
+export const frame = null
 
-/** @type {Phantom<typeof _frame, Frame>} */
-export const frame = _frame
-
-/**
- * @typedef {Assert<Check3<Frame, typeof _frame, typeof frame>>} _Frame
- */
+/** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */
 
 const _fn = /** @type {const} */(['=>', frame, exp])
 

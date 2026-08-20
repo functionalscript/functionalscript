@@ -98,11 +98,12 @@ export type Neg = readonly['neg', Exp]
 
 export type Comma = readonly[',', Exps]
 
-// a frame — same shape as `Array`; see `frame` in module.f.mjs for why it's
-// still its own type, and why Stage 2's "empty only" restriction isn't
-// encoded in this shape
+// a frame — `null` for now (Stage 2 doesn't implement frames/captures), a
+// placeholder for a later `Exp` once frame/capture design lands: a bare
+// value for one capture, an array node for several, decided by whatever
+// constructs `Fn`, not by this shape
 
-export type Frame = readonly['[]', readonly[]]
+export type Frame = null
 
 // Fn
 
