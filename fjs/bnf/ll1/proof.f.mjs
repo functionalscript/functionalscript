@@ -251,13 +251,7 @@ export const proof = {
         },
         () => {
             const m = parser(option('a'))
-
-            const isSuccess = (/** @type {MatchResult} */mr) => mr[1] && mr[2]?.length === 0
-            /** @type {(s: string, success: boolean) => void} */
-            const expect = (s, success) => {
-                const mr = m('', toArray(stringToCodePointList(s)))
-                assertEq(isSuccess(mr), success, mr)
-            }
+            const expect = expectMatch(m)
 
             expect('a', true)
             expect('', true)
@@ -278,12 +272,10 @@ export const proof = {
 
             const m = parser(value)
 
-            /** @type {(mr: MatchResult) => boolean} */
-            const isSuccess = mr => mr[1] && mr[2]?.length === 0
             /** @type {(s: string, success: boolean) => void} */
             const expect = (s, success) => {
                 const mr = m('value', toArray(stringToCodePointList(s)))
-                assertEq(isSuccess(mr), success, mr)
+                assertEq(isMatchSuccess(mr), success, mr)
             }
 
             expect('', false)
@@ -315,7 +307,7 @@ export const proof = {
             /** @type {(s: string) => void} */
             const expectNoMatch = s => {
                 const mr = ml(entry, toArray(stringToCodePointList(s)))
-                assertEq(mr[1] && mr[2]?.length === 0, false, s)
+                assertEq(isMatchSuccess(mr), false, s)
             }
 
             expectSameAst('   true   ')
@@ -580,12 +572,7 @@ export const proof = {
         const ws = option(' ')
         const value = () => ({ array: ['[', value, ']'], leaf: 'a' })
         const m = parser([ws, value, ws]) // must not throw 'can not merge'
-
-        /** @type {(s: string, success: boolean) => void} */
-        const expect = (s, success) => {
-            const mr = m('', toArray(stringToCodePointList(s)))
-            assertEq(mr[1] && mr[2]?.length === 0, success, mr)
-        }
+        const expect = expectMatch(m)
 
         expect('a', true)
         expect(' a ', true)
