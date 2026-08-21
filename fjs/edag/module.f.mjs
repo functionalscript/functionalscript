@@ -196,8 +196,12 @@ const _propertyCall = /** @type {const} */(['.()', exp, index, exp])
 
 /**
  * ```js
- * exp0[exp1](exp2)
+ * exp0[exp1](...exp2)
  * ```
+ *
+ * A method call, keeping the `this` binding. The last operand is one node
+ * evaluating to the complete argument array, not a literal operand list —
+ * the same convention as `()` (see `binaryOpId`).
  *
  * @type {Phantom<typeof _propertyCall, PropertyCall>}
  */
@@ -258,10 +262,13 @@ export const unaryOp = _unaryOp
 // Binary Operations
 
 /**
- * `=>` builds a function from a frame and a body, `()` calls one, and `own`
- * reads an own property, bypassing the prototype chain — including
- * `__proto__` (`ownJs` in `./proof.f.mjs`). The rest are the JS comparison,
- * arithmetic, bitwise, and logical operators they name.
+ * `=>` builds a function from a frame and a body. `()` calls one — its
+ * second operand is one node evaluating to the complete argument array, not
+ * a literal operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]`, spread
+ * `f(...xs)` is `['()', f, xs]`. `own` reads an own property, bypassing the
+ * prototype chain — including `__proto__` (`ownJs` in `./proof.f.mjs`). The
+ * rest are the JS comparison, arithmetic, bitwise, and logical operators
+ * they name.
  */
 export const binaryOpId = or(
     '=>', 'own', '()',

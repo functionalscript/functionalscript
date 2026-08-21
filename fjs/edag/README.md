@@ -20,7 +20,9 @@ runtime with `validate(exp)`. [types.ts](types.ts) carries the same shape at
 the type level, pinned against the schema with `Assert<Check<...>>` so the
 two cannot drift — exact up to one known approximation: the static tuples
 are closed while the runtime ones are open (see Caveats).
-[proof.f.mjs](proof.f.mjs) pins the runtime behavior of every node kind.
+[proof.f.mjs](proof.f.mjs) pins what the schema accepts and rejects, node
+kind by node kind — validation behavior, not execution semantics — with
+`comma` excepted until its placeholder shape settles.
 
 ## Nodes
 
@@ -37,7 +39,7 @@ in [module.f.mjs](module.f.mjs).
 | `['args']` | the function's arguments |
 | `['frame']` | the captured frame |
 | `['.', exp, index]` | property access: `exp0[exp1]` |
-| `['.()', exp, index, exp]` | property call: `exp0[exp1](exp2)` |
+| `['.()', exp, index, exp]` | property call: `exp0[exp1](...exp2)` |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `neg` `!` `~` |
 | `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `()` `===` `!==` `>` `>=` `<` `<=` `+` `-` `*` `/` `%` `**` `&` `|` `^` `<<` `>>` `>>>` `&&` `||` `??` |
@@ -46,7 +48,10 @@ An `index` — the property operand of `.` and `.()` — is a `string`, a
 `number`, or `['Number', exp]`, a computed index cast to a number. Among the
 binary ids, `=>` builds a function, `()` calls one, and `own` reads an own
 property, bypassing the prototype chain (including `__proto__` — see the
-`ownJs` proof).
+`ownJs` proof). A call's arguments — `()`'s second operand and `.()`'s last
+— are one node evaluating to the complete argument array, not a literal
+operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]` and spread
+`f(...xs)` is `['()', f, xs]`.
 
 ## Caveats
 
