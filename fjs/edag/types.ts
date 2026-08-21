@@ -71,11 +71,6 @@ export type PropertyAccessor = readonly['.', Exp, Index]
 
 export type PropertyCall = readonly['.()', Exp, Index, Exp]
 
-// negation (aka a unary minus — a word tag, `"neg"`, not `"-"`'s unary
-// arity, so it doesn't share a tag with `Sub`)
-
-export type Neg = readonly['neg', Exp]
-
 // Comma
 
 export type Comma = readonly[',', Exps]
