@@ -136,8 +136,9 @@ export const array = /** @type {const} */(['[]', rttiArray(items)])
  * and conforming VMs may legally differ on it. Only the `key` and `value`
  * operands are real nodes, their identities shared normally.
  *
- * The key stays `exp`, not narrowed to a string constant — see
- * `../../todo/edag-stage1-discussion.md` subject 4.
+ * The key stays `exp`, not narrowed to a string constant, and its evaluated
+ * value is coerced via JS `ToPropertyKey` when the property is defined —
+ * see `../../todo/edag-stage1-discussion.md` subject 4.
  */
 export const property = /** @type {const} */([':', exp, exp])
 
@@ -314,10 +315,13 @@ export const op1 = _op1
  * one — its second operand is one node evaluating to the complete argument
  * array, not a literal operand list: `f(a, b)` is
  * `['()', f, ['[]', [a, b]]]`, spread `f(...xs)` is `['()', f, xs]`. `own`
- * is exactly `Object.getOwnPropertyDescriptor(object, key)?.value` with a
- * computed string key — no key coercion, no getter invocation, no prototype
- * chain (`ownJs` in `./proof.f.mjs`; the Operations table in
- * `../../todo/edag-stage1-discussion.md`). The rest are the JS comparison,
+ * is exactly `Object.getOwnPropertyDescriptor(object, key)?.value` — no
+ * getter invocation, no prototype chain — where the key operand must
+ * evaluate to a string: a runtime-value constraint the shape-only schema
+ * cannot express — a computed key's value is only known at execution, so
+ * upholding it falls to the executor (`ownJs` in `./proof.f.mjs`; the
+ * Operations table in `../../todo/edag-stage1-discussion.md`). The rest
+ * are the JS comparison,
  * arithmetic, bitwise, and logical operators they name — with `&&`/`||`/`??`
  * short-circuiting exactly as in JS: their right operand is conditional,
  * never established eagerly. All this laziness is positional, not nodal —

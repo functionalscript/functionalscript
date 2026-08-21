@@ -5,9 +5,10 @@ body. A body is a single root expression node; a shared subexpression is one
 node referenced from several places, not a copy — sharing is observable
 (`{} === {}` is `false`), so it is part of the function's meaning, not a
 serialization trick. Evaluation memoizes every node by identity within one
-invocation — shared nodes evaluate once, and each call starts fresh — per
-the baseline in
-[edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md). There is no normal form: a function's hash is the
+invocation — shared nodes evaluate once, per the baseline in
+[edag-stage1-discussion.md](../../todo/edag-stage1-discussion.md), and each
+call starts fresh, per the per-invocation memo scope in
+[interpret-edag.md](../djs/todo/interpret-edag.md). There is no normal form: a function's hash is the
 structural identity of its graph as written, the name-erased source.
 Lowering rules make agreed-on spellings coincide; hash equality does not
 decide semantic equivalence. This module owns the data model only: node kinds, operand
