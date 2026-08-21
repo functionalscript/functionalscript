@@ -22,9 +22,9 @@ export type Exp =
 // primitive
 
 /**
- * Genuine constant values only — `undefined` is deliberately excluded; see
- * `primitive` in `module.f.mjs` for why. Its EDAG node, `['undefined']`,
- * lives under `Op0` instead.
+ * Bare constant values, not operation nodes — `undefined` is deliberately
+ * excluded, since `['undefined']` is a tagged `Op0` operation, not a bare
+ * value; see `primitive` in `module.f.mjs`.
  */
 export type Primitive = null | boolean | number | string | bigint
 
