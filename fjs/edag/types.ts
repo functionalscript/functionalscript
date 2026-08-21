@@ -3,7 +3,10 @@
  * node kind — see the union immediately below for the current list, rather
  * than enumerating it here too, where it silently drifts stale as nodes are
  * added — each pinned against its rtti schema in the sibling module with
- * `Assert<Check<..., typeof ...>>`.
+ * `Assert<Check<..., typeof ...>>`. The pin is exact up to tuple openness:
+ * the schema accepts trailing extras (`['args', 'extra']` validates) while
+ * these tuples are closed — the rendering approximation documented at
+ * `TupleTs` in `../types/rtti/ts/types.ts`.
  */
 
 // exp
