@@ -46,7 +46,7 @@ const vOp2Id = value => validate(op2Id)(value)
 /** Every id `op0` currently accepts — kept as a literal list, not derived
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const op0Ids = /** @type {const} */ (['undefined', 'args', 'frame'])
+const op0Ids = /** @type {const} */ (['String', 'Number', 'neg', '!', '~'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['neg', 'String', 'Number'])
