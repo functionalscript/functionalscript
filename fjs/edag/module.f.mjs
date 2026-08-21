@@ -204,25 +204,19 @@ export const index = or(numberCast, string, number)
 
 // Property Accessor
 
-const _propertyAccessor = /** @type {const} */(['.', exp, index])
-
 /**
  * ```js
  * exp0[exp1]
  * exp0.exp1
  * ```
- *
- * @type {Phantom<typeof _propertyAccessor, PropertyAccessor>}
  */
-export const propertyAccessor = _propertyAccessor
+export const propertyAccessor = /** @type {const} */(['.', exp, index])
 
 /**
- * @typedef {Assert<Check3<PropertyAccessor, typeof _propertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
+ * @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
  */
 
 // Property Call
-
-const _propertyCall = /** @type {const} */(['.()', exp, index, exp])
 
 /**
  * ```js
@@ -232,18 +226,14 @@ const _propertyCall = /** @type {const} */(['.()', exp, index, exp])
  * A method call, keeping the `this` binding. The last operand is one node
  * evaluating to the complete argument array, not a literal operand list —
  * the same convention as `()` (see `op2Id`).
- *
- * @type {Phantom<typeof _propertyCall, PropertyCall>}
  */
-export const propertyCall = _propertyCall
+export const propertyCall = /** @type {const} */(['.()', exp, index, exp])
 
 /**
- * @typedef {Assert<Check3<PropertyCall, typeof _propertyCall, typeof propertyCall>>} _PropertyCall
+ * @typedef {Assert<Check<PropertyCall, typeof propertyCall>>} _PropertyCall
  */
 
 // Comma
-
-const _comma = /** @type {const} */([',', exps])
 
 /**
  * ```js
@@ -258,13 +248,11 @@ const _comma = /** @type {const} */([',', exps])
  * identity and a reachable operand a redundant anchor — both non-canonical,
  * each splitting one function into two hashes. See the header of
  * `./proof.f.mjs`.
- *
- * @type {Phantom<typeof _comma, Comma>}
  */
-export const comma = _comma
+export const comma = /** @type {const} */([',', exps])
 
 /**
- * @typedef {Assert<Check3<Comma, typeof _comma, typeof comma>>} _Comma
+ * @typedef {Assert<Check<Comma, typeof comma>>} _Comma
  */
 
 // No-Args Operations
@@ -281,12 +269,9 @@ export const op0Id = or('undefined', 'args', 'frame')
 
 /** @typedef {Assert<Check<Op0Id, typeof op0Id>>} _Op0Id */
 
-const _op0 = /** @type {const} */([op0Id])
+export const op0 = /** @type {const} */([op0Id])
 
-/** @type {Phantom<typeof _op0, Op0>} */
-export const op0 = _op0
-
-/** @typedef {Assert<Check3<Op0, typeof _op0, typeof op0>>} _Op0 */
+/** @typedef {Assert<Check<Op0, typeof op0>>} _Op0 */
 
 // Unary Operations
 
@@ -298,12 +283,9 @@ export const op1Id = or('String', 'Number', 'neg', '!', '~')
 
 /** @typedef {Assert<Check<Op1Id, typeof op1Id>>} _Op1Id */
 
-const _op1 = /** @type {const} */([op1Id, exp])
+export const op1 = /** @type {const} */([op1Id, exp])
 
-/** @type {Phantom<typeof _op1, Op1>} */
-export const op1 = _op1
-
-/** @typedef {Assert<Check3<Op1, typeof _op1, typeof op1>>} _Op1 */
+/** @typedef {Assert<Check<Op1, typeof op1>>} _Op1 */
 
 // Binary Operations
 
@@ -338,9 +320,6 @@ export const op2Id = or(
 
 /** @typedef {Assert<Check<Op2Id, typeof op2Id>>} _Op2Id */
 
-const _op2 = /** @type {const} */([op2Id, exp, exp])
+export const op2 = /** @type {const} */([op2Id, exp, exp])
 
-/** @type {Phantom<typeof _op2, Op2>} */
-export const op2 = _op2
-
-/** @typedef {Assert<Check3<Op2, typeof _op2, typeof op2>>} _Op2 */
+/** @typedef {Assert<Check<Op2, typeof op2>>} _Op2 */
