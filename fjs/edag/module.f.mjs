@@ -58,10 +58,10 @@ import {
  *  typeof stringCast,
  *  typeof propertyAccessor,
  *  typeof propertyCall,
- *  typeof neg,
  *  typeof comma,
  *  typeof frame,
  *  typeof binaryOp,
+ *  typeof unaryOp,
  * ]}
  */
 export const exp = () => (['or',
@@ -73,10 +73,10 @@ export const exp = () => (['or',
     stringCast,
     propertyAccessor,
     propertyCall,
-    neg,
     comma,
     frame,
     binaryOp,
+    unaryOp,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -259,7 +259,10 @@ export const unaryOpId = or('neg')
 
 /** @typedef {Assert<Check<UnaryOpId, typeof unaryOpId>>} _UnaryOpId */
 
-export const unaryOp = /** @type {const} */([unaryOpId, exp])
+const _unaryOp = /** @type {const} */([unaryOpId, exp])
+
+/** @type {Phantom<typeof _unaryOp, UnaryOp>} */
+export const unaryOp = _unaryOp
 
 /** @typedef {Assert<Check<UnaryOp, typeof unaryOp>>} _UnaryOp */
 

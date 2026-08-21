@@ -17,10 +17,10 @@ export type Exp =
     | StringCast
     | PropertyAccessor
     | PropertyCall
-    | Neg
     | Comma
     | Frame
     | BinaryOp
+    | UnaryOp
 
 // undefinedOp
 
