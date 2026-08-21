@@ -32,6 +32,14 @@ export type Primitive = null | boolean | number | string | bigint
 
 export type Exps = readonly Exp[]
 
+// spread
+
+export type Spread = readonly['...', Exp]
+
+// array items
+
+export type Items = Exp | Spread
+
 // array
 
 export type Array = readonly['[]', Exps]

@@ -19,6 +19,8 @@
  *  Op1,
  *  Op0Id,
  *  Op0,
+ Spread,
+ Items,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -87,6 +89,18 @@ export const primitive = or(null, boolean, number, string, bigint)
 /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
 
 const exps = rttiArray(exp)
+
+// ...
+
+export const spread = /** @type {const} */(['...', exp])
+
+/** @typedef {Assert<Check<Spread, typeof spread>>} _Spread */
+
+// items
+
+export const items = or(exp, spread)
+
+/** @typedef {Assert<Check<Items, typeof items>>} _Items */
 
 // Array
 
