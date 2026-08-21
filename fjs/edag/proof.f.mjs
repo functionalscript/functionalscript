@@ -114,7 +114,7 @@ export const proof = {
         },
         // `index` — string, number, or `numberCast` — never admitted
         // `undefined`, so a missing index has always been a real error, not
-        // the open-tail case `args`'s trailing side has.
+        // the open-tail case `op0`'s trailing side has.
         missingIndexIsError: () => assertNoMatch(v(['.', 'a'])),
         error: () => {
             assertNoMatch(v(['x', 'a', 'b']))
@@ -196,11 +196,9 @@ export const proof = {
     },
     op2: {
         ok: () => {
-            // Every id `op2` accepts, pinned individually — including the
-            // fourteen this PR adds (`<=`, `*`, `/`, `%`, `**`, `&`, `|`,
-            // `^`, `<<`, `>>`, `>>>`, `&&`, `||`, `??`), which had no proof
-            // at all before this: deleting any one of the twenty-four from
-            // `op2Id` reddens exactly this loop.
+            // Every id `op2` accepts, pinned individually: deleting any one
+            // of the twenty-four from `op2Id` reddens exactly this loop, not
+            // some other assertion that happens to still pass.
             for (const id of op2Ids) {
                 assertOk(v([id, 1, 2]))
             }

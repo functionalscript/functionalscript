@@ -6,9 +6,10 @@
 ### Problem
 
 The EDAG operation vocabulary (`.`, `()`, `.()`) has no representation for
-JavaScript's optional chaining (`a?.b`, `a?.(b)`, and the four `a.b(c)`
-variants that mix a plain/optional property step with a plain/optional call
-step) or for unbinding a method reference from its receiver. Parenthesizing a
+JavaScript's optional chaining (`a?.b`, `a?.(b)`, and three of the four
+`a.b(c)` variants that mix a plain/optional property step with a
+plain/optional call step — the fourth, both-plain, is already `.()`) or for
+unbinding a method reference from its receiver. Parenthesizing a
 member expression does **not** unbind it — `(obj.method)(0)` still calls with
 `obj` as `this`, same as `obj.method(0)`, since `()` is pure grouping. Only
 *extracting* the method into a value unbinds it: `const x = obj.method; x(0)`
@@ -38,7 +39,7 @@ poking at the problem. Nothing below is a settled operation shape; see
 |  |          |        |
 |--|----------|--------|
 |1.| `a  (b)` | `()`   |
-|2.| `a?.(b)` | `.?()` |
+|2.| `a?.(b)` | `?.()` |
 
 ##### Chaining for `a.b()`
 
@@ -57,17 +58,17 @@ poking at the problem. Nothing below is a settled operation shape; see
 
 ##### Chaining for `a.b`
 
-|  |        |     |
-|--|--------|-----|
-|1.| `a .b` | `.` |
-|2.| `a?.b` | `?` |
+|  |        |      |
+|--|--------|------|
+|1.| `a .b` | `.`  |
+|2.| `a?.b` | `?.` |
 
 ##### Chaining for `a(b)`
 
-|  |          |     |
-|--|----------|-----|
-|1.| `a  (b)` | `.` |
-|2.| `a?.(b)` | `?` |
+|  |          |        |
+|--|----------|--------|
+|1.| `a  (b)` | `()`   |
+|2.| `a?.(b)` | `?.()` |
 
 ##### Unbind
 
