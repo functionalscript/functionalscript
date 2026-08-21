@@ -150,12 +150,21 @@ export type StructTs<T extends Struct> =
  * type _Check1 = Assert<Check<MyType, typeof my>>
  * ```
  *
- * See `fjs/edag/module.f.mjs` for this in practice. Note also that the phantom
- * branch below does `Exclude<O, undefined>`, so a `MyType` that legitimately
- * includes bare `undefined` at its top level will never satisfy `_Check1` —
- * phantom-wrap the recursive node type itself (e.g. `PropertyAccessor`, which
- * has no top-level `undefined`), not a wider union (`Exp`) that folds
- * `undefined` in through one of its members.
+ * {@link Check3} is the same pair written once:
+ *
+ * ```ts
+ * type _Check = Assert<Check3<MyType, typeof myThunk, typeof my>>
+ * ```
+ *
+ * See `fjs/edag/module.f.mjs` (`_exp`/`exp`) for this in practice. Note also
+ * that the phantom branch below does `Exclude<O, undefined>`, so a `MyType`
+ * that includes bare `undefined` at its top level will never satisfy
+ * `_Check1`. That is a constraint on the wrapped type, not on how wide it
+ * is: a union is fine when no member contributes a top-level `undefined` —
+ * `fjs/edag` wraps `Exp`, the whole node union, because its `undefined` is
+ * the tagged `['undefined']` rather than the bare value. Wrap one type per
+ * recursive cycle, and if the natural one does carry a top-level
+ * `undefined`, wrap a narrower node type inside the cycle instead.
  *
  * @example
  * ```ts
@@ -200,6 +209,13 @@ export type Ts<T extends Type> =
  */
 export type Check<A, B extends Type> = Equal<A, Ts<B>>
 
+/**
+ * The two-assert `Phantom` pattern from the {@link Ts} doc, in one
+ * assert: `T` is both `Ts<R0>` (the raw thunk, forcing the structural walk)
+ * and `Ts<R1>` (the phantom-wrapped export). Checking only the wrapped
+ * export is a tautology — `Ts<>` short-circuits to the annotation — so the
+ * `R0` half is what gives this teeth.
+ */
 export type Check3<T, R0 extends Type, R1 extends Type> = And<Equal<T, Ts<R0>>, Equal<T, Ts<R1>>>
 
 // Fast-path: Ts<any> resolves to Unknown without TS2589 overflow.
