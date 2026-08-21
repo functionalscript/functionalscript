@@ -13,23 +13,12 @@ export type Exp =
     | Array
     | Object
     | Args
-    | NumberCast
-    | StringCast
     | PropertyAccessor
-    | Call
     | PropertyCall
-    | Own
-    | Add
-    | Sub
-    | Neg
     | Comma
-    | Fn
     | Frame
-    | Eq
-    | Neq
-    | Gt
-    | Lt
-    | Ge
+    | BinaryOp
+    | UnaryOp
 
 // undefinedOp
 
@@ -63,10 +52,6 @@ export type Args = readonly['args']
 
 export type NumberCast = readonly['Number', Exp]
 
-// String
-
-export type StringCast = readonly['String', Exp]
-
 // Index — shape only; see `index` in `module.f.mjs` for what this doesn't
 // cover (e.g. denylisted property names like `constructor`)
 
@@ -76,59 +61,32 @@ export type Index = number | NumberCast | string
 
 export type PropertyAccessor = readonly['.', Exp, Index]
 
-// call
-
-export type Call = readonly['()', Exp, Exp]
-
 // propertyCall
 
 export type PropertyCall = readonly['.()', Exp, Index, Exp]
-
-// own
-
-export type Own = readonly ['own', Exp, Exp]
-
-// Binary +
-
-export type Add = readonly['+', Exp, Exp]
-
-// Binary -
-
-export type Sub = readonly['-', Exp, Exp]
-
-// negation (aka a unary minus — a word tag, `"neg"`, not `"-"`'s unary
-// arity, so it doesn't share a tag with `Sub`)
-
-export type Neg = readonly['neg', Exp]
 
 // Comma
 
 export type Comma = readonly[',', Exps]
 
-// Fn
-
-export type Fn = readonly['=>', Exp, Exp]
-
 // Frame
 
 export type Frame = readonly['frame']
 
-// Eq
+// UnaryOpIds
 
-export type Eq = readonly['===', Exp, Exp]
+export type UnaryOpId =
+    | 'String' | 'Number' | 'neg' | '!' | '~'
 
-// Neq
+export type UnaryOp = readonly[UnaryOpId, Exp]
 
-export type Neq = readonly['!==', Exp, Exp]
+// BinaryOpIds
 
-// Gt
+export type BinaryOpId =
+    | '=>' | 'own' | '()'
+    | '===' | '!==' | '>' | '>=' | '<' | '<='
+    | '+' | '-' | '*' | '/' | '%' | '**'
+    | '&' | '|' | '^' | '<<' | '>>' | '>>>'
+    | '&&' | '||' | '??'
 
-export type Gt = readonly['>', Exp, Exp]
-
-// Lt
-
-export type Lt = readonly['<', Exp, Exp]
-
-// Ge
-
-export type Ge = readonly['>=', Exp, Exp]
+export type BinaryOp = readonly[BinaryOpId, Exp, Exp]
