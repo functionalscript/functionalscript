@@ -56,7 +56,6 @@ import {
  *  typeof numberCast,
  *  typeof stringCast,
  *  typeof propertyAccessor,
- *  typeof call,
  *  typeof propertyCall,
  *  typeof neg,
  *  typeof comma,
@@ -72,7 +71,6 @@ export const exp = () => (['or',
     numberCast,
     stringCast,
     propertyAccessor,
-    call,
     propertyCall,
     neg,
     comma,
@@ -204,23 +202,6 @@ export const propertyAccessor = _propertyAccessor
  * @typedef {Assert<Check3<PropertyAccessor, typeof _propertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
  */
 
-// Call
-
-const _call = /** @type {const} */(['()', exp, exp])
-
-/**
- * ```js
- * exp0(exp1)
- * ```
- *
- * @type {Phantom<typeof _call, Call>}
- */
-export const call = _call
-
-/**
- * @typedef {Assert<Check3<Call, typeof _call, typeof call>>} _Call
- */
-
 // Property Call
 
 const _propertyCall = /** @type {const} */(['.()', exp, index, exp])
@@ -274,7 +255,7 @@ export const frame = /** @type {const} */(['frame'])
 //
 
 export const binaryOpId = or(
-    '=>', 'own',
+    '=>', 'own', '()',
     '===', '!==', '>', '>=', '<', '<=',
     '+', '-', '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',

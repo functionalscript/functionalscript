@@ -16,7 +16,6 @@ export type Exp =
     | NumberCast
     | StringCast
     | PropertyAccessor
-    | Call
     | PropertyCall
     | Neg
     | Comma
@@ -68,10 +67,6 @@ export type Index = number | NumberCast | string
 
 export type PropertyAccessor = readonly['.', Exp, Index]
 
-// call
-
-export type Call = readonly['()', Exp, Exp]
-
 // propertyCall
 
 export type PropertyCall = readonly['.()', Exp, Index, Exp]
@@ -100,7 +95,7 @@ export type Frame = readonly['frame']
 // BinaryOpNames
 
 export type BinaryOpId =
-    | '=>'  | 'own'
+    | '=>'  | 'own' | '()'
     | '===' | '!==' | '>' | '>=' | '<'  | '<='
     | '+'   | '-'   | '*' | '/'  | '%'  | '**'
     | '&'   | '|'   | '^' | '<<' | '>>' | '>>>'
