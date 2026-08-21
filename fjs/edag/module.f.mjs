@@ -50,17 +50,10 @@ import {
 // Exp
 
 /**
- * This return type has to be written out explicitly, not left to
- * `@type {const}`: `_exp`'s return recurses through `array`/`object`/`op0`
- * and the rest below, each of which refers back to `exp` — a cycle only a
- * named, forward-referencing signature like this one can close. `@type
- * {const}` can't apply to the arrow function itself (a const assertion only
- * accepts literal expressions, not function expressions — TS1355), and
- * putting it on just the returned array literal instead still leaves the
- * enclosing recursive return type to be inferred, which TypeScript can't do
- * through the cycle: declaration emit falls back to an elided `any` at the
- * recursive edge (e.g. `array`'s second element becomes
- * `readonly ["[]", any]`) instead of the real recursive type.
+ * Written out explicitly, not `@type {const}`: that can't apply to the
+ * arrow function itself (TS1355, literals only), and applied to just the
+ * returned array it still can't resolve the cycle back through `array`/
+ * `object`/`op0`/... to `exp` — declaration emit elides it to `any`.
  *
  * @type {() => readonly['or',
  *  typeof primitive,
