@@ -43,7 +43,7 @@ const vBinaryOpId = value => validate(binaryOpId)(value)
 /** Every id `unaryOp` currently accepts — kept as a literal list, not derived
  * from `unaryOpId`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const unaryOpIds = /** @type {const} */ (['neg', 'String', 'Number'])
+const unaryOpIds = /** @type {const} */ (['String', 'Number', 'neg', '!', '~'])
 
 /** Same purpose as `unaryOpIds`, for `binaryOp`. */
 const binaryOpIds = /** @type {const} */ ([
@@ -155,7 +155,7 @@ export const proof = {
     unaryOp: {
         ok: () => {
             // Every id `unaryOp` accepts, pinned individually: deleting any
-            // one of these three from `unaryOpId` reddens exactly this loop,
+            // one of these five from `unaryOpId` reddens exactly this loop,
             // not some other assertion that happens to still pass.
             for (const id of unaryOpIds) {
                 assertOk(v([id, 1]))
@@ -171,7 +171,7 @@ export const proof = {
         extraTailIsIgnored: () => assertOk(v(['neg', 1, 'extra'])),
         error: () => assertNoMatch(v(['negz', 1])),
         // `unaryOpId` is a real constraint, not a stand-in for `string`: an
-        // id outside its three members is rejected, both directly and as
+        // id outside its five members is rejected, both directly and as
         // part of a full `exp` value.
         unknownIdIsRejected: () => {
             assertNoMatch(vUnaryOpId('xyz'))
