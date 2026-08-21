@@ -34,9 +34,10 @@ import {
 } from "../types/rtti/module.f.mjs";
 
 /**
- * `args`, `propertyAccessor`, `call`, and `propertyCall` (like `array`/`object`)
- * are open on trailing/extra elements — see "Structs and tuples are open" in
- * `../types/rtti/README.md`. Exact arity is tracked as future work in
+ * `args`, `propertyAccessor`, `propertyCall`, and `unaryOp`/`binaryOp` (like
+ * `array`/`object`) are open on trailing/extra elements — see "Structs and
+ * tuples are open" in `../types/rtti/README.md`. Exact arity is tracked as
+ * future work in
  * `../types/rtti/todo/close-type.md`, not implemented here yet.
  *
  * Do not call `parse(exp)` or rely on `validate(exp)` rejecting cycles

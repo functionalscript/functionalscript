@@ -12,7 +12,7 @@
 
 import { validate } from '../types/rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
-import { exp } from './module.f.mjs'
+import { exp, unaryOpId, binaryOpId } from './module.f.mjs'
 
 /** @type {(r: readonly [string, unknown]) => void} */
 const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
@@ -33,6 +33,26 @@ const assertNoMatch = r => {
 
 /** @type {(value: Unknown) => readonly [string, unknown]} */
 const v = value => validate(exp)(value)
+
+/** @type {(value: Unknown) => readonly [string, unknown]} */
+const vUnaryOpId = value => validate(unaryOpId)(value)
+
+/** @type {(value: Unknown) => readonly [string, unknown]} */
+const vBinaryOpId = value => validate(binaryOpId)(value)
+
+/** Every id `unaryOp` currently accepts — kept as a literal list, not derived
+ * from `unaryOpId`, so deleting one from the schema reddens exactly its own
+ * assertion below rather than silently shrinking this list too. */
+const unaryOpIds = /** @type {const} */ (['neg', 'String', 'Number'])
+
+/** Same purpose as `unaryOpIds`, for `binaryOp`. */
+const binaryOpIds = /** @type {const} */ ([
+    '=>', 'own', '()',
+    '===', '!==', '>', '>=', '<', '<=',
+    '+', '-', '*', '/', '%', '**',
+    '&', '|', '^', '<<', '>>', '>>>',
+    '&&', '||', '??',
+])
 
 export const proof = {
     primitive: {
@@ -92,38 +112,6 @@ export const proof = {
             assertNoMatch(v(['argz']))
         },
     },
-    numberCast: {
-        ok: () => {
-            assertOk(v(['Number', 'x']))
-            assertOk(v(['Number', ['args']])) // an exp nested inside the cast
-        },
-        // A missing operand reads as `undefined`, which is no longer a
-        // valid bare `exp` (see `undefinedOp`) — so this is a real error,
-        // not the open-tail case `args` has. An extra trailing operand is
-        // still ignored, same as `args`.
-        missingTailIsError: () => assertNoMatch(v(['Number'])),
-        extraTailIsIgnored: () => assertOk(v(['Number', 'x', 'extra'])),
-        // `numberCast` composes through `exp`'s recursion like any other node.
-        asArrayElement: () => assertOk(v(['[]', [['Number', 1]]])),
-        asCallee: () => assertOk(v(['()', ['Number', 1], 2])),
-        error: () => assertNoMatch(v(['Numberz', 'x'])),
-    },
-    stringCast: {
-        ok: () => {
-            assertOk(v(['String', 'x']))
-            assertOk(v(['String', ['args']])) // an exp nested inside the cast
-        },
-        // A missing operand reads as `undefined`, which is no longer a
-        // valid bare `exp` (see `undefinedOp`) — so this is a real error,
-        // not the open-tail case `args` has. An extra trailing operand is
-        // still ignored, same as `args`.
-        missingTailIsError: () => assertNoMatch(v(['String'])),
-        extraTailIsIgnored: () => assertOk(v(['String', 'x', 'extra'])),
-        // `stringCast` composes through `exp`'s recursion like any other node.
-        asArrayElement: () => assertOk(v(['[]', [['String', 1]]])),
-        asCallee: () => assertOk(v(['()', ['String', 1], 2])),
-        error: () => assertNoMatch(v(['Stringz', 'x'])),
-    },
     propertyAccessor: {
         ok: () => {
             assertOk(v(['.', 'a', 'b']))
@@ -145,95 +133,14 @@ export const proof = {
             assertNoMatch(v(['.', 'a', true]))
         },
     },
-    call: {
-        ok: () => assertOk(v(['()', 'f', 1])),
-        // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`.
-        missingTailIsError: () => assertNoMatch(v(['()', 'f'])),
-        error: () => assertNoMatch(v(['(x)', 'f', 1])),
-    },
     propertyCall: {
         ok: () => assertOk(v(['.()', 'o', 'k', 1])),
         error: () => {
             assertNoMatch(v(['.(x)', 'o', 'k', 1]))
             // The third operand missing reads as `undefined` — an error,
-            // same as `call`'s `missingTailIsError`.
+            // same as `unaryOp`/`binaryOp`'s `missingTailIsError`.
             assertNoMatch(v(['.()', 'o', 'k']))
         },
-    },
-    own: {
-        ok: () => assertOk(v(['own', 'o', 'k'])),
-        // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`.
-        missingTailIsError: () => assertNoMatch(v(['own', 'o'])),
-        extraTailIsIgnored: () => assertOk(v(['own', 'o', 'k', 'extra'])),
-        error: () => assertNoMatch(v(['ownz', 'o', 'k'])),
-        // `own`'s point is bypassing the prototype chain — including the
-        // `__proto__` special case a computed key already avoids in JS.
-        // Demonstrates the pattern `own` denotes; not a schema check.
-        js: () => {
-            /** @type {<T>(a: StringMap<T>, k: string) => T|undefined } */
-            const own = (a, k) => Object.getOwnPropertyDescriptor(a, k)?.value
-            const a = { ['__proto__']: 42 }
-            assertEq(own(a, '__proto__'), 42)
-            assertEq(own(a, 'x'), undefined)
-        },
-    },
-    add: {
-        ok: () => {
-            assertOk(v(['+', 1, 2]))
-            assertOk(v(['+', ['+', 1, 2], 3])) // an exp nested inside an operand
-        },
-        // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`. True whether one or both are missing.
-        missingTailIsError: () => {
-            assertNoMatch(v(['+', 1]))
-            assertNoMatch(v(['+']))
-        },
-        extraTailIsIgnored: () => assertOk(v(['+', 1, 2, 3])),
-        error: () => assertNoMatch(v(['+z', 1, 2])),
-    },
-    sub: {
-        ok: () => {
-            assertOk(v(['-', 1, 2]))
-            assertOk(v(['-', ['-', 1, 2], 3])) // an exp nested inside an operand
-        },
-        // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`. `neg` is a distinct word tag (`"neg"`,
-        // not `"-"`), so this doesn't fall through to it — unlike `add`
-        // and `numberCast`, there's no other alternative tagged `"-"` at
-        // all, missing one or two operands is equally an error.
-        missingTailIsError: () => {
-            assertNoMatch(v(['-', 1]))
-            assertNoMatch(v(['-']))
-        },
-        extraTailIsIgnored: () => assertOk(v(['-', 1, 2, 3])),
-        error: () => assertNoMatch(v(['-z', 1, 2])),
-    },
-    neg: {
-        ok: () => {
-            assertOk(v(['neg', 1]))
-            assertOk(v(['neg', ['neg', 1]])) // an exp nested inside the operand
-        },
-        // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`.
-        missingTailIsError: () => assertNoMatch(v(['neg'])),
-        extraTailIsIgnored: () => assertOk(v(['neg', 1, 'extra'])),
-        error: () => assertNoMatch(v(['negz', 1])),
-    },
-    fn: {
-        ok: () => {
-            assertOk(v(['=>', 1, 2]))
-            assertOk(v(['=>', 1, ['=>', 1, 2]])) // an exp nested inside an operand
-        },
-        // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`. True whether one or both are missing.
-        missingTailIsError: () => {
-            assertNoMatch(v(['=>', 1]))
-            assertNoMatch(v(['=>']))
-        },
-        extraTailIsIgnored: () => assertOk(v(['=>', 1, 2, 'extra'])),
-        error: () => assertNoMatch(v(['=>z', 1, 2])),
     },
     frame: {
         ok: () => assertOk(v(['frame'])),
@@ -245,75 +152,68 @@ export const proof = {
             assertNoMatch(v(['framez']))
         },
     },
-    eq: {
+    unaryOp: {
         ok: () => {
-            assertOk(v(['===', 1, 2]))
-            assertOk(v(['===', ['===', 1, 2], 3])) // an exp nested inside an operand
+            // Every id `unaryOp` accepts, pinned individually: deleting any
+            // one of these three from `unaryOpId` reddens exactly this loop,
+            // not some other assertion that happens to still pass.
+            for (const id of unaryOpIds) {
+                assertOk(v([id, 1]))
+            }
+            assertOk(v(['neg', ['neg', 1]])) // an exp nested inside the operand
+            // Composes through `exp`'s recursion like any other node.
+            assertOk(v(['[]', [['Number', 1]]]))
+            assertOk(v(['()', ['Number', 1], 2]))
         },
         // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`. True whether one or both are missing.
-        missingTailIsError: () => {
-            assertNoMatch(v(['===', 1]))
-            assertNoMatch(v(['===']))
+        // `exp` — see `undefinedOp`.
+        missingTailIsError: () => assertNoMatch(v(['neg'])),
+        extraTailIsIgnored: () => assertOk(v(['neg', 1, 'extra'])),
+        error: () => assertNoMatch(v(['negz', 1])),
+        // `unaryOpId` is a real constraint, not a stand-in for `string`: an
+        // id outside its three members is rejected, both directly and as
+        // part of a full `exp` value.
+        unknownIdIsRejected: () => {
+            assertNoMatch(vUnaryOpId('xyz'))
+            assertNoMatch(v(['xyz', 1]))
         },
-        extraTailIsIgnored: () => assertOk(v(['===', 1, 2, 3])),
-        error: () => assertNoMatch(v(['===z', 1, 2])),
+        // `own`'s point is bypassing the prototype chain — including the
+        // `__proto__` special case a computed key already avoids in JS.
+        // Demonstrates the pattern `['own', ...]` (a `binaryOp` id) denotes;
+        // not a schema check.
+        ownJs: () => {
+            /** @type {<T>(a: StringMap<T>, k: string) => T|undefined } */
+            const own = (a, k) => Object.getOwnPropertyDescriptor(a, k)?.value
+            const a = { ['__proto__']: 42 }
+            assertEq(own(a, '__proto__'), 42)
+            assertEq(own(a, 'x'), undefined)
+        },
     },
-    neq: {
+    binaryOp: {
         ok: () => {
-            assertOk(v(['!==', 1, 2]))
-            assertOk(v(['!==', ['!==', 1, 2], 3])) // an exp nested inside an operand
+            // Every id `binaryOp` accepts, pinned individually — including
+            // the fourteen this PR adds (`<=`, `*`, `/`, `%`, `**`, `&`, `|`,
+            // `^`, `<<`, `>>`, `>>>`, `&&`, `||`, `??`), which had no proof
+            // at all before this: deleting any one of the twenty-four from
+            // `binaryOpId` reddens exactly this loop.
+            for (const id of binaryOpIds) {
+                assertOk(v([id, 1, 2]))
+            }
+            assertOk(v(['+', ['+', 1, 2], 3])) // an exp nested inside an operand
         },
         // A missing operand reads as `undefined`, no longer a valid bare
         // `exp` — see `undefinedOp`. True whether one or both are missing.
         missingTailIsError: () => {
-            assertNoMatch(v(['!==', 1]))
-            assertNoMatch(v(['!==']))
+            assertNoMatch(v(['+', 1]))
+            assertNoMatch(v(['+']))
         },
-        extraTailIsIgnored: () => assertOk(v(['!==', 1, 2, 3])),
-        error: () => assertNoMatch(v(['!==z', 1, 2])),
-    },
-    gt: {
-        ok: () => {
-            assertOk(v(['>', 1, 2]))
-            assertOk(v(['>', ['>', 1, 2], 3])) // an exp nested inside an operand
+        extraTailIsIgnored: () => assertOk(v(['+', 1, 2, 3])),
+        error: () => assertNoMatch(v(['+z', 1, 2])),
+        // Same point as `unaryOp`'s: `binaryOpId` constrains membership.
+        unknownIdIsRejected: () => {
+            assertNoMatch(vBinaryOpId('xyz'))
+            assertNoMatch(v(['xyz', 1, 2]))
         },
-        // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`. True whether one or both are missing.
-        missingTailIsError: () => {
-            assertNoMatch(v(['>', 1]))
-            assertNoMatch(v(['>']))
-        },
-        extraTailIsIgnored: () => assertOk(v(['>', 1, 2, 3])),
-        error: () => assertNoMatch(v(['>z', 1, 2])),
-    },
-    lt: {
-        ok: () => {
-            assertOk(v(['<', 1, 2]))
-            assertOk(v(['<', ['<', 1, 2], 3])) // an exp nested inside an operand
-        },
-        // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`. True whether one or both are missing.
-        missingTailIsError: () => {
-            assertNoMatch(v(['<', 1]))
-            assertNoMatch(v(['<']))
-        },
-        extraTailIsIgnored: () => assertOk(v(['<', 1, 2, 3])),
-        error: () => assertNoMatch(v(['<z', 1, 2])),
-    },
-    ge: {
-        ok: () => {
-            assertOk(v(['>=', 1, 2]))
-            assertOk(v(['>=', ['>=', 1, 2], 3])) // an exp nested inside an operand
-        },
-        // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`. True whether one or both are missing.
-        missingTailIsError: () => {
-            assertNoMatch(v(['>=', 1]))
-            assertNoMatch(v(['>=']))
-        },
-        extraTailIsIgnored: () => assertOk(v(['>=', 1, 2, 3])),
-        error: () => assertNoMatch(v(['>=z', 1, 2])),
     },
     // `f(args)[k](obj.a)` in AST form — exercises the mutual recursion through
     // `exp` rather than any one node kind in isolation.
