@@ -79,7 +79,8 @@ operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]` and spread
   that boundary is tracked in
   [compile-modules-to-edag.md](../djs/todo/compile-modules-to-edag.md).
 - `[',', exps]` is a known-incomplete placeholder; the settled shape must
-  express "at least one operand, last is the result".
+  express "at least two operands, last is the result" — a single-operand
+  `,` is the identity and non-canonical.
 - `index` does not yet exclude `constructor`/`__proto__` —
   [excluded-string-values.md](../types/rtti/todo/excluded-string-values.md).
 

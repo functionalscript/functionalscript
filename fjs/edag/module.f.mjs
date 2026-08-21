@@ -202,8 +202,9 @@ const _comma = /** @type {const} */([',', exps])
  *
  * Establishes all of its operands and takes the value of the last one; the
  * earlier operands exist for their throw-potential only. The shape is a
- * known-incomplete placeholder — it cannot yet say "at least one operand,
- * last is the result"; see the header of `./proof.f.mjs`.
+ * known-incomplete placeholder — it cannot yet say "at least two operands,
+ * last is the result" (a single-operand `,` is the identity and
+ * non-canonical); see the header of `./proof.f.mjs`.
  *
  * @type {Phantom<typeof _comma, Comma>}
  */
