@@ -30,8 +30,9 @@ A node is a primitive or a tagged tuple `[tag, ...operands]`. In the schema
 and the type-level API, operation nodes are grouped by their `exp`-operand
 count — `op0` (`undefined`, `args`, `frame`), `op1` (unary), `op2` (binary)
 — not by semantic category. This table is an overview; the contract of
-record for each node is the JSDoc on its export in
-[module.f.mjs](module.f.mjs).
+record for each node is the JSDoc in [module.f.mjs](module.f.mjs) — on the
+node's export and, for the operations, on the `op0Id`/`op1Id`/`op2Id`
+vocabularies.
 
 | form | meaning |
 |---|---|
@@ -45,7 +46,7 @@ record for each node is the JSDoc on its export in
 | `['.()', exp, index, exp]` | property call: `exp0[exp1](...exp2)` |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `neg` `!` `~` |
-| `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `()` `===` `!==` `>` `>=` `<` `<=` `+` `-` `*` `/` `%` `**` `&` `|` `^` `<<` `>>` `>>>` `&&` `||` `??` |
+| `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `()` `===` `!==` `>` `>=` `<` `<=` `+` `-` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
 
 An `index` — the property operand of `.` and `.()` — is a `string`, a
 `number`, or `['Number', exp]`, a computed index cast to a number. Among the
