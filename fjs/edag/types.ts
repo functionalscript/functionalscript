@@ -84,7 +84,14 @@ export type Comma = readonly[',', Exps]
 
 export type Frame = readonly['frame']
 
-// BinaryOpNames
+// UnaryOpIds
+
+export type UnaryOpId =
+    | 'neg'
+
+export type UnaryOp = readonly[UnaryOp, Exp]
+
+// BinaryOpIds
 
 export type BinaryOpId =
     | '=>'  | 'own' | '()'

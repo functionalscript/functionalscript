@@ -255,6 +255,8 @@ export const frame = /** @type {const} */(['frame'])
 
 export const unaryOpId = or('neg')
 
+export const unaryOp = /** @type {const} */([unaryOpId, exp])
+
 // Binary Operations
 
 export const binaryOpId = or(
