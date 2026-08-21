@@ -89,7 +89,7 @@ export type Frame = readonly['frame']
 export type UnaryOpId =
     | 'neg'
 
-export type UnaryOp = readonly[UnaryOp, Exp]
+export type UnaryOp = readonly[UnaryOpId, Exp]
 
 // BinaryOpIds
 

@@ -20,6 +20,8 @@
  *  Frame,
  *  BinaryOpId,
  *  BinaryOp,
+ *  UnaryOpId,
+ *  UnaryOp,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -255,7 +257,11 @@ export const frame = /** @type {const} */(['frame'])
 
 export const unaryOpId = or('neg')
 
+/** @typedef {Assert<Check<UnaryOpId, typeof unaryOpId>>} _UnaryOpId */
+
 export const unaryOp = /** @type {const} */([unaryOpId, exp])
+
+/** @typedef {Assert<Check<UnaryOp, typeof unaryOp>>} _UnaryOp */
 
 // Binary Operations
 
