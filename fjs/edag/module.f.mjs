@@ -214,6 +214,12 @@ export const frame = /** @type {const} */(['frame'])
 
 /** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */
 
+// No-Args Operations
+
+export const op0Id = or('undefined', 'args', 'frame')
+
+export const op0 = /** @type {const} */([op0Id])
+
 // Unary Operations
 
 export const op1Id = or('neg', 'String', 'Number')

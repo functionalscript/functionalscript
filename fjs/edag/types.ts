@@ -73,6 +73,11 @@ export type Comma = readonly[',', Exps]
 
 export type Frame = readonly['frame']
 
+// Op0Ids
+
+export type Op0Id =
+    | 'undefined' | 'args' | 'frame'
+
 // Op1Ids
 
 export type Op1Id =
