@@ -78,3 +78,4 @@ y.b                    // throws
 |`[42].at(0)`          |`42`  |`undefined?.a.b`          |`undefined`|
 |`([42].at)(0)`        |`42`  |`(undefined?.a).b`        |throws     |
 |`const x=[42].at;x(0)`|throws|`const x=undefined?.a;x.b`|throws     |
+
