@@ -19,8 +19,8 @@
  *  Op1,
  *  Op0Id,
  *  Op0,
- Spread,
- Items,
+ *  Spread,
+ *  Items,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
