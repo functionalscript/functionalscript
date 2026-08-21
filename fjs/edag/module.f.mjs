@@ -74,6 +74,17 @@ export const exp = () => (['or',
 
 // Primitive
 
+/**
+ * Genuine constant values only. `undefined` is deliberately not among
+ * them, even though `Primitive` is otherwise a plain JS type: `undefined`
+ * is often treated as an omitted value rather than a value in its own
+ * right, so its EDAG node — `['undefined']` — lives under `op0` below,
+ * alongside `args`/`frame`, not here. This schema's job is expressing the
+ * EDAG shape in simple terms; treating it as a convenient standalone
+ * "any JS primitive" checker is speculative for now, and `undefined`'s
+ * omitted-vs-value ambiguity is exactly where that convenience would
+ * bite first.
+ */
 export const primitive = or(null, boolean, number, string, bigint)
 
 /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
@@ -192,6 +203,10 @@ export const comma = _comma
 
 // No-Args Operations
 
+/**
+ * `'undefined'` here, not in `primitive` above — see `primitive`'s comment
+ * for why `undefined` isn't treated as a genuine constant value.
+ */
 export const op0Id = or('undefined', 'args', 'frame')
 
 /** @typedef {Assert<Check<Op0Id, typeof op0Id>>} _Op0Id */
