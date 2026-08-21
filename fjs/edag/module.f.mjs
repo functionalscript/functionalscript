@@ -179,19 +179,15 @@ export const object = /** @type {const} */(['{}', rttiArray(properties)])
 
 // Number
 
-const _numberCast = /** @type {const} */(['Number', exp])
-
 /**
  * ```js
  * Number(exp)
  * ```
- *
- * @type {Phantom<typeof _numberCast, NumberCast>}
  */
-export const numberCast = _numberCast
+export const numberCast = /** @type {const} */(['Number', exp])
 
 /**
- * @typedef {Assert<Check3<NumberCast, typeof _numberCast, typeof numberCast>>} _NumberCast
+ * @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast
  */
 
 // Index
