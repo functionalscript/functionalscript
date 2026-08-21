@@ -108,8 +108,9 @@ export const array = /** @type {const} */(['[]', exps])
  * and conforming VMs may legally differ on it. Only the `key` and `value`
  * operands are real nodes, their identities shared normally.
  *
- * The key stays `exp`, not narrowed to a string constant — see
- * `../../todo/edag-stage1-discussion.md` subject 4.
+ * The key stays `exp`, not narrowed to a string constant, and its evaluated
+ * value is coerced via JS `ToPropertyKey` when the property is defined —
+ * see `../../todo/edag-stage1-discussion.md` subject 4.
  */
 export const property = /** @type {const} */([':', exp, exp])
 
