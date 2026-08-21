@@ -28,14 +28,17 @@ export type { phantomKey }
  * un-annotated `rawThunk` (forces the real structural check, catching a
  * wrong `T`) and one against the phantom-wrapped export (catches the export
  * and the raw thunk drifting apart), using `Check` from
- * `fjs/types/rtti/ts/types.ts`. See `fjs/edag/module.f.mjs`
- * (`propertyAccessor`/`propertyCall`/`op2`) for the pattern:
+ * `fjs/types/rtti/ts/types.ts` — or `Check3`, which pairs the two into one
+ * assert. See `fjs/edag/module.f.mjs` (`_exp`/`exp`) for the pattern:
  *
  * ```ts
  * const rawThunk = () => [...] as const
  * export const thunk: Phantom<typeof rawThunk, MyType> = rawThunk
- * type _Check0 = Assert<Check<MyType, typeof rawThunk>>
- * type _Check1 = Assert<Check<MyType, typeof thunk>>
+ * type _Check = Assert<Check3<MyType, typeof rawThunk, typeof thunk>>
  * ```
+ *
+ * One phantom per recursive cycle is enough: `fjs/edag` wraps only `exp`,
+ * the union every node kind recurses through, and the node schemas
+ * themselves stay un-phantomed, each pinned with a plain `Check`.
  */
 export type Phantom<S, T> = S & { readonly [phantomKey]?: T }

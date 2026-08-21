@@ -42,8 +42,9 @@ vocabularies.
 |---|---|
 | `null`, `boolean`, `number`, `string`, `bigint` | itself |
 | `['undefined']` | `undefined` — tagged, because a bare `undefined` is indistinguishable from a missing tuple position |
-| `['[]', exps]` | array literal |
-| `['{}', properties]`, each `[':', key, value]` | object literal; ordered entries applied in written order, duplicates allowed with the later winning; the key is an `exp`, one form for `a:`, `"a":`, and computed `[exp]:` keys; the `:` descriptor is a structural operand, not a node — only its key and value are |
+| `['[]', items[]]`, each an `exp` or a `spread` | array literal; `[a, ...b]` splices `b`'s elements in at that position |
+| `['{}', properties[]]`, each `[':', key, value]` or a `spread` | object literal; ordered entries applied in written order, duplicates allowed with the later winning; the key is an `exp`, one form for `a:`, `"a":`, and computed `[exp]:` keys; the `:` descriptor is a structural operand, not a node — only its key and value are; `{...a}` splices `a`'s own properties in at that position |
+| `['...', exp]` | spread — only valid as an `items`/`properties` entry above, never a top-level `Exp` |
 | `['args']` | the function's arguments |
 | `['frame']` | the captured frame |
 | `['.', exp, index]` | property access: `exp0[exp1]` |
@@ -51,6 +52,12 @@ vocabularies.
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `neg` `!` `~` |
 | `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `()` `===` `!==` `>` `>=` `<` `<=` `+` `-` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
+
+A `[]` suffix in the form column marks an operand that is an array of the
+named schema, not one of it: `['[]', items[]]` holds a whole array of
+`items`, and `exps` is likewise `exp[]`. The distinction is easy to lose in
+prose and load-bearing in the schema — a single element where the array
+belongs still validates plenty of values, just the wrong ones.
 
 An `index` — the property operand of `.` and `.()` — is a `string`, a
 `number`, or `['Number', exp]`, a computed index cast to a number. Among the

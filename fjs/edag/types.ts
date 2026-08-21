@@ -35,17 +35,29 @@ export type Primitive = null | boolean | number | string | bigint
 
 export type Exps = readonly Exp[]
 
+// spread
+
+export type Spread = readonly['...', Exp]
+
+// array items
+
+export type Items = Exp | Spread
+
 // array
 
-export type Array = readonly['[]', Exps]
+export type Array = readonly['[]', readonly Items[]]
 
 // property
 
 export type Property = readonly[':', Exp, Exp]
 
+// properties
+
+export type Properties = Property | Spread
+
 // object
 
-export type Object = readonly['{}', readonly Property[]]
+export type Object = readonly['{}', readonly Properties[]]
 
 // Number
 
