@@ -71,14 +71,6 @@ export type PropertyAccessor = readonly['.', Exp, Index]
 
 export type PropertyCall = readonly['.()', Exp, Index, Exp]
 
-// Binary +
-
-export type Add = readonly['+', Exp, Exp]
-
-// Binary -
-
-export type Sub = readonly['-', Exp, Exp]
-
 // negation (aka a unary minus — a word tag, `"neg"`, not `"-"`'s unary
 // arity, so it doesn't share a tag with `Sub`)
 

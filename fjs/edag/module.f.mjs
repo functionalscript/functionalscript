@@ -6,7 +6,6 @@
  * @import {
  *  Args,
  *  Array,
- *  Call,
  *  Exp,
  *  Primitive,
  *  Property,
@@ -252,7 +251,11 @@ export const frame = /** @type {const} */(['frame'])
 
 /** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */
 
-//
+// Unary Operations
+
+export const unaryOpId = or('neg')
+
+// Binary Operations
 
 export const binaryOpId = or(
     '=>', 'own', '()',
