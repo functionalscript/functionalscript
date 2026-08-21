@@ -220,22 +220,6 @@ export const propertyCall = _propertyCall
  * @typedef {Assert<Check3<PropertyCall, typeof _propertyCall, typeof propertyCall>>} _PropertyCall
  */
 
-// Negation (aka a unary minus) — a word tag, `"neg"`, not `"-"`'s unary
-// arity (an earlier draft overloaded `"-"` the way JS itself does; see
-// `../../todo/edag-stage1-discussion.md`'s "Operators" section for why that
-// was dropped). `sub` and `neg` therefore don't share a tag, so — unlike a
-// shared-tag pair would — neither's position in `exp`'s `or` list matters
-// relative to the other.
-
-const _neg = /** @type {const} */(['neg', exp])
-
-/** @type {Phantom<typeof _neg, Neg>} */
-export const neg = _neg
-
-/**
- * @typedef {Assert<Check3<Neg, typeof _neg, typeof neg>>} _Neg
- */
-
 // Comma
 
 const _comma = /** @type {const} */([',', exps])
