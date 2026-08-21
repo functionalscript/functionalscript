@@ -10,7 +10,6 @@
  *  Primitive,
  *  Property,
  *  NumberCast,
- *  StringCast,
  *  PropertyAccessor,
  *  Object,
  *  PropertyCall,
