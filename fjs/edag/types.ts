@@ -54,7 +54,7 @@ export type Properties = Property | Spread
 
 // object
 
-export type Object = readonly['{}', readonly Property[]]
+export type Object = readonly['{}', readonly Properties[]]
 
 // Number
 

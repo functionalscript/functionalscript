@@ -148,7 +148,7 @@ export const properties = or(property, spread)
  * }
  * ```
  */
-export const object = /** @type {const} */(['{}', rttiArray(property)])
+export const object = /** @type {const} */(['{}', rttiArray(properties)])
 
 /** @typedef {Assert<Check<Object, typeof object>>} _Object */
 
