@@ -21,7 +21,8 @@
  *  Op0,
  *  Spread,
  *  Items,
- Properties,
+ *  Properties,
+ *  Exps,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -92,7 +93,11 @@ export const primitive = or(null, boolean, number, string, bigint)
 
 /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
 
-const exps = rttiArray(exp)
+// Exps
+
+export const exps = rttiArray(exp)
+
+/** @typedef {Assert<Check<Exps, typeof exps>>} _Exps */
 
 // ...
 
@@ -108,18 +113,14 @@ export const items = or(exp, spread)
 
 // Array
 
-const _array = /** @type {const} */(['[]', items])
-
 /**
  * ```js
  * [exp0, exp1]
  * ```
- *
- * @typedef {Phantom<typeof _array, Array>}
  */
-export const array = _array
+export const array = /** @type {const} */(['[]', items])
 
-/** @typedef {Assert<Check3<Array, typeof _array, typeof array>>} _Array */
+/** @typedef {Assert<Check<Array, typeof array>>} _Array */
 
 // Property
 
