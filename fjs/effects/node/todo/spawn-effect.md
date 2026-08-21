@@ -50,8 +50,10 @@ export type SpawnOptions = { readonly cwd?: string; readonly env?: Env }
 
 export type ChildWrite = readonly['childWrite', (child: Child, data: Vec) => IoResult<void>]
 export type ChildRead = readonly['childRead', (child: Child, stream: ChildStreams) => IoResult<Vec | null>]
+export type ChildReadAny = readonly['childReadAny', (child: Child) => IoResult<readonly[ChildStreams, Vec] | null>]
 export type ChildStreams = 'stdout' | 'stderr'
 export type ChildEnd = readonly['childEnd', (child: Child) => IoResult<void>]
+export type ChildKill = readonly['childKill', (child: Child, signal: string) => IoResult<void>]
 export type ChildWait = readonly['childWait', (child: Child) => IoResult<ExitStatus>]
 export type ExitStatus = readonly['exited', number] | readonly['signaled', string]
 ```
@@ -74,11 +76,37 @@ Notes on the shape:
   protocol duplicates frames. This module settled it once already:
   `../module.mjs:156-175`'s `writeAll` says *"the data is already buffered at
   that point (no retry needed) but the caller must not issue more writes until
-  the `'drain'` event fires"*, and issues exactly one `write`. `childWrite` is
-  the same, plus the two failures a child's stdin has and the console does not:
-  a stream `'error'`, and a pipe closed by an exited child (`EPIPE`) — both
-  answer `IoError` rather than ok.
-- **`null` is EOF**, matching `Read`'s `number | null`.
+  the `'drain'` event fires"*, and issues exactly one `write`.
+- **But `childWrite` awaits its completion callback, which `writeAll` does
+  not.** A console pipe that closes is fatal to the process anyway; a child's
+  stdin closing is ordinary, and Node reports it asynchronously — `write()` can
+  return `true` and the `EPIPE` arrive afterwards, through the callback or an
+  `'error'` event. An operation that resolved on the `true` path has already
+  answered ok by then, and no listener added later can retract it. So:
+  `write(chunk, callback)`, resolve when the callback fires, wait for `'drain'`
+  as well when the return was `false`, and answer `IoError` on `'error'` or a
+  closed stream — checked BEFORE subscribing, since a destroyed stream emits
+  nothing further.
+- **`null` is EOF and ONLY EOF.** `Readable.read()` answers `null` both at
+  end-of-stream and when nothing is buffered yet, so a `childRead` that
+  returned it directly would report EOF while the child was still composing its
+  reply — and the very first MCP exchange, write-then-read, would end before the
+  response arrived. This module has already solved it: `readStdinByte`
+  (`../module.mjs:197-219`) loops, checks `readableEnded`, and waits on
+  `'readable'` versus `'end'` to tell the two apart. `childRead` does the same,
+  and answers `null` only after EOF.
+- **`childReadAny` exists because two pipes deadlock.** A child that fills its
+  stderr buffer before writing the stdout reply blocks; a caller sitting in
+  `childRead(child, 'stdout')` cannot drain stderr, and neither side moves.
+  `all` does not solve it — it awaits BOTH reads and cannot re-schedule one
+  while the other is pending — so the family needs an operation that answers
+  whichever stream became ready. This is why `exec` collects both streams
+  itself, and it is not optional for an interactive caller.
+- **`childKill` exists because a child may ignore EOF.** `childEnd` closes
+  stdin and nothing more. A server that keeps running, a protocol exchange that
+  stalls, a client-side failure needing cleanup — in each, `childWait` waits
+  forever and the caller has no way out. Any API that can start a process must
+  be able to stop one.
 - **The handle IS the branded child — there is no table.** `createServer` sets
   the precedent exactly: `ok(asNominal(createServer(nodeRl)))`
   (`../module.mjs:321`) mints the brand around the host object itself and
@@ -127,24 +155,41 @@ Open for review before code:
   operation too many.
 - Whether `spawn` should take the initial `cwd`/`env` at all, given no other
   operation in this module reads `NodeProgramOptions`.
+- Whether `childEnd` on an already-closed stdin is an idempotent `ok` or an
+  `IoError`. **It must be one or the other, stated.** A child that has exited
+  may have had `child.stdin` destroyed already, and then `end(callback)` neither
+  calls back nor emits: an implementation that awaits hangs, and one that
+  returns at once loses a real close error. The recommendation is idempotent
+  `ok` — closing what is already closed achieved what was asked — with the
+  stream's state checked before anything is subscribed to.
+- Whether `childReadAny` replaces `childRead` outright rather than joining it.
+  Two ways to read one child is a wider API than the problem needs, if every
+  real caller must use the multiplexed one anyway.
 
 ### Tasks
 
 - [ ] Settle the signatures above.
-- [ ] `../types.ts`: the five operations, `Child`, `SpawnOptions`, `ExitStatus`;
-      add them to `NodeOp`.
+- [ ] `../types.ts`: the seven operations, `Child`, `SpawnOptions`,
+      `ExitStatus`; add them to `NodeOp`.
 - [ ] `../module.f.mjs`: `do_` constructors and the `nodeCommandSet` keys.
 - [ ] `../module.mjs`: the runner over `node:child_process.spawn` — brand the
       `ChildProcess` itself with `asNominal`, recover it with `asBase`, no
       table; `writeAll`-style backpressure; the `('exit', code, signal)`
       mapping onto `ExitStatus`.
 - [ ] A runner test in the shape of `../memory/proof.mjs` — spawn `node -e`,
-      round-trip two batches, close, wait; one that kills the child, so the
-      `signaled` branch is exercised rather than assumed; one that spawns a
-      command that does not exist; and one that calls `childWait` AFTER the
-      child has already exited. The last two are the hang cases — a test that
-      hangs is worse than one that fails, so they are named here rather than
-      left to be discovered.
+      round-trip two batches, close, wait; one that kills the child through
+      `childKill`, so the `signaled` branch is exercised rather than assumed;
+      one that spawns a command that does not exist; one that calls `childWait`
+      AFTER the child has already exited; one that calls `childEnd` after the
+      child has exited; one whose child writes to stderr and stdout in an order
+      that deadlocks a single-stream reader; and one that reads before the
+      child has replied, which must NOT read as EOF.
+- [ ] **Give every hang-regression case its own deadline**, one that kills the
+      child and fails the case. The self-hosted runner has no hard timeout
+      (`../../../emergent_testing/todo/206.md:43-55`), so a returning
+      regression would hang `fjs test` rather than redden it — a guard against
+      hanging that hangs is worth less than no guard, because it stops the
+      whole suite instead of one case.
 - [ ] `../virtual/module.f.mjs`: extend the not-implemented list in its docs.
 - [ ] `npx tsc`, `npm test`, `npm run cov`.
 
