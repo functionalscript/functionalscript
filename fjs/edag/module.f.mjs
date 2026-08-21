@@ -4,7 +4,6 @@
  * @import { Assert } from '../asserts/types.ts'
  * @import { Check, Check3 } from '../types/rtti/ts/types.ts'
  * @import {
- *  Args,
  *  Array,
  *  Exp,
  *  Primitive,
@@ -15,7 +14,6 @@
  *  PropertyCall,
  *  UndefinedOp,
  *  Comma,
- *  Frame,
  *  Op2Id,
  *  Op2,
  *  Op1Id,
@@ -123,15 +121,6 @@ export const object = /** @type {const} */(['{}', rttiArray(property)])
 
 /** @typedef {Assert<Check<Object, typeof object>>} _Object */
 
-// Args
-
-/**
- * A function arguments.
- */
-export const args = /** @type {const} */(['args'])
-
-/** @typedef {Assert<Check<Args, typeof args>>} _Args */
-
 // Number
 
 const _numberCast = /** @type {const} */(['Number', exp])
@@ -205,12 +194,6 @@ export const comma = _comma
 /**
  * @typedef {Assert<Check3<Comma, typeof _comma, typeof comma>>} _Comma
  */
-
-// Frame
-
-export const frame = /** @type {const} */(['frame'])
-
-/** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */
 
 // No-Args Operations
 

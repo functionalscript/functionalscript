@@ -43,10 +43,6 @@ export type Property = readonly[':', Exp, Exp]
 
 export type Object = readonly['{}', readonly Property[]]
 
-// args
-
-export type Args = readonly['args']
-
 // Number
 
 export type NumberCast = readonly['Number', Exp]
@@ -67,10 +63,6 @@ export type PropertyCall = readonly['.()', Exp, Index, Exp]
 // Comma
 
 export type Comma = readonly[',', Exps]
-
-// Frame
-
-export type Frame = readonly['frame']
 
 // Op0Ids
 
