@@ -102,6 +102,18 @@ Notes on the shape:
   while the other is pending — so the family needs an operation that answers
   whichever stream became ready. This is why `exec` collects both streams
   itself, and it is not optional for an interactive caller.
+- **`childReadAny` answers `null` only after BOTH streams have ended.** Its ok
+  branch tags the data with the stream it came from; the `null` is untagged, so
+  there is nowhere to say *which* stream ended. A runner that forwarded the
+  first per-stream EOF would therefore tell a caller whose child closed stdout
+  while it was still writing stderr that there is nothing left, and the rest of
+  that stderr would be lost. `childReadAny` suppresses individual EOFs instead:
+  an ended stream drops out of the race and is never waited on again — leaving
+  it in would wake on the ended stream forever and starve the live one — and the
+  single `null` comes once the last stream ends. Per-stream EOF stays observable
+  through `childRead(child, stream)`, which sharpens the last open question
+  below: if `childReadAny` replaces `childRead` outright, nothing can observe one
+  stream ending before the other.
 - **`childKill` exists because a child may ignore EOF.** `childEnd` closes
   stdin and nothing more. A server that keeps running, a protocol exchange that
   stalls, a client-side failure needing cleanup — in each, `childWait` waits
@@ -182,8 +194,11 @@ Open for review before code:
       one that spawns a command that does not exist; one that calls `childWait`
       AFTER the child has already exited; one that calls `childEnd` after the
       child has exited; one whose child writes to stderr and stdout in an order
-      that deadlocks a single-stream reader; and one that reads before the
-      child has replied, which must NOT read as EOF.
+      that deadlocks a single-stream reader; one whose child ends stdout and
+      keeps writing to stderr afterwards, where `childReadAny` must deliver
+      every later stderr chunk and answer `null` only once both streams have
+      ended; and one that reads before the child has replied, which must NOT
+      read as EOF.
 - [ ] **Give every hang-regression case its own deadline**, one that kills the
       child and fails the case. The self-hosted runner has no hard timeout
       (`../../../emergent_testing/todo/206.md:43-55`), so a returning
