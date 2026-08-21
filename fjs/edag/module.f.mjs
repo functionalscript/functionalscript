@@ -131,6 +131,13 @@ export const property = /** @type {const} */([':', exp, exp])
  * overwrites), and duplicate keys are allowed with the later entry winning,
  * which is also required once computed keys are admitted, since key
  * equality may not be decidable at validation time.
+ *
+ * `__proto__` is a data key, never a prototype assignment: an entry whose
+ * key evaluates to `__proto__` defines an ordinary own property, and a
+ * printer must spell it computed — `{ ["__proto__"]: value }`, the only
+ * object-literal form that reproduces it; the identifier and string
+ * spellings assign a prototype instead and lose the property. See "the
+ * `__proto__` key" in `../../spec/README.md`.
  */
 export const object = /** @type {const} */(['{}', rttiArray(property)])
 
