@@ -204,7 +204,7 @@ export const op0 = /** @type {const} */([op0Id])
 
 // Unary Operations
 
-export const op1Id = or('neg', 'String', 'Number')
+export const op1Id = or('String', 'Number', 'neg', '!', '~')
 
 /** @typedef {Assert<Check<Op1Id, typeof op1Id>>} _Op1Id */
 

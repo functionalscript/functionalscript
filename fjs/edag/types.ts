@@ -74,7 +74,7 @@ export type Op0 = readonly[Op0Id]
 // Op1Ids
 
 export type Op1Id =
-    | 'neg' | 'String' | 'Number'
+    | 'String' | 'Number' | 'neg' | '!' | '~'
 
 export type Op1 = readonly[Op1Id, Exp]
 
