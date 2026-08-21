@@ -25,6 +25,7 @@ export type Exp =
     | Fn
     | Frame
     | Eq
+    | Neq
 
 // undefinedOp
 
@@ -111,3 +112,7 @@ export type Frame = readonly['frame']
 // Eq
 
 export type Eq = readonly['===', Exp, Exp]
+
+// Neq
+
+export type Neq = readonly['!==', Exp, Exp]
