@@ -200,11 +200,12 @@ DJS rollout in
 **"Stage" names which compiler/interpreter task is scoped to emit or consume an
 operation — not when the EDAG schema itself admits it.** The schema
 (`fjs/edag/module.f.mjs`) doesn't have to wait for a task before defining a shape, and
-in practice it doesn't: `"own"`, `"Number"`, `"String"`, `","`, `"=>"`, and `["frame"]`
-are all marked `later` below, yet all are already validated by `exp` today. A node
-being schema-valid says nothing about whether any parser emits it or any interpreter
-executes it — that's what the `Stage`/`later` marker tracks, and the schema is free to
-change independently of both.
+in practice it doesn't: `"own"`, `"Number"`, `"String"`, and `","` are marked `later`
+below, `"=>"` is marked a not-yet-implemented Stage 2, and `["frame"]` is marked `later`
+too (further down, under [Operations](#operations)) — yet all are already validated by
+`exp` today. A node being schema-valid says nothing about whether any parser emits it or
+any interpreter executes it — that's what the `Stage`/`later` marker tracks, and the
+schema is free to change independently of both.
 
 |Form|JS|Stage|Notes|
 |----|--|-----|-----|
