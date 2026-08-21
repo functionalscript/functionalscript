@@ -1,11 +1,14 @@
 /**
  * Runtime behavior of the edag `exp` schema — one section per node kind, plus
  * a value nested through several kinds to exercise the mutual recursion.
- * Exception: `comma` has no section yet — its shape (`[',', exps]`) is a
- * known-incomplete placeholder pending a redesign that can express "at
+ * Exception: `comma` has no section of its own — its shape (`[',', exps]`) is
+ * a known-incomplete placeholder pending a redesign that can express "at
  * least two operands, last is the result, each pre-result operand a true
  * root" (a single-operand `,` is the identity, a reachable operand a
- * redundant anchor — both non-canonical), not a settled node to pin.
+ * redundant anchor — both non-canonical), not a settled node to pin. The
+ * `exps` section does validate `,`-tagged values, but only to reach `exps`,
+ * which `comma` is now the sole route to; it pins the operand array's
+ * element schema, and claims nothing about what a `,` means.
  *
  * @import { ValidationError } from '../types/rtti/common/types.ts'
  * @import { Unknown } from '../types/rtti/ts/types.ts'
@@ -112,6 +115,23 @@ export const proof = {
             assertNoMatch(v(['{}', [[':', 'a']]])) // missing the value
             assertNoMatch(v(['{}', [['...']]])) // spread missing its operand
         },
+    },
+    // `comma` is `exps`'s only route now that `array` holds `rttiArray(items)`,
+    // so these pin `exps` — an array of `exp`, not a single one — through it.
+    // The `,` node's own contract is still unsettled (see the module note
+    // above); nothing here depends on it beyond the tag and the operand slot.
+    exps: {
+        ok: () => {
+            assertOk(v([',', []]))
+            assertOk(v([',', [1, 'a', true]]))
+            assertOk(v([',', [['[]', []]]])) // an exp nested inside the operands
+        },
+        // The operand is the array, not one `exp` in its place — the
+        // single-vs-array slip that `array` carried until this branch. A
+        // bare string is a valid `exp`, so were `exps` a single `exp` this
+        // would validate.
+        singleExpIsError: () => assertNoMatch(v([',', 'not-an-array'])),
+        error: () => assertNoMatch(v([',', [{}]])),
     },
     propertyAccessor: {
         ok: () => {
