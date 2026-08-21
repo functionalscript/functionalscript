@@ -104,14 +104,24 @@ export const exps = rttiArray(exp)
 
 /** @typedef {Assert<Check<Exps, typeof exps>>} _Exps */
 
-// ...
+// Spread
 
+/**
+ * ```js
+ * [...exp]  // as an array item, through `items` — see `array`
+ * {...exp}  // as an object property, through `properties` — see `object`
+ * ```
+ *
+ * Not a top-level `Exp`: `spread` only appears as an `items`/`properties`
+ * alternative, never as an operand an operation node can hold directly.
+ */
 export const spread = /** @type {const} */(['...', exp])
 
 /** @typedef {Assert<Check<Spread, typeof spread>>} _Spread */
 
-// items
+// Items
 
+/** An array element: a plain `exp`, or a `spread` splicing another array in. */
 export const items = or(exp, spread)
 
 /** @typedef {Assert<Check<Items, typeof items>>} _Items */
@@ -121,6 +131,7 @@ export const items = or(exp, spread)
 /**
  * ```js
  * [exp0, exp1]
+ * [exp0, ...exp1]
  * ```
  */
 export const array = /** @type {const} */(['[]', rttiArray(items)])
@@ -146,6 +157,7 @@ export const property = /** @type {const} */([':', exp, exp])
 
 // Properties
 
+/** An object entry: a plain `property`, or a `spread` splicing another object in. */
 export const properties = or(property, spread)
 
 /** @typedef {Assert<Check<Properties, typeof properties>>} _Properties */
@@ -158,6 +170,7 @@ export const properties = or(property, spread)
  *     a: exp0,
  *     "a": exp1,
  *     [exp2]: exp3,
+ *     ...exp4,
  * }
  * ```
  *

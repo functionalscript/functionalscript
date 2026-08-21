@@ -42,8 +42,9 @@ vocabularies.
 |---|---|
 | `null`, `boolean`, `number`, `string`, `bigint` | itself |
 | `['undefined']` | `undefined` — tagged, because a bare `undefined` is indistinguishable from a missing tuple position |
-| `['[]', exps]` | array literal |
-| `['{}', properties]`, each `[':', key, value]` | object literal; ordered entries applied in written order, duplicates allowed with the later winning; the key is an `exp`, one form for `a:`, `"a":`, and computed `[exp]:` keys; the `:` descriptor is a structural operand, not a node — only its key and value are |
+| `['[]', items]`, each an `exp` or a `spread` | array literal; `[a, ...b]` splices `b`'s elements in at that position |
+| `['{}', properties]`, each `[':', key, value]` or a `spread` | object literal; ordered entries applied in written order, duplicates allowed with the later winning; the key is an `exp`, one form for `a:`, `"a":`, and computed `[exp]:` keys; the `:` descriptor is a structural operand, not a node — only its key and value are; `{...a}` splices `a`'s own properties in at that position |
+| `['...', exp]` | spread — only valid as an `items`/`properties` entry above, never a top-level `Exp` |
 | `['args']` | the function's arguments |
 | `['frame']` | the captured frame |
 | `['.', exp, index]` | property access: `exp0[exp1]` |
