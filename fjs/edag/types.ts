@@ -139,3 +139,5 @@ export type BinaryOpId =
     | '+'   | '-'   | '*' | '/'  | '%'  | '**'
     | '&'   | '|'   | '^' | '<<' | '>>' | '>>>'
     | '&&'  | '||'  | '??'
+
+export type BinaryOp = readonly[BinaryOpId, Exp, Exp]
