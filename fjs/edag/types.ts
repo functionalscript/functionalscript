@@ -131,3 +131,11 @@ export type Lt = readonly['<', Exp, Exp]
 // Ge
 
 export type Ge = readonly['>=', Exp, Exp]
+
+// BinaryOpNames
+
+export type BinaryOpId =
+    | '===' | '!==' | '>' | '>=' | '<'  | '<='
+    | '+'   | '-'   | '*' | '/'  | '%'  | '**'
+    | '&'   | '|'   | '^' | '<<' | '>>' | '>>>'
+    | '&&'  | '||'  | '??'

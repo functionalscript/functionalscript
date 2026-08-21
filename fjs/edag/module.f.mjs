@@ -28,6 +28,7 @@
  *  Gt,
  *  Lt,
  *  Ge,
+ *  BinaryOpId,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -382,3 +383,14 @@ const _ge = /** @type {const} */(['>=', exp, exp])
 export const ge = _ge
 
 /** @typedef {Assert<Check3<Ge, typeof _ge, typeof ge>>} _Ge */
+
+const binaryOpId = or(
+    '===', '!==', '>', '>=', '<', '<=',
+    '+', '-', '*', '/', '%', '**',
+    '&', '|', '^', '<<', '>>', '>>>',
+    '&&', '||', '??'
+)
+
+/** @typedef {Assert<Check<BinaryOpId, typeof binaryOpId>>} _BinaryOpId */
+
+const binaryOp = /** @type {const} */([binaryOpId, exp, exp])
