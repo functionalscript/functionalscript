@@ -284,8 +284,10 @@ export const op1 = _op1
  * one — its second operand is one node evaluating to the complete argument
  * array, not a literal operand list: `f(a, b)` is
  * `['()', f, ['[]', [a, b]]]`, spread `f(...xs)` is `['()', f, xs]`. `own`
- * reads an own property, bypassing the prototype chain — including
- * `__proto__` (`ownJs` in `./proof.f.mjs`). The rest are the JS comparison,
+ * is exactly `Object.getOwnPropertyDescriptor(object, key)?.value` with a
+ * computed string key — no key coercion, no getter invocation, no prototype
+ * chain (`ownJs` in `./proof.f.mjs`; the Operations table in
+ * `../../todo/edag-stage1-discussion.md`). The rest are the JS comparison,
  * arithmetic, bitwise, and logical operators they name — with `&&`/`||`/`??`
  * short-circuiting exactly as in JS: their right operand is conditional,
  * never established eagerly. All this laziness is positional, not nodal —
