@@ -8,7 +8,7 @@
 
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
-import { commaJoin0Plus, eof, option, range, repeat0Plus, set } from '../module.f.mjs'
+import { commaJoin0Plus, eof, option, range, repeat, repeat0Plus, set } from '../module.f.mjs'
 import { toData } from '../data/module.f.mjs'
 import { descentParser } from '../descent/module.f.mjs'
 import { dispatchMap, parser, parserRuleSet } from './module.f.mjs'
@@ -584,4 +584,28 @@ export const proof = {
         expect(' [[a]] ', true)
         expect('b', false)
     },
+    // A Social Security Number, `ddd-dd-dddd`.
+    ssn: () => {
+        const ws = repeat0Plus(' ')
+        const d = range('09')
+        const r = (/** @type {number} */n) => repeat(n)(d)
+        const ssn = /** @type {const} */([
+            ws, r(3), ws, '-', ws, r(2), ws, '-', ws, r(4), ws])
+
+        const m = parser(ssn) // must not throw 'can not merge'
+
+        /** @type {(s: string, success: boolean) => void} */
+        const expect = (s, success) => {
+            const mr = m('', toArray(stringToCodePointList(s)))
+            assertEq(mr[1] && mr[2]?.length === 0, success, mr)
+        }
+
+        expect('123-45-6789', true)
+        expect('  123  - 45 - 6789 ', true)
+        expect('22', false) // too short
+        expect('123456789', false) // no dashes
+        expect('123-3456-78', false) // wrong grouping
+        expect('123-345-6789', false) // wrong grouping
+        expect('12a-34-5678', false) // a letter where a digit is required
+    }
 }
