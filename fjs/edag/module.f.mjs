@@ -65,6 +65,7 @@ import {
  *  typeof comma,
  *  typeof fn,
  *  typeof frame,
+ *  typeof binaryOp,
  * ]}
  */
 export const exp = () => (['or',
@@ -82,6 +83,7 @@ export const exp = () => (['or',
     comma,
     fn,
     frame,
+    binaryOp,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -308,6 +310,9 @@ export const binaryOpId = or(
 
 /** @typedef {Assert<Check<BinaryOpId, typeof binaryOpId>>} _BinaryOpId */
 
-export const binaryOp = /** @type {const} */([binaryOpId, exp, exp])
+const _binaryOp = /** @type {const} */([binaryOpId, exp, exp])
 
-/** @typedef {Assert<Check<BinaryOp, typeof binaryOp>>} _BinaryOp */
+/** @type {Phantom<typeof _binaryOp, BinaryOp>} */
+export const binaryOp = _binaryOp
+
+/** @typedef {Assert<Check3<BinaryOp, typeof _binaryOp, typeof binaryOp>>} _BinaryOp */

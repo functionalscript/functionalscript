@@ -22,6 +22,7 @@ export type Exp =
     | Comma
     | Fn
     | Frame
+    | BinaryOp
 
 // undefinedOp
 
