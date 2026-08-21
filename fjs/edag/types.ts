@@ -17,8 +17,8 @@ export type Exp =
     | PropertyCall
     | Comma
     | Frame
-    | BinaryOp
-    | UnaryOp
+    | Op2
+    | Op1
 
 // undefinedOp
 
@@ -75,18 +75,18 @@ export type Frame = readonly['frame']
 
 // UnaryOpIds
 
-export type UnaryOpId =
+export type Op1Id =
     | 'neg' | 'String' | 'Number'
 
-export type UnaryOp = readonly[UnaryOpId, Exp]
+export type Op1 = readonly[Op1Id, Exp]
 
 // BinaryOpIds
 
-export type BinaryOpId =
+export type Op2Id =
     | '=>'  | 'own' | '()'
     | '===' | '!==' | '>' | '>=' | '<'  | '<='
     | '+'   | '-'   | '*' | '/'  | '%'  | '**'
     | '&'   | '|'   | '^' | '<<' | '>>' | '>>>'
     | '&&'  | '||'  | '??'
 
-export type BinaryOp = readonly[BinaryOpId, Exp, Exp]
+export type Op2 = readonly[Op2Id, Exp, Exp]

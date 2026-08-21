@@ -16,10 +16,10 @@
  *  UndefinedOp,
  *  Comma,
  *  Frame,
- *  BinaryOpId,
- *  BinaryOp,
- *  UnaryOpId,
- *  UnaryOp,
+ *  Op2Id,
+ *  Op2,
+ *  Op1Id,
+ *  Op1,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -56,8 +56,8 @@ import {
  *  typeof propertyCall,
  *  typeof comma,
  *  typeof frame,
- *  typeof binaryOp,
- *  typeof unaryOp,
+ *  typeof op2,
+ *  typeof op1,
  * ]}
  */
 export const exp = () => (['or',
@@ -69,8 +69,8 @@ export const exp = () => (['or',
     propertyCall,
     comma,
     frame,
-    binaryOp,
-    unaryOp,
+    op2,
+    op1,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -216,20 +216,20 @@ export const frame = /** @type {const} */(['frame'])
 
 // Unary Operations
 
-export const unaryOpId = or('neg', 'String', 'Number')
+export const op1Id = or('neg', 'String', 'Number')
 
-/** @typedef {Assert<Check<UnaryOpId, typeof unaryOpId>>} _UnaryOpId */
+/** @typedef {Assert<Check<Op1Id, typeof op1Id>>} _Op1Id */
 
-const _unaryOp = /** @type {const} */([unaryOpId, exp])
+const _op1 = /** @type {const} */([op1Id, exp])
 
-/** @type {Phantom<typeof _unaryOp, UnaryOp>} */
-export const unaryOp = _unaryOp
+/** @type {Phantom<typeof _op1, Op1>} */
+export const op1 = _op1
 
-/** @typedef {Assert<Check<UnaryOp, typeof unaryOp>>} _UnaryOp */
+/** @typedef {Assert<Check<Op1, typeof op1>>} _Op1 */
 
 // Binary Operations
 
-export const binaryOpId = or(
+export const op2Id = or(
     '=>', 'own', '()',
     '===', '!==', '>', '>=', '<', '<=',
     '+', '-', '*', '/', '%', '**',
@@ -237,11 +237,11 @@ export const binaryOpId = or(
     '&&', '||', '??'
 )
 
-/** @typedef {Assert<Check<BinaryOpId, typeof binaryOpId>>} _BinaryOpId */
+/** @typedef {Assert<Check<Op2Id, typeof op2Id>>} _Op2Id */
 
-const _binaryOp = /** @type {const} */([binaryOpId, exp, exp])
+const _op2 = /** @type {const} */([op2Id, exp, exp])
 
-/** @type {Phantom<typeof _binaryOp, BinaryOp>} */
-export const binaryOp = _binaryOp
+/** @type {Phantom<typeof _op2, Op2>} */
+export const op2 = _op2
 
-/** @typedef {Assert<Check3<BinaryOp, typeof _binaryOp, typeof binaryOp>>} _BinaryOp */
+/** @typedef {Assert<Check3<Op2, typeof _op2, typeof op2>>} _Op2 */
