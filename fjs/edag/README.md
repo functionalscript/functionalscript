@@ -38,7 +38,7 @@ record for each node is the JSDoc on its export in
 | `null`, `boolean`, `number`, `string`, `bigint` | itself |
 | `['undefined']` | `undefined` — tagged, because a bare `undefined` is indistinguishable from a missing tuple position |
 | `['[]', exps]` | array literal |
-| `['{}', properties]`, each `[':', key, value]` | object literal; the key is an `exp`, one form for `a:`, `"a":`, and computed `[exp]:` keys |
+| `['{}', properties]`, each `[':', key, value]` | object literal; ordered entries applied in written order, duplicates allowed with the later winning; the key is an `exp`, one form for `a:`, `"a":`, and computed `[exp]:` keys; the `:` descriptor is a structural operand, not a node — only its key and value are |
 | `['args']` | the function's arguments |
 | `['frame']` | the captured frame |
 | `['.', exp, index]` | property access: `exp0[exp1]` |
@@ -78,9 +78,11 @@ operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]` and spread
   never across a `=>` boundary — goes unchecked. The Stage 2 validator for
   that boundary is tracked in
   [compile-modules-to-edag.md](../djs/todo/compile-modules-to-edag.md).
-- `[',', exps]` is a known-incomplete placeholder; the settled shape must
-  express "at least two operands, last is the result" — a single-operand
-  `,` is the identity and non-canonical.
+- `[',', exps]` is a known-incomplete placeholder; the settled contract must
+  express "at least two operands, last is the result, each pre-result
+  operand a true root" — a single-operand `,` is the identity, an operand
+  reachable from a sibling of the same `,` a redundant anchor, both
+  non-canonical.
 - `index` does not yet exclude `constructor`/`__proto__` —
   [excluded-string-values.md](../types/rtti/todo/excluded-string-values.md).
 

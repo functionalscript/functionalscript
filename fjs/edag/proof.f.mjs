@@ -3,8 +3,9 @@
  * a value nested through several kinds to exercise the mutual recursion.
  * Exception: `comma` has no section yet — its shape (`[',', exps]`) is a
  * known-incomplete placeholder pending a redesign that can express "at
- * least two operands, last is the result" (a single-operand `,` is the
- * identity and non-canonical), not a settled node to pin.
+ * least two operands, last is the result, each pre-result operand a true
+ * root" (a single-operand `,` is the identity, a reachable operand a
+ * redundant anchor — both non-canonical), not a settled node to pin.
  *
  * @import { ValidationError } from '../types/rtti/common/types.ts'
  * @import { Unknown } from '../types/rtti/ts/types.ts'

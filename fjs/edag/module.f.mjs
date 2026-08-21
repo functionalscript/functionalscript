@@ -102,6 +102,12 @@ export const array = /** @type {const} */(['[]', exps])
 // Property
 
 /**
+ * A structural operand of `object`, not an independently evaluated EDAG
+ * node: nothing ever evaluates a descriptor as a value, so whether one is
+ * shared by reference or written twice with equal content is unobservable,
+ * and conforming VMs may legally differ on it. Only the `key` and `value`
+ * operands are real nodes, their identities shared normally.
+ *
  * The key stays `exp`, not narrowed to a string constant — see
  * `../../todo/edag-stage1-discussion.md` subject 4.
  */
@@ -119,6 +125,12 @@ export const property = /** @type {const} */([':', exp, exp])
  *     [exp2]: exp3,
  * }
  * ```
+ *
+ * The entries are an ordered sequence, applied as if in written order —
+ * never sorted or deduplicated: order is observable (enumeration,
+ * overwrites), and duplicate keys are allowed with the later entry winning,
+ * which is also required once computed keys are admitted, since key
+ * equality may not be decidable at validation time.
  */
 export const object = /** @type {const} */(['{}', rttiArray(property)])
 
@@ -203,8 +215,11 @@ const _comma = /** @type {const} */([',', exps])
  * Establishes all of its operands and takes the value of the last one; the
  * earlier operands exist for their throw-potential only. The shape is a
  * known-incomplete placeholder — it cannot yet say "at least two operands,
- * last is the result" (a single-operand `,` is the identity and
- * non-canonical); see the header of `./proof.f.mjs`.
+ * last is the result, each pre-result operand a true root (not reachable
+ * from another operand of the same `,`)". A single-operand `,` is the
+ * identity and a reachable operand a redundant anchor — both non-canonical,
+ * each splitting one function into two hashes. See the header of
+ * `./proof.f.mjs`.
  *
  * @type {Phantom<typeof _comma, Comma>}
  */
