@@ -27,6 +27,7 @@ export type Exp =
     | Eq
     | Neq
     | Gt
+    | Lt
 
 // undefinedOp
 
@@ -121,3 +122,7 @@ export type Neq = readonly['!==', Exp, Exp]
 // Gt
 
 export type Gt = readonly['>', Exp, Exp]
+
+// Lt
+
+export type Lt = readonly['<', Exp, Exp]

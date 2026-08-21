@@ -26,6 +26,7 @@
  *  Eq,
  *  Neq,
  *  Gt,
+ *  Lt,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -72,7 +73,8 @@ import {
  *  typeof frame,
  *  typeof eq,
  *  typeof neq,
- *  typeof gt
+ *  typeof gt,
+ *  typeof lt
  * ]}
  */
 export const exp = () => (['or',
@@ -95,6 +97,7 @@ export const exp = () => (['or',
     eq,
     neq,
     gt,
+    lt,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -358,3 +361,12 @@ const _gt = /** @type {const} */(['>', exp, exp])
 export const gt = _gt
 
 /** @typedef {Assert<Check3<Gt, typeof _gt, typeof gt>>} _Gt */
+
+// <
+
+const _lt = /** @type {const} */(['<', exp, exp])
+
+/** @type {Phantom<typeof _lt, Lt>} */
+export const lt = _lt
+
+/** @typedef {Assert<Check3<Lt, typeof _lt, typeof lt>>} _Lt */

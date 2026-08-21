@@ -287,6 +287,20 @@ export const proof = {
         extraTailIsIgnored: () => assertOk(v(['>', 1, 2, 3])),
         error: () => assertNoMatch(v(['>z', 1, 2])),
     },
+    lt: {
+        ok: () => {
+            assertOk(v(['<', 1, 2]))
+            assertOk(v(['<', ['<', 1, 2], 3])) // an exp nested inside an operand
+        },
+        // A missing operand reads as `undefined`, no longer a valid bare
+        // `exp` — see `undefinedOp`. True whether one or both are missing.
+        missingTailIsError: () => {
+            assertNoMatch(v(['<', 1]))
+            assertNoMatch(v(['<']))
+        },
+        extraTailIsIgnored: () => assertOk(v(['<', 1, 2, 3])),
+        error: () => assertNoMatch(v(['<z', 1, 2])),
+    },
     // `f(args)[k](obj.a)` in AST form — exercises the mutual recursion through
     // `exp` rather than any one node kind in isolation.
     nested: () => {
