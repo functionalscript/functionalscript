@@ -83,10 +83,10 @@ export type UnaryOp = readonly[UnaryOpId, Exp]
 // BinaryOpIds
 
 export type BinaryOpId =
-    | '=>'  | 'own' | '()'
-    | '===' | '!==' | '>' | '>=' | '<'  | '<='
-    | '+'   | '-'   | '*' | '/'  | '%'  | '**'
-    | '&'   | '|'   | '^' | '<<' | '>>' | '>>>'
-    | '&&'  | '||'  | '??'
+    | '=>' | 'own' | '()'
+    | '===' | '!==' | '>' | '>=' | '<' | '<='
+    | '+' | '-' | '*' | '/' | '%' | '**'
+    | '&' | '|' | '^' | '<<' | '>>' | '>>>'
+    | '&&' | '||' | '??'
 
 export type BinaryOp = readonly[BinaryOpId, Exp, Exp]

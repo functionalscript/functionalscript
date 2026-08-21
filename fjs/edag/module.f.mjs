@@ -225,7 +225,7 @@ const _unaryOp = /** @type {const} */([unaryOpId, exp])
 /** @type {Phantom<typeof _unaryOp, UnaryOp>} */
 export const unaryOp = _unaryOp
 
-/** @typedef {Assert<Check<UnaryOp, typeof unaryOp>>} _UnaryOp */
+/** @typedef {Assert<Check3<UnaryOp, typeof _unaryOp, typeof unaryOp>>} _UnaryOp */
 
 // Binary Operations
 
