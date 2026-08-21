@@ -287,9 +287,10 @@ export const op1 = _op1
  * is exactly `Object.getOwnPropertyDescriptor(object, key)?.value` — no
  * getter invocation, no prototype chain — where the key operand must
  * evaluate to a string: a runtime-value constraint the shape-only schema
- * cannot express, owned by complete EDAG validation like the other
- * identity/value rules (`ownJs` in `./proof.f.mjs`; the Operations table in
- * `../../todo/edag-stage1-discussion.md`). The rest are the JS comparison,
+ * cannot express — a computed key's value is only known at execution, so
+ * upholding it falls to the executor (`ownJs` in `./proof.f.mjs`; the
+ * Operations table in `../../todo/edag-stage1-discussion.md`). The rest
+ * are the JS comparison,
  * arithmetic, bitwise, and logical operators they name — with `&&`/`||`/`??`
  * short-circuiting exactly as in JS: their right operand is conditional,
  * never established eagerly. All this laziness is positional, not nodal —
