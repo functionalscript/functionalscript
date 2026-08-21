@@ -23,6 +23,7 @@ export type Exp =
     | Neg
     | Comma
     | Fn
+    | Frame
 
 // undefinedOp
 
@@ -98,13 +99,10 @@ export type Neg = readonly['neg', Exp]
 
 export type Comma = readonly[',', Exps]
 
-// a frame — `null` for now (Stage 2 doesn't implement frames/captures), a
-// placeholder for a later `Exp` once frame/capture design lands: a bare
-// value for one capture, an array node for several, decided by whatever
-// constructs `Fn`, not by this shape
-
-export type Frame = null
-
 // Fn
 
-export type Fn = readonly['=>', Frame, Exp]
+export type Fn = readonly['=>', Exp, Exp]
+
+// Frame
+
+export type Frame = readonly['frame']

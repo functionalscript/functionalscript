@@ -21,8 +21,8 @@
  *  Neg,
  *  Own,
  *  Comma,
+ *  Fn,
  *  Frame,
- *  Fn
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -65,7 +65,8 @@ import {
  *  typeof sub,
  *  typeof neg,
  *  typeof comma,
- *  typeof fn
+ *  typeof fn,
+ *  typeof frame
  * ]}
  */
 export const exp = () => (['or',
@@ -84,6 +85,7 @@ export const exp = () => (['or',
     neg,
     comma,
     fn,
+    frame,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -306,20 +308,7 @@ export const comma = _comma
 
 // Function
 
-/**
- * A placeholder, not yet a real operand: Stage 2 doesn't implement
- * frames/captures, so `frame` is `null` for now. It is expected to become
- * an `Exp` once frame/capture design lands — a bare value for one capture,
- * an array node for several — decided by whatever constructs `Fn`, not by
- * this shape. The operand is present in `=>`'s shape today so that switch
- * doesn't require changing `=>` itself. See
- * `../djs/todo/compile-modules-to-edag.md`.
- */
-export const frame = null
-
-/** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */
-
-const _fn = /** @type {const} */(['=>', frame, exp])
+const _fn = /** @type {const} */(['=>', exp, exp])
 
 /** @type {Phantom<typeof _fn, Fn>} */
 export const fn = _fn
@@ -327,3 +316,9 @@ export const fn = _fn
 /**
  * @typedef {Assert<Check3<Fn, typeof _fn, typeof fn>>} _Fn
  */
+
+// Frame
+
+export const frame = /** @type {const} */(['frame'])
+
+/** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */

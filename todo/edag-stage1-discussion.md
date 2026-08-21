@@ -197,6 +197,16 @@ DJS rollout in
 
 ### Structural operations
 
+**"Stage" names which compiler/interpreter task is scoped to emit or consume an
+operation — not when the EDAG schema itself admits it.** The schema
+(`fjs/edag/module.f.mjs`) doesn't have to wait for a task before defining a shape, and
+in practice it doesn't: `"own"`, `"Number"`, `"String"`, and `","` are marked `later`
+below, `"=>"` is marked a not-yet-implemented Stage 2, and `["frame"]` is marked `later`
+too (further down, under [Operations](#operations)) — yet all are already validated by
+`exp` today. A node being schema-valid says nothing about whether any parser emits it or
+any interpreter executes it — that's what the `Stage`/`later` marker tracks, and the
+schema is free to change independently of both.
+
 |Form|JS|Stage|Notes|
 |----|--|-----|-----|
 |`2.5`, `"a"`, `true`, `null`, `34n`|itself|1|constant — any non-object, non-array value|
@@ -211,7 +221,7 @@ DJS rollout in
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
-|`["=>", frame, body]`|`(…) => …`|2|function; initial Stage 2 accepts only an empty frame, captured frames come later|
+|`["=>", frame, body]`|`(…) => …`|2|function; `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope is narrower and only emits/accepts a placeholder for it, captured frames come later|
 
 `["{}", ...entry]` is an ordered object-construction operation. Stage 1
 uses `[":", key, value]` entries. The entry list preserves the source
