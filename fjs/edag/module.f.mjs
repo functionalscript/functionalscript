@@ -23,6 +23,11 @@
  *  Comma,
  *  Fn,
  *  Frame,
+ *  Eq,
+ *  Neq,
+ *  Gt,
+ *  Lt,
+ *  Ge,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -66,7 +71,12 @@ import {
  *  typeof neg,
  *  typeof comma,
  *  typeof fn,
- *  typeof frame
+ *  typeof frame,
+ *  typeof eq,
+ *  typeof neq,
+ *  typeof gt,
+ *  typeof lt,
+ *  typeof ge
  * ]}
  */
 export const exp = () => (['or',
@@ -86,6 +96,11 @@ export const exp = () => (['or',
     comma,
     fn,
     frame,
+    eq,
+    neq,
+    gt,
+    lt,
+    ge,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -322,3 +337,48 @@ export const fn = _fn
 export const frame = /** @type {const} */(['frame'])
 
 /** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */
+
+// ===
+
+const _eq = /** @type {const} */(['===', exp, exp])
+
+/** @type {Phantom<typeof _eq, Eq>} */
+export const eq = _eq
+
+/** @typedef {Assert<Check3<Eq, typeof _eq, typeof eq>>} _Eq */
+
+// !==
+
+const _neq = /** @type {const} */(['!==', exp, exp])
+
+/** @type {Phantom<typeof _neq, Neq>} */
+export const neq = _neq
+
+/** @typedef {Assert<Check3<Neq, typeof _neq, typeof neq>>} _Neq */
+
+// >
+
+const _gt = /** @type {const} */(['>', exp, exp])
+
+/** @type {Phantom<typeof _gt, Gt>} */
+export const gt = _gt
+
+/** @typedef {Assert<Check3<Gt, typeof _gt, typeof gt>>} _Gt */
+
+// <
+
+const _lt = /** @type {const} */(['<', exp, exp])
+
+/** @type {Phantom<typeof _lt, Lt>} */
+export const lt = _lt
+
+/** @typedef {Assert<Check3<Lt, typeof _lt, typeof lt>>} _Lt */
+
+// >=
+
+const _ge = /** @type {const} */(['>=', exp, exp])
+
+/** @type {Phantom<typeof _ge, Ge>} */
+export const ge = _ge
+
+/** @typedef {Assert<Check3<Ge, typeof _ge, typeof ge>>} _Ge */
