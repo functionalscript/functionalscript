@@ -18,7 +18,6 @@ export type Exp =
     | PropertyAccessor
     | Call
     | PropertyCall
-    | Own
     | Neg
     | Comma
     | Frame
@@ -77,10 +76,6 @@ export type Call = readonly['()', Exp, Exp]
 
 export type PropertyCall = readonly['.()', Exp, Index, Exp]
 
-// own
-
-export type Own = readonly ['own', Exp, Exp]
-
 // Binary +
 
 export type Add = readonly['+', Exp, Exp]
@@ -105,7 +100,7 @@ export type Frame = readonly['frame']
 // BinaryOpNames
 
 export type BinaryOpId =
-    | '=>'
+    | '=>'  | 'own'
     | '===' | '!==' | '>' | '>=' | '<'  | '<='
     | '+'   | '-'   | '*' | '/'  | '%'  | '**'
     | '&'   | '|'   | '^' | '<<' | '>>' | '>>>'

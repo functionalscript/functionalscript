@@ -17,7 +17,6 @@
  *  PropertyCall,
  *  UndefinedOp,
  *  Neg,
- *  Own,
  *  Comma,
  *  Frame,
  *  BinaryOpId,
@@ -59,7 +58,6 @@ import {
  *  typeof propertyAccessor,
  *  typeof call,
  *  typeof propertyCall,
- *  typeof own,
  *  typeof neg,
  *  typeof comma,
  *  typeof frame,
@@ -76,7 +74,6 @@ export const exp = () => (['or',
     propertyAccessor,
     call,
     propertyCall,
-    own,
     neg,
     comma,
     frame,
@@ -241,17 +238,6 @@ export const propertyCall = _propertyCall
  * @typedef {Assert<Check3<PropertyCall, typeof _propertyCall, typeof propertyCall>>} _PropertyCall
  */
 
-// own, `const own = (a, b) => Object.getOwnPropertyDescriptor(a, k)?.value`
-
-const _own = /** @type {const} */(['own', exp, exp])
-
-/** @type {Phantom<typeof _own, Own>} */
-export const own = _own
-
-/**
- * @typedef {Assert<Check3<Own, typeof _own, typeof own>>} _Own
- */
-
 // Negation (aka a unary minus) — a word tag, `"neg"`, not `"-"`'s unary
 // arity (an earlier draft overloaded `"-"` the way JS itself does; see
 // `../../todo/edag-stage1-discussion.md`'s "Operators" section for why that
@@ -288,7 +274,7 @@ export const frame = /** @type {const} */(['frame'])
 //
 
 export const binaryOpId = or(
-    '=>',
+    '=>', 'own',
     '===', '!==', '>', '>=', '<', '<=',
     '+', '-', '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
