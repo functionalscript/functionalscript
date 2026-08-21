@@ -3,6 +3,7 @@
  * @import { RuleSet } from '../data/types.ts'
  * @import { CodePointMeta } from '../descent/types.ts'
  * @import { Rule as FRule } from '../types.ts'
+ * @import { Match } from './types.ts'
  * @import { MatchResult } from './types.ts'
  */
 
@@ -17,6 +18,15 @@ import { deterministic, showAst } from '../testlib.f.mjs'
 
 /** @type {(cp: CodePoint) => CodePointMeta<unknown>} */
 const mapCodePoint = cp => [cp, undefined]
+
+/** @type {(mr: MatchResult) => boolean} */
+const isMatchSuccess = ([, success, remainder]) => success && remainder?.length === 0
+
+/** @type {(m: Match) => (s: string, success: boolean) => void} */
+const expectMatch = m => (s, success) => {
+    const mr = m('', toArray(stringToCodePointList(s)))
+    assertEq(isMatchSuccess(mr), success, mr)
+}
 
 /**
  * One grammar matched by both backends, which must build the same AST for it:
@@ -588,17 +598,11 @@ export const proof = {
     ssn: () => {
         const ws = repeat0Plus(' ')
         const d = range('09')
-        const r = (/** @type {number} */n) => repeat(n)(d)
         const ssn = /** @type {const} */([
-            ws, r(3), ws, '-', ws, r(2), ws, '-', ws, r(4), ws])
+            ws, repeat(3)(d), ws, '-', ws, repeat(2)(d), ws, '-', ws, repeat(4)(d), ws])
 
         const m = parser(ssn) // must not throw 'can not merge'
-
-        /** @type {(s: string, success: boolean) => void} */
-        const expect = (s, success) => {
-            const mr = m('', toArray(stringToCodePointList(s)))
-            assertEq(mr[1] && mr[2]?.length === 0, success, mr)
-        }
+        const expect = expectMatch(m)
 
         expect('123-45-6789', true)
         expect('  123  - 45 - 6789 ', true)
