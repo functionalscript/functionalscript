@@ -58,6 +58,7 @@ import {
  *  typeof frame,
  *  typeof op2,
  *  typeof op1,
+ *  typeof op0,
  * ]}
  */
 export const exp = () => (['or',
@@ -71,6 +72,7 @@ export const exp = () => (['or',
     frame,
     op2,
     op1,
+    op0,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */

@@ -19,6 +19,7 @@ export type Exp =
     | Frame
     | Op2
     | Op1
+    | Op0
 
 // undefinedOp
 
@@ -77,6 +78,8 @@ export type Frame = readonly['frame']
 
 export type Op0Id =
     | 'undefined' | 'args' | 'frame'
+
+export type Op0 = readonly[Op0Id]
 
 // Op1Ids
 
