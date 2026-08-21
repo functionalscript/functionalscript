@@ -73,14 +73,14 @@ export type Comma = readonly[',', Exps]
 
 export type Frame = readonly['frame']
 
-// UnaryOpIds
+// Op1Ids
 
 export type Op1Id =
     | 'neg' | 'String' | 'Number'
 
 export type Op1 = readonly[Op1Id, Exp]
 
-// BinaryOpIds
+// Op2Ids
 
 export type Op2Id =
     | '=>'  | 'own' | '()'
