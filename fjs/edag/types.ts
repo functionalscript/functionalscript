@@ -12,11 +12,9 @@ export type Exp =
     | Primitive
     | Array
     | Object
-    | Args
     | PropertyAccessor
     | PropertyCall
     | Comma
-    | Frame
     | Op2
     | Op1
     | Op0
