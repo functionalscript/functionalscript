@@ -67,7 +67,8 @@ import {
  *  typeof neg,
  *  typeof comma,
  *  typeof fn,
- *  typeof frame
+ *  typeof frame,
+ *  typeof eq
  * ]}
  */
 export const exp = () => (['or',
@@ -87,6 +88,7 @@ export const exp = () => (['or',
     comma,
     fn,
     frame,
+    eq,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
@@ -326,6 +328,9 @@ export const frame = /** @type {const} */(['frame'])
 
 // ===
 
-export const eq = /** @type {const} */(['===', exp, exp])
+const _eq = /** @type {const} */(['===', exp, exp])
 
-/** @typedef {Assert<Check<Eq, typeof eq>>} _Eq */
+/** @type {Phantom<typeof _eq, Eq>} */
+export const eq = _eq
+
+/** @typedef {Assert<Check3<Eq, typeof _eq, typeof eq>>} _Eq */

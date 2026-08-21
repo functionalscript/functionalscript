@@ -24,6 +24,7 @@ export type Exp =
     | Comma
     | Fn
     | Frame
+    | Eq
 
 // undefinedOp
 
