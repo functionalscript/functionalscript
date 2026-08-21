@@ -255,16 +255,20 @@ export const op1 = _op1
 // Binary Operations
 
 /**
- * `=>` builds a function from a frame and a body. `()` calls one — its
- * second operand is one node evaluating to the complete argument array, not
- * a literal operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]`, spread
- * `f(...xs)` is `['()', f, xs]`. `own` reads an own property, bypassing the
- * prototype chain — including `__proto__` (`ownJs` in `./proof.f.mjs`). The
- * rest are the JS comparison, arithmetic, bitwise, and logical operators
- * they name — with `&&`/`||`/`??` short-circuiting exactly as in JS: their
- * right operand is conditional, never established eagerly. That laziness is
- * positional, not nodal — the same node referenced from an eager position
- * elsewhere is still evaluated there.
+ * `=>` builds a function from a frame and a body: the frame operand is one
+ * node evaluated in the enclosing scope, while the body is the inner
+ * function's graph — deferred, never established when the closure is built,
+ * only on each call, against that function's own `args`/`frame`. `()` calls
+ * one — its second operand is one node evaluating to the complete argument
+ * array, not a literal operand list: `f(a, b)` is
+ * `['()', f, ['[]', [a, b]]]`, spread `f(...xs)` is `['()', f, xs]`. `own`
+ * reads an own property, bypassing the prototype chain — including
+ * `__proto__` (`ownJs` in `./proof.f.mjs`). The rest are the JS comparison,
+ * arithmetic, bitwise, and logical operators they name — with `&&`/`||`/`??`
+ * short-circuiting exactly as in JS: their right operand is conditional,
+ * never established eagerly. All this laziness is positional, not nodal —
+ * the same node referenced from an eager position elsewhere is still
+ * evaluated there.
  */
 export const op2Id = or(
     '=>', 'own', '()',
