@@ -15,7 +15,6 @@
  *  Object,
  *  PropertyCall,
  *  UndefinedOp,
- *  Neg,
  *  Comma,
  *  Frame,
  *  BinaryOpId,
@@ -239,7 +238,7 @@ export const frame = /** @type {const} */(['frame'])
 
 // Unary Operations
 
-export const unaryOpId = or('neg')
+export const unaryOpId = or('neg', 'String', 'Number')
 
 /** @typedef {Assert<Check<UnaryOpId, typeof unaryOpId>>} _UnaryOpId */
 
