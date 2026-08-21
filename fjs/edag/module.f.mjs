@@ -23,6 +23,7 @@
  *  Comma,
  *  Fn,
  *  Frame,
+ *  Eq,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -322,3 +323,9 @@ export const fn = _fn
 export const frame = /** @type {const} */(['frame'])
 
 /** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */
+
+// ===
+
+export const eq = /** @type {const} */(['===', exp, exp])
+
+/** @typedef {Assert<Check<Eq, typeof eq>>} _Eq */

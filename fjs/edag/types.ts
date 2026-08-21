@@ -106,3 +106,7 @@ export type Fn = readonly['=>', Exp, Exp]
 // Frame
 
 export type Frame = readonly['frame']
+
+// Eq
+
+export type Eq = readonly['===', Exp, Exp]
