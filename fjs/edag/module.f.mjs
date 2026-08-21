@@ -21,6 +21,7 @@
  *  Op0,
  *  Spread,
  *  Items,
+ Properties,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -129,6 +130,12 @@ export const array = _array
 export const property = /** @type {const} */([':', exp, exp])
 
 /** @typedef {Assert<Check<Property, typeof property>>} _Property */
+
+// Properties
+
+export const properties = or(property, spread)
+
+/** @typedef {Assert<Check<Properties, typeof properties>>} _Properties */
 
 // Object — same nesting as `array` above, one position further in
 

@@ -48,6 +48,10 @@ export type Array = readonly['[]', Items]
 
 export type Property = readonly[':', Exp, Exp]
 
+// properties
+
+export type Properties = Property | Spread
+
 // object
 
 export type Object = readonly['{}', readonly Property[]]
