@@ -118,7 +118,7 @@ export const items = or(exp, spread)
  * [exp0, exp1]
  * ```
  */
-export const array = /** @type {const} */(['[]', items])
+export const array = /** @type {const} */(['[]', rttiArray(items)])
 
 /** @typedef {Assert<Check<Array, typeof array>>} _Array */
 

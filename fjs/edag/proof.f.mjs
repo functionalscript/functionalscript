@@ -88,21 +88,29 @@ export const proof = {
             assertOk(v(['[]', []]))
             assertOk(v(['[]', [1, 'a', true]]))
             assertOk(v(['[]', [1, ['[]', [2, 3]]]])) // an exp nested inside the elements
+            // `spread` (`['...', exp]`) is not a top-level `exp` alternative —
+            // it's only reachable as an `items` alternative here, or as a
+            // `properties` alternative below in `object`.
+            assertOk(v(['[]', [1, ['...', 2]]])) // a spread element among plain elements
         },
         error: () => {
             assertNoMatch(v(['[]', 'not-an-array']))
             assertNoMatch(v(['[]', [1, {}]]))
+            assertNoMatch(v(['[]', [['...']]])) // spread missing its operand
+            assertNoMatch(v(['[]', [['..', 2]]])) // wrong tag, not `...`
         },
     },
     object: {
         ok: () => {
             assertOk(v(['{}', []]))
             assertOk(v(['{}', [[':', 'a', 1], [':', 'b', 'x']]]))
+            assertOk(v(['{}', [[':', 'a', 1], ['...', 2]]])) // a spread entry among plain properties
         },
         error: () => {
             assertNoMatch(v(['{}', [[':', 'a', {}]]])) // bad value
             assertNoMatch(v(['{}', [['a', 1]]])) // missing the `:` tag
             assertNoMatch(v(['{}', [[':', 'a']]])) // missing the value
+            assertNoMatch(v(['{}', [['...']]])) // spread missing its operand
         },
     },
     propertyAccessor: {

@@ -45,7 +45,7 @@ export type Items = Exp | Spread
 
 // array
 
-export type Array = readonly['[]', Items]
+export type Array = readonly['[]', readonly Items[]]
 
 // property
 
