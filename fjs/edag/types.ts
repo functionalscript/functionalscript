@@ -25,7 +25,7 @@ export type UndefinedOp = readonly['undefined']
 
 // primitive
 
-export type Primitive = UndefinedOp | null | boolean | number | string | bigint
+export type Primitive = null | boolean | number | string | bigint
 
 // expressions
 

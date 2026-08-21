@@ -79,7 +79,7 @@ export const undefinedOp = /** @type {const} */(['undefined'])
 
 // Primitive
 
-export const primitive = or(undefinedOp, null, boolean, number, string, bigint)
+export const primitive = or(null, boolean, number, string, bigint)
 
 /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
 
