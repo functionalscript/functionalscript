@@ -42,19 +42,12 @@ unconditional forms already in
 ['.()', exp0, prop, args] // exp0.prop(args)
 ```
 
-|  |             |      |
-|--|-------------|------|
-|1.| `a .b  (c)` | `..` |
-|2.| `a?.b  (c)` | `?.` |
-|3.| `a .b?.(c)` | `.?` |
-|4.| `a?.b?.(c)` | `??` (placeholder — collides, see below) |
-
-Row 4's `??` collides with `op2Id`'s existing binary nullish-coalescing `??`
-(`fjs/edag/module.f.mjs`): both would be tagged `['??', ...]`, and since rtti
-tuples are open on trailing elements, a 4-element `['??', object, property,
-args]` already validates as the existing 3-element binary `Op2` (`args`
-silently dropped as trailing). Needs a tag that doesn't collide with any
-existing `op1`/`op2` id before this lands — not decided yet.
+|  |             |          |
+|--|-------------|----------|
+|1.| `a .b  (c)` | `.()`    |
+|2.| `a?.b  (c)` | `?.()`   |
+|3.| `a .b?.(c)` | `.?.()`  |
+|4.| `a?.b?.(c)` | `?.?.()` |
 
 #### Unbind
 
@@ -102,18 +95,41 @@ y.b                    // throws
 |`([42].at)(0)`        |`42`  |`(undefined?.a).b`        |throws     |
 |`const x=[42].at;x(0)`|throws|`const x=undefined?.a;x.b`|throws     |
 
+**Open question: parens mean opposite things in the two columns above, and
+that's not a table-formatting accident — it's two different ECMAScript
+rules.** For unbind (left column), `()` is pure grouping: `(obj.method)`
+denotes the exact same reference as `obj.method`, so calling it preserves
+`this` either way — parens are transparent. For optional chaining (right
+column), `?.` short-circuits the *entire syntactic chain it heads*, not just
+its own operand: `undefined?.a.b` never evaluates `.b` at all and the whole
+expression is `undefined`, but `(undefined?.a).b` evaluates `undefined?.a` to
+`undefined` *inside* the parens, closing off the chain, and then applies a
+plain `.b` to that `undefined` *outside* it — which throws. Parens are a hard
+boundary for optional chaining, unlike for unbind.
+
+This matters for how multi-step chains compile, not just for parenthesized
+ones: representing `a?.b.c` by nesting single-step nodes the way `.()`/`()`
+already nest (a `.c` node wrapping a `?.b` node, each evaluated and applied in
+turn) would evaluate `?.b` down to a concrete `undefined` value *before* the
+outer `.c` node ever runs — which is exactly the parenthesized `(a?.b).c`
+behavior (throws), not the correct unparenthesized `a?.b.c` behavior
+(`undefined`, no throw). Naive per-step nesting cannot represent chain-wide
+short-circuit propagation; whatever operation shape lands for `?.` needs to
+address this before implementation, not assume single-step nesting composes
+the way `.`/`()` already do.
+
 ### Tasks
 
 - [ ] Introduce optional property access `a?.b` and optional call `a?.(b)`
       into the EDAG operation vocabulary.
-- [ ] Introduce the four `a.b(c)`-shaped chaining variants (`..`, `?.`, `.?`,
-      and a fourth not-yet-decided tag) that mix a plain/optional property
-      step with a plain/optional call step.
-- [ ] Pick the fourth variant's tag so it doesn't collide with any existing
-      `op1`/`op2` id — `??` collides with the existing binary
-      nullish-coalescing `op2` (verified: `['??', object, property, args]`
-      already validates today as that 3-element node, `args` silently
-      dropped as the open trailing element).
+- [ ] Introduce the four `a.b(c)`-shaped chaining variants (`.()`, `?.()`,
+      `.?.()`, `?.?.()`) that mix a plain/optional property step with a
+      plain/optional call step.
+- [ ] Resolve chain-wide short-circuit propagation (see "Open question"
+      above) before settling on a per-step operation shape — confirm
+      whether/how a multi-step chain like `a?.b.c` is represented so that
+      it does *not* reduce to nesting single-step nodes the way `(a?.b).c`
+      would.
 - [ ] Introduce `['unbind', exp]` for de-binding a method reference from its
       receiver.
 - [ ] Add validation/proof coverage matching the `Examples` table's
