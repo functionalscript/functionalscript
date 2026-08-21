@@ -12,7 +12,7 @@
 
 import { validate } from '../types/rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
-import { exp, unaryOpId, binaryOpId } from './module.f.mjs'
+import { exp, op1Id, op2Id } from './module.f.mjs'
 
 /** @type {(r: readonly [string, unknown]) => void} */
 const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
@@ -35,10 +35,10 @@ const assertNoMatch = r => {
 const v = value => validate(exp)(value)
 
 /** @type {(value: Unknown) => readonly [string, unknown]} */
-const vUnaryOpId = value => validate(unaryOpId)(value)
+const vUnaryOpId = value => validate(op1Id)(value)
 
 /** @type {(value: Unknown) => readonly [string, unknown]} */
-const vBinaryOpId = value => validate(binaryOpId)(value)
+const vBinaryOpId = value => validate(op2Id)(value)
 
 /** Every id `unaryOp` currently accepts — kept as a literal list, not derived
  * from `unaryOpId`, so deleting one from the schema reddens exactly its own
