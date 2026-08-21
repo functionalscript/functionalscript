@@ -29,7 +29,7 @@ export type { phantomKey }
  * wrong `T`) and one against the phantom-wrapped export (catches the export
  * and the raw thunk drifting apart), using `Check` from
  * `fjs/types/rtti/ts/types.ts`. See `fjs/edag/module.f.mjs`
- * (`propertyAccessor`/`propertyCall`/`binaryOp`) for the pattern:
+ * (`propertyAccessor`/`propertyCall`/`op2`) for the pattern:
  *
  * ```ts
  * const rawThunk = () => [...] as const

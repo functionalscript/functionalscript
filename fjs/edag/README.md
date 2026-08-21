@@ -26,9 +26,12 @@ kind by node kind — validation behavior, not execution semantics — with
 
 ## Nodes
 
-A node is a primitive or a tagged tuple `[tag, ...operands]`. This table is
-an overview; the contract of record for each node is the JSDoc on its export
-in [module.f.mjs](module.f.mjs).
+A node is a primitive or a tagged tuple `[tag, ...operands]`. In the schema
+and the type-level API, operation nodes are grouped by their `exp`-operand
+count — `op0` (`undefined`, `args`, `frame`), `op1` (unary), `op2` (binary)
+— not by semantic category. This table is an overview; the contract of
+record for each node is the JSDoc on its export in
+[module.f.mjs](module.f.mjs).
 
 | form | meaning |
 |---|---|
@@ -62,7 +65,7 @@ operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]` and spread
   The static types render the closed approximation — TypeScript cannot carry
   the open tuple mapping generically (`TupleTs` in
   [ts/types.ts](../types/rtti/ts/types.ts)) — so that same runtime-valid
-  `['args', 'extra']` is not assignable to `Args`.
+  `['args', 'extra']` is not assignable to `Op0`.
 - Neither `validate` nor `parse` is identity-aware, each in its own way:
   `validate` returns the original value — sharing intact — but re-walks a
   shared subgraph once per incoming edge (exponential in depth) and

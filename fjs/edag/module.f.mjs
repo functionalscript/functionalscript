@@ -4,7 +4,6 @@
  * @import { Assert } from '../asserts/types.ts'
  * @import { Check, Check3 } from '../types/rtti/ts/types.ts'
  * @import {
- *  Args,
  *  Array,
  *  Exp,
  *  Primitive,
@@ -13,13 +12,13 @@
  *  PropertyAccessor,
  *  Object,
  *  PropertyCall,
- *  UndefinedOp,
  *  Comma,
- *  Frame,
- *  BinaryOpId,
- *  BinaryOp,
- *  UnaryOpId,
- *  UnaryOp,
+ *  Op2Id,
+ *  Op2,
+ *  Op1Id,
+ *  Op1,
+ *  Op0Id,
+ *  Op0,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -34,11 +33,10 @@ import {
 } from "../types/rtti/module.f.mjs";
 
 /**
- * `args`, `propertyAccessor`, `propertyCall`, and `unaryOp`/`binaryOp` (like
+ * `propertyAccessor`, `propertyCall`, and `op0`/`op1`/`op2` (like
  * `array`/`object`) are open on trailing/extra elements — see "Structs and
  * tuples are open" in `../types/rtti/README.md`. Exact arity is tracked as
- * future work in
- * `../types/rtti/todo/close-type.md`, not implemented here yet.
+ * future work in `../types/rtti/todo/close-type.md`, not implemented here yet.
  *
  * Do not call `parse(exp)` or rely on `validate(exp)` rejecting cycles
  * without reading `../types/rtti/todo/identity-aware-parse.md` first —
@@ -52,48 +50,39 @@ import {
  *  typeof primitive,
  *  typeof array,
  *  typeof object,
- *  typeof args,
  *  typeof propertyAccessor,
  *  typeof propertyCall,
  *  typeof comma,
- *  typeof frame,
- *  typeof binaryOp,
- *  typeof unaryOp,
+ *  typeof op2,
+ *  typeof op1,
+ *  typeof op0,
  * ]}
  */
 export const exp = () => (['or',
     primitive,
     array,
     object,
-    args,
     propertyAccessor,
     propertyCall,
     comma,
-    frame,
-    binaryOp,
-    unaryOp,
+    op2,
+    op1,
+    op0,
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
 
-// Undefined
-
-/**
- * ```js
- * undefined
- * ```
- *
- * Tagged, unlike the other primitives: a bare `undefined` is
- * indistinguishable from a missing tuple position ("Structs and tuples are
- * open" in `../types/rtti/README.md`), so it gets a node of its own.
- */
-export const undefinedOp = /** @type {const} */(['undefined'])
-
-/** @typedef {Assert<Check<UndefinedOp, typeof undefinedOp>>} _UndefinedOp */
-
 // Primitive
 
-export const primitive = or(undefinedOp, null, boolean, number, string, bigint)
+/**
+ * Bare constant values — no tag, no operands, not an operation node at all.
+ * `undefined` is deliberately not among them: its EDAG representation,
+ * `['undefined']`, *is* a tagged operation node (so a bare `undefined` stays
+ * distinguishable from a missing tuple position), which puts it in the
+ * `op0`/`op1`/`op2` grouping below by the same arity rule as every other
+ * operation, not here.
+ */
+export const primitive = or(null, boolean, number, string, bigint)
 
 /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
 
@@ -134,15 +123,6 @@ export const property = /** @type {const} */([':', exp, exp])
 export const object = /** @type {const} */(['{}', rttiArray(property)])
 
 /** @typedef {Assert<Check<Object, typeof object>>} _Object */
-
-// Args
-
-/**
- * A function arguments.
- */
-export const args = /** @type {const} */(['args'])
-
-/** @typedef {Assert<Check<Args, typeof args>>} _Args */
 
 // Number
 
@@ -201,7 +181,7 @@ const _propertyCall = /** @type {const} */(['.()', exp, index, exp])
  *
  * A method call, keeping the `this` binding. The last operand is one node
  * evaluating to the complete argument array, not a literal operand list —
- * the same convention as `()` (see `binaryOpId`).
+ * the same convention as `()` (see `op2Id`).
  *
  * @type {Phantom<typeof _propertyCall, PropertyCall>}
  */
@@ -233,14 +213,26 @@ export const comma = _comma
  * @typedef {Assert<Check3<Comma, typeof _comma, typeof comma>>} _Comma
  */
 
-// Frame
+// No-Args Operations
 
 /**
- * The function's captured-consts frame, the way `args` is for the arguments.
+ * `op0`/`op1`/`op2` group operation nodes by their `exp`-operand count —
+ * zero, one, or two — not by any semantic category. `undefined`/`args`/
+ * `frame` all take zero `exp` operands after the tag, so all three are
+ * `op0`, regardless of what each individually means: the `undefined` value,
+ * the arguments array, and the captured-consts frame — the way `args` is
+ * for the arguments.
  */
-export const frame = /** @type {const} */(['frame'])
+export const op0Id = or('undefined', 'args', 'frame')
 
-/** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */
+/** @typedef {Assert<Check<Op0Id, typeof op0Id>>} _Op0Id */
+
+const _op0 = /** @type {const} */([op0Id])
+
+/** @type {Phantom<typeof _op0, Op0>} */
+export const op0 = _op0
+
+/** @typedef {Assert<Check3<Op0, typeof _op0, typeof op0>>} _Op0 */
 
 // Unary Operations
 
@@ -248,16 +240,16 @@ export const frame = /** @type {const} */(['frame'])
  * `String`/`Number` are casts, `neg` is arithmetic negation (a word tag —
  * `-` is binary subtraction), `!` is logical and `~` bitwise not.
  */
-export const unaryOpId = or('String', 'Number', 'neg', '!', '~')
+export const op1Id = or('String', 'Number', 'neg', '!', '~')
 
-/** @typedef {Assert<Check<UnaryOpId, typeof unaryOpId>>} _UnaryOpId */
+/** @typedef {Assert<Check<Op1Id, typeof op1Id>>} _Op1Id */
 
-const _unaryOp = /** @type {const} */([unaryOpId, exp])
+const _op1 = /** @type {const} */([op1Id, exp])
 
-/** @type {Phantom<typeof _unaryOp, UnaryOp>} */
-export const unaryOp = _unaryOp
+/** @type {Phantom<typeof _op1, Op1>} */
+export const op1 = _op1
 
-/** @typedef {Assert<Check3<UnaryOp, typeof _unaryOp, typeof unaryOp>>} _UnaryOp */
+/** @typedef {Assert<Check3<Op1, typeof _op1, typeof op1>>} _Op1 */
 
 // Binary Operations
 
@@ -270,7 +262,7 @@ export const unaryOp = _unaryOp
  * rest are the JS comparison, arithmetic, bitwise, and logical operators
  * they name.
  */
-export const binaryOpId = or(
+export const op2Id = or(
     '=>', 'own', '()',
     '===', '!==', '>', '>=', '<', '<=',
     '+', '-', '*', '/', '%', '**',
@@ -278,11 +270,11 @@ export const binaryOpId = or(
     '&&', '||', '??'
 )
 
-/** @typedef {Assert<Check<BinaryOpId, typeof binaryOpId>>} _BinaryOpId */
+/** @typedef {Assert<Check<Op2Id, typeof op2Id>>} _Op2Id */
 
-const _binaryOp = /** @type {const} */([binaryOpId, exp, exp])
+const _op2 = /** @type {const} */([op2Id, exp, exp])
 
-/** @type {Phantom<typeof _binaryOp, BinaryOp>} */
-export const binaryOp = _binaryOp
+/** @type {Phantom<typeof _op2, Op2>} */
+export const op2 = _op2
 
-/** @typedef {Assert<Check3<BinaryOp, typeof _binaryOp, typeof binaryOp>>} _BinaryOp */
+/** @typedef {Assert<Check3<Op2, typeof _op2, typeof op2>>} _Op2 */
