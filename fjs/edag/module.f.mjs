@@ -260,7 +260,10 @@ export const op1 = _op1
  * `f(...xs)` is `['()', f, xs]`. `own` reads an own property, bypassing the
  * prototype chain — including `__proto__` (`ownJs` in `./proof.f.mjs`). The
  * rest are the JS comparison, arithmetic, bitwise, and logical operators
- * they name.
+ * they name — with `&&`/`||`/`??` short-circuiting exactly as in JS: their
+ * right operand is conditional, never established eagerly. That laziness is
+ * positional, not nodal — the same node referenced from an eager position
+ * elsewhere is still evaluated there.
  */
 export const op2Id = or(
     '=>', 'own', '()',

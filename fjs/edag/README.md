@@ -16,7 +16,7 @@ one-way by design: `fjs/edag` imports nothing from them.
 
 The shape is defined once, as an [RTTI](../types/rtti/) schema in
 [module.f.mjs](module.f.mjs) — the specification of record, checkable at
-runtime with `validate(exp)`. [types.ts](types.ts) carries the same shape at
+runtime with `validate(exp)` (shape only — see Caveats). [types.ts](types.ts) carries the same shape at
 the type level, pinned against the schema with `Assert<Check<...>>` so the
 two cannot drift — exact up to one known approximation: the static tuples
 are closed while the runtime ones are open (see Caveats).
@@ -72,6 +72,12 @@ operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]` and spread
   overflows the stack on a cycle instead of rejecting it; `parse` rebuilds
   every container, so sharing is lost —
   [identity-aware-parse.md](../types/rtti/todo/identity-aware-parse.md).
+  So `validate` is shape validation, not complete EDAG validation:
+  identity-dependent canonicality — acyclicity, and the rule that an
+  operation-node identity may be shared only within one function's scope,
+  never across a `=>` boundary — goes unchecked. The Stage 2 validator for
+  that boundary is tracked in
+  [compile-modules-to-edag.md](../djs/todo/compile-modules-to-edag.md).
 - `[',', exps]` is a known-incomplete placeholder; the settled shape must
   express "at least one operand, last is the result".
 - `index` does not yet exclude `constructor`/`__proto__` —
