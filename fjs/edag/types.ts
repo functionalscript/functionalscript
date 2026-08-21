@@ -107,26 +107,6 @@ export type Fn = readonly['=>', Exp, Exp]
 
 export type Frame = readonly['frame']
 
-// Eq
-
-export type Eq = readonly['===', Exp, Exp]
-
-// Neq
-
-export type Neq = readonly['!==', Exp, Exp]
-
-// Gt
-
-export type Gt = readonly['>', Exp, Exp]
-
-// Lt
-
-export type Lt = readonly['<', Exp, Exp]
-
-// Ge
-
-export type Ge = readonly['>=', Exp, Exp]
-
 // BinaryOpNames
 
 export type BinaryOpId =
