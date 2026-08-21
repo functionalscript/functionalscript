@@ -217,7 +217,7 @@ export const frame = /** @type {const} */(['frame'])
 
 // Unary Operations
 
-export const unaryOpId = or('neg', 'String', 'Number')
+export const unaryOpId = or('String', 'Number', 'neg', '!', '~')
 
 /** @typedef {Assert<Check<UnaryOpId, typeof unaryOpId>>} _UnaryOpId */
 

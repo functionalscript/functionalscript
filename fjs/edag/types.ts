@@ -76,7 +76,7 @@ export type Frame = readonly['frame']
 // UnaryOpIds
 
 export type UnaryOpId =
-    | 'neg' | 'String' | 'Number'
+    | 'String' | 'Number' | 'neg' | '!' | '~'
 
 export type UnaryOp = readonly[UnaryOpId, Exp]
 
