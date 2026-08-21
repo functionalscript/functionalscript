@@ -60,7 +60,7 @@ import {
  *  typeof op0,
  * ]}
  */
-export const exp = () => (['or',
+const _exp = () => (['or',
     primitive,
     array,
     object,
@@ -72,7 +72,10 @@ export const exp = () => (['or',
     op0,
 ])
 
-/** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
+/** @type {Phantom<typeof _exp, Exp>} */
+export const exp = _exp
+
+/** @typedef {Assert<Check3<Exp, typeof _exp, typeof exp>>} _ExpAssert */
 
 // Primitive
 
@@ -104,14 +107,18 @@ export const items = or(exp, spread)
 
 // Array
 
+const _array = /** @type {const} */(['[]', items])
+
 /**
  * ```js
  * [exp0, exp1]
  * ```
+ *
+ * @typedef {Phantom<typeof _array, Array>}
  */
-export const array = /** @type {const} */(['[]', exps])
+export const array = _array
 
-/** @typedef {Assert<Check<Array, typeof array>>} _Array */
+/** @typedef {Assert<Check3<Array, typeof _array, typeof array>>} _Array */
 
 // Property
 
