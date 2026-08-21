@@ -18,17 +18,10 @@ export type Exp =
     | Call
     | PropertyCall
     | Own
-    | Add
-    | Sub
     | Neg
     | Comma
     | Fn
     | Frame
-    | Eq
-    | Neq
-    | Gt
-    | Lt
-    | Ge
 
 // undefinedOp
 
