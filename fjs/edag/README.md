@@ -2,9 +2,12 @@
 
 An **e**xpression **DAG** — the canonical data representation of a function
 body. A body is a single root expression node; a shared subexpression is one
-node referenced from several places, not a copy. That is what makes a
-function's identity exact: one function, one EDAG, one hash — however its
-source spelled it. This module owns the data model only: node kinds, operand
+node referenced from several places, not a copy — sharing is observable
+(`{} === {}` is `false`), so it is part of the function's meaning, not a
+serialization trick. There is no normal form: a function's hash is the
+structural identity of its graph as written, the name-erased source.
+Lowering rules make agreed-on spellings coincide; hash equality does not
+decide semantic equivalence. This module owns the data model only: node kinds, operand
 shapes, and their schema. Producers and executors are staged work that will
 consume it — the [DJS](../djs/) compiler lowering parsed modules to EDAG
 ([compile-modules-to-edag.md](../djs/todo/compile-modules-to-edag.md)), the
@@ -48,8 +51,11 @@ property, bypassing the prototype chain (including `__proto__` — see the
   Deliberate in RTTI
   ([Structs and tuples are open](../types/rtti/README.md#structs-and-tuples-are-open));
   exact arity is future work ([close-type.md](../types/rtti/todo/close-type.md)).
-- `validate`/`parse` are not identity-aware: cycles are not rejected and
-  sharing is not preserved —
+- Neither `validate` nor `parse` is identity-aware, each in its own way:
+  `validate` returns the original value — sharing intact — but re-walks a
+  shared subgraph once per incoming edge (exponential in depth) and
+  overflows the stack on a cycle instead of rejecting it; `parse` rebuilds
+  every container, so sharing is lost —
   [identity-aware-parse.md](../types/rtti/todo/identity-aware-parse.md).
 - `[',', exps]` is a known-incomplete placeholder; the settled shape must
   express "at least one operand, last is the result".
