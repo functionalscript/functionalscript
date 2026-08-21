@@ -78,6 +78,15 @@ export const exp = () => (['or',
 
 // Undefined
 
+/**
+ * ```js
+ * undefined
+ * ```
+ *
+ * Tagged, unlike the other primitives: a bare `undefined` is
+ * indistinguishable from a missing tuple position ("Structs and tuples are
+ * open" in `../types/rtti/README.md`), so it gets a node of its own.
+ */
 export const undefinedOp = /** @type {const} */(['undefined'])
 
 /** @typedef {Assert<Check<UndefinedOp, typeof undefinedOp>>} _UndefinedOp */
@@ -202,7 +211,18 @@ export const propertyCall = _propertyCall
 
 const _comma = /** @type {const} */([',', exps])
 
-/** @type {Phantom<typeof _comma, Comma>} */
+/**
+ * ```js
+ * (exp0, exp1, exp2)
+ * ```
+ *
+ * Establishes all of its operands and takes the value of the last one; the
+ * earlier operands exist for their throw-potential only. The shape is a
+ * known-incomplete placeholder — it cannot yet say "at least one operand,
+ * last is the result"; see the header of `./proof.f.mjs`.
+ *
+ * @type {Phantom<typeof _comma, Comma>}
+ */
 export const comma = _comma
 
 /**
@@ -211,12 +231,19 @@ export const comma = _comma
 
 // Frame
 
+/**
+ * The function's captured-consts frame, the way `args` is for the arguments.
+ */
 export const frame = /** @type {const} */(['frame'])
 
 /** @typedef {Assert<Check<Frame, typeof frame>>} _Frame */
 
 // Unary Operations
 
+/**
+ * `String`/`Number` are casts, `neg` is arithmetic negation (a word tag —
+ * `-` is binary subtraction), `!` is logical and `~` bitwise not.
+ */
 export const unaryOpId = or('String', 'Number', 'neg', '!', '~')
 
 /** @typedef {Assert<Check<UnaryOpId, typeof unaryOpId>>} _UnaryOpId */
@@ -230,6 +257,12 @@ export const unaryOp = _unaryOp
 
 // Binary Operations
 
+/**
+ * `=>` builds a function from a frame and a body, `()` calls one, and `own`
+ * reads an own property, bypassing the prototype chain — including
+ * `__proto__` (`ownJs` in `./proof.f.mjs`). The rest are the JS comparison,
+ * arithmetic, bitwise, and logical operators they name.
+ */
 export const binaryOpId = or(
     '=>', 'own', '()',
     '===', '!==', '>', '>=', '<', '<=',

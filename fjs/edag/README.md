@@ -18,12 +18,15 @@ The shape is defined once, as an [RTTI](../types/rtti/) schema in
 [module.f.mjs](module.f.mjs) — the specification of record, checkable at
 runtime with `validate(exp)`. [types.ts](types.ts) carries the same shape at
 the type level, pinned against the schema with `Assert<Check<...>>` so the
-two cannot drift. [proof.f.mjs](proof.f.mjs) pins the runtime behavior of
-every node kind.
+two cannot drift — exact up to one known approximation: the static tuples
+are closed while the runtime ones are open (see Caveats).
+[proof.f.mjs](proof.f.mjs) pins the runtime behavior of every node kind.
 
 ## Nodes
 
-A node is a primitive or a tagged tuple `[tag, ...operands]`.
+A node is a primitive or a tagged tuple `[tag, ...operands]`. This table is
+an overview; the contract of record for each node is the JSDoc on its export
+in [module.f.mjs](module.f.mjs).
 
 | form | meaning |
 |---|---|
@@ -51,6 +54,10 @@ property, bypassing the prototype chain (including `__proto__` — see the
   Deliberate in RTTI
   ([Structs and tuples are open](../types/rtti/README.md#structs-and-tuples-are-open));
   exact arity is future work ([close-type.md](../types/rtti/todo/close-type.md)).
+  The static types render the closed approximation — TypeScript cannot carry
+  the open tuple mapping generically (`TupleTs` in
+  [ts/types.ts](../types/rtti/ts/types.ts)) — so that same runtime-valid
+  `['args', 'extra']` is not assignable to `Args`.
 - Neither `validate` nor `parse` is identity-aware, each in its own way:
   `validate` returns the original value — sharing intact — but re-walks a
   shared subgraph once per incoming edge (exponential in depth) and
