@@ -12,21 +12,21 @@ export type Exp =
     | Primitive
     | Array
     | Object
-    | Args
     | PropertyAccessor
     | PropertyCall
     | Comma
-    | Frame
-    | BinaryOp
-    | UnaryOp
-
-// undefinedOp
-
-export type UndefinedOp = readonly['undefined']
+    | Op2
+    | Op1
+    | Op0
 
 // primitive
 
-export type Primitive = UndefinedOp | null | boolean | number | string | bigint
+/**
+ * Bare constant values, not operation nodes — `undefined` is deliberately
+ * excluded, since `['undefined']` is a tagged `Op0` operation, not a bare
+ * value; see `primitive` in `module.f.mjs`.
+ */
+export type Primitive = null | boolean | number | string | bigint
 
 // expressions
 
@@ -43,10 +43,6 @@ export type Property = readonly[':', Exp, Exp]
 // object
 
 export type Object = readonly['{}', readonly Property[]]
-
-// args
-
-export type Args = readonly['args']
 
 // Number
 
@@ -69,24 +65,27 @@ export type PropertyCall = readonly['.()', Exp, Index, Exp]
 
 export type Comma = readonly[',', Exps]
 
-// Frame
+// Op0Ids
 
-export type Frame = readonly['frame']
+export type Op0Id =
+    | 'undefined' | 'args' | 'frame'
 
-// UnaryOpIds
+export type Op0 = readonly[Op0Id]
 
-export type UnaryOpId =
+// Op1Ids
+
+export type Op1Id =
     | 'String' | 'Number' | 'neg' | '!' | '~'
 
-export type UnaryOp = readonly[UnaryOpId, Exp]
+export type Op1 = readonly[Op1Id, Exp]
 
-// BinaryOpIds
+// Op2Ids
 
-export type BinaryOpId =
+export type Op2Id =
     | '=>' | 'own' | '()'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
     | '+' | '-' | '*' | '/' | '%' | '**'
     | '&' | '|' | '^' | '<<' | '>>' | '>>>'
     | '&&' | '||' | '??'
 
-export type BinaryOp = readonly[BinaryOpId, Exp, Exp]
+export type Op2 = readonly[Op2Id, Exp, Exp]
