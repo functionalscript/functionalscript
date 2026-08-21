@@ -12,12 +12,13 @@
  *  PropertyAccessor,
  *  Object,
  *  PropertyCall,
- *  UndefinedOp,
  *  Comma,
  *  Op2Id,
  *  Op2,
  *  Op1Id,
  *  Op1,
+ *  Op0Id,
+ *  Op0,
  * } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
@@ -32,11 +33,10 @@ import {
 } from "../types/rtti/module.f.mjs";
 
 /**
- * `args`, `propertyAccessor`, `propertyCall`, and `unaryOp`/`binaryOp` (like
+ * `propertyAccessor`, `propertyCall`, and `op0`/`op1`/`op2` (like
  * `array`/`object`) are open on trailing/extra elements — see "Structs and
  * tuples are open" in `../types/rtti/README.md`. Exact arity is tracked as
- * future work in
- * `../types/rtti/todo/close-type.md`, not implemented here yet.
+ * future work in `../types/rtti/todo/close-type.md`, not implemented here yet.
  *
  * Do not call `parse(exp)` or rely on `validate(exp)` rejecting cycles
  * without reading `../types/rtti/todo/identity-aware-parse.md` first —
@@ -71,12 +71,6 @@ export const exp = () => (['or',
 ])
 
 /** @typedef {Assert<Check<Exp, typeof exp>>} _ExpAssert */
-
-// Undefined
-
-export const undefinedOp = /** @type {const} */(['undefined'])
-
-/** @typedef {Assert<Check<UndefinedOp, typeof undefinedOp>>} _UndefinedOp */
 
 // Primitive
 
@@ -200,7 +194,14 @@ export const comma = _comma
 
 export const op0Id = or('undefined', 'args', 'frame')
 
-export const op0 = /** @type {const} */([op0Id])
+/** @typedef {Assert<Check<Op0Id, typeof op0Id>>} _Op0Id */
+
+const _op0 = /** @type {const} */([op0Id])
+
+/** @type {Phantom<typeof _op0, Op0>} */
+export const op0 = _op0
+
+/** @typedef {Assert<Check3<Op0, typeof _op0, typeof op0>>} _Op0 */
 
 // Unary Operations
 
@@ -213,7 +214,7 @@ const _op1 = /** @type {const} */([op1Id, exp])
 /** @type {Phantom<typeof _op1, Op1>} */
 export const op1 = _op1
 
-/** @typedef {Assert<Check<Op1, typeof op1>>} _Op1 */
+/** @typedef {Assert<Check3<Op1, typeof _op1, typeof op1>>} _Op1 */
 
 // Binary Operations
 

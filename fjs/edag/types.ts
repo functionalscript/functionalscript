@@ -19,10 +19,6 @@ export type Exp =
     | Op1
     | Op0
 
-// undefinedOp
-
-export type UndefinedOp = readonly['undefined']
-
 // primitive
 
 export type Primitive = null | boolean | number | string | bigint

@@ -12,7 +12,7 @@
 
 import { validate } from '../types/rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
-import { exp, op1Id, op2Id } from './module.f.mjs'
+import { exp, op0Id, op1Id, op2Id } from './module.f.mjs'
 
 /** @type {(r: readonly [string, unknown]) => void} */
 const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
@@ -35,18 +35,24 @@ const assertNoMatch = r => {
 const v = value => validate(exp)(value)
 
 /** @type {(value: Unknown) => readonly [string, unknown]} */
-const vUnaryOpId = value => validate(op1Id)(value)
+const vOp0Id = value => validate(op0Id)(value)
 
 /** @type {(value: Unknown) => readonly [string, unknown]} */
-const vBinaryOpId = value => validate(op2Id)(value)
+const vOp1Id = value => validate(op1Id)(value)
 
-/** Every id `unaryOp` currently accepts — kept as a literal list, not derived
- * from `unaryOpId`, so deleting one from the schema reddens exactly its own
+/** @type {(value: Unknown) => readonly [string, unknown]} */
+const vOp2Id = value => validate(op2Id)(value)
+
+/** Every id `op0` currently accepts — kept as a literal list, not derived
+ * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
-const unaryOpIds = /** @type {const} */ (['neg', 'String', 'Number'])
+const op0Ids = /** @type {const} */ (['undefined', 'args', 'frame'])
 
-/** Same purpose as `unaryOpIds`, for `binaryOp`. */
-const binaryOpIds = /** @type {const} */ ([
+/** Same purpose as `op0Ids`, for `op1`. */
+const op1Ids = /** @type {const} */ (['neg', 'String', 'Number'])
+
+/** Same purpose as `op0Ids`, for `op2`. */
+const op2Ids = /** @type {const} */ ([
     '=>', 'own', '()',
     '===', '!==', '>', '>=', '<', '<=',
     '+', '-', '*', '/', '%', '**',
@@ -69,16 +75,11 @@ export const proof = {
             // but matches none of `exp`'s alternatives — not a primitive,
             // and not a tagged tuple with an index 0.
             assertNoMatch(v({}))
-            // Bare `undefined` is not a primitive here — see `undefinedOp`.
+            // Bare `undefined` is not a primitive here — see `op0`.
             // A bare `undefined` would be indistinguishable from a missing
             // tuple position, so `['undefined']` is its own node instead.
             assertNoMatch(v(undefined))
         },
-    },
-    undefinedOp: {
-        ok: () => assertOk(v(['undefined'])),
-        extraTailIsIgnored: () => assertOk(v(['undefined', 'ignored'])),
-        error: () => assertNoMatch(v(['undefinedz'])),
     },
     array: {
         ok: () => {
@@ -100,16 +101,6 @@ export const proof = {
             assertNoMatch(v(['{}', [[':', 'a', {}]]])) // bad value
             assertNoMatch(v(['{}', [['a', 1]]])) // missing the `:` tag
             assertNoMatch(v(['{}', [[':', 'a']]])) // missing the value
-        },
-    },
-    args: {
-        ok: () => assertOk(v(['args'])),
-        // Tuples are open on the trailing side — an element past the schema's
-        // own entries is never visited, so it can't fail validation.
-        extraTailIsIgnored: () => assertOk(v(['args', 'ignored'])),
-        error: () => {
-            assertNoMatch(v([]))
-            assertNoMatch(v(['argz']))
         },
     },
     propertyAccessor: {
@@ -138,26 +129,40 @@ export const proof = {
         error: () => {
             assertNoMatch(v(['.(x)', 'o', 'k', 1]))
             // The third operand missing reads as `undefined` — an error,
-            // same as `unaryOp`/`binaryOp`'s `missingTailIsError`.
+            // same as `op1`/`op2`'s `missingTailIsError`.
             assertNoMatch(v(['.()', 'o', 'k']))
         },
     },
-    frame: {
-        ok: () => assertOk(v(['frame'])),
+    op0: {
+        ok: () => {
+            // Every id `op0` accepts, pinned individually: deleting any one
+            // of these three from `op0Id` reddens exactly this loop, not
+            // some other assertion that happens to still pass.
+            for (const id of op0Ids) {
+                assertOk(v([id]))
+            }
+        },
         // Tuples are open on the trailing side — an element past the schema's
         // own entries is never visited, so it can't fail validation.
-        extraTailIsIgnored: () => assertOk(v(['frame', 'ignored'])),
+        extraTailIsIgnored: () => assertOk(v(['args', 'ignored'])),
         error: () => {
             assertNoMatch(v([]))
-            assertNoMatch(v(['framez']))
+            assertNoMatch(v(['argz']))
+        },
+        // `op0Id` is a real constraint, not a stand-in for `string`: an id
+        // outside its three members is rejected, both directly and as part
+        // of a full `exp` value.
+        unknownIdIsRejected: () => {
+            assertNoMatch(vOp0Id('xyz'))
+            assertNoMatch(v(['xyz']))
         },
     },
-    unaryOp: {
+    op1: {
         ok: () => {
-            // Every id `unaryOp` accepts, pinned individually: deleting any
-            // one of these three from `unaryOpId` reddens exactly this loop,
-            // not some other assertion that happens to still pass.
-            for (const id of unaryOpIds) {
+            // Every id `op1` accepts, pinned individually: deleting any one
+            // of these five from `op1Id` reddens exactly this loop, not
+            // some other assertion that happens to still pass.
+            for (const id of op1Ids) {
                 assertOk(v([id, 1]))
             }
             assertOk(v(['neg', ['neg', 1]])) // an exp nested inside the operand
@@ -166,20 +171,20 @@ export const proof = {
             assertOk(v(['()', ['Number', 1], 2]))
         },
         // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`.
+        // `exp` — see `op0`.
         missingTailIsError: () => assertNoMatch(v(['neg'])),
         extraTailIsIgnored: () => assertOk(v(['neg', 1, 'extra'])),
         error: () => assertNoMatch(v(['negz', 1])),
-        // `unaryOpId` is a real constraint, not a stand-in for `string`: an
-        // id outside its three members is rejected, both directly and as
-        // part of a full `exp` value.
+        // `op1Id` is a real constraint, not a stand-in for `string`: an id
+        // outside its five members is rejected, both directly and as part
+        // of a full `exp` value.
         unknownIdIsRejected: () => {
-            assertNoMatch(vUnaryOpId('xyz'))
+            assertNoMatch(vOp1Id('xyz'))
             assertNoMatch(v(['xyz', 1]))
         },
         // `own`'s point is bypassing the prototype chain — including the
         // `__proto__` special case a computed key already avoids in JS.
-        // Demonstrates the pattern `['own', ...]` (a `binaryOp` id) denotes;
+        // Demonstrates the pattern `['own', ...]` (an `op2` id) denotes;
         // not a schema check.
         ownJs: () => {
             /** @type {<T>(a: StringMap<T>, k: string) => T|undefined } */
@@ -189,29 +194,29 @@ export const proof = {
             assertEq(own(a, 'x'), undefined)
         },
     },
-    binaryOp: {
+    op2: {
         ok: () => {
-            // Every id `binaryOp` accepts, pinned individually — including
-            // the fourteen this PR adds (`<=`, `*`, `/`, `%`, `**`, `&`, `|`,
+            // Every id `op2` accepts, pinned individually — including the
+            // fourteen this PR adds (`<=`, `*`, `/`, `%`, `**`, `&`, `|`,
             // `^`, `<<`, `>>`, `>>>`, `&&`, `||`, `??`), which had no proof
             // at all before this: deleting any one of the twenty-four from
-            // `binaryOpId` reddens exactly this loop.
-            for (const id of binaryOpIds) {
+            // `op2Id` reddens exactly this loop.
+            for (const id of op2Ids) {
                 assertOk(v([id, 1, 2]))
             }
             assertOk(v(['+', ['+', 1, 2], 3])) // an exp nested inside an operand
         },
         // A missing operand reads as `undefined`, no longer a valid bare
-        // `exp` — see `undefinedOp`. True whether one or both are missing.
+        // `exp` — see `op0`. True whether one or both are missing.
         missingTailIsError: () => {
             assertNoMatch(v(['+', 1]))
             assertNoMatch(v(['+']))
         },
         extraTailIsIgnored: () => assertOk(v(['+', 1, 2, 3])),
         error: () => assertNoMatch(v(['+z', 1, 2])),
-        // Same point as `unaryOp`'s: `binaryOpId` constrains membership.
+        // Same point as `op1`'s: `op2Id` constrains membership.
         unknownIdIsRejected: () => {
-            assertNoMatch(vBinaryOpId('xyz'))
+            assertNoMatch(vOp2Id('xyz'))
             assertNoMatch(v(['xyz', 1, 2]))
         },
     },
