@@ -59,8 +59,10 @@ binary ids, `=>` builds a function, `()` calls one, and `own` reads an own
 property, bypassing the prototype chain (including `__proto__` — see the
 `ownJs` proof). A call's arguments — `()`'s second operand and `.()`'s last
 — are one node evaluating to the complete argument array, not a literal
-operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]` and spread
-`f(...xs)` is `['()', f, xs]`.
+operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]`, and `f(...xs)`
+needs no `...` node at all, since `['()', f, xs]` already passes the whole
+array through. A `...` node is what mixes the two: `f(a, ...b)` is
+`['()', f, ['[]', [a, ['...', b]]]]`.
 
 ## Caveats
 
@@ -89,6 +91,13 @@ operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]` and spread
   operand a true root" — a single-operand `,` is the identity, an operand
   reachable from a sibling of the same `,` a redundant anchor, both
   non-canonical.
+- `['...', exp]` is shape-checked only, and what its operand must evaluate
+  to differs by the container it sits in — neither constraint expressible in
+  a shape-only schema. In an array the operand must be iterable (`[...1]`,
+  `[...null]`, and `[...{a: 1}]` all throw); in an object anything goes,
+  with primitives and `null` simply contributing nothing (`{...null}` is
+  `{}`). Object spread copies own enumerable properties *through* getters,
+  unlike `own`, which reads the descriptor's value and never calls one.
 - `index` does not yet exclude `constructor`/`__proto__` —
   [excluded-string-values.md](../types/rtti/todo/excluded-string-values.md).
 
