@@ -1,8 +1,9 @@
 /**
  * Type-level API for `fjs/edag/module.f.mjs`: `Exp`, the union of every EDAG
- * node kind (`Primitive`, `Array`, `Object`, `Args`, `NumberCast`,
- * `PropertyAccessor`, `Call`, `PropertyCall`), each pinned against its rtti
- * schema in the sibling module with `Assert<Check<..., typeof ...>>`.
+ * node kind — see the union immediately below for the current list, rather
+ * than enumerating it here too, where it silently drifts stale as nodes are
+ * added — each pinned against its rtti schema in the sibling module with
+ * `Assert<Check<..., typeof ...>>`.
  */
 
 // exp
