@@ -127,6 +127,27 @@ Notes on the shape:
   it: its bytes stay where they were, in its own stream, and the next call
   finds them. That is what keeps "no table" (above) true of this operation too
   — the only state is the child's.
+- **Every settled race unsubscribes what it subscribed.** The race arms up to
+  four listeners — `'readable'` and `'end'` on each still-open stream — and
+  exactly one of them fires. `once` retires that one; the other three stay
+  attached, each holding the closure that held that call's `resolve` alive. A
+  caller that takes a hundred stdout chunks while stderr stays open and silent
+  is then carrying a hundred stderr `'readable'` listeners, a hundred stderr
+  `'end'` listeners and a hundred stdout `'end'` listeners — Node warns at
+  eleven per event with `MaxListenersExceededWarning`, and the retained
+  closures grow with the length of the conversation, which in the long-lived
+  protocol this family exists to drive has no bound. Answering correctly is
+  therefore not enough: the winner must resolve THROUGH a cleanup that removes
+  every listener the call added — the losing stream's pair and the sibling
+  event on the stream that won. `waitReadableOrEnd` (`../module.mjs:185-195`)
+  is the precedent and is already written this way: both handlers close over a
+  `cleanup` that calls `removeListener` for `'readable'` and `'end'` before it
+  resolves, and its comment gives the same reason — *"Both listeners are
+  removed the moment either fires, so a long-running server that idles between
+  messages never accumulates leftover `'readable'`/`'end'` listeners"*. This
+  does not reopen "no table" (above): the handlers and their cleanup are
+  locals of a single call and are gone once it settles, so nothing is recorded
+  against the child between calls.
 - **`childKill` exists because a child may ignore EOF.** `childEnd` closes
   stdin and nothing more. A server that keeps running, a protocol exchange that
   stalls, a client-side failure needing cleanup — in each, `childWait` waits
@@ -214,8 +235,12 @@ Open for review before code:
       buffer before the first `childReadAny` — distinct from the case above,
       which is about EOF, this one is about simultaneous readiness, and
       successive calls must deliver both chunks rather than lose the one that
-      did not win the race; and one that reads before the child has replied,
-      which must NOT read as EOF.
+      did not win the race; one whose child answers many successive
+      `childReadAny` calls on stdout while stderr stays open and silent,
+      asserting over `asBase(child)` that neither stream's readiness listener
+      count grows from one call to the next — a leaked waiter changes no
+      answer, so only the counts can catch it; and one that reads before the
+      child has replied, which must NOT read as EOF.
 - [ ] **Give every hang-regression case its own deadline**, one that kills the
       child and fails the case. The self-hosted runner has no hard timeout
       (`../../../emergent_testing/todo/206.md:43-55`), so a returning
