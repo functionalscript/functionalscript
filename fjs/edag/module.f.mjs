@@ -19,7 +19,6 @@
  *  Neg,
  *  Own,
  *  Comma,
- *  Fn,
  *  Frame,
  *  BinaryOpId,
  *  BinaryOp,
@@ -63,7 +62,6 @@ import {
  *  typeof own,
  *  typeof neg,
  *  typeof comma,
- *  typeof fn,
  *  typeof frame,
  *  typeof binaryOp,
  * ]}
@@ -81,7 +79,6 @@ export const exp = () => (['or',
     own,
     neg,
     comma,
-    fn,
     frame,
     binaryOp,
 ])
@@ -282,17 +279,6 @@ export const comma = _comma
  * @typedef {Assert<Check3<Comma, typeof _comma, typeof comma>>} _Comma
  */
 
-// Function
-
-const _fn = /** @type {const} */(['=>', exp, exp])
-
-/** @type {Phantom<typeof _fn, Fn>} */
-export const fn = _fn
-
-/**
- * @typedef {Assert<Check3<Fn, typeof _fn, typeof fn>>} _Fn
- */
-
 // Frame
 
 export const frame = /** @type {const} */(['frame'])
@@ -302,6 +288,7 @@ export const frame = /** @type {const} */(['frame'])
 //
 
 export const binaryOpId = or(
+    '=>',
     '===', '!==', '>', '>=', '<', '<=',
     '+', '-', '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',

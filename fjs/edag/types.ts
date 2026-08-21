@@ -21,7 +21,6 @@ export type Exp =
     | Own
     | Neg
     | Comma
-    | Fn
     | Frame
     | BinaryOp
 
@@ -99,10 +98,6 @@ export type Neg = readonly['neg', Exp]
 
 export type Comma = readonly[',', Exps]
 
-// Fn
-
-export type Fn = readonly['=>', Exp, Exp]
-
 // Frame
 
 export type Frame = readonly['frame']
@@ -110,6 +105,7 @@ export type Frame = readonly['frame']
 // BinaryOpNames
 
 export type BinaryOpId =
+    | '=>'
     | '===' | '!==' | '>' | '>=' | '<'  | '<='
     | '+'   | '-'   | '*' | '/'  | '%'  | '**'
     | '&'   | '|'   | '^' | '<<' | '>>' | '>>>'
