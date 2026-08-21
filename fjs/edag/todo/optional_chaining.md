@@ -1,6 +1,6 @@
 ## Optional chaining and unbind
 
-**Priority:** P3
+**Priority:** P4
 **Status:** open
 
 ### Problem
@@ -18,7 +18,11 @@ source compilation covers general method-call chains, not just the
 unconditional forms already in
 [`compile-modules-to-edag.md`](../../djs/todo/compile-modules-to-edag.md).
 
-### Proposal
+### Scratches
+
+Not a proposal — exploratory notes and behavior examples only, written while
+poking at the problem. Nothing below is a settled operation shape; see
+"Tasks" for what actually comes next.
 
 #### 3 Main Operations
 
@@ -120,20 +124,16 @@ the way `.`/`()` already do.
 
 ### Tasks
 
-- [ ] Introduce optional property access `a?.b` and optional call `a?.(b)`
-      into the EDAG operation vocabulary.
-- [ ] Introduce the four `a.b(c)`-shaped chaining variants (`.()`, `?.()`,
-      `.?.()`, `?.?.()`) that mix a plain/optional property step with a
-      plain/optional call step.
-- [ ] Resolve chain-wide short-circuit propagation (see "Open question"
-      above) before settling on a per-step operation shape — confirm
-      whether/how a multi-step chain like `a?.b.c` is represented so that
-      it does *not* reduce to nesting single-step nodes the way `(a?.b).c`
-      would.
-- [ ] Introduce `['unbind', exp]` for de-binding a method reference from its
-      receiver.
-- [ ] Add validation/proof coverage matching the `Examples` table's
-      throw/no-throw semantics.
+The scratches above surfaced real edge cases faster than they surfaced a
+design — the next step is investigation, not implementation.
+
+- [ ] Investigate optional chaining and unbind thoroughly: enumerate the
+      edge cases (chain-wide short-circuit propagation past multiple steps,
+      see "Open question" above; parens as a hard boundary for chaining vs.
+      pure grouping for unbind; interaction with `??`/other operators;
+      anything else the scratches above didn't cover) and come up with a
+      concrete proposal for the EDAG operation shape(s) — not assuming
+      single-step nesting composes the way `.`/`()` already do.
 
 ### Related
 
