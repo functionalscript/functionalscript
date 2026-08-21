@@ -114,6 +114,19 @@ Notes on the shape:
   through `childRead(child, stream)`, which sharpens the last open question
   below: if `childReadAny` replaces `childRead` outright, nothing can observe one
   stream ending before the other.
+- **The race consumes only the stream it answers with.** Readiness and
+  consumption are separate steps, and a runner that raced two `childRead` calls
+  collapses them: each call takes a chunk out of its own stream, only one of
+  them is returned, and the loser's bytes are gone — a later `childReadAny`
+  resumes after the chunk it already swallowed and never delivers it. Two
+  streams buffered before the first call would answer one chunk and silently
+  drop the other. So `childReadAny` waits on the readiness events of the
+  still-open streams — `'readable'` against `'end'`, as `childRead` already
+  does — and calls `read()` on the winner ALONE. The loser needs no buffer and
+  no cancellation of an in-flight read, because no read was ever issued against
+  it: its bytes stay where they were, in its own stream, and the next call
+  finds them. That is what keeps "no table" (above) true of this operation too
+  — the only state is the child's.
 - **`childKill` exists because a child may ignore EOF.** `childEnd` closes
   stdin and nothing more. A server that keeps running, a protocol exchange that
   stalls, a client-side failure needing cleanup — in each, `childWait` waits
@@ -197,14 +210,31 @@ Open for review before code:
       that deadlocks a single-stream reader; one whose child ends stdout and
       keeps writing to stderr afterwards, where `childReadAny` must deliver
       every later stderr chunk and answer `null` only once both streams have
-      ended; and one that reads before the child has replied, which must NOT
-      read as EOF.
+      ended; one whose child writes to BOTH streams and lets both chunks
+      buffer before the first `childReadAny` — distinct from the case above,
+      which is about EOF, this one is about simultaneous readiness, and
+      successive calls must deliver both chunks rather than lose the one that
+      did not win the race; and one that reads before the child has replied,
+      which must NOT read as EOF.
 - [ ] **Give every hang-regression case its own deadline**, one that kills the
       child and fails the case. The self-hosted runner has no hard timeout
       (`../../../emergent_testing/todo/206.md:43-55`), so a returning
       regression would hang `fjs test` rather than redden it — a guard against
       hanging that hangs is worth less than no guard, because it stops the
       whole suite instead of one case.
+- [ ] `deno.json`: add `--allow-run` to the tasks that run the suite. `test`,
+      `cov` and `cov-html` (`../../../../deno.json:4-6`) grant only
+      `--allow-read --allow-env --allow-sys`, and the `deno` CI job runs
+      `deno task cov` (`../../../../.github/workflows/ci.yml:404`), so the
+      first discovered proof to reach `node:child_process.spawn` fails there on
+      a permission error before a single case runs. Scope the grant to what the
+      proofs actually spawn if that suffices — under a scoped
+      `--allow-run=node` the "command that does not exist" case above surfaces
+      as a Deno permission error rather than `ENOENT`, so scope or assert
+      accordingly. The `ci.yml:398` step already runs with `-A` and needs
+      nothing. This belongs to the implementation, not to this note: nothing
+      spawns yet, so widening the grant now would loosen CI for code that does
+      not exist.
 - [ ] `../virtual/module.f.mjs`: extend the not-implemented list in its docs.
 - [ ] `npx tsc`, `npm test`, `npm run cov`.
 
