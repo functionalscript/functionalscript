@@ -13,8 +13,6 @@ export type Exp =
     | Array
     | Object
     | Args
-    | NumberCast
-    | StringCast
     | PropertyAccessor
     | PropertyCall
     | Comma
@@ -53,10 +51,6 @@ export type Args = readonly['args']
 // Number
 
 export type NumberCast = readonly['Number', Exp]
-
-// String
-
-export type StringCast = readonly['String', Exp]
 
 // Index — shape only; see `index` in `module.f.mjs` for what this doesn't
 // cover (e.g. denylisted property names like `constructor`)

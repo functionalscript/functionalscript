@@ -53,8 +53,6 @@ import {
  *  typeof array,
  *  typeof object,
  *  typeof args,
- *  typeof numberCast,
- *  typeof stringCast,
  *  typeof propertyAccessor,
  *  typeof propertyCall,
  *  typeof comma,
@@ -68,8 +66,6 @@ export const exp = () => (['or',
     array,
     object,
     args,
-    numberCast,
-    stringCast,
     propertyAccessor,
     propertyCall,
     comma,
@@ -154,23 +150,6 @@ export const numberCast = _numberCast
 
 /**
  * @typedef {Assert<Check3<NumberCast, typeof _numberCast, typeof numberCast>>} _NumberCast
- */
-
-// String
-
-const _stringCast = /** @type {const} */(['String', exp])
-
-/**
- * ```js
- * String(exp)
- * ```
- *
- * @type {Phantom<typeof _stringCast, StringCast>}
- */
-export const stringCast = _stringCast
-
-/**
- * @typedef {Assert<Check3<StringCast, typeof _stringCast, typeof stringCast>>} _StringCast
  */
 
 // Index
