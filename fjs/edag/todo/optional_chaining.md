@@ -54,8 +54,8 @@ No `Exp` produces `this`, optional-chain state, or any other HCF result. HCF is
 created, transformed, consumed, and discarded only by an operator while it
 interprets a structural `Lambda`.
 
-All four lambda operations are simple fixed-arity steps and **none of them has
-a continuation operand**:
+All four lambda operations have required operands and **none of them has a
+continuation operand**:
 
 ```js
 ['|.', property]
@@ -63,6 +63,10 @@ a continuation operand**:
 ['|?.', property]
 ['|?.()', args]
 ```
+
+There are no optional operands in this vocabulary. When an expression-level
+operator has no further lambda work, it still carries the lambda operand and
+uses the empty array `[]`.
 
 An optional expression operator owns a `Lambda` array representing the rest of
 its optional HCF region:
@@ -75,8 +79,9 @@ its optional HCF region:
 ```
 
 An optional lambda (`|?.` or `|?.()`) short-circuits the remaining suffix of
-its containing lambda array when its input is nullish. The lambda itself does
-not own another continuation.
+its containing lambda array when its input is nullish. On the short-circuit
+branch it produces the ordinary value `undefined` and skips the remaining
+suffix. The lambda itself does not own another continuation.
 
 #### Optional-chain boundaries
 
@@ -101,7 +106,14 @@ Optional lambda operations use the array that already contains them:
 ]]
 ```
 
-If the input to `|?.c` is nullish, the remaining suffix (`|.d`) is skipped.
+If the input to `|?.c` is nullish, `|?.` produces `undefined` and the remaining
+suffix (`|.d`) is skipped.
+
+For optional property access, the property/index operand is evaluated only on
+the non-nullish branch. In particular, for `a?.[k]`, `a` is evaluated first;
+if it is nullish, the result is `undefined` and `k` is not evaluated. The same
+rule applies to `|?.`.
+
 Grouping ends the current HCF region and therefore produces a new
 expression-level optional operator:
 
@@ -125,8 +137,9 @@ A longer chain stays flat even when it contains more than one optional step:
 ]]
 ```
 
-If `a` is nullish, the outer `?.` skips the whole array. If the input to
-`|?.d` is nullish, that lambda skips only the remaining suffix `|.e`.
+If `a` is nullish, the outer `?.` skips the whole array and produces
+`undefined`. If the input to `|?.d` is nullish, that lambda produces
+`undefined` and skips only the remaining suffix `|.e`.
 
 #### Receiver HCF inside lambda evaluation
 
@@ -158,8 +171,14 @@ The call lambda operators consume receiver state when present:
 |?.()  optional call current value with current `this` if present
 ```
 
-After a call lambda, its result becomes the current ordinary value and the
-receiver is cleared. A later property lambda can establish a new receiver.
+For `|?.()`, the argument operand is evaluated only after the current value has
+been checked to be non-nullish. If the current value is nullish, `|?.()`
+produces `undefined`, skips its argument operand, and short-circuits the
+remaining suffix of the containing lambda.
+
+After a successful call lambda, its result becomes the current ordinary value
+and the receiver is cleared. A later property lambda can establish a new
+receiver.
 
 For example:
 
@@ -171,7 +190,8 @@ For example:
 ```
 
 On the successful branch, `?.` enters its lambda with `value = a.b` and
-`this = a`, so `|?.()` calls `a.b` with `this = a`.
+`this = a`, so `|?.()` calls `a.b` with `this = a`. If `a.b` is nullish, `c`
+is not evaluated and the result is `undefined`.
 
 A longer chain works the same way:
 
@@ -228,6 +248,10 @@ An empty lambda therefore represents an ordinary call:
 // f?.(...a)
 ['?.()', f, [], a, []]
 ```
+
+For `?.()`, the `args` operand is evaluated only after the value produced by
+`input + lambda` has been checked to be non-nullish. If it is nullish, `args`
+and `continuation` are not evaluated and the result is `undefined`.
 
 A property lambda produces the receiver for a method-style call:
 
@@ -317,8 +341,9 @@ state at the point of the call.
 ]]
 ```
 
-If `a` is nullish, the outer `?.` skips the whole lambda. If `a.b` is nullish,
-`|?.()` skips the remaining `.d(...f)` suffix.
+If `a` is nullish, the outer `?.` skips the whole lambda and produces
+`undefined`. If `a.b` is nullish, `|?.()` skips evaluation of `c`, produces
+`undefined`, and skips the remaining `.d(...f)` suffix.
 
 Grouping moves the optional call outside the optional-property HCF while still
 preserving receiver state through the call's own lambda:
@@ -358,19 +383,25 @@ receiver of `.e`.
 
 The ordinary and lambda-operation forms are:
 
-|JS         |exp                                      |lambda operation     |
-|-----------|-----------------------------------------|---------------------|
-|`a.b`      |`['.', a:exp, b:exp]`                    |`['\|.', b:exp]`     |
-|`a(...b)`  |`['()', a:exp, lambda, b:exp]`           |`['\|()', b:exp]`    |
-|`a?.b`     |`['?.', a:exp, b:exp, lambda]`           |`['\|?.', b:exp]`    |
-|`a?.(...b)`|`['?.()', a:exp, lambda, b:exp, lambda]` |`['\|?.()', b:exp]` |
+|JS         |exp                                        |lambda operation       |
+|-----------|-------------------------------------------|------------------------|
+|`a.b`      |`['.', a:exp, b:index]`                    |`['\|.', b:index]`      |
+|`a(...b)`  |`['()', a:exp, lambda, b:exp]`             |`['\|()', b:exp]`       |
+|`a?.b`     |`['?.', a:exp, b:index, lambda]`           |`['\|?.', b:index]`     |
+|`a?.(...b)`|`['?.()', a:exp, lambda, b:exp, lambda]`   |`['\|?.()', b:exp]`     |
 
 `lambda` is `readonly LambdaOp[]`. Lambda operations themselves never carry
-continuations.
+continuations. All operands shown in these forms are required; absence of
+lambda work is represented explicitly by `[]`, not by an omitted operand.
 
 For expression calls, the first lambda is evaluated before the call and may
 produce receiver state for that call. For `?.()`, the final lambda is the
 optional-call continuation executed after the call succeeds.
+
+The RTTI shapes should define these required operand prefixes. Current RTTI
+tuple/container types are open, so rejecting arbitrary extra trailing elements
+is a general closed-container concern rather than a dependency of this
+proposal. This vocabulary itself does not require optional tuple operands.
 
 #### Why there is no `.()` operator
 
@@ -410,12 +441,16 @@ property access and `?.()` as optional call.
   receiving it from child expressions;
 - lambda operations cannot escape as const computations, so their implicit
   input and receiver are structurally unambiguous;
-- all four lambda operations are small, fixed-arity steps with no continuation;
+- all four lambda operations are small required-operand steps with no
+  continuation operand;
 - one flat lambda array represents the rest of an HCF region;
-- optional lambdas short-circuit the remaining suffix of that same array;
+- optional lambdas short-circuit the remaining suffix of that same array and
+  produce `undefined`;
+- optional property/index and call argument expressions are evaluated only on
+  their non-nullish branch;
 - `()` / `?.()` use the same lambda representation for both ordinary calls and
   receiver-preserving calls;
-- an empty lambda naturally means "no receiver";
+- an empty lambda naturally means "no receiver" or "no continuation work";
 - receiver state can be created, consumed, cleared, and recreated entirely
   inside structural lambda evaluation;
 - optional-chain boundaries are explicit lambda arrays;
@@ -426,17 +461,20 @@ property access and `?.()` as optional call.
 
 - [ ] Replace the previous `it` / `.this` proposal with `LambdaOp` and
       `Lambda = readonly LambdaOp[]`.
-- [ ] Define exact RTTI shapes for the eight operator forms (`.`, `?.`, `()`,
-      `?.()`, and their four lambda-operation forms) and enforce fixed arity.
-      Lambda operations must not have continuation operands.
+- [ ] Define RTTI shapes for all eight operator forms (`.`, `?.`, `()`, `?.()`,
+      and their four lambda-operation forms). All documented operands are
+      required; use `[]` rather than optional lambda/continuation operands.
 - [ ] Preserve the invariant that every `Exp` evaluates to an ordinary value
       only; `this`, optional short-circuit state, and other HCF must remain
       local evaluator state of operators interpreting `Lambda`.
 - [ ] Make `LambdaOp` a structural type that is not an `Exp` and cannot be
       independently shared/memoized as a computation node.
-- [ ] Define execution semantics for optional lambdas: `|?.` / `|?.()` must
-      short-circuit the remaining suffix of their containing lambda array on a
-      nullish input.
+- [ ] Define execution semantics for `?.` / `|?.`: check the input before
+      evaluating a computed `index`; on a nullish input, skip the index and
+      remaining lambda region as applicable and produce `undefined`.
+- [ ] Define execution semantics for `?.()` / `|?.()`: check the callee before
+      evaluating the argument operand; on a nullish callee, skip arguments and
+      remaining lambda region as applicable and produce `undefined`.
 - [ ] Define execution semantics for receiver propagation through `|.` / `|?.`,
       consumption by `|()` / `|?.()`, and final consumption by expression-level
       `()` / `?.()` when their input lambda ends with receiver state.
@@ -447,10 +485,11 @@ property access and `?.()` as optional call.
   - [ ] Remove `fjs/edag/todo/operations.md` after the new vocabulary has been
         applied; the exploratory operations note will then be superseded.
 - [ ] Cover grouping and HCF boundaries in lowering/execution tests, including
-      `a?.b.c`, `a?.b.c?.d.e`, `a?.b.c(d)`, `(a.b.c)(d)`, `(a?.b)(d)`,
-      `(a?.b.c)(d)`, `(a?.(b).c)(d)`, `a.b?.(d)`, `(a?.b)?.(d)`,
-      `a?.b?.(c).d(f)`, `(a?.b)?.(c).d(f)`, `(a?.(...b)?.c)(d)`, and
-      `(a?.c.d.e(f))(g)`.
+      `a?.[k]` with observable `k`, `f?.(...a)` with observable `a`, nullish
+      short-circuit results, `a?.b.c`, `a?.b.c?.d.e`, `a?.b.c(d)`,
+      `(a.b.c)(d)`, `(a?.b)(d)`, `(a?.b.c)(d)`, `(a?.(b).c)(d)`, `a.b?.(d)`,
+      `(a?.b)?.(d)`, `a?.b?.(c).d(f)`, `(a?.b)?.(c).d(f)`,
+      `(a?.(...b)?.c)(d)`, and `(a?.c.d.e(f))(g)`.
 
 ### Related
 
