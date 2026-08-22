@@ -197,7 +197,7 @@ The three call families therefore have distinct receiver behavior:
 ```text
 () / ?.()           never receive propagated `this`
 |() / |?.()         receive propagated `this` when present
-this() / this?.()   use their explicit receiver semantics
+this() / this?.()   call with the final receiver produced by their lambda
 ```
 
 Ordinary explicit property values still do not carry receiver state as
@@ -214,27 +214,31 @@ Thus `?` controls optional HCF only; receiver propagation comes from property
 steps entering structural lambda evaluation, and only lambda calls consume
 that propagated receiver.
 
-#### Calls with an explicit receiver
+#### Calls using the receiver produced by a lambda
 
 Grouping can end a lambda/optional region while JavaScript still preserves the
-receiver of the final property reference. Represent such calls with explicit
-receiver call operators:
+receiver of the final property reference. Represent such calls with `this()` /
+`this?.()`:
 
 ```js
-['this()', receiver, propertyLambda, args]
-['this?.()', receiver, propertyLambda, args, continuation]
+['this()', input, lambda, args]
+['this?.()', input, lambda, args, continuation]
 ```
 
-`propertyLambda` is intentionally restricted to the two property lambda
-forms:
+The first operand is the initial input to `lambda`; it is not necessarily the
+receiver of the final call. `lambda` can be any of the four lambda forms:
 
 ```js
 ['|.', property]
 ['|?.', property, continuation]
+['|()', args]
+['|?.()', args, continuation]
 ```
 
-It is not an arbitrary `LambdaOp`. These operators mean: derive a property
-callee from `receiver`, then call it using the same `receiver` as `this`.
+`this()` / `this?.()` evaluate the whole lambda operation, including any
+nested continuation. If that evaluation reaches a final property reference,
+the outer call uses the final receiver propagated by the lambda rather than
+the original `input`.
 
 Examples:
 
@@ -252,19 +256,46 @@ Examples:
 ['this?.()', a, ['|?.', b, []], args, []]
 ```
 
-For a longer property chain:
+For a longer property chain, the final receiver comes from the continuation:
 
 ```js
-// (a.b.c)(...d)
+// (a?.b.c)(...d)
 ['this()',
-    ['.', a, b],
-    ['|.', c],
+    a,
+    ['|?.', b, [
+        ['|.', c],
+    ]],
     d,
 ]
 ```
 
-The explicit receiver is `a.b`; the lambda property computes `.c`; the call
-uses `a.b` as `this`.
+Conceptually:
+
+```text
+input = a
+|?.b  -> value = a.b,   this = a
+|.c   -> value = a.b.c, this = a.b
+this() -> call a.b.c with this = a.b
+```
+
+The root lambda does not have to be a property operation. For example, an
+optional call can own a continuation that eventually produces the property
+reference used by the outer `this()` call:
+
+```js
+// (a?.(...b).c)(...d)
+['this()',
+    a,
+    ['|?.()', b, [
+        ['|.', c],
+    ]],
+    d,
+]
+```
+
+Here `|?.()` evaluates `a?.(...b)`; on its successful branch `|.c` establishes
+the final receiver, and the outer `this()` calls that `.c` value with the
+receiver produced by `|.c`.
 
 By contrast, a call result is an ordinary value. The receiver HCF has already
 been consumed:
@@ -302,7 +333,7 @@ receiver. It also owns `.d(...f)`, so when `a.b` is nullish, `c`, `.d`, and
 `f` are skipped.
 
 Grouping moves the optional call outside the optional-property HCF while still
-preserving `this = a`:
+preserving the receiver produced by the lambda:
 
 ```js
 // (a?.b)?.(...c).d(...f)
@@ -322,7 +353,7 @@ The vocabulary can be viewed as a sparse tensor of four dimensions:
 input       : explicit | lambda (`|`)
 optional    : normal   | `?`
 operation   : property (`.`) | call (`()`)
-receiver    : normal   | explicit `this` call
+receiver    : normal   | `this` call
 ```
 
 Not every Cartesian-product cell is meaningful. The populated operators are:
@@ -333,8 +364,8 @@ Not every Cartesian-product cell is meaningful. The populated operators are:
 | `?.` | `['?.', object, property, continuation]` | seeds continuation receiver | yes | optional property access |
 | `()` | `['()', callee, args]` | never | no | call |
 | `?.()` | `['?.()', callee, args, continuation]` | never | yes | optional call |
-| `this()` | `['this()', receiver, propertyLambda, args]` | explicit | no | property-derived call with explicit receiver |
-| `this?.()` | `['this?.()', receiver, propertyLambda, args, continuation]` | explicit | yes | optional property-derived call with explicit receiver |
+| `this()` | `['this()', input, lambda, args]` | final lambda receiver | no | call lambda result with its final receiver |
+| `this?.()` | `['this?.()', input, lambda, args, continuation]` | final lambda receiver | yes | optional call of lambda result with its final receiver |
 | `|.` | `['|.', property]` | propagated | no | lambda property access |
 | `|?.` | `['|?.', property, continuation]` | propagated | yes | lambda optional property access |
 | `|()` | `['|()', args]` | consumes propagated receiver if present | no | lambda call |
@@ -363,6 +394,8 @@ do not.
   input and receiver are structurally unambiguous;
 - `this` propagation and consumption are determined by the operator family;
 - non-lambda `()` / `?.()` never receive propagated `this`;
+- `this()` / `this?.()` consume the final receiver produced by their lambda,
+  independent of the lambda's root form or continuation depth;
 - optional-chain boundaries are explicit nested continuation arrays;
 - no placeholder binding or identity-aware `it` ownership is needed;
 - no compiler lookahead is needed to decide whether a property node should
@@ -371,21 +404,22 @@ do not.
 ### Tasks
 
 - [ ] Replace the previous `it` / `.this` proposal with the lambda-operation
-      type model: `LambdaOp`, `Continuation`, and restricted `PropertyLambda`.
+      type model: `LambdaOp` and `Continuation`.
 - [ ] Define exact RTTI shapes for all ten operators and enforce fixed arity.
 - [ ] Make `LambdaOp` a structural type that is not an `Exp` and cannot be
       independently shared/memoized as a computation node.
 - [ ] Define execution semantics for receiver propagation into continuations,
       through `|.` / `|?.`, and consumption by `|()` / `|?.()`; ordinary
       `()` / `?.()` must never consume propagated receiver state.
-- [ ] Define `this()` / `this?.()` with `PropertyLambda` restricted to `|.` /
-      `|?.`.
+- [ ] Define `this()` / `this?.()` for all four `LambdaOp` forms, using the
+      final receiver produced by the whole lambda operation rather than the
+      initial input.
 - [ ] Update existing EDAG/compiler/interpreter design documents to the new
       vocabulary after the shapes are settled.
 - [ ] Cover grouping and HCF boundaries in lowering/execution tests, including
       `a?.b.c`, `a?.b.c?.d.e`, `a?.b.c(d)`, `(a.b.c)(d)`, `(a?.b)(d)`,
-      `a.b?.(d)`, `(a?.b)?.(d)`, `a?.b?.(c).d(f)`,
-      `(a?.b)?.(c).d(f)`, and `(a?.c.d.e(f))(g)`.
+      `(a?.b.c)(d)`, `(a?.(b).c)(d)`, `a.b?.(d)`, `(a?.b)?.(d)`,
+      `a?.b?.(c).d(f)`, `(a?.b)?.(c).d(f)`, and `(a?.c.d.e(f))(g)`.
 
 ### Related
 
