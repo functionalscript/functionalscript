@@ -425,10 +425,32 @@ a?.b(...c)  = optional property access + ordinary call
 a?.(...b)   = optional call
 ```
 
-The decomposed representation avoids that collision. `?.` always means
-optional property access, `?.()` always means optional call, and receiver-aware
-method calls are composed structurally through lambda operations and `this()`.
-This keeps each operator tag associated with one semantic operation instead of
+`this()` is also more general than `.()`. It does not mean only "call one
+property of an object"; it calls the final value produced by an arbitrary
+receiver-producing lambda chain using that chain's final receiver. For example:
+
+```js
+// (a?.(...b)?.c)(...d)
+['this()',
+    a,
+    [
+        ['|?.()', b],
+        ['|?.', c],
+    ],
+    d,
+]
+```
+
+Here the final receiver is produced only after the optional call and optional
+property steps have both executed. A direct `.()` operator can represent the
+special case `a.b(...c)`, but cannot represent this general receiver-preserving
+call pattern.
+
+The decomposed representation avoids the `?.()` collision and uses `this()` as
+the general receiver-preserving call operation. `?.` always means optional
+property access, `?.()` always means optional call, and receiver-aware method
+calls are composed structurally through lambda operations and `this()`. This
+keeps each operator tag associated with one semantic operation instead of
 disambiguating the tag by arity or operand position.
 
 ### Why this is preferable to `it` / `.this`
