@@ -171,7 +171,7 @@ The serializer and other independent parts of TODO 157 are unaffected.
 
 - [ ] Depend on the generic bigint `Symbol` descent API; do not reintroduce a
       token-specific or 24-bit symbol representation.
-- [ ] Add the DJS token-stream adapter that requires and removes exactly one
+- [x] Add the DJS token-stream adapter that requires and removes exactly one
       final physical `eof` token, preserving its `TokenMetadata` separately as
       `eofMetadata` for diagnostics.
 - [ ] Define the finite ordinary token-name alphabet consumed by the DJS parser
