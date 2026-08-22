@@ -27,16 +27,35 @@ at(0)                    // throws
 The previous proposal represented these with contextual `it` and `.this`
 operations. That makes ordinary EDAG nodes context-sensitive and introduces
 extra identity/sharing constraints. Instead, keep ordinary `Exp` nodes
-context-independent and represent the inside of an optional chain with
-non-`Exp` lambda operators.
+context-independent and represent chain-local computation with structural
+lambda operations.
 
 ### Proposal
 
-#### Lambda continuations
+#### Lambda arrays
 
-An optional expression operator owns a continuation: an ordered array of
-lambda operations. A lambda operation takes the previous chain value
-implicitly, so it does not need a placeholder such as `['it']`.
+A lambda operation takes the previous chain value implicitly, so it does not
+need a placeholder such as `['it']`. Lambda operations are structural steps,
+not independently shareable EDAG computations.
+
+```text
+Exp      = ordinary EDAG computation; may be shared and memoized by identity
+LambdaOp = structural step; not Exp; cannot be extracted/shared as const
+Lambda   = readonly LambdaOp[]
+```
+
+All four lambda operations are simple fixed-arity steps and **none of them has
+a continuation operand**:
+
+```js
+['|.', property]
+['|()', args]
+['|?.', property]
+['|?.()', args]
+```
+
+An optional expression operator owns a `Lambda` array representing the rest of
+its optional HCF region:
 
 ```js
 // a?.b.c
@@ -52,34 +71,15 @@ a?.b
    |.c
 ```
 
-Lambda operations are structural continuation steps, not independently
-shareable EDAG computations:
-
-```text
-Exp          = ordinary EDAG computation; may be shared and memoized by identity
-Lambda       = continuation step; not Exp; cannot be extracted/shared as const
-Continuation = readonly Lambda[]
-```
-
-All four lambda forms are simple steps and do not own continuations:
-
-```js
-['|.', property]
-['|()', args]
-['|?.', property]
-['|?.()', args]
-```
-
-The continuation array itself is the HCF region. An optional lambda (`|?.` or
-`|?.()`) short-circuits the remaining suffix of its containing continuation
-array when its input is nullish. Therefore an optional lambda does not need a
-nested continuation of its own.
+An optional lambda (`|?.` or `|?.()`) short-circuits the remaining suffix of
+its containing lambda array when its input is nullish. The lambda itself does
+not need to own another continuation.
 
 #### Optional-chain boundaries
 
-The optional expression operators `?.`, `?.()`, and `this?.()` own continuation
-arrays. An empty continuation means the optional HCF ends immediately after
-that expression operation.
+The optional expression operators `?.`, `?.()`, and `this?.()` own lambda
+arrays. An empty array means the optional HCF ends immediately after that
+expression operation.
 
 ```js
 // a?.b
@@ -89,7 +89,7 @@ that expression operation.
 ['?.()', f, a, []]
 ```
 
-Optional lambda operations use the continuation array that contains them:
+Optional lambda operations use the array that already contains them:
 
 ```js
 // a?.b?.c.d
@@ -100,8 +100,11 @@ Optional lambda operations use the continuation array that contains them:
 ```
 
 If the input to `|?.c` is nullish, the remaining suffix (`|.d`) is skipped.
-If grouping terminates an optional chain, a new expression-level optional
-operation starts outside the old continuation:
+This is unambiguous: an optional lambda means "jump to the end of the current
+lambda array" on the nullish branch.
+
+Grouping ends the current HCF region and therefore produces a new
+expression-level optional operator:
 
 ```js
 // (a?.b)?.c
@@ -112,28 +115,37 @@ operation starts outside the old continuation:
 ]
 ```
 
-Thus both optional expression operations and optional lambda operations can
-represent optional chaining without lambda-local continuations: expression
-operators define HCF regions, while optional lambdas jump to the end of the
-region that already contains them.
+A longer chain stays flat even when it contains more than one optional step:
+
+```js
+// a?.b.c?.d.e
+['?.', a, b, [
+    ['|.', c],
+    ['|?.', d],
+    ['|.', e],
+]]
+```
+
+If `a` is nullish, the outer `?.` skips the whole array. If the input to
+`|?.d` is nullish, that lambda skips only the remaining suffix `|.e`.
 
 #### Receiver HCF inside lambda chains
 
 Property steps establish receiver state for structural lambda evaluation.
-For a successful full-form optional property with a non-empty continuation,
-that continuation starts with both the property value and its receiver:
+For a successful full-form optional property with a non-empty lambda array,
+that array starts with both the property value and its receiver:
 
 ```text
-['?.', object, property, continuation]
+['?.', object, property, lambda]
 
 value = object[property]
 this  = object
 ```
 
-The receiver exists only inside the structural continuation. The final result
-of `?.` does not carry receiver HCF outside that continuation.
+The receiver exists only while evaluating the structural lambda. The final
+ordinary value produced by `?.` does not carry receiver HCF outside it.
 
-The property lambda operators likewise establish receiver state:
+The property lambda operators establish receiver state:
 
 ```text
 |.   property access + receiver
@@ -147,16 +159,12 @@ The call lambda operators consume propagated receiver state when present:
 |?.()  optional call current value with propagated `this` if present
 ```
 
-By contrast, the non-lambda call operators never consume propagated receiver
-state:
+By contrast, non-lambda calls never consume propagated receiver state:
 
 ```text
 ()     call with no propagated `this`
 ?.()   optional call with no propagated `this`
 ```
-
-No lookahead or lookbehind is required. The call family itself determines
-whether propagated receiver state may be consumed.
 
 For example:
 
@@ -167,7 +175,7 @@ For example:
 ]]
 ```
 
-On the successful branch, `?.` enters its continuation with `value = a.b` and
+On the successful branch, `?.` enters its lambda with `value = a.b` and
 `this = a`, so `|?.()` calls `a.b` with `this = a`.
 
 A longer chain works the same way:
@@ -180,7 +188,7 @@ A longer chain works the same way:
 ]]
 ```
 
-Evaluation is conceptually:
+Conceptually:
 
 ```text
 current = a.b, this = a
@@ -210,7 +218,7 @@ independently shareable `Exp` values:
 
 ```text
 .    -> ordinary property value, no this
-?.   -> optional property value, no this after its continuation ends
+?.   -> optional property value, no this after its lambda ends
 |.   -> lambda property value + this
 |?.  -> lambda optional property value + this
 ```
@@ -221,7 +229,7 @@ that propagated receiver.
 
 #### Calls using the receiver produced by a lambda
 
-Grouping can end a lambda/optional region while JavaScript still preserves the
+Grouping can end an optional region while JavaScript still preserves the
 receiver of the final property reference. Represent such calls with `this()` /
 `this?.()`:
 
@@ -230,54 +238,75 @@ receiver of the final property reference. Represent such calls with `this()` /
 ['this?.()', input, lambda, args, continuation]
 ```
 
-The first operand is the initial input to `lambda`; it is not necessarily the
-receiver of the final call. `lambda` can be any of the four lambda forms:
-
-```js
-['|.', property]
-['|?.', property]
-['|()', args]
-['|?.()', args]
-```
-
-`this()` / `this?.()` evaluate the lambda step. When the lambda itself needs a
-longer chain, that chain is represented by the continuation owned by the
-surrounding optional expression rather than by the lambda node.
+Here `lambda` is the same `readonly LambdaOp[]` type used by optional
+expression continuations. The first operand is only the initial input. The
+whole lambda array is evaluated first, and the outer call uses the final
+receiver produced by that lambda rather than the original input.
 
 Examples:
 
 ```js
 // a.b()
-['this()', a, ['|.', b], args]
+['this()', a, [
+    ['|.', b],
+], args]
 
 // (a?.b)()
-['this()', a, ['|?.', b], args]
+['this()', a, [
+    ['|?.', b],
+], args]
 
 // a.b?.()
-['this?.()', a, ['|.', b], args, []]
+['this?.()', a, [
+    ['|.', b],
+], args, []]
 
 // (a?.b)?.()
-['this?.()', a, ['|?.', b], args, []]
+['this?.()', a, [
+    ['|?.', b],
+], args, []]
 ```
 
-For a longer property chain whose final receiver must survive grouping, the
-optional expression continuation carries the intermediate lambda steps before
-the outer `this()` call is formed.
+For a longer property chain, the final receiver comes from the final property
+lambda in the same flat array:
 
 ```js
 // (a?.b.c)(...d)
 ['this()',
     a,
-    ['|?.', b],
+    [
+        ['|?.', b],
+        ['|.', c],
+    ],
     d,
 ]
 ```
 
-Conceptually, lowering of the grouped callee must preserve the final receiver
-produced by the whole property chain (`a.b` for `.c`) before `this()` performs
-the outer call. The exact RTTI shape for carrying a multi-step grouped lambda
-into `this()` remains part of the implementation task below; lambda-local
-continuations are intentionally not used for it.
+Conceptually:
+
+```text
+input = a
+|?.b  -> value = a.b,   this = a
+|.c   -> value = a.b.c, this = a.b
+this() -> call a.b.c with this = a.b
+```
+
+The lambda may start with a call as well:
+
+```js
+// (a?.(...b).c)(...d)
+['this()',
+    a,
+    [
+        ['|?.()', b],
+        ['|.', c],
+    ],
+    d,
+]
+```
+
+Here `|?.()` evaluates `a?.(...b)`; if it succeeds, `|.c` establishes the
+final receiver used by the outer `this()`.
 
 By contrast, a call result is an ordinary value. The receiver HCF has already
 been consumed:
@@ -308,16 +337,18 @@ The outer call is `()`, not `this()`, because `|()` consumed the receiver of
 ]]
 ```
 
-On the successful property branch, the first `?.` enters its continuation
-with `value = a.b` and `this = a`. The optional lambda call consumes that
-receiver. If `a.b` is nullish, `|?.()` skips the remaining `.d(...f)` suffix.
+On the successful property branch, the first `?.` enters its lambda with
+`value = a.b` and `this = a`. If `a.b` is nullish, `|?.()` skips the remaining
+`.d(...f)` suffix.
 
 Grouping moves the optional call outside the optional-property HCF while still
 preserving the receiver produced by the grouped lambda:
 
 ```js
 // (a?.b)?.(...c).d(...f)
-['this?.()', a, ['|?.', b], c, [
+['this?.()', a, [
+    ['|?.', b],
+], c, [
     ['|.', d],
     ['|()', f],
 ]]
@@ -327,58 +358,57 @@ This structural difference directly represents the parentheses.
 
 ### Operator forms
 
-The ordinary and lambda forms are:
+The ordinary and lambda-operation forms are:
 
-|JS         |exp                           |lambda                   |
-|-----------|------------------------------|-------------------------|
-|`a.b`      |`['.', a:exp, b:exp]`         |`['\|.', b:exp]`         |
-|`a(...b)`  |`['()', a:exp, b:exp]`        |`['\|()', b:exp]`        |
-|`a?.b`     |`['?.', a:exp, b:exp, cont]`  |`['\|?.', b:exp]`        |
-|`a?.(...b)`|`['?.()', a:exp, b:exp, cont]`|`['\|?.()', b:exp]`      |
+|JS         |exp                           |lambda operation          |
+|-----------|------------------------------|--------------------------|
+|`a.b`      |`['.', a:exp, b:exp]`         |`['\|.', b:exp]`          |
+|`a(...b)`  |`['()', a:exp, b:exp]`        |`['\|()', b:exp]`         |
+|`a?.b`     |`['?.', a:exp, b:exp, lambda]`|`['\|?.', b:exp]`         |
+|`a?.(...b)`|`['?.()', a:exp, b:exp, lambda]`|`['\|?.()', b:exp]`     |
 
-Here `cont` is `readonly lambda[]` and belongs only to optional expression
-operators, not to lambda operators.
+`lambda` is `readonly LambdaOp[]`. Lambda operations themselves never carry
+continuations.
 
-The `this` call forms bridge an explicit input expression to a lambda:
+The `this` call forms bridge an explicit input expression to a whole lambda:
 
-|JS            |exp                                         |
-|--------------|--------------------------------------------|
-|`(aO)(...b)`  |`['this()', a:exp, O:lambda, b:exp]`        |
-|`(aO)?.(...b)`|`['this?.()', a:exp, O:lambda, b:exp, cont]`|
+|JS            |exp                                            |
+|--------------|-----------------------------------------------|
+|`(aO)(...b)`  |`['this()', a:exp, O:lambda, b:exp]`           |
+|`(aO)?.(...b)`|`['this?.()', a:exp, O:lambda, b:exp, lambda]` |
 
 ### Why this is preferable to `it` / `.this`
 
 - ordinary `Exp` nodes remain context-independent and safely shareable;
-- lambda operators cannot escape as const computations, so their implicit
+- lambda operations cannot escape as const computations, so their implicit
   input and receiver are structurally unambiguous;
-- lambda nodes stay small: none of the four lambda forms owns a continuation;
-- optional expression operators define HCF regions as flat lambda arrays;
-- optional lambdas short-circuit the remaining suffix of their containing
-  continuation array, so no nested lambda continuation is needed;
-- `this` propagation and consumption are determined by the operator family;
+- all four lambda operations are small, fixed-arity steps with no continuation;
+- one flat lambda array represents the rest of an HCF region;
+- optional lambdas short-circuit the remaining suffix of that same array;
+- `this()` / `this?.()` reuse the same lambda-array representation and consume
+  the final receiver produced by the whole chain;
 - non-lambda `()` / `?.()` never receive propagated `this`;
-- optional-chain boundaries are explicit expression-level continuation arrays;
+- optional-chain boundaries are explicit expression-level lambda arrays;
 - no placeholder binding or identity-aware `it` ownership is needed;
 - no compiler lookahead is needed to decide whether a property node should
   carry `this`.
 
 ### Tasks
 
-- [ ] Replace the previous `it` / `.this` proposal with the lambda-operation
-      type model: `Lambda` plus expression-level `Continuation = readonly Lambda[]`.
+- [ ] Replace the previous `it` / `.this` proposal with `LambdaOp` and
+      `Lambda = readonly LambdaOp[]`.
 - [ ] Define exact RTTI shapes for all ten operators and enforce fixed arity.
-      Lambda forms must not have continuation operands.
-- [ ] Make `Lambda` a structural type that is not an `Exp` and cannot be
+      Lambda operations must not have continuation operands.
+- [ ] Make `LambdaOp` a structural type that is not an `Exp` and cannot be
       independently shared/memoized as a computation node.
 - [ ] Define execution semantics for optional lambdas: `|?.` / `|?.()` must
-      short-circuit the remaining suffix of their containing continuation
-      array on a nullish input.
-- [ ] Define execution semantics for receiver propagation into continuations,
-      through `|.` / `|?.`, and consumption by `|()` / `|?.()`; ordinary
-      `()` / `?.()` must never consume propagated receiver state.
-- [ ] Define the exact multi-step grouped-lambda representation used by
-      `this()` / `this?.()` so they consume the final receiver produced by the
-      whole grouped lambda chain without adding lambda-local continuations.
+      short-circuit the remaining suffix of their containing lambda array on a
+      nullish input.
+- [ ] Define execution semantics for receiver propagation through `|.` / `|?.`
+      and consumption by `|()` / `|?.()`; ordinary `()` / `?.()` must never
+      consume propagated receiver state.
+- [ ] Define `this()` / `this?.()` over a whole `Lambda` array, using the final
+      receiver produced by that array rather than the initial input.
 - [ ] Update existing EDAG/compiler/interpreter design documents to the new
       vocabulary after the shapes are settled.
   - [ ] Remove `fjs/edag/todo/operations.md` after the new vocabulary has been
