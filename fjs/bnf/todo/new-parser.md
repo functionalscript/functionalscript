@@ -230,7 +230,7 @@ The serializer and other independent parts of TODO 157 are unaffected.
 
 - [x] Use the shipped `number` descent API and `fjs/bnf/token_symbol`; do not
       introduce another symbol type or another token-specific backend.
-- [ ] Add the DJS token-stream adapter that requires and removes exactly one
+- [x] Add the DJS token-stream adapter that requires and removes exactly one
       final physical `eof` token, preserving its `TokenMetadata` separately as
       `eofMetadata` for diagnostics.
 - [ ] Define the finite ordinary token-name alphabet consumed by the DJS parser

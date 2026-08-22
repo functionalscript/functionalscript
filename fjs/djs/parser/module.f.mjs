@@ -17,7 +17,7 @@ import { error, ok } from '../../types/result/module.f.mjs'
 import { fold, next, toArray, length, concat } from '../../types/list/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { fromMap } from '../../types/object/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 /** @typedef {['array', List<AstConst>]} _DjsStackArray */
 
@@ -608,7 +608,82 @@ export const parseFromTokens = tokenList => {
     }
 }
 
+/**
+ * The ordinary token stream a BNF parser layer consumes, with the tokenizer's
+ * one physical end-of-input token split off.
+ *
+ * @typedef {{
+ *   readonly tokens: readonly DjsTokenWithMetadata[]
+ *   readonly eofMetadata: TokenMetadata
+ * }} _TokenStream
+ */
+
+/**
+ * Splits the tokenizer's single final physical `eof` token off a token list.
+ *
+ * A BNF parser backend synthesizes its own logical end-of-input, so passing the
+ * tokenizer's physical `eof` through as an ordinary symbol would create a second
+ * end marker. Dropping it outright would instead lose the source position that a
+ * failure *at* physical end has to be reported from, so its metadata is kept
+ * aside as `eofMetadata` rather than discarded or refabricated.
+ *
+ * The tokenizer's contract is exactly one `eof`, in final position; a stream
+ * missing it, or carrying one anywhere else, is rejected here rather than parsed.
+ *
+ * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<_TokenStream, ParseError>}
+ */
+const splitEof = tokenList => {
+    const a = toArray(tokenList)
+    const eofIdx = a.findIndex(({ token }) => token.kind === 'eof')
+    if (eofIdx === -1) {
+        return error({ message: 'missing end-of-input token', metadata: null })
+    }
+    const last = a.length - 1
+    if (eofIdx !== last) {
+        return error({ message: 'end-of-input token is not final', metadata: a[eofIdx].metadata })
+    }
+    return ok({ tokens: a.slice(0, last), eofMetadata: a[last].metadata })
+}
+
+/** @type {(kind: 'eof' | ',') => (line: number) => DjsTokenWithMetadata} */
+const proofToken = kind => line => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 } })
+
+const proofEof = proofToken('eof')
+
+const proofComma = proofToken(',')
+
 export const proof = {
+    splitEof: {
+        // The tokenizer always ends its stream with one `eof`, so every branch
+        // but this one is reachable only from a hand-built token list.
+        final: () => {
+            const [tag, value] = splitEof([proofComma(1), proofEof(2)])
+            assert(tag === 'ok', tag)
+            assertEq(value.tokens.length, 1)
+            assertEq(value.eofMetadata.line, 2)
+        },
+        onlyEof: () => {
+            const [tag, value] = splitEof([proofEof(1)])
+            assert(tag === 'ok', tag)
+            assertEq(value.tokens.length, 0)
+            assertEq(value.eofMetadata.line, 1)
+        },
+        missing: () => {
+            const [tag, value] = splitEof([proofComma(1)])
+            assert(tag === 'error', tag)
+            assertEq(value.metadata, null)
+        },
+        notFinal: () => {
+            const [tag, value] = splitEof([proofEof(1), proofComma(2)])
+            assert(tag === 'error', tag)
+            assertEq(value.metadata?.line, 1)
+        },
+        duplicate: () => {
+            const [tag, value] = splitEof([proofEof(1), proofEof(2)])
+            assert(tag === 'error', tag)
+            assertEq(value.metadata?.line, 1)
+        },
+    },
     pushKey: {
         // `pushKey` is only ever invoked while `state.top` is an object (the
         // `'{'`/`'{,'` value-states guarantee it), so its non-object guard is
