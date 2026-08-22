@@ -44,6 +44,18 @@ LambdaOp = structural step; not Exp; cannot be extracted/shared as const
 Lambda   = readonly LambdaOp[]
 ```
 
+A core invariant is that evaluating an `Exp` produces only its ordinary value:
+
+```text
+Exp -> Value
+```
+
+No `Exp` produces `this`, optional-chain state, or any other HCF result. HCF is
+created, transformed, consumed, and discarded only by an operator while it
+interprets a structural `Lambda`. Even `this()` does not receive `this` from
+one of its expression operands: it evaluates ordinary `Exp` operands and
+constructs/manages receiver state internally while evaluating its lambda.
+
 All four lambda operations are simple fixed-arity steps and **none of them has
 a continuation operand**:
 
@@ -223,6 +235,9 @@ independently shareable `Exp` values:
 |?.  -> lambda optional property value + this
 ```
 
+Here `+ this` describes temporary evaluator state while interpreting `Lambda`;
+it is not part of the value returned by an EDAG expression.
+
 Thus `?` controls optional HCF only; receiver propagation comes from property
 steps entering structural lambda evaluation, and only lambda calls consume
 that propagated receiver.
@@ -242,6 +257,11 @@ Here `lambda` is the same `readonly LambdaOp[]` type used by optional
 expression continuations. The first operand is only the initial input. The
 whole lambda array is evaluated first, and the outer call uses the final
 receiver produced by that lambda rather than the original input.
+
+Crucially, the `input`, property operands, and argument operands are all normal
+expressions and each evaluates only to an ordinary value. `this()` constructs
+and updates the hidden receiver itself as it interprets `lambda`; no child
+`Exp` returns a receiver or any other HCF state.
 
 Examples:
 
@@ -379,7 +399,11 @@ The `this` call forms bridge an explicit input expression to a whole lambda:
 
 ### Why this is preferable to `it` / `.this`
 
+- every `Exp` evaluates to an ordinary value only; HCF is never part of an
+  expression result;
 - ordinary `Exp` nodes remain context-independent and safely shareable;
+- operators that interpret `Lambda` create and control HCF locally instead of
+  receiving it from child expressions;
 - lambda operations cannot escape as const computations, so their implicit
   input and receiver are structurally unambiguous;
 - all four lambda operations are small, fixed-arity steps with no continuation;
@@ -399,6 +423,9 @@ The `this` call forms bridge an explicit input expression to a whole lambda:
       `Lambda = readonly LambdaOp[]`.
 - [ ] Define exact RTTI shapes for all ten operators and enforce fixed arity.
       Lambda operations must not have continuation operands.
+- [ ] Preserve the invariant that every `Exp` evaluates to an ordinary value
+      only; `this`, optional short-circuit state, and other HCF must remain
+      local evaluator state of operators interpreting `Lambda`.
 - [ ] Make `LambdaOp` a structural type that is not an `Exp` and cannot be
       independently shared/memoized as a computation node.
 - [ ] Define execution semantics for optional lambdas: `|?.` / `|?.()` must
