@@ -101,9 +101,11 @@ array through. A `...` node is what mixes the two: `f(a, ...b)` is
   to differs by the container it sits in — neither constraint expressible in
   a shape-only schema. In an array the operand must be iterable (`[...1]`,
   `[...null]`, and `[...{a: 1}]` all throw); in an object anything goes,
-  with primitives and `null` simply contributing nothing (`{...null}` is
-  `{}`). Object spread copies own enumerable properties *through* getters,
-  unlike `own`, which reads the descriptor's value and never calls one.
+  contributing the operand's own enumerable properties — of which a number,
+  boolean, bigint, symbol, `null`, or `undefined` has none (`{...null}` is
+  `{}`), while a string has its indices (`{...'ab'}` is `{0: 'a', 1: 'b'}`).
+  Object spread reads those properties *through* getters, unlike `own`,
+  which reads the descriptor's value and never calls one.
 - `index` does not yet exclude `constructor`/`__proto__` —
   [excluded-string-values.md](../types/rtti/todo/excluded-string-values.md).
 
