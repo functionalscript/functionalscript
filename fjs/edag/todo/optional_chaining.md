@@ -397,6 +397,40 @@ The `this` call forms bridge an explicit input expression to a whole lambda:
 |`(aO)(...b)`  |`['this()', a:exp, O:lambda, b:exp]`           |
 |`(aO)?.(...b)`|`['this?.()', a:exp, O:lambda, b:exp, lambda]` |
 
+#### Why there is no `.()` operator
+
+The existing EDAG has a direct `.()` form for ordinary method calls, for
+example `a.b(...c)`. Keeping that combined property-plus-call operator would
+require a corresponding optional-property form for `a?.b(...c)`. The natural
+tag for that form would be `?.()`, but `?.()` already has a different and
+important meaning: optional call.
+
+```js
+// optional property access followed by an ordinary call
+// a?.b(...c)
+['?.', a, b, [
+    ['|()', c],
+]]
+
+// optional call
+// a?.(...b)
+['?.()', a, b, []]
+```
+
+Using a combined `.()` family would therefore make the natural `?.()` tag
+collide between two distinct JavaScript operations:
+
+```text
+a?.b(...c)  = optional property access + ordinary call
+a?.(...b)   = optional call
+```
+
+The decomposed representation avoids that collision. `?.` always means
+optional property access, `?.()` always means optional call, and receiver-aware
+method calls are composed structurally through lambda operations and `this()`.
+This keeps each operator tag associated with one semantic operation instead of
+disambiguating the tag by arity or operand position.
+
 ### Why this is preferable to `it` / `.this`
 
 - every `Exp` evaluates to an ordinary value only; HCF is never part of an
