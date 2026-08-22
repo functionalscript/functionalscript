@@ -67,9 +67,9 @@ shareable node.
 
 #### Optional-chain boundaries
 
-Every operator whose operation starts with `?` or `|?` has a continuation
-operand. An empty continuation means the optional HCF ends immediately after
-that operation.
+Every optional operator has a continuation operand: `?.`, `?.()`, `this?.()`,
+`|?.`, and `|?.()`. An empty continuation means the optional HCF ends
+immediately after that operation.
 
 ```js
 // a?.b
