@@ -258,4 +258,11 @@ export const proof = {
         ])
         assertOk(v(value))
     },
+    operations: {
+        ok: () => assertEq(([42]?.at)(0), 42),
+        throw: () => {
+            const y = [42]?.at
+            y(0)
+        }
+    }
 }
