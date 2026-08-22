@@ -416,6 +416,8 @@ do not.
       initial input.
 - [ ] Update existing EDAG/compiler/interpreter design documents to the new
       vocabulary after the shapes are settled.
+  - [ ] Remove `fjs/edag/todo/operations.md` after the new vocabulary has been
+        applied; the exploratory operations note will then be superseded.
 - [ ] Cover grouping and HCF boundaries in lowering/execution tests, including
       `a?.b.c`, `a?.b.c?.d.e`, `a?.b.c(d)`, `(a.b.c)(d)`, `(a?.b)(d)`,
       `(a?.b.c)(d)`, `(a?.(b).c)(d)`, `a.b?.(d)`, `(a?.b)?.(d)`,
