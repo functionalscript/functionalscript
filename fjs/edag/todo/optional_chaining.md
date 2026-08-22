@@ -345,31 +345,23 @@ preserving the receiver produced by the lambda:
 
 This structural difference directly represents the parentheses.
 
-### Operator tensor
+### Operator forms
 
-The vocabulary can be viewed as a sparse tensor of four dimensions:
+The ordinary and lambda forms are:
 
-```text
-input       : explicit | lambda (`|`)
-optional    : normal   | `?`
-operation   : property (`.`) | call (`()`)
-receiver    : normal   | `this` call
-```
+|JS         |exp                           |lambda                   |
+|-----------|------------------------------|-------------------------|
+|`a.b`      |`['.', a:exp, b:exp]`         |`['\|.', b:exp]`         |
+|`a(...b)`  |`['()', a:exp, b:exp]`        |`['\|()', b:exp]`        |
+|`a?.b`     |`['?.', a:exp, b:exp, cont]`  |`['\|?.', b:exp, cont]`  |
+|`a?.(...b)`|`['?.()', a:exp, b:exp, cont]`|`['\|?.()', b:exp, cont]`|
 
-Not every Cartesian-product cell is meaningful. The populated operators are:
+The `this` call forms bridge an explicit input expression to a lambda:
 
-| Operator | Shape | `this` | Optional HCF | Meaning |
-|---|---|---|---|---|
-| `.` | `['.', object, property]` | no | no | property access |
-| `?.` | `['?.', object, property, continuation]` | seeds continuation receiver | yes | optional property access |
-| `()` | `['()', callee, args]` | never | no | call |
-| `?.()` | `['?.()', callee, args, continuation]` | never | yes | optional call |
-| `this()` | `['this()', input, lambda, args]` | final lambda receiver | no | call lambda result with its final receiver |
-| `this?.()` | `['this?.()', input, lambda, args, continuation]` | final lambda receiver | yes | optional call of lambda result with its final receiver |
-| `|.` | `['|.', property]` | propagated | no | lambda property access |
-| `|?.` | `['|?.', property, continuation]` | propagated | yes | lambda optional property access |
-| `|()` | `['|()', args]` | consumes propagated receiver if present | no | lambda call |
-| `|?.()` | `['|?.()', args, continuation]` | consumes propagated receiver if present | yes | lambda optional call |
+|JS            |exp                                         |
+|--------------|--------------------------------------------|
+|`(aO)(...b)`  |`['this()', a:exp, O:lambda, b:exp]`        |
+|`(aO)?.(...b)`|`['this?.()', a:exp, O:lambda, b:exp, cont]`|
 
 The continuation rule is uniform:
 
