@@ -188,12 +188,12 @@ carries `this = a` into the call.
 after a call:
 
 ```js
-// f?.(...args)
-['?.()', f, args]
+// f?.(...callArgs)
+['?.()', f, callArgs]
 
-// f?.(...args).x
-['?.()', f, args,
-    ['.', ['it'], 'x'],
+// f?.(...callArgs).x
+['?.()', f, callArgs,
+    ['.', ['it'], x],
 ]
 
 // a?.b?.(...c).d
@@ -213,7 +213,7 @@ the root of the expression:
 // a?.b().c.d
 ['?.this', a, b,
     ['.',
-        ['.', ['()', ['it'], args], c],
+        ['.', ['()', ['it'], ['[]', []]], c],
         d,
     ],
 ]
@@ -223,8 +223,6 @@ the root of the expression:
     ['()', ['.this', ['it'], c], d],
 ]
 ```
-
-Here `args` denotes the complete argument-array operand for `b()`.
 
 #### Continuation scope and DAG identity
 
