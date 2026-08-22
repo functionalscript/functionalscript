@@ -426,9 +426,9 @@ property access and `?.()` as optional call.
 
 - [ ] Replace the previous `it` / `.this` proposal with `LambdaOp` and
       `Lambda = readonly LambdaOp[]`.
-- [ ] Define exact RTTI shapes for the six operators (`.`, `?.`, `()`, `?.()`,
-      and their four lambda-operation forms) and enforce fixed arity. Lambda
-      operations must not have continuation operands.
+- [ ] Define exact RTTI shapes for the eight operator forms (`.`, `?.`, `()`,
+      `?.()`, and their four lambda-operation forms) and enforce fixed arity.
+      Lambda operations must not have continuation operands.
 - [ ] Preserve the invariant that every `Exp` evaluates to an ordinary value
       only; `this`, optional short-circuit state, and other HCF must remain
       local evaluator state of operators interpreting `Lambda`.
