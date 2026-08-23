@@ -224,7 +224,8 @@ schema is free to change independently of both.
 |`["()", object, lambdas, args]`|`f(...args)`, `o.p(...args)`|2|call; `args` is one node yielding an array; `lambdas` is the chain run before the call and decides the `this` binding (subject 6)|
 |`["?.", object, property, lambdas]`|`o?.p`, and the rest of its optional chain|later|optional property access; same `property` restriction|
 |`["?.()", object, lambdas, args, lambdas]`|`f?.(...args)`, and the rest of its optional chain|later|optional call|
-|`["\|.", property]`, `["\|()", args]`, `["\|?.", property]`, `["\|?.()", args]`|one `lambda`, a step of a chain|later|not `exp` nodes — only valid inside a `lambdas` operand (subject 6)|
+|`["\|.", property]`|one `lambda`, the `.p` step of a chain|2|not an `exp` node — only valid inside a `lambdas` operand (subject 6); this is the step a method call's `lambdas` ends with, so Stage 2 needs it with `"()"`; same `property` restriction|
+|`["\|()", args]`, `["\|?.", property]`, `["\|?.()", args]`|one `lambda`, a step of a chain|later|the remaining steps: a call inside a chain, and the two optional ones|
 |`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|later|own property by a computed **string**; no prototype chain|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
