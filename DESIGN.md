@@ -1,9 +1,8 @@
 # Design principles
 
 These principles are repository-wide: they govern both code bases — `fjs/`
-(FunctionalScript / TypeScript) and `nanvm-lib/` (Rust). The first two are
-restated in brief at the top of [AGENTS.md](./AGENTS.md); everything here is
-their full text.
+(FunctionalScript / TypeScript) and `nanvm-lib/` (Rust). Three are restated in
+brief at the top of [AGENTS.md](./AGENTS.md); everything here is their full text.
 
 ## Contents
 
@@ -15,6 +14,7 @@ their full text.
 6. [Never precompute a size to predict whether something fits](#6-never-precompute-a-size-to-predict-whether-something-fits)
 7. [CLI parameters over environment variables](#7-cli-parameters-over-environment-variables)
 8. [Embedded DSLs should reuse host-language syntax](#8-embedded-dsls-should-reuse-host-language-syntax)
+9. [Maximize signal-to-noise](#9-maximize-signal-to-noise)
 
 ---
 
@@ -196,3 +196,18 @@ future FunctionalScript function EDAG. That EDAG should reuse FunctionalScript's
 own literals, arrays, objects, and other language constructions wherever their
 meaning coincides with the syntax being represented, and introduce explicit EDAG
 nodes only where the host-language value would be ambiguous or insufficient.
+
+## 9. Maximize signal-to-noise
+
+**Make the high-level abstraction and structure obvious.** Every contribution —
+code, APIs, documentation, `todo/` issues, PR descriptions, comments, and tests —
+should expose the main concepts first. Put details, caveats, examples, and edge
+cases at the leaves, not in the main flow.
+
+**More information is not automatically better.** Remove repetition, obvious
+narration, unnecessary wrappers, redundant examples, and implementation trivia.
+Use clear names and structure so readers can understand the shape of a solution
+without reading every detail.
+
+**Optimize for progressive understanding:** abstraction first, structure second,
+details last.
