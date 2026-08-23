@@ -132,7 +132,7 @@ spellings of the same set must not compare unequal. `['close', S]` and
   — the RTTI-aware JSON parser reuses `../parse/module.f.mjs`'s container
   behavior, so it needs a `close` case too; whichever lands second picks it up.
 - [`../../../edag/module.f.mjs`](../../../edag/module.f.mjs) — `propertyAccessor`,
-  the call nodes, the lambda operations, and `op0`/`op1`/`op2` are fixed-arity
+  the call nodes, the lambdas, and `op0`/`op1`/`op2` are fixed-arity
   nodes that are open today only because every rtti tuple is; once EDAG values are
   content-addressed, exact arity for these becomes a correctness requirement,
   not just a nicety, and `close` is what states it.

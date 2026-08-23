@@ -74,7 +74,7 @@ export type Index = number | NumberCast | string
 
 export type PropertyAccessor = readonly['.', Exp, Index]
 
-// lambda operations
+// lambdas
 
 export type LambdaPropertyAccessor = readonly['|.', Index]
 
@@ -85,29 +85,29 @@ export type LambdaOptionalPropertyAccessor = readonly['|?.', Index]
 export type LambdaOptionalCall = readonly['|?.()', Exp]
 
 /**
- * A structural step of a chain, never an `Exp`: a `LambdaOp` reads the
+ * A structural step of a chain, never an `Exp`: a `Lambda` reads the
  * current chain value implicitly, so it has no place to hold one, and it
  * cannot be extracted as a shared computation node.
  */
-export type LambdaOp =
+export type Lambda =
     | LambdaPropertyAccessor
     | LambdaCall
     | LambdaOptionalPropertyAccessor
     | LambdaOptionalCall
 
-export type Lambda = readonly LambdaOp[]
+export type Lambdas = readonly Lambda[]
 
 // call
 
-export type Call = readonly['()', Exp, Lambda, Exp]
+export type Call = readonly['()', Exp, Lambdas, Exp]
 
 // optionalPropertyAccessor
 
-export type OptionalPropertyAccessor = readonly['?.', Exp, Index, Lambda]
+export type OptionalPropertyAccessor = readonly['?.', Exp, Index, Lambdas]
 
 // optionalCall
 
-export type OptionalCall = readonly['?.()', Exp, Lambda, Exp, Lambda]
+export type OptionalCall = readonly['?.()', Exp, Lambdas, Exp, Lambdas]
 
 // Comma
 

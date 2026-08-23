@@ -51,7 +51,7 @@ individual invocation.
 
 As the compiler lands the staged operators, the direct interpreter should support the
 same EDAG forms: Stage 1 adds `.` property access; Stage 2 adds non-capturing `=>` and
-`()` — with the empty lambda for an ordinary call and a `['|.', property]` step for a
+`()` — with the empty `lambdas` for an ordinary call and a `['|.', property]` step for a
 method call.
 
 Stage 2 deliberately has **no frame support** — a restriction on *this interpreter*, not
@@ -96,8 +96,8 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
       it through the host JavaScript engine.
 - [ ] Support Stage 1 `['.', object, property]` property access.
-- [ ] Support Stage 2 `['=>', null, body]` and `['()', object, lambda, args]` when
-      those operators land — the empty lambda for an ordinary call, a trailing
+- [ ] Support Stage 2 `['=>', null, body]` and `['()', object, lambdas, args]` when
+      those operators land — the empty `lambdas` for an ordinary call, a trailing
       `['|.', property]` step for a method call, which supplies the `this` binding.
 - [ ] Do **not** implement `['frame']` or non-empty closure frames in Stage 2.
 - [ ] Memoize results by EDAG node identity within one evaluation context so shared
@@ -115,10 +115,10 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Whenever the optional nodes enter the interpreted subset, execute them per
       "Chains" in [`../../edag/README.md`](../../edag/README.md) — receiver state
       created by the property steps, consumed by the call steps and by an
-      expression-level call whose lambda ends in one; an optional step's `index` or
+      expression-level call whose `lambdas` ends in one; an optional step's `index` or
       argument operand left unevaluated on its nullish branch, which the proofs must
       observe (`a?.[k]`, `f?.(...a)`), along with the short-circuit of the rest of
-      that lambda array.
+      that `lambdas`.
 - [ ] Add an invocation-scope proof such as calling `x => [x]` with `1` and `2`:
       results contain the corresponding argument and do not reuse the constructed
       array across calls, while repeated references inside one call still share.

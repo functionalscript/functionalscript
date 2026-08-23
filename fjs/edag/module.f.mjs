@@ -15,8 +15,8 @@
  *  LambdaCall,
  *  LambdaOptionalPropertyAccessor,
  *  LambdaOptionalCall,
- *  LambdaOp,
  *  Lambda,
+ *  Lambdas,
  *  Call,
  *  OptionalPropertyAccessor,
  *  OptionalCall,
@@ -45,13 +45,13 @@ import {
 } from "../types/rtti/module.f.mjs";
 
 /**
- * `propertyAccessor`, the call nodes, the lambda operations, and
+ * `propertyAccessor`, the call nodes, the `lambda` steps, and
  * `op0`/`op1`/`op2` (like `array`/`object`) are open on trailing/extra
  * elements — see "Structs and tuples are open" in
  * `../types/rtti/README.md`. Exact arity is tracked as future work in
  * `../types/rtti/todo/close-type.md`, not implemented here yet. No operand of
  * any node here is optional: a chain step that does no further work carries
- * an empty `lambda` array, never a missing position.
+ * an empty `lambdas` array, never a missing position.
  *
  * Do not call `parse(exp)` or rely on `validate(exp)` rejecting cycles
  * without reading `../types/rtti/todo/identity-aware-parse.md` first —
@@ -244,7 +244,7 @@ export const propertyAccessor = /** @type {const} */(['.', exp, index])
  * @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
  */
 
-// Lambda Operations
+// Lambdas
 
 /**
  * ```js
@@ -252,8 +252,8 @@ export const propertyAccessor = /** @type {const} */(['.', exp, index])
  * ```
  *
  * Property access on the current chain value, which also becomes the
- * receiver (`this`) of a later call step. See `lambda` for the whole
- * vocabulary.
+ * receiver (`this`) of a later call step. See `lambda` for the four steps
+ * and `lambdas` for the array they form.
  */
 export const lambdaPropertyAccessor = /** @type {const} */(['|.', index])
 
@@ -305,25 +305,26 @@ export const lambdaOptionalCall = /** @type {const} */(['|?.()', exp])
  */
 
 /**
- * One structural step of a chain. A lambda operation is **not** an `exp`: it
- * takes the previous chain value implicitly, so it needs no placeholder
- * operand for it, and it cannot be lifted out as a shared computation node —
- * `['|.', 'b']` means nothing on its own, only as the n-th step of some
- * `lambda` array.
+ * One structural step of a chain: a function of the current chain value with
+ * its argument elided, which is what makes it a *lambda* rather than an
+ * operation over operands. It is **not** an `exp` — it takes its input
+ * implicitly, so it needs no operand for it, and it cannot be lifted out as
+ * a shared computation node: `['|.', 'b']` means nothing on its own, only as
+ * the n-th step of some `lambdas`.
  *
  * The two property steps establish a receiver, the two call steps consume
  * one; the two optional steps additionally short-circuit. None of the four
  * carries a continuation operand — the rest of the chain is simply the rest
- * of the array they sit in.
+ * of the `lambdas` they sit in.
  */
-export const lambdaOp = or(
+export const lambda = or(
     lambdaPropertyAccessor,
     lambdaCall,
     lambdaOptionalPropertyAccessor,
     lambdaOptionalCall,
 )
 
-/** @typedef {Assert<Check<LambdaOp, typeof lambdaOp>>} _LambdaOp */
+/** @typedef {Assert<Check<Lambda, typeof lambda>>} _Lambda */
 
 /**
  * The rest of a chain, as a flat array of steps — the operand `call`,
@@ -333,11 +334,11 @@ export const lambdaOp = or(
  * optional link short-circuits.
  *
  * Both kinds of HCF live **only** in an operator's interpretation of a
- * `lambda`. Every `exp` evaluates to an ordinary value and nothing else: no
+ * `lambdas`, never in a value. Every `exp` evaluates to an ordinary value and nothing else: no
  * `exp` yields a receiver or a short-circuit state, so ordinary nodes stay
  * context-independent and shareable by identity as always.
  *
- * Evaluation of a lambda array carries a current value and, optionally, a
+ * Evaluating a `lambdas` carries a current value and, optionally, a
  * receiver for it:
  *
  * ```text
@@ -353,11 +354,11 @@ export const lambdaOp = or(
  * it throws where `a?.b.c` does not — which is exactly the distinction a
  * flat array of steps per region expresses.
  *
- * `[]` is a lambda that does nothing: no further chain work, no receiver.
+ * The empty `lambdas` does nothing: no further chain work, no receiver.
  */
-export const lambda = rttiArray(lambdaOp)
+export const lambdas = rttiArray(lambda)
 
-/** @typedef {Assert<Check<Lambda, typeof lambda>>} _Lambda */
+/** @typedef {Assert<Check<Lambdas, typeof lambdas>>} _Lambdas */
 
 // Call
 
@@ -368,11 +369,11 @@ export const lambda = rttiArray(lambdaOp)
  * (exp0?.k)(...exp2)         // ['()', exp0, [['|?.', 'k']], exp2]
  * ```
  *
- * The one call operator: it evaluates `exp0`, runs the `lambda`, then calls
- * the value that lambda arrived at. Whether the call keeps a `this` binding
- * is decided by that lambda alone — a trailing property step leaves a
- * receiver and the call is a method call, an empty lambda (or one ending in
- * a call step) leaves none and the call is an ordinary one. There is no
+ * The one call operator: it evaluates `exp0`, runs the `lambdas`, then calls
+ * the value that lambdas arrived at. Whether the call keeps a `this` binding
+ * is decided by that `lambdas` alone — a trailing property step leaves a
+ * receiver and the call is a method call, an empty `lambdas` (or one ending
+ * in a call step) leaves none and the call is an ordinary one. There is no
  * separate `.()` node and no "with this" tag: `a.b(...c)` is this operator
  * over `[['|.', 'b']]`, and the same operator spells receiver chains no
  * dedicated property-plus-call form could, such as `(a?.(...b)?.c)(...d)`.
@@ -381,7 +382,7 @@ export const lambda = rttiArray(lambdaOp)
  * not a literal operand list: `f(a, b)` is `['()', f, [], ['[]', [a, b]]]`,
  * while spread `f(...xs)` is `['()', f, [], xs]`.
  */
-export const call = /** @type {const} */(['()', exp, lambda, exp])
+export const call = /** @type {const} */(['()', exp, lambdas, exp])
 
 /** @typedef {Assert<Check<Call, typeof call>>} _Call */
 
@@ -394,18 +395,18 @@ export const call = /** @type {const} */(['()', exp, lambda, exp])
  * ```
  *
  * Optional property access, owning the rest of its optional region as a
- * `lambda`. If `exp0` is nullish the result is `undefined` and neither the
- * `index` nor any step of the lambda is evaluated — in particular `a?.[k]`
- * does not evaluate `k`. Otherwise the lambda runs with `exp0[exp1]` as the
- * current value and `exp0` as the receiver, and the node's result is
- * whatever the lambda arrives at — an ordinary value, receiver state never
- * escaping it.
+ * `lambdas`. If `exp0` is nullish the result is `undefined` and neither the
+ * `index` nor any step of the `lambdas` is evaluated — in particular
+ * `a?.[k]` does not evaluate `k`. Otherwise the `lambdas` runs with
+ * `exp0[exp1]` as the current value and `exp0` as the receiver, and the
+ * node's result is whatever it arrives at — an ordinary value, receiver
+ * state never escaping it.
  *
  * Where the region ends is the grouping: `a?.b.c` is one node,
  * `['?.', a, 'b', [['|.', 'c']]]`, while `(a?.b).c` is a `.` node over a
  * complete `['?.', a, 'b', []]` — and throws when `a` is nullish, as JS does.
  */
-export const optionalPropertyAccessor = /** @type {const} */(['?.', exp, index, lambda])
+export const optionalPropertyAccessor = /** @type {const} */(['?.', exp, index, lambdas])
 
 /**
  * @typedef {Assert<Check<OptionalPropertyAccessor, typeof optionalPropertyAccessor>>} _OptionalPropertyAccessor
@@ -419,15 +420,15 @@ export const optionalPropertyAccessor = /** @type {const} */(['?.', exp, index, 
  * (exp0?.k)?.(...exp2).m     // ['?.()', exp0, [['|?.', 'k']], exp2, [['|.', 'm']]]
  * ```
  *
- * Optional call. Like `call`, the first lambda runs before the call and may
- * leave the receiver it is made with; unlike `call`, the callee is checked
- * first: if the value that `exp` plus the first lambda arrives at is
- * nullish, the result is `undefined` and neither the arguments nor the
- * second lambda is evaluated. The second lambda is the rest of the optional
+ * Optional call. Like `call`, the first `lambdas` runs before the call and
+ * may leave the receiver it is made with; unlike `call`, the callee is
+ * checked first: if the value that `exp` plus that first `lambdas` arrives
+ * at is nullish, the result is `undefined` and neither the arguments nor the
+ * second `lambdas` is evaluated. That second one is the rest of the optional
  * region, run on the call's result — the counterpart of the one
  * `optionalPropertyAccessor` owns.
  */
-export const optionalCall = /** @type {const} */(['?.()', exp, lambda, exp, lambda])
+export const optionalCall = /** @type {const} */(['?.()', exp, lambdas, exp, lambdas])
 
 /** @typedef {Assert<Check<OptionalCall, typeof optionalCall>>} _OptionalCall */
 
@@ -492,8 +493,8 @@ export const op1 = /** @type {const} */([op1Id, exp])
  * node evaluated in the enclosing scope, while the body is the inner
  * function's graph — deferred, never established when the closure is built,
  * only on each call, against that function's own `args`/`frame`. Calling one
- * is not here: a call carries a `lambda` operand, so it is not binary — see
- * the `call` export for `['()', exp, lambda, exp]` and what that operand
+ * is not here: a call carries a `lambdas` operand, so it is not binary — see
+ * the `call` export for `['()', exp, lambdas, exp]` and what that operand
  * decides. `own` is exactly
  * `Object.getOwnPropertyDescriptor(object, key)?.value` — no
  * getter invocation, no prototype chain — where the key operand must

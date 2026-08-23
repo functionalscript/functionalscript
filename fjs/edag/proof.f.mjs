@@ -154,12 +154,12 @@ export const proof = {
             assertNoMatch(v(['.', 'a', true]))
         },
     },
-    // The four lambda operations, and the array of them that `call`,
-    // `optionalPropertyAccessor`, and `optionalCall` carry. A lambda
-    // operation is a structural step, never an `exp`, so every value here is
-    // reached through a node that owns a lambda — there is no `v(op)` route
-    // to one, which `notAnExp` below pins.
-    lambda: {
+    // The four `lambda` steps, and the `lambdas` array of them that `call`,
+    // `optionalPropertyAccessor`, and `optionalCall` carry. A `lambda` is a
+    // structural step, never an `exp`, so every value here is reached
+    // through a node that owns a `lambdas` — there is no `v(step)` route to
+    // one, which `notAnExp` below pins.
+    lambdas: {
         ok: () => {
             assertOk(v(['()', 'f', [], 1])) // no steps at all
             assertOk(v(['()', 'f', [['|.', 'b']], 1]))
@@ -171,9 +171,9 @@ export const proof = {
             assertOk(v(['()', 'f', [['|.', 0], ['|?.', ['Number', 1]]], 1]))
             assertOk(v(['()', 'f', [['|()', ['[]', [1, 2]]]], 1]))
         },
-        // A lambda operation only means anything as the n-th step of a
-        // lambda array: it takes its input implicitly, so on its own it is
-        // not an `exp` and cannot be lifted out as a shared node.
+        // A `lambda` only means anything as the n-th step of a `lambdas`:
+        // it takes its input implicitly, so on its own it is not an `exp`
+        // and cannot be lifted out as a shared node.
         notAnExp: () => {
             assertNoMatch(v(['|.', 'b']))
             assertNoMatch(v(['|()', 1]))
@@ -203,8 +203,8 @@ export const proof = {
             assertOk(v(['()', ['.', 'o', 'k'], [], 1]))
             assertOk(v(['()', 'o', [['|.', 'k']], 1])) // o.k(...args)
         },
-        // The lambda operand is not optional: the pre-lambda binary shape
-        // reads `1` as the lambda and leaves no argument operand.
+        // The `lambdas` operand is not optional: the pre-`lambdas` binary
+        // shape reads `1` as the `lambdas` and leaves no argument operand.
         binaryShapeIsError: () => assertNoMatch(v(['()', 'f', 1])),
         // A missing argument operand reads as `undefined` — an error, same
         // as `op1`/`op2`'s `missingTailIsError`.
@@ -222,7 +222,7 @@ export const proof = {
             assertNoMatch(v(['?.', 'a', true, []]))
             assertNoMatch(v(['?.z', 'a', 'b', []]))
         },
-        // The lambda operand is required — `[]` says "the optional region
+        // The `lambdas` operand is required — `[]` says "the optional region
         // ends here", a missing position says nothing.
         missingTailIsError: () => assertNoMatch(v(['?.', 'a', 'b'])),
         extraTailIsIgnored: () => assertOk(v(['?.', 'a', 'b', [], 'extra'])),
@@ -248,7 +248,7 @@ export const proof = {
     // `../djs/todo/compile-modules-to-edag.md`. Read as pairs: the members
     // of a pair differ in JS, so they must differ here too.
     chains: {
-        // An optional region is one flat lambda array, however long, and
+        // An optional region is one flat `lambdas`, however long, and
         // grouping is what ends it: `a?.b.c` skips `.c` on a nullish `a`,
         // `(a?.b).c` throws there — one node against two.
         optionalRegion: () => {
@@ -273,7 +273,7 @@ export const proof = {
             assertOk(v(['?.', 'a', ['Number', 'k'], []])) // a?.[k]
             assertOk(v(['?.()', 'f', [], 'a', []])) // f?.(...a)
         },
-        // Every call is `()`; the receiver comes from its lambda, never from
+        // Every call is `()`; the receiver comes from its `lambdas`, never from
         // the tag. `(a.b.c)(d)` and `a.b.c(d)` are the same graph — parens
         // around a non-optional chain change nothing.
         receiver: () => {
@@ -288,7 +288,7 @@ export const proof = {
             ]]))
             // (a?.b)(d) and (a?.b.c)(d) — the parens end the optional
             // region but keep the receiver, so the optional steps move into
-            // the call's own lambda.
+            // the call's own `lambdas`.
             assertOk(v(['()', 'a', [['|?.', 'b']], ['[]', ['d']]]))
             assertOk(v(['()', 'a', [['|?.', 'b'], ['|.', 'c']], ['[]', ['d']]]))
             // (a?.(b).c)(d) — a call step before the receiver-producing one.
@@ -302,7 +302,7 @@ export const proof = {
                 ['|?.', 'c'],
             ], ['[]', ['d']]]))
             // (a?.c.d.e(f))(g) — the inner call consumed the receiver of
-            // `.e`, so the outer call's lambda is empty.
+            // `.e`, so the outer call's `lambdas` is empty.
             assertOk(v(['()',
                 ['?.', 'a', 'c', [
                     ['|.', 'd'],
@@ -429,7 +429,7 @@ export const proof = {
         // `this`, and parentheses around the reference do not break that —
         // only detaching the value does (`throw.detachedReceiver`). It holds
         // across an optional link too, which is why `(a?.b)(d)` keeps `?.b`
-        // as a step of the call's own lambda, `['()', a, [['|?.', 'b']], d]`,
+        // as a step of the call's own `lambdas`, `['()', a, [['|?.', 'b']], d]`,
         // rather than calling a complete `['?.', a, 'b', []]` node: the
         // latter would produce an ordinary value and lose the receiver.
         receiver: () => {
@@ -443,8 +443,8 @@ export const proof = {
         },
         // Short-circuit: a nullish link skips the rest of its chain, and
         // grouping is what ends that chain — `u?.at.name` is `undefined`
-        // where `(u?.at).name` throws (`throw.groupedOptional`), one lambda
-        // array against two nodes.
+        // where `(u?.at).name` throws (`throw.groupedOptional`), one
+        // `lambdas` against two nodes.
         shortCircuit: () => {
             /** @type {any} */
             const u = undefined

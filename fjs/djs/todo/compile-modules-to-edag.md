@@ -250,13 +250,13 @@ semantics remain owned by
 Also introduce call operations into EDAG:
 
 ```js
-['()', object, lambda, args]
+['()', object, lambdas, args]
 ```
 
-`()` is the only call form: its `lambda` operand is the chain of steps run between
+`()` is the only call form: its `lambdas` operand is the chain of steps run between
 `object` and the call, and a trailing property step (`['|.', property]`) is what makes
 the call a method call keeping the `this` binding. An ordinary call carries the empty
-lambda `[]`; `o.p(...args)` is `['()', o, [['|.', property]], args]`. See "Chains" in
+lambdas, `[]`; `o.p(...args)` is `['()', o, [['|.', property]], args]`. See "Chains" in
 [`../../edag/README.md`](../../edag/README.md). Stage 2 needs neither optional form
 (`?.`, `?.()`) nor any optional step, since optional chaining is not in its source
 subset.
@@ -293,7 +293,7 @@ The staged work builds on the basic structural forms already being defined for E
 - Stage 2 non-capturing functions: `['=>', null, body]` (`frame` is a general `exp` in
   the schema; `null` is what *this task's* parser and interpreter are scoped to, not a
   schema-level restriction);
-- Stage 2 calls: `['()', object, lambda, args]` — `lambda` empty for an ordinary
+- Stage 2 calls: `['()', object, lambdas, args]` — the `lambdas` empty for an ordinary
   call, `[['|.', property]]` for a method call, with the step's property operand
   using the same restriction as `.`;
 - semantic sharing by node identity, serialized with DJS `const` references when
@@ -477,11 +477,11 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Validate that a nested function body is a disjoint EDAG scope: operation nodes
       must not be shared across a function boundary, while sharing within the body is
       preserved.
-- [x] `['()', object, lambda, args]` and the `['|.', property]` step are in the EDAG
+- [x] `['()', object, lambdas, args]` and the `['|.', property]` step are in the EDAG
       validation/type schema (`fjs/edag/`), shape only — the property-operand
       restriction below is this stage's own work.
 - [ ] Convert the corresponding parser call expressions to the EDAG call form — the
-      empty lambda for an ordinary call, one `['|.', property]` step for a method
+      empty `lambdas` for an ordinary call, one `['|.', property]` step for a method
       call; reject prohibited or runtime-computed string properties in that step
       rather than bypassing the property-access safety rule.
 - [ ] Add proofs for non-capturing nested functions and ordinary/method calls in the

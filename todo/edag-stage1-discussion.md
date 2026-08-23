@@ -180,7 +180,7 @@ Agreed points (not under discussion):
   optimization:
   [property-accessor](../spec/todo/2330-property-accessor.md) shows
   `a.indexOf(x)` and `const p = a.indexOf; p(x)` differ observably. It is
-  spelled by the `lambda` operand of `["()", …]` (subject 6), not by a
+  spelled by the `lambdas` operand of `["()", …]` (subject 6), not by a
   distinct `".()"` tag.
 - `args` is **a single operand that evaluates to an array**, not a
   literal list of operand nodes: `f(a, b)` is
@@ -221,10 +221,10 @@ schema is free to change independently of both.
 |`["{}", ...entry]`|`{ … }`|1|ordered object constructor; initial entry form is `[":", key, value]` (subject 4)|
 |`["args"]`|—|1|the arguments array (subject 2)|
 |`[".", object, property]`|`o.p`, `o[p]`|1|property access; `property` is restricted (see below)|
-|`["()", object, lambda, args]`|`f(...args)`, `o.p(...args)`|2|call; `args` is one node yielding an array; `lambda` is the chain run before the call and decides the `this` binding (subject 6)|
-|`["?.", object, property, lambda]`|`o?.p`, and the rest of its optional chain|later|optional property access; same `property` restriction|
-|`["?.()", object, lambda, args, lambda]`|`f?.(...args)`, and the rest of its optional chain|later|optional call|
-|`["\|.", property]`, `["\|()", args]`, `["\|?.", property]`, `["\|?.()", args]`|a step of a chain|later|not `exp` nodes — only valid inside a `lambda` operand (subject 6)|
+|`["()", object, lambdas, args]`|`f(...args)`, `o.p(...args)`|2|call; `args` is one node yielding an array; `lambdas` is the chain run before the call and decides the `this` binding (subject 6)|
+|`["?.", object, property, lambdas]`|`o?.p`, and the rest of its optional chain|later|optional property access; same `property` restriction|
+|`["?.()", object, lambdas, args, lambdas]`|`f?.(...args)`, and the rest of its optional chain|later|optional call|
+|`["\|.", property]`, `["\|()", args]`, `["\|?.", property]`, `["\|?.()", args]`|one `lambda`, a step of a chain|later|not `exp` nodes — only valid inside a `lambdas` operand (subject 6)|
 |`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|later|own property by a computed **string**; no prototype chain|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
@@ -937,7 +937,7 @@ name is a **validation** error at construction, and a computed string
 never reaches `"."` at all.
 
 **Decided for the structural tags: they are JS syntax too** —
-`[".", object, property]`, `["()", object, lambda, args]`,
+`[".", object, property]`, `["()", object, lambdas, args]`,
 `["{}", …]`, `[":", key, value]`, `[",", …]`. Syntax is as much a host
 spelling as an operator symbol is. This supersedes the
 `at` / `call` / `bindCall` names used earlier in this document.
@@ -945,7 +945,7 @@ spelling as an operator symbol is. This supersedes the
 **Decided: `"."`, not `"[]"`.** `"."` is the shorter and more readable
 tag for property access.
 
-**Decided: one call tag, with a `lambda` operand — no `".()"`.** An
+**Decided: one call tag, with a `lambdas` operand — no `".()"`.** An
 earlier draft gave the method call its own `[".()", object, property, args]`
 tag. It was replaced because a JS chain carries two kinds of hidden control
 flow that a fixed property-plus-call tag cannot express: the receiver a
@@ -953,13 +953,13 @@ property access hands to a following call as `this`, and the region an
 optional link short-circuits — and parentheses move each boundary
 independently (`(a?.b).c` throws where `a?.b.c` is `undefined`). The
 settled vocabulary keeps every `exp` evaluating to an ordinary value and
-puts both kinds of control flow in a `lambda`: a flat array of chain steps
+puts both kinds of control flow in a `lambdas`: a flat array of chain steps
 that only the `"()"`, `"?."`, and `"?.()"` nodes interpret. `a.b(...c)` is
 then `["()", a, [["|.", "b"]], c]`, and the same node also spells chains no
 property-plus-call tag could, such as `(a?.(...b)?.c)(...d)`. The shape of
 record and the worked examples are in
 [`fjs/edag/README.md`](../fjs/edag/README.md) — "Chains" — and the JSDoc on
-`lambda` in [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs).
+`lambdas` in [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs).
 
 **Decided: the EDAG keeps three access operations, not one and not
 2330's five.** An earlier draft of this subject said `"."` was a single

@@ -51,10 +51,10 @@ vocabularies.
 | `['args']` | the function's arguments |
 | `['frame']` | the captured frame |
 | `['.', exp, index]` | property access: `exp0[exp1]` |
-| `['()', exp, lambda, exp]` | call: the value `exp0` plus `lambda` arrives at, called with `exp2` — see [Chains](#chains) |
-| `['?.', exp, index, lambda]` | optional property access: `exp0?.[exp1]`, then `lambda` |
-| `['?.()', exp, lambda, exp, lambda]` | optional call: `exp0` plus the first `lambda`, called optionally with `exp2`, then the second `lambda` |
-| `['\|.', index]`, `['\|()', exp]`, `['\|?.', index]`, `['\|?.()', exp]` | lambda operations — chain steps, only valid inside a `lambda` operand above |
+| `['()', exp, lambdas, exp]` | call: the value `exp0` plus `lambdas` arrives at, called with `exp2` — see [Chains](#chains) |
+| `['?.', exp, index, lambdas]` | optional property access: `exp0?.[exp1]`, then `lambdas` |
+| `['?.()', exp, lambdas, exp, lambdas]` | optional call: `exp0` plus the first `lambdas`, called optionally with `exp2`, then the second `lambdas` |
+| `['\|.', index]`, `['\|()', exp]`, `['\|?.', index]`, `['\|?.()', exp]` | a `lambda` — one chain step, only valid inside a `lambdas` operand above |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `neg` `!` `~` |
 | `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `===` `!==` `>` `>=` `<` `<=` `+` `-` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
@@ -65,15 +65,15 @@ named schema, not one of it: `['[]', items[]]` holds a whole array of
 prose and load-bearing in the schema — a single element where the array
 belongs still validates plenty of values, just the wrong ones.
 
-A `lambda` is likewise `lambdaOp[]` — the array of chain steps described in
-[Chains](#chains) below.
+A `lambdas` is likewise `lambda[]` — an array of the chain steps described
+in [Chains](#chains) below, where a single `lambda` is one such step.
 
 An `index` — the property operand of `.`, `?.`, `|.`, and `|?.` — is a
 `string`, a `number`, or `['Number', exp]`, a computed index cast to a
 number. Among the binary ids, `=>` builds a function and `own` reads an own
 property, bypassing the prototype chain (including `__proto__` — see the
 `ownJs` proof); calling a function is not among them, since `()` carries a
-`lambda` and so is not binary. A call's arguments — the last `exp` of `()`,
+`lambdas` and so is not binary. A call's arguments — the last `exp` of `()`,
 the third of `?.()`, the operand of `|()`/`|?.()` — are one node evaluating
 to the complete argument array, not a literal operand list: `f(a, b)` is
 `['()', f, [], ['[]', [a, b]]]`, and `f(...xs)` needs no `...` node at all,
@@ -93,11 +93,12 @@ part of what a graph means.
 Neither is ever the result of an `exp`. Evaluating an `exp` produces an
 ordinary value and nothing else, which is what keeps a node
 context-independent and shareable by identity wherever it appears. Instead
-the three nodes that own a `lambda` — `()`, `?.`, `?.()` — interpret one as a
+the three nodes that own a `lambdas` — `()`, `?.`, `?.()` — interpret it as a
 sequence of steps, and the receiver and the short-circuit live only in that
-interpretation:
+interpretation. Each step is one `lambda`: a function of the current chain
+value whose argument is elided, which is what the name says.
 
-| step | meaning |
+| `lambda` | meaning |
 |---|---|
 | `['\|.', index]` | property access; the input becomes the receiver |
 | `['\|?.', index]` | the same, `undefined` on a nullish input |
@@ -105,15 +106,15 @@ interpretation:
 | `['\|?.()', exp]` | the same, `undefined` on a nullish current value |
 
 A step takes the previous value implicitly, so it holds no operand for it and
-carries no continuation: the rest of the chain is the rest of the array. An
-optional step whose input is nullish produces `undefined` and skips every
-step after it in that array, leaving its own `index`/argument operand
-unevaluated — as does `?.`/`?.()` itself, which is why `a?.[k]` does not
-evaluate `k` when `a` is nullish. An empty array does nothing: no further
-steps, no receiver.
+carries no continuation: the rest of the chain is the rest of the `lambdas`.
+An optional step whose input is nullish produces `undefined` and skips every
+step after it there, leaving its own `index`/argument operand unevaluated —
+as does `?.`/`?.()` itself, which is why `a?.[k]` does not evaluate `k` when
+`a` is nullish. The empty `lambdas` does nothing: no further steps, no
+receiver.
 
-That makes one array the whole optional region, and grouping the thing that
-ends it:
+That makes one `lambdas` the whole optional region, and grouping the thing
+that ends it:
 
 | JS | EDAG |
 |---|---|
@@ -122,12 +123,12 @@ ends it:
 | `(a?.b).c` | `['.', ['?.', a, 'b', []], 'c']` |
 | `a?.b.c?.d.e` | `['?.', a, 'b', [['\|.', 'c'], ['\|?.', 'd'], ['\|.', 'e']]]` |
 
-`()` and `?.()` are the only call nodes, and their first `lambda` is what
-decides whether the call keeps a `this` binding — the tag never says. A
-lambda ending in a property step leaves a receiver, so `a.b(...c)` is
+`()` and `?.()` are the only call nodes, and their first `lambdas` is what
+decides whether the call keeps a `this` binding — the tag never says. One
+ending in a property step leaves a receiver, so `a.b(...c)` is
 `['()', a, [['|.', 'b']], c]`; an empty one leaves none, so `f(...c)` is
-`['()', f, [], c]`; and a lambda ending in a call step leaves none either,
-since the call consumed it. This is why there is no `.()` node: the same
+`['()', f, [], c]`; and one ending in a call step leaves none either, since
+the call consumed it. This is why there is no `.()` node: the same
 operator also spells receiver chains no property-plus-call form could, such
 as `(a?.(...b)?.c)(...d)` — `['()', a, [['|?.()', b], ['|?.', c]], d]`.
 
