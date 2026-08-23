@@ -456,6 +456,14 @@ export const proof = {
             assertEq(u?.[todo()], undefined)
             assertEq(u?.(todo()), undefined)
         },
+        // The call counterpart of `throw.groupedOptional` — `(u?.at)(0)`,
+        // which calls `undefined` and throws under the spec and V8 — is
+        // deliberately absent: JavaScriptCore (so `bun test`) short-circuits
+        // it and evaluates to `undefined` instead, so asserting either
+        // answer would redden a runner. The node it denotes is unaffected —
+        // `['()', u, [['|?.', 'at']], …]` means the throwing reading — and
+        // `throw.groupedOptional` pins the same boundary through a property
+        // access, where every engine agrees. See "Chains" in `./README.md`.
         throw: {
             // `const at = a.at; at(0)` — the value without its receiver,
             // the case that makes receiver state part of what a graph means.
@@ -469,13 +477,6 @@ export const proof = {
                 /** @type {any} */
                 const u = undefined
                 return (u?.at).name
-            },
-            // `(u?.at)(0)` — the same boundary for a call: `undefined` is
-            // called rather than the chain short-circuiting past it.
-            groupedOptionalCall: () => {
-                /** @type {any} */
-                const u = undefined
-                return (u?.at)(0)
             },
             // The mirror of `shortCircuit`'s last two: on a non-nullish
             // input those same operands *are* evaluated.

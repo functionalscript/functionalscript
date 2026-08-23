@@ -143,6 +143,16 @@ JS on the host engine — the receiver surviving `(a?.b)(d)`, the operands an
 optional branch skips, and the grouped forms that throw — so the semantics
 the nodes are built around are checked, not just asserted in prose.
 
+One spelling is not checked there, because the engines disagree about it.
+When `u` is nullish, `(u?.b)(d)` must throw: the parentheses end the chain,
+so `undefined` is called. V8 does throw; JavaScriptCore (hence `bun test`)
+carries the short-circuit through the parentheses and evaluates to
+`undefined` instead. The EDAG follows the specification — the throwing
+reading is what `['()', u, [['|?.', 'b']], d]` denotes, and an executor must
+produce it whatever its host engine does. `(u?.b).c`, the property
+counterpart, throws everywhere and is what `chainsJs` pins for this
+boundary.
+
 ## Caveats
 
 - Tuples are open on the trailing side: `['args', 'extra']` validates.
