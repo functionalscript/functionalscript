@@ -123,8 +123,10 @@ Before implementing this TODO after the blocking split:
 
 - [Separate alphabet-specific BNF helpers](../../../bnf/todo/unicode-rules.md) —
   **blocks this task** and defines where string/code-point constructors live.
-- [vocabulary-single-source](../../../djs/tokenizer/todo/vocabulary-single-source.md)
-  — same single-source principle for DJS operator vocabulary.
+- [`fjs/djs/tokenizer`](../../../djs/tokenizer/module.f.mjs) — same single-source
+  principle, already applied: `operatorTags` derives from the grammar's
+  `operator` keys, and `wsChars`/`nlChars` feed both the grammar rules and every
+  downstream trivia-tag check.
 - [157](../../../djs/todo/157.md) — shares JSON/DJS value machinery; orthogonal to
   ownership of the lexical BNF grammar.
 - [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
