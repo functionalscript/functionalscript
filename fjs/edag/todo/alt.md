@@ -68,5 +68,5 @@ a?.b?.(...c)
 |-------------|-------------------------------------------------|----------------------|
 |`a.b`        |`['.'   , a:exp, b:index                       ]`|`['\|.'   , b:index]` |
 |`a?.bc`      |`['?.'  , a:exp, b:index  , c:lambdas          ]`|`['\|?.'  , b:index]` |
-|`ab(...c)`   |`['()'  , a:exp, b:lambdas, c:exp              ]`|`['\|()'  , b:exp]`   |
-|`ab?.(...b)d`|`['?.()', a:exp, b:lambdas, b:exp    , d:lambda]`|`['\|?.()', b:exp]`   |
+|`ab(...c)`   |`['()'  , a:exp, b:lambdas, c:exp              ]`|`['\|()'  , b:exp  ]` |
+|`ab?.(...b)d`|`['?.()', a:exp, b:lambdas, b:exp    , d:lambda]`|`['\|?.()', b:exp  ]` |
