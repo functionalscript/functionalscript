@@ -129,6 +129,25 @@ framing keywords as names of their own and take the name from `value` for an `id
 that spells one. A registered alphabet permits this because a symbol comes from a
 name's position in the list, so a name has no length limit.
 
+**Splitting them off makes an identifier rule mandatory, not optional.** None of
+the five is reserved: outside the framing positions the current parser treats
+them as ordinary identifiers, so all of these parse today and must keep parsing.
+
+```js
+const export = 1
+export default export        // binding and reference
+```
+```js
+export default { from: 2, default: 3 }   // object keys
+```
+
+Once each word carries its own symbol, a grammar whose identifier terminal is the
+bare `id` symbol rejects every line above. So wherever the grammar accepts an
+identifier — `const` binding names, value references, object keys, import names —
+the terminal must be the **union** of `id` and the five keyword symbols, and only
+the framing positions may demand a specific keyword. Giving a word its own symbol
+narrows where it is *required*, never where it is *allowed*.
+
 Every ordinary token name goes through that one encoding. Do not give
 single-character tokens their ASCII/code-point numbers and multi-character names
 a registered symbol: token symbols belong to a separate parser alphabet from the
@@ -225,6 +244,10 @@ The serializer and other independent parts of TODO 157 are unaffected.
 - [ ] Implement the complete DJS module grammar, including module framing, in the
       existing `fjs/djs/parser/module.f.mjs`; do not create a temporary public
       parser module/API.
+- [ ] Give the grammar one identifier rule accepting the union of `id` and the
+      five framing-keyword symbols, and use it everywhere an identifier is
+      accepted — binding names, references, object keys, import names. Only the
+      framing positions demand a specific keyword.
 - [ ] Fold `AstRuleMeta` into `AstModule`.
 - [ ] Report errors as metadata position ranges; widen `ParseError.metadata`
       from a single `TokenMetadata` to a range where required, using ordinary
@@ -233,6 +256,10 @@ The serializer and other independent parts of TODO 157 are unaffected.
 - [ ] Add differential success proofs requiring structurally identical
       `AstModule` output from the hand-written and BNF implementations across the
       existing parser corpus and every module/value grammar feature.
+- [ ] Include in that corpus each framing keyword used as an ordinary identifier
+      — `const export = 1` / `export default export`, and `{ from: 2, default: 3 }`
+      — since those parse today and splitting the keywords off is exactly what
+      could silently stop them.
 - [ ] Add failure-parity proofs for the existing malformed corpus plus empty
       input, failure at EOF, missing/non-final physical tokenizer EOF, and no
       duplicate EOF symbol.
