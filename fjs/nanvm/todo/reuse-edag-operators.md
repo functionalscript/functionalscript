@@ -279,6 +279,10 @@ Step 3 — execution:
       now; the `interpret-edag` interpreter when it lands).
 - [ ] Print the Rust tests from the derived expression rather than from a
       parallel reading of the case.
+- [ ] Extract the corpus-format rules both consumers re-implement — the
+      commutative `orders` expansion with its `Swapped` naming, and the
+      `throws`-marker probe — into the shared data module, imported by the
+      proof and the printer ([corpus-eliminators](./corpus-eliminators.md)).
 - [ ] When the `nanvm-lib` interpreter lands, extend the printer to construct
       the same expressions as `Any` values and hand them to it (serialized
       `Any` once the roadmap's post-MVP serialization exists), and register
@@ -314,4 +318,4 @@ Throughout:
   [#1489 r3770797058](https://github.com/functionalscript/functionalscript/pull/1489#discussion_r3770797058).
 - [`./corpus-eliminators.md`](./corpus-eliminators.md) — deduplicates the
   corpus rules (`Swapped` expansion, the `throws` probe) the consumers
-  currently re-implement; step 3's single dispatch path subsumes it.
+  currently re-implement; step 3 carries that extraction as an explicit task.
