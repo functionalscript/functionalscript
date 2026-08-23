@@ -17,6 +17,30 @@ const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
 const stringifyDjsModule = stringifyAsTree(sort)
 
 export const proof = {
+    // A lexical failure ends the token stream at an `error` token and emits no
+    // `eof`. `splitEof` reads a missing `eof` that way rather than as a broken
+    // tokenizer contract, and reports the error where it happened — so that
+    // reading is pinned here against the real tokenizer, alongside the position
+    // the current parser reports for the same input.
+    lexicalErrorStreamShape: [
+        () => {
+            const tokens = tokenizeString('const a = "abc')
+            assertEq(tokens.length, 1)
+            assertEq(tokens[0].token.kind, 'error')
+            assertEq(tokens[0].metadata.column, 11)
+        },
+        () => {
+            const [tag, value] = parseFromTokens(tokenizeString('const a = "abc'))
+            assert(tag === 'error', tag)
+            assertEq(value.metadata?.line, 1)
+            assertEq(value.metadata?.column, 11)
+        },
+        () => {
+            const [tag, value] = parseFromTokens(tokenizeString('const a = /* x'))
+            assert(tag === 'error', tag)
+            assertEq(value.metadata?.column, 15)
+        },
+    ],
     // None of the framing keywords is reserved: outside the positions that frame
     // a module, the parser accepts them as ordinary identifiers. Pinned here
     // because the BNF replacement gives each its own token symbol, and a grammar

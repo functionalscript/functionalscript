@@ -633,7 +633,14 @@ export const parseFromTokens = tokenList => {
  * aside as `eofMetadata` rather than discarded or refabricated.
  *
  * The tokenizer's contract is exactly one `eof`, in final position; a stream
- * missing it, or carrying one anywhere else, is rejected here rather than parsed.
+ * carrying one anywhere else is rejected here rather than parsed.
+ *
+ * A stream with no `eof` at all has two causes, and they are not reported the
+ * same way. A lexical failure — an unterminated string or comment — ends the
+ * stream at an `error` token and emits no `eof`, which is the tokenizer working
+ * correctly on bad input; that error is passed through with its own position.
+ * Anything else missing an `eof` is a genuine contract violation and has no
+ * position to report.
  *
  * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<_TokenStream, ParseError>}
  */
@@ -641,7 +648,15 @@ const splitEof = tokenList => {
     const a = toArray(tokenList)
     const eofIdx = a.findIndex(({ token }) => token.kind === 'eof')
     if (eofIdx === -1) {
-        return error({ message: 'missing end-of-input token', metadata: null })
+        // A lexical failure ends the stream at its `error` token and emits no
+        // `eof`, so the absence of one is not always a broken contract. Rejecting
+        // it as one would answer "unterminated string at 1:11" with "missing
+        // end-of-input token" and no position at all, so the error is reported
+        // where it happened — the same place the hand-written parser reports it.
+        const lastToken = a[a.length - 1]
+        return lastToken !== undefined && lastToken.token.kind === 'error'
+            ? error({ message: 'unexpected token', metadata: lastToken.metadata })
+            : error({ message: 'missing end-of-input token', metadata: null })
     }
     const last = a.length - 1
     if (eofIdx !== last) {
@@ -823,6 +838,21 @@ export const proof = {
             const [tag, value] = splitEof([proofComma(1)])
             assert(tag === 'error', tag)
             assertEq(value.metadata, null)
+        },
+        // The one stream with no `eof` that is not a broken contract: a lexical
+        // failure stops the tokenizer at an `error` token. The position has to
+        // survive, or "unterminated string at 1:11" would be reported as
+        // "missing end-of-input token" with nowhere to point.
+        lexicalError: () => {
+            /** @type {DjsTokenWithMetadata} */
+            const errorToken = {
+                token: { kind: 'error', message: 'unterminated string literal' },
+                metadata: { path: 'a.js', line: 3, column: 7 },
+            }
+            const [tag, value] = splitEof([errorToken])
+            assert(tag === 'error', tag)
+            assertEq(value.metadata?.line, 3)
+            assertEq(value.metadata?.column, 7)
         },
         notFinal: () => {
             const [tag, value] = splitEof([proofEof(1), proofComma(2)])
