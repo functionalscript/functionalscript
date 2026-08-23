@@ -194,12 +194,20 @@ EDAG node:
 
 - **JavaScript proof** — an inline evaluator for the constant subset the
   corpus uses (primitives, `['undefined']`, `['[]', …]`, `['{}', …]`, `op1`,
-  `op2`), each id mapped to the JS operator/expression it names. When the
-  EDAG interpreter ([interpret-edag](../../djs/todo/interpret-edag.md)) lands,
-  the inline evaluator is replaced by it and the corpus becomes part of its
-  test suite for free.
+  `op2`), each id mapped to the JS operator/expression it names. It must
+  memoize nodes by identity within one case, as real EDAG evaluation does
+  ("shared nodes evaluate once" — [`fjs/edag/`](../../edag/README.md)): a
+  naive recursive walk would construct a shared `n` twice and turn
+  `['===', n, n]` into `false`. When the EDAG interpreter
+  ([interpret-edag](../../djs/todo/interpret-edag.md)) lands, the inline
+  evaluator is replaced by it and the corpus becomes part of its test suite
+  for free — the memoization contract is the same one that interpreter
+  already owes.
 - **Rust generator** — `valueExpr`/`call` walk the same node and print the
-  `nanvm-lib` expression for each id, via the explicit map from step 1.
+  `nanvm-lib` expression for each id, via the explicit map from step 1. It
+  needs the identity awareness in printed form: a multiply-referenced node
+  becomes one shared `let` binding reused at every reference — exactly what
+  the current `eqFn` does for `shared` values — never two constructions.
 - **`nanvm-lib` interpreter** — the roadmap's interpreter executes "the `Any`
   described by the EDAG spec"
   ([mvp-roadmap](../../../nanvm-lib/todo/mvp-roadmap.md)); the derived case
@@ -229,7 +237,10 @@ plus `ref` is node sharing spelled by name, and `eq: boolean` is `expected`.
 Unifying it into an ordinary `'==='` `Group2` is deliberately **not** part of
 this task — its dual-name cases (`name2`) and symmetric `b === a` check don't
 fit `Case<2>` yet — but the lowering above must treat `ref` as sharing from
-the start, so the later unification is a data move, not a redesign.
+the start, and step 3's consumers must be identity-aware (the evaluator's
+per-case memo, the printer's shared bindings), so that `arrayByItself` and
+`objectByItself` keep meaning "the same object" and the later unification is
+a data move, not a redesign.
 
 ### Operations without a canonical EDAG operation
 
@@ -276,9 +287,12 @@ Step 2 — cases as EDAG values:
 Step 3 — execution:
 
 - [ ] Evaluate the derived expression in the proof (constant-subset evaluator
-      now; the `interpret-edag` interpreter when it lands).
+      now; the `interpret-edag` interpreter when it lands), memoizing nodes
+      by identity within a case so shared nodes evaluate once and identity
+      cases stay true.
 - [ ] Print the Rust tests from the derived expression rather than from a
-      parallel reading of the case.
+      parallel reading of the case, emitting a shared `let` binding for any
+      multiply-referenced node.
 - [ ] Extract the corpus-format rules both consumers re-implement — the
       commutative `orders` expansion with its `Swapped` naming, and the
       `throws`-marker probe — into the shared data module, imported by the
