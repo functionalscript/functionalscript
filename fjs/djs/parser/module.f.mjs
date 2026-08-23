@@ -682,6 +682,17 @@ const tokenKindNames = /** @type {const} */ ([
  * The framing keywords, which the tokenizer emits as `id` tokens carrying the
  * word in `value`. Kept as its own list because the mapping has to recognize
  * exactly these values, not merely encode them.
+ *
+ * **A grammar over this alphabet owes them an identifier rule.** None of the
+ * five is reserved: outside the framing positions the parser accepts them as
+ * ordinary identifiers, so `const export = 1`, `export default export`, and
+ * `{ from: 2, default: 3 }` all parse today. Once each carries its own symbol, a
+ * rule whose identifier terminal is the bare `id` symbol rejects every one of
+ * them. Wherever an identifier is accepted — binding names, references, object
+ * keys, import names — the terminal has to be the union of `id` and these five.
+ *
+ * Giving a word its own symbol narrows where it is *required*, never where it is
+ * *allowed*.
  */
 const framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from'])
 

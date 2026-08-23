@@ -9,7 +9,7 @@ import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** @type {(s: string) => readonly DjsTokenWithMetadata[]} */
 const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
@@ -17,6 +17,37 @@ const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
 const stringifyDjsModule = stringifyAsTree(sort)
 
 export const proof = {
+    // None of the framing keywords is reserved: outside the positions that frame
+    // a module, the parser accepts them as ordinary identifiers. Pinned here
+    // because the BNF replacement gives each its own token symbol, and a grammar
+    // whose identifier rule accepted only the `id` symbol would stop parsing
+    // every case below without any other test noticing.
+    framingKeywordsAsIdentifiers: [
+        () => {
+            const [tag, value] = parseFromTokens(tokenizeString('const export = 1\nexport default export'))
+            assert(tag === 'ok', tag)
+            // `export` bound as a const and then referenced: the exported value
+            // resolves back to that binding, so the word acted as an identifier
+            // in both positions.
+            assertStructurallySame(value[1], [1, ['cref', 0]])
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString('const from = 1\nexport default from'))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString('const import = 1\nexport default import'))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString('export default { from: 2, default: 3 }'))
+            assert(tag === 'ok', tag)
+        },
+        () => {
+            const [tag] = parseFromTokens(tokenizeString('export default { export: 1 }'))
+            assert(tag === 'ok', tag)
+        },
+    ],
     valid: [
         () => {
             const tokenList = tokenizeString('export default null')
