@@ -36,7 +36,9 @@ yet.
 A node is a primitive or a tagged tuple `[tag, ...operands]`. In the schema
 and the type-level API, operation nodes are grouped by their `exp`-operand
 count — `op0` (`undefined`, `args`, `frame`), `op1` (unary), `op2` (binary)
-— not by semantic category. This table is an overview; the contract of
+— not by semantic category. The chain steps follow the same rule: the two
+property ids share one schema and the two call ids another, split by what
+they take rather than by what each id means. This table is an overview; the contract of
 record for each node is the JSDoc in [module.f.mjs](module.f.mjs) — on the
 node's export and, for the operations, on the `op0Id`/`op1Id`/`op2Id`
 vocabularies.
@@ -54,7 +56,8 @@ vocabularies.
 | `['()', exp, lambdas, exp]` | call: the value `exp0` plus `lambdas` arrives at, called with `exp2` — see [Chains](#chains) |
 | `['?.', exp, index, lambdas]` | optional property access: `exp0?.[exp1]`, then `lambdas` |
 | `['?.()', exp, lambdas, exp, lambdas]` | optional call: `exp0` plus the first `lambdas`, called optionally with `exp2`, then the second `lambdas` |
-| `['\|.', index]`, `['\|()', exp]`, `['\|?.', index]`, `['\|?.()', exp]` | a `lambda` — one chain step, only valid inside a `lambdas` operand above |
+| `[id, index]`, `id` one of `\|.` `\|?.` | a `lambda` — one property chain step, only valid inside a `lambdas` operand above |
+| `[id, exp]`, `id` one of `\|()` `\|?.()` | a `lambda` — one call chain step, likewise |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `neg` `!` `~` |
 | `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `===` `!==` `>` `>=` `<` `<=` `+` `-` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
@@ -104,6 +107,10 @@ value whose argument is elided, which is what the name says.
 | `['\|?.', index]` | the same, `undefined` on a nullish input |
 | `['\|()', exp]` | call the current value with the current receiver, then clear it |
 | `['\|?.()', exp]` | the same, `undefined` on a nullish current value |
+
+The rows pair up by operand, and that is how the schema carries them: one
+`lambdaPropertyAccessor` for the first two, one `lambdaCall` for the last two,
+each a tuple of its id vocabulary and its single operand.
 
 A step takes the previous value implicitly, so it holds no operand for it and
 carries no continuation: the rest of the chain is the rest of the `lambdas`.

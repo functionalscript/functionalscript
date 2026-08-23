@@ -11,10 +11,10 @@
  *  NumberCast,
  *  PropertyAccessor,
  *  Object,
+ *  LambdaPropertyAccessorId,
  *  LambdaPropertyAccessor,
+ *  LambdaCallId,
  *  LambdaCall,
- *  LambdaOptionalPropertyAccessor,
- *  LambdaOptionalCall,
  *  Lambda,
  *  Lambdas,
  *  Call,
@@ -244,65 +244,60 @@ export const propertyAccessor = /** @type {const} */(['.', exp, index])
  * @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
  */
 
-// Lambdas
+// Lambdas — grouped by operand shape, like `op1`/`op2`
 
 /**
+ * The two property steps, told apart by their tag: `|.` is
+ *
  * ```js
  * a.exp0   // the `.exp0` step of a chain whose current value is `a`
  * ```
  *
- * Property access on the current chain value, which also becomes the
- * receiver (`this`) of a later call step. See `lambda` for the four steps
- * and `lambdas` for the array they form.
+ * and `|?.` the optional `a?.exp0`. Both take the current chain value as
+ * their input and an `index` as their only operand, so they are one schema —
+ * the same rule that groups `op1`/`op2` by operand count rather than by what
+ * each id means.
+ *
+ * A property step reads the current value's property and makes that value the
+ * receiver (`this`) of a later call step. `|?.` additionally short-circuits:
+ * on a nullish input it produces `undefined`, leaves its `index` operand
+ * unevaluated, and skips the remaining steps of the `lambdas` containing it.
  */
-export const lambdaPropertyAccessor = /** @type {const} */(['|.', index])
+export const lambdaPropertyAccessorId = or('|.', '|?.')
+
+/**
+ * @typedef {Assert<Check<LambdaPropertyAccessorId, typeof lambdaPropertyAccessorId>>} _LambdaPropertyAccessorId
+ */
+
+export const lambdaPropertyAccessor = /** @type {const} */([lambdaPropertyAccessorId, index])
 
 /**
  * @typedef {Assert<Check<LambdaPropertyAccessor, typeof lambdaPropertyAccessor>>} _LambdaPropertyAccessor
  */
 
 /**
+ * The two call steps, told apart by their tag: `|()` is
+ *
  * ```js
  * a(...exp0)   // the `(...exp0)` step of a chain whose value is `a`
  * ```
  *
- * Calls the current chain value with the current receiver, if a property
- * step established one, and clears it. The operand is one node evaluating to
- * the complete argument array, the same convention as `call`.
+ * and `|?.()` the optional `a?.(...exp0)`. Both take one `exp` operand
+ * evaluating to the complete argument array — the same convention as `call` —
+ * so, like the property steps above, they are one schema.
+ *
+ * A call step calls the current value with the current receiver, if a
+ * property step established one, and clears it. `|?.()` short-circuits the
+ * same way `|?.` does, on a nullish current value, leaving its argument
+ * operand unevaluated.
  */
-export const lambdaCall = /** @type {const} */(['|()', exp])
+export const lambdaCallId = or('|()', '|?.()')
+
+/** @typedef {Assert<Check<LambdaCallId, typeof lambdaCallId>>} _LambdaCallId */
+
+export const lambdaCall = /** @type {const} */([lambdaCallId, exp])
 
 /** @typedef {Assert<Check<LambdaCall, typeof lambdaCall>>} _LambdaCall */
-
-/**
- * ```js
- * a?.exp0  // the `?.exp0` step of a chain whose current value is `a`
- * ```
- *
- * Optional property access. On a nullish input it produces `undefined`,
- * leaves the `index` operand unevaluated, and skips the remaining steps of
- * the array containing it; otherwise it behaves like `lambdaPropertyAccessor`.
- */
-export const lambdaOptionalPropertyAccessor = /** @type {const} */(['|?.', index])
-
-/**
- * @typedef {Assert<Check<LambdaOptionalPropertyAccessor, typeof lambdaOptionalPropertyAccessor>>} _LambdaOptionalPropertyAccessor
- */
-
-/**
- * ```js
- * a?.(...exp0) // the `?.(...exp0)` step of a chain whose value is `a`
- * ```
- *
- * Optional call. On a nullish current value it produces `undefined`, leaves
- * the argument operand unevaluated, and skips the remaining steps of the
- * array containing it; otherwise it behaves like `lambdaCall`.
- */
-export const lambdaOptionalCall = /** @type {const} */(['|?.()', exp])
-
-/**
- * @typedef {Assert<Check<LambdaOptionalCall, typeof lambdaOptionalCall>>} _LambdaOptionalCall
- */
 
 /**
  * One structural step of a chain: a function of the current chain value with
@@ -313,16 +308,11 @@ export const lambdaOptionalCall = /** @type {const} */(['|?.()', exp])
  * the n-th step of some `lambdas`.
  *
  * The two property steps establish a receiver, the two call steps consume
- * one; the two optional steps additionally short-circuit. None of the four
+ * one; the two optional ids additionally short-circuit. None of the four
  * carries a continuation operand — the rest of the chain is simply the rest
  * of the `lambdas` they sit in.
  */
-export const lambda = or(
-    lambdaPropertyAccessor,
-    lambdaCall,
-    lambdaOptionalPropertyAccessor,
-    lambdaOptionalCall,
-)
+export const lambda = or(lambdaPropertyAccessor, lambdaCall)
 
 /** @typedef {Assert<Check<Lambda, typeof lambda>>} _Lambda */
 

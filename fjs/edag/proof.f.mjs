@@ -17,7 +17,9 @@
 
 import { validate } from '../types/rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame, todo } from '../asserts/module.f.mjs'
-import { exp, op0Id, op1Id, op2Id } from './module.f.mjs'
+import {
+    exp, lambdaCallId, lambdaPropertyAccessorId, op0Id, op1Id, op2Id,
+} from './module.f.mjs'
 
 /** @type {(r: readonly [string, unknown]) => void} */
 const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
@@ -43,6 +45,12 @@ const v = value => validate(exp)(value)
 const vOp0Id = value => validate(op0Id)(value)
 
 /** @type {(value: Unknown) => readonly [string, unknown]} */
+const vLambdaPropertyAccessorId = value => validate(lambdaPropertyAccessorId)(value)
+
+/** @type {(value: Unknown) => readonly [string, unknown]} */
+const vLambdaCallId = value => validate(lambdaCallId)(value)
+
+/** @type {(value: Unknown) => readonly [string, unknown]} */
 const vOp1Id = value => validate(op1Id)(value)
 
 /** @type {(value: Unknown) => readonly [string, unknown]} */
@@ -52,6 +60,12 @@ const vOp2Id = value => validate(op2Id)(value)
  * from `op0Id`, so deleting one from the schema reddens exactly its own
  * assertion below rather than silently shrinking this list too. */
 const op0Ids = /** @type {const} */ (['undefined', 'args', 'frame'])
+
+/** Same purpose as `op0Ids`, for the property and call `lambda` steps. */
+const lambdaPropertyAccessorIds = /** @type {const} */ (['|.', '|?.'])
+
+/** Same purpose as `op0Ids`, for the call `lambda` steps. */
+const lambdaCallIds = /** @type {const} */ (['|()', '|?.()'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
 const op1Ids = /** @type {const} */ (['String', 'Number', 'neg', '!', '~'])
@@ -154,22 +168,33 @@ export const proof = {
             assertNoMatch(v(['.', 'a', true]))
         },
     },
-    // The four `lambda` steps, and the `lambdas` array of them that `call`,
+    // The `lambda` steps, and the `lambdas` array of them that `call`,
     // `optionalPropertyAccessor`, and `optionalCall` carry. A `lambda` is a
     // structural step, never an `exp`, so every value here is reached
     // through a node that owns a `lambdas` — there is no `v(step)` route to
-    // one, which `notAnExp` below pins.
+    // one, which `notAnExp` below pins. The four ids are two schemas, split
+    // by operand shape like `op1`/`op2`: `index` for the property steps,
+    // `exp` for the call steps.
     lambdas: {
         ok: () => {
             assertOk(v(['()', 'f', [], 1])) // no steps at all
-            assertOk(v(['()', 'f', [['|.', 'b']], 1]))
-            assertOk(v(['()', 'f', [['|()', 1]], 2]))
-            assertOk(v(['()', 'f', [['|?.', 'b']], 1]))
-            assertOk(v(['()', 'f', [['|?.()', 1]], 2]))
+            // Every id each schema accepts, pinned individually — the same
+            // literal-list discipline as `op0Ids`/`op1Ids`/`op2Ids`.
+            for (const id of lambdaPropertyAccessorIds) {
+                assertOk(v(['()', 'f', [[id, 'b']], 1]))
+            }
+            for (const id of lambdaCallIds) {
+                assertOk(v(['()', 'f', [[id, 1]], 2]))
+            }
             // `index` in the property steps, `exp` in the call steps — the
             // same operand schemas the expression-level nodes use.
             assertOk(v(['()', 'f', [['|.', 0], ['|?.', ['Number', 1]]], 1]))
             assertOk(v(['()', 'f', [['|()', ['[]', [1, 2]]]], 1]))
+            // The two schemas differ in more than their tag: a property
+            // step's operand is an `index`, so a general `exp` is rejected
+            // there, while a call step takes any `exp`.
+            assertNoMatch(v(['()', 'f', [['|.', ['[]', []]]], 1]))
+            assertOk(v(['()', 'f', [['|()', ['[]', []]]], 1]))
         },
         // A `lambda` only means anything as the n-th step of a `lambdas`:
         // it takes its input implicitly, so on its own it is not an `exp`
@@ -190,9 +215,14 @@ export const proof = {
             assertNoMatch(v(['()', 'f', [['|?.()']], 1]))
         },
         extraTailIsIgnored: () => assertOk(v(['()', 'f', [['|.', 'b', 'extra']], 1])),
-        // The four tags are a real constraint: an expression-level tag in a
-        // step position is rejected, and so is an unknown one.
+        // Each id vocabulary is a real constraint, not a stand-in for
+        // `string`: an expression-level tag in a step position is rejected,
+        // so is an unknown one, and so is a call id where a property id
+        // belongs — the two schemas are told apart by their tag alone.
         unknownOpIsRejected: () => {
+            assertNoMatch(vLambdaPropertyAccessorId('xyz'))
+            assertNoMatch(vLambdaCallId('xyz'))
+            assertNoMatch(vLambdaPropertyAccessorId('|()'))
             assertNoMatch(v(['()', 'f', [['.', 'b']], 1]))
             assertNoMatch(v(['()', 'f', [['|.z', 'b']], 1]))
         },

@@ -74,26 +74,22 @@ export type Index = number | NumberCast | string
 
 export type PropertyAccessor = readonly['.', Exp, Index]
 
-// lambdas
+// lambdas — grouped by operand shape, like `Op1`/`Op2`
 
-export type LambdaPropertyAccessor = readonly['|.', Index]
+export type LambdaPropertyAccessorId = '|.' | '|?.'
 
-export type LambdaCall = readonly['|()', Exp]
+export type LambdaPropertyAccessor = readonly[LambdaPropertyAccessorId, Index]
 
-export type LambdaOptionalPropertyAccessor = readonly['|?.', Index]
+export type LambdaCallId = '|()' | '|?.()'
 
-export type LambdaOptionalCall = readonly['|?.()', Exp]
+export type LambdaCall = readonly[LambdaCallId, Exp]
 
 /**
  * A structural step of a chain, never an `Exp`: a `Lambda` reads the
  * current chain value implicitly, so it has no place to hold one, and it
  * cannot be extracted as a shared computation node.
  */
-export type Lambda =
-    | LambdaPropertyAccessor
-    | LambdaCall
-    | LambdaOptionalPropertyAccessor
-    | LambdaOptionalCall
+export type Lambda = LambdaPropertyAccessor | LambdaCall
 
 export type Lambdas = readonly Lambda[]
 
