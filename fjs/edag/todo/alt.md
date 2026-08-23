@@ -6,24 +6,16 @@
 ['|.', b:exp]
 
 // a(...b)
-['()', a:exp, b:exp]
+['()', a:exp, lambda, b:exp]
 ['|()', b:exp]
 
 // a?.b
-['?.', a:exp, b:exp, option(lambda)]
-['|?.', b:exp, option(lambda)]
+['?.', a:exp, b:exp, lambda]
+['|?.', b:exp]
 
 // a?.(...b)
-['?.()', a:exp, b:exp, option(lambda)]
-['|.?()', b:exp, option(lambda)]
-
-// with explicit this
-
-// aO(b)
-['this()', a:exp, O:lambda, b: exp]
-
-// aO?.(b)
-['this?.()', a:exp, O:lambda, b: exp, option(lambda)]
+['?.()', a:exp, lambda, b:exp, lambda]
+['|.?()', b:exp]
 ```
 
 ## Example
@@ -35,16 +27,17 @@ a?.b?.(...c)
 ['?.',
     a,
     b,
-    ['|?.()', c]
+    [['|?.()', c]]
 ]
 
 // exp:
 (a?.b.c)(...d)
 // edag:
-['this()',
+['()',
     a,
-    ['|?.', b,
-        ['|.', c]
+    [
+        ['|?.', b],
+        ['|.', c],
     ],
     d
 ]
@@ -52,43 +45,28 @@ a?.b?.(...c)
 // exp:
 (a?.(...b).c)(...d)
 // edag:
-['this()',
+['()',
     a,
-    ['|?.()', b,
-        ['|.', c]
+    [
+        ['|?.()', b],
+        ['|.', c],
     ],
     d
-]
-
-// a?.(b?.c).d
-['?.',
-    a,
-    b,
-    ['|?.',
-        c,
-        ['|.', d]
-    ],
 ]
 
 // a?.b?.c.d
 ['?.',
     a,
     b,
-    ['|?.',
-        c,
+    [   ['|?.', c],
         ['|.', d]
     ],
 ]
 ```
 
-|JS         |exp                           |lambda                   |
-|-----------|------------------------------|-------------------------|
-|`a.b`      |`['.', a:exp, b:exp]`         |`['\|.', b:exp]`         |
-|`a(...b)`  |`['()', a:exp, b:exp]`        |`['\|()', b:exp]`        |
-|`a?.b`     |`['?.', a:exp, b:exp, cont]`  |`['\|?.', b:exp, cont]`  |
-|`a?.(...b)`|`['?.()', a:exp, b:exp, cont]`|`['\|?.()', b:exp, cont]`|
-
-|JS            |exp                                          |
-|--------------|---------------------------------------------|
-|`(aO)(...b)`  |`['this()', a:exp, O:lambda, b: exp]`        |
-|`(aO)?.(...b)`|`['this?.()', a:exp, O:lambda, b: exp, cont]`|
+|JS         |exp                                         |lambda             |
+|-----------|--------------------------------------------|-------------------|
+|`a.b`      |`['.', a:exp, b:index]`                     |`['\|.', b:index]` |
+|`aO(...b)` |`['()', a:exp, O:lambda, b:exp]`            |`['\|()', b:exp]`  |
+|`a?.b`     |`['?.', a:exp, b:index, O:lambda]`          |`['\|?.', b:index]`|
+|`a?.(...b)`|`['?.()', a:exp, O:lambda, b:exp, O:lambda]`|`['\|?.()', b:exp]`|
