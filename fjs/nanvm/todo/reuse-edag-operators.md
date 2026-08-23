@@ -104,7 +104,20 @@ export type Group2 = {
     readonly cases: readonly Case<2>[]
 }
 
-export type Group = Group1 | Group2
+/**
+ * The visible exception: an operation with no canonical EDAG id yet. The
+ * field is deliberately not `op`, so a NaNVM-only name can never mix into
+ * the canonical id unions. Today its one inhabitant is `unaryPlus`; the
+ * type is deleted when
+ * [replace-unary-plus-with-number](../../nanvm-lib/todo/replace-unary-plus-with-number.md)
+ * moves that group to `Number`.
+ */
+export type NonEdagGroup = {
+    readonly nanvmOp: 'unaryPlus'
+    readonly cases: readonly Case<1>[]
+}
+
+export type Group = Group1 | Group2 | NonEdagGroup
 ```
 
 - The arity is derived from which vocabulary the group's `op` belongs to —
@@ -222,11 +235,11 @@ the start, so the later unification is a data move, not a redesign.
 
 An operation the corpus needs before the EDAG design reaches it must not cause
 `fjs/nanvm/` to invent a permanent EDAG spelling. Either define it in the
-canonical vocabulary first, if it belongs there, or keep the group explicitly
-outside the EDAG-backed types until then — the exception visible in the type
-model, never a NaNVM-only name mixed into a supposedly canonical id union.
-Today the only such case is `unaryPlus`, already scheduled to become `Number`
-by [replace-unary-plus-with-number](../../../nanvm-lib/todo/replace-unary-plus-with-number.md).
+canonical vocabulary first, if it belongs there, or keep the group as a
+`NonEdagGroup` (step 1) until then — the exception visible in the type model,
+never a NaNVM-only name mixed into a supposedly canonical id union. Today the
+only such case is `unaryPlus`, already scheduled to become `Number` by
+[replace-unary-plus-with-number](../../../nanvm-lib/todo/replace-unary-plus-with-number.md).
 
 ### Tasks
 
@@ -237,9 +250,10 @@ Step 1 — vocabulary:
       `Case<N>` with `Tuple<N, Value>` args, `commutative` on `Group2` only.
 - [ ] Add type-level proofs that wrong operand counts are rejected.
 - [ ] Migrate the data in [`module.f.mjs`](../module.f.mjs): `unaryMinus` →
-      `neg`, `mul` → `*`, `stringCoercion` → `String`. Keep `unaryPlus`
-      explicitly outside the EDAG-backed groups until
-      `replace-unary-plus-with-number.md` turns it into `Number`.
+      `neg`, `mul` → `*`, `stringCoercion` → `String`. Keep `unaryPlus` as
+      the one `NonEdagGroup` — same cases, same generated output — until
+      `replace-unary-plus-with-number.md` turns it into `Number` and deletes
+      that type.
 - [ ] Update [`proof.f.mjs`](../proof.f.mjs) to dispatch on the canonical ids,
       preserving case proof keys and the `Swapped` convention.
 - [ ] Update [`rust/module.f.mjs`](../rust/module.f.mjs): an explicit id →
