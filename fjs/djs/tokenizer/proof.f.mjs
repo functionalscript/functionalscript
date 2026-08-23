@@ -800,6 +800,23 @@ export const proof = {
             const result = tokenizeString('/* multiline comment *\n * **/')
             if (result !== '[{"kind":"/*","value":" multiline comment *\\n * *"},{"kind":"nl"},{"kind":"eof"}]') { throw result }
         },
+        // `'/'` is an `operatorTags` member for division, so a line comment's own
+        // slashes must be consumed by the comment rule before the tag reaches
+        // `filterFunc`. These pin that: a multi-character line comment stays one
+        // token, inner slashes included, and division still tokenizes as an
+        // operator.
+        () => {
+            const result = tokenizeString('//ab\n')
+            assertEq(result, '[{"kind":"//","value":"ab"},{"kind":"nl"},{"kind":"eof"}]')
+        },
+        () => {
+            const result = tokenizeString('//a//b\n')
+            assertEq(result, '[{"kind":"//","value":"a//b"},{"kind":"nl"},{"kind":"eof"}]')
+        },
+        () => {
+            const result = tokenizeString('a/b')
+            assertEq(result, '[{"kind":"id","value":"a"},{"kind":"/"},{"kind":"id","value":"b"},{"kind":"eof"}]')
+        },
     ],
     metadata: [
         () => {
