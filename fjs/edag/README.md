@@ -26,7 +26,10 @@ two cannot drift — exact up to one known approximation: the static tuples
 are closed while the runtime ones are open (see Caveats).
 [proof.f.mjs](proof.f.mjs) pins what the schema accepts and rejects, node
 kind by node kind — validation behavior, not execution semantics — with
-`comma` excepted until its placeholder shape settles.
+`comma` excepted until its placeholder shape settles. Its `ownJs` and
+`chainsJs` sections are the exception that proves the rule: they run the JS
+whose behavior the nodes are built around, since nothing executes an EDAG
+yet.
 
 ## Nodes
 
@@ -135,7 +138,10 @@ nodes or `|.` steps is a lowering question, decided in
 [compile-modules-to-edag.md](../djs/todo/compile-modules-to-edag.md); both
 are valid EDAGs meaning the same thing. The `chains` section of
 [proof.f.mjs](proof.f.mjs) pins the shape of every spelling above and the
-rest of the grouping cases.
+rest of the grouping cases, and `chainsJs` next to it runs those spellings as
+JS on the host engine — the receiver surviving `(a?.b)(d)`, the operands an
+optional branch skips, and the grouped forms that throw — so the semantics
+the nodes are built around are checked, not just asserted in prose.
 
 ## Caveats
 

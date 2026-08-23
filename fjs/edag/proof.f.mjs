@@ -16,7 +16,7 @@
  */
 
 import { validate } from '../types/rtti/validate/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import { exp, op0Id, op1Id, op2Id } from './module.f.mjs'
 
 /** @type {(r: readonly [string, unknown]) => void} */
@@ -415,6 +415,72 @@ export const proof = {
         unknownIdIsRejected: () => {
             assertNoMatch(vOp2Id('xyz'))
             assertNoMatch(v(['xyz', 1, 2]))
+        },
+    },
+    // The JS these nodes have to agree with, run on the host engine — the
+    // `ownJs` pattern one level up: what the vocabulary denotes, not what the
+    // schema accepts. Every spelling here is one `chains` pins the shape of,
+    // and each is why that shape is what it is. `todo()` always throws, so it
+    // doubles as an evaluation probe: reaching it is observable without any
+    // mutation, and a case that returns instead proves the operand was
+    // skipped.
+    chainsJs: {
+        // Receiver: a property reference carries its base into the call as
+        // `this`, and parentheses around the reference do not break that —
+        // only detaching the value does (`throw.detachedReceiver`). It holds
+        // across an optional link too, which is why `(a?.b)(d)` keeps `?.b`
+        // as a step of the call's own lambda, `['()', a, [['|?.', 'b']], d]`,
+        // rather than calling a complete `['?.', a, 'b', []]` node: the
+        // latter would produce an ordinary value and lose the receiver.
+        receiver: () => {
+            const a = [42]
+            assertEq(a.at(0), 42)
+            assertEq((a.at)(0), 42)
+            assertEq((a?.at)(0), 42) // ['()', a, [['|?.', 'at']], …]
+            assertEq((a?.at)?.(0), 42) // ['?.()', a, [['|?.', 'at']], …, []]
+            assertEq(a.at?.(0), 42) // ['?.()', a, [['|.', 'at']], …, []]
+            assertEq(a?.at?.(0), 42) // ['?.', a, 'at', [['|?.()', …]]]
+        },
+        // Short-circuit: a nullish link skips the rest of its chain, and
+        // grouping is what ends that chain — `u?.at.name` is `undefined`
+        // where `(u?.at).name` throws (`throw.groupedOptional`), one lambda
+        // array against two nodes.
+        shortCircuit: () => {
+            /** @type {any} */
+            const u = undefined
+            assertEq(u?.at, undefined)
+            assertEq(u?.at.name, undefined) // ['?.', u, 'at', [['|.', 'name']]]
+            assertEq(u?.at?.(0), undefined)
+            // The operands on the skipped branch are never evaluated: an
+            // optional property's index, and an optional call's arguments.
+            assertEq(u?.[todo()], undefined)
+            assertEq(u?.(todo()), undefined)
+        },
+        throw: {
+            // `const at = a.at; at(0)` — the value without its receiver,
+            // the case that makes receiver state part of what a graph means.
+            detachedReceiver: () => {
+                const at = [42].at
+                return at(0)
+            },
+            // `(u?.at).name` — the parens ended the optional chain, so
+            // `.name` runs on `undefined` instead of being skipped.
+            groupedOptional: () => {
+                /** @type {any} */
+                const u = undefined
+                return (u?.at).name
+            },
+            // `(u?.at)(0)` — the same boundary for a call: `undefined` is
+            // called rather than the chain short-circuiting past it.
+            groupedOptionalCall: () => {
+                /** @type {any} */
+                const u = undefined
+                return (u?.at)(0)
+            },
+            // The mirror of `shortCircuit`'s last two: on a non-nullish
+            // input those same operands *are* evaluated.
+            evaluatedIndex: () => [42]?.[todo()],
+            evaluatedArgument: () => [42].at?.(todo()),
         },
     },
     // `f(...args)[k](obj.a)` in AST form — exercises the mutual recursion
