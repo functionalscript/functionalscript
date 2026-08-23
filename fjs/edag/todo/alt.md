@@ -6,15 +6,15 @@
 ['|.', b:exp]
 
 // a(...b)
-['()', a:exp, lambda, b:exp]
+['()', a:exp, lambdas, b:exp]
 ['|()', b:exp]
 
 // a?.b
-['?.', a:exp, b:exp, lambda]
+['?.', a:exp, b:exp, lambdas]
 ['|?.', b:exp]
 
 // a?.(...b)
-['?.()', a:exp, lambda, b:exp, lambda]
+['?.()', a:exp, lambdas, b:exp, lambdas]
 ['|.?()', b:exp]
 ```
 
@@ -64,9 +64,9 @@ a?.b?.(...c)
 ]
 ```
 
-|JS         |exp                                         |lambda             |
-|-----------|--------------------------------------------|-------------------|
-|`a.b`      |`['.', a:exp, b:index]`                     |`['\|.', b:index]` |
-|`aO(...b)` |`['()', a:exp, O:lambda, b:exp]`            |`['\|()', b:exp]`  |
-|`a?.b`     |`['?.', a:exp, b:index, O:lambda]`          |`['\|?.', b:index]`|
-|`a?.(...b)`|`['?.()', a:exp, O:lambda, b:exp, O:lambda]`|`['\|?.()', b:exp]`|
+|JS           |exp                                              |lambda                |
+|-------------|-------------------------------------------------|----------------------|
+|`a.b`        |`['.'   , a:exp, b:index                       ]`|`['\|.'   , b:index]` |
+|`a?.bc`      |`['?.'  , a:exp, b:index  , c:lambdas          ]`|`['\|?.'  , b:index]` |
+|`ab(...c)`   |`['()'  , a:exp, b:lambdas, c:exp              ]`|`['\|()'  , b:exp]`   |
+|`ab?.(...b)d`|`['?.()', a:exp, b:lambdas, b:exp    , d:lambda]`|`['\|?.()', b:exp]`   |
