@@ -10,7 +10,7 @@
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/types.ts'
  * @import { TokenMetadata } from '../../js/tokenizer/types.ts'
- * @import { OrdinaryTokenName, ParseError, _ValueToken } from './types.ts'
+ * @import { ParseError, _FramingKeyword, _OrdinaryTokenName, _ValueToken } from './types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { CodePointMeta } from '../../bnf/descent/types.ts'
@@ -663,17 +663,40 @@ const splitEof = tokenList => {
  * vocabulary: only eight punctuators survive into `DjsToken`, so the JS operator
  * set the tokenizer recognizes is far larger than what reaches this layer.
  *
- * `_AlphabetIsComplete` below checks this list against `DjsToken` at compile
- * time, so a kind added there breaks the build rather than going unrepresented.
+ * A name is not always a kind. The framing keywords arrive as `id` tokens and
+ * need terminals of their own, or the grammar could not tell `export default`
+ * from two arbitrary identifiers — see {@link framingKeywords}.
+ *
+ * The `_…AreComplete` assertions below check both halves against `DjsToken` and
+ * `_FramingKeyword` at compile time, so a kind or keyword added there breaks the
+ * build rather than going unrepresented.
  */
-const ordinaryTokenNames = /** @type {const} */ ([
+const tokenKindNames = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined',
     '{', '}', ':', ',', '[', ']', '.', '=',
     'string', 'number', 'error', 'id', 'bigint',
     'ws', 'nl', '//', '/*',
 ])
 
-/** @typedef {Assert<Equal<(typeof ordinaryTokenNames)[number], OrdinaryTokenName>>} _AlphabetIsComplete */
+/**
+ * The framing keywords, which the tokenizer emits as `id` tokens carrying the
+ * word in `value`. Kept as its own list because the mapping has to recognize
+ * exactly these values, not merely encode them.
+ */
+const framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from'])
+
+/**
+ * The complete alphabet: one name per `DjsToken` kind except `eof`, plus one per
+ * framing keyword. No keyword collides with a kind, so the two lists concatenate
+ * without a name being registered twice — which `encoding` would reject anyway.
+ */
+const ordinaryTokenNames = [...tokenKindNames, ...framingKeywords]
+
+/** @typedef {Assert<Equal<(typeof tokenKindNames)[number], Exclude<DjsToken['kind'], 'eof'>>>} _KindsAreComplete */
+
+/** @typedef {Assert<Equal<(typeof framingKeywords)[number], _FramingKeyword>>} _KeywordsAreComplete */
+
+/** @typedef {Assert<Equal<(typeof ordinaryTokenNames)[number], _OrdinaryTokenName>>} _AlphabetIsComplete */
 
 /**
  * The alphabet's encoding, built once for the module rather than per parse.
@@ -701,9 +724,17 @@ const tokenEncoding = encoding(ordinaryTokenNames)
  * @type {(t: DjsTokenWithMetadata) => CodePointMeta<DjsTokenWithMetadata>}
  */
 const tokenToSymbol = t => {
-    const { kind } = t.token
-    assert(kind !== 'eof', ['eof token reached the parser alphabet', t])
-    return [tokenEncoding.encode(kind), t]
+    const { token } = t
+    // A framing keyword arrives as an `id` carrying the word, so the name comes
+    // from the value there and from the kind everywhere else. `find` rather than
+    // a set membership test because it also narrows the result to the keyword
+    // union, which is what lets `encode` be called without a cast.
+    const keyword = token.kind === 'id'
+        ? framingKeywords.find(k => k === token.value)
+        : undefined
+    const name = keyword ?? token.kind
+    assert(name !== 'eof', ['eof token reached the parser alphabet', t])
+    return [tokenEncoding.encode(name), t]
 }
 
 /** @type {(kind: 'eof' | ',') => (line: number) => DjsTokenWithMetadata} */
@@ -732,6 +763,21 @@ export const proof = {
             assertEq(new Set(symbols).size, ordinaryTokenNames.length)
             const [, unicodeLast] = rangeDecode(unicodeRange)
             assert(symbols.every(s => s > unicodeLast), JSON.stringify(symbols))
+        },
+        // The distinction the hand-written parser makes by comparing
+        // `token.value`: a framing keyword and an ordinary identifier arrive as
+        // the same `id` kind, and the grammar can only tell them apart if they
+        // get different symbols here.
+        framingKeywordsAreNotIdentifiers: () => {
+            /** @type {(value: string) => number} */
+            const symbolOf = value =>
+                tokenToSymbol({ token: { kind: 'id', value }, metadata: { path: 'a.js', line: 1, column: 1 } })[0]
+            const id = symbolOf('foo')
+            const keywords = framingKeywords.map(symbolOf)
+            assert(keywords.every(s => s !== id), JSON.stringify([id, keywords]))
+            assertEq(new Set(keywords).size, framingKeywords.length)
+            assertEq(tokenEncoding.decode(symbolOf('export')), 'export')
+            assertEq(tokenEncoding.decode(id), 'id')
         },
         // The token rides along untouched, so a fold or a diagnostic above still
         // has its value and its position.
