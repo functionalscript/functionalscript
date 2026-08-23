@@ -1,19 +1,94 @@
 # Alternative Definition of EDAG
 
-Two forms:
+```ts
+// a.b
+['.', a:exp, b:exp]
+['|.', b:exp]
 
-1. Full expressions `[o, a, b]`
-2. Partial expression `[o, b]`
+// a(...b)
+['()', a:exp, b:exp]
+['|()', b:exp]
 
-where `o` is either:
-- `.`,
-- `()`,
-- `?.`,
-- `?.()`.
+// a?.b
+['?.', a:exp, b:exp, option(lambda)]
+['|?.', b:exp, option(lambda)]
 
-Partial expressions are used inside `?.` and `?.()`
+// a?.(...b)
+['?.()', a:exp, b:exp, option(lambda)]
+['|.?()', b:exp, option(lambda)]
 
-- `a?.b`: `['?.', a, b, []]`
-- `a?.b.c`: `['?.', a, b, [['.', c]]]`
-- `(a?.b)(...c)`: `['()', ['?.', a, b], c]`
-- `a?.b(...c)`: `['?.', a, b, [['()', c]]]`
+// with explicit this
+
+// aO(b)
+['this()', a:exp, O:lambda, b: exp]
+
+// aO?.(b)
+['this?.()', a:exp, O:lambda, b: exp, option(lambda)]
+```
+
+## Example
+
+```ts
+// exp:
+a?.b?.(...c)
+// edag:
+['?.',
+    a,
+    b,
+    ['|?.()', c]
+]
+
+// exp:
+(a?.b.c)(...d)
+// edag:
+['this()',
+    a,
+    ['|?.', b,
+        ['|.', c]
+    ],
+    d
+]
+
+// exp:
+(a?.(...b).c)(...d)
+// edag:
+['this()',
+    a,
+    ['|?.()', b,
+        ['|.', c]
+    ],
+    d
+]
+
+// a?.(b?.c).d
+['?.',
+    a,
+    b,
+    ['|?.',
+        c,
+        ['|.', d]
+    ],
+]
+
+// a?.b?.c.d
+['?.',
+    a,
+    b,
+    ['|?.',
+        c,
+        ['|.', d]
+    ],
+]
+```
+
+|JS         |exp                           |lambda                   |
+|-----------|------------------------------|-------------------------|
+|`a.b`      |`['.', a:exp, b:exp]`         |`['\|.', b:exp]`         |
+|`a(...b)`  |`['()', a:exp, b:exp]`        |`['\|()', b:exp]`        |
+|`a?.b`     |`['?.', a:exp, b:exp, cont]`  |`['\|?.', b:exp, cont]`  |
+|`a?.(...b)`|`['?.()', a:exp, b:exp, cont]`|`['\|?.()', b:exp, cont]`|
+
+|JS            |exp                                          |
+|--------------|---------------------------------------------|
+|`(aO)(...b)`  |`['this()', a:exp, O:lambda, b: exp]`        |
+|`(aO)?.(...b)`|`['this?.()', a:exp, O:lambda, b: exp, cont]`|

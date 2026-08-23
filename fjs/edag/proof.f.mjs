@@ -259,10 +259,39 @@ export const proof = {
         assertOk(v(value))
     },
     operations: {
-        ok: () => assertEq(([42]?.at)(0), 42),
-        throw: () => {
-            const y = [42]?.at
-            y(0)
-        }
+        ok: [
+            () => assertEq(([42]?.at)(0), 42),
+            () => {
+                /** @type {any} */
+                const x = undefined
+                x?.a.b
+            },
+            () => {
+                /** @type {any} */
+                const a = [42]
+                assertEq((a?.at)(0), 42)
+            },
+            () => {
+                /** @type {any} */
+                const a = null
+                assertEq(a?.b, undefined)
+            }
+        ],
+        throw: [
+            () => {
+                const y = [42]?.at
+                y(0)
+            },
+            () => {
+                /** @type {any} */
+                const x = undefined
+                const y = (x?.a).b
+            },
+            () => {
+                /** @type {any} */
+                const a = [42]
+                const _ = (a !== undefined ? a.at : undefined)(0)
+            }
+        ]
     }
 }
