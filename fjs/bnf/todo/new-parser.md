@@ -37,7 +37,7 @@ would lose the source position needed for failures exactly at physical end.
 ### Why the registered alphabet is enough
 
 The widening was never a capacity problem. `token_symbol` holds **15,663,103**
-names (`0x110000`–`0xFFFFFE`); this parser's alphabet is **21**. The 256 bits were
+names (`0x110000`–`0xFFFFFE`); this parser's alphabet is **26**. The 256 bits were
 for a different property: deriving a symbol from the name's own UTF-8 bytes, so
 producer and consumer compute it independently and no ordered list exists. A
 31-byte name needs 248 bits, which is where the number came from — the length of
@@ -55,7 +55,7 @@ trade and accepted the registry, including its one cost:
 That condition still holds here. This parser builds its encoding at construction
 from one list, uses it for the length of a parse, and serializes no symbol — so
 order-dependence costs it nothing, and the migration would buy it nothing it can
-observe. Verified against the real alphabet: all 21 names round-trip, symbols are
+observe. Verified against the real alphabet: every name round-trips, symbols are
 injective and inside the ordinary domain, each is usable as a `oneEncode`
 terminal, and names far longer than any keyword encode fine — the case that
 motivated deriving symbols from bytes is already covered by a registry entry
@@ -106,12 +106,28 @@ real physical-end metadata already produced by the tokenizer and is held by the
 DJS parser adapter only for diagnostics. The synthesized EOF contributes no
 ordinary token metadata leaf to the BNF AST.
 
-**3. Map ordinary `DjsToken` names to symbols through the shared fallible
-mapping.** Define a finite token-name alphabet for this parser layer (`{`, `}`,
-`:`, `,`, `[`, `]`, `.`, `=`, `identifier`, `number`, `string`, keywords,
-operators, and any other ordinary categories the grammar needs). `eof` is not a
-member of that mapped alphabet. Map the names with
+**3. Map ordinary token names to symbols through the registered encoding.**
+Define a finite token-name alphabet for this parser layer (`{`, `}`, `:`, `,`,
+`[`, `]`, `.`, `=`, `identifier`, `number`, `string`, keywords, and any other
+ordinary categories the grammar needs). `eof` is not a member of that alphabet.
+Map the names with
 [`token_symbol.encoding(names)`](../token_symbol/module.f.mjs).
+
+That encoding is **asserting, not fallible**: it throws on an over-capacity or
+duplicated alphabet, and `encode` throws on an unregistered name, rather than
+returning `null`. Do not carry nullable-result handling over from the parked
+UTF-8 design — there is no `null` to handle.
+
+**A token name is not always a token kind.** The tokenizer emits `import`,
+`const`, `export`, `default`, and `from` as `id` tokens carrying the word in
+`value` (`fjs/djs/tokenizer/module.f.mjs`), while the hand-written parser tells
+them apart by comparing that value. An alphabet keyed on `kind` alone would give
+all five the same symbol as any other identifier, and the grammar could not
+distinguish `export default` from two arbitrary names — module framing would be
+inexpressible, and framing parity is what the cutover requires. Register the
+framing keywords as names of their own and take the name from `value` for an `id`
+that spells one. A registered alphabet permits this because a symbol comes from a
+name's position in the list, so a name has no length limit.
 
 Every ordinary token name goes through that one encoding. Do not give
 single-character tokens their ASCII/code-point numbers and multi-character names
