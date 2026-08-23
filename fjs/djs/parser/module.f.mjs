@@ -13,6 +13,7 @@
  * @import { OrdinaryTokenName, ParseError, _ValueToken } from './types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
+ * @import { CodePointMeta } from '../../bnf/descent/types.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -20,6 +21,8 @@ import { fold, next, toArray, length, concat } from '../../types/list/module.f.m
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { fromMap } from '../../types/object/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { rangeDecode, unicodeRange } from '../../bnf/module.f.mjs'
+import { encoding } from '../../bnf/token_symbol/module.f.mjs'
 
 /** @typedef {['array', List<AstConst>]} _DjsStackArray */
 
@@ -672,6 +675,37 @@ const ordinaryTokenNames = /** @type {const} */ ([
 
 /** @typedef {Assert<Equal<(typeof ordinaryTokenNames)[number], OrdinaryTokenName>>} _AlphabetIsComplete */
 
+/**
+ * The alphabet's encoding, built once for the module rather than per parse.
+ *
+ * `encoding` asserts what the mapping needs — capacity, and no repeated name —
+ * so an alphabet that could not produce distinct symbols fails here at load
+ * rather than midway through a parse. Symbols start at `0x110000`, one past the
+ * last Unicode scalar value, so a token symbol can never be mistaken for a code
+ * point of the layer below.
+ */
+const tokenEncoding = encoding(ordinaryTokenNames)
+
+/**
+ * One ordinary token as a descent input leaf: the symbol standing for its kind,
+ * paired with the whole token as metadata.
+ *
+ * The grammar above sees only the symbol — one per token, which is what makes a
+ * token stream an alphabet — while the token's value and source position ride
+ * along untouched, so nothing a diagnostic or an AST fold needs is lost.
+ *
+ * `eof` is not in the alphabet and `encode` would reject it. Reaching it here
+ * means {@link splitEof} was skipped, which is a caller bug rather than bad
+ * input, so this asserts instead of widening the result to a `Result`.
+ *
+ * @type {(t: DjsTokenWithMetadata) => CodePointMeta<DjsTokenWithMetadata>}
+ */
+const tokenToSymbol = t => {
+    const { kind } = t.token
+    assert(kind !== 'eof', ['eof token reached the parser alphabet', t])
+    return [tokenEncoding.encode(kind), t]
+}
+
 /** @type {(kind: 'eof' | ',') => (line: number) => DjsTokenWithMetadata} */
 const proofToken = kind => line => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 } })
 
@@ -687,6 +721,30 @@ export const proof = {
         // injective over it — two entries for one name would break that.
         noDuplicates: () => {
             assertEq(new Set(ordinaryTokenNames).size, ordinaryTokenNames.length)
+        },
+    },
+    tokenToSymbol: {
+        // One symbol per token, distinct across the alphabet, and above every
+        // code point — the three properties that let a token stream be the
+        // alphabet of the layer above.
+        distinctAndAboveUnicode: () => {
+            const symbols = ordinaryTokenNames.map(n => tokenEncoding.encode(n))
+            assertEq(new Set(symbols).size, ordinaryTokenNames.length)
+            const [, unicodeLast] = rangeDecode(unicodeRange)
+            assert(symbols.every(s => s > unicodeLast), JSON.stringify(symbols))
+        },
+        // The token rides along untouched, so a fold or a diagnostic above still
+        // has its value and its position.
+        carriesTheToken: () => {
+            /** @type {DjsTokenWithMetadata} */
+            const t = { token: { kind: 'string', value: 'v' }, metadata: { path: 'a.js', line: 7, column: 1 } }
+            const [symbol, meta] = tokenToSymbol(t)
+            assertEq(meta, t)
+            assertEq(meta.metadata.line, 7)
+            assertEq(tokenEncoding.decode(symbol), 'string')
+        },
+        throw: {
+            eofRejected: () => tokenToSymbol(proofEof(1)),
         },
     },
     splitEof: {
