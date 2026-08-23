@@ -363,11 +363,9 @@ const scanFunc = (input, state) => {
  * the rule itself: the descent parser emits a variant branch's key as its tag,
  * so the keys of {@link operator} *are* the tag set.
  *
- * TODO: `'/'` here causes multi-char line comments (e.g. `//ab\n`) to fall
- * through as two `'/'` operator tokens because the oneline rule only consumes
- * one non-newline character (option vs repeat0Plus). Fix the comment rule to use
- * repeat0Plus, or make filterFunc distinguish operator-branch `'/'` from slash
- * characters inside comments.
+ * `'/'` is a member because division is an operator; it does not also swallow
+ * the slashes of a comment, since `oneline` consumes the whole rest of the line
+ * with `repeat0Plus` and the comment rule matches before the tag reaches here.
  *
  * @type {ReadonlySet<string>}
  */
