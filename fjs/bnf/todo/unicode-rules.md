@@ -92,10 +92,12 @@ This split changes the public design assumptions used by older open TODOs:
   ever met inside `data()`'s `case 'string'`. `isRepeat` in
   `fjs/bnf/data/module.f.mjs` is the single discriminator to re-point if the
   rule model moves again.
-- [`fjs/bnf/todo/rule-visitor.md`](./rule-visitor.md) is blocked by this task and
-  the bigint symbol/range migration. Its visitor must be defined against the
-  final post-migration `Rule` union: it must not preserve a generic string branch
-  or bake in `typeof rule === 'number'` as the terminal discriminator.
+- [`fjs/bnf/todo/rule-visitor.md`](./rule-visitor.md) is blocked by this task
+  alone, now that the bigint symbol/range migration is
+  [on hold](./bigint-symbols.md). Its visitor must not preserve a generic string
+  branch after this split removes one; the terminal discriminant, by contrast, is
+  the shipped `number` one, and centralizing it in the visitor is that task's
+  point.
 - [`fjs/bnf/todo/recognizer-backend.md`](./recognizer-backend.md) is blocked by
   this task. It previously assigned byte/hex/byte-range helper creation to the
   recognizer work; those helpers now belong exclusively to `fjs/bnf/byte`, and
@@ -145,9 +147,9 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Check `isRepeat` in `fjs/bnf/data/module.f.mjs` still holds after the
       split: a data `Rule` that is a string is a `Repeat`, and removing the
       functional Unicode-literal case only makes that reading unambiguous.
-- [ ] Keep `fjs/bnf/todo/rule-visitor.md` blocked until the final post-split and
-      post-bigint `Rule` discriminants are settled; define its visitor against
-      those semantic cases rather than the obsolete raw-string/number tests.
+- [ ] Keep `fjs/bnf/todo/rule-visitor.md` blocked until this split settles the
+      `Rule` union; define its visitor against the resulting semantic cases
+      rather than the obsolete raw-string test.
 - [ ] Keep `fjs/bnf/todo/recognizer-backend.md` blocked on this split and have it
       consume byte helpers from `fjs/bnf/byte/module.f.mjs` rather than defining
       another binary-helper family.

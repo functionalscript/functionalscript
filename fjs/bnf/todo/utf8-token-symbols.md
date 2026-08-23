@@ -150,13 +150,12 @@ introduce a special EOF representation in BNF parsers.
 
 ### Dependent parser designs
 
-Any open parser design that still consumes `fjs/bnf/token_symbol` must be rebased
-before that module is removed. In particular,
-[new-parser](./new-parser.md) is blocked by this task and the bigint-symbol
-migration. It now defines its complete DJS token-name alphabet up front, maps all
-of those names through the same fallible `Symbol` mapping, validates the alphabet
-before parser use, and no longer assigns raw ASCII numbers to single-character
-tokens or calls `token_symbol.encoding()` for multi-character names.
+[new-parser](./new-parser.md) consumes `token_symbol.encoding()` deliberately and
+is **not** blocked by this task; it defines its complete DJS token-name alphabet
+up front and maps every name through that one encoding.
+
+If this task revives, that parser is the caller to migrate, and migrating it is
+part of reviving this — not a requirement on it in the meantime.
 
 ### Tasks
 
@@ -192,9 +191,9 @@ tokens or calls `token_symbol.encoding()` for multi-character names.
 - [ ] Treat EOF as `-1`; token mappings produce only non-negative uint256 symbols,
       so the full `0 .. 2^256 - 1` domain is available and EOF is excluded
       automatically.
-- [ ] Keep dependent parser designs, including [new-parser](./new-parser.md),
-      blocked until their token-name alphabets use this fallible `Symbol` mapping
-      instead of `token_symbol.encoding()` or raw 24-bit/ASCII identities.
+- [ ] Migrate the token-name alphabets of dependent parser designs, including
+      [new-parser](./new-parser.md), onto this fallible `Symbol` mapping as part
+      of reviving this task. Do not block them on it in the meantime.
 - [ ] Replace callers of `fjs/bnf/token_symbol` with the UTF-8 mapping and handle
       the nullable result explicitly.
 - [ ] Remove `fjs/bnf/token_symbol` only after all callers and dependent designs
@@ -215,8 +214,8 @@ tokens or calls `token_symbol.encoding()` for multi-character names.
   ordinary-symbol space used by this mapping; BNF EOF remains `-1`.
 - [`fjs/bnf/README.md`](../README.md#terminals-and-eof) — EOF is outside the
   physical symbol domain.
-- [New parser](./new-parser.md) — consumes a validated finite token-name alphabet
-  through this mapping rather than the current 24-bit registration API.
+- [New parser](./new-parser.md) — uses `token_symbol.encoding()` today; the
+  caller this task would migrate, not a task waiting on it.
 - [Layered parser](./layered-parser.md) — tokenizer output feeds the next BNF
   parser as one symbol per token plus metadata.
 - [`fjs/bnf/token_symbol`](../token_symbol/README.md) — registration-based mapping

@@ -69,10 +69,9 @@ be reused. Use the representation selected by the TerminalRange investigation.
 BNF data also needs bigint-precise JSON serialization. Keep that concern in the
 existing bigint JSON work rather than inventing a BNF-specific encoding.
 
-Keep this TODO `open` rather than encoding task scheduling in `blocked` metadata.
-The implementation order is still explicit: land the `EOF = -1` semantics first,
-choose the bigint `TerminalRange` representation, and use the bigint-aware JSON
-representation when serialized BNF data is updated.
+The implementation order, if this revives, is explicit: the `EOF = -1` semantics
+are already shipped, so choose the bigint `TerminalRange` representation next, and
+use the bigint-aware JSON representation when serialized BNF data is updated.
 
 #### Bigint range infrastructure
 
