@@ -1,7 +1,15 @@
 ## Investigate TerminalRange representation
 
-**Priority:** P3
-**Status:** open
+**Priority:** P5
+**Status:** on-hold
+
+Only [bigint-symbols](./bigint-symbols.md) needs a wider terminal domain, and it
+is on hold, so there is nothing to choose a representation for. The current
+24-bit packed `number` stays.
+
+An investigation was carried out and closed unimplemented in
+[#1671](https://github.com/functionalscript/functionalscript/pull/1671); start
+from its conclusion rather than from scratch if this revives.
 
 ### Problem
 
