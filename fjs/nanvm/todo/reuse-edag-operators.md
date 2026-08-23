@@ -155,10 +155,15 @@ const constExp = v => {
   step 3.)
 - `functionValue` is the one escape. A constant function is spellable as
   `['=>', ['[]', []], body]`, but establishing `=>` drags closure construction
-  into both consumers for cases that never inspect the function. Keep such
-  cases visibly outside the EDAG-derived path (an explicit marker in the
-  lowering, not a silent fallthrough) until an executor establishes `=>`
-  anyway.
+  into both consumers for cases that never inspect the function. So the
+  derivation is per **case**, not per group: a case whose operands all lower
+  derives an `Exp`; a case with a `functionValue` operand stays on the
+  direct-value path, with an explicit marker in the lowering rather than a
+  silent fallthrough — the consumers dispatch on the group's canonical id
+  either way. This is not hypothetical: `numberCoercionCases` contains a
+  `functionValue` case and feeds the EDAG-backed `neg` group, so an
+  EDAG-backed group must be able to carry escaped cases until an executor
+  establishes `=>` anyway.
 
 The proof then validates every derived expression with the schema —
 `validate(exp)` from `fjs/types/rtti/validate` over `exp` from
@@ -185,12 +190,18 @@ EDAG node:
 - **`nanvm-lib` interpreter** — the roadmap's interpreter executes "the `Any`
   described by the EDAG spec"
   ([mvp-roadmap](../../../nanvm-lib/todo/mvp-roadmap.md)); the derived case
-  expressions are exactly such values, so the same corpus feeds it as data
-  with no generation step. That makes the corpus the "conformance examples
-  (test vectors) shared by the FJS and Rust implementations" that
-  [edag-spec](../../../todo/edag-spec.md) asks for, and it is what keeps the
-  interpreter and the generated code in agreement — the point the roadmap's
-  test-generation item makes.
+  expressions are exactly such values. They still need a transport into
+  Rust: the roadmap defers generic `Any` serialization to post-MVP, and the
+  repository's cross-language bridge is generated Rust — so the printer
+  grows a second output that *constructs* each derivable case's expression
+  as an `Any` and hands it to the interpreter, next to the direct-operator
+  tests it prints today. Authoring stays single-source; only the transport
+  is generated. Once the deferred `Any`/CBOR serialization lands, the same
+  expressions can ship as serialized data instead. Either way the corpus is
+  the "conformance examples (test vectors) shared by the FJS and Rust
+  implementations" that [edag-spec](../../../todo/edag-spec.md) asks for,
+  and it is what keeps the interpreter and the generated code in agreement —
+  the point the roadmap's test-generation item makes.
 
 The next operators the roadmap needs — `&&` `||` `??` — are already in
 `op2Id`, with laziness that is positional, not nodal. With constant operands a
@@ -242,9 +253,11 @@ Step 2 — cases as EDAG values:
 - [ ] Implement the `Value` → constant-`Exp` lowering (`undefined`, arrays,
       objects, primitives; `ref` as literal node sharing; `functionValue` as
       the explicit non-EDAG escape).
-- [ ] Derive an `Exp` per case and `validate` it against the `exp` schema in
-      the proof, so every corpus case is a well-formed EDAG and a schema
-      change fails the proof instead of silently going unnoticed.
+- [ ] Derive an `Exp` for every case whose operands lower, and `validate` it
+      against the `exp` schema in the proof, so each derived case is a
+      well-formed EDAG and a schema change fails the proof instead of
+      silently going unnoticed. Cases with a `functionValue` operand keep
+      the direct-value path, visibly marked.
 
 Step 3 — execution:
 
@@ -252,8 +265,10 @@ Step 3 — execution:
       now; the `interpret-edag` interpreter when it lands).
 - [ ] Print the Rust tests from the derived expression rather than from a
       parallel reading of the case.
-- [ ] When the `nanvm-lib` interpreter lands, feed it the same expressions as
-      data and register the corpus as the shared conformance vectors of
+- [ ] When the `nanvm-lib` interpreter lands, extend the printer to construct
+      the same expressions as `Any` values and hand them to it (serialized
+      `Any` once the roadmap's post-MVP serialization exists), and register
+      the corpus as the shared conformance vectors of
       [edag-spec](../../../todo/edag-spec.md).
 - [ ] Extend the corpus to `&&` `||` `??`; add non-establishment cases once
       `['throw', exp]` is in the schema.
