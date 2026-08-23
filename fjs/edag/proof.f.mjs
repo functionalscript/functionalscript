@@ -81,13 +81,15 @@ const op2Ids = /** @type {const} */ ([
 
 /**
  * The naive desugaring of `a?.at` — the shape `?.` looks like it could lower
- * to. Both of its branches are taken by `chainsJs.desugaredOptional`, which
- * is also where the assertions live: an assertion inside a `throw` case would
- * be masked, since a failing one throws and so reads as the expected failure.
+ * to. It guards both nullish values, as `?.` does: `null?.at` is `undefined`,
+ * not a throw, so a guard on `undefined` alone would not be the desugaring of
+ * anything. Every branch is taken by `chainsJs.desugaredOptional`, which is
+ * also where the assertions live: an assertion inside a `throw` case would be
+ * masked, since a failing one throws and so reads as the expected failure.
  *
  * @type {(o: any) => any}
  */
-const desugarOptionalAt = o => o !== undefined ? o.at : undefined
+const desugarOptionalAt = o => o !== null && o !== undefined ? o.at : undefined
 
 export const proof = {
     primitive: {
@@ -496,15 +498,16 @@ export const proof = {
             assertEq(u?.[todo()], undefined)
             assertEq(u?.(todo()), undefined)
         },
-        // What the naive desugaring of `?.` gets right, both branches of it:
-        // `undefined` on a nullish input, and on any other the *same function*
-        // `a.at` denotes. Nothing is wrong with either value — what it loses
-        // is the receiver, which `throw.desugaredOptional` pins by calling the
-        // second one. That is why `?.` cannot lower to a conditional, and why
-        // `(a?.b)(d)` keeps `?.b` as a step of the call's own `lambdas`,
-        // `['()', a, [['|?.', 'b']], d]`, instead of completing an `['?.', …]`
-        // node that would hand on an ordinary value.
+        // What the naive desugaring of `?.` gets right, every branch of it:
+        // `undefined` on either nullish input, and on anything else the *same
+        // function* `a.at` denotes. Nothing is wrong with any of those values
+        // — what it loses is the receiver, which `throw.desugaredOptional`
+        // pins by calling the last one. That is why `?.` cannot lower to a
+        // conditional, and why `(a?.b)(d)` keeps `?.b` as a step of the call's
+        // own `lambdas`, `['()', a, [['|?.', 'b']], d]`, instead of completing
+        // an `['?.', …]` node that would hand on an ordinary value.
         desugaredOptional: () => {
+            assertEq(desugarOptionalAt(null), undefined)
             assertEq(desugarOptionalAt(undefined), undefined)
             assertEq(desugarOptionalAt([42]), [42].at)
         },
