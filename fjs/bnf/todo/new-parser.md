@@ -1,8 +1,7 @@
 ## New parser: BNF descent over token symbols
 
 **Priority:** P3
-**Status:** blocked
-**Blocked by:** [256-bit bigint BNF symbols](./bigint-symbols.md), [UTF-8 token symbols](./utf8-token-symbols.md)
+**Status:** open
 
 ### Problem
 
@@ -20,21 +19,50 @@ is the odd one out, even though [layered-parser](./layered-parser.md) has both
 layers reusing the same BNF engine — the tokenizer emitting one symbol per
 token, the parser above consuming those symbols as its alphabet.
 
-The current `fjs/bnf/token_symbol` registration API is not the basis for this
-parser anymore. [256-bit bigint BNF symbols](./bigint-symbols.md) changes the
-parser alphabet to the shared bigint `Symbol` type, and
-[UTF-8 token symbols](./utf8-token-symbols.md) replaces registration-based IDs
-with a deterministic fallible mapping from token names to ordinary BNF symbols.
-This TODO must land after those migrations rather than preserve the current
-24-bit encoding API.
+This parser uses the shipped [`fjs/bnf/token_symbol`](../token_symbol/) registration
+API. It was previously blocked on replacing that API with 256-bit bigint symbols
+derived from token names ([bigint-symbols](./bigint-symbols.md),
+[utf8-token-symbols](./utf8-token-symbols.md)); both are parked, and this parser
+no longer waits on them — see
+[Why the registered alphabet is enough](#why-the-registered-alphabet-is-enough).
 
 There is also an EOF-boundary mismatch to adapt deliberately. The existing DJS
 tokenizer emits a physical final `{ kind: 'eof' }` token with the final source
-metadata, while the bigint BNF parser contract requires callers to supply only
-ordinary physical symbols and makes each parser backend synthesize its one
-logical EOF. Feeding the tokenizer's EOF token into the symbol mapper would
+metadata, while the [BNF parser contract](../README.md#logical-eof-in-parser-input)
+requires callers to supply only ordinary physical symbols and makes each parser
+backend synthesize its one logical EOF. Feeding the tokenizer's EOF token into the symbol mapper would
 therefore create a second end marker; dropping it without preserving its metadata
 would lose the source position needed for failures exactly at physical end.
+
+### Why the registered alphabet is enough
+
+The widening was never a capacity problem. `token_symbol` holds **15,663,103**
+names (`0x110000`–`0xFFFFFE`); this parser's alphabet is **21**. The 256 bits were
+for a different property: deriving a symbol from the name's own UTF-8 bytes, so
+producer and consumer compute it independently and no ordered list exists. A
+31-byte name needs 248 bits, which is where the number came from — the length of
+a *name*, not the number of names.
+
+[`../token_symbol/README.md`](../token_symbol/README.md) already weighed that
+trade and accepted the registry, including its one cost:
+
+> The cost is that the list is append-only — inserting or reordering names shifts
+> every symbol after the edit. That is acceptable because nothing persists a token
+> symbol: symbols are built with the grammar, live as long as a parse, and are
+> never serialized. Should they ever be written to a file, order independence
+> would matter and the hash strategy is the way back.
+
+That condition still holds here. This parser builds its encoding at construction
+from one list, uses it for the length of a parse, and serializes no symbol — so
+order-dependence costs it nothing, and the migration would buy it nothing it can
+observe. Verified against the real alphabet: all 21 names round-trip, symbols are
+injective and inside the ordinary domain, each is usable as a `oneEncode`
+terminal, and names far longer than any keyword encode fine — the case that
+motivated deriving symbols from bytes is already covered by a registry entry
+having no length limit.
+
+Revisit only if the trigger the README names actually arrives: a token symbol
+that has to be written to a file.
 
 ### Proposal
 
@@ -49,12 +77,11 @@ syntax and module framing (`import`, `const`, `export default`). The cutover is
 therefore one parser replacement rather than a value-only parser wrapped by the
 old framing machine.
 
-**1. Consume the generic BNF `Symbol` alphabet.** The bigint-symbol migration
-already generalizes parser backends from Unicode code-point `number` values to
-the shared 256-bit bigint `Symbol` type. This parser should consume that API as-is
-rather than introduce another token-specific backend or another symbol type.
-Metadata remains generic, so ordinary parser-layer symbols are paired with their
-`DjsTokenWithMetadata` values.
+**1. Consume the existing symbol alphabet.** Parser backends take `number`
+symbols, and `token_symbol` produces `number` symbols above the Unicode range, so
+this parser needs no new backend and no new symbol type. Metadata remains generic,
+so ordinary parser-layer symbols are paired with their `DjsTokenWithMetadata`
+values.
 
 **2. Adapt the tokenizer's physical EOF before mapping token names.** Treat the
 current tokenizer's final `eof` token as a boundary record, not as a parser-layer
@@ -72,7 +99,7 @@ missing or non-final EOF as an adapter/tokenizer contract error. Remove that EOF
 from `tokens`, preserve its metadata as `eofMetadata`, and never pass the token
 name `eof` through the ordinary token-symbol mapping. The BNF backend then sees
 only physical ordinary symbols and synthesizes its single logical EOF exactly as
-specified by [256-bit bigint BNF symbols](./bigint-symbols.md).
+specified by [the shipped EOF contract](../README.md#logical-eof-in-parser-input).
 
 This does **not** fabricate metadata for the logical EOF. `eofMetadata` is the
 real physical-end metadata already produced by the tokenizer and is held by the
@@ -83,22 +110,19 @@ ordinary token metadata leaf to the BNF AST.
 mapping.** Define a finite token-name alphabet for this parser layer (`{`, `}`,
 `:`, `,`, `[`, `]`, `.`, `=`, `identifier`, `number`, `string`, keywords,
 operators, and any other ordinary categories the grammar needs). `eof` is not a
-member of that mapped alphabet. Map the names with the deterministic
-`tryTokenSymbol(name): Nullable<Symbol>` API from
-[UTF-8 token symbols](./utf8-token-symbols.md).
+member of that mapped alphabet. Map the names with
+[`token_symbol.encoding(names)`](../token_symbol/module.f.mjs).
 
-Do not preserve the current distinction where single-character tokens use their
-ASCII/code-point numbers while multi-character names go through
-`token_symbol.encoding()`. Token symbols belong to a separate parser alphabet;
-every configured ordinary token name uses the same mapping rule.
+Every ordinary token name goes through that one encoding. Do not give
+single-character tokens their ASCII/code-point numbers and multi-character names
+a registered symbol: token symbols belong to a separate parser alphabet from the
+code points below, and one rule for the whole alphabet is what keeps them from
+colliding with it.
 
-Because the mapping is fallible, construct/validate the parser's complete finite
-ordinary-token alphabet before parsing. Parser setup must fail if any required
-token name maps to `null` or if the configured mapping otherwise fails the
-domain/injectivity requirements defined by the token-symbol task. Once validated,
-tokenizer and parser can compute the same `Symbol` independently from the same
-token name. The token's value and source position ride along as descent metadata,
-so no ordinary token information is lost.
+`encoding()` builds the alphabet once and asserts what the mapping needs —
+capacity and no duplicate names — so parser setup fails on a bad alphabet rather
+than a parse failing later. The token's value and source position ride along as
+descent metadata, so no ordinary token information is lost.
 
 **4. Write the full DJS grammar and fold its AST.** Express the complete current
 module grammar in `fjs/bnf` combinators over the validated token-symbol alphabet,
@@ -129,9 +153,9 @@ the furthest physical input position at which a terminal was rejected, plus the
 terminals expected there (see
 [../descent/README.md](../descent/README.md#failure-reporting)). Pair that token
 index with ordinary token metadata or `eofMetadata` using the rule above. The
-bigint-symbol migration keeps public positions in the physical input domain even
-when a grammar consumes synthesized EOF, so token-index callers do not need a
-special post-EOF `input.length + 1` case.
+shipped contract keeps public positions in the physical input domain
+(`0 <= idx <= input.length`) even when a grammar consumes synthesized EOF, so
+token-index callers do not need a special post-EOF `input.length + 1` case.
 
 ### Transition and cutover
 
@@ -169,22 +193,19 @@ The serializer and other independent parts of TODO 157 are unaffected.
 
 ### Tasks
 
-- [ ] Depend on the generic bigint `Symbol` descent API; do not reintroduce a
-      token-specific or 24-bit symbol representation.
+- [x] Use the shipped `number` descent API and `fjs/bnf/token_symbol`; do not
+      introduce another symbol type or another token-specific backend.
 - [ ] Add the DJS token-stream adapter that requires and removes exactly one
       final physical `eof` token, preserving its `TokenMetadata` separately as
       `eofMetadata` for diagnostics.
 - [ ] Define the finite ordinary token-name alphabet consumed by the DJS parser
       grammar; exclude `eof` from the mapped alphabet.
-- [ ] Map every configured ordinary token name through the shared fallible
-      token-symbol mapping; do not use `fjs/bnf/token_symbol.encoding()` or raw
-      ASCII numeric identities as a separate path.
-- [ ] Validate the complete ordinary-token alphabet before parser use and fail
-      setup if a required name cannot produce a valid ordinary `Symbol` or the
-      configured mapping is not injective over the alphabet.
-- [ ] Map each ordinary `DjsToken` to its validated symbol, carrying the token as
-      descent metadata; never feed the tokenizer's physical `eof` token to the
-      BNF symbol stream.
+- [ ] Build the alphabet's encoding once with `token_symbol.encoding(names)` at
+      parser construction, and map every ordinary token name through it; do not
+      give single-character names raw ASCII identities as a separate path.
+- [ ] Map each ordinary `DjsToken` to its symbol, carrying the token as descent
+      metadata; never feed the tokenizer's physical `eof` token to the BNF symbol
+      stream.
 - [ ] Implement the complete DJS module grammar, including module framing, in the
       existing `fjs/djs/parser/module.f.mjs`; do not create a temporary public
       parser module/API.
@@ -209,11 +230,14 @@ The serializer and other independent parts of TODO 157 are unaffected.
 
 ### Related
 
-- [256-bit bigint BNF symbols](./bigint-symbols.md) — supplies the generic
-  `Symbol` parser alphabet and parser-synthesized EOF semantics this adapter
-  consumes.
-- [UTF-8 token symbols](./utf8-token-symbols.md) — supplies the deterministic
-  fallible ordinary-token-name mapping and replaces `fjs/bnf/token_symbol`.
+- [`fjs/bnf/token_symbol`](../token_symbol/README.md) — the token-name-to-symbol
+  mapping this parser uses, and where the registry's trade-offs are argued.
+- [`fjs/bnf/README.md`](../README.md#logical-eof-in-parser-input) — the shipped
+  EOF contract this adapter is written against.
+- [256-bit bigint BNF symbols](./bigint-symbols.md) — parked; would replace the
+  symbol type, and this parser no longer waits on it.
+- [UTF-8 token symbols](./utf8-token-symbols.md) — parked; would replace
+  `token_symbol` with name-derived symbols.
 - [layered-parser](./layered-parser.md) — the architecture this implements: each
   layer a BNF transducer, tokens as the alphabet of the next one.
 - [tokens-with-extra-information](./tokens-with-extra-information.md) — the

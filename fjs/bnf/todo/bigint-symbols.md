@@ -1,7 +1,32 @@
 ## Use 256-bit bigint BNF symbols
 
-**Priority:** P3
-**Status:** open
+**Priority:** P5
+**Status:** on-hold
+
+### Why this is on hold
+
+Nothing needs it. The only consumer was
+[utf8-token-symbols](./utf8-token-symbols.md), which needed room to derive a
+token symbol from the name's own bytes; that is on hold too, and
+[new-parser](./new-parser.md) now uses the shipped
+[`token_symbol`](../token_symbol/) registry instead.
+
+The widening was never a capacity problem — `token_symbol` holds 15,663,103
+names and the DJS parser alphabet is 21 — so this buys a property (symbols
+independent of list order) that no current consumer can observe.
+
+It also is not free. The uint256 domain has `2^256 + 1` terminals, so the packed
+24-bit `TerminalRange` cannot be reused; the migration touches range
+encode/decode, containment, complements, BNF data, both backends, `range_map`,
+and every serialized grammar.
+[terminal-range-representation](./terminal-range-representation.md) worked out
+what the replacement should be and measured it: a packed bigint with fixed
+257-bit halves, ~33% slower to decode and 8.5x larger serialized than today's
+representation. That investigation stands and is where to resume from.
+
+Revive when the trigger [`../token_symbol/README.md`](../token_symbol/README.md)
+names actually arrives — a token symbol that has to be written to a file, where
+order-independence starts to matter.
 
 ### Problem
 

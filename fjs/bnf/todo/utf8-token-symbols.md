@@ -1,8 +1,30 @@
 ## Encode token names as BNF symbols
 
-**Priority:** P3
-**Status:** blocked
-**Blocked by:** [256-bit bigint BNF symbols](./bigint-symbols.md)
+**Priority:** P5
+**Status:** on-hold
+
+### Why this is on hold
+
+The registry it would replace is enough for every current consumer.
+[`../token_symbol/README.md`](../token_symbol/README.md) already weighed this
+exact trade and accepted the registry, on a condition that still holds:
+
+> The cost is that the list is append-only — inserting or reordering names shifts
+> every symbol after the edit. That is acceptable because nothing persists a token
+> symbol: symbols are built with the grammar, live as long as a parse, and are
+> never serialized. Should they ever be written to a file, order independence
+> would matter and the hash strategy is the way back.
+
+[new-parser](./new-parser.md), the consumer this was written for, builds its
+encoding at construction, uses it for one parse, and serializes no symbol. The
+length limit that motivated deriving symbols from bytes is also not a live
+problem: a registered name has no length limit, so `instanceof` is already one
+symbol today.
+
+This depends on [bigint-symbols](./bigint-symbols.md), which is on hold for the
+same reason, so reviving this means reviving both.
+
+Revive when a token symbol has to be written to a file.
 
 ### Problem
 

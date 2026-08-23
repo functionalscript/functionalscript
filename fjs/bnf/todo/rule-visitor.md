@@ -4,7 +4,6 @@
 **Status:** blocked
 **Blocked by:**
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md)
-- [256-bit bigint BNF symbols](./bigint-symbols.md)
 
 ### Problem
 
@@ -77,8 +76,10 @@ scheme. Each call site keeps its own recursion/accumulator structure.
 
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — **blocks this
   task** by removing the current generic string rule.
-- [256-bit bigint BNF symbols](./bigint-symbols.md) — **blocks this task** until
-  the terminal/range representation and parser discriminants are migrated.
+- [256-bit bigint BNF symbols](./bigint-symbols.md) — no longer blocks this task.
+  It blocked it only because the terminal discriminant was expected to change
+  from `typeof rule === 'number'`; that migration is on hold, so the visitor can
+  be written against the representation the tree actually has.
 - [`../data/README.md`](../data/README.md#the-repeat-rule) — the `Repeat` case
   the visitor has to cover; both backends now match it iteratively.
 - [nullable-analysis-shared](./nullable-analysis-shared.md) — the shared
