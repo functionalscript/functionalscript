@@ -235,10 +235,10 @@ The serializer and other independent parts of TODO 157 are unaffected.
       `eofMetadata` for diagnostics.
 - [x] Define the finite ordinary token-name alphabet consumed by the DJS parser
       grammar; exclude `eof` from the mapped alphabet.
-- [ ] Build the alphabet's encoding once with `token_symbol.encoding(names)` at
+- [x] Build the alphabet's encoding once with `token_symbol.encoding(names)` at
       parser construction, and map every ordinary token name through it; do not
       give single-character names raw ASCII identities as a separate path.
-- [ ] Map each ordinary `DjsToken` to its symbol, carrying the token as descent
+- [x] Map each ordinary `DjsToken` to its symbol, carrying the token as descent
       metadata; never feed the tokenizer's physical `eof` token to the BNF symbol
       stream.
 - [ ] Implement the complete DJS module grammar, including module framing, in the
