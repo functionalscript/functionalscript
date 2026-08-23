@@ -4,7 +4,6 @@
 **Status:** blocked
 **Blocked by:**
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md)
-- [256-bit bigint BNF symbols](./bigint-symbols.md)
 
 ### Problem
 
@@ -17,21 +16,21 @@ parallel edits across the parser backends. The `Repeat` rule kind demonstrated
 it: adding it meant a new dispatch branch at every site, kept honest only by the
 shared `isRepeat` discriminator it introduced.
 
-The surrounding BNF work now changes those assumptions before this TODO can be
-implemented:
+One piece of surrounding BNF work still changes those assumptions before this
+TODO can be implemented: the alphabet split removes raw `string` as a generic
+`DataRule` / `Rule` case.
 
-- the alphabet split removes raw `string` as a generic `DataRule` / `Rule` case;
-- the bigint symbol/range migration changes the current number-based terminal
-  representation and may change how terminal rules are discriminated.
-
-Therefore the visitor must be designed against the **final post-migration `Rule`
-union**, not against today's `number | string` implementation details.
+The terminal representation does **not** change. The bigint symbol/range
+migration would have replaced the number-based terminal and its discriminant, but
+it is [on hold](./bigint-symbols.md), so the visitor targets the shipped
+representation — a `number` terminal — rather than waiting for a union that is not
+coming.
 
 ### Proposal
 
-After the alphabet and terminal-representation migrations settle the generic
-`Rule` union, add a visitor in `fjs/bnf/data/module.f.mjs` (the module that owns the
-type), mirroring the proven `visit` pattern in `fjs/types/rtti/common`.
+After the alphabet split settles the generic `Rule` union, add a visitor in
+`fjs/bnf/data/module.f.mjs` (the module that owns the type), mirroring the proven
+`visit` pattern in `fjs/types/rtti/common`.
 
 Conceptually the visitor exposes the semantic rule cases:
 
@@ -43,12 +42,15 @@ export type RuleVisitor<R> = {
 }
 ```
 
-This type sketch names semantic cases only; it does not prescribe the final
-runtime representation of `TerminalRange`. The concrete `matchRule`
-discrimination must follow whatever final `Rule` representation the blocking
-bigint/range work chooses. Do **not** preserve or reintroduce
-`typeof rule === 'number'` merely for this visitor, and do not add a generic
-string branch after the alphabet split removes one.
+This type sketch names semantic cases only. The concrete `matchRule`
+discrimination follows the representation the tree has: a `number` terminal, an
+array sequence, an object variant, a string `Repeat`. Do not add a generic string
+branch after the alphabet split removes one.
+
+Centralizing `typeof rule === 'number'` in the visitor is the point of the task,
+not a compromise: one discriminator to change is exactly what makes a future
+terminal-representation migration cheap, should
+[bigint-symbols](./bigint-symbols.md) ever revive.
 
 `emptyTagMapAdd`, `descentParser`'s rule matcher, and LL(1) dispatch then use the
 shared visitor instead of independently re-deriving the rule discriminant. If a
@@ -60,11 +62,10 @@ scheme. Each call site keeps its own recursion/accumulator structure.
 
 ### Tasks
 
-- [ ] Wait for the alphabet split and bigint terminal/range migration to settle
-      the final generic `Rule` union and terminal representation.
-- [ ] Define `RuleVisitor` / `matchRule` against those final discriminants in
-      `fjs/bnf/data/module.f.mjs`; do not depend on the obsolete raw-string rule or
-      `typeof rule === 'number'` terminal test.
+- [ ] Wait for the alphabet split to settle the generic `Rule` union.
+- [ ] Define `RuleVisitor` / `matchRule` in `fjs/bnf/data/module.f.mjs` against the
+      shipped discriminants, terminals included; do not depend on the obsolete
+      raw-string rule.
 - [ ] Rewrite the backend dispatch sites to use the shared visitor.
 - [ ] Keep any alphabet-specific lowering outside this generic visitor.
 - [ ] Absorb `isRepeat` from `fjs/bnf/data/module.f.mjs` into the visitor, so the
@@ -77,8 +78,10 @@ scheme. Each call site keeps its own recursion/accumulator structure.
 
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — **blocks this
   task** by removing the current generic string rule.
-- [256-bit bigint BNF symbols](./bigint-symbols.md) — **blocks this task** until
-  the terminal/range representation and parser discriminants are migrated.
+- [256-bit bigint BNF symbols](./bigint-symbols.md) — no longer blocks this task.
+  It blocked it only because the terminal discriminant was expected to change
+  from `typeof rule === 'number'`; that migration is on hold, so the visitor can
+  be written against the representation the tree actually has.
 - [`../data/README.md`](../data/README.md#the-repeat-rule) — the `Repeat` case
   the visitor has to cover; both backends now match it iteratively.
 - [nullable-analysis-shared](./nullable-analysis-shared.md) — the shared

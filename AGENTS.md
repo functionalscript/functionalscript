@@ -20,12 +20,13 @@ cargo clippy
 cargo fmt -- --check
 ```
 
-Two principles outrank everything else. **Always prefer simplicity and quality
+Three principles outrank everything else. **Always prefer simplicity and quality
 over optimization** — never optimize prematurely, and never at the cost of
-simplicity. **The API is the most important part of quality** — if a new version
-can have a better, simpler API, change it; breaking changes are the right call
-whenever they improve the API. The full set, which governs both code bases, is
-[DESIGN.md](./DESIGN.md).
+simplicity. **Maximize signal-to-noise** — make the high-level structure obvious;
+put details and edge cases at the leaves, not in the main flow. **The API is the
+most important part of quality** — if a new version can have a better, simpler
+API, change it; breaking changes are the right call whenever they improve the
+API. The full set, which governs both code bases, is [DESIGN.md](./DESIGN.md).
 
 This file is a map: each section below holds the facts you must not violate and
 links to the document that holds the rest. Read a linked document when the task

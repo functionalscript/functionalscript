@@ -136,7 +136,7 @@ standard JSON numeric policy remains separate in
 - [`fjs/media/json/todo/number-edge-cases.md`](../fjs/media/json/todo/number-edge-cases.md)
   — existing owner of standard JSON numeric edge-case policy.
 - [`spec/todo/2330-property-accessor.md`](../spec/todo/2330-property-accessor.md)
-  — property/method-access safety rules used by `.` and `.()`.
+  — property/method-access safety rules used by `.` and the property chain steps.
 - [`spec/todo/3110-function.md`](../spec/todo/3110-function.md) — source-level
   function support.
 - [`spec/todo/3111-function-frame.md`](../spec/todo/3111-function-frame.md) —
