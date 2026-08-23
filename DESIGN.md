@@ -1,20 +1,21 @@
 # Design principles
 
 These principles are repository-wide: they govern both code bases — `fjs/`
-(FunctionalScript / TypeScript) and `nanvm-lib/` (Rust). The first two are
+(FunctionalScript / TypeScript) and `nanvm-lib/` (Rust). The first three are
 restated in brief at the top of [AGENTS.md](./AGENTS.md); everything here is
 their full text.
 
 ## Contents
 
 1. [Simplicity first](#1-simplicity-first)
-2. [The API is the most important part of quality](#2-the-api-is-the-most-important-part-of-quality)
-3. [Design before implementation](#3-design-before-implementation)
-4. [Reuse, DRY, and separation of concerns](#4-reuse-dry-and-separation-of-concerns)
-5. [Declarative over imperative](#5-declarative-over-imperative)
-6. [Never precompute a size to predict whether something fits](#6-never-precompute-a-size-to-predict-whether-something-fits)
-7. [CLI parameters over environment variables](#7-cli-parameters-over-environment-variables)
-8. [Embedded DSLs should reuse host-language syntax](#8-embedded-dsls-should-reuse-host-language-syntax)
+2. [Maximize signal-to-noise](#2-maximize-signal-to-noise)
+3. [The API is the most important part of quality](#3-the-api-is-the-most-important-part-of-quality)
+4. [Design before implementation](#4-design-before-implementation)
+5. [Reuse, DRY, and separation of concerns](#5-reuse-dry-and-separation-of-concerns)
+6. [Declarative over imperative](#6-declarative-over-imperative)
+7. [Never precompute a size to predict whether something fits](#7-never-precompute-a-size-to-predict-whether-something-fits)
+8. [CLI parameters over environment variables](#8-cli-parameters-over-environment-variables)
+9. [Embedded DSLs should reuse host-language syntax](#9-embedded-dsls-should-reuse-host-language-syntax)
 
 ---
 
@@ -35,7 +36,22 @@ that a later generic improvement can lift (e.g. a size bound on a buffering
 parser) is an acceptable interim answer; a semantic assumption baked into a
 format or contract for speed is not.
 
-## 2. The API is the most important part of quality
+## 2. Maximize signal-to-noise
+
+**Make the high-level abstraction and structure obvious.** Every contribution —
+code, APIs, documentation, `todo/` issues, PR descriptions, comments, and tests —
+should expose the main concepts first. Put details, caveats, examples, and edge
+cases at the leaves, not in the main flow.
+
+**More information is not automatically better.** Remove repetition, obvious
+narration, unnecessary wrappers, redundant examples, and implementation trivia.
+Use clear names and structure so readers can understand the shape of a solution
+without reading every detail.
+
+**Optimize for progressive understanding:** abstraction first, structure second,
+details last.
+
+## 3. The API is the most important part of quality
 
 **Quality is the main priority, and the API is the most important part of it.**
 A clean, readable, simple API for the modules that consume it is worth more than
@@ -68,7 +84,7 @@ defer or silently work around it. File a `todo/` issue with a concrete design
 improvement is in scope for what you're already doing, raise it before building
 on top of the weaker design.
 
-## 3. Design before implementation
+## 4. Design before implementation
 
 - Before implementing a non-trivial feature, ensure the corresponding issue
   document in `todo/` contains a concrete design. If the issue exists but the
@@ -82,7 +98,7 @@ on top of the weaker design.
   variable names, API shape, framework detection), verify it with a small test or
   source check rather than assuming.
 
-## 4. Reuse, DRY, and separation of concerns
+## 5. Reuse, DRY, and separation of concerns
 
 - **Reuse code.**
 - **Don't Repeat Yourself (DRY)** — a core principle of FunctionalScript, not
@@ -134,7 +150,7 @@ Why this pattern is good:
   the function (`{ result, duration: after - before }`) is formed once, not
   duplicated. Only the timing capture (which must be immediate) appears twice.
 
-## 5. Declarative over imperative
+## 6. Declarative over imperative
 
 **Prefer declarative style over imperative.** When defining tools, handlers,
 dispatchers, or similar abstractions, favor data-driven definitions (metadata +
@@ -144,7 +160,7 @@ test, and reason about. For example: define tools as an array of
 self-descriptive objects (name, description, schema, handler) and dispatch
 generically over them, rather than hardcoding a switch on tool name.
 
-## 6. Never precompute a size to predict whether something fits
+## 7. Never precompute a size to predict whether something fits
 
 **Never precompute or estimate an encoding/decoding size to predict whether it
 will fit a limit.** Attempt the real decode/encode and branch on its result
@@ -159,12 +175,12 @@ Express the fallible operation as a `try*` function returning `Nullable<T>` (see
 yet for the operation you need (including effect primitives like `write`), and
 have the caller check the `null` result rather than a precomputed bound.
 
-## 7. CLI parameters over environment variables
+## 8. CLI parameters over environment variables
 
 CLI parameters are preferred over environment variables when adding new
 features.
 
-## 8. Embedded DSLs should reuse host-language syntax
+## 9. Embedded DSLs should reuse host-language syntax
 
 **An embedded DSL should reuse JavaScript / FunctionalScript values and syntax
 whenever their existing meaning is exactly the meaning the DSL needs.** Prefer
