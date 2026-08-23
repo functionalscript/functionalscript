@@ -10,14 +10,19 @@
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/types.ts'
  * @import { TokenMetadata } from '../../js/tokenizer/types.ts'
- * @import { ParseError, _ValueToken } from './types.ts'
+ * @import { ParseError, _FramingKeyword, _OrdinaryTokenName, _ValueToken } from './types.ts'
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
+ * @import { CodePointMeta } from '../../bnf/descent/types.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
 import { fold, next, toArray, length, concat } from '../../types/list/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { fromMap } from '../../types/object/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { rangeDecode, unicodeRange } from '../../bnf/module.f.mjs'
+import { encoding } from '../../bnf/token_symbol/module.f.mjs'
 
 /** @typedef {['array', List<AstConst>]} _DjsStackArray */
 
@@ -608,7 +613,258 @@ export const parseFromTokens = tokenList => {
     }
 }
 
+/**
+ * The ordinary token stream a BNF parser layer consumes, with the tokenizer's
+ * one physical end-of-input token split off.
+ *
+ * @typedef {{
+ *   readonly tokens: readonly DjsTokenWithMetadata[]
+ *   readonly eofMetadata: TokenMetadata
+ * }} _TokenStream
+ */
+
+/**
+ * Splits the tokenizer's single final physical `eof` token off a token list.
+ *
+ * A BNF parser backend synthesizes its own logical end-of-input, so passing the
+ * tokenizer's physical `eof` through as an ordinary symbol would create a second
+ * end marker. Dropping it outright would instead lose the source position that a
+ * failure *at* physical end has to be reported from, so its metadata is kept
+ * aside as `eofMetadata` rather than discarded or refabricated.
+ *
+ * The tokenizer's contract is exactly one `eof`, in final position; a stream
+ * carrying one anywhere else is rejected here rather than parsed.
+ *
+ * A stream with no `eof` at all has two causes, and they are not reported the
+ * same way. A lexical failure — an unterminated string or comment — ends the
+ * stream at an `error` token and emits no `eof`, which is the tokenizer working
+ * correctly on bad input; that error is passed through with its own position.
+ * Anything else missing an `eof` is a genuine contract violation and has no
+ * position to report.
+ *
+ * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<_TokenStream, ParseError>}
+ */
+const splitEof = tokenList => {
+    const a = toArray(tokenList)
+    const eofIdx = a.findIndex(({ token }) => token.kind === 'eof')
+    if (eofIdx === -1) {
+        // A lexical failure ends the stream at its `error` token and emits no
+        // `eof`, so the absence of one is not always a broken contract. Rejecting
+        // it as one would answer "unterminated string at 1:11" with "missing
+        // end-of-input token" and no position at all, so the error is reported
+        // where it happened — the same place the hand-written parser reports it.
+        const lastToken = a[a.length - 1]
+        return lastToken !== undefined && lastToken.token.kind === 'error'
+            ? error({ message: 'unexpected token', metadata: lastToken.metadata })
+            : error({ message: 'missing end-of-input token', metadata: null })
+    }
+    const last = a.length - 1
+    if (eofIdx !== last) {
+        return error({ message: 'end-of-input token is not final', metadata: a[eofIdx].metadata })
+    }
+    return ok({ tokens: a.slice(0, last), eofMetadata: a[last].metadata })
+}
+
+/**
+ * The parser layer's complete finite alphabet: every token name its grammar may
+ * name as a terminal, and the exact set a token-name-to-symbol mapping has to be
+ * validated over before parsing.
+ *
+ * `eof` is not a member — {@link splitEof} removes the tokenizer's physical
+ * end-of-input token before any name is mapped, and the backend synthesizes its
+ * own logical one.
+ *
+ * The names are the *token* vocabulary, not the tokenizer grammar's tag
+ * vocabulary: only eight punctuators survive into `DjsToken`, so the JS operator
+ * set the tokenizer recognizes is far larger than what reaches this layer.
+ *
+ * A name is not always a kind. The framing keywords arrive as `id` tokens and
+ * need terminals of their own, or the grammar could not tell `export default`
+ * from two arbitrary identifiers — see {@link framingKeywords}.
+ *
+ * The `_…AreComplete` assertions below check both halves against `DjsToken` and
+ * `_FramingKeyword` at compile time, so a kind or keyword added there breaks the
+ * build rather than going unrepresented.
+ */
+const tokenKindNames = /** @type {const} */ ([
+    'true', 'false', 'null', 'undefined',
+    '{', '}', ':', ',', '[', ']', '.', '=',
+    'string', 'number', 'error', 'id', 'bigint',
+    'ws', 'nl', '//', '/*',
+])
+
+/**
+ * The framing keywords, which the tokenizer emits as `id` tokens carrying the
+ * word in `value`. Kept as its own list because the mapping has to recognize
+ * exactly these values, not merely encode them.
+ *
+ * **A grammar over this alphabet owes them an identifier rule.** None of the
+ * five is reserved: outside the framing positions the parser accepts them as
+ * ordinary identifiers, so `const export = 1`, `export default export`, and
+ * `{ from: 2, default: 3 }` all parse today. Once each carries its own symbol, a
+ * rule whose identifier terminal is the bare `id` symbol rejects every one of
+ * them. Wherever an identifier is accepted — binding names, references, object
+ * keys, import names — the terminal has to be the union of `id` and these five.
+ *
+ * Giving a word its own symbol narrows where it is *required*, never where it is
+ * *allowed*.
+ */
+const framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from'])
+
+/**
+ * The complete alphabet: one name per `DjsToken` kind except `eof`, plus one per
+ * framing keyword. No keyword collides with a kind, so the two lists concatenate
+ * without a name being registered twice — which `encoding` would reject anyway.
+ */
+const ordinaryTokenNames = [...tokenKindNames, ...framingKeywords]
+
+/** @typedef {Assert<Equal<(typeof tokenKindNames)[number], Exclude<DjsToken['kind'], 'eof'>>>} _KindsAreComplete */
+
+/** @typedef {Assert<Equal<(typeof framingKeywords)[number], _FramingKeyword>>} _KeywordsAreComplete */
+
+/** @typedef {Assert<Equal<(typeof ordinaryTokenNames)[number], _OrdinaryTokenName>>} _AlphabetIsComplete */
+
+/**
+ * The alphabet's encoding, built once for the module rather than per parse.
+ *
+ * `encoding` asserts what the mapping needs — capacity, and no repeated name —
+ * so an alphabet that could not produce distinct symbols fails here at load
+ * rather than midway through a parse. Symbols start at `0x110000`, one past the
+ * last Unicode scalar value, so a token symbol can never be mistaken for a code
+ * point of the layer below.
+ */
+const tokenEncoding = encoding(ordinaryTokenNames)
+
+/**
+ * One ordinary token as a descent input leaf: the symbol standing for its kind,
+ * paired with the whole token as metadata.
+ *
+ * The grammar above sees only the symbol — one per token, which is what makes a
+ * token stream an alphabet — while the token's value and source position ride
+ * along untouched, so nothing a diagnostic or an AST fold needs is lost.
+ *
+ * `eof` is not in the alphabet and `encode` would reject it. Reaching it here
+ * means {@link splitEof} was skipped, which is a caller bug rather than bad
+ * input, so this asserts instead of widening the result to a `Result`.
+ *
+ * @type {(t: DjsTokenWithMetadata) => CodePointMeta<DjsTokenWithMetadata>}
+ */
+const tokenToSymbol = t => {
+    const { token } = t
+    // A framing keyword arrives as an `id` carrying the word, so the name comes
+    // from the value there and from the kind everywhere else. `find` rather than
+    // a set membership test because it also narrows the result to the keyword
+    // union, which is what lets `encode` be called without a cast.
+    const keyword = token.kind === 'id'
+        ? framingKeywords.find(k => k === token.value)
+        : undefined
+    const name = keyword ?? token.kind
+    assert(name !== 'eof', ['eof token reached the parser alphabet', t])
+    return [tokenEncoding.encode(name), t]
+}
+
+/** @type {(kind: 'eof' | ',') => (line: number) => DjsTokenWithMetadata} */
+const proofToken = kind => line => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 } })
+
+const proofEof = proofToken('eof')
+
+const proofComma = proofToken(',')
+
 export const proof = {
+    ordinaryTokenNames: {
+        // `_AlphabetIsComplete` pins membership at compile time, but a repeated
+        // name widens to the same union and so is invisible to it. The check
+        // matters because the token-symbol mapping this alphabet feeds has to be
+        // injective over it — two entries for one name would break that.
+        noDuplicates: () => {
+            assertEq(new Set(ordinaryTokenNames).size, ordinaryTokenNames.length)
+        },
+    },
+    tokenToSymbol: {
+        // One symbol per token, distinct across the alphabet, and above every
+        // code point — the three properties that let a token stream be the
+        // alphabet of the layer above.
+        distinctAndAboveUnicode: () => {
+            const symbols = ordinaryTokenNames.map(n => tokenEncoding.encode(n))
+            assertEq(new Set(symbols).size, ordinaryTokenNames.length)
+            const [, unicodeLast] = rangeDecode(unicodeRange)
+            assert(symbols.every(s => s > unicodeLast), JSON.stringify(symbols))
+        },
+        // The distinction the hand-written parser makes by comparing
+        // `token.value`: a framing keyword and an ordinary identifier arrive as
+        // the same `id` kind, and the grammar can only tell them apart if they
+        // get different symbols here.
+        framingKeywordsAreNotIdentifiers: () => {
+            /** @type {(value: string) => number} */
+            const symbolOf = value =>
+                tokenToSymbol({ token: { kind: 'id', value }, metadata: { path: 'a.js', line: 1, column: 1 } })[0]
+            const id = symbolOf('foo')
+            const keywords = framingKeywords.map(symbolOf)
+            assert(keywords.every(s => s !== id), JSON.stringify([id, keywords]))
+            assertEq(new Set(keywords).size, framingKeywords.length)
+            assertEq(tokenEncoding.decode(symbolOf('export')), 'export')
+            assertEq(tokenEncoding.decode(id), 'id')
+        },
+        // The token rides along untouched, so a fold or a diagnostic above still
+        // has its value and its position.
+        carriesTheToken: () => {
+            /** @type {DjsTokenWithMetadata} */
+            const t = { token: { kind: 'string', value: 'v' }, metadata: { path: 'a.js', line: 7, column: 1 } }
+            const [symbol, meta] = tokenToSymbol(t)
+            assertEq(meta, t)
+            assertEq(meta.metadata.line, 7)
+            assertEq(tokenEncoding.decode(symbol), 'string')
+        },
+        throw: {
+            eofRejected: () => tokenToSymbol(proofEof(1)),
+        },
+    },
+    splitEof: {
+        // The tokenizer always ends its stream with one `eof`, so every branch
+        // but this one is reachable only from a hand-built token list.
+        final: () => {
+            const [tag, value] = splitEof([proofComma(1), proofEof(2)])
+            assert(tag === 'ok', tag)
+            assertEq(value.tokens.length, 1)
+            assertEq(value.eofMetadata.line, 2)
+        },
+        onlyEof: () => {
+            const [tag, value] = splitEof([proofEof(1)])
+            assert(tag === 'ok', tag)
+            assertEq(value.tokens.length, 0)
+            assertEq(value.eofMetadata.line, 1)
+        },
+        missing: () => {
+            const [tag, value] = splitEof([proofComma(1)])
+            assert(tag === 'error', tag)
+            assertEq(value.metadata, null)
+        },
+        // The one stream with no `eof` that is not a broken contract: a lexical
+        // failure stops the tokenizer at an `error` token. The position has to
+        // survive, or "unterminated string at 1:11" would be reported as
+        // "missing end-of-input token" with nowhere to point.
+        lexicalError: () => {
+            /** @type {DjsTokenWithMetadata} */
+            const errorToken = {
+                token: { kind: 'error', message: 'unterminated string literal' },
+                metadata: { path: 'a.js', line: 3, column: 7 },
+            }
+            const [tag, value] = splitEof([errorToken])
+            assert(tag === 'error', tag)
+            assertEq(value.metadata?.line, 3)
+            assertEq(value.metadata?.column, 7)
+        },
+        notFinal: () => {
+            const [tag, value] = splitEof([proofEof(1), proofComma(2)])
+            assert(tag === 'error', tag)
+            assertEq(value.metadata?.line, 1)
+        },
+        duplicate: () => {
+            const [tag, value] = splitEof([proofEof(1), proofEof(2)])
+            assert(tag === 'error', tag)
+            assertEq(value.metadata?.line, 1)
+        },
+    },
     pushKey: {
         // `pushKey` is only ever invoked while `state.top` is an object (the
         // `'{'`/`'{,'` value-states guarantee it), so its non-object guard is
