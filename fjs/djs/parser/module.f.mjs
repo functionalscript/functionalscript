@@ -10,7 +10,9 @@
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/types.ts'
  * @import { TokenMetadata } from '../../js/tokenizer/types.ts'
- * @import { ParseError, _ValueToken } from './types.ts'
+ * @import { OrdinaryTokenName, ParseError, _ValueToken } from './types.ts'
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -645,6 +647,31 @@ const splitEof = tokenList => {
     return ok({ tokens: a.slice(0, last), eofMetadata: a[last].metadata })
 }
 
+/**
+ * The parser layer's complete finite alphabet: every token name its grammar may
+ * name as a terminal, and the exact set a token-name-to-symbol mapping has to be
+ * validated over before parsing.
+ *
+ * `eof` is not a member — {@link splitEof} removes the tokenizer's physical
+ * end-of-input token before any name is mapped, and the backend synthesizes its
+ * own logical one.
+ *
+ * The names are the *token* vocabulary, not the tokenizer grammar's tag
+ * vocabulary: only eight punctuators survive into `DjsToken`, so the JS operator
+ * set the tokenizer recognizes is far larger than what reaches this layer.
+ *
+ * `_AlphabetIsComplete` below checks this list against `DjsToken` at compile
+ * time, so a kind added there breaks the build rather than going unrepresented.
+ */
+const ordinaryTokenNames = /** @type {const} */ ([
+    'true', 'false', 'null', 'undefined',
+    '{', '}', ':', ',', '[', ']', '.', '=',
+    'string', 'number', 'error', 'id', 'bigint',
+    'ws', 'nl', '//', '/*',
+])
+
+/** @typedef {Assert<Equal<(typeof ordinaryTokenNames)[number], OrdinaryTokenName>>} _AlphabetIsComplete */
+
 /** @type {(kind: 'eof' | ',') => (line: number) => DjsTokenWithMetadata} */
 const proofToken = kind => line => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 } })
 
@@ -653,6 +680,15 @@ const proofEof = proofToken('eof')
 const proofComma = proofToken(',')
 
 export const proof = {
+    ordinaryTokenNames: {
+        // `_AlphabetIsComplete` pins membership at compile time, but a repeated
+        // name widens to the same union and so is invisible to it. The check
+        // matters because the token-symbol mapping this alphabet feeds has to be
+        // injective over it — two entries for one name would break that.
+        noDuplicates: () => {
+            assertEq(new Set(ordinaryTokenNames).size, ordinaryTokenNames.length)
+        },
+    },
     splitEof: {
         // The tokenizer always ends its stream with one `eof`, so every branch
         // but this one is reachable only from a hand-built token list.

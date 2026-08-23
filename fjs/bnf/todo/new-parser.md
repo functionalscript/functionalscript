@@ -233,7 +233,7 @@ The serializer and other independent parts of TODO 157 are unaffected.
 - [x] Add the DJS token-stream adapter that requires and removes exactly one
       final physical `eof` token, preserving its `TokenMetadata` separately as
       `eofMetadata` for diagnostics.
-- [ ] Define the finite ordinary token-name alphabet consumed by the DJS parser
+- [x] Define the finite ordinary token-name alphabet consumed by the DJS parser
       grammar; exclude `eof` from the mapped alphabet.
 - [ ] Build the alphabet's encoding once with `token_symbol.encoding(names)` at
       parser construction, and map every ordinary token name through it; do not
