@@ -64,6 +64,97 @@ import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 
 // Builds the single-token grammar that jsGrammar's whole-file `tokens` rule repeats.
+/**
+ * The whitespace characters the grammar's `ws` rule matches.
+ *
+ * The grammar's rule and every downstream check of a trivia tag are built from
+ * this one string: the descent parser emits a range-variant branch's tag as the
+ * matched character itself, so the characters the rule accepts *are* the tags it
+ * produces. Spelling them a second time is what let the two drift apart.
+ *
+ * @type {string}
+ */
+const wsChars = ' \t'
+
+/**
+ * The newline characters the grammar's `newLine` rule matches, the single source
+ * for that rule and its tags exactly as {@link wsChars} is.
+ *
+ * @type {string}
+ */
+const nlChars = '\n\r'
+
+/** @type {ReadonlySet<string>} */
+const wsTags = new Set(wsChars)
+
+/** @type {ReadonlySet<string>} */
+const nlTags = new Set(nlChars)
+
+/**
+ * The operator vocabulary: each key is the tag the descent parser emits for that
+ * branch, and each value the characters it matches.
+ *
+ * At module scope because it captures nothing from `buildToken`, and because
+ * `operatorTags` derives the tag set from these keys rather than re-listing them.
+ */
+const operator = {
+    '.': '.',
+    '=>': '=>',
+    '===': '===',
+    '==': '==',
+    '=': '=',
+    '!==': '!==',
+    '!=': '!=',
+    '!': '!',
+    '>>>=': '>>>=',
+    '>>>': '>>>',
+    '>>=': '>>=',
+    '>>': '>>',
+    '>=': '>=',
+    '>': '>',
+    '<<=': '<<=',
+    '<<': '<<',
+    '<=': '<=',
+    '<': '<',
+    '+=': '+=',
+    '++': '++',
+    '+': '+',
+    '-=': '-=',
+    '--': '--',
+    '-': '-',
+    '**=': '**=',
+    '**': '**',
+    '*=': '*=',
+    '*': '*',
+    '/=': '/=',
+    '/': '/',
+    '%=': '%=',
+    '%': '%',
+    '&&=': '&&=',
+    '&&': '&&',
+    '&=': '&=',
+    '&': '&',
+    '||=': '||=',
+    '||': '||',
+    '|=': '|=',
+    '|': '|',
+    '^=': '^=',
+    '^': '^',
+    '~': '~',
+    '??=': '??=',
+    '??': '??',
+    '?.': '?.',
+    '?': '?',
+    '[': '[',
+    ']': ']',
+    '{': '{',
+    '}': '}',
+    '(': '(',
+    ')': ')',
+    ',': ',',
+    ':': ':'
+}
+
 /** @type {() => Rule} */
 const buildToken = () => {
 
@@ -99,9 +190,9 @@ const buildToken = () => {
 
     const digits = [digit, digits0]
 
-    const ws = set(' \t')
+    const ws = set(wsChars)
 
-    const newLine = set('\n\r')
+    const newLine = set(nlChars)
 
     const idStart = {
         smallLetter: range('az'),
@@ -142,64 +233,6 @@ const buildToken = () => {
     ]
 
     const id = [idStart, repeat0Plus(idChar)]
-
-    const operator = {
-        '.': '.',
-        '=>': '=>',
-        '===': '===',
-        '==': '==',
-        '=': '=',
-        '!==': '!==',
-        '!=': '!=',
-        '!': '!',
-        '>>>=': '>>>=',
-        '>>>': '>>>',
-        '>>=': '>>=',
-        '>>': '>>',
-        '>=': '>=',
-        '>': '>',
-        '<<=': '<<=',
-        '<<': '<<',
-        '<=': '<=',
-        '<': '<',
-        '+=': '+=',
-        '++': '++',
-        '+': '+',
-        '-=': '-=',
-        '--': '--',
-        '-': '-',
-        '**=': '**=',
-        '**': '**',
-        '*=': '*=',
-        '*': '*',
-        '/=': '/=',
-        '/': '/',
-        '%=': '%=',
-        '%': '%',
-        '&&=': '&&=',
-        '&&': '&&',
-        '&=': '&=',
-        '&': '&',
-        '||=': '||=',
-        '||': '||',
-        '|=': '|=',
-        '|': '|',
-        '^=': '^=',
-        '^': '^',
-        '~': '~',
-        '??=': '??=',
-        '??': '??',
-        '?.': '?.',
-        '?': '?',
-        '[': '[',
-        ']': ']',
-        '{': '{',
-        '}': '}',
-        '(': '(',
-        ')': ')',
-        ',': ',',
-        ':': ':'
-    }
 
     // Recursive rule: tries end (*/) first at every position so **/  → content(*) + terminator(*/).
     // Falls back to the empty `unterminated` alternative at EOF instead of failing, so `comment`
@@ -295,8 +328,8 @@ const codePointsWithMetadata = path => cp => toArray(flat(stateScan(metadataScan
  * @type {(tag: string) => Nullable<TriviaKind>}
  */
 const triviaKind = tag =>
-    tag === '\n' || tag === '\r' ? 'nl' :
-    tag === ' ' || tag === '\t' ? 'ws' :
+    nlTags.has(tag) ? 'nl' :
+    wsTags.has(tag) ? 'ws' :
     null
 
 /** @type {StateScan<_FlatToken, _TokenScanState, List<_Token>>} */
@@ -325,17 +358,20 @@ const scanFunc = (input, state) => {
     return [null, [stateTag, startMetadata, concat(stateCodePoints)([cp])]]
 }
 
-// All operator tag strings produced by the grammar's operator rule
-const operatorTags = new Set([
-    '.', '=>', '===', '==', '=', '!==', '!=', '!',
-    '>>>=', '>>>', '>>=', '>>', '>=', '>',
-    '<<=', '<<', '<=', '<',
-    '+=', '++', '+', '-=', '--', '-',
-    '**=', '**', '*=', '*', '/=', '/', '%=', '%', // TODO: '/' here causes multi-char line comments (e.g. //ab\n) to fall through as two '/' operator tokens because the oneline rule only consumes one non-newline character (option vs repeat0Plus). Fix the comment rule to use repeat0Plus, or make filterFunc distinguish operator-branch '/' from slash characters inside comments.
-    '&&=', '&&', '&=', '&', '||=', '||', '|=', '|',
-    '^=', '^', '~', '??=', '??', '?.', '?',
-    '[', ']', '{', '}', '(', ')', ',', ':'
-])
+/**
+ * All operator tag strings the grammar's `operator` rule produces, derived from
+ * the rule itself: the descent parser emits a variant branch's key as its tag,
+ * so the keys of {@link operator} *are* the tag set.
+ *
+ * TODO: `'/'` here causes multi-char line comments (e.g. `//ab\n`) to fall
+ * through as two `'/'` operator tokens because the oneline rule only consumes
+ * one non-newline character (option vs repeat0Plus). Fix the comment rule to use
+ * repeat0Plus, or make filterFunc distinguish operator-branch `'/'` from slash
+ * characters inside comments.
+ *
+ * @type {ReadonlySet<string>}
+ */
+const operatorTags = new Set(Object.keys(operator))
 
 /** @type {(tk: _FlatToken) => boolean} */
 const filterFunc = tk => {
@@ -346,13 +382,11 @@ const filterFunc = tk => {
         case 'string':
         case 'id':
         case 'comment':
-        case '\n':
-        case '\r':
-        case ' ':
-        case '\t':
             return true
         default:
-            return operatorTags.has(tk)
+            // Trivia tags go through `triviaKind` rather than a third copy of
+            // the characters, so they cannot drift from the grammar's rules.
+            return triviaKind(tk) !== null || operatorTags.has(tk)
     }
 }
 
