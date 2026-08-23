@@ -491,11 +491,11 @@ export const op1 = /** @type {const} */([op1Id, exp])
  * `=>` builds a function from a frame and a body: the frame operand is one
  * node evaluated in the enclosing scope, while the body is the inner
  * function's graph — deferred, never established when the closure is built,
- * only on each call, against that function's own `args`/`frame`. `()` calls
- * one — its second operand is one node evaluating to the complete argument
- * array, not a literal operand list: `f(a, b)` is
- * `['()', f, ['[]', [a, b]]]`, spread `f(...xs)` is `['()', f, xs]`. `own`
- * is exactly `Object.getOwnPropertyDescriptor(object, key)?.value` — no
+ * only on each call, against that function's own `args`/`frame`. Calling one
+ * is not here: a call carries a `lambda` operand, so it is not binary — see
+ * the `call` export for `['()', exp, lambda, exp]` and what that operand
+ * decides. `own` is exactly
+ * `Object.getOwnPropertyDescriptor(object, key)?.value` — no
  * getter invocation, no prototype chain — where the key operand must
  * evaluate to a string: a runtime-value constraint the shape-only schema
  * cannot express — a computed key's value is only known at execution, so

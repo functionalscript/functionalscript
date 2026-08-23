@@ -345,7 +345,7 @@ All operators are post-stage-1: stage 1 has no operators at all.
 |Form|JS|Stage|Notes|
 |----|--|-----|-----|
 |`["throw", node]`|`throw v`|later|always fails; never produces a value|
-|`["self"]`|—|later|the function itself; recursion is `["()", ["self"], args]`|
+|`["self"]`|—|later|the function itself; recursion is `["()", ["self"], [], args]`|
 |`["frame"]`|—|later|the captured-consts frame, an array — as `["args"]` is for arguments|
 
 **`["frame"]` and the closed-scope model.** A closure's free values are
@@ -358,7 +358,7 @@ ordinary indexing, `[".", ["frame"], 0]`, exactly as an argument is
 Frame construction mirrors a call: `["=>", frame, body]`, where
 `frame` is one node evaluating to an array — built in the *enclosing*
 scope, usually `["[]", …]` — and `body` is the inner function's
-graph. Compare `["()", f, args]`: same shape, one for entering a call,
+graph. Compare `["()", f, [], args]`: same shape, one for entering a call,
 one for creating a closure.
 
 ```js
@@ -366,7 +366,7 @@ one for creating a closure.
 // inside f, building b — f puts its own ["self"] into b's frame:
 ["=>", ["[]", ["self"]], /* b's body */ …]
 // inside b, calling f — slot 0 of b's frame:
-["()", [".", ["frame"], 0], ["[]", [".", ["args"], 0]]]
+["()", [".", ["frame"], 0], [], ["[]", [".", ["args"], 0]]]
 ```
 
 Consequences:
@@ -706,7 +706,7 @@ arguments passed to the function.**
 - The arguments array is first-class and always an array — the actual
   arguments the caller passed, whatever the declaration looked like.
   Missing arguments read as `undefined` via ordinary array indexing; extra
-  arguments are simply present; forwarding is `["()", f, ["args"]]` —
+  arguments are simply present; forwarding is `["()", f, [], ["args"]]` —
   all ordinary array semantics, matching JS.
 - Declared parameters are a compiler-side naming convention over the
   arguments array, not an EDAG concept; declared arity matters only for
@@ -1171,7 +1171,7 @@ const b = 3
 ```
 
 In `f`'s body, `a` is a captured value — frame slot 0 — while `f()` is
-`["()", ["self"], ["[]"]]`, needing no frame entry at all.
+`["()", ["self"], [], ["[]"]]`, needing no frame entry at all.
 
 This is exactly what makes frames constructible. `["=>", frame, body]`
 evaluates its `frame` operand *first*, so every captured value must
@@ -1266,7 +1266,7 @@ none of this ([Operations](#operations)).
 **Status:** open
 
 Everything expressible by looping is expressible by recursion —
-`["()", ["self"], args]` with a `"?:"` base case — and the NaNVM may
+`["()", ["self"], [], args]` with a `"?:"` base case — and the NaNVM may
 implement **TCO** — but most JavaScript engines do not, and FS
 compiles to JavaScript (`.f.js`) as well as to Rust. A recursion-only
 language would therefore stack-overflow on ordinary JS engines for
