@@ -501,6 +501,17 @@ export const proof = {
                 const at = [42].at
                 return at(0)
             },
+            // `a?.at` is not `a !== undefined ? a.at : undefined`: the
+            // conditional yields a plain value, detaching the receiver, so
+            // calling it throws where `(a?.at)(0)` is `42` (`receiver`
+            // above). Lowering an optional link to a conditional would lose
+            // `this`, which is why `(a?.b)(d)` keeps `?.b` as a step of the
+            // call's own `lambdas` instead of completing an `['?.', …]` node.
+            desugaredOptional: () => {
+                /** @type {(o: any) => any} */
+                const desugar = o => o !== undefined ? o.at : undefined
+                return desugar([42])(0)
+            },
             // `(u?.at).name` — the parens ended the optional chain, so
             // `.name` runs on `undefined` instead of being skipped.
             groupedOptional: () => {
@@ -524,40 +535,4 @@ export const proof = {
         ])
         assertOk(v(value))
     },
-    operations: {
-        ok: [
-            () => assertEq(([42]?.at)(0), 42),
-            () => {
-                /** @type {any} */
-                const x = undefined
-                x?.a.b
-            },
-            () => {
-                /** @type {any} */
-                const a = [42]
-                assertEq((a?.at)(0), 42)
-            },
-            () => {
-                /** @type {any} */
-                const a = null
-                assertEq(a?.b, undefined)
-            }
-        ],
-        throw: [
-            () => {
-                const y = [42]?.at
-                y(0)
-            },
-            () => {
-                /** @type {any} */
-                const x = undefined
-                const y = (x?.a).b
-            },
-            () => {
-                /** @type {any} */
-                const a = [42]
-                const _ = (a !== undefined ? a.at : undefined)(0)
-            }
-        ]
-    }
 }
