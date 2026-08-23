@@ -250,11 +250,19 @@ semantics remain owned by
 Also introduce call operations into EDAG:
 
 ```js
-['()', object, args]
-['.()', object, property, args]
+['()', object, lambda, args]
 ```
 
-The property operand of `.()` follows **the same canonical safety restriction as `.`**.
+`()` is the only call form: its `lambda` operand is the chain of steps run between
+`object` and the call, and a trailing property step (`['|.', property]`) is what makes
+the call a method call keeping the `this` binding. An ordinary call carries the empty
+lambda `[]`; `o.p(...args)` is `['()', o, [['|.', property]], args]`. See "Chains" in
+[`../../edag/README.md`](../../edag/README.md). Stage 2 needs neither optional form
+(`?.`, `?.()`) nor any optional step, since optional chaining is not in its source
+subset.
+
+The property operand of a `'|.'` step follows **the same canonical safety restriction
+as `.`**.
 In this stage that means a permitted string constant or number constant; prohibited
 names, runtime-computed strings, and other unsupported property expressions are
 rejected. This is the EDAG form of the method-call distinction and safety rules already
@@ -285,9 +293,9 @@ The staged work builds on the basic structural forms already being defined for E
 - Stage 2 non-capturing functions: `['=>', null, body]` (`frame` is a general `exp` in
   the schema; `null` is what *this task's* parser and interpreter are scoped to, not a
   schema-level restriction);
-- Stage 2 calls: `['()', object, args]` and
-  `['.()', object, property, args]`, with `.()` using the same property restriction as
-  `.`;
+- Stage 2 calls: `['()', object, lambda, args]` — `lambda` empty for an ordinary
+  call, `[['|.', property]]` for a method call, with the step's property operand
+  using the same restriction as `.`;
 - semantic sharing by node identity, serialized with DJS `const` references when
   needed.
 
@@ -469,15 +477,22 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Validate that a nested function body is a disjoint EDAG scope: operation nodes
       must not be shared across a function boundary, while sharing within the body is
       preserved.
-- [ ] Introduce `['()', object, args]` into EDAG.
-- [ ] Introduce `['.()', object, property, args]` into EDAG with the same
-      property-operand validation as `.`.
-- [ ] Convert the corresponding parser call expressions to the new EDAG call forms;
-      reject prohibited or runtime-computed string properties for `.()` rather than
-      bypassing the property-access safety rule.
+- [x] `['()', object, lambda, args]` and the `['|.', property]` step are in the EDAG
+      validation/type schema (`fjs/edag/`), shape only — the property-operand
+      restriction below is this stage's own work.
+- [ ] Convert the corresponding parser call expressions to the EDAG call form — the
+      empty lambda for an ordinary call, one `['|.', property]` step for a method
+      call; reject prohibited or runtime-computed string properties in that step
+      rather than bypassing the property-access safety rule.
 - [ ] Add proofs for non-capturing nested functions and ordinary/method calls in the
-      supported Stage 2 subset, including accepted static/numeric `.()` properties and
-      rejection of prohibited/runtime-computed string properties.
+      supported Stage 2 subset, including accepted static/numeric method-call
+      properties and rejection of prohibited/runtime-computed string properties.
+- [ ] Whenever optional chaining enters the source subset, lower grouping and chain
+      boundaries per "Chains" in [`../../edag/README.md`](../../edag/README.md), with
+      proofs over the spellings the `chains` section of
+      [`../../edag/proof.f.mjs`](../../edag/proof.f.mjs) pins — among them `a?.b.c`
+      against `(a?.b).c`, `(a?.b)(d)` against `(a?.b.c)(d)`, and `a?.b?.(c).d(f)`
+      against `(a?.b)?.(c).d(f)`.
 - [ ] Add a scope-aware linking proof such as
       `import y from './y.f.js'; export default [y, (x) => x]`: resolving `y` must not
       rewrite the nested function body's `['args']`, and calling that function still
@@ -555,7 +570,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`todo/edag-spec.md`](../../../todo/edag-spec.md) — future complete canonical EDAG
   schema.
 - [`spec/todo/2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
-  — property/method-access safety rules reused by `.` and `.()`.
+  — property/method-access safety rules reused by `.` and the property chain steps.
 - [`spec/todo/3110-function.md`](../../../spec/todo/3110-function.md) — source-level
   function support.
 - [`spec/todo/3111-function-frame.md`](../../../spec/todo/3111-function-frame.md) —

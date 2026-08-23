@@ -48,10 +48,13 @@ vocabularies.
 | `['args']` | the function's arguments |
 | `['frame']` | the captured frame |
 | `['.', exp, index]` | property access: `exp0[exp1]` |
-| `['.()', exp, index, exp]` | property call: `exp0[exp1](...exp2)` |
+| `['()', exp, lambda, exp]` | call: the value `exp0` plus `lambda` arrives at, called with `exp2` — see [Chains](#chains) |
+| `['?.', exp, index, lambda]` | optional property access: `exp0?.[exp1]`, then `lambda` |
+| `['?.()', exp, lambda, exp, lambda]` | optional call: `exp0` plus the first `lambda`, called optionally with `exp2`, then the second `lambda` |
+| `['\|.', index]`, `['\|()', exp]`, `['\|?.', index]`, `['\|?.()', exp]` | lambda operations — chain steps, only valid inside a `lambda` operand above |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `neg` `!` `~` |
-| `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `()` `===` `!==` `>` `>=` `<` `<=` `+` `-` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
+| `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `===` `!==` `>` `>=` `<` `<=` `+` `-` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
 
 A `[]` suffix in the form column marks an operand that is an array of the
 named schema, not one of it: `['[]', items[]]` holds a whole array of
@@ -59,16 +62,80 @@ named schema, not one of it: `['[]', items[]]` holds a whole array of
 prose and load-bearing in the schema — a single element where the array
 belongs still validates plenty of values, just the wrong ones.
 
-An `index` — the property operand of `.` and `.()` — is a `string`, a
-`number`, or `['Number', exp]`, a computed index cast to a number. Among the
-binary ids, `=>` builds a function, `()` calls one, and `own` reads an own
+A `lambda` is likewise `lambdaOp[]` — the array of chain steps described in
+[Chains](#chains) below.
+
+An `index` — the property operand of `.`, `?.`, `|.`, and `|?.` — is a
+`string`, a `number`, or `['Number', exp]`, a computed index cast to a
+number. Among the binary ids, `=>` builds a function and `own` reads an own
 property, bypassing the prototype chain (including `__proto__` — see the
-`ownJs` proof). A call's arguments — `()`'s second operand and `.()`'s last
-— are one node evaluating to the complete argument array, not a literal
-operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]`, and `f(...xs)`
-needs no `...` node at all, since `['()', f, xs]` already passes the whole
-array through. A `...` node is what mixes the two: `f(a, ...b)` is
-`['()', f, ['[]', [a, ['...', b]]]]`.
+`ownJs` proof); calling a function is not among them, since `()` carries a
+`lambda` and so is not binary. A call's arguments — the last `exp` of `()`,
+the third of `?.()`, the operand of `|()`/`|?.()` — are one node evaluating
+to the complete argument array, not a literal operand list: `f(a, b)` is
+`['()', f, [], ['[]', [a, b]]]`, and `f(...xs)` needs no `...` node at all,
+since `['()', f, [], xs]` already passes the whole array through. A `...`
+node is what mixes the two: `f(a, ...b)` is
+`['()', f, [], ['[]', [a, ['...', b]]]]`.
+
+## Chains
+
+A JS member chain carries two kinds of hidden control flow that its operand
+values do not: a property access hands its receiver to a following call as
+`this` (`[42].at(0)` is `42`, but `const at = [42].at; at(0)` throws), and an
+optional link skips the rest of its chain (`undefined?.a.b` is `undefined`,
+but `(undefined?.a).b` throws). Parentheses move both boundaries, so both are
+part of what a graph means.
+
+Neither is ever the result of an `exp`. Evaluating an `exp` produces an
+ordinary value and nothing else, which is what keeps a node
+context-independent and shareable by identity wherever it appears. Instead
+the three nodes that own a `lambda` — `()`, `?.`, `?.()` — interpret one as a
+sequence of steps, and the receiver and the short-circuit live only in that
+interpretation:
+
+| step | meaning |
+|---|---|
+| `['\|.', index]` | property access; the input becomes the receiver |
+| `['\|?.', index]` | the same, `undefined` on a nullish input |
+| `['\|()', exp]` | call the current value with the current receiver, then clear it |
+| `['\|?.()', exp]` | the same, `undefined` on a nullish current value |
+
+A step takes the previous value implicitly, so it holds no operand for it and
+carries no continuation: the rest of the chain is the rest of the array. An
+optional step whose input is nullish produces `undefined` and skips every
+step after it in that array, leaving its own `index`/argument operand
+unevaluated — as does `?.`/`?.()` itself, which is why `a?.[k]` does not
+evaluate `k` when `a` is nullish. An empty array does nothing: no further
+steps, no receiver.
+
+That makes one array the whole optional region, and grouping the thing that
+ends it:
+
+| JS | EDAG |
+|---|---|
+| `a?.b` | `['?.', a, 'b', []]` |
+| `a?.b.c` | `['?.', a, 'b', [['\|.', 'c']]]` |
+| `(a?.b).c` | `['.', ['?.', a, 'b', []], 'c']` |
+| `a?.b.c?.d.e` | `['?.', a, 'b', [['\|.', 'c'], ['\|?.', 'd'], ['\|.', 'e']]]` |
+
+`()` and `?.()` are the only call nodes, and their first `lambda` is what
+decides whether the call keeps a `this` binding — the tag never says. A
+lambda ending in a property step leaves a receiver, so `a.b(...c)` is
+`['()', a, [['|.', 'b']], c]`; an empty one leaves none, so `f(...c)` is
+`['()', f, [], c]`; and a lambda ending in a call step leaves none either,
+since the call consumed it. This is why there is no `.()` node: the same
+operator also spells receiver chains no property-plus-call form could, such
+as `(a?.(...b)?.c)(...d)` — `['()', a, [['|?.()', b], ['|?.', c]], d]`.
+
+A parenthesized non-optional chain is no different from an unparenthesized
+one, so `a.b.c(d)` and `(a.b.c)(d)` are the same graph. Which spellings a
+compiler emits for a chain whose non-optional prefix could equally be `.`
+nodes or `|.` steps is a lowering question, decided in
+[compile-modules-to-edag.md](../djs/todo/compile-modules-to-edag.md); both
+are valid EDAGs meaning the same thing. The `chains` section of
+[proof.f.mjs](proof.f.mjs) pins the shape of every spelling above and the
+rest of the grouping cases.
 
 ## Caveats
 

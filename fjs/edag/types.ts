@@ -16,7 +16,9 @@ export type Exp =
     | Array
     | Object
     | PropertyAccessor
-    | PropertyCall
+    | Call
+    | OptionalPropertyAccessor
+    | OptionalCall
     | Comma
     | Op2
     | Op1
@@ -72,9 +74,40 @@ export type Index = number | NumberCast | string
 
 export type PropertyAccessor = readonly['.', Exp, Index]
 
-// propertyCall
+// lambda operations
 
-export type PropertyCall = readonly['.()', Exp, Index, Exp]
+export type LambdaPropertyAccessor = readonly['|.', Index]
+
+export type LambdaCall = readonly['|()', Exp]
+
+export type LambdaOptionalPropertyAccessor = readonly['|?.', Index]
+
+export type LambdaOptionalCall = readonly['|?.()', Exp]
+
+/**
+ * A structural step of a chain, never an `Exp`: a `LambdaOp` reads the
+ * current chain value implicitly, so it has no place to hold one, and it
+ * cannot be extracted as a shared computation node.
+ */
+export type LambdaOp =
+    | LambdaPropertyAccessor
+    | LambdaCall
+    | LambdaOptionalPropertyAccessor
+    | LambdaOptionalCall
+
+export type Lambda = readonly LambdaOp[]
+
+// call
+
+export type Call = readonly['()', Exp, Lambda, Exp]
+
+// optionalPropertyAccessor
+
+export type OptionalPropertyAccessor = readonly['?.', Exp, Index, Lambda]
+
+// optionalCall
+
+export type OptionalCall = readonly['?.()', Exp, Lambda, Exp, Lambda]
 
 // Comma
 
@@ -97,7 +130,7 @@ export type Op1 = readonly[Op1Id, Exp]
 // Op2Ids
 
 export type Op2Id =
-    | '=>' | 'own' | '()'
+    | '=>' | 'own'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
     | '+' | '-' | '*' | '/' | '%' | '**'
     | '&' | '|' | '^' | '<<' | '>>' | '>>>'

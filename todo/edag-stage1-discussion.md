@@ -10,7 +10,7 @@ and this document is deleted.
 The concrete DJS rollout is tracked in
 [`compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md):
 Stage 1 introduces `.` and unresolved modules; Stage 2 introduces
-non-capturing `=>`, `()`, and `.()`. This document owns the EDAG semantics,
+non-capturing `=>` and `()`, in its ordinary and method-call forms. This document owns the EDAG semantics,
 not parser scheduling. Property/method-access safety is shared with
 [property-accessor](../spec/todo/2330-property-accessor.md); source functions
 and later captured frames are tracked by [function](../spec/todo/3110-function.md)
@@ -176,17 +176,20 @@ Agreed points (not under discussion):
 - Host-value reuse follows [DESIGN.md §8](../DESIGN.md): constants describe
   themselves; tags only where the host value is ambiguous. `["[]", ...]`
   is a complete escape hatch — any constant array is expressible.
-- `[".()", …]` is semantically required, not an optimization:
+- A call that keeps its `this` binding is semantically required, not an
+  optimization:
   [property-accessor](../spec/todo/2330-property-accessor.md) shows
-  `a.indexOf(x)` and `const p = a.indexOf; p(x)` differ observably.
+  `a.indexOf(x)` and `const p = a.indexOf; p(x)` differ observably. It is
+  spelled by the `lambda` operand of `["()", …]` (subject 6), not by a
+  distinct `".()"` tag.
 - `args` is **a single operand that evaluates to an array**, not a
   literal list of operand nodes: `f(a, b)` is
-  `["()", f, ["[]", a, b]]`, while spread `f(...xs)` is just
-  `["()", f, xs]` and forwarding is `["()", f, ["args"]]` — free,
+  `["()", f, [], ["[]", a, b]]`, while spread `f(...xs)` is just
+  `["()", f, [], xs]` and forwarding is `["()", f, [], ["args"]]` — free,
   because `["args"]` is itself a first-class array (subject 2). A
   literal-list operand would save the `["[]", …]` wrapper in the
-  common case but would need a spread marker for those. Same for
-  `[".()", …]`'s third operand.
+  common case but would need a spread marker for those. Same for every
+  other argument operand: `"?.()"`'s and the call steps' (subject 6).
 
 ## Operations
 
@@ -203,7 +206,10 @@ operation — not when the EDAG schema itself admits it.** The schema
 in practice it doesn't: `"own"`, `"Number"`, `"String"`, and `","` are marked `later`
 below, `"=>"` is marked a not-yet-implemented Stage 2, and `["frame"]` is marked `later`
 too (further down, under [Operations](#operations)) — yet all are already validated by
-`exp` today. A node being schema-valid says nothing about whether any parser emits it or
+`exp` today. The optional nodes are the sharpest case: `"?."` and `"?.()"` are in the
+schema even though `?.` is not an FS source operator in its own right (see below), because
+the `Function` constructor takes EDAG from anywhere and a chain's hidden control flow has
+to be representable and validatable when it does. A node being schema-valid says nothing about whether any parser emits it or
 any interpreter executes it — that's what the `Stage`/`later` marker tracks, and the
 schema is free to change independently of both.
 
@@ -215,8 +221,10 @@ schema is free to change independently of both.
 |`["{}", ...entry]`|`{ … }`|1|ordered object constructor; initial entry form is `[":", key, value]` (subject 4)|
 |`["args"]`|—|1|the arguments array (subject 2)|
 |`[".", object, property]`|`o.p`, `o[p]`|1|property access; `property` is restricted (see below)|
-|`["()", object, args]`|`f(...args)`|2|call; `args` is one node yielding an array|
-|`[".()", object, property, args]`|`o.p(...args)`, `o[p](...args)`|2|method call; keeps `this` binding; same `property` restriction|
+|`["()", object, lambda, args]`|`f(...args)`, `o.p(...args)`|2|call; `args` is one node yielding an array; `lambda` is the chain run before the call and decides the `this` binding (subject 6)|
+|`["?.", object, property, lambda]`|`o?.p`, and the rest of its optional chain|later|optional property access; same `property` restriction|
+|`["?.()", object, lambda, args, lambda]`|`f?.(...args)`, and the rest of its optional chain|later|optional call|
+|`["\|.", property]`, `["\|()", args]`, `["\|?.", property]`, `["\|?.()", args]`|a step of a chain|later|not `exp` nodes — only valid inside a `lambda` operand (subject 6)|
 |`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|later|own property by a computed **string**; no prototype chain|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
@@ -236,13 +244,15 @@ can represent `{ ...object }`. Plain objects remain reserved and have no EDAG
 meaning yet.
 
 Tags are **JS syntax wherever JS has syntax for the operation** — hence
-`"."`, `"()"`, `".()"`, `"{}"`, `":"` and `","` above, and the operator
-symbols below. This is [DESIGN.md §8](../DESIGN.md) again: the host language
-already spells these, so the EDAG reuses the spelling instead of inventing
-a vocabulary to be memorized and translated. `".()"` reads as the method
-call it denotes, `o.p(…)`.
+`"."`, `"()"`, `"?."`, `"?.()"`, `"{}"`, `":"` and `","` above, and the
+operator symbols below. This is [DESIGN.md §8](../DESIGN.md) again: the host
+language already spells these, so the EDAG reuses the spelling instead of
+inventing a vocabulary to be memorized and translated. A chain step is the
+same spelling behind a `"|"`, which marks it as a step rather than a node:
+`"|."` is the `.b` of a chain, `"|?.()"` its `?.(…)`.
 
-**The property operand is restricted**, in `"."` and `".()"` alike. It
+**The property operand is restricted**, in `"."`, `"?."`, `"|."`, and
+`"|?."` alike. It
 must be one of:
 
 - a **string constant** that is not on the prohibited list
@@ -878,7 +888,7 @@ the FJS compiler would never emit. To validate:
   content-addressed VM, indistinguishable from an ordinary duplicate entry
   (subject 4); key/value EDAG nodes inside descriptors may of course be
   shared, like any other node. Plain objects are not EDAG nodes;
-- **property operands** of `"."` and `".()"`: a permitted string
+- **property operands** of `"."`, `"?."`, and the property chain steps: a permitted string
   constant, a number constant, or a `"Number"` node. Anything else is a
   validation error, which is what keeps computed-string prototype access
   unrepresentable ([Operations](#operations)). `"Number"` never returns a
@@ -913,7 +923,8 @@ the FJS compiler would never emit. To validate:
 [property-accessor](../spec/todo/2330-property-accessor.md) names five
 commands: `at`, `at_call`, `instance_property`, `instance_method_call`,
 `own_property`. The EDAG keeps the general layer only — `"."` = its
-`at`, `".()"` = its `at_call`, `["own", …]` = its `own_property` — while
+`at`, a `"()"` over a property step = its `at_call`, `["own", …]` = its
+`own_property` — while
 `instance_property` and `instance_method_call` stay compile-time
 specializations for the bytecode, where performance distinctions belong
 ([serialization](../spec/todo/serialization.md)).
@@ -926,15 +937,29 @@ name is a **validation** error at construction, and a computed string
 never reaches `"."` at all.
 
 **Decided for the structural tags: they are JS syntax too** —
-`[".", object, property]`, `["()", object, args]`,
-`[".()", object, property, args]`, `["{}", …]`, `[":", key, value]`,
-`[",", …]`. Syntax is as much a host spelling as an operator symbol is,
-and `".()"` reads as the `o.p(…)` it denotes. This supersedes the
+`[".", object, property]`, `["()", object, lambda, args]`,
+`["{}", …]`, `[":", key, value]`, `[",", …]`. Syntax is as much a host
+spelling as an operator symbol is. This supersedes the
 `at` / `call` / `bindCall` names used earlier in this document.
 
-**Decided: `"."` and `".()"`, not `"[]"` and `"[]()"`.** `"."` is the
-shorter and more readable tag, and `".()"` composes to read exactly like
-the method call it is.
+**Decided: `"."`, not `"[]"`.** `"."` is the shorter and more readable
+tag for property access.
+
+**Decided: one call tag, with a `lambda` operand — no `".()"`.** An
+earlier draft gave the method call its own `[".()", object, property, args]`
+tag. It was replaced because a JS chain carries two kinds of hidden control
+flow that a fixed property-plus-call tag cannot express: the receiver a
+property access hands to a following call as `this`, and the region an
+optional link short-circuits — and parentheses move each boundary
+independently (`(a?.b).c` throws where `a?.b.c` is `undefined`). The
+settled vocabulary keeps every `exp` evaluating to an ordinary value and
+puts both kinds of control flow in a `lambda`: a flat array of chain steps
+that only the `"()"`, `"?."`, and `"?.()"` nodes interpret. `a.b(...c)` is
+then `["()", a, [["|.", "b"]], c]`, and the same node also spells chains no
+property-plus-call tag could, such as `(a?.(...b)?.c)(...d)`. The shape of
+record and the worked examples are in
+[`fjs/edag/README.md`](../fjs/edag/README.md) — "Chains" — and the JSDoc on
+`lambda` in [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs).
 
 **Decided: the EDAG keeps three access operations, not one and not
 2330's five.** An earlier draft of this subject said `"."` was a single
@@ -945,7 +970,7 @@ an optimization:
 |EDAG|2330|key|
 |---|----|---|
 |`[".", o, p]`|`at`, plus `instance_property` for the implemented names 2330 lists — 2330 routes every other name to `own_property`|string constant (permitted), or a number|
-|`[".()", o, p, args]`|`instance_method_call` + `at_call`|same|
+|`["()", o, [["\|.", p]], args]`|`instance_method_call` + `at_call`|same|
 |`["own", o, k]`|`own_property`|any computed string; own properties only|
 
 `"."` merges 2330's static-name and numeric-index commands because the
