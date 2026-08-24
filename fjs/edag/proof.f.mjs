@@ -79,6 +79,18 @@ const op2Ids = /** @type {const} */ ([
     '&&', '||', '??',
 ])
 
+/**
+ * The naive desugaring of `a?.at` — the shape `?.` looks like it could lower
+ * to. It guards both nullish values, as `?.` does: `null?.at` is `undefined`,
+ * not a throw, so a guard on `undefined` alone would not be the desugaring of
+ * anything. Every branch is taken by `chainsJs.desugaredOptional`, which is
+ * also where the assertions live: an assertion inside a `throw` case would be
+ * masked, since a failing one throws and so reads as the expected failure.
+ *
+ * @type {(o: any) => any}
+ */
+const desugarOptionalAt = o => o !== null && o !== undefined ? o.at : undefined
+
 export const proof = {
     primitive: {
         ok: () => {
@@ -486,6 +498,24 @@ export const proof = {
             assertEq(u?.[todo()], undefined)
             assertEq(u?.(todo()), undefined)
         },
+        // What the naive desugaring of `?.` gets right, every branch of it:
+        // `undefined` on either nullish input, and on anything else the *same
+        // function* `a.at` denotes. Nothing is wrong with any of those values
+        // — what it loses is the receiver, which `throw.desugaredOptional`
+        // pins by calling the last one. That is why `?.` cannot lower to a
+        // conditional, and why `(a?.b)(d)` keeps `?.b` as a step of the call's
+        // own `lambdas`, `['()', a, [['|?.', 'b']], d]`, instead of completing
+        // an `['?.', …]` node that would hand on an ordinary value.
+        desugaredOptional: () => {
+            assertEq(desugarOptionalAt(null), undefined)
+            assertEq(desugarOptionalAt(undefined), undefined)
+            // Identity, not just equality: a receiver-bound function (e.g.
+            // `o.at.bind(o)`) is `!==` to `[42].at` even though it behaves
+            // the same on `(0)`. So this line and `throw.desugaredOptional`
+            // both redden under that mutation — the identity check here,
+            // the call there.
+            assertEq(desugarOptionalAt([42]), [42].at)
+        },
         // The call counterpart of `throw.groupedOptional` — `(u?.at)(0)`,
         // which calls `undefined` and throws under the spec and V8 — is
         // deliberately absent: JavaScriptCore (so `bun test`) short-circuits
@@ -501,6 +531,9 @@ export const proof = {
                 const at = [42].at
                 return at(0)
             },
+            // The desugaring above, called: `42` through `(a?.at)(0)`
+            // (`receiver`), a throw once a conditional has made it a value.
+            desugaredOptional: () => desugarOptionalAt([42])(0),
             // `(u?.at).name` — the parens ended the optional chain, so
             // `.name` runs on `undefined` instead of being skipped.
             groupedOptional: () => {
