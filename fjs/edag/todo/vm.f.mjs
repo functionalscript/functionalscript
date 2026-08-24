@@ -1,7 +1,7 @@
 /**
- * @import { Exp, Op0Id, Op1Id, Op2Id } from '../types.ts'
+ * @import { Exp, Op0Id, Op1, Op1Id, Op2, Op2Id, Properties } from '../types.ts'
  * @import { RequiredMap } from '../../types/object/types.ts'
- * @import { Context, Map, ExpOp, Get } from './types.ts'
+ * @import { Context, Map, ExpOp, TagMap } from './types.ts'
  */
 
 import { todo } from '../../asserts/module.f.mjs'
@@ -18,16 +18,18 @@ const o2lazy =
         return o(f(a), () => f(b))
     }
 
-/** @typedef {<A extends Exp>(c: Context, ) => unknown} Func */
+/** @typedef {<A extends Exp>(c: Context, e: readonly[ExpOp[0], unknown, unknown]) => unknown} Func2 */
 
 const o2 =
     (/**@type {(a: any, b: any) => unknown}*/o) =>
-    /**@type {Func}*/
+    /**@type {Func2}*/
     (c, [, a, b]) => o2lazy((a, b) => o(a, b()))
+
+/** @typedef {<A extends Exp>(c: Context, e: Op1) => unknown} Func1 */
 
 const o1 =
     (/**@type {(a: any) => unknown}*/o) =>
-    /**@type {Func}*/
+    /**@type {Func1}*/
     (c, [, a]) => o(vm(c)(a))
 
 /**@type {Map}*/
@@ -43,7 +45,7 @@ const map = {
     '+': o2((a, b) => a + b),
     ',': (x, [, a]) => {
         const f = vm(x)
-        return a.reduce((_, c) => f(c))
+        return a.reduce((/**@type {unknown}*/_, c) => f(c), undefined)
     },
     '-': o2((a, b) => a - b),
     '.': o2((a, b) => a[b]),
@@ -74,9 +76,11 @@ const map = {
     undefined: () => undefined,
     '{}': (x, [, a]) => {
         const f = vm(x)
-        const kv = a.flatMap(
-            /**@return {readonly readonly[unknown, unknown][]}*/
-            e => e[0] === ':' ? [[f(e[1]), f(e[2])]] : Object.entries(f(e[1])))
+        /**@type {(e: Properties) => readonly[unknown, unknown][]}*/
+        const g = e => e[0] === ':'
+            ? [[f(e[1]), f(e[2])]]
+            : Object.entries(/**@type {any}*/(f(e[1])))
+        const kv = a.flatMap(g)
         return Object.fromEntries(kv)
     },
     '|': o2((a, b) => a | b),
@@ -84,22 +88,18 @@ const map = {
     '~': o1(a => ~a),
 }
 
-const m =
-    (/**@type {Context}*/x) =>
-    /**
-     * @template {ExpOp[0]} K
-     * @param {K} k
-     * @param {Get<K>} e
-     */
-    (k, e) => {
-        const m = map[k](x, e)
-    }
-
 const vm = (/**@type {Context}*/context) => {
-    const g = (/**@type{Exp}*/e) => {
-        if (e instanceof Array) {
-        }
-        return todo()
-    }
-    return g
+    const compute =
+        /**
+         * Generic over the tag, not `(e: ExpOp) =>`: with a union-typed `e`,
+         * `map[e[0]]` is a union of every handler signature, callable only with
+         * the intersection of their tuples — `never`. Through `K` it stays the
+         * one signature `(c, r: TagMap[K])` — see `TagMap` in `./types.ts`.
+         *
+         * @type {<K extends ExpOp[0]>(e: TagMap[K] & readonly [K, ...readonly unknown[]]) => unknown}
+         */
+        e => map[e[0]](context, e)
+    return (/**@type{Exp}*/e) => e instanceof Array
+        ? compute(e)
+        : e
 }
