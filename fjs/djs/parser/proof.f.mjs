@@ -147,6 +147,41 @@ export const proof = {
             }
         },
     ],
+    // Wide and deep values, which cost the BNF path a stack frame each until
+    // both its traversals were made iterative.
+    //
+    // A repetition is only *flat* in the AST when `toData` recognizes the
+    // right-recursive shape, and nested inside `delimited`'s option scaffolding
+    // it does not — so 5,000 siblings are 5,000 levels of tree, and a recursive
+    // walk over them overflows exactly as deep nesting would. The state machine
+    // was fixed for its own version of this; see `containerStackCost`.
+    bnfStackSafety: [
+        () => {
+            const source = `export default [${Array(5000).fill('null').join(',')}]`
+            const tokens = tokenizeString(source)
+            assertEq(parseFromTokens(tokens)[0], 'ok')
+            assertEq(_bnfParseFromTokens(tokens)[0], 'ok')
+        },
+        () => {
+            const source = `export default [${Array(5000).fill('{}').join(',')}]`
+            const tokens = tokenizeString(source)
+            assertEq(parseFromTokens(tokens)[0], 'ok')
+            assertEq(_bnfParseFromTokens(tokens)[0], 'ok')
+        },
+        () => {
+            const source = `export default ${'['.repeat(5000)}${']'.repeat(5000)}`
+            const tokens = tokenizeString(source)
+            assertEq(parseFromTokens(tokens)[0], 'ok')
+            assertEq(_bnfParseFromTokens(tokens)[0], 'ok')
+        },
+        () => {
+            // wide objects walk the member list rather than the element list
+            const source = `export default {${Array(5000).fill(0).map((_, i) => `k${i}:${i}`).join(',')}}`
+            const tokens = tokenizeString(source)
+            assertEq(parseFromTokens(tokens)[0], 'ok')
+            assertEq(_bnfParseFromTokens(tokens)[0], 'ok')
+        },
+    ],
     // The tokenizer's EOF contract, checked through the parser rather than
     // through `splitEof` alone.
     //

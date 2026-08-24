@@ -8,13 +8,13 @@
  * @import { Fold } from '../../types/function/operator/types.ts'
  * @import { DjsToken, DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { OrderedMap } from '../../types/ordered_map/types.ts'
- * @import { AstArray, AstConst, AstModule, AstModuleRef } from '../ast/types.ts'
+ * @import { AstArray, AstConst, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { TokenMetadata } from '../../js/tokenizer/types.ts'
  * @import { ParseError, _FramingKeyword, _OrdinaryTokenName, _ValueToken } from './types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { CodePointMeta } from '../../bnf/descent/types.ts'
- * @import { Ast } from '../../bnf/matcher/types.ts'
+ * @import { Ast, AstSequence } from '../../bnf/matcher/types.ts'
  * @import { Rule, TerminalRange } from '../../bnf/types.ts'
  * @import { DescentMatch } from '../../bnf/descent/types.ts'
  */
@@ -976,7 +976,7 @@ const slot = tag => node => {
 }
 
 /**
- * Every node tagged `tag` under `node`.
+ * Every node tagged `tag` under `node`, in document order.
  *
  * An array's elements are not its direct children — they sit inside the option
  * and repetition scaffolding `delimited` builds — so finding them takes a
@@ -986,15 +986,44 @@ const slot = tag => node => {
  * every element, member and statement is wrapped in a node carrying its own
  * tag, so the wrapper matches and the search stops there, before it could
  * descend into the array or object inside it. That is what the wrappers are
- * for. Remove one and this would start claiming the elements of a value nested
- * within this one.
+ * for.
+ *
+ * Iterative, over an explicit stack, for the same reason {@link foldValue} is.
+ * A repetition is only *flat* in the AST when `toData` recognizes the
+ * right-recursive shape and emits a `Repeat`; nested inside this grammar's
+ * option scaffolding it does not, so a thousand siblings are a thousand levels
+ * of tree, and recursing over them overflows exactly as deep nesting would.
  *
  * @type {(tag: string) => (node: _Node) => readonly _Node[]}
  */
-const descendantsTagged = tag => node => node.sequence.flatMap(child =>
-    child instanceof Array ? []
-        : child.tag === tag ? [child]
-            : descendantsTagged(tag)(child))
+const descendantsTagged = tag => root => {
+    /** Pushes a node's children so the leftmost is visited first. */
+    /** @type {(rest: List<_Node>, sequence: AstSequence<CodePointMeta<DjsTokenWithMetadata>>) => List<_Node>} */
+    const pushChildren = (rest, sequence) => {
+        let stack = rest
+        let i = sequence.length
+        while (i !== 0) {
+            i = i - 1
+            const child = sequence[i]
+            if (!(child instanceof Array)) { stack = { first: child, tail: stack } }
+        }
+        return stack
+    }
+    /** @type {List<_Node>} */
+    let found = null
+    let stack = pushChildren(null, root.sequence)
+    for (;;) {
+        const top = next(stack)
+        if (top === null) { return toArray(found) }
+        const node = top.first
+        if (node.tag === tag) {
+            found = concat(found)([node])
+            stack = top.tail
+        } else {
+            stack = pushChildren(top.tail, node.sequence)
+        }
+    }
+}
 
 const valueSlot = slot('value')
 
@@ -1064,53 +1093,119 @@ const bind = state => node => ref => {
 }
 
 /**
+ * A frame of {@link foldValue}'s explicit stack: the container being built, the
+ * element nodes still to read, and what has been built so far.
+ *
+ * `done` is a `List` rather than an array because a frame gains one element at a
+ * time: appending to an array per element would copy the whole prefix each time,
+ * which is what makes the obvious spelling quadratic in an array's length.
+ *
+ * @typedef {{
+ *   readonly items: readonly _Node[]
+ *   readonly index: number
+ *   readonly array: List<AstConst>
+ *   readonly object: OrderedMap<AstConst>
+ *   readonly keys: readonly string[]
+ *   readonly isArray: boolean
+ * }} _FoldFrame
+ */
+
+/**
  * A value, resolved against the names bound so far.
  *
+ * Iterative, over an explicit stack, because a value nests arbitrarily and the
+ * call stack does not: recursion here overflows at a few thousand containers,
+ * which is the defect `containerStackCost` was written to catch when the parser
+ * this replaced had its own version of it.
+ *
  * Returns the error channel alongside the value because a reference can fail to
- * resolve at any depth, and an array or object has to stop building when one
- * does. A failed fold yields `null` for the value, which is never mistaken for a
+ * resolve at any depth, and a container has to stop building when one does. A
+ * failed fold yields `null` for the value, which is never mistaken for a
  * successful `null` — the caller reads the error, not the value.
  *
  * @type {(state: _FoldState) => (node: _Node) => readonly[AstConst, ParseError | null]}
  */
-const foldValue = state => node => {
-    const value = node.sequence[0]
-    assert(!(value instanceof Array), 'a value slot held no value')
-    switch (value.tag) {
-        case 'array': {
-            let items = /** @type {readonly AstConst[]} */ ([])
-            for (const item of itemsOf(value)) {
-                // an element wraps its value directly, exactly as a `value`
-                // slot does, so it is already the shape `foldValue` reads
-                const [element, itemError] = foldValue(state)(item)
-                if (itemError !== null) { return [null, itemError] }
-                items = [...items, element]
-            }
-            return [['array', items], null]
-        }
-        case 'object': {
-            let entries = /** @type {OrderedMap<AstConst>} */ (null)
-            for (const member of membersOf(value)) {
-                const [name, computed] = keyOf(keySlot(member))
-                if (name === protoKey && !computed) {
-                    return [null, foldError('__proto__ requires the computed key form')(tokenOf(keySlot(member)))]
+const foldValue = state => root => {
+    /** @type {List<_FoldFrame>} */
+    let stack = null
+    let node = root
+    /** @type {AstConst} */
+    let value = null
+    // `true` while descending into `node`; `false` while handing `value` back
+    // to the frame that asked for it.
+    let descending = true
+    for (;;) {
+        if (descending) {
+            const child = node.sequence[0]
+            assert(!(child instanceof Array), 'a value slot held no value')
+            if (child.tag === 'array' || child.tag === 'object') {
+                const isArray = child.tag === 'array'
+                const items = isArray ? itemsOf(child) : membersOf(child)
+                const keys = isArray ? [] : items.map(member => keyOf(keySlot(member)))
+                // reported at the key itself, not at the object's `{`, which is
+                // where the reader is looking and what the parser this replaced
+                // pointed at
+                const bad = keys.findIndex(([name, computed]) => name === protoKey && !computed)
+                if (bad !== -1) {
+                    return [null, foldError('__proto__ requires the computed key form')(
+                        tokenOf(keySlot(items[bad])))]
                 }
-                const [memberValue, memberError] = foldValue(state)(valueSlot(member))
-                if (memberError !== null) { return [null, memberError] }
-                entries = setReplace(name)(memberValue)(entries)
+                /** @type {_FoldFrame} */
+                const frame = {
+                    items,
+                    index: 0,
+                    array: null,
+                    object: null,
+                    keys: keys.map(([name]) => name),
+                    isArray,
+                }
+                stack = { first: frame, tail: stack }
+                if (items.length === 0) {
+                    value = isArray ? ['array', []] : fromMap(null)
+                    stack = assertNotNullish(next(stack)).tail
+                    descending = false
+                } else {
+                    node = isArray ? items[0] : valueSlot(items[0])
+                }
+            } else {
+                const withMetadata = tokenOf(child)
+                const { token } = withMetadata
+                if (isValueToken(token)) {
+                    value = tokenToValue(token)
+                } else {
+                    // anything else the value rule admits is an identifier, so
+                    // it names a `const` or an `import` — or nothing, which is
+                    // the error.
+                    assert('value' in token && typeof token.value === 'string', 'a reference carried no name')
+                    const ref = at(token.value)(state.refs)
+                    if (ref === null) { return [null, foldError('const not found')(withMetadata)] }
+                    value = ref
+                }
+                descending = false
             }
-            return [fromMap(entries), null]
-        }
-        default: {
-            const token = tokenOf(value)
-            if (isValueToken(token.token)) { return [tokenToValue(token.token), null] }
-            // anything else the value rule admits is an identifier, so it names
-            // a `const` or an `import` — or nothing, which is the error.
-            assert('value' in token.token && typeof token.token.value === 'string', 'a reference carried no name')
-            const ref = at(token.token.value)(state.refs)
-            return ref === null
-                ? [null, foldError('const not found')(token)]
-                : [ref, null]
+        } else {
+            /** @type {{ readonly first: _FoldFrame, readonly tail: List<_FoldFrame> } | null} */
+            const top = next(stack)
+            if (top === null) { return [value, null] }
+            /** @type {_FoldFrame} */
+            const frame = top.first
+            const index = frame.index + 1
+            const array = frame.isArray ? concat(frame.array)([value]) : frame.array
+            const object = frame.isArray
+                ? frame.object
+                : setReplace(frame.keys[frame.index])(value)(frame.object)
+            if (index === frame.items.length) {
+                /** @type {AstArray} */
+                const asArray = ['array', toArray(array)]
+                /** @type {AstObject} */
+                const asObject = fromMap(object)
+                value = frame.isArray ? asArray : asObject
+                stack = top.tail
+            } else {
+                stack = { first: { ...frame, index, array, object }, tail: top.tail }
+                node = frame.isArray ? frame.items[index] : valueSlot(frame.items[index])
+                descending = true
+            }
         }
     }
 }
