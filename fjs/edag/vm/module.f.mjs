@@ -18,12 +18,14 @@ const o2lazy =
         return o(f(a), () => f(b))
     }
 
-/** @typedef {<A extends Exp>(c: Context, e: readonly[ExpOp[0], unknown, unknown]) => unknown} Func2 */
-
+/**
+ * Eager pair: `o2lazy` already *is* the handler, so this forces `b` and
+ * hands it on — it must not wrap another `(c, e) =>` around it, or every
+ * binary op would evaluate to that inner handler instead of to a value.
+ */
 const o2 =
     (/**@type {(a: any, b: any) => unknown}*/o) =>
-    /**@type {Func2}*/
-    (c, [, a, b]) => o2lazy((a, b) => o(a, b()))
+    o2lazy((a, b) => o(a, b()))
 
 /** @typedef {<A extends Exp>(c: Context, e: Op1) => unknown} Func1 */
 
