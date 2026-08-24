@@ -147,10 +147,20 @@ const unitToTs = bits => [
  * tuple-with-rest combines them with a rest element:
  * `readonly[A,...readonly(R)[]]`.
  *
+ * A position the array may simply end before prints optional — the trailing
+ * run whose sets admit `undefined`, which is exactly what the array may stop
+ * at, arrays being contiguous. It mirrors the optional key `objectSetToTs`
+ * prints, and keeps the union rather than stripping `undefined` from it, as
+ * that one does.
+ *
  * @type {(ctx: _Ctx) => (p: ArraySet) => string}
  */
 const arraySetToTs = ctx => p => {
-    const items = p.prefix.map(nodeToTs(ctx))
+    const required = p.prefix.findLastIndex(n => !admitsUndefined(ctx)(n)) + 1
+    const items = p.prefix.map((n, i) => {
+        const ts = nodeToTs(ctx)(n)
+        return i < required ? ts : `(${ts})?`
+    })
     const { rest } = p
     if (rest === undefined) { return ctx.ts.tuple(items) }
     const restTs = ctx.ts.array(nodeToTs(ctx)(rest))

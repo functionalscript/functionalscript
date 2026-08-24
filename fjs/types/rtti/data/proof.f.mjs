@@ -189,8 +189,13 @@ export const proof = {
             assertData(toData(record(neverRtti)))([{}, { object: [{ props: {}, rest: {} }] }])
             // both const containers are open, so each carries the `rest` that
             // says so: `unknown` past a tuple's prefix, no `rest` on a struct.
-            // An open tuple declaring nothing is therefore every array.
+            // An open tuple declaring nothing is therefore every array — and
+            // so is one whose every position restates that `rest`, which is
+            // trimmed away so that one set keeps one spelling
             assertData(toData(emptyTuple))([{}, { array: true }])
+            assertData(toData(/** @type {const} */ ([unknownRtti])))([{}, { array: true }])
+            assertData(toData(/** @type {const} */ ([unknownRtti, unknownRtti])))([{}, { array: true }])
+            assertData(toData(/** @type {const} */ ([number, unknownRtti])))(toData(tupleNumber))
             assertData(toData(/** @type {const} */ ([number, 42])))(
                 [{}, { array: [{ prefix: [{ number: true }, { number: [42] }], rest: unknown }] }])
             assertData(toData({}))([{}, { object: true }])
@@ -468,6 +473,9 @@ export const proof = {
         arrayRest: () => {
             /** @type {Data} */
             const oneOrMoreNumbers = [{}, { array: [{ prefix: [{ number: true }], rest: { number: true } }] }]
+            // a position restating a `rest` that excludes `undefined` is not
+            // redundant — it is what makes this "one or more" rather than the
+            // uniform set, so nothing trims it away
             assert(subset(oneOrMoreNumbers)(toData(array(number))))
             assert(!subset(toData(array(number)))(oneOrMoreNumbers))
             assert(subset(exactlyTwoNumbers)(oneOrMoreNumbers))

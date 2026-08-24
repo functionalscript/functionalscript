@@ -100,7 +100,18 @@ export const proof = {
         // generically — the printer renders the rest element that says it, so
         // an unconstrained tuple is the whole array kind
         emptyTuple: () => eq([], 'readonly(unknown)[]'),
+        unconstrainedTuple: () => eq([unknown], 'readonly(unknown)[]'),
         tuple: () => eq([12, true], 'readonly[12,true,...readonly(unknown)[]]'),
+        // a position the array may end before prints optional, as the key it
+        // is the array counterpart of does
+        optionalTuplePosition: () => eq(
+            [number, option(string)],
+            'readonly[number,(undefined|string)?,...readonly(unknown)[]]',
+        ),
+        allOptionalTuple: () => eq(
+            [option(number)],
+            'readonly[(undefined|number)?,...readonly(unknown)[]]',
+        ),
         // an unconstrained struct is the whole object kind
         emptyStruct: () => eq({}, '{readonly[k in string]?:unknown}'),
         struct: () => eq(

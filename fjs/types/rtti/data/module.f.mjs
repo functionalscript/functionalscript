@@ -287,11 +287,35 @@ const isNever = n => typeof n !== 'string' && cmpUnion(n, never) === 0
 const isTop = n => typeof n !== 'string' && cmpUnion(n, unknown) === 0
 
 /**
+ * The prefix with its redundant tail removed: a last position stating exactly
+ * the `rest` says nothing the `rest` does not already say, *provided* the
+ * `rest` admits `undefined` — then the position's two cases, an element of
+ * `rest` and the array ending there, are both cases the `rest` covers on its
+ * own. Without that proviso the two differ on a present `undefined`, which
+ * only the position admits, so `{ prefix: [number], rest: number }` keeps its
+ * position and stays "one or more numbers".
+ *
+ * This is what keeps one set to one spelling: the open tuples `[]` and
+ * `[unknown]` are both every array and have to produce one `Node`.
+ *
+ * A referenced `rest` is left alone — reading its unit bits would need the
+ * rule set, and the form already declines to see through a reference (see
+ * `./README.md`).
+ *
+ * @type {(prefix: readonly Node[], rest: Node) => readonly Node[]}
+ */
+const trimPrefix = (prefix, rest) =>
+    typeof rest === 'string' || ((rest.unit ?? 0) & unitBit(undefined)) === 0
+        ? prefix
+        : prefix.slice(0, prefix.findLastIndex(n => cmpNode(n, rest) !== 0) + 1)
+
+/**
  * Canonical array-kind singleton. A syntactically empty position makes the
  * whole pattern empty (a position past the array's end reads as `undefined`,
  * which the empty set excludes, so no length escapes it); an empty `rest`
- * admits nothing past the prefix, which is what no `rest` already says; an
- * unconstrained `rest` with no prefix is every array.
+ * admits nothing past the prefix, which is what no `rest` already says; a
+ * prefix restating its `rest` is {@link trimPrefix}'d away; an unconstrained
+ * `rest` with nothing left before it is every array.
  *
  * Every array set is stated with a `rest` — `unknown` for an open tuple,
  * the element set for a uniform array — so this takes one rather than an
@@ -302,7 +326,8 @@ const isTop = n => typeof n !== 'string' && cmpUnion(n, unknown) === 0
 const arraySet = (prefix, rest) => {
     if (prefix.some(isNever)) { return never }
     if (isNever(rest)) { return { array: [{ prefix }] } }
-    return prefix.length === 0 && isTop(rest) ? { array: true } : { array: [{ prefix, rest }] }
+    const p = trimPrefix(prefix, rest)
+    return p.length === 0 && isTop(rest) ? { array: true } : { array: [{ prefix: p, rest }] }
 }
 
 /**

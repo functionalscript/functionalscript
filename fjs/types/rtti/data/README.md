@@ -90,8 +90,9 @@ disambiguated with a counter on collision.
 - array/object patterns are sorted, deduplicated, and *coverage-collapsed*:
   a pattern included in a sibling pattern is dropped;
 - degenerate patterns are simplified: an empty position empties the pattern,
-  an identity `rest`/prop disappears, and a pattern constraining nothing is
-  its whole kind — `array(unknown)` and the open tuple `[]` alike;
+  an identity `rest`/prop disappears, a trailing position restating a `rest`
+  that admits absence is dropped, and a pattern constraining nothing is its
+  whole kind — `array(unknown)`, `[]` and `[unknown]` are one `Node`;
 - pure `or` cycles dissolve (`X = number | X` is `number` — the least
   fixpoint), rules are pruned to the reachable set and sorted, and an entry
   rule nothing else references is inlined;
