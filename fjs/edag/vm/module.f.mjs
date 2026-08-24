@@ -47,6 +47,10 @@ const map = {
         const i = vm(x)
         /**@type {any}*/
         const f = i(b)
+        // One node evaluating to the *complete* argument array — `f(a, b)` is
+        // `['()', f, [], ['[]', [a, b]]]` — and `=>` collects with
+        // `(...args)`, so it is spread. Passed as a single argument instead,
+        // the callee's `['args']` would be `[[a, b]]`.
         /**@type {any}*/
         const args = i(d)
         return f(...args)

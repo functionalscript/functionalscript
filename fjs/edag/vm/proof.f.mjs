@@ -46,6 +46,16 @@ const same = (e, expected) => { assertStructurallySame(ev(e), expected) }
  */
 const boom = ['.', null, 'x']
 
+/**
+ * `a => a` with an empty frame — the smallest callable, used wherever a
+ * case is about the call and not about what the callee computes.
+ * @type {Exp}
+ */
+const identity = ['=>', ['[]', []], ['.', ['args'], 0]]
+
+/** `(...a) => a` — hands back the whole argument array. @type {Exp} */
+const argsNode = ['=>', ['[]', []], ['args']]
+
 export const proof = {
     // The non-`Array` side of `vm`'s only branch: a primitive is its own
     // value, returned without ever reaching `map`.
@@ -164,13 +174,85 @@ export const proof = {
             { a: [10, -1] },
         )
     },
+    // `=>` evaluates its *frame* operand and not its body: the value is the
+    // captured frame paired with the body graph, which is why a closure can
+    // outlive the scope that built it. Here that pair is a host function, so
+    // these also pin that representation choice — a `typeof`-`'function'`
+    // value the host can call directly, not an inert record.
+    lambda: () => {
+        const f = ev(identity)
+        assertEq(typeof f, 'function')
+        assertEq(/**@type {(a: unknown) => unknown}*/(f)(7), 7)
+        // Every evaluation builds a fresh closure, as `x => x` does in JS —
+        // the `=>` node is shared, the values it produces are not.
+        assert(ev(identity) !== ev(identity))
+    },
+    // A call rebuilds the callee's scope from two places: `frame` comes from
+    // the closure, `args` from the call site.
+    call: () => {
+        eq(['()', identity, [], ['[]', [7]]], 7)
+        // The args operand is one node evaluating to the complete argument
+        // array, so `['args']` in the callee *is* that array — not the array
+        // wrapped in another one, and not just its first element.
+        same(['()', argsNode, [], ['[]', [5, 6]]], [5, 6])
+        same(['()', argsNode, [], ['[]', []]], [])
+        // ... and any node evaluating to an array serves, which is what
+        // makes `f(...xs)` need no `...` node: the whole array passes through.
+        same(['()', argsNode, [], ['[]', [1, ['...', ['[]', [2, 3]]]]]], [1, 2, 3])
+        // Operands are evaluated in the *caller's* scope, before the callee's
+        // exists: the callee expression as much as the arguments.
+        eq(['()', ['.', ['[]', [identity]], 0], [], ['[]', [['+', 3, 4]]]], 7)
+    },
+    // The frame is the only channel outward: a body's leaves are constants,
+    // `['args']` and `['frame']`, so a captured value has to arrive as data.
+    closure: () => {
+        // `['=>', ['[]', [100]], …]` captures `100` at closure-creation time.
+        eq(['()', ['=>', ['[]', [100]], ['+', ['.', ['args'], 0], ['.', ['frame'], 0]]],
+            [], ['[]', [5]]], 105)
+        // Nested: the outer call's argument is copied into the inner frame,
+        // and the inner body reads it as `['frame']` — the same node
+        // `['.', ['args'], 0]` could not have been shared across the `=>`.
+        const outer = /** @type {Exp} */ ([
+            '=>', ['[]', []],
+            ['=>', ['[]', [['.', ['args'], 0]]], ['.', ['frame'], 0]],
+        ])
+        eq(['()', ['()', outer, [], ['[]', [7]]], [], ['[]', []]], 7)
+        // The frame operand is evaluated in the enclosing scope, so it sees
+        // that scope's `['args']` — the one place a `=>` node reaches out.
+        assertEq(vm({ frame: null, args: [11] })(
+            ['()', ['=>', ['[]', [['.', ['args'], 0]]], ['.', ['frame'], 0]], [], ['[]', []]]),
+            11)
+    },
+    // Closures are ordinary values: passable as arguments, returnable, and
+    // callable from a node that computed them rather than named them.
+    higherOrder: () => {
+        // `(g, x) => g(x)`
+        const apply = /** @type {Exp} */ ([
+            '=>', ['[]', []],
+            ['()', ['.', ['args'], 0], [], ['[]', [['.', ['args'], 1]]]],
+        ])
+        eq(['()', apply, [], ['[]', [identity, 7]]], 7)
+        // `x => y => x + y`, applied twice — the classic case the frame
+        // exists for.
+        const add = /** @type {Exp} */ ([
+            '=>', ['[]', []],
+            ['=>', ['[]', [['.', ['args'], 0]]],
+                ['+', ['.', ['frame'], 0], ['.', ['args'], 0]]],
+        ])
+        eq(['()', ['()', add, [], ['[]', [2]]], [], ['[]', [3]]], 5)
+    },
     throw: {
-        // The four `todo` handlers: calls, lambdas, and the two optional
-        // chain nodes, which need the `lambdas` step machinery.
-        call: () => ev(['()', ['undefined'], [], ['undefined']]),
-        lambda: () => ev(['=>', ['undefined'], ['undefined']]),
+        // Still `todo`: the two optional chain nodes, which need the
+        // `lambdas` step machinery.
         optionalPropertyAccessor: () => ev(['?.', ['undefined'], 'a', []]),
         optionalCall: () => ev(['?.()', ['undefined'], [], ['undefined'], []]),
+        // `()` implements the empty `lambdas` only, so a non-empty one is
+        // the other side of its guard — the chain steps, receiver and all,
+        // are not executed yet.
+        lambdas: () => ev(['()', identity, [['|.', 'a']], ['[]', []]]),
+        // Not a function: `()` calls whatever the callee operand evaluates
+        // to, so this is the host `TypeError`, not a check of its own.
+        callNonFunction: () => ev(['()', 1, [], ['[]', []]]),
         // The other side of `lazy`: with the left operand that does not
         // short-circuit, the thunk *is* forced and `boom` throws. Without
         // these, `o2lazy` returning `a` unconditionally would still pass.
