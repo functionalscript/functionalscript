@@ -1,8 +1,8 @@
-import type { Tuple } from '../../types/array/types.ts'
 import type { Exp } from '../types.ts'
 
 type ExpOp = Extract<Exp, readonly unknown[]>
-type Context = {
+
+export type Context = {
     readonly frame: unknown,
     readonly args: readonly unknown[],
 }
@@ -14,6 +14,6 @@ type Next<T extends ExpOp, K> =
             : never
         : never
 
-export type StaticMap = {
+export type Map = {
     readonly[K in ExpOp[0]]: Next<ExpOp, K>
 }

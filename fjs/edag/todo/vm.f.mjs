@@ -1,58 +1,81 @@
 /**
  * @import { Exp, Op0Id, Op1Id, Op2Id } from '../types.ts'
  * @import { RequiredMap } from '../../types/object/types.ts'
- * @import { StaticMap } from './types.ts'
+ * @import { Context, Map } from './types.ts'
  */
 
 import { todo } from '../../asserts/module.f.mjs'
 
-/**@type{StaticMap}*/
-const staticMap = {
-    '!': a => !a,
-    '!==': (a, b) => a !== b,
-    '%': (a, b) => a % b,
-    '&': (a, b) => a & b,
-    '&&': (a, b) => todo(), // a ?? b
-    '()': (a, b, c) => todo(),
-    '*': (a, b) => a * b,
-    '**': (a, b) => a ** b,
-    '+': (a, b) => a + b,
-    ',': (a) => a[a.length - 1],
-    '-': (a, b) => a - b,
-    '.': (a, b) => a[b],
-    '/': (a, b) => a / b,
-    '<': (a, b) => a < b,
-    '<<': (a, b) => a << b,
-    '<=': (a, b) => a <= b,
-    '===': (a, b) => a === b,
-    '=>': (frame, exp) => (/**@type{readonly unknown[]}*/args) => vm(frame)(args)(exp),
-    '>': (a, b) => a > b,
-    '>=': (a, b) => a >= b,
-    '>>': (a, b) => a >> b,
-    '>>>': (a, b) => a >>> b,
-    '?.': (a, b, c) => todo(),
-    '?.()': (a, b, c, d) => todo(),
-    '??': (a, b) => todo(),
-    Number,
-    String,
-    '[]': a => todo(),
-    '^': (a, b) => a ^ b,
-    neg: a => -1,
-    own: (a, b) => Object.getOwnPropertyDescriptor(a, b)?.value,
+const o2lazy =
+    (/**@type {(a: any, b: () => any) => unknown}*/o) =>
+    /**
+     * @template {Exp} A
+     * @param {Context} c
+     * @param {readonly[unknown, A, A]} _2
+     */
+    (c, [, a, b]) => {
+        const f = vm(c)
+        return o(f(a), () => f(b))
+    }
+
+/** @typedef {<A extends Exp>(c: Context, ) => unknown} Func */
+
+const o2 =
+    (/**@type {(a: any, b: any) => unknown}*/o) =>
+    /**@type {Func}*/
+    (c, [, a, b]) => o2lazy((a, b) => o(a, b()))
+
+const o1 =
+    (/**@type {(a: any) => unknown}*/o) =>
+    /**@type {Func}*/
+    (c, [, a]) => o(vm(c)(a))
+
+/**@type {Map}*/
+const map = {
+    '!': o1(a => !a),
+    '!==': o2((a, b) => a !== b),
+    '%': o2((a, b) => a % b),
+    '&': o2((a, b) => a & b),
+    '&&': o2lazy((a, b) => a && b()),
+    '()': todo,
+    '*': o2((a, b) => a * b),
+    '**': o2((a, b) => a ** b),
+    '+': o2((a, b) => a + b),
+    ',': (x, [, a]) => {
+        const f = vm(x)
+        return a.reduce((_, c) => f(c))
+    },
+    '-': o2((a, b) => a - b),
+    '.': o2((a, b) => a[b]),
+    '/': o2((a, b) => a / b),
+    '<': o2((a, b) => a < b),
+    '<<': o2((a, b) => a << b),
+    '<=': o2((a, b) => a <= b),
+    '===': o2((a, b) => a === b),
+    '=>': todo,
+    '>': o2((a, b) => a > b),
+    '>=': o2((a, b) => a >= b),
+    '>>': o2((a, b) => a >> b),
+    '>>>': o2((a, b) => a >>> b),
+    '?.': todo,
+    '?.()': todo,
+    '??': o2lazy((a, b) => a ?? b()),
+    Number: o1(Number),
+    String: o1(String),
+    '[]': (x, [, a]) => {
+        const f = vm(x)
+        return a.flatMap(e => (e instanceof Array) && e[0] === '...' ? f(e[1]) : [f(e)])
+    },
+    '^': o2((a, b) => a ^ b),
+    args: ({args}) => args,
+    frame: ({frame}) => frame,
+    neg: o1(a => -a),
+    own: o2((a, b) => Object.getOwnPropertyDescriptor(a, b)?.value),
     undefined: () => undefined,
-    '{}': a => todo(),
-    '|': (a, b) => a | b,
-    '||': (a, b) => a || b,
-    '~': a => ~a,
+    '{}': 
 }
 
-const vm = (/**@type{unknown}*/frame) => (/**@type{readonly unknown[]}*/args) => {
-    /**@type{RequiredMap<Op0Id, unknown}*/
-    const op0Map = {
-        args,
-        frame,
-        undefined
-    }
+const vm = (/**@type {Context}*/context) => {
     const g = (/**@type{Exp}*/e) => {
         if (e instanceof Array) {
             const k = e[0]
