@@ -164,6 +164,28 @@ module grammar in `fjs/bnf` combinators over the validated token-symbol alphabet
 including module framing as well as values, then fold
 `AstRuleMeta<DjsTokenWithMetadata>` to `AstModule`.
 
+**The grammar carries shape; the fold carries names.** The statement ordering the
+state machine enforces with a `consts.length === 0` check *is* expressible as
+shape — the rule is `import* const* export` — but four of its checks are not, and
+no context-free grammar can take them on:
+
+- an identifier naming no `const` or `import` (`pushRef`'s "const not found");
+- a `const` name already bound (`parseConstOp`'s "duplicate id");
+- an `import` name already bound (`parseImportOp`'s);
+- and the same across the two namespaces, which share one `refs` map.
+
+All four need a symbol table rather than a shape. They belong to the fold, which
+is already the place a symbol table exists, because turning an identifier into
+`['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar to
+approximate them.
+
+The consequence for parity: grammar acceptance alone is **not** the parity bar. A
+stream can be structurally well-formed and still be rejected on a name, so the
+differential proofs compare the grammar and the state machine on well-formedness,
+and the four semantic cases are pinned separately as expected divergence until
+the fold closes them. `const a = a` is *not* one of them — a name is bound before
+its value is read, so both accept it.
+
 **5. Report positions from token metadata, never from `idx`.** `idx` in
 `DescentMatchResult` is an index into the *physical symbol* array; on the parser
 layer one symbol is a whole ordinary token, so the number says nothing about a
@@ -241,14 +263,17 @@ The serializer and other independent parts of TODO 157 are unaffected.
 - [x] Map each ordinary `DjsToken` to its symbol, carrying the token as descent
       metadata; never feed the tokenizer's physical `eof` token to the BNF symbol
       stream.
-- [ ] Implement the complete DJS module grammar, including module framing, in the
+- [x] Implement the complete DJS module grammar, including module framing, in the
       existing `fjs/djs/parser/module.f.mjs`; do not create a temporary public
       parser module/API.
-- [ ] Give the grammar one identifier rule accepting the union of `id` and the
+- [x] Give the grammar one identifier rule accepting the union of `id` and the
       five framing-keyword symbols, and use it everywhere an identifier is
       accepted — binding names, references, object keys, import names. Only the
       framing positions demand a specific keyword.
-- [ ] Fold `AstRuleMeta` into `AstModule`.
+- [ ] Fold `AstRuleMeta` into `AstModule`, and give the fold the four name
+      checks the grammar cannot make: unresolved reference, duplicate `const`
+      name, duplicate `import` name, and collisions across the shared `refs` map.
+      Until it lands, `bnfGrammarSemanticGap` pins those as expected divergence.
 - [ ] Report errors as metadata position ranges; widen `ParseError.metadata`
       from a single `TokenMetadata` to a range where required, using ordinary
       token metadata for `idx < tokens.length` and `eofMetadata` for

@@ -14,6 +14,8 @@
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { CodePointMeta } from '../../bnf/descent/types.ts'
+ * @import { Rule, TerminalRange } from '../../bnf/types.ts'
+ * @import { DescentMatch } from '../../bnf/descent/types.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -21,8 +23,10 @@ import { fold, next, toArray, length, concat } from '../../types/list/module.f.m
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { fromMap } from '../../types/object/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { rangeDecode, unicodeRange } from '../../bnf/module.f.mjs'
+import { eof, oneEncode, option, rangeDecode, repeat0Plus, unicodeRange } from '../../bnf/module.f.mjs'
 import { encoding } from '../../bnf/token_symbol/module.f.mjs'
+import { toData } from '../../bnf/data/module.f.mjs'
+import { descentParserRuleSet } from '../../bnf/descent/module.f.mjs'
 
 /** @typedef {['array', List<AstConst>]} _DjsStackArray */
 
@@ -763,12 +767,212 @@ const tokenToSymbol = t => {
     return [tokenEncoding.encode(name), t]
 }
 
+/**
+ * One token name as a grammar terminal.
+ *
+ * A symbol and a `TerminalRange` are both plain numbers, so `oneEncode` is what
+ * says which one is meant — `encode` returns the bare symbol a stream carries,
+ * and a rule needs the singleton range containing it.
+ *
+ * @type {(name: _OrdinaryTokenName) => TerminalRange}
+ */
+const sym = name => oneEncode(tokenEncoding.encode(name))
+
+/**
+ * Trivia is skipped between every pair of tokens, so almost every rule below is
+ * interleaved with it.
+ */
+const trivia = repeat0Plus({
+    ws: sym('ws'),
+    nl: sym('nl'),
+    lineComment: sym('//'),
+    blockComment: sym('/*'),
+})
+
+/**
+ * Trivia that stops at a newline, for the one place a newline is not trivia:
+ * the statement separator. `import`/`const` statements must be newline-separated
+ * — the `'nl'` state in the hand-written parser — so a rule that swallowed
+ * newlines as trivia everywhere could not express it.
+ */
+const statementEnd = () => [
+    repeat0Plus({ ws: sym('ws'), lineComment: sym('//'), blockComment: sym('/*') }),
+    sym('nl'),
+    trivia,
+]
+
+/**
+ * Every word that may stand where an identifier is expected: a plain `id` and
+ * each framing keyword, since none of them is reserved.
+ *
+ * This is the union {@link framingKeywords} obliges the grammar to provide.
+ */
+const identifier = {
+    id: sym('id'),
+    import: sym('import'),
+    const: sym('const'),
+    export: sym('export'),
+    default: sym('default'),
+    from: sym('from'),
+}
+
+/** A value that is one token. */
+const primitive = {
+    null: sym('null'),
+    true: sym('true'),
+    false: sym('false'),
+    undefined: sym('undefined'),
+    number: sym('number'),
+    string: sym('string'),
+    bigint: sym('bigint'),
+}
+
+/**
+ * `open item, item, ... ,? close` with trivia everywhere and an optional
+ * trailing comma, which both arrays and objects allow.
+ *
+ * The trailing comma works because a failed repetition round rewinds rather than
+ * failing the match ([`bnf/descent`](../../bnf/descent/README.md)): on the final
+ * `,` the round consumes the comma, finds `]` where an item belongs, and ends the
+ * repetition back at the comma for the optional tail to take.
+ *
+ * @type {(open: TerminalRange, close: TerminalRange, item: Rule) => Rule}
+ */
+const delimited = (open, close, item) => () => [
+    open,
+    trivia,
+    option([
+        item,
+        trivia,
+        repeat0Plus([sym(','), trivia, item, trivia]),
+        option([sym(','), trivia]),
+    ]),
+    close,
+]
+
+/** @type {Rule} */
+const value = () => ({ primitive, ref: identifier, array, object })
+
+const array = delimited(sym('['), sym(']'), value)
+
+/** A property name: bare identifier, string literal, or a computed `["a"]`. */
+const key = {
+    plain: identifier,
+    string: sym('string'),
+    computed: () => [sym('['), trivia, sym('string'), trivia, sym(']')],
+}
+
+/** @type {Rule} */
+const member = () => [key, trivia, sym(':'), trivia, value]
+
+const object = delimited(sym('{'), sym('}'), member)
+
+const importStatement = () =>
+    [sym('import'), trivia, identifier, trivia, sym('from'), trivia, sym('string')]
+
+const constStatement = () =>
+    [sym('const'), trivia, identifier, trivia, sym('='), trivia, value]
+
+const exportStatement = () => [sym('export'), trivia, sym('default'), trivia, value]
+
+/**
+ * The whole module: every `import` before every `const`, one `export default`
+ * last, and nothing but trivia after it.
+ *
+ * The ordering the hand-written parser enforces with a `consts.length === 0`
+ * check is just the shape of this rule, which is the point of writing the
+ * grammar down: `import* const* export`.
+ *
+ * Ending on `eof` is what makes a trailing stray token a failure rather than a
+ * short match — the backend synthesizes that symbol after the physical input.
+ *
+ * @type {Rule}
+ */
+const djsModule = () => [
+    trivia,
+    repeat0Plus([importStatement, statementEnd]),
+    repeat0Plus([constStatement, statementEnd]),
+    exportStatement,
+    trivia,
+    eof,
+]
+
+/**
+ * The module matcher and the name of the rule to start it at.
+ *
+ * `toData` generates rule names, so the entry name belongs to the conversion and
+ * is read back from it rather than spelled here. Built once: converting the
+ * grammar and computing its nullability is per-grammar work, not per-parse.
+ */
+const [moduleRuleSet, moduleEntry] = toData(djsModule)
+
+/** @type {DescentMatch<DjsTokenWithMetadata>} */
+const moduleMatcher = descentParserRuleSet(moduleRuleSet)
+
+/**
+ * Whether the grammar accepts a token stream — the recognizer half of the BNF
+ * parser, before the AST fold exists.
+ *
+ * Kept separate from `parseFromTokens` while both implementations stand: this is
+ * what the differential proofs compare, so a grammar that accepts the wrong
+ * language fails before any fold is written against it.
+ *
+ * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<null, ParseError>}
+ */
+const recognizeModule = tokenList => {
+    const [tag, stream] = splitEof(tokenList)
+    if (tag === 'error') { return error(stream) }
+    const { tokens, eofMetadata } = stream
+    const { success, failure } = moduleMatcher(moduleEntry, tokens.map(tokenToSymbol))
+    if (success) { return ok(null) }
+    // `idx` on the parser layer counts whole tokens, so it locates a file
+    // position only through the token it points at — or through the metadata
+    // kept aside for physical end, where there is no token to point at.
+    const at = failure?.idx ?? tokens.length
+    return error({
+        message: 'unexpected token',
+        metadata: at < tokens.length ? tokens[at].metadata : eofMetadata,
+    })
+}
+
 /** @type {(kind: 'eof' | ',') => (line: number) => DjsTokenWithMetadata} */
 const proofToken = kind => line => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 } })
 
 const proofEof = proofToken('eof')
 
 const proofComma = proofToken(',')
+
+/**
+ * Whether the BNF grammar and the hand-written state machine agree that a token
+ * stream is well-formed, for the differential proofs to compare while both
+ * implementations stand.
+ *
+ * **Structural agreement only.** The state machine also resolves names as it
+ * goes — `pushRef` rejects an identifier that names no `const` or `import`, and
+ * `parseConstOp` / `parseImportOp` reject a name already bound — and no
+ * context-free grammar can do that, because it needs a symbol table rather than
+ * a shape. Those four checks belong to the fold, which is where an identifier
+ * becomes a `cref` or `aref` index and therefore where the table exists.
+ *
+ * So a stream this reports agreement on may still be rejected by the state
+ * machine for an unresolved or duplicate name; the proofs pin that gap by
+ * example rather than leaving it to be discovered during the cutover.
+ *
+ * @type {(tokenList: List<DjsTokenWithMetadata>) => boolean}
+ */
+export const _bnfAgreesWithStateMachine = tokenList => {
+    const a = toArray(tokenList)
+    return (recognizeModule(a)[0] === 'ok') === (parseFromTokens(a)[0] === 'ok')
+}
+
+/**
+ * Whether the grammar alone accepts a token stream, ignoring what the state
+ * machine makes of it — the half of the comparison that isolates name
+ * resolution, so the proofs can show the gap is exactly that and nothing else.
+ *
+ * @type {(tokenList: List<DjsTokenWithMetadata>) => boolean}
+ */
+export const _bnfAccepts = tokenList => recognizeModule(toArray(tokenList))[0] === 'ok'
 
 export const proof = {
     ordinaryTokenNames: {

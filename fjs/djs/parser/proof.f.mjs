@@ -2,7 +2,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  */
 
-import { parseFromTokens } from './module.f.mjs'
+import { parseFromTokens, _bnfAccepts, _bnfAgreesWithStateMachine } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -17,6 +17,75 @@ const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
 const stringifyDjsModule = stringifyAsTree(sort)
 
 export const proof = {
+    // The BNF grammar and the hand-written state machine accept the same
+    // language, across valid and malformed input alike. This is what stands in
+    // for AST parity until the fold exists: a grammar that accepted the wrong
+    // language would fail here rather than after a fold was written against it.
+    bnfGrammarParity: [
+        () => {
+            for (const s of [
+                'export default null', 'export default true', 'export default 0.1',
+                'export default "abc"', 'export default undefined', 'export default 1234567890n',
+                'export default []', 'export default [1]', 'export default [1,]',
+                'export default [[]]', 'export default [0,[1,[2,[]]],3]',
+                'export default {}', 'export default {"a":1}', 'export default {a: 1}',
+                'export default {"a":1,}', 'export default {["a"]:1}',
+                'export default {a:1,"b":2,["c"]:3,}', 'export default {"a":{"b":{"c":["d"]}}}',
+                'const a = 1\nexport default a', 'const a = 1\nconst b = 2\nexport default [a,b]',
+                'import x from "m"\nexport default x',
+                'import x from "m"\nconst a = 1\nexport default a',
+                '// c\nexport default 1', '/* c */ export default 1', '\n\n export default 1 \n\n',
+                'const export = 1\nexport default export', 'export default { from: 2, default: 3 }',
+            ]) {
+                assert(_bnfAgreesWithStateMachine(tokenizeString(s)), s)
+                assert(_bnfAccepts(tokenizeString(s)), s)
+            }
+        },
+        () => {
+            for (const s of [
+                '', 'export default', '42', '[1,2]', '{"a":1}', 'export default [',
+                'export default {', 'const a = 1 export default a', 'export default 1 2',
+                'const a = 1\nimport x from "m"\nexport default a', 'export default {a}',
+                'export default {:1}', 'export default [,]', 'import x from y\nexport default x',
+                'export x from "m"\nexport default 1', 'const = 1\nexport default 1',
+                'export default {[1]:2}', 'const a = 1;\nexport default a',
+                'export default 1\nconst b = 2', 'import x from "m"', 'const a = 1',
+            ]) {
+                assert(_bnfAgreesWithStateMachine(tokenizeString(s)), s)
+                assert(!_bnfAccepts(tokenizeString(s)), s)
+            }
+        },
+    ],
+    // The one place the two cannot agree, and why. Resolving a name needs a
+    // symbol table, which a context-free grammar has no way to carry, so the
+    // grammar accepts these shapes and the state machine rejects them on the
+    // name. The fold owns that check — it is where an identifier becomes a
+    // `cref`/`aref` index — so this gap closes there, not in the grammar.
+    bnfGrammarSemanticGap: [
+        () => {
+            for (const s of [
+                'const a = 1\nconst a = 2\nexport default a',
+                'import x from "m"\nimport x from "n"\nexport default x',
+                'export default zzz',
+                'const a = zzz\nexport default a',
+            ]) {
+                // structurally fine...
+                assert(_bnfAccepts(tokenizeString(s)), s)
+                // ...but rejected on the name
+                const [tag] = parseFromTokens(tokenizeString(s))
+                assertEq(tag, 'error', s)
+            }
+        },
+        () => {
+            // `const a = a` resolves: the name is bound before its value is
+            // read, so both accept it. The gap is unresolved and duplicate
+            // names, not self-reference.
+            const s = 'const a = a\nexport default a'
+            assert(_bnfAgreesWithStateMachine(tokenizeString(s)), s)
+            const [tag] = parseFromTokens(tokenizeString(s))
+            assertEq(tag, 'ok')
+        },
+    ],
     // A lexical failure ends the token stream at an `error` token and emits no
     // `eof`. `splitEof` reads a missing `eof` that way rather than as a broken
     // tokenizer contract, and reports the error where it happened — so that
