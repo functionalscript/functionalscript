@@ -1,5 +1,7 @@
 /**
  * @import { Unknown } from '../../media/json/types.ts'
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
  * @import { Operation } from '../../effects/types.ts'
  * @import { Effect, NotImplemented } from '../../effects/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
@@ -19,6 +21,7 @@ import { history, historyStep, mapStep, pureOk, step } from '../../effects/modul
 import { error, ok, unwrap as unwrapResult } from '../../types/result/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { internalError } from '../json_rpc/module.f.mjs'
+import { string } from '../../types/rtti/module.f.mjs'
 import { asBase, asNominal, create, read } from '../../effects/memory/module.f.mjs'
 import {
     uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,
@@ -491,8 +494,7 @@ export const proof = {
         // validating it against the empty-object schema below would fail and
         // this would observe an error result instead of `ok`.
         toolsCallAbsentArgumentsDefaultsToEmptyObject: () => {
-            const echoArgs = /** @type {const} */ ({})
-            const entry = toolEntry('echo', 'echoes', echoArgs,
+            const entry = toolEntry('echo', 'echoes', {},
                 () => pureOk(okResult('ok')))
             const handlers = fromRegistry([entry])
             const [r] = runPure(handlers.toolsCall({ name: 'echo' }))
@@ -500,6 +502,25 @@ export const proof = {
             const [item] = r[1].content
             assert(item.type === 'text', item)
             assertEq(item.text, 'ok')
+        },
+        // The type guarantee `./README.md` documents: an inline schema literal
+        // reaches the handler as `Ts<T>`, with no cast on either side. That
+        // rests on `toolEntry`'s `const` type parameter — without it `kind`
+        // widens to `string` and the assertion below fails, which is the only
+        // place that would notice.
+        inlineSchemaLiteralKeepsItsLiteralMembers: () => {
+            const entry = toolEntry('tag', 'tags', { kind: 'add', name: string },
+                ({ kind, name }) => {
+                    /** @typedef {Assert<Equal<typeof kind, 'add'>>} _ConstParameter */
+                    return pureOk(okResult(`${kind}:${name}`))
+                })
+            const handlers = fromRegistry([entry])
+            const [r] = runPure(handlers.toolsCall(
+                { name: 'tag', arguments: { kind: 'add', name: 'x' } }))
+            assert(r !== undefined && r[0] === 'ok', r)
+            const [item] = r[1].content
+            assert(item.type === 'text', item)
+            assertEq(item.text, 'add:x')
         },
     },
 }
