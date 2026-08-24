@@ -43,9 +43,6 @@ const o1 =
     /**@type {_Func1}*/
     (c, [, a]) => o(vm(c)(a))
 
-/** @type {(a: any, b: any, c: any) => unknown} */
-const methodCall = (a, b, c) => a[b](...c)
-
 /**@type {Map}*/
 const map = {
     '!': o1(a => !a),
@@ -66,6 +63,13 @@ const map = {
             // the callee's `['args']` would be `[[a, b]]`.
             return ib(...args)
         }
+        const [_, p1] = c.reduce(
+            ([p, [o, c3]], lambda) => {
+
+                return [todo(), lambda]
+            },
+            [undefined, ib])
+        todo()
     },
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
