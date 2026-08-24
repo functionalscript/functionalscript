@@ -28,8 +28,12 @@ are closed while the runtime ones are open (see Caveats).
 kind by node kind — validation behavior, not execution semantics — with
 `comma` excepted until its placeholder shape settles. Its `ownJs` and
 `chainsJs` sections are the exception that proves the rule: they run the JS
-whose behavior the nodes are built around, since nothing executes an EDAG
-yet.
+whose behavior the nodes are built around, which is how those semantics were
+pinned before anything executed an EDAG. [amnesia](amnesia/README.md) now
+does — a tree-walking evaluator for testing the semantics, and deliberately
+not a VM to run FunctionalScript on. The broader identity and memoization
+choices, including JS-compatible executors, global memoization, and the CAVM,
+are compared in [execution-models.md](execution-models.md).
 
 ## Nodes
 
