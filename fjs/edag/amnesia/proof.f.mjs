@@ -1,8 +1,8 @@
 /**
  * Execution semantics of `vm` — one section per operand shape, since that is
  * how `map`'s handlers are built (`o1`/`o2`/`o2lazy`), plus the nodes that
- * evaluate their operands themselves (`,`, `[]`, `{}`) and the four that are
- * still `todo`. This is the executing counterpart of `../proof.f.mjs`, which
+ * evaluate their operands themselves (`,`, `[]`, `{}`) and the three that are
+ * still `todo` — `?.`, `?.()`, and a non-empty `lambdas` operand on `()`. This is the executing counterpart of `../proof.f.mjs`, which
  * pins what the schema *accepts*; nothing here validates.
  *
  * @import { Exp } from '../types.ts'
@@ -88,8 +88,10 @@ export const proof = {
         eq(['Number', '42'], 42)
         eq(['String', 42], '42')
     },
-    // `o2` — both operands evaluated, the group the `6945861` fix covers:
-    // each of these returns a value, not the handler that would compute one.
+    // `o2` — both operands evaluated. Each case asserts a *value*, which is
+    // what pins the whole group against `o2` wrapping another `(c, e) =>`
+    // around `o2lazy`: that returns the handler uncalled, so every binary
+    // operator would evaluate to a function rather than to a result.
     op2: () => {
         eq(['+', 2, 3], 5)
         eq(['-', 2, 3], -1)

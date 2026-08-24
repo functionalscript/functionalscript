@@ -36,7 +36,7 @@ const o2 =
     (/**@type {(a: any, b: any) => unknown}*/o) =>
     o2lazy((a, b) => o(a, b()))
 
-/** @typedef {<A extends Exp>(c: Context, e: Op1) => unknown} _Func1 */
+/** @typedef {(c: Context, e: Op1) => unknown} _Func1 */
 
 const o1 =
     (/**@type {(a: any) => unknown}*/o) =>
