@@ -1,44 +1,25 @@
 /**
  * @import { Exp, Op0Id, Op1Id, Op2Id } from '../types.ts'
  * @import { RequiredMap } from '../../types/object/types.ts'
+ * @import { StaticMap } from './types.ts'
  */
 
 import { todo } from '../../asserts/module.f.mjs'
 
-/** @type {RequiredMap<Op1Id, (v: any) => unknown>} */
-const op1Map = {
-    '!': v => !v,
-    Number,
-    String,
-    neg: v => -v,
-    '~': v => ~v,
-}
-
-/** @type {RequiredMap<Op2Id, (a: any, b: any) => unknown>} */
-const op2Map = {
+/**@type{StaticMap}*/
+const staticMap = {
+    '!': a => !a,
     '!==': (a, b) => a !== b,
     '%': (a, b) => a % b,
     '&': (a, b) => a & b,
     '&&': (a, b) => a && b,
+    '()': (a, b) => a(...b),
     '*': (a, b) => a * b,
     '**': (a, b) => a ** b,
     '+': (a, b) => a + b,
+    ',': (a) => a[a.length - 1],
     '-': (a, b) => a - b,
-    '/': (a, b) => a / b,
-    '<': (a, b) => a < b,
-    '<<': (a, b) => a << b,
-    '<=': (a, b) => a <= b,
-    '===': (a, b) => a === b,
-    '=>': (a, b) => (/**@type{readonly unknown[]}*/args) => vm(a)(args)(b),
-    '>': (a, b) => a > b,
-    '>=': (a, b) => a >= b,
-    '>>': (a, b) => a >> b,
-    '>>>': (a, b) => a >>> b,
-    '??': (a, b) => a ?? b,
-    '^': (a, b) => a ^ b,
-    'own': (a, b) => Object.getOwnPropertyDescriptor(a, b)?.value,
-    '|': (a, b) => a | b,
-    '||': (a, b) => a || b,
+    '.':
 }
 
 const vm = (/**@type{unknown}*/frame) => (/**@type{readonly unknown[]}*/args) => {
