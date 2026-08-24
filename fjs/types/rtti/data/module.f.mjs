@@ -289,11 +289,16 @@ const isTop = n => typeof n !== 'string' && cmpUnion(n, unknown) === 0
 /**
  * The prefix with its redundant tail removed: a last position stating exactly
  * the `rest` says nothing the `rest` does not already say, *provided* the
- * `rest` admits `undefined` — then the position's two cases, an element of
- * `rest` and the array ending there, are both cases the `rest` covers on its
- * own. Without that proviso the two differ on a present `undefined`, which
- * only the position admits, so `{ prefix: [number], rest: number }` keeps its
- * position and stays "one or more numbers".
+ * `rest` admits `undefined`.
+ *
+ * Every array long enough to reach that position is read against the same set
+ * either way, so the two spellings can only differ on the arrays that stop
+ * before it: there the position reads `undefined`, which the `rest` alone
+ * imposes nothing on. Dropping the position therefore widens the set unless
+ * the `rest` admits `undefined` too — which is why
+ * `{ prefix: [number], rest: number }` keeps its position and stays "one or
+ * more numbers", differing from `{ prefix: [], rest: number }` on exactly one
+ * value, `[]`.
  *
  * This is what keeps one set to one spelling: the open tuples `[]` and
  * `[unknown]` are both every array and have to produce one `Node`.
