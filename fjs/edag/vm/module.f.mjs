@@ -41,7 +41,15 @@ const map = {
     '%': o2((a, b) => a % b),
     '&': o2((a, b) => a & b),
     '&&': o2lazy((a, b) => a && b()),
-    '()': todo,
+    '()': (x, [, b, c, d]) => {
+        if (c.length !== 0) {
+            todo()
+        }
+        const i = vm(x)
+        /**@type {any}*/
+        const f = i(b)
+        return f(i(d))
+    },
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
     '+': o2((a, b) => a + b),
@@ -56,8 +64,8 @@ const map = {
     '<<': o2((a, b) => a << b),
     '<=': o2((a, b) => a <= b),
     '===': o2((a, b) => a === b),
-    '=>': (c, [, frameExp, body]) => {
-        const frame = vm(c)(frameExp)
+    '=>': (x, [, frameExp, body]) => {
+        const frame = vm(x)(frameExp)
         /**@type {(...arg: readonly unknown[]) => unknown}*/
         return (...args) =>vm({ frame, args })(body)
     },
