@@ -96,8 +96,22 @@ export const proof = {
         negInf: () => eq(-Infinity, 'number'),
         string: () => eq('hello', '"hello"'),
         bigint: () => eq(7n, '7n'),
-        emptyTuple: () => eq([], 'readonly[]'),
-        tuple: () => eq([12, true], 'readonly[12,true]'),
+        // a tuple is open, and — unlike `Ts<T>`, which cannot say so
+        // generically — the printer renders the rest element that says it, so
+        // an unconstrained tuple is the whole array kind
+        emptyTuple: () => eq([], 'readonly(unknown)[]'),
+        unconstrainedTuple: () => eq([unknown], 'readonly(unknown)[]'),
+        tuple: () => eq([12, true], 'readonly[12,true,...readonly(unknown)[]]'),
+        // a position the array may end before prints optional, as the key it
+        // is the array counterpart of does
+        optionalTuplePosition: () => eq(
+            [number, option(string)],
+            'readonly[number,(undefined|string)?,...readonly(unknown)[]]',
+        ),
+        allOptionalTuple: () => eq(
+            [option(number)],
+            'readonly[(undefined|number)?,...readonly(unknown)[]]',
+        ),
         // an unconstrained struct is the whole object kind
         emptyStruct: () => eq({}, '{readonly[k in string]?:unknown}'),
         struct: () => eq(
@@ -129,6 +143,9 @@ export const proof = {
         mixed: () => eq(or(42, string), '42|string'),
     },
     never: () => eq(never, 'never'),
+    // an array with no admissible element is the empty array, and nothing
+    // past a prefix is what prints as an exact-length tuple
+    arrayOfNever: () => eq(array(never), 'readonly[]'),
     // union members follow the canonical kind order, `undefined` first
     option: () => eq(option(number), 'undefined|number'),
     normalization: {
@@ -193,7 +210,7 @@ export const proof = {
         generatedCollision: () => {
             eqData(toData(/** @type {const} */ ([t0Named, lock])), [
                 [['T1', 'string|{readonly[k in string]?:T1}'], ['T0', 'readonly(T0)[]']],
-                'readonly[T0,{readonly[k in string]?:T1}]',
+                'readonly[T0,{readonly[k in string]?:T1},...readonly(unknown)[]]',
             ])
         },
     },
@@ -201,6 +218,12 @@ export const proof = {
         tupleWithRest: () => {
             eqData([{}, { array: [{ prefix: [{ number: true }], rest: { string: true } }] }],
                 [[], 'readonly[number,...readonly(string)[]]'])
+        },
+        // an exact-length pattern is the one that prints without a rest
+        // element — the closed tuple `Ts<>` renders for every tuple schema
+        exactLengthTuple: () => {
+            eqData([{}, { array: [{ prefix: [{ number: true }, { string: true }] }] }],
+                [[], 'readonly[number,string]'])
         },
         structWithRest: () => {
             // the index signature must cover the declared keys too, so the
@@ -226,7 +249,7 @@ export const proof = {
         array: () => eqMut(array(number), '(number)[]'),
         nestedArray: () => eqMut(array(array(boolean)), '((boolean)[])[]'),
         record: () => eqMut(record(string), '{[k in string]?:string}'),
-        tuple: () => eqMut([12, true], '[12,true]'),
+        tuple: () => eqMut([12, true], '[12,true,...(unknown)[]]'),
         struct: () => eqMut({ a: number, b: string }, '{"a":number,"b":string}'),
     },
     throw: {

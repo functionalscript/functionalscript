@@ -93,6 +93,11 @@ for object keys.
 Openness is what makes both readers forward-compatible: a schema keeps reading
 a serialization format that has grown fields.
 
+The data form says the same thing in its own vocabulary — a struct's
+undeclared keys are unconstrained, a tuple's `rest` is `unknown` — so
+`validate(toData(s))` accepts exactly what `parse(s)` and `validate(s)` do.
+`validate/proof.f.mjs` runs one acceptance table through all three readers.
+
 **A schema that wants exact members says so** — see
 [close-type.md](./todo/close-type.md) for the planned `close` form. Closedness
 is stated, never inferred.

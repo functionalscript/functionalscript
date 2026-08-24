@@ -173,22 +173,41 @@ const unitSchemas = bits => [
 ]
 
 /**
- * A set of arrays: `prefixItems` for the tuple prefix, `items` for the
- * elements past it — `false` when the length is exact, so a tuple admits
- * nothing beyond its prefix and the empty tuple is `{ "items": false }`.
- * `prefixItems` alone constrains only elements that exist (draft 2020-12
- * implies no minimum length), so a non-empty prefix also emits `minItems`.
+ * The length below which the array would leave a declared position that
+ * excludes `undefined` unfilled: one past the last such position, and zero
+ * when every position admits absence. The array counterpart of the `required`
+ * key list — an absent element reads as `undefined` just as an absent key
+ * does — and, arrays being contiguous, one number says it for every position.
+ *
+ * @type {(rules: RuleSet) => (prefix: readonly Node[]) => number}
+ */
+const minLength = rules => prefix =>
+    prefix.findLastIndex(n => !admitsUndefined(rules)(n)) + 1
+
+/**
+ * A set of arrays: `prefixItems` for the declared positions, `items` for what
+ * may follow — `false` when nothing may, which is what makes the exact-length
+ * pattern exact. `prefixItems` alone constrains only elements that exist
+ * (draft 2020-12 implies no minimum length), so the required length is
+ * `minItems`, and a position past it — one the array may simply end before —
+ * has `undefined` stripped from its schema, absence being expressed by
+ * `minItems` already. Both are the object side's `required` /
+ * {@link stripUndefined} pair, one kind over.
  *
  * @type {(rules: RuleSet) => (p: ArraySet) => Unknown}
  */
-const arraySetSchema = rules => p => ({
-    type: 'array',
-    ...(p.prefix.length === 0 ? {} : {
-        prefixItems: p.prefix.map(nodeSchema(rules)),
-        minItems: p.prefix.length,
-    }),
-    items: p.rest === undefined ? false : nodeSchema(rules)(p.rest),
-})
+const arraySetSchema = rules => p => {
+    const minItems = minLength(rules)(p.prefix)
+    return {
+        type: 'array',
+        ...(p.prefix.length === 0 ? {} : {
+            prefixItems: p.prefix.map(
+                (n, i) => nodeSchema(rules)(i < minItems ? n : stripUndefined(n))),
+        }),
+        ...(minItems === 0 ? {} : { minItems }),
+        items: p.rest === undefined ? false : nodeSchema(rules)(p.rest),
+    }
+}
 
 /** Whether the node's value set admits `undefined` — its unit bit, read
  * through a reference if needed.
@@ -290,7 +309,7 @@ export const dataToJsonSchema = ([rules, entry]) => {
  * | `bigint` const                                | `{ "const": Number(value) }` (lossy for \|value\| > MAX_SAFE_INTEGER)               |
  * | `undefined` const                             | `{ "not": {} }`                                                                     |
  * | struct `{ a: T, … }`                          | `{ "type": "object", "properties": { "a": …T… }, "required": [non-optional keys] }` |
- * | tuple `[A, B]`                                | `{ "type": "array", "prefixItems": […A…, …B…], "minItems": 2, "items": false }`     |
+ * | tuple `[A, B]`                                | `{ "type": "array", "prefixItems": […A…, …B…], "minItems": 2, "items": {} }`        |
  * | `array(T)`                                    | `{ "type": "array", "items": …T… }`                                                 |
  * | `record(T)`                                   | `{ "type": "object", "additionalProperties": …T… }`                                 |
  * | `or(...types)`                                | `{ "anyOf": […each…] }`, normalized and in canonical kind order                     |
