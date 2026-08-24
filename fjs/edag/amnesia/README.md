@@ -97,13 +97,14 @@ prototype chain to delegate to in the first place.
 
 ## Not implemented
 
-`?.` and `?.()` are `todo`: each owns a whole optional region, where a
-nullish link skips the rest of the *node*, and neither is evaluated yet.
-`()` is done — it walks its `lambdas`, so chain steps, the receiver, and the
-short-circuit of a grouped chain (["Chains"](../README.md#chains)) all
-execute, the last of them by calling `undefined` rather than by skipping
-anything. `['self']` is not in the schema yet, so a function reaches itself
-only by being passed as an argument.
+`?.()` is `todo`: it owns two `lambdas` — one reaching the callee, one
+continuing the optional region after the call — so it needs more than the
+single walk the other two are. `()` and `?.` are done, and between them they
+cover both readings of a chain: `()` ends its region at the parentheses, so a
+nullish link runs into a call of `undefined`, while `?.` owns the region and
+a nullish link makes the node itself `undefined`
+(["Chains"](../README.md#chains)). `['self']` is not in the schema yet, so a
+function reaches itself only by being passed as an argument.
 
 ## Where the real one goes
 

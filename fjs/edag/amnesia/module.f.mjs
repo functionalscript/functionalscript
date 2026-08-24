@@ -165,10 +165,19 @@ const map = {
     '>=': o2((a, b) => a >= b),
     '>>': o2((a, b) => a >> b),
     '>>>': o2((a, b) => a >>> b),
+    // The node's own `?.[index]` is the *first* step of its optional region
+    // and `lambdas` is the rest, so the whole region is one `applyLambda`.
+    // Dropping that first step would make `a?.b` evaluate to `a`.
+    //
+    // `undefined` from the walk means the region short-circuited, and here
+    // that is the node's value — `property` turns it back into the value
+    // `undefined` for `value` to read. `()` shares that step and reaches the
+    // opposite answer, because its parentheses end the region and the
+    // `undefined` is what gets called: `u?.b(d)` is `undefined` where
+    // `(u?.b)(d)` throws.
     '?.': (x, [, a, index, lambdas]) => {
         const i = vm(x)
-        const htc = applyLambda(i, lambdas, [i(a)])
-        return htc === undefined ? undefined : value(htc)
+        return value(property(applyLambda(i, [['|?.', index], ...lambdas], [i(a)])))
     },
     '?.()': todo,
     '??': o2lazy((a, b) => a ?? b()),

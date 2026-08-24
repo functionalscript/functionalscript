@@ -1,10 +1,10 @@
 /**
  * Execution semantics of `vm` — one section per operand shape, since that is
  * how `map`'s handlers are built (`o1`/`o2`/`o2lazy`), plus the nodes that
- * evaluate their operands themselves (`,`, `[]`, `{}`, and `()` with its
- * chain) and the two that are still `todo`, `?.` and `?.()`. This is the
- * executing counterpart of `../proof.f.mjs`, which pins what the schema
- * *accepts*; nothing here validates.
+ * evaluate their operands themselves (`,`, `[]`, `{}`, and the two that walk
+ * a `lambdas`, `()` and `?.`) and the one that is still `todo`, `?.()`. This
+ * is the executing counterpart of `../proof.f.mjs`, which pins what the
+ * schema *accepts*; nothing here validates.
  *
  * @import { Exp } from '../types.ts'
  * @import { Context } from './types.ts'
@@ -371,6 +371,60 @@ export const proof = {
                 ev(['()', ['{}', [[':', 'a', 1]]], [['|.', 'a']], ['[]', []]]),
         },
     },
+    // `?.` — the other node that owns a `lambdas`, and the one that owns a
+    // whole optional *region*: its own `?.[index]` is the region's first
+    // step, `lambdas` the rest, and a nullish link makes the node itself
+    // `undefined` instead of running into a call. Every case here has a
+    // counterpart under `chain` that throws for exactly that reason.
+    optionalPropertyAccessor: () => {
+        // a?.b — the node's own step, which is the whole node when
+        // `lambdas` is empty. Reading `a` and skipping the step would
+        // evaluate to `a` itself, so these pin the index is applied.
+        eq(['?.', ['{}', [[':', 'a', 7]]], 'a', []], 7)
+        // A closure is a value like any other — compared by `typeof`, since
+        // every evaluation of a `=>` builds a fresh one (see `lambda`).
+        assert(typeof ev(['?.', methods, 'id', []]) === 'function')
+        same(['?.', ['[]', [1, 2, 3]], 1, []], 2)
+        eq(['?.', ['[]', [1, 2, 3]], ['Number', '1'], []], 2)
+        // An absent property is `undefined`, not an error: `?.` guards its
+        // *input*, never its result.
+        eq(['?.', ['{}', []], 'absent', []], undefined)
+        // ... and on a nullish input the node is `undefined`, both ways of
+        // being nullish.
+        eq(['?.', ['undefined'], 'a', []], undefined)
+        eq(['?.', null, 'a', []], undefined)
+        // a?.b.c — `lambdas` continues the region, and the steps run when
+        // nothing short-circuited.
+        eq(['?.', ['{}', [[':', 'o', ['{}', [[':', 'a', 7]]]]]], 'o',
+            [['|.', 'a']]], 7)
+        // a?.b(...c) — the receiver survives the node's own step into a call
+        // step, which is why `?.` carries `lambdas` rather than evaluating
+        // to a value a `()` node would then have to call: `[42]?.at(0)` is
+        // `42` only if `at` is called *on* the array.
+        eq(['?.', ['[]', [42]], 'at', [['|()', ['[]', [0]]]]], 42)
+    },
+    // The short-circuit, which is this node's whole reason to exist: it
+    // returns rather than throws, so — unlike `()`, where every nullish case
+    // is a `throw` — the skip is directly observable, operands included.
+    optionalRegion: () => {
+        // u?.b.c is `undefined`, where `(u?.b).c` throws: one `lambdas`
+        // against two nodes (`../README.md`, "Chains"). `boom` as the
+        // skipped step's index would throw if the step ran.
+        eq(['?.', ['undefined'], 'a', [['|.', ['Number', boom]]]], undefined)
+        // u?.b(...c) is `undefined`, where `(u?.b)(...c)` throws —
+        // `chain.throw.optionalPropertyOnUndefined` is the same shape one
+        // node over. The skipped call's arguments are not evaluated either.
+        eq(['?.', ['undefined'], 'at', [['|()', boom]]], undefined)
+        // The node's own index is skipped too, which is the operand
+        // `../proof.f.mjs`'s `chainsJs.shortCircuit` pins in JavaScript as
+        // `u?.[todo()]`.
+        eq(['?.', ['undefined'], ['Number', boom], []], undefined)
+        eq(['?.', null, ['Number', boom], [['|.', ['Number', boom]]]], undefined)
+        // A link mid-region short-circuits the same way: here `a.b` is
+        // `undefined`, so `|?.` skips itself and everything after it.
+        eq(['?.', ['{}', [[':', 'b', ['undefined']]]], 'b',
+            [['|?.', ['Number', boom]], ['|.', ['Number', boom]]]], undefined)
+    },
     // The frame is the only channel outward: a body's leaves are constants,
     // `['args']` and `['frame']`, so a captured value has to arrive as data.
     closure: () => {
@@ -410,13 +464,14 @@ export const proof = {
         eq(['()', ['()', add, [], ['[]', [2]]], [], ['[]', [3]]], 5)
     },
     throw: {
-        // Still `todo`: the two optional chain nodes. `()` walks a
-        // `lambdas` now (`chain`), but these two own a whole optional
-        // region — a nullish input skips the rest of the *node*, rather
-        // than running into a call of `undefined` as the grouped spelling
-        // does — so they need more than the step walk.
-        optionalPropertyAccessor: () => ev(['?.', ['undefined'], 'a', []]),
+        // Still `todo`: `?.()`, the last node with a `lambdas`. It owns two
+        // of them — one reaching the callee, one continuing the region
+        // after the optional call — so it needs more than the single walk
+        // `?.` is.
         optionalCall: () => ev(['?.()', ['undefined'], [], ['undefined'], []]),
+        // The index of a `?.` whose input is *not* nullish is evaluated, the
+        // mirror of `optionalRegion`'s skipped operands.
+        evaluatedIndex: () => ev(['?.', ['{}', []], ['Number', boom], []]),
         // An array spread iterates its operand, so a non-iterable one throws
         // where the object form would have contributed nothing.
         arraySpreadOfNumber: () => ev(['[]', [['...', 1]]]),
