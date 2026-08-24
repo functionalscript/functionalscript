@@ -1105,10 +1105,30 @@ const bind = state => node => ref => {
  *   readonly index: number
  *   readonly array: List<AstConst>
  *   readonly object: OrderedMap<AstConst>
- *   readonly keys: readonly string[]
+ *   readonly keys: readonly(readonly[string, boolean])[]
  *   readonly isArray: boolean
  * }} _FoldFrame
  */
+
+/**
+ * The error a frame's current key earns, or `null`.
+ *
+ * Checked as each member is reached rather than by scanning every key first, so
+ * that an earlier member's failure is reported before a later key's. Scanning
+ * ahead reported `__proto__` in `{a: missing, __proto__: 1}`, where the parser
+ * this replaces reports the unresolved `missing` — errors are first-to-last, and
+ * a key is not special enough to jump the queue.
+ *
+ * @type {(frame: _FoldFrame) => ParseError | null}
+ */
+const badKey = frame => {
+    if (frame.isArray) { return null }
+    const [name, computed] = frame.keys[frame.index]
+    return name === protoKey && !computed
+        // at the key itself, not at the object's `{`
+        ? foldError('__proto__ requires the computed key form')(tokenOf(keySlot(frame.items[frame.index])))
+        : null
+}
 
 /**
  * A value, resolved against the names bound so far.
@@ -1142,29 +1162,16 @@ const foldValue = state => root => {
                 const isArray = child.tag === 'array'
                 const items = isArray ? itemsOf(child) : membersOf(child)
                 const keys = isArray ? [] : items.map(member => keyOf(keySlot(member)))
-                // reported at the key itself, not at the object's `{`, which is
-                // where the reader is looking and what the parser this replaced
-                // pointed at
-                const bad = keys.findIndex(([name, computed]) => name === protoKey && !computed)
-                if (bad !== -1) {
-                    return [null, foldError('__proto__ requires the computed key form')(
-                        tokenOf(keySlot(items[bad])))]
-                }
                 /** @type {_FoldFrame} */
-                const frame = {
-                    items,
-                    index: 0,
-                    array: null,
-                    object: null,
-                    keys: keys.map(([name]) => name),
-                    isArray,
-                }
+                const frame = { items, index: 0, array: null, object: null, keys, isArray }
                 stack = { first: frame, tail: stack }
                 if (items.length === 0) {
                     value = isArray ? ['array', []] : fromMap(null)
                     stack = assertNotNullish(next(stack)).tail
                     descending = false
                 } else {
+                    const rejected = badKey(frame)
+                    if (rejected !== null) { return [null, rejected] }
                     node = isArray ? items[0] : valueSlot(items[0])
                 }
             } else {
@@ -1193,7 +1200,7 @@ const foldValue = state => root => {
             const array = frame.isArray ? concat(frame.array)([value]) : frame.array
             const object = frame.isArray
                 ? frame.object
-                : setReplace(frame.keys[frame.index])(value)(frame.object)
+                : setReplace(frame.keys[frame.index][0])(value)(frame.object)
             if (index === frame.items.length) {
                 /** @type {AstArray} */
                 const asArray = ['array', toArray(array)]
@@ -1202,7 +1209,10 @@ const foldValue = state => root => {
                 value = frame.isArray ? asArray : asObject
                 stack = top.tail
             } else {
-                stack = { first: { ...frame, index, array, object }, tail: top.tail }
+                const moved = { ...frame, index, array, object }
+                const rejected = badKey(moved)
+                if (rejected !== null) { return [null, rejected] }
+                stack = { first: moved, tail: top.tail }
                 node = frame.isArray ? frame.items[index] : valueSlot(frame.items[index])
                 descending = true
             }

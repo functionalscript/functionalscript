@@ -147,6 +147,35 @@ export const proof = {
             }
         },
     ],
+    // Errors are reported first-to-last, and a key is not special enough to
+    // jump the queue.
+    //
+    // Checking every key before folding any value reported `__proto__` in
+    // `{a: missing, __proto__: 1}`, where the earlier unresolved reference is
+    // what a reader meets first — so keys are checked as their member is
+    // reached instead.
+    bnfFirstErrorOrder: [
+        () => {
+            for (const source of [
+                'export default {a: missing, __proto__: 1}',
+                'export default {__proto__: 1, a: missing}',
+                'export default [missing, {__proto__: 1}]',
+                'export default {a: {b: missing}, __proto__: 1}',
+                'export default {a: 1, b: missing, __proto__: 2}',
+                // nothing fails before it, so the key is reached mid-fold
+                // rather than on the way in
+                'export default {a: 1, __proto__: 2}',
+                'export default {a: 1, b: 2, "__proto__": 3}',
+            ]) {
+                const tokens = tokenizeString(source)
+                const [oldTag, oldValue] = parseFromTokens(tokens)
+                const [newTag, newValue] = _bnfParseFromTokens(tokens)
+                assert(oldTag === 'error' && newTag === 'error', [source, oldTag, newTag])
+                assertEq(newValue.message, oldValue.message, source)
+                assertStructurallySame(newValue.metadata, oldValue.metadata, source)
+            }
+        },
+    ],
     // Wide and deep values, which cost the BNF path a stack frame each until
     // both its traversals were made iterative.
     //
