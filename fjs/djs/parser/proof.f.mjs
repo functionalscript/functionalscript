@@ -16,6 +16,27 @@ const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
 
 const stringifyDjsModule = stringifyAsTree(sort)
 
+/**
+ * `count` copies of `element`, comma-joined.
+ *
+ * Built by repeating the *string*, which allocates the result directly, rather
+ * than allocating an array and then writing over it: `Array(n).fill(x)` mutates
+ * what it just made, and proof code is held to the same immutability rule as
+ * everything else here.
+ *
+ * @type {(element: string) => (count: number) => string}
+ */
+const repeated = element => count => `${`${element},`.repeat(count - 1)}${element}`
+
+/**
+ * `count` distinct `k<i>:<i>` properties, comma-joined — the object form of
+ * {@link repeated}, where each entry has to differ.
+ *
+ * @type {(count: number) => string}
+ */
+const numberedMembers = count =>
+    Array.from({ length: count }, (_, i) => `k${i}:${i}`).join(',')
+
 /** @type {(kind: 'ws' | 'nl' | 'null' | 'true' | 'false' | 'undefined' | 'eof', line: number) => DjsTokenWithMetadata} */
 const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 } })
 
@@ -186,13 +207,13 @@ export const proof = {
     // was fixed for its own version of this; see `containerStackCost`.
     bnfStackSafety: [
         () => {
-            const source = `export default [${Array(5000).fill('null').join(',')}]`
+            const source = `export default [${repeated('null')(5000)}]`
             const tokens = tokenizeString(source)
             assertEq(parseFromTokens(tokens)[0], 'ok')
             assertEq(_bnfParseFromTokens(tokens)[0], 'ok')
         },
         () => {
-            const source = `export default [${Array(5000).fill('{}').join(',')}]`
+            const source = `export default [${repeated('{}')(5000)}]`
             const tokens = tokenizeString(source)
             assertEq(parseFromTokens(tokens)[0], 'ok')
             assertEq(_bnfParseFromTokens(tokens)[0], 'ok')
@@ -205,7 +226,7 @@ export const proof = {
         },
         () => {
             // wide objects walk the member list rather than the element list
-            const source = `export default {${Array(5000).fill(0).map((_, i) => `k${i}:${i}`).join(',')}}`
+            const source = `export default {${numberedMembers(5000)}}`
             const tokens = tokenizeString(source)
             assertEq(parseFromTokens(tokens)[0], 'ok')
             assertEq(_bnfParseFromTokens(tokens)[0], 'ok')
@@ -1093,13 +1114,13 @@ export const proof = {
     containerStackCost: [
         () => {
             const [tag, value] = parseFromTokens(tokenizeString(
-                `export default [${Array(20000).fill('{}').join(',')}]`))
+                `export default [${repeated('{}')(20000)}]`))
             assert(tag === 'ok', tag)
             assertEq(value[1].length, 1)
         },
         () => {
             const [tag] = parseFromTokens(tokenizeString(
-                `export default [${Array(20000).fill('[]').join(',')}]`))
+                `export default [${repeated('[]')(20000)}]`))
             assert(tag === 'ok', tag)
         },
         () => {

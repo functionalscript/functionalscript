@@ -1278,8 +1278,21 @@ const foldModule = root => {
 /**
  * The BNF half of the parser: match, then fold.
  *
- * Not yet `parseFromTokens` — the differential proofs compare the two while
- * both stand, and the cutover replaces that function once they agree.
+ * **Temporary, and exported only until the cutover.** `parseFromTokens` remains
+ * the sole public API of this module
+ * ([new-parser](../../bnf/todo/new-parser.md)); this exists so the differential
+ * proofs can run both implementations over one corpus while both stand, which
+ * is what makes "the parser behaves as it always did" a checkable claim rather
+ * than a hope. At the cutover this becomes `parseFromTokens` and the name
+ * disappears with the state machine it is being compared against.
+ *
+ * The `_` prefix marks it private by the repository's convention
+ * ([fjs/AGENTS.md §3.2](../../AGENTS.md#javascriptjsdoc-type-declarations)), and
+ * it is exported rather than kept module-local only because the corpus lives in
+ * `proof.f.mjs` — the alternative, moving the whole corpus into this module's
+ * own `proof` export, would put a few hundred lines of fixtures in the
+ * implementation file to save one temporary name. Do not build on it: it is
+ * scheduled for deletion, not for support.
  *
  * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
  */
