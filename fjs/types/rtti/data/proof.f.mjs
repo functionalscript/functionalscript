@@ -116,7 +116,18 @@ const anon = identityRec(() => ['array', anon])
 
 const tupleNumber = /** @type {const} */ ([number])
 const tupleString = /** @type {const} */ ([string])
+const tupleNumberNumber = /** @type {const} */ ([number, number])
 const emptyTuple = /** @type {const} */ ([])
+
+/**
+ * The exact-length array patterns, which no thunk-form schema spells today —
+ * a `Tuple` is open, and `array(never)` reaches only the empty one. Written
+ * as data so the `rest`-less arm of every array operation stays exercised.
+ */
+/** @type {Data} */
+const exactlyOneNumber = [{}, { array: [{ prefix: [{ number: true }] }] }]
+/** @type {Data} */
+const exactlyTwoNumbers = [{}, { array: [{ prefix: [{ number: true }, { number: true }] }] }]
 
 export const proof = {
     withoutUnits: [
@@ -176,9 +187,12 @@ export const proof = {
             assertData(toData(record(unknownRtti)))([{}, { object: true }])
             assertData(toData(array(neverRtti)))([{}, { array: [{ prefix: [] }] }])
             assertData(toData(record(neverRtti)))([{}, { object: [{ props: {}, rest: {} }] }])
-            assertData(toData(emptyTuple))([{}, { array: [{ prefix: [] }] }])
+            // both const containers are open, so each carries the `rest` that
+            // says so: `unknown` past a tuple's prefix, no `rest` on a struct.
+            // An open tuple declaring nothing is therefore every array.
+            assertData(toData(emptyTuple))([{}, { array: true }])
             assertData(toData(/** @type {const} */ ([number, 42])))(
-                [{}, { array: [{ prefix: [{ number: true }, { number: [42] }] }] }])
+                [{}, { array: [{ prefix: [{ number: true }, { number: [42] }], rest: unknown }] }])
             assertData(toData({}))([{}, { object: true }])
             assertData(toData({ b: string, a: number }))(
                 [{}, { object: [{ props: { a: { number: true }, b: { string: true } } }] }])
@@ -194,9 +208,10 @@ export const proof = {
             assertData(toData(/** @type {const} */ ([tupleNumber, tupleNumber])))([{}, {
                 array: [{
                     prefix: [
-                        { array: [{ prefix: [{ number: true }] }] },
-                        { array: [{ prefix: [{ number: true }] }] },
+                        { array: [{ prefix: [{ number: true }], rest: unknown }] },
+                        { array: [{ prefix: [{ number: true }], rest: unknown }] },
                     ],
+                    rest: unknown,
                 }],
             }])
         },
@@ -246,7 +261,12 @@ export const proof = {
             ])
             assertData(toData(a2))([
                 {
-                    a2: { array: [{ prefix: [], rest: { array: [{ prefix: ['a2', 'b2'] }] } }] },
+                    a2: {
+                        array: [{
+                            prefix: [],
+                            rest: { array: [{ prefix: ['a2', 'b2'], rest: unknown }] },
+                        }],
+                    },
                     b2: { array: [{ prefix: [], rest: 'b2' }] },
                 },
                 'a2',
@@ -307,26 +327,41 @@ export const proof = {
                     f: { array: [{ prefix: [], rest: 'f' }] },
                     f0: { array: [{ prefix: [], rest: 'f0' }] },
                 },
-                { array: [{ prefix: ['f', 'f0'] }] },
+                { array: [{ prefix: ['f', 'f0'], rest: unknown }] },
             ])
             assertData(toData(anon))([{ '': { array: [{ prefix: [], rest: '' }] } }, ''])
         },
         collapse: () => {
-            // readonly [number] ⊂ readonly number[] — the tuple pattern is dropped
-            assertData(toData(or(tupleNumber, array(number))))(toData(array(number)))
-            // the empty tuple is a member of every uniform array set
-            assertData(toData(or(emptyTuple, array(number))))(toData(array(number)))
-            assertData(toData(or(array(number), emptyTuple)))(toData(array(number)))
-            // kept when neither pattern subsumes the other
-            assertData(toData(or(tupleNumber, tupleString)))(
-                [{}, { array: [{ prefix: [{ string: true }] }, { prefix: [{ number: true }] }] }])
+            // a longer tuple pattern is included in a shorter one, both being
+            // open — the array counterpart of a wider struct in a narrower one
+            assertData(toData(or(tupleNumberNumber, tupleNumber)))(toData(tupleNumber))
+            // the empty-array pattern is a member of every uniform array set
+            assertData(toData(or(array(neverRtti), array(number))))(toData(array(number)))
+            assertData(toData(or(array(number), array(neverRtti))))(toData(array(number)))
+            // an open tuple declaring nothing absorbs the whole kind
+            assertData(toData(or(emptyTuple, array(number))))(toData(array(unknownRtti)))
+            // kept when neither pattern subsumes the other: an open `[number]`
+            // admits `[1, 'x']`, which `readonly number[]` does not, and the
+            // uniform set admits `[]`, which the tuple does not
+            assertData(toData(or(tupleNumber, array(number))))([{}, {
+                array: [
+                    { prefix: [], rest: { number: true } },
+                    { prefix: [{ number: true }], rest: unknown },
+                ],
+            }])
+            assertData(toData(or(tupleNumber, tupleString)))([{}, {
+                array: [
+                    { prefix: [{ string: true }], rest: unknown },
+                    { prefix: [{ number: true }], rest: unknown },
+                ],
+            }])
             // the collapse recurses into inline positions
-            assertData(toData(array(or(tupleNumber, array(number)))))(toData(array(array(number))))
-            assertData(toData(record(or(tupleNumber, array(number)))))(toData(record(array(number))))
-            assertData(toData({ a: or(tupleNumber, array(number)) }))(toData({ a: array(number) }))
+            assertData(toData(array(or(tupleNumberNumber, tupleNumber))))(toData(array(tupleNumber)))
+            assertData(toData(record(or(tupleNumberNumber, tupleNumber))))(toData(record(tupleNumber)))
+            assertData(toData({ a: or(tupleNumberNumber, tupleNumber) }))(toData({ a: tupleNumber }))
             // collapsing innards can make two patterns identical — deduplicated
-            assertData(toData(or(array(or(tupleNumber, array(number))), array(array(number)))))(
-                toData(array(array(number))))
+            assertData(toData(or(array(or(tupleNumberNumber, tupleNumber)), array(tupleNumber))))(
+                toData(array(tupleNumber)))
             // subsumed object patterns are dropped, `true` absorbs patterns
             assertData(toData(or({ a: 42 }, { a: number })))(toData({ a: number }))
             assertData(toData(or({ a: number }, {})))(toData({}))
@@ -412,20 +447,33 @@ export const proof = {
             assert(subset(toData(or(number, string)))(toData(unknownRtti)))
         },
         arrays: () => {
-            assert(subset(toData(tupleNumber))(toData(array(number))))
+            // a longer open tuple is included in a shorter one, and neither is
+            // included in the uniform set: an open `[number]` admits `[1, 'x']`
+            assert(subset(toData(tupleNumberNumber))(toData(tupleNumber)))
+            assert(!subset(toData(tupleNumber))(toData(tupleNumberNumber)))
+            assert(!subset(toData(tupleNumber))(toData(array(number))))
             assert(!subset(toData(array(number)))(toData(tupleNumber)))
+            // the exact-length pattern is the one the uniform set contains
+            assert(subset(exactlyOneNumber)(toData(array(number))))
+            assert(subset(exactlyOneNumber)(toData(tupleNumber)))
+            // and, admitting one length only, contains just its own
+            assert(subset(exactlyOneNumber)(exactlyOneNumber))
+            assert(!subset(exactlyOneNumber)(exactlyTwoNumbers))
+            assert(!subset(toData(tupleNumber))(exactlyOneNumber))
             assert(subset(toData(array(number)))(toData(unknownRtti)))
             assert(!subset(toData(array(unknownRtti)))(toData(array(number))))
             assert(subset(toData(array(number)))(toData(array(or(number, string)))))
             assert(!subset(toData(tupleNumber))(toData(tupleString)))
-            assert(!subset(toData(tupleNumber))(toData(/** @type {const} */ ([number, number]))))
         },
         arrayRest: () => {
             /** @type {Data} */
             const oneOrMoreNumbers = [{}, { array: [{ prefix: [{ number: true }], rest: { number: true } }] }]
             assert(subset(oneOrMoreNumbers)(toData(array(number))))
             assert(!subset(toData(array(number)))(oneOrMoreNumbers))
-            assert(subset(toData(/** @type {const} */ ([number, number])))(oneOrMoreNumbers))
+            assert(subset(exactlyTwoNumbers)(oneOrMoreNumbers))
+            // the open tuple of two numbers admits a third element of any kind
+            assert(!subset(toData(tupleNumberNumber))(oneOrMoreNumbers))
+            // an open tuple declaring nothing is the whole kind
             assert(!subset(toData(emptyTuple))(oneOrMoreNumbers))
             /** @type {Data} */
             const oneNumberThenStrings = [{}, { array: [{ prefix: [{ number: true }], rest: { string: true } }] }]
@@ -517,10 +565,26 @@ export const proof = {
             assertEq(
                 JSON.stringify(v([1, 'x'])),
                 '["error",{"path":["1"],"message":"unexpected value"}]')
+            // a tuple is open: a longer array is a member, and a position is
+            // required exactly when its set excludes `undefined`, so a shorter
+            // one is a member whenever the positions past its end admit absence
             const vt = validate(toData(/** @type {const} */ ([number, string])))
             assertEq(vt([1, 'a'])[0], 'ok')
-            assertEq(vt([1])[0], 'error')
-            assertEq(vt([1, 'a', 2])[0], 'error')
+            assertEq(vt([1, 'a', 2])[0], 'ok')
+            assertEq(
+                JSON.stringify(vt([1])),
+                '["error",{"path":["1"],"message":"unexpected value"}]')
+            const vo = validate(toData(/** @type {const} */ ([number, option(string)])))
+            assertEq(vo([1])[0], 'ok')
+            assertEq(vo([1, 'a'])[0], 'ok')
+            assertEq(vo([])[0], 'error')
+            // the exact-length pattern admits neither
+            const vx = validate(exactlyOneNumber)
+            assertEq(vx([1])[0], 'ok')
+            assertEq(vx([1, 2])[0], 'error')
+            assertEq(vx([])[0], 'error')
+            assertEq(validate(toData(array(neverRtti)))([])[0], 'ok')
+            assertEq(validate(toData(array(neverRtti)))([1])[0], 'error')
             /** @type {Data} */
             const onePlus = [{}, { array: [{ prefix: [{ number: true }], rest: { string: true } }] }]
             const vp = validate(onePlus)

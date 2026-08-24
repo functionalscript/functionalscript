@@ -44,19 +44,31 @@ are kind-wise:
 | `object` | `true` or patterns `{ props, rest? }`   | structs and records are one kind             |
 
 **Arrays and tuples share one kind** because their value sets overlap: a tuple
-is an array whose length is constrained and whose positions carry distinct
-element types. The shared pattern is a tuple-with-rest: a tuple schema is
-`{ prefix }` (length exactly `prefix.length`), a uniform array is
-`{ prefix: [], rest }`, and `readonly [number] ⊂ readonly number[]` is plain
-pattern inclusion — which the coverage collapse uses to drop the tuple from
-`or([number], array(number))`.
+is an array whose leading positions carry distinct element types. The shared
+pattern is a tuple-with-rest: a `prefix` entry constrains the value *read* at
+that position — reading past the array's end yields `undefined`, so a position
+is required exactly when its set excludes `undefined` — and `rest` constrains
+every position after the prefix, admitting nothing there when it is absent. A
+tuple schema is `{ prefix, rest: unknown }` (open, like a struct), a uniform
+array is `{ prefix: [], rest }`, and `{ prefix }` alone is the exact-length
+set. A longer tuple pattern is included in a shorter one — which the coverage
+collapse uses to drop `[number, number]` from `or([number, number], [number])`,
+the array counterpart of dropping `{ a, b }` from `or({ a, b }, { a })`.
 
-**Records and structs share one kind** for the same reason. A `props` entry
-constrains the value *read* at that key — reading an absent key yields
-`undefined`, so a key is required exactly when its set excludes `undefined`,
-and `option(t)` props are optional with no extra mechanism. `rest` constrains
-the values at the remaining *present* keys; a struct leaves them
-unconstrained (no `rest`), matching TypeScript's structural typing.
+**Records and structs share one kind** for the same reason, and by the same
+rule one kind over: a `props` entry constrains the value *read* at that key —
+reading an absent key yields `undefined`, so a key is required exactly when
+its set excludes `undefined`, and `option(t)` props are optional with no extra
+mechanism. `rest` constrains the values at the remaining *present* keys; a
+struct leaves them unconstrained (no `rest`), matching TypeScript's structural
+typing.
+
+The two kinds spell openness with opposite `rest` values, which is what the
+identity elements of the two positions differ in: undeclared *keys* are
+unconstrained by default, so an open struct needs no `rest` and a closed one
+would say `rest: never`; positions past a *prefix* are admitted by nothing by
+default, so an open tuple says `rest: unknown` and a closed one needs no
+`rest`. `arraySet` and `objectSet` normalize each identity away accordingly.
 
 **Recursion uses named references**, following `fjs/bnf/data`: a `Data` is
 `readonly [RuleSet, Node]`, where nested positions hold either an inline
@@ -78,8 +90,8 @@ disambiguated with a counter on collision.
 - array/object patterns are sorted, deduplicated, and *coverage-collapsed*:
   a pattern included in a sibling pattern is dropped;
 - degenerate patterns are simplified: an empty position empties the pattern,
-  an unconstrained `rest`/prop disappears, `array(unknown)` is the whole
-  array kind;
+  an identity `rest`/prop disappears, and a pattern constraining nothing is
+  its whole kind — `array(unknown)` and the open tuple `[]` alike;
 - pure `or` cycles dissolve (`X = number | X` is `number` — the least
   fixpoint), rules are pruned to the reachable set and sorted, and an entry
   rule nothing else references is inlined;
@@ -129,7 +141,10 @@ hold semantically, in the corners known to be hard:
 - distributing a union across positions, e.g.
   `readonly [number | string] ⊆ readonly [number] | readonly [string]`;
 - a left side that is empty only non-syntactically, e.g. `type X = [X]` has
-  no finite values.
+  no finite values;
+- an array pattern shorter than the one it is included in, every position
+  past its end being one the longer pattern admits as absent — only the
+  longest array each side admits is tested against the other.
 
 CDuce / Castagna's semantic-subtyping work and BDD-based encodings of
 set-theoretic types have the complete (and far heavier) answers; this module
@@ -139,26 +154,25 @@ now.
 
 ## Tuple length
 
-The data form constrains a tuple's length exactly: `{ prefix }` with no `rest`
-admits only `prefix.length` elements.
-
-**This diverges from `parse`**, which treats structs and tuples as open (see
-[Structs and tuples are open](../README.md#structs-and-tuples-are-open)). The
-same schema gives two answers depending on which consumer reads it:
+A `Tuple` schema is open on both readers, and says so here as
+`{ prefix, rest: unknown }` — the same values `parse` and `../validate` admit
+(see [Structs and tuples are open](../README.md#structs-and-tuples-are-open)),
+including the short array whose missing positions all admit `undefined`:
 
 ```js
-parse([42])([42, 'extra'])             // ['ok', [42]]
-validate(toData([42]))([42, 'extra'])  // ['error', { path: [], message: 'unexpected value' }]
+parse([42])([42, 'extra'])                       // ['ok', [42]]
+validate(toData([42]))([42, 'extra'])            // ['ok', [42, 'extra']]
+parse([number, option(string)])([42])            // ['ok', [42, undefined]]
+validate(toData([number, option(string)]))([42]) // ['ok', [42]]
 ```
 
-The divergence is arrays-only — struct keys already agree, because an absent
-`rest` means *closed* on arrays (`arraySet` normalizes a `rest` of `never`
-away) but *open* on objects (`objectSet` normalizes a `rest` of `unknown`
-away):
+`../validate/proof.f.mjs` runs one acceptance table through all three readers,
+so a `toData` that changed which values a schema admits fails there rather
+than silently.
 
-```js
-parse({ a: 42 })({ a: 42, b: 'x' })             // ['ok', { a: 42 }]
-validate(toData({ a: 42 }))({ a: 42, b: 'x' })  // ['ok', { a: 42, b: 'x' }]
-```
-
-Tracked in [`../todo/data-form-open-tuples.md`](../todo/data-form-open-tuples.md).
+That leaves `{ prefix }`, with no `rest`, as the *exact-length* set: nothing
+past the prefix, so the array is at most `prefix.length` long — and at least
+as long as its last position excluding `undefined`. No thunk-form schema
+spells it in general today (`array(never)` reaches only the empty array); the
+planned `close` form is what will — see
+[`../todo/close-type.md`](../todo/close-type.md).

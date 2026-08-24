@@ -288,17 +288,21 @@ const isTop = n => typeof n !== 'string' && cmpUnion(n, unknown) === 0
 
 /**
  * Canonical array-kind singleton. A syntactically empty position makes the
- * whole pattern empty; an empty `rest` is the same set as no `rest`; an
+ * whole pattern empty (a position past the array's end reads as `undefined`,
+ * which the empty set excludes, so no length escapes it); an empty `rest`
+ * admits nothing past the prefix, which is what no `rest` already says; an
  * unconstrained `rest` with no prefix is every array.
  *
- * @type {(prefix: readonly Node[], rest: Node | undefined) => UnionSet}
+ * Every array set is stated with a `rest` — `unknown` for an open tuple,
+ * the element set for a uniform array — so this takes one rather than an
+ * optional one; the absent `rest` is what it normalizes an empty one *to*.
+ *
+ * @type {(prefix: readonly Node[], rest: Node) => UnionSet}
  */
 const arraySet = (prefix, rest) => {
     if (prefix.some(isNever)) { return never }
-    const r = rest !== undefined && isNever(rest) ? undefined : rest
-    return prefix.length === 0 && r !== undefined && isTop(r)
-        ? { array: true }
-        : { array: [r === undefined ? { prefix } : { prefix, rest: r }] }
+    if (isNever(rest)) { return { array: [{ prefix }] } }
+    return prefix.length === 0 && isTop(rest) ? { array: true } : { array: [{ prefix, rest }] }
 }
 
 /**
@@ -367,12 +371,22 @@ const kindSubset = le => (a, b) => {
     return a.every(x => b.some(y => le(x, y)))
 }
 
-/** @type {(ctx: _Ctx) => (assumed: _Assumed) => (p: ArraySet, q: ArraySet) => boolean} */
+/**
+ * Only the *longest* array each side admits is tested here — `pn` without a
+ * `rest`, unbounded with one. The shortest needs no test of its own: a
+ * position `q` insists on (one whose set excludes `undefined`) is a position
+ * `p` insists on too as soon as the pointwise check below passes, since
+ * otherwise `undefined` would be a member of `p.prefix[i]` and not of
+ * `q.prefix[i]`. Sound, and incomplete in the way `subset` is elsewhere: a
+ * `p` shorter than `q` is answered `false` even when every position past its
+ * end is one `q` admits as absent.
+ *
+ * @type {(ctx: _Ctx) => (assumed: _Assumed) => (p: ArraySet, q: ArraySet) => boolean}
+ */
 const arraySetSubset = ctx => assumed => (p, q) => {
     const le = nodeSubset(ctx)(assumed)
     const pn = p.prefix.length
     const qn = q.prefix.length
-    // `p` admits lengths `{pn}` or `[pn, ∞)`; they must fit `q`'s admitted lengths
     const lengthOk = q.rest !== undefined
         ? qn <= pn
         : p.rest === undefined && qn === pn
@@ -689,7 +703,14 @@ const containerMemo = (state, c) => {
     return [{ ...state1, done: [...state1.done, [c, u]] }, u]
 }
 
-/** @type {(state: _State, c: ConstObject) => readonly [_State, UnionSet]} */
+/**
+ * The union of a const container. Both kinds are **open** — a value carrying
+ * more than the schema declares is a member — so each maps onto the `rest`
+ * that says so: `unknown` past a tuple's prefix, and, for a struct, the
+ * absent `rest` that already leaves the undeclared keys unconstrained.
+ *
+ * @type {(state: _State, c: ConstObject) => readonly [_State, UnionSet]}
+ */
 const containerUnion = (state, c) => {
     let s = state
     if (c instanceof Array) {
@@ -700,7 +721,7 @@ const containerUnion = (state, c) => {
             s = s1
             prefix = [...prefix, n]
         }
-        return [s, arraySet(prefix, undefined)]
+        return [s, arraySet(prefix, unknown)]
     }
     /** @type {readonly (readonly [string, Node])[]} */
     let props = []
@@ -987,22 +1008,37 @@ const patternsValidate = (k, item, value) => {
     return verror('no match')
 }
 
-/** @type {(p: ArraySet, i: number) => Node} */
-const atIndex = (p, i) => i < p.prefix.length ? p.prefix[i] : assertNotNullish(p.rest)
-
-/** @type {(rules: RuleSet) => (p: ArraySet) => (value: readonly Unknown[]) => ResultE} */
+/**
+ * The declared positions are checked by reading the value at each — a
+ * position past the end reads as `undefined`, so a position is required
+ * exactly when its set excludes `undefined`, and no minimum length is tested
+ * for. What is left over is tested against `rest`, or, with no `rest`, must
+ * not be there at all. Same shape as {@link objectSetValidate}, one kind
+ * over.
+ *
+ * @type {(rules: RuleSet) => (p: ArraySet) => (value: readonly Unknown[]) => ResultE}
+ */
 const arraySetValidate = rules => p => value => {
     const pn = p.prefix.length
-    if (p.rest === undefined ? value.length !== pn : value.length < pn) {
+    const { rest } = p
+    if (rest === undefined && value.length > pn) {
         return verror('unexpected value')
     }
-    const r = eachEntry(
-        Object.entries(value),
-        (k, v) => nodeValidate(rules)(atIndex(p, Number(k)))(v),
+    const declared = eachEntry(
+        Object.entries(p.prefix),
+        (k, n) => nodeValidate(rules)(n)(value[Number(k)]),
         undefined,
         noAccumulate,
     )
-    return r[0] === 'error' ? r : ok(value)
+    if (declared[0] === 'error') { return declared }
+    if (rest === undefined) { return ok(value) }
+    const extra = eachEntry(
+        Object.entries(value).filter(([k]) => Number(k) >= pn),
+        (_k, v) => nodeValidate(rules)(rest)(v),
+        undefined,
+        noAccumulate,
+    )
+    return extra[0] === 'error' ? extra : ok(value)
 }
 
 /** @type {(rules: RuleSet) => (p: ObjectSet) => (value: StringMap<Unknown>) => ResultE} */

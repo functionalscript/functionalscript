@@ -257,9 +257,14 @@ export const dataToTs = mut => ([rules, entry]) => {
  * definitions the expression references; a schema with no reference cycles
  * needs none.
  *
- * **Note:** the `unknown` schema produces the string `'unknown'`
- * (TypeScript's built-in), whereas `Ts<>` maps it to `DjsUnknown` from
- * `djs/module.f.ts`.
+ * **Two notes where this and `Ts<>` differ.** The `unknown` schema produces
+ * the string `'unknown'` (TypeScript's built-in), whereas `Ts<>` maps it to
+ * `DjsUnknown` from `djs/module.f.ts`. And a tuple prints with the rest
+ * element that says it is open (`readonly[42,...readonly(unknown)[]]`),
+ * whereas `Ts<>` renders the closed approximation — that is `TupleTs`'s
+ * limitation, not the model's (see `./types.ts`), and printing a concrete
+ * pattern is not subject to it. An exact-length pattern, which no tuple
+ * schema produces today, is what prints without the rest element.
  *
  * @example
  * ```js
@@ -270,7 +275,7 @@ export const dataToTs = mut => ([rules, entry]) => {
  * toTs(or(string, number))         // 'number|string'
  * toTs(42)                         // '42'
  * toTs('hello')                    // '"hello"'
- * toTs([boolean, number])          // 'readonly[boolean,number]'
+ * toTs([boolean, number])          // 'readonly[boolean,number,...readonly(unknown)[]]'
  * toTs({ x: string })              // '{readonly"x":string}'
  *
  * const list = () => ['array', list]
