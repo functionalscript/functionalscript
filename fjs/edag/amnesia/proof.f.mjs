@@ -354,6 +354,16 @@ export const proof = {
             // and the host method is strict, so the detached call throws.
             detachedReceiver: () =>
                 ev(['()', ['.', ['[]', [42]], 'at'], [], ['[]', [0]]]),
+            // `((a.at)(0))(0)` — the same detachment reached through a call
+            // step, so the callee is a bare value rather than an accessor.
+            // A host method is what makes that observable: an `=>` closure
+            // ignores whatever `this` it is handed, so only this spelling
+            // catches a receiver *invented* for a bare value — which is
+            // what `p[0](...)` in `call` did, returning `Array.prototype.at`
+            // where JavaScript throws. See `call` in `./module.f.mjs`.
+            detachedReceiverAfterCallStep: () =>
+                ev(['()', ['.', ['[]', [42]], 'at'],
+                    [['|()', ['[]', [0]]]], ['[]', [0]]]),
             // A step is only as good as what it lands on: a property step
             // onto a value that is not callable reaches the same host
             // `TypeError` as `throw.callNonFunction`, one node earlier.

@@ -57,7 +57,18 @@ const o1 =
 /** @type {(hcf: Hcf) => Property} */
 const property = hcf => hcf === undefined ? [undefined] : hcf
 
-/** @type {(p: Property, f: () => any) => unknown} */
+/**
+ * Calls what `p` denotes: a bare value with no receiver, or `obj[prop]` with
+ * `obj` as one.
+ *
+ * The temporary in the first branch is load-bearing. `p[0](...)` is a
+ * *method* call on the one-element array, so the callee would run with `p`
+ * itself as `this` — a receiver the chain does not have — and a detached
+ * host method would then silently succeed on the wrapper instead of
+ * throwing: `((a.at)(0))(0)` returned `Array.prototype.at`.
+ *
+ * @type {(p: Property, f: () => any) => unknown}
+ */
 const call = (p, f) => {
     if (p instanceof Array) {
         const x = p[0]
@@ -85,17 +96,9 @@ const map = {
     '&&': o2lazy((a, b) => a && b()),
     '()': (x, [, b, c, d]) => {
         const i = vm(x)
-        /**@type {any}*/
-        // const ib = i(b)
-        // if (c.length === 0) {
-        //     /**@type {any}*/
-        //     const args = i(d)
-        //     // One node evaluating to the *complete* argument array — `f(a, b)` is
-        //     // `['()', f, [], ['[]', [a, b]]]` — and `=>` collects with
-        //     // `(...args)`, so it is spread. Passed as a single argument instead,
-        //     // the callee's `['args']` would be `[[a, b]]`.
-        //     return ib(...args)
-        // }
+        // An empty `c` needs no case of its own: `reduce` hands the seed
+        // straight back, so `f(...args)` is the chain of no steps and takes
+        // the same final `call` as every other one.
         /**@type {Hcf} */
         const hcf = c.reduce(
             (/**@type {Hcf}*/hcf, lambda) => {
@@ -124,6 +127,10 @@ const map = {
                 }
             },
             [i(b)])
+        // One node evaluating to the *complete* argument array — `f(a, b)` is
+        // `['()', f, [], ['[]', [a, b]]]` — and `=>` collects with
+        // `(...args)`, so it is spread. Passed as a single argument instead,
+        // the callee's `['args']` would be `[[a, b]]`.
         return call(property(hcf), () => i(d))
     },
     '*': o2((a, b) => a * b),
