@@ -2,7 +2,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  */
 
-import { parseFromTokens, _bnfAccepts, _bnfAgreesWithStateMachine } from './module.f.mjs'
+import { parseFromTokens, _bnfParseFromTokens } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -17,83 +17,127 @@ const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
 const stringifyDjsModule = stringifyAsTree(sort)
 
 export const proof = {
-    // The BNF grammar and the hand-written state machine accept the same
-    // language, across valid and malformed input alike. This is what stands in
-    // for AST parity until the fold exists: a grammar that accepted the wrong
-    // language would fail here rather than after a fold was written against it.
-    bnfGrammarParity: [
+    // The BNF implementation and the hand-written state machine agree on the
+    // whole result, not merely on accept/reject: the same `AstModule` for every
+    // source that parses, and the same `ParseError` message for every one that
+    // does not. That is the parity bar the cutover has to clear.
+    bnfParity: [
         () => {
             for (const s of [
-                'export default null', 'export default true', 'export default 0.1',
-                'export default "abc"', 'export default undefined', 'export default 1234567890n',
-                'export default []', 'export default [1]', 'export default [1,]',
-                'export default [[]]', 'export default [0,[1,[2,[]]],3]',
-                'export default {}', 'export default {"a":1}', 'export default {a: 1}',
-                'export default {"a":1,}', 'export default {["a"]:1}',
-                'export default {a:1,"b":2,["c"]:3,}', 'export default {"a":{"b":{"c":["d"]}}}',
-                'const a = 1\nexport default a', 'const a = 1\nconst b = 2\nexport default [a,b]',
-                'import x from "m"\nexport default x',
-                'import x from "m"\nconst a = 1\nexport default a',
-                '// c\nexport default 1', '/* c */ export default 1', '\n\n export default 1 \n\n',
-                'const export = 1\nexport default export', 'export default { from: 2, default: 3 }',
+                "export default null",
+                "export default true",
+                "export default false",
+                "export default undefined",
+                "export default 0.1",
+                "export default 1.1e+2",
+                "export default \"abc\"",
+                "export default 1234567890n",
+                "export default []",
+                "export default [1]",
+                "export default [1,]",
+                "export default [[]]",
+                "export default [0,[1,[2,[]]],3]",
+                "export default [1234567890n]",
+                "export default {}",
+                "export default {\"a\":1}",
+                "export default {a: 1}",
+                "export default {\"a\":1,}",
+                "export default {[\"a\"]:1}",
+                "export default {a:1,\"b\":2,[\"c\"]:3,}",
+                "export default {\"a\":{\"b\":{\"c\":[\"d\"]}}}",
+                "export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined}",
+                "export default {a:1,a:2}",
+                "export default {[\"__proto__\"]: 1}",
+                "const a = 1\nexport default a",
+                "const a = 1\nconst b = 2\nexport default [a,b]",
+                "const a = a\nexport default a",
+                "import x from \"m\"\nexport default x",
+                "import x from \"m\"\nconst a = 1\nexport default a",
+                "import x from \"m\"\nimport y from \"n\"\nexport default [x,y]",
+                "// c\nexport default 1",
+                "/* c */ export default 1",
+                "\n\n export default 1 \n\n",
+                "const export = 1\nexport default export",
+                "export default { from: 2, default: 3 }",
             ]) {
-                assert(_bnfAgreesWithStateMachine(tokenizeString(s)), s)
-                assert(_bnfAccepts(tokenizeString(s)), s)
+                const tokens = tokenizeString(s)
+                const [oldTag, oldValue] = parseFromTokens(tokens)
+                const [newTag, newValue] = _bnfParseFromTokens(tokens)
+                assert(oldTag === 'ok' && newTag === 'ok', [s, oldTag, newTag])
+                assertEq(stringifyDjsModule(newValue), stringifyDjsModule(oldValue), s)
             }
         },
         () => {
+            // malformed shapes, which the grammar rejects
             for (const s of [
-                '', 'export default', '42', '[1,2]', '{"a":1}', 'export default [',
-                'export default {', 'const a = 1 export default a', 'export default 1 2',
-                'const a = 1\nimport x from "m"\nexport default a', 'export default {a}',
-                'export default {:1}', 'export default [,]', 'import x from y\nexport default x',
-                'export x from "m"\nexport default 1', 'const = 1\nexport default 1',
-                'export default {[1]:2}', 'const a = 1;\nexport default a',
-                'export default 1\nconst b = 2', 'import x from "m"', 'const a = 1',
+                "",
+                "export default",
+                "42",
+                "[1,2]",
+                "{\"a\":1}",
+                "export default [",
+                "export default {",
+                "const a = 1 export default a",
+                "export default 1 2",
+                "export default {a}",
+                "export default {:1}",
+                "export default [,]",
+                "import x from y\nexport default x",
+                "export x from \"m\"\nexport default 1",
+                "const = 1\nexport default 1",
+                "export default {[1]:2}",
+                "const a = 1;\nexport default a",
+                "export default 1\nconst b = 2",
+                "import x from \"m\"",
+                "const a = 1",
             ]) {
-                assert(_bnfAgreesWithStateMachine(tokenizeString(s)), s)
-                assert(!_bnfAccepts(tokenizeString(s)), s)
-            }
-        },
-    ],
-    // The one place the two cannot agree, and why. Resolving a name needs a
-    // symbol table, which a context-free grammar has no way to carry, so the
-    // grammar accepts these shapes and the state machine rejects them on the
-    // name. The fold owns that check — it is where an identifier becomes a
-    // `cref`/`aref` index — so this gap closes there, not in the grammar.
-    bnfGrammarSemanticGap: [
-        () => {
-            for (const s of [
-                'const a = 1\nconst a = 2\nexport default a',
-                'import x from "m"\nimport x from "n"\nexport default x',
-                'export default zzz',
-                'const a = zzz\nexport default a',
-                // `__proto__` is the same class of check: the grammar sees the
-                // `id`/`string` symbol, never the word, and JavaScript reads
-                // this key as an instruction to replace the prototype.
-                'export default {__proto__: 1}',
-                'export default {"__proto__": 1}',
-            ]) {
-                // structurally fine...
-                assert(_bnfAccepts(tokenizeString(s)), s)
-                // ...but rejected on the name
-                const [tag] = parseFromTokens(tokenizeString(s))
-                assertEq(tag, 'error', s)
+                const tokens = tokenizeString(s)
+                const [oldTag, oldValue] = parseFromTokens(tokens)
+                const [newTag, newValue] = _bnfParseFromTokens(tokens)
+                assert(oldTag === 'error' && newTag === 'error', [s, oldTag, newTag])
+                assertEq(newValue.message, oldValue.message, s)
+                assertStructurallySame(newValue.metadata, oldValue.metadata, s)
             }
         },
         () => {
-            // `const a = a` resolves: the name is bound before its value is
-            // read, so both accept it. The gap is unresolved and duplicate
-            // names, not self-reference.
+            // The one wording the BNF path cannot reproduce, and why. Statement
+            // ordering is shape here — `import* const* export` — so a late
+            // `import` is simply a token the grammar cannot use, not a rule
+            // about ordering it could name. The position is identical, which is
+            // what the ParseError contract actually promises.
+            const s = 'const a = 1\nimport x from "m"\nexport default a'
+            const tokens = tokenizeString(s)
+            const [oldTag, oldValue] = parseFromTokens(tokens)
+            const [newTag, newValue] = _bnfParseFromTokens(tokens)
+            assert(oldTag === 'error' && newTag === 'error', [oldTag, newTag])
+            assertEq(oldValue.message, 'import must come before const')
+            assertEq(newValue.message, 'unexpected token')
+            assertStructurallySame(newValue.metadata, oldValue.metadata)
+        },
+        () => {
+            // the checks no grammar could make, which the fold owns: each one
+            // reads a token's text rather than its symbol
             for (const s of [
-                'const a = a\nexport default a',
-                // the computed spelling denotes an ordinary property, so it is
-                // accepted — the divergence is the bare and string spellings
-                'export default {["__proto__"]: 1}',
+                "const a = 1\nconst a = 2\nexport default a",
+                "import x from \"m\"\nimport x from \"n\"\nexport default x",
+                "import x from \"m\"\nconst x = 1\nexport default x",
+                "export default zzz",
+                "const a = zzz\nexport default a",
+                "export default [zzz]",
+                "export default {a: zzz}",
+                "export default {__proto__: 1}",
+                "export default {\"__proto__\": 1}",
+                // a third statement after the failing one: the fold stops at the
+                // first error rather than reporting the last
+                "import x from \"m\"\nimport x from \"n\"\nimport y from \"o\"\nexport default y",
+                "const a = 1\nconst a = 2\nconst b = 3\nexport default b",
             ]) {
-                assert(_bnfAgreesWithStateMachine(tokenizeString(s)), s)
-                const [tag] = parseFromTokens(tokenizeString(s))
-                assertEq(tag, 'ok', s)
+                const tokens = tokenizeString(s)
+                const [oldTag, oldValue] = parseFromTokens(tokens)
+                const [newTag, newValue] = _bnfParseFromTokens(tokens)
+                assert(oldTag === 'error' && newTag === 'error', [s, oldTag, newTag])
+                assertEq(newValue.message, oldValue.message, s)
+                assertStructurallySame(newValue.metadata, oldValue.metadata, s)
             }
         },
     ],

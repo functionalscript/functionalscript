@@ -14,6 +14,7 @@
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { CodePointMeta } from '../../bnf/descent/types.ts'
+ * @import { Ast } from '../../bnf/matcher/types.ts'
  * @import { Rule, TerminalRange } from '../../bnf/types.ts'
  * @import { DescentMatch } from '../../bnf/descent/types.ts'
  */
@@ -868,7 +869,7 @@ const array = delimited(sym('['), sym(']'), value)
 const key = {
     plain: identifier,
     string: sym('string'),
-    computed: () => [sym('['), trivia, sym('string'), trivia, sym(']')],
+    computed: () => [sym('['), trivia, { name: [sym('string')] }, trivia, sym(']')],
 }
 
 /** @type {Rule} */
@@ -931,33 +932,255 @@ const [moduleRuleSet, moduleEntry] = toData(djsModule)
 /** @type {DescentMatch<DjsTokenWithMetadata>} */
 const moduleMatcher = descentParserRuleSet(moduleRuleSet)
 
+// -- folding the match into an `AstModule` ----------------------------------
+
+/** @typedef {Ast<CodePointMeta<DjsTokenWithMetadata>>} _Node */
+
 /**
- * Whether the grammar accepts a token stream — the recognizer half of the BNF
- * parser, before the AST fold exists.
+ * The token a slot holds.
  *
- * Kept separate from `parseFromTokens` while both implementations stand: this is
- * what the differential proofs compare, so a grammar that accepts the wrong
- * language fails before any fold is written against it.
+ * Every slot the fold reads holds exactly one token, and it is always the
+ * leftmost leaf — a name, a module specifier, a primitive. Walking first
+ * children rather than searching keeps this total: there is no "not found" case
+ * to branch on.
  *
- * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<null, ParseError>}
+ * @type {(node: _Node) => DjsTokenWithMetadata}
  */
-const recognizeModule = tokenList => {
-    const [tag, stream] = splitEof(tokenList)
+const tokenOf = node => {
+    const first = node.sequence[0]
+    return first instanceof Array ? first[1] : tokenOf(first)
+}
+
+/**
+ * A node's direct child carrying `tag`.
+ *
+ * Direct rather than recursive on purpose: a statement's `name` slot holds an
+ * identifier whose own tag may be `const` or `import`, so a search through the
+ * subtree would confuse a *word* with the statement spelling it.
+ *
+ * @type {(tag: string) => (node: _Node) => _Node}
+ */
+const slot = tag => node => {
+    const found = node.sequence.find(c => !(c instanceof Array) && c.tag === tag)
+    assert(found !== undefined && !(found instanceof Array), ['grammar slot missing', tag])
+    return found
+}
+
+/**
+ * Every node tagged `tag` under `node`.
+ *
+ * An array's elements are not its direct children — they sit inside the option
+ * and repetition scaffolding `delimited` builds — so finding them takes a
+ * search rather than a lookup.
+ *
+ * The search cannot stray into a nested value, and needs no guard saying so:
+ * every element, member and statement is wrapped in a node carrying its own
+ * tag, so the wrapper matches and the search stops there, before it could
+ * descend into the array or object inside it. That is what the wrappers are
+ * for. Remove one and this would start claiming the elements of a value nested
+ * within this one.
+ *
+ * @type {(tag: string) => (node: _Node) => readonly _Node[]}
+ */
+const descendantsTagged = tag => node => node.sequence.flatMap(child =>
+    child instanceof Array ? []
+        : child.tag === tag ? [child]
+            : descendantsTagged(tag)(child))
+
+const valueSlot = slot('value')
+
+const nameSlot = slot('name')
+
+const moduleSlot = slot('module')
+
+const keySlot = slot('key')
+
+const itemsOf = descendantsTagged('item')
+
+const membersOf = descendantsTagged('member')
+
+/**
+ * The property name a key spells, and whether it was the computed spelling.
+ *
+ * The distinction exists for `__proto__` alone: JavaScript reads a bare or
+ * string `__proto__` as an instruction to replace the prototype, while
+ * `{ ["__proto__"]: v }` denotes an ordinary property — so only the spelling
+ * separates a rejected key from an accepted one.
+ *
+ * @type {(node: _Node) => readonly[string, boolean]}
+ */
+const keyOf = node => {
+    const spelling = node.sequence[0]
+    assert(!(spelling instanceof Array), 'a key held no spelling')
+    const computed = spelling.tag === 'computed'
+    const { token } = tokenOf(computed ? nameSlot(spelling) : spelling)
+    assert('value' in token && typeof token.value === 'string', 'a key token carried no name')
+    return [token.value, computed]
+}
+
+/**
+ * A fold in progress: the names bound so far, the module specifiers and the
+ * body collected so far, and the first error if one has been met.
+ *
+ * The error rides in the state rather than wrapping every step in a `Result`,
+ * so a step reads as one expression instead of a nested match. Once set it is
+ * never replaced, which is what makes the reported error the *first* one.
+ *
+ * @typedef {{
+ *   readonly refs: OrderedMap<AstModuleRef>
+ *   readonly modules: readonly string[]
+ *   readonly consts: readonly AstConst[]
+ *   readonly error: ParseError | null
+ * }} _FoldState
+ */
+
+/** @type {(message: string) => (token: DjsTokenWithMetadata) => ParseError} */
+const foldError = message => ({ metadata }) => ({ message, metadata })
+
+/**
+ * Binds a name to a reference, rejecting one already bound.
+ *
+ * `import` and `const` share one map, so a name taken by either is taken for
+ * both — the same rule the state machine gets from consulting one `refs`.
+ *
+ * @type {(state: _FoldState) => (node: _Node) => (ref: AstModuleRef) => _FoldState}
+ */
+const bind = state => node => ref => {
+    const withMetadata = tokenOf(nameSlot(node))
+    const { token } = withMetadata
+    assert('value' in token && typeof token.value === 'string', 'a name token carried no name')
+    return at(token.value)(state.refs) !== null
+        ? { ...state, error: foldError('duplicate id')(withMetadata) }
+        : { ...state, refs: setReplace(token.value)(ref)(state.refs) }
+}
+
+/**
+ * A value, resolved against the names bound so far.
+ *
+ * Returns the error channel alongside the value because a reference can fail to
+ * resolve at any depth, and an array or object has to stop building when one
+ * does. A failed fold yields `null` for the value, which is never mistaken for a
+ * successful `null` — the caller reads the error, not the value.
+ *
+ * @type {(state: _FoldState) => (node: _Node) => readonly[AstConst, ParseError | null]}
+ */
+const foldValue = state => node => {
+    const value = node.sequence[0]
+    assert(!(value instanceof Array), 'a value slot held no value')
+    switch (value.tag) {
+        case 'array': {
+            let items = /** @type {readonly AstConst[]} */ ([])
+            for (const item of itemsOf(value)) {
+                // an element wraps its value directly, exactly as a `value`
+                // slot does, so it is already the shape `foldValue` reads
+                const [element, itemError] = foldValue(state)(item)
+                if (itemError !== null) { return [null, itemError] }
+                items = [...items, element]
+            }
+            return [['array', items], null]
+        }
+        case 'object': {
+            let entries = /** @type {OrderedMap<AstConst>} */ (null)
+            for (const member of membersOf(value)) {
+                const [name, computed] = keyOf(keySlot(member))
+                if (name === protoKey && !computed) {
+                    return [null, foldError('__proto__ requires the computed key form')(tokenOf(keySlot(member)))]
+                }
+                const [memberValue, memberError] = foldValue(state)(valueSlot(member))
+                if (memberError !== null) { return [null, memberError] }
+                entries = setReplace(name)(memberValue)(entries)
+            }
+            return [fromMap(entries), null]
+        }
+        default: {
+            const token = tokenOf(value)
+            if (isValueToken(token.token)) { return [tokenToValue(token.token), null] }
+            // anything else the value rule admits is an identifier, so it names
+            // a `const` or an `import` — or nothing, which is the error.
+            assert('value' in token.token && typeof token.token.value === 'string', 'a reference carried no name')
+            const ref = at(token.token.value)(state.refs)
+            return ref === null
+                ? [null, foldError('const not found')(token)]
+                : [ref, null]
+        }
+    }
+}
+
+/**
+ * Adds one statement's value to the body, if nothing has failed yet.
+ *
+ * @type {(state: _FoldState) => (node: _Node) => _FoldState}
+ */
+const addValue = state => node => {
+    if (state.error !== null) { return state }
+    const [value, valueError] = foldValue(state)(valueSlot(node))
+    return valueError !== null
+        ? { ...state, error: valueError }
+        : { ...state, consts: [...state.consts, value] }
+}
+
+/**
+ * Folds a matched module into an `AstModule`.
+ *
+ * The statements are read positionally from the root — trivia, imports,
+ * consts, the export — because the module rule is one sequence and its parts
+ * cannot move. Everything below that is read by slot name instead.
+ *
+ * Each name is bound *before* the value that follows it is folded, which is
+ * what makes `const a = a` resolve to the constant being defined rather than
+ * fail. That is the state machine's order too, and the reason it is not one of
+ * the divergences.
+ *
+ * @type {(root: _Node) => Result<AstModule, ParseError>}
+ */
+const foldModule = root => {
+    const [, imports, consts, exported] = root.sequence
+    assert(!(imports instanceof Array) && !(consts instanceof Array) && !(exported instanceof Array),
+        'the module rule did not produce its statement groups')
+    /** @type {_FoldState} */
+    let state = { refs: null, modules: [], consts: [], error: null }
+    for (const statement of descendantsTagged('import')(imports)) {
+        state = bind(state)(statement)(['aref', state.modules.length])
+        if (state.error !== null) { break }
+        const specifier = tokenOf(moduleSlot(statement))
+        assert('value' in specifier.token && typeof specifier.token.value === 'string',
+            'an import specifier carried no text')
+        state = { ...state, modules: [...state.modules, specifier.token.value] }
+    }
+    for (const statement of descendantsTagged('const')(consts)) {
+        if (state.error !== null) { break }
+        state = bind(state)(statement)(['cref', state.consts.length])
+        state = addValue(state)(statement)
+    }
+    state = addValue(state)(exported)
+    return state.error !== null ? error(state.error) : ok([state.modules, state.consts])
+}
+
+/**
+ * The BNF half of the parser: match, then fold.
+ *
+ * Not yet `parseFromTokens` — the differential proofs compare the two while
+ * both stand, and the cutover replaces that function once they agree.
+ *
+ * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
+ */
+export const _bnfParseFromTokens = tokenList => {
+    const [tag, stream] = splitEof(toArray(tokenList))
     if (tag === 'error') { return error(stream) }
     const { tokens, eofMetadata } = stream
-    const { success, failure } = moduleMatcher(moduleEntry, tokens.map(tokenToSymbol))
-    if (success) { return ok(null) }
-    // `idx` on the parser layer counts whole tokens, so it locates a file
-    // position only through the token it points at — or through the metadata
-    // kept aside for physical end, where there is no token to point at.
-    //
-    // `failure` is present exactly when `success` is false, so asserting is
-    // right where a `??` fallback would add a branch nothing can reach.
-    const { idx } = assertNotNullish(failure)
-    return error({
-        message: 'unexpected token',
-        metadata: idx < tokens.length ? tokens[idx].metadata : eofMetadata,
-    })
+    const { ast, success, failure } = moduleMatcher(moduleEntry, tokens.map(tokenToSymbol))
+    if (!success) {
+        const { idx } = assertNotNullish(failure)
+        // A failure past the last token is the end of input rather than a token
+        // the reader can point at, and the hand-written parser words it that
+        // way; matching it costs one comparison already being made.
+        const atEnd = idx >= tokens.length
+        return error({
+            message: atEnd ? 'unexpected end' : 'unexpected token',
+            metadata: atEnd ? eofMetadata : tokens[idx].metadata,
+        })
+    }
+    return foldModule(ast)
 }
 
 /** @type {(kind: 'eof' | ',') => (line: number) => DjsTokenWithMetadata} */
@@ -966,38 +1189,6 @@ const proofToken = kind => line => ({ token: { kind }, metadata: { path: 'a.js',
 const proofEof = proofToken('eof')
 
 const proofComma = proofToken(',')
-
-/**
- * Whether the BNF grammar and the hand-written state machine agree that a token
- * stream is well-formed, for the differential proofs to compare while both
- * implementations stand.
- *
- * **Structural agreement only.** The state machine also resolves names as it
- * goes — `pushRef` rejects an identifier that names no `const` or `import`, and
- * `parseConstOp` / `parseImportOp` reject a name already bound — and no
- * context-free grammar can do that, because it needs a symbol table rather than
- * a shape. Those four checks belong to the fold, which is where an identifier
- * becomes a `cref` or `aref` index and therefore where the table exists.
- *
- * So a stream this reports agreement on may still be rejected by the state
- * machine for an unresolved or duplicate name; the proofs pin that gap by
- * example rather than leaving it to be discovered during the cutover.
- *
- * @type {(tokenList: List<DjsTokenWithMetadata>) => boolean}
- */
-export const _bnfAgreesWithStateMachine = tokenList => {
-    const a = toArray(tokenList)
-    return (recognizeModule(a)[0] === 'ok') === (parseFromTokens(a)[0] === 'ok')
-}
-
-/**
- * Whether the grammar alone accepts a token stream, ignoring what the state
- * machine makes of it — the half of the comparison that isolates name
- * resolution, so the proofs can show the gap is exactly that and nothing else.
- *
- * @type {(tokenList: List<DjsTokenWithMetadata>) => boolean}
- */
-export const _bnfAccepts = tokenList => recognizeModule(toArray(tokenList))[0] === 'ok'
 
 export const proof = {
     ordinaryTokenNames: {

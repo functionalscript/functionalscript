@@ -277,16 +277,16 @@ The serializer and other independent parts of TODO 157 are unaffected.
       five framing-keyword symbols, and use it everywhere an identifier is
       accepted — binding names, references, object keys, import names. Only the
       framing positions demand a specific keyword.
-- [ ] Fold `AstRuleMeta` into `AstModule`, and give the fold the five checks the
+- [x] Fold `AstRuleMeta` into `AstModule`, and give the fold the five checks the
       grammar cannot make because each reads a token's text: unresolved
       reference, duplicate `const` name, duplicate `import` name, collisions
-      across the shared `refs` map, and a bare or string `__proto__` key. Until
-      it lands, `bnfGrammarSemanticGap` pins those as expected divergence.
+      across the shared `refs` map, and a bare or string `__proto__` key. All
+      five now agree with the state machine, message and position alike.
 - [ ] Report errors as metadata position ranges; widen `ParseError.metadata`
       from a single `TokenMetadata` to a range where required, using ordinary
       token metadata for `idx < tokens.length` and `eofMetadata` for
       `idx === tokens.length`.
-- [ ] Add differential success proofs requiring structurally identical
+- [x] Add differential success proofs requiring structurally identical
       `AstModule` output from the hand-written and BNF implementations across the
       existing parser corpus and every module/value grammar feature.
 - [ ] Include in that corpus each framing keyword used as an ordinary identifier
