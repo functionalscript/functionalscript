@@ -221,6 +221,19 @@ shipped contract keeps public positions in the physical input domain
 (`0 <= idx <= input.length`) even when a grammar consumes synthesized EOF, so
 token-index callers do not need a special post-EOF `input.length + 1` case.
 
+### The cutover tightens one thing deliberately
+
+`parseFromTokens` currently accepts a token stream with **no** `eof`, and one
+with **two**, because the state machine only ever asks what the next token is and
+stops when the module is complete. The BNF path rejects both: a backend
+synthesizes its own logical end, so a missing marker leaves nothing to require
+and a second one is a symbol the grammar has no rule for.
+
+Neither stream can come from the tokenizer, which always emits exactly one final
+`eof`, so this tightens a contract only a hand-built list can break. It is still
+a behaviour change to a public function, and `bnfEofContract` pins both cases so
+the cutover is where it is *chosen* rather than where it is discovered.
+
 ### Transition and cutover
 
 The transition is intentionally temporary and has a concrete completion
@@ -289,11 +302,11 @@ The serializer and other independent parts of TODO 157 are unaffected.
 - [x] Add differential success proofs requiring structurally identical
       `AstModule` output from the hand-written and BNF implementations across the
       existing parser corpus and every module/value grammar feature.
-- [ ] Include in that corpus each framing keyword used as an ordinary identifier
+- [x] Include in that corpus each framing keyword used as an ordinary identifier
       — `const export = 1` / `export default export`, and `{ from: 2, default: 3 }`
       — since those parse today and splitting the keywords off is exactly what
       could silently stop them.
-- [ ] Add failure-parity proofs for the existing malformed corpus plus empty
+- [x] Add failure-parity proofs for the existing malformed corpus plus empty
       input, failure at EOF, missing/non-final physical tokenizer EOF, and no
       duplicate EOF symbol.
 - [ ] After parity passes, switch the existing `parseFromTokens` implementation

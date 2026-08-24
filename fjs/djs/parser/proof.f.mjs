@@ -16,6 +16,12 @@ const tokenizeString = s => toArray(tokenize(stringToList(s))(''))
 
 const stringifyDjsModule = stringifyAsTree(sort)
 
+/** @type {(kind: 'ws' | 'nl' | 'null' | 'true' | 'false' | 'undefined' | 'eof', line: number) => DjsTokenWithMetadata} */
+const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 } })
+
+/** @type {(value: string, line: number) => DjsTokenWithMetadata} */
+const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 } })
+
 export const proof = {
     // The BNF implementation and the hand-written state machine agree on the
     // whole result, not merely on accept/reject: the same `AstModule` for every
@@ -139,6 +145,57 @@ export const proof = {
                 assertEq(newValue.message, oldValue.message, s)
                 assertStructurallySame(newValue.metadata, oldValue.metadata, s)
             }
+        },
+    ],
+    // The tokenizer's EOF contract, checked through the parser rather than
+    // through `splitEof` alone.
+    //
+    // Two of these are a **deliberate behaviour change at cutover**: the state
+    // machine accepts a stream with no `eof`, and one with two, because it only
+    // ever asks what the next token is. The BNF path requires exactly one, in
+    // final position, because a backend synthesizes its own logical end and a
+    // second marker would be a symbol the grammar has no rule for. Neither
+    // stream can come from the tokenizer, so this tightens a contract only a
+    // hand-built list could break — but it does tighten it, and the cutover
+    // should not be where that is discovered.
+    bnfEofContract: [
+        () => {
+            const wellFormed = [
+                proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
+                proofKind('ws', 1), proofKind('null', 1), proofKind('eof', 1),
+            ]
+            const [oldTag] = parseFromTokens(wellFormed)
+            const [newTag] = _bnfParseFromTokens(wellFormed)
+            assert(oldTag === 'ok' && newTag === 'ok', [oldTag, newTag])
+        },
+        () => {
+            // no `eof`: the state machine reads it as a complete module
+            const noEof = [
+                proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
+                proofKind('ws', 1), proofKind('null', 1),
+            ]
+            assertEq(parseFromTokens(noEof)[0], 'ok')
+            const [tag, value] = _bnfParseFromTokens(noEof)
+            assert(tag === 'error', tag)
+            assertEq(value.message, 'missing end-of-input token')
+        },
+        () => {
+            // a second `eof`: likewise invisible to the state machine
+            const twoEof = [
+                proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
+                proofKind('ws', 1), proofKind('null', 1), proofKind('eof', 1), proofKind('eof', 2),
+            ]
+            assertEq(parseFromTokens(twoEof)[0], 'ok')
+            const [tag, value] = _bnfParseFromTokens(twoEof)
+            assert(tag === 'error', tag)
+            assertEq(value.message, 'end-of-input token is not final')
+        },
+        () => {
+            // an empty stream is rejected by both, on different words
+            assertEq(parseFromTokens([])[0], 'error')
+            const [tag, value] = _bnfParseFromTokens([])
+            assert(tag === 'error', tag)
+            assertEq(value.message, 'missing end-of-input token')
         },
     ],
     // A lexical failure ends the token stream at an `error` token and emits no

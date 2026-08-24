@@ -730,6 +730,15 @@ const ordinaryTokenNames = [...tokenKindNames, ...framingKeywords]
 /** @typedef {Assert<Equal<(typeof ordinaryTokenNames)[number], _OrdinaryTokenName>>} _AlphabetIsComplete */
 
 /**
+ * `eof` is not a member of the alphabet, so a second end marker cannot be
+ * encoded rather than merely going unused — and `encode` would reject the name
+ * outright. Checked at the type level because that is where it is decidable:
+ * `includes('eof')` does not even compile against this element type.
+ *
+ * @typedef {Assert<Equal<Extract<_OrdinaryTokenName, 'eof'>, never>>} _EofIsNotAName
+ */
+
+/**
  * The alphabet's encoding, built once for the module rather than per parse.
  *
  * `encoding` asserts what the mapping needs — capacity, and no repeated name —
