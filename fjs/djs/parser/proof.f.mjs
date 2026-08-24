@@ -68,6 +68,11 @@ export const proof = {
                 'import x from "m"\nimport x from "n"\nexport default x',
                 'export default zzz',
                 'const a = zzz\nexport default a',
+                // `__proto__` is the same class of check: the grammar sees the
+                // `id`/`string` symbol, never the word, and JavaScript reads
+                // this key as an instruction to replace the prototype.
+                'export default {__proto__: 1}',
+                'export default {"__proto__": 1}',
             ]) {
                 // structurally fine...
                 assert(_bnfAccepts(tokenizeString(s)), s)
@@ -80,10 +85,16 @@ export const proof = {
             // `const a = a` resolves: the name is bound before its value is
             // read, so both accept it. The gap is unresolved and duplicate
             // names, not self-reference.
-            const s = 'const a = a\nexport default a'
-            assert(_bnfAgreesWithStateMachine(tokenizeString(s)), s)
-            const [tag] = parseFromTokens(tokenizeString(s))
-            assertEq(tag, 'ok')
+            for (const s of [
+                'const a = a\nexport default a',
+                // the computed spelling denotes an ordinary property, so it is
+                // accepted — the divergence is the bare and string spellings
+                'export default {["__proto__"]: 1}',
+            ]) {
+                assert(_bnfAgreesWithStateMachine(tokenizeString(s)), s)
+                const [tag] = parseFromTokens(tokenizeString(s))
+                assertEq(tag, 'ok', s)
+            }
         },
     ],
     // A lexical failure ends the token stream at an `error` token and emits no

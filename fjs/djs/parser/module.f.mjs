@@ -838,17 +838,26 @@ const primitive = {
  *
  * @type {(open: TerminalRange, close: TerminalRange, item: Rule) => Rule}
  */
-const delimited = (open, close, item) => () => [
-    open,
-    trivia,
-    option([
-        item,
+const delimited = (open, close, item) => () => {
+    // Each element is wrapped in a one-branch variant so it carries the tag
+    // `item`. The branch is a *sequence* rather than the rule itself, because a
+    // variant used directly as another variant's branch loses its tag to
+    // whichever inner branch matches — and every element here is a variant.
+    // The tag is what lets the fold find elements by name instead of by
+    // position in the delimiter scaffolding.
+    const element = { item: [item] }
+    return [
+        open,
         trivia,
-        repeat0Plus([sym(','), trivia, item, trivia]),
-        option([sym(','), trivia]),
-    ]),
-    close,
-]
+        option([
+            element,
+            trivia,
+            repeat0Plus([sym(','), trivia, element, trivia]),
+            option([sym(','), trivia]),
+        ]),
+        close,
+    ]
+}
 
 /** @type {Rule} */
 const value = () => ({ primitive, ref: identifier, array, object })
@@ -863,17 +872,30 @@ const key = {
 }
 
 /** @type {Rule} */
-const member = () => [key, trivia, sym(':'), trivia, value]
+const member = { member: () => [{ key: [key] }, trivia, sym(':'), trivia, { value: [value] }] }
 
 const object = delimited(sym('{'), sym('}'), member)
 
-const importStatement = () =>
-    [sym('import'), trivia, identifier, trivia, sym('from'), trivia, sym('string')]
+// Each statement is tagged for the same reason an element is: the fold reads
+// the module by finding `import`/`const`/`export` nodes, not by counting past
+// the trivia and separators between them.
+const importStatement = {
+    import: () => [
+        sym('import'), trivia, { name: [identifier] },
+        trivia, sym('from'), trivia, { module: [sym('string')] },
+    ],
+}
 
-const constStatement = () =>
-    [sym('const'), trivia, identifier, trivia, sym('='), trivia, value]
+const constStatement = {
+    const: () => [
+        sym('const'), trivia, { name: [identifier] },
+        trivia, sym('='), trivia, { value: [value] },
+    ],
+}
 
-const exportStatement = () => [sym('export'), trivia, sym('default'), trivia, value]
+const exportStatement = {
+    export: () => [sym('export'), trivia, sym('default'), trivia, { value: [value] }],
+}
 
 /**
  * The whole module: every `import` before every `const`, one `export default`

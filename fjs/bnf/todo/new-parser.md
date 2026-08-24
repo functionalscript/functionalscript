@@ -164,20 +164,27 @@ module grammar in `fjs/bnf` combinators over the validated token-symbol alphabet
 including module framing as well as values, then fold
 `AstRuleMeta<DjsTokenWithMetadata>` to `AstModule`.
 
-**The grammar carries shape; the fold carries names.** The statement ordering the
-state machine enforces with a `consts.length === 0` check *is* expressible as
-shape — the rule is `import* const* export` — but four of its checks are not, and
-no context-free grammar can take them on:
+**The grammar sees symbols; anything that depends on a token's text belongs to
+the fold.** That line is what divides the two, and it is sharper than "shape vs
+semantics". A token's text rides along as metadata, invisible to a grammar whose
+terminals are symbols — so every check that has to read a word is the fold's:
 
 - an identifier naming no `const` or `import` (`pushRef`'s "const not found");
 - a `const` name already bound (`parseConstOp`'s "duplicate id");
 - an `import` name already bound (`parseImportOp`'s);
-- and the same across the two namespaces, which share one `refs` map.
+- the same across the two namespaces, which share one `refs` map;
+- a bare or string `__proto__` key, which `pushPlainKey` rejects because
+  JavaScript reads it as an instruction to replace the prototype
+  ([spec](../../../spec/README.md#the-__proto__-key)). The computed spelling
+  `{ ["__proto__"]: v }` denotes an ordinary property and is accepted, so this
+  is not a lexical rule the tokenizer could take on either.
 
-All four need a symbol table rather than a shape. They belong to the fold, which
-is already the place a symbol table exists, because turning an identifier into
-`['cref', n]` or `['aref', n]` *is* the lookup. Do not contort the grammar to
-approximate them.
+The statement ordering, by contrast, *is* shape — `import* const* export` — and
+the grammar carries it, replacing the `consts.length === 0` check.
+
+All five belong to the fold, which is already the place a symbol table exists,
+because turning an identifier into `['cref', n]` or `['aref', n]` *is* the
+lookup. Do not contort the grammar to approximate them.
 
 The consequence for parity: grammar acceptance alone is **not** the parity bar. A
 stream can be structurally well-formed and still be rejected on a name, so the
@@ -270,10 +277,11 @@ The serializer and other independent parts of TODO 157 are unaffected.
       five framing-keyword symbols, and use it everywhere an identifier is
       accepted — binding names, references, object keys, import names. Only the
       framing positions demand a specific keyword.
-- [ ] Fold `AstRuleMeta` into `AstModule`, and give the fold the four name
-      checks the grammar cannot make: unresolved reference, duplicate `const`
-      name, duplicate `import` name, and collisions across the shared `refs` map.
-      Until it lands, `bnfGrammarSemanticGap` pins those as expected divergence.
+- [ ] Fold `AstRuleMeta` into `AstModule`, and give the fold the five checks the
+      grammar cannot make because each reads a token's text: unresolved
+      reference, duplicate `const` name, duplicate `import` name, collisions
+      across the shared `refs` map, and a bare or string `__proto__` key. Until
+      it lands, `bnfGrammarSemanticGap` pins those as expected divergence.
 - [ ] Report errors as metadata position ranges; widen `ParseError.metadata`
       from a single `TokenMetadata` to a range where required, using ordinary
       token metadata for `idx < tokens.length` and `eofMetadata` for
