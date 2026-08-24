@@ -2,7 +2,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  */
 
-import { parseFromTokens, _bnfParseFromTokens } from './module.f.mjs'
+import { parseFromTokens } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -23,159 +23,132 @@ const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', 
 const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 } })
 
 export const proof = {
-    // The BNF implementation and the hand-written state machine agree on the
-    // whole result, not merely on accept/reject: the same `AstModule` for every
-    // source that parses, and the same `ParseError` message for every one that
-    // does not. That is the parity bar the cutover has to clear.
-    bnfParity: [
+    // The corpus that proved parity against the hand-written state machine,
+    // kept as fixed expectations now that the state machine is gone.
+    //
+    // Every value below was **recorded from that parser** before it was deleted,
+    // not written by hand and not read off the replacement — so these still say
+    // "the parser behaves as it always did", which a test written against the
+    // new implementation could not.
+    parseCorpus: [
         () => {
-            for (const s of [
-                "export default null",
-                "export default true",
-                "export default false",
-                "export default undefined",
-                "export default 0.1",
-                "export default 1.1e+2",
-                "export default \"abc\"",
-                "export default 1234567890n",
-                "export default []",
-                "export default [1]",
-                "export default [1,]",
-                "export default [[]]",
-                "export default [0,[1,[2,[]]],3]",
-                "export default [1234567890n]",
-                "export default {}",
-                "export default {\"a\":1}",
-                "export default {a: 1}",
-                "export default {\"a\":1,}",
-                "export default {[\"a\"]:1}",
-                "export default {a:1,\"b\":2,[\"c\"]:3,}",
-                "export default {\"a\":{\"b\":{\"c\":[\"d\"]}}}",
-                "export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined}",
-                "export default {a:1,a:2}",
-                "export default {[\"__proto__\"]: 1}",
-                "const a = 1\nexport default a",
-                "const a = 1\nconst b = 2\nexport default [a,b]",
-                "const a = a\nexport default a",
-                "import x from \"m\"\nexport default x",
-                "import x from \"m\"\nconst a = 1\nexport default a",
-                "import x from \"m\"\nimport y from \"n\"\nexport default [x,y]",
-                "// c\nexport default 1",
-                "/* c */ export default 1",
-                "\n\n export default 1 \n\n",
-                "const export = 1\nexport default export",
-                "export default { from: 2, default: 3 }",
+            for (const [source, expected] of [
+                ["export default null", "[[],[null]]"],
+                ["export default true", "[[],[true]]"],
+                ["export default false", "[[],[false]]"],
+                ["export default undefined", "[[],[undefined]]"],
+                ["export default 0.1", "[[],[0.1]]"],
+                ["export default 1.1e+2", "[[],[110]]"],
+                ["export default \"abc\"", "[[],[\"abc\"]]"],
+                ["export default 1234567890n", "[[],[1234567890n]]"],
+                ["export default []", "[[],[[\"array\",[]]]]"],
+                ["export default [1]", "[[],[[\"array\",[1]]]]"],
+                ["export default [1,]", "[[],[[\"array\",[1]]]]"],
+                ["export default [[]]", "[[],[[\"array\",[[\"array\",[]]]]]]"],
+                ["export default [0,[1,[2,[]]],3]", "[[],[[\"array\",[0,[\"array\",[1,[\"array\",[2,[\"array\",[]]]]]],3]]]]"],
+                ["export default [1234567890n]", "[[],[[\"array\",[1234567890n]]]]"],
+                ["export default {}", "[[],[{}]]"],
+                ["export default {\"a\":1}", "[[],[{\"a\":1}]]"],
+                ["export default {a: 1}", "[[],[{\"a\":1}]]"],
+                ["export default {\"a\":1,}", "[[],[{\"a\":1}]]"],
+                ["export default {[\"a\"]:1}", "[[],[{\"a\":1}]]"],
+                ["export default {a:1,\"b\":2,[\"c\"]:3,}", "[[],[{\"a\":1,\"b\":2,\"c\":3}]]"],
+                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}}", "[[],[{\"a\":{\"b\":{\"c\":[\"array\",[\"d\"]]}}}]]"],
+                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined}", "[[],[{\"a\":true,\"b\":false,\"c\":null,\"d\":undefined}]]"],
+                ["export default {a:1,a:2}", "[[],[{\"a\":2}]]"],
+                ["export default {[\"__proto__\"]: 1}", "[[],[{\"__proto__\":1}]]"],
+                ["const a = 1\nexport default a", "[[],[1,[\"cref\",0]]]"],
+                ["const a = 1\nconst b = 2\nexport default [a,b]", "[[],[1,2,[\"array\",[[\"cref\",0],[\"cref\",1]]]]]"],
+                ["const a = a\nexport default a", "[[],[[\"cref\",0],[\"cref\",0]]]"],
+                ["import x from \"m\"\nexport default x", "[[\"m\"],[[\"aref\",0]]]"],
+                ["import x from \"m\"\nconst a = 1\nexport default a", "[[\"m\"],[1,[\"cref\",0]]]"],
+                ["import x from \"m\"\nimport y from \"n\"\nexport default [x,y]", "[[\"m\",\"n\"],[[\"array\",[[\"aref\",0],[\"aref\",1]]]]]"],
+                ["// c\nexport default 1", "[[],[1]]"],
+                ["/* c */ export default 1", "[[],[1]]"],
+                ["\n\n export default 1 \n\n", "[[],[1]]"],
+                ["const export = 1\nexport default export", "[[],[1,[\"cref\",0]]]"],
+                ["export default { from: 2, default: 3 }", "[[],[{\"default\":3,\"from\":2}]]"],
             ]) {
-                const tokens = tokenizeString(s)
-                const [oldTag, oldValue] = parseFromTokens(tokens)
-                const [newTag, newValue] = _bnfParseFromTokens(tokens)
-                assert(oldTag === 'ok' && newTag === 'ok', [s, oldTag, newTag])
-                assertEq(stringifyDjsModule(newValue), stringifyDjsModule(oldValue), s)
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'ok', [source, tag])
+                assertEq(stringifyDjsModule(value), expected, source)
             }
         },
         () => {
-            // malformed shapes, which the grammar rejects
-            for (const s of [
-                "",
-                "export default",
-                "42",
-                "[1,2]",
-                "{\"a\":1}",
-                "export default [",
-                "export default {",
-                "const a = 1 export default a",
-                "export default 1 2",
-                "export default {a}",
-                "export default {:1}",
-                "export default [,]",
-                "import x from y\nexport default x",
-                "export x from \"m\"\nexport default 1",
-                "const = 1\nexport default 1",
-                "export default {[1]:2}",
-                "const a = 1;\nexport default a",
-                "export default 1\nconst b = 2",
-                "import x from \"m\"",
-                "const a = 1",
-            ]) {
-                const tokens = tokenizeString(s)
-                const [oldTag, oldValue] = parseFromTokens(tokens)
-                const [newTag, newValue] = _bnfParseFromTokens(tokens)
-                assert(oldTag === 'error' && newTag === 'error', [s, oldTag, newTag])
-                assertEq(newValue.message, oldValue.message, s)
-                assertStructurallySame(newValue.metadata, oldValue.metadata, s)
-            }
-        },
-        () => {
-            // The one wording the BNF path cannot reproduce, and why. Statement
-            // ordering is shape here — `import* const* export` — so a late
-            // `import` is simply a token the grammar cannot use, not a rule
-            // about ordering it could name. The position is identical, which is
-            // what the ParseError contract actually promises.
-            const s = 'const a = 1\nimport x from "m"\nexport default a'
-            const tokens = tokenizeString(s)
-            const [oldTag, oldValue] = parseFromTokens(tokens)
-            const [newTag, newValue] = _bnfParseFromTokens(tokens)
-            assert(oldTag === 'error' && newTag === 'error', [oldTag, newTag])
-            assertEq(oldValue.message, 'import must come before const')
-            assertEq(newValue.message, 'unexpected token')
-            assertStructurallySame(newValue.metadata, oldValue.metadata)
-        },
-        () => {
-            // the checks no grammar could make, which the fold owns: each one
-            // reads a token's text rather than its symbol
-            for (const s of [
-                "const a = 1\nconst a = 2\nexport default a",
-                "import x from \"m\"\nimport x from \"n\"\nexport default x",
-                "import x from \"m\"\nconst x = 1\nexport default x",
-                "export default zzz",
-                "const a = zzz\nexport default a",
-                "export default [zzz]",
-                "export default {a: zzz}",
-                "export default {__proto__: 1}",
-                "export default {\"__proto__\": 1}",
-                // a third statement after the failing one: the fold stops at the
-                // first error rather than reporting the last
-                "import x from \"m\"\nimport x from \"n\"\nimport y from \"o\"\nexport default y",
-                "const a = 1\nconst a = 2\nconst b = 3\nexport default b",
-            ]) {
-                const tokens = tokenizeString(s)
-                const [oldTag, oldValue] = parseFromTokens(tokens)
-                const [newTag, newValue] = _bnfParseFromTokens(tokens)
-                assert(oldTag === 'error' && newTag === 'error', [s, oldTag, newTag])
-                assertEq(newValue.message, oldValue.message, s)
-                assertStructurallySame(newValue.metadata, oldValue.metadata, s)
+            /** @type {readonly(readonly[string, string, readonly[number, number] | null])[]} */
+            const cases = [
+                ["42", "unexpected token", [1, 1]],
+                ["", "unexpected end", [1, 1]],
+                ["export default", "unexpected end", [1, 15]],
+                ["[1,2]", "unexpected token", [1, 1]],
+                ["{\"a\":1}", "unexpected token", [1, 1]],
+                ["export default [", "unexpected end", [1, 17]],
+                ["export default {", "unexpected end", [1, 17]],
+                ["const a = 1 export default a", "unexpected token", [1, 13]],
+                ["export default 1 2", "unexpected token", [1, 18]],
+                ["export default {a}", "unexpected token", [1, 18]],
+                ["export default {:1}", "unexpected token", [1, 17]],
+                ["export default [,]", "unexpected token", [1, 17]],
+                ["import x from y\nexport default x", "unexpected token", [1, 15]],
+                ["export x from \"m\"\nexport default 1", "unexpected token", [1, 8]],
+                ["const = 1\nexport default 1", "unexpected token", [1, 7]],
+                ["export default {[1]:2}", "unexpected token", [1, 18]],
+                ["const a = 1;\nexport default a", "unexpected token", [1, 12]],
+                ["export default 1\nconst b = 2", "unexpected token", [2, 1]],
+                ["import x from \"m\"", "unexpected end", [1, 18]],
+                ["const a = 1", "unexpected end", [1, 12]],
+                ["const a = 1\nconst a = 2\nexport default a", "duplicate id", [2, 7]],
+                ["import x from \"m\"\nimport x from \"n\"\nexport default x", "duplicate id", [2, 8]],
+                ["import x from \"m\"\nconst x = 1\nexport default x", "duplicate id", [2, 7]],
+                ["export default zzz", "const not found", [1, 16]],
+                ["const a = zzz\nexport default a", "const not found", [1, 11]],
+                ["export default [zzz]", "const not found", [1, 17]],
+                ["export default {a: zzz}", "const not found", [1, 20]],
+                ["export default {__proto__: 1}", "__proto__ requires the computed key form", [1, 17]],
+                ["export default {\"__proto__\": 1}", "__proto__ requires the computed key form", [1, 17]],
+                ["import x from \"m\"\nimport x from \"n\"\nimport y from \"o\"\nexport default y", "duplicate id", [2, 8]],
+                ["const a = 1\nconst a = 2\nconst b = 3\nexport default b", "duplicate id", [2, 7]],
+            ]
+            for (const [source, message, position] of cases) {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', [source, tag])
+                assertEq(value.message, message, source)
+                const { metadata } = value
+                assertStructurallySame(
+                    metadata === null ? null : [metadata.line, metadata.column],
+                    position,
+                    source)
             }
         },
     ],
-    // The tokenizer's EOF contract, checked through the parser rather than
-    // through `splitEof` alone.
+    // The tokenizer's EOF contract, which this parser requires and the state
+    // machine it replaced did not.
     //
-    // Two of these are a **deliberate behaviour change at cutover**: the state
-    // machine accepts a stream with no `eof`, and one with two, because it only
-    // ever asks what the next token is. The BNF path requires exactly one, in
-    // final position, because a backend synthesizes its own logical end and a
-    // second marker would be a symbol the grammar has no rule for. Neither
-    // stream can come from the tokenizer, so this tightens a contract only a
-    // hand-built list could break — but it does tighten it, and the cutover
-    // should not be where that is discovered.
-    bnfEofContract: [
+    // That parser accepted a stream with no `eof`, and one with two, because it
+    // only ever asked what the next token was and stopped once the module was
+    // complete. This one requires exactly one, in final position: a backend
+    // synthesizes its own logical end, so a missing marker leaves nothing to
+    // require and a second is a symbol the grammar has no rule for.
+    //
+    // Neither stream can come from the tokenizer, so the tightening reaches only
+    // a hand-built list. It is still a public function accepting less than it
+    // did, which is why it is written down here rather than left to be noticed.
+    eofContract: [
         () => {
             const wellFormed = [
                 proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
                 proofKind('ws', 1), proofKind('null', 1), proofKind('eof', 1),
             ]
-            const [oldTag] = parseFromTokens(wellFormed)
-            const [newTag] = _bnfParseFromTokens(wellFormed)
-            assert(oldTag === 'ok' && newTag === 'ok', [oldTag, newTag])
+            const [tag] = parseFromTokens(wellFormed)
+            assertEq(tag, 'ok')
         },
         () => {
-            // no `eof`: the state machine reads it as a complete module
+            // no `eof`: the state machine read this as a complete module
             const noEof = [
                 proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
                 proofKind('ws', 1), proofKind('null', 1),
             ]
-            assertEq(parseFromTokens(noEof)[0], 'ok')
-            const [tag, value] = _bnfParseFromTokens(noEof)
+            const [tag, value] = parseFromTokens(noEof)
             assert(tag === 'error', tag)
             assertEq(value.message, 'missing end-of-input token')
         },
@@ -185,15 +158,12 @@ export const proof = {
                 proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
                 proofKind('ws', 1), proofKind('null', 1), proofKind('eof', 1), proofKind('eof', 2),
             ]
-            assertEq(parseFromTokens(twoEof)[0], 'ok')
-            const [tag, value] = _bnfParseFromTokens(twoEof)
+            const [tag, value] = parseFromTokens(twoEof)
             assert(tag === 'error', tag)
             assertEq(value.message, 'end-of-input token is not final')
         },
         () => {
-            // an empty stream is rejected by both, on different words
-            assertEq(parseFromTokens([])[0], 'error')
-            const [tag, value] = _bnfParseFromTokens([])
+            const [tag, value] = parseFromTokens([])
             assert(tag === 'error', tag)
             assertEq(value.message, 'missing end-of-input token')
         },
@@ -737,15 +707,14 @@ export const proof = {
             assertEq(obj[1].message, 'unexpected end')
         },
         () => {
-            // `parseFromTokens` itself, called with no tokens at all (the
+            // `parseFromTokens` itself, called with no tokens at all. The
             // tokenizer never produces this — it always emits at least an
-            // `eof` token — but the exported function's own contract must
-            // still handle it: the initial state is neither 'result' nor
-            // 'error', so it falls through to the same "unexpected end".
-            const obj = parseFromTokens(null)
+            // `eof` — but the exported function's contract must still answer.
+            // Since the BNF cutover it is named for what is missing rather
+            // than for running out of input; see `rewordedErrors`.
+            const obj = parseFromTokens([])
             assert(obj[0] === 'error', obj)
-            assertEq(obj[1].message, 'unexpected end')
-            assertEq(obj[1].metadata, null)
+            assertEq(obj[1].message, 'missing end-of-input token')
         },
     ],
     errorMetadata: [
@@ -853,7 +822,10 @@ export const proof = {
             const tokenList = tokenizeString('const b = 1 \n import a from "a.f.js" \n export default [a,b]')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            assertEq(obj[1].message, 'import must come before const')
+            // reworded at the BNF cutover: statement ordering is shape now, so
+            // a late `import` is a token the grammar cannot use rather than a
+            // rule about ordering it could name. The position is unchanged.
+            assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             // nothing follows `export default` but trivia

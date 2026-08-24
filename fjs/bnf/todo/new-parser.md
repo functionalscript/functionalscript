@@ -315,7 +315,7 @@ The serializer and other independent parts of TODO 157 are unaffected.
 - [x] Add failure-parity proofs for the existing malformed corpus plus empty
       input, failure at EOF, missing/non-final physical tokenizer EOF, and no
       duplicate EOF symbol.
-- [ ] After parity passes, switch the existing `parseFromTokens` implementation
+- [x] After parity passes, switch the existing `parseFromTokens` implementation
       to BNF and delete the old hand-written parser state machine/helpers; do not
       leave both production implementations.
 - [ ] Rebase [157](../../djs/todo/157.md) §1 according to which parser work lands
