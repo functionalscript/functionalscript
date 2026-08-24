@@ -1,5 +1,5 @@
 /**
- * @import { ValidationError, ValidateE } from '../common/types.ts'
+ * @import { ValidationError, ValidateE, Validate } from '../common/types.ts'
  * @import { Type } from '../types.ts'
  * @import { Equal } from '../../ts/types.ts'
  * @import { Ts, Unknown } from '../ts/types.ts'
@@ -231,15 +231,15 @@ export const proof = {
             error: () => assertError(validate(undefined)(null)),
         },
         number: {
-            ok: () => assertOk(validate(/** @type {const} */ (42))(42)),
-            error: () => assertError(validate(/** @type {const} */ (42))(43)),
+            ok: () => assertOk(validate(42)(42)),
+            error: () => assertError(validate(42)(43)),
         },
         nan: {
             ok: () => assertOk(validate(NaN)(NaN)),
             error: () => {
                 assertError(validate(NaN)(0))
-                assertError(validate(/** @type {const} */ (0))(NaN))
-                assertError(validate(/** @type {const} */ (42))(NaN))
+                assertError(validate(0)(NaN))
+                assertError(validate(42)(NaN))
             },
         },
         infinity: {
@@ -255,31 +255,29 @@ export const proof = {
         signedZero: {
             // `Object.is` distinguishes +0 and -0; `===` treats them equal.
             distinct: () => {
-                assertError(validate(/** @type {const} */ (0))(-0))
+                assertError(validate(0)(-0))
                 assertError(validate(-0)(0))
             },
             self: () => {
-                assertOk(validate(/** @type {const} */ (0))(0))
+                assertOk(validate(0)(0))
                 assertOk(validate(-0)(-0))
             },
         },
         string: {
-            ok: () => assertOk(validate(/** @type {const} */ ('hello'))('hello')),
-            error: () => assertError(validate(/** @type {const} */ ('hello'))('world')),
+            ok: () => assertOk(validate('hello')('hello')),
+            error: () => assertError(validate('hello')('world')),
         },
         bigint: {
-            ok: () => assertOk(validate(/** @type {const} */ (7n))(7n)),
-            error: () => assertError(validate(/** @type {const} */ (7n))(8n)),
+            ok: () => assertOk(validate(7n)(7n)),
+            error: () => assertError(validate(7n)(8n)),
         },
         boolean: {
-            ok: () => assertOk(validate(/** @type {const} */ (true))(true)),
-            error: () => assertError(validate(/** @type {const} */ (true))(false)),
+            ok: () => assertOk(validate(true)(true)),
+            error: () => assertError(validate(true)(false)),
         },
         tuple: {
-            ok: () => {
-                const t = /** @type {const} */ ([42, 'hello'])
-                assertStructurallySame(unwrap(validate(t)([42, 'hello'])), [42, 'hello'])
-            },
+            ok: () => assertStructurallySame(
+                unwrap(validate([42, 'hello'])([42, 'hello'])), [42, 'hello']),
             // A tuple is OPEN, and the extras are still there afterwards. This
             // is deliberate — see "Structs and tuples are open" in
             // ../README.md. Do not restore #1622's length check on the
@@ -288,7 +286,7 @@ export const proof = {
             // open one (see ../ts/types.ts `TupleTs`).
             extraItemsAcceptedAndKept: () => {
                 const long = [42, 1, 2, 3]
-                assert(Object.is(unwrap(validate(/** @type {const} */ ([42]))(long)), long),
+                assert(Object.is(unwrap(validate([42])(long)), long),
                     'the longer array comes back as it went in')
             },
             // An absent member reads as `undefined`, so a position is required
@@ -300,22 +298,28 @@ export const proof = {
                 assert(Object.is(out, short), 'expected the original array')
                 assertEq(short.length, 1, 'no gap is filled')
             },
-            empty: () => assertOk(validate(/** @type {const} */ ([]))([])),
+            empty: () => assertOk(validate([])([])),
             error: () => {
-                assertError(validate(/** @type {const} */ ([42]))([99]))
-                assertError(validate(/** @type {const} */ ([42]))({}))
+                assertError(validate([42])([99]))
+                assertError(validate([42])({}))
                 // `42` excludes `undefined`, so position 0 is required.
-                assertError(validate(/** @type {const} */ ([42]))([]))
+                assertError(validate([42])([]))
             },
         },
         struct: {
+            // `validate` takes a `const` type parameter, so a struct literal
+            // keeps its literal members without an `@type {const}` cast at the
+            // call site: this is a reader for `{ a: 42, b: 'hello' }`, not for
+            // `{ a: number, b: string }`. Dropping the modifier is what makes
+            // the assertion fail.
             ok: () => {
-                const t = /** @type {const} */ ({ a: 42, b: 'hello' })
-                assertStructurallySame(unwrap(validate(t)({ a: 42, b: 'hello' })), { a: 42, b: 'hello' })
+                const v = validate({ a: 42, b: 'hello' })
+                /** @typedef {Assert<Equal<typeof v, Validate<{ readonly a: 42, readonly b: 'hello' }>>>} _ConstParameter */
+                assertStructurallySame(unwrap(v({ a: 42, b: 'hello' })), { a: 42, b: 'hello' })
             },
             error: () => {
-                assertError(validate(/** @type {const} */ ({ a: 42 }))({ a: 99 }))
-                assertError(validate(/** @type {const} */ ({ a: 42 }))([]))
+                assertError(validate({ a: 42 })({ a: 99 }))
+                assertError(validate({ a: 42 })([]))
             },
         },
     },
@@ -360,13 +364,13 @@ export const proof = {
     or: {
         consts: {
             ok: () => {
-                const t = or(.../** @type {const} */ ([false, 42, 'hello']))
+                const t = or(false, 42, 'hello')
                 assertOk(validate(t)(false))
                 assertOk(validate(t)(42))
                 assertOk(validate(t)('hello'))
             },
             error: () => {
-                const t = or(.../** @type {const} */ ([false, 42, 'hello']))
+                const t = or(false, 42, 'hello')
                 assertError(validate(t)(true))
                 assertError(validate(t)(43))
                 assertError(validate(t)('world'))
@@ -390,7 +394,7 @@ export const proof = {
         // result. `parse` here returns a length-1 array; `validate` returns
         // the length-3 one it was given.
         firstMatchWins: () => {
-            const t = or(/** @type {const} */ ([number]), array(number))
+            const t = or([number], array(number))
             const input = [1, 2, 3]
             assert(Object.is(unwrap(validate(t)(input)), input), 'expected the original array')
             assertStructurallySame(unwrap(parse(t)(input)), [1])
@@ -416,10 +420,10 @@ export const proof = {
             validate(array(array(number)))([[1, 'x'], [2, 3]])
         ),
         tupleIndex: () => assertErrorPath(['1'])(
-            validate(/** @type {const} */ ([number, number]))([1, 'two'])
+            validate([number, number])([1, 'two'])
         ),
         structKey: () => assertErrorPath(['b'])(
-            validate(/** @type {const} */ ({ a: number, b: number }))({ a: 1, b: 'two' })
+            validate({ a: number, b: number })({ a: 1, b: 'two' })
         ),
         deepStruct: () => {
             const schema = /** @type {const} */ ({ user: { name: string, age: number } })

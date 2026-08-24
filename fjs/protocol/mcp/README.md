@@ -181,7 +181,7 @@ When you write:
 const myTool = toolEntry(
     'add',
     'Add numbers',
-    { x: number, y: number } as const,
+    { x: number, y: number },
     ({ x, y }) => {
         // x and y are inferred as `number` — no casting needed
         return pure({ content: [{ type: 'text', text: `${x + y}` }] })

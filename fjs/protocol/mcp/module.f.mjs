@@ -144,7 +144,7 @@ export const toolsCallResult = /** @type {const} */ ({
  * arguments (typed as `Ts<T>`) to the handler. This eliminates manual validation
  * boilerplate and type assertions.
  *
- * @template {Type} T
+ * @template {Type} const T
  * @template {Operation} O
  * @param {string} name - The tool name (used in `tools/call` requests)
  * @param {string} description - Human-readable description for `tools/list`
