@@ -423,7 +423,10 @@ Three things bound the rule:
   assertion that makes it load-bearing (below). A general-purpose value lifter
   is usually the wrong place for one: `const` on `pureOk` would infer
   `pureOk([])` as `readonly []`, which stops unifying with the array branch
-  beside it.
+  beside it. Read "no call site inlines a literal" as *not yet*, though, and
+  check the module's `README.md` before concluding it: `toolEntry`'s documents
+  an inline schema, so its front door was a call site even when the tree had
+  none.
 
 Because a dropped modifier widens silently rather than failing, pin the
 inference with an `Assert<Equal<…>>` in the proof, per
@@ -434,10 +437,6 @@ literal, since a primitive would pass with or without it:
 const v = validate({ a: 42, b: 'hello' })
 /** @typedef {Assert<Equal<typeof v, Validate<{ readonly a: 42, readonly b: 'hello' }>>>} _ConstParameter */
 ```
-
-The survey of where this applies across the tree, and of the signatures it was
-deliberately *not* added to, is
-[todo/const-type-parameters.md](../todo/const-type-parameters.md).
 
 #### Avoid `as` type assertions
 
