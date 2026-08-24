@@ -155,7 +155,7 @@ export const proof = {
             type: 'array',
             items: { type: 'object', additionalProperties: { type: 'boolean' } },
         }),
-        orWithConst: eq(or(null, string, /** @type {const} */ (42)), {
+        orWithConst: eq(or(null, string, 42), {
             anyOf: [{ const: null }, { const: 42 }, { type: 'string' }],
         }),
         structWithOr: eq(/** @type {const} */ ({ id: or(string, number), name: option(string) }), {
@@ -180,14 +180,14 @@ export const proof = {
         unitMembers: eq(or(null, undefined, true), {
             anyOf: [{ const: null }, { not: {} }, { const: true }],
         }),
-        literalAbsorbed: eq(or(/** @type {const} */ (42), number), { type: 'number' }),
-        duplicateLiteral: eq(or(/** @type {const} */ (1), /** @type {const} */ (1)), { const: 1 }),
+        literalAbsorbed: eq(or(42, number), { type: 'number' }),
+        duplicateLiteral: eq(or(1, 1), { const: 1 }),
         never: eq(never, { not: {} }),
         // an open tuple declaring nothing is the whole array kind
         emptyTuple: eq(/** @type {const} */ ([]), { type: 'array' }),
         // a longer tuple pattern is included in a shorter one, both open
         coverageCollapse: eq(
-            or(/** @type {const} */ ([number, number]), /** @type {const} */ ([number])),
+            or([number, number], [number]),
             {
                 type: 'array',
                 prefixItems: [{ type: 'number' }],

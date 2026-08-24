@@ -139,7 +139,7 @@ import { assertNotNullish } from '../../asserts/module.f.mjs'
 /** Arguments for `cas_add`: content to store, with optional encoding type. */
 export const casAddArgs = /** @type {const} */ ({
     content: string,
-    type: or(/** @type {const} */ ('text'), /** @type {const} */ ('base64'), undefined)
+    type: or('text', 'base64', undefined)
 })
 
 /** Arguments for `cas_get`: the cBase32 hash to look up; optionally request inline content. */

@@ -88,7 +88,7 @@ export const record = type1('record')
  * or canonical-form work. All such algebra lives on the serializable data form
  * — see `./data/README.md`.
  *
- * @template {readonly Type[]} T
+ * @template {readonly Type[]} const T
  * @param {T} types
  * @returns {Or<T>}
  */
@@ -98,7 +98,7 @@ export const or = (...types) =>
 /**
  * Constructs a schema that validates a value matching `T` or `undefined`.
  *
- * @template {Type} T
+ * @template {Type} const T
  * @param {T} t
  * @returns {Or<readonly [T, undefined]>}
  */

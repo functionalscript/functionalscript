@@ -138,6 +138,15 @@ syntax. They are deliberately left rather than rewritten.
   ten that were wrong, so the allowlist matters as much as the rule.
 - [`spec/todo/3360-type-annotations.md`](../spec/todo/3360-type-annotations.md) —
   where the type layer is eventually going.
+- **The `@type {const}` exclusion was too broad.** 221 were set aside here as
+  out of scope, but 46 of them are decorative in exactly the sense this audit
+  measured: they sit on an argument to a *non-generic* parameter — `eq(…)`,
+  `toData(…)`, the reader-proof `rows` tables — where the callee takes a plain
+  `Type` and cannot observe the difference. They belong in a re-audit under the
+  same method, not in the const-assertion exemption. (The other 174 do belong
+  here: a declaration pin is load-bearing, and an argument to a `const` type
+  parameter no longer needs a cast at all — see "Prefer a `const` type parameter
+  to a cast at the call site" in [fjs/AGENTS.md](../fjs/AGENTS.md).)
 
 ### Remaining sites
 
