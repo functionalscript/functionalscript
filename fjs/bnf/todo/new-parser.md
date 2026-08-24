@@ -164,6 +164,35 @@ module grammar in `fjs/bnf` combinators over the validated token-symbol alphabet
 including module framing as well as values, then fold
 `AstRuleMeta<DjsTokenWithMetadata>` to `AstModule`.
 
+**The grammar sees symbols; anything that depends on a token's text belongs to
+the fold.** That line is what divides the two, and it is sharper than "shape vs
+semantics". A token's text rides along as metadata, invisible to a grammar whose
+terminals are symbols — so every check that has to read a word is the fold's:
+
+- an identifier naming no `const` or `import` (`pushRef`'s "const not found");
+- a `const` name already bound (`parseConstOp`'s "duplicate id");
+- an `import` name already bound (`parseImportOp`'s);
+- the same across the two namespaces, which share one `refs` map;
+- a bare or string `__proto__` key, which `pushPlainKey` rejects because
+  JavaScript reads it as an instruction to replace the prototype
+  ([spec](../../../spec/README.md#the-__proto__-key)). The computed spelling
+  `{ ["__proto__"]: v }` denotes an ordinary property and is accepted, so this
+  is not a lexical rule the tokenizer could take on either.
+
+The statement ordering, by contrast, *is* shape — `import* const* export` — and
+the grammar carries it, replacing the `consts.length === 0` check.
+
+All five belong to the fold, which is already the place a symbol table exists,
+because turning an identifier into `['cref', n]` or `['aref', n]` *is* the
+lookup. Do not contort the grammar to approximate them.
+
+The consequence for parity: grammar acceptance alone is **not** the parity bar. A
+stream can be structurally well-formed and still be rejected on a name, so the
+differential proofs compare the grammar and the state machine on well-formedness,
+and the four semantic cases are pinned separately as expected divergence until
+the fold closes them. `const a = a` is *not* one of them — a name is bound before
+its value is read, so both accept it.
+
 **5. Report positions from token metadata, never from `idx`.** `idx` in
 `DescentMatchResult` is an index into the *physical symbol* array; on the parser
 layer one symbol is a whole ordinary token, so the number says nothing about a
@@ -191,6 +220,19 @@ index with ordinary token metadata or `eofMetadata` using the rule above. The
 shipped contract keeps public positions in the physical input domain
 (`0 <= idx <= input.length`) even when a grammar consumes synthesized EOF, so
 token-index callers do not need a special post-EOF `input.length + 1` case.
+
+### The cutover tightens one thing deliberately
+
+`parseFromTokens` currently accepts a token stream with **no** `eof`, and one
+with **two**, because the state machine only ever asks what the next token is and
+stops when the module is complete. The BNF path rejects both: a backend
+synthesizes its own logical end, so a missing marker leaves nothing to require
+and a second one is a symbol the grammar has no rule for.
+
+Neither stream can come from the tokenizer, which always emits exactly one final
+`eof`, so this tightens a contract only a hand-built list can break. It is still
+a behaviour change to a public function, and `bnfEofContract` pins both cases so
+the cutover is where it is *chosen* rather than where it is discovered.
 
 ### Transition and cutover
 
@@ -241,26 +283,36 @@ The serializer and other independent parts of TODO 157 are unaffected.
 - [x] Map each ordinary `DjsToken` to its symbol, carrying the token as descent
       metadata; never feed the tokenizer's physical `eof` token to the BNF symbol
       stream.
-- [ ] Implement the complete DJS module grammar, including module framing, in the
+- [x] Implement the complete DJS module grammar, including module framing, in the
       existing `fjs/djs/parser/module.f.mjs`; do not create a temporary public
       parser module/API.
-- [ ] Give the grammar one identifier rule accepting the union of `id` and the
+- [x] Give the grammar one identifier rule accepting the union of `id` and the
       five framing-keyword symbols, and use it everywhere an identifier is
       accepted — binding names, references, object keys, import names. Only the
       framing positions demand a specific keyword.
-- [ ] Fold `AstRuleMeta` into `AstModule`.
-- [ ] Report errors as metadata position ranges; widen `ParseError.metadata`
-      from a single `TokenMetadata` to a range where required, using ordinary
+- [x] Fold `AstRuleMeta` into `AstModule`, and give the fold the five checks the
+      grammar cannot make because each reads a token's text: unresolved
+      reference, duplicate `const` name, duplicate `import` name, collisions
+      across the shared `refs` map, and a bare or string `__proto__` key. All
+      five now agree with the state machine, message and position alike.
+- [x] Report positions from token metadata rather than `idx`, using ordinary
       token metadata for `idx < tokens.length` and `eofMetadata` for
-      `idx === tokens.length`.
-- [ ] Add differential success proofs requiring structurally identical
+      `idx === tokens.length`. Verified against the state machine: identical
+      position on every malformed source in the corpus.
+- [ ] Widening `ParseError.metadata` from a point to a **range** is not done
+      here — see [Report token errors as a position range](../../djs/tokenizer/todo/error-position-range.md),
+      which owns that design. It is also speculative by that issue's own test
+      today: the only consumer, `errorLocation` in `fjs/djs/module.f.mjs`,
+      formats `path:line:column` and has nothing to do with a span. Land the two
+      together when a formatter wants one.
+- [x] Add differential success proofs requiring structurally identical
       `AstModule` output from the hand-written and BNF implementations across the
       existing parser corpus and every module/value grammar feature.
-- [ ] Include in that corpus each framing keyword used as an ordinary identifier
+- [x] Include in that corpus each framing keyword used as an ordinary identifier
       — `const export = 1` / `export default export`, and `{ from: 2, default: 3 }`
       — since those parse today and splitting the keywords off is exactly what
       could silently stop them.
-- [ ] Add failure-parity proofs for the existing malformed corpus plus empty
+- [x] Add failure-parity proofs for the existing malformed corpus plus empty
       input, failure at EOF, missing/non-final physical tokenizer EOF, and no
       duplicate EOF symbol.
 - [ ] After parity passes, switch the existing `parseFromTokens` implementation
@@ -275,6 +327,8 @@ The serializer and other independent parts of TODO 157 are unaffected.
 
 - [`fjs/bnf/token_symbol`](../token_symbol/README.md) — the token-name-to-symbol
   mapping this parser uses, and where the registry's trade-offs are argued.
+- [Report token errors as a position range](../../djs/tokenizer/todo/error-position-range.md)
+  — owns widening a position to a span; this parser reports points until it lands.
 - [`fjs/bnf/README.md`](../README.md#logical-eof-in-parser-input) — the shipped
   EOF contract this adapter is written against.
 - [256-bit bigint BNF symbols](./bigint-symbols.md) — parked; would replace the
