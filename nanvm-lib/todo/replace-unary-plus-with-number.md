@@ -69,15 +69,21 @@ emits `Any::unary_plus(...)` when generating `nanvm-lib/tests/test/generated.rs`
   arithmetic/comparison operators, which legitimately reject `BigInt` mixing the same way
   JS does. The two coercions differ only in their `BigInt` arm; keep both, under names
   that say which is which.
-- In `fjs/nanvm/types.ts`, replace `'unaryPlus'` in the `Op` union with a coercion-named
-  member — `'numberCoercion'`, matching the existing `'stringCoercion'` precedent, not an
-  operator-shaped name.
+- In the corpus, the group's new spelling is the **canonical EDAG id `'Number'`**
+  (`op1Id` in [`fjs/edag/module.f.mjs`](../../fjs/edag/module.f.mjs)) — never a new
+  NaNVM-only name such as `numberCoercion`, which would introduce exactly the second
+  vocabulary [`reuse-edag-operators.md`](../../fjs/nanvm/todo/reuse-edag-operators.md)
+  exists to remove (that plan also renames `'stringCoercion'` to the canonical
+  `'String'`). Order-aware: if that task has landed, move the group from its
+  `NonEdagGroup` into an EDAG-backed `Group1` with `op: 'Number'` and delete the
+  `NonEdagGroup` type; if this task lands first, replace `'unaryPlus'` with `'Number'`
+  in the current `Op` union.
 - Update `fjs/nanvm/module.f.mjs`'s case group for the renamed op: the bigint case's
   `expected` changes from `throws` to the converted number, not an error. Its
   `numberCoercionCases(negate)` helper is shared with `unaryMinus` — keep that helper and
   `unaryMinus`'s group untouched; only the `unaryPlus` group and its bigint case move.
-- Update `fjs/nanvm/proof.f.mjs`'s `apply` switch: replace `case 'unaryPlus': { return +a }`
-  with `case 'numberCoercion': { return Number(a) }`.
+- Update `fjs/nanvm/proof.f.mjs`'s dispatch: replace the `unaryPlus` arm (`return +a`)
+  with a `'Number'` arm returning `Number(a)`.
 - Update `fjs/nanvm/rust/module.f.mjs`'s `call` switch to emit the new Rust method instead
   of `Any::unary_plus(...)`, and `fjs/nanvm/rust/proof.f.mjs`'s pinned expected-output
   strings to match.
@@ -92,10 +98,12 @@ emits `Any::unary_plus(...)` when generating `nanvm-lib/tests/test/generated.rs`
 
 - [ ] Remove `Any::unary_plus()`, its README row, and the `any/neg.rs` comment reference.
 - [ ] Implement the real `Number(x)` coercion, including a `BigInt<A> → f64` conversion.
-- [ ] `fjs/nanvm/types.ts`: replace `'unaryPlus'` with `'numberCoercion'` in `Op`.
-- [ ] `fjs/nanvm/module.f.mjs`: move the group under the new op name; bigint case expects
+- [ ] `fjs/nanvm/types.ts`: retire `'unaryPlus'` in favor of the canonical `'Number'`
+      (post-`reuse-edag-operators`: delete `NonEdagGroup`; before it: replace the
+      member in `Op`).
+- [ ] `fjs/nanvm/module.f.mjs`: move the group under `'Number'`; bigint case expects
       a converted number, not `throws`.
-- [ ] `fjs/nanvm/proof.f.mjs`: `case 'numberCoercion': { return Number(a) }`.
+- [ ] `fjs/nanvm/proof.f.mjs`: dispatch `'Number'` to `Number(a)`.
 - [ ] `fjs/nanvm/rust/module.f.mjs` and `fjs/nanvm/rust/proof.f.mjs`: update the emitted
       Rust call and its pinned expected snippets.
 - [ ] `npm run ci-update` to regenerate `nanvm-lib/tests/test/generated.rs`.
