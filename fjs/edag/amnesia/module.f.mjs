@@ -141,7 +141,9 @@ export const vm = (/**@type {Context}*/context) => {
          * the intersection of their tuples — `never`. Through `K` it stays the
          * one signature `(c, r: TagMap[K])` — see `TagMap` in `./types.ts`.
          *
-         * @type {<K extends ExpOp[0]>(e: TagMap[K] & readonly [K, ...readonly unknown[]]) => unknown}
+         * @type {<K extends ExpOp[0]>(
+         *  e: TagMap[K] & readonly [K, ...readonly unknown[]]
+         * ) => unknown}
          */
         e => map[e[0]](context, e)
     return (/**@type{Exp}*/e) => e instanceof Array
