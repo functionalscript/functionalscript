@@ -1,7 +1,7 @@
 /**
  * @import { Exp, Op0Id, Op1Id, Op2Id } from '../types.ts'
  * @import { RequiredMap } from '../../types/object/types.ts'
- * @import { Context, Map } from './types.ts'
+ * @import { Context, Map, ExpOp, Get } from './types.ts'
  */
 
 import { todo } from '../../asserts/module.f.mjs'
@@ -72,13 +72,32 @@ const map = {
     neg: o1(a => -a),
     own: o2((a, b) => Object.getOwnPropertyDescriptor(a, b)?.value),
     undefined: () => undefined,
-    '{}': 
+    '{}': (x, [, a]) => {
+        const f = vm(x)
+        const kv = a.flatMap(
+            /**@return {readonly readonly[unknown, unknown][]}*/
+            e => e[0] === ':' ? [[f(e[1]), f(e[2])]] : Object.entries(f(e[1])))
+        return Object.fromEntries(kv)
+    },
+    '|': o2((a, b) => a | b),
+    '||': o2lazy((a, b) => a || b()),
+    '~': o1(a => ~a),
 }
+
+const m =
+    (/**@type {Context}*/x) =>
+    /**
+     * @template {ExpOp[0]} K
+     * @param {K} k
+     * @param {Get<K>} e
+     */
+    (k, e) => {
+        const m = map[k](x, e)
+    }
 
 const vm = (/**@type {Context}*/context) => {
     const g = (/**@type{Exp}*/e) => {
         if (e instanceof Array) {
-            const k = e[0]
         }
         return todo()
     }
