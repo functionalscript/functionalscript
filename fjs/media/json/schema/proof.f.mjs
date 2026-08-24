@@ -80,12 +80,27 @@ export const proof = {
     record: eq(record(string), { type: 'object', additionalProperties: { type: 'string' } }),
     // `anyOf` members follow the canonical kind order, not the operand order
     or: eq(or(string, number), { anyOf: [{ type: 'number' }, { type: 'string' }] }),
-    tuple: eq(/** @type {const} */ ([number, string]), {
-        type: 'array',
-        prefixItems: [{ type: 'number' }, { type: 'string' }],
-        minItems: 2,
-        items: false,
-    }),
+    // a tuple is open, so `items` admits what follows the prefix; a position
+    // admitting `undefined` may be absent instead, which is `minItems`
+    tuple: {
+        allRequired: eq(/** @type {const} */ ([number, string]), {
+            type: 'array',
+            prefixItems: [{ type: 'number' }, { type: 'string' }],
+            minItems: 2,
+            items: {},
+        }),
+        withOptional: eq(/** @type {const} */ ([number, option(string)]), {
+            type: 'array',
+            prefixItems: [{ type: 'number' }, { type: 'string' }],
+            minItems: 1,
+            items: {},
+        }),
+        allOptional: eq(/** @type {const} */ ([option(number)]), {
+            type: 'array',
+            prefixItems: [{ type: 'number' }],
+            items: {},
+        }),
+    },
     struct: {
         allRequired: eq(/** @type {const} */ ({ x: number, y: string }), {
             type: 'object',
@@ -151,11 +166,13 @@ export const proof = {
             },
             required: ['id'],
         }),
+        // the top position is required — the array cannot end before the
+        // `number` after it — so its `undefined` is not stripped away
         topInsideTuple: eq(/** @type {const} */ ([unknown, number]), {
             type: 'array',
             prefixItems: [{}, { type: 'number' }],
             minItems: 2,
-            items: false,
+            items: {},
         }),
     },
     normalization: {
@@ -166,12 +183,17 @@ export const proof = {
         literalAbsorbed: eq(or(/** @type {const} */ (42), number), { type: 'number' }),
         duplicateLiteral: eq(or(/** @type {const} */ (1), /** @type {const} */ (1)), { const: 1 }),
         never: eq(never, { not: {} }),
-        emptyTuple: eq(/** @type {const} */ ([]), { type: 'array', items: false }),
-        // `readonly [number] ⊂ readonly number[]` — the tuple pattern is dropped
-        coverageCollapse: eq(or(/** @type {const} */ ([number]), array(number)), {
-            type: 'array',
-            items: { type: 'number' },
-        }),
+        // an open tuple declaring nothing is the whole array kind
+        emptyTuple: eq(/** @type {const} */ ([]), { type: 'array' }),
+        // a longer tuple pattern is included in a shorter one, both open
+        coverageCollapse: eq(
+            or(/** @type {const} */ ([number, number]), /** @type {const} */ ([number])),
+            {
+                type: 'array',
+                prefixItems: [{ type: 'number' }],
+                minItems: 1,
+                items: {},
+            }),
         commutative: () => {
             const a = serialize(toJsonSchema(or(string, number)))
             const b = serialize(toJsonSchema(or(number, string)))
@@ -220,7 +242,7 @@ export const proof = {
                 type: 'array',
                 prefixItems: [personSchema, personSchema],
                 minItems: 2,
-                items: false,
+                items: {},
             })()
         },
     },

@@ -147,10 +147,20 @@ const unitToTs = bits => [
  * tuple-with-rest combines them with a rest element:
  * `readonly[A,...readonly(R)[]]`.
  *
+ * A position the array may simply end before prints optional — the trailing
+ * run whose sets admit `undefined`, which is exactly what the array may stop
+ * at, arrays being contiguous. It mirrors the optional key `objectSetToTs`
+ * prints, and keeps the union rather than stripping `undefined` from it, as
+ * that one does.
+ *
  * @type {(ctx: _Ctx) => (p: ArraySet) => string}
  */
 const arraySetToTs = ctx => p => {
-    const items = p.prefix.map(nodeToTs(ctx))
+    const required = p.prefix.findLastIndex(n => !admitsUndefined(ctx)(n)) + 1
+    const items = p.prefix.map((n, i) => {
+        const ts = nodeToTs(ctx)(n)
+        return i < required ? ts : `(${ts})?`
+    })
     const { rest } = p
     if (rest === undefined) { return ctx.ts.tuple(items) }
     const restTs = ctx.ts.array(nodeToTs(ctx)(rest))
@@ -257,9 +267,14 @@ export const dataToTs = mut => ([rules, entry]) => {
  * definitions the expression references; a schema with no reference cycles
  * needs none.
  *
- * **Note:** the `unknown` schema produces the string `'unknown'`
- * (TypeScript's built-in), whereas `Ts<>` maps it to `DjsUnknown` from
- * `djs/module.f.ts`.
+ * **Two notes where this and `Ts<>` differ.** The `unknown` schema produces
+ * the string `'unknown'` (TypeScript's built-in), whereas `Ts<>` maps it to
+ * `DjsUnknown` from `djs/module.f.ts`. And a tuple prints with the rest
+ * element that says it is open (`readonly[42,...readonly(unknown)[]]`),
+ * whereas `Ts<>` renders the closed approximation — that is `TupleTs`'s
+ * limitation, not the model's (see `./types.ts`), and printing a concrete
+ * pattern is not subject to it. An exact-length pattern, which no tuple
+ * schema produces today, is what prints without the rest element.
  *
  * @example
  * ```js
@@ -270,7 +285,7 @@ export const dataToTs = mut => ([rules, entry]) => {
  * toTs(or(string, number))         // 'number|string'
  * toTs(42)                         // '42'
  * toTs('hello')                    // '"hello"'
- * toTs([boolean, number])          // 'readonly[boolean,number]'
+ * toTs([boolean, number])          // 'readonly[boolean,number,...readonly(unknown)[]]'
  * toTs({ x: string })              // '{readonly"x":string}'
  *
  * const list = () => ['array', list]
