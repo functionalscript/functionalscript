@@ -57,7 +57,7 @@ Prefer 1 unless a second consumer wants spans for non-error tokens, in which
 case 2 stops being speculative.
 
 **The parser layer is that second consumer, in waiting.** The BNF parser in
-[new-parser](../../../bnf/todo/new-parser.md) matches rules over whole tokens, so
+[the DJS parser](../../parser/README.md) matches rules over whole tokens, so
 every rule it reduces has a first and a last token and therefore a natural span —
 `export default <value>` is a span, not a point. That is an argument for option 2
 whenever a *formatter* wants one.
@@ -81,7 +81,7 @@ does not straddle files.
 
 ### Related
 
-- [../../../bnf/todo/new-parser.md](../../../bnf/todo/new-parser.md) — proposes
+- [the DJS parser](../../parser/README.md) — proposes
   the same widening one layer up, for `ParseError.metadata`. The two should pick
   the same range type rather than inventing one each; whichever lands first owns
   it.

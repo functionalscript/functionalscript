@@ -179,7 +179,7 @@ explicit named override list for the rows where token-stream acceptance differs.
   — orthogonal assertion cleanup.
 - `fjs/bnf/ll1/proof.f.mjs` / `fjs/bnf/descent/proof.f.mjs` `longInput` — the
   separate long-input regression corpus both matchers already carry.
-- [new-parser](./new-parser.md) — token-symbol alphabet needs its own recognizer
+- [the DJS parser](../../djs/parser/README.md) — token-symbol alphabet needs its own recognizer
   adapter, but can share `Case` / `assertRecognizes`.
 - `fjs/bnf/descent/types.ts` `DescentFailure` — failure diagnostics compose
   through `Recognition.diagnostic`; do not collapse them to boolean.
