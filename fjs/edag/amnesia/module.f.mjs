@@ -43,6 +43,20 @@ const o1 =
     /**@type {_Func1}*/
     (c, [, a]) => o(vm(c)(a))
 
+/**
+ * @typedef {|
+ *  readonly[any] |
+ *  { readonly obj: any, readonly prop: any }
+ * } Property
+ */
+
+/**
+ * @typedef {undefined | Property} Hcf
+ */
+
+/**@type {(hcf: Hcf) => Property} */
+const property = (hcf) => hcf === undefined ? [undefined] : hcf
+
 /**@type {Map}*/
 const map = {
     '!': o1(a => !a),
@@ -63,13 +77,20 @@ const map = {
             // the callee's `['args']` would be `[[a, b]]`.
             return ib(...args)
         }
-        const [_, p1] = c.reduce(
-            ([p, [o, c3]], lambda) => {
+        /**@type {Hcf} */
+        const hcf = c.reduce(
+            (hcf, lambda) => todo(),
+            [ib])
+        /**@type {Hcf}*/
+        const p = property(hcf)
+        if (p instanceof Array) {
+            /**@type {any}*/
+            const args = i(d)
+            return p[0](...args)
+        }
+        const { obj, prop } = p
+        return obj[prop](i(d))
 
-                return [todo(), lambda]
-            },
-            [undefined, ib])
-        todo()
     },
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
