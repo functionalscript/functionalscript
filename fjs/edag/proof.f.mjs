@@ -509,6 +509,11 @@ export const proof = {
         desugaredOptional: () => {
             assertEq(desugarOptionalAt(null), undefined)
             assertEq(desugarOptionalAt(undefined), undefined)
+            // Identity, not just equality: a receiver-bound function (e.g.
+            // `o.at.bind(o)`) is `!==` to `[42].at` even though it behaves
+            // the same on `(0)`. So this line and `throw.desugaredOptional`
+            // both redden under that mutation — the identity check here,
+            // the call there.
             assertEq(desugarOptionalAt([42]), [42].at)
         },
         // The call counterpart of `throw.groupedOptional` — `(u?.at)(0)`,
