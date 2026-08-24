@@ -25,10 +25,10 @@ export const images = /** @type {const} */({
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = /** @type {const} */ '0.45.0'
+export const functionalscript = /** @type {const} */ '0.46.1'
 
 // https://bun.sh/
-export const bun = '1.3.14'
+export const bun = '1.4.0'
 
 // https://deno.com/
 export const deno = '2.9.5'
@@ -43,7 +43,7 @@ export const deno = '2.9.5'
 export const node = /** @type {const} */({
     default: '26.7.0',
     node22: '22.23.2',
-    node24: '24.18.1',
+    node24: '24.19.0',
 })
 
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
@@ -53,14 +53,14 @@ export const node = /** @type {const} */({
 // https://channels.nixos.org/nixos-26.05/git-revision
 export const nixpkgs = /** @type {const} */({
     ref: 'nixos-26.05',
-    commit: '02e08985a27c65ffd33d434eeb2e660a2e4dc84d',
+    commit: 'a9e6d84f9c2f9012f5fe7d964a7851352300e61a',
 })
 
 // https://github.com/bytecodealliance/wasmtime/releases
-export const wasmtime = '47.0.3'
+export const wasmtime = '48.0.0'
 
 // https://github.com/wasmerio/wasmer/releases
-export const wasmer = '7.2.1'
+export const wasmer = '7.3.0'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
@@ -85,5 +85,5 @@ export const actions = /** @type {const} */({
     // Enables the `nix-command` and `flakes` experimental features by default.
     'cachix/install-nix-action': 'v31.11.1',
     // https://rust-lang.org/ - value is Rust version, not action version
-    'dtolnay/rust-toolchain': '1.97.1',
+    'dtolnay/rust-toolchain': '1.98.0',
 })
