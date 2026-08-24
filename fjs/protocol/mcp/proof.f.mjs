@@ -226,7 +226,7 @@ const initNotif = { jsonrpc: '2.0', method: 'notifications/initialized' }
 
 /** A memory handler that answers as a runner with no such operation. */
 const memNotImplemented = () => (/** @type {_MemoryState} */ state) =>
-    /** @type {const} */ ([state, error(/** @type {const} */ (['notImplemented', 'memRead']))])
+    /** @type {const} */ ([state, error(['notImplemented', 'memRead'])])
 
 // Runs one step against a memory mock with `overrides` applied, from a session
 // slot created before them so the slot itself always exists.

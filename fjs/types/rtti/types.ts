@@ -131,7 +131,7 @@ export type Info1<K extends Tag1, T extends Type> = K extends Tag1 ? readonly[K,
 /** The type of a unary thunk for `Tag1` with inner type `T`. */
 export type Type1<K extends Tag1, T extends Type> = () => Info1<K, T>
 
-export type _MakeType1<K extends Tag1> = <T extends Type>(t: T) => Type1<K, T>
+export type _MakeType1<K extends Tag1> = <const T extends Type>(t: T) => Type1<K, T>
 
 /** Schema type for a readonly array with element type `T`. */
 export type Array<T extends Type> = Type1<'array', T>

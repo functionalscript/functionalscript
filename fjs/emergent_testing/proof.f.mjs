@@ -328,7 +328,7 @@ export const reporterWriteFailure = () => {
         },
         sandbox: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) =>
             [s, ok({ result: ok(f()), duration: 0 })],
-        write: (_stream, _data) => s => [s, error(/** @type {const} */(['notImplemented', 'write']))],
+        write: (_stream, _data) => s => [s, error(['notImplemented', 'write'])],
     }))
     const [, code] = runner(undefined)(
         /** @type {Effect<_FailOps, 0, number>} */(main(options('.'))))
@@ -425,7 +425,7 @@ const registerBodyPanicsOnUndispatchableEffect = () => {
             return [st, ok(rs)]
         },
         // The runner has no `await`, which is what the body's channel carries.
-        await: _p => s => [s, error(/** @type {const} */ (['notImplemented', 'await']))],
+        await: _p => s => [s, error(['notImplemented', 'await'])],
     }))
     const proof = /** @type {const} */ ({ a: () => Promise.resolve(undefined) })
     runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))

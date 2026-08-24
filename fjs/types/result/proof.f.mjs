@@ -1,5 +1,7 @@
 /**
- * @import { Result } from './types.ts'
+ * @import { Error, Ok, Result } from './types.ts'
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../ts/types.ts'
  */
 
 import { error, ok, unwrap, invert, mapOk, okThen } from './module.f.mjs'
@@ -16,6 +18,19 @@ const example = () => {
     assertEq(kind, 'error')
     // `v` is inferred as `string` here
     assertEq(v, 'Something went wrong', 'error')
+}
+
+// `ok` and `error` take `const` type parameters, so a literal argument keeps
+// its literal type without an `@type {const}` cast at the call site — a tagged
+// error stays a tuple of literals instead of widening to `string[]`. These two
+// assertions are what fail if a modifier is dropped.
+const constInference = () => {
+    const o = ok([1, 2])
+    /** @typedef {Assert<Equal<typeof o, Ok<readonly [1, 2]>>>} _ConstOk */
+    const e = error(['notImplemented', 'read'])
+    /** @typedef {Assert<Equal<typeof e, Error<readonly ['notImplemented', 'read']>>>} _ConstError */
+    assertEq(o[1][1], 2)
+    assertEq(e[1][0], 'notImplemented')
 }
 
 const invertTest = () => {
@@ -52,6 +67,7 @@ const okThenTest = () => {
 
 export const proof = {
     example,
+    constInference,
     invertTest,
     mapOkTest,
     okThenTest,

@@ -79,7 +79,7 @@ export const proof = {
     // `eofImmediately` above pins it as the clean shutdown it should be.
     readFailurePropagates: () => {
         const runner = mockRun(/** @type {Parameters<typeof mockRun<Read | Write, undefined>>[0]} */ ({
-            read: () => (/** @type {undefined} */ s) => [s, error(/** @type {const} */ (['notImplemented', 'read']))],
+            read: () => (/** @type {undefined} */ s) => [s, error(['notImplemented', 'read'])],
             write: () => (/** @type {undefined} */ s) => [s, ok(undefined)],
         }))
         const [, result] = runner(undefined)(stdioTransport(echoStep))
@@ -95,7 +95,7 @@ export const proof = {
         const runner = mockRun(/** @type {Parameters<typeof mockRun<Read | Write, readonly number[]>>[0]} */ ({
             read: () => (/** @type {readonly number[]} */ s) =>
                 s.length === 0
-                    ? [s, error(/** @type {const} */ (['notImplemented', 'read']))]
+                    ? [s, error(['notImplemented', 'read'])]
                     : [s.slice(1), ok(s[0])],
             write: () => (/** @type {readonly number[]} */ s) => [s, ok(undefined)],
         }))

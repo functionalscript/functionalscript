@@ -211,7 +211,7 @@ const validateVisitor = /** @type {any} */ ({
  * validate({ a: number, b: option(string) })({ a: 1 })  // ['ok', { a: 1 }]
  * ```
  *
- * @type {<T extends Type>(rtti: T) => Validate<T>}
+ * @type {<const T extends Type>(rtti: T) => Validate<T>}
  */
 export const validate = rtti =>
     (visit(validateVisitor)(rtti))
