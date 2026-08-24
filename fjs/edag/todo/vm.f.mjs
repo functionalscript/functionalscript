@@ -32,8 +32,18 @@ const staticMap = {
     '>>>': (a, b) => a >>> b,
     '?.': (a, b, c) => todo(),
     '?.()': (a, b, c, d) => todo(),
-    '??': (a, b) => a ?? b
-    ''
+    '??': (a, b) => todo(),
+    Number,
+    String,
+    '[]': a => todo(),
+    '^': (a, b) => a ^ b,
+    neg: a => -1,
+    own: (a, b) => Object.getOwnPropertyDescriptor(a, b)?.value,
+    undefined: () => undefined,
+    '{}': a => todo(),
+    '|': (a, b) => a | b,
+    '||': (a, b) => a || b,
+    '~': a => ~a,
 }
 
 const vm = (/**@type{unknown}*/frame) => (/**@type{readonly unknown[]}*/args) => {
