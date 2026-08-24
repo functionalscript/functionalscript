@@ -12,14 +12,28 @@ const staticMap = {
     '!==': (a, b) => a !== b,
     '%': (a, b) => a % b,
     '&': (a, b) => a & b,
-    '&&': (a, b) => a && b,
-    '()': (a, b) => a(...b),
+    '&&': (a, b) => todo(), // a ?? b
+    '()': (a, b, c) => todo(),
     '*': (a, b) => a * b,
     '**': (a, b) => a ** b,
     '+': (a, b) => a + b,
     ',': (a) => a[a.length - 1],
     '-': (a, b) => a - b,
-    '.':
+    '.': (a, b) => a[b],
+    '/': (a, b) => a / b,
+    '<': (a, b) => a < b,
+    '<<': (a, b) => a << b,
+    '<=': (a, b) => a <= b,
+    '===': (a, b) => a === b,
+    '=>': (frame, exp) => (/**@type{readonly unknown[]}*/args) => vm(frame)(args)(exp),
+    '>': (a, b) => a > b,
+    '>=': (a, b) => a >= b,
+    '>>': (a, b) => a >> b,
+    '>>>': (a, b) => a >>> b,
+    '?.': (a, b, c) => todo(),
+    '?.()': (a, b, c, d) => todo(),
+    '??': (a, b) => a ?? b
+    ''
 }
 
 const vm = (/**@type{unknown}*/frame) => (/**@type{readonly unknown[]}*/args) => {
