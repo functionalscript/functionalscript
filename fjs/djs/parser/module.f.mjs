@@ -22,7 +22,7 @@ import { error, ok } from '../../types/result/module.f.mjs'
 import { fold, next, toArray, length, concat } from '../../types/list/module.f.mjs'
 import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
 import { fromMap } from '../../types/object/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { eof, oneEncode, option, rangeDecode, repeat0Plus, unicodeRange } from '../../bnf/module.f.mjs'
 import { encoding } from '../../bnf/token_symbol/module.f.mjs'
 import { toData } from '../../bnf/data/module.f.mjs'
@@ -950,10 +950,13 @@ const recognizeModule = tokenList => {
     // `idx` on the parser layer counts whole tokens, so it locates a file
     // position only through the token it points at — or through the metadata
     // kept aside for physical end, where there is no token to point at.
-    const at = failure?.idx ?? tokens.length
+    //
+    // `failure` is present exactly when `success` is false, so asserting is
+    // right where a `??` fallback would add a branch nothing can reach.
+    const { idx } = assertNotNullish(failure)
     return error({
         message: 'unexpected token',
-        metadata: at < tokens.length ? tokens[at].metadata : eofMetadata,
+        metadata: idx < tokens.length ? tokens[idx].metadata : eofMetadata,
     })
 }
 
@@ -1062,6 +1065,14 @@ export const proof = {
         },
         missing: () => {
             const [tag, value] = splitEof([proofComma(1)])
+            assert(tag === 'error', tag)
+            assertEq(value.metadata, null)
+        },
+        // An empty stream is also missing its `eof`, and has not even a last
+        // token to blame it on. The tokenizer never produces one — an empty
+        // source still yields `eof` — so only a hand-built list reaches here.
+        empty: () => {
+            const [tag, value] = splitEof(null)
             assert(tag === 'error', tag)
             assertEq(value.metadata, null)
         },
