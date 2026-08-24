@@ -593,6 +593,13 @@ export const proof = {
             assertEq(vx([])[0], 'error')
             assertEq(validate(toData(array(neverRtti)))([])[0], 'ok')
             assertEq(validate(toData(array(neverRtti)))([1])[0], 'error')
+            // an enumerable non-index key is an entry the prefix has not
+            // spoken for, like an index past it: the `rest` answers it, and
+            // an exact-length pattern, having no `rest`, rejects it
+            assertEq(validate(toData(array(number)))(Object.assign([1], { foo: 2 }))[0], 'ok')
+            assertEq(validate(toData(array(number)))(Object.assign([1], { foo: 'x' }))[0], 'error')
+            assertEq(validate(toData(array(neverRtti)))(Object.assign([], { foo: 'x' }))[0], 'error')
+            assertEq(validate(exactlyOneNumber)(Object.assign([1], { foo: 1 }))[0], 'error')
             /** @type {Data} */
             const onePlus = [{}, { array: [{ prefix: [{ number: true }], rest: { string: true } }] }]
             const vp = validate(onePlus)

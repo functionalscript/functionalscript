@@ -1051,9 +1051,6 @@ const patternsValidate = (k, item, value) => {
 const arraySetValidate = rules => p => value => {
     const pn = p.prefix.length
     const { rest } = p
-    if (rest === undefined && value.length > pn) {
-        return verror('unexpected value')
-    }
     const declared = eachEntry(
         Object.entries(p.prefix),
         (k, n) => nodeValidate(rules)(n)(value[Number(k)]),
@@ -1061,14 +1058,17 @@ const arraySetValidate = rules => p => value => {
         noAccumulate,
     )
     if (declared[0] === 'error') { return declared }
-    if (rest === undefined) { return ok(value) }
-    const extra = eachEntry(
-        Object.entries(value).filter(([k]) => Number(k) >= pn),
-        (_k, v) => nodeValidate(rules)(rest)(v),
-        undefined,
-        noAccumulate,
-    )
-    return extra[0] === 'error' ? extra : ok(value)
+    // What the prefix does not declare: an index past it, and any enumerable
+    // non-index key, whose `Number` is `NaN` and so is never below `pn`. Both
+    // are entries the pattern has not spoken for, and the other readers walk
+    // the value's entries rather than its length, so both have to be answered
+    // here the same way.
+    const extra = Object.entries(value).filter(([k]) => !(Number(k) < pn))
+    if (rest === undefined) {
+        return extra.length === 0 ? ok(value) : verror('unexpected value')
+    }
+    const r = eachEntry(extra, (_k, v) => nodeValidate(rules)(rest)(v), undefined, noAccumulate)
+    return r[0] === 'error' ? r : ok(value)
 }
 
 /** @type {(rules: RuleSet) => (p: ObjectSet) => (value: StringMap<Unknown>) => ResultE} */
