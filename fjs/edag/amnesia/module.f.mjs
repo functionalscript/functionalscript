@@ -102,27 +102,24 @@ const map = {
                     return undefined
                 }
                 const [o, e] = lambda
+                /** @type {() => Hcf} */
+                const lazyCall = () => [call(hcf, () => i(e))]
+                const lazyDot = () => ({ obj: value(hcf), prop: i(e) })
+                /** @type {(f: () => Hcf) => Hcf} */
+                const option = (f) => {
+                    const obj = value(hcf)
+                    switch (obj) {
+                        case undefined:
+                        case null:
+                            return undefined
+                    }
+                    return f()
+                }
                 switch (o) {
-                    case '|()': return [call(hcf, () => i(e))]
-                    case '|.': return { obj: value(hcf), prop: i(e) }
-                    case '|?.': {
-                        const obj = value(hcf)
-                        switch (obj) {
-                            case undefined:
-                            case null:
-                                return undefined
-                        }
-                        return { obj, prop: i(e) }
-                    }
-                    case '|?.()': {
-                        const obj = value(hcf)
-                        switch (obj) {
-                            case undefined:
-                            case null:
-                                return undefined
-                        }
-                        return [call(hcf, () => i(e))]
-                    }
+                    case '|()': return lazyCall()
+                    case '|.': return lazyDot()
+                    case '|?.': return option(lazyDot)
+                    case '|?.()': return option(lazyCall)
                 }
             },
             [ib])
