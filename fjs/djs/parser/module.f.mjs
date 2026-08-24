@@ -1153,7 +1153,12 @@ const foldModule = root => {
         state = addValue(state)(statement)
     }
     state = addValue(state)(exported)
-    return state.error !== null ? error(state.error) : ok([state.modules, state.consts])
+    if (state.error !== null) { return error(state.error) }
+    // annotated rather than inferred: a bare `[modules, consts]` widens to an
+    // array, because `readonly string[]` is itself assignable to `AstBody`.
+    /** @type {AstModule} */
+    const astModule = [state.modules, state.consts]
+    return ok(astModule)
 }
 
 /**
