@@ -8,7 +8,7 @@
 Nothing needs it. The only consumer was
 [utf8-token-symbols](./utf8-token-symbols.md), which needed room to derive a
 token symbol from the name's own bytes; that is on hold too, and
-[new-parser](./new-parser.md) now uses the shipped
+[the DJS parser](../../djs/parser/README.md) now uses the shipped
 [`token_symbol`](../token_symbol/) registry instead.
 
 The widening was never a capacity problem — `token_symbol` holds 15,663,103

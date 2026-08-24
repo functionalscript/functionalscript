@@ -15,7 +15,7 @@ exact trade and accepted the registry, on a condition that still holds:
 > never serialized. Should they ever be written to a file, order independence
 > would matter and the hash strategy is the way back.
 
-[new-parser](./new-parser.md), the consumer this was written for, builds its
+[the DJS parser](../../djs/parser/README.md), the consumer this was written for, builds its
 encoding at construction, uses it for one parse, and serializes no symbol. The
 length limit that motivated deriving symbols from bytes is also not a live
 problem: a registered name has no length limit, so `instanceof` is already one
@@ -150,7 +150,7 @@ introduce a special EOF representation in BNF parsers.
 
 ### Dependent parser designs
 
-[new-parser](./new-parser.md) consumes `token_symbol.encoding()` deliberately and
+[the DJS parser](../../djs/parser/README.md) consumes `token_symbol.encoding()` deliberately and
 is **not** blocked by this task; it defines its complete DJS token-name alphabet
 up front and maps every name through that one encoding.
 
@@ -192,7 +192,7 @@ part of reviving this — not a requirement on it in the meantime.
       so the full `0 .. 2^256 - 1` domain is available and EOF is excluded
       automatically.
 - [ ] Migrate the token-name alphabets of dependent parser designs, including
-      [new-parser](./new-parser.md), onto this fallible `Symbol` mapping as part
+      [the DJS parser](../../djs/parser/README.md), onto this fallible `Symbol` mapping as part
       of reviving this task. Do not block them on it in the meantime.
 - [ ] Replace callers of `fjs/bnf/token_symbol` with the UTF-8 mapping and handle
       the nullable result explicitly.
@@ -214,7 +214,7 @@ part of reviving this — not a requirement on it in the meantime.
   ordinary-symbol space used by this mapping; BNF EOF remains `-1`.
 - [`fjs/bnf/README.md`](../README.md#terminals-and-eof) — EOF is outside the
   physical symbol domain.
-- [New parser](./new-parser.md) — uses `token_symbol.encoding()` today; the
+- [The DJS parser](../../djs/parser/README.md) — uses `token_symbol.encoding()` today; the
   caller this task would migrate, not a task waiting on it.
 - [Layered parser](./layered-parser.md) — tokenizer output feeds the next BNF
   parser as one symbol per token plus metadata.
