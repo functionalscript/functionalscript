@@ -1,9 +1,9 @@
 /**
  * Execution semantics of `vm` — one section per operand shape, since that is
  * how `map`'s handlers are built (`o1`/`o2`/`o2lazy`), plus the nodes that
- * evaluate their operands themselves (`,`, `[]`, `{}`, and the two that walk
- * a `lambdas`, `()` and `?.`) and the one that is still `todo`, `?.()`. This
- * is the executing counterpart of `../proof.f.mjs`, which pins what the
+ * evaluate their operands themselves (`,`, `[]`, `{}`, and the three that
+ * walk a `lambdas` — `()`, `?.`, and `?.()`). Nothing is `todo` any more.
+ * This is the executing counterpart of `../proof.f.mjs`, which pins what the
  * schema *accepts*; nothing here validates.
  *
  * @import { Exp } from '../types.ts'
@@ -425,6 +425,50 @@ export const proof = {
         eq(['?.', ['{}', [[':', 'b', ['undefined']]]], 'b',
             [['|?.', ['Number', boom]], ['|.', ['Number', boom]]]], undefined)
     },
+    // `?.()` — the last node with a `lambdas`, and the only one with two.
+    // The first reaches the callee and may leave the receiver to call it
+    // with, the node's own optional call is the step between, and the second
+    // is the rest of the region, run on the call's result.
+    optionalCall: () => {
+        // f?.(...c) — an empty first `lambdas`, so no receiver.
+        eq(['?.()', identity, [], ['[]', [7]], []], 7)
+        // ... and the args operand is one node evaluating to the whole
+        // argument array, as everywhere else a call takes one.
+        same(['?.()', argsNode, [], ['[]', [5, 6]], []], [5, 6])
+        // a.b?.(...c) — the first `lambdas` ends in a property step, so the
+        // call keeps its receiver. `[42].at?.(0)` is `42` only if `at` is
+        // called *on* the array; `chainsJs.receiver` pins the same line in
+        // JavaScript.
+        eq(['?.()', ['[]', [42]], [['|.', 'at']], ['[]', [0]], []], 42)
+        // (a?.b)?.(...c) — the same with the property step optional, the
+        // spelling whose parentheses moved the region boundary.
+        eq(['?.()', ['[]', [42]], [['|?.', 'at']], ['[]', [0]], []], 42)
+        eq(['?.()', methods, [['|.', 'id']], ['[]', [7]], []], 7)
+        // (f?.(...c)).d(...e) — the second `lambdas` runs on the call's
+        // result and makes its own receiver for the call step in it.
+        eq(['?.()', constMethods, [], ['[]', []],
+            [['|.', 'id'], ['|()', ['[]', [7]]]]], 7)
+    },
+    // The optional call's own short-circuit, and the two others that reach
+    // it: unlike `()`, a nullish callee here is the node's value, so — as
+    // with `?.` — every skip is observable by returning rather than throwing.
+    optionalCallRegion: () => {
+        // f?.(...c) with a nullish `f`: `undefined`, and the arguments are
+        // not evaluated. Both ways of being nullish.
+        eq(['?.()', ['undefined'], [], boom, []], undefined)
+        eq(['?.()', null, [], boom, []], undefined)
+        // a.b?.(...c) where `a.b` is absent — the callee the first
+        // `lambdas` arrives at is what gets checked, not `a`.
+        eq(['?.()', methods, [['|.', 'absent']], boom, []], undefined)
+        // The second `lambdas` is skipped along with the call.
+        eq(['?.()', ['undefined'], [], boom, [['|.', ['Number', boom]]]],
+            undefined)
+        // (u?.k)?.(...c).m — a short-circuit inside the *first* `lambdas`
+        // reaches the same end, skipping the call, its arguments, and the
+        // second `lambdas` with it.
+        eq(['?.()', ['undefined'], [['|?.', ['Number', boom]]], boom,
+            [['|.', ['Number', boom]]]], undefined)
+    },
     // The frame is the only channel outward: a body's leaves are constants,
     // `['args']` and `['frame']`, so a captured value has to arrive as data.
     closure: () => {
@@ -464,14 +508,17 @@ export const proof = {
         eq(['()', ['()', add, [], ['[]', [2]]], [], ['[]', [3]]], 5)
     },
     throw: {
-        // Still `todo`: `?.()`, the last node with a `lambdas`. It owns two
-        // of them — one reaching the callee, one continuing the region
-        // after the optional call — so it needs more than the single walk
-        // `?.` is.
-        optionalCall: () => ev(['?.()', ['undefined'], [], ['undefined'], []]),
         // The index of a `?.` whose input is *not* nullish is evaluated, the
         // mirror of `optionalRegion`'s skipped operands.
         evaluatedIndex: () => ev(['?.', ['{}', []], ['Number', boom], []]),
+        // ... and so are an optional call's arguments once its callee turns
+        // out to be there.
+        evaluatedArgument: () => ev(['?.()', identity, [], boom, []]),
+        // `?.()` guards against a *nullish* callee, not against a
+        // non-callable one: `1?.()` is the host `TypeError`, exactly as
+        // `throw.callNonFunction` is for `()`.
+        optionalCallOnNonFunction: () =>
+            ev(['?.()', ['{}', [[':', 'a', 1]]], [['|.', 'a']], ['[]', []], []]),
         // An array spread iterates its operand, so a non-iterable one throws
         // where the object form would have contributed nothing.
         arraySpreadOfNumber: () => ev(['[]', [['...', 1]]]),

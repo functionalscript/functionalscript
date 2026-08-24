@@ -97,12 +97,11 @@ prototype chain to delegate to in the first place.
 
 ## Not implemented
 
-`?.()` is `todo`: it owns two `lambdas` — one reaching the callee, one
-continuing the optional region after the call — so it needs more than the
-single walk the other two are. `()` and `?.` are done, and between them they
-cover both readings of a chain: `()` ends its region at the parentheses, so a
-nullish link runs into a call of `undefined`, while `?.` owns the region and
-a nullish link makes the node itself `undefined`
+Every node in the schema now evaluates. The three that own a `lambdas` share
+one walk of it, and differ only in what they do with a region that
+short-circuited: `()` ends its region at the parentheses, so the `undefined`
+is what gets called and the node throws, while `?.` and `?.()` own their
+regions and the `undefined` is the node's value
 (["Chains"](../README.md#chains)). `['self']` is not in the schema yet, so a
 function reaches itself only by being passed as an argument.
 

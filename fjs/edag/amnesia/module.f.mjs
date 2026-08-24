@@ -13,7 +13,7 @@
  * @import { Context, Map, ExpOp, TagMap } from './types.ts'
  */
 
-import { assert, todo } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
 
 const o2lazy =
     (/**@type {(a: any, b: () => any) => unknown}*/o) =>
@@ -179,7 +179,17 @@ const map = {
         const i = vm(x)
         return value(property(applyLambda(i, [['|?.', index], ...lambdas], [i(a)])))
     },
-    '?.()': todo,
+    // The same shape as `?.`, with one more `lambdas`: the first reaches the
+    // callee and may leave the receiver to call it with, the node's own
+    // optional call is the step between, and the second is the rest of the
+    // region, run on the call's result. `|?.()` is already that middle step
+    // — it checks the callee before evaluating the arguments — so the whole
+    // node is one walk again.
+    '?.()': (x, [, a, lambdas, args, tail]) => {
+        const i = vm(x)
+        return value(property(applyLambda(
+            i, [...lambdas, ['|?.()', args], ...tail], [i(a)])))
+    },
     '??': o2lazy((a, b) => a ?? b()),
     Number: o1(Number),
     String: o1(String),
