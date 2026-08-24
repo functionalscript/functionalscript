@@ -54,8 +54,26 @@ const o1 =
  * @typedef {undefined | Property} Hcf
  */
 
-/**@type {(hcf: Hcf) => Property} */
-const property = (hcf) => hcf === undefined ? [undefined] : hcf
+/** @type {(hcf: Hcf) => Property} */
+const property = hcf => hcf === undefined ? [undefined] : hcf
+
+/** @type {(p: Property, f: () => any) => unknown} */
+const call = (p, f) => {
+    if (p instanceof Array) {
+        return p[0](...f())
+    }
+    const { obj, prop } = p
+    return obj[prop](...f())
+}
+
+/** @type {(p: Property) => unknown} */
+const value = p => {
+    if (p instanceof Array) {
+        return p[0]
+    }
+    const { obj, prop } = p
+    return obj[prop]
+}
 
 /**@type {Map}*/
 const map = {
@@ -79,17 +97,36 @@ const map = {
         }
         /**@type {Hcf} */
         const hcf = c.reduce(
-            (hcf, lambda) => todo(),
+            (/**@type {Hcf}*/hcf, lambda) => {
+                if (hcf === undefined) {
+                    return undefined
+                }
+                const [o, e] = lambda
+                switch (o) {
+                    case '|()': return [call(hcf, () => i(e))]
+                    case '|.': return { obj: value(hcf), prop: i(e) }
+                    case '|?.': {
+                        const obj = value(hcf)
+                        switch (obj) {
+                            case undefined:
+                            case null:
+                                return undefined
+                        }
+                        return { obj, prop: i(e) }
+                    }
+                    case '|?.()': {
+                        const obj = value(hcf)
+                        switch (obj) {
+                            case undefined:
+                            case null:
+                                return undefined
+                        }
+                        return [call(hcf, () => i(e))]
+                    }
+                }
+            },
             [ib])
-        const p = property(hcf)
-        if (p instanceof Array) {
-            /**@type {any}*/
-            const args = i(d)
-            return p[0](...args)
-        }
-        const { obj, prop } = p
-        return obj[prop](i(d))
-
+        return call(property(hcf), () => i(d))
     },
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
