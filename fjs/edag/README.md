@@ -161,9 +161,12 @@ so `undefined` is called. V8 does throw; JavaScriptCore (hence `bun test`)
 carries the short-circuit through the parentheses and evaluates to
 `undefined` instead. The EDAG follows the specification — the throwing
 reading is what `['()', u, [['|?.', 'b']], d]` denotes, and an executor must
-produce it whatever its host engine does. `(u?.b).c`, the property
-counterpart, throws everywhere and is what `chainsJs` pins for this
-boundary.
+produce it whatever its host engine does — as
+[amnesia](amnesia/module.f.mjs) now does, where
+`chain.throw.optionalPropertyOnUndefined` in
+[amnesia/proof.f.mjs](amnesia/proof.f.mjs) evaluates that node and pins the
+throw on every runner. `(u?.b).c`, the property counterpart, throws everywhere
+and is what `chainsJs` pins for this boundary.
 
 ## Caveats
 
