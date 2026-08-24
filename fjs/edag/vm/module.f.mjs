@@ -56,7 +56,11 @@ const map = {
     '<<': o2((a, b) => a << b),
     '<=': o2((a, b) => a <= b),
     '===': o2((a, b) => a === b),
-    '=>': todo,
+    '=>': (c, [, frameExp, body]) => {
+        const frame = vm(c)(frameExp)
+        /**@type {(...arg: readonly unknown[]) => unknown}*/
+        return (...args) =>vm({ frame, args })(body)
+    },
     '>': o2((a, b) => a > b),
     '>=': o2((a, b) => a >= b),
     '>>': o2((a, b) => a >> b),
