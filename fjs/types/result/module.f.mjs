@@ -27,7 +27,7 @@
 /**
  * Creates a successful result.
  *
- * @template T
+ * @template const T
  * @param {T} value - The value to wrap.
  * @returns {Ok<T>} A successful result containing the value.
  */
@@ -36,7 +36,7 @@ export const ok = value  => ['ok', value]
 /**
  * Creates a failed result.
  *
- * @template E
+ * @template const E
  * @param {E} e - The error to wrap.
  * @returns {Error<E>} A failed result containing the error.
  */

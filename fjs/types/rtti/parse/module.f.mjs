@@ -202,6 +202,6 @@ const parseVisitor = /** @type {any} */ ({
     unknown: () => ok,
 })
 
-/** @type {<T extends Type>(rtti: T) => Parse<T>} */
+/** @type {<const T extends Type>(rtti: T) => Parse<T>} */
 export const parse = rtti =>
     (visit(parseVisitor)(rtti))

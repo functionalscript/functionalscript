@@ -29,6 +29,595 @@ import { encoding } from '../../bnf/token_symbol/module.f.mjs'
 import { toData } from '../../bnf/data/module.f.mjs'
 import { descentParserRuleSet } from '../../bnf/descent/module.f.mjs'
 
+/** @typedef {['array', List<AstConst>]} _DjsStackArray */
+
+/** @typedef {['object', OrderedMap<AstConst>, string]} _DjsStackObject */
+
+/** @typedef {_DjsStackArray | _DjsStackObject} _DjsStackElement */
+
+/** @typedef {List<_DjsStackElement>} _DjsStack */
+
+/** @typedef {_InitialState | _NewLineRequiredState | _ImportState | _ConstState | _ExportState | _ParseValueState | _ResultState | _ErrorState} _ParserState */
+
+/** @typedef {{
+ *   readonly refs: OrderedMap<AstModuleRef>
+ *   readonly modules: List<string>
+ *   readonly consts: List<AstConst>
+ * }} _ModuleState */
+
+/** @typedef {{
+ *   readonly state: ''
+ *   readonly module: _ModuleState
+ * }} _InitialState */
+
+/** @typedef {{
+ *   readonly state: 'nl'
+ *   readonly module: _ModuleState
+ * }} _NewLineRequiredState */
+
+/** @typedef {{
+ *   readonly state: 'import' | 'import+name' | 'import+from'
+ *   readonly module: _ModuleState
+ * }} _ImportState */
+
+/** @typedef {{
+ *   readonly state: 'const' | 'const+name'
+ *   readonly module: _ModuleState
+ * }} _ConstState */
+
+/** @typedef {{
+ *   readonly state: 'export'
+ *   readonly module: _ModuleState
+ * }} _ExportState */
+
+/**
+ * Where the value parser stands inside the value it is reading.
+ *
+ * The object states spell a property out left to right: `'{'` expects a key,
+ * `'{k'` the `:` after one, `'{:'` the value, `'{v'` the `,` or `}` after it,
+ * and `'{,'` the next key. A computed key `["a"]` takes the two extra steps
+ * `'{['` (the string inside the brackets) and `'{[k'` (the closing `]`), then
+ * rejoins the plain path at `'{k'`.
+ *
+ * @typedef {'' | '[' | '[v' | '[,' | '{' | '{[' | '{[k' | '{k' | '{:' | '{v' | '{,'} _ValueState
+ */
+
+/** @typedef {{
+ *   readonly state: 'constValue' | 'exportValue'
+ *   readonly module: _ModuleState
+ *   readonly valueState: _ValueState
+ *   readonly top: _DjsStackElement | null
+ *   readonly stack: _DjsStack
+ * }} _ParseValueState */
+
+/** @typedef {{
+ *   readonly state: 'result'
+ *   readonly module: _ModuleState
+ * }} _ResultState */
+
+/** @typedef {{
+ *   readonly state: 'error'
+ *   readonly error: ParseError
+ * }} _ErrorState */
+
+/**
+ * A statement begins with `import`, `const`, or `export` and with nothing
+ * else. The three are a whitelist that grows as the language does, not a
+ * closed set; what a statement may never begin with is a **value**. A text
+ * that does — `42`, `[1,2]`, `{"a":1}` — is a JSON document, and reading it
+ * as a module would give it a value no JavaScript engine gives it: as
+ * JavaScript `{"a":1}` does not parse at all, and `[1,2]` is an expression
+ * statement exporting nothing.
+ *
+ * The statements are also ordered: every `import` precedes every `const`, and
+ * `export default` ends the module. `eof` here is a module with no
+ * `export default`, which is what "unexpected end" reports.
+ *
+ * @type {(token: DjsTokenWithMetadata) => (state: _InitialState) => _ParserState}
+ */
+const parseInitialOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'id': {
+            switch (token.value) {
+                case 'import': return length(state.module.consts) === 0
+                    ? { ...state, state: 'import' }
+                    : { state: 'error', error: { message: 'import must come before const', metadata } }
+                case 'const': return { ...state, state: 'const' }
+                case 'export': return { ...state, state: 'export' }
+            }
+            break
+        }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+    }
+    return { state: 'error', error: { message: 'unexpected token', metadata } }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _NewLineRequiredState) => _ParserState} */
+const parseNewLineRequiredOp = ({ token, metadata }) => state => {
+    switch (token.kind) {
+        case 'ws':
+        case '//':
+        case '/*': return state
+        case 'nl': return { ...state, state: '' }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ExportState) => _ParserState} */
+const parseExportOp = ({ token, metadata }) => state => {
+    switch (token.kind) {
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        case 'id': {
+            if (token.value === 'default') return { ...state, state: 'exportValue', valueState: '', top: null, stack: null }
+        }
+    }
+    return { state: 'error', error: { message: 'unexpected token', metadata } }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ResultState) => _ParserState} */
+const parseResultOp = ({ token, metadata }) => state => {
+    switch (token.kind) {
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*':
+        case 'eof': return state
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ConstState) => _ParserState} */
+const parseConstOp = ({ token, metadata }) => state => {
+    switch (token.kind) {
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'id': {
+            if (at(token.value)(state.module.refs) !== null)
+                return { state: 'error', error: { message: 'duplicate id', metadata } }
+            /** @type {AstModuleRef} */
+            const cref = ['cref', length(state.module.consts)]
+            const refs = setReplace(token.value)(cref)(state.module.refs)
+            return { ...state, state: 'const+name', module: { ...state.module, refs: refs } }
+        }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ConstState) => _ParserState} */
+const parseConstNameOp = ({ token, metadata }) => state => {
+    switch (token.kind) {
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case '=': return { ...state, state: 'constValue', valueState: '', top: null, stack: null }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ImportState) => _ParserState} */
+const parseImportOp = ({ token, metadata }) => state => {
+    switch (token.kind) {
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'id': {
+            if (at(token.value)(state.module.refs) !== null) {
+                return { state: 'error', error: { message: 'duplicate id', metadata } }
+            }
+            /** @type {AstModuleRef} */
+            const aref = ['aref', length(state.module.modules)]
+            const refs = setReplace(token.value)(aref)(state.module.refs)
+            return { ...state, state: 'import+name', module: { ...state.module, refs: refs } }
+        }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ImportState) => _ParserState} */
+const parseImportNameOp = ({ token, metadata }) => state => {
+    switch (token.kind) {
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        case 'id': {
+            if (token.value === 'from') return { ...state, state: 'import+from' }
+        }
+    }
+    return { state: 'error', error: { message: 'unexpected token', metadata } }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ImportState) => _ParserState} */
+const parseImportFromOp = ({ token, metadata }) => state => {
+    switch (token.kind) {
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'string': {
+            const modules = concat(state.module.modules)([token.value])
+            return { ...state, state: 'nl', module: { ...state.module, modules: modules } }
+        }
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(obj: _DjsStackObject) => (key: string) => _DjsStackObject} */
+const addKeyToObject = obj => key => (['object', obj[1], key])
+
+/** @type {(obj: _DjsStackObject) => (value: AstConst) => _DjsStackObject} */
+const addValueToObject = obj => value => (['object', setReplace(obj[2])(value)(obj[1]), ''])
+
+/** @type {(array: _DjsStackArray) => (value: AstConst) => _DjsStackArray} */
+const addToArray = array => value => (['array', concat(array[1])([value])])
+
+/**
+ * The key of `{ __proto__: v }` and `{ "__proto__": v }`. JavaScript reads
+ * both as an instruction to replace the object's prototype instead of as a
+ * property, so FunctionalScript rejects them and accepts only the computed
+ * spelling `{ ["__proto__"]: v }`, which denotes an ordinary property.
+ * See [spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key).
+ */
+const protoKey = '__proto__'
+
+/** @type {(valueState: _ValueState) => (state: _ParseValueState) => (key: string) => (metadata: TokenMetadata) => _ParserState} */
+const pushKey = valueState => state => key => metadata => {
+    if (state.top?.[0] === 'object') { return { ...state, valueState, top: addKeyToObject(state.top)(key), stack: state.stack } }
+    return { state: 'error', error: { message: 'error', metadata } }
+}
+
+/**
+ * A key written as an identifier or a string literal, which is every key but
+ * the computed one — so this is where `__proto__` is refused. A JSON document
+ * spells that key the same way and means an ordinary property by it, but a
+ * JSON document is not a module and this parser does not read one
+ * ([spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key)).
+ *
+ * @type {(state: _ParseValueState) => (key: string) => (metadata: TokenMetadata) => _ParserState}
+ */
+const pushPlainKey = state => key => metadata => key === protoKey
+    ? { state: 'error', error: { message: '__proto__ requires the computed key form', metadata } }
+    : pushKey('{k')(state)(key)(metadata)
+
+/** @type {(state: _ParseValueState) => (value: AstConst) => _ParserState} */
+const pushValue = state => value => {
+    if (state.top === null) {
+        const consts = concat(state.module.consts)([value])
+        switch (state.state)
+        {
+            case 'exportValue': return { ...state, state: 'result', module: { ...state.module, consts: consts } }
+            case 'constValue': return { ...state, state: 'nl', module: { ...state.module, consts: consts } }
+        }
+    }
+    if (state.top?.[0] === 'array') { return { ...state, valueState: '[v', top: addToArray(state.top)(value), stack: state.stack } }
+    return { ...state, valueState: '{v', top: addValueToObject(state.top)(value), stack: state.stack }
+}
+
+/** @type {(state: _ParseValueState) => (name: string) => (metadata: TokenMetadata) => _ParserState} */
+const pushRef = state => name => metadata => {
+    const ref = at(name)(state.module.refs)
+    if (ref === null)
+        return { state: 'error', error: { message: 'const not found', metadata } }
+    return pushValue(state)(ref)
+}
+
+/** @type {(state: _ParseValueState) => _ParserState} */
+const startArray = state => {
+    const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
+    return { ...state, valueState: '[', top: ['array', null], stack: newStack }
+}
+
+// Pops the enclosing container off `stack`. `next` is forced here rather than
+// left as a `drop(1)` thunk: the stack is written only by startArray/startObject,
+// always as a literal cons, and a lazy pop leaves one unforced thunk per closed
+// container — a chain that overflows the call stack when it is finally forced.
+/** @type {(state: _ParseValueState) => _ParseValueState} */
+const popStack = state => {
+    const ne = next(state.stack)
+    return ne === null
+        ? { ...state, valueState: '', top: null, stack: null }
+        : { ...state, valueState: '', top: ne.first, stack: ne.tail }
+}
+
+/** @type {(state: _ParseValueState) => _ParserState} */
+const endArray = state => {
+    const top = state.top
+    const newState = popStack(state)
+    if (top !== null && top[0] === 'array')
+    {
+        /** @type {AstArray} */
+        const array = ['array', toArray(top[1])]
+        return pushValue(newState)(array)
+    }
+    return pushValue(newState)(null)
+}
+
+/** @type {(state: _ParseValueState) => _ParserState} */
+const startObject = state => {
+    const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
+    return { ...state, valueState: '{', top: ['object', null, ''], stack: newStack }
+}
+
+/** @type {(state: _ParseValueState) => _ParserState} */
+const endObject = state => {
+    const obj = state?.top !== null && state?.top[0] === 'object' ? fromMap(state.top[1]) : null
+    const newState = popStack(state)
+    return pushValue(newState)(obj)
+}
+
+/**
+ * Only ever called on a token `isValueToken` has already confirmed carries a
+ * value, so the switch covers every `_ValueToken` case with no fallback arm.
+ *
+ * @type {(token: _ValueToken) => AstConst}
+ */
+const tokenToValue = token => {
+    switch (token.kind) {
+        case 'null': return null
+        case 'false': return false
+        case 'true': return true
+        case 'number': return parseFloat(token.value)
+        case 'string': return token.value
+        case 'bigint': return token.value
+        case 'undefined': return undefined
+    }
+}
+
+/**
+ * @param {DjsToken} token
+ * @returns {token is _ValueToken}
+ */
+const isValueToken = token => {
+    switch (token.kind) {
+        case 'null':
+        case 'false':
+        case 'true':
+        case 'number':
+        case 'string':
+        case 'bigint':
+        case 'undefined': return true
+        default: return false
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseValueOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case ']':
+            if (state.valueState === '[,') { return endArray(state) }
+            return { state: 'error', error: { message: 'unexpected token', metadata } }
+        case 'id': return pushRef(state)(token.value)(metadata)
+        case '[': return startArray(state)
+        case '{': return startObject(state)
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default:
+            if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
+            return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseArrayStartOp = ({ token, metadata }) => state => {
+    if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
+    switch (token.kind)
+    {
+        case 'id': return pushRef(state)(token.value)(metadata)
+        case '[': return startArray(state)
+        case ']': return endArray(state)
+        case '{': return startObject(state)
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseArrayValueOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case ']': return endArray(state)
+        case ',': return { ...state, valueState: '[,', top: state.top, stack: state.stack }
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+// allow identifier property names (#2410)
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseObjectStartOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case 'string':
+        case 'id':
+            return pushPlainKey(state)(token.value)(metadata)
+        case '[': return { ...state, valueState: '{[' }
+        case '}': return endObject(state)
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+// computed property keys with a constant string key (#2470)
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseObjectComputedKeyOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case 'string': return pushKey('{[k')(state)(token.value)(metadata)
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseObjectComputedKeyEndOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case ']': return { ...state, valueState: '{k' }
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseObjectKeyOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case ':': return { ...state, valueState: '{:', top: state.top, stack: state.stack }
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseObjectColonOp = ({ token, metadata }) => state => {
+    if (isValueToken(token)) { return pushValue(state)(tokenToValue(token)) }
+    switch (token.kind)
+    {
+        case 'id': return pushRef(state)(token.value)(metadata)
+        case '[': return startArray(state)
+        case '{': return startObject(state)
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseObjectNextOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case '}': return endObject(state)
+        case ',': return { ...state, valueState: '{,', top: state.top, stack: state.stack }
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {(token: DjsTokenWithMetadata) => (state: _ParseValueState) => _ParserState} */
+const parseObjectCommaOp = ({ token, metadata }) => state => {
+    switch (token.kind)
+    {
+        case '}': return endObject(state)
+        case 'string':
+        case 'id':
+            return pushPlainKey(state)(token.value)(metadata)
+        case '[': return { ...state, valueState: '{[' }
+        case 'ws':
+        case 'nl':
+        case '//':
+        case '/*': return state
+        case 'eof': return { state: 'error', error: { message: 'unexpected end', metadata } }
+        default: return { state: 'error', error: { message: 'unexpected token', metadata } }
+    }
+}
+
+/** @type {Fold<DjsTokenWithMetadata, _ParserState>} */
+const foldOp = token => state => {
+    switch (state.state) {
+        case '': return parseInitialOp(token)(state)
+        case 'nl': return parseNewLineRequiredOp(token)(state)
+        case 'import': return parseImportOp(token)(state)
+        case 'import+name': return parseImportNameOp(token)(state)
+        case 'import+from': return parseImportFromOp(token)(state)
+        case 'const': return parseConstOp(token)(state)
+        case 'const+name': return parseConstNameOp(token)(state)
+        case 'export': return parseExportOp(token)(state)
+        case 'result': return parseResultOp(token)(state)
+        case 'error': return { state: 'error', error: state.error }
+        case 'constValue':
+        case 'exportValue':
+        {
+            switch (state.valueState)
+            {
+                case '': return parseValueOp(token)(state)
+                case '[': return parseArrayStartOp(token)(state)
+                case '[v': return parseArrayValueOp(token)(state)
+                case '[,': return parseValueOp(token)(state)
+                case '{': return parseObjectStartOp(token)(state)
+                case '{[': return parseObjectComputedKeyOp(token)(state)
+                case '{[k': return parseObjectComputedKeyEndOp(token)(state)
+                case '{k': return parseObjectKeyOp(token)(state)
+                case '{:': return parseObjectColonOp(token)(state)
+                case '{v': return parseObjectNextOp(token)(state)
+                case '{,': return parseObjectCommaOp(token)(state)
+            }
+        }
+    }
+}
+
+/**
+ * Reads the token list as a FunctionalScript module: `import` statements, then
+ * `const` statements, then one `export default`.
+ *
+ * This is the only language the parser reads. A JSON document is data, not a
+ * module, and `fjs/media/json` is its reader
+ * ([spec: JSON input](../../../spec/README.md#json-input)).
+ *
+ * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
+ */
+export const parseFromTokens = tokenList => {
+    const state = fold(foldOp)({ state: '', module: { refs: null, modules: null, consts: null } })(tokenList)
+    switch (state.state) {
+        case 'result': return ok(/** @satisfies {AstModule} */ ([toArray(state.module.modules), toArray(state.module.consts)]))
+        case 'error': return error(state.error)
+        default: return error({ message: 'unexpected end', metadata: null })
+    }
+}
+
 /**
  * The ordinary token stream a BNF parser layer consumes, with the tokenizer's
  * one physical end-of-input token split off.
@@ -352,48 +941,6 @@ const [moduleRuleSet, moduleEntry] = toData(djsModule)
 /** @type {DescentMatch<DjsTokenWithMetadata>} */
 const moduleMatcher = descentParserRuleSet(moduleRuleSet)
 
-/**
- * The key of `{ __proto__: v }` and `{ "__proto__": v }`. JavaScript reads
- * both as an instruction to replace the object's prototype instead of as a
- * property, so FunctionalScript rejects them and accepts only the computed
- * spelling `{ ["__proto__"]: v }`, which denotes an ordinary property.
- * See [spec: the `__proto__` key](../../../spec/README.md#the-__proto__-key).
- */
-const protoKey = '__proto__'
-
-/**
- * Only ever called on a token `isValueToken` has already confirmed carries a
- * value, so the switch covers every `_ValueToken` case with no fallback arm.
- *
- * @type {(token: _ValueToken) => AstConst}
- */
-const tokenToValue = token => {
-    switch (token.kind) {
-        case 'null': return null
-        case 'false': return false
-        case 'true': return true
-        case 'number': return parseFloat(token.value)
-        case 'string': return token.value
-        case 'bigint': return token.value
-        case 'undefined': return undefined
-    }
-}
-/**
- * @param {DjsToken} token
- * @returns {token is _ValueToken}
- */
-const isValueToken = token => {
-    switch (token.kind) {
-        case 'null':
-        case 'false':
-        case 'true':
-        case 'number':
-        case 'string':
-        case 'bigint':
-        case 'undefined': return true
-        default: return false
-    }
-}
 // -- folding the match into an `AstModule` ----------------------------------
 
 /** @typedef {Ast<CodePointMeta<DjsTokenWithMetadata>>} _Node */
@@ -558,10 +1105,30 @@ const bind = state => node => ref => {
  *   readonly index: number
  *   readonly array: List<AstConst>
  *   readonly object: OrderedMap<AstConst>
- *   readonly keys: readonly string[]
+ *   readonly keys: readonly(readonly[string, boolean])[]
  *   readonly isArray: boolean
  * }} _FoldFrame
  */
+
+/**
+ * The error a frame's current key earns, or `null`.
+ *
+ * Checked as each member is reached rather than by scanning every key first, so
+ * that an earlier member's failure is reported before a later key's. Scanning
+ * ahead reported `__proto__` in `{a: missing, __proto__: 1}`, where the parser
+ * this replaces reports the unresolved `missing` — errors are first-to-last, and
+ * a key is not special enough to jump the queue.
+ *
+ * @type {(frame: _FoldFrame) => ParseError | null}
+ */
+const badKey = frame => {
+    if (frame.isArray) { return null }
+    const [name, computed] = frame.keys[frame.index]
+    return name === protoKey && !computed
+        // at the key itself, not at the object's `{`
+        ? foldError('__proto__ requires the computed key form')(tokenOf(keySlot(frame.items[frame.index])))
+        : null
+}
 
 /**
  * A value, resolved against the names bound so far.
@@ -595,29 +1162,16 @@ const foldValue = state => root => {
                 const isArray = child.tag === 'array'
                 const items = isArray ? itemsOf(child) : membersOf(child)
                 const keys = isArray ? [] : items.map(member => keyOf(keySlot(member)))
-                // reported at the key itself, not at the object's `{`, which is
-                // where the reader is looking and what the parser this replaced
-                // pointed at
-                const bad = keys.findIndex(([name, computed]) => name === protoKey && !computed)
-                if (bad !== -1) {
-                    return [null, foldError('__proto__ requires the computed key form')(
-                        tokenOf(keySlot(items[bad])))]
-                }
                 /** @type {_FoldFrame} */
-                const frame = {
-                    items,
-                    index: 0,
-                    array: null,
-                    object: null,
-                    keys: keys.map(([name]) => name),
-                    isArray,
-                }
+                const frame = { items, index: 0, array: null, object: null, keys, isArray }
                 stack = { first: frame, tail: stack }
                 if (items.length === 0) {
                     value = isArray ? ['array', []] : fromMap(null)
                     stack = assertNotNullish(next(stack)).tail
                     descending = false
                 } else {
+                    const rejected = badKey(frame)
+                    if (rejected !== null) { return [null, rejected] }
                     node = isArray ? items[0] : valueSlot(items[0])
                 }
             } else {
@@ -646,7 +1200,7 @@ const foldValue = state => root => {
             const array = frame.isArray ? concat(frame.array)([value]) : frame.array
             const object = frame.isArray
                 ? frame.object
-                : setReplace(frame.keys[frame.index])(value)(frame.object)
+                : setReplace(frame.keys[frame.index][0])(value)(frame.object)
             if (index === frame.items.length) {
                 /** @type {AstArray} */
                 const asArray = ['array', toArray(array)]
@@ -655,7 +1209,10 @@ const foldValue = state => root => {
                 value = frame.isArray ? asArray : asObject
                 stack = top.tail
             } else {
-                stack = { first: { ...frame, index, array, object }, tail: top.tail }
+                const moved = { ...frame, index, array, object }
+                const rejected = badKey(moved)
+                if (rejected !== null) { return [null, rejected] }
+                stack = { first: moved, tail: top.tail }
                 node = frame.isArray ? frame.items[index] : valueSlot(frame.items[index])
                 descending = true
             }
@@ -719,19 +1276,27 @@ const foldModule = root => {
 }
 
 /**
- * Reads the token list as a FunctionalScript module: `import` statements, then
- * `const` statements, then one `export default`.
+ * The BNF half of the parser: match, then fold.
  *
- * This is the only language the parser reads. A JSON document is data, not a
- * module, and `fjs/media/json` is its reader
- * ([spec: JSON input](../../../spec/README.md#json-input)).
+ * **Temporary, and exported only until the cutover.** `parseFromTokens` remains
+ * the sole public API of this module
+ * ([new-parser](../../bnf/todo/new-parser.md)); this exists so the differential
+ * proofs can run both implementations over one corpus while both stand, which
+ * is what makes "the parser behaves as it always did" a checkable claim rather
+ * than a hope. At the cutover this becomes `parseFromTokens` and the name
+ * disappears with the state machine it is being compared against.
  *
- * The grammar it accepts is written down, in the rules above, rather than
- * implied by the control flow of a state machine — which is what this replaced.
+ * The `_` prefix marks it private by the repository's convention
+ * ([fjs/AGENTS.md §3.2](../../AGENTS.md#javascriptjsdoc-type-declarations)), and
+ * it is exported rather than kept module-local only because the corpus lives in
+ * `proof.f.mjs` — the alternative, moving the whole corpus into this module's
+ * own `proof` export, would put a few hundred lines of fixtures in the
+ * implementation file to save one temporary name. Do not build on it: it is
+ * scheduled for deletion, not for support.
  *
  * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
  */
-export const parseFromTokens = tokenList => {
+export const _bnfParseFromTokens = tokenList => {
     const [tag, stream] = splitEof(toArray(tokenList))
     if (tag === 'error') { return error(stream) }
     const { tokens, eofMetadata } = stream
@@ -858,6 +1423,60 @@ export const proof = {
             const [tag, value] = splitEof([proofEof(1), proofEof(2)])
             assert(tag === 'error', tag)
             assertEq(value.metadata?.line, 1)
+        },
+    },
+    pushKey: {
+        // `pushKey` is only ever invoked while `state.top` is an object (the
+        // `'{'`/`'{,'` value-states guarantee it), so its non-object guard is
+        // a defensive branch unreachable through `parseFromTokens`. Call it
+        // directly to cover that branch.
+        nonObjectTop: () => {
+            /** @type {_ParseValueState} */
+            const state = {
+                state: 'exportValue',
+                module: { refs: null, modules: null, consts: null },
+                valueState: '[',
+                top: null,
+                stack: null,
+            }
+            const result = pushKey('{k')(state)('key')({ path: 'test', line: 0, column: 0 })
+            assertEq(result.state, 'error')
+        },
+    },
+    endArray: {
+        // `endArray` is only ever invoked while `state.top` is an array (the
+        // `'['`/`'[v'`/`'[,'` value-states guarantee it), so its non-array
+        // guard is a defensive branch unreachable through `parseFromTokens`.
+        // Call it directly to cover that branch.
+        nonArrayTop: () => {
+            /** @type {_ParseValueState} */
+            const state = {
+                state: 'exportValue',
+                module: { refs: null, modules: null, consts: null },
+                valueState: '[,',
+                top: null,
+                stack: null,
+            }
+            const result = endArray(state)
+            assertEq(result.state, 'result')
+        },
+    },
+    endObject: {
+        // `endObject` is only ever invoked while `state.top` is an object
+        // (the `'{'`/`'{k'`/`'{:'`/`'{v'`/`'{,'` value-states guarantee it),
+        // so its non-object guard is a defensive branch unreachable through
+        // `parseFromTokens`. Call it directly to cover that branch.
+        nonObjectTop: () => {
+            /** @type {_ParseValueState} */
+            const state = {
+                state: 'exportValue',
+                module: { refs: null, modules: null, consts: null },
+                valueState: '{,',
+                top: null,
+                stack: null,
+            }
+            const result = endObject(state)
+            assertEq(result.state, 'result')
         },
     },
 }

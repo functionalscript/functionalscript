@@ -98,6 +98,12 @@ compiles no matter what the predicate resolved to. Such an entry in a `proof`
 object is doubly inert: the runner only invokes functions, so a boolean leaf is
 never counted as a test either.
 
+Some facts have nowhere else to be checked and so *require* one. A `const` type
+parameter is the standing example: dropping the modifier widens every call site
+silently and `npx tsc` still passes, so the assertion is the only thing standing
+between the signature and a schema quietly typed one notch too loose. See
+[§3.2](#32-types), "Prefer a `const` type parameter to a cast at the call site".
+
 ### 1.5 Never use `try`/`catch`; test throwing with the `throw` key
 
 Never use `try`/`catch` in `.f.mjs` files — FunctionalScript itself has no
@@ -286,6 +292,20 @@ forms such as `@template {Operation} out O`. Variance modifiers belong to type
 parameters of a JSDoc type alias (`@typedef`); do not put `in` / `out` on an
 ordinary function's `@template`, where TypeScript rejects them.
 
+The `const` modifier is the mirror image: it belongs to a **function's** type
+parameter and TypeScript rejects it on a type alias (`export type A<const T>`
+is TS1277). Every JSDoc spelling works — `@template const T`,
+`@template {Type} const T`, `@type {<const T extends Type>(x: T) => R}`, and
+`<const T>(x: T) => R` inside an authored `types.ts`. A type alias that names a
+*function type* can therefore carry it even though the alias itself cannot:
+
+```ts
+export type _MakeType1<K extends Tag1> = <const T extends Type>(t: T) => Type1<K, T>
+```
+
+What it does, and when to reach for it, is "Prefer a `const` type parameter to
+a cast at the call site" below.
+
 When JavaScript needs a type from an authored `types.ts`, put JSDoc `@import`
 with that real source path in the leading module JSDoc block; do not create a
 separate `@import` comment. For example:
@@ -369,6 +389,55 @@ Example: `const jsonrpc = '2.0' as const` and
 `const request = { jsonrpc, method } as const`, but
 `const id = or(string, number, null)` needs nothing.
 
+#### Prefer a `const` type parameter to a cast at the call site
+
+When a literal is written **as an argument** and the callee is generic over it,
+the fix belongs on the signature, not on the argument. Give the type parameter
+the `const` modifier and the caller writes the literal plainly:
+
+```js
+validate(/** @type {const} */ ({ a: 42 }))   // a reader for `{ a: 42 }`
+validate({ a: 42 })                          // the same, with `<const T>`
+```
+
+A cast there is the absence of a modifier on the callee, not a fact about the
+value — and it has to be repeated at every call, where the modifier is written
+once. `types/rtti` (`or`, `option`, `array`, `record`), `types/rtti/validate`,
+`types/rtti/parse`, `types/result` (`ok`, `error`), `protocol/mcp`'s
+`toolEntry`, and `bnf`'s `option` already carry it; a new schema- or
+literal-taking export should too.
+
+Three things bound the rule:
+
+- **It reaches arguments only.** A literal bound to a `const` first has already
+  widened by the time it is passed, so "Pin literal `const`s" above still
+  governs every declaration — `const t = /** @type {const} */ ([42]);
+  validate(t)` needs its pin no matter what `validate`'s signature says. The
+  same goes for a literal handed to `.map` or driving a `for…of`: there is no
+  signature to modify.
+- **Primitives do not need it.** TypeScript already keeps the literal when the
+  type parameter's constraint admits primitives, so `validate(42)` reads `42`
+  either way. The modifier earns its place on object and array literals.
+- **Do not add one that changes nothing.** Removing a `const` must break
+  `npx tsc`; if it does not, the modifier is noise — delete it, or add the
+  assertion that makes it load-bearing (below). A general-purpose value lifter
+  is usually the wrong place for one: `const` on `pureOk` would infer
+  `pureOk([])` as `readonly []`, which stops unifying with the array branch
+  beside it. Read "no call site inlines a literal" as *not yet*, though, and
+  check the module's `README.md` before concluding it: `toolEntry`'s documents
+  an inline schema, so its front door was a call site even when the tree had
+  none.
+
+Because a dropped modifier widens silently rather than failing, pin the
+inference with an `Assert<Equal<…>>` in the proof, per
+[§1.4](#14-assert-type-level-facts-with-assertequal) — over a struct or tuple
+literal, since a primitive would pass with or without it:
+
+```js
+const v = validate({ a: 42, b: 'hello' })
+/** @typedef {Assert<Equal<typeof v, Validate<{ readonly a: 42, readonly b: 'hello' }>>>} _ConstParameter */
+```
+
 #### Avoid `as` type assertions
 
 Avoid `as` type assertions (except `as const`). Treat them like `unsafe` in Rust
@@ -434,6 +503,10 @@ ordinary type name and fail with `TS2304: Cannot find name 'const'`; only the
 inline-cast position gives it the special const-assertion meaning. This is
 unlike every other `@type` cast, which works in both positions — don't
 "clean up" a `@type {const}` inline cast into the declaration form.
+
+That inversion holds for a `const` **declaration**. On an **argument** the cast
+should not be there at all: see "Prefer a `const` type parameter to a cast at
+the call site" above, which moves the pin to the callee's signature.
 
 #### Prefer `@satisfies` over `@type` when checking, not overriding
 
