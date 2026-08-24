@@ -9,7 +9,7 @@
  *
  * @module
  *
- * @import { Exp, Op1, Properties } from '../types.ts'
+ * @import { Exp, Lambdas, Op1, Properties } from '../types.ts'
  * @import { Context, Map, ExpOp, TagMap } from './types.ts'
  */
 
@@ -76,6 +76,37 @@ const value = p => {
     return obj[prop]
 }
 
+/** @type {(f: (_: Exp) => unknown, lambdas: Lambdas, hcf: Hcf) => Hcf} */
+const applyLambda = (f, lambdas, hcf) => lambdas.reduce(
+    (/**@type {Hcf}*/hcf, lambda) => {
+        if (hcf === undefined) {
+            return undefined
+        }
+        const [o, e] = lambda
+        /** @type {() => Hcf} */
+        const lazyCall = () => [call(hcf, () => f(e))]
+        const lazyDot = () => ({ obj: value(hcf), prop: f(e) })
+        /** @type {(g: () => Hcf) => Hcf} */
+        const option = g => {
+            const obj = value(hcf)
+            switch (obj) {
+                case undefined:
+                case null:
+                    return undefined
+            }
+            return g()
+        }
+        switch (o) {
+            case '|()': return lazyCall()
+            case '|.': return lazyDot()
+            case '|?.': return option(lazyDot)
+            case '|?.()': return option(lazyCall)
+        }
+    },
+    hcf
+)
+
+
 /**@type {Map}*/
 const map = {
     '!': o1(a => !a),
@@ -85,46 +116,7 @@ const map = {
     '&&': o2lazy((a, b) => a && b()),
     '()': (x, [, b, c, d]) => {
         const i = vm(x)
-        /**@type {any}*/
-        // const ib = i(b)
-        // if (c.length === 0) {
-        //     /**@type {any}*/
-        //     const args = i(d)
-        //     // One node evaluating to the *complete* argument array — `f(a, b)` is
-        //     // `['()', f, [], ['[]', [a, b]]]` — and `=>` collects with
-        //     // `(...args)`, so it is spread. Passed as a single argument instead,
-        //     // the callee's `['args']` would be `[[a, b]]`.
-        //     return ib(...args)
-        // }
-        /**@type {Hcf} */
-        const hcf = c.reduce(
-            (/**@type {Hcf}*/hcf, lambda) => {
-                if (hcf === undefined) {
-                    return undefined
-                }
-                const [o, e] = lambda
-                /** @type {() => Hcf} */
-                const lazyCall = () => [call(hcf, () => i(e))]
-                const lazyDot = () => ({ obj: value(hcf), prop: i(e) })
-                /** @type {(f: () => Hcf) => Hcf} */
-                const option = (f) => {
-                    const obj = value(hcf)
-                    switch (obj) {
-                        case undefined:
-                        case null:
-                            return undefined
-                    }
-                    return f()
-                }
-                switch (o) {
-                    case '|()': return lazyCall()
-                    case '|.': return lazyDot()
-                    case '|?.': return option(lazyDot)
-                    case '|?.()': return option(lazyCall)
-                }
-            },
-            [i(b)])
-        return call(property(hcf), () => i(d))
+        return call(property(applyLambda(i, c, [i(b)])), () => i(d))
     },
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
