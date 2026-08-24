@@ -39,7 +39,7 @@ export const casAddArgs = type({ content: string, type: or('text', 'base64', und
 `type` pins exactly as `as const` does — that is what the modifier means — and
 additionally checks `T extends Type` at the declaration, where the mistake is.
 See "Prefer a `const` type parameter to a cast at the call site" in
-[`../../../AGENTS.md`](../../AGENTS.md) for the rule this would extend from
+[`fjs/AGENTS.md`](../../../AGENTS.md) for the rule this would extend from
 arguments to declarations.
 
 ## Why it is not obviously right
