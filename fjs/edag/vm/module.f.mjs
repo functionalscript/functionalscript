@@ -47,7 +47,9 @@ const map = {
         const i = vm(x)
         /**@type {any}*/
         const f = i(b)
-        return f(i(d))
+        /**@type {any}*/
+        const args = i(d)
+        return f(...args)
     },
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
