@@ -295,10 +295,16 @@ The serializer and other independent parts of TODO 157 are unaffected.
       reference, duplicate `const` name, duplicate `import` name, collisions
       across the shared `refs` map, and a bare or string `__proto__` key. All
       five now agree with the state machine, message and position alike.
-- [ ] Report errors as metadata position ranges; widen `ParseError.metadata`
-      from a single `TokenMetadata` to a range where required, using ordinary
+- [x] Report positions from token metadata rather than `idx`, using ordinary
       token metadata for `idx < tokens.length` and `eofMetadata` for
-      `idx === tokens.length`.
+      `idx === tokens.length`. Verified against the state machine: identical
+      position on every malformed source in the corpus.
+- [ ] Widening `ParseError.metadata` from a point to a **range** is not done
+      here — see [Report token errors as a position range](../../djs/tokenizer/todo/error-position-range.md),
+      which owns that design. It is also speculative by that issue's own test
+      today: the only consumer, `errorLocation` in `fjs/djs/module.f.mjs`,
+      formats `path:line:column` and has nothing to do with a span. Land the two
+      together when a formatter wants one.
 - [x] Add differential success proofs requiring structurally identical
       `AstModule` output from the hand-written and BNF implementations across the
       existing parser corpus and every module/value grammar feature.
@@ -321,6 +327,8 @@ The serializer and other independent parts of TODO 157 are unaffected.
 
 - [`fjs/bnf/token_symbol`](../token_symbol/README.md) — the token-name-to-symbol
   mapping this parser uses, and where the registry's trade-offs are argued.
+- [Report token errors as a position range](../../djs/tokenizer/todo/error-position-range.md)
+  — owns widening a position to a span; this parser reports points until it lands.
 - [`fjs/bnf/README.md`](../README.md#logical-eof-in-parser-input) — the shipped
   EOF contract this adapter is written against.
 - [256-bit bigint BNF symbols](./bigint-symbols.md) — parked; would replace the

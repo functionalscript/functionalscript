@@ -56,6 +56,17 @@ Options, to be settled when implementing:
 Prefer 1 unless a second consumer wants spans for non-error tokens, in which
 case 2 stops being speculative.
 
+**The parser layer is that second consumer, in waiting.** The BNF parser in
+[new-parser](../../../bnf/todo/new-parser.md) matches rules over whole tokens, so
+every rule it reduces has a first and a last token and therefore a natural span —
+`export default <value>` is a span, not a point. That is an argument for option 2
+whenever a *formatter* wants one.
+
+None does yet: `errorLocation` in [`fjs/djs/module.f.mjs`](../../module.f.mjs)
+prints `path:line:column` and would discard an end. So the parser reports points
+for now, and this stays the issue that decides otherwise — with one more consumer
+on its side than when it was written.
+
 Whichever is chosen, `path` should not be duplicated across both ends — a token
 does not straddle files.
 
