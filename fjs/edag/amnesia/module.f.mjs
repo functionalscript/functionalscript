@@ -81,7 +81,6 @@ const map = {
         const hcf = c.reduce(
             (hcf, lambda) => todo(),
             [ib])
-        /**@type {Hcf}*/
         const p = property(hcf)
         if (p instanceof Array) {
             /**@type {any}*/
