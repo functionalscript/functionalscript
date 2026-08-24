@@ -600,6 +600,13 @@ export const proof = {
             assertEq(validate(toData(array(number)))(Object.assign([1], { foo: 'x' }))[0], 'error')
             assertEq(validate(toData(array(neverRtti)))(Object.assign([], { foo: 'x' }))[0], 'error')
             assertEq(validate(exactlyOneNumber)(Object.assign([1], { foo: 1 }))[0], 'error')
+            // only the canonical spelling of a non-negative integer is a
+            // position; every other key is a property of the array object,
+            // whatever `Number` makes of it
+            for (const k of ['-1', '01', '1.5', ' 1', '1e0']) {
+                assertEq(validate(toData(array(number)))(Object.assign([1], { [k]: 'x' }))[0], 'error')
+                assertEq(validate(exactlyTwoNumbers)(Object.assign([1, 2], { [k]: 2 }))[0], 'error')
+            }
             /** @type {Data} */
             const onePlus = [{}, { array: [{ prefix: [{ number: true }], rest: { string: true } }] }]
             const vp = validate(onePlus)

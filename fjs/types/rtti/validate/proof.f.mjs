@@ -60,9 +60,12 @@ const rows = [
     [array(number), [1, 'two']],
     [array(number), {}],
     // an enumerable non-index key is an entry every reader walks, so it is
-    // held to the element type like any other
+    // held to the element type like any other — and a key is an index only in
+    // the canonical spelling, whatever `Number` makes of it
     [array(number), Object.assign([1], { foo: 2 })],
     [array(number), Object.assign([1], { foo: 'x' })],
+    [array(number), Object.assign([1], { '-1': 'x' })],
+    [array(number), Object.assign([1], { '01': 'x' })],
     [record(number), { a: 1 }],
     [record(number), { a: 'one' }],
     [record(number), []],

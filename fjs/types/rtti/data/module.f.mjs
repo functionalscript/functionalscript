@@ -1039,6 +1039,21 @@ const patternsValidate = (k, item, value) => {
 }
 
 /**
+ * The position `k` names, or `undefined` when `k` names no position at all.
+ * `Object.entries` hands over every enumerable own key of the array object,
+ * and only the canonical spelling of a non-negative integer is an index:
+ * `'-1'`, `'01'`, `'1.5'` and `' 1'` are ordinary properties of it, however
+ * `Number` maps them. Round-tripping the number back through `String` is what
+ * rejects every non-canonical spelling at once, rather than one at a time.
+ *
+ * @type {(k: string) => number | undefined}
+ */
+const arrayIndex = k => {
+    const i = Number(k)
+    return Number.isInteger(i) && i >= 0 && String(i) === k ? i : undefined
+}
+
+/**
  * The declared positions are checked by reading the value at each — a
  * position past the end reads as `undefined`, so a position is required
  * exactly when its set excludes `undefined`, and no minimum length is tested
@@ -1058,12 +1073,13 @@ const arraySetValidate = rules => p => value => {
         noAccumulate,
     )
     if (declared[0] === 'error') { return declared }
-    // What the prefix does not declare: an index past it, and any enumerable
-    // non-index key, whose `Number` is `NaN` and so is never below `pn`. Both
-    // are entries the pattern has not spoken for, and the other readers walk
-    // the value's entries rather than its length, so both have to be answered
-    // here the same way.
-    const extra = Object.entries(value).filter(([k]) => !(Number(k) < pn))
+    // What the prefix does not declare: an index past it, and every key that
+    // is not an index at all. The other readers walk the value's entries
+    // rather than its length, so both have to be answered here the same way.
+    const extra = Object.entries(value).filter(([k]) => {
+        const i = arrayIndex(k)
+        return i === undefined || i >= pn
+    })
     if (rest === undefined) {
         return extra.length === 0 ? ok(value) : verror('unexpected value')
     }
