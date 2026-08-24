@@ -60,7 +60,8 @@ const property = hcf => hcf === undefined ? [undefined] : hcf
 /** @type {(p: Property, f: () => any) => unknown} */
 const call = (p, f) => {
     if (p instanceof Array) {
-        return p[0](...f())
+        const x = p[0]
+        return x(...f())
     }
     const { obj, prop } = p
     return obj[prop](...f())
@@ -85,16 +86,16 @@ const map = {
     '()': (x, [, b, c, d]) => {
         const i = vm(x)
         /**@type {any}*/
-        const ib = i(b)
-        if (c.length === 0) {
-            /**@type {any}*/
-            const args = i(d)
-            // One node evaluating to the *complete* argument array — `f(a, b)` is
-            // `['()', f, [], ['[]', [a, b]]]` — and `=>` collects with
-            // `(...args)`, so it is spread. Passed as a single argument instead,
-            // the callee's `['args']` would be `[[a, b]]`.
-            return ib(...args)
-        }
+        // const ib = i(b)
+        // if (c.length === 0) {
+        //     /**@type {any}*/
+        //     const args = i(d)
+        //     // One node evaluating to the *complete* argument array — `f(a, b)` is
+        //     // `['()', f, [], ['[]', [a, b]]]` — and `=>` collects with
+        //     // `(...args)`, so it is spread. Passed as a single argument instead,
+        //     // the callee's `['args']` would be `[[a, b]]`.
+        //     return ib(...args)
+        // }
         /**@type {Hcf} */
         const hcf = c.reduce(
             (/**@type {Hcf}*/hcf, lambda) => {
@@ -122,7 +123,7 @@ const map = {
                     case '|?.()': return option(lazyCall)
                 }
             },
-            [ib])
+            [i(b)])
         return call(property(hcf), () => i(d))
     },
     '*': o2((a, b) => a * b),
