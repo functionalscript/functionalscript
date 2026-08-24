@@ -88,7 +88,7 @@ const map = {
     '~': o1(a => ~a),
 }
 
-const vm = (/**@type {Context}*/context) => {
+export const vm = (/**@type {Context}*/context) => {
     const compute =
         /**
          * Generic over the tag, not `(e: ExpOp) =>`: with a union-typed `e`,
