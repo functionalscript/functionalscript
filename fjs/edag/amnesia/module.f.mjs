@@ -43,6 +43,9 @@ const o1 =
     /**@type {_Func1}*/
     (c, [, a]) => o(vm(c)(a))
 
+/** @type {(a: any, b: any, c: any) => unknown} */
+const methodCall = (a, b, c) => a[b](...c)
+
 /**@type {Map}*/
 const map = {
     '!': o1(a => !a),
@@ -51,19 +54,18 @@ const map = {
     '&': o2((a, b) => a & b),
     '&&': o2lazy((a, b) => a && b()),
     '()': (x, [, b, c, d]) => {
-        if (c.length !== 0) {
-            todo()
-        }
         const i = vm(x)
         /**@type {any}*/
-        const f = i(b)
-        // One node evaluating to the *complete* argument array — `f(a, b)` is
-        // `['()', f, [], ['[]', [a, b]]]` — and `=>` collects with
-        // `(...args)`, so it is spread. Passed as a single argument instead,
-        // the callee's `['args']` would be `[[a, b]]`.
-        /**@type {any}*/
-        const args = i(d)
-        return f(...args)
+        const ib = i(b)
+        if (c.length === 0) {
+            /**@type {any}*/
+            const args = i(d)
+            // One node evaluating to the *complete* argument array — `f(a, b)` is
+            // `['()', f, [], ['[]', [a, b]]]` — and `=>` collects with
+            // `(...args)`, so it is spread. Passed as a single argument instead,
+            // the callee's `['args']` would be `[[a, b]]`.
+            return ib(...args)
+        }
     },
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
