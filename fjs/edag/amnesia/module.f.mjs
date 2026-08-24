@@ -165,7 +165,11 @@ const map = {
     '>=': o2((a, b) => a >= b),
     '>>': o2((a, b) => a >> b),
     '>>>': o2((a, b) => a >>> b),
-    '?.': todo,
+    '?.': (x, [, a, index, lambdas]) => {
+        const i = vm(x)
+        const htc = applyLambda(i, lambdas, [i(a)])
+        return htc === undefined ? undefined : value(htc)
+    },
     '?.()': todo,
     '??': o2lazy((a, b) => a ?? b()),
     Number: o1(Number),
