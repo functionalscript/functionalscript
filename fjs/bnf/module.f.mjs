@@ -236,7 +236,7 @@ export const none = []
  */
 export const option =
     /**
-     * @template {Rule} S
+     * @template {Rule} const S
      * @param {S} some
      * @returns {Option<S>}
      */
@@ -261,7 +261,7 @@ export const repeat0Plus =
      * @returns {Repeat0Plus<T>}
      */
     some => {
-        const r = () => option(/** @type {const} */ ([some, r]))
+        const r = () => option([some, r])
         return r
     }
 
