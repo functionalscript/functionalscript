@@ -1081,7 +1081,15 @@ const arraySetValidate = rules => p => value => {
         return i === undefined || i >= pn
     })
     if (rest === undefined) {
-        return extra.length === 0 ? ok(value) : verror('unexpected value')
+        // Nothing past the prefix, by length as well as by entry: a hole past
+        // it is not an entry, but the array is still that long, and this is
+        // the set `Ts<>` renders as a tuple of exactly `pn` positions and JSON
+        // Schema as `items: false`. A *shorter* array is another matter — the
+        // declared loop above has already held every position it left unfilled
+        // to a set admitting `undefined`.
+        return extra.length === 0 && value.length <= pn
+            ? ok(value)
+            : verror('unexpected value')
     }
     const r = eachEntry(extra, (_k, v) => nodeValidate(rules)(rest)(v), undefined, noAccumulate)
     return r[0] === 'error' ? r : ok(value)

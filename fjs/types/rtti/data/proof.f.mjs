@@ -586,11 +586,14 @@ export const proof = {
             assertEq(vo([1])[0], 'ok')
             assertEq(vo([1, 'a'])[0], 'ok')
             assertEq(vo([])[0], 'error')
-            // the exact-length pattern admits neither
+            // the exact-length pattern admits neither, and counts a hole past
+            // the prefix: not an entry, but the array is still that long
             const vx = validate(exactlyOneNumber)
             assertEq(vx([1])[0], 'ok')
             assertEq(vx([1, 2])[0], 'error')
             assertEq(vx([])[0], 'error')
+            assertEq(vx([1, , ])[0], 'error')
+            assertEq(validate(toData(array(neverRtti)))([, ])[0], 'error')
             assertEq(validate(toData(array(neverRtti)))([])[0], 'ok')
             assertEq(validate(toData(array(neverRtti)))([1])[0], 'error')
             // an enumerable non-index key is an entry the prefix has not
