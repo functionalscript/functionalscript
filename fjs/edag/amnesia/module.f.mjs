@@ -1,9 +1,19 @@
 /**
+ * A tree-walking evaluator for `exp`: `vm(context)(e)` returns a primitive
+ * unchanged and dispatches a tagged tuple through one handler per tag.
+ *
+ * It remembers no node values — every incoming edge evaluates its target
+ * again — so it is the Amnesia model of
+ * [execution-models.md](../execution-models.md), for proving semantics and
+ * not for running FunctionalScript. See [README.md](./README.md).
+ *
+ * @module
+ *
  * @import { Exp, Op1, Properties } from '../types.ts'
  * @import { Context, Map, ExpOp, TagMap } from './types.ts'
  */
 
-import { todo } from '../../asserts/module.f.mjs'
+import { assert, todo } from '../../asserts/module.f.mjs'
 
 const o2lazy =
     (/**@type {(a: any, b: () => any) => unknown}*/o) =>
@@ -85,20 +95,36 @@ const map = {
     String: o1(String),
     '[]': (x, [, a]) => {
         const f = vm(x)
-        return a.flatMap(e => (e instanceof Array) && e[0] === '...' ? f(e[1]) : [f(e)])
+        // A spread operand is iterated, not spliced as one element: `[...'ab']`
+        // is `['a', 'b']` and `[...1]` throws, per "array spread" in
+        // `../README.md`. `flatMap` alone flattens only real arrays.
+        /**@type {(e: Exp) => readonly unknown[]}*/
+        const spread = e => [.../**@type {any}*/(f(e))]
+        return a.flatMap(e =>
+            (e instanceof Array) && e[0] === '...' ? spread(e[1]) : [f(e)])
     },
     '^': o2((a, b) => a ^ b),
     args: ({args}) => args,
     frame: ({frame}) => frame,
     neg: o1(a => -a),
-    own: o2((a, b) => Object.getOwnPropertyDescriptor(a, b)?.value),
+    // The key must *evaluate* to a string — a runtime constraint the
+    // shape-only schema cannot express, so the executor upholds it. Without
+    // the check JS `ToPropertyKey` would coerce, and `['own', o, 1]` would
+    // silently read `o['1']`.
+    own: o2((a, b) => {
+        assert(typeof b === 'string', ['own: key is not a string', b])
+        return Object.getOwnPropertyDescriptor(a, b)?.value
+    }),
     undefined: () => undefined,
     '{}': (x, [, a]) => {
         const f = vm(x)
         /**@type {(e: Properties) => readonly[unknown, unknown][]}*/
         const g = e => e[0] === ':'
             ? [[f(e[1]), f(e[2])]]
-            : Object.entries(/**@type {any}*/(f(e[1])))
+            // `Object(...)` is what makes a nullish operand contribute nothing
+            // (`{...null}` is `{}`) while a string still contributes its
+            // indices — `Object.entries` alone throws on `null`/`undefined`.
+            : Object.entries(Object(f(e[1])))
         const kv = a.flatMap(g)
         return Object.fromEntries(kv)
     },

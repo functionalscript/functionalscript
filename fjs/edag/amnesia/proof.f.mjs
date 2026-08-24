@@ -122,6 +122,10 @@ export const proof = {
         // Inherited: `.` walks the prototype chain and `own` does not —
         // the whole reason `own` is a separate node.
         eq(['own', ['{}', []], 'toString'], undefined)
+        // A key that is a string only after JS coercion is not a string key:
+        // `own`'s key operand must *evaluate* to one, so `1` is rejected
+        // rather than silently reading `'1'` — see `throw.ownNonStringKey`.
+        eq(['own', ['{}', [[':', '1', 42]]], '1'], 42)
         assert(typeof ev(['.', ['{}', []], 'toString']) === 'function')
     },
     // `o2lazy` — the right operand is a thunk, so these three short-circuit.
@@ -150,6 +154,9 @@ export const proof = {
         same(['[]', [1, ['+', 1, 1], ['...', ['[]', [3, 4]]]]], [1, 2, 3, 4])
         // A spread of an empty array contributes nothing.
         same(['[]', [['...', ['[]', []]], 1]], [1])
+        // The operand is *iterated*, not spliced in as one element, so a
+        // string contributes its characters — `[...'ab']` is `['a', 'b']`.
+        same(['[]', [['...', 'ab']]], ['a', 'b'])
     },
     // `{}` — `:` builds one entry from two evaluated operands, `'...'`
     // takes the own enumerable entries of an evaluated object.
@@ -162,6 +169,15 @@ export const proof = {
         )
         // Later entries win, as in JavaScript's own object literal.
         same(['{}', [[':', 'a', 1], ['...', ['{}', [[':', 'a', 2]]]]]], { a: 2 })
+        // Object spread takes whatever own enumerable properties the operand
+        // has, and most values have none — a nullish one contributes nothing
+        // rather than throwing, which is where it parts from array spread.
+        same(['{}', [['...', null]]], {})
+        same(['{}', [['...', ['undefined']]]], {})
+        same(['{}', [['...', 1]]], {})
+        same(['{}', [['...', true]]], {})
+        // ... and a string contributes its indices.
+        same(['{}', [['...', 'ab']]], { 0: 'a', 1: 'b' })
     },
     // Operands are evaluated through `vm(context)`, so a node composes with
     // every other node kind and sees the same context at any depth.
@@ -250,6 +266,13 @@ export const proof = {
         // the other side of its guard — the chain steps, receiver and all,
         // are not executed yet.
         lambdas: () => ev(['()', identity, [['|.', 'a']], ['[]', []]]),
+        // An array spread iterates its operand, so a non-iterable one throws
+        // where the object form would have contributed nothing.
+        arraySpreadOfNumber: () => ev(['[]', [['...', 1]]]),
+        arraySpreadOfNull: () => ev(['[]', [['...', null]]]),
+        // `own`'s key operand must evaluate to a string, and `ToPropertyKey`
+        // coercion is exactly what that rules out.
+        ownNonStringKey: () => ev(['own', ['{}', [[':', '1', 42]]], 1]),
         // Not a function: `()` calls whatever the callee operand evaluates
         // to, so this is the host `TypeError`, not a check of its own.
         callNonFunction: () => ev(['()', 1, [], ['[]', []]]),
