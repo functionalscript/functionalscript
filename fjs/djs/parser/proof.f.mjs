@@ -173,6 +173,52 @@ export const proof = {
             assertEq(parseFromTokens(tokens)[0], 'ok')
         },
     ],
+    // A syntax error is reported ahead of a semantic one, wherever each sits.
+    //
+    // The grammar matches the whole module before the fold runs, so a malformed
+    // suffix is found before any name is resolved. The parser this replaced
+    // streamed, so it met an unresolved name first and said so. Both are true of
+    // the input; they answer different questions about it.
+    //
+    // This is the design's stated failure-parity bar rather than a departure
+    // from it — the error must "identify the furthest relevant token or EOF",
+    // and the syntax failure is the furthest relevant token. It is pinned here
+    // because it is a *change*, and because the reasoning is not recoverable
+    // from the positions alone.
+    syntaxBeforeSemantic: [
+        () => {
+            /** @type {readonly(readonly[string, string, readonly[number, number]])[]} */
+            const cases = [
+                // was: const not found @1:11
+                ['const a = missing x', 'unexpected token', [1, 19]],
+                // was: const not found @1:11
+                ['const a = missing', 'unexpected end', [1, 18]],
+                // was: const not found @1:16
+                ['export default missing 1', 'unexpected token', [1, 24]],
+                // was: duplicate id @2:7
+                ['const a = 1\nconst a = 2 x', 'unexpected token', [2, 13]],
+            ]
+            for (const [source, message, position] of cases) {
+                const [tag, value] = parseFromTokens(tokenizeString(source))
+                assert(tag === 'error', [source, tag])
+                assertEq(value.message, message, source)
+                const { metadata } = value
+                assertStructurallySame(
+                    metadata === null ? null : [metadata.line, metadata.column],
+                    position,
+                    source)
+            }
+        },
+        () => {
+            // with nothing malformed after it, the semantic error is still the
+            // one reported — the change is which error wins, not whether names
+            // are checked
+            const [tag, value] = parseFromTokens(tokenizeString('export default missing'))
+            assert(tag === 'error', tag)
+            assertEq(value.message, 'const not found')
+            assertEq(value.metadata?.column, 16)
+        },
+    ],
     // The tokenizer's EOF contract, checked through the parser rather than
     // through `splitEof` alone.
     //

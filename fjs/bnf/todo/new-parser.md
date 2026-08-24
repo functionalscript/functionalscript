@@ -221,7 +221,7 @@ shipped contract keeps public positions in the physical input domain
 (`0 <= idx <= input.length`) even when a grammar consumes synthesized EOF, so
 token-index callers do not need a special post-EOF `input.length + 1` case.
 
-### The cutover tightens one thing deliberately
+### What the cutover changes deliberately
 
 `parseFromTokens` currently accepts a token stream with **no** `eof`, and one
 with **two**, because the state machine only ever asks what the next token is and
@@ -233,6 +233,28 @@ Neither stream can come from the tokenizer, which always emits exactly one final
 `eof`, so this tightens a contract only a hand-built list can break. It is still
 a behaviour change to a public function, and `bnfEofContract` pins both cases so
 the cutover is where it is *chosen* rather than where it is discovered.
+
+**A syntax error is now reported ahead of a semantic one.** The grammar matches
+the whole module before the fold runs, so a malformed suffix is found before any
+name is resolved; the state machine streamed, so it met an unresolved name first.
+
+```
+const a = missing x        was: const not found @1:11    now: unexpected token @1:19
+const a = 1
+const a = 2 x              was: duplicate id @2:7        now: unexpected token @2:13
+```
+
+Both errors are true of the input — it has an unresolved name *and* a malformed
+suffix — and reporting the syntax failure is what this issue's own failure-parity
+bar asks for: the error must "identify the furthest relevant token or EOF", and
+the syntax failure is the furthest relevant token. It is also the more defensible
+diagnostic, since resolving names in a statement that does not parse answers a
+question the reader has not reached yet.
+
+With nothing malformed after it, the semantic error still wins — `export default
+missing` reports `const not found` as before. What changed is which error is
+reported when there are two, not whether names are checked. `syntaxBeforeSemantic`
+pins both halves.
 
 ### Transition and cutover
 
