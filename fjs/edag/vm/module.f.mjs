@@ -1,6 +1,5 @@
 /**
- * @import { Exp, Op0Id, Op1, Op1Id, Op2, Op2Id, Properties } from '../types.ts'
- * @import { RequiredMap } from '../../types/object/types.ts'
+ * @import { Exp, Op1, Properties } from '../types.ts'
  * @import { Context, Map, ExpOp, TagMap } from './types.ts'
  */
 
