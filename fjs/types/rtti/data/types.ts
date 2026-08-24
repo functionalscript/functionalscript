@@ -22,14 +22,21 @@ export type KindSet<T> = true | readonly T[]
 /**
  * A set of arrays: a tuple with an optional rest.
  *
- * - `prefix` constrains the value set of each leading position.
- * - `rest` present: the array may be any length `>= prefix.length`, and every
- *   element past the prefix belongs to `rest`.
- * - `rest` absent: the array length is exactly `prefix.length`.
+ * - `prefix` constrains, per leading position, the value *read* at that
+ *   position — a position past the array's end reads as `undefined`, so a
+ *   position is required exactly when its set excludes `undefined`. This is
+ *   the array half of the rule {@link ObjectSet} states for keys.
+ * - `rest` present: the value at every position past the prefix belongs to
+ *   `rest`.
+ * - `rest` absent: there is nothing past the prefix.
  *
- * A tuple schema is `{ prefix }`; a uniform array schema is
- * `{ prefix: [], rest }`. Both are points of the same kind, so
- * `readonly [number] ⊂ readonly number[]` is a plain pattern inclusion.
+ * A tuple schema is `{ prefix, rest: unknown }` — tuples are open, so an
+ * array carrying more than the schema declares is a member (see "Structs and
+ * tuples are open" in `../README.md`) — a uniform array schema is
+ * `{ prefix: [], rest }`, and `{ prefix }` alone is the exact-length set.
+ * All are points of the same kind, so a longer tuple pattern included in a
+ * shorter one is a plain pattern inclusion, the array counterpart of a wider
+ * struct included in a narrower one.
  */
 export type ArraySet = {
     readonly prefix: readonly Node[]

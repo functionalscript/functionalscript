@@ -97,9 +97,11 @@ export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
  * line and running `tsc`.
  *
  * That is a limitation of this renderer, **not** a statement about the value
- * model. Do not cite the exact mapping as evidence that tuples are closed and
- * add a length check to `../parse/module.f.mjs`; that inference is what
- * produced #1622. A schema that wants exact members says so explicitly — see
+ * model. The runtime printer (`./module.f.mjs`), which prints one concrete
+ * pattern rather than a mapping over a generic `T`, emits the rest element
+ * and so renders the open set exactly. Do not cite the exact mapping here as
+ * evidence that tuples are closed and add a length check to
+ * `../parse/module.f.mjs`; that inference is what produced #1622. A schema that wants exact members says so explicitly — see
  * the planned `close` form in `../todo/close-type.md`, which also covers
  * `Ts<T>`'s gap here (`['close', S]` renders fine; `['close', S, R]` may not).
  */

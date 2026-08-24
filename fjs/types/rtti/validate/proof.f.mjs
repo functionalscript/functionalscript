@@ -9,6 +9,7 @@
 
 import { validate } from './module.f.mjs'
 import { parse } from '../parse/module.f.mjs'
+import { toData, validate as dataValidate } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.mjs'
 import { unwrap } from '../../result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
@@ -34,6 +35,53 @@ const v = t => /** @type {any} */ (validate(t))
 
 /** @type {(t: Type) => ValidateE} */
 const p = t => /** @type {any} */ (parse(t))
+
+/** The data form's reader, over the same erased signature. */
+/** @type {(t: Type) => ValidateE} */
+const d = t => dataValidate(toData(t))
+
+/**
+ * The acceptance table. Rows cover both container kinds, openness on both,
+ * the short-array rule, primitives, `or`, and misses — every reader of a
+ * schema has to answer them the same way.
+ *
+ * @type {readonly (readonly [Type, Unknown])[]}
+ */
+const rows = [
+    [number, 42],
+    [number, '42'],
+    [string, 42],
+    [boolean, false],
+    [bigint, 7n],
+    [unknown, { a: [1, 'x'] }],
+    [/** @type {const} */ (42), 42],
+    [/** @type {const} */ (42), 43],
+    [array(number), [1, 2, 3]],
+    [array(number), [1, 'two']],
+    [array(number), {}],
+    // an enumerable non-index key is an entry every reader walks, so it is
+    // held to the element type like any other — and a key is an index only in
+    // the canonical spelling, whatever `Number` makes of it
+    [array(number), Object.assign([1], { foo: 2 })],
+    [array(number), Object.assign([1], { foo: 'x' })],
+    [array(number), Object.assign([1], { '-1': 'x' })],
+    [array(number), Object.assign([1], { '01': 'x' })],
+    [record(number), { a: 1 }],
+    [record(number), { a: 'one' }],
+    [record(number), []],
+    // the four openness rows
+    [[/** @type {const} */ (42)], [42, 'extra']],
+    [{ a: /** @type {const} */ (42) }, { a: 42, b: 'x' }],
+    [[number, option(string)], [42]],
+    [[/** @type {const} */ (42)], []],
+    [{ a: number, b: option(string) }, { a: 1 }],
+    [{ a: number }, { a: 'one' }],
+    [or(number, string), true],
+    [or(number, string), 'hello'],
+    [option(number), undefined],
+    [option(number), null],
+    [{ user: { name: string, age: number } }, { user: { name: 'A', age: 'old' } }],
+]
 
 export const proof = {
     // ── the three properties this module exists for ──────────────────────────
@@ -91,38 +139,8 @@ export const proof = {
         },
     },
     // Acceptance is `parse`'s, exactly: the two readers differ in what a
-    // success carries and in nothing else. Rows cover both container kinds,
-    // openness on both, the short-array rule, primitives, `or`, and misses.
+    // success carries and in nothing else.
     sameAcceptanceAsParse: () => {
-        /** @type {readonly (readonly [Type, Unknown])[]} */
-        const rows = [
-            [number, 42],
-            [number, '42'],
-            [string, 42],
-            [boolean, false],
-            [bigint, 7n],
-            [unknown, { a: [1, 'x'] }],
-            [/** @type {const} */ (42), 42],
-            [/** @type {const} */ (42), 43],
-            [array(number), [1, 2, 3]],
-            [array(number), [1, 'two']],
-            [array(number), {}],
-            [record(number), { a: 1 }],
-            [record(number), { a: 'one' }],
-            [record(number), []],
-            // the four openness rows
-            [[/** @type {const} */ (42)], [42, 'extra']],
-            [{ a: /** @type {const} */ (42) }, { a: 42, b: 'x' }],
-            [[number, option(string)], [42]],
-            [[/** @type {const} */ (42)], []],
-            [{ a: number, b: option(string) }, { a: 1 }],
-            [{ a: number }, { a: 'one' }],
-            [or(number, string), true],
-            [or(number, string), 'hello'],
-            [option(number), undefined],
-            [option(number), null],
-            [{ user: { name: string, age: number } }, { user: { name: 'A', age: 'old' } }],
-        ]
         for (const [t, value] of rows) {
             const rv = v(t)(value)
             const rp = p(t)(value)
@@ -131,6 +149,20 @@ export const proof = {
                 assert(rp[0] === 'error', 'expected error')
                 assertStructurallySame(rv[1], rp[1], 'the two readers report the same error')
             }
+        }
+    },
+    // The same table against the third reader, the data form's — the one that
+    // consumes `toData` output rather than the thunk graph. A schema denotes
+    // one set of values, so a conversion that changed which values a schema
+    // admits would be a bug in `toData`, and this is where it shows up: an
+    // open tuple whose data form was exact-length passed every row above and
+    // still disagreed here. Acceptance only: the data form reaches a value
+    // through the canonical union rather than through the schema's syntax, so
+    // it reports a miss as its own kind-wise failure rather than repeating
+    // `or`'s `no match`.
+    sameAcceptanceInTheDataForm: () => {
+        for (const [t, value] of rows) {
+            assertEq(d(t)(value)[0], p(t)(value)[0], 'the data form must accept what `parse` accepts')
         }
     },
     boolean: {
