@@ -220,7 +220,11 @@ a step is not an `exp` ([Purity](#purity)).
 
 - `_`: at least two steps, at least one of them optional.
 - `_()`: at least one step, at least one of them optional.
-- Minimality: at most one `|.` before the first optional step.
+- **Minimality — the shortest valid form.** Where an expression can be split
+  into two, it is split. For a walk that means cutting at every available cut
+  point and keeping only what cannot be cut; "at most one `|.` before the first
+  optional step" is the weakest visible consequence, not the rule. The rule is
+  in [Open questions](#open-questions).
 
 Together these stop a walker respelling a pure *node* — without them
 `['_', a, [['|.', b]]]` respells `a.b`, and `['_()', a, [['|.', b]], c]`
@@ -293,12 +297,15 @@ legitimacy criterion:
 
 ## Open questions
 
-**The conditions live outside the schema, and four duplicate families slip
-through.** With `lambdas` as `array(lambda)`, neither `array(T)` nor `or`
-states cardinality or order, so the conditions are lowering rules plus a
-validation pass and `validate` accepts graphs the lowering never emits.
-(`close` could state them — see the [later option](#open-questions) below — but
-this proposal does not use it.)
+**Minimality is decided; where it lives is not.** The rule is the shortest
+valid form: where an expression can be split into two, it is. What is open is
+that no part of it is expressible in the schema. With `lambdas` as
+`array(lambda)`, neither `array(T)` nor `or` states cardinality or order, so the
+conditions are lowering rules plus a validation pass, and `validate` accepts
+graphs the lowering never emits. (`close` could state some of it — see the
+[later option](#open-questions) below — but this proposal does not use it.)
+
+Four duplicate families show what a cardinality test alone lets through:
 
 ```ts
 ['_',   a, [['|?.', b], ['|?.', c]]]                // a?.b?.c        also ['?.', ['?.', a, b], c]
@@ -310,7 +317,7 @@ this proposal does not use it.)
 Each satisfies "at least one optional step" and each duplicates a shorter
 spelling — verified identical, error text included. What the cardinality test
 misses is that an optional operator's *presence* is not what justifies a walker;
-the region having work to do is:
+the region having work to do is. Two clauses say it:
 
 - **Whether** a walker is required — some *consumer* takes a receiver from the
   step before it, or an unguarded step follows an optional one and so must be
@@ -362,7 +369,9 @@ Under the full rule all four collapse: `a?.b?.c` fails the "whether" clause
 entirely, `a.b(...c)?.d` needs a walker only for `a.b(...c)` — which is `.()`,
 so none at all — `(a?.(...b))(...c)` has no receiver for its final call to
 consume, and `a?.b(...c)?.d` keeps the walker but cuts before the `|?.`.
-Recommended, not yet decided.
+
+Splitting wherever a split is legitimate is the decision; what remains open is
+that the lowering is the only place it can be stated.
 
 That is the price of maximizing purity: every pure node added is one more
 spelling the walkers must be forbidden to duplicate, and the forbidding happens
