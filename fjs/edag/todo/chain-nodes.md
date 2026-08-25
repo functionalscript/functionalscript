@@ -371,15 +371,26 @@ in the lowering. The same gap as
 [`../../types/rtti/todo/excluded-string-values.md`](../../types/rtti/todo/excluded-string-values.md).
 
 **A later option, deliberately not taken here.** `close` (#1687) is a fixed
-prefix plus a homogeneous tail, which states a cardinality lower bound and pins
-leading positions at once, so it can express all three conditions —
+prefix plus a homogeneous tail, so it states a cardinality lower bound and pins
+leading positions at once:
 `or(close([optional, lambda], lambda), close([dot, optional], lambda))` for `_`,
-and the same without the second-step requirement for `_()`. Tried against
-`validate`: every legal `lambdas` in [Encodings](#encodings) passes, every
-illegal one is rejected, and the second duplicate family above stops
-validating. Left out so this
-proposal does not depend on a combinator that has only just landed; worth
-revisiting once `close` has settled.
+and the same without the second-step requirement for `_()`. It is not a
+restatement of the three conditions. It is strictly **stronger** at the front
+and **silent** at the back, which makes it an implementation of neither rule as
+written:
+
+- Stronger — `['_', a, [['|.', b], ['|()', c], ['|?.', d]]]`, `a.b(...c)?.d`,
+  satisfies all three conditions yet fails both alternatives, its second
+  position being `|()`. That is the second duplicate family above, so the schema
+  is doing part of the recommended rule's work rather than the conditions'.
+- Silent — `['_', a, [['|?.', b], ['|()', c], ['|?.', d]]]`, `a?.b(...c)?.d`,
+  passes on its first position alone. Only the suffix cut removes it, and no
+  fixed prefix can state a cut.
+
+Tried against `validate`: every legal `lambdas` in [Encodings](#encodings)
+passes and every illegal one is rejected. Left out so this proposal does not
+depend on a combinator that has only just landed; adopting it would also mean
+settling which of the two rules a schema is meant to carry.
 
 **`.()` and `?.()` look parallel and are not.** `.()` is property-plus-call;
 `?.()` is an optional call of a value, with no property. Following JS is right,
