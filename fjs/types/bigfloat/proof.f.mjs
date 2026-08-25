@@ -362,6 +362,13 @@ export const proof = {
         // maxExp exactly: the largest finite value.
         () => assertBinary64([(1n << 53n) - 1n, 971])([(1n << 53n) - 1n, 971]),
         () => assertBinary64([-((1n << 53n) - 1n), 971])([-((1n << 53n) - 1n), 971]),
+        // Rounding up out of the top bit has to come back as `precision` bits,
+        // not `precision + 1`. Nothing else here catches a missing
+        // re-normalization: the overflow check is invariant under it
+        // (`54 + (e + 1)` is `53 + (e + 2)`) and the value is the same either
+        // way, so only the width assertion sees it.
+        () => assertBinary64([(1n << 54n) - 1n, -54])([1n << 52n, -52]),
+        () => assertBinary64([-((1n << 54n) - 1n), -54])([-(1n << 52n), -52]),
         // Past it: 2^1024 outright, and the midpoint below it, which overflows
         // by rounding up rather than by magnitude.
         () => assertOverflow([1n, 1024]),

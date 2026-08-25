@@ -4,6 +4,7 @@
  * @module
  *
  * @import { BigFloat, Format } from './types.ts'
+ * @import { Nullable } from '../nullable/types.ts'
  */
 
 import { abs, bitLength, mask, sign } from '../bigint/module.f.mjs'
@@ -189,7 +190,7 @@ export const decToBin = ([dm, de]) => {
  * to `precision` bits first and onto that grid afterwards is two roundings,
  * and the first can manufacture a midpoint the true value only approached.
  *
- * @type {(format: Format) => (dec: BigFloat) => BigFloat | null}
+ * @type {(format: Format) => (dec: BigFloat) => Nullable<BigFloat>}
  */
 export const tryDecToFormat = ({ precision, minExp, maxExp }) => ([dm, de]) => {
     if (dm === 0n) {
