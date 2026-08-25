@@ -329,25 +329,41 @@ the region having work to do is:
   Anything genuinely before the span is a dead prefix and belongs in an `exp`;
   anything after it is a liftable suffix and belongs in a following node.
 
-The suffix half matters as much as the prefix half, and it reads differently for
-the two walkers, because `_()`'s last step feeds the node's own call.
+The suffix half matters as much as the prefix half, and it works by **cut
+points** rather than by single steps. A cut is available before any optional
+step that takes no receiver from the step before it: closing the region there is
+unobservable, because the operator following the closure is itself guarded. No
+cut is available before a `|.` or a `|()` — closing before an unguarded operator
+is exactly what the parenthesis law makes observable — nor before a `|?.()`
+whose predecessor is a property step, which would strand the receiver it
+consumes.
 
-- In `_`, a trailing `|?.` always lifts out by the parenthesis law; a trailing
-  `|?.()` lifts out unless the step before it is a property step, since then it
-  consumes a receiver. Trailing `|.` and `|()` never lift, being unguarded and
-  so needing the skip.
-- In `_()`, a trailing **property** step never lifts, guarded or not: it
-  supplies the receiver the node's own call consumes.
-  `['_()', a, [['|?.', b]], c]` is `(a?.b)(...c)`, which runs `b` with `a` as
-  `this`, while `['()', ['?.', a, b], c]` is the receiver-less call and runs it
-  with `this` undefined. A trailing **call** step does lift, having already
-  cleared the receiver — that is the `(a?.(...b))(...c)` family above.
+Minimality cuts at the earliest available point past the span's required work,
+which trims a whole suffix rather than a last step. Suffixes of two or more
+steps are the case a per-step reading misses:
+
+```ts
+['_', a, [['|?.', b], ['|()', c], ['|?.', d], ['|.', e]]]      // a?.b(...c)?.d.e
+['_', ['_', a, [['|?.', b], ['|()', c]]], [['|?.', d], ['|.', e]]]
+```
+
+The trailing `|.` is not liftable on its own, yet the guarded suffix it sits in
+lifts whole — verified identical over ten input kinds, error text included.
+
+`_()` is the exception at the far end, because its own call is unguarded and
+takes the last step's receiver. A cut inside its `lambdas` is fine, since the
+tail plus the call is still a `_()`; what never happens is the walker giving way
+to a bare `()`. `['_()', a, [['|?.', b]], c]` is `(a?.b)(...c)`, which runs `b`
+with `a` as `this`, while `['()', ['?.', a, b], c]` is the receiver-less call
+and runs it with `this` undefined. A trailing **call** step is the one that does
+give way, having already cleared the receiver — that is the
+`(a?.(...b))(...c)` family above.
 
 Under the full rule all four collapse: `a?.b?.c` fails the "whether" clause
 entirely, `a.b(...c)?.d` needs a walker only for `a.b(...c)` — which is `.()`,
 so none at all — `(a?.(...b))(...c)` has no receiver for its final call to
-consume, and `a?.b(...c)?.d` keeps the walker but ends it before the trailing
-`|?.`. Recommended, not yet decided.
+consume, and `a?.b(...c)?.d` keeps the walker but cuts before the `|?.`.
+Recommended, not yet decided.
 
 That is the price of maximizing purity: every pure node added is one more
 spelling the walkers must be forbidden to duplicate, and the forbidding happens
