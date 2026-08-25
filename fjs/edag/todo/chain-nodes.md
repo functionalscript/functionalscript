@@ -319,8 +319,14 @@ the region having work to do is:
   admits `['_()', a, [['|?.', b]], c]`, the only receiver-preserving spelling of
   `(a?.b)(...c)`: its single step neither follows a step nor precedes one, so a
   clause quantified over steps alone would reject it.
-- **How much** goes in it — the span runs from the first such step to the
-  **last** one. Anything before it is a dead prefix and belongs in an `exp`;
+- **How much** goes in it — the span runs from the first step the clause names
+  to the **last**. Where the clause names a consumer taking a receiver, the span
+  starts at the *producing* step, not the consumer: in
+  `['_', a, [['|.', b], ['|?.()', c]]]` — `a.b?.(...c)` — the `|.` is what
+  supplies `this`, and stranding it in the base gives
+  `['_', ['.', a, b], [['|?.()', c]]]`, which calls a detached `a.b` because an
+  `exp` yields a value (`a.b?.()` is `"A"`; `(0, a.b)?.()` is `"no-this"`).
+  Anything genuinely before the span is a dead prefix and belongs in an `exp`;
   anything after it is a liftable suffix and belongs in a following node.
 
 The suffix half matters as much as the prefix half, and it reads differently for
