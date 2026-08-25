@@ -97,17 +97,25 @@ export const proof = {
             const reason = url => {
                 const r = resolve('.')(url)
                 assert(r[0] === 'error', r)
-                return r[1]
+                return `${r[1].status} ${r[1].message}`
             }
-            assertEq(reason('/../secret'), 'request path escapes the served root')
-            assertEq(reason('/docs/../../secret'), 'request path escapes the served root')
+            assertEq(reason('/../secret'), '400 request path escapes the served root')
+            assertEq(reason('/docs/../../secret'), '400 request path escapes the served root')
             // A percent escape that is not two hexadecimal digits, at the end
             // of the URL and in the middle of it.
-            assertEq(reason('/a%'), 'malformed request URL')
-            assertEq(reason('/a%zz.txt'), 'malformed request URL')
-            assertEq(reason('/a%2z.txt'), 'malformed request URL')
+            assertEq(reason('/a%'), '400 malformed request URL')
+            assertEq(reason('/a%zz.txt'), '400 malformed request URL')
+            assertEq(reason('/a%2z.txt'), '400 malformed request URL')
             // Well-formed escapes spelling bytes that are not UTF-8.
-            assertEq(reason('/%ff.txt'), 'malformed request URL')
+            assertEq(reason('/%ff.txt'), '400 malformed request URL')
+            // A NUL is a bad request, not a host failure: left to the file
+            // system it comes back as an `ERR_INVALID_ARG_VALUE` and a `500`.
+            assertEq(reason('/main.css%00'), '400 malformed request URL')
+            // A dot-prefixed segment is `404`, at any depth: whether `.env` or
+            // `.git/config` exists is itself what is not being disclosed.
+            assertEq(reason('/.env'), '404 not found')
+            assertEq(reason('/.git/config'), '404 not found')
+            assertEq(reason('/docs/.secret/key'), '404 not found')
         },
     },
     respond: {
@@ -119,6 +127,9 @@ export const proof = {
             // Stated, not left to the runner: Node sends an unmeasured body
             // chunked, and a `HEAD` client would learn neither bytes nor size.
             assertEq(contentLength(r), `${page.length}`)
+            // The `Content-Type` is derived from the name, so a browser must
+            // not go looking for a second opinion in the bytes.
+            assertEq(`${r.headers['x-content-type-options']}`, 'nosniff')
         },
         // `HEAD` is answered exactly like `GET`; Node drops the body itself.
         head: () => {
@@ -143,6 +154,14 @@ export const proof = {
             const r = answerSite('GET', '/../secret')
             assertEq(r.status, 400)
             assertEq(body(r), 'request path escapes the served root\n')
+        },
+        // A dotfile is answered as absent, even when it is right there.
+        hidden: () => {
+            /** @type {Dir} */
+            const root = { '.env': [utf8('KEY=1')] }
+            const r = answer(root)('GET', '/.env')
+            assertEq(r.status, 404)
+            assertEq(body(r), 'not found\n')
         },
         // The size is read before the bytes are, so a file too large for one
         // `Vec` is refused rather than truncated.

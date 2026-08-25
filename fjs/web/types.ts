@@ -12,15 +12,27 @@ import type { Result } from '../types/result/types.ts'
 export type WebOp = Fs | Http | Forever | Write
 
 /**
+ * Why a URL names no path this server will answer with, as the response it
+ * earns: `400` for a URL that is malformed or climbs out of the root, `404` for
+ * one this server declines to admit exists.
+ *
+ * Both the status and the sentence are decided here, where the reason is known,
+ * rather than at the point that turns the refusal into a frame — which would
+ * then have to re-derive from a message string which kind of refusal it was.
+ */
+export type Refusal = {
+    readonly status: number
+    readonly message: string
+}
+
+/**
  * Maps a request URL to the path of the file that answers it, or says why no
  * path does. Pure — the whole routing decision, with nothing to run.
  *
- * The error is the sentence a `400` carries. It is the only way this can fail:
- * a URL either names a path under the root or it is malformed, and everything
- * else — a missing file, one too large to send — is discovered by reading, not
- * by resolving.
+ * Everything it can fail on is a property of the URL. What is discovered by
+ * *reading* — a missing file, one too large to send — is not its business.
  */
-export type Resolve = (root: string) => (url: string) => Result<string, string>
+export type Resolve = (root: string) => (url: string) => Result<string, Refusal>
 
 /**
  * Answers one request by reading a file under `root`.

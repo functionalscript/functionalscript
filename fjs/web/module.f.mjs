@@ -14,7 +14,7 @@
  * | case                                          | status |
  * |-----------------------------------------------|--------|
  * | file found                                     | `200`  |
- * | `GET`/`HEAD` on a missing path                 | `404`  |
+ * | `GET`/`HEAD` on a missing or dot-prefixed path | `404`  |
  * | any other method                               | `405`  |
  * | a path that escapes `root`, or an undecodable URL | `400`  |
  * | a file larger than one `Vec`                   | `413`  |
@@ -34,7 +34,7 @@
  * @import { Nullable } from '../types/nullable/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
- * @import { Resolve, Respond, WebOp } from './types.ts'
+ * @import { Refusal, Resolve, Respond, WebOp } from './types.ts'
  */
 
 import { pureError, pureOk, resultMapStep, step } from '../effects/module.f.mjs'
@@ -121,6 +121,21 @@ const urlPath = url => {
     return path
 }
 
+/** The one character no file system path can carry.
+ *
+ * @type {string}
+ */
+const nul = '\u0000'
+
+/** Whether `segment` is one a client is not shown.
+ *
+ * @type {(segment: string) => boolean}
+ */
+const isHidden = segment => segment.startsWith('.')
+
+/** @type {(status: number) => (message: string) => Result<never, Refusal>} */
+const refuse = status => message => error({ status, message })
+
 /**
  * The directory a `root` argument names.
  *
@@ -143,6 +158,17 @@ const served = root => root === '' ? '.' : root
  *
  * An empty `root` is read as the working directory — see {@link served}.
  *
+ * **Dot-prefixed segments are not served.** `.git/config`, `.env` and
+ * `.ssh/id_rsa` are the files whose exposure the loopback binding exists to
+ * prevent, and a static server that hands them to anyone who asks has the
+ * boundary in the wrong place. The answer is `404` rather than `403`: whether
+ * such a file exists is itself the thing not being disclosed.
+ *
+ * **A NUL is a malformed URL, not a host error.** `%00` decodes to a byte no
+ * path can contain; left to the file system it comes back as an
+ * `ERR_INVALID_ARG_VALUE` and a `500`, reporting a host failure for what is
+ * plainly a bad request.
+ *
  * **Traversal is rejected in segment space, not by string comparison.**
  * `parse` collapses `.` and `..` the way the file system would, so `..` can only
  * survive it by pointing above the root; that is the whole check. Comparing the
@@ -156,9 +182,10 @@ export const resolve = root => url => {
     const base = served(root)
     const path = urlPath(url)
     const decoded = percentDecode(path)
-    if (decoded === null) { return error('malformed request URL') }
+    if (decoded === null || decoded.includes(nul)) { return refuse(400)('malformed request URL') }
     const segments = parse(decoded)
-    if (segments.includes('..')) { return error('request path escapes the served root') }
+    if (segments.includes('..')) { return refuse(400)('request path escapes the served root') }
+    if (segments.some(isHidden)) { return refuse(404)('not found') }
     const isDirectory = segments.length === 0 || decoded.endsWith('/')
     return ok(join(base, ...(isDirectory ? [...segments, 'index.html'] : segments)))
 }
@@ -191,6 +218,10 @@ const response = status => contentType => body => ({
     headers: {
         'content-type': contentType,
         'content-length': `${length(body) >> 3n}`,
+        // The `Content-Type` above is derived from a file name, and a browser
+        // that sniffs past it decides for itself what a served file is — which
+        // is the one thing this server has already answered.
+        'x-content-type-options': 'nosniff',
     },
     body,
 })
@@ -243,7 +274,10 @@ export const respond = root => ({ method, url }) => {
         return pureOk(plainText(405)('only GET and HEAD are supported'))
     }
     const resolved = resolve(root)(url)
-    if (resolved[0] === 'error') { return pureOk(plainText(400)(resolved[1])) }
+    if (resolved[0] === 'error') {
+        const { status, message } = resolved[1]
+        return pureOk(plainText(status)(message))
+    }
     const path = resolved[1]
     const bytes = step(stat(path), readBounded(path))
     return resultMapStep(bytes, r => ok(fileResponse(path)(r)))

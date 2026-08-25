@@ -21,6 +21,12 @@ There is nothing to check against today. Containment after link resolution needs
 the *real* path of the file, and `Fs` (`fjs/effects/node/types.ts`) has no
 `realpath` operation — nor does `FileStat` say whether the entry is a link.
 
+**This gates `--host`.** Binding anything but loopback
+([options-edsl](../../cli/todo/options-edsl.md)) must not land before this does:
+loopback is the only reason a walkable root boundary is survivable today, and a
+`node_modules` or `.git` symlink inside a served tree is ordinary rather than
+exotic.
+
 ### Proposal
 
 Add a `Realpath` operation to `Fs` — `(path: string) => IoResult<string>`,
@@ -45,6 +51,7 @@ does.
 - [ ] Enforce containment in `respond`, with proof coverage for a link that
       points out of the root and one that stays inside it.
 - [ ] Drop the symlink caveat from `fjs/web/README.md`.
+- [ ] Only then let `fjs web` bind anything but loopback.
 
 ### Related
 

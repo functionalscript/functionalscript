@@ -54,6 +54,14 @@ to bytes first and the whole sequence read back as UTF-8 at the end. Decoding
 each escape on its own would produce mojibake for every non-ASCII name. Bytes
 that are not valid UTF-8 are a `400` rather than a lossy name.
 
+**Dot-prefixed segments are not served**, at any depth: `/.env`, `/.git/config`
+and `/docs/.secret/key` are all `404`. These are the files whose exposure the
+loopback binding exists to prevent, so handing them to anyone who asks would put
+the boundary in the wrong place. `404` rather than `403` because whether such a
+file exists is itself what is not being disclosed. A NUL in a path (`%00`) is
+`400`: no path can contain one, and letting it reach the file system reports a
+host failure for what is plainly a bad request.
+
 Traversal is rejected **in segment space**. `parse` collapses `.` and `..` the
 way the file system does, so a `..` that survives it is one that climbs above the
 root, and the check is `segments.includes('..')` — nothing about the string form
@@ -88,7 +96,15 @@ serves both, and the client still learns the size it asked for.
 ([`fjs/media/type`](../media/type/)'s `detectPath`), never from its bytes.
 Sniffing cannot serve this question at all — `text/html`, `text/css` and
 `text/javascript` are byte-identical UTF-8 text, and a browser treats them as
-three different things.
+three different things. Every response also carries
+`X-Content-Type-Options: nosniff`, so the browser does not go looking for a
+second opinion in the bytes of a type this server has already answered.
+
+**The file system decides what a name matches.** On a case-insensitive volume
+`/INDEX.HTML` serves `index.html`, and Windows has its own rules about trailing
+dots and spaces. `resolve` normalizes the path but does not — cannot portably —
+predict which names a given host treats as the same file, so a hidden-segment or
+extension check is a check on the name as *written*.
 
 ### The size limit
 
@@ -177,4 +193,7 @@ link inside the root can defeat by pointing outside it — the root boundary hol
 for paths, not for the file system's own indirection. Checking it properly needs
 the target's real path, and there is no `realpath` effect yet:
 [symlink-containment](./todo/symlink-containment.md). Until then, the loopback
-binding is what bounds it, and a tree with unaudited links is not one to serve.
+binding is what bounds it, and a tree with unaudited links is not one to serve —
+a `node_modules` or `.git` link is ordinary enough that this is a real caveat and
+not a theoretical one. **It gates `--host`**: this server must not become
+reachable from another machine while the root boundary can be walked out of.
