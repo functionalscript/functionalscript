@@ -334,24 +334,43 @@ const allow = 'GET, HEAD'
  */
 const servedHosts = ['localhost', '127.0.0.1', '[::1]']
 
+/** Whether `s` is a decimal number, and a non-empty one.
+ *
+ * @type {(s: string) => boolean}
+ */
+const isDigits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
+
+/** Whether what follows a host name is nothing, or a port.
+ *
+ * @type {(rest: string) => boolean}
+ */
+const isPortSuffix = rest => rest === '' || (rest.startsWith(':') && isDigits(rest.slice(1)))
+
 /**
- * The name part of a `Host` header, without its port, in lower case and without a
- * trailing root dot — a host name is case-insensitive and `localhost.` is
- * `localhost`, so neither spelling names a different machine or may be refused
- * for how it is written.
+ * The name an authority names, or `null` if it does not name one.
  *
- * An IPv6 literal is bracketed, and its brackets are part of the name; a missing
- * `]` leaves an empty name, which no entry matches.
+ * Lower case, because a host name is case-insensitive and `LOCALHOST` is not a
+ * different machine. Without a trailing root dot, because `localhost.` is not
+ * one either.
  *
- * @type {(host: string) => string}
+ * **And nothing after the name is discarded.** Reading the prefix and dropping
+ * the rest made `localhost:bad`, `localhost:8080:999` and `[::1]evil` all read
+ * as names this server answers for — a check that ignores what it does not
+ * understand is not a check. What may follow a name is a port and nothing else;
+ * an IPv6 literal is bracketed, and its brackets are part of the name.
+ *
+ * @type {(host: string) => Nullable<string>}
  */
 const hostName = host => {
     const lower = host.toLowerCase()
-    if (lower.startsWith('[')) { return lower.slice(0, lower.indexOf(']') + 1) }
-    const [name] = lower.split(':')
-    // `localhost.` is `localhost`: a trailing dot names the DNS root explicitly,
-    // and a browser that sends the fully qualified form is not naming a
-    // different machine.
+    if (lower.startsWith('[')) {
+        const end = lower.indexOf(']')
+        if (end < 0 || !isPortSuffix(lower.slice(end + 1))) { return null }
+        return lower.slice(0, end + 1)
+    }
+    const colon = lower.indexOf(':')
+    if (colon >= 0 && !isPortSuffix(lower.slice(colon))) { return null }
+    const name = colon < 0 ? lower : lower.slice(0, colon)
     return name.endsWith('.') ? name.slice(0, -1) : name
 }
 
@@ -371,8 +390,11 @@ const hostName = host => {
  *
  * @type {(host: string | undefined) => boolean}
  */
-const isServedHost = host =>
-    host !== undefined && !host.includes(userInfoMark) && servedHosts.includes(hostName(host))
+const isServedHost = host => {
+    if (host === undefined || host.includes(userInfoMark)) { return false }
+    const name = hostName(host)
+    return name !== null && servedHosts.includes(name)
+}
 
 /**
  * `405`, carrying the `Allow` header the status may not omit: a refusal that

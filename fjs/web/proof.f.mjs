@@ -208,6 +208,13 @@ export const proof = {
             // host it actually names is the attacker's.
             assertEq(status('127.0.0.1:8080@attacker.example'), 403)
             assertEq(status('user@localhost'), 403)
+            // What follows a name may be a port and nothing else. Reading the
+            // prefix and discarding the rest made each of these read as a name
+            // this server answers for.
+            assertEq(status('localhost:bad'), 403)
+            assertEq(status('localhost:8080:999'), 403)
+            assertEq(status('localhost:'), 403)
+            assertEq(status('[::1]evil'), 403)
             // A bracket with no closing `]` names nothing.
             assertEq(status('[::1'), 403)
             // An absolute-form target names its own host, and RFC 9112 says to
