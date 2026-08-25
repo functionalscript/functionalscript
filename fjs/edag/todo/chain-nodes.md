@@ -173,11 +173,19 @@ semantic difference, but worth naming since [minimality](#three-laws) and the
 `X` must be built from the chain operators, so that `X op` parses with all of
 `X` as the base — the restriction is syntactic, not semantic.
 
-**Minimality.** A `lambdas` should hold exactly one HCF lifetime — the one the
-node consumes — and no dead prefix. `['_()', a, [['|.', b], ['|.', c]], d]` is
-not a legal spelling of `a.b.c(...d)`: the first step's receiver is overwritten
-before anything consumes it, so it is an ordinary value computation and belongs
-in a `.` node. Verified exact, error text included.
+**Minimality.** A `lambdas` should hold exactly one **optional region** — the
+one the node's short-circuit covers — and no dead prefix. One region may contain
+several receiver lifetimes: `a?.b(...x).c(...y)` is
+`['_', a, [['|?.', b], ['|()', x], ['|.', c], ['|()', y]]]`, two property-and-call
+pairs under a single guard, and it cannot be split after the first call — on a
+nullish `a` the walk is `undefined`, while `(a?.b(...x)).c(...y)` performs the
+`.c` and throws.
+
+What is excluded is a *dead* lifetime.
+`['_()', a, [['|.', b], ['|.', c]], d]` is not a legal spelling of
+`a.b.c(...d)`: the first step's receiver is overwritten before anything consumes
+it, so it is an ordinary value computation and belongs in a `.` node. Verified
+exact, error text included.
 
 Read through [purity](#purity), this says: keep as much of a chain as possible
 in `exp` nodes, and start the `lambdas` only where HCF genuinely begins.
