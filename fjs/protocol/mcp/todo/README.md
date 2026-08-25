@@ -127,11 +127,16 @@ the shared part appears once and only the difference lives in the conditional."
    params-default, and a handler:
 
    ```ts
-   const toolMethod = <const T extends Type>(schema: T, params: Unknown, handler: (v: Ts<T>) => Effect<O, Unknown, never>) =>
+   const toolMethod = <const T extends Type, O extends Operation>(schema: T, params: Unknown, handler: (v: Ts<T>) => Effect<O, Unknown, never>) =>
        capabilities.tools === undefined
            ? pureOk(_errResponse(id)(methodNotFound))
            : validated(id, schema, params)(pr => ioStep(handler(pr), r => pureOk(_okResponse(id)(r))))
    ```
+
+   `O` sits beside `T` here, unlike in `validated`: `handler` is an argument of
+   `toolMethod` itself, so `O` is inferable at the same call. In `validated` the
+   continuation arrives on a *second* call, which is why `O` has to be
+   quantified there instead.
 
    `tools/list` becomes
    `toolMethod(toolsListParams, params === undefined ? {} : params, handlers.toolsList)`

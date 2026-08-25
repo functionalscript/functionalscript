@@ -63,9 +63,12 @@ export const allVoid =
 
 `NotImplemented` in the error channel is the runner's, inherited from `allOk`;
 `E` is the children's. Written with the standalone `step` instead —
-`step(allOk(...items.map(f)), () => pure(undefined))` — it is the same effect
-said less directly; either works. Both must be the standalone combinators:
-`allOk(...)` returns a raw `Effect`, which has no `.step` method.
+`step(allOk(...items.map(f)), () => pureOk(undefined))` — it is the same effect
+said less directly; either works. Note `pureOk`, not `pure`: `pure` takes a
+`Result` (`pureOk = v => pure(ok(v))`), so `pure(undefined)` would yield a bare
+`undefined` where the chain expects `ok(undefined)`. Both spellings must also
+use the standalone combinators: `allOk(...)` returns a raw `Effect`, which has
+no `.step` method.
 
 If `All` is ever lowered out of the node module (it is runner
 infrastructure, not node-specific I/O — a separate design question),
