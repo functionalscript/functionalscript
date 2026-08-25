@@ -101,9 +101,10 @@ export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
  * pattern rather than a mapping over a generic `T`, emits the rest element
  * and so renders the open set exactly. Do not cite the exact mapping here as
  * evidence that tuples are closed and add a length check to
- * `../parse/module.f.mjs`; that inference is what produced #1622. A schema that wants exact members says so explicitly — see
- * the planned `close` form in `../todo/close-type.md`, which also covers
- * `Ts<T>`'s gap here (`['close', S]` renders fine; `['close', S, R]` may not).
+ * `../parse/module.f.mjs`; that inference is what produced #1622. A schema
+ * that wants exact members says so explicitly — see {@link CloseTs} and
+ * "Closed containers" in `../README.md`, where this mapping *is* the exact
+ * one.
  */
 export type TupleTs<T extends Tuple> =
     // readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]
@@ -115,6 +116,28 @@ type OptionalFields<T extends Struct> = {
 type RequiredFields<T extends Struct> = {
     readonly[K in keyof T as undefined extends Ts<T[K]> ? never : K]: Ts<T[K]>
 }
+
+/**
+ * Maps a closed container schema to the resolved type of its declared members
+ * — `ConstTs<C>`, the same mapping the open form gets.
+ *
+ * For `close(c)` this is the *exact* rendering rather than the approximation
+ * {@link TupleTs} settles for: the set is the declared members and nothing
+ * else, which is what a TypeScript tuple already means. (An object type stays
+ * structurally open, so a closed struct still renders as wide as TypeScript
+ * can render it.)
+ *
+ * For `close(c, rest)` the rest is **not rendered**, and that is a gap in this
+ * transformer, not in the model. Expressing "these positions, plus anything
+ * after" over a generic schema tuple is the derivation {@link TupleTs}
+ * documents TypeScript as unable to carry, and rendering only one of the two
+ * kinds would be worse than rendering neither. It costs nothing where it
+ * matters most: `../parse/module.f.mjs` builds the declared members and no
+ * others, so this *is* what a closed parse returns either way. The runtime
+ * printer (`./module.f.mjs`) goes through the data form and renders the rest
+ * exactly.
+ */
+export type CloseTs<C extends ConstObject> = ConstTs<C>
 
 /** Maps a struct schema to a readonly object of resolved types, with optional fields for schemas that include `undefined`. */
 export type StructTs<T extends Struct> =
@@ -197,6 +220,8 @@ export type Ts<T extends Type> =
         I extends readonly['record', infer E extends Type] ? { readonly[k in string]?: Ts<E> } :
         // Or
         I extends readonly['or', ...infer A extends readonly Type[]] ? Ts<A[number]> :
+        // Close — the rest, when there is one, is a documented gap; see `CloseTs`
+        I extends readonly['close', infer C extends ConstObject, ...readonly unknown[]] ? CloseTs<C> :
         //
         never
     ) :
@@ -274,3 +299,17 @@ type _SelfArray = readonly _SelfArray[]
 type _SelfArrayType = () => readonly['array', _SelfArrayType]
 
 type _selfArray = Assert<Check<_SelfArray, _SelfArrayType>>
+
+type _closeTuple = Assert<Check<
+    readonly[12, true],
+    () => readonly['close', readonly[12, true]]>>
+
+type _closeStruct = Assert<Check<
+    { readonly a: string },
+    () => readonly['close', { readonly a: RttiString }]>>
+
+// The rest is the documented gap: `Ts<>` renders the declared members alone,
+// which is exactly what a closed `parse` builds.
+type _closeRest = Assert<Check<
+    readonly[12],
+    () => readonly['close', readonly[12], RttiString]>>

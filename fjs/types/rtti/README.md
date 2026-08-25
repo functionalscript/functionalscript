@@ -9,7 +9,7 @@ A type-safe schema system for describing TypeScript types at runtime and validat
 - `module.f.mjs` — schema construction: defines `Type`, `Info`, and schema builder values
 - `ts/module.f.mjs` — type-level transformer: `Ts<T>` maps a schema to its TypeScript type
 - `common/module.f.mjs` — shared kernel for runtime consumers: error shape, path
-  bookkeeping, primitive checks, and `match` (the flat `Kind` recognizer)
+  bookkeeping, primitive checks, and `visit`/`orVisit` (the `Type` dispatchers)
 - `parse/module.f.mjs` — runtime deserialization: `parse(schema)(value)` returns
   a freshly constructed value containing only the declared fields/elements
 - `validate/module.f.mjs` — runtime validation: `validate(schema)(value)`
@@ -99,8 +99,8 @@ undeclared keys are unconstrained, a tuple's `rest` is `unknown` — so
 `validate/proof.f.mjs` runs one acceptance table through all three readers.
 
 **A schema that wants exact members says so** — see
-[close-type.md](./todo/close-type.md) for the planned `close` form. Closedness
-is stated, never inferred.
+[Closed containers](#closed-containers) below. Closedness is stated, never
+inferred.
 
 #### This is deliberate; please do not "fix" it
 
@@ -131,6 +131,46 @@ one kind needed no workaround, the other has none.
 
 `parse/proof.f.mjs` and `validate/proof.f.mjs` pin openness on both kinds.
 
+### Closed containers
+
+`close(c)` is the counterpart: the members `c` declares and no others.
+`close(c, rest)` states the middle ground — those members, plus any number of
+members belonging to `rest`.
+
+| schema | admits |
+| --- | --- |
+| `[number]` | any array whose position 0 is a number |
+| `close([number])` | arrays of exactly one number |
+| `close([number], string)` | one number, then any number of strings |
+| `{ a: number }` | any object whose `a` is a number |
+| `close({ a: number })` | objects with `a` and no other key |
+| `close({ a: number }, string)` | `a`, plus any number of string-valued keys |
+
+Three things follow from stating it this way rather than inferring it.
+
+**It needs no new concept underneath.** The data form's array and object sets
+are both `{ members, rest? }` already, so `close` is the schema-form spelling of
+a `rest` that form has always carried: `unknown` is openness, `never` is the
+exact-members set, and a stated `rest` is itself. `close(c, unknown)` therefore
+normalizes back to the bare `c` — the same `Node`, the same acceptance — and
+`close(c)` and `close(c, undefined)` are one spelling. A container whose
+undeclared members must be the *value* `undefined` states that rest as a wrapped
+const, `() => ['const', undefined]`.
+
+**It narrows acceptance, not construction.** `parse` builds the declared
+members and nothing else, exactly as it does for the open form; a member
+matching a `rest` is checked on the way in and absent on the way out. `rest`
+says what an undeclared member must be, not that the reader should keep it —
+the reader that keeps every member is `validate`, which returns the value it was
+given here as everywhere else.
+
+**`Ts<T>` renders `close(c)` exactly, and drops a `rest`.** The exact-length
+tuple `TupleTs` settles for as an approximation of the open form *is* the closed
+form, so the closed rendering is the accurate one. A `rest` has no generic
+rendering (see `TupleTs`'s two TypeScript errors) and is left out; that costs
+nothing for `parse`, whose result is the declared members either way. The
+runtime printer goes through the data form and renders both.
+
 ## Built-in schemas
 
 The built-in schemas are all `Thunk`s — functions that return an `Info` descriptor.
@@ -146,6 +186,7 @@ unary schemas (`array`, `record`) return `Info1` (a tag + inner type tuple).
 | `unknown`   | `['unknown']`        | any DJS value                    |
 | `array(t)`  | `['array', t]`       | `readonly Ts<t>[]`               |
 | `record(t)` | `['record', t]`      | `{ readonly[K: string]: Ts<t> }` |
+| `close(c, rest?)` | `['close', c, rest]` | `c`'s members, and only members of `rest` besides |
 
 ## Example
 

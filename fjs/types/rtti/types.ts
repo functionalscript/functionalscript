@@ -11,7 +11,7 @@
  * ```
  * Type = Const | Thunk
  * Thunk = () => Info
- * Info = ['const', Const] | Info0<Tag0> | Info1<Tag1, Type>
+ * Info = ['const', Const] | Info0<Tag0> | Info1<Tag1, Type> | InfoClose<ConstObject, Type>
  * ```
  *
  * ## Nullary schemas (no type parameter)
@@ -31,6 +31,13 @@
  * used directly as a schema — it describes exactly the shape of that value.
  * Inside a recursive `Thunk`-based definition, wrap consts with `() => ['const', c]`
  * to keep the schema uniform.
+ *
+ * ## Closed containers
+ *
+ * A `Struct` or a `Tuple` on its own is **open** — a value carrying more than
+ * it declares is a member. `close(c)` states the exact-members set instead, and
+ * `close(c, rest)` states "the declared members, plus any number of members
+ * belonging to `rest`". See "Structs and tuples are open" in `./README.md`.
  *
  * ## Converting to TypeScript types
  *
@@ -90,6 +97,9 @@ export type Type =
         | readonly['record', Type]
         // Or
         | readonly['or', ...readonly Type[]]
+        // InfoClose<ConstObject, Type>
+        | readonly['close', ConstObject]
+        | readonly['close', ConstObject, Type]
     ))
     | Const
 
@@ -101,6 +111,8 @@ type _AssertType = Assert<Equal<
         | Info0<Tag0>
         | Info1<Tag1, Type>
         | readonly['or', ...readonly Type[]]
+        | readonly['close', ConstObject]
+        | readonly['close', ConstObject, Type]
         )
     )>>
 
@@ -141,3 +153,21 @@ export type Record<T extends Type> = Type1<'record', T>
 
 /** Schema type for a union of types `T`. */
 export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
+
+/**
+ * Info tuple for a closed container: `readonly[tag, container, rest]`, where
+ * `rest` is the set every member the container does not declare belongs to.
+ * A `rest` of `undefined` — written out or left off the tuple entirely —
+ * admits no undeclared member at all.
+ */
+export type InfoClose<C extends ConstObject, R extends Type> = readonly['close', C, R]
+
+/**
+ * Schema type for a closed container `C` whose undeclared members are `R`.
+ * `R` defaults to `undefined` — no undeclared member — so `Close<C>` is the
+ * type of `close(c)`, matching the constructor's own optional parameter.
+ */
+export type Close<C extends ConstObject, R extends Type = undefined> = () => InfoClose<C, R>
+
+export type _MakeClose =
+    <const C extends ConstObject, const R extends Type = undefined>(c: C, rest?: R) => Close<C, R>

@@ -323,8 +323,9 @@ const trimPrefix = (prefix, rest) =>
  * `rest` with nothing left before it is every array.
  *
  * Every array set is stated with a `rest` — `unknown` for an open tuple,
- * the element set for a uniform array — so this takes one rather than an
- * optional one; the absent `rest` is what it normalizes an empty one *to*.
+ * the element set for a uniform array, `never` for a `close`d tuple — so this
+ * takes one rather than an optional one; the absent `rest` is what it
+ * normalizes an empty one *to*.
  *
  * @type {(prefix: readonly Node[], rest: Node) => UnionSet}
  */
@@ -336,17 +337,25 @@ const arraySet = (prefix, rest) => {
 }
 
 /**
- * Canonical object-kind singleton. An unconstrained key is dropped (reading
- * it yields some value regardless); a syntactically empty key set makes the
- * whole pattern empty; an unconstrained `rest` is the same set as no `rest`;
- * with nothing left, the pattern is every object.
+ * Canonical object-kind singleton. An unconstrained `rest` is the same set as
+ * no `rest`; an unconstrained key is then dropped too; a syntactically empty
+ * key set makes the whole pattern empty; with nothing left, the pattern is
+ * every object.
+ *
+ * A key is dropped only once the `rest` is gone, and that order is the whole
+ * rule: an undeclared key may be absent, or must belong to `rest`, which
+ * leaves it unconstrained exactly when there is no `rest` — so with one
+ * present a key saying "anything" says strictly more than leaving it out.
+ * `close`'s empty `rest` is where the two part company —
+ * `{ props: { a: unknown }, rest: never }` admits `{ a: 1 }` and
+ * `{ props: {}, rest: never }` admits only `{}`.
  *
  * @type {(props: readonly (readonly [string, Node])[], rest: Node | undefined) => UnionSet}
  */
 const objectSet = (props, rest) => {
-    const constrained = props.filter(([, v]) => !isTop(v))
-    if (constrained.some(([, v]) => isNever(v))) { return never }
     const r = rest !== undefined && isTop(rest) ? undefined : rest
+    const constrained = r === undefined ? props.filter(([, v]) => !isTop(v)) : props
+    if (constrained.some(([, v]) => isNever(v))) { return never }
     if (constrained.length === 0 && r === undefined) { return { object: true } }
     /** @type {StringMap<Node>} */
     const sorted = Object.fromEntries(constrained.toSorted(([ak], [bk]) => cmpString(ak, bk)))
@@ -431,38 +440,65 @@ const arraySetSubset = ctx => assumed => (p, q) => {
 const keyed = n => [n, typeof n === 'string' ? `r:${n}` : undefined]
 
 /**
- * The set of values *read* at key `k` from objects of the pattern: the
- * declared set, else — since the key may also be absent, reading
- * `undefined` — the `rest` set plus `undefined`, else anything. A read-set
- * synthesized from a referenced rest keeps that rule's identity (`u:`), so
- * the coinductive memo closes cycles through it.
+ * The set of values the pattern admits at key `k` when the key is **present**:
+ * the declared set, else the `rest`, else anything.
  *
- * @type {(rules: RuleSet) => (pattern: ObjectSet) => (k: string) => _Keyed}
+ * Presence is the whole point of splitting this from {@link objectMayOmit}. An
+ * absent key and a key present holding `undefined` are not the same object, and
+ * the two sides of a pattern read them differently: a *declared* key constrains
+ * the value read at it, so absence reads `undefined` and passes when the set
+ * holds it, whereas an *undeclared* key is checked as an entry, so a present
+ * `undefined` must belong to `rest` itself (see {@link objectSetValidate}).
+ * Folding the two into one "read set" of `rest ∪ undefined` made
+ * `close({ a: option(number) })` a subset of `record(number)`, which admits
+ * `{ a: undefined }` on the left and rejects it on the right.
+ *
+ * @type {(pattern: ObjectSet) => (k: string) => _Keyed}
  */
-const objectReadSet = rules => pattern => k => {
+const objectPresentSet = pattern => k => {
     const n = at(k)(pattern.props)
     if (n !== null) { return keyed(n) }
     const { rest } = pattern
-    return rest === undefined
-        ? [unknown, 't']
-        : [
-            merge(resolve(rules)(rest), { unit: unitBit(undefined) }),
-            typeof rest === 'string' ? `u:${rest}` : undefined,
-        ]
+    return rest === undefined ? [unknown, 't'] : keyed(rest)
+}
+
+/**
+ * Whether the pattern admits an object carrying no `k` at all: an undeclared
+ * key may always be missing, and a declared one exactly when its set holds
+ * `undefined`, since an absent property reads as `undefined`.
+ *
+ * This is the half of the old read-set that the `∪ undefined` stood for, now
+ * asked as its own question — a local unit-bit test, so it needs no memo.
+ *
+ * @type {(rules: RuleSet) => (pattern: ObjectSet) => (k: string) => boolean}
+ */
+const objectMayOmit = rules => pattern => k => {
+    const n = at(k)(pattern.props)
+    return n === null || ((resolve(rules)(n).unit ?? 0) & unitBit(undefined)) !== 0
 }
 
 /** @type {(list: readonly string[]) => readonly string[]} */
 const dedup = list => list.filter((n, i) => list.indexOf(n) === i)
 
-/** @type {(ctx: _Ctx) => (assumed: _Assumed) => (p: ObjectSet, q: ObjectSet) => boolean} */
+/**
+ * Every key either side declares is checked twice — what `p` may hold there
+ * must be something `q` holds there, and `p` may leave it out only where `q`
+ * lets it. Neither question implies the other: the first alone lets `p` admit
+ * an object `q` rejects for a *missing* key, the second alone for a *present*
+ * one.
+ *
+ * @type {(ctx: _Ctx) => (assumed: _Assumed) => (p: ObjectSet, q: ObjectSet) => boolean}
+ */
 const objectSetSubset = ctx => assumed => (p, q) => {
     const le = keyedSubset(ctx)(assumed)
     const keys = dedup([
         ...definedEntries(p.props).map(([k]) => k),
         ...definedEntries(q.props).map(([k]) => k),
     ])
-    return keys.every(k => le(objectReadSet(ctx[0])(p)(k), objectReadSet(ctx[1])(q)(k)))
-        // values at the keys declared by neither side
+    return keys.every(k =>
+            le(objectPresentSet(p)(k), objectPresentSet(q)(k))
+            && (!objectMayOmit(ctx[0])(p)(k) || objectMayOmit(ctx[1])(q)(k)))
+        // values at the keys declared by neither side, which both may omit
         && (q.rest === undefined || nodeSubset(ctx)(assumed)(p.rest ?? unknown, q.rest))
 }
 
@@ -729,19 +765,23 @@ const primitiveUnion = p => {
 const containerMemo = (state, c) => {
     const done = assoc(state.done, c)
     if (done !== undefined) { return [state, done] }
-    const [state1, u] = containerUnion(state, c)
+    const [state1, u] = containerUnion(state, c, undefined)
     return [{ ...state1, done: [...state1.done, [c, u]] }, u]
 }
 
 /**
- * The union of a const container. Both kinds are **open** — a value carrying
- * more than the schema declares is a member — so each maps onto the `rest`
- * that says so: `unknown` past a tuple's prefix, and, for a struct, the
- * absent `rest` that already leaves the undeclared keys unconstrained.
+ * The union of a const container, with `rest` the set every member it does not
+ * declare belongs to, or `undefined` for the open default.
  *
- * @type {(state: _State, c: ConstObject) => readonly [_State, UnionSet]}
+ * Used bare, both kinds are **open** — a value carrying more than the schema
+ * declares is a member — so the default maps onto the `rest` that says so:
+ * `unknown` past a tuple's prefix, and, for a struct, the absent `rest` that
+ * already leaves the undeclared keys unconstrained. `close` is what supplies a
+ * `rest` of its own; `never` for the exact-members set.
+ *
+ * @type {(state: _State, c: ConstObject, rest: Node | undefined) => readonly [_State, UnionSet]}
  */
-const containerUnion = (state, c) => {
+const containerUnion = (state, c, rest) => {
     let s = state
     if (c instanceof Array) {
         /** @type {readonly Node[]} */
@@ -751,7 +791,7 @@ const containerUnion = (state, c) => {
             s = s1
             prefix = [...prefix, n]
         }
-        return [s, arraySet(prefix, unknown)]
+        return [s, arraySet(prefix, rest ?? unknown)]
     }
     /** @type {readonly (readonly [string, Node])[]} */
     let props = []
@@ -760,7 +800,22 @@ const containerUnion = (state, c) => {
         s = s1
         props = [...props, [k, n]]
     }
-    return [s, objectSet(props, undefined)]
+    return [s, objectSet(props, rest)]
+}
+
+/**
+ * The union of a `close` schema. The container is walked here rather than
+ * through {@link containerMemo}: that memo is keyed by the container's
+ * identity alone, and the same object closed and left open are two different
+ * sets. The enclosing thunk is memoized by {@link convertThunk} either way, so
+ * nothing is recomputed and a cycle through a `close` still closes.
+ *
+ * @type {(state: _State, c: ConstObject, rest: Type | undefined) => readonly [_State, UnionSet]}
+ */
+const closeUnion = (state, c, rest) => {
+    if (rest === undefined) { return containerUnion(state, c, never) }
+    const [state1, restNode] = nodeOf(state)(rest)
+    return containerUnion(state1, c, restNode)
 }
 
 /** @type {(state: _State, c: Const) => readonly [_State, UnionSet]} */
@@ -834,6 +889,11 @@ const thunkUnion = (state, t) => {
         case 'record': {
             const [state1, value] = nodeOf(state)(rest[0])
             return [state1, objectSet([], value)]
+        }
+        case 'close': {
+            const [c, r] = rest
+            assert(typeof c === 'object' && c !== null, c)
+            return closeUnion(state, c, r)
         }
         default: { return orUnion(state, t, rest) }
     }

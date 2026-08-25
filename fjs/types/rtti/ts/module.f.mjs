@@ -22,7 +22,7 @@ import { assertNotNullish } from '../../../asserts/module.f.mjs'
 import { reservedWords, strictModeReservedWords } from '../../../js/keywords/module.f.mjs'
 import { at, definedEntries } from '../../object/module.f.mjs'
 import { primitive, union, printer as tsPrinter } from '../../ts/module.f.mjs'
-import { cmp, toData, unitBit, unknown as top } from '../data/module.f.mjs'
+import { cmp, never as bottom, toData, unitBit, unknown as top } from '../data/module.f.mjs'
 
 const nullBit = unitBit(null)
 const undefinedBit = unitBit(undefined)
@@ -168,15 +168,28 @@ const arraySetToTs = ctx => p => {
 }
 
 /**
- * Whether the node's value set admits `undefined` — its unit bit, read
- * through a reference (own-property only) if needed.
+ * The node's own union, read through a reference (own-property only) if
+ * needed.
+ *
+ * @type {(ctx: _Ctx) => (n: Node) => UnionSet}
+ */
+const resolveNode = ctx => n =>
+    typeof n === 'string' ? assertNotNullish(at(n)(ctx.rules)) : n
+
+/**
+ * Whether the node's value set admits `undefined` — its unit bit.
  *
  * @type {(ctx: _Ctx) => (n: Node) => boolean}
  */
-const admitsUndefined = ctx => n => {
-    const u = typeof n === 'string' ? assertNotNullish(at(n)(ctx.rules)) : n
-    return ((u.unit ?? 0) & undefinedBit) !== 0
-}
+const admitsUndefined = ctx => n =>
+    ((resolveNode(ctx)(n).unit ?? 0) & undefinedBit) !== 0
+
+/**
+ * Whether the node's value set is empty.
+ *
+ * @type {(ctx: _Ctx) => (n: Node) => boolean}
+ */
+const isNever = ctx => n => cmp([{}, resolveNode(ctx)(n)])([{}, bottom]) === 0
 
 /** @type {(list: readonly string[]) => readonly string[]} */
 const dedup = list => list.filter((s, i) => list.indexOf(s) === i)
@@ -189,6 +202,12 @@ const dedup = list => list.filter((s, i) => list.indexOf(s) === i)
  * declared keys too, so the index type widens to the union of the rest and
  * the declared value types — the closest expressible supertype.
  *
+ * An **empty** rest — the closed object `close` produces — prints as the
+ * fields alone. TypeScript object types are structurally open, so "and no
+ * other key" has no spelling there and the index signature would say the
+ * opposite of what is meant; the fields are the closest expressible
+ * supertype, exactly as `Ts<>` renders them.
+ *
  * @type {(ctx: _Ctx) => (p: ObjectSet) => string}
  */
 const objectSetToTs = ctx => p => {
@@ -198,7 +217,7 @@ const objectSetToTs = ctx => p => {
         return admitsUndefined(ctx)(v) ? [k, ts, true] : [k, ts]
     })
     const { rest } = p
-    if (rest === undefined) { return ctx.ts.struct(fields) }
+    if (rest === undefined || isNever(ctx)(rest)) { return ctx.ts.struct(fields) }
     const restTs = ctx.ts.record(union(dedup([...fields.map(([, v]) => v), nodeToTs(ctx)(rest)])))
     return fields.length === 0 ? restTs : `${ctx.ts.struct(fields)}&${restTs}`
 }
@@ -273,8 +292,8 @@ export const dataToTs = mut => ([rules, entry]) => {
  * element that says it is open (`readonly[42,...readonly(unknown)[]]`),
  * whereas `Ts<>` renders the closed approximation — that is `TupleTs`'s
  * limitation, not the model's (see `./types.ts`), and printing a concrete
- * pattern is not subject to it. An exact-length pattern, which no tuple
- * schema produces today, is what prints without the rest element.
+ * pattern is not subject to it. The exact-length pattern, which `close`
+ * produces, is what prints without the rest element.
  *
  * @example
  * ```js
@@ -286,6 +305,7 @@ export const dataToTs = mut => ([rules, entry]) => {
  * toTs(42)                         // '42'
  * toTs('hello')                    // '"hello"'
  * toTs([boolean, number])          // 'readonly[boolean,number,...readonly(unknown)[]]'
+ * toTs(close([boolean, number]))   // 'readonly[boolean,number]'
  * toTs({ x: string })              // '{readonly"x":string}'
  *
  * const list = () => ['array', list]
