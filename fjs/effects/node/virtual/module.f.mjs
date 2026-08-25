@@ -8,7 +8,7 @@
  * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Error } from '../../../types/result/types.ts'
- * @import { Dir, State, _Entity } from './types.ts'
+ * @import { Dir, JsModule, State, _Entity } from './types.ts'
  */
 
 import { assert, todo } from '../../../asserts/module.f.mjs'
@@ -34,6 +34,24 @@ export const emptyState = {
 }
 
 /**
+ * @param {_Entity} entity
+ * @returns {entity is readonly Vec[]}
+ */
+const isBinFile = entity => entity instanceof Array
+
+/**
+ * @param {_Entity} entity
+ * @returns {entity is JsModule}
+ */
+const isJsModule = entity => typeof entity === 'function'
+
+/**
+ * @param {_Entity} entity
+ * @returns {entity is Dir}
+ */
+const isDir = entity => !isBinFile(entity) && !isJsModule(entity)
+
+/**
  * @template T
  * @param {(dir: Dir, path: readonly string[]) => readonly [Dir, T]} op
  * @returns {(path: string) => (state: State) => readonly [State, T]}
@@ -46,10 +64,7 @@ const operation = op => {
         }
         const [first, ...rest] = path
         const subDir = dir[first]
-        // `instanceof Array`, not `Array.isArray`: the latter narrows to `any[]`,
-        // which `readonly Vec[]` is not assignable to, so its negative branch never
-        // removes a `readonly` array from `_Entity`. Only `instanceof` narrows here.
-        if (typeof subDir !== 'object' || subDir instanceof Array) {
+        if (subDir === undefined || !isDir(subDir)) {
             return op(dir, path)
         }
         const [newSubDir, r] = f(subDir, rest)
@@ -105,12 +120,12 @@ const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directo
 const readFile = readOperation((dir, path) => {
     if (path.length !== 1) { return enoent }
     const file = dir[path[0]]
-    if (typeof file === 'function') { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
     if (file === undefined) { return enoent }
+    if (isJsModule(file)) { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
     // `operation`'s wrapper descends into every plain-object (`Dir`) entry
     // before this op ever runs, and the `JsModule` case already threw above,
     // so `file` here is always a `Vec[]` — never a bare `Dir`.
-    assert(Array.isArray(file), `'${path[0]}' is not a file`)
+    assert(isBinFile(file), `'${path[0]}' is not a file`)
     const chunks = file
     const capBits = maxLengthBytes * 8n
     let result = empty
@@ -129,7 +144,7 @@ const readFile = readOperation((dir, path) => {
 const import_ = readOperation((dir, path) => {
     if (path.length !== 1) { return fail('no such file') }
     const entry = dir[path[0]]
-    if (typeof entry !== 'function') { return fail(`'${path[0]}' is not a JsModule`) }
+    if (entry === undefined || !isJsModule(entry)) { return fail(`'${path[0]}' is not a JsModule`) }
     return ok(entry())
 })
 
@@ -140,7 +155,7 @@ const writeFileOp = payload => (dir, path) => {
     if (path.length !== 1) { return [dir, writeFileError] }
     const [name] = path
     const file = dir[name]
-    if (file !== undefined && !Array.isArray(file)) { return [dir, writeFileError] }
+    if (file !== undefined && !isBinFile(file)) { return [dir, writeFileError] }
     dir = { ...dir, [name]: [payload] }
     return [dir, okVoid]
 }
@@ -161,7 +176,7 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
         let result = []
         for (const [name, content] of entries(d)) {
             if (content === undefined) { continue }
-            const isFile = content instanceof Array || typeof content !== 'object'
+            const isFile = !isDir(content)
             result = [...result, { name, parentPath, isFile }]
             if (!isFile && recursive) {
                 result = [...result, ...f(join(parentPath, name), content)]
@@ -209,7 +224,7 @@ const extractEntity = (dir, path) => {
     }
     const [first, ...rest] = path
     const sub = dir[first]
-    if (sub === undefined || sub instanceof Array || typeof sub === 'function') { return [dir, enoent] }
+    if (sub === undefined || !isDir(sub)) { return [dir, enoent] }
     const [newSub, result] = extractEntity(sub, rest)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
@@ -228,8 +243,8 @@ const insertEntityAt = (dir, path, entity) => {
         const [name] = path
         const existing = dir[name]
         if (existing !== undefined) {
-            const entityIsDir = !Array.isArray(entity) && typeof entity === 'object'
-            const existingIsDir = !Array.isArray(existing) && typeof existing === 'object'
+            const entityIsDir = isDir(entity)
+            const existingIsDir = isDir(existing)
             if (entityIsDir && !existingIsDir) {
                 return [dir, fail(`cannot overwrite file '${name}' with a directory`)]
             }
@@ -249,7 +264,7 @@ const insertEntityAt = (dir, path, entity) => {
     const [first, ...rest] = path
     const sub = dir[first]
     if (sub === undefined) { return [dir, enoent] }
-    if (sub instanceof Array || typeof sub === 'function') { return [dir, fail('not a directory')] }
+    if (!isDir(sub)) { return [dir, fail('not a directory')] }
     const [newSub, result] = insertEntityAt(sub, rest, entity)
     if (result[0] === 'error') { return [dir, result] }
     return [{ ...dir, [first]: newSub }, result]
@@ -276,12 +291,12 @@ const rename = (src, dst) => state => {
 const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
     if (p.length !== 1) { return enoent }
     const file = dir[p[0]]
-    if (typeof file === 'function') { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
     if (file === undefined) { return enoent }
+    if (isJsModule(file)) { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
     // `operation`'s wrapper descends into every plain-object (`Dir`) entry
     // before this op ever runs, and the `JsModule` case already threw above,
     // so `file` here is always a `Vec[]` — never a bare `Dir`.
-    assert(Array.isArray(file), `'${p[0]}' is not a file`)
+    assert(isBinFile(file), `'${p[0]}' is not a file`)
     if (!Number.isInteger(offset)) { return fail(`Offset ${offset} is not an integer`) }
     if (!Number.isInteger(size)) { return fail(`Chunk size ${size} is not an integer`) }
     if (offset < 0) { return fail(`Offset ${offset} is negative`) }
@@ -339,7 +354,7 @@ const writeBytesRawOp = (offset, data) => (dir, p) => {
     const [name] = p
     const file = dir[name]
     if (file === undefined) { return [dir, enoent] }              // writeBytes never creates
-    if (!Array.isArray(file)) { return [dir, fail(`'${name}' is not a file`)] }
+    if (!isBinFile(file)) { return [dir, fail(`'${name}' is not a file`)] }
     if (!Number.isInteger(offset) || offset < 0) { return [dir, fail(`Offset ${offset} is invalid`)] }
     const chunks = file
     if (offset !== fileSizeBytes(chunks)) {
@@ -356,7 +371,7 @@ const statOp = readOperation((dir, path) => {
     if (path.length !== 1) { return enoent }
     const file = dir[path[0]]
     if (file === undefined) { return enoent }
-    if (!Array.isArray(file)) { return fail(`'${path[0]}' is not a file`) }
+    if (!isBinFile(file)) { return fail(`'${path[0]}' is not a file`) }
     return ok({ size: fileSizeBytes(file) })
 })
 
