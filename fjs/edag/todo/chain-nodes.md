@@ -13,8 +13,10 @@ redundant but one. The vocabulary in that position lets a compiler write graphs
 that mean nothing new, and the executor walks a step vocabulary where only one
 step can ever matter.
 
-Answering two questions about each expression — does it carry HCF, and is an
-optional operator involved — partitions them, and the node set falls out.
+Answering two questions — does this node carry HCF, and is an optional operator
+involved — partitions the *node kinds*, and the set falls out. It classifies
+nodes, not whole expressions: `(a?.b).c` has an optional operator and no HCF of
+its own, and is a `.` node over a `?.` one.
 
 ## The invariant
 
@@ -79,7 +81,7 @@ form. No non-optional expression ever needs a walker.
 | **no optional operator** | `.`, `()` | `.()` — the unique case |
 | **optional operator** | — | `?.`, `?.()` alone; a region needs a walker |
 
-`?.` and `?.()` sit in the pure column for a matching reason: their
+`?.` and `?.()` avoid a walker for a matching reason: their
 short-circuit skips nothing beyond their own operands — `a?.b` skips its index,
 `a?.(...b)` its arguments, and neither can skip more.
 
@@ -135,8 +137,14 @@ operator that follows is *unguarded*:
 
 A guarded operator absorbs the `undefined` a closed region yields; an unguarded
 one rejects it. Checked against V8 over 10 chain shapes × 7 input kinds, with no
-mismatch. `X` must be built from the chain operators, so that `X op` parses with
-all of `X` as the base — the restriction is syntactic, not semantic.
+mismatch at the level of value and throw *kind*. Message text is not covered and
+does differ — `a?.b?.(1)` says "a?.b is not a function" where `(a?.b)?.(1)` says
+"(intermediate value) is not a function" — a V8 source-rendering artifact, not a
+semantic difference, but worth naming since [minimality](#three-laws) and the
+`()` narrowings below do turn on message text.
+
+`X` must be built from the chain operators, so that `X op` parses with all of
+`X` as the base — the restriction is syntactic, not semantic.
 
 **Minimality.** A `lambdas` should hold exactly one HCF lifetime — the one the
 node consumes — and no dead prefix. `['_()', a, [['|.', b], ['|.', c]], d]` is
@@ -206,13 +214,14 @@ a step is not an `exp` ([Purity](#purity)).
 - `_()`: at least one step, at least one of them optional.
 - Minimality: at most one `|.` before the first optional step.
 
-Together these keep the seven kinds disjoint — without them `['_', a,
-[['|.', b]]]` respells `a.b`, and `['_()', a, [['|.', b]], c]` respells
-`a.b(...c)`.
+Together these stop a walker respelling a pure *node* — without them
+`['_', a, [['|.', b]]]` respells `a.b`, and `['_()', a, [['|.', b]], c]`
+respells `a.b(...c)`. They do not stop one respelling a pure *nesting*, which is
+what the four families in [Open questions](#open-questions) are.
 
-With `lambdas` as `array(lambda)`, none of the three is expressible: rtti offers
-`array(T)` and `or`, and neither states cardinality or order. They are lowering
-rules plus a validation pass — see [Open questions](#open-questions).
+With `lambdas` as `array(lambda)`, none of the three is expressible: neither
+`array(T)` nor `or` states cardinality or order. They are lowering rules plus a
+validation pass — see [Open questions](#open-questions).
 
 ### Encodings
 
@@ -271,9 +280,11 @@ legitimacy criterion:
 ## Open questions
 
 **The conditions live outside the schema, and four duplicate families slip
-through.** rtti offers `array(T)` and `or` — no cardinality, no order — so the
-conditions are lowering rules plus a validation pass, and `validate` accepts
-graphs the lowering never emits:
+through.** With `lambdas` as `array(lambda)`, neither `array(T)` nor `or`
+states cardinality or order, so the conditions are lowering rules plus a
+validation pass and `validate` accepts graphs the lowering never emits.
+(`close` could state them — see the [later option](#open-questions) below — but
+this proposal does not use it.)
 
 ```ts
 ['_',   a, [['|?.', b], ['|?.', c]]]                // a?.b?.c        also ['?.', ['?.', a, b], c]
