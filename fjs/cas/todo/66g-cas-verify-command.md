@@ -8,7 +8,7 @@
 `fileCas(sha2)(path).read` (`fjs/cas/module.f.mjs`, the `read` method on the `FileCas`
 returned by `fileCas`) streams whatever bytes live at the addressed path without
 recomputing the hash. After **synchronization by copying files**
-(see `issues/plan/vision.md`), or simply over time on a faulty disk, a blob can become
+(see `todo/plan/vision.md`), or simply over time on a faulty disk, a blob can become
 corrupted, truncated, or misnamed and no longer hash to the address it sits under. Nothing
 in the store currently detects this, so the `same hash = same content` invariant the rest
 of the design relies on can silently break, and a bad no-overwrite file can even block a
@@ -49,4 +49,4 @@ Open design points:
 ### Related
 
 - [66g-cas-get-verify-option](66g-cas-get-verify-option.md) — per-read verification for the same invariant
-- `issues/plan/vision.md` — protocol-agnostic synchronization / copy-files sync
+- `todo/plan/vision.md` — protocol-agnostic synchronization / copy-files sync

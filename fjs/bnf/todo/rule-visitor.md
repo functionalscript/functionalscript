@@ -84,6 +84,6 @@ scheme. Each call site keeps its own recursion/accumulator structure.
   be written against the representation the tree actually has.
 - [`../data/README.md`](../data/README.md#the-repeat-rule) — the `Repeat` case
   the visitor has to cover; both backends now match it iteratively.
-- [nullable-analysis-shared](./nullable-analysis-shared.md) — the shared
+- nullable-analysis-shared — the shared
   nullability pass is a natural consumer once the visitor exists.
 - `fjs/types/rtti/common/module.f.mjs` — existing `visit` precedent.

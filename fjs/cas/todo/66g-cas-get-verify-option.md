@@ -67,4 +67,4 @@ Open design points:
 - [fjs/cli options-edsl](../../cli/todo/options-edsl.md) — the declarative `--verify` flag
 - PR [#1277](https://github.com/functionalscript/functionalscript/pull/1277) (closed) —
   prototype implementation kept for reference
-- `issues/plan/vision.md` — protocol-agnostic synchronization / copy-files sync
+- `todo/plan/vision.md` — protocol-agnostic synchronization / copy-files sync

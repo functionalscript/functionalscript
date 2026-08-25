@@ -5,6 +5,13 @@
 - **Priority:** P3
 - **Status:** open
 
+> **Quoted code is out of date (2026-08).** `mcpStep` has since been
+> restructured: `fjs/protocol/mcp/module.f.mjs` no longer calls `validate`
+> directly, and the handler now runs through `pureOk`, an initialization guard
+> and a `notInitialized` error. The repetition this issue objects to may or may
+> not survive that rewrite — re-derive the problem statement from the current
+> handler before acting on the proposal below, or close the issue.
+
 ### Problem
 
 `fjs/protocol/mcp/module.f.mjs`'s `mcpStep` request handler repeats the same
@@ -28,7 +35,7 @@ It appears four times in `mcpStep` (in `fjs/protocol/mcp/module.f.mjs`):
 - `tools/call` — `validate(toolsCallParams)(params)`, success is
   `handlers.toolsCall(pr).step(r => pure(_okResponse(id)(r)))`.
 
-Note: `toolEntry` (line 178) was added as a helper for registering tool handlers
+Note: `toolEntry` was added as a helper for registering tool handlers
 with pre-validated arguments, but `mcpStep` itself still repeats the inline
 validate→error/ok pattern for `ping`, `initialize`, `tools/list`, and `tools/call`.
 
@@ -120,7 +127,7 @@ handler from accreting a dozen copies of the same ternary.
 
 ### Related
 
-- [i665-mcp](todo.md) — the MCP roadmap; the methods it enumerates
+- [i665-mcp](#665-mcp-building-blocks-to-describe-and-serve-mcp) — the MCP roadmap; the methods it enumerates
   (`resources/*`, `prompts/*`, `logging/*`) are the second-and-beyond consumers
   that make this extraction worth doing now rather than later.
 

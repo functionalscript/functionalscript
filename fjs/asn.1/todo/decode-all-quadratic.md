@@ -27,8 +27,8 @@ iteration:
 1. `step` (→ `decodeRaw` → `lenDecode`/`tagDecode` → `pop(len)(v2)`) costs
    O(remaining `length(v)`) per call — same `popFront`/`vec()` masking shape
    as the `baseN.vecToString` bug fixed in PR #1202 and the `sha2.append` bug
-   (`fjs/crypto/sha2/todo.md`), just with variable-length ASN.1 fields instead
-   of fixed-size chunks.
+   (since fixed in `fjs/crypto/sha2/module.f.mjs`), just with variable-length
+   ASN.1 fields instead of fixed-size chunks.
 2. `result = [...result, item]` rebuilds the whole array every iteration —
    a plain JS quadratic-array-build, unrelated to `bit_vec`.
 
@@ -70,4 +70,5 @@ revoked-certificate list) and hits it.
 
 - `fjs/basen/module.f.mjs` `vecToString` / `unpackToString` — the fixed
   sibling bug, PR #1202.
-- `fjs/crypto/sha2/todo.md` — the hot sibling bug (`append`).
+- `fjs/crypto/sha2/module.f.mjs` — the hot sibling bug (`append`), since fixed:
+  the per-chunk fold is hoisted out of the per-`append` path.

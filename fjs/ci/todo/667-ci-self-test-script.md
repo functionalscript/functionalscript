@@ -7,7 +7,7 @@
 
 The built-in `fjs ci` generator currently needs package-aware logic for
 FunctionalScript-specific self-checks. In this repository, the generated workflow
-should compile `issues/demo/data/tree.json` after installing the freshly packed
+should compile `todo/demo/data/tree.json` after installing the freshly packed
 tarball, but that fixture is not meaningful for projects that merely depend on
 FunctionalScript.
 
@@ -24,7 +24,7 @@ self-checks, for example:
 ```json
 {
   "scripts": {
-    "ci:self-test": "fjs compile issues/demo/data/tree.json _tree.f.js"
+    "ci:self-test": "fjs compile todo/demo/data/tree.json _tree.f.js"
   }
 }
 ```

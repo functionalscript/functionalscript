@@ -68,5 +68,5 @@ tokenizer's dummy-path workaround.
 ### Related
 
 - `fjs/js/tokenizer/module.f.mjs` — pure core `tokenizeOp` (:750), position layer (:756)
-- [i157](../djs/todo.md) — JSON/DJS value-layer sharing; the dummy-path
+- [i157](../../djs/todo/157.md) — JSON/DJS value-layer sharing; the dummy-path
   workaround in `json/tokenizer` is downstream of this coupling

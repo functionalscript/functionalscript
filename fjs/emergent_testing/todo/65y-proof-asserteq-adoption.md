@@ -114,7 +114,7 @@ it's by far the most common and the lowest-judgement case.
   `JSON.stringify`-ifies both sides first
   (`if (result !== '[1,20,300]') { throw result }`). That stays
   exactly the same: `assertEq(result, '[1,20,300]')`. Don't be
-  tempted to add deep-equal support — see [i65X-async-test-functions](./README.md)
+  tempted to add deep-equal support — see i65X-async-test-functions
   and AGENTS.md: keep helpers minimal until a second consumer needs
   more.
 - **Import edge.** `proof.f.mjs` files in `fjs/types/` currently avoid
@@ -146,7 +146,7 @@ it's by far the most common and the lowest-judgement case.
 - `fjs/sul/id/module.f.mjs:19`, `fjs/sul/id/proof.f.mjs:1`,
   `fjs/sul/proof.f.mjs:1`, `fjs/sul/level/hash/proof.f.mjs:1` — the four
   existing consumers, demonstrating the desired call-site shape.
-- [i194](todo.md), [i65X-async-test-functions](./README.md) —
+- [i194](./194.md), i65X-async-test-functions —
   parallel work on the test framework's effect surface. The helper
   story above is intentionally smaller and orthogonal; it does not
   touch the `Reporter`/`TestEntry`/`testAll` path.
