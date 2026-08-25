@@ -7,9 +7,9 @@
 
 The codebase has a canonical null-projection combinator —
 `map` in `fjs/types/nullable/module.f.mjs` (`f => value => value === null ?
-null : f(value)`) — and `array`'s safe accessors already route through it.
-`ordered_map.at` (`fjs/types/ordered_map/module.f.mjs:23-28`) re-inlines the
-same shape by hand:
+null : f(value)`) — and `types/bit_vec` and `types/btree` already route
+through it. `ordered_map.at` (`fjs/types/ordered_map/module.f.mjs:23-27`)
+re-inlines the same shape by hand:
 
 ```ts
 export const at
@@ -47,4 +47,8 @@ points at the one `Nullable` combinator instead of a bespoke ternary.
 ### Related
 
 - `fjs/types/nullable/module.f.mjs` — the combinator.
-- `fjs/types/array/module.f.mjs` — precedent: safe accessors already use it.
+- `fjs/types/array/module.f.mjs` — `at` there is the same shape (`fromUndefined`
+  over an index). Its split accessors deliberately do *not* project through
+  `nullable`'s `map`: their result distinguishes a stored nullish element from
+  an empty array, which `T | null` cannot. `ordered_map.at` answers `T | null`,
+  so that reason does not apply here.
