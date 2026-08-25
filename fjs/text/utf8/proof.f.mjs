@@ -96,8 +96,10 @@ export const proof = {
             const result = stringify(toArray(toCodePointList([200.5])))
             assertEq(result, '[2147483648]')
         },
-        // `NaN` compares false against both bounds, so a bare range check let
-        // it through; `Number.isInteger` does not.
+        // `NaN` is flagged either way — the old guard let it past and the
+        // payload arithmetic tagged it anyway, as `errorMask | 0`. Pinned for
+        // the spelling: rejecting it up front gives the canonical `errorMask`
+        // rather than its `| 0` form.
         () => {
             const result = stringify(toArray(toCodePointList([NaN])))
             assertEq(result, '[2147483648]')

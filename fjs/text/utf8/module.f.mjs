@@ -56,9 +56,11 @@ const isInU8Range = contains(0x00, 0xff)
  * code point when it is below `contTag`, tagged with a fractional payload when
  * it is not. Worse where the payload arithmetic reaches it, since the bitwise
  * operators truncate silently: a fractional continuation byte would decode to
- * the very code point its integer part spells, reporting nothing. And
- * `Number.isInteger` catches `NaN`, which compares false against both bounds
- * and so passes a range check on its own.
+ * the very code point its integer part spells, reporting nothing.
+ *
+ * The range half is not carrying `NaN` — `contains` is written positively, so
+ * `isInU8Range(NaN)` is already `false`. `Number.isInteger`'s own job here is
+ * the *in-range* fraction, which no bound can reach.
  *
  * This mirrors `u16` in `../utf16/module.f.mjs`, which carries the same check
  * for the same reason; the two differ only in their bounds.
