@@ -109,35 +109,20 @@ const digit19ToToken = digitToToken(() => 'int')
 likewise route their continuing branches through `numberToken`, dropping the
 repeated `kind`/`value`/`[empty, …]` boilerplate.
 
-#### 3 — a `(letter, char)` escape table
+#### 3 — a `(letter, char)` escape table — **done**
 
-```ts
-const escapeTo = (c: number) =>
-    (state: ParseEscapeCharState) => (): readonly[List<JsToken>, TokenizerState] =>
-        [empty, { kind: 'string', value: appendChar(state.value)(c) }]
-
-const simpleEscapes = [
-    [latinSmallLetterB, backspace],
-    [latinSmallLetterF, ff],
-    [latinSmallLetterN, lf],
-    [latinSmallLetterR, cr],
-    [latinSmallLetterT, ht],
-] as const
-
-// in parseEscapeCharStateOp:
-…simpleEscapes.map(([letter, c]) => rangeFunc<ParseEscapeCharState>(one(letter))(escapeTo(c)))
-```
-
-This leaves the genuinely distinct handlers (`"`/`\`/`/` self-insert via
-`appendChar(state.value)(input)`, and `u` → `unicodeChar`) as their own rows.
+Landed, and wider than proposed here: the table lives in
+[`fjs/js/string_escape`](../string_escape/module.f.mjs), shared with
+`djs/tokenizer`'s decoder and the JSON serializer's encode side rather than
+kept local to this module. `"`/`\`/`/` are not their own rows either — the
+table pairs each with itself, so all eight simple escapes are one
+`simpleEscapes.map(...)`, and only `u` → `unicodeChar` stays a hand-written row.
 
 ### Tasks
 
 - [ ] Add `numberToken` and route the ~9 continuing-number literals through it.
 - [ ] Replace `digit0ToToken`/`digit19ToToken` with one `digitToToken` factory,
       preserving the `'bigint'`-state `default` difference.
-- [ ] Replace the five fixed-char escape handlers with an `escapeTo` helper and a
-      `(letter, char)` table.
 - [ ] Confirm `fjs/js/tokenizer` proof coverage still passes (`npm test`).
 
 ### Related
