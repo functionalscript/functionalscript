@@ -63,11 +63,13 @@ that, in rough order of yield:
    `fjs/text/code_point/` almost verbatim.
 3. **A zero-padded filename.** `i37` is `037-language-design-map.md`, headed
    `# 37.`; matching the identifier's digits against the filename's exactly
-   will miss it. Where the work is traceable, the citation names what
-it shipped as instead — see `i143` and `i172` in `fjs/bnf/todo/207.md`. When
-you recognize one of the unlinked identifiers, either give it the same
-treatment or delete the reference; do not link it to a same-numbered GitHub
-issue, which will be the wrong one.
+   will miss it.
+
+Where the work is traceable, the citation names what it shipped as instead —
+see `i143` and `i172` in `fjs/bnf/todo/207.md`. When you recognize one of the
+unlinked identifiers, either give it the same treatment or delete the
+reference; do not link it to a same-numbered GitHub issue, which will be the
+wrong one.
 
 ## Blocked by third parties
 
