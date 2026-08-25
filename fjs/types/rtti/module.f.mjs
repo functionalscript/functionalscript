@@ -7,7 +7,7 @@
  * @import { Includes } from '../array/types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../ts/types.ts'
- * @import { Tag0, Primitive0, _Type0, Bigint, Unknown, Tag1, _MakeType1, Or, Type } from './types.ts'
+ * @import { Tag0, Primitive0, _Type0, Bigint, Unknown, Tag1, _MakeType1, _MakeClose, Or, Type } from './types.ts'
  */
 
 import { includes } from '../array/module.f.mjs'
@@ -111,3 +111,27 @@ export const option = t =>
  * @type {Or<readonly []>}
  */
 export const never = or()
+
+/**
+ * Constructs a schema for a **closed** container: the members `c` declares and
+ * nothing else, or — with a `rest` — those members plus any number of members
+ * belonging to `rest`.
+ *
+ * A `Struct` or a `Tuple` used on its own is open, so a value carrying more
+ * than it declares is a member of the set it describes (see "Structs and
+ * tuples are open" in `./README.md`). Closedness is stated, never inferred:
+ * this is how a schema says it wants exact members.
+ *
+ * ```js
+ * close([number])              // exactly one number
+ * close({ a: number })         // exactly the key `a`
+ * close({ a: number }, string) // `a`, plus any number of string-valued keys
+ * ```
+ *
+ * Omitting `rest` and passing `undefined` state the same set — no undeclared
+ * member at all. A container whose undeclared members must be the *value*
+ * `undefined` states that rest as a wrapped const, `() => ['const', undefined]`.
+ *
+ * @type {_MakeClose}
+ */
+export const close = (c, rest) => () => /** @type {any} */ (['close', c, rest])

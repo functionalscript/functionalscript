@@ -10,7 +10,7 @@
 import { validate } from './module.f.mjs'
 import { parse } from '../parse/module.f.mjs'
 import { toData, validate as dataValidate } from '../data/module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, close, record, or, option } from '../module.f.mjs'
 import { unwrap } from '../../result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 
@@ -41,9 +41,9 @@ const p = t => /** @type {any} */ (parse(t))
 const d = t => dataValidate(toData(t))
 
 /**
- * The acceptance table. Rows cover both container kinds, openness on both,
- * the short-array rule, primitives, `or`, and misses — every reader of a
- * schema has to answer them the same way.
+ * The acceptance table. Rows cover both container kinds, openness and
+ * closedness on both, the short-array rule, primitives, `or`, and misses —
+ * every reader of a schema has to answer them the same way.
  *
  * @type {readonly (readonly [Type, Unknown])[]}
  */
@@ -76,6 +76,30 @@ const rows = [
     [[/** @type {const} */ (42)], []],
     [{ a: number, b: option(string) }, { a: 1 }],
     [{ a: number }, { a: 'one' }],
+    // the closed counterparts of the four openness rows, and the rest
+    [close([number]), [42]],
+    [close([number]), [42, 'extra']],
+    [close([number]), [42, ,]],
+    [close([number]), Object.assign([42], { foo: 1 })],
+    [close([number]), []],
+    [close([number, option(string)]), [42]],
+    [close({ a: number }), { a: 1 }],
+    [close({ a: number }), { a: 1, b: 'x' }],
+    // a key declared `unknown` is a member the schema has, so the canonical
+    // form must not drop it the way an open struct's is dropped
+    [close({ a: unknown }), { a: 1 }],
+    [close({ a: unknown }), { a: 1, b: 2 }],
+    [close([number], string), [1, 'x', 'y']],
+    [close([number], string), [1, 2]],
+    [close({ a: number }, string), { a: 1, b: 'x' }],
+    [close({ a: number }, string), { a: 1, b: 2 }],
+    // an unconstrained rest is the open form again
+    [close([number], unknown), [1, 'x']],
+    [close({ a: number }, unknown), { a: 1, b: 'x' }],
+    [close([]), []],
+    [close([]), [1]],
+    [close({}), {}],
+    [close({}), { a: 1 }],
     [or(number, string), true],
     [or(number, string), 'hello'],
     [option(number), undefined],
@@ -457,6 +481,37 @@ export const proof = {
             assertOk(x({}))
             assertOk(x({ a: {}, b: { c: {} } }))
             assertError(x({ a: 42 }))
+        },
+    },
+    // Closedness narrows acceptance and nothing else: a success still carries
+    // the very value it was given. The acceptance half is in the table above,
+    // run through all three readers; what is left to pin here is that
+    // `validate` stays verbatim on the new form too.
+    close: {
+        verbatim: () => {
+            const value = [1, 'x', 'y']
+            assert(Object.is(unwrap(validate(close([number], string))(value)), value),
+                'the value comes back as it went in')
+            const struct = { a: 1, b: 'x' }
+            assert(Object.is(unwrap(validate(close({ a: number }, string))(struct)), struct),
+                'and so does an object with rest-matching keys')
+        },
+        // An absent optional member still stays absent — closing a container
+        // says nothing about a member it declares.
+        absentOptionalStaysAbsent: () => {
+            const out = unwrap(validate(close({ a: number, b: option(string) }))({ a: 1 }))
+            assert(!('b' in out), 'an absent optional member must stay absent')
+        },
+        path: () => {
+            assertErrorPath(['1'])(validate(close([number, number]))([1, 'two']))
+            assertErrorPath(['b'])(validate(close({ a: number }, string))({ a: 1, b: 2 }))
+            // The rejection of an undeclared member is about the container, so
+            // it is reported at the container.
+            assertErrorPath([])(validate(close({ a: number }))({ a: 1, b: 2 }))
+        },
+        notAContainer: () => {
+            assertError(validate(close([number]))({}))
+            assertError(validate(close({ a: number }))([]))
         },
     },
     arrayOptional: () => {

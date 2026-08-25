@@ -5,10 +5,11 @@
  * @import { Parse } from './types.ts'
  * @import { Unknown as DjsUnknown } from '../../../djs/types.ts'
  * @import { Assert } from '../../../asserts/types.ts'
+ * @import { Phantom } from '../../phantom/types.ts'
  */
 
 import { parse } from './module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, record, or, option } from '../module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, close, record, or, option } from '../module.f.mjs'
 import {
     assert,
     assertEq,
@@ -30,6 +31,23 @@ const unwrap = r => {
     assert(r[0] === 'ok', 'expected ok')
     return /** @type {T} */ (r[1])
 }
+
+/** A closed container that contains itself: `[number, node?]`. */
+/** @typedef {readonly [number, _Node | undefined]} _Node */
+
+const _node = () => /** @type {const} */ (['close', [number, option(_node)]])
+
+/** @type {Phantom<typeof _node, _Node>} */
+const node = _node
+
+/** A closed struct whose every undeclared key holds another one of these. */
+/** @typedef {() => readonly ['close', { readonly a: typeof number }, _Nest]} _Nest */
+
+/** @type {_Nest} */
+const _nest = () => ['close', { a: number }, _nest]
+
+/** @type {Phantom<_Nest, { readonly a: number }>} */
+const nest = _nest
 
 /** @type {(expected: readonly string[]) => (r: readonly [string, unknown]) => void} */
 const assertErrorPath = expected =>
@@ -362,6 +380,99 @@ export const proof = {
             assertOk(v({}))
             assertOk(v({ a: {}, b: { c: {} } }))
             assertError(v({ a: 42 }))
+        },
+    },
+    // A closed container narrows acceptance and changes construction not at
+    // all: the result carries the declared members, exactly as the open form's
+    // does. `../validate/proof.f.mjs` runs the acceptance half of this through
+    // all three readers.
+    close: {
+        tuple: {
+            exact: () => {
+                const p = parse(close([number, string]))
+                /** @typedef {Assert<Equal<typeof p, Parse<() => readonly ['close', readonly [typeof number, typeof string], undefined]>>>} _ConstParameter */
+                assertStructurallySame(unwrap(p([1, 'a'])), [1, 'a'])
+            },
+            // The whole point of the tag: the open form accepts this.
+            extraRejected: () => {
+                assertError(parse(close([number]))([1, 2]))
+                assertOk(parse([number])([1, 2]))
+            },
+            // A hole past the prefix is no entry, so length is what catches it.
+            holePastThePrefixRejected: () => assertError(parse(close([number]))([1, ,])),
+            // Nor is a key that is no position at all.
+            nonIndexKeyRejected: () =>
+                assertError(parse(close([number]))(Object.assign([1], { foo: 2 }))),
+            // The rule the open form states for a missing member is unchanged:
+            // an absent position reads as `undefined`.
+            shortArray: () => {
+                assertError(parse(close([number]))([]))
+                assertStructurallySame(unwrap(parse(close([number, option(string)]))([1])), [1, undefined])
+            },
+            empty: () => {
+                assertStructurallySame(unwrap(parse(close([]))([])), [])
+                assertError(parse(close([]))([1]))
+            },
+            notAnArray: () => assertError(parse(close([number]))({})),
+        },
+        struct: {
+            exact: () => assertStructurallySame(unwrap(parse(close({ a: number }))({ a: 1 })), { a: 1 }),
+            extraRejected: () => {
+                assertError(parse(close({ a: number }))({ a: 1, b: 2 }))
+                assertOk(parse({ a: number })({ a: 1, b: 2 }))
+            },
+            // A key declared as `unknown` is a member the schema *has*, so a
+            // closed struct still admits it — the canonical form may not drop
+            // it the way an open struct's is dropped.
+            unknownMemberIsStillDeclared: () => {
+                assertOk(parse(close({ a: unknown }))({ a: 1 }))
+                assertError(parse(close({ a: unknown }))({ a: 1, b: 2 }))
+            },
+            empty: () => {
+                assertStructurallySame(unwrap(parse(close({}))({})), {})
+                assertError(parse(close({}))({ a: 1 }))
+            },
+            notAnObject: () => assertError(parse(close({ a: number }))([])),
+        },
+        // With a `rest`, an undeclared member is legal when it belongs to it —
+        // and still not carried into what `parse` builds. `rest` says what an
+        // undeclared member must be, not that the reader should keep it.
+        rest: {
+            checkedAndDropped: () => {
+                assertStructurallySame(unwrap(parse(close({ a: number }, string))({ a: 1, b: 'x' })), { a: 1 })
+                assertStructurallySame(unwrap(parse(close([number], string))([1, 'x', 'y'])), [1])
+            },
+            rejected: () => {
+                assertErrorPath(['b'])(parse(close({ a: number }, string))({ a: 1, b: 2 }))
+                assertErrorPath(['1'])(parse(close([number], string))([1, 2]))
+            },
+            // An unconstrained rest is the open form again.
+            unknownRestIsOpen: () => assertOk(parse(close([number], unknown))([1, 'x'])),
+        },
+        // The declared members are read exactly as the open form reads them,
+        // error paths included.
+        path: () => {
+            assertErrorPath(['1'])(parse(close([number, number]))([1, 'two']))
+            assertErrorPath(['a', '0'])(parse(close({ a: close([number]) }))({ a: ['x'] }))
+        },
+        // A cycle through a closed container terminates, the same way one
+        // through an open one does. The schema is `Phantom`-wrapped for the
+        // usual reason (`Ts<>`'s structural walk would not terminate over a
+        // recursive container — see `../ts/types.ts`); it is the *value* half
+        // under test here.
+        recursive: () => {
+            const p = parse(node)
+            assertStructurallySame(unwrap(p([1])), [1, undefined])
+            assertStructurallySame(unwrap(p([1, [2]])), [1, [2, undefined]])
+            assertError(p([1, [2], 3]))
+        },
+        // A cycle through the `rest` itself: every key other than `a` holds
+        // another one of these.
+        recursiveRest: () => {
+            const p = parse(nest)
+            assertStructurallySame(unwrap(p({ a: 1, b: { a: 2 } })), { a: 1 })
+            assertError(p({ a: 1, b: { a: 'x' } }))
+            assertError(p({ a: 1, b: 2 }))
         },
     },
     arrayOptional: () => {

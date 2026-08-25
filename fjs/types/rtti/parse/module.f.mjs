@@ -29,7 +29,14 @@
  * longer arrays; `Ts<T>` renders the closed approximation only because
  * TypeScript cannot express the open one (see `../ts/types.ts` `TupleTs`), and
  * taking that rendering for the model is what produced #1622. A schema that
- * wants exact members says so — see `../todo/close-type.md`.
+ * wants exact members says so, with `close` — see "Closed containers" in
+ * `../README.md`.
+ *
+ * **A closed container narrows acceptance, not construction.** `close(c)`
+ * rejects a member `c` does not declare, and `close(c, rest)` holds each such
+ * member to `rest`; either way the result carries the declared members and
+ * nothing else, exactly as the open form's does. The reader that keeps every
+ * member is `../validate/module.f.mjs`.
  *
  * The error shape, path bookkeeping, primitive checks, and schema
  * recognition (`visit`) come from `../common/module.f.mjs`.
@@ -38,11 +45,11 @@
  *
  * @module
  *
- * @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts'
+ * @import { ConstObject, Info1, Struct, Tag1, Tuple, Type } from '../types.ts'
  * @import { Result as CommonResult } from '../../result/types.ts'
  * @import { StringMap } from '../../object/types.ts'
  * @import { List } from '../../list/types.ts'
- * @import { Container, IsContainer, ValidationError, Visitor } from '../common/types.ts'
+ * @import { Container, IsContainer, ValidateE, ValidationError, Visitor } from '../common/types.ts'
  * @import { Unknown } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
  */
@@ -56,6 +63,7 @@ import {
     isObject,
     orVisit,
     primitive0Validate,
+    undeclaredEntries,
     verror,
     visit,
 } from '../common/module.f.mjs'
@@ -158,6 +166,74 @@ const structParse = constContainerParse(
     recordRebuild,
 )
 
+/** A closed container has nothing to collect from an undeclared member — only pass/fail matters. */
+const noAccumulate = () => undefined
+
+/**
+ * Builds a parser for a **closed** `Tuple` or `Struct`. The declared members
+ * are read exactly as the open form reads them, and every member the schema
+ * does not name is held to `rest` — or rejected outright when there is none.
+ *
+ * `fits` is the one thing the two kinds do not share. An undeclared member is
+ * an entry on both, but an array is also *as long as it is*: a hole past the
+ * prefix is no entry and would slip through the entry check alone, so the
+ * array kind answers with its length as well.
+ */
+const closeContainerParse =
+    /**
+     * @template {ReadonlyArray<Unknown> | StringMap<Unknown>} C
+     * @param {IsContainer<C>} isContainer
+     * @param {(value: C, k: string) => Unknown} getItem
+     * @param {_Rebuild} rebuild
+     * @param {(value: C, declared: number) => boolean} fits
+     * @returns {(rtti: ConstObject, rest: Type | undefined) => ValidateE}
+     */
+    (isContainer, getItem, rebuild, fits) =>
+    (rtti, rest) => {
+        // Depend on the schema alone, so they are computed once per schema.
+        const rttiEntries = entries(rtti)
+        const declared = rttiEntries.map(([k]) => k)
+        return value => {
+            if (!isContainer(value)) {
+                return verror('unexpected value')
+            }
+            const r = eachEntry(
+                rttiEntries,
+                (k, t) => (/** @type {any} */ (parse(t))(getItem(value, k))),
+                emptyEntries,
+                consEntry,
+            )
+            if (r[0] === 'error') { return r }
+            const extra = undeclaredEntries(declared, value)
+            if (rest === undefined) {
+                return extra.length === 0 && fits(value, declared.length)
+                    ? ok(rebuild(orderedEntries(r[1])))
+                    : verror('unexpected value')
+            }
+            const restParse = /** @type {any} */ (parse(rest))
+            const e = eachEntry(extra, (_k, v) => restParse(v), undefined, noAccumulate)
+            return e[0] === 'error' ? e : ok(rebuild(orderedEntries(r[1])))
+        }
+    }
+
+const closeTupleParse = closeContainerParse(
+    isArray,
+    (value, k) => value[Number(k)],
+    arrayRebuild,
+    (value, declared) => value.length <= declared,
+)
+
+const closeStructParse = closeContainerParse(
+    isObject,
+    (value, k) => value[k],
+    recordRebuild,
+    () => true,
+)
+
+/** @type {(rtti: ConstObject, rest: Type | undefined) => ValidateE} */
+const closeParse = (rtti, rest) =>
+    (rtti instanceof Array ? closeTupleParse : closeStructParse)(rtti, rest)
+
 const orParse =
     /**
      * @template {readonly Type[]} T
@@ -189,11 +265,18 @@ const orParse =
  *
  * // open: an undeclared key is accepted, and not carried over
  * parse({ a: number })({ a: 1, b: 2 }) // ['ok', { a: 1 }]
+ *
+ * // closed: the undeclared key is rejected
+ * parse(close({ a: number }))({ a: 1, b: 2 }) // ['error', …]
+ *
+ * // closed with a rest: it is accepted, checked, and still not carried over
+ * parse(close({ a: number }, string))({ a: 1, b: 'x' }) // ['ok', { a: 1 }]
  * ```
  */
 const parseVisitor = /** @type {any} */ ({
     tuple: tupleParse,
     struct: structParse,
+    close: closeParse,
     array: arrayParse,
     record: recordParse,
     or: orParse,

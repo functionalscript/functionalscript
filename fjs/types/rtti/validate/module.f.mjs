@@ -39,8 +39,15 @@
  * exact tuple only because TypeScript cannot express the open one (see
  * `../ts/types.ts` `TupleTs`); reading that rendering as the value model is
  * what produced #1622, whose check lived in this module's ancestor and was
- * deleted with it. A schema that wants exact members says so — see
- * `../todo/close-type.md`.
+ * deleted with it. A schema that wants exact members says so, with `close` —
+ * see "Closed containers" in `../README.md`.
+ *
+ * ## Closed containers
+ *
+ * `close(c)` admits only the members `c` declares, and `close(c, rest)` admits
+ * those plus any number of members belonging to `rest`. This narrows what is
+ * accepted and changes nothing else: a success still carries the very value it
+ * was given, undeclared members included.
  *
  * ## Dispatch strategy
  *
@@ -65,8 +72,9 @@
  * @module
  *
  * @import { Unknown } from '../ts/types.ts'
- * @import { Info1, Struct, Tag1, Tuple, Type } from '../types.ts'
- * @import { Container, IsContainer, Validate, Visitor } from '../common/types.ts'
+ * @import { ConstObject, Info1, Struct, Tag1, Tuple, Type } from '../types.ts'
+ * @import { Container, IsContainer, Validate, ValidateE, Visitor } from '../common/types.ts'
+ * @import { StringMap } from '../../object/types.ts'
  */
 
 import { ok } from '../../result/module.f.mjs'
@@ -77,6 +85,7 @@ import {
     isObject,
     orVisit,
     primitive0Validate,
+    undeclaredEntries,
     verror,
     visit,
 } from '../common/module.f.mjs'
@@ -163,6 +172,69 @@ const structValidate = constContainerValidate(
     (value, k) => value[k],
 )
 
+/**
+ * Builds a validator for a **closed** `Tuple` or `Struct`. The declared
+ * members are checked exactly as the open form checks them, and every member
+ * the schema does not name is held to `rest` — or rejected outright when there
+ * is none.
+ *
+ * `fits` is the one thing the two kinds do not share. An undeclared member is
+ * an entry on both, but an array is also *as long as it is*: a hole past the
+ * prefix is no entry and would slip through the entry check alone, so the
+ * array kind answers with its length as well.
+ */
+const closeContainerValidate =
+    /**
+     * @template {ReadonlyArray<Unknown> | StringMap<Unknown>} C
+     * @param {IsContainer<C>} isContainer
+     * @param {(value: C, k: string) => Unknown} getItem
+     * @param {(value: C, declared: number) => boolean} fits
+     * @returns {(rtti: ConstObject, rest: Type | undefined) => ValidateE}
+     */
+    (isContainer, getItem, fits) =>
+    (rtti, rest) => {
+        // Depend on the schema alone, so they are computed once per schema.
+        const rttiEntries = entries(rtti)
+        const declared = rttiEntries.map(([k]) => k)
+        return value => {
+            if (!isContainer(value)) {
+                return verror('unexpected value')
+            }
+            const r = eachEntry(
+                rttiEntries,
+                (k, v) => /** @type {any} */ (validate(v))(getItem(value, k)),
+                undefined,
+                noAccumulate,
+            )
+            if (r[0] === 'error') { return r }
+            const extra = undeclaredEntries(declared, value)
+            if (rest === undefined) {
+                return extra.length === 0 && fits(value, declared.length)
+                    ? ok(value)
+                    : verror('unexpected value')
+            }
+            const restValidate = /** @type {any} */ (validate(rest))
+            const e = eachEntry(extra, (_k, v) => restValidate(v), undefined, noAccumulate)
+            return e[0] === 'error' ? e : ok(value)
+        }
+    }
+
+const closeTupleValidate = closeContainerValidate(
+    isArray,
+    (value, k) => value[Number(k)],
+    (value, declared) => value.length <= declared,
+)
+
+const closeStructValidate = closeContainerValidate(
+    isObject,
+    (value, k) => value[k],
+    () => true,
+)
+
+/** @type {(rtti: ConstObject, rest: Type | undefined) => ValidateE} */
+const closeValidate = (rtti, rest) =>
+    (rtti instanceof Array ? closeTupleValidate : closeStructValidate)(rtti, rest)
+
 const orValidate =
     /**
      * @template {readonly Type[]} T
@@ -175,6 +247,7 @@ const orValidate =
 const validateVisitor = /** @type {any} */ ({
     tuple: tupleValidate,
     struct: structValidate,
+    close: closeValidate,
     array: arrayValidate,
     record: recordValidate,
     or: orValidate,
@@ -209,6 +282,10 @@ const validateVisitor = /** @type {any} */ ({
  *
  * // an absent optional member stays absent
  * validate({ a: number, b: option(string) })({ a: 1 })  // ['ok', { a: 1 }]
+ *
+ * // closed, so the extras are what the schema says they may be — or nothing
+ * validate(close({ a: number }))({ a: 1, b: 2 })          // ['error', …]
+ * validate(close({ a: number }, number))({ a: 1, b: 2 })  // ['ok', { a: 1, b: 2 }]
  * ```
  *
  * @type {<const T extends Type>(rtti: T) => Validate<T>}

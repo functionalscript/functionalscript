@@ -27,8 +27,10 @@ motivating consumer in this codebase, so there is nothing open here to track.
 
 - [`../../../edag/module.f.mjs`](../../../edag/module.f.mjs) — `array`/`object` use the
   nested form.
-- [`close-type.md`](./close-type.md) — a different tuple-shape gap (stating an *exact*
-  length), not this one (stating a *variadic* tail); that one is still open.
+- [Closed containers](../README.md#closed-containers) — `close(c, rest)` states a
+  prefix and a homogeneous tail, so the shape above is now spellable as one schema.
+  It is still not *inline* in a bigger `Const` tuple, which is the gap this file
+  describes, and `edag`'s nested form stays the decided representation either way.
 - `../ts/types.ts`, `TupleTs`'s doc comment — the type-level side of a related but
   distinct problem: rendering an *existing* open tuple's TypeScript type, not
   constructing a schema with this shape in the first place.
