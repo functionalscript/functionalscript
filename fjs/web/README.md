@@ -254,6 +254,13 @@ refusing it outright is both correct and the only reading that cannot be walked
 backwards into. HTTP/1.1 requires one and every browser sends one, so accepting its
 absence would leave a hole shaped exactly like a client that omits it on purpose.
 
+An absolute-form target must also name a **host**. `http:///index.html` reads as
+an empty authority and the path `/index.html` here, and as the host
+`index.html` and the path `/` to a URL parser — two readings, neither of them
+the client's — so it is `400`, as RFC 9110 §4.2.1 requires of a recipient given
+an `http` URI with an empty host. `http://:80/index.html` is the same target
+wearing a port, and `new URL` refuses that one outright.
+
 What may follow a name is a **port and nothing else**, and a port is digits
 **below 65536**: `localhost:bad`, `localhost:8080:999` and `localhost:65536` are
 all `403`, the last because a URL parser refuses the same authority

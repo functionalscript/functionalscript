@@ -149,6 +149,12 @@ const schemes = ['http', 'https']
  */
 const userInfoMark = '@'
 
+/** What separates a host from its port.
+ *
+ * @type {string}
+ */
+const portMark = ':'
+
 /**
  * Reads a request target, or `null` if it is not one this server can act on.
  *
@@ -187,6 +193,14 @@ const parseTarget = target => {
     // reads as a different host depending on which end you start from — which
     // is what makes it worth refusing outright rather than parsing past.
     if (authority.includes(userInfoMark)) { return null }
+    // An `http` URI with an **empty host** is one RFC 9110 §4.2.1 says a
+    // recipient must reject as invalid, and the reason is visible here:
+    // `http:///index.html` reads as an empty authority and the path
+    // `/index.html` to this parser, and as the host `index.html` and the path
+    // `/` to a URL parser. Two readings, neither of them the client's, so
+    // neither is answered. `http://:80/x` is the same target wearing a port,
+    // and `new URL` refuses that one outright.
+    if (authority === '' || authority.startsWith(portMark)) { return null }
     return { authority, path: slash < 0 ? '/' : afterScheme.slice(slash) }
 }
 
@@ -366,7 +380,8 @@ const isPort = s => isDigits(s) && Number(s) <= maxPort
  *
  * @type {(rest: string) => boolean}
  */
-const isPortSuffix = rest => rest === '' || (rest.startsWith(':') && isPort(rest.slice(1)))
+const isPortSuffix = rest =>
+    rest === '' || (rest.startsWith(portMark) && isPort(rest.slice(portMark.length)))
 
 /**
  * The name an authority names, or `null` if it does not name one.

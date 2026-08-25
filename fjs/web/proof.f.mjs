@@ -145,6 +145,12 @@ export const proof = {
             assertEq(reason('://localhost/x'), '400 malformed request URL')
             assertEq(reason('1://localhost/x'), '400 malformed request URL')
             assertEq(reason('ftp://localhost/x'), '400 malformed request URL')
+            // An `http` URI with an empty host is one RFC 9110 §4.2.1 says to
+            // reject: this parser would read `/index.html` as the path where a
+            // URL parser reads `index.html` as the host.
+            assertEq(reason('http:///index.html'), '400 malformed request URL')
+            assertEq(reason('http://:80/index.html'), '400 malformed request URL')
+            assertEq(reason('http://'), '400 malformed request URL')
             // A NUL is a bad request, not a host failure: left to the file
             // system it comes back as an `ERR_INVALID_ARG_VALUE` and a `500`.
             assertEq(reason('/main.css%00'), '400 malformed request URL')
