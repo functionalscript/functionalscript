@@ -1,7 +1,7 @@
 import { at, first, last, head, tail, splitFirst, splitLast, empty } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
-import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 const stringify = jsonStringify(sort)
 
@@ -74,6 +74,20 @@ export const proof = {
             const result = splitFirst([])
             assertEq(result, null)
         },
+        // A stored nullish element is an element: `[null]` has a first one,
+        // even though `first([null])` cannot say so.
+        () => {
+            const result = splitFirst([null])
+            assertStructurallySame(result, [null, []])
+        },
+        () => {
+            const result = splitFirst([undefined])
+            assertStructurallySame(result, [undefined, []])
+        },
+        () => {
+            const result = splitFirst([undefined, 20, 300])
+            assertStructurallySame(result, [undefined, [20, 300]])
+        },
     ],
     splitLast: [
         () => {
@@ -84,6 +98,18 @@ export const proof = {
         () => {
             const result = splitLast([])
             assertEq(result, null)
+        },
+        () => {
+            const result = splitLast([null])
+            assertStructurallySame(result, [[], null])
+        },
+        () => {
+            const result = splitLast([undefined])
+            assertStructurallySame(result, [[], undefined])
+        },
+        () => {
+            const result = splitLast([1, 20, undefined])
+            assertStructurallySame(result, [[1, 20], undefined])
         }
     ],
     empty: () => {
