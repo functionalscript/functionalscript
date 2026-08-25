@@ -130,23 +130,38 @@ the shared part appears once and only the difference lives in the conditional."
    params-default, and a handler:
 
    ```ts
-   const toolMethod = <const T extends Type, O extends Operation>(schema: T, params: Unknown, handler: (v: Ts<T>) => Effect<O, Unknown, never>) =>
-       capabilities.tools === undefined
-           ? pureOk(_errResponse(id)(methodNotFound))
-           : validated(id, schema, params)(pr => ioStep(handler(pr), r => pureOk(_okResponse(id)(r))))
+   const toolMethod = (capabilities: ServerCapabilities, id: Id) =>
+       <const T extends Type, O extends Operation>(schema: T, params: Unknown, handler: (v: Ts<T>) => Effect<O, Unknown, never>) =>
+           capabilities.tools === undefined
+               ? pureOk(_errResponse(id)(methodNotFound))
+               : validated(id, schema, params)(pr => ioStep(handler(pr), r => pureOk(_okResponse(id)(r))))
    ```
 
-   `O` sits beside `T` here, unlike in `validated`: `handler` is an argument of
-   `toolMethod` itself, so `O` is inferable at the same call. In `validated` the
-   continuation arrives on a *second* call, which is why `O` has to be
-   quantified there instead.
+   **It has to thread its context, for the same reason `validated` does.**
+   `capabilities` and `id` are not module-scope names: `capabilities` is bound at
+   `mcpStep`'s *config* curry level (`mcpStep({ protocolVersions, capabilities,
+   serverInfo })`) and `id` per *request*, from `decodeRequest`'s message
+   (`module.f.mjs:289`). Written to close over them, `toolMethod` would have to be
+   declared inside the per-request callback and rebuilt on every message — which is
+   what threading exists to avoid. Taking them as a first argument list puts the
+   helper at module scope like `validated`, and the two-level shape mirrors the
+   module's own currying: bind `capabilities` once per server, `id` once per
+   request.
+
+   `O` sits beside `T` on the *second* call, unlike in `validated`: `schema` and
+   `handler` are both arguments of that call, so both parameters are inferable
+   there. In `validated` the continuation arrives on a second call of its own,
+   which is why `O` has to be quantified on that one instead. Either way the rule
+   is the same — quantify where the argument that determines it is passed.
 
    `tools/list` becomes
-   `toolMethod(toolsListParams, params === undefined ? {} : params, handlers.toolsList)`
+   `toolMethod(capabilities, id)(toolsListParams, params === undefined ? {} : params, handlers.toolsList)`
    — keep that spelling rather than `params ?? {}`, which would also coerce
    `null` and turn a `tools/list` with `params: null` from `invalidParams` into
-   a successful empty request
-   and `tools/call` becomes `toolMethod(toolsCallParams, params, handlers.toolsCall)`.
+   a successful empty request. And `tools/call` becomes
+   `toolMethod(capabilities, id)(toolsCallParams, params, handlers.toolsCall)`.
+   If the repetition of `(capabilities, id)` grates, bind it once per request —
+   `const tool = toolMethod(capabilities, id)` — which is the point of the split.
 
 Both helpers keep the genuine per-method differences (schema, params-defaulting,
 success action) visible at the call site while the validate/error/dispatch
@@ -168,7 +183,10 @@ handler from accreting a dozen copies of the same ternary.
       that `initialize` and the `tools/*` pair sit inside lifecycle
       `resultStep(read(stateKey), …)` wrappers, so the helper has to compose
       inside a continuation rather than replace the arm outright.
-- [ ] Add `toolMethod` for the capability-gated `tools/*` pair.
+- [ ] Add `toolMethod` for the capability-gated `tools/*` pair, at module scope,
+      taking `(capabilities, id)` as its first argument list — it must not close
+      over either, or it lands inside the per-request callback and is rebuilt on
+      every message.
 - [ ] Confirm `fjs/protocol/mcp/proof.f.mjs` still passes (`fjs t`) with full branch
       coverage (both `error` and `ok` sides of each method) and `npx tsc` is clean.
 
