@@ -418,6 +418,12 @@ const isPort = port => Number.isInteger(port) && port >= 0 && port <= maxPort
 /** @type {number} */
 const maxPort = 0xffff
 
+/** The port that asks for any free port rather than naming one.
+ *
+ * @type {number}
+ */
+const ephemeral = 0
+
 /**
  * The handle **is** the listener.
  *
@@ -455,7 +461,8 @@ const createServer = listener => state => {
  * `0`–`65535` or not an integer is `ERR_SOCKET_BAD_PORT`, an address already
  * taken is `EADDRINUSE`, and a server asked to listen twice is
  * `ERR_SERVER_ALREADY_LISTEN` — the three failures Node reports, in the shape it
- * reports them. `Listen` became fallible precisely to carry them, and a runner
+ * reports them. Port `0` is the exception to the second: it names no port, so
+ * two servers asking for one do not collide. `Listen` became fallible precisely to carry them, and a runner
  * that always succeeded would make a program that mishandles either look
  * correct.
  *
@@ -495,7 +502,12 @@ const listen = (server, port, host) => state => {
             message: 'Listen method has been called more than once without closing.',
         }))]
     }
-    if (state.listening.some(b => b.address === address)) {
+    // Port `0` asks the host for whichever port is free, so two servers that
+    // ask both get one — checked on Node: they come back with different ports.
+    // Comparing `host:0` to `host:0` would refuse the second, which is the worse
+    // direction to be wrong in: a runner that rejects a program a host accepts
+    // stops work that would have run.
+    if (port !== ephemeral && state.listening.some(b => b.address === address)) {
         return [state, error(ioError({
             code: 'EADDRINUSE',
             message: `listen EADDRINUSE: address already in use ${address}`,

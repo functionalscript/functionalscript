@@ -511,6 +511,19 @@ export const proof = {
             rejects(65536)
             rejects(NaN)
         },
+        // Port `0` names no port: two servers asking the host for a free one
+        // both get one, so refusing the second would reject a program that runs.
+        ephemeralPorts: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const first = history(createServer(listener))
+            const second = historyStep(first, () => createServer(listener))
+            const bound = historyStep(second, b => listen(b, 0, '127.0.0.1'))
+            const e = step(bound, ([, , a]) => listen(a, 0, '127.0.0.1'))
+            const [s, result] = virtual(emptyState)(e)
+            assert(result[0] === 'ok', result)
+            assertEq(s.listening.length, 2)
+        },
         // Binding fails here the way it fails on a host, which is the whole
         // point of `Listen` being fallible: a program that mishandles either
         // failure must not look correct against this runner.
