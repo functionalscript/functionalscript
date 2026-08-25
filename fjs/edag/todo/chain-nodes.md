@@ -114,12 +114,16 @@ Extension is what makes the excess *unbounded* rather than merely two:
 | region skipping only its own operands | one operation | `?.`, `?.()` |
 | region skipping separate operations | unbounded | a walker |
 
-So there are five pure nodes: two *bounded* HCF shapes, plus the two operations
-carrying no HCF at all.
+So there are five pure nodes: three carrying *bounded* HCF — `.()` for the
+receiver lifetime, `?.` and `?.()` for the two regions that skip only their own
+operands — plus the two operations carrying no HCF at all. The table above
+counts lifetime kinds, of which the bounded ones are two; the nodes are three,
+because one kind covers two operators.
 
-Two is not all of them, and the difference is a choice rather than a derivation.
-`a.b?.(...c)` and `(a?.b)(...c)` are bounded by the same criterion — each skips
-one operation, its own operands — and both are spelled with a walker anyway;
+Those three are not every bounded shape, and the gap is a choice rather than a
+derivation. `a.b?.(...c)` and `(a?.b)(...c)` are bounded by the same criterion —
+each skips one operation, its own operands — and both are spelled with a walker
+anyway;
 [the four guard combinations](#open-questions) sets out why. What the criterion
 settles on its own is the other direction: nothing *unbounded* can be a pure
 node.
