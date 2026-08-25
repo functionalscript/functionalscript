@@ -215,20 +215,9 @@ export const proof = {
         const hash = writeResult[1]
         assertEq(length(hash), 256n, ['expected 256-bit hash', length(hash)])
         assertEq(msb.cmp(hash)(computeSync(sha256)([content])), 0, 'write hash mismatch')
-        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, Vec, IoChannel>) => Effect<FileCasOperation, readonly Vec[], IoChannel>} */
-        const drain = acc =>
-            stream =>
-                ioStep(
-                    stream,
-                    (node) => {
-                        if (node === undefined) { return pureOk(acc) }
-                        const { first, tail } = node
-                        return drain([...acc, first])(tail)
-                    },
-                )
-        const [, readResult] = virtual(state1)(drain([])(c.read(hash)))
+        const [, readResult] = virtual(state1)(collectRead(c.read(hash)))
         assert(readResult[0] === 'ok', ['expected read ok', readResult])
-        assertEq(msb.cmp(msb.listToVec(readResult[1]))(content), 0, 'read content mismatch')
+        assertEq(msb.cmp(readResult[1])(content), 0, 'read content mismatch')
     },
     casReadMissingShard: () => {
         // A missing shard fails the stream; it is never the `ok(undefined)` that
@@ -252,21 +241,10 @@ export const proof = {
         assert(writeResult[0] === 'ok', ['expected write ok', writeResult])
         const hash = writeResult[1]
         assertEq(msb.cmp(hash)(computeSync(sha256)(chunks)), 0, 'multi-chunk write hash mismatch')
-        /** @type {(acc: readonly Vec[]) => (stream: List<FileCasOperation, Vec, IoChannel>) => Effect<FileCasOperation, readonly Vec[], IoChannel>} */
-        const drain = acc =>
-            stream =>
-                ioStep(
-                    stream,
-                    (node) => {
-                        if (node === undefined) { return pureOk(acc) }
-                        const { first, tail } = node
-                        return drain([...acc, first])(tail)
-                    },
-                )
-        const [, readResult] = virtual(state1)(drain([])(c.read(hash)))
+        const [, readResult] = virtual(state1)(collectRead(c.read(hash)))
         assert(readResult[0] === 'ok', ['expected read ok', readResult])
         const expected = msb.concat(msb.concat(chunks[0])(chunks[1]))(chunks[2])
-        assertEq(msb.cmp(msb.listToVec(readResult[1]))(expected), 0, 'multi-chunk read content mismatch')
+        assertEq(msb.cmp(readResult[1])(expected), 0, 'multi-chunk read content mismatch')
     },
     casWriteDedup: () => {
         // Same content ⇒ same hash; the second upload's replace-`rename` publishes over the
