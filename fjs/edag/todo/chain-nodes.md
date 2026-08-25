@@ -242,7 +242,7 @@ validation pass — see [Open questions](#open-questions).
 | `a.b` | `['.', a, b]` |
 | `a.b.c` | `['.', ['.', a, b], c]` |
 | `a(...b)` | `['()', a, b]` |
-| `(_, a.b)(...c)` | `['()', ['.', a, b], c]` |
+| `(0, a.b)(...c)` | `['()', ['.', a, b], c]` |
 | `a.b(...c)`, `(a.b)(...c)` | `['.()', a, b, c]` |
 | `a.b.c(...d)` | `['.()', ['.', a, b], c, d]` |
 | `a.b(...c)?.d` | `['?.', ['.()', a, b, c], d]` |
@@ -260,7 +260,7 @@ validation pass — see [Open questions](#open-questions).
 Every row was checked against V8 through its equivalent in the current node set;
 no mismatch. Three carry most of the design:
 
-`a.b(...c)` against `(_, a.b)(...c)` — the receiver and its absence — are told
+`a.b(...c)` against `(0, a.b)(...c)` — the receiver and its absence — are told
 apart by the **tag**. That is the counterexample ruling out recovery of the
 receiver from the callee expression, made structural rather than hidden in an
 operand's length.
@@ -281,7 +281,7 @@ one throws on a nullish `a`, the other is `undefined`. Two narrowings fail the
 legitimacy criterion:
 
 - **Drop the operand and recover the receiver from the callee `exp`.**
-  `(_, a.b)(...c)` and `a.b(...c)` compute the same callee and differ only in
+  `(0, a.b)(...c)` and `a.b(...c)` compute the same callee and differ only in
   the receiver, so a tag or an operand must carry it. Here the tag does, which
   is why `.()` can be pure and `_()` still cannot.
 - **Restrict its step ids to `|.`.** That leaves `(a?.b.c)(...d)` unspellable.
@@ -333,9 +333,10 @@ the region having work to do is. Two clauses say it:
   the closure is itself guarded. None is available before a `|.` or a `|()` —
   closing before an unguarded operator is exactly what the parenthesis law makes
   observable — nor before a `|?.()` whose predecessor is a property step, since
-  that would strand the receiver it consumes: `['_', ['.', a, b], [['|?.()',
-  c]]]` calls a detached `a.b`, an `exp` yielding a value rather than a
-  reference (`a.b?.()` is `"A"`; `(0, a.b)?.()` is `"no-this"`).
+  that would strand the receiver it consumes: the cut leaves
+  `['?.()', ['.', a, b], c]`, which calls a detached `a.b` because an `exp`
+  yields a value rather than a reference (`a.b?.()` is `"A"`; `(0, a.b)?.()` is
+  `"no-this"`).
 
 Cutting *everywhere* rather than only at the two ends is what the rule needs,
 and a per-step reading of either end misses a case:
@@ -438,7 +439,7 @@ the two-node form: it makes the most frequent node in any graph carry a
 combinatorial one.
 
 **Peek at the callee's tag** — recover the receiver when the callee is a `.`
-node. Rejected: that shape already denotes `(_, a.b)(...c)`, so peeking relabels
+node. Rejected: that shape already denotes `(0, a.b)(...c)`, so peeking relabels
 the simplest encoding and forces the ordinary reading onto a node whose only job
 is erasing a reference. It also makes a node's meaning depend on a child's tag.
 
@@ -463,7 +464,7 @@ node in a property position.
       and the `chains` / `optionalCall` proofs.
 - [ ] Add the distinguishing pairs as proofs whichever way this goes — each is a
       fact that would break silently under a later "simplification":
-      `(_, a.b)(...c)` vs `a.b(...c)`; `((a?.b).c)(...d)` vs `(a?.b.c)(...d)`;
+      `(0, a.b)(...c)` vs `a.b(...c)`; `((a?.b).c)(...d)` vs `(a?.b.c)(...d)`;
       `((a?.b).c)?.(...d)` vs `(a?.b.c)?.(...d)`; and a trailing `lambdas` moved
       outside its node.
 
