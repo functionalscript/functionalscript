@@ -253,8 +253,10 @@ a step is not an `exp` ([Purity](#purity)).
   optional step" is the weakest visible consequence, not the rule. The rule is
   in [Open questions](#open-questions), and it bounds the shape: a `lambdas`
   holds at most one `|?.`, first if at all — it can only open a region, never
-  bind to one. Further guarded steps are possible only as `|?.()`, which can
-  open a region or bind to the property step ahead of it.
+  bind to one. Every other guarded step is a `|?.()`, in either role: opening
+  the region itself, or bound to the property step ahead of it. A `lambdas` need
+  not contain a `|?.` for that — `a.b?.(...c)` has none, and its `|?.()` is
+  bound.
 
 The two cardinality conditions stop a walker respelling a pure *node* — without
 them `['_', a, [['|.', b]]]` respells `a.b`, and `['_()', a, [['|.', b]], c]`
