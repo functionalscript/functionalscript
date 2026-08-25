@@ -147,6 +147,7 @@ but isn't exposed in a reusable (bare-string) form.
   char-code ↔ string conversion.
 - [i176-json-file-effects](../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
   — still open under a new slug — and
-  i198-utf8-file-effects — a *different* JSON
+  [i198-utf8-file-effects](../../effects/node/module.f.mjs) — shipped as
+  `readUtf8File`/`writeUtf8File` — a *different* JSON
   concern (whole-value `JSON.stringify(v, null, 2)` → UTF-8 → write), not the
   single-token literal rendering tracked here.

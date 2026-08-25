@@ -93,7 +93,9 @@ the shared part appears once and only the difference lives in the conditional."
    const validated = <const T extends Type>(id: Id, schema: T, params: Unknown) =>
        <O extends Operation>(onOk: (value: Ts<T>) => Effect<MemOp | O, Response | null, never>) => {
            const [t, pr] = parse(schema)(params)
-           return t === 'error' ? pureOk(_errResponse(id)(invalidParams)) : onOk(pr)
+           return t === 'error'
+               ? pureOk(_errResponse(id)(invalidParams))
+               : onOk(/** @type {Ts<T>} */ (pr))
        }
    ```
 
@@ -116,7 +118,8 @@ the shared part appears once and only the difference lives in the conditional."
    than this schema's. `toolEntry` in the same module is the working precedent
    (`@template {Type} const T`, `inputRtti: T`, `handle: (args: Ts<T>) => …`),
    including that it still needs one `Ts<T>` cast where the decoded value
-   crosses out of `parse`.
+   crosses out of `parse` — which is why the sketch above carries the same cast
+   at `onOk` rather than only mentioning it.
 
    Then `ping`, `initialize`, `tools/list`, and `tools/call` each collapse to a
    single `validated(id, schema, params)(pr => …success…)` call, dropping the

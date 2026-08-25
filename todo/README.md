@@ -51,10 +51,19 @@ issue 403).
 
 A bare `iNNN` with no link means the identifier has no file left to point at:
 the issue was closed and deleted, as this README requires, and no successor
-document was identified. Check for a zero-padded name before concluding that —
-`i37` is `037-language-design-map.md`, whose heading is `# 37.`. Matching the
-identifier's digits against the filename's exactly will miss it; grep the
-heading, or allow the padding. Where the work is traceable, the citation names what
+document was identified. Three searches are worth running before concluding
+that, in rough order of yield:
+
+1. **`git log --grep`.** Commits that close one of these name it — `i167` is
+   `d39518d8`, "bit_vec: export msbConcat; drop per-module listToVec(msb)
+   re-binds (i167)", and `i160` is `5c1577c6`, "resolve i160 as won't fix".
+   This finds work that shipped as *code*, which no filename search can.
+2. **The citation's own words.** `i168` is described by its citations as "the
+   streaming decoder factory both codecs already share", which is `decoder` in
+   `fjs/text/code_point/` almost verbatim.
+3. **A zero-padded filename.** `i37` is `037-language-design-map.md`, headed
+   `# 37.`; matching the identifier's digits against the filename's exactly
+   will miss it. Where the work is traceable, the citation names what
 it shipped as instead — see `i143` and `i172` in `fjs/bnf/todo/207.md`. When
 you recognize one of the unlinked identifiers, either give it the same
 treatment or delete the reference; do not link it to a same-numbered GitHub
