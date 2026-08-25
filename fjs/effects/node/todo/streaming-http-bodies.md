@@ -8,8 +8,12 @@
 `IncomingMessage.body` and `ServerResponse.body` (`fjs/effects/node/types.ts`)
 are each a single `Vec`, and a `Vec` caps at 131,072 bytes (128 KiB). The whole
 body is therefore materialized before a listener sees it and after it answers:
-the Node runner buffers the request with `collect(req)` → `listToVec` and writes
+the Node runner buffers the request (bounded, at the cap) and writes
 the response with one `res.end(fromVec(body))`.
+
+The runner refuses what it cannot represent — a request body past the cap is
+answered `413` without the listener seeing it — so the limit is at least honest,
+but it is still a limit no HTTP client expects.
 
 Two consumers are already bounded by this:
 

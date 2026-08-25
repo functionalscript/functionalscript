@@ -100,6 +100,20 @@ with `413`. Serving larger files needs a streaming response body, which is an
 effect-layer change:
 [streaming-http-bodies](../effects/node/todo/streaming-http-bodies.md).
 
+### Request bodies
+
+`GET` and `HEAD` carry none worth reading, and this server ignores what a client
+sends anyway — but ignoring it is not the same as surviving it. A body larger
+than one `Vec` used to kill the process: the runner buffered it, `listToVec`
+threw at the cap, and the throw landed in an `async` handler whose promise
+nobody awaited. Any client could end the server with one request.
+
+The runner now counts as it reads and answers `413` itself, without calling the
+listener — over the cap there is no `IncomingMessage` to build, since its `body`
+is a single `Vec`. It also answers `500` rather than dying if a listener throws:
+a panic must not outlive the request that caused it. Both go away for good with
+[streaming bodies](../effects/node/todo/streaming-http-bodies.md).
+
 ## Proving it without a socket
 
 `main` is proven end to end against the virtual runner, request in and response
@@ -115,9 +129,11 @@ program therefore stops at that last step and exits `1`, which is the honest
 report — the server did not run to completion because this runner cannot run a
 program that never ends.
 
-## The address it binds
+## Binding
 
-`127.0.0.1`, and the announced URL says so. Node's own `listen(port)` binds the
+The address is `127.0.0.1`, and it is bound before anything is announced.
+
+The announced URL says so. Node's own `listen(port)` binds the
 unspecified address, which would publish whatever directory the command was
 pointed at — `.` by default, so a working tree with its sources, its keys and its
 `.env` — to the whole network because someone typed two words. That is why
@@ -127,6 +143,13 @@ not something it gets by writing less.
 
 Reaching the server from another machine therefore waits on `--host`, along with
 `--port`, for [named options in `fjs/cli`](../cli/todo/options-edsl.md).
+
+Binding *fails* asynchronously — a taken port arrives as the server's `error`
+event, not as a throw — so `Listen` settles on the outcome rather than on the
+call. Before that, `fjs web` on a busy port printed the URL it was serving and
+was then killed by an unhandled `EADDRINUSE`; now the failure comes back through
+the effect's channel and the program exits `1` with
+`listen EADDRINUSE: address already in use 127.0.0.1:8080`.
 
 ## Deliberately absent
 

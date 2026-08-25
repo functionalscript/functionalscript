@@ -16,6 +16,7 @@
  * @import { IoResult, Server as EffectServer, Headers, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
 import http from 'node:http'
@@ -33,11 +34,17 @@ import { memoryOperationMap } from './memory/module.mjs'
 import { exitCode, toIoError, usesInlineTestContext } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
-import { asyncTryCatch } from '../../types/result/module.mjs'
+import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 
-/** @typedef {{ readonly listen: (port: number, host: string) => void }} _Server */
+/**
+ * @typedef {{
+ *   readonly listen: (port: number, host: string) => void,
+ *   readonly once: (event: string, f: (e: unknown) => void) => void,
+ *   readonly removeListener: (event: string, f: (e: unknown) => void) => void,
+ * }} _Server
+ */
 
 /** @typedef {AsyncIterable<Uint8Array>} _Readable */
 
@@ -53,6 +60,7 @@ import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
  * @typedef {{
  *   readonly writeHead: (status: number, headers: StringMap<string>) => _ServerResponse,
  *   readonly end: (body: Uint8Array) => void,
+ *   readonly headersSent: boolean,
  * }} _ServerResponse
  */
 
@@ -99,11 +107,102 @@ const collect = async v => {
     return result
 }
 
+/**
+ * Reads a request body, giving up at the `Vec` cap rather than at the point
+ * where converting it would throw.
+ *
+ * `listToVec` on an oversized body throws *after* the whole thing has been
+ * buffered, which is the wrong end of the problem twice over: the memory is
+ * already spent, and the throw lands inside an `async` request handler whose
+ * promise nobody awaits. Counting as the chunks arrive stops both.
+ *
+ * @param {_Readable} v
+ * @returns {Promise<Nullable<readonly Uint8Array[]>>} `null` past the cap.
+ */
+const collectBounded = async v => {
+    /** @type {readonly Uint8Array[]} */
+    let result = []
+    let size = 0
+    for await (const a of v) {
+        size += a.length
+        if (size > maxFileSizeBytes) { return null }
+        result = [...result, a]
+    }
+    return result
+}
+
+/**
+ * The runner's own answer, for the cases a listener never gets to give one: a
+ * request body too large to hand it, and a listener that threw.
+ *
+ * @type {(res: _ServerResponse) => (status: number) => (message: string) => void}
+ */
+const respondWith = res => status => message => {
+    const body = textEncoder.encode(`${message}\n`)
+    res
+        .writeHead(status, {
+            'content-type': 'text/plain; charset=utf-8',
+            'content-length': `${body.length}`,
+        })
+        .end(body)
+}
+
+/**
+ * Answers one request through `listener`, or explains that it could not.
+ *
+ * A body past the cap never reaches the listener: `IncomingMessage.body` is a
+ * single `Vec`, so there is no request value to build, and `413` is the accurate
+ * answer rather than a truncated one. Streaming bodies lift the whole limit —
+ * see `./todo/streaming-http-bodies.md`.
+ *
+ * `unwrap` is total here: a `RequestListener` answers
+ * `Effect<…, ServerResponse, never>`, because the response frame *is* where a
+ * listener puts its failures.
+ *
+ * @type {(listener: Erl<NodeOp>) => _RequestListener}
+ */
+const answerRequest = listener => async (req, res) => {
+    const body = await collectBounded(req)
+    if (body === null) {
+        respondWith(res)(413)('request body too large')
+        return
+    }
+    const { method, url, headers } = req
+    const { status, headers: outHeaders, body: outBody } = unwrap(await runNodeEffect(listener({
+        method,
+        url,
+        headers,
+        body: listToVec(body),
+    })))
+    res.writeHead(status, outHeaders).end(fromVec(outBody))
+}
+
+/**
+ * What a request gets when answering it threw.
+ *
+ * Once the listener has started writing there is no status left to change, so
+ * the only thing owed is an end to the response — leaving it open would hang
+ * the connection until it times out.
+ *
+ * @type {(res: _ServerResponse) => void}
+ */
+const failSafe = res => {
+    if (res.headersSent) {
+        res.end(emptyBody)
+        return
+    }
+    respondWith(res)(500)('internal server error')
+}
+
 const { mkdir, open, readFile, readdir, rename, writeFile, rm, access, stat } = fs.promises
 
 const { exec } = childProcess
 
 const maxFileSizeBytes = Number(maxLengthBytes)
+
+const textEncoder = new TextEncoder()
+
+const emptyBody = new Uint8Array()
 
 const prefix = /** @type {const} */ ('file:///')
 
@@ -300,31 +399,39 @@ const runNodeEffect = asyncRun({
         child.stdin?.end(stdin)
     }),
     createServer: async requestListener => {
-        const erl = /** @type {Erl<NodeOp>} */ (requestListener)
+        const answer = answerRequest(/** @type {Erl<NodeOp>} */ (requestListener))
+        // **Nothing may escape this handler.** Node does not await the promise
+        // an `async` request listener returns, so a throw inside one becomes an
+        // unhandled rejection and ends the *process*: one request, and the
+        // whole server is gone. A panic must not outlive the request that
+        // caused it, so the answer is caught here and the fallback — itself
+        // able to throw on a socket that has since died — is caught too.
         /** @type {_RequestListener} */
         const nodeRl = async (req, res) => {
-            const reqBody = await collect(req)
-            const { method, url, headers } = req
-            // `RequestListener` answers `Effect<…, ServerResponse, never>` —
-            // the response frame is where a listener puts its failures — so
-            // this unwrap is total.
-            const { status, headers: outHeaders, body: outBody } = unwrap(await runNodeEffect(erl({
-                method,
-                url,
-                headers,
-                body: listToVec(reqBody)
-            })))
-            res
-                .writeHead(status, outHeaders)
-                .end(fromVec(outBody))
+            const r = await asyncTryCatch(() => answer(req, res))
+            if (r[0] === 'error') { tryCatch(() => failSafe(res)) }
         }
         return ok(/** @satisfies {EffectServer} */ (asNominal(createServer(nodeRl))))
     },
-    listen: async (server, port, host) => {
+    // Binding is asynchronous, and its failure arrives as an `error` event
+    // rather than a throw: answering `ok` the moment `listen` was *called*
+    // reported a server that never started, and Node then killed the process
+    // with an unhandled `EADDRINUSE` — after the program had already printed
+    // the URL it was serving. So this settles on the outcome, not on the call.
+    listen: (server, port, host) => io(() => new Promise((resolve, reject) => {
         const s = /** @type {_Server} */ (asBase(server))
+        /** @type {(e: unknown) => void} */
+        const onError = e => reject(e)
+        s.once('error', onError)
+        s.once('listening', () => {
+            // Dropped once bound: a later `error` event is not this effect's
+            // to answer, and a listener still holding `reject` would swallow
+            // it into an already-settled promise.
+            s.removeListener('error', onError)
+            resolve(undefined)
+        })
         s.listen(port, host)
-        return ok(undefined)
-    },
+    })),
     forever: () => new Promise(() => {}),
     now: async () => ok(now()),
     sandbox: async f => ok(await sandbox(f)),

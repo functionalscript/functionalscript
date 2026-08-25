@@ -122,11 +122,26 @@ const urlPath = url => {
 }
 
 /**
+ * The directory a `root` argument names.
+ *
+ * An **empty** `root` is the working directory, not the file system root.
+ * `join('', 'etc')` is `/etc` — a leading empty segment reads as absolute — so
+ * without this, `fjs web ''` would serve `/etc/passwd` on request. The
+ * argument's default cannot catch it: a destructuring default replaces
+ * `undefined`, and `''` is a value the caller passed.
+ *
+ * @type {(root: string) => string}
+ */
+const served = root => root === '' ? '.' : root
+
+/**
  * Maps a request URL to a path under `root`, or explains why none exists.
  *
  * A directory request — a path ending in `/`, including the bare `/` — is
  * answered with its `index.html`, which is what makes a generated site browsable
  * at all.
+ *
+ * An empty `root` is read as the working directory — see {@link served}.
  *
  * **Traversal is rejected in segment space, not by string comparison.**
  * `parse` collapses `.` and `..` the way the file system would, so `..` can only
@@ -138,13 +153,14 @@ const urlPath = url => {
  * @type {Resolve}
  */
 export const resolve = root => url => {
+    const base = served(root)
     const path = urlPath(url)
     const decoded = percentDecode(path)
     if (decoded === null) { return error('malformed request URL') }
     const segments = parse(decoded)
     if (segments.includes('..')) { return error('request path escapes the served root') }
     const isDirectory = segments.length === 0 || decoded.endsWith('/')
-    return ok(join(root, ...(isDirectory ? [...segments, 'index.html'] : segments)))
+    return ok(join(base, ...(isDirectory ? [...segments, 'index.html'] : segments)))
 }
 
 // ── Answering ─────────────────────────────────────────────────────────────────
@@ -277,7 +293,7 @@ export const main = ({ args }) => {
     }
     const server = createServer(respond(root))
     const listening = step(server, s => listen(s, port, loopback))
-    const announced = step(listening, () => log(`serving ${root} on http://${loopback}:${port}/`))
+    const announced = step(listening, () => log(`serving ${served(root)} on http://${loopback}:${port}/`))
     const ended = step(announced, forever)
     return exitStep(ended)
 }

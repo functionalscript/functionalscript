@@ -231,8 +231,14 @@ export type CreateServer = ['createServer', (listener: RequestListener<Operation
  * server to every interface — a default nobody chose, and one a program serving
  * local files must not get by writing less. Pass `'127.0.0.1'` for loopback
  * only, `'0.0.0.0'` (or `'::'`) to accept from anywhere.
+ *
+ * It answers an {@link IoResult} because binding is where a server most often
+ * fails — the port is taken, the address is not the host's — and that failure
+ * arrives asynchronously, as the server's `error` event. An operation that
+ * answered the moment `listen` was *called* would report a server that never
+ * started, and leave the host to kill the process a moment later.
  */
-export type Listen = ['listen', (server: Server, port: number, host: string) => OpResult<void>]
+export type Listen = ['listen', (server: Server, port: number, host: string) => IoResult<void>]
 
 // HTTP
 

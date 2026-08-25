@@ -77,6 +77,14 @@ export const proof = {
         absoluteRoot: () => {
             assertEq(unwrap(resolve('/var/www')('/main.css')), '/var/www/main.css')
         },
+        // An empty root is the working directory. Left alone it would be the
+        // file system root instead — `join('', 'etc')` is `/etc` — and the
+        // argument's default cannot catch it, since `''` is a value the caller
+        // passed rather than an absent one.
+        emptyRoot: () => {
+            assertEq(unwrap(resolve('')('/etc/passwd')), './etc/passwd')
+            assertEq(unwrap(resolve('')('/')), './index.html')
+        },
         percentEncoding: () => {
             assertEq(unwrap(resolve('.')('/a%20b.txt')), './a b.txt')
             // Several escapes spelling one character, which is why the bytes
@@ -185,6 +193,13 @@ export const proof = {
             // server did not run to completion, which is the truth.
             assertEq(exitCode(result), 1)
             assertEq(s.stderr, 'operation not implemented: forever\n')
+        },
+        // An empty root argument is the working directory, in the announced
+        // line as well as in what gets served.
+        emptyRoot: () => {
+            const options = { ...defaultNodeProgramOptions, args: [''] }
+            const [s] = virtual({ ...emptyState, root: site })(main(options))
+            assertEq(s.stdout, 'serving . on http://127.0.0.1:8080/\n')
         },
         // Both arguments given, and a root that is not the working directory.
         arguments: () => {
