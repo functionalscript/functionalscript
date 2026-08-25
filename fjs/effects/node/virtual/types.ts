@@ -6,7 +6,6 @@
  */
 
 import type { Vec } from '../../../types/bit_vec/types.ts'
-import type { Nullable } from '../../../types/nullable/types.ts'
 import type { Effect } from '../../types.ts'
 import type { IncomingMessage, Module, NodeOp, ServerResponse } from '../types.ts'
 
@@ -39,6 +38,34 @@ export type Dir = {
  */
 export type _VirtualListener = (request: IncomingMessage) => Effect<NodeOp, ServerResponse, never>
 
+/**
+ * What a virtual `Server` handle carries.
+ *
+ * It is a record rather than the listener itself so that each `createServer`
+ * gets its own identity: on a host, creating two servers from one listener
+ * gives two servers, and a handle that *was* the listener would make them the
+ * same one — which `listen` would then read as the same server listening twice.
+ *
+ * @internal
+ */
+export type _VirtualServer = {
+    readonly listener: _VirtualListener
+}
+
+/**
+ * A server that is listening, and the address it took.
+ *
+ * The *server* is what is recorded, not its listener: two servers built from one
+ * listener are two servers, and only the second `listen` on the same **server**
+ * is the one Node refuses as already listening.
+ *
+ * @internal
+ */
+export type _Binding = {
+    readonly address: string
+    readonly server: _VirtualServer
+}
+
 export type State = {
     stdout: string
     stderr: string
@@ -53,10 +80,11 @@ export type State = {
     memoryValues: { readonly [key: string]: unknown }
     /** Monotonically increasing counter returned by `randomInt`; starts at 0. */
     randomNext: number
-    /** The port `listen` was called with; `null` until then. */
-    port: Nullable<number>
-    /** The host `listen` was asked to bind; `null` until then. */
-    host: Nullable<string>
+    /**
+     * What is listening, oldest first. An address appears once: a second
+     * `listen` on one that is taken fails, as it does on a host.
+     */
+    listening: readonly _Binding[]
     /**
      * The requests a fixture queues for the server to answer. `listen` delivers
      * every one of them to the {@link _VirtualListener} its handle carries, and

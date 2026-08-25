@@ -186,6 +186,10 @@ export const proof = {
             // IPv6 literal — whose brackets are part of the name.
             assertEq(status('127.0.0.1:8080'), 200)
             assertEq(status('localhost'), 200)
+            // A host name is case-insensitive; refusing one for its spelling
+            // would be a bug, not a defence.
+            assertEq(status('LOCALHOST:8080'), 200)
+            assertEq(status('[::1]:8080'), 200)
             assertEq(status('[::1]:8080'), 200)
             // A bracket with no closing `]` names nothing.
             assertEq(status('[::1'), 403)
@@ -283,10 +287,9 @@ export const proof = {
                 requests: [request('GET', '/'), request('GET', '/docs/'), request('DELETE', '/')],
             }
             const [s, result] = virtual(state)(main({ ...defaultNodeProgramOptions, args: [] }))
-            assertEq(s.port, 8080)
             // Loopback, and the URL says so: a server that binds every
             // interface while announcing `localhost` is the trap this avoids.
-            assertEq(s.host, '127.0.0.1')
+            assertEq(s.listening.map(b => b.address).join(), '127.0.0.1:8080')
             assertEq(s.stdout, 'serving . on http://127.0.0.1:8080/\n')
             const [first, second, third] = s.responses
             assertEq(s.responses.length, 3)
@@ -317,7 +320,7 @@ export const proof = {
             }
             const options = { ...defaultNodeProgramOptions, args: ['site', '9090'] }
             const [s] = virtual(state)(main(options))
-            assertEq(s.port, 9090)
+            assertEq(s.listening.map(b => b.address).join(), '127.0.0.1:9090')
             assertEq(s.stdout, 'serving site on http://127.0.0.1:9090/\n')
             assertEq(s.responses[0].status, 200)
         },
@@ -332,7 +335,7 @@ export const proof = {
                 assertEq(s.stderr, `invalid port "${argument}"\n`)
                 // Nothing was bound: the argument is refused before the server
                 // is created, let alone listened on.
-                assertEq(s.port, null)
+                assertEq(s.listening.length, 0)
             }
             rejects('http')
             rejects('8080.5')
@@ -348,8 +351,7 @@ export const proof = {
     virtualServer: {
         noRequests: () => {
             const [s] = virtual(emptyState)(main({ ...defaultNodeProgramOptions, args: [] }))
-            assertEq(s.port, 8080)
-            assertEq(s.host, '127.0.0.1')
+            assertEq(s.listening.map(b => b.address).join(), '127.0.0.1:8080')
             assertEq(s.responses.length, 0)
             assertEq(s.requests.length, 0)
         },

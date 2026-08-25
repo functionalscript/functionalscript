@@ -15,8 +15,17 @@ import { do_ } from '../../module.f.mjs'
 import { catchStep } from '../../module.f.mjs'
 
 /**
- * Asserts that a channel error is a host failure carrying `message` — the
+ * Asserts that a channel error is a host failure carrying `code` — the
  * normalized shape every runner reports, virtual and Node alike.
+ * @type {(e: IoChannel, code: string) => void}
+ */
+const assertIoCode = (e, code) => {
+    assert(e[0] === 'ioError', e)
+    assertEq(e[1].code, code)
+}
+
+/**
+ * Asserts that a channel error is a host failure carrying `message`.
  * @type {(e: IoChannel, message: string) => void}
  */
 const assertIoMessage = (e, message) => {
@@ -446,8 +455,7 @@ export const proof = {
             const state = { ...emptyState, requests: [get('/a'), get('/b')] }
             const [s, result] = virtual(state)(e)
             assert(result[0] === 'ok', result)
-            assertEq(s.port, 8080)
-            assertEq(s.host, '127.0.0.1')
+            assertEq(s.listening.map(b => b.address).join(), '127.0.0.1:8080')
             // The queue is emptied, so a second `listen` cannot answer the same
             // request twice.
             assertEq(s.requests.length, 0)
@@ -473,6 +481,34 @@ export const proof = {
             const [s, result] = virtual(state)(first)
             assert(result[0] === 'ok', result)
             assertEq(utf8ToString(s.responses[0].body), 'a')
+        },
+        // Binding fails here the way it fails on a host, which is the whole
+        // point of `Listen` being fallible: a program that mishandles either
+        // failure must not look correct against this runner.
+        addressInUse: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const first = history(createServer(listener))
+            const second = historyStep(first, () => createServer(listener))
+            // `historyStep` spreads the history over its continuation, newest
+            // first: `b` here is the second server, and `a` the first.
+            const bound = historyStep(second, b => listen(b, 8080, '127.0.0.1'))
+            const e = step(bound, ([, , a]) => listen(a, 8080, '127.0.0.1'))
+            const [s, result] = virtual(emptyState)(e)
+            assert(result[0] === 'error', result)
+            assertIoCode(result[1], 'EADDRINUSE')
+            // The first server keeps the address it took.
+            assertEq(s.listening.length, 1)
+        },
+        alreadyListening: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const created = history(createServer(listener))
+            const bound = historyStep(created, server => listen(server, 8080, '127.0.0.1'))
+            const e = step(bound, ([, server]) => listen(server, 9090, '127.0.0.1'))
+            const [, result] = virtual(emptyState)(e)
+            assert(result[0] === 'error', result)
+            assertIoCode(result[1], 'ERR_SERVER_ALREADY_LISTEN')
         },
         // `forever` is the operation this runner cannot answer — its result
         // type leaves it nothing but `notImplemented` to return — so a server

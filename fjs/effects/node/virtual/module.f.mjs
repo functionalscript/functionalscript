@@ -9,7 +9,7 @@
  * @import { Operation } from '../../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Error } from '../../../types/result/types.ts'
- * @import { Dir, State, _Entity, _VirtualListener } from './types.ts'
+ * @import { Dir, State, _Entity, _VirtualListener, _VirtualServer } from './types.ts'
  */
 
 import { assert, todo } from '../../../asserts/module.f.mjs'
@@ -33,8 +33,7 @@ export const emptyState = {
     memoryNext: 0,
     memoryValues: {},
     randomNext: 0,
-    port: null,
-    host: null,
+    listening: [],
     requests: [],
     responses: [],
 }
@@ -406,6 +405,10 @@ const statOp = readOperation((dir, path) => {
  * the Node runner gives each its own socket — so it rides in the handle, and two
  * servers in one program are two servers here too.
  *
+ * A fresh record wraps it for that last reason: two calls with the *same*
+ * listener must still be two servers, and a handle that was the listener itself
+ * made them one — which `listen` then read as a single server listening twice.
+ *
  * @type {(listener: RequestListener<Operation>) => (state: State) => readonly[State, OpResult<Server>]}
  */
 const createServer = listener => state => {
@@ -413,15 +416,24 @@ const createServer = listener => state => {
     // it: `CreateServer` declares its listener over `Operation`, since a
     // `Server` must not carry a type parameter, and a runner can only run one
     // at its own operation set.
+    /** @type {_VirtualServer} */
+    const server = { listener: /** @type {_VirtualListener} */ (listener) }
     /** @type {Server} */
-    const handle = asNominalServer(/** @type {_VirtualListener} */ (listener))
+    const handle = asNominalServer(server)
     return [state, ok(handle)]
 }
 
 /**
- * Records the address, then hands `server`'s listener every queued request in
+ * Takes the address, then hands `server`'s listener every queued request in
  * turn, threading the state through each and recording what came back. The
  * queue is emptied, so a second `listen` does not re-deliver.
+ *
+ * **Binding can fail here, because it can fail on a host.** An address already
+ * taken is `EADDRINUSE`, and a server asked to listen twice is
+ * `ERR_SERVER_ALREADY_LISTEN` — the two failures Node reports, in the shape it
+ * reports them. `Listen` became fallible precisely to carry them, and a runner
+ * that always succeeded would make a program that mishandles either look
+ * correct.
  *
  * **`unwrap` is total, and the type system is what makes it so.** A
  * `RequestListener`'s channel is `never`, and a listener reaches that by
@@ -444,9 +456,23 @@ const createServer = listener => state => {
  * @type {(server: Server, port: number, host: string) => (state: State) => readonly[State, IoResult<void>]}
  */
 const listen = (server, port, host) => state => {
-    const listener = /** @type {_VirtualListener} */ (asBaseServer(server))
+    const bound = /** @type {_VirtualServer} */ (asBaseServer(server))
+    const { listener } = bound
+    const address = `${host}:${port}`
+    if (state.listening.some(b => b.server === bound)) {
+        return [state, error(ioError({
+            code: 'ERR_SERVER_ALREADY_LISTEN',
+            message: 'Listen method has been called more than once without closing.',
+        }))]
+    }
+    if (state.listening.some(b => b.address === address)) {
+        return [state, error(ioError({
+            code: 'EADDRINUSE',
+            message: `listen EADDRINUSE: address already in use ${address}`,
+        }))]
+    }
     /** @type {State} */
-    let s = { ...state, port, host, requests: [] }
+    let s = { ...state, listening: [...state.listening, { address, server: bound }], requests: [] }
     for (const request of state.requests) {
         const [next, response] = virtual(s)(listener(request))
         s = { ...next, responses: [...next.responses, unwrap(response)] }

@@ -297,15 +297,19 @@ const allow = 'GET, HEAD'
 const servedHosts = ['localhost', '127.0.0.1', '[::1]']
 
 /**
- * The name part of a `Host` header, without its port. An IPv6 literal is
- * bracketed, and its brackets are part of the name; a missing `]` leaves an
- * empty name, which no entry matches.
+ * The name part of a `Host` header, without its port and in lower case — a host
+ * name is case-insensitive, so `LOCALHOST` names the same machine `localhost`
+ * does and must not be refused for its spelling.
+ *
+ * An IPv6 literal is bracketed, and its brackets are part of the name; a missing
+ * `]` leaves an empty name, which no entry matches.
  *
  * @type {(host: string) => string}
  */
 const hostName = host => {
-    if (host.startsWith('[')) { return host.slice(0, host.indexOf(']') + 1) }
-    const [name] = host.split(':')
+    const lower = host.toLowerCase()
+    if (lower.startsWith('[')) { return lower.slice(0, lower.indexOf(']') + 1) }
+    const [name] = lower.split(':')
     return name
 }
 
