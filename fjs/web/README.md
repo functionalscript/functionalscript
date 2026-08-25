@@ -254,6 +254,14 @@ refusing it outright is both correct and the only reading that cannot be walked
 backwards into. HTTP/1.1 requires one and every browser sends one, so accepting its
 absence would leave a hole shaped exactly like a client that omits it on purpose.
 
+What may follow a name is a **port and nothing else**, and a port is digits
+**below 65536**: `localhost:bad`, `localhost:8080:999` and `localhost:65536` are
+all `403`, the last because a URL parser refuses the same authority
+(`new URL('http://localhost:65536/')` throws). The digits are read as a number
+rather than counted, since a parser reads `:00008080` as port 8080 and a length
+test would not. Reading a name and discarding whatever follows it is not a
+check — it is the check's absence, wearing its clothes.
+
 `--host` will have to extend that list as well as the bind address; the two are
 different questions and only one of them is about reachability.
 

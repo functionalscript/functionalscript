@@ -215,6 +215,15 @@ export const proof = {
             assertEq(status('localhost:8080:999'), 403)
             assertEq(status('localhost:'), 403)
             assertEq(status('[::1]evil'), 403)
+            // And a port is digits in range: `65536` is a number and not a
+            // port, which is why `new URL` refuses the same authority.
+            assertEq(status('localhost:65535'), 200)
+            assertEq(status('localhost:65536'), 403)
+            assertEq(status('localhost:999999'), 403)
+            assertEq(status('[::1]:65536'), 403)
+            // Read as a number, not counted: a parser reads `00008080` as
+            // `8080`, and a length test would call it five digits too many.
+            assertEq(status('localhost:00008080'), 200)
             // A bracket with no closing `]` names nothing.
             assertEq(status('[::1'), 403)
             // An absolute-form target names its own host, and RFC 9112 says to

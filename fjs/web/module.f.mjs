@@ -334,17 +334,39 @@ const allow = 'GET, HEAD'
  */
 const servedHosts = ['localhost', '127.0.0.1', '[::1]']
 
+/**
+ * The largest port a number names — the one an authority may carry, and the one
+ * `main` may bind.
+ *
+ * @type {number}
+ */
+const maxPort = 0xffff
+
 /** Whether `s` is a decimal number, and a non-empty one.
  *
  * @type {(s: string) => boolean}
  */
 const isDigits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
 
+/**
+ * Whether `s` names a port.
+ *
+ * Digits **in range**: `65536` is a number and not a port, and a URL parser
+ * agrees — `new URL('http://localhost:65536/')` throws where
+ * `http://localhost:8099/` does not. The digits are read as a number rather
+ * than counted, because a parser reads `00008099` as `8099` and a length test
+ * would not. Past what a number can hold the read is `Infinity`, which is out
+ * of range like every other value that large.
+ *
+ * @type {(s: string) => boolean}
+ */
+const isPort = s => isDigits(s) && Number(s) <= maxPort
+
 /** Whether what follows a host name is nothing, or a port.
  *
  * @type {(rest: string) => boolean}
  */
-const isPortSuffix = rest => rest === '' || (rest.startsWith(':') && isDigits(rest.slice(1)))
+const isPortSuffix = rest => rest === '' || (rest.startsWith(':') && isPort(rest.slice(1)))
 
 /**
  * The name an authority names, or `null` if it does not name one.
@@ -487,9 +509,6 @@ export const respond = root => ({ method, url, headers }) => {
 }
 
 // ── The program ───────────────────────────────────────────────────────────────
-
-/** @type {number} */
-const maxPort = 0xffff
 
 /**
  * The address the server binds.
