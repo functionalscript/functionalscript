@@ -32,6 +32,28 @@ both live in a `lambdas`. So a node carrying a `lambdas` decides only how the
 walk ends: read the value, or call it. A node carrying none has no HCF to
 decide about, and the four kinds fall out of those two questions.
 
+## Purity
+
+A `lambdas` is a necessary impurity, and that is the reason to confine it.
+
+A step is not an `exp`. [`../types.ts`](../types.ts) states it on `Lambda`: it
+"reads the current chain value implicitly, so it has no place to hold one, and
+it cannot be extracted as a shared computation node." So whatever a graph
+expresses as a step is not a node — it cannot be shared, cannot be substituted
+for an equivalent expression, and contributes no hash of its own. Whatever it
+expresses as an `exp` is all three.
+
+`.` and `()` are the operations whose every operand is a first-class node.
+JavaScript forces impurity only where a receiver or a short-circuit is genuinely
+in play, so only `?.` and `.()` should pay for it, and only over the span that
+needs it.
+
+That is also what makes [minimality](#three-laws) more than tidiness. Sharing is
+observable and part of a function's meaning
+([`../README.md`](../README.md)), so a non-minimal `lambdas` does not merely
+spell a chain redundantly — it *hides* subexpressions inside a walk where
+nothing else can share them, and they are evaluated again wherever they recur.
+
 ## Three laws
 
 **Parenthesis law.** Closing an optional region is observable exactly when the
@@ -54,6 +76,11 @@ node consumes — and no dead prefix. `['()', a, [['|.', b], ['|.', c]], d]` is
 not a legal spelling of `a.b.c(d)`: the first step's receiver is overwritten
 before anything consumes it, so it is an ordinary value computation and belongs
 in a `.` node. Verified exact, error text included.
+
+Read through [purity](#purity), this says: keep as much of a chain as possible
+in `exp` nodes, and start the `lambdas` only where HCF genuinely begins. The
+minimal form of `a.b.c(d)` makes `a.b` a shareable node; the non-minimal one
+buries it in a walk.
 
 **Legitimacy criterion.** A rewrite is available only when the target shape is
 not already spoken for, and the survivor is **fully** equivalent — same values,
@@ -91,8 +118,12 @@ and `(u?.b)(d)` throwing.
 Step ids drop the `|` prefix, since a `lambdas` is a distinct operand kind:
 `.`, `?.`, `()`, `?.()`.
 
-The tag says which kind of node it is before any operand is read — the property
-the two-node form (see [Alternatives](#alternatives-considered)) gave up.
+`.` and `()` earn their place by [purity](#purity): every operand is a
+first-class node, so the two commonest operations in any graph stay fully
+decomposed and shareable, and only genuine chains pay for the implicit input a
+step reads. A second benefit falls out — the tag says which kind of node it is
+before any operand is read, which the two-node form
+(see [Alternatives](#alternatives-considered)) gave up.
 
 ### Conditions
 
@@ -180,11 +211,12 @@ neither yet decided:
 
 **Two nodes — `['.', Exp, Lambdas]` and `['()', Exp, Lambdas, Exp]`** — every
 chain in one of two shapes, differing only in whether the walk ends by reading
-its value or calling it. Superseded because the tag stopped classifying the
-node: `['.', a, L]` might yield `undefined` or throw depending on `L`, so
-reading a graph meant reading its steps. Splitting the HCF-free cases back out
-restores that at the cost of one more condition, and makes the receiver's
-presence a tag rather than an operand's length.
+its value or calling it. Superseded on [purity](#purity): it forces every
+property access through a `lambdas`, so `a.b` stops being a node and becomes a
+step that nothing can share. It also stopped the tag classifying the node —
+`['.', a, L]` might yield `undefined` or throw depending on `L`. Splitting the
+HCF-free cases back out restores both, at the cost of one more condition, and
+makes the receiver's presence a tag rather than an operand's length.
 
 **Three nodes — `.`, `this`, `option`** — with `option` carrying the optional
 region and `.` kept as a bare `['.', Exp, Index]`. Superseded by dropping
@@ -200,10 +232,10 @@ for the call and its continuation, where `option` carries both in one `lambdas`,
 and it leaves five chain nodes instead of three.
 
 **Extend `.`** — `['.', Exp, Index, Lambdas]`, so the receiver its own step
-creates is consumed inside its own walk. Superseded by putting the same
-machinery in `option`, which already carries a `lambdas`. Extending `.` taxes
-the most frequent node with a third operand, and turns plain property paths from
-a unique spelling into a combinatorial one.
+creates is consumed inside its own walk. Superseded on the same ground as the
+two-node form: it makes the most frequent node in any graph carry a `lambdas`,
+trading its purity for a case most property accesses never meet. It also turns
+plain property paths from a unique spelling into a combinatorial one.
 
 **Peek at the callee's tag** — recover the receiver when the callee is a `.`
 node. Rejected: that shape already denotes `(_, a.b)?.(...c)`, so peeking
