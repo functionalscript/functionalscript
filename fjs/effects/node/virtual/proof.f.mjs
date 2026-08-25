@@ -516,6 +516,11 @@ export const proof = {
                 const [s, result] = virtual(emptyState)(e)
                 assert(result[0] === 'error', result)
                 assertIoCode(result[1], 'ERR_SOCKET_BAD_PORT')
+                // The message is Node's own, type and all — the shape is the
+                // claim this runner makes.
+                assertIoMessage(
+                    result[1],
+                    `options.port should be >= 0 and < 65536. Received type number (${port}).`)
                 assertEq(s.listening.length, 0)
             }
             rejects(-1)

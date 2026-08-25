@@ -62,6 +62,12 @@ while costing far more than one. Measured here, before and after:
 
 Doubling the count used to quadruple the time; now it roughly doubles it.
 
+Those are `resolve` measured directly. Over a socket the request line stops at
+Node's 16 KB limit, so about **5,400 escapes** is the most a client can send —
+6,000 gets a `431` from Node's parser before this server sees it. The top two
+rows are therefore the shape of the curve rather than a reachable cost; the
+5,000-escape row is the reachable one.
+
 It is done over **bytes, not characters**: a non-ASCII character
 arrives as several escapes (`%D0%9F` is one letter), so the escapes are decoded
 to bytes first and the whole sequence read back as UTF-8 at the end. Decoding

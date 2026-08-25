@@ -507,7 +507,10 @@ const listen = (server, port, host) => state => {
     if (!isPort(port)) {
         return [state, error(ioError({
             code: 'ERR_SOCKET_BAD_PORT',
-            message: `options.port should be >= 0 and < 65536. Received ${port}.`,
+            // Byte-for-byte what Node says, type included: this runner claims
+            // to report failures in the shape the host reports them, and a
+            // message that is nearly right is a claim that is not.
+            message: `options.port should be >= 0 and < 65536. Received type number (${port}).`,
         }))]
     }
     const bound = /** @type {_VirtualServer} */ (asBaseServer(server))
