@@ -296,7 +296,7 @@
         {
           "uses": "bytecodealliance/actions/wasmtime/setup@v1.1.3",
           "with": {
-            "version": "48.0.0"
+            "version": "48.0.1"
           }
         },
         {
