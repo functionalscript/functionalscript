@@ -30,7 +30,6 @@ import {
     reverseSolidus,
     solidus,
 } from '../../text/ascii/module.f.mjs'
-import { fromEntries } from '../../types/object/module.f.mjs'
 
 /**
  * The escape letter paired with the code point it denotes.
@@ -63,16 +62,19 @@ export const optionalEscape = solidus
 /**
  * A code-point-keyed view over the pairs.
  *
- * The read is a plain index rather than `object`'s `at`: a code point key can
- * never name an inherited property, so there is nothing for the safer accessor
- * to protect against here, and the JSON serializer takes this path once per
- * character it writes.
+ * A `Map` rather than a plain object, for two reasons. The JSON serializer
+ * takes this path once per character it writes, and a `Map` keyed by number
+ * never converts the key to a string. And an object's keys are not only its
+ * own: a numeric property on `Object.prototype` — which this repository would
+ * never write, but a host page can — would read back as a table entry and
+ * silently mis-escape a character. A `Map` has no prototype chain to inherit
+ * one from, so the lookup answers for the table and nothing else.
  *
  * @type {(pairs: readonly (readonly [number, number])[]) => (key: number) => number | null}
  */
 const lookup = pairs => {
-    const map = fromEntries(pairs.map(([key, value]) => /** @type {const} */([`${key}`, value])))
-    return key => map[key] ?? null
+    const map = new Map(pairs)
+    return key => map.get(key) ?? null
 }
 
 /**
