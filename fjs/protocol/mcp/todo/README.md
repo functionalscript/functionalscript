@@ -90,12 +90,21 @@ the shared part appears once and only the difference lives in the conditional."
    taking `id` as a parameter:
 
    ```ts
-   const validated = <T>(id: Id, schema: RttiType, params: Unknown) =>
-       (onOk: (value: T) => Effect<MemOp | O, Response | null>) => {
+   const validated = <const T extends Type>(id: Id, schema: T, params: Unknown) =>
+       (onOk: (value: Ts<T>) => Effect<MemOp | O, Response | null>) => {
            const [t, pr] = parse(schema)(params)
            return t === 'error' ? pureOk(_errResponse(id)(invalidParams)) : onOk(pr)
        }
    ```
+
+   The schema must be the type parameter, not a widened `RttiType`. `T` appears
+   in no argument of `validated(id, schema, params)` otherwise, so it resolves
+   to `unknown` at that call — the `onOk` in the *second* call cannot recover
+   it — and `parse` on a widened schema answers the base value domain rather
+   than this schema's. `toolEntry` in the same module is the working precedent
+   (`@template {Type} const T`, `inputRtti: T`, `handle: (args: Ts<T>) => …`),
+   including that it still needs one `Ts<T>` cast where the decoded value
+   crosses out of `parse`.
 
    Then `ping`, `initialize`, `tools/list`, and `tools/call` each collapse to a
    single `validated(id, schema, params)(pr => …success…)` call, dropping the
@@ -106,7 +115,7 @@ the shared part appears once and only the difference lives in the conditional."
    params-default, and a handler:
 
    ```ts
-   const toolMethod = <T>(schema: RttiType, params: Unknown, handler: (v: T) => Effect<O, Unknown>) =>
+   const toolMethod = <const T extends Type>(schema: T, params: Unknown, handler: (v: Ts<T>) => Effect<O, Unknown>) =>
        capabilities.tools === undefined
            ? pureOk(_errResponse(id)(methodNotFound))
            : validated(id, schema, params)(pr => ioStep(handler(pr), r => pureOk(_okResponse(id)(r))))
