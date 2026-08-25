@@ -450,7 +450,19 @@ const runNodeEffect = asyncRun({
         }
         s.once('error', onError)
         s.once('listening', onListening)
-        s.listen(port, host)
+        // `listen` can also fail *synchronously* — an out-of-range port throws
+        // `ERR_SOCKET_BAD_PORT`, an already-listening server throws too — and a
+        // throw here would reject the promise past both handlers, leaving them
+        // attached: 20 attempts, 20 stale `error` handlers, each holding a
+        // `reject` that can never fire and would swallow a later error into an
+        // already-settled promise. So the synchronous path cleans up after
+        // itself, exactly as the two event paths do.
+        const started = tryCatch(() => s.listen(port, host))
+        if (started[0] === 'error') {
+            s.removeListener('error', onError)
+            s.removeListener('listening', onListening)
+            reject(started[1])
+        }
     })),
     forever: () => new Promise(() => {}),
     now: async () => ok(now()),
