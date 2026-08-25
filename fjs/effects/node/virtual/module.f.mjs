@@ -312,6 +312,12 @@ const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
     return ok(result)
 })(path)
 
+/** What `stat` answers for a name that exists and is not a regular file.
+ *
+ * @type {IoResult<FileStat>}
+ */
+const notRegular = ok({ size: 0, isFile: false })
+
 /** Total byte size of a chunk-list file (each chunk is byte-aligned).
  *
  * @type {(chunks: readonly Vec[]) => number}
@@ -359,18 +365,24 @@ const writeBytesOp = (path, offset, data) => operation(writeBytesRawOp(offset, d
 
 /**
  * `stat` reports what is there, including when what is there is not a regular
- * file: a `JsModule` entry is this file system's one such name, and it answers
- * `isFile: false` rather than an error. That is the shape a host reports for a
- * FIFO or a device — an entry that exists, stats fine, and must not be read —
- * so a caller's guard against them is exercisable here.
+ * file — a host stats a directory or a FIFO successfully and says it is not a
+ * file, and a caller's guard against reading one can only be exercised here if
+ * this runner does the same.
+ *
+ * Two entries answer `isFile: false`. A `JsModule` is this file system's stand-in
+ * for a name that exists and is not a file at all. A **directory** arrives as an
+ * empty remaining path, because `operation` has already descended into it — the
+ * one way to reach `statOp` with nothing left to look up — and that is what it
+ * means, root included.
  *
  * @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]}
  */
 const statOp = readOperation((dir, path) => {
+    if (path.length === 0) { return notRegular }
     if (path.length !== 1) { return enoent }
     const file = dir[path[0]]
     if (file === undefined) { return enoent }
-    if (!Array.isArray(file)) { return ok({ size: 0, isFile: false }) }
+    if (!Array.isArray(file)) { return notRegular }
     return ok({ size: fileSizeBytes(file), isFile: true })
 })
 

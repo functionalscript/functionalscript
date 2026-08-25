@@ -160,6 +160,12 @@ export const proof = {
             assertEq(r.status, 400)
             assertEq(body(r), 'request path escapes the served root\n')
         },
+        // A directory without a trailing slash is not a file, and is answered
+        // as absent rather than redirected — this version has no redirect.
+        directoryWithoutSlash: () => {
+            const r = answerSite('GET', '/docs')
+            assertEq(r.status, 404)
+        },
         // A dotfile is answered as absent, even when it is right there.
         hidden: () => {
             /** @type {Dir} */

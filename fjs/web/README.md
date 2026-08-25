@@ -192,8 +192,8 @@ the effect's channel and the program exits `1` with
 
 No directory listing, no range requests, no compression, no caching headers, no
 TLS, no configuration beyond the two positional arguments. A directory requested
-without a trailing slash is not redirected to one — `/docs` is not a file, so it
-answers `500` (`EISDIR`) where `/docs/` serves `docs/index.html`. Port `0` is
+without a trailing slash is not redirected to one — `/docs` is not a regular
+file, so it answers `404` where `/docs/` serves `docs/index.html`. Port `0` is
 refused with the out-of-range values: Node reads it as "any free port", and
 nothing here can ask which one it got, so the URL it printed would name a dead
 port.

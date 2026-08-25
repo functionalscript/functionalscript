@@ -398,6 +398,16 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(writeBytes('file', 5, vec8(0x43n)))
         assert(result[0] === 'error')
     },
+    statOnDirectory: () => {
+        // A host stats a directory successfully and says it is not a file. The
+        // empty remaining path is how one arrives here: `operation` has already
+        // descended into it.
+        /** @type {Dir} */
+        const root = { docs: { 'index.html': [vec8(0x41n)] } }
+        const [, result] = virtual({ ...emptyState, root })(stat('docs'))
+        assert(result[0] === 'ok', result)
+        assertEq(result[1].isFile, false)
+    },
     statOnJsModule: () => {
         // A `JsModule` entry is this file system's non-regular name: it exists
         // and stats fine, and says it is not a file — the shape a host reports
