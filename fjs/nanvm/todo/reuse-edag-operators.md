@@ -109,7 +109,7 @@ export type Group2 = {
  * field is deliberately not `op`, so a NaNVM-only name can never mix into
  * the canonical id unions. Today its one inhabitant is `unaryPlus`; the
  * type is deleted when
- * [replace-unary-plus-with-number](../../nanvm-lib/todo/replace-unary-plus-with-number.md)
+ * [replace-unary-plus-with-number](../../../nanvm-lib/todo/replace-unary-plus-with-number.md)
  * moves that group to `Number`.
  */
 export type NonEdagGroup = {

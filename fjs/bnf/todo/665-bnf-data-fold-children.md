@@ -123,6 +123,6 @@ removing the four mutated `let`s.
 
 ### Related
 
-- [i197-djs-unknown-walker](../djs/todo.md) — same spirit
+- [i197-djs-unknown-walker](../../djs/todo/197.md) — same spirit
   (collapse several near-identical typeof/child walks onto one parameterized
   traversal), on the DJS value side.

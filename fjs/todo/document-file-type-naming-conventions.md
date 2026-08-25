@@ -14,7 +14,7 @@ Document the file-type conventions in `fjs/README.md` (or a dedicated `CONVENTIO
 
 ### `proof.*` — a module that proves other modules
 
-Tests other modules. Usually exports only `proof` (the proof tree). See [`fjs/emergent_testing/README.md`](emergent_testing/README.md).
+Tests other modules. Usually exports only `proof` (the proof tree). See [`fjs/emergent_testing/README.md`](../emergent_testing/README.md).
 
 - `proof.f.mjs` / `proof.f.js` — FunctionalScript proof.
 - `proof.ts` / `proof.js` / `proof.mts` / `proof.mjs` — vanilla proof.
