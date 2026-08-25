@@ -126,8 +126,48 @@ identifier behind, since the next reader has no way to tell "unresolved" from
       **18** bare citations, not one per identifier; four of them are `i183`.
 - [ ] Decide `i65Y-proof-by-export`: restore it or drop its citation.
 - [ ] Sweep for slug-named deletions the same way, per the section above.
-- [ ] Re-run the sweep afterwards; the only `i…` tokens left should be integer
-      type names.
+- [ ] Re-run the check below; it should print nothing.
+
+### Checking that a resolution took
+
+The identifier does **not** disappear when you resolve it — the documented form
+keeps it and names the target beside it, because the target is often code rather
+than a document. So "no bare `iNNN` left" is the wrong finishing condition; an
+earlier revision of this issue used it, and it would have reported every
+correctly-resolved citation as outstanding. A resolution takes one of two forms:
+
+```md
+- [i167](../bit_vec/module.f.mjs) — the identifier as a link label, where a
+  document survives to link to.
+- i143 (retired; shipped as [`fjs/types/rtti/data/`](../types/rtti/data/module.f.mjs))
+  — the identifier with `retired` beside it and the target named, for code.
+- the retired `i171` … resolved **won't fix**, reason in `parseTestSet`'s JSDoc.
+```
+
+The word `retired` is what makes the second form checkable, so write it. The
+check is then per *file*, not per occurrence: a file has resolved an identifier
+once it names the target, and later mentions in the same file may be shorthand.
+
+```sh
+sed -n '/^|`i/s/^|`\([^`]*\)`.*/\1/p' todo/retired-issue-identifiers.md \
+| while read id; do
+    comm -23 \
+      <(grep -rl "\b$id\b" --include='*.md' . \
+        | grep -vE 'retired-issue-identifiers|todo/README.md' | sort) \
+      <(grep -rlE "\[$id[^]]*\]\(|$id.{0,60}retired|retired.{0,60}$id" \
+          --include='*.md' . | sort)
+  done
+```
+
+It prints every file that still cites an identifier without resolving it, and
+should print nothing when this issue is done. Run against the branch that filed
+this issue it prints 16 lines — one per (identifier, file) pair, `i183`
+contributing four — and prints nothing for any identifier already resolved.
+
+One place the two counts differ, which is not a defect:
+`fjs/protocol/mcp/todo/README.md` has a bare `i665-mcp` in its prose *and* links
+it by anchor further down, so the table counts the occurrence while this check
+passes the file. Rewriting it is tidying, not repair.
 
 ### Caveat for whoever sweeps this
 

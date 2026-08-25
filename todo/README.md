@@ -99,6 +99,20 @@ Whichever it is, rewrite the citation to name it — `i143` and `i172` in
 relationship no longer holds. Do **not** link one to a same-numbered GitHub
 issue: that number belongs to unrelated work.
 
+The identifier stays: the target is often code, so there is nothing to make it a
+link to. Use one of two forms — the identifier as a link label where a document
+survives, or the word **`retired`** beside it with the target named:
+
+```md
+- [i167](../bit_vec/module.f.mjs) — the `bit_vec` re-binding.
+- i143 (retired; shipped as [`fjs/types/rtti/data/`](../types/rtti/data/module.f.mjs)) — …
+```
+
+Write `retired` in the second form; it is the word that makes the resolution
+checkable, and [retired-issue-identifiers](./retired-issue-identifiers.md)
+carries the check. A bare identifier with neither form reads as unresolved,
+which is what it should mean.
+
 ## Blocked by third parties
 
 Issues that cannot progress until an external event occurs (a TC39 proposal lands, a
