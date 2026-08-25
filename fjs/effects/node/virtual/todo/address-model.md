@@ -65,9 +65,10 @@ currently uses.
 ### Trigger
 
 A consumer that binds a wildcard address, a name rather than a literal, two
-servers on one port, or an address that is not loopback. Then the address has to be modelled properly — overlap per
-family with the dual-stack case decided explicitly, and existence against a
-declared interface set — rather than guessed.
+servers on one port, or an address that is not loopback. Then the address has to
+be modelled properly — overlap per family with the dual-stack case decided
+explicitly, and existence against a declared interface set — rather than
+guessed.
 
 ### Related
 
