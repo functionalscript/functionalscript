@@ -6,7 +6,7 @@
  * @import { Tuple } from './types.ts'
  */
 
-import { fromUndefined, map } from '../nullable/module.f.mjs'
+import { fromUndefined } from '../nullable/module.f.mjs'
 
 /**
  * @type {(value: unknown) => value is readonly unknown[]}
@@ -61,6 +61,11 @@ export const last = a => at(a.length - 1)(a)
  * through `fromUndefined`, so it reads a *stored* `null` or `undefined`
  * element as absence. `[null]` is not empty, but `first` says it is.
  *
+ * For the same reason `splitFirst`/`splitLast` take their element by index
+ * rather than projecting `first`/`last` through `nullable`'s `map`: their
+ * result tells "present and nullish" apart from "empty" — `[null, []]` is not
+ * `null` — where `at`/`first`/`last`, answering `T | null`, cannot.
+ *
  * @type {<T, R>(f: (a: readonly T[]) => R) => (a: readonly T[]) => R | null}
  */
 const onNonEmpty = f => a => a.length === 0 ? null : f(a)
@@ -71,23 +76,25 @@ const onNonEmpty = f => a => a.length === 0 ? null : f(a)
 export const tail = onNonEmpty(uncheckTail)
 
 /**
+ * @type {<T>(a: readonly T[]) => readonly [T, readonly T[]]}
+ */
+const uncheckSplitFirst = a => [a[0], uncheckTail(a)]
+
+/**
  * @type {<T>(a: readonly T[]) => readonly [T, readonly T[]] | null}
  */
-export const splitFirst = a => {
-    /** @typedef {(typeof a)[0]} T */
-    const split = (/** @type {T} */first) =>
-        /** @type {const} */([first, uncheckTail(a)])
-    return map(split)(first(a))
-}
+export const splitFirst = onNonEmpty(uncheckSplitFirst)
 
 /** @type {<T>(a: readonly T[]) => readonly T[] | null} */
 export const head = onNonEmpty(uncheckHead)
 
+/**
+ * @type {<T>(a: readonly T[]) => readonly [readonly T[], T]}
+ */
+const uncheckSplitLast = a => [uncheckHead(a), a[a.length - 1]]
+
 /** @type {<T>(a: readonly T[]) => readonly [readonly T[], T] | null} */
-export const splitLast = a => {
-    const lastA = last(a)
-    return lastA === null ? null : [uncheckHead(a), lastA]
-}
+export const splitLast = onNonEmpty(uncheckSplitLast)
 
 /**
  * An empty immutable array.
