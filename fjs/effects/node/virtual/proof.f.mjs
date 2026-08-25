@@ -559,6 +559,26 @@ export const proof = {
             // The first server keeps the address it took.
             assertEq(s.listening.length, 1)
         },
+        // A DNS name is case-insensitive, so `LOCALHOST` takes the address
+        // `localhost` then asks for — checked on Node 22.22.2, where the second
+        // bind is `EADDRINUSE`.
+        addressInUseIgnoresCase: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const first = history(createServer(listener))
+            const second = historyStep(first, () => createServer(listener))
+            const bound = historyStep(second, b => listen(b, 8080, 'LOCALHOST'))
+            const e = step(bound, ([, , a]) => listen(a, 8080, 'localhost'))
+            const [s, result] = virtual(emptyState)(e)
+            assert(result[0] === 'error', result)
+            assertIoCode(result[1], 'EADDRINUSE')
+            assertIoMessage(
+                result[1],
+                'listen EADDRINUSE: address already in use localhost:8080')
+            // Recorded lower-cased, whichever case asked for it.
+            assertEq(s.listening.length, 1)
+            assertEq(s.listening[0].address, 'localhost:8080')
+        },
         alreadyListening: () => {
             /** @type {RequestListener<never>} */
             const listener = () => pureOk({ status: 200, headers: {}, body: empty })

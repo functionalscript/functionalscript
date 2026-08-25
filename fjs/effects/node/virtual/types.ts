@@ -62,6 +62,11 @@ export type _VirtualServer = {
  * @internal
  */
 export type _Binding = {
+    /**
+     * `host:port`, with the host lower-cased — a name is case-insensitive, and
+     * so is the hexadecimal of an IPv6 literal, so `LOCALHOST` and `localhost`
+     * are one address here as they are on a host.
+     */
     readonly address: string
     readonly server: _VirtualServer
 }

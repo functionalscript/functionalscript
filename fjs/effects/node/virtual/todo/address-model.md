@@ -18,6 +18,13 @@ question, and the two measurements taken so far disagree** — the same pair is
 first from the review bot that reported the divergence, the second from a
 reviewer who went looking for it on another platform.
 
+**Which name is which address.** Case is folded — `LOCALHOST` and `localhost`
+are one address here as they are on a host — but nothing else about a name is
+modelled. `localhost` and `127.0.0.1` are the same socket to a resolver, and the
+second bind is `EADDRINUSE` on Node 22.22.2, while this runner allows it. Node's
+message names the address it resolved to (`listen EADDRINUSE: address already in
+use 127.0.0.1:44015`) where this runner can only name the string it was given.
+
 **Which addresses exist at all.** Every host string binds here. On a real host
 only an address of a local interface does — measured on Linux with Node 22.22.2:
 
@@ -46,18 +53,19 @@ which is the failure this runner exists to prevent. The known variables:
 - `0.0.0.0` versus `::` on one port differs again by platform;
 - which addresses are local is a property of the machine, not of Node, so
   modelling it means `State` carrying an interface list that every proof would
-  have to set up — and a name is a DNS answer, which the runner models nothing
-  of.
+  have to set up — and resolving a name means a DNS table beside it, which is a
+  second thing every proof would have to set up. Case folding is the one part of
+  a name that needs neither, which is why it is done and the rest is not.
 
-Nothing binds a wildcard or a non-loopback address today. `Listen` requires the
+Nothing binds a wildcard, a name, or a non-loopback address today. `Listen` requires the
 host as an argument, and its one consumer ([`fjs/web`](../../../../web/)) passes
 `127.0.0.1` — the string rule is permissive in exactly the cases no program
 currently uses.
 
 ### Trigger
 
-A consumer that binds a wildcard address, two servers on one port, or an address
-that is not loopback. Then the address has to be modelled properly — overlap per
+A consumer that binds a wildcard address, a name rather than a literal, two
+servers on one port, or an address that is not loopback. Then the address has to be modelled properly — overlap per
 family with the dual-stack case decided explicitly, and existence against a
 declared interface set — rather than guessed.
 

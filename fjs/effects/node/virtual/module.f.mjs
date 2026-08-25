@@ -515,7 +515,13 @@ const listen = (server, port, host) => state => {
     }
     const bound = /** @type {_VirtualServer} */ (asBaseServer(server))
     const { listener } = bound
-    const address = `${host}:${port}`
+    // Lower-cased because a DNS name is case-insensitive and so is the
+    // hexadecimal of an IPv6 literal: `LOCALHOST` and `localhost` are one
+    // address, and a host refuses the second bind — checked on Node 22.22.2.
+    // Unlike the wildcard rules in
+    // [address-model](./todo/address-model.md), that equivalence is the same
+    // everywhere, so it is safe to model.
+    const address = `${host.toLowerCase()}:${port}`
     if (state.listening.some(b => b.server === bound)) {
         return [state, error(ioError({
             code: 'ERR_SERVER_ALREADY_LISTEN',
