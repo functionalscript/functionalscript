@@ -71,14 +71,15 @@ If `All` is ever lowered out of the node module (it is runner
 infrastructure, not node-specific I/O — a separate design question),
 `allVoid` moves down with it alongside `all` and `both`.
 
-**`allOk` has to move with them.** [node-module-layering](./node-module-layering.md)
-currently moves `All` / `all` / `both` and leaves `allOk` in
-`fjs/effects/node/module.f.mjs`. Building `allVoid` on `allOk` would then make
-`fjs/effects/all` import from `fjs/effects/node` — the inversion that lowering
-exists to remove, and a cycle once `effects/node` imports the moved `All`
-family back. `allOk` belongs in the move set by the layering issue's own test:
-it is `ioStep(all(…), rs => pure(okList(rs)))`, concurrency plumbing with no
-host API in it.
+**`allOk` moves with them.** [node-module-layering](./node-module-layering.md)
+originally moved `All` / `all` / `both` only, which would have left `allOk` in
+`fjs/effects/node/module.f.mjs` — and an `allVoid` built on `allOk` would then
+make `fjs/effects/all` import from `fjs/effects/node`, the inversion that
+lowering exists to remove, and a cycle once `effects/node` imports the moved
+`All` family back. That issue's move set now names `allOk` too, so nothing
+further is needed there. It belongs in it by the layering issue's own test:
+`allOk` is `ioStep(all(…), rs => pure(okList(rs)))`, concurrency plumbing with
+no host API in it.
 
 The three call sites become `allVoid(e => registerOne(t, e))(sub)` etc.
 If [allreduce-combinator](./allreduce-combinator.md) lands first, consider
