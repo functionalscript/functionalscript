@@ -84,6 +84,11 @@ scheme. Each call site keeps its own recursion/accumulator structure.
   be written against the representation the tree actually has.
 - [`../data/README.md`](../data/README.md#the-repeat-rule) — the `Repeat` case
   the visitor has to cover; both backends now match it iteratively.
-- nullable-analysis-shared — the shared
-  nullability pass is a natural consumer once the visitor exists.
+- `nullable-analysis-shared` (retired; shipped as
+  [`emptyTagMap`](../data/module.f.mjs) in `fjs/bnf/data`, commit `94b7ff06`,
+  which deleted the issue in the same change and is documented at
+  [`../data/README.md`](../data/README.md)) — the shared nullability pass, which
+  both backends now read from instead of re-deriving. It is still the natural
+  consumer of this visitor: `emptyTagMap` walks the rule tree itself, so it is
+  one of the traversals a `Rule` visitor would absorb.
 - `fjs/types/rtti/common/module.f.mjs` — existing `visit` precedent.

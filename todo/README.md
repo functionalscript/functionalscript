@@ -55,20 +55,26 @@ identifiers were filenames: the retired tracker lived in a top-level `issues/`
 directory as `issues/NNN-{slug}.md`. Four searches, in order of yield:
 
 1. **The retired `issues/` directory, in git history.** This is the one that
-   works, and it names the issue outright:
+   works, and it names the issue outright. Find the filename, then read it —
+   the file is gone at every commit that *touches* it last, so read it from that
+   commit's parent:
 
    ```sh
-   git log --all --format=%H -- issues/ \
-     | while read c; do git ls-tree -r --name-only $c -- issues/; done \
-     | sort -u | grep -iE 'issues/0*167[.-]'
+   f=$(git log --all --format=%H -- issues/ \
+       | while read c; do git ls-tree -r --name-only $c -- issues/; done \
+       | sort -u | grep -iE 'issues/0*167[.-]')
+   # issues/167-bit-vec-msb-concat.md
+   git show "$(git log --all --format=%H -1 -- "$f")^:$f"
    ```
 
-   then `git show <commit>^:issues/167-....md` to read it. Most of these files
-   carry a **Resolution** section written when they were closed, naming the code
-   that shipped — so the answer is usually in the file itself rather than
-   inferred. Names were zero-padded inconsistently (`021-` and `21-` both
-   exist), which is why the pattern above allows optional leading zeros, and the
-   later ones use the `65X`/`65Y`/`66a` prefixes rather than numbers.
+   The first pipeline deliberately discards commits — one file can appear at
+   hundreds of them — so the second line recovers the one that matters, the
+   deletion, and reads the file from its parent. Most of these files carry a
+   **Resolution** section written when they were closed, naming the code that
+   shipped, so the answer is usually stated rather than inferred. Names were
+   zero-padded inconsistently (`021-` and `21-` both exist), which is why the
+   pattern allows optional leading zeros, and the later ones use the
+   `65X`/`65Y`/`66a` prefixes rather than numbers.
 2. **`git log --grep`.** Commits that close one name it — `i167` is `d39518d8`,
    "bit_vec: export msbConcat; drop per-module listToVec(msb) re-binds (i167)",
    and `i160` is `5c1577c6`, "resolve i160 as won't fix". Use this to date the
