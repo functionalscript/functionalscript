@@ -50,9 +50,11 @@ estimate. Both type names also gained a `_` prefix.
 
 **`666-js-tokenizer-position-layer` names a symbol that is gone.**
 It cites a `tokenizeOp` at `:749-750` and `:750`, and `tokenizeOp` appears
-nowhere in `fjs/js/`. Whatever that layer is called now, the issue's premise
-needs re-reading against the current module before its citations can be
-repaired.
+nowhere in `fjs/js/`. Its other two citations were re-derivable and are fixed in
+place — `tokenizeWithPositionOp` at `:697`, `tokenize` at `:712` — but the pure
+core may have been absorbed into the position layer, which would change that
+issue's premise rather than its numbers. It carries a note saying so; re-read
+the module before acting on it.
 
 Affected files, all in `fjs/js/todo/`:
 
