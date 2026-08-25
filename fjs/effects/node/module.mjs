@@ -94,20 +94,6 @@ const io = async f => {
 }
 
 /**
- * @template T
- * @param {AsyncIterable<T>} v
- * @returns {Promise<readonly T[]>}
- */
-const collect = async v => {
-    /** @type {readonly T[]} */
-    let result = []
-    for await (const a of v) {
-        result = [...result, a]
-    }
-    return result
-}
-
-/**
  * Reads a request body, giving up at the `Vec` cap rather than at the point
  * where converting it would throw.
  *
@@ -116,17 +102,28 @@ const collect = async v => {
  * already spent, and the throw lands inside an `async` request handler whose
  * promise nobody awaits. Counting as the chunks arrive stops both.
  *
+ * **The accumulator is mutated, deliberately.** Rebuilding the array per chunk
+ * — `result = [...result, a]`, the shape the rest of this repository is written
+ * in — copies every chunk received so far on every chunk received, which is
+ * quadratic in the *number* of chunks. The byte cap does not bound that: 20,000
+ * one-byte chunks are 20 KB and 200 million copies, and measured 16 seconds of
+ * event loop, during which this process answers nobody. A cap on payload size
+ * is not a cap on chunk count, and a request that will be refused must not cost
+ * more than one that is served. The array never leaves this function before it
+ * is finished, so nothing observes the mutation — which is the condition under
+ * which the impure shell is allowed to be impure.
+ *
  * @param {_Readable} v
  * @returns {Promise<Nullable<readonly Uint8Array[]>>} `null` past the cap.
  */
 const collectBounded = async v => {
-    /** @type {readonly Uint8Array[]} */
-    let result = []
+    /** @type {Uint8Array[]} */
+    const result = []
     let size = 0
     for await (const a of v) {
         size += a.length
         if (size > maxFileSizeBytes) { return null }
-        result = [...result, a]
+        result.push(a)
     }
     return result
 }

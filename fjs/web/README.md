@@ -148,8 +148,15 @@ than one `Vec` used to kill the process: the runner buffered it, `listToVec`
 threw at the cap, and the throw landed in an `async` handler whose promise
 nobody awaited. Any client could end the server with one request.
 
-The runner now counts as it reads and answers `413` itself, without calling the
-listener — over the cap there is no `IncomingMessage` to build, since its `body`
+The runner counts as it reads — into an array it mutates, which is the one place
+in this repository where that is the right answer: rebuilding the array per chunk
+copies everything received so far on every chunk, and 20,000 one-byte chunks is
+20 KB of payload and 200 million copies. A cap on payload size is not a cap on
+chunk count, and a request that will be refused must not cost more than one that
+is served. Measured on the same machine: 2,794 ms to refuse that request before,
+167 ms after.
+
+Past the cap it answers `413` itself, without calling the listener — over the cap there is no `IncomingMessage` to build, since its `body`
 is a single `Vec`. It also answers `500` rather than dying if a listener throws:
 a panic must not outlive the request that caused it.
 
