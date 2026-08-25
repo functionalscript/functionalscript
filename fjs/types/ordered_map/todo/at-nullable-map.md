@@ -47,4 +47,8 @@ points at the one `Nullable` combinator instead of a bespoke ternary.
 ### Related
 
 - `fjs/types/nullable/module.f.mjs` — the combinator.
-- `fjs/types/array/module.f.mjs` — precedent: safe accessors already use it.
+- `fjs/types/array/module.f.mjs` — `at` there is the same shape (`fromUndefined`
+  over an index). Its split accessors deliberately do *not* project through
+  `nullable`'s `map`: their result distinguishes a stored nullish element from
+  an empty array, which `T | null` cannot. `ordered_map.at` answers `T | null`,
+  so that reason does not apply here.
