@@ -19,11 +19,14 @@ first from the review bot that reported the divergence, the second from a
 reviewer who went looking for it on another platform.
 
 **Which name is which address.** Case is folded — `LOCALHOST` and `localhost`
-are one address here as they are on a host — but nothing else about a name is
-modelled. `localhost` and `127.0.0.1` are the same socket to a resolver, and the
-second bind is `EADDRINUSE` on Node 22.22.2, while this runner allows it. Node's
-message names the address it resolved to (`listen EADDRINUSE: address already in
-use 127.0.0.1:44015`) where this runner can only name the string it was given.
+are one address here as they are on a host, on Linux with Node 22.22.2 and on
+Darwin with Node 23.11.0 both — but nothing else about a name is modelled.
+Binding `localhost` and then `127.0.0.1` is `EADDRINUSE` on Linux with Node
+22.22.2 and this runner allows it; **and that pair is a platform question too**,
+since `localhost` resolves to `::1` on Darwin, where the same pair is *allowed*.
+Node's message names the address it resolved to (`listen EADDRINUSE: address
+already in use 127.0.0.1:44015`) where this runner can only name the string it
+was given.
 
 **Which addresses exist at all.** Every host string binds here. On a real host
 only an address of a local interface does — measured on Linux with Node 22.22.2:
@@ -32,8 +35,12 @@ only an address of a local interface does — measured on Linux with Node 22.22.
 | --- | --- |
 | `127.0.0.1` | binds |
 | `192.0.2.1` | `EADDRNOTAVAIL — listen EADDRNOTAVAIL: address not available 192.0.2.1` |
-| `example.com` | `EADDRNOTAVAIL`, against the resolved `172.66.147.243` |
 | `does-not-exist.invalid` | `ENOTFOUND — getaddrinfo ENOTFOUND does-not-exist.invalid` |
+
+A name is worse than either, because the answer is the *resolver's* and not the
+platform's: `example.com` was `EADDRNOTAVAIL` against the resolved
+`172.66.147.243` on the machine that measured the table, and binds on a machine
+whose resolver answers `127.0.0.1` for it — as one reviewing this did.
 
 So a program that binds a wildcard *and* a specific address on one port, or that
 binds an address this machine does not hold, can be proven here and fail on a
@@ -54,8 +61,9 @@ which is the failure this runner exists to prevent. The known variables:
 - which addresses are local is a property of the machine, not of Node, so
   modelling it means `State` carrying an interface list that every proof would
   have to set up — and resolving a name means a DNS table beside it, which is a
-  second thing every proof would have to set up. Case folding is the one part of
-  a name that needs neither, which is why it is done and the rest is not.
+  second thing every proof would have to set up, and one whose answers are the
+  resolver's rather than the platform's. Case folding is the one part of a name
+  that needs neither, which is why it is done and the rest is not.
 
 Nothing binds a wildcard, a name, or a non-loopback address today. `Listen` requires the
 host as an argument, and its one consumer ([`fjs/web`](../../../../web/)) passes
