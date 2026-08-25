@@ -430,16 +430,26 @@ const runNodeEffect = asyncRun({
     // the URL it was serving. So this settles on the outcome, not on the call.
     listen: (server, port, host) => io(() => new Promise((resolve, reject) => {
         const s = /** @type {_Server} */ (asBase(server))
-        /** @type {(e: unknown) => void} */
-        const onError = e => reject(e)
-        s.once('error', onError)
-        s.once('listening', () => {
-            // Dropped once bound: a later `error` event is not this effect's
-            // to answer, and a listener still holding `reject` would swallow
-            // it into an already-settled promise.
+        // Each handler removes the other, so exactly one outcome is recorded and
+        // neither is left attached. `once` only removes the handler that fired:
+        // a failed bind used to leave its `listening` handler behind, and a
+        // caller retrying after an `EADDRINUSE` accumulated one per attempt
+        // until Node warned about the leak.
+        /** @type {() => void} */
+        const onListening = () => {
+            // A later `error` event is not this effect's to answer, and a
+            // handler still holding `reject` would swallow it into an
+            // already-settled promise.
             s.removeListener('error', onError)
             resolve(undefined)
-        })
+        }
+        /** @type {(e: unknown) => void} */
+        const onError = e => {
+            s.removeListener('listening', onListening)
+            reject(e)
+        }
+        s.once('error', onError)
+        s.once('listening', onListening)
         s.listen(port, host)
     })),
     forever: () => new Promise(() => {}),

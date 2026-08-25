@@ -119,6 +119,12 @@ const percentDecode = s => {
 
 const schemeMark = '://'
 
+/** What separates a credential from the host it was offered to.
+ *
+ * @type {string}
+ */
+const userInfoMark = '@'
+
 /**
  * Reads a request target, or `null` if it is not one this server can act on.
  *
@@ -132,7 +138,8 @@ const schemeMark = '://'
  * inside it, and answered `404` for the wrong reason.
  *
  * Anything else — the asterisk-form `*`, an authority-form `host:port` from a
- * `CONNECT`, an empty target — names nothing this server serves.
+ * `CONNECT`, an empty target, an authority carrying userinfo — names nothing
+ * this server serves.
  *
  * The fragment is stripped although a client keeps it to itself; a `respond`
  * called directly might still be given one, and it costs one `split`.
@@ -147,9 +154,12 @@ const parseTarget = target => {
     if (mark < 0) { return null }
     const afterScheme = withoutQuery.slice(mark + schemeMark.length)
     const slash = afterScheme.indexOf('/')
-    return slash < 0
-        ? { authority: afterScheme, path: '/' }
-        : { authority: afterScheme.slice(0, slash), path: afterScheme.slice(slash) }
+    const authority = slash < 0 ? afterScheme : afterScheme.slice(0, slash)
+    // Userinfo names a credential, not a host, and an authority carrying one
+    // reads as a different host depending on which end you start from — which
+    // is what makes it worth refusing outright rather than parsing past.
+    if (authority.includes(userInfoMark)) { return null }
+    return { authority, path: slash < 0 ? '/' : afterScheme.slice(slash) }
 }
 
 /** The one character no file system path can carry.
@@ -314,13 +324,23 @@ const hostName = host => {
 }
 
 /**
- * Whether this server answers for `host`. An absent `Host` is not served: HTTP/1.1
- * requires one, every browser sends one, and accepting the absence would leave
- * the check with a hole shaped exactly like a client that omits it deliberately.
+ * Whether this server answers for `host`.
+ *
+ * An absent `Host` is not served: HTTP/1.1 requires one, every browser sends
+ * one, and accepting the absence would leave the check with a hole shaped
+ * exactly like a client that omits it deliberately.
+ *
+ * Neither is one carrying **userinfo**. `127.0.0.1:8080@attacker.example` is an
+ * authority whose host is `attacker.example` — the part before the `@` is a
+ * credential, not a name — and reading it left-to-right finds a loopback
+ * address that was never the host at all. RFC 9110 §4.2.4 deprecates userinfo in
+ * an `http` URI and says a sender must not generate one, so refusing is both
+ * correct and the only reading that cannot be walked backwards into.
  *
  * @type {(host: string | undefined) => boolean}
  */
-const isServedHost = host => host !== undefined && servedHosts.includes(hostName(host))
+const isServedHost = host =>
+    host !== undefined && !host.includes(userInfoMark) && servedHosts.includes(hostName(host))
 
 /**
  * `405`, carrying the `Allow` header the status may not omit: a refusal that

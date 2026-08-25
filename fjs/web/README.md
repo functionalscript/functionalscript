@@ -221,8 +221,13 @@ attacker's origin and hands the working tree to their JavaScript.
 
 So the `Host` is checked first, before the method and before the path, against
 the names this server answers for — `localhost`, `127.0.0.1`, `[::1]`, with or
-without a port. Anything else, including a request with no `Host` at all, is
-`403`. HTTP/1.1 requires one and every browser sends one, so accepting its
+without a port, and matched case-insensitively as host names are. Anything else
+is `403`, including a request with no `Host` at all and one whose authority
+carries **userinfo**: `127.0.0.1:8080@attacker.example` names the attacker's
+host, not loopback, and reading it from the left finds an address that was never
+the host at all. RFC 9110 §4.2.4 deprecates userinfo in an `http` URI, so
+refusing it outright is both correct and the only reading that cannot be walked
+backwards into. HTTP/1.1 requires one and every browser sends one, so accepting its
 absence would leave a hole shaped exactly like a client that omits it on purpose.
 
 `--host` will have to extend that list as well as the bind address; the two are

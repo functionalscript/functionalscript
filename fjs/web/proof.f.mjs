@@ -135,6 +135,9 @@ export const proof = {
             assertEq(reason(''), '400 malformed request URL')
             // Traversal is rejected after the authority comes off, not before.
             assertEq(reason('http://localhost/../secret'), '400 request path escapes the served root')
+            // An authority carrying userinfo is refused rather than parsed
+            // past: it reads as a different host from each end.
+            assertEq(reason('http://127.0.0.1:8080@attacker.example/x'), '400 malformed request URL')
             // A NUL is a bad request, not a host failure: left to the file
             // system it comes back as an `ERR_INVALID_ARG_VALUE` and a `500`.
             assertEq(reason('/main.css%00'), '400 malformed request URL')
@@ -191,12 +194,28 @@ export const proof = {
             assertEq(status('LOCALHOST:8080'), 200)
             assertEq(status('[::1]:8080'), 200)
             assertEq(status('[::1]:8080'), 200)
+            // Userinfo names a credential, not a host: read from the left,
+            // `127.0.0.1:8080@attacker.example` looks like loopback, and the
+            // host it actually names is the attacker's.
+            assertEq(status('127.0.0.1:8080@attacker.example'), 403)
+            assertEq(status('user@localhost'), 403)
             // A bracket with no closing `]` names nothing.
             assertEq(status('[::1'), 403)
             // An absolute-form target names its own host, and RFC 9112 says to
             // believe it over the header — so a proxy-shaped request for a name
             // this server does not answer for is refused even when the `Host`
             // header says something reassuring.
+            // The same trick through the target rather than the header: the
+            // authority names the attacker, and the reassuring `Host` does not
+            // rescue it.
+            const credentialed = unwrap(virtual({ ...emptyState, root: site })(
+                respond('.')({
+                    method: 'GET',
+                    url: 'http://127.0.0.1:8080@attacker.example/index.html',
+                    headers: { host: 'localhost:8080' },
+                    body: empty,
+                }))[1])
+            assertEq(credentialed.status, 400)
             const spoofed = unwrap(virtual({ ...emptyState, root: site })(
                 respond('.')({
                     method: 'GET',
