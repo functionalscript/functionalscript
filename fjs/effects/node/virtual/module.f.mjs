@@ -357,13 +357,21 @@ const writeBytesRawOp = (offset, data) => (dir, p) => {
 /** @type {(path: string, offset: number, data: Vec) => (state: State) => readonly [State, IoResult<void>]} */
 const writeBytesOp = (path, offset, data) => operation(writeBytesRawOp(offset, data))(path)
 
-/** @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]} */
+/**
+ * `stat` reports what is there, including when what is there is not a regular
+ * file: a `JsModule` entry is this file system's one such name, and it answers
+ * `isFile: false` rather than an error. That is the shape a host reports for a
+ * FIFO or a device — an entry that exists, stats fine, and must not be read —
+ * so a caller's guard against them is exercisable here.
+ *
+ * @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]}
+ */
 const statOp = readOperation((dir, path) => {
     if (path.length !== 1) { return enoent }
     const file = dir[path[0]]
     if (file === undefined) { return enoent }
-    if (!Array.isArray(file)) { return fail(`'${path[0]}' is not a file`) }
-    return ok({ size: fileSizeBytes(file) })
+    if (!Array.isArray(file)) { return ok({ size: 0, isFile: false }) }
+    return ok({ size: fileSizeBytes(file), isFile: true })
 })
 
 // ── HTTP ──────────────────────────────────────────────────────────────────────

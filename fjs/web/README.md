@@ -75,7 +75,7 @@ relative. That is also why the path is built with `join` rather than `concat`.
 | case | status |
 |---|---|
 | file found | `200` with its bytes |
-| `GET`/`HEAD` on a missing path | `404` |
+| `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path | `404` |
 | any other method | `405` |
 | a path that escapes `root`, or an undecodable URL | `400` |
 | a file larger than one `Vec` | `413` |
@@ -105,6 +105,16 @@ second opinion in the bytes of a type this server has already answered.
 dots and spaces. `resolve` normalizes the path but does not — cannot portably —
 predict which names a given host treats as the same file, so a hidden-segment or
 extension check is a check on the name as *written*.
+
+### What is not read at all
+
+`stat` runs before every read, and it answers two questions rather than one: how
+big the entry is, and whether it is a **regular file**. A FIFO, a device or a
+socket is answered `404` and never opened — `open` on a FIFO with no writer
+blocks until one appears, so the read would never return and would hold a
+thread-pool slot while it waited. A served tree with one FIFO in it and a handful
+of requests would stall every other response. Size cannot stand in for the check:
+a FIFO stats as zero bytes and passes every bound.
 
 ### The size limit
 

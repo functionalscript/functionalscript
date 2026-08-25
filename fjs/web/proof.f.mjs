@@ -7,6 +7,8 @@
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { exitCode } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
+import { nodeCommands } from '../effects/node/module.f.mjs'
+import { partialRun } from '../effects/mock/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty, length, vec } from '../types/bit_vec/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
@@ -170,17 +172,24 @@ export const proof = {
             assertEq(r.status, 413)
             assertEq(body(r), 'file is 132096 bytes; this server cannot answer with more than 131072\n')
         },
-        // A host failure that is not a missing path is not a 404. The client is
-        // told the kind, not the message: the host puts the absolute path it
-        // could not read in there.
-        hostFailure: () => {
-            // A `JsModule` entry is a name the virtual file system holds that
-            // is not a file, so `stat` fails with no `ENOENT` to hide behind.
+        // An entry that exists and is not a regular file is answered as absent
+        // — and, crucially, is never read: a FIFO would block the read forever.
+        // A `JsModule` is this file system's non-regular entry.
+        notRegular: () => {
             /** @type {Dir} */
-            const root = { 'module.mjs': () => ({}) }
-            const r = answer(root)('GET', '/module.mjs')
+            const root = { 'pipe.txt': () => ({}) }
+            const r = answer(root)('GET', '/pipe.txt')
+            assertEq(r.status, 404)
+            assertEq(body(r), 'not found\n')
+        },
+        // A host failure that is not a missing path is not a 404. A runner that
+        // cannot `stat` at all is the sharpest case: nothing looked for the
+        // file, so answering "not found" would be a claim nobody checked.
+        hostFailure: () => {
+            const noFs = partialRun(nodeCommands)({})
+            const r = unwrap(noFs(emptyState)(respond('.')(request('GET', '/index.html')))[1])
             assertEq(r.status, 500)
-            assertEq(body(r), 'io error\n')
+            assertEq(body(r), 'operation not implemented: stat\n')
         },
     },
     main: {

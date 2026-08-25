@@ -8,7 +8,7 @@
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
-import { pureOk, step } from '../../module.f.mjs'
+import { history, historyStep, pureOk, step } from '../../module.f.mjs'
 import { utf8, utf8ToString } from '../../../text/module.f.mjs'
 import { emptyState, virtual } from './module.f.mjs'
 import { do_ } from '../../module.f.mjs'
@@ -399,13 +399,16 @@ export const proof = {
         assert(result[0] === 'error')
     },
     statOnJsModule: () => {
-        // stat on a JsModule entry (neither an array nor a descendable
-        // directory) covers the !Array.isArray(file) branch of statOp.
+        // A `JsModule` entry is this file system's non-regular name: it exists
+        // and stats fine, and says it is not a file — the shape a host reports
+        // for a FIFO or a device, and what a caller's guard against reading one
+        // has to be able to see.
         /** @type {Dir} */
         const root = { 'a.f.ts': () => ({}) }
         const [, result] = virtual({ ...emptyState, root })(stat('a.f.ts'))
-        assert(result[0] === 'error')
-        assertIoMessage(result[1], `'a.f.ts' is not a file`)
+        assert(result[0] === 'ok', result)
+        assertEq(result[1].isFile, false)
+        assertEq(result[1].size, 0)
     },
     largeFileReadBytes: () => {
         // A file stored as two 128 KiB chunks is larger than maxLengthBytes.
@@ -446,8 +449,12 @@ export const proof = {
         dispatchesThroughTheHandle: () => {
             /** @type {(name: string) => RequestListener<never>} */
             const named = name => () => pureOk({ status: 200, headers: {}, body: utf8(name) })
-            const first = step(createServer(named('a')), a =>
-                step(createServer(named('b')), () => listen(a, 8080, '127.0.0.1')))
+            // Flat, because the third link needs the *first* one's value: a
+            // history carries `a` forward instead of a nested continuation
+            // closing over it.
+            const created = history(createServer(named('a')))
+            const both = historyStep(created, () => createServer(named('b')))
+            const first = step(both, ([, a]) => listen(a, 8080, '127.0.0.1'))
             /** @type {State} */
             const state = {
                 ...emptyState,

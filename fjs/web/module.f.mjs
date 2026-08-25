@@ -14,7 +14,7 @@
  * | case                                          | status |
  * |-----------------------------------------------|--------|
  * | file found                                     | `200`  |
- * | `GET`/`HEAD` on a missing or dot-prefixed path | `404`  |
+ * | `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path | `404` |
  * | any other method                               | `405`  |
  * | a path that escapes `root`, or an undecodable URL | `400`  |
  * | a file larger than one `Vec`                   | `413`  |
@@ -203,6 +203,16 @@ export const resolve = root => url => {
 const tooLarge = size => ['tooLarge', size]
 
 /**
+ * An entry that is not a regular file — a FIFO, a device, a socket. It exists,
+ * so this is not a missing path, and it is not something this server will read.
+ *
+ * @typedef {readonly['notRegular']} _NotRegular
+ */
+
+/** @type {_NotRegular} */
+const notRegular = ['notRegular']
+
+/**
  * A response frame carrying `body`, with its length declared.
  *
  * `Content-Length` is written here rather than left to the runner, because the
@@ -231,24 +241,37 @@ const plainText = status => message =>
     response(status)('text/plain; charset=utf-8')(utf8(`${message}\n`))
 
 /**
- * Reads `path`, but only after `stat` says it fits in one `Vec` — the size is
- * checked first so an oversized file fails loudly instead of being truncated.
+ * Reads `path`, but only once `stat` has said it is a regular file that fits in
+ * one `Vec`.
  *
- * @type {(path: string) => (s: FileStat) => Effect<ReadFile, Vec, IoChannel | _TooLarge>}
+ * Both questions are asked before the read, and neither is optional. An
+ * oversized file must fail loudly rather than be truncated. A **non-regular**
+ * entry must not be read at all: `open` on a FIFO with no writer blocks until
+ * one appears, so the read would never return and would hold a thread-pool slot
+ * while it waited — a served tree with one FIFO in it, and a handful of requests
+ * stall every other response. Size cannot stand in for that check, because a
+ * FIFO stats as zero bytes and passes every bound.
+ *
+ * @type {(path: string) => (s: FileStat) => Effect<ReadFile, Vec, IoChannel | _TooLarge | _NotRegular>}
  */
-const readBounded = path => ({ size }) =>
-    BigInt(size) > maxLengthBytes ? pureError(tooLarge(size)) : readFile(path)
+const readBounded = path => ({ size, isFile }) => {
+    if (!isFile) { return pureError(notRegular) }
+    return BigInt(size) > maxLengthBytes ? pureError(tooLarge(size)) : readFile(path)
+}
 
 /**
  * The response frame for whatever reading `path` produced. This is where the
  * error channel ends: every failure becomes a status code, which is what lets
  * a `RequestListener` declare `never`.
  *
- * @type {(path: string) => (r: Result<Vec, IoChannel | _TooLarge>) => ServerResponse}
+ * @type {(path: string) => (r: Result<Vec, IoChannel | _TooLarge | _NotRegular>) => ServerResponse}
  */
 const fileResponse = path => r => {
     if (r[0] === 'ok') { return response(200)(detectPath(path))(r[1]) }
     const e = r[1]
+    // A name that is not a regular file is answered as absent, for the reason a
+    // dot-prefixed one is: what it *is* would be a disclosure of its own.
+    if (e[0] === 'notRegular') { return plainText(404)('not found') }
     if (e[0] === 'tooLarge') {
         return plainText(413)(`file is ${e[1]} bytes; this server cannot answer with more than ${maxLengthBytes}`)
     }

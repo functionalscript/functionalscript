@@ -181,8 +181,21 @@ export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, I
 
 // stat
 
-/** File metadata returned by `stat`. Only `size` (in bytes) for now. */
-export type FileStat = { readonly size: number }
+/**
+ * File metadata returned by `stat`: the size in bytes, and whether the entry is
+ * a *regular* file.
+ *
+ * `isFile` is not a convenience. Reading a FIFO, a device or a socket is not
+ * reading a file: `open` on a FIFO with no writer blocks until one appears, so a
+ * `readFile` that reaches one never returns and holds a thread-pool slot for as
+ * long as it waits. Size cannot stand in for the check — a FIFO stats as zero
+ * bytes and passes every bound. It is the same question `Dirent` answers for a
+ * directory listing, asked about one path.
+ */
+export type FileStat = {
+    readonly size: number
+    readonly isFile: boolean
+}
 
 export type Stat = readonly['stat', (path: string) => IoResult<FileStat>]
 

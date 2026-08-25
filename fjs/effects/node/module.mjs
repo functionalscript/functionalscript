@@ -400,7 +400,10 @@ const runNodeEffect = asyncRun({
             await fh.close()
         }
     }),
-    stat: path => io(async () => ({ size: (await stat(path)).size })),
+    stat: path => io(async () => {
+        const s = await stat(path)
+        return { size: s.size, isFile: s.isFile() }
+    }),
     import: path => io(() => asyncImport(path)),
     exec: (command, stdin) => new Promise(resolve => {
         const child = exec(command, (e, stdout, stderr) =>

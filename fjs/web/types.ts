@@ -1,8 +1,4 @@
-/**
- * Types for the static file server.
- *
- * @module
- */
+/** Types for the static file server. */
 
 import type { Effect } from '../effects/types.ts'
 import type { Forever, Fs, Http, IncomingMessage, ServerResponse, Write } from '../effects/node/types.ts'
