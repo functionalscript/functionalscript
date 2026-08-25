@@ -112,7 +112,11 @@ the shared part appears once and only the difference lives in the conditional."
            : validated(id, schema, params)(pr => ioStep(handler(pr), r => pureOk(_okResponse(id)(r))))
    ```
 
-   `tools/list` becomes `toolMethod(toolsListParams, params ?? {}, handlers.toolsList)`
+   `tools/list` becomes
+   `toolMethod(toolsListParams, params === undefined ? {} : params, handlers.toolsList)`
+   — keep that spelling rather than `params ?? {}`, which would also coerce
+   `null` and turn a `tools/list` with `params: null` from `invalidParams` into
+   a successful empty request
    and `tools/call` becomes `toolMethod(toolsCallParams, params, handlers.toolsCall)`.
 
 Both helpers keep the genuine per-method differences (schema, params-defaulting,

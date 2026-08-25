@@ -52,8 +52,9 @@ issue 403).
 A bare `iNNN` with no link means the identifier has no file left to point at:
 the issue was closed and deleted, as this README requires, and no successor
 document was identified. Check for a zero-padded name before concluding that —
-`i37` is `037-language-design-map.md`, whose heading is `# 37.`, and a search
-for `37-` does not find it. Where the work is traceable, the citation names what
+`i37` is `037-language-design-map.md`, whose heading is `# 37.`. Matching the
+identifier's digits against the filename's exactly will miss it; grep the
+heading, or allow the padding. Where the work is traceable, the citation names what
 it shipped as instead — see `i143` and `i172` in `fjs/bnf/todo/207.md`. When
 you recognize one of the unlinked identifiers, either give it the same
 treatment or delete the reference; do not link it to a same-numbered GitHub
