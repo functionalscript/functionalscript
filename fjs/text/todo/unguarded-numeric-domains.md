@@ -7,26 +7,32 @@
 
 `utf8ByteToCodePointOp` and `utf16ByteToCodePointOp` now both check
 `Number.isInteger` before dispatching, because their range partitions cover
-only the *integers* in range and a fraction falls between two arms. The same
-shape is unguarded in four other places. All predate this issue and none is
-reachable from a `Vec`, a `u8List`, or a `string` — the inputs every in-tree
-caller supplies — so this is a domain-hygiene issue, not a live defect.
+only the *integers* in range and a fraction falls between two arms. Seven
+other sites have the same shape and no such check. All predate this issue and
+none is reachable from a `Vec`, a `u8List`, or a `string` — the inputs every
+in-tree caller supplies — so this is a domain-hygiene issue, not a live
+defect.
 
-The `text` decoders are done; what is left is the encode direction and two
-adjacent helpers:
+The `text` decoders are done. What is left is the encode direction, two
+`ascii` helpers, two `code_point` predicates, and one in `bnf`:
 
 | site | input | answers | contract |
 |---|---|---|---|
 | `utf8`'s `fromCodePointList` | `[65.5]` | `[65]` | truncates to a valid byte, silently |
 | `utf16`'s `fromCodePointList` | `[65.5]` | `[65.5]` | emits the fraction as a code unit |
-| `ascii`'s `hexDigitValue` (`:259`) | `53.5` | `5.5` | `0..15 \| null` |
-| `bnf`'s `rangeEncode` (`:77`) | — | — | `isValid` admits a fraction, then `encodeTerminal` feeds it `& mask` |
+| `ascii`'s `hexDigitValue` (`:259`) | `53.5` | `5.5` | "the value `0..15` … or `null`" |
+| `ascii`'s `hexDigitCodePoint` (`:271`) | `5.5` | `53.5` | "the … code point denoting a value in `0..15`" |
+| `code_point`'s `isValidCodePoint` (`:137`) | `65.5` | `true` | "in the Unicode range … and not a surrogate" |
+| `code_point`'s `isTextCodePoint` (`:161`) | `65.5` | `true` | "a code point at or above `0x0020` …" |
+| `bnf`'s `rangeEncode` (`:77`) | `(65.5, 66)` | same as `(65, 66)` | `isValid` admits it, then `& mask` truncates |
 
 The two encoders disagree with each other on the same input, which is the
 tell: neither decided what a non-integer means, so each inherited whatever its
-arithmetic happened to do. `hexDigitValue` is the sharpest of the four — it
-returns a value outside its own stated range rather than the `null` it
-promises for anything that is not a hex digit.
+arithmetic happened to do. The `ascii` pair is the sharpest — each returns a
+value outside the range its own doc states. The two predicates answer `true`
+for something that is not a code point at all, which is what lets the rest
+through: a caller that asks `isValidCodePoint` first has already been told the
+input is fine.
 
 ### Proposal
 
@@ -37,18 +43,23 @@ decoders' answer was "tagged error, state passed through"; an encoder has no
 error channel in its return type today, so `fromCodePointList` needs that
 decision made rather than assumed.
 
-`hexDigitValue` is the one that can be fixed without a design question: its
-return type is already `Nullable<number>`, so a non-integer is `null`.
+The two predicates and `hexDigitValue` need no design question: all three
+already answer `false`/`null` for out-of-domain input, so a non-integer joins
+that branch.
 
 ### Tasks
 
-- [ ] `hexDigitValue`: reject a non-integer with `null`; proof it.
+- [ ] `isValidCodePoint` and `isTextCodePoint`: answer `false` for a
+      non-integer. Fixing these first narrows what the sites below can be
+      handed.
+- [ ] `hexDigitValue`: `null` for a non-integer. `hexDigitCodePoint`: decide,
+      since its return type has no `null` today.
 - [ ] Decide what `fromCodePointList` does with a non-integer code point on
       both sides, and make `utf8` and `utf16` agree.
 - [ ] `bnf`'s `isValid`: decide whether the assertion should reject a
       non-integer before `& mask` silently truncates it.
 - [ ] Consider whether `text/code_point` should own one `isCodePoint`
-      predicate the way `u8`/`u16` are now written, rather than four
+      predicate the way `u8`/`u16` are now written, rather than several
       near-copies.
 
 ### Related
