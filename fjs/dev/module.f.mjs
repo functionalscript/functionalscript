@@ -11,6 +11,7 @@
 
 import { allOk, import_, readdir } from '../effects/node/module.f.mjs'
 import { cmp as strCmp } from '../types/string/module.f.mjs'
+import { fromEntries } from '../types/object/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
 import { mapStep, pureOk, step } from '../effects/module.f.mjs'
 import { join, relativize, toPosix } from '../path/module.f.mjs'
@@ -55,24 +56,14 @@ const allFiles = (s, predicate) => {
     const load = p => {
         const listed = step(
             readdir(p, {}),
-            d => {
-                /** @type {readonly Effect<Readdir | All, readonly string[], IoChannel>[]} */
-                let result = []
-                for (const i of d) {
-                    const { name } = i
-                    if (name.startsWith('.')) { continue }
-                    const file = join(p, name)
-                    if (!i.isFile) {
-                        if (name === 'node_modules') { continue }
-                        result = [...result, load(file)]
-                        continue
-                    }
-                    if (predicate(file)) {
-                        result = [...result, pureOk([file])]
-                    }
-                }
-                return allOk(...result)
-            })
+            d => allOk(...d.flatMap(i => {
+                const { name } = i
+                if (name.startsWith('.')) { return [] }
+                const file = join(p, name)
+                return i.isFile
+                    ? (predicate(file) ? [pureOk([file])] : [])
+                    : (name === 'node_modules' ? [] : [load(file)])
+            })))
         return mapStep(listed, v => v.flat())
     }
     return load(s)
@@ -81,8 +72,6 @@ const allFiles = (s, predicate) => {
 /** @type {(f: string) => Effect<Access | Import, readonly (readonly [string, Module])[], IoChannel>} */
 const loadFile = f =>
     mapStep(import_(f), m => [/** @type {const} */ ([f, m])])
-
-const { fromEntries } = Object
 
 /**
  * Discovers all source files under `INIT_CWD` (or `.` if unset) that match
