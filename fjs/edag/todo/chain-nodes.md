@@ -68,15 +68,36 @@ a(...b).c(...d)  ['.()', ['()', a, b], c, d]
 The fusion is always one `.` feeding one `()`; everything to its left is
 HCF-free and decomposes into ordinary nodes.
 
+And `.()` **covers the row completely**, because a receiver lifetime is bounded
+at two operations: the call consumes the receiver and ends it, so `a.b(...c)`
+cannot extend to the right. `a.b(...c).d` starts a fresh lifetime — the `.d`
+reads an ordinary value — so it is `['.', ['.()', a, b, c], d]`, not a longer
+form. No non-optional expression ever needs a walker.
+
 | | no HCF | HCF |
 | --- | --- | --- |
 | **no optional operator** | `.`, `()` | `.()` — the unique case |
 | **optional operator** | — | `?.`, `?.()` alone; a region needs a walker |
 
-`?.` and `?.()` sit in the pure column for the same reason `.()` does: their
-short-circuit is complete within the node, because nothing follows it to skip.
-So the five pure nodes are exactly the expressions whose HCF lifetime, if any,
-is complete, and the walkers are for lifetimes that span a region.
+`?.` and `?.()` sit in the pure column for a matching reason: their
+short-circuit skips nothing beyond their own operands — `a?.b` skips its index,
+`a?.(...b)` its arguments, and neither can skip more.
+
+The line is **bounded against unbounded**, not complete against incomplete.
+`a?.b(...c)` also has a complete lifetime, and its base, index and arguments
+would fit fixed operands; what disqualifies it is that its short-circuit skips a
+*separate operation* — the call, arguments included — and once a region reaches
+past its own operands the number of operations it can skip is unbounded
+(`a?.b(...c).d.e…`). Unbounded needs an array.
+
+| lifetime | bound | node |
+| --- | --- | --- |
+| receiver — `.` feeding `()` | exactly two operations; the call ends it | `.()` |
+| region skipping only its own operands | one operation | `?.`, `?.()` |
+| region skipping separate operations | unbounded | a walker |
+
+So there are five pure nodes because there are exactly two *bounded* HCF shapes,
+plus the two operations carrying no HCF at all.
 
 ### The rows are independent
 
@@ -170,10 +191,14 @@ guard that makes one optional, `_` a walked chain. Composition within a tag is
 evaluation order — `.()` is a property access **then** a call, `_()` a chain
 **then** a call.
 
-Step ids keep the `|` prefix they have today — `|.`, `|?.`, `|()`, `|?.()`. It
-marks the one property that matters, that a step is not an `exp`
-([Purity](#purity)), and with `_` carrying the walk no glyph does double duty:
-no node tag and step id share a name.
+Step ids keep the `|` prefix they have today — `|.`, `|?.`, `|()`, `|?.()`.
+That is a correctness requirement, not a readability one. Tuples are open
+(["Caveats"](../README.md#caveats)), so an unprefixed step schema `['.', Index]`
+also admits a full three-operand `.` **node**: `validate` accepts
+`['.', 'base', 'idx']` against it, after which a walk would read `'base'` as the
+index and ignore the rest. The same collision hits `()` and `?.()`. The prefix
+keeps the two vocabularies disjoint, and it marks what the disjointness is for —
+a step is not an `exp` ([Purity](#purity)).
 
 ### Conditions
 
@@ -245,30 +270,40 @@ legitimacy criterion:
 
 ## Open questions
 
-**The conditions live outside the schema, and two duplicate families slip
+**The conditions live outside the schema, and four duplicate families slip
 through.** rtti offers `array(T)` and `or` — no cardinality, no order — so the
 conditions are lowering rules plus a validation pass, and `validate` accepts
 graphs the lowering never emits:
 
 ```ts
-['_', a, [['|?.', b], ['|?.', c]]]              // a?.b?.c      — also ['?.', ['?.', a, b], c]
-['_', a, [['|.', b], ['|()', c], ['|?.', d]]]   // a.b(...c)?.d — also ['?.', ['.()', a, b, c], d]
+['_',   a, [['|?.', b], ['|?.', c]]]                // a?.b?.c        also ['?.', ['?.', a, b], c]
+['_',   a, [['|.', b], ['|()', c], ['|?.', d]]]     // a.b(...c)?.d   also ['?.', ['.()', a, b, c], d]
+['_()', a, [['|?.()', b]], c]                       // (a?.(..b))(..c) also ['()', ['?.()', a, b], c]
+['_',   a, [['|?.', b], ['|()', c], ['|?.', d]]]    // a?.b(..c)?.d   also ['?.', ['_', a, [['|?.', b], ['|()', c]]], d]
 ```
 
-Both satisfy "at least one optional step" and both duplicate a pure nesting. The
-first is equivalent by the parenthesis law; the second by construction, since
-the walk is left to right and each step is the same operation. What the
-cardinality test misses is that an optional operator's *presence* is not what
-justifies a walker — the region having work to do is:
+Each satisfies "at least one optional step" and each duplicates a shorter
+spelling — verified identical, error text included. What the cardinality test
+misses is that an optional operator's *presence* is not what justifies a walker;
+the region having work to do is:
 
 - **Whether** a walker is required — some step consumes a receiver from the
   preceding step, or an unguarded step follows an optional one and so must be
   skipped.
-- **How much** goes in it — minimality.
+- **How much** goes in it — the span runs from the first such step to the
+  **last** one. Anything before it is a dead prefix and belongs in an `exp`;
+  anything after it is a liftable suffix and belongs in a following node.
 
-Under those, `a?.b?.c` fails both clauses and lowers to pure nesting, while
-`a.b(...c)?.d` needs a walker only for `a.b(...c)` — which is `.()`, so none at
-all. Recommended, not yet decided.
+The suffix half matters as much as the prefix half. A trailing `|?.` always
+lifts out by the parenthesis law; a trailing `|?.()` lifts out unless the step
+before it is a property step, since then it consumes a receiver. Trailing `|.`
+and `|()` never lift, being unguarded and so needing the skip.
+
+Under the full rule all four collapse: `a?.b?.c` fails the "whether" clause
+entirely, `a.b(...c)?.d` needs a walker only for `a.b(...c)` — which is `.()`,
+so none at all — `(a?.(...b))(...c)` has no receiver for its final call to
+consume, and `a?.b(...c)?.d` keeps the walker but ends it before the trailing
+`|?.`. Recommended, not yet decided.
 
 That is the price of maximizing purity: every pure node added is one more
 spelling the walkers must be forbidden to duplicate, and the forbidding happens
@@ -336,7 +371,8 @@ node in a property position.
 ## Tasks
 
 - [ ] Decide the conditions: the stated cardinality tests, or whether-plus-
-      minimality. The second removes both duplicate families.
+      minimality with both halves of the span. The second removes all four
+      duplicate families.
 - [ ] Revisit `close` for stating the conditions structurally, once it has
       settled.
 - [ ] Settle whether `_` should say it is optional (`?_`).
