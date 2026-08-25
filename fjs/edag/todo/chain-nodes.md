@@ -114,8 +114,15 @@ Extension is what makes the excess *unbounded* rather than merely two:
 | region skipping only its own operands | one operation | `?.`, `?.()` |
 | region skipping separate operations | unbounded | a walker |
 
-So there are five pure nodes because there are exactly two *bounded* HCF shapes,
-plus the two operations carrying no HCF at all.
+So there are five pure nodes: two *bounded* HCF shapes, plus the two operations
+carrying no HCF at all.
+
+Two is not all of them, and the difference is a choice rather than a derivation.
+`a.b?.(...c)` and `(a?.b)(...c)` are bounded by the same criterion — each skips
+one operation, its own operands — and both are spelled with a walker anyway;
+[the four guard combinations](#open-questions) sets out why. What the criterion
+settles on its own is the other direction: nothing *unbounded* can be a pure
+node.
 
 ### The rows are independent
 
