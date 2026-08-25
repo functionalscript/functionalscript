@@ -135,6 +135,15 @@ const collectBounded = async v => {
  * The runner's own answer, for the cases a listener never gets to give one: a
  * request body too large to hand it, and a listener that threw.
  *
+ * **It closes the connection**, which is the whole difference between refusing
+ * a request and surviving the refusal. Both cases answer without having read
+ * the request to its end, and on a keep-alive connection Node then waits for
+ * the rest of a body that is never coming — the socket is stuck, and the next
+ * request on it is never answered. A client that declares ten megabytes and
+ * sends a hundred kilobytes could hold connections open that way for as long as
+ * it liked. Draining the remainder would be the polite alternative and the
+ * wrong one: it reads bytes this server has already decided it will not use.
+ *
  * @type {(res: _ServerResponse) => (status: number) => (message: string) => void}
  */
 const respondWith = res => status => message => {
@@ -143,6 +152,7 @@ const respondWith = res => status => message => {
         .writeHead(status, {
             'content-type': 'text/plain; charset=utf-8',
             'content-length': `${body.length}`,
+            connection: 'close',
         })
         .end(body)
 }

@@ -111,16 +111,27 @@ nobody awaited. Any client could end the server with one request.
 The runner now counts as it reads and answers `413` itself, without calling the
 listener — over the cap there is no `IncomingMessage` to build, since its `body`
 is a single `Vec`. It also answers `500` rather than dying if a listener throws:
-a panic must not outlive the request that caused it. Both go away for good with
+a panic must not outlive the request that caused it.
+
+Both answers close the connection, which is the difference between refusing a
+request and surviving the refusal. Neither has read the request to its end, so
+on a keep-alive connection Node would sit waiting for a body that never arrives
+— one client declaring ten megabytes and sending a hundred kilobytes could hold
+sockets open indefinitely. Draining the rest would be the polite alternative and
+the wrong one: it reads bytes the server has already refused.
+
+All of it goes away with
 [streaming bodies](../effects/node/todo/streaming-http-bodies.md).
 
 ## Proving it without a socket
 
 `main` is proven end to end against the virtual runner, request in and response
-out. The runner grew two operations for it: `createServer` stores the listener
-in the virtual state, and `listen` hands it every request the fixture queued,
-recording what came back. No socket is involved, and it is the same listener the
-Node runner would drive.
+out. The runner grew two operations for it: `createServer` hands back a handle
+carrying the listener, and `listen` gives that listener every request the fixture
+queued, recording what came back. No socket is involved, and it is the same
+listener the Node runner would drive. The listener rides in the handle rather
+than in the state so that two servers in one program are two servers there too,
+as they are on a host.
 
 The run ends where a real one would not: `forever`'s result type is
 `Result<never, NotImplemented>`, so `error(notImplemented)` is the *only* value

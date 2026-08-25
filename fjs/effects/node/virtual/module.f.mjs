@@ -12,7 +12,7 @@
  * @import { Dir, State, _Entity, _VirtualListener } from './types.ts'
  */
 
-import { assert, assertNotNullish, todo } from '../../../asserts/module.f.mjs'
+import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
@@ -20,7 +20,7 @@ import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import { ioError, nodeCommands } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
-import { asNominal as asNominalServer } from '../../../types/nominal/module.f.mjs'
+import { asBase as asBaseServer, asNominal as asNominalServer } from '../../../types/nominal/module.f.mjs'
 
 /** @type {State} */
 export const emptyState = {
@@ -33,7 +33,6 @@ export const emptyState = {
     memoryNext: 0,
     memoryValues: {},
     randomNext: 0,
-    server: null,
     port: null,
     host: null,
     requests: [],
@@ -370,27 +369,37 @@ const statOp = readOperation((dir, path) => {
 // ── HTTP ──────────────────────────────────────────────────────────────────────
 //
 // There are no sockets here, but the two operations that *set up* a server still
-// have a faithful meaning without one: `createServer` stores the listener, and
+// have a faithful meaning without one: `createServer` hands back a handle, and
 // `listen` accepts exactly the requests the fixture queued. That is what makes a
 // request-in / response-out proof possible against the in-memory filesystem —
 // the same listener the Node runner would drive, driven by fixture data instead
 // of a socket. `forever` is the one HTTP-adjacent operation with no meaning
 // here; see the note on {@link virtual} below.
 
-/** @type {(listener: RequestListener<Operation>) => (state: State) => readonly[State, OpResult<Server>]} */
+/**
+ * The handle **is** the listener.
+ *
+ * `Server` is a nominal over `unknown`, so what a runner keeps inside one is its
+ * own business: this one keeps the listener there, and `listen` takes it back
+ * out. In the state instead, it would model a runner with room for one server —
+ * two `createServer` calls and the second silently answers for the first, where
+ * the Node runner gives each its own socket — so it rides in the handle, and two
+ * servers in one program are two servers here too.
+ *
+ * @type {(listener: RequestListener<Operation>) => (state: State) => readonly[State, OpResult<Server>]}
+ */
 const createServer = listener => state => {
     // The same narrowing the Node runner performs before handing a request to
     // it: `CreateServer` declares its listener over `Operation`, since a
     // `Server` must not carry a type parameter, and a runner can only run one
     // at its own operation set.
-    const server = /** @type {_VirtualListener} */ (listener)
     /** @type {Server} */
-    const handle = asNominalServer(server)
-    return [{ ...state, server }, ok(handle)]
+    const handle = asNominalServer(/** @type {_VirtualListener} */ (listener))
+    return [state, ok(handle)]
 }
 
 /**
- * Records the address, then hands the stored listener every queued request in
+ * Records the address, then hands `server`'s listener every queued request in
  * turn, threading the state through each and recording what came back. The
  * queue is emptied, so a second `listen` does not re-deliver.
  *
@@ -398,10 +407,13 @@ const createServer = listener => state => {
  * response frame *is* where a listener puts its failures — the Node runner
  * unwraps at the same point for the same reason.
  *
- * @type {(port: number, host: string) => (state: State) => readonly[State, OpResult<void>]}
+ * The listener comes out of the handle rather than out of the state, so which
+ * server was asked to listen is the one that answers — see {@link createServer}.
+ *
+ * @type {(server: Server, port: number, host: string) => (state: State) => readonly[State, IoResult<void>]}
  */
-const listen = (port, host) => state => {
-    const listener = assertNotNullish(state.server, 'listen without createServer')
+const listen = (server, port, host) => state => {
+    const listener = /** @type {_VirtualListener} */ (asBaseServer(server))
     /** @type {State} */
     let s = { ...state, port, host, requests: [] }
     for (const request of state.requests) {
@@ -461,9 +473,7 @@ const map = {
     writeBytes: writeBytesOp,
     stat: statOp,
     createServer,
-    // The handle is redundant in this runner: it keeps one server, in `state`,
-    // so the listener is looked up there rather than unwrapped from the nominal.
-    listen: (_, port, host) => listen(port, host),
+    listen,
     randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, ok(state.randomNext)],
     now: () => state => [state, ok(state.epochNs)],
     // Virtual sandbox is a pass-through: the fixture's test function is

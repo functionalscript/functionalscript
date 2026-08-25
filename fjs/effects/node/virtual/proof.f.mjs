@@ -440,6 +440,23 @@ export const proof = {
             assertEq(s.requests.length, 0)
             assertEq(s.responses.map(r => utf8ToString(r.body)).join(', '), 'echo /a, echo /b')
         },
+        // Two servers in one program are two servers here, as they are on a
+        // host: `listen` answers with the listener its *handle* carries, not
+        // with whichever was created last.
+        dispatchesThroughTheHandle: () => {
+            /** @type {(name: string) => RequestListener<never>} */
+            const named = name => () => pureOk({ status: 200, headers: {}, body: utf8(name) })
+            const first = step(createServer(named('a')), a =>
+                step(createServer(named('b')), () => listen(a, 8080, '127.0.0.1')))
+            /** @type {State} */
+            const state = {
+                ...emptyState,
+                requests: [{ method: 'GET', url: '/', headers: {}, body: empty }],
+            }
+            const [s, result] = virtual(state)(first)
+            assert(result[0] === 'ok', result)
+            assertEq(utf8ToString(s.responses[0].body), 'a')
+        },
         // `forever` is the operation this runner cannot answer — its result
         // type leaves it nothing but `notImplemented` to return — so a server
         // program run here ends where it would otherwise have blocked.

@@ -28,11 +28,12 @@ export type Dir = {
 }
 
 /**
- * The listener a virtual `createServer` stored, at the operation set this
+ * The listener a virtual `Server` handle carries, at the operation set this
  * runner can actually run it with. `CreateServer` declares its listener over
  * `Operation` — an unresolved type parameter would leak into every consumer of
- * `Server` — so the handler narrows it here, exactly as the Node runner does
- * before handing a request to it.
+ * `Server` — so the handler narrows it, exactly as the Node runner does before
+ * handing a request to it. It rides in the handle rather than in the state, so
+ * that two servers in one program are two servers here too.
  *
  * @internal
  */
@@ -52,16 +53,14 @@ export type State = {
     memoryValues: { readonly [key: string]: unknown }
     /** Monotonically increasing counter returned by `randomInt`; starts at 0. */
     randomNext: number
-    /** The listener `createServer` stored; `null` until a program creates one. */
-    server: Nullable<_VirtualListener>
     /** The port `listen` was called with; `null` until then. */
     port: Nullable<number>
     /** The host `listen` was asked to bind; `null` until then. */
     host: Nullable<string>
     /**
      * The requests a fixture queues for the server to answer. `listen` delivers
-     * every one of them to {@link _VirtualListener} and empties the queue — the
-     * virtual counterpart of accepting connections.
+     * every one of them to the {@link _VirtualListener} its handle carries, and
+     * empties the queue — the virtual counterpart of accepting connections.
      */
     requests: readonly IncomingMessage[]
     /** What the listener answered, oldest first. */
