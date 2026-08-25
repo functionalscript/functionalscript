@@ -16,8 +16,10 @@ algorithms, and neither lives in this module:
   surgery over the matched lexeme (`BigInt(intDigits + fracDigits)`,
   `exp - fracDigits.length`).
 
-`fjs/types/bigfloat` exports only `multiply` and `decToBin`, so the
-conversion has no owner and both lexers grew their own. The exponent/fraction
+`fjs/types/bigfloat` exports arithmetic and the decimal→binary rounding
+(`multiply`, `decToBin`, `tryDecToFormat`) but nothing that *builds* a
+`BigFloat` from digits, so the conversion has no owner and both lexers grew
+their own. The exponent/fraction
 sign bookkeeping is exactly the kind of arithmetic that should be stated
 once.
 
