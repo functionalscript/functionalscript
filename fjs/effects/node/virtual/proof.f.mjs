@@ -345,6 +345,18 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(rename('myfile', 'mydir'))
         assert(result[0] === 'error')
     },
+    renameForeignArrayFileOntoDirectory: () => {
+        // An array with another constructor's prototype models the observable
+        // instanceof behavior of an array received from another realm.
+        const foreignFile = Reflect.construct(Array, [], Object)
+        assert(Array.isArray(foreignFile))
+        assert(!(foreignFile instanceof Array))
+        /** @type {Dir} */
+        const root = { 'myfile': foreignFile, 'mydir': {} }
+        const [, result] = virtual({ ...emptyState, root })(rename('myfile', 'mydir'))
+        assert(result[0] === 'error')
+        assertIoMessage(result[1], "'mydir' is a directory")
+    },
     readFileTooLarge: () => {
         // a file stored as two max-size chunks exceeds the limit; readFile must return an error
         const chunk0 = vec(maxLengthBytes * 8n)(0n)

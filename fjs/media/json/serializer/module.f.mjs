@@ -24,35 +24,13 @@ import { codePointToString, stringToCodePointList } from '../../../text/utf16/mo
 import { errorMask } from '../../../text/code_point/module.f.mjs'
 import { definedEntries, isObject } from '../../../types/object/module.f.mjs'
 import { compose, fn } from '../../../types/function/module.f.mjs'
-import {
-    backspace,
-    cr,
-    ff,
-    hexDigitCodePoint,
-    ht,
-    lf,
-    quotationMark,
-    reverseSolidus,
-    space,
-} from '../../../text/ascii/module.f.mjs'
+import { hexDigitCodePoint, space } from '../../../text/ascii/module.f.mjs'
+import { codePointToEscape } from '../../../js/string_escape/module.f.mjs'
+import { map as nullableMap } from '../../../types/nullable/module.f.mjs'
 
 const jsonStringify = JSON.stringify
 
 const { fromCharCode } = String
-
-/**
- * The code points JSON gives a two-character escape. Every other code point
- * below `space` has no short form and goes through `unicodeEscape` instead.
- */
-const escapeTable = /** @type {const} */ ({
-    [backspace]: '\\b',
-    [ht]: '\\t',
-    [lf]: '\\n',
-    [ff]: '\\f',
-    [cr]: '\\r',
-    [quotationMark]: '\\"',
-    [reverseSolidus]: '\\\\',
-})
 
 /** @type {(value: number) => string} */
 const hexDigit = value => fromCharCode(hexDigitCodePoint(value))
@@ -66,6 +44,16 @@ const unicodeEscape = unit =>
     `\\u${hexDigit(unit >> 12 & 0xf)}${hexDigit(unit >> 8 & 0xf)}${hexDigit(unit >> 4 & 0xf)}${hexDigit(unit & 0xf)}`
 
 /**
+ * The two-character escape a letter spells, projected over the lookup's
+ * `null`. Bound here rather than inside `escapeCodePoint`: it depends on
+ * nothing that varies per code point, and `escapeCodePoint` runs once per
+ * character of every string serialized.
+ *
+ * @type {(letter: number | null) => string | null}
+ */
+const simpleEscape = nullableMap(letter => `\\${codePointToString(letter)}`)
+
+/**
  * Escapes one decoded code point. A code point tagged with `errorMask` is an
  * unpaired surrogate, which well-formed JSON stringification (ES2019) emits as
  * its `\uXXXX` escape rather than as a code unit; everything else is either a
@@ -76,7 +64,7 @@ const unicodeEscape = unit =>
 const escapeCodePoint = codePoint =>
     (codePoint & errorMask) !== 0
         ? unicodeEscape(codePoint & 0xffff)
-        : escapeTable[codePoint]
+        : simpleEscape(codePointToEscape(codePoint))
             ?? (codePoint < space ? unicodeEscape(codePoint) : codePointToString(codePoint))
 
 /**
