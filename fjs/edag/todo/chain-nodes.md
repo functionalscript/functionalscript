@@ -413,8 +413,11 @@ written:
   passes on its first position alone. Only the suffix cut removes it, and no
   fixed prefix can state a cut.
 
-Tried against `validate`: every legal `lambdas` in [Encodings](#encodings)
-passes and every illegal one is rejected. Left out so this proposal does not
+Tried against `validate`: every `lambdas` in [Encodings](#encodings) passes, and
+the probes that violate a *cardinality or leading-position* condition are
+rejected. That is the whole of what was tested, and the Silent bullet is why it
+cannot be more — a `lambdas` minimality rejects can still validate, so `close`
+buys a partial contract rather than the rule. Left out so this proposal does not
 depend on a combinator that has only just landed; adopting it would also mean
 settling which of the two rules a schema is meant to carry.
 
