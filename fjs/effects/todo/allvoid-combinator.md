@@ -71,6 +71,15 @@ If `All` is ever lowered out of the node module (it is runner
 infrastructure, not node-specific I/O — a separate design question),
 `allVoid` moves down with it alongside `all` and `both`.
 
+**`allOk` has to move with them.** [node-module-layering](./node-module-layering.md)
+currently moves `All` / `all` / `both` and leaves `allOk` in
+`fjs/effects/node/module.f.mjs`. Building `allVoid` on `allOk` would then make
+`fjs/effects/all` import from `fjs/effects/node` — the inversion that lowering
+exists to remove, and a cycle once `effects/node` imports the moved `All`
+family back. `allOk` belongs in the move set by the layering issue's own test:
+it is `ioStep(all(…), rs => pure(okList(rs)))`, concurrency plumbing with no
+host API in it.
+
 The three call sites become `allVoid(e => registerOne(t, e))(sub)` etc.
 If [allreduce-combinator](./allreduce-combinator.md) lands first, consider
 deriving `allVoid` from `allReduce` with a unit monoid instead of
@@ -79,7 +88,9 @@ duplicating the `allOk(...map)` core — whichever reads better.
 ### Tasks
 
 - [ ] Wait for [node-module-layering](./node-module-layering.md) to move
-      `All`/`all`/`both` to `fjs/effects/all/module.f.mjs`.
+      `All`/`all`/`both` **and `allOk`** to `fjs/effects/all/module.f.mjs`.
+      `allVoid` is built on `allOk`, so moving one without the other inverts
+      the layering.
 - [ ] Add `allVoid` there (next to `all`/`both`) with proof coverage — **not**
       to `fjs/effects/node/module.f.mjs`, per the note at the top of this issue.
 - [ ] Convert the three `mapStep(allOk(...), () => undefined)` call sites in
