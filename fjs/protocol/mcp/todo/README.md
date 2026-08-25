@@ -91,11 +91,23 @@ the shared part appears once and only the difference lives in the conditional."
 
    ```ts
    const validated = <const T extends Type>(id: Id, schema: T, params: Unknown) =>
-       (onOk: (value: Ts<T>) => Effect<MemOp | O, Response | null>) => {
+       <O extends Operation>(onOk: (value: Ts<T>) => Effect<MemOp | O, Response | null, never>) => {
            const [t, pr] = parse(schema)(params)
            return t === 'error' ? pureOk(_errResponse(id)(invalidParams)) : onOk(pr)
        }
    ```
+
+   Two things this signature has to get right, both easy to lose. `O` is
+   quantified on the *returned* continuation, not alongside `T`: at module
+   scope it has no `mcpStep` to close over, and putting it on the outer call
+   would instantiate it before `onOk` is seen — the same trap as `T` below.
+   And the error channel is spelled `never` explicitly, because `Effect`
+   defaults its third argument to `NotImplemented`
+   (`fjs/effects/types.ts`), while every MCP handler is `Effect<…, never>`:
+   the protocol absorbs its failures into response values. Defaulting here
+   would widen `mcpStep`'s public contract — and `Effect`'s own doc uses
+   "an MCP handler turning one into a JSON-RPC error response" as its example
+   of what `never` claims.
 
    The schema must be the type parameter, not a widened `RttiType`. `T` appears
    in no argument of `validated(id, schema, params)` otherwise, so it resolves
@@ -115,7 +127,7 @@ the shared part appears once and only the difference lives in the conditional."
    params-default, and a handler:
 
    ```ts
-   const toolMethod = <const T extends Type>(schema: T, params: Unknown, handler: (v: Ts<T>) => Effect<O, Unknown>) =>
+   const toolMethod = <const T extends Type>(schema: T, params: Unknown, handler: (v: Ts<T>) => Effect<O, Unknown, never>) =>
        capabilities.tools === undefined
            ? pureOk(_errResponse(id)(methodNotFound))
            : validated(id, schema, params)(pr => ioStep(handler(pr), r => pureOk(_okResponse(id)(r))))
