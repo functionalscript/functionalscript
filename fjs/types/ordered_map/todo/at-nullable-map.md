@@ -7,9 +7,9 @@
 
 The codebase has a canonical null-projection combinator —
 `map` in `fjs/types/nullable/module.f.mjs` (`f => value => value === null ?
-null : f(value)`) — and `array`'s safe accessors already route through it.
-`ordered_map.at` (`fjs/types/ordered_map/module.f.mjs:23-28`) re-inlines the
-same shape by hand:
+null : f(value)`) — and `types/bit_vec` and `types/btree` already route
+through it. `ordered_map.at` (`fjs/types/ordered_map/module.f.mjs:23-27`)
+re-inlines the same shape by hand:
 
 ```ts
 export const at
