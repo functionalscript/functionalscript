@@ -411,9 +411,20 @@ const createServer = listener => state => {
  * turn, threading the state through each and recording what came back. The
  * queue is emptied, so a second `listen` does not re-deliver.
  *
- * `unwrap` is total: a `RequestListener`'s channel is `never` because the
- * response frame *is* where a listener puts its failures — the Node runner
- * unwraps at the same point for the same reason.
+ * **`unwrap` is total, and the type system is what makes it so.** A
+ * `RequestListener`'s channel is `never`, and a listener reaches that by
+ * absorbing every `Result` its effects produce — through `resultStep` /
+ * `resultMapStep`, which receive the whole `Result`, including this runner's
+ * `notImplemented` for an operation it lacks. So a listener that calls `exec`
+ * here does not fail: it is handed the refusal and answers with a response
+ * frame, which is the contract `RequestListener` states.
+ *
+ * A listener that propagated instead would make this throw — but such a
+ * listener does not type-check in that position (`Type 'IoChannel' is not
+ * assignable to type 'never'`), so the throw is the checked assertion of an
+ * invariant, not a case to handle. Handling it defensively would add a branch
+ * nothing can reach, which the coverage gate rejects and
+ * [`fjs/AGENTS.md`](../../../AGENTS.md) §1.2 tells you to restructure away.
  *
  * The listener comes out of the handle rather than out of the state, so which
  * server was asked to listen is the one that answers — see {@link createServer}.
