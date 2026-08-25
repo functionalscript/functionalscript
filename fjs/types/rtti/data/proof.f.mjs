@@ -8,6 +8,7 @@ import {
     array,
     bigint,
     boolean,
+    close,
     never as neverRtti,
     number,
     option,
@@ -114,15 +115,28 @@ const identityRec = f => f
 /** @type {_Rec} */
 const anon = identityRec(() => ['array', anon])
 
+/** A cycle through a closed tuple: `_ClosedNode = [number, readonly _ClosedNode[]]`. */
+/** @typedef {() => readonly ['close', readonly [typeof number, _ClosedChildren]]} _ClosedNode */
+/** @typedef {() => readonly ['array', _ClosedNode]} _ClosedChildren */
+/** @type {_ClosedNode} */
+const closedNode = () => ['close', [number, closedChildren]]
+/** @type {_ClosedChildren} */
+const closedChildren = () => ['array', closedNode]
+
+/** A cycle through a closed struct's `rest`. */
+/** @typedef {() => readonly ['close', { readonly a: typeof number }, _ClosedRest]} _ClosedRest */
+/** @type {_ClosedRest} */
+const closedRest = () => ['close', { a: number }, closedRest]
+
 const tupleNumber = /** @type {const} */ ([number])
 const tupleString = /** @type {const} */ ([string])
 const tupleNumberNumber = /** @type {const} */ ([number, number])
 const emptyTuple = /** @type {const} */ ([])
 
 /**
- * The exact-length array patterns, which no thunk-form schema spells today —
- * a `Tuple` is open, and `array(never)` reaches only the empty one. Written
- * as data so the `rest`-less arm of every array operation stays exercised.
+ * The exact-length array patterns — what a `close`d tuple converts to, and
+ * what a bare `Tuple`, being open, never reaches. Written as data as well so
+ * the `rest`-less arm of every array operation is exercised from both ends.
  */
 /** @type {Data} */
 const exactlyOneNumber = [{}, { array: [{ prefix: [{ number: true }] }] }]
@@ -204,6 +218,62 @@ export const proof = {
             assertData(toData({ a: unknownRtti }))([{}, { object: true }])
             assertData(toData(/** @type {const} */ ([neverRtti])))([{}, never])
             assertData(toData({ a: neverRtti }))([{}, never])
+        },
+        // `close` needs no new concept underneath: it is the schema-form
+        // spelling of a `rest` the data form already carries — `never` for the
+        // exact-members set, `R` for a stated one — and openness is the
+        // `unknown` rest it replaces.
+        close: () => {
+            assertData(toData(close(tupleNumber)))(exactlyOneNumber)
+            assertData(toData(close(tupleNumberNumber)))(exactlyTwoNumbers)
+            assertData(toData(close(emptyTuple)))([{}, { array: [{ prefix: [] }] }])
+            assertData(toData(close({ a: number })))(
+                [{}, { object: [{ props: { a: { number: true } }, rest: never }] }])
+            assertData(toData(close({})))([{}, { object: [{ props: {}, rest: never }] }])
+            // an omitted rest and an `undefined` one are one spelling
+            assertData(toData(close(tupleNumber)))(toData(() => ['close', tupleNumber]))
+            // a stated rest is that rest
+            assertData(toData(close(tupleNumber, string)))(
+                [{}, { array: [{ prefix: [{ number: true }], rest: { string: true } }] }])
+            assertData(toData(close({ a: number }, string)))(
+                [{}, { object: [{ props: { a: { number: true } }, rest: { string: true } }] }])
+            // an unconstrained rest is openness, so it normalizes back to the
+            // bare container on both kinds
+            assertData(toData(close(tupleNumber, unknownRtti)))(toData(tupleNumber))
+            assertData(toData(close({ a: number }, unknownRtti)))(toData({ a: number }))
+            // a `never` member empties the whole pattern, closed or not
+            assertData(toData(close(/** @type {const} */ ([neverRtti]))))([{}, never])
+            assertData(toData(close({ a: neverRtti })))([{}, never])
+            // an unconstrained key is dropped only once the rest is gone: with
+            // one present, "anything at `a`" says strictly more than leaving
+            // `a` out, which `{ a: unknown }` alone does not
+            assertData(toData({ a: unknownRtti }))([{}, { object: true }])
+            assertData(toData(close({ a: unknownRtti })))(
+                [{}, { object: [{ props: { a: unknown }, rest: never }] }])
+            // the same container closed and left open are two sets, so the
+            // by-identity memo for const containers must not answer for both
+            assert(!equal(toData(/** @type {const} */ ([tupleNumber, close(tupleNumber)])))(
+                toData(/** @type {const} */ ([tupleNumber, tupleNumber]))))
+        },
+        // A cycle closes through a `close` the same way it closes through a
+        // bare container: the enclosing thunk is what becomes the named rule.
+        closeRecursion: () => {
+            assertData(toData(closedNode))([
+                {
+                    closedNode: {
+                        array: [{
+                            prefix: [
+                                { number: true },
+                                { array: [{ prefix: [], rest: 'closedNode' }] },
+                            ],
+                        }],
+                    },
+                },
+                'closedNode',
+            ])
+            // and a cycle whose recursive position is the rest itself
+            assertData(toData(closedRest))(
+                [{ closedRest: { object: [{ props: { a: { number: true } }, rest: 'closedRest' }] } }, 'closedRest'])
         },
         constSchemas: () => {
             assertData(toData(() => /** @type {const} */ (['const', 42])))([{}, { number: [42] }])
@@ -403,6 +473,16 @@ export const proof = {
             assert(cmp(toData(number))(toData(list)) < 0)
             assert(cmp(toData(list))(toData(number)) > 0)
         },
+        // Two spellings of one set must not compare unequal, and two sets must
+        // not compare equal — the data form is content-addressed.
+        close: () => {
+            assertEq(cmp(toData(close(tupleNumber)))(toData(() => ['close', tupleNumber])), 0)
+            assertEq(cmp(toData(close(tupleNumber, unknownRtti)))(toData(tupleNumber)), 0)
+            assert(cmp(toData(close(tupleNumber)))(toData(tupleNumber)) !== 0)
+            assert(cmp(toData(close({ a: number })))(toData({ a: number })) !== 0)
+            assert(cmp(toData(close(tupleNumber)))(toData(close(tupleNumber, string))) !== 0)
+            assert(equal(toData(close(tupleNumber)))(exactlyOneNumber))
+        },
         restOrder: () => {
             // a pattern without a rest sorts before one with a rest
             /** @type {Data} */
@@ -486,6 +566,32 @@ export const proof = {
             /** @type {Data} */
             const oneNumberThenStrings = [{}, { array: [{ prefix: [{ number: true }], rest: { string: true } }] }]
             assert(!subset(oneOrMoreNumbers)(oneNumberThenStrings))
+        },
+        // `close` makes combinations reachable from the thunk form that only
+        // hand-written data reached before: a `rest`-less array pattern, and
+        // an object pattern with an empty `rest`. Both directions of each.
+        close: () => {
+            // closed is included in open, never the other way round
+            assert(subset(toData(close(tupleNumber)))(toData(tupleNumber)))
+            assert(!subset(toData(tupleNumber))(toData(close(tupleNumber))))
+            assert(subset(toData(close({ a: number })))(toData({ a: number })))
+            assert(!subset(toData({ a: number }))(toData(close({ a: number }))))
+            // an exact length is its own, and contains no other
+            assert(subset(toData(close(tupleNumber)))(toData(close(tupleNumber))))
+            assert(!subset(toData(close(tupleNumber)))(toData(close(tupleNumberNumber))))
+            assert(!subset(toData(close(tupleNumberNumber)))(toData(close(tupleNumber))))
+            // a stated rest widens it, and an unconstrained one is openness
+            assert(subset(toData(close(tupleNumber)))(toData(close(tupleNumber, string))))
+            assert(!subset(toData(close(tupleNumber, string)))(toData(close(tupleNumber))))
+            assert(subset(toData(close(tupleNumber, string)))(toData(close(tupleNumber, unknownRtti))))
+            assert(subset(toData(close({ a: number })))(toData(close({ a: number }, string))))
+            assert(!subset(toData(close({ a: number }, string)))(toData(close({ a: number }))))
+            assert(subset(toData(close({ a: number }, number)))(toData(record(number))))
+            assert(!subset(toData(record(number)))(toData(close({ a: number }, number))))
+            // and the members are still compared pointwise
+            assert(subset(toData(close(/** @type {const} */ ([42]))))(toData(close(tupleNumber))))
+            assert(!subset(toData(close(tupleNumber)))(toData(close(tupleString))))
+            assert(subset(toData(closedNode))(toData(closedNode)))
         },
         objects: () => {
             assert(subset(toData({ a: number }))(toData({})))

@@ -48,8 +48,8 @@ import {
  * `propertyAccessor`, the call nodes, the `lambda` steps, and
  * `op0`/`op1`/`op2` (like `array`/`object`) are open on trailing/extra
  * elements — see "Structs and tuples are open" in
- * `../types/rtti/README.md`. Exact arity is tracked as future work in
- * `../types/rtti/todo/close-type.md`, not implemented here yet. No operand of
+ * `../types/rtti/README.md`. Exact arity is spellable with `close` there
+ * ("Closed containers"), not applied to these nodes yet. No operand of
  * any node here is optional: a chain step that does no further work carries
  * an empty `lambdas` array, never a missing position.
  *

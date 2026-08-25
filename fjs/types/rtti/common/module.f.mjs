@@ -18,6 +18,8 @@
  * - `eachEntry`: the container entry loop (array/record/tuple/struct). Callers
  *   choose what (if anything) to accumulate, so a caller that only needs
  *   pass/fail pays no allocation per entry.
+ * - `undeclaredEntries`: the other half of a closed container's loop — the
+ *   entries a `Tuple`/`Struct` schema does not name.
  * - `orVisit`: the shared `or` handler — try each variant's recursive walker,
  *   return the first match.
  *
@@ -129,6 +131,21 @@ export const eachEntry =
     }
 
 /**
+ * The entries of `value` that `declared` does not name.
+ *
+ * `declared` is a container schema's own key list, so for a struct these are
+ * the undeclared keys, and for a tuple — whose declared keys are the canonical
+ * spellings of its positions — they are the positions past the prefix together
+ * with every enumerable own key that is no position at all. One filter answers
+ * both kinds, which is what lets a closed container be read the same way on
+ * each.
+ *
+ * @type {(declared: readonly string[], value: ReadonlyArray<Unknown> | StringMap<Unknown>) => ReadonlyArray<readonly [string, Unknown]>}
+ */
+export const undeclaredEntries = (declared, value) =>
+    Object.entries(value).filter(([k]) => !declared.some(d => d === k))
+
+/**
  * First variant in `variants` that `recurse` accepts, else `verror('no match')`.
  *
  * Shared `or` handler: try each variant against the value and return the
@@ -157,7 +174,7 @@ export const orVisit =
  *
  * - `Thunk` schemas are evaluated once to read the `Info` descriptor, then
  *   routed by tag (`'const'`, `'array'`, `'record'`, `'unknown'`, `'or'`,
- *   or a `Tag0` primitive).
+ *   `'close'`, or a `Tag0` primitive).
  * - `Const` schemas (primitives, tuples, structs) are routed directly to
  *   `tuple`, `struct`, or `constPrimitive`.
  */
@@ -182,6 +199,14 @@ export const visit =
                 case 'record': return v.record(value[0])
                 case 'unknown': return v.unknown()
                 case 'or': return v.or(value)
+                case 'close': {
+                    const [c, rest] = value
+                    // `close`'s container is a `ConstObject`, which is exactly
+                    // the non-null objects among the `Const`s — a `Thunk` is a
+                    // function, and every other `Const` is a primitive.
+                    assert(typeof c === 'object' && c !== null, c)
+                    return v.close(c, rest)
+                }
             }
             return v.primitive0(tag)
         }

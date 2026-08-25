@@ -173,7 +173,14 @@ than silently.
 
 That leaves `{ prefix }`, with no `rest`, as the *exact-length* set: nothing
 past the prefix, so the array is at most `prefix.length` long — and at least
-as long as its last position excluding `undefined`. No thunk-form schema
-spells it in general today (`array(never)` reaches only the empty array); the
-planned `close` form is what will — see
-[`../todo/close-type.md`](../todo/close-type.md).
+as long as its last position excluding `undefined`. `close` is the thunk-form
+schema that spells it: `close(c)` converts to a `rest` of `never`, which
+normalizes to no `rest` at all on this kind, and `close(c, R)` to that `R`.
+See [Closed containers](../README.md#closed-containers).
+
+That is also where the object kind's normalization has an ordering to respect.
+A declared key whose set is the whole value domain is dropped — but only once
+the `rest` is gone, since an undeclared key is read against `rest ∪ undefined`
+and that is the whole domain exactly when there is no `rest`. With one present,
+`{ props: { a: unknown }, rest: never }` (objects with at most the key `a`) and
+`{ props: {}, rest: never }` (the empty object) are two different sets.
