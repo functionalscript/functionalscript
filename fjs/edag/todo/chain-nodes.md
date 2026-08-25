@@ -115,8 +115,8 @@ region short-circuits when a `?.` / `?.()` step meets a nullish value, and
 `.()` to call. That is the whole difference between `u?.b(d)` being `undefined`
 and `(u?.b)(d)` throwing.
 
-Step ids drop the `|` prefix, since a `lambdas` is a distinct operand kind:
-`.`, `?.`, `()`, `?.()`.
+Step ids keep the `|` prefix they have today — `|.`, `|?.`, `|()`, `|?.()` —
+marking what is not an `exp`; see [Reading the tags](#reading-the-tags).
 
 `.` and `()` earn their place by [purity](#purity): every operand is a
 first-class node, so the two commonest operations in any graph stay fully
@@ -144,17 +144,24 @@ outside the region is exactly what `a?.b(...c)` and `(a?.b)(...c)` differ on, an
 the scheme puts that in *which node owns the call* rather than in a modifier. So
 the tag is absent instead of ambiguous.
 
-This also bears on whether step ids keep a prefix. The glyphs are meant to rhyme
-across the two levels — `['?.', b]` in a `lambdas` and `['?.', a, L]` as a node
-say the same thing about the same operation — and a prefix would break the
-rhyme to solve a problem validation does not have.
+Step ids should keep the `|` prefix they have today: `|.`, `|?.`, `|()`,
+`|?.()`. It does not break the rhyme — `['|?.', b]` still reads against
+`['?.', a, L]` as the same operation — and it marks the one property that
+matters, that a step is not an `exp` ([Purity](#purity)).
+
+A tempting alternative moves the `|` onto the node tags instead — `?|` and
+`|()` — which would stop `.` meaning both "one property step" and "the walk".
+It collides: `|()` would be a node tag and a step id at once, so the `|` can
+mark *has a walk* or *is a step*, never both. Marking the step is worth more,
+since that is where the impurity is, and which nodes carry a walk is already
+told by there being four tags.
 
 ### Conditions
 
-- At most one `.` before the first optional step — minimality. `a.b.c` therefore
-  nests as `['.', ['.', a, b], c]`, exactly as today.
-- `?.` has at least one `?.` or `?.()` step. Without it,
-  `['?.', a, [['.', b]]]` is a second spelling of `a.b`.
+- At most one `|.` before the first optional step — minimality. `a.b.c`
+  therefore nests as `['.', ['.', a, b], c]`, exactly as today.
+- `?.` has at least one `|?.` or `|?.()` step. Without it,
+  `['?.', a, [['|.', b]]]` is a second spelling of `a.b`.
 - `.()`'s `lambdas` is non-empty. Without it, `['.()', a, [], c]` is `['()', a, c]`.
 
 The last two are what keep the four kinds disjoint, and none of the three is
@@ -168,17 +175,17 @@ expressible in rtti — see [Open questions](#open-questions).
 | `a.b.c` | `['.', ['.', a, b], c]` |
 | `f(...c)` | `['()', f, c]` |
 | `(_, a.b)(...c)` | `['()', ['.', a, b], c]` |
-| `a.b(...c)` | `['.()', a, [['.', b]], c]` |
-| `a.b.c(...d)` | `['.()', ['.', a, b], [['.', c]], d]` |
-| `(a?.b)(...c)` | `['.()', a, [['?.', b]], c]` |
-| `(a?.b.c)(...d)` | `['.()', a, [['?.', b], ['.', c]], d]` |
-| `a?.b` | `['?.', a, [['?.', b]]]` |
-| `a?.b.c` | `['?.', a, [['?.', b], ['.', c]]]` |
-| `a?.b(...c)` | `['?.', a, [['?.', b], ['()', c]]]` |
-| `f?.(...c)` | `['?.', f, [['?.()', c]]]` |
-| `a.b?.(...c)` | `['?.', a, [['.', b], ['?.()', c]]]` |
-| `a.b?.(...c).d` | `['?.', a, [['.', b], ['?.()', c], ['.', d]]]` |
-| `((a?.b).c)?.(...d)` | `['?.', ['?.', a, [['?.', b]]], [['.', c], ['?.()', d]]]` |
+| `a.b(...c)` | `['.()', a, [['|.', b]], c]` |
+| `a.b.c(...d)` | `['.()', ['.', a, b], [['|.', c]], d]` |
+| `(a?.b)(...c)` | `['.()', a, [['|?.', b]], c]` |
+| `(a?.b.c)(...d)` | `['.()', a, [['|?.', b], ['|.', c]], d]` |
+| `a?.b` | `['?.', a, [['|?.', b]]]` |
+| `a?.b.c` | `['?.', a, [['|?.', b], ['|.', c]]]` |
+| `a?.b(...c)` | `['?.', a, [['|?.', b], ['|()', c]]]` |
+| `f?.(...c)` | `['?.', f, [['|?.()', c]]]` |
+| `a.b?.(...c)` | `['?.', a, [['|.', b], ['|?.()', c]]]` |
+| `a.b?.(...c).d` | `['?.', a, [['|.', b], ['|?.()', c], ['|.', d]]]` |
+| `((a?.b).c)?.(...d)` | `['?.', ['?.', a, [['|?.', b]]], [['|.', c], ['|?.()', d]]]` |
 
 Every row was checked against V8 through its equivalent in the current node set;
 no mismatch. Two rows carry most of the design:
@@ -225,10 +232,10 @@ emitted. That tension is the sharpest thing here, and it is the same gap as
 **Two refinements to the leading-`.` rule**, both following from minimality and
 neither yet decided:
 
-- A leading `.` is *needed* only when a call step consumes it. Before a `?.`
-  step it is dead prefix — `['?.', a, [['.', b], ['?.', c]]]` equals
-  `['?.', ['.', a, b], [['?.', c]]]`, verified exact.
-- `()` before the first optional step should be forbidden too: it completes an
+- A leading `|.` is *needed* only when a call step consumes it. Before a `|?.`
+  step it is dead prefix — `['?.', a, [['|.', b], ['|?.', c]]]` equals
+  `['?.', ['.', a, b], [['|?.', c]]]`, verified exact.
+- `|()` before the first optional step should be forbidden too: it completes an
   earlier HCF lifetime, which belongs in its own `.()` node.
 
 ## Alternatives considered
@@ -275,9 +282,8 @@ an array-literal node in a property position.
 
 ## Tasks
 
-- [ ] Decide whether step ids keep the `|` prefix — [Reading the
-      tags](#reading-the-tags) argues against, since the glyphs are meant to
-      rhyme across both levels.
+- [ ] Confirm step ids keep the `|` prefix, and that `.` may name both one
+      property step and the walk — see [Reading the tags](#reading-the-tags).
 - [ ] Confirm `()` gives up the `lambdas` it has today — "w/o HCF" implies it,
       since a `lambdas` is where HCF lives.
 - [ ] Decide the two leading-`.` refinements, then state the conditions in one
