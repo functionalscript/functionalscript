@@ -13,6 +13,8 @@ redundant but one. The vocabulary in that position lets a compiler write graphs
 that mean nothing new, and the executor walks a step vocabulary where only one
 step can ever matter.
 
+Following that through collapses the four into two.
+
 ## The invariant
 
 The receiver and the short-circuit — the HCF state of
@@ -23,7 +25,10 @@ is what keeps a node context-independent and shareable by identity
 consumed inside one node's `lambdas` walk**; it cannot be handed to a
 neighbouring node.
 
-There are exactly two kinds, and that is why there are exactly three nodes.
+There are exactly two kinds — the receiver, reaching **back** to the step that
+made it, and the short-circuit, reaching **forward** over what it skips — and
+both live in a `lambdas`. What is left for a node to decide is only how the walk
+ends: read the value, or call it. That is why two nodes suffice.
 
 ## Three laws
 
@@ -55,72 +60,71 @@ same throws, same unevaluated operands. "Both throw" is not enough.
 ## Proposal
 
 ```ts
-type Property = readonly['.',      Exp, Index]
-type This     = readonly['this',   Exp, Lambdas, Exp]
-type Option   = readonly['option', Exp, Lambdas]
+type Property = readonly['.',  Exp, Lambdas]
+type Call     = readonly['()', Exp, Lambdas, Exp]
 ```
 
-| node | HCF it owns | direction |
-| --- | --- | --- |
-| `.` | none — a property read | — |
-| `this` | the receiver | reaches **back** to the step that made it |
-| `option` | the short-circuit | reaches **forward** over what it skips |
+Both evaluate their base, walk their `lambdas`, and differ only in what consumes
+the result — the walk's value, or a call with it:
 
-`?.()` disappears. An optional call is just a `?.()` step inside a region, and
-the receiver it needs comes from a leading `.` step in the *same* `lambdas` — so
-the two `lambdas` operands merge, with the call sitting between them instead of
-separating them. `?.` loses its `index` operand for the same reason: its own
-step becomes the first step of its walk.
+```js
+'.':  value(property(applyLambda(i, lambdas, [i(a)])))
+'()': call (property(applyLambda(i, lambdas, [i(a)])), () => i(args))
+```
+
+`?.` and `?.()` disappear. An optional link is a step id, not a node kind: a
+region short-circuits when a `?.` / `?.()` step meets a nullish value, and
+`property` turns that back into the value `undefined` for `.` to read or for
+`()` to call — which is the whole difference between `u?.b(d)` being `undefined`
+and `(u?.b)(d)` throwing.
 
 Step ids drop the `|` prefix, since a `lambdas` is a distinct operand kind:
 `.`, `?.`, `()`, `?.()`.
 
 ### Conditions
 
-- Both: at most one `.` before the first optional step.
-- `option`: at least one `?.` or `?.()`. Without it,
-  `['option', a, [['.', b]]]` would be a second spelling of `a.b`.
+- At most one `.` before the first optional step — minimality. With no optional
+  step at all that means at most one `.`, so `a.b.c` nests as
+  `['.', ['.', a, [['.', b]]], [['.', c]]]`, exactly as today.
+- `.`'s `lambdas` is non-empty; `['.', a, []]` is an identity wrapper around `a`.
 
-`this` needs no cardinality condition, and must not have one: it is the only
-node that can call with a receiver, so it has to cover `f(...c)` and
-`a.b(...c)` as well as `(a?.b.c)(...d)`. The asymmetry is principled — `option`'s
-tag *claims* a short-circuit and the condition enforces the claim; `this` claims
-only that a call happens, which is true either way.
+Neither is expressible in rtti — see [Open questions](#open-questions).
 
 ### Encodings
 
 | JS | EDAG |
 | --- | --- |
-| `a.b` | `['.', a, b]` |
-| `a?.b` | `['option', a, [['?.', b]]]` |
-| `a?.b.c` | `['option', a, [['?.', b], ['.', c]]]` |
-| `f(...c)` | `['this', f, [], c]` |
-| `a.b(...c)` | `['this', a, [['.', b]], c]` |
-| `a.b.c(...d)` | `['this', ['.', a, b], [['.', c]], d]` |
-| `(_, a.b)(...c)` | `['this', ['.', a, b], [], c]` |
-| `(a?.b)(...c)` | `['this', a, [['?.', b]], c]` |
-| `(a?.b.c)(...d)` | `['this', a, [['?.', b], ['.', c]], d]` |
-| `a?.b(...c)` | `['option', a, [['?.', b], ['()', c]]]` |
-| `f?.(...c)` | `['option', f, [['?.()', c]]]` |
-| `a.b?.(...c)` | `['option', a, [['.', b], ['?.()', c]]]` |
-| `a.b?.(...c).d` | `['option', a, [['.', b], ['?.()', c], ['.', d]]]` |
-| `((a?.b).c)?.(...d)` | `['option', ['option', a, [['?.', b]]], [['.', c], ['?.()', d]]]` |
+| `a.b` | `['.', a, [['.', b]]]` |
+| `a?.b` | `['.', a, [['?.', b]]]` |
+| `a?.b.c` | `['.', a, [['?.', b], ['.', c]]]` |
+| `a?.b(...c)` | `['.', a, [['?.', b], ['()', c]]]` |
+| `f?.(...c)` | `['.', f, [['?.()', c]]]` |
+| `a.b?.(...c)` | `['.', a, [['.', b], ['?.()', c]]]` |
+| `a.b?.(...c).d` | `['.', a, [['.', b], ['?.()', c], ['.', d]]]` |
+| `((a?.b).c)?.(...d)` | `['.', ['.', a, [['?.', b]]], [['.', c], ['?.()', d]]]` |
+| `f(...c)` | `['()', f, [], c]` |
+| `a.b(...c)` | `['()', a, [['.', b]], c]` |
+| `a.b.c(...d)` | `['()', ['.', a, [['.', b]]], [['.', c]], d]` |
+| `(_, a.b)(...c)` | `['()', ['.', a, [['.', b]]], [], c]` |
+| `(a?.b)(...c)` | `['()', a, [['?.', b]], c]` |
+| `(a?.b.c)(...d)` | `['()', a, [['?.', b], ['.', c]], d]` |
 
 Every row was checked against V8 through its equivalent in the current node set;
-no mismatch. The last row is why the leading `.` is permitted at all: the
-receiver for `?.()` comes from `.c` applied to an already-completed region, and
-lowering it to a `.` node in the base would lose it.
+no mismatch. The `((a?.b).c)?.(...d)` row is why a leading `.` is permitted at
+all: the receiver for `?.()` comes from `.c` applied to an already-completed
+region, and folding it into the base would lose it.
 
-The collapse of `?.()` relies on the parenthesis law — `(a?.b.c)?.(...d)` has to
-lower to the flat `option` form. That is a question of *expressibility*: were the
-law wrong, the spelling would become unwritable rather than silently wrong.
+The collapse relies on the parenthesis law — `(a?.b.c)?.(...d)` has to lower to
+the flat form. That is a question of *expressibility*: were the law wrong, the
+spelling would become unwritable rather than silently wrong.
 
-## Why `this` keeps a full `lambdas`
+## Why `()` keeps a full `lambdas`
 
 It is the only **unguarded** consumer of a receiver, so a leading optional step
 is observable there and irreducible: `(a?.b)(...c)` differs from `a?.b(...c)` —
-one throws on a nullish `a`, the other is `undefined`. Two narrowings of it fail
-the legitimacy criterion:
+one throws on a nullish `a`, the other is `undefined`. `.` needs the same
+vocabulary for the opposite reason: its steps are what make a region optional at
+all. Two narrowings of `()` fail the legitimacy criterion:
 
 - **Drop the operand and recover the receiver from the callee `exp`.**
   `(_, a.b)(...c)` and `a.b(...c)` compute the same callee and differ only in
@@ -132,34 +136,43 @@ the legitimacy criterion:
 
 ## Open questions
 
-**The name `this`.** It sits in the lexical slot of `args` and `frame`, which
-*read* the context, so `['this', …]` invites the reading "the current receiver"
-rather than "a call that supplies one". It is also a misnomer for
-`['this', f, [], c]`, which has no receiver at all.
+**The tag no longer classifies the node.** `['.', a, L]` may yield `undefined`
+or may throw, depending on `L`. Today `?.` against `.` says which at a glance;
+here reading a graph means reading its steps. A milder form of the objection
+that sank peeking — the information is in the node's own operand rather than a
+child's — but it is the same kind of loss.
 
-**Dropping the `|` prefix.** Validation tells a `Lambda` from an `Exp` by
-position, so nothing is ambiguous to the schema. But `['.', a, b]` and
-`['.', b]` then differ only in arity, and tuples accept trailing extras
-(["Caveats"](../README.md#caveats)), so a graph read out of context — by a
-human or by generic tooling — no longer distinguishes them on sight.
+**`.` is both a node tag and a step id**, told apart by arity. That makes the
+`|` prefix question sharper: validation distinguishes a `Lambda` from an `Exp`
+by position, so nothing is ambiguous to the schema, but `['.', a, L]` and
+`['.', b]` differ only in shape, and tuples accept trailing extras
+(["Caveats"](../README.md#caveats)).
 
-**The conditions are positional, so the schema cannot state them.** rtti offers
-`array(T)` and `or` and nothing else — no cardinality, no order. "At least one
-optional step" and "at most one leading `.`" become lowering rules plus a
-validation pass, where today `?.`'s optionality is structural. That is the real
-price of three nodes instead of four, and it is the same gap as
+**The conditions are positional and cardinal, so the schema cannot state them.**
+rtti offers `array(T)` and `or` and nothing else. "At most one leading `.`" and
+"non-empty" become lowering rules plus a validation pass, where `?.`'s
+optionality is structural today. That is the price of two nodes instead of four,
+and it is the same gap as
 [`../../types/rtti/todo/excluded-string-values.md`](../../types/rtti/todo/excluded-string-values.md).
 
 **Two refinements to the leading-`.` rule**, both following from minimality and
 neither yet decided:
 
 - A leading `.` is *needed* only when a call step consumes it. Before a `?.`
-  step it is dead prefix — `['option', a, [['.', b], ['?.', c]]]` equals
-  `['option', ['.', a, b], [['?.', c]]]`, verified exact.
+  step it is dead prefix — `['.', a, [['.', b], ['?.', c]]]` equals
+  `['.', ['.', a, [['.', b]]], [['?.', c]]]`, verified exact.
 - `()` before the first optional step should be forbidden too: it completes an
-  earlier HCF lifetime, which belongs in its own `this` node.
+  earlier HCF lifetime, which belongs in its own `()` node.
 
 ## Alternatives considered
+
+**Three nodes — `.`, `this`, `option`** — with `option` carrying the optional
+region and `.` kept as a bare `['.', Exp, Index]`. Superseded by dropping
+`option`'s "at least one optional step" condition: without it `option` has
+nothing to distinguish it from `.`, so the two merge and one unexpressible
+condition disappears with them. It also spent a word — `this` — that reads like
+the context-reading `args` and `frame`, and was a misnomer for `['this', f, [],
+c]`, which has no receiver.
 
 **A second tag, `.?.()`** — `['.?.()', Exp, Index, Exp, Lambdas]` alongside a
 receiver-less `['?.()', Exp, Exp, Lambdas]`. Superseded: it needs two operands
@@ -186,7 +199,8 @@ an array-literal node in a property position.
 
 ## Tasks
 
-- [ ] Settle the name of the second node, and whether step ids keep `|`.
+- [ ] Decide whether step ids keep the `|` prefix, given `.` is now both a node
+      tag and a step id.
 - [ ] Decide the two leading-`.` refinements, then state the conditions in one
       sentence each.
 - [ ] Weigh against ["no normal form"](../README.md): this buys canonicality the
