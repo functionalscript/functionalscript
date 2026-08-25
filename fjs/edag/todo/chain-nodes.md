@@ -280,10 +280,16 @@ legitimacy criterion:
   `(_, a.b)(...c)` and `a.b(...c)` compute the same callee and differ only in
   the receiver, so a tag or an operand must carry it. Here the tag does, which
   is why `.()` can be pure and `_()` still cannot.
-- **Restrict its step ids to `|.`.** `['_()', a, [['|?.', b], ['|.', c]], d]`
-  and `['_()', ['?.', a, b], [['|.', c]], d]` agree on values but are the
-  lowerings of `(a?.b.c)(...d)` and `((a?.b).c)(...d)`, which raise different
-  `TypeError`s. The target shape is already spoken for.
+- **Restrict its step ids to `|.`.** That leaves `(a?.b.c)(...d)` unspellable.
+  Its `|?.` sits inside the region the call consumes, and moving it into the
+  base changes the expression: `['_()', ['?.', a, b], [['|.', c]], d]` is
+  `((a?.b).c)(...d)`, which throws `Cannot read properties of undefined
+  (reading 'c')` on a nullish `a` where `(a?.b.c)(...d)` throws `(intermediate
+  value) is not a function`. And that base-shifted node is not a legal `_()`
+  anyway — with no optional step it fails the condition — because
+  `((a?.b).c)(...d)` is a receiver pair over a completed region:
+  `['.()', ['?.', a, b], c, d]`. The narrowing loses one expression and
+  duplicates one `.()` already owns.
 
 ## Open questions
 
@@ -313,10 +319,19 @@ the region having work to do is:
   **last** one. Anything before it is a dead prefix and belongs in an `exp`;
   anything after it is a liftable suffix and belongs in a following node.
 
-The suffix half matters as much as the prefix half. A trailing `|?.` always
-lifts out by the parenthesis law; a trailing `|?.()` lifts out unless the step
-before it is a property step, since then it consumes a receiver. Trailing `|.`
-and `|()` never lift, being unguarded and so needing the skip.
+The suffix half matters as much as the prefix half, and it reads differently for
+the two walkers, because `_()`'s last step feeds the node's own call.
+
+- In `_`, a trailing `|?.` always lifts out by the parenthesis law; a trailing
+  `|?.()` lifts out unless the step before it is a property step, since then it
+  consumes a receiver. Trailing `|.` and `|()` never lift, being unguarded and
+  so needing the skip.
+- In `_()`, a trailing **property** step never lifts, guarded or not: it
+  supplies the receiver the node's own call consumes.
+  `['_()', a, [['|?.', b]], c]` is `(a?.b)(...c)`, which runs `b` with `a` as
+  `this`, while `['()', ['?.', a, b], c]` is the receiver-less call and runs it
+  with `this` undefined. A trailing **call** step does lift, having already
+  cleared the receiver — that is the `(a?.(...b))(...c)` family above.
 
 Under the full rule all four collapse: `a?.b?.c` fails the "whether" clause
 entirely, `a.b(...c)?.d` needs a walker only for `a.b(...c)` — which is `.()`,
