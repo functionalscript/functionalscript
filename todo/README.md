@@ -75,6 +75,13 @@ directory as `issues/NNN-{slug}.md`. Four searches, in order of yield:
    zero-padded inconsistently (`021-` and `21-` both exist), which is why the
    pattern allows optional leading zeros, and the later ones use the
    `65X`/`65Y`/`66a` prefixes rather than numbers.
+
+   **A number can match more than one issue** — read the slug, not just the
+   match count. `209` is two unrelated issues (`209-effect-fold-step.md` and
+   `209-simplify-fjs-command-syntax.md`), and the Crockford-prefixed families
+   are far larger: fourteen files begin `667-`, thirteen `65Y-`, eleven `665-`.
+   That is why a citation like `i65X-async-test-functions` carries its slug, and
+   why one written as a bare `i667` could not be resolved from the number alone.
 2. **`git log --grep`.** Commits that close one name it — `i167` is `d39518d8`,
    "bit_vec: export msbConcat; drop per-module listToVec(msb) re-binds (i167)",
    and `i160` is `5c1577c6`, "resolve i160 as won't fix". Use this to date the
@@ -88,8 +95,9 @@ directory as `issues/NNN-{slug}.md`. Four searches, in order of yield:
 
 Three outcomes are worth distinguishing once you have the file. The issue may
 still be **open under a new slug** — `i21` is
-`fjs/emergent_testing/todo/test-framework-silent-mode.md`, byte-for-byte the
-retired `issues/021-test-framework-silent-mode.md` — in which case link it. It
+`fjs/emergent_testing/todo/test-framework-silent-mode.md`, identical to the
+retired `issues/021-test-framework-silent-mode.md` but for its heading level
+(`#` → `##`, this README's format) — in which case link it. It
 may have **shipped**, like `i136` as `fjs/ci/config/module.f.mjs`; name the code.
 Or it was **won't fix**, like `i171`, whose reason lives in `parseTestSet`'s
 JSDoc exactly as the won't-fix rule below requires; say so and cite that.
