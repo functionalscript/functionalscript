@@ -9,11 +9,11 @@
  *
  * @module
  *
- * @import { Exp, Op1, Properties } from '../types.ts'
+ * @import { Exp, Lambdas, Op1, Properties } from '../types.ts'
  * @import { Context, Map, ExpOp, TagMap } from './types.ts'
  */
 
-import { assert, todo } from '../../asserts/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
 
 const o2lazy =
     (/**@type {(a: any, b: () => any) => unknown}*/o) =>
@@ -43,6 +43,88 @@ const o1 =
     /**@type {_Func1}*/
     (c, [, a]) => o(vm(c)(a))
 
+/**
+ * @typedef {|
+ *  readonly[any] |
+ *  { readonly obj: any, readonly prop: any }
+ * } Property
+ */
+
+/**
+ * @typedef {undefined | Property} Hcf
+ */
+
+/** @type {(hcf: Hcf) => Property} */
+const property = hcf => hcf === undefined ? [undefined] : hcf
+
+/**
+ * Calls what `p` denotes: a bare value with no receiver, or `obj[prop]` with
+ * `obj` as one.
+ *
+ * The temporary in the first branch is load-bearing. `p[0](...)` is a
+ * *method* call on the one-element array, so the callee would run with `p`
+ * itself as `this` — a receiver the chain does not have — and a detached
+ * host method would then silently succeed on the wrapper instead of
+ * throwing: `((a.at)(0))(0)` returned `Array.prototype.at`.
+ *
+ * @type {(p: Property, f: () => any) => unknown}
+ */
+const call = (p, f) => {
+    if (p instanceof Array) {
+        const x = p[0]
+        return x(...f())
+    }
+    const { obj, prop } = p
+    return obj[prop](...f())
+}
+
+/** @type {(p: Property) => unknown} */
+const value = p => {
+    if (p instanceof Array) {
+        return p[0]
+    }
+    const { obj, prop } = p
+    return obj[prop]
+}
+
+/**
+ * Walks a `lambdas` from the state `hcf`, one step at a time — the receiver
+ * and the short-circuit of `../README.md`, "Chains", which live only here
+ * and never in a value an `exp` produces. An empty `lambdas` is the seed
+ * unchanged, and once a step short-circuits every later one is skipped with
+ * its operand unevaluated.
+ *
+ * @type {(f: (_: Exp) => unknown, lambdas: Lambdas, hcf: Hcf) => Hcf}
+ */
+const applyLambda = (f, lambdas, hcf) => lambdas.reduce(
+    (/**@type {Hcf}*/hcf, lambda) => {
+        if (hcf === undefined) {
+            return undefined
+        }
+        const [o, e] = lambda
+        /** @type {() => Hcf} */
+        const lazyCall = () => [call(hcf, () => f(e))]
+        const lazyDot = () => ({ obj: value(hcf), prop: f(e) })
+        /** @type {(g: () => Hcf) => Hcf} */
+        const option = g => {
+            const obj = value(hcf)
+            switch (obj) {
+                case undefined:
+                case null:
+                    return undefined
+            }
+            return g()
+        }
+        switch (o) {
+            case '|()': return lazyCall()
+            case '|.': return lazyDot()
+            case '|?.': return option(lazyDot)
+            case '|?.()': return option(lazyCall)
+        }
+    },
+    hcf
+)
+
 /**@type {Map}*/
 const map = {
     '!': o1(a => !a),
@@ -51,19 +133,14 @@ const map = {
     '&': o2((a, b) => a & b),
     '&&': o2lazy((a, b) => a && b()),
     '()': (x, [, b, c, d]) => {
-        if (c.length !== 0) {
-            todo()
-        }
         const i = vm(x)
-        /**@type {any}*/
-        const f = i(b)
-        // One node evaluating to the *complete* argument array — `f(a, b)` is
-        // `['()', f, [], ['[]', [a, b]]]` — and `=>` collects with
+        // The chain of no steps is `applyLambda`'s seed handed straight
+        // back, so `f(...args)` needs no case of its own. The args operand
+        // is one node evaluating to the *complete* argument array — `f(a, b)`
+        // is `['()', f, [], ['[]', [a, b]]]` — and `=>` collects with
         // `(...args)`, so it is spread. Passed as a single argument instead,
         // the callee's `['args']` would be `[[a, b]]`.
-        /**@type {any}*/
-        const args = i(d)
-        return f(...args)
+        return call(property(applyLambda(i, c, [i(b)])), () => i(d))
     },
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
@@ -88,8 +165,31 @@ const map = {
     '>=': o2((a, b) => a >= b),
     '>>': o2((a, b) => a >> b),
     '>>>': o2((a, b) => a >>> b),
-    '?.': todo,
-    '?.()': todo,
+    // The node's own `?.[index]` is the *first* step of its optional region
+    // and `lambdas` is the rest, so the whole region is one `applyLambda`.
+    // Dropping that first step would make `a?.b` evaluate to `a`.
+    //
+    // `undefined` from the walk means the region short-circuited, and here
+    // that is the node's value — `property` turns it back into the value
+    // `undefined` for `value` to read. `()` shares that step and reaches the
+    // opposite answer, because its parentheses end the region and the
+    // `undefined` is what gets called: `u?.b(d)` is `undefined` where
+    // `(u?.b)(d)` throws.
+    '?.': (x, [, a, index, lambdas]) => {
+        const i = vm(x)
+        return value(property(applyLambda(i, [['|?.', index], ...lambdas], [i(a)])))
+    },
+    // The same shape as `?.`, with one more `lambdas`: the first reaches the
+    // callee and may leave the receiver to call it with, the node's own
+    // optional call is the step between, and the second is the rest of the
+    // region, run on the call's result. `|?.()` is already that middle step
+    // — it checks the callee before evaluating the arguments — so the whole
+    // node is one walk again.
+    '?.()': (x, [, a, lambdas, args, tail]) => {
+        const i = vm(x)
+        return value(property(applyLambda(
+            i, [...lambdas, ['|?.()', args], ...tail], [i(a)])))
+    },
     '??': o2lazy((a, b) => a ?? b()),
     Number: o1(Number),
     String: o1(String),

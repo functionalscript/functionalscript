@@ -79,18 +79,31 @@ here as well:
 
 ### It inherits the host where the specification does not
 
-Engines disagree about the corners this evaluator delegates: `(u?.b)(d)` on a
-nullish `u` throws under V8 and evaluates to `undefined` under JavaScriptCore,
-and the specification follows V8 (["Chains"](../README.md#chains)). Whatever
-the host does is what you get. A real executor produces the specified answer on
-every host — and NaNVM has no JavaScript prototype chain to delegate to at all.
+`.`, the operators, and every method the prototype chain above reaches are the
+host's, so what a host does is what you get — down to the type and the text of
+the errors a case under a `throw` key observes.
+
+One corner where that would have been wrong is interpreted here instead. When
+`u` is nullish, `(u?.b)(d)` must throw: the parentheses end the optional
+chain, so `undefined` is what gets called. V8 does throw; JavaScriptCore
+(hence `bun test`) carries the short-circuit through the parentheses and
+evaluates to `undefined` (["Chains"](../README.md#chains)). `()` walks its
+`lambdas` itself and calls the `undefined` the chain produced, so the
+specified answer comes out on every host — which is why
+[`proof.f.mjs`](./proof.f.mjs) can state that case at all, where the
+JavaScript of `../proof.f.mjs`'s `chainsJs` has to leave it out. A real
+executor does the same for everything above, and NaNVM has no JavaScript
+prototype chain to delegate to in the first place.
 
 ## Not implemented
 
-`?.`, `?.()`, and a non-empty `lambdas` operand on `()` are `todo`, so no
-chain steps, no receiver, and no optional short-circuiting. `['self']` is not
-in the schema yet, so a function reaches itself only by being passed as an
-argument.
+Every node in the schema now evaluates. The three that own a `lambdas` share
+one walk of it, and differ only in what they do with a region that
+short-circuited: `()` ends its region at the parentheses, so the `undefined`
+is what gets called and the node throws, while `?.` and `?.()` own their
+regions and the `undefined` is the node's value
+(["Chains"](../README.md#chains)). `['self']` is not in the schema yet, so a
+function reaches itself only by being passed as an argument.
 
 ## Where the real one goes
 
