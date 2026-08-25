@@ -82,6 +82,41 @@ export const proof = {
         () => {
             const result = stringify(utf8ByteToCodePointOp(0x80, [0xf8, 0x80]))
             assertEq(result, '[[-2147483136,-2147483520],null]')
+        },
+        // `U8` is just `number`, so a non-integer in [0x00, 0xff] is a
+        // possible (if malformed) input. The dispatch partitions only the
+        // integers in that range, so a fraction has to be rejected here rather
+        // than misclassified: below `contTag` it would otherwise be emitted as
+        // a code point, and above it tagged with a fractional payload.
+        () => {
+            const result = stringify(toArray(toCodePointList([1.5])))
+            assertEq(result, '[2147483648]')
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([200.5])))
+            assertEq(result, '[2147483648]')
+        },
+        // `NaN` compares false against both bounds, so a bare range check let
+        // it through; `Number.isInteger` does not.
+        () => {
+            const result = stringify(toArray(toCodePointList([NaN])))
+            assertEq(result, '[2147483648]')
+        },
+        // A fractional continuation byte is the case that hides: the bitwise
+        // payload arithmetic truncates it, so `C3 A9.5` decoded as U+00E9 —
+        // the same character `C3 A9` spells — with nothing reported. It is now
+        // invalid on its own, and the pending lead is flagged incomplete.
+        () => {
+            const result = stringify(toArray(toCodePointList([0xc3, 0xa9])))
+            assertEq(result, '[233]')
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([0xc3, 169.5])))
+            assertEq(result, '[2147483648,-2147483453]')
+        },
+        () => {
+            const result = stringify(toArray(toCodePointList([0xf0, 0x90, 128.5])))
+            assertEq(result, '[2147483648,-2147483120]')
         }
     ],
     fromCodePointList: [

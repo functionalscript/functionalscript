@@ -19,6 +19,7 @@ import {
     isValidCodePoint,
 } from '../code_point/module.f.mjs'
 import { msb, u8List, length } from '../../types/bit_vec/module.f.mjs'
+import { contains } from '../../types/range/module.f.mjs'
 import { codePointListToString } from '../utf16/module.f.mjs'
 
 /**
@@ -42,6 +43,29 @@ const lead3Tag = 0b1110_0000
 const lead3Mask = 0b0000_1111
 const lead4Tag = 0b1111_0000
 const lead4Mask = 0b0000_0111
+
+const isInU8Range = contains(0x00, 0xff)
+
+/**
+ * Whether `i` is a byte this decoder can be handed.
+ *
+ * `U8` is just `number`, so neither half is redundant. The dispatch below
+ * partitions only the *integers* in `0x00`–`0xff` — below `contTag`, a
+ * continuation, or one of the leads, with no gap — so a fraction falls between
+ * two of those and would be misclassified rather than rejected: emitted as a
+ * code point when it is below `contTag`, tagged with a fractional payload when
+ * it is not. Worse where the payload arithmetic reaches it, since the bitwise
+ * operators truncate silently: a fractional continuation byte would decode to
+ * the very code point its integer part spells, reporting nothing. And
+ * `Number.isInteger` catches `NaN`, which compares false against both bounds
+ * and so passes a range check on its own.
+ *
+ * This mirrors `u16` in `../utf16/module.f.mjs`, which carries the same check
+ * for the same reason; the two differ only in their bounds.
+ *
+ * @type {(i: number) => boolean}
+ */
+const u8 = i => Number.isInteger(i) && isInU8Range(i)
 
 /**
  * Encodes the low six bits of `x` as a UTF-8 continuation byte.
@@ -199,7 +223,7 @@ export const utf8StateToError = state => {
  * @type {StateScan<number, Utf8State, readonly I32[]>}
  */
 export const utf8ByteToCodePointOp = (byte, state) => {
-    if (byte < 0x00 || byte > 0xff) {
+    if (!u8(byte)) {
         return [[errorMask], state]
     }
     if (state === null) return restart([])(byte)
