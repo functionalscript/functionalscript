@@ -37,7 +37,7 @@ export const emptyState = {
  * @param {_Entity} entity
  * @returns {entity is readonly Vec[]}
  */
-const isBinFile = entity => entity instanceof Array
+const isBinFile = entity => Array.isArray(entity)
 
 /**
  * @param {_Entity} entity
