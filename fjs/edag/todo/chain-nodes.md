@@ -454,6 +454,32 @@ buys a partial contract rather than the rule. Left out so this proposal does not
 depend on a combinator that has only just landed; adopting it would also mean
 settling which of the two rules a schema is meant to carry.
 
+**The receiver pair has four guard combinations; only one gets operands.** A
+property access feeding a call can be guarded on either side, and two of the
+three shapes besides `.()` are bounded by this file's own criterion — they skip
+one operation, their own operands — yet are spelled with a walker:
+
+| access | call | JS | skips, standalone | now |
+| --- | --- | --- | --- | --- |
+| `.` | `()` | `a.b(...c)` | nothing | `.()` — operands |
+| `.` | `?.()` | `a.b?.(...c)` | its own arguments | `['_', a, [['\|.', b], ['\|?.()', c]]]` |
+| `?.` | `()` | `(a?.b)(...c)` | its own index | `['_()', a, [['\|?.', b]], c]` |
+| `?.` | `?.()` | `a?.b?.(...c)` | index **and** the whole call | `['_', a, [['\|?.', b], ['\|?.()', c]]]` |
+
+Measured, with a side-effecting index and argument: on a nullish `a.b`,
+`a.b?.(...c)` evaluates the index and skips the arguments; on a nullish `a`,
+`(a?.b)(...c)` evaluates the arguments and skips the index; `a?.b?.(...c)`
+skips both. So the fourth row is unbounded and belongs to a walker, but rows two
+and three are as fixed as `.()` is — base, index, arguments — and giving them
+tags would take two more shapes out of the walkers.
+
+Not decided. It is the same trade the file already names: every pure node added
+buys sharing and costs one more spelling the walkers must be forbidden to
+duplicate. Recorded here so the partition is honest about the choice rather than
+appearing to have no alternative. Distinct from the
+[superseded `.?.()`](#alternatives-considered), which carried a trailing
+`lambdas`; these would carry none.
+
 **`.()` and `?.()` look parallel and are not.** `.()` is property-plus-call;
 `?.()` is an optional call of a value, with no property. Following JS is right,
 but a reader may expect `?.()` to be the optional method call — which is
