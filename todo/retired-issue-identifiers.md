@@ -16,20 +16,46 @@ retired tracker was a top-level `issues/` directory of `issues/NNN-{slug}.md`
 files, and deleting them removed them from the working tree, not from history.
 Every cited identifier below has a file:
 
-|Identifier|Retired file|Status when deleted|Cited in|
+|Identifier|Retired file|Status when deleted|Bare citations|
 |-|-|-|-|
-|`i149`|`issues/149-sandbox.md`|—|`fjs/emergent_testing/todo/206.md`|
-|`i155`|`issues/155-test-runner-integration.md`|—|`emergent_testing/todo/211.md`, `661-test-runner-behavior.md`|
-|`i163`|`issues/163-reporter-test-method.md`|open|`fjs/emergent_testing/todo/211.md`|
-|`i183`|`issues/183-tf-framework-scenario-tests.md`|open|`emergent_testing/todo/206.md`, `65y-proof-asserteq-adoption.md`|
-|`i189`|`issues/189-asn1-decode-all-unfold.md`|done|`fjs/asn.1/todo/65z-asn1-tag-codec-table.md`|
-|`i180-sorted-set-intersect-symmetry`|`issues/180-…`|done|`fjs/types/todo/66b-sorted-list-cmp-reduce-factory.md`|
-|`i662`|`issues/662-rtti-ts-printer-visit.md`|open|`fjs/types/todo/66d-ts-printer-tuple-readonly-fold.md`|
-|`i665-mcp`|`issues/665-mcp.md`|open|`fjs/protocol/json_rpc/todo/effectful-dispatch-skeleton.md`|
-|`i666-utf8-continuation-helpers`|`issues/666-…`|done|`fjs/text/todo/666-utf16-encode-errormask.md`|
-|`i65X-sandbox-async`|`issues/65X-sandbox-async.md`|done|`emergent_testing/todo/65y-proof-asserteq-adoption.md`|
-|`i65Y-sandbox-await-overhead`|`issues/65Y-sandbox-await-overhead.md`|done|`emergent_testing/todo/661-sandbox-isolated-test-execution.md`|
-|`i65Y-proof-by-export`|`issues/65Y-proof-by-export.md`|open|`emergent_testing/todo/65y-proof-asserteq-adoption.md`|
+|`i149`|`issues/149-sandbox.md`|—|`emergent_testing/todo/206.md` ×1|
+|`i155`|`issues/155-test-runner-integration.md`|—|`emergent_testing/todo/211.md` ×1, `661-test-runner-behavior.md` ×1|
+|`i163`|`issues/163-reporter-test-method.md`|open|`emergent_testing/todo/211.md` ×2|
+|`i183`|`issues/183-tf-framework-scenario-tests.md`|open|`emergent_testing/todo/206.md` ×1, `65y-proof-asserteq-adoption.md` ×1, `65z-singleton-effect.md` ×1, `65z-tf-test-tree-walker.md` ×1|
+|`i189`|`issues/189-asn1-decode-all-unfold.md`|done|`fjs/asn.1/todo/65z-asn1-tag-codec-table.md` ×1|
+|`i180-sorted-set-intersect-symmetry`|`issues/180-…`|done|`fjs/types/todo/66b-sorted-list-cmp-reduce-factory.md` ×1|
+|`i662`|`issues/662-rtti-ts-printer-visit.md`|open|`fjs/types/todo/66d-ts-printer-tuple-readonly-fold.md` ×1|
+|`i665-mcp`|`issues/665-mcp.md`|open|`fjs/protocol/mcp/todo/README.md` ×1, `json_rpc/todo/effectful-dispatch-skeleton.md` ×1|
+|`i666-utf8-continuation-helpers`|`issues/666-…`|done|`fjs/text/todo/666-utf16-encode-errormask.md` ×1|
+|`i65X-sandbox-async`|`issues/65X-sandbox-async.md`|done|`emergent_testing/todo/65y-proof-asserteq-adoption.md` ×1|
+|`i65Y-sandbox-await-overhead`|`issues/65Y-sandbox-await-overhead.md`|done|`emergent_testing/todo/661-sandbox-isolated-test-execution.md` ×1|
+|`i65Y-proof-by-export`|`issues/65Y-proof-by-export.md`|open|`emergent_testing/todo/65y-proof-asserteq-adoption.md` ×1|
+
+**18 bare citations across 13 files.** The column counts *bare* occurrences
+only. `i665-mcp` also appears twice as a working link — `mcp/todo/README.md`'s
+own anchor reference to its `## 665-mcp` section, and one in
+`json_rpc/todo/response-constructors.md` — and those need nothing. Regenerate the
+whole column rather than trusting it — an earlier revision of this issue built
+it from a scan that printed only the first two paths per identifier, and listed
+two of `i183`'s four sites:
+
+```sh
+for id in i149 i155 i163 i183 i189 i662 i665-mcp; do
+  printf '%-12s' "$id"
+  grep -rn "\b$id\b" --include='*.md' . \
+    | grep -v retired-issue-identifiers \
+    | grep -vE "\[$id[^]]*\]\(" \
+    | sed 's|:[0-9]*:.*||' | sort | uniq -c | tr '\n' ' '
+  echo
+done
+```
+
+The `grep -vE` is what separates a bare citation from one that is already a
+link; without it `i665-mcp` reads as four sites when two of them are done.
+
+Line numbers are deliberately omitted. This file is an inventory of citation
+rot, and pinning it to line numbers would make it rot the same way — see
+[tokenizer-line-citations](../fjs/js/todo/tokenizer-line-citations.md).
 
 Finding the file is mechanical. Deciding what the citation should say instead is
 not, and both outcomes occur:
@@ -75,7 +101,8 @@ identifier behind, since the next reader has no way to tell "unresolved" from
 
 ### Tasks
 
-- [ ] Resolve the twelve identifiers above against their retired files.
+- [ ] Resolve the twelve identifiers above against their retired files — all
+      **18** bare citations, not one per identifier; four of them are `i183`.
 - [ ] Decide `i65Y-proof-by-export`: restore it or drop its citation.
 - [ ] Sweep for slug-named deletions the same way, per the section above.
 - [ ] Re-run the sweep afterwards; the only `i…` tokens left should be integer
