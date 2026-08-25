@@ -122,9 +122,10 @@ state.
 Take no start-rule parameter. Derive the root from `toData(rule)[1]`; the one lazy
 rule whose root is `'value'` proves that a hard-coded/default `''` is wrong.
 `ll1Recognizer` can destructure `[ruleSet, root]` once and build via
-`parserRuleSet(ruleSet)`. Descent currently has no ruleSet-level entry point, so
-one extra `toData` during adapter construction is acceptable; do not expand this
-issue merely to add production API.
+`parserRuleSet(ruleSet)` (`fjs/bnf/ll1/module.f.mjs`), and `descentRecognizer` via
+`descentParserRuleSet(ruleSet)` (`fjs/bnf/descent/module.f.mjs`). Both backends now
+expose a ruleSet-level entry point, so neither adapter needs an extra `toData`; do
+not expand this issue merely to add production API.
 
 The adapter also absorbs the file-local proof copy of `descentParserCpOnly`.
 Keep the DJS tokenizer export: its proof has typed-result consumers beyond the

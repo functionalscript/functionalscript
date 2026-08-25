@@ -17,7 +17,7 @@ Scenarios are expressed as FunctionalScript modules. A scenario module exports a
 Each scenario is a declarative description of initial state, an effect, and an expected result that can be run as either a unit test (mock interpreter) or a real CI job. (The `669-scenario-testing.md` design doc this used to reference no longer exists; issue number 669 has since been reused for unrelated files, e.g. [669-ci-ubuntu-job-factory.md](669-ci-ubuntu-job-factory.md).)
 
 Open questions:
-- Where do scenario modules live? (`issues/demo/` style, or a dedicated `fjs/ci/scenarios/` directory?)
+- Where do scenario modules live? (`todo/demo/` style, or a dedicated `fjs/ci/scenarios/` directory?)
 - How does a scenario declare which runtime(s) it targets (Node, Deno, Bun)?
 - Should the artifact be a `.tgz` from `npm pack`, or a published pre-release to a local registry?
 

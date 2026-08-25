@@ -70,8 +70,8 @@ acceptable implementation choice if those related APIs settle on that style.
 
 This remains distinct from:
 
-- [i170](todo.md), which builds install-and-test step sequences;
-- [i175](todo.md), which builds `uses`-based GitHub Actions setup steps.
+- [i170](./170.md), which builds install-and-test step sequences;
+- [i175](./175.md), which builds `uses`-based GitHub Actions setup steps.
 
 `npmGlobalInstall` builds a `run`-based shell-install step.
 
@@ -87,5 +87,5 @@ This remains distinct from:
 
 ### Related
 
-- [i170](todo.md) — `toolSteps` step-sequence builder.
-- [i175](todo.md) — `setupTool` for `uses`-based setup steps.
+- [i170](./170.md) — `toolSteps` step-sequence builder.
+- [i175](./175.md) — `setupTool` for `uses`-based setup steps.

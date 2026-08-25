@@ -66,5 +66,5 @@ task must not add compatibility code for the deleted Playwright job.
 
 ### Related
 
-- [i170-ci-tool-steps](todo.md) — the `MetaStep` to `Step` pipeline (`toSteps`) these
+- [i170-ci-tool-steps](./170.md) — the `MetaStep` to `Step` pipeline (`toSteps`) these
   builders wrap.

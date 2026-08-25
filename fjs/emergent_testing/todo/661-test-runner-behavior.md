@@ -59,6 +59,6 @@ reporting, but it must not recreate the removed per-proof Node registration path
 ### Related
 
 - i155 — original external test-runner integration issue.
-- [i211](todo.md) — reporter modes for the CLI and surviving external-runner bridges.
+- [i211](./211.md) — reporter modes for the CLI and surviving external-runner bridges.
 - [browser-testing](browser-testing.md) — browser-native execution shared by the HTML UI,
   `fjs browser-test`, and an optional external Playwright Test adapter.

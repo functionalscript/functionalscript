@@ -36,4 +36,4 @@ Create a public sample repository with:
 
 ### Related
 
-- [i661-test-runner-behavior](todo.md) — documents runner behavior differences relevant to CI setup
+- [i661-test-runner-behavior](./661-test-runner-behavior.md) — documents runner behavior differences relevant to CI setup
