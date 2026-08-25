@@ -22,15 +22,14 @@ import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { merge, fromRange, get } from '../../types/range_map/module.f.mjs'
 import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap } from '../../types/list/module.f.mjs'
 import { keywords } from '../keywords/module.f.mjs'
+import { simpleEscapes } from '../string_escape/module.f.mjs'
 import { at, fromEntries } from '../../types/ordered_map/module.f.mjs'
 import { one } from '../../types/range/module.f.mjs'
 import {
     range,
     //
-    backspace,
     ht,
     lf,
-    ff,
     cr,
     //
     exclamationMark,
@@ -70,12 +69,8 @@ import {
     lowLine,
     //
     latinSmallLetterRange,
-    latinSmallLetterB,
     latinSmallLetterE,
-    latinSmallLetterF,
     latinSmallLetterN,
-    latinSmallLetterR,
-    latinSmallLetterT,
     latinSmallLetterU,
     //
     leftCurlyBracket,
@@ -501,14 +496,21 @@ const parseEscapeDefault = state => input => {
     return [{ first: { kind: 'error', message: 'unescaped character' }, tail: next[0] }, next[1]]
 }
 
+/**
+ * One dispatch entry per simple escape, appending the code point the letter
+ * denotes. The three self-denoting escapes are not special-cased: `\"` appends
+ * `"` because that is what the table pairs it with.
+ *
+ * @type {readonly _RangeFunc<_ParseEscapeCharState>[]}
+ */
+const simpleEscapeFuncs = simpleEscapes.map(([letter, codePoint]) =>
+    rangeFunc(one(letter))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(codePoint) }]))
+
 /** @type {(state: _ParseEscapeCharState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
 const parseEscapeCharStateOp = create(parseEscapeDefault)([
-    rangeSetFunc([one(quotationMark), one(reverseSolidus), one(solidus)])(state => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }]),
-    rangeFunc(one(latinSmallLetterB))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(backspace) }]),
-    rangeFunc(one(latinSmallLetterF))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(ff) }]),
-    rangeFunc(one(latinSmallLetterN))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(lf) }]),
-    rangeFunc(one(latinSmallLetterR))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(cr) }]),
-    rangeFunc(one(latinSmallLetterT))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(ht) }]),
+    ...simpleEscapeFuncs,
+    // `\u` is the one escape whose meaning is not a lookup: the four hex
+    // digits that follow decide it, so it starts a state instead.
     rangeFunc(one(latinSmallLetterU))(state => () => [empty, { kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0 }]),
 ])
 

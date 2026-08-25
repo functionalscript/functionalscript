@@ -49,13 +49,13 @@ import {
     unicodeRange,
 } from '../../bnf/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
+import { escapeToCodePoint } from '../../js/string_escape/module.f.mjs'
 import { isKeywordToken, mergeTrivia } from '../../js/tokenizer/module.f.mjs'
 import {
-    asterisk, backspace, ht, lf, ff, cr,
-    quotationMark, solidus, reverseSolidus,
+    asterisk, lf,
+    solidus, reverseSolidus,
     hexDigitValue,
-    latinSmallLetterB, latinSmallLetterF,
-    latinSmallLetterN, latinSmallLetterR, latinSmallLetterT, latinSmallLetterU,
+    latinSmallLetterU,
 } from '../../text/ascii/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { mapUnwrap } from '../../types/nullable/module.f.mjs'
@@ -406,32 +406,17 @@ const unwrapHexDigitValue = mapUnwrap(hexDigitValue)
 const stringDecodeScan = (cp, state) => {
     switch (state.kind) {
         case 'escape': {
+            const codePoint = escapeToCodePoint(cp)
             // The grammar's own `escape` rule (`buildToken`'s `string`) only ever
-            // accepts `"`, `\`, `/`, `b`, `f`, `n`, `r`, `t`, or `u` right after a
+            // accepts one of the eight simple escapes or `u` right after a
             // backslash — any other character fails to parse before a token
             // reaches this scan at all, so narrowing to those nine is provable,
-            // not merely assumed.
-            assert(
-                cp === quotationMark || cp === reverseSolidus || cp === solidus ||
-                cp === latinSmallLetterB || cp === latinSmallLetterF || cp === latinSmallLetterN ||
-                cp === latinSmallLetterR || cp === latinSmallLetterT || cp === latinSmallLetterU,
-                cp)
-            switch (cp) {
-                case quotationMark:  return [[quotationMark],  { kind: 'normal' }]  // \" → "
-                case reverseSolidus: return [[reverseSolidus], { kind: 'normal' }]  // \\ → \
-                case solidus:        return [[solidus],        { kind: 'normal' }]  // \/ → /
-                case latinSmallLetterB: return [[backspace], { kind: 'normal' }]    // \b → backspace (BS)
-                case latinSmallLetterF: return [[ff],        { kind: 'normal' }]    // \f → form feed (FF)
-                case latinSmallLetterN: return [[lf],        { kind: 'normal' }]    // \n → line feed (LF)
-                case latinSmallLetterR: return [[cr],        { kind: 'normal' }]    // \r → carriage return (CR)
-                case latinSmallLetterT: return [[ht],        { kind: 'normal' }]    // \t → horizontal tab (HT)
-                // `\u` is the only case the assertion above leaves. It is a
-                // `default` rather than a `case latinSmallLetterU` because the
-                // ASCII constants are plain `number`s, so the switch can never
-                // be exhaustive to TypeScript and the clause would fall through
-                // into `unicode` below.
-                default: return [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
-            }
+            // not merely assumed. `u` is the one the table does not answer for:
+            // the four hex digits that follow decide its meaning.
+            assert(codePoint !== null || cp === latinSmallLetterU, cp)
+            return codePoint === null
+                ? [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
+                : [[codePoint], { kind: 'normal' }]
         }
         case 'unicode': {
             const acc = (state.acc << 4) | unwrapHexDigitValue(cp)
