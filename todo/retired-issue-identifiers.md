@@ -37,21 +37,42 @@ own anchor reference to its `## 665-mcp` section, and one in
 `json_rpc/todo/response-constructors.md` — and those need nothing. Regenerate the
 whole column rather than trusting it — an earlier revision of this issue built
 it from a scan that printed only the first two paths per identifier, and listed
-two of `i183`'s four sites:
+two of `i183`'s four sites.
+
+Run this from the repo root. The identifier list is read out of the table's own
+first column rather than repeated, so the check cannot go stale against the
+rows it is checking:
 
 ```sh
-for id in i149 i155 i163 i183 i189 i662 i665-mcp; do
-  printf '%-12s' "$id"
-  grep -rn "\b$id\b" --include='*.md' . \
-    | grep -v retired-issue-identifiers \
-    | grep -vE "\[$id[^]]*\]\(" \
-    | sed 's|:[0-9]*:.*||' | sort | uniq -c | tr '\n' ' '
-  echo
-done
+sed -n '/^|`i/s/^|`\([^`]*\)`.*/\1/p' todo/retired-issue-identifiers.md \
+| while read id; do
+    printf '%-36s' "$id"
+    grep -rn "\b$id\b" --include='*.md' . \
+      | grep -v retired-issue-identifiers \
+      | grep -vE "\[$id[^]]*\]\(" \
+      | sed 's|:[0-9]*:.*||' | sort | uniq -c | tr '\n' ' '
+    echo
+  done
 ```
 
-The `grep -vE` is what separates a bare citation from one that is already a
-link; without it `i665-mcp` reads as four sites when two of them are done.
+Two details carry the weight. The `grep -vE` separates a bare citation from one
+that is already a link — without it `i665-mcp` reads as four sites when two of
+them are done. And the `sed` reads the identifiers from the table, so adding or
+removing a row changes what gets checked; an earlier revision hard-coded seven
+of the twelve, which is the failure this form exists to prevent.
+
+For the totals, drop the per-identifier grouping. This prints one line per bare
+citation, so it should emit **18** lines:
+
+```sh
+sed -n '/^|`i/s/^|`\([^`]*\)`.*/\1/p' todo/retired-issue-identifiers.md \
+| while read id; do
+    grep -rn "\b$id\b" --include='*.md' . \
+      | grep -v retired-issue-identifiers | grep -vE "\[$id[^]]*\]\("
+  done
+```
+
+Append `| sed 's|:[0-9]*:.*||' | sort -u` for the **13** files they live in.
 
 Line numbers are deliberately omitted. This file is an inventory of citation
 rot, and pinning it to line numbers would make it rot the same way — see
