@@ -92,6 +92,14 @@ would fit fixed operands; what disqualifies it is that its short-circuit skips a
 past its own operands the number of operations it can skip is unbounded
 (`a?.b(...c).d.e…`). Unbounded needs an array.
 
+The two rows differ exactly there. A call ends a *receiver* lifetime, so
+`a.b(...c).d` and `(a.b(...c)).d` are the same expression; a call does **not**
+end a *region*, so `a?.b(...c).d` and `(a?.b(...c)).d` are not — on a nullish
+`a` the first is `undefined` and the second throws
+`Cannot read properties of undefined (reading 'd')`. The parenthesis law makes
+the closure observable, so the region genuinely extends past the call rather
+than merely being spellable longer.
+
 | lifetime | bound | node |
 | --- | --- | --- |
 | receiver — `.` feeding `()` | exactly two operations; the call ends it | `.()` |
