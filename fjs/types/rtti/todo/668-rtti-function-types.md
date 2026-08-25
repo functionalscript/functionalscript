@@ -60,7 +60,7 @@ trusted.
 
 ### Related
 
-- [i668-emergent-testing-proof-type](../emergent_testing/todo.md) —
+- [i668-emergent-testing-proof-type](../../../emergent_testing/todo/668-emergent-testing-proof-type.md) —
   proof leaves need function-valued schemas if `Proof` is derived from RTTI.
 - [`../data`](../data/README.md) — serializable/function-free RTTI data
   form; extern function schemas may need to remain outside that core form.

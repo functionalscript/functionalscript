@@ -40,6 +40,93 @@ as the reporter's thread and is closed when the fix ships.
 Reference issues with an explicit link, not GitHub's `#` prefix. `#NNN` is
 reserved for GitHub pull request and issue numbers.
 
+## Retired `iNNN` identifiers
+
+Older issues cite each other as `i143`, `i167`, `i65X` and so on — identifiers
+from the tracker that preceded these directories, where every module kept a
+single `todo.md`. They are **not** GitHub issue numbers: GitHub #167 is an
+unrelated 2022 pull request, and the file numbering does not line up either
+(`fjs/emergent_testing/todo/028-unit-test-examples-api.md` reports GitHub
+issue 403).
+
+A bare `iNNN` is **not** evidence that the identifier is untraceable. Deleting an
+issue file removes it from the working tree, not from history, and these
+identifiers were filenames: the retired tracker lived in a top-level `issues/`
+directory as `issues/NNN-{slug}.md`. Four searches, in order of yield:
+
+1. **The retired `issues/` directory, in git history.** This is the one that
+   works, and it names the issue outright. Find the filename, then read it —
+   the file is gone at every commit that *touches* it last, so read it from that
+   commit's parent:
+
+   ```sh
+   f=$(git log --all --format=%H -- issues/ \
+       | while read c; do git ls-tree -r --name-only $c -- issues/; done \
+       | sort -u | grep -iE 'issues/0*167[.-]')
+   # issues/167-bit-vec-msb-concat.md
+   git show "$(git log --all --format=%H -1 -- "$f")^:$f"
+   ```
+
+   The first pipeline deliberately discards commits — one file can appear at
+   hundreds of them — so the second line recovers the one that matters, the
+   deletion, and reads the file from its parent. Most of these files carry a
+   **Resolution** section written when they were closed, naming the code that
+   shipped, so the answer is usually stated rather than inferred. Names were
+   zero-padded inconsistently (`021-` and `21-` both exist), which is why the
+   pattern allows optional leading zeros, and the later ones use the
+   `65X`/`65Y`/`66a` prefixes rather than numbers.
+
+   **A number can match more than one issue** — read the slug, not just the
+   match count. `209` is two unrelated issues (`209-effect-fold-step.md` and
+   `209-simplify-fjs-command-syntax.md`), and the Crockford-prefixed families
+   are far larger: fourteen files begin `667-`, thirteen `65Y-`, eleven `665-`.
+   That is why a citation like `i65X-async-test-functions` carries its slug, and
+   why one written as a bare `i667` could not be resolved from the number alone.
+2. **`git log --grep`.** Commits that close one name it — `i167` is `d39518d8`,
+   "bit_vec: export msbConcat; drop per-module listToVec(msb) re-binds (i167)",
+   and `i160` is `5c1577c6`, "resolve i160 as won't fix". Use this to date the
+   work, or when search 1 finds a file whose Resolution section is missing.
+3. **The citation's own words.** `i168` is described by its citations as "the
+   streaming decoder factory both codecs already share", which is `decoder` in
+   `fjs/text/code_point/` almost verbatim.
+4. **A zero-padded filename in the *current* tree.** `i37` is
+   `037-language-design-map.md`, headed `# 37.`; matching the identifier's
+   digits against the filename's exactly will miss it.
+
+Three outcomes are worth distinguishing once you have the file. The issue may
+still be **open under a new slug** — `i21` is
+`fjs/emergent_testing/todo/test-framework-silent-mode.md`, identical to the
+retired `issues/021-test-framework-silent-mode.md` but for its heading level
+(`#` → `##`, this README's format) — in which case link it. It
+may have **shipped**, like `i136` as `fjs/ci/config/module.f.mjs`; name the code.
+Or it was **won't fix**, like `i171`, whose reason lives in `parseTestSet`'s
+JSDoc exactly as the won't-fix rule below requires; say so and cite that.
+
+Whichever it is, rewrite the citation to name it — `i143` and `i172` in
+`fjs/bnf/todo/207.md` are the pattern — or delete the reference if the
+relationship no longer holds. Do **not** link one to a same-numbered GitHub
+issue: that number belongs to unrelated work.
+
+The identifier stays: the target is often code, so there is nothing to make it a
+link to. Use one of two forms — the identifier as a link label where a document
+survives, or the word **`retired`** beside it with the target named:
+
+```md
+- [i167](../fjs/types/bit_vec/module.f.mjs) — the `bit_vec` re-binding.
+- i143 (retired; shipped as [`fjs/types/rtti/data/`](../fjs/types/rtti/data/module.f.mjs)) — …
+```
+
+Write `retired` in the second form; it is the word that makes the resolution
+checkable, and [retired-issue-identifiers](./retired-issue-identifiers.md)
+carries the check. A bare identifier with neither form reads as unresolved,
+which is what it should mean.
+
+Those two targets are written as they would appear **from this file**, in
+`todo/`. Re-base them against the file you are editing rather than copying them
+across — `fjs/types/todo/185.md` reaches the same module as
+`../bit_vec/module.f.mjs`. Relative paths surviving a move without being
+re-based is what put 105 broken links in this tree.
+
 ## Blocked by third parties
 
 Issues that cannot progress until an external event occurs (a TC39 proposal lands, a

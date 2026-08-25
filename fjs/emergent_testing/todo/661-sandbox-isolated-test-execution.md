@@ -63,9 +63,9 @@ that:
 
 - [ ] Identify the right location for this documentation (README, AGENTS.md, or a dedicated doc page)
 - [ ] Write a short explanation of the sandbox model and how it contrasts with in-test sub-test execution
-- [ ] Add a note in the test-runner comparison table (see [i661](todo.md))
+- [ ] Add a note in the test-runner comparison table (see [i661](./661-test-runner-behavior.md))
 
 ### Related
 
-- [i661](todo.md) — documents other behavioural differences across supported test runners
+- [i661](./661-test-runner-behavior.md) — documents other behavioural differences across supported test runners
 - i65Y-sandbox-await-overhead — performance work inside the sandbox
