@@ -232,7 +232,9 @@ a step is not an `exp` ([Purity](#purity)).
   into two, it is split. For a walk that means cutting at every available cut
   point and keeping only what cannot be cut; "at most one `|.` before the first
   optional step" is the weakest visible consequence, not the rule. The rule is
-  in [Open questions](#open-questions).
+  in [Open questions](#open-questions), and it bounds the shape: a `lambdas`
+  holds at most one `|?.`, first if at all, so it is one guarded opening
+  followed by unguarded steps.
 
 Together these stop a walker respelling a pure *node* — without them
 `['_', a, [['|.', b]]]` respells `a.b`, and `['_()', a, [['|.', b]], c]`
@@ -373,6 +375,35 @@ consumers, so a first-to-last span would keep every step, yet what precedes the
 cut is a completed receiver lifetime with a pure spelling — `a.b(...c)` is
 `.()`, and leaving it in the walk hides a shareable `exp`. Both verified
 identical across input kinds, error text included.
+
+One consequence bounds the shape rather than describing a procedure: **a
+`lambdas` holds at most one `|?.`, and if it holds one it is the first step.**
+
+A `|?.` is always a cut. It cannot consume a receiver — it is a property access,
+not a call — so nothing binds it to the step before it, and closing there is
+never observable, `?.` being guarded itself. That holds whatever precedes it, an
+unguarded step included: `a?.b.c?.d` and `(a?.b.c)?.d` are identical over six
+input kinds. So anything ahead of a `|?.` is cut away into the base, and a
+second one starts a new node.
+
+A `lambdas` is therefore at most **one guarded opening followed by unguarded
+steps** — a region and its unguarded tail. Every walker in
+[Encodings](#encodings) has that shape:
+
+```ts
+['_',   a, [['|?.', b], ['|.', c]]]                    // a?.b.c
+['_',   a, [['|?.', b], ['|()', c]]]                   // a?.b(...c)
+['_()', a, [['|?.', b]], c]                            // (a?.b)(...c)
+['_()', a, [['|?.', b], ['|.', c]], d]                 // (a?.b.c)(...d)
+['_',   a, [['|.', b], ['|?.()', c]]]                  // a.b?.(...c)
+['_',   a, [['|.', b], ['|?.()', c], ['|.', d]]]       // a.b?.(...c).d
+```
+
+`|?.()` is the only optional step that can sit mid-`lambdas`, and only when a
+property step before it supplies the receiver it consumes — one more face of
+`.()` and `?.()` looking parallel without being so. It also makes the first
+duplicate family above a corollary rather than a case: two `|?.` in one
+`lambdas` can never both survive.
 
 `_()` is the exception at the far end, because its own call is unguarded and
 takes the last step's receiver. A cut inside its `lambdas` is fine, since the
