@@ -343,11 +343,12 @@ const arraySet = (prefix, rest) => {
  * every object.
  *
  * A key is dropped only once the `rest` is gone, and that order is the whole
- * rule: an undeclared key is read against `rest` plus `undefined`, which is
- * every value exactly when there is no `rest`, so with one present a key
- * saying "anything" says strictly more than leaving it out. `close`'s empty
- * `rest` is where the two part company — `{ props: { a: unknown }, rest: never }`
- * admits `{ a: 1 }` and `{ props: {}, rest: never }` admits only `{}`.
+ * rule: an undeclared key may be absent, or must belong to `rest`, which
+ * leaves it unconstrained exactly when there is no `rest` — so with one
+ * present a key saying "anything" says strictly more than leaving it out.
+ * `close`'s empty `rest` is where the two part company —
+ * `{ props: { a: unknown }, rest: never }` admits `{ a: 1 }` and
+ * `{ props: {}, rest: never }` admits only `{}`.
  *
  * @type {(props: readonly (readonly [string, Node])[], rest: Node | undefined) => UnionSet}
  */

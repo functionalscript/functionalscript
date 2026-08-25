@@ -112,7 +112,7 @@ type _AssertType = Assert<Equal<
         | Info1<Tag1, Type>
         | readonly['or', ...readonly Type[]]
         | readonly['close', ConstObject]
-        | InfoClose<ConstObject, Type>
+        | readonly['close', ConstObject, Type]
         )
     )>>
 
@@ -162,8 +162,12 @@ export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
  */
 export type InfoClose<C extends ConstObject, R extends Type> = readonly['close', C, R]
 
-/** Schema type for a closed container `C` whose undeclared members are `R`. */
-export type Close<C extends ConstObject, R extends Type> = () => InfoClose<C, R>
+/**
+ * Schema type for a closed container `C` whose undeclared members are `R`.
+ * `R` defaults to `undefined` — no undeclared member — so `Close<C>` is the
+ * type of `close(c)`, matching the constructor's own optional parameter.
+ */
+export type Close<C extends ConstObject, R extends Type = undefined> = () => InfoClose<C, R>
 
 export type _MakeClose =
     <const C extends ConstObject, const R extends Type = undefined>(c: C, rest?: R) => Close<C, R>

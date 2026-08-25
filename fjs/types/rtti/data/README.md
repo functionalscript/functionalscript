@@ -180,7 +180,14 @@ See [Closed containers](../README.md#closed-containers).
 
 That is also where the object kind's normalization has an ordering to respect.
 A declared key whose set is the whole value domain is dropped — but only once
-the `rest` is gone, since an undeclared key is read against `rest ∪ undefined`
-and that is the whole domain exactly when there is no `rest`. With one present,
-`{ props: { a: unknown }, rest: never }` (objects with at most the key `a`) and
-`{ props: {}, rest: never }` (the empty object) are two different sets.
+the `rest` is gone, since an undeclared key may be absent or else must belong to
+`rest`, which leaves it unconstrained exactly when there is no `rest`. With one
+present, `{ props: { a: unknown }, rest: never }` (objects with at most the key
+`a`) and `{ props: {}, rest: never }` (the empty object) are two different sets.
+
+Note the asymmetry that phrasing preserves: a *declared* key constrains the
+value **read** at it, so an absent one reads `undefined` and is admitted when
+the declared set holds `undefined`. An *undeclared* key is checked as an
+**entry**, so a present `b: undefined` must satisfy `rest` itself rather than
+being excused by its absence — `{ props: { a: number }, rest: string }` rejects
+`{ a: 1, b: undefined }` and accepts `{ a: 1 }`.
