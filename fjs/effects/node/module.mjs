@@ -37,7 +37,7 @@ import { asyncTryCatch } from '../../types/result/module.mjs'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 
-/** @typedef {{ readonly listen: (port: number) => void }} _Server */
+/** @typedef {{ readonly listen: (port: number, host: string) => void }} _Server */
 
 /** @typedef {AsyncIterable<Uint8Array>} _Readable */
 
@@ -320,9 +320,9 @@ const runNodeEffect = asyncRun({
         }
         return ok(/** @satisfies {EffectServer} */ (asNominal(createServer(nodeRl))))
     },
-    listen: async (server, port) => {
+    listen: async (server, port, host) => {
         const s = /** @type {_Server} */ (asBase(server))
-        s.listen(port)
+        s.listen(port, host)
         return ok(undefined)
     },
     forever: () => new Promise(() => {}),

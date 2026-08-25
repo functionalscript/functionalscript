@@ -223,7 +223,16 @@ export type CreateServer = ['createServer', (listener: RequestListener<Operation
 
 // listen
 
-export type Listen = ['listen', (server: Server, port: number) => OpResult<void>]
+/**
+ * Starts accepting connections on `port` of `host`.
+ *
+ * The host is **required**, and that is the whole point of it: Node's own
+ * `listen(port)` binds the unspecified address, so omitting it publishes the
+ * server to every interface — a default nobody chose, and one a program serving
+ * local files must not get by writing less. Pass `'127.0.0.1'` for loopback
+ * only, `'0.0.0.0'` (or `'::'`) to accept from anywhere.
+ */
+export type Listen = ['listen', (server: Server, port: number, host: string) => OpResult<void>]
 
 // HTTP
 

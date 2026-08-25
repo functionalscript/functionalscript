@@ -4,12 +4,12 @@
 fjs web [root] [port]
 ```
 
-Serves `root` (default `.`) over HTTP on `port` (default `8080`). One request,
-one file:
+Serves `root` (default `.`) over HTTP on `port` (default `8080`), bound to
+loopback. One request, one file:
 
 ```
-fjs web            # http://localhost:8080/ serves the working directory
-fjs web docs 3000  # http://localhost:3000/ serves ./docs
+fjs web            # http://127.0.0.1:8080/ serves the working directory
+fjs web docs 3000  # http://127.0.0.1:3000/ serves ./docs
 ```
 
 ## Why it exists
@@ -78,9 +78,11 @@ Failures carry a `text/plain` body. A `500` reports the error *kind*
 the absolute path it could not read — a client is not entitled to the server's
 filesystem layout.
 
-`HEAD` is answered exactly like `GET`, bytes included: Node omits the body of a
-`HEAD` response itself while keeping the headers, so answering the two alike is
-what makes `Content-Length` correct without computing it.
+Every response states its `Content-Length`, computed from the body it carries.
+The runner does not: Node sends an unmeasured body with `Transfer-Encoding:
+chunked`. `HEAD` is then answered exactly like `GET`, bytes included — Node drops
+the body of a `HEAD` response itself and keeps these headers, so the one frame
+serves both, and the client still learns the size it asked for.
 
 `Content-Type` comes from the file's extension
 ([`fjs/media/type`](../media/type/)'s `detectPath`), never from its bytes.
@@ -113,11 +115,32 @@ program therefore stops at that last step and exits `1`, which is the honest
 report — the server did not run to completion because this runner cannot run a
 program that never ends.
 
+## The address it binds
+
+`127.0.0.1`, and the announced URL says so. Node's own `listen(port)` binds the
+unspecified address, which would publish whatever directory the command was
+pointed at — `.` by default, so a working tree with its sources, its keys and its
+`.env` — to the whole network because someone typed two words. That is why
+[`Listen`](../effects/node/types.ts) takes the host as a **required** argument
+rather than defaulting: binding everywhere should be something a program says,
+not something it gets by writing less.
+
+Reaching the server from another machine therefore waits on `--host`, along with
+`--port`, for [named options in `fjs/cli`](../cli/todo/options-edsl.md).
+
 ## Deliberately absent
 
 No directory listing, no range requests, no compression, no caching headers, no
 TLS, no configuration beyond the two positional arguments. A directory requested
 without a trailing slash is not redirected to one — `/docs` is not a file, so it
-answers `500` (`EISDIR`) where `/docs/` serves `docs/index.html`. `--port` and
-`--host` wait on [named options in `fjs/cli`](../cli/todo/options-edsl.md);
-until then both arguments are positional.
+answers `500` (`EISDIR`) where `/docs/` serves `docs/index.html`. Port `0` is
+refused with the out-of-range values: Node reads it as "any free port", and
+nothing here can ask which one it got, so the URL it printed would name a dead
+port.
+
+**Symlinks are followed.** `resolve` decides containment from the URL, which a
+link inside the root can defeat by pointing outside it — the root boundary holds
+for paths, not for the file system's own indirection. Checking it properly needs
+the target's real path, and there is no `realpath` effect yet:
+[symlink-containment](./todo/symlink-containment.md). Until then, the loopback
+binding is what bounds it, and a tree with unaudited links is not one to serve.

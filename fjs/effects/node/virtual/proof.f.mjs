@@ -428,12 +428,13 @@ export const proof = {
             /** @type {RequestListener<never>} */
             const listener = ({ url }) =>
                 pureOk({ status: 200, headers: {}, body: utf8(`echo ${url}`) })
-            const e = step(createServer(listener), server => listen(server, 8080))
+            const e = step(createServer(listener), server => listen(server, 8080, '127.0.0.1'))
             /** @type {State} */
             const state = { ...emptyState, requests: [get('/a'), get('/b')] }
             const [s, result] = virtual(state)(e)
             assert(result[0] === 'ok', result)
             assertEq(s.port, 8080)
+            assertEq(s.host, '127.0.0.1')
             // The queue is emptied, so a second `listen` cannot answer the same
             // request twice.
             assertEq(s.requests.length, 0)

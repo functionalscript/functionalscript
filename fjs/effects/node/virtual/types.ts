@@ -56,6 +56,8 @@ export type State = {
     server: Nullable<_VirtualListener>
     /** The port `listen` was called with; `null` until then. */
     port: Nullable<number>
+    /** The host `listen` was asked to bind; `null` until then. */
+    host: Nullable<string>
     /**
      * The requests a fixture queues for the server to answer. `listen` delivers
      * every one of them to {@link _VirtualListener} and empties the queue — the

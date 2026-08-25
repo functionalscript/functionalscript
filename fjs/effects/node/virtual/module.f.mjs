@@ -35,6 +35,7 @@ export const emptyState = {
     randomNext: 0,
     server: null,
     port: null,
+    host: null,
     requests: [],
     responses: [],
 }
@@ -389,7 +390,7 @@ const createServer = listener => state => {
 }
 
 /**
- * Records the port, then hands the stored listener every queued request in
+ * Records the address, then hands the stored listener every queued request in
  * turn, threading the state through each and recording what came back. The
  * queue is emptied, so a second `listen` does not re-deliver.
  *
@@ -397,12 +398,12 @@ const createServer = listener => state => {
  * response frame *is* where a listener puts its failures — the Node runner
  * unwraps at the same point for the same reason.
  *
- * @type {(port: number) => (state: State) => readonly[State, OpResult<void>]}
+ * @type {(port: number, host: string) => (state: State) => readonly[State, OpResult<void>]}
  */
-const listen = port => state => {
+const listen = (port, host) => state => {
     const listener = assertNotNullish(state.server, 'listen without createServer')
     /** @type {State} */
-    let s = { ...state, port, requests: [] }
+    let s = { ...state, port, host, requests: [] }
     for (const request of state.requests) {
         const [next, response] = virtual(s)(listener(request))
         s = { ...next, responses: [...next.responses, unwrap(response)] }
@@ -462,7 +463,7 @@ const map = {
     createServer,
     // The handle is redundant in this runner: it keeps one server, in `state`,
     // so the listener is looked up there rather than unwrapped from the nominal.
-    listen: (_, port) => listen(port),
+    listen: (_, port, host) => listen(port, host),
     randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, ok(state.randomNext)],
     now: () => state => [state, ok(state.epochNs)],
     // Virtual sandbox is a pass-through: the fixture's test function is

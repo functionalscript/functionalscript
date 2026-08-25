@@ -43,6 +43,9 @@ const body = r => utf8ToString(r.body)
 /** @type {(r: ServerResponse) => string} */
 const contentType = ({ headers }) => `${headers['content-type']}`
 
+/** @type {(r: ServerResponse) => string} */
+const contentLength = ({ headers }) => `${headers['content-length']}`
+
 // A file one byte past what a single `Vec` holds, built as chunks of a
 // kibibyte: `stat` sums the chunk sizes, so the size is reached without
 // materializing the bytes.
@@ -105,18 +108,23 @@ export const proof = {
             assertEq(r.status, 200)
             assertEq(body(r), page)
             assertEq(contentType(r), 'text/html; charset=utf-8')
+            // Stated, not left to the runner: Node sends an unmeasured body
+            // chunked, and a `HEAD` client would learn neither bytes nor size.
+            assertEq(contentLength(r), `${page.length}`)
         },
         // `HEAD` is answered exactly like `GET`; Node drops the body itself.
         head: () => {
             const r = answerSite('HEAD', '/main.css')
             assertEq(r.status, 200)
             assertEq(contentType(r), 'text/css; charset=utf-8')
+            assertEq(contentLength(r), '7')
         },
         missing: () => {
             const r = answerSite('GET', '/nope.html')
             assertEq(r.status, 404)
             assertEq(body(r), 'not found\n')
             assertEq(contentType(r), 'text/plain; charset=utf-8')
+            assertEq(contentLength(r), '10')
         },
         methodNotAllowed: () => {
             const r = answerSite('POST', '/')
@@ -162,7 +170,10 @@ export const proof = {
             }
             const [s, result] = virtual(state)(main({ ...defaultNodeProgramOptions, args: [] }))
             assertEq(s.port, 8080)
-            assertEq(s.stdout, 'serving . on http://localhost:8080/\n')
+            // Loopback, and the URL says so: a server that binds every
+            // interface while announcing `localhost` is the trap this avoids.
+            assertEq(s.host, '127.0.0.1')
+            assertEq(s.stdout, 'serving . on http://127.0.0.1:8080/\n')
             const [first, second, third] = s.responses
             assertEq(s.responses.length, 3)
             assertEq(first.status, 200)
@@ -186,7 +197,7 @@ export const proof = {
             const options = { ...defaultNodeProgramOptions, args: ['site', '9090'] }
             const [s] = virtual(state)(main(options))
             assertEq(s.port, 9090)
-            assertEq(s.stdout, 'serving site on http://localhost:9090/\n')
+            assertEq(s.stdout, 'serving site on http://127.0.0.1:9090/\n')
             assertEq(s.responses[0].status, 200)
         },
         // A port that is not a port is a command-line mistake, not a defect:
@@ -204,6 +215,9 @@ export const proof = {
             rejects('8080.5')
             rejects('-1')
             rejects('65536')
+            // Node reads `0` as "any free port", and nothing here can ask which
+            // one it got, so the announced URL would name a dead port.
+            rejects('0')
         },
     },
     // `listen` with nothing queued still records the port, and empties the
@@ -212,6 +226,7 @@ export const proof = {
         noRequests: () => {
             const [s] = virtual(emptyState)(main({ ...defaultNodeProgramOptions, args: [] }))
             assertEq(s.port, 8080)
+            assertEq(s.host, '127.0.0.1')
             assertEq(s.responses.length, 0)
             assert(s.server !== null, 'the listener is stored')
             assertEq(s.requests.length, 0)

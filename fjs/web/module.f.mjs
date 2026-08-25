@@ -48,7 +48,7 @@ import { isValidCodePoint } from '../text/code_point/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { fromCodePointList, toCodePointList } from '../text/utf8/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.mjs'
-import { maxLengthBytes } from '../types/bit_vec/module.f.mjs'
+import { length, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 
@@ -159,12 +159,29 @@ export const resolve = root => url => {
 /** @type {(size: number) => _TooLarge} */
 const tooLarge = size => ['tooLarge', size]
 
-/** @type {(status: number) => (message: string) => ServerResponse} */
-const plainText = status => message => ({
+/**
+ * A response frame carrying `body`, with its length declared.
+ *
+ * `Content-Length` is written here rather than left to the runner, because the
+ * runner does not write one: Node sends an unmeasured body with
+ * `Transfer-Encoding: chunked`, and for a `HEAD` request — where it drops the
+ * body but keeps these headers — that leaves the client with neither the bytes
+ * nor their count, which is the one thing a `HEAD` is asked for.
+ *
+ * @type {(status: number) => (contentType: string) => (body: Vec) => ServerResponse}
+ */
+const response = status => contentType => body => ({
     status,
-    headers: { 'content-type': 'text/plain; charset=utf-8' },
-    body: utf8(`${message}\n`),
+    headers: {
+        'content-type': contentType,
+        'content-length': `${length(body) >> 3n}`,
+    },
+    body,
 })
+
+/** @type {(status: number) => (message: string) => ServerResponse} */
+const plainText = status => message =>
+    response(status)('text/plain; charset=utf-8')(utf8(`${message}\n`))
 
 /**
  * Reads `path`, but only after `stat` says it fits in one `Vec` — the size is
@@ -183,9 +200,7 @@ const readBounded = path => ({ size }) =>
  * @type {(path: string) => (r: Result<Vec, IoChannel | _TooLarge>) => ServerResponse}
  */
 const fileResponse = path => r => {
-    if (r[0] === 'ok') {
-        return { status: 200, headers: { 'content-type': detectPath(path) }, body: r[1] }
-    }
+    if (r[0] === 'ok') { return response(200)(detectPath(path))(r[1]) }
     const e = r[1]
     if (e[0] === 'tooLarge') {
         return plainText(413)(`file is ${e[1]} bytes; this server cannot answer with more than ${maxLengthBytes}`)
@@ -200,10 +215,10 @@ const fileResponse = path => r => {
 /**
  * Answers one request: resolve, read, and frame the result.
  *
- * `HEAD` is answered exactly like `GET`, bytes included. Node omits the body of
- * a `HEAD` response itself and keeps the headers it was given, so answering the
- * two alike is what makes `Content-Length` right rather than a special case
- * that would have to compute it.
+ * `HEAD` is answered exactly like `GET`, bytes included: Node drops the body of
+ * a `HEAD` response itself and keeps the headers, so the one frame serves both
+ * — and because {@link response} states `Content-Length`, a `HEAD` client still
+ * learns the size it asked for.
  *
  * @type {Respond}
  */
@@ -224,11 +239,25 @@ export const respond = root => ({ method, url }) => {
 const maxPort = 0xffff
 
 /**
+ * The address the server binds.
+ *
+ * Loopback, not the unspecified address: this serves whatever directory it was
+ * pointed at, which is `.` by default, so binding every interface would publish
+ * a working tree — sources, keys, a `.env` — to the whole network because the
+ * operator typed two words. Reaching it from another machine is a decision, and
+ * it waits for `--host` to be a thing one can write.
+ *
+ * @type {string}
+ */
+const loopback = '127.0.0.1'
+
+/**
  * `fjs web [root] [port]` — serve `root` (default `.`) on `port` (default
- * `8080`).
+ * `8080`), bound to {@link loopback}.
  *
  * Both arguments are positional because `fjs/cli` has no notion of a named
- * option yet; `port` becomes `--port` once one exists.
+ * option yet; `port` becomes `--port` once one exists, and `--host` is what
+ * would let a caller bind anything but loopback.
  *
  * The chain ends in `forever`, so the program only stops when the process does.
  * A runner that cannot block forever answers `notImplemented` there, which is
@@ -240,12 +269,15 @@ const maxPort = 0xffff
 export const main = ({ args }) => {
     const [root = '.', portArgument = '8080'] = args
     const port = Number(portArgument)
-    if (!Number.isInteger(port) || port < 0 || port > maxPort) {
+    // `0` is excluded with the out-of-range values: Node reads it as "any free
+    // port", and the program has no way to ask which one it got, so the URL it
+    // prints would name a port nothing is listening on.
+    if (!Number.isInteger(port) || port < 1 || port > maxPort) {
         return errorExit(`invalid port "${portArgument}"`)
     }
     const server = createServer(respond(root))
-    const listening = step(server, s => listen(s, port))
-    const announced = step(listening, () => log(`serving ${root} on http://localhost:${port}/`))
+    const listening = step(server, s => listen(s, port, loopback))
+    const announced = step(listening, () => log(`serving ${root} on http://${loopback}:${port}/`))
     const ended = step(announced, forever)
     return exitStep(ended)
 }
