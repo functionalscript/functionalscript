@@ -145,7 +145,8 @@ but isn't exposed in a reusable (bare-string) form.
 - [i190-text-char-code-boundary](../../text/todo/190.md) — same
   "own the single boundary; stop reaching into the built-in" pattern for the
   char-code ↔ string conversion.
-- i176-json-file-effects and
+- [i176-json-file-effects](../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
+  — still open under a new slug — and
   i198-utf8-file-effects — a *different* JSON
   concern (whole-value `JSON.stringify(v, null, 2)` → UTF-8 → write), not the
   single-token literal rendering tracked here.
