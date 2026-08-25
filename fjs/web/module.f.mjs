@@ -16,6 +16,7 @@
  * | file found                                     | `200`  |
  * | `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path | `404` |
  * | any other method                               | `405` with `Allow` |
+ * | a `Host` this server does not answer for       | `403`  |
  * | a path that escapes `root`, or an undecodable URL | `400`  |
  * | a file larger than one `Vec`                   | `413`  |
  * | any other host failure                         | `500`  |
@@ -247,6 +248,46 @@ const plainText = status => message =>
 const allow = 'GET, HEAD'
 
 /**
+ * The names this server will answer *for*, which is not the same question as
+ * what it binds.
+ *
+ * Binding loopback stops another machine from reaching the socket; it does not
+ * stop a browser on this one from being *told* that a name the attacker owns
+ * lives at `127.0.0.1`. That is DNS rebinding: a page from `attacker.example`
+ * whose DNS answer flips to loopback, and whose fetches then arrive here
+ * carrying `Host: attacker.example`. Served, the browser files the response
+ * under the attacker's origin and hands the working tree to their JavaScript.
+ * The request looks ordinary at every layer below this one — right socket,
+ * right port, real client — and the `Host` header is the only place the lie is
+ * written down.
+ *
+ * @type {readonly string[]}
+ */
+const servedHosts = ['localhost', '127.0.0.1', '[::1]']
+
+/**
+ * The name part of a `Host` header, without its port. An IPv6 literal is
+ * bracketed, and its brackets are part of the name; a missing `]` leaves an
+ * empty name, which no entry matches.
+ *
+ * @type {(host: string) => string}
+ */
+const hostName = host => {
+    if (host.startsWith('[')) { return host.slice(0, host.indexOf(']') + 1) }
+    const [name] = host.split(':')
+    return name
+}
+
+/**
+ * Whether this server answers for `host`. An absent `Host` is not served: HTTP/1.1
+ * requires one, every browser sends one, and accepting the absence would leave
+ * the check with a hole shaped exactly like a client that omits it deliberately.
+ *
+ * @type {(host: string | undefined) => boolean}
+ */
+const isServedHost = host => host !== undefined && servedHosts.includes(hostName(host))
+
+/**
  * `405`, carrying the `Allow` header the status may not omit: a refusal that
  * does not say what *would* be accepted leaves the client to guess, which is
  * why RFC 9110 requires an origin server to list them here.
@@ -303,6 +344,10 @@ const fileResponse = path => r => {
 /**
  * Answers one request: resolve, read, and frame the result.
  *
+ * The `Host` header is checked first, against the loopback names this server
+ * answers for — see {@link servedHosts} for why binding loopback is not enough
+ * on its own.
+ *
  * `HEAD` is answered exactly like `GET`, bytes included: Node drops the body of
  * a `HEAD` response itself and keeps the headers, so the one frame serves both
  * — and because {@link response} states `Content-Length`, a `HEAD` client still
@@ -310,7 +355,10 @@ const fileResponse = path => r => {
  *
  * @type {Respond}
  */
-export const respond = root => ({ method, url }) => {
+export const respond = root => ({ method, url, headers }) => {
+    // Before anything else, including what method it is: a request for a name
+    // this server does not answer for is not a request to be interpreted.
+    if (!isServedHost(headers.host)) { return pureOk(plainText(403)('host not served')) }
     if (method !== 'GET' && method !== 'HEAD') { return pureOk(methodNotAllowed()) }
     const resolved = resolve(root)(url)
     if (resolved[0] === 'error') {

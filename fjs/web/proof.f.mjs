@@ -26,8 +26,14 @@ const site = {
     docs: { 'index.html': [utf8('docs')] },
 }
 
-/** @type {(method: string, url: string) => IncomingMessage} */
-const request = (method, url) => ({ method, url, headers: {}, body: empty })
+/** A request as a browser on this machine sends it, `Host` included.
+ *
+ * @type {(method: string, url: string) => IncomingMessage}
+ */
+const request = (method, url) => hosted('127.0.0.1:8080')(method, url)
+
+/** @type {(host: string) => (method: string, url: string) => IncomingMessage} */
+const hosted = host => (method, url) => ({ method, url, headers: { host }, body: empty })
 
 /**
  * Answers one request against `root`, which every case below is a variation of.
@@ -146,6 +152,29 @@ export const proof = {
             assertEq(body(r), 'not found\n')
             assertEq(contentType(r), 'text/plain; charset=utf-8')
             assertEq(contentLength(r), '10')
+        },
+        // Binding loopback does not stop a browser from being told that a name
+        // the attacker owns lives at 127.0.0.1 — only the `Host` header says
+        // which name the request was really for.
+        rebinding: () => {
+            /** @type {(host: string) => number} */
+            const status = host =>
+                unwrap(virtual({ ...emptyState, root: site })(
+                    respond('.')(hosted(host)('GET', '/')))[1]).status
+            assertEq(status('attacker.example'), 403)
+            assertEq(status('attacker.example:8080'), 403)
+            // The names it does answer for, with and without a port, and as an
+            // IPv6 literal — whose brackets are part of the name.
+            assertEq(status('127.0.0.1:8080'), 200)
+            assertEq(status('localhost'), 200)
+            assertEq(status('[::1]:8080'), 200)
+            // A bracket with no closing `]` names nothing.
+            assertEq(status('[::1'), 403)
+            // HTTP/1.1 requires a `Host`; its absence is not a way around this.
+            const noHost = unwrap(virtual({ ...emptyState, root: site })(
+                respond('.')({ method: 'GET', url: '/', headers: {}, body: empty }))[1])
+            assertEq(noHost.status, 403)
+            assertEq(body(noHost), 'host not served\n')
         },
         methodNotAllowed: () => {
             const r = answerSite('POST', '/')

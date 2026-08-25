@@ -77,6 +77,7 @@ relative. That is also why the path is built with `join` rather than `concat`.
 | file found | `200` with its bytes |
 | `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path | `404` |
 | any other method | `405`, with `Allow: GET, HEAD` |
+| a `Host` this server does not answer for | `403` |
 | a path that escapes `root`, or an undecodable URL | `400` |
 | a file larger than one `Vec` | `413` |
 | any other host failure | `500` |
@@ -180,6 +181,25 @@ not something it gets by writing less.
 
 Reaching the server from another machine therefore waits on `--host`, along with
 `--port`, for [named options in `fjs/cli`](../cli/todo/options-edsl.md).
+
+### Binding loopback is not the whole check
+
+It stops another machine from reaching the socket. It does not stop a browser on
+*this* machine from being told that a name the attacker owns lives at
+`127.0.0.1` — that is DNS rebinding, and the fetches that follow arrive here
+looking entirely ordinary: right socket, right port, real client. The only place
+the lie is written down is the `Host` header, which says the request was for
+`attacker.example`. Serve it, and the browser files the response under the
+attacker's origin and hands the working tree to their JavaScript.
+
+So the `Host` is checked first, before the method and before the path, against
+the names this server answers for — `localhost`, `127.0.0.1`, `[::1]`, with or
+without a port. Anything else, including a request with no `Host` at all, is
+`403`. HTTP/1.1 requires one and every browser sends one, so accepting its
+absence would leave a hole shaped exactly like a client that omits it on purpose.
+
+`--host` will have to extend that list as well as the bind address; the two are
+different questions and only one of them is about reachability.
 
 Binding *fails* asynchronously — a taken port arrives as the server's `error`
 event, not as a throw — so `Listen` settles on the outcome rather than on the
