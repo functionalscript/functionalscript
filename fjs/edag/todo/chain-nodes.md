@@ -312,9 +312,13 @@ spelling — verified identical, error text included. What the cardinality test
 misses is that an optional operator's *presence* is not what justifies a walker;
 the region having work to do is:
 
-- **Whether** a walker is required — some step consumes a receiver from the
-  preceding step, or an unguarded step follows an optional one and so must be
-  skipped.
+- **Whether** a walker is required — some *consumer* takes a receiver from the
+  step before it, or an unguarded step follows an optional one and so must be
+  skipped. The consumers are the `|()` and `|?.()` steps **and, in `_()`, the
+  node's own call**, which takes the last step's. Counting that last one is what
+  admits `['_()', a, [['|?.', b]], c]`, the only receiver-preserving spelling of
+  `(a?.b)(...c)`: its single step neither follows a step nor precedes one, so a
+  clause quantified over steps alone would reject it.
 - **How much** goes in it — the span runs from the first such step to the
   **last** one. Anything before it is a dead prefix and belongs in an `exp`;
   anything after it is a liftable suffix and belongs in a following node.
