@@ -5,7 +5,7 @@
 
 import { assertEq } from '../../../asserts/module.f.mjs'
 import { toData, unitBit } from '../data/module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, record, or, option, never } from '../module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, close, record, or, option, never } from '../module.f.mjs'
 import { dataToTs, printer } from './module.f.mjs'
 
 const toTs = printer()
@@ -141,6 +141,35 @@ export const proof = {
         consts: () => eq(or(false, 42, 'hello'), 'false|42|"hello"'),
         thunks: () => eq(or(number, string), 'number|string'),
         mixed: () => eq(or(42, string), '42|string'),
+    },
+    // The closed forms. A tuple has a spelling for "these positions and no
+    // more", so `close` prints exactly; an object type is structurally open in
+    // TypeScript, so a closed struct prints as wide as it can be printed —
+    // which is what an open one prints as too.
+    close: {
+        tuple: () => eq(close([12, true]), 'readonly[12,true]'),
+        emptyTuple: () => eq(close([]), 'readonly[]'),
+        // the position is still optional, and the array may still end before it
+        optionalPosition: () => eq(
+            close([number, option(string)]),
+            'readonly[number,(undefined|string)?]',
+        ),
+        struct: () => eq(close({ a: number }), '{readonly"a":number}'),
+        emptyStruct: () => eq(close({}), '{}'),
+        // a declared `unknown` key is not dropped once the container is closed
+        unknownProp: () => eq(close({ a: unknown }), '{readonly"a"?:unknown}'),
+        // a stated rest prints as the rest element / index signature it is
+        tupleRest: () => eq(close([number], string), 'readonly[number,...readonly(string)[]]'),
+        structRest: () => eq(
+            close({ a: number }, string),
+            '{readonly"a":number}&{readonly[k in string]?:number|string}',
+        ),
+        // an unconstrained rest is openness again, on both kinds
+        openAgain: () => {
+            assertEq(toTs(close([number], unknown)), toTs([number]))
+            assertEq(toTs(close({ a: number }, unknown)), toTs({ a: number }))
+        },
+        mut: () => eqMut(close([number], string), '[number,...(string)[]]'),
     },
     never: () => eq(never, 'never'),
     // an array with no admissible element is the empty array, and nothing

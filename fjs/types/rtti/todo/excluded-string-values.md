@@ -37,6 +37,6 @@ layered check is probably simpler than growing the `Type` ADT for one consumer.
   notes the gap and points here.
 - [`../../../../spec/todo/2330-property-accessor.md`](../../../../spec/todo/2330-property-accessor.md)
   — the prohibited-name list this would enforce.
-- [`close-type.md`](./close-type.md) — a different, already-decided extension to the
-  `Type` ADT (exact/closed containers), for comparison: that one has a data-form mapping
-  already worked out end to end; this one doesn't yet.
+- [Closed containers](../README.md#closed-containers) — the other extension to the
+  `Type` ADT (exact/closed containers), for comparison: it shipped because its
+  data-form mapping was worked out end to end first; this one has no mapping yet.
