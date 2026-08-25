@@ -451,9 +451,10 @@ and **silent** at the back, which makes it an implementation of neither rule as
 written:
 
 - Stronger — `['_', a, [['|.', b], ['|()', c], ['|?.', d]]]`, `a.b(...c)?.d`,
-  satisfies all three conditions yet fails both alternatives, its second
-  position being `|()`. That is the second duplicate family above, so the schema
-  is doing part of the recommended rule's work rather than the conditions'.
+  satisfies both cardinality conditions yet fails both alternatives, its second
+  position being `|()`. Minimality rejects it too — it is the second duplicate
+  family above — so on this row the schema is doing part of minimality's work
+  rather than the cardinality conditions'.
 - Silent — `['_', a, [['|?.', b], ['|()', c], ['|?.', d]]]`, `a?.b(...c)?.d`,
   passes on its first position alone. Only the suffix cut removes it, and no
   fixed prefix can state a cut.
@@ -543,9 +544,10 @@ node in a property position.
 
 ## Tasks
 
-- [ ] Decide the conditions: the stated cardinality tests, or whether-plus-
-      minimality with both halves of the span. The second removes all four
-      duplicate families.
+- [ ] Implement all three conditions: both cardinality tests **and**
+      minimality. Cardinality alone admits the four duplicate families; a
+      validation pass that checks only cardinality is the rejected design, not a
+      lighter option.
 - [ ] Revisit `close` for stating the conditions structurally, once it has
       settled.
 - [ ] Settle whether `_` should say it is optional (`?_`).
@@ -555,8 +557,8 @@ node in a property position.
       types in [`../types.ts`](../types.ts), the `Map` and handlers in
       [`../amnesia/`](../amnesia/), the tables in [`../README.md`](../README.md),
       and the `chains` / `optionalCall` proofs.
-- [ ] Add the distinguishing pairs as proofs whichever way this goes — each is a
-      fact that would break silently under a later "simplification":
+- [ ] Add the distinguishing pairs as proofs — each is a fact that would break
+      silently under a later "simplification":
       `(0, a.b)(...c)` vs `a.b(...c)`; `((a?.b).c)(...d)` vs `(a?.b.c)(...d)`;
       `((a?.b).c)?.(...d)` vs `(a?.b.c)?.(...d)`; and a trailing `lambdas` moved
       outside its node.
