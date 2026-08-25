@@ -21,7 +21,7 @@ The remainder of this issue follows the AGENTS.md ladder
 `nanvm-lib/src/vm/impls/from.rs` and `nanvm-lib/src/vm/impls/try_from.rs`
 each carry a per-VM-wrapper impl set that is byte-identical modulo a
 variant name and a type argument. These are the same kind of nominal-
-newtype repetition that [i159](todo.md)
+newtype repetition that [i159](./159.md)
 addresses for `SizedIndex` / `Index` / `PartialEq`, but the conversion
 traits are **not covered** there.
 
@@ -242,7 +242,7 @@ rejected.
 
 ### Related
 
-- [i159](todo.md) — the same boilerplate-
+- [i159](./159.md) — the same boilerplate-
   collapse exercise for `SizedIndex` / `Index` / `PartialEq`. That
   issue currently proposes `macro_rules!`;
   the constraint surfaced here should be applied there too — update

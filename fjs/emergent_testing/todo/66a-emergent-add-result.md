@@ -72,7 +72,7 @@ a prerequisite if a third counter is introduced, but not on its own.
 
 ### Related
 
-- [i65Z-tf-test-tree-walker](todo.md) — adjacent
+- [i65Z-tf-test-tree-walker](./65z-tf-test-tree-walker.md) — adjacent
   `fjs/emergent_testing` DRY cleanup (sharing the dynamic test-tree walk between
   `runModule` and `registerModule`). Same module; independent change. Note that
   walker also consumes `addPass`/`mergeState`, so landing this first keeps the

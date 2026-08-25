@@ -51,7 +51,7 @@ Design first, then migrate. The design should settle:
   [fjs/cas command-architecture](../../cas/todo/command-architecture.md);
 - coordination with [positional-arity-check](./positional-arity-check.md)
   (arity validation is subsumed by declared positionals) and
-  [fjs 66g-fjs-run-commands](../../fjs/todo/66g-fjs-run-commands.md)
+  [fjs 66g-fjs-run-commands](../../todo/66g-fjs-run-commands.md)
   (the `Commands` reshaping this should ride along with).
 
 ### Tasks

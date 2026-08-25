@@ -81,7 +81,7 @@ In this example:
 
 - [GitHub issue #403](https://github.com/functionalscript/functionalscript/issues/403)
   — the original report.
-- [i664-file-type-conventions](../../issues/664-file-type-conventions.md) — file naming
+- [document-file-type-naming-conventions](../../todo/document-file-type-naming-conventions.md) — file naming
   conventions for modules and proof modules.
-- [i668-emergent-testing-proof-type](todo.md) —
+- [i668-emergent-testing-proof-type](./668-emergent-testing-proof-type.md) —
   explicit proof-tree type.
