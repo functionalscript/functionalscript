@@ -1,6 +1,6 @@
 # Split `?.()` by receiver
 
-**Priority:** P4
+**Priority:** P2
 **Status:** open
 
 ## Problem
