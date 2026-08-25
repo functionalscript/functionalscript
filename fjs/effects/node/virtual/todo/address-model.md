@@ -11,9 +11,9 @@ things a real host decides:
 
 **Which binds conflict.** A wildcard socket may own the port for its whole
 family, so `0.0.0.0:8080` and then `127.0.0.1:8080` is `EADDRINUSE` on Linux with
-Node 22, while this runner allows it. **How much wider the rule is, is a platform
-question, and the two measurements taken so far disagree** — the same pair is
-*allowed* on Darwin with Node 24. Both figures come from
+Node 22.22.2, while this runner allows it. **How much wider the rule is, is a
+platform question, and the two measurements taken so far disagree** — the same
+pair is *allowed* on Darwin with Node 23.11.0. Both figures come from
 [#1693](https://github.com/functionalscript/functionalscript/pull/1693): the
 first from the review bot that reported the divergence, the second from a
 reviewer who went looking for it on another platform.
@@ -23,7 +23,8 @@ are one address here as they are on a host, on Linux with Node 22.22.2 and on
 Darwin with Node 23.11.0 both — but nothing else about a name is modelled.
 Binding `localhost` and then `127.0.0.1` is `EADDRINUSE` on Linux with Node
 22.22.2 and this runner allows it; **and that pair is a platform question too**,
-since `localhost` resolves to `::1` on Darwin, where the same pair is *allowed*.
+since `localhost` resolves to `::1` on Darwin with Node 23.11.0, where the same
+pair is *allowed*.
 Node's message names the address it resolved to (`listen EADDRINUSE: address
 already in use 127.0.0.1:44015`) where this runner can only name the string it
 was given.

@@ -560,8 +560,8 @@ export const proof = {
             assertEq(s.listening.length, 1)
         },
         // A DNS name is case-insensitive, so `LOCALHOST` takes the address
-        // `localhost` then asks for — checked on Node 22.22.2, where the second
-        // bind is `EADDRINUSE`.
+        // `localhost` then asks for — checked on Linux with Node 22.22.2 and on
+        // Darwin with Node 23.11.0, where the second bind is `EADDRINUSE`.
         addressInUseIgnoresCase: () => {
             /** @type {RequestListener<never>} */
             const listener = () => pureOk({ status: 200, headers: {}, body: empty })
@@ -595,7 +595,8 @@ export const proof = {
             // And it is asked before the port is: a server already listening
             // reports this for a port no server could take, where the same
             // value on a fresh server is `ERR_SOCKET_BAD_PORT`. That is the
-            // order Node asks in, checked on 22.22.2.
+            // order Node asks in, checked on Linux with Node 22.22.2 and on
+            // Darwin with Node 23.11.0.
             assertIoCode(again(-1), 'ERR_SERVER_ALREADY_LISTEN')
             assertIoCode(again(65536), 'ERR_SERVER_ALREADY_LISTEN')
             assertIoCode(again(NaN), 'ERR_SERVER_ALREADY_LISTEN')

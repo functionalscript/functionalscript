@@ -13,9 +13,9 @@ effect. A program that logs `bound` after `listen`, with a listener that logs
 
 Reported on
 [#1693](https://github.com/functionalscript/functionalscript/pull/1693), and
-measured on Node 22.22.2 rather than reasoned about — a server whose listener
-pushes `request`, awaiting `listen`, then pushing `bound`, prints
-`bound, request, answered`. It cannot print anything else there: nothing can
+measured rather than reasoned about, on Linux with Node 22.22.2 and reproduced
+on Darwin with Node 23.11.0 — a server whose listener pushes `request`,
+awaiting `listen`, then pushing `bound`, prints `bound, request, answered`. It cannot print anything else there: nothing can
 connect to a socket that is not yet listening, so on a host a queued request
 *before* `listen` does not exist. It is only this runner, where requests are
 fixtures in `State`, that can have one.
