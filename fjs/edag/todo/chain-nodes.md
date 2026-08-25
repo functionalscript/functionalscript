@@ -233,8 +233,8 @@ a step is not an `exp` ([Purity](#purity)).
   point and keeping only what cannot be cut; "at most one `|.` before the first
   optional step" is the weakest visible consequence, not the rule. The rule is
   in [Open questions](#open-questions), and it bounds the shape: a `lambdas`
-  holds at most one `|?.`, first if at all, so it is one guarded opening
-  followed by unguarded steps.
+  holds at most one `|?.`, first if at all. Further guarded steps are possible
+  only as `|?.()`, each bound to the property step ahead of it.
 
 Together these stop a walker respelling a pure *node* — without them
 `['_', a, [['|.', b]]]` respells `a.b`, and `['_()', a, [['|.', b]], c]`
@@ -262,6 +262,7 @@ validation pass — see [Open questions](#open-questions).
 | `a?.b.c` | `['_', a, [['\|?.', b], ['\|.', c]]]` |
 | `a?.b(...c)` | `['_', a, [['\|?.', b], ['\|()', c]]]` |
 | `a.b?.(...c)` | `['_', a, [['\|.', b], ['\|?.()', c]]]` |
+| `a?.b?.(...c)`, `(a?.b)?.(...c)` | `['_', a, [['\|?.', b], ['\|?.()', c]]]` |
 | `a.b?.(...c).d` | `['_', a, [['\|.', b], ['\|?.()', c], ['\|.', d]]]` |
 | `((a?.b).c)?.(...d)` | `['_', ['?.', a, b], [['\|.', c], ['\|?.()', d]]]` |
 | `(a?.b)(...c)` | `['_()', a, [['\|?.', b]], c]` |
@@ -386,24 +387,25 @@ unguarded step included: `a?.b.c?.d` and `(a?.b.c)?.d` are identical over six
 input kinds. So anything ahead of a `|?.` is cut away into the base, and a
 second one starts a new node.
 
-A `lambdas` is therefore at most **one guarded opening followed by unguarded
-steps** — a region and its unguarded tail. Every walker in
-[Encodings](#encodings) has that shape:
+That bounds `|?.` and nothing else. A `lambdas` may hold further **guarded**
+steps, because `|?.()` is not a cut: it consumes the receiver the property step
+before it supplies, and a cut is an `exp` boundary, which yields a value rather
+than a reference.
 
 ```ts
-['_',   a, [['|?.', b], ['|.', c]]]                    // a?.b.c
-['_',   a, [['|?.', b], ['|()', c]]]                   // a?.b(...c)
-['_()', a, [['|?.', b]], c]                            // (a?.b)(...c)
-['_()', a, [['|?.', b], ['|.', c]], d]                 // (a?.b.c)(...d)
-['_',   a, [['|.', b], ['|?.()', c]]]                  // a.b?.(...c)
-['_',   a, [['|.', b], ['|?.()', c], ['|.', d]]]       // a.b?.(...c).d
+['_', a, [['|?.', b], ['|?.()', c]]]                   // a?.b?.(...c)
 ```
 
-`|?.()` is the only optional step that can sit mid-`lambdas`, and only when a
-property step before it supplies the receiver it consumes — one more face of
-`.()` and `?.()` looking parallel without being so. It also makes the first
-duplicate family above a corollary rather than a case: two `|?.` in one
-`lambdas` can never both survive.
+Cutting that gives `['?.()', ['?.', a, b], c]`, a receiver-less call —
+`a?.b?.()` is `"A"`, `(0, a?.b)?.()` is `"no-this"`. `optionalCallReceiver` in
+[`../proof.f.mjs`](../proof.f.mjs) pins the same shape in the current schema. So
+a `lambdas` is at most one `|?.`, first if at all, plus any `|?.()` each bound
+to the property step ahead of it — `a?.b?.(...c).d?.(...e)` holds two.
+
+`|?.()` is the only optional step that can sit mid-`lambdas`, and only under
+that binding — one more face of `.()` and `?.()` looking parallel without being
+so. The `|?.` bound still makes the first duplicate family above a corollary
+rather than a case: two `|?.` in one `lambdas` can never both survive.
 
 `_()` is the exception at the far end, because its own call is unguarded and
 takes the last step's receiver. A cut inside its `lambdas` is fine, since the
