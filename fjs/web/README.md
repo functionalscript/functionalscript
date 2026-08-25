@@ -76,7 +76,7 @@ relative. That is also why the path is built with `join` rather than `concat`.
 |---|---|
 | file found | `200` with its bytes |
 | `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path | `404` |
-| any other method | `405` |
+| any other method | `405`, with `Allow: GET, HEAD` |
 | a path that escapes `root`, or an undecodable URL | `400` |
 | a file larger than one `Vec` | `413` |
 | any other host failure | `500` |

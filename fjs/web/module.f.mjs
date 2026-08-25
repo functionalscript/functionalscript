@@ -15,7 +15,7 @@
  * |-----------------------------------------------|--------|
  * | file found                                     | `200`  |
  * | `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path | `404` |
- * | any other method                               | `405`  |
+ * | any other method                               | `405` with `Allow` |
  * | a path that escapes `root`, or an undecodable URL | `400`  |
  * | a file larger than one `Vec`                   | `413`  |
  * | any other host failure                         | `500`  |
@@ -240,6 +240,24 @@ const response = status => contentType => body => ({
 const plainText = status => message =>
     response(status)('text/plain; charset=utf-8')(utf8(`${message}\n`))
 
+/** The methods this server answers.
+ *
+ * @type {string}
+ */
+const allow = 'GET, HEAD'
+
+/**
+ * `405`, carrying the `Allow` header the status may not omit: a refusal that
+ * does not say what *would* be accepted leaves the client to guess, which is
+ * why RFC 9110 requires an origin server to list them here.
+ *
+ * @type {() => ServerResponse}
+ */
+const methodNotAllowed = () => {
+    const answer = plainText(405)('only GET and HEAD are supported')
+    return { ...answer, headers: { ...answer.headers, allow } }
+}
+
 /**
  * Reads `path`, but only once `stat` has said it is a regular file that fits in
  * one `Vec`.
@@ -293,9 +311,7 @@ const fileResponse = path => r => {
  * @type {Respond}
  */
 export const respond = root => ({ method, url }) => {
-    if (method !== 'GET' && method !== 'HEAD') {
-        return pureOk(plainText(405)('only GET and HEAD are supported'))
-    }
+    if (method !== 'GET' && method !== 'HEAD') { return pureOk(methodNotAllowed()) }
     const resolved = resolve(root)(url)
     if (resolved[0] === 'error') {
         const { status, message } = resolved[1]

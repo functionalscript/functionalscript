@@ -151,6 +151,9 @@ export const proof = {
             const r = answerSite('POST', '/')
             assertEq(r.status, 405)
             assertEq(body(r), 'only GET and HEAD are supported\n')
+            // A refusal that does not say what would be accepted leaves the
+            // client to guess; RFC 9110 requires the list.
+            assertEq(`${r.headers['allow']}`, 'GET, HEAD')
         },
         traversal: () => {
             const r = answerSite('GET', '/../secret')
