@@ -417,6 +417,17 @@ export const proof = {
         assert(result[0] === 'ok', result)
         assertEq(result[1].isFile, false)
     },
+    statOnEmptyPath: () => {
+        // An empty path is not the root, though `parse` collapses both to no
+        // segments at all. A host answers `ENOENT`, so this does.
+        const [, result] = virtual(emptyState)(stat(''))
+        assert(result[0] === 'error', result)
+        assertIoCode(result[1], 'ENOENT')
+        // `.` *is* the root, and stats as the directory it is.
+        const [, root] = virtual(emptyState)(stat('.'))
+        assert(root[0] === 'ok', root)
+        assertEq(root[1].isFile, false)
+    },
     statOnJsModule: () => {
         // A `JsModule` entry is this file system's non-regular name: it exists
         // and stats fine, and says it is not a file — the shape a host reports

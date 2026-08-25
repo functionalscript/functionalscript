@@ -376,7 +376,7 @@ const writeBytesOp = (path, offset, data) => operation(writeBytesRawOp(offset, d
  *
  * @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]}
  */
-const statOp = readOperation((dir, path) => {
+const statPath = readOperation((dir, path) => {
     if (path.length === 0) { return notRegular }
     if (path.length !== 1) { return enoent }
     const file = dir[path[0]]
@@ -384,6 +384,16 @@ const statOp = readOperation((dir, path) => {
     if (!Array.isArray(file)) { return notRegular }
     return ok({ size: fileSizeBytes(file), isFile: true })
 })
+
+/**
+ * An empty path names nothing, and `parse` cannot say so: it collapses to the
+ * same empty segment list `.` does, and `.` is the root. A host answers `ENOENT`
+ * for `stat('')`, so this asks the question `parse` has already thrown away —
+ * before the answer can depend on it.
+ *
+ * @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]}
+ */
+const statOp = path => path === '' ? state => [state, enoent] : statPath(path)
 
 // ── HTTP ──────────────────────────────────────────────────────────────────────
 //
