@@ -125,6 +125,30 @@ step reads. A second benefit falls out — the tag says which kind of node it is
 before any operand is read, which the two-node form
 (see [Alternatives](#alternatives-considered)) gave up.
 
+### Reading the tags
+
+The glyphs are a vocabulary, not four arbitrary names: `.` is a chain, `?` marks
+that it can short-circuit, `()` is a call. The order within a tag is the order
+of evaluation, with `.` standing where the `lambdas` runs.
+
+| tag | reads as |
+| --- | --- |
+| `.` | one chain step |
+| `()` | a call, no chain |
+| `?.` | a chain that can short-circuit; its value is the walk's |
+| `.()` | a chain, **then** a call |
+
+The missing fourth combination is meaningful. `?.()` would read "optional chain,
+then call", which does not name one node: whether the call falls inside or
+outside the region is exactly what `a?.b(...c)` and `(a?.b)(...c)` differ on, and
+the scheme puts that in *which node owns the call* rather than in a modifier. So
+the tag is absent instead of ambiguous.
+
+This also bears on whether step ids keep a prefix. The glyphs are meant to rhyme
+across the two levels — `['?.', b]` in a `lambdas` and `['?.', a, L]` as a node
+say the same thing about the same operation — and a prefix would break the
+rhyme to solve a problem validation does not have.
+
 ### Conditions
 
 - At most one `.` before the first optional step — minimality. `a.b.c` therefore
@@ -251,8 +275,9 @@ an array-literal node in a property position.
 
 ## Tasks
 
-- [ ] Decide whether step ids keep the `|` prefix, given each name is now both a
-      node tag and a step id.
+- [ ] Decide whether step ids keep the `|` prefix — [Reading the
+      tags](#reading-the-tags) argues against, since the glyphs are meant to
+      rhyme across both levels.
 - [ ] Confirm `()` gives up the `lambdas` it has today — "w/o HCF" implies it,
       since a `lambdas` is where HCF lives.
 - [ ] Decide the two leading-`.` refinements, then state the conditions in one
