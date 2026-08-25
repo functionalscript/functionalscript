@@ -473,12 +473,14 @@ skips both. So the fourth row is unbounded and belongs to a walker, but rows two
 and three are as fixed as `.()` is — base, index, arguments — and giving them
 tags would take two more shapes out of the walkers.
 
-Not decided. It is the same trade the file already names: every pure node added
-buys sharing and costs one more spelling the walkers must be forbidden to
-duplicate. Recorded here so the partition is honest about the choice rather than
-appearing to have no alternative. Distinct from the
-[superseded `.?.()`](#alternatives-considered), which carried a trailing
-`lambdas`; these would carry none.
+**Decided: the seven kinds stand.** It is the trade the file already names —
+every pure node added buys sharing and costs one more spelling the walkers must
+be forbidden to duplicate — and the node set staying small wins it, along with
+`lambdas` keeping one meaning: an optional region. Recorded so the partition is
+honest that this is a choice rather than a necessity, and so the two shapes are
+already enumerated if sharing ever makes the trade worth revisiting. Distinct
+from the [superseded `.?.()`](#alternatives-considered), which carried a
+trailing `lambdas`; these would carry none, with `a.b?.(...c).d` still a walker.
 
 **`.()` and `?.()` look parallel and are not.** `.()` is property-plus-call;
 `?.()` is an optional call of a value, with no property. Following JS is right,
