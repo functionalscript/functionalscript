@@ -131,7 +131,7 @@ already covers the pop side.
 The individual helpers are readable as they stand, so this is a cleanup, not a
 correctness fix — hence not high priority. It is worth doing when either parser
 is next touched, and it is a natural prerequisite for
-[i157-json-djs-shared-core](todo.md): that issue wants to
+[i157-json-djs-shared-core](./157.md): that issue wants to
 *share one value-machine across json and djs*, and the cleaner the per-module
 start/end building blocks are first, the smaller the surface that shared core has
 to absorb. The two efforts are complementary, not overlapping — 157 removes
@@ -153,8 +153,8 @@ one and can land independently of 157.
 
 ### Related
 
-- [i157-json-djs-shared-core](todo.md) — the larger effort
+- [i157-json-djs-shared-core](./157.md) — the larger effort
   to share one value-machine across json and djs; this issue tidies the per-module
   start/end helpers it would build on.
-- [i165-layered-parser](../bnf/todo.md) — adjacent parser-architecture
+- [i165-layered-parser](../../bnf/todo/layered-parser.md) — adjacent parser-architecture
   cleanup.

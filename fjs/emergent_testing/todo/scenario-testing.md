@@ -6,7 +6,7 @@
 A scenario is an extended unit test: a declarative description of an initial system state, an effect to run, and an expected result. The same scenario can be executed in two ways:
 
 1. **As a unit test** — a mock effect interpreter runs the effect against a pure in-memory initial state. No real files, network, or processes. Fast, portable, runs anywhere.
-2. **As an integration test** — the initial state is materialised on a real machine, the actual command is executed, and the result is checked. This is what CI integration jobs do (see [669-ci-integration-tests.md](669-ci-integration-tests.md)).
+2. **As an integration test** — the initial state is materialised on a real machine, the actual command is executed, and the result is checked. This is what CI integration jobs do (see [ci-integration-tests](../../ci/todo/ci-integration-tests.md)).
 
 ### Design
 
@@ -40,7 +40,7 @@ Existing proof tests that use the virtual filesystem interpreter are already imp
 
 ### Plan
 
-- [ ] Define the `Scenario` type and `InitialState` effect in `fjs/testing/scenario/module.f.mjs`.
+- [ ] Define the `Scenario` type and `InitialState` effect in `fjs/emergent_testing/scenario/module.f.mjs`.
 - [ ] Implement a mock interpreter for the scenario effect system.
 - [ ] Integrate scenarios with the existing unit test runner (`node --test`).
-- [ ] Define how CI integration jobs consume scenario modules (see [669-ci-integration-tests.md](669-ci-integration-tests.md)).
+- [ ] Define how CI integration jobs consume scenario modules (see [ci-integration-tests](../../ci/todo/ci-integration-tests.md)).

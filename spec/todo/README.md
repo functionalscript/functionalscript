@@ -100,7 +100,8 @@ see [serialization](./serialization.md).
    - `Bun` supports TypeScript,
    - most browsers don't support the feature.
 2. [ ] [Pipe Operator `|>`](https://github.com/tc39/proposal-pipeline-operator), Stage 2.
-3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), Stage 2:
+3. [ ] [Records and Tuples](https://github.com/tc39/proposal-record-tuple), **withdrawn**
+   (the repository was archived in April 2025):
    One problem with such records and tuples is that they can't hold safe, immutable functions. Maybe we need something like `#(a) => a * 2`.
 4. [ ] [Pattern Matching](https://github.com/tc39/proposal-pattern-matching), Stage 1.
 5. [ ] [Safe Assignment Operator](https://github.com/arthurfiorette/proposal-safe-assignment-operator).

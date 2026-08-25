@@ -97,9 +97,10 @@ their own failures extend that channel, for example:
 IoEffect<ReadFile, Vec, NotImplemented | IoError>
 ```
 
-`IoError` does not exist yet — it names the normalized host-error type this
-migration introduces. Today the fallible operations carry bare `unknown`
-(`IoResult`); replacing that is Stage 3 work.
+`IoError` names the normalized host-error type this migration introduced; it
+landed in `fjs/effects/node/types.ts`. When this was written the fallible
+operations still carried bare `unknown` (`IoResult`); replacing that was Stage 3
+work.
 
 `NotImplemented` means the runner cannot dispatch the operation and has not
 started it. The program receives control back and decides what an

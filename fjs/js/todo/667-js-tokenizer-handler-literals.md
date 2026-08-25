@@ -142,9 +142,9 @@ This leaves the genuinely distinct handlers (`"`/`\`/`/` self-insert via
 
 ### Related
 
-- [i157](../djs/todo.md) — shares the value layer above the
+- [i157](../../djs/todo/157.md) — shares the value layer above the
   tokenizer; this issue is purely internal to the JS lexer and independent.
-- [i666-js-tokenizer-position-layer](todo.md) —
+- [i666-js-tokenizer-position-layer](./666-js-tokenizer-position-layer.md) —
   a separate concern (position/metadata), orthogonal to these handler literals.
-- [i174-range-map-lexer](todo.md) — the `rangeFunc`/`create`
+- [i174-range-map-lexer](./174.md) — the `rangeFunc`/`create`
   dispatch machinery these handlers plug into.

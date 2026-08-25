@@ -13,7 +13,7 @@ Most are genuinely Node-shaped I/O — `Fs` (`mkdir`, `readFile`, `readdir`,
 
 | Export | What it actually is |
 |---|---|
-| `All` / `all` / `both` (`types.ts:20`, `module.f.mjs:51-61`) | concurrency; runner infrastructure, no host API |
+| `All` / `all` / `allOk` / `both` (`types.ts:84`, `module.f.mjs:118`, `:163`, `:173`) | concurrency; runner infrastructure, no host API |
 | `Await` / `awaitIfPromise` (`types.ts:237`, `module.f.mjs:295-299`) | host promise interop — every JS runtime |
 | `Sandbox` / `SandboxResult` / `sandbox` (`types.ts:219-228`, `module.f.mjs:292`) | measured, exception-trapping invocation of a plain function |
 | `Now` (`types.ts:207`), `RandomInt` (`types.ts:78`) | ambient values, not filesystem |
@@ -50,7 +50,7 @@ provides*. Proposed destinations:
 
 | Moves to | Contents |
 |---|---|
-| `fjs/effects/all/module.f.mjs` | `All`, `all`, `both`, and `allVoid`/`allReduce` when they land |
+| `fjs/effects/all/module.f.mjs` | `All`, `all`, `allOk`, `both`, and `allVoid`/`allReduce` when they land |
 | `fjs/effects/sandbox/module.f.mjs` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise` — the "run foreign code and observe what happened" pair |
 | `fjs/effects/console/module.f.mjs` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/test/module.f.mjs` | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
@@ -194,7 +194,10 @@ Judgement calls worth deciding explicitly rather than by accident:
 - [ ] Independent of the moves: replace `fjs/media/type`'s `IoResult` import
       with `Result<T, unknown>` from `fjs/types/result`, dropping its
       `effects/node` import. `IoResult` itself does **not** move.
-- [ ] Move `All` / `all` / `both` to `fjs/effects/all/module.f.mjs`.
+- [ ] Move `All` / `all` / `allOk` / `both` to `fjs/effects/all/module.f.mjs`.
+      `allOk` is the ok-channel wrapper over `all` and belongs with it;
+      [allvoid-combinator](./allvoid-combinator.md) builds on it, so leaving it
+      behind would make `effects/all` import from `effects/node`.
 - [ ] Move `Sandbox` / `Await` and helpers to `fjs/effects/sandbox/module.f.mjs`.
 - [ ] Move the console family to `fjs/effects/console/module.f.mjs`, add the
       named `Std` type there as `RequiredMap<WriteConsoles, …>`, point
