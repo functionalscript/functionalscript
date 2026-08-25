@@ -237,10 +237,11 @@ a step is not an `exp` ([Purity](#purity)).
   bind to one. Further guarded steps are possible only as `|?.()`, which can
   open a region or bind to the property step ahead of it.
 
-Together these stop a walker respelling a pure *node* — without them
-`['_', a, [['|.', b]]]` respells `a.b`, and `['_()', a, [['|.', b]], c]`
-respells `a.b(...c)`. They do not stop one respelling a pure *nesting*, which is
-what the four families in [Open questions](#open-questions) are.
+The two cardinality conditions stop a walker respelling a pure *node* — without
+them `['_', a, [['|.', b]]]` respells `a.b`, and `['_()', a, [['|.', b]], c]`
+respells `a.b(...c)`. On their own they do not stop one respelling a pure
+*nesting*, which is what the four families in [Open questions](#open-questions)
+are; minimality is what collapses those, so an implementation needs all three.
 
 With `lambdas` as `array(lambda)`, none of the three is expressible: neither
 `array(T)` nor `or` states cardinality or order. They are lowering rules plus a
