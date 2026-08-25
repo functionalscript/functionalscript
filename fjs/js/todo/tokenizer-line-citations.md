@@ -37,7 +37,7 @@ The drift is large and consistent, so these are not off-by-a-few:
 **`tokenizer-token-tables` has half shipped.** Its §1 says `KeywordToken`
 "spells out 45 keyword kinds" and `keywordEntries` "repeats every one of them"
 as `['catch', { kind: 'catch' }]` rows. Neither is true now: `_KeywordToken`
-(`fjs/js/tokenizer/types.ts:68`) is
+(`fjs/js/tokenizer/types.ts:69`) is
 `{ kind: Exclude<typeof keywords[number], 'true'|'false'|'null'|'undefined'> }`,
 derived from the shared `fjs/js/keywords` list, and `keywordEntries`
 (`module.f.mjs:262`) is `keywords.map(kind => [kind, ({ kind })])`. That is the
