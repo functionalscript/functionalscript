@@ -161,7 +161,26 @@ no node tag and step id share a name.
 
 Together these keep the seven kinds disjoint — without them `['_', a,
 [['|.', b]]]` respells `a.b`, and `['_()', a, [['|.', b]], c]` respells
-`a.b(...c)`. None is expressible in rtti; see [Open questions](#open-questions).
+`a.b(...c)`.
+
+All three are **stateable in the schema**, using `close` (#1687):
+
+```js
+const optional = or(['|?.', index], ['|?.()', exp])
+const dot      = ['|.', index]
+
+// `_`   — an optional step then at least one more, or `|.` then an optional
+or(close([optional, lambda], lambda), close([dot, optional], lambda))
+// `_()` — the same, with no second-step requirement
+or(close([optional], lambda),         close([dot, optional], lambda))
+```
+
+`close(c, rest)` is "the members `c` declares, plus any number belonging to
+`rest`", so a closed prefix plus a homogeneous tail states a cardinality *lower
+bound* and pins the leading positions at once. Checked with `validate`: every
+legal `lambdas` in [Encodings](#encodings) passes and every illegal one is
+rejected — `[|.b]`, `[|.b, |.c]`, `[|.b, |()c, |?.d]` and the empty array all
+fail both, and `[|?.b]` fails `_` while passing `_()`.
 
 ### Encodings
 
@@ -219,35 +238,31 @@ legitimacy criterion:
 
 ## Open questions
 
-**The cardinality conditions admit two families of duplicates.** "At least one
-optional step" tests for an optional operator's *presence*, where what justifies
-a walker is whether the region has work to do:
+**One duplicate survives the schema.** A chain of only guarded steps needs no
+region at all, because each `?.` node's own guard already handles its own input:
 
 ```ts
-['_', a, [['|?.', b], ['|?.', c]]]              // a?.b?.c      — also ['?.', ['?.', a, b], c]
-['_', a, [['|.', b], ['|()', c], ['|?.', d]]]   // a.b(...c)?.d — also ['?.', ['.()', a, b, c], d]
+['_', a, [['|?.', b], ['|?.', c]]]   // a?.b?.c — also ['?.', ['?.', a, b], c]
 ```
 
-Both satisfy the stated conditions and both duplicate a pure nesting. The first
-is equivalent by the parenthesis law; the second by construction, since the walk
-is left to right and each step is the same operation. Replacing the cardinality
-test with two rules covers both:
+The two are equivalent by the parenthesis law, and both are legal. The rule that
+would exclude it is stateable — a walker is required exactly when some step
+consumes a receiver from the preceding step, or an unguarded step follows an
+optional one and so must be skipped, and `a?.b?.c` meets neither. Equivalently:
+after the first optional step there must be at least one step that is not
+`|?.`.
 
-- **Whether** a walker is required — some step consumes a receiver from the
-  preceding step, or an unguarded step follows an optional one and so must be
-  skipped.
-- **How much** goes in it — minimality.
+The schema cannot say it, though the *illegal* family can: `close([optional],
+optDot)` is exactly "an optional step, then nothing but `|?.` steps". Excluding
+it needs the complement, and rtti has no negation — the gap
+[`../../types/rtti/todo/excluded-string-values.md`](../../types/rtti/todo/excluded-string-values.md)
+describes. Carving it out positively would need a variable-length run of `|?.`
+in the *middle*, where `close` offers a fixed prefix and a homogeneous tail.
 
-Under those, `a?.b?.c` fails both clauses and lowers to pure nesting, while
-`a.b(...c)?.d` requires a walker only for `a.b(...c)` — which is `.()`, so no
-walker at all. Recommended, not yet decided.
-
-**The schema can state none of the conditions.** rtti offers `array(T)` and `or`
-and nothing else — no cardinality, no order. They become lowering rules plus a
-validation pass, so `validate` accepts graphs the lowering never emits. That is
-the price of maximizing purity: every pure node added is one more spelling the
-walkers must be forbidden to duplicate. Same gap as
-[`../../types/rtti/todo/excluded-string-values.md`](../../types/rtti/todo/excluded-string-values.md).
+Whether to state that rule, or accept one non-canonical pair under ["no normal
+form"](../README.md), is the open question. It is a much smaller one than it was
+before `close`: the other duplicate family, `['_', a, [['|.', b], ['|()', c],
+['|?.', d]]]` for `a.b(...c)?.d`, is now rejected by the schema outright.
 
 **`.()` and `?.()` look parallel and are not.** `.()` is property-plus-call;
 `?.()` is an optional call of a value, with no property. Following JS is right,
@@ -298,8 +313,8 @@ node in a property position.
 
 ## Tasks
 
-- [ ] Decide the conditions: the stated cardinality tests, or whether-plus-
-      minimality. The second removes both duplicate families.
+- [ ] Decide whether to add the content rule that excludes `a?.b?.c` from `_`,
+      or accept it as one non-canonical pair.
 - [ ] Settle whether `_` should say it is optional (`?_`).
 - [ ] Weigh against ["no normal form"](../README.md): this buys canonicality the
       model declines, and moves the truncations into the lowering.
@@ -318,7 +333,7 @@ node in a property position.
 - [`../README.md`](../README.md) — "Chains", the receiver and short-circuit rules
 - [`../../djs/todo/compile-modules-to-edag.md`](../../djs/todo/compile-modules-to-edag.md)
   — the lowering that would have to emit the normal form
-- [`../../types/rtti/todo/excluded-string-values.md`](../../types/rtti/todo/excluded-string-values.md)
-  — the same class of gap in what rtti can express
+- `close` in [`../../types/rtti/module.f.mjs`](../../types/rtti/module.f.mjs)
+  — what makes the conditions stateable rather than conventions
 - [`../../AGENTS.md`](../../AGENTS.md) §1.5 — a throw is a panic, which is why
   "both throw" tempts and why the legitimacy criterion rejects it anyway
