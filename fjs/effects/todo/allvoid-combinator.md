@@ -40,22 +40,32 @@ Add the void sibling in `fjs/effects/node/module.f.mjs`, next to `all` /
 `All` / `both`. It cannot live next to `forEachStep` in the core
 `fjs/effects/module.f.mjs`: `all`/`All` are defined in the node module,
 which already imports the core module — placing `allVoid` in core would
-invert that dependency. (`fjs/emergent_testing` already imports `all` from
+invert that dependency. (`fjs/emergent_testing` already imports `allOk` from
 the node module, so the call sites need no new import path.)
 
-Use the standalone `step` combinator — `all(...)` returns a raw `Effect`, which
-has no `.step` method:
+Build it on `allOk`, not on `all`. `all` answers `readonly Result<T, E>[]` —
+the children's failures arrive *inside* its value — so discarding that value
+discards them, and a fan-out whose children all failed would report success.
+That is the value-discarding hazard `allOk`'s own doc comment names: it
+collapses the list to `readonly T[]` and lifts the first failure into the
+effect's error channel, where `step`/`mapStep` propagate it. The three call
+sites already spell it that way.
+
+`mapStep` is the projection combinator and has landed in
+`fjs/effects/module.f.mjs`, so this is one line:
 
 ```ts
 export const allVoid =
-    <O extends Operation, T>(f: (item: T) => Effect<O, void>) =>
-    (items: readonly T[]): Effect<O | All, void> =>
-        step(all(...items.map(f)), () => pure(undefined))
+    <O extends Operation, T, E>(f: (item: T) => Effect<O, void, E>) =>
+    (items: readonly T[]): Effect<O | All, void, NotImplemented | E> =>
+        mapStep(allOk(...items.map(f)), () => undefined)
 ```
 
-If [map-step-combinator](./map-step-combinator.md) lands first this is
-`mapStep(all(...items.map(f)), () => undefined)`, which is the same thing said
-once more directly. Either spelling works; neither is a dependency.
+`NotImplemented` in the error channel is the runner's, inherited from `allOk`;
+`E` is the children's. Written with the standalone `step` instead —
+`step(allOk(...items.map(f)), () => pure(undefined))` — it is the same effect
+said less directly; either works. Both must be the standalone combinators:
+`allOk(...)` returns a raw `Effect`, which has no `.step` method.
 
 If `All` is ever lowered out of the node module (it is runner
 infrastructure, not node-specific I/O — a separate design question),
@@ -64,7 +74,7 @@ infrastructure, not node-specific I/O — a separate design question),
 The three call sites become `allVoid(e => registerOne(t, e))(sub)` etc.
 If [allreduce-combinator](./allreduce-combinator.md) lands first, consider
 deriving `allVoid` from `allReduce` with a unit monoid instead of
-duplicating the `all(...map)` core — whichever reads better.
+duplicating the `allOk(...map)` core — whichever reads better.
 
 ### Tasks
 
@@ -72,7 +82,7 @@ duplicating the `all(...map)` core — whichever reads better.
       `All`/`all`/`both` to `fjs/effects/all/module.f.mjs`.
 - [ ] Add `allVoid` there (next to `all`/`both`) with proof coverage — **not**
       to `fjs/effects/node/module.f.mjs`, per the note at the top of this issue.
-- [ ] Convert the three `mapStep(all(...), () => undefined)` call sites in
+- [ ] Convert the three `mapStep(allOk(...), () => undefined)` call sites in
       `fjs/emergent_testing/module.f.mjs`.
 - [ ] Run `npx tsc` and `fjs t`.
 

@@ -40,6 +40,23 @@ as the reporter's thread and is closed when the fix ships.
 Reference issues with an explicit link, not GitHub's `#` prefix. `#NNN` is
 reserved for GitHub pull request and issue numbers.
 
+## Retired `iNNN` identifiers
+
+Older issues cite each other as `i143`, `i167`, `i65X` and so on — identifiers
+from the tracker that preceded these directories, where every module kept a
+single `todo.md`. They are **not** GitHub issue numbers: GitHub #167 is an
+unrelated 2022 pull request, and the file numbering does not line up either
+(`fjs/emergent_testing/todo/028-unit-test-examples-api.md` reports GitHub
+issue 403).
+
+A bare `iNNN` with no link means the identifier has no file left to point at:
+the issue was closed and deleted, as this README requires, and no successor
+document was identified. Where the work is traceable, the citation names what
+it shipped as instead — see `i143` and `i172` in `fjs/bnf/todo/207.md`. When
+you recognize one of the unlinked identifiers, either give it the same
+treatment or delete the reference; do not link it to a same-numbered GitHub
+issue, which will be the wrong one.
+
 ## Blocked by third parties
 
 Issues that cannot progress until an external event occurs (a TC39 proposal lands, a
