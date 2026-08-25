@@ -26,6 +26,7 @@ import { definedEntries, isObject } from '../../../types/object/module.f.mjs'
 import { compose, fn } from '../../../types/function/module.f.mjs'
 import { hexDigitCodePoint, space } from '../../../text/ascii/module.f.mjs'
 import { codePointToEscape } from '../../../js/string_escape/module.f.mjs'
+import { map as nullableMap } from '../../../types/nullable/module.f.mjs'
 
 const jsonStringify = JSON.stringify
 
@@ -42,6 +43,9 @@ const hexDigit = value => fromCharCode(hexDigitCodePoint(value))
 const unicodeEscape = unit =>
     `\\u${hexDigit(unit >> 12 & 0xf)}${hexDigit(unit >> 8 & 0xf)}${hexDigit(unit >> 4 & 0xf)}${hexDigit(unit & 0xf)}`
 
+/** @type {(letter: number) => string} */
+const simpleEscape = letter => `\\${codePointToString(letter)}`
+
 /**
  * Escapes one decoded code point. A code point tagged with `errorMask` is an
  * unpaired surrogate, which well-formed JSON stringification (ES2019) emits as
@@ -50,12 +54,11 @@ const unicodeEscape = unit =>
  *
  * @type {(codePoint: CodePoint) => string}
  */
-const escapeCodePoint = codePoint => {
-    if ((codePoint & errorMask) !== 0) { return unicodeEscape(codePoint & 0xffff) }
-    const letter = codePointToEscape(codePoint)
-    if (letter !== null) { return `\\${codePointToString(letter)}` }
-    return codePoint < space ? unicodeEscape(codePoint) : codePointToString(codePoint)
-}
+const escapeCodePoint = codePoint =>
+    (codePoint & errorMask) !== 0
+        ? unicodeEscape(codePoint & 0xffff)
+        : nullableMap(simpleEscape)(codePointToEscape(codePoint))
+            ?? (codePoint < space ? unicodeEscape(codePoint) : codePointToString(codePoint))
 
 /**
  * Serializes a string as a JSON string literal.
