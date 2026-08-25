@@ -440,38 +440,65 @@ const arraySetSubset = ctx => assumed => (p, q) => {
 const keyed = n => [n, typeof n === 'string' ? `r:${n}` : undefined]
 
 /**
- * The set of values *read* at key `k` from objects of the pattern: the
- * declared set, else — since the key may also be absent, reading
- * `undefined` — the `rest` set plus `undefined`, else anything. A read-set
- * synthesized from a referenced rest keeps that rule's identity (`u:`), so
- * the coinductive memo closes cycles through it.
+ * The set of values the pattern admits at key `k` when the key is **present**:
+ * the declared set, else the `rest`, else anything.
  *
- * @type {(rules: RuleSet) => (pattern: ObjectSet) => (k: string) => _Keyed}
+ * Presence is the whole point of splitting this from {@link objectMayOmit}. An
+ * absent key and a key present holding `undefined` are not the same object, and
+ * the two sides of a pattern read them differently: a *declared* key constrains
+ * the value read at it, so absence reads `undefined` and passes when the set
+ * holds it, whereas an *undeclared* key is checked as an entry, so a present
+ * `undefined` must belong to `rest` itself (see {@link objectSetValidate}).
+ * Folding the two into one "read set" of `rest ∪ undefined` made
+ * `close({ a: option(number) })` a subset of `record(number)`, which admits
+ * `{ a: undefined }` on the left and rejects it on the right.
+ *
+ * @type {(pattern: ObjectSet) => (k: string) => _Keyed}
  */
-const objectReadSet = rules => pattern => k => {
+const objectPresentSet = pattern => k => {
     const n = at(k)(pattern.props)
     if (n !== null) { return keyed(n) }
     const { rest } = pattern
-    return rest === undefined
-        ? [unknown, 't']
-        : [
-            merge(resolve(rules)(rest), { unit: unitBit(undefined) }),
-            typeof rest === 'string' ? `u:${rest}` : undefined,
-        ]
+    return rest === undefined ? [unknown, 't'] : keyed(rest)
+}
+
+/**
+ * Whether the pattern admits an object carrying no `k` at all: an undeclared
+ * key may always be missing, and a declared one exactly when its set holds
+ * `undefined`, since an absent property reads as `undefined`.
+ *
+ * This is the half of the old read-set that the `∪ undefined` stood for, now
+ * asked as its own question — a local unit-bit test, so it needs no memo.
+ *
+ * @type {(rules: RuleSet) => (pattern: ObjectSet) => (k: string) => boolean}
+ */
+const objectMayOmit = rules => pattern => k => {
+    const n = at(k)(pattern.props)
+    return n === null || ((resolve(rules)(n).unit ?? 0) & unitBit(undefined)) !== 0
 }
 
 /** @type {(list: readonly string[]) => readonly string[]} */
 const dedup = list => list.filter((n, i) => list.indexOf(n) === i)
 
-/** @type {(ctx: _Ctx) => (assumed: _Assumed) => (p: ObjectSet, q: ObjectSet) => boolean} */
+/**
+ * Every key either side declares is checked twice — what `p` may hold there
+ * must be something `q` holds there, and `p` may leave it out only where `q`
+ * lets it. Neither question implies the other: the first alone lets `p` admit
+ * an object `q` rejects for a *missing* key, the second alone for a *present*
+ * one.
+ *
+ * @type {(ctx: _Ctx) => (assumed: _Assumed) => (p: ObjectSet, q: ObjectSet) => boolean}
+ */
 const objectSetSubset = ctx => assumed => (p, q) => {
     const le = keyedSubset(ctx)(assumed)
     const keys = dedup([
         ...definedEntries(p.props).map(([k]) => k),
         ...definedEntries(q.props).map(([k]) => k),
     ])
-    return keys.every(k => le(objectReadSet(ctx[0])(p)(k), objectReadSet(ctx[1])(q)(k)))
-        // values at the keys declared by neither side
+    return keys.every(k =>
+            le(objectPresentSet(p)(k), objectPresentSet(q)(k))
+            && (!objectMayOmit(ctx[0])(p)(k) || objectMayOmit(ctx[1])(q)(k)))
+        // values at the keys declared by neither side, which both may omit
         && (q.rest === undefined || nodeSubset(ctx)(assumed)(p.rest ?? unknown, q.rest))
 }
 

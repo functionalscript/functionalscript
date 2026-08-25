@@ -593,6 +593,32 @@ export const proof = {
             assert(!subset(toData(close(tupleNumber)))(toData(close(tupleString))))
             assert(subset(toData(closedNode))(toData(closedNode)))
         },
+        // A key present holding `undefined` and a key absent are two different
+        // objects, and the two sides of a pattern read them differently: a
+        // declared key constrains the value *read* at it, so absence passes
+        // when its set holds `undefined`; an undeclared key is checked as an
+        // *entry*, so a present `undefined` must belong to `rest` itself.
+        //
+        // One "read set" of `rest ∪ undefined` folded the two together, which
+        // stayed sound only because an open struct's `rest` was `unknown` and
+        // failed the trailing rest check. `close` supplies `never` there, so
+        // the fold became reachable and answered `true` for a non-inclusion.
+        presenceIsNotAbsence: () => {
+            const p = toData(close({ a: option(number) }))
+            const q = toData(record(number))
+            assert(!subset(p)(q))
+            // the witness, and the acceptance that makes it one
+            assertEq(validate(p)({ a: undefined })[0], 'ok')
+            assertEq(validate(q)({ a: undefined })[0], 'error')
+            // both halves of the per-key check are load-bearing, and neither
+            // implies the other: this pair agrees on every present value and
+            // differs only on whether the key may be missing
+            assert(!subset(toData(record(number)))(toData(close({ a: number }, number))))
+            assertEq(validate(toData(record(number)))({})[0], 'ok')
+            assertEq(validate(toData(close({ a: number }, number)))({})[0], 'error')
+            // and the open-struct spelling, which was sound before, still is
+            assert(!subset(toData({ a: option(number) }))(toData(record(number))))
+        },
         objects: () => {
             assert(subset(toData({ a: number }))(toData({})))
             assert(subset(toData({ a: 42 }))(toData({ a: number })))
