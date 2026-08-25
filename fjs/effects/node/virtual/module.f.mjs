@@ -504,6 +504,20 @@ const createServer = listener => state => {
  * @type {(server: Server, port: number, host: string) => (state: State) => readonly[State, IoResult<void>]}
  */
 const listen = (server, port, host) => state => {
+    const bound = /** @type {_VirtualServer} */ (asBaseServer(server))
+    const { listener } = bound
+    // Asked **before** the port, because that is the order Node asks in: a
+    // server already listening reports `ERR_SERVER_ALREADY_LISTEN` for `-1`,
+    // `1.5`, `65536` and `NaN` alike — checked on Node 22.22.2, where the same
+    // values on a fresh server all report `ERR_SOCKET_BAD_PORT`. Which of two
+    // true things a failure names is part of what a runner promises, so a
+    // program branching on the code branches the same way here as there.
+    if (state.listening.some(b => b.server === bound)) {
+        return [state, error(ioError({
+            code: 'ERR_SERVER_ALREADY_LISTEN',
+            message: 'Listen method has been called more than once without closing.',
+        }))]
+    }
     if (!isPort(port)) {
         return [state, error(ioError({
             code: 'ERR_SOCKET_BAD_PORT',
@@ -513,8 +527,6 @@ const listen = (server, port, host) => state => {
             message: `options.port should be >= 0 and < 65536. Received type number (${port}).`,
         }))]
     }
-    const bound = /** @type {_VirtualServer} */ (asBaseServer(server))
-    const { listener } = bound
     // Lower-cased because a DNS name is case-insensitive and so is the
     // hexadecimal of an IPv6 literal: `LOCALHOST` and `localhost` are one
     // address, and a host refuses the second bind — checked on Node 22.22.2.
@@ -522,12 +534,6 @@ const listen = (server, port, host) => state => {
     // [address-model](./todo/address-model.md), that equivalence is the same
     // everywhere, so it is safe to model.
     const address = `${host.toLowerCase()}:${port}`
-    if (state.listening.some(b => b.server === bound)) {
-        return [state, error(ioError({
-            code: 'ERR_SERVER_ALREADY_LISTEN',
-            message: 'Listen method has been called more than once without closing.',
-        }))]
-    }
     // Port `0` asks the host for whichever port is free, so two servers that
     // ask both get one — checked on Node: they come back with different ports.
     // Comparing `host:0` to `host:0` would refuse the second, which is the worse

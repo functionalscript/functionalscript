@@ -582,12 +582,23 @@ export const proof = {
         alreadyListening: () => {
             /** @type {RequestListener<never>} */
             const listener = () => pureOk({ status: 200, headers: {}, body: empty })
-            const created = history(createServer(listener))
-            const bound = historyStep(created, server => listen(server, 8080, '127.0.0.1'))
-            const e = step(bound, ([, server]) => listen(server, 9090, '127.0.0.1'))
-            const [, result] = virtual(emptyState)(e)
-            assert(result[0] === 'error', result)
-            assertIoCode(result[1], 'ERR_SERVER_ALREADY_LISTEN')
+            /** @type {(second: number) => IoChannel} */
+            const again = second => {
+                const created = history(createServer(listener))
+                const bound = historyStep(created, server => listen(server, 8080, '127.0.0.1'))
+                const e = step(bound, ([, server]) => listen(server, second, '127.0.0.1'))
+                const [, result] = virtual(emptyState)(e)
+                assert(result[0] === 'error', result)
+                return result[1]
+            }
+            assertIoCode(again(9090), 'ERR_SERVER_ALREADY_LISTEN')
+            // And it is asked before the port is: a server already listening
+            // reports this for a port no server could take, where the same
+            // value on a fresh server is `ERR_SOCKET_BAD_PORT`. That is the
+            // order Node asks in, checked on 22.22.2.
+            assertIoCode(again(-1), 'ERR_SERVER_ALREADY_LISTEN')
+            assertIoCode(again(65536), 'ERR_SERVER_ALREADY_LISTEN')
+            assertIoCode(again(NaN), 'ERR_SERVER_ALREADY_LISTEN')
         },
         // `forever` is the operation this runner cannot answer — its result
         // type leaves it nothing but `notImplemented` to return — so a server
