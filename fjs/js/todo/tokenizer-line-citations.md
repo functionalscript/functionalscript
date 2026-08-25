@@ -32,7 +32,7 @@ The drift is large and consistent, so these are not off-by-a-few:
 |`:479-535`|`operatorEntries`|`:276`|
 |`:912`|`tokenize`|`:712`|
 
-### Two of the five need more than a new number
+### One of the five needs more than a new number
 
 **`tokenizer-token-tables` has half shipped.** Its §1 says `KeywordToken`
 "spells out 45 keyword kinds" and `keywordEntries` "repeats every one of them"
@@ -48,13 +48,16 @@ rows — so the issue is half done, not done. Renumbering it would leave an
 implementer redoing the keyword half and working from its now-wrong ~130-line
 estimate. Both type names also gained a `_` prefix.
 
-**`666-js-tokenizer-position-layer` names a symbol that is gone.**
-It cites a `tokenizeOp` at `:749-750` and `:750`, and `tokenizeOp` appears
-nowhere in `fjs/js/`. Its other two citations were re-derivable and are fixed in
-place — `tokenizeWithPositionOp` at `:697`, `tokenize` at `:712` — but the pure
-core may have been absorbed into the position layer, which would change that
-issue's premise rather than its numbers. It carries a note saying so; re-read
-the module before acting on it.
+**`666-js-tokenizer-position-layer` was written against a symbol that is gone,
+and is repaired.** All three of its citations are fixed —
+`tokenizeWithPositionOp` at `:697`, `tokenize` at `:712` — and the third turned
+out to be answerable rather than open: `tokenizeOp` is absent because its
+dispatch was **inlined** into `tokenizeWithPositionOp`, whose `:698-703` are
+that operator's two branches verbatim (`input == null` → `tokenizeEofOp`,
+otherwise → `tokenizeCharCodeOp`). That inverts the issue's premise — it opens
+by saying the module *already* factors cleanly — without weakening its point,
+so the issue now argues from the fusion and adds re-extracting the dispatch as
+its first task. Nothing outstanding there.
 
 Affected files, all in `fjs/js/todo/`:
 
@@ -81,10 +84,8 @@ guessing an offset. Where a citation points *inside* a function rather than at
 its definition (`parseStringStateOp` default arm, `terminalToToken` both arms),
 read the current body and cite the line the prose actually means.
 
-The two issues above need more than a line fix and should be treated
-separately: rewrite `tokenizer-token-tables` around the operator half that
-remains, and re-read `666-js-tokenizer-position-layer` against the current
-module.
+`tokenizer-token-tables` needs more than a line fix and should be treated
+separately: rewrite it around the operator half that remains.
 
 ### The wider blind spot
 
@@ -106,8 +107,6 @@ against naming the symbol — is a separate question.
 - [ ] Rewrite `tokenizer-token-tables` around its operator half; the keyword
       half has shipped, so its §1, its `~130 lines` estimate and its two type
       names all need redoing rather than renumbering.
-- [ ] Re-read `666-js-tokenizer-position-layer` against the current module and
-      decide what `tokenizeOp` became before repairing its citations.
 - [ ] Confirm no remaining citation in `fjs/js/todo/` exceeds the length of the
       file it names.
 
