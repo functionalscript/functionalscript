@@ -103,6 +103,36 @@ The last row still depends on `(a?.b)?.(...c)` ≡ `a?.b?.(...c)`, but only for
 *expressibility*: if that equivalence were wrong the spelling would become
 unwritable, not silently wrong.
 
+## Alternative shape: extend `.`
+
+Instead of a second tag, give `.` a continuation — `['.', exp, index, lambdas]`
+— so the receiver its own step creates is consumed by a step in its own walk:
+
+```js
+a.b?.(...c)        ['.', a, 'b', [['|?.()', c]]]
+a.b?.(...c).d      ['.', a, 'b', [['|?.()', c], ['|.', 'd']]]
+a.b(...c)          ['.', a, 'b', [['|()', c]]]
+```
+
+Containment holds the same way, and one `lambdas` carries both the call and its
+continuation, where `.?.()` needs two operands for that. It adds no tag, and it
+makes `.` and `?.` the *same shape* — the property pair differing only in the
+guard.
+
+Against it: today `a.b.c.d` has exactly one spelling, nested `.` nodes. Under
+this shape every split point between nesting and `|.` steps is a valid graph, so
+plain property paths go from a unique form to a combinatorial one — a different
+order of cost from the spelling multiplicity ["no normal
+form"](../README.md) already accepts, and it lands on the most common construct
+in any program. `.` also grows from two operands to three, paid by every
+property access in every graph (rtti tuples reject *missing* operands, so the
+empty array is explicit), and its value can become `undefined` from a
+short-circuit inside its own chain, so it stops being simply a property read.
+
+Weigh against [`../../AGENTS.md`](../../AGENTS.md): "put details and edge cases
+at the leaves, not in the main flow". Whether `.` is the main flow or a leaf
+here is the question the choice turns on.
+
 ## Why `()` keeps its `lambdas`
 
 `()` is the only **unguarded** consumer of a receiver, so a leading optional
@@ -149,7 +179,8 @@ schema change.
 
 ## Tasks
 
-- [ ] Decide the second tag's name. `.?.()` concatenates two operators, where
+- [ ] Choose between the two shapes: a second tag, or extending `.`. If the
+      second tag, decide its name — `.?.()` concatenates two operators, where
       every existing tag is one; `?.` already carries an own property step
       without announcing it.
 - [ ] Weigh against ["no normal form"](../README.md): this buys canonicality the
