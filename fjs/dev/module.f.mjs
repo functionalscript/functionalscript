@@ -131,6 +131,7 @@ export const proof = {
         // still skipped.
         /** @type {Dir} */
         const root = {
+            '.hidden.f.ts': [],
             'a.f.ts': [],
             'b.f.mjs': [],
             'c.f.mts': [],
