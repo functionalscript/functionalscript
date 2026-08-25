@@ -406,6 +406,19 @@ const statOp = path => path === '' ? state => [state, enoent] : statPath(path)
 // here; see the note on {@link virtual} below.
 
 /**
+ * Whether `port` is one a host would accept: an integer in `0`–`65535`, where
+ * `0` asks for an ephemeral one. Node throws `ERR_SOCKET_BAD_PORT` for anything
+ * else, and a runner that accepted `-1` or `NaN` would let a program be proven
+ * that cannot run.
+ *
+ * @type {(port: number) => boolean}
+ */
+const isPort = port => Number.isInteger(port) && port >= 0 && port <= maxPort
+
+/** @type {number} */
+const maxPort = 0xffff
+
+/**
  * The handle **is** the listener.
  *
  * `Server` is a nominal over `unknown`, so what a runner keeps inside one is its
@@ -438,9 +451,10 @@ const createServer = listener => state => {
  * turn, threading the state through each and recording what came back. The
  * queue is emptied, so a second `listen` does not re-deliver.
  *
- * **Binding can fail here, because it can fail on a host.** An address already
+ * **Binding can fail here, because it can fail on a host.** A port outside
+ * `0`–`65535` or not an integer is `ERR_SOCKET_BAD_PORT`, an address already
  * taken is `EADDRINUSE`, and a server asked to listen twice is
- * `ERR_SERVER_ALREADY_LISTEN` — the two failures Node reports, in the shape it
+ * `ERR_SERVER_ALREADY_LISTEN` — the three failures Node reports, in the shape it
  * reports them. `Listen` became fallible precisely to carry them, and a runner
  * that always succeeded would make a program that mishandles either look
  * correct.
@@ -466,6 +480,12 @@ const createServer = listener => state => {
  * @type {(server: Server, port: number, host: string) => (state: State) => readonly[State, IoResult<void>]}
  */
 const listen = (server, port, host) => state => {
+    if (!isPort(port)) {
+        return [state, error(ioError({
+            code: 'ERR_SOCKET_BAD_PORT',
+            message: `options.port should be >= 0 and < 65536. Received ${port}.`,
+        }))]
+    }
     const bound = /** @type {_VirtualServer} */ (asBaseServer(server))
     const { listener } = bound
     const address = `${host}:${port}`

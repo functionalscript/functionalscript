@@ -493,6 +493,24 @@ export const proof = {
             assert(result[0] === 'ok', result)
             assertEq(utf8ToString(s.responses[0].body), 'a')
         },
+        // A port a host would refuse is refused here, or a program that cannot
+        // run anywhere could still be proven.
+        badPort: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            /** @type {(port: number) => void} */
+            const rejects = port => {
+                const e = step(createServer(listener), server => listen(server, port, '127.0.0.1'))
+                const [s, result] = virtual(emptyState)(e)
+                assert(result[0] === 'error', result)
+                assertIoCode(result[1], 'ERR_SOCKET_BAD_PORT')
+                assertEq(s.listening.length, 0)
+            }
+            rejects(-1)
+            rejects(1.5)
+            rejects(65536)
+            rejects(NaN)
+        },
         // Binding fails here the way it fails on a host, which is the whole
         // point of `Listen` being fallible: a program that mishandles either
         // failure must not look correct against this runner.
