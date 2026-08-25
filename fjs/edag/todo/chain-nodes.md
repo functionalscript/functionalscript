@@ -78,6 +78,28 @@ short-circuit is complete within the node, because nothing follows it to skip.
 So the five pure nodes are exactly the expressions whose HCF lifetime, if any,
 is complete, and the walkers are for lifetimes that span a region.
 
+### The rows are independent
+
+A language subset with no optional operators needs only the top row:
+
+```ts
+type Dot     = readonly['.',   Exp, Index]
+type Call    = readonly['()',  Exp, Exp]
+type DotCall = readonly['.()', Exp, Index, Exp]
+```
+
+`Lambda`, `Lambdas`, and both walkers drop out entirely, and the subset still
+expresses every non-optional chain — receivers included — because `.()` is the
+only non-optional form carrying HCF and it holds its receiver in operands.
+
+No other shape considered here has that property, **today's schema included**:
+each spells `a.b(...c)` with a `lambdas`, so a non-optional subset would carry
+the whole step vocabulary to express a method call. That makes this schema
+stageable — the optional row can land later without reworking the first, which
+matters for
+[`../../djs/todo/compile-modules-to-edag.md`](../../djs/todo/compile-modules-to-edag.md),
+where lowering is staged work.
+
 ## Three laws
 
 **Parenthesis law.** Closing an optional region is observable exactly when the
@@ -281,7 +303,7 @@ with `a.b(...c)` written `['.()', a, [['|.', b]], c]`. Superseded by
 expression carrying HCF, so it deserves operands rather than a walk. Giving it a
 pure node also makes a `lambdas` mean exactly "an optional region", which the
 four-node split could not say — its call walker admitted chains with no optional
-step at all.
+step at all — and it is what lets [the rows separate](#the-rows-are-independent).
 
 **Two nodes — `['.', Exp, Lambdas]` and `['()', Exp, Lambdas, Exp]`.**
 Superseded on [purity](#purity): every property access goes through a `lambdas`,
