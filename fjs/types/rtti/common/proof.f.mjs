@@ -3,9 +3,9 @@
  * @import { ValidationError } from './types.ts'
  */
 
-import { eachEntry } from './module.f.mjs'
+import { eachEntry, undeclaredEntries } from './module.f.mjs'
 import { error, ok } from '../../result/module.f.mjs'
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 
 /** @typedef {ReadonlyArray<readonly [string, number]>} _Entries */
 
@@ -53,6 +53,24 @@ export const proof = {
         const r = eachEntry([['a', -1], ['b', -2], ['c', -3]], counting, [], collect)
         assert(r[0] === 'error')
         assertEq(calls, 1)
+    },
+    // The other half of a closed container's loop. One filter answers both
+    // kinds: a struct's undeclared keys, and — a tuple's declared keys being
+    // the canonical spellings of its positions — an array's positions past the
+    // prefix together with the keys that are no position at all.
+    undeclared: {
+        struct: () => {
+            const r = undeclaredEntries(['a'], { a: 1, b: 2 })
+            assertStructurallySame(r, [['b', 2]])
+        },
+        tuple: () => {
+            const r = undeclaredEntries(['0'], Object.assign([1, 2], { foo: 3, '01': 4 }))
+            assertStructurallySame(r, [['1', 2], ['foo', 3], ['01', 4]])
+        },
+        none: () => assertEq(undeclaredEntries(['a'], { a: 1 }).length, 0),
+        // A hole is no entry, which is why the array kind also answers with its
+        // length — see `fits` in `../parse/module.f.mjs`.
+        holeIsNotAnEntry: () => assertEq(undeclaredEntries(['0'], [1, , 3]).length, 1),
     },
     pathPrefixed: () => {
         /** @type {(k: string, v: number) => Result<number, ValidationError>} */

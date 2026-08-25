@@ -173,7 +173,9 @@ and is what `chainsJs` pins for this boundary.
 - Tuples are open on the trailing side: `['args', 'extra']` validates.
   Deliberate in RTTI
   ([Structs and tuples are open](../types/rtti/README.md#structs-and-tuples-are-open));
-  exact arity is future work ([close-type.md](../types/rtti/todo/close-type.md)).
+  stating exact arity is now spellable
+  ([Closed containers](../types/rtti/README.md#closed-containers)) but not yet
+  applied to these nodes.
   The static types render the closed approximation — TypeScript cannot carry
   the open tuple mapping generically (`TupleTs` in
   [ts/types.ts](../types/rtti/ts/types.ts)) — so that same runtime-valid

@@ -5,7 +5,7 @@
  */
 
 import type { Primitive, Unknown } from '../ts/types.ts'
-import type { Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
+import type { ConstObject, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
 import type { Result as CommonResult } from '../../result/types.ts'
 import type { Ts } from '../ts/types.ts'
 import type { StringMap } from '../../object/types.ts'
@@ -32,6 +32,11 @@ export type Validate<T extends Type> = (value: Unknown) => Result<T>
 export type Visitor<R> = {
     readonly tuple: (rtti: Tuple) => R
     readonly struct: (rtti: Struct) => R
+    /**
+     * A closed container: the declared members of `rtti`, plus — when `rest`
+     * is not `undefined` — any number of members belonging to it.
+     */
+    readonly close: (rtti: ConstObject, rest: Type | undefined) => R
     readonly array: (item: Type) => R
     readonly record: (item: Type) => R
     readonly or: (variants: readonly Type[]) => R

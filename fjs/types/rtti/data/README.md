@@ -173,7 +173,21 @@ than silently.
 
 That leaves `{ prefix }`, with no `rest`, as the *exact-length* set: nothing
 past the prefix, so the array is at most `prefix.length` long — and at least
-as long as its last position excluding `undefined`. No thunk-form schema
-spells it in general today (`array(never)` reaches only the empty array); the
-planned `close` form is what will — see
-[`../todo/close-type.md`](../todo/close-type.md).
+as long as its last position excluding `undefined`. `close` is the thunk-form
+schema that spells it: `close(c)` converts to a `rest` of `never`, which
+normalizes to no `rest` at all on this kind, and `close(c, R)` to that `R`.
+See [Closed containers](../README.md#closed-containers).
+
+That is also where the object kind's normalization has an ordering to respect.
+A declared key whose set is the whole value domain is dropped — but only once
+the `rest` is gone, since an undeclared key may be absent or else must belong to
+`rest`, which leaves it unconstrained exactly when there is no `rest`. With one
+present, `{ props: { a: unknown }, rest: never }` (objects with at most the key
+`a`) and `{ props: {}, rest: never }` (the empty object) are two different sets.
+
+Note the asymmetry that phrasing preserves: a *declared* key constrains the
+value **read** at it, so an absent one reads `undefined` and is admitted when
+the declared set holds `undefined`. An *undeclared* key is checked as an
+**entry**, so a present `b: undefined` must satisfy `rest` itself rather than
+being excused by its absence — `{ props: { a: number }, rest: string }` rejects
+`{ a: 1, b: undefined }` and accepts `{ a: 1 }`.
