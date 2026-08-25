@@ -106,10 +106,11 @@ const io = async f => {
  * — `result = [...result, a]`, the shape the rest of this repository is written
  * in — copies every chunk received so far on every chunk received, which is
  * quadratic in the *number* of chunks. The byte cap does not bound that: 20,000
- * one-byte chunks are 20 KB and 200 million copies, and measured 16 seconds of
- * event loop, during which this process answers nobody. A cap on payload size
- * is not a cap on chunk count, and a request that will be refused must not cost
- * more than one that is served. The array never leaves this function before it
+ * one-byte chunks are 20 KB and 200 million copies, and took 2,794 ms of event
+ * loop to reach an answer the server had already decided on — 167 ms now, and
+ * the growth went from ×4 per doubling to ×2. A cap on payload size is not a cap
+ * on chunk count, and a request that will be refused must not cost more than one
+ * that is served. The array never leaves this function before it
  * is finished, so nothing observes the mutation — which is the condition under
  * which the impure shell is allowed to be impure.
  *

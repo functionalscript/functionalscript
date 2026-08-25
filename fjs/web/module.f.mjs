@@ -83,11 +83,36 @@ const utf8String = bytes => {
 }
 
 /**
+ * Whether `part` — a piece of a target split on `%` — opens with two hexadecimal
+ * digits, which is what makes it an escape rather than a mistake.
+ *
+ * @type {(part: string) => boolean}
+ */
+const isEscape = part =>
+    part.length >= 2 && hexDigit(part.charAt(0)) >= 0 && hexDigit(part.charAt(1)) >= 0
+
+/**
+ * The bytes one escape contributes: the byte it names, then whatever plain text
+ * followed it. Total, because {@link isEscape} has already vouched for the part.
+ *
+ * @type {(part: string) => readonly number[]}
+ */
+const escapeBytes = part =>
+    [hexDigit(part.charAt(0)) * 16 + hexDigit(part.charAt(1)), ...utf8Bytes(part.slice(2))]
+
+/**
  * Percent-decodes `s`: each `%XX` becomes the byte it names, every other
  * character contributes its own UTF-8 bytes, and the whole byte sequence is
  * then read back as UTF-8 — so `%D0%9F` is one letter rather than two mangled
  * ones. Decoding per escape could not do that: a multi-byte character arrives
  * as several escapes, and no one of them is a character on its own.
+ *
+ * Validating every escape *before* decoding any is what keeps this linear.
+ * Growing one byte array per escape — `[...bytes, byte, ...rest]` — copies
+ * everything decoded so far on every escape, which is quadratic in the number of
+ * escapes: a 15 KB target of 5,000 escapes fits under Node's header limit and
+ * cost about 140 ms of event loop, per request, to reach whatever answer it was
+ * always going to get. Two linear passes cost one.
  *
  * `null` when an escape is not two hexadecimal digits, or when the bytes they
  * spell are not valid UTF-8.
@@ -96,15 +121,8 @@ const utf8String = bytes => {
  */
 const percentDecode = s => {
     const [literal, ...escaped] = s.split('%')
-    let bytes = utf8Bytes(literal)
-    for (const part of escaped) {
-        if (part.length < 2) { return null }
-        const high = hexDigit(part.charAt(0))
-        const low = hexDigit(part.charAt(1))
-        if (high < 0 || low < 0) { return null }
-        bytes = [...bytes, high * 16 + low, ...utf8Bytes(part.slice(2))]
-    }
-    return utf8String(bytes)
+    if (!escaped.every(isEscape)) { return null }
+    return utf8String([...utf8Bytes(literal), ...escaped.flatMap(escapeBytes)])
 }
 
 /**
@@ -118,6 +136,12 @@ const percentDecode = s => {
  */
 
 const schemeMark = '://'
+
+/** The schemes an absolute-form target may name.
+ *
+ * @type {readonly string[]}
+ */
+const schemes = ['http', 'https']
 
 /** What separates a credential from the host it was offered to.
  *
@@ -151,7 +175,11 @@ const parseTarget = target => {
     const [withoutQuery] = beforeFragment.split('?')
     if (withoutQuery.startsWith('/')) { return { authority: null, path: withoutQuery } }
     const mark = withoutQuery.indexOf(schemeMark)
-    if (mark < 0) { return null }
+    // A scheme is not "whatever precedes `://`": `://localhost/x` and
+    // `1://localhost/x` are malformed targets, and reading them as absolute-form
+    // served the file for a request that names no scheme at all. This server
+    // speaks two, so it accepts two.
+    if (mark < 0 || !schemes.includes(withoutQuery.slice(0, mark).toLowerCase())) { return null }
     const afterScheme = withoutQuery.slice(mark + schemeMark.length)
     const slash = afterScheme.indexOf('/')
     const authority = slash < 0 ? afterScheme : afterScheme.slice(0, slash)
@@ -307,9 +335,10 @@ const allow = 'GET, HEAD'
 const servedHosts = ['localhost', '127.0.0.1', '[::1]']
 
 /**
- * The name part of a `Host` header, without its port and in lower case — a host
- * name is case-insensitive, so `LOCALHOST` names the same machine `localhost`
- * does and must not be refused for its spelling.
+ * The name part of a `Host` header, without its port, in lower case and without a
+ * trailing root dot — a host name is case-insensitive and `localhost.` is
+ * `localhost`, so neither spelling names a different machine or may be refused
+ * for how it is written.
  *
  * An IPv6 literal is bracketed, and its brackets are part of the name; a missing
  * `]` leaves an empty name, which no entry matches.
@@ -320,7 +349,10 @@ const hostName = host => {
     const lower = host.toLowerCase()
     if (lower.startsWith('[')) { return lower.slice(0, lower.indexOf(']') + 1) }
     const [name] = lower.split(':')
-    return name
+    // `localhost.` is `localhost`: a trailing dot names the DNS root explicitly,
+    // and a browser that sends the fully qualified form is not naming a
+    // different machine.
+    return name.endsWith('.') ? name.slice(0, -1) : name
 }
 
 /**

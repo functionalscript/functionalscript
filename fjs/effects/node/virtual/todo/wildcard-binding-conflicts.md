@@ -6,11 +6,15 @@
 ### Problem
 
 The virtual `listen` refuses a second bind when the address string already
-appears in `State.listening`. A host's rule is wider: a wildcard socket owns the
-port for its whole family, so `0.0.0.0:8080` and then `127.0.0.1:8080` is
-`EADDRINUSE` on Linux and the BSDs, while this runner allows it. Reported on
-[#1693](https://github.com/functionalscript/functionalscript/pull/1693), where it
-was measured on Linux with Node 22.
+appears in `State.listening`. A host's rule can be wider: a wildcard socket may
+own the port for its whole family, so `0.0.0.0:8080` and then `127.0.0.1:8080`
+is `EADDRINUSE` on Linux with Node 22, while this runner allows it.
+
+**How much wider is a platform question, and the two measurements taken so far
+disagree.** The same pair is *allowed* on Darwin with Node 24. Both figures come
+from [#1693](https://github.com/functionalscript/functionalscript/pull/1693) —
+the first from the review bot that reported the divergence, the second from a
+reviewer who went looking for it on another platform.
 
 So a program that binds a wildcard *and* a specific address on one port can be
 proven here and fail on a host.
@@ -18,9 +22,10 @@ proven here and fail on a host.
 ### Why it is on hold rather than open
 
 Encoding the wider rule means choosing an answer to questions the platforms
-disagree about, and a wrong answer in the model is worse than a missing one — a
-proof would then assert behaviour that is not universally true, which is the
-failure this runner exists to prevent:
+disagree about — as the two measurements above already do — and a wrong answer
+in the model is worse than a missing one: a proof would then assert behaviour
+that is not universally true, which is the failure this runner exists to
+prevent. The known variables:
 
 - `SO_REUSEADDR` and `SO_REUSEPORT` change the answer, and Node sets neither the
   same way everywhere;

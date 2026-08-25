@@ -78,6 +78,8 @@ export const proof = {
         absoluteForm: () => {
             assertEq(unwrap(resolve('.')('http://127.0.0.1:8080/main.css')), './main.css')
             assertEq(unwrap(resolve('.')('https://localhost/docs/')), './docs/index.html')
+            // The scheme is case-insensitive, as schemes are.
+            assertEq(unwrap(resolve('.')('HTTP://localhost/main.css')), './main.css')
             // No path at all is the root of that authority.
             assertEq(unwrap(resolve('.')('http://localhost')), './index.html')
             // The query still goes, and traversal is still rejected after the
@@ -138,6 +140,11 @@ export const proof = {
             // An authority carrying userinfo is refused rather than parsed
             // past: it reads as a different host from each end.
             assertEq(reason('http://127.0.0.1:8080@attacker.example/x'), '400 malformed request URL')
+            // A scheme is not whatever precedes `://`: these name none, and
+            // reading them as absolute-form served the file.
+            assertEq(reason('://localhost/x'), '400 malformed request URL')
+            assertEq(reason('1://localhost/x'), '400 malformed request URL')
+            assertEq(reason('ftp://localhost/x'), '400 malformed request URL')
             // A NUL is a bad request, not a host failure: left to the file
             // system it comes back as an `ERR_INVALID_ARG_VALUE` and a `500`.
             assertEq(reason('/main.css%00'), '400 malformed request URL')
@@ -189,10 +196,12 @@ export const proof = {
             // IPv6 literal — whose brackets are part of the name.
             assertEq(status('127.0.0.1:8080'), 200)
             assertEq(status('localhost'), 200)
-            // A host name is case-insensitive; refusing one for its spelling
-            // would be a bug, not a defence.
+            // A host name is case-insensitive, and a trailing dot names the DNS
+            // root rather than a different machine; refusing either would be a
+            // bug, not a defence.
             assertEq(status('LOCALHOST:8080'), 200)
-            assertEq(status('[::1]:8080'), 200)
+            assertEq(status('localhost.'), 200)
+            assertEq(status('localhost.:8080'), 200)
             assertEq(status('[::1]:8080'), 200)
             // Userinfo names a credential, not a host: read from the left,
             // `127.0.0.1:8080@attacker.example` looks like loopback, and the

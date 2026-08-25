@@ -48,7 +48,21 @@ everything that could be decided without a socket was already decided below it.
 normalizes it with [`fjs/path`](../path/), appends `index.html` to a path ending
 in `/`, and rejects anything that points above `root`.
 
-Percent-decoding is done over **bytes, not characters**: a non-ASCII character
+Percent-decoding validates every escape before decoding any, which is what keeps
+it linear: growing one byte array per escape copies everything decoded so far on
+every escape, and a target of escapes fits comfortably under Node's header limit
+while costing far more than one. Measured here, before and after:
+
+| escapes | before | after |
+|---------|--------|-------|
+| 2,500   | 61 ms  | 42 ms |
+| 5,000   | 101 ms | 43 ms |
+| 10,000  | 313 ms | 74 ms |
+| 20,000  | 2,995 ms | 104 ms |
+
+Doubling the count used to quadruple the time; now it roughly doubles it.
+
+It is done over **bytes, not characters**: a non-ASCII character
 arrives as several escapes (`%D0%9F` is one letter), so the escapes are decoded
 to bytes first and the whole sequence read back as UTF-8 at the end. Decoding
 each escape on its own would produce mojibake for every non-ASCII name. Bytes
@@ -137,8 +151,10 @@ from the *target* rather than from the `Host` header, since a proxy rewrites one
 and not the other. So an absolute-form target for a name this server does not
 answer for is `403` even when the header says something reassuring.
 
-Anything else — the asterisk-form `*`, an authority-form `host:port` from a
-`CONNECT`, an empty target — is `400`.
+Anything else is `400`: the asterisk-form `*`, an authority-form `host:port` from
+a `CONNECT`, an empty target, and a target whose scheme is missing or is not one
+this server speaks — `://localhost/x` and `1://localhost/x` name no scheme at
+all, and reading "whatever precedes `://`" as one served them.
 
 ### Request bodies
 
@@ -153,12 +169,13 @@ in this repository where that is the right answer: rebuilding the array per chun
 copies everything received so far on every chunk, and 20,000 one-byte chunks is
 20 KB of payload and 200 million copies. A cap on payload size is not a cap on
 chunk count, and a request that will be refused must not cost more than one that
-is served. Measured on the same machine: 2,794 ms to refuse that request before,
-167 ms after.
+is served. Measured here: 2,794 ms to refuse that request before, 167 ms after,
+and doubling the chunk count now doubles the time instead of quadrupling it.
 
-Past the cap it answers `413` itself, without calling the listener — over the cap there is no `IncomingMessage` to build, since its `body`
-is a single `Vec`. It also answers `500` rather than dying if a listener throws:
-a panic must not outlive the request that caused it.
+Past the cap it answers `413` itself, without calling the listener — there is no
+`IncomingMessage` to build up there, since its `body` is a single `Vec`. It also
+answers `500` rather than dying if a listener throws: a panic must not outlive
+the request that caused it.
 
 Both answers close the connection, which is the difference between refusing a
 request and surviving the refusal. Neither has read the request to its end, so
@@ -221,7 +238,8 @@ attacker's origin and hands the working tree to their JavaScript.
 
 So the `Host` is checked first, before the method and before the path, against
 the names this server answers for — `localhost`, `127.0.0.1`, `[::1]`, with or
-without a port, and matched case-insensitively as host names are. Anything else
+without a port, matched case-insensitively as host names are, and with a trailing
+root dot (`localhost.`) treated as the same name, since it is. Anything else
 is `403`, including a request with no `Host` at all and one whose authority
 carries **userinfo**: `127.0.0.1:8080@attacker.example` names the attacker's
 host, not loopback, and reading it from the left finds an address that was never
