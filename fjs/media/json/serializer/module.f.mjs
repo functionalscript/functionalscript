@@ -43,8 +43,15 @@ const hexDigit = value => fromCharCode(hexDigitCodePoint(value))
 const unicodeEscape = unit =>
     `\\u${hexDigit(unit >> 12 & 0xf)}${hexDigit(unit >> 8 & 0xf)}${hexDigit(unit >> 4 & 0xf)}${hexDigit(unit & 0xf)}`
 
-/** @type {(letter: number) => string} */
-const simpleEscape = letter => `\\${codePointToString(letter)}`
+/**
+ * The two-character escape a letter spells, projected over the lookup's
+ * `null`. Bound here rather than inside `escapeCodePoint`: it depends on
+ * nothing that varies per code point, and `escapeCodePoint` runs once per
+ * character of every string serialized.
+ *
+ * @type {(letter: number | null) => string | null}
+ */
+const simpleEscape = nullableMap(letter => `\\${codePointToString(letter)}`)
 
 /**
  * Escapes one decoded code point. A code point tagged with `errorMask` is an
@@ -57,7 +64,7 @@ const simpleEscape = letter => `\\${codePointToString(letter)}`
 const escapeCodePoint = codePoint =>
     (codePoint & errorMask) !== 0
         ? unicodeEscape(codePoint & 0xffff)
-        : nullableMap(simpleEscape)(codePointToEscape(codePoint))
+        : simpleEscape(codePointToEscape(codePoint))
             ?? (codePoint < space ? unicodeEscape(codePoint) : codePointToString(codePoint))
 
 /**
