@@ -96,9 +96,17 @@ The two rows differ exactly there. A call ends a *receiver* lifetime, so
 `a.b(...c).d` and `(a.b(...c)).d` are the same expression; a call does **not**
 end a *region*, so `a?.b(...c).d` and `(a?.b(...c)).d` are not — on a nullish
 `a` the first is `undefined` and the second throws
-`Cannot read properties of undefined (reading 'd')`. The parenthesis law makes
-the closure observable, so the region genuinely extends past the call rather
-than merely being spellable longer.
+`Cannot read properties of undefined (reading 'd')`.
+
+Being extensible is not itself the disqualifier, and reading it as one would
+take the pure nodes down with it. Every optional operator extends: `a?.b.c`
+differs from `(a?.b).c`, and `a?.(...b).c` from `(a?.(...b)).c` — `undefined`
+against `Cannot read properties of undefined (reading 'c')` — yet `?.` and
+`?.()` are pure. What a node denotes is the expression with **nothing after
+it**, and there `?.` and `?.()` skip one operation each. `a?.b(...c)` skips two
+before any continuation exists, and that is what puts it in the other column.
+Extension is what makes the excess *unbounded* rather than merely two:
+`a?.b(...c).d.e…`.
 
 | lifetime | bound | node |
 | --- | --- | --- |
@@ -327,16 +335,25 @@ the region having work to do is. Two clauses say it:
   `(a?.b)(...c)`: its single step neither follows a step nor precedes one, so a
   clause quantified over steps alone would reject it.
 - **How much** goes in it — as little as possible. The walk is cut at **every**
-  available cut point, and what survives between cuts is one node. A cut is
-  available before any optional step that takes no receiver from the step before
-  it: closing the region there is unobservable, because the operator following
-  the closure is itself guarded. None is available before a `|.` or a `|()` —
-  closing before an unguarded operator is exactly what the parenthesis law makes
-  observable — nor before a `|?.()` whose predecessor is a property step, since
-  that would strand the receiver it consumes: the cut leaves
-  `['?.()', ['.', a, b], c]`, which calls a detached `a.b` because an `exp`
-  yields a value rather than a reference (`a.b?.()` is `"A"`; `(0, a.b)?.()` is
-  `"no-this"`).
+  available cut point, and what survives between cuts is one node. Cuts come in
+  two kinds, because the parenthesis law only has something to say once a region
+  is open.
+  - **Before the region** nothing is guarded, so every step that does no
+    required work leaves through the front into the base — it is a dead prefix
+    whatever its id. `['_', a, [['|.', b], ['|.', c], ['|?.()', d]]]` —
+    `a.b.c?.(...d)` — keeps only `|.c`, which supplies the receiver `|?.()`
+    consumes; `|.b` does nothing for anyone and becomes
+    `['_', ['.', a, b], [['|.', c], ['|?.()', d]]]`, exposing `a.b` for sharing.
+    Verified identical over six input kinds.
+  - **Inside it** a cut is available before any optional step that takes no
+    receiver from the step before it: closing the region there is unobservable,
+    because the operator following the closure is itself guarded. None is
+    available before a `|.` or a `|()` — closing before an unguarded operator is
+    exactly what the parenthesis law makes observable — nor before a `|?.()`
+    whose predecessor is a property step, since that would strand the receiver
+    it consumes: the cut leaves `['?.()', ['.', a, b], c]`, which calls a
+    detached `a.b` because an `exp` yields a value rather than a reference
+    (`a.b?.()` is `"A"`; `(0, a.b)?.()` is `"no-this"`).
 
 Cutting *everywhere* rather than only at the two ends is what the rule needs,
 and a per-step reading of either end misses a case:
