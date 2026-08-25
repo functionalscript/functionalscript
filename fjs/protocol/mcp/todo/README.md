@@ -5,12 +5,11 @@
 - **Priority:** P3
 - **Status:** open
 
-> **Quoted code is out of date (2026-08).** `mcpStep` has since been
-> restructured: `fjs/protocol/mcp/module.f.mjs` no longer calls `validate`
-> directly, and the handler now runs through `pureOk`, an initialization guard
-> and a `notInitialized` error. The repetition this issue objects to may or may
-> not survive that rewrite — re-derive the problem statement from the current
-> handler before acting on the proposal below, or close the issue.
+> **Quotes refreshed against the current handler (2026-08).** `mcpStep` has been
+> restructured since this was written — `validate` → `parse`, `pure` → `pureOk`,
+> the `.step` method → the standalone `ioStep`, and a lifecycle `resultStep(read(
+> stateKey), …)` now wraps `initialize` and the `tools/*` pair. The repetition
+> survived all of it: the code below is the handler as it stands.
 
 ### Problem
 
@@ -19,25 +18,32 @@
 every method arm. The shape is always:
 
 ```ts
-const [t, pr] = validate(<schema>)(<params>)
+const [t, pr] = parse(<schema>)(<params>)
 return t === 'error'
-    ? pure(_errResponse(id)(invalidParams))
+    ? pureOk(_errResponse(id)(invalidParams))
     : <success using pr>
 ```
 
-It appears four times in `mcpStep` (in `fjs/protocol/mcp/module.f.mjs`):
+It appears four times in `mcpStep` (in `fjs/protocol/mcp/module.f.mjs`), and the
+four do not even spell the destructure the same way:
 
-- `ping` — `validate(_noParams)(params)`, success is `pure(_okResponse(id)({}))`.
-- `initialize` — `validate(initializeParams)(params)`, success builds an
-  `InitializeResult` and writes state.
-- `tools/list` — `validate(toolsListParams)(params === undefined ? {} : params)`,
-  success is `handlers.toolsList(pr).step(r => pure(_okResponse(id)(r)))`.
-- `tools/call` — `validate(toolsCallParams)(params)`, success is
-  `handlers.toolsCall(pr).step(r => pure(_okResponse(id)(r)))`.
+- `ping` — `parse(_noParams)(params)` as `[pt]`, success is
+  `pureOk(_okResponse(id)({}))`.
+- `initialize` — `parse(initializeParams)(params)` as `[pr, pv]`, success builds
+  an `InitializeResult` and writes state; the whole arm sits inside a
+  `resultStep(read(stateKey), …)` that rejects a non-`uninitialized` session.
+- `tools/list` — `parse(toolsListParams)(params === undefined ? {} : params)` as
+  `[t, pr]`, success is `ioStep(handlers.toolsList(pr), r => pureOk(_okResponse(id)(r)))`.
+- `tools/call` — `parse(toolsCallParams)(params)` as `[t, pr]`, success is
+  `ioStep(handlers.toolsCall(pr), r => pureOk(_okResponse(id)(r)))`.
+
+A fifth site, `notifications/initialized`, runs `parse(_noParams)(params)` but
+answers `pureOk(null)` on either branch, since a notification never gets a
+response. It shares the parse, not the envelope.
 
 Note: `toolEntry` was added as a helper for registering tool handlers
 with pre-validated arguments, but `mcpStep` itself still repeats the inline
-validate→error/ok pattern for `ping`, `initialize`, `tools/list`, and `tools/call`.
+parse→error/ok pattern for `ping`, `initialize`, `tools/list`, and `tools/call`.
 
 On top of that, `tools/list` and `tools/call` share a **second** layer that is
 near-identical, differing only in the schema, the params-defaulting, and which
@@ -46,24 +52,29 @@ handler runs:
 ```ts
 // tools/list
 if (capabilities.tools === undefined) {
-    return pure(_errResponse(id)(methodNotFound))
+    return pureOk(_errResponse(id)(methodNotFound))
 }
-const [t, pr] = validate(toolsListParams)(params === undefined ? {} : params)
+const [t, pr] = parse(toolsListParams)(params === undefined ? {} : params)
 return t === 'error'
-    ? pure(_errResponse(id)(invalidParams))
-    : handlers.toolsList(pr).step(r => pure(_okResponse(id)(r)))
+    ? pureOk(_errResponse(id)(invalidParams))
+    : ioStep(handlers.toolsList(pr), r => pureOk(_okResponse(id)(r)))
 
 // tools/call
 if (capabilities.tools === undefined) {
-    return pure(_errResponse(id)(methodNotFound))
+    return pureOk(_errResponse(id)(methodNotFound))
 }
-const [t, pr] = validate(toolsCallParams)(params)
+const [t, pr] = parse(toolsCallParams)(params)
 return t === 'error'
-    ? pure(_errResponse(id)(invalidParams))
-    : handlers.toolsCall(pr).step(r => pure(_okResponse(id)(r)))
+    ? pureOk(_errResponse(id)(invalidParams))
+    : ioStep(handlers.toolsCall(pr), r => pureOk(_okResponse(id)(r)))
 ```
 
-The repeated `t === 'error' ? pure(_errResponse(id)(invalidParams)) : …`
+Both now sit inside one `resultStep(read(stateKey), …)` that has already
+rejected an unreadable state (`internalError`) and a non-`initialized` one
+(`notInitialized`), so the capability gate is the only per-method guard left
+above the envelope.
+
+The repeated `t === 'error' ? pureOk(_errResponse(id)(invalidParams)) : …`
 envelope forces a reader to diff each arm to confirm the only thing that varies
 is the schema and the success branch — exactly the readability cost AGENTS.md
 calls out: "When two code branches share most of their structure, refactor so
@@ -81,8 +92,8 @@ the shared part appears once and only the difference lives in the conditional."
    ```ts
    const validated = <T>(id: Id, schema: RttiType, params: Unknown) =>
        (onOk: (value: T) => Effect<MemOp | O, Response | null>) => {
-           const [t, pr] = validate(schema)(params)
-           return t === 'error' ? pure(_errResponse(id)(invalidParams)) : onOk(pr)
+           const [t, pr] = parse(schema)(params)
+           return t === 'error' ? pureOk(_errResponse(id)(invalidParams)) : onOk(pr)
        }
    ```
 
@@ -97,8 +108,8 @@ the shared part appears once and only the difference lives in the conditional."
    ```ts
    const toolMethod = <T>(schema: RttiType, params: Unknown, handler: (v: T) => Effect<O, Unknown>) =>
        capabilities.tools === undefined
-           ? pure(_errResponse(id)(methodNotFound))
-           : validated(id, schema, params)(pr => handler(pr).step(r => pure(_okResponse(id)(r))))
+           ? pureOk(_errResponse(id)(methodNotFound))
+           : validated(id, schema, params)(pr => ioStep(handler(pr), r => pureOk(_okResponse(id)(r))))
    ```
 
    `tools/list` becomes `toolMethod(toolsListParams, params ?? {}, handlers.toolsList)`
@@ -120,7 +131,10 @@ handler from accreting a dozen copies of the same ternary.
 ### Tasks
 
 - [ ] Add a module-scope (or `mcpStep`-local) `validated` helper threading `id`;
-      rewrite `ping`, `initialize`, `tools/list`, `tools/call` to use it.
+      rewrite `ping`, `initialize`, `tools/list`, `tools/call` to use it. Note
+      that `initialize` and the `tools/*` pair sit inside lifecycle
+      `resultStep(read(stateKey), …)` wrappers, so the helper has to compose
+      inside a continuation rather than replace the arm outright.
 - [ ] Add `toolMethod` for the capability-gated `tools/*` pair.
 - [ ] Confirm `fjs/protocol/mcp/proof.f.mjs` still passes (`fjs t`) with full branch
       coverage (both `error` and `ok` sides of each method) and `npx tsc` is clean.
