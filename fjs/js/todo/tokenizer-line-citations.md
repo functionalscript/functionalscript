@@ -28,15 +28,31 @@ The drift is large and consistent, so these are not off-by-a-few:
 |`:807`|`parseWhitespaceDefault`|`:618`|
 |`:821`|`parseNewLineDefault`|`:630`|
 |`:860-886`|`tokenizeEofOp`|`:667`|
-|`:418-468`|`keywordEntries`|`:262`|
+|`:418-468`|`keywordEntries`|`:262` — but see below|
 |`:479-535`|`operatorEntries`|`:276`|
 |`:912`|`tokenize`|`:712`|
 
-One citation names something that no longer exists at all:
-[666-js-tokenizer-position-layer](./666-js-tokenizer-position-layer.md) cites a
-`tokenizeOp` at `:749-750` and `:750`, and `tokenizeOp` appears nowhere in
-`fjs/js/`. Whatever that layer is called now, the issue's premise needs
-re-reading against the current module before its citations can be repaired.
+### Two of the five need more than a new number
+
+**`tokenizer-token-tables` has half shipped.** Its §1 says `KeywordToken`
+"spells out 45 keyword kinds" and `keywordEntries` "repeats every one of them"
+as `['catch', { kind: 'catch' }]` rows. Neither is true now: `_KeywordToken`
+(`fjs/js/tokenizer/types.ts:68`) is
+`{ kind: Exclude<typeof keywords[number], 'true'|'false'|'null'|'undefined'> }`,
+derived from the shared `fjs/js/keywords` list, and `keywordEntries`
+(`module.f.mjs:262`) is `keywords.map(kind => [kind, ({ kind })])`. That is the
+remedy the issue proposes, already applied. Its §2 still stands — `_OperatorToken`
+(`types.ts:79`) is a spelled-out union and `operatorEntries`
+(`module.f.mjs:276-332`) is a literal table of ~56 `['&&=', { kind: '&&=' }]`
+rows — so the issue is half done, not done. Renumbering it would leave an
+implementer redoing the keyword half and working from its now-wrong ~130-line
+estimate. Both type names also gained a `_` prefix.
+
+**`666-js-tokenizer-position-layer` names a symbol that is gone.**
+It cites a `tokenizeOp` at `:749-750` and `:750`, and `tokenizeOp` appears
+nowhere in `fjs/js/`. Whatever that layer is called now, the issue's premise
+needs re-reading against the current module before its citations can be
+repaired.
 
 Affected files, all in `fjs/js/todo/`:
 
@@ -49,10 +65,11 @@ Affected files, all in `fjs/js/todo/`:
 ### Why this is not just tidiness
 
 Each of these issues argues from a *duplication count* — "written four times",
-"both arms", "repeats every one of 45 keyword kinds". A reader who follows a
-citation into open space cannot check the count, so the argument has to be
-re-derived from scratch before any of them can be acted on. That is the cost
-this issue removes.
+"both arms", "repeats them all as `['&&=', { kind: '&&=' }]` rows". A reader
+who follows a citation into open space cannot check the count, so the argument
+has to be re-derived from scratch before any of them can be acted on. That is
+the cost this issue removes — and, as the keyword half above shows, a count
+that cannot be checked is a count that can quietly stop being true.
 
 ### Proposal
 
@@ -62,8 +79,10 @@ guessing an offset. Where a citation points *inside* a function rather than at
 its definition (`parseStringStateOp` default arm, `terminalToToken` both arms),
 read the current body and cite the line the prose actually means.
 
-`666-js-tokenizer-position-layer` needs more than a line fix, since its subject
-symbol is gone; treat it separately.
+The two issues above need more than a line fix and should be treated
+separately: rewrite `tokenizer-token-tables` around the operator half that
+remains, and re-read `666-js-tokenizer-position-layer` against the current
+module.
 
 ### The wider blind spot
 
@@ -79,8 +98,12 @@ against naming the symbol — is a separate question.
 
 ### Tasks
 
-- [ ] Repair the citations in the four `tokenizer-*` issues against the symbols
-      they name.
+- [ ] Repair the citations in `tokenizer-continue-string-comment`,
+      `tokenizer-flush-redispatch` and `tokenizer-finish-number-shared` against
+      the symbols they name.
+- [ ] Rewrite `tokenizer-token-tables` around its operator half; the keyword
+      half has shipped, so its §1, its `~130 lines` estimate and its two type
+      names all need redoing rather than renumbering.
 - [ ] Re-read `666-js-tokenizer-position-layer` against the current module and
       decide what `tokenizeOp` became before repairing its citations.
 - [ ] Confirm no remaining citation in `fjs/js/todo/` exceeds the length of the
