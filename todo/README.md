@@ -49,27 +49,49 @@ unrelated 2022 pull request, and the file numbering does not line up either
 (`fjs/emergent_testing/todo/028-unit-test-examples-api.md` reports GitHub
 issue 403).
 
-A bare `iNNN` with no link means the identifier has no file left to point at:
-the issue was closed and deleted, as this README requires, and no successor
-document was identified. Three searches are worth running before concluding
-that, in rough order of yield:
+A bare `iNNN` is **not** evidence that the identifier is untraceable. Deleting an
+issue file removes it from the working tree, not from history, and these
+identifiers were filenames: the retired tracker lived in a top-level `issues/`
+directory as `issues/NNN-{slug}.md`. Four searches, in order of yield:
 
-1. **`git log --grep`.** Commits that close one of these name it — `i167` is
-   `d39518d8`, "bit_vec: export msbConcat; drop per-module listToVec(msb)
-   re-binds (i167)", and `i160` is `5c1577c6`, "resolve i160 as won't fix".
-   This finds work that shipped as *code*, which no filename search can.
-2. **The citation's own words.** `i168` is described by its citations as "the
+1. **The retired `issues/` directory, in git history.** This is the one that
+   works, and it names the issue outright:
+
+   ```sh
+   git log --all --format=%H -- issues/ \
+     | while read c; do git ls-tree -r --name-only $c -- issues/; done \
+     | sort -u | grep -iE 'issues/0*167[.-]'
+   ```
+
+   then `git show <commit>^:issues/167-....md` to read it. Most of these files
+   carry a **Resolution** section written when they were closed, naming the code
+   that shipped — so the answer is usually in the file itself rather than
+   inferred. Names were zero-padded inconsistently (`021-` and `21-` both
+   exist), which is why the pattern above allows optional leading zeros, and the
+   later ones use the `65X`/`65Y`/`66a` prefixes rather than numbers.
+2. **`git log --grep`.** Commits that close one name it — `i167` is `d39518d8`,
+   "bit_vec: export msbConcat; drop per-module listToVec(msb) re-binds (i167)",
+   and `i160` is `5c1577c6`, "resolve i160 as won't fix". Use this to date the
+   work, or when search 1 finds a file whose Resolution section is missing.
+3. **The citation's own words.** `i168` is described by its citations as "the
    streaming decoder factory both codecs already share", which is `decoder` in
    `fjs/text/code_point/` almost verbatim.
-3. **A zero-padded filename.** `i37` is `037-language-design-map.md`, headed
-   `# 37.`; matching the identifier's digits against the filename's exactly
-   will miss it.
+4. **A zero-padded filename in the *current* tree.** `i37` is
+   `037-language-design-map.md`, headed `# 37.`; matching the identifier's
+   digits against the filename's exactly will miss it.
 
-Where the work is traceable, the citation names what it shipped as instead —
-see `i143` and `i172` in `fjs/bnf/todo/207.md`. When you recognize one of the
-unlinked identifiers, either give it the same treatment or delete the
-reference; do not link it to a same-numbered GitHub issue, which will be the
-wrong one.
+Three outcomes are worth distinguishing once you have the file. The issue may
+still be **open under a new slug** — `i21` is
+`fjs/emergent_testing/todo/test-framework-silent-mode.md`, byte-for-byte the
+retired `issues/021-test-framework-silent-mode.md` — in which case link it. It
+may have **shipped**, like `i136` as `fjs/ci/config/module.f.mjs`; name the code.
+Or it was **won't fix**, like `i171`, whose reason lives in `parseTestSet`'s
+JSDoc exactly as the won't-fix rule below requires; say so and cite that.
+
+Whichever it is, rewrite the citation to name it — `i143` and `i172` in
+`fjs/bnf/todo/207.md` are the pattern — or delete the reference if the
+relationship no longer holds. Do **not** link one to a same-numbered GitHub
+issue: that number belongs to unrelated work.
 
 ## Blocked by third parties
 
