@@ -127,6 +127,19 @@ with `413`. Serving larger files needs a streaming response body, which is an
 effect-layer change:
 [streaming-http-bodies](../effects/node/todo/streaming-http-bodies.md).
 
+### Request targets
+
+Both forms an origin server can be sent are accepted. **Origin-form**
+(`/main.css?v=2`) is what a browser sends. **Absolute-form**
+(`http://localhost:8080/main.css`) is what a client sends through a proxy, and
+RFC 9112 §3.2.2 requires an origin server to accept it too — and to take the host
+from the *target* rather than from the `Host` header, since a proxy rewrites one
+and not the other. So an absolute-form target for a name this server does not
+answer for is `403` even when the header says something reassuring.
+
+Anything else — the asterisk-form `*`, an authority-form `host:port` from a
+`CONNECT`, an empty target — is `400`.
+
 ### Request bodies
 
 `GET` and `HEAD` carry none worth reading, and this server ignores what a client
@@ -149,6 +162,13 @@ the wrong one: it reads bytes the server has already refused.
 
 All of it goes away with
 [streaming bodies](../effects/node/todo/streaming-http-bodies.md).
+
+What is *not* covered: a body that stalls under the cap. The runner reads a body
+to its end before the listener sees it, so a client declaring twenty megabytes
+and sending one hundred kilobytes holds a connection until Node's five-minute
+`requestTimeout` — even for a `POST`, which this server was never going to serve.
+Loopback bounds it; the fix is
+[request-body-timeouts](../effects/node/todo/request-body-timeouts.md).
 
 ## Proving it without a socket
 

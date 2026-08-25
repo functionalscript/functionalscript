@@ -37,6 +37,10 @@ Open questions: what a listener that never reads its request body does, whether
 `Content-Length` stays derivable, and how the virtual runner models a streamed
 response (it records whole `ServerResponse` values today).
 
+A body that stalls under the cap is a third consequence, filed separately as
+[request-body-timeouts](./request-body-timeouts.md): the listener cannot answer
+until a body it may not even want has finished arriving.
+
 ### Tasks
 
 - [ ] Design the streaming body type for `IncomingMessage` / `ServerResponse`.

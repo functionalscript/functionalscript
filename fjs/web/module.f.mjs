@@ -108,18 +108,48 @@ const percentDecode = s => {
 }
 
 /**
- * The path component of `url`: everything before the first `?` or `#`.
+ * A request target, split into the two parts that decide the answer.
  *
- * Node hands a listener the request target, which never carries a fragment —
- * a client keeps that to itself — but a `respond` called directly might be
- * given one, and dropping it here costs one `split`.
+ * `authority` is the host the *target* names, which only an absolute-form target
+ * carries; `null` says the target named none, and the `Host` header is then the
+ * only thing that does.
  *
- * @type {(url: string) => string}
+ * @typedef {{ readonly authority: Nullable<string>, readonly path: string }} _Target
  */
-const urlPath = url => {
-    const [beforeFragment] = url.split('#')
-    const [path] = beforeFragment.split('?')
-    return path
+
+const schemeMark = '://'
+
+/**
+ * Reads a request target, or `null` if it is not one this server can act on.
+ *
+ * Two forms reach an origin server. **Origin-form** (`/main.css?v=2`) is what a
+ * browser sends, and its path is the whole target. **Absolute-form**
+ * (`http://host/main.css`) is what a client sends to a proxy — RFC 9112 §3.2.2
+ * requires an origin server to accept it anyway, and to take the host from *it*
+ * rather than from the `Host` header, which is why the authority comes back
+ * here instead of being discarded. Treating it as a path was the bug this
+ * replaces: `http://host/main.css` resolved to a file named `http:` with `host`
+ * inside it, and answered `404` for the wrong reason.
+ *
+ * Anything else — the asterisk-form `*`, an authority-form `host:port` from a
+ * `CONNECT`, an empty target — names nothing this server serves.
+ *
+ * The fragment is stripped although a client keeps it to itself; a `respond`
+ * called directly might still be given one, and it costs one `split`.
+ *
+ * @type {(target: string) => Nullable<_Target>}
+ */
+const parseTarget = target => {
+    const [beforeFragment] = target.split('#')
+    const [withoutQuery] = beforeFragment.split('?')
+    if (withoutQuery.startsWith('/')) { return { authority: null, path: withoutQuery } }
+    const mark = withoutQuery.indexOf(schemeMark)
+    if (mark < 0) { return null }
+    const afterScheme = withoutQuery.slice(mark + schemeMark.length)
+    const slash = afterScheme.indexOf('/')
+    return slash < 0
+        ? { authority: afterScheme, path: '/' }
+        : { authority: afterScheme.slice(0, slash), path: afterScheme.slice(slash) }
 }
 
 /** The one character no file system path can carry.
@@ -181,8 +211,9 @@ const served = root => root === '' ? '.' : root
  */
 export const resolve = root => url => {
     const base = served(root)
-    const path = urlPath(url)
-    const decoded = percentDecode(path)
+    const target = parseTarget(url)
+    if (target === null) { return refuse(400)('malformed request URL') }
+    const decoded = percentDecode(target.path)
     if (decoded === null || decoded.includes(nul)) { return refuse(400)('malformed request URL') }
     const segments = parse(decoded)
     if (segments.includes('..')) { return refuse(400)('request path escapes the served root') }
@@ -344,9 +375,10 @@ const fileResponse = path => r => {
 /**
  * Answers one request: resolve, read, and frame the result.
  *
- * The `Host` header is checked first, against the loopback names this server
- * answers for — see {@link servedHosts} for why binding loopback is not enough
- * on its own.
+ * The host is checked first, against the loopback names this server answers for
+ * — see {@link servedHosts} for why binding loopback is not enough on its own.
+ * An absolute-form target names its own host, and RFC 9112 §3.2.2 says to
+ * believe that over the `Host` header.
  *
  * `HEAD` is answered exactly like `GET`, bytes included: Node drops the body of
  * a `HEAD` response itself and keeps the headers, so the one frame serves both
@@ -358,7 +390,13 @@ const fileResponse = path => r => {
 export const respond = root => ({ method, url, headers }) => {
     // Before anything else, including what method it is: a request for a name
     // this server does not answer for is not a request to be interpreted.
-    if (!isServedHost(headers.host)) { return pureOk(plainText(403)('host not served')) }
+    //
+    // An absolute-form target carries the name itself, and RFC 9112 §3.2.2 says
+    // an origin server must believe *it* over the `Host` header — a proxy
+    // rewrites one and not the other, so the target is the one the client meant.
+    const target = parseTarget(url)
+    const host = target === null || target.authority === null ? headers.host : target.authority
+    if (!isServedHost(host)) { return pureOk(plainText(403)('host not served')) }
     if (method !== 'GET' && method !== 'HEAD') { return pureOk(methodNotAllowed()) }
     const resolved = resolve(root)(url)
     if (resolved[0] === 'error') {

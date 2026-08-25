@@ -69,8 +69,20 @@ export const proof = {
         // without this a generated site cannot be opened at all.
         index: () => {
             assertEq(unwrap(resolve('.')('/')), './index.html')
-            assertEq(unwrap(resolve('.')('')), './index.html')
             assertEq(unwrap(resolve('.')('/docs/')), './docs/index.html')
+        },
+        // An absolute-form target is a proxy's spelling of the same request, and
+        // RFC 9112 §3.2.2 requires an origin server to accept it. Read as a
+        // path it named a file called `http:` and answered `404` for the wrong
+        // reason.
+        absoluteForm: () => {
+            assertEq(unwrap(resolve('.')('http://127.0.0.1:8080/main.css')), './main.css')
+            assertEq(unwrap(resolve('.')('https://localhost/docs/')), './docs/index.html')
+            // No path at all is the root of that authority.
+            assertEq(unwrap(resolve('.')('http://localhost')), './index.html')
+            // The query still goes, and traversal is still rejected after the
+            // authority is taken off.
+            assertEq(unwrap(resolve('.')('http://localhost/main.css?v=2')), './main.css')
         },
         file: () => {
             assertEq(unwrap(resolve('.')('/main.css')), './main.css')
@@ -116,6 +128,13 @@ export const proof = {
             assertEq(reason('/a%2z.txt'), '400 malformed request URL')
             // Well-formed escapes spelling bytes that are not UTF-8.
             assertEq(reason('/%ff.txt'), '400 malformed request URL')
+            // Targets that are neither origin-form nor absolute-form: the
+            // asterisk-form, an authority-form from a `CONNECT`, and nothing.
+            assertEq(reason('*'), '400 malformed request URL')
+            assertEq(reason('localhost:8080'), '400 malformed request URL')
+            assertEq(reason(''), '400 malformed request URL')
+            // Traversal is rejected after the authority comes off, not before.
+            assertEq(reason('http://localhost/../secret'), '400 request path escapes the served root')
             // A NUL is a bad request, not a host failure: left to the file
             // system it comes back as an `ERR_INVALID_ARG_VALUE` and a `500`.
             assertEq(reason('/main.css%00'), '400 malformed request URL')
@@ -170,6 +189,27 @@ export const proof = {
             assertEq(status('[::1]:8080'), 200)
             // A bracket with no closing `]` names nothing.
             assertEq(status('[::1'), 403)
+            // An absolute-form target names its own host, and RFC 9112 says to
+            // believe it over the header — so a proxy-shaped request for a name
+            // this server does not answer for is refused even when the `Host`
+            // header says something reassuring.
+            const spoofed = unwrap(virtual({ ...emptyState, root: site })(
+                respond('.')({
+                    method: 'GET',
+                    url: 'http://attacker.example/index.html',
+                    headers: { host: 'localhost:8080' },
+                    body: empty,
+                }))[1])
+            assertEq(spoofed.status, 403)
+            // And the same target for a name it does answer for is served.
+            const proxied = unwrap(virtual({ ...emptyState, root: site })(
+                respond('.')({
+                    method: 'GET',
+                    url: 'http://localhost:8080/index.html',
+                    headers: {},
+                    body: empty,
+                }))[1])
+            assertEq(proxied.status, 200)
             // HTTP/1.1 requires a `Host`; its absence is not a way around this.
             const noHost = unwrap(virtual({ ...emptyState, root: site })(
                 respond('.')({ method: 'GET', url: '/', headers: {}, body: empty }))[1])
