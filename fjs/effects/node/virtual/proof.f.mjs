@@ -1,13 +1,15 @@
 /**
- * @import { Dir } from './types.ts'
- * @import { NodeOp } from '../types.ts'
+ * @import { Dir, State } from './types.ts'
+ * @import { IncomingMessage, NodeOp, RequestListener } from '../types.ts'
  * @import { Effect } from '../../types.ts'
  * @import { IoChannel } from '../types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive } from '../module.f.mjs'
+import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
+import { pureOk, step } from '../../module.f.mjs'
+import { utf8, utf8ToString } from '../../../text/module.f.mjs'
 import { emptyState, virtual } from './module.f.mjs'
 import { do_ } from '../../module.f.mjs'
 import { catchStep } from '../../module.f.mjs'
@@ -415,5 +417,35 @@ export const proof = {
         const root = { 'large': [chunk0, chunk1] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('large', chunkSize, 1))
         assert(result[0] === 'ok')
+    },
+    // A server without a socket: `createServer` stores the listener and
+    // `listen` hands it the requests the fixture queued, which is what makes a
+    // request-in / response-out proof possible here at all.
+    http: {
+        answersQueuedRequests: () => {
+            /** @type {(url: string) => IncomingMessage} */
+            const get = url => ({ method: 'GET', url, headers: {}, body: empty })
+            /** @type {RequestListener<never>} */
+            const listener = ({ url }) =>
+                pureOk({ status: 200, headers: {}, body: utf8(`echo ${url}`) })
+            const e = step(createServer(listener), server => listen(server, 8080))
+            /** @type {State} */
+            const state = { ...emptyState, requests: [get('/a'), get('/b')] }
+            const [s, result] = virtual(state)(e)
+            assert(result[0] === 'ok', result)
+            assertEq(s.port, 8080)
+            // The queue is emptied, so a second `listen` cannot answer the same
+            // request twice.
+            assertEq(s.requests.length, 0)
+            assertEq(s.responses.map(r => utf8ToString(r.body)).join(', '), 'echo /a, echo /b')
+        },
+        // `forever` is the operation this runner cannot answer — its result
+        // type leaves it nothing but `notImplemented` to return — so a server
+        // program run here ends where it would otherwise have blocked.
+        foreverIsNotImplemented: () => {
+            const [, result] = virtual(emptyState)(forever())
+            assert(result[0] === 'error', result)
+            assertEq(result[1][1], 'forever')
+        },
     },
 }

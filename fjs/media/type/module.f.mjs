@@ -31,6 +31,12 @@
  * sits between the `RIFF` and `WEBP` markers, so its pattern carries four
  * wildcard bytes rather than being one contiguous run.
  *
+ * Beside the two byte sniffers, `detectPath` answers the same question from the
+ * other end — the `Content-Type` a *file name* implies, read off its extension.
+ * A sniffer cannot serve that question at all: `text/html`, `text/css` and
+ * `text/javascript` are byte-identical UTF-8 text, and only the name tells them
+ * apart.
+ *
  * See `./types.ts` for the type-level API.
  *
  * @module
@@ -49,6 +55,7 @@ import { iterable } from '../../types/list/module.f.mjs'
 import { pureOk, step as ioStep } from '../../effects/module.f.mjs'
 import { isValidCodePoint, isTextCodePoint } from '../../text/code_point/module.f.mjs'
 import { utf8ByteToCodePointOp } from '../../text/utf8/module.f.mjs'
+import { at } from '../../types/object/module.f.mjs'
 
 // ── Magic-byte signatures ─────────────────────────────────────────────────────────
 //
@@ -268,4 +275,68 @@ export const detectStream = stream => {
                 return loop(push(s)(first))(tail)
             })
     return loop(detectInit)(stream)
+}
+
+// ── Extension table ───────────────────────────────────────────────────────────────
+//
+// The same question asked from the other end: not "what do these bytes look like"
+// but "what does this file name claim to be". A server answering `Content-Type`
+// needs the second, because the first cannot tell `text/html` from `text/css` from
+// `text/javascript` — every one of them is plain UTF-8 text, and only the extension
+// distinguishes them.
+
+/**
+ * Media type by lower-case file-name extension, without the `charset` parameter
+ * {@link detectPath} adds. Deliberately small: the types the pages under
+ * `fjs/website` are built from, plus the image formats {@link detect} already
+ * recognizes.
+ */
+const byExtension = /** @type {const} */ ({
+    html: 'text/html',
+    css: 'text/css',
+    js: 'text/javascript',
+    mjs: 'text/javascript',
+    json: 'application/json',
+    svg: 'image/svg+xml',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    wasm: 'application/wasm',
+    txt: 'text/plain',
+})
+
+/** The answer for a name whose extension is absent or unknown. */
+const octetStream = 'application/octet-stream'
+
+/**
+ * The lower-case extension of the last segment of `path`, or `''` when it has
+ * none. A leading dot is a name, not an extension: `.gitignore` has none.
+ *
+ * @type {(path: string) => string}
+ */
+const extension = path => {
+    const name = path.slice(path.lastIndexOf('/') + 1)
+    const dot = name.lastIndexOf('.')
+    return dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
+}
+
+/**
+ * The `Content-Type` a file name implies, from its extension alone — the bytes
+ * are never read. Text types carry `; charset=utf-8`, so the result is a
+ * complete header value rather than a bare media type; an absent or unknown
+ * extension is `application/octet-stream`.
+ *
+ * This is the counterpart of {@link detect}, not a replacement for it: sniffing
+ * answers what unlabelled bytes are, and this answers what a named file claims
+ * to be. A server needs the second — the three text formats a browser treats
+ * differently are byte-identical to a sniffer.
+ *
+ * @type {(path: string) => string}
+ */
+export const detectPath = path => {
+    const mime = at(extension(path))(byExtension)
+    if (mime === null) { return octetStream }
+    return mime.startsWith('text/') ? `${mime}; charset=utf-8` : mime
 }

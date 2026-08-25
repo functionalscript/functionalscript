@@ -5,20 +5,22 @@
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
- * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
+ * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestListener, SandboxResult, Server } from '../types.ts'
+ * @import { Operation } from '../../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Error } from '../../../types/result/types.ts'
- * @import { Dir, State, _Entity } from './types.ts'
+ * @import { Dir, State, _Entity, _VirtualListener } from './types.ts'
  */
 
-import { assert, todo } from '../../../asserts/module.f.mjs'
+import { assert, assertNotNullish, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
-import { error, ok } from '../../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import { ioError, nodeCommands } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
+import { asNominal as asNominalServer } from '../../../types/nominal/module.f.mjs'
 
 /** @type {State} */
 export const emptyState = {
@@ -31,6 +33,10 @@ export const emptyState = {
     memoryNext: 0,
     memoryValues: {},
     randomNext: 0,
+    server: null,
+    port: null,
+    requests: [],
+    responses: [],
 }
 
 /**
@@ -360,6 +366,50 @@ const statOp = readOperation((dir, path) => {
     return ok({ size: fileSizeBytes(file) })
 })
 
+// ── HTTP ──────────────────────────────────────────────────────────────────────
+//
+// There are no sockets here, but the two operations that *set up* a server still
+// have a faithful meaning without one: `createServer` stores the listener, and
+// `listen` accepts exactly the requests the fixture queued. That is what makes a
+// request-in / response-out proof possible against the in-memory filesystem —
+// the same listener the Node runner would drive, driven by fixture data instead
+// of a socket. `forever` is the one HTTP-adjacent operation with no meaning
+// here; see the note on {@link virtual} below.
+
+/** @type {(listener: RequestListener<Operation>) => (state: State) => readonly[State, OpResult<Server>]} */
+const createServer = listener => state => {
+    // The same narrowing the Node runner performs before handing a request to
+    // it: `CreateServer` declares its listener over `Operation`, since a
+    // `Server` must not carry a type parameter, and a runner can only run one
+    // at its own operation set.
+    const server = /** @type {_VirtualListener} */ (listener)
+    /** @type {Server} */
+    const handle = asNominalServer(server)
+    return [{ ...state, server }, ok(handle)]
+}
+
+/**
+ * Records the port, then hands the stored listener every queued request in
+ * turn, threading the state through each and recording what came back. The
+ * queue is emptied, so a second `listen` does not re-deliver.
+ *
+ * `unwrap` is total: a `RequestListener`'s channel is `never` because the
+ * response frame *is* where a listener puts its failures — the Node runner
+ * unwraps at the same point for the same reason.
+ *
+ * @type {(port: number) => (state: State) => readonly[State, OpResult<void>]}
+ */
+const listen = port => state => {
+    const listener = assertNotNullish(state.server, 'listen without createServer')
+    /** @type {State} */
+    let s = { ...state, port, requests: [] }
+    for (const request of state.requests) {
+        const [next, response] = virtual(s)(listener(request))
+        s = { ...next, responses: [...next.responses, unwrap(response)] }
+    }
+    return [s, okVoid]
+}
+
 /** @type {PartialMemOperationMap<NodeOp, State>} */
 const map = {
     all: (...a) => state => {
@@ -409,6 +459,10 @@ const map = {
     createExclusive,
     writeBytes: writeBytesOp,
     stat: statOp,
+    createServer,
+    // The handle is redundant in this runner: it keeps one server, in `state`,
+    // so the listener is looked up there rather than unwrapped from the nominal.
+    listen: (_, port) => listen(port),
     randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, ok(state.randomNext)],
     now: () => state => [state, ok(state.epochNs)],
     // Virtual sandbox is a pass-through: the fixture's test function is
@@ -435,14 +489,22 @@ const map = {
 /**
  * The virtual runner.
  *
- * **It implements part of `NodeOp`, and says so.** `exec`, `createServer`,
- * `listen`, `forever` and `test` have no meaning against an in-memory
- * filesystem, and they used to be present as `todo` handlers — entries that
- * existed only to satisfy a total operation map and threw when reached. They
- * are simply absent now, so a program that asks for one gets
- * `error(notImplemented)` back through its own continuation and decides what an
- * incompatible runner means for it, which is what `NotImplemented` was
- * introduced for. A command that is not a `NodeOp` at all still panics.
+ * **It implements part of `NodeOp`, and says so.** `exec`, `forever` and `test`
+ * have no meaning against an in-memory filesystem, and they used to be present
+ * as `todo` handlers — entries that existed only to satisfy a total operation
+ * map and threw when reached. They are simply absent now, so a program that
+ * asks for one gets `error(notImplemented)` back through its own continuation
+ * and decides what an incompatible runner means for it, which is what
+ * `NotImplemented` was introduced for. A command that is not a `NodeOp` at all
+ * still panics.
+ *
+ * `forever` is absent for a reason no implementation could remove: its result
+ * type is `Result<never, NotImplemented>`, so `error(notImplemented)` is the
+ * *only* value it can produce — a runner that cannot block forever has nothing
+ * else to answer, and a server program run here therefore ends where it would
+ * otherwise have blocked. `createServer` and `listen` do have meanings without
+ * a socket and are implemented above, which is what makes the rest of such a
+ * program provable.
  *
  * @type {RunInstance<NodeOp, State>}
  */
