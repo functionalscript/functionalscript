@@ -319,36 +319,35 @@ the region having work to do is:
   admits `['_()', a, [['|?.', b]], c]`, the only receiver-preserving spelling of
   `(a?.b)(...c)`: its single step neither follows a step nor precedes one, so a
   clause quantified over steps alone would reject it.
-- **How much** goes in it — the span runs from the first step the clause names
-  to the **last**. Where the clause names a consumer taking a receiver, the span
-  starts at the *producing* step, not the consumer: in
-  `['_', a, [['|.', b], ['|?.()', c]]]` — `a.b?.(...c)` — the `|.` is what
-  supplies `this`, and stranding it in the base gives
-  `['_', ['.', a, b], [['|?.()', c]]]`, which calls a detached `a.b` because an
-  `exp` yields a value (`a.b?.()` is `"A"`; `(0, a.b)?.()` is `"no-this"`).
-  Anything genuinely before the span is a dead prefix and belongs in an `exp`;
-  anything after it is a liftable suffix and belongs in a following node.
+- **How much** goes in it — as little as possible. The walk is cut at **every**
+  available cut point, and what survives between cuts is one node. A cut is
+  available before any optional step that takes no receiver from the step before
+  it: closing the region there is unobservable, because the operator following
+  the closure is itself guarded. None is available before a `|.` or a `|()` —
+  closing before an unguarded operator is exactly what the parenthesis law makes
+  observable — nor before a `|?.()` whose predecessor is a property step, since
+  that would strand the receiver it consumes: `['_', ['.', a, b], [['|?.()',
+  c]]]` calls a detached `a.b`, an `exp` yielding a value rather than a
+  reference (`a.b?.()` is `"A"`; `(0, a.b)?.()` is `"no-this"`).
 
-The suffix half matters as much as the prefix half, and it works by **cut
-points** rather than by single steps. A cut is available before any optional
-step that takes no receiver from the step before it: closing the region there is
-unobservable, because the operator following the closure is itself guarded. No
-cut is available before a `|.` or a `|()` — closing before an unguarded operator
-is exactly what the parenthesis law makes observable — nor before a `|?.()`
-whose predecessor is a property step, which would strand the receiver it
-consumes.
-
-Minimality cuts at the earliest available point past the span's required work,
-which trims a whole suffix rather than a last step. Suffixes of two or more
-steps are the case a per-step reading misses:
+Cutting *everywhere* rather than only at the two ends is what the rule needs,
+and a per-step reading of either end misses a case:
 
 ```ts
-['_', a, [['|?.', b], ['|()', c], ['|?.', d], ['|.', e]]]      // a?.b(...c)?.d.e
-['_', ['_', a, [['|?.', b], ['|()', c]]], [['|?.', d], ['|.', e]]]
+['_',   a, [['|?.', b], ['|()', c], ['|?.', d], ['|.', e]]]         // a?.b(...c)?.d.e
+['_',   ['_', a, [['|?.', b], ['|()', c]]], [['|?.', d], ['|.', e]]]
+
+['_()', a, [['|.', b], ['|()', c], ['|?.', d]], e]                  // (a.b(...c)?.d)(...e)
+['_()', ['.()', a, b, c], [['|?.', d]], e]
 ```
 
-The trailing `|.` is not liftable on its own, yet the guarded suffix it sits in
-lifts whole — verified identical over ten input kinds, error text included.
+In the first the cut is at the back, and the trailing `|.` is not liftable on
+its own — only the guarded suffix it sits in lifts, whole. In the second the cut
+falls in the *middle*: both the inner `|()` and the node's own call name
+consumers, so a first-to-last span would keep every step, yet what precedes the
+cut is a completed receiver lifetime with a pure spelling — `a.b(...c)` is
+`.()`, and leaving it in the walk hides a shareable `exp`. Both verified
+identical across input kinds, error text included.
 
 `_()` is the exception at the far end, because its own call is unguarded and
 takes the last step's receiver. A cut inside its `lambdas` is fine, since the
