@@ -112,14 +112,20 @@ link to. Use one of two forms — the identifier as a link label where a documen
 survives, or the word **`retired`** beside it with the target named:
 
 ```md
-- [i167](../bit_vec/module.f.mjs) — the `bit_vec` re-binding.
-- i143 (retired; shipped as [`fjs/types/rtti/data/`](../types/rtti/data/module.f.mjs)) — …
+- [i167](../fjs/types/bit_vec/module.f.mjs) — the `bit_vec` re-binding.
+- i143 (retired; shipped as [`fjs/types/rtti/data/`](../fjs/types/rtti/data/module.f.mjs)) — …
 ```
 
 Write `retired` in the second form; it is the word that makes the resolution
 checkable, and [retired-issue-identifiers](./retired-issue-identifiers.md)
 carries the check. A bare identifier with neither form reads as unresolved,
 which is what it should mean.
+
+Those two targets are written as they would appear **from this file**, in
+`todo/`. Re-base them against the file you are editing rather than copying them
+across — `fjs/types/todo/185.md` reaches the same module as
+`../bit_vec/module.f.mjs`. Relative paths surviving a move without being
+re-based is what put 105 broken links in this tree.
 
 ## Blocked by third parties
 

@@ -137,12 +137,15 @@ earlier revision of this issue used it, and it would have reported every
 correctly-resolved citation as outstanding. A resolution takes one of two forms:
 
 ```md
-- [i167](../bit_vec/module.f.mjs) — the identifier as a link label, where a
-  document survives to link to.
-- i143 (retired; shipped as [`fjs/types/rtti/data/`](../types/rtti/data/module.f.mjs))
+- [i167](../fjs/types/bit_vec/module.f.mjs) — the identifier as a link label,
+  where a document survives to link to.
+- i143 (retired; shipped as [`fjs/types/rtti/data/`](../fjs/types/rtti/data/module.f.mjs))
   — the identifier with `retired` beside it and the target named, for code.
 - the retired `i171` … resolved **won't fix**, reason in `parseTestSet`'s JSDoc.
 ```
+
+The targets above are relative to *this* file, in `todo/`. Re-base them against
+whatever file you are editing instead of copying them across.
 
 The word `retired` is what makes the second form checkable, so write it. The
 check is then per *file*, not per occurrence: a file has resolved an identifier
