@@ -12,8 +12,15 @@ effect. A program that logs `bound` after `listen`, with a listener that logs
 `listen` resolves on the `listening` event and requests arrive afterwards.
 
 Reported on
-[#1693](https://github.com/functionalscript/functionalscript/pull/1693). Nothing
-observes it today: `fjs/web`'s listener writes no state and its log line is the
+[#1693](https://github.com/functionalscript/functionalscript/pull/1693), and
+measured on Node 22.22.2 rather than reasoned about — a server whose listener
+pushes `request`, awaiting `listen`, then pushing `bound`, prints
+`bound, request, answered`. It cannot print anything else there: nothing can
+connect to a socket that is not yet listening, so on a host a queued request
+*before* `listen` does not exist. It is only this runner, where requests are
+fixtures in `State`, that can have one.
+
+Nothing observes it today: `fjs/web`'s listener writes no state and its log line is the
 only effect after `listen`, so both orders print the same thing. A listener that
 counts requests in `MemOp`, or logs, would see the difference.
 
