@@ -118,18 +118,20 @@ already accepts `[1]` and `[1, undefined]` alike, and so would
 `['.', a, 'b', null]`, `['.', a, 'b']`, `['.', a, 'b', undefined]` and a hole
 validate against it. Whether a chain continuation could be spelled
 `option(propertyLambda)` rather than the literal `null` it carries today is a
-question about `option` at a declared position, which the absence rule already
-answers the same way under every option below. It is recorded here only to
-keep it out: it is not an argument for either answer.
+question about `option` at a declared position — now spellable at the type
+level too, since [#1708](https://github.com/functionalscript/functionalscript/pull/1708)
+renders such a position optional — and the absence rule answers it the same way
+under every option below. It is recorded here only to keep it out: it is not an
+argument for either answer.
 
 ## The decision
 
 **A. Absence is absence, however spelled.** A trailing `undefined` and a hole
 are both absence, so `close([number])` accepts `[1, undefined]`. Consistent
-with everything else RTTI says, and the direction the construction-side issue
-on the open [#1708](https://github.com/functionalscript/functionalscript/pull/1708)
-would push: `parse` would stop materializing the member it decided was absent,
-and its output would keep inhabiting a closed schema.
+with everything else RTTI says, and the direction
+[`./parse-omits-undefined-members.md`](./parse-omits-undefined-members.md)
+pushes on the construction side: `parse` would stop materializing the member it
+decided was absent, and its output would keep inhabiting a closed schema.
 
 **A needs both knobs, not one.** `[1, undefined]` trips both halves of
 `extra.length === 0 && fits(...)` independently — it is an undeclared entry
@@ -224,10 +226,18 @@ do not follow.
 - [PR #1712](https://github.com/functionalscript/functionalscript/pull/1712) —
   the same "a hole is `undefined`" reading, applied to the schema. This is the
   value side, and `close` is where the two readings part.
-- [PR #1708](https://github.com/functionalscript/functionalscript/pull/1708),
-  open — its `parse-omits-undefined-members.md` applies the rule to `parse`'s
-  output, and it would render a trailing omittable position optional in `Ts`.
-  Fold this file into that one if it lands first: same rule, the other reader.
+- [`./parse-omits-undefined-members.md`](./parse-omits-undefined-members.md) —
+  the same rule, read by `parse` on the way *out*. Filed with
+  [#1708](https://github.com/functionalscript/functionalscript/pull/1708),
+  which landed the `Ts<>` half: a trailing omittable position now renders
+  optional, so a declared position's rendering tracks its value set.
+  **Deliberately not folded into it**, though an earlier draft of this file
+  said to: the two ask different questions of different readers, and either can
+  be answered without the other. That one is about what `parse` *builds* at a
+  **declared** position it found absent; this one is about whether an
+  **undeclared** trailing `undefined` or hole is a member at all. Answer A here
+  would make them agree at the closed boundary, which is the only place they
+  meet.
 - [`../../../edag/README.md`](../../../edag/README.md) and
   [`../../../edag/module.f.mjs`](../../../edag/module.f.mjs) — the only
   consumer of `close` outside this directory, its literal uniqueness claim, and
