@@ -39,14 +39,12 @@ pre { white-space: pre-wrap }
     ['script', { type: 'module', src: './browser-test-entry.mjs' }]
 )
 
-const entry = utf8(`import { startBrowserTests } from './fjs/emergent_testing/browser.mjs'
-import { browserProofModules } from './fjs/emergent_testing/browser-suite.mjs'
-import { proof } from './fjs/website/browser.mjs'
+const entry = utf8(`import { startBrowserTestSources } from './fjs/emergent_testing/browser.mjs'
+import { browserProofSources } from './fjs/emergent_testing/browser-suite.mjs'
 
 const root = /** @type {Element} */ (document.querySelector('[data-browser-tests]'))
-/** @type {readonly (readonly [string, unknown])[]} */
-const modules = [...browserProofModules, ['./fjs/website/browser.mjs', proof]]
-const start = () => startBrowserTests(root, modules)
+const sources = [...browserProofSources, './fjs/website/browser.mjs']
+const start = () => startBrowserTestSources(root, sources, source => import(source))
 const runButton = /** @type {Element} */ (document.querySelector('[data-test-run]'))
 runButton.addEventListener('click', start)
 if (new URL(location.href).searchParams.get('run') !== 'false') { start() }

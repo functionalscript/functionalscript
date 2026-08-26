@@ -30,19 +30,14 @@ const selected = (await Promise.all(candidates.map(async url =>
     exportsProof(await readFile(url, 'utf8')) ? [url] : []
 ))).flat().toSorted((a, b) => a.pathname.localeCompare(b.pathname))
 
-const imports = selected.map((url, index) =>
-    `import { proof as proof${index} } from '../../fjs/${relative(sourceRoot.pathname, url.pathname)}'`
-)
-const entries = selected.map((url, index) =>
-    `    ['./fjs/${relative(sourceRoot.pathname, url.pathname)}', proof${index}],`
+const entries = selected.map(url =>
+    `    './fjs/${relative(sourceRoot.pathname, url.pathname)}',`
 )
 const manifest = [
-    '/** Generated browser proof manifest. Every entry is loaded as a native ES module. */',
+    '/** Generated browser proof source map. Modules are loaded after the page renders. */',
     '',
-    ...imports,
-    '',
-    '/** @type {readonly (readonly [string, unknown])[]} */',
-    'export const browserProofModules = [',
+    '/** @type {readonly string[]} */',
+    'export const browserProofSources = [',
     ...entries,
     ']',
     '',

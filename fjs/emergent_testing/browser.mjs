@@ -80,11 +80,16 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
     const start = performance.now()
     const tests = modules.flatMap(([module, proof]) =>
         collect([], false, proof).map(([path, throws, fn]) =>
-            runOne(module, path, throws, fn, result)
+            () => runOne(module, path, throws, fn, result)
         )
     )
-    return Promise.all(tests).then(nested => {
-        const results = nested.flat()
+    const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0))
+    const completed = tests.reduce((promise, test, index) => promise.then(results =>
+        (index % 25 === 0 ? yieldToBrowser() : Promise.resolve())
+            .then(test)
+            .then(next => [...results, ...next])
+    ), Promise.resolve(/** @type {readonly _BrowserTestResult[]} */ ([])))
+    return completed.then(results => {
         const failed = results.filter(result => result.status === 'failed').length
         return {
             status: failed === 0 ? 'passed' : 'failed',
@@ -94,6 +99,48 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             results,
         }
     })
+}
+
+/** @typedef {(source: string) => Promise<{ readonly proof?: unknown }>} _BrowserImporter */
+
+/**
+ * Loads proof modules after the page has rendered, reporting module-loading
+ * progress before proof execution begins.
+ *
+ * @type {(root: Element, sources: readonly string[], importer: _BrowserImporter) => Promise<BrowserTestReport>}
+ */
+export const startBrowserTestSources = (root, sources, importer) => {
+    const start = performance.now()
+    setState(root, 'loading')
+    let loaded = 0
+    const summary = root.querySelector('[data-test-summary]')
+    const modules = Promise.all(sources.map(source => importer(source).then(module => {
+        loaded += 1
+        if (summary !== null) { summary.textContent = `Loading ${loaded}/${sources.length}: ${source}` }
+        return /** @type {const} */ ([source, module.proof])
+    })))
+    const report = modules.then(
+        loadedModules => startBrowserTests(root, loadedModules),
+        error => {
+            const [message, stack] = errorDetails(error)
+            const failure = { module: '<module loader>', path: '', status: 'failed',
+                duration: performance.now() - start, message, stack }
+            /** @type {BrowserTestReport} */
+            const value = {
+                status: 'infrastructure-error',
+                browser: navigator.userAgent,
+                totals: { tests: 0, passed: 0, failed: 0 },
+                duration: failure.duration,
+                results: [failure],
+            }
+            renderBrowserReport(root, value)
+            window.dispatchEvent(new CustomEvent('fjs-browser-test-complete', { detail: value }))
+            return value
+        }
+    )
+    const browserWindow = /** @type {Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }} */ (window)
+    browserWindow.fjsBrowserTestReport = report
+    return report
 }
 
 /** @type {(root: Element, state: string) => void} */
