@@ -147,7 +147,7 @@ What disjointness buys is the whole migration. Both checkers run over the same
 
 - adding an RTTI annotation can never break `tsc`, which is the checker
   meanwhile (see [Non-goals](#non-goals));
-- stage 10 is per-annotation, not per-module and certainly not a flag day: a
+- stage 11 is per-annotation, not per-module and certainly not a flag day: a
   declaration can carry both forms, one form, or neither, and the file stays
   valid input to both tools throughout;
 - the step is reversible, because removing an annotation of either kind leaves
@@ -262,7 +262,7 @@ respect to *that* migration: a `types.ts` is not an implementation-migration
 target and must not be forced through JSDoc translation. It says nothing about
 what happens when TypeScript stops being the type system, which is what this
 epic is about. Both hold: a `types.ts` survives stage 1 of that migration
-untouched, and retires under stage 10 of this one.
+untouched, and retires under stage 11 of this one.
 
 The regimes coexist by file extension either way, which is the seam that
 document already establishes, and `.f.mjs` modules keep their JSDoc and their
@@ -296,6 +296,56 @@ stage that can land earliest and entirely on its own. It is also what lets a
 More than half the run-time and emission side is built. The compile-time side is
 the part that does not exist.
 
+### Editor support is part of the work, not an extra
+
+Today a `.f.mjs` module gets its editor experience for free: VSCode runs the
+TypeScript language service over the JSDoc, and hover, inline diagnostics,
+go-to-definition, and completion all follow. **Stage 11 deletes that JSDoc.**
+If nothing has replaced it by then, the editor goes dark at exactly the moment
+the checker becomes real — which would be a worse day-to-day experience than
+the one this epic set out to improve, no matter how sound the checker is.
+
+So a **language server** (LSP, and so VSCode and every other LSP client) is a
+precondition for stage 11 rather than a follow-on, and it is stage 10.
+Commitment 2 is what makes the ordering achievable instead of a race: while both
+annotation forms are present the TypeScript language service keeps working, so
+the language server can be built, shipped, and adopted *before* any JSDoc is
+removed.
+
+Three of its features fall out of decisions already made:
+
+- **Diagnostics.** The readers already produce `{ path, message }`. What is
+  missing is a source span, which is [open question 4](#open-questions) — the
+  same work, whether the consumer is a terminal or an editor.
+- **Hover.** The name-only rule guarantees every annotated declaration has a
+  type with a *name*, so hover has something to show, and `ts/module.f.mjs`
+  already renders a schema to readable TypeScript for the expansion.
+- **Go to definition, on a type.** An annotation body is an ordinary binding,
+  so this is the same jump as any `const` — plain identifier resolution, not a
+  type-language lookup. In a type grammar this is a bespoke feature; here it is
+  the one that costs nothing. Completion is likewise "in-scope bindings whose
+  value is a schema".
+
+The transport is largely built. LSP is JSON-RPC 2.0, and
+[`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) already
+implements the envelope, the standard error codes, and `dispatch`, with
+[`mcp/stdio`](../fjs/protocol/mcp/stdio/module.f.mjs) as a working stdio server
+to copy. The framing differs — LSP uses `Content-Length` headers where MCP uses
+newline-delimited lines — so that layer is new, and small.
+
+It is also the natural dogfood. `json_rpc`'s own messages are RTTI schemas
+today (`request`, `response`, `decodeRequest = parse(request)`), with its
+`types.ts` derived by `Ts<>`; the LSP message types would be written the same
+way, so the server that reports type errors is itself described by the type
+system it reports for.
+
+One known consequence elsewhere:
+[error-message-specificity](../fjs/djs/tokenizer/todo/error-message-specificity.md)
+parks "continue tokenizing after an error" as not worth doing "unless a real use
+case (e.g. an editor/LSP wanting multiple diagnostics per file) shows up". This
+is that use case — an editor that stops at the first token error is not usable —
+so that issue's open question is answered yes by this stage.
+
 ### Non-goals
 
 - **A type grammar.** Not a subset of TypeScript's type expressions, not a JSDoc
@@ -323,7 +373,7 @@ the part that does not exist.
 ### Tasks
 
 Ordered. Stage 1 is independent of everything else and can start today; stages
-3 onward are gated on the compiler.
+3 onward are gated on the compiler; stage 10 gates stage 11.
 
 - [ ] **1. `.d.ts` generation from schemas.** An `fjs` command over
       [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs), wired into
@@ -362,10 +412,15 @@ Ordered. Stage 1 is independent of everything else and can start today; stages
       has no RTTI representation: either RTTI gains a brand-carrying wrapper, or
       nominal types stay a TypeScript-era construct
       ([134-nominal-types-proposal](./134-nominal-types-proposal.md)).
-- [ ] **10. Retire `Ts<T>`, the JSDoc types in `.f.mjs`, and the `types.ts`
+- [ ] **10. A language server.** LSP over
+      [`json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) — diagnostics with
+      spans, hover, go-to-definition, completion — so that removing JSDoc does
+      not remove the editor experience. Must ship *before* stage 11, and can
+      start as soon as stage 5 produces its first real diagnostic.
+- [ ] **11. Retire `Ts<T>`, the JSDoc types in `.f.mjs`, and the `types.ts`
       beside them,** declaration by declaration — the two annotation forms are
       disjoint, so this needs no flag day and no module-at-a-time rule — once
-      1–8 hold. A `types.ts` goes when its module's schemas cover what it
+      1–8 and 10 hold. A `types.ts` goes when its module's schemas cover what it
       declared and nothing outside still imports it; consumers keep seeing types
       through generated `.d.ts`. This is the stage where TypeScript stops being
       the type system for FunctionalScript, and it is per-module, not a cutover.
@@ -443,7 +498,7 @@ does not replace them.
 - [migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md) — establishes
   the `.f.mjs` / `.mjs` / `types.ts` / `.d.ts` split that commitment 4 assigns
   type systems to. Its "`types.ts` may remain permanently" is permanence with
-  respect to *that* migration; stage 10 here is what eventually retires them.
+  respect to *that* migration; stage 11 here is what eventually retires them.
 - [fjs-nanvm-integration.md](./fjs-nanvm-integration.md) — the path to a
   compiler that parses authored FunctionalScript.
 - [`fjs/bnf/todo/layered-parser.md`](../fjs/bnf/todo/layered-parser.md) — the
@@ -469,10 +524,16 @@ does not replace them.
 - [publishing-packages](../fjs/ci/todo/publishing-packages.md) — consumes stage
   1's generated `.d.ts`.
 - [`fjs/types/rtti/ts/README.md`](../fjs/types/rtti/ts/README.md) — not an issue,
-  but the record of what `Ts<T>` costs and why stage 10 exists.
+  but the record of what `Ts<T>` costs and why stage 11 exists.
 - [rtti-parse](../fjs/media/json/todo/rtti-parse.md) — reading JSON text
   straight against a schema; the run-time side continuing to grow around the
   same source of truth.
+- [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) and
+  [`fjs/protocol/mcp`](../fjs/protocol/mcp/README.md) — the transport stage 10
+  builds on, and the precedent for describing a protocol's messages in RTTI.
+- [error-message-specificity](../fjs/djs/tokenizer/todo/error-message-specificity.md) —
+  its parked "continue after an error" is unparked by stage 10; an editor needs
+  more than one diagnostic per file.
 - [expression](../spec/todo/3410-expression.md) — **not** a dependency, which is
   the point of the name-only rule: an annotation body needs no expression
   parser. It stays a dependency of the *language*, not of this epic.
