@@ -104,6 +104,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
 }
 
 /** @typedef {(source: string) => Promise<{ readonly proof?: unknown }>} _BrowserImporter */
+/** @typedef {{ readonly status: 'loaded', readonly source: string, readonly proof: unknown } | { readonly status: 'error', readonly source: string, readonly error: unknown }} _LoadedModule */
 
 /**
  * Loads proof modules after the page has rendered, reporting module-loading
@@ -116,13 +117,14 @@ export const startBrowserTestSources = (root, sources, importer) => {
     setState(root, 'loading')
     let loaded = 0
     const summary = root.querySelector('[data-test-summary]')
+    /** @type {Promise<readonly _LoadedModule[]>} */
     const modules = Promise.all(sources.map(source => importer(source).then(
         module => {
             loaded += 1
             if (summary !== null) { summary.textContent = `Loading ${loaded}/${sources.length}: ${source}` }
-            return { status: 'loaded', source, proof: module.proof }
+            return /** @type {const} */ ({ status: 'loaded', source, proof: module.proof })
         },
-        error => ({ status: 'error', source, error })
+        error => /** @type {const} */ ({ status: 'error', source, error })
     )))
     const report = modules.then(loadedModules => {
         const rejected = loadedModules.find(module => module.status === 'error')
