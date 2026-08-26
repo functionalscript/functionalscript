@@ -77,6 +77,7 @@ export const proof = {
         assertEq(cBase32ToVec("o"), null, 'o (maps to 0) must be null')
         assertEq(cBase32ToVec('u'), null, 'invalid trailing symbol must be null')
         assertEq(cBase32ToVec('u8'), null, 'invalid symbol before sentinel must be null')
+        assertEq(cBase32ToVec('8u'), null, 'invalid symbol after sentinel must be null')
     },
     trailingZeroSymbols: () => {
         assertEq(cBase32ToVec('g0'), empty)
@@ -94,6 +95,7 @@ export const proof = {
         // Reject both an independently oversized head and a valid head whose
         // retained tail would push the combined result over `maxLength`.
         assertEq(cBase32ToVec('0'.repeat(209_717) + 'g'), null)
+        assertEq(cBase32ToVec('0'.repeat(209_715) + '4'), null)
         assertEq(cBase32ToVec('0'.repeat(209_715) + '1'), null)
     },
 }
