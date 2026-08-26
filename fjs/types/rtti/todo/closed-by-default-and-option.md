@@ -232,6 +232,30 @@ in a `rest` constrains nothing and normalizes away on both kinds. This is not ne
 behaviour: `../parse` and `../validate` walk a value with `Object.entries`, which
 skips holes, so `array(number)` accepts `[1, , 3]` today.
 
+**A referenced rest is left alone**, which is the one place the strip cannot be
+applied. `trimPrefix` already declines to see through a reference ("reading its
+unit bits would need the rule set"), and a rest that resolves to a rule cannot be
+stripped in place: the same rule may be used at a declared position, where the
+bit is meaningful, so clearing it globally would delete optionality elsewhere.
+For `X = or(option, array(X))` used as a rest, the stripped form is not even
+inline — it is the fixpoint `X' = array(X')`, a derived rule per rule reachable
+at a rest position.
+
+So stage 2 strips an **inline** rest and leaves a **referenced** one as it is.
+The cost is that `rest(c, X)` and `rest(c, X')` are then structurally distinct
+while denoting one set, which is exactly the incompleteness
+[`../data/README.md`](../data/README.md) already accepts and documents for rule
+*names* — semantically equal, structurally distinct, and mutual `subset`s rather
+than `equal`. To keep that property here, `subset` masks the absent bit when it
+compares rest positions; without the mask the two spellings would not even be
+mutual subsets, which is the part that would actually be wrong.
+
+Materializing derived rules instead would restore full canonicality at the price
+of a fixpoint construction over the rule graph, a naming scheme that cannot
+collide with user rule names, and memo identities for the derived names — the
+bisimulation-grade direction `../data/README.md` deliberately avoids. Revisit
+only if a consumer needs `equal` to see through it.
+
 **Length still bounds a closed array**, which settles the one case the strip
 creates rather than leaving it to be discovered. `array(option)` has an empty
 element set once the bit is stripped; a `never` rest normalizes to no rest, which
@@ -366,8 +390,12 @@ Stage 2 (one PR, after stage 1 lands):
       value-keyed, since the new bit has no JS value to key on — and `trimPrefix`
       and `objectMayOmit` switch to it. `allUnits` stays the four DJS units;
       `or(option, unknown)` is the declared-member top.
-- [ ] Normalize the absent bit out of a `rest` on both kinds; pin
+- [ ] Normalize the absent bit out of an **inline** `rest` on both kinds; pin
       `array(or(option, number))` → `array(number)` and the top-level spelling.
+- [ ] Leave a **referenced** `rest` unstripped, and mask the absent bit where
+      `subset` compares rest positions, so the two spellings stay mutual subsets.
+      Pin `X = or(option, array(X))` used as a rest, and add the case to
+      `../data/README.md`'s list of accepted structural incompleteness.
 - [ ] Redesign `trimPrefix` around the trailing **declared position** — drop it
       when it admits absence and its absence-stripped set equals the rest — and
       pin `rest([or(option, number)], number)` as `array(number)`. A bit test on
