@@ -183,8 +183,33 @@ where `a.b(...c)` throws at the access with the arguments unevaluated. Both are
 counts unevaluated operands, which is the strongest justification for `!()`
 existing as its own tag.
 
-Not verified: none of this is implemented, so every claim is checked through the
-JS spelling of each term, not by executing the nodes.
+**The oracle is V8, and that matters for exactly one production.** Nothing here
+is implemented, so each term is checked through its JS spelling rather than by
+executing nodes — and on one case the host engines disagree, as
+[`../README.md`](../README.md) records: for a nullish `u`, `(u?.b)(d)` must
+throw, because the parentheses end the chain and `undefined` is called. V8 does.
+JavaScriptCore, and so `bun test`, carries the short-circuit through the
+parentheses and yields `undefined`.
+
+That case is `!()`. Re-running the same 171 pairs under Bun collapses one:
+
+```ts
+a?.b(...c)     ['?.', a, b, ['()', c, null]]
+(a?.b)(...c)   ['?.', a, b, ['!()', c]]
+```
+
+— indistinguishable under JavaScriptCore, distinct under V8. So a JS oracle
+cannot establish `!()` at all on every supported runner, and the argument-
+evaluation distinction above rests on the same engine. The remaining 170 pairs
+agree on both engines.
+
+This does not weaken the design; it locates where the evidence has to come from.
+The EDAG follows the specification whatever its host does, which is why
+`chainsJs` in [`../proof.f.mjs`](../proof.f.mjs) deliberately omits this
+spelling and `chain.throw.optionalPropertyOnUndefined` in
+[`../amnesia/proof.f.mjs`](../amnesia/proof.f.mjs) pins the throw by evaluating
+the node instead. `!()` needs the same treatment, and it is the one production
+that does.
 
 ## Open questions
 
@@ -243,6 +268,10 @@ folded in or kept as the record this one builds on is undecided.
       types in [`../types.ts`](../types.ts), the `Map` and handlers in
       [`../amnesia/`](../amnesia/), the tables in [`../README.md`](../README.md),
       and the `chains` / `optionalCall` proofs.
+- [ ] Pin `!()` with an executor proof, not a JS one — it is the production the
+      engines disagree about, so `chainsJs` cannot carry it. Follow
+      `chain.throw.optionalPropertyOnUndefined`, which already does this for the
+      same boundary in the current node set.
 - [ ] Add as proofs the pairs that differ **only** in operand evaluation —
       `a.b(...c)` against `(a?.b)(...c)`, and `(a?.b.c)(...d)` against
       `(a?.b).c(...d)`. Both are `TypeError` on a nullish base, so a proof
