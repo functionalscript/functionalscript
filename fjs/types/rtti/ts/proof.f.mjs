@@ -1,6 +1,9 @@
 /**
  * @import { Type } from '../types.ts'
  * @import { Data } from '../data/types.ts'
+ * @import { Ts } from './types.ts'
+ * @import { Assert } from '../../../asserts/types.ts'
+ * @import { Equal } from '../../ts/types.ts'
  */
 
 import { assertEq } from '../../../asserts/module.f.mjs'
@@ -9,6 +12,25 @@ import { boolean, number, string, bigint, unknown, array, close, record, or, opt
 import { dataToTs, printer } from './module.f.mjs'
 
 const toTs = printer()
+
+// ── `Ts<T>` over a tuple schema ─────────────────────────────────────────────
+//
+// `TupleTs` splits off the trailing run of positions admitting `undefined` and
+// renders it optional, which needs a known length. A schema array of non-fixed
+// length has no trailing position to split off, so it keeps its element type
+// instead — the homomorphic mapping's answer. Pinned because a split that
+// falls back to the empty tuple silently renders such a schema `readonly []`,
+// and nothing else here would have caught it.
+const dynamicSchema = /** @type {const} */ ([number, bigint]).map(x => x)
+/** @typedef {Assert<Equal<Ts<typeof dynamicSchema>, readonly (number | bigint)[]>>} _NonFixedLength */
+
+const optionalTail = /** @type {const} */ ([number, bigint, option(boolean), option(string)])
+/** @typedef {Assert<Equal<Ts<typeof optionalTail>, readonly [number, bigint, (boolean | undefined)?, (string | undefined)?]>>} _OptionalTail */
+
+// Only the *trailing* run: TypeScript forbids a required element after an
+// optional one, so an interior position that admits `undefined` stays required.
+const interiorOption = /** @type {const} */ ([option(string), number])
+/** @typedef {Assert<Equal<Ts<typeof interiorOption>, readonly [string | undefined, number]>>} _InteriorStaysRequired */
 const toTsMut = printer(true)
 
 /** @type {(rtti: Type, expected: string) => void} */

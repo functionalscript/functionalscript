@@ -128,7 +128,10 @@ type MappedTs<T extends Tuple> = Extract<{ readonly[K in keyof T]: Ts<T[K]> }, r
 type RequiredPart<M extends readonly unknown[]> =
     M extends readonly [...infer I extends readonly unknown[], infer L]
         ? undefined extends L ? RequiredPart<I> : M
-        : readonly []
+        // `M` itself, not `readonly []`: this branch is both the empty tuple
+        // (where they coincide) and a schema array of non-fixed length, which
+        // has no trailing position to split off and must keep its element type.
+        : M
 
 type OmittablePart<M extends readonly unknown[], Acc extends readonly unknown[] = readonly []> =
     M extends readonly [...infer I extends readonly unknown[], infer L]
