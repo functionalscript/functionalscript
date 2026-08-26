@@ -30,7 +30,8 @@ already in use 127.0.0.1:44015`) where this runner can only name the string it
 was given.
 
 **Which addresses exist at all.** Every host string binds here. On a real host
-only an address of a local interface does — measured on Linux with Node 22.22.2:
+only an address of a local interface does — measured on Linux with Node 22.22.2
+and on Darwin with Node 23.11.0, which agree on every row:
 
 | host | Node |
 | --- | --- |

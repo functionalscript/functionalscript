@@ -15,14 +15,15 @@ Reported on
 [#1693](https://github.com/functionalscript/functionalscript/pull/1693), and
 measured rather than reasoned about, on Linux with Node 22.22.2 and reproduced
 on Darwin with Node 23.11.0 — a server whose listener pushes `request`,
-awaiting `listen`, then pushing `bound`, prints `bound, request, answered`. It cannot print anything else there: nothing can
-connect to a socket that is not yet listening, so on a host a queued request
-*before* `listen` does not exist. It is only this runner, where requests are
-fixtures in `State`, that can have one.
+awaiting `listen`, then pushing `bound`, prints `bound, request, answered`. It
+cannot print anything else there: nothing can connect to a socket that is not
+yet listening, so on a host a queued request *before* `listen` does not exist.
+It is only this runner, where requests are fixtures in `State`, that can have
+one.
 
-Nothing observes it today: `fjs/web`'s listener writes no state and its log line is the
-only effect after `listen`, so both orders print the same thing. A listener that
-counts requests in `MemOp`, or logs, would see the difference.
+Nothing observes it today: `fjs/web`'s listener writes no state and its log
+line is the only effect after `listen`, so both orders print the same thing. A
+listener that counts requests in `MemOp`, or logs, would see the difference.
 
 ### Proposal
 
