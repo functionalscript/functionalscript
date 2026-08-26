@@ -72,6 +72,21 @@ unfinished, and general inference and declaration retirement blocked with it:
   runtime boundary, and that is the only place its `Result` return is
   justified. Splitting the two by provenance is what keeps the API-changing
   wrapper off ordinary exported functions.
+
+  **The split is over definitions; call sites split separately.** A readable
+  definition makes the body checkable, and every call site the compiler can
+  see checkable with it — but not a call it cannot see. A function exported to
+  a TypeScript consumer is that case: readable definition, foreign call site.
+  Where the generated declaration is wider than the schema — `close`,
+  `close(c, rest)`, non-finite numbers and `-0`, all listed under
+  [the epic's `.d.ts` promise](../../../../todo/rtti-type-system.md) — the
+  consumer can pass a value the declaration accepts and the schema rejects,
+  with nothing between. That path is the epic's **stage 13** (ownership at the
+  language boundary), not this issue: whether it needs an entry check at all is
+  decided by which `.d.ts` policy wins, and if it does, the check cannot be the
+  wrapper above, whose `Result` return would change the published signature.
+  Recorded here so this task is not read as "readable definition, therefore
+  nothing to enforce".
 - [ ] **A place in the canonical algebra.** Everything downstream runs on the
   function-free [`data`](../data/README.md) form: the epic's stage 6 checks
   through `subset`, and its stage 1 printer goes `toData → dataToTs`. Either

@@ -948,6 +948,35 @@ are stated instead:
         the case 668's wrapper is for, and the case where its `Result` return
         is justified.
 
+      **The split is over definitions, and call sites split separately.** A
+      readable definition makes the *body* checkable and every call site the
+      compiler can see checkable with it; it says nothing about a call the
+      compiler cannot see. An exported function called by a TypeScript consumer
+      is exactly that — readable definition, foreign call site — and
+      [the `.d.ts` section](#what-a-generated-dts-can-and-cannot-promise) has
+      already named the consequence: where the emitted declaration is *wider*
+      than the schema (the `close`, `close(c, rest)`, and `NaN` / `-0` cases),
+      a consumer can pass a value its `.d.ts` accepts and the schema rejects,
+      and “nothing validates it”. So restricting wrappers to opaque functions
+      is right about *why* the `Result`-returning wrapper must stay off
+      ordinary exports, and would be wrong if read as “no readable export
+      needs an entry check”.
+
+      **That path is stage 13's**, not a fourth deliverable here — it is a
+      foreign call crossing the language boundary inbound, and stage 13 already
+      owns the boundary in both directions and already says the `close` policy
+      and 668's wrapper are one decision. Two consequences follow for this
+      stage. First, whether the path is needed at all depends on which `.d.ts`
+      policy wins: options 2 and 3 there (restrict `close` in exported
+      contracts, or emit an exactness encoding) close the hole in the
+      declaration and leave nothing to adapt, while option 1 leaves it open and
+      requires an adapter. Second, the adapter is not 668's wrapper as written:
+      that wrapper returns `Result<…>` and so changes the published signature,
+      which collides with stage 11's rule that a retiring declaration must
+      reproduce what it published. An entry check on a readable export has to
+      either throw or be part of the declaration policy — which is the same
+      decision again, from the third angle.
+
       668's limitation is that *runtime validation* cannot prove an arbitrary
       function's future behaviour. True, and it says nothing about statically
       checking a definition the compiler can read. Reading it as the general
@@ -977,8 +1006,8 @@ are stated instead:
 
       Whether 668's extern direction can carry 2 and 3, or whether function
       contracts must go into `data` proper, is the decision that unblocks the
-      1318 function-typed JSDoc bodies. It belongs in 668, and this stage is
-      not done until 668 answers it.
+      function-typed JSDoc bodies — the ~46% measured in the table above — and
+      it belongs in 668, so this stage is not done until 668 answers it.
 - [ ] **8. Generic schemas.** A generic type is a function from schemas to
       schemas — `array` and `record` already are — so *writing and using* one
       needs nothing new. **Emitting a declaration for one does.** The printer
@@ -1156,6 +1185,20 @@ are stated instead:
       checkable — or the remedy is reconstruction or freezing, which do not
       depend on the caller's cooperation. The `close` policy and 668's call-validating wrapper are the same
       decision seen from two angles, so settle them together.
+
+      **Foreign calls into readable exports are in scope here**, and are the
+      case most easily missed, because stage 7's provenance split makes their
+      *definitions* statically checkable and so reads as if nothing is left to
+      do. A TypeScript consumer calling an ordinary exported function is a
+      foreign call site, and where the emitted declaration is wider than the
+      schema — `close`, `close(c, rest)`, `NaN` / `-0` — it can pass a value
+      the declaration accepts and the schema rejects. Whether this stage owes
+      an entry check or nothing at all is decided by the `.d.ts` policy: under
+      options 2 and 3 the declaration stops being wider and there is nothing to
+      adapt; under option 1 there is, and the adapter cannot be 668's
+      `Result`-returning wrapper, which would change the published signature
+      that stage 11 requires be reproduced. That is a third face of the one
+      decision above, not a separate one.
 
       **Gates stage 11.** Retiring JSDoc does not create this hole, but it
       removes the last thing that documents the intended shape at the boundary,
