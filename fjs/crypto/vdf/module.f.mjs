@@ -41,11 +41,11 @@ export const sloth_vdf = modulus => {
 
     /** @type {(steps: bigint) => (value: bigint) => bigint} */
     const squareLoop = steps => value =>
-        iterate(steps)(pow2)(reduce(value))
+        iterate(steps)(reduce(value))(pow2)
 
     /** @type {(steps: bigint) => (value: bigint) => bigint} */
     const modSqrtLoop = steps => value =>
-        iterate(steps)(root)(reduce(value))
+        iterate(steps)(reduce(value))(root)
 
     /** @type {(steps: bigint) => (x: bigint) => Nullable<bigint>} */
     const evalSteps = steps => x =>
