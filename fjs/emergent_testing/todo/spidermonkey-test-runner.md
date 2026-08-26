@@ -42,9 +42,26 @@ The simplest path found so far is two steps.
    for the walk if importing it stays free of the effects layer; inline the
    dozen lines if it does not.
 
-2. **Run it:** `js --module <out>/spidermonkey.mjs` — the `js` binary from a
-   `jsshell` distribution (`sm` under jsvu) — with whatever flags the pinned
-   build needs.
+2. **Run it:** `js --module <out>/spidermonkey.mjs` — with whatever flags the
+   pinned build needs.
+
+**Nix is how the shell gets installed.** The repository already pins a Nixpkgs
+commit (`../../ci/config/module.f.mjs`) and generates one flake per job
+(`../../ci/nix/module.f.mjs`, [nix/README.md](../../../nix/README.md)), so a
+`spidermonkey` job declared there gives the same shell binary locally and in
+CI, at a version the pin decides:
+
+```sh
+nix develop ./nix/generated/spidermonkey --command js --version
+```
+
+The job needs Node in its `packages` too, since the generator step runs there.
+Two things to check at the pinned commit rather than assume: the package
+attribute (`pkgs.spidermonkey_NNN` — the versioned attributes are what
+Nixpkgs carries) and the binary's name, which Nixpkgs versions as well
+(`js128`, not plain `js` — the `--command` above included). A `jsshell`
+download or jsvu's `sm` is a fine way to
+try this by hand first; Nix is what the committed setup should use.
 
 That is the whole first version. It deliberately does **not** port the effects
 layer: no `Effect` runner, no `ModuleMap`, no `sandbox`/`write`/`await`/`env`
@@ -70,9 +87,12 @@ version-dependent — `print`, `putstr`, `quit`, `scriptArgs`, `os.getenv`,
 
 ### Tasks
 
-- [ ] Pin a SpiderMonkey build and check what its shell actually provides —
-      output, exit code, args, environment, job queue, module loading. Note
-      anything that makes the generated file unnecessary.
+- [ ] Declare a `spidermonkey` Nix job (`../../ci/nix/module.f.mjs`) pinning
+      the shell and Node from the existing Nixpkgs commit, and confirm the
+      package attribute and binary name it actually provides.
+- [ ] Check what that shell provides — output, exit code, args, environment,
+      job queue, module loading. Note anything that makes the generated file
+      unnecessary.
 - [ ] Add the Node-side generator: static imports of every proof module plus
       the inline runner, written to one file.
 - [ ] Run it under `js`, get a nonzero exit code from a failing proof, and wire
