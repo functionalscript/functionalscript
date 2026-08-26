@@ -125,8 +125,10 @@ named after what it binds, and no path collides.
       if the step above regenerates the Rust operator tests.
 - [ ] Delete this file, and close out the umbrella entry. `git mv` moves only the
       rtti subtree, so this issue would survive its own completion, and
-      `todo/README.md` requires the fixing PR to delete its issue — capturing any
-      design decision in a `README.md` first. Turn the `Later candidates` bullet
+      `todo/README.md` requires the fixing PR to delete its issue, capturing any
+      design decision in a `README.md` first — here the membership argument, why
+      `rtti` is a peer of `djs` rather than a member of `types/`, which belongs
+      in the moved `fjs/rtti/README.md` and should outlive this file. Turn the `Later candidates` bullet
       in [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)
       into a done entry, the way its item 1 records the `basen` move.
 
