@@ -563,10 +563,19 @@ Stage 2 (one PR, after stage 1 lands):
       no `option` among its direct members while admitting absence, and a
       shallow test would reject `{}`. It descends `or` nodes and the thunks they
       hold, stops at any other tag, and carries the visited thunks to terminate
-      on a recursive `X = or(option, X)`. The data form needs none of this —
-      `toData` has already flattened, which is why `objectMayOmit` can read one
-      bit — so the thunk side pays for being the reader that does no
+      on a recursive `X = or(option, X)`. The data form needs none of this
+      *traversal* — `toData` has already flattened, which is why `objectMayOmit`
+      can read one bit — so the thunk side pays for being the reader that does no
       preprocessing.
+- [ ] The data **reader** still needs its own absence path, which `objectMayOmit`
+      does not supply: that function is used only by `subset`
+      (`data/module.f.mjs:475`, called once at `:500`), while
+      `arraySetValidate` and `objectSetValidate` dispatch each declared position
+      as `nodeValidate(rules)(n)(value[Number(k)])` — the value read, with no
+      ownership, exactly like the thunk loops. Give both container loops the same
+      before-dispatch test, or the data reader rejects `{}` and sparse tuples
+      that both thunk readers accept, and `validate/proof.f.mjs`'s three-reader
+      table breaks.
 - [ ] Readers: a declared member is absent when its key or index is not an own
       one. `parse` omits an absent member rather than materializing `undefined`:
       the struct kind drops the key, and the array kind **preserves indices** —
@@ -616,8 +625,19 @@ Stage 2 (one PR, after stage 1 lands):
       `Absent | number` for direct consumers and for `Check`, a union no runtime
       value can inhabit and one the runtime printer has no way to spell. With the
       split, `Result<T>` needs no exclusion of its own — "observable only at a
-      container position" falls out of the public entry. An interior
-      tuple position that admits absence still renders `T | undefined`. Update the
+      container position" falls out of the public entry.
+- [ ] Lower the marker **per position**, not with one outer `Exclude`. A tuple
+      type is not a union, so `Exclude<_TsRaw<T>, Absent>` never reaches inside
+      it: `_TsRaw<[or(option, number), 3]>` keeps `Absent | number` at index 0
+      and the public `Ts` would hand a consumer the uninhabitable marker. Each
+      position lowers it for itself — a struct key and a trailing tuple position
+      that admit absence render optional with `Absent` excluded; an **interior**
+      tuple position replaces `Absent` with `undefined`, which is what reading a
+      hole gives and the only spelling TypeScript allows before a required
+      element; an array/record element excludes it. The runtime printer needs the
+      same conversion for the interior case: switching `admitsUndefined` to the
+      absent bit alone makes `arraySetToTs` print `number` where it owes
+      `number | undefined`. Update the
       `_tupleOption`/`_tupleInteriorOption` pins, and `optionalTuplePosition` /
       `allOptionalTuple` in `../ts/proof.f.mjs`, which print the `undefined|`
       this stage removes.
