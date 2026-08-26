@@ -477,6 +477,15 @@ Stage 2 (one PR, after stage 1 lands):
       spelling at an optional key — but each production site is reviewed rather
       than swept, and the changelog says the schemas got stricter, not that a
       spelling changed.
+- [ ] Audit the members that spell optionality **directly** as `or(…, undefined)`,
+      which the `option(` sweep does not reach and `checkJs` cannot flag — they
+      stay syntactically valid and silently become *required*. Verified sites:
+      `mcp/cas/module.f.mjs:142` (`type: or('text', 'base64', undefined)`, so
+      `cas_add` would start rejecting `{ content: 'hello' }`),
+      `media/json/schema/module.f.mjs:56` and `:60` (`type`, `items`), plus
+      `media/json/schema/proof.f.mjs:121` and `:136`. Each is a decision — add
+      `option` where omission was intended, leave it where a present `undefined`
+      was — not a mechanical rewrite.
 - [ ] Migrate every `option(t)` call site to `or(option, t)` — 52 of them across
       10 modules outside this one (`protocol/mcp` 10, `media/json/schema` 11 plus
       11 in its proof, `ci/common` 5, `mcp/evo` 5, `protocol/json_rpc` 3,
@@ -521,12 +530,16 @@ Stage 2 (one PR, after stage 1 lands):
       branches of `or(option, number)` would reject `{}`. So `common` gains an
       `admitsAbsence(schema)` predicate and each container loop asks it first:
       a member whose key or index is not an own one succeeds iff its schema
-      admits absence, and only a present member is dispatched. The predicate is
-      **shallow** — the top-level union's members, looking for `option` — so it
-      needs no recursion and cannot cycle on a self-referencing thunk. The data
-      form already has this exact shape in `objectMayOmit`, which asks the
-      question of the pattern rather than of the value, so this brings the thunk
-      readers in line rather than inventing a mechanism.
+      admits absence, and only a present member is dispatched. The predicate **traverses
+      nested unions**, with a visited set for cycles: schema-form `or` does no
+      flattening (its own doc says so), so `or(or(option, number), string)` has
+      no `option` among its direct members while admitting absence, and a
+      shallow test would reject `{}`. It descends `or` nodes and the thunks they
+      hold, stops at any other tag, and carries the visited thunks to terminate
+      on a recursive `X = or(option, X)`. The data form needs none of this —
+      `toData` has already flattened, which is why `objectMayOmit` can read one
+      bit — so the thunk side pays for being the reader that does no
+      preprocessing.
 - [ ] Readers: a declared member is absent when its key or index is not an own
       one. `parse` omits an absent member rather than materializing `undefined`:
       the struct kind drops the key, and the array kind **preserves indices** —
@@ -557,7 +570,10 @@ Stage 2 (one PR, after stage 1 lands):
       `never`, which vanishes in a union and takes the information with it; not
       `undefined`, which would make `or(undefined, number)` optional too and
       conflate the pair this stage exists to separate. Then `OptionalFields` keys
-      on `Absent extends Ts<T[K]>` and renders `Exclude<Ts<T[K]>, Absent>`;
+      on `Absent extends _TsRaw<T[K]>` and renders `Exclude<_TsRaw<T[K]>, Absent>`
+      — **not** `Ts`, which excludes the marker itself and would make the test
+      false for every member, rendering `{ a: or(option, number) }`'s `a`
+      required and defeating the split;
       `ArrayTs`/`RecordTs` `Exclude` it from their element type, so
       `Ts<array(or(option, number))>` stays `readonly number[]` — the type-level
       counterpart of "a rest never sees it". Split the transformer to keep the
