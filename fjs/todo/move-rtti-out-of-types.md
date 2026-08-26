@@ -79,8 +79,21 @@ Scope of the path edits:
   `../../types/object/…` and `../../../djs` → `../../djs`. The 39 inward paths
   are `object` 12, `result` 10, `ts` 9, `array` 3, `phantom` 3, `list` 2; the
   19 outward are `asserts` 16, `djs` 2, `js` 1.
-- ~30 markdown files outside `changelog/` carry relative links into the
-  directory.
+- Markdown breaks in **both** directions, and the same rule settles both.
+  - *Into `rtti/`*: 32 files outside it (`changelog/` aside) name the old path
+    — 18 carry 36 relative links, which drop the `types/` segment and keep
+    their `../` count; the other 14 mention it in prose or a code fence and
+    are edited by hand.
+  - *Out of `rtti/`*: the moved files' own outward links break too, and this
+    is easy to miss because nothing outside the subtree changes. 15 links in
+    7 files, every one leaving `types/`, so every one loses a `../`:
+    `README.md` reaches `media/json/todo/rtti-parse.md` as `../../media/…` →
+    `../media/…`; `data/README.md` has `../../../bnf/…` and `../../../djs/…`;
+    `todo/` has four `../../../edag/module.f.mjs`, four
+    `../../../../todo/…`, two `../../../../spec/todo/…`, one
+    `../../../emergent_testing/…` and one `../../../AGENTS.md`. No outward
+    markdown link targets a `types/` sibling, so none gains a `types/`
+    segment.
 - Historical `changelog/` entries keep the old path. They are the record of
   what shipped; leave them.
 
@@ -93,8 +106,13 @@ named after what it binds, and no path collides.
 - [ ] Re-anchor the 58 external imports inside `fjs/rtti/`, by the depth rule
       above rather than by a blanket pattern substitution.
 - [ ] Update the 30 importing code files, and the four doc-comment references.
-- [ ] Update markdown links outside `changelog/`, including `fjs/AGENTS.md`
-      (§3 references `types/rtti`, `types/rtti/parse`, `types/rtti/validate`).
+- [ ] Update the 36 inbound markdown links and the 14 prose mentions outside
+      `changelog/`, including `fjs/AGENTS.md` (§3 references `types/rtti`,
+      `types/rtti/parse`, `types/rtti/validate`).
+- [ ] Re-anchor the 15 outbound links in the moved `README.md` and `todo/`
+      files — each loses one `../`.
+- [ ] Check every relative link in the moved subtree resolves, in both
+      directions; a broken markdown link fails no test.
 - [ ] Add `changelog/unreleased/` entry noting the breaking path change.
 - [ ] `npx tsc`, `fjs test`, `npm run cov` — proofs and 100% coverage unchanged.
 
