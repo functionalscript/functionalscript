@@ -31,7 +31,9 @@ was given.
 
 **Which addresses exist at all.** Every host string binds here. On a real host
 only an address of a local interface does — measured on Linux with Node 22.22.2
-and on Darwin with Node 23.11.0, which agree on every row:
+and on Darwin with Node 23.11.0, which agree on every row's outcome. The
+messages are Linux's; Darwin's `EADDRNOTAVAIL` names a port too, and the port
+is per-run, so no one transcription can be both platforms':
 
 | host | Node |
 | --- | --- |

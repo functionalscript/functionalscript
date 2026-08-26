@@ -536,7 +536,8 @@ const listen = (server, port, host) => state => {
     // everywhere, so it is safe to model.
     const address = `${host.toLowerCase()}:${port}`
     // Port `0` asks the host for whichever port is free, so two servers that
-    // ask both get one — checked on Node: they come back with different ports.
+    // ask both get one — checked on Linux with Node 22.22.2 and on Darwin with
+    // Node 23.11.0: they come back bound to different ports.
     // Comparing `host:0` to `host:0` would refuse the second, which is the worse
     // direction to be wrong in: a runner that rejects a program a host accepts
     // stops work that would have run.
