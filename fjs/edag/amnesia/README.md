@@ -15,8 +15,9 @@ meaning. Two of its sections, `ownJs` and `chainsJs`, have to run **JavaScript**
 to pin the behavior the nodes are built around, because until this module
 existed nothing could run an EDAG. Its own [`proof.f.mjs`](./proof.f.mjs) is
 what that gap was waiting for: `['+', 2, 3]` is `5` and
-`['&&', false, ['.', null, 'x']]` short-circuits are now claims a test makes by
-evaluating the node, not by evaluating the JavaScript it was modeled on.
+`['&&', false, ['.', null, 'x', null]]` short-circuits are now claims a test
+makes by evaluating the node, not by evaluating the JavaScript it was modeled
+on.
 
 ## Why it is not a VM
 
@@ -53,8 +54,8 @@ preserve identity, and what each is for, are in
 `.` is `a[b]`, so the entire JavaScript prototype chain is reachable:
 
 ```js
-vm(context)(['.', ['=>', ['[]', []], 1], 'constructor'])   // Function
-vm(context)(['.', ['{}', []], '__proto__'])       // resolves
+vm(context)(['.', ['=>', ['[]', []], 1], 'constructor', null])   // Function
+vm(context)(['.', ['{}', []], '__proto__', null])       // resolves
 ```
 
 [`spec/todo/2360-built-in.md`](../../../spec/todo/2360-built-in.md) lists both
@@ -87,23 +88,25 @@ One corner where that would have been wrong is interpreted here instead. When
 `u` is nullish, `(u?.b)(d)` must throw: the parentheses end the optional
 chain, so `undefined` is what gets called. V8 does throw; JavaScriptCore
 (hence `bun test`) carries the short-circuit through the parentheses and
-evaluates to `undefined` (["Chains"](../README.md#chains)). `()` walks its
-`lambdas` itself and calls the `undefined` the chain produced, so the
-specified answer comes out on every host — which is why
-[`proof.f.mjs`](./proof.f.mjs) can state that case at all, where the
+evaluates to `undefined` (["Chains"](../README.md#chains)). That spelling is
+a `|!()` step, and `skip` in [module.f.mjs](./module.f.mjs) is what carries
+it: a short-circuited region drops every step it meets except that one, which
+runs on the `undefined` the region produced. So the specified answer comes out
+on every host — which is why [`proof.f.mjs`](./proof.f.mjs) can state that case
+at all, where the
 JavaScript of `../proof.f.mjs`'s `chainsJs` has to leave it out. A real
 executor does the same for everything above, and NaNVM has no JavaScript
 prototype chain to delegate to in the first place.
 
 ## Not implemented
 
-Every node in the schema now evaluates. The three that own a `lambdas` share
-one walk of it, and differ only in what they do with a region that
-short-circuited: `()` ends its region at the parentheses, so the `undefined`
-is what gets called and the node throws, while `?.` and `?.()` own their
-regions and the `undefined` is the node's value
-(["Chains"](../README.md#chains)). `['self']` is not in the schema yet, so a
-function reaches itself only by being passed as an argument.
+Every node in the schema now evaluates. The three chain nodes that own a
+continuation walk it with one function per lambda type — `propertyLambda`,
+`optionLambda`, `optionPropertyLambda` — and a short-circuited region is the
+single `skip`, shared by all three, whose one exception is the `|!()` step the
+parentheses put outside the region (["Chains"](../README.md#chains)).
+`['self']` is not in the schema yet, so a function reaches itself only by being
+passed as an argument.
 
 ## Where the real one goes
 
