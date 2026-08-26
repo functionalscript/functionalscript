@@ -132,7 +132,6 @@ _*
 test-results/
 
 index.html
-/browser-test-entry.mjs
 
 .cas/
 .claude

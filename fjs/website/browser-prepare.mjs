@@ -9,7 +9,7 @@ import { toPosix } from '../path/module.f.mjs'
 import { main } from './module.f.mjs'
 
 const sourceRoot = new URL('../', import.meta.url)
-const output = new URL('../emergent_testing/browser-suite.mjs', import.meta.url)
+const output = new URL('../emergent_testing/_browser-suite.mjs', import.meta.url)
 
 /** @type {(name: string) => boolean} */
 const authored = name => name.endsWith('.f.mjs')

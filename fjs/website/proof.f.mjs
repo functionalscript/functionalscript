@@ -18,6 +18,6 @@ export const proof = {
         const [generated, result] = virtual(state)(main())
         assertEq(exitCode(result), 0)
         assertNotNullish(generated.root['index.html'], 'expected generated HTML')
-        assertNotNullish(generated.root['browser-test-entry.mjs'], 'expected generated entry module')
+        assertNotNullish(generated.root['_browser-test-entry.mjs'], 'expected generated entry module')
     },
 }

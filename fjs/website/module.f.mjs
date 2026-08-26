@@ -38,11 +38,11 @@ pre { white-space: pre-wrap }
         ['button', { type: 'button', 'data-test-run': '' }, 'Run again'],
         ['pre', ['ol', { 'data-test-results': '' }]]
     ],
-    ['script', { type: 'module', src: './browser-test-entry.mjs' }]
+    ['script', { type: 'module', src: './_browser-test-entry.mjs' }]
 )
 
 const entry = utf8(`import { startBrowserTestSources } from './fjs/emergent_testing/browser.mjs'
-import { browserProofSources } from './fjs/emergent_testing/browser-suite.mjs'
+import { browserProofSources } from './fjs/emergent_testing/_browser-suite.mjs'
 
 const root = /** @type {Element} */ (document.querySelector('[data-browser-tests]'))
 const sources = [...browserProofSources, './fjs/website/browser.mjs']
@@ -55,7 +55,7 @@ if (new URL(location.href).searchParams.get('run') !== 'false') { start() }
 /** @type {Effect<WriteFile | Write | All, 0, number>} */
 const program = exitStep(mapStep(allOk(
     writeFile('index.html', html),
-    writeFile('browser-test-entry.mjs', entry)
+    writeFile('_browser-test-entry.mjs', entry)
 ), () => undefined))
 
 export const main = () => program
