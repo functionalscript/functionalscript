@@ -199,34 +199,41 @@ rule the module's own closed containers do not follow.
       `closeContainerValidate` and `closeContainerParse`. `arraySetValidate`
       needs no change — the data form already normalizes it away, which is the
       half that is right.
-- [ ] Define "empty" **operationally, from the enclosing conversion**: drop the
-      `rest` exactly when `toData(close(c, rest))` drops it. Not semantic
-      emptiness, and not the `rest`'s own canonical data — three witnesses fix
-      the criterion between them, and only the operational one satisfies all
-      three:
-      - `never`, `or()` and `close([never])` are dropped by the enclosing
-        conversion, so all three must be dropped here too. Keying on the
-        exported `never` alone would pass a `never`-only proof with the
-        disagreement intact.
+- [ ] Define "empty" as **making no difference to the canonical form**: drop
+      the `rest` exactly when `toData(close(c, rest))` equals
+      `toData(close(c))`. An equality, not an observation about whether the
+      result carries a `rest` key, and not a judgement about the `rest` itself
+      — four witnesses fix the criterion between them, and only the equality
+      satisfies all four:
+      - `never`, `or()` and `close([never])` all make the conversion equal to
+        `close(c)`'s, so all three must be dropped. Keying on the exported
+        `never` alone would pass a `never`-only proof with the disagreement
+        intact.
       - `const r = () => ['close', [r], undefined]` has no finite inhabitant,
         but `toData(close([number], r))` keeps `rest: "r"` and all three
         readers accept `[1, ,]`. A reader that "recognised" that emptiness
         would start rejecting what the data form accepts.
-      - `const a = () => ['or', b]; const b = () => ['or', a]` is the case that
-        rules out "canonical data is `never`" as the test: `toData(a)` **is**
-        `never`, yet `toData(close([number], a))` still carries `rest: "a"`
-        and all three accept `[1, ,]`. Dropping `a` on its standalone data
-        would recreate the disagreement one level in.
-- [ ] Pin **all four** witnesses in
+      - `const a = () => ['or', b]; const b = () => ['or', a]` rules out the
+        `rest`'s own canonical data as the test: `toData(a)` **is** `never`,
+        yet `toData(close([number], a))` still carries `rest: "a"` and all
+        three accept `[1, ,]`.
+      - `unknown` rules out "the conversion kept no `rest`" as the test.
+        `toData(close([], unknown))` is `{ array: true }` — the whole array
+        kind, with no `rest` key, because a top `rest` collapses the pattern
+        rather than being dropped from it. All three readers accept `[1]`,
+        while `close([])` rejects it, and `toData(close([]))` is
+        `{ array: [{ prefix: [] }] }`, so the equality separates them where
+        the absence of a key does not.
+- [ ] Pin **all five** witnesses in
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs), asserting the
       verdict outright: the shared table checks only that the three readers
       *agree*, so a row alone passes whenever all three move together. Dropped:
       `[close([number], never), [42, ,]]` and one independently constructed
-      empty rest. Retained: `r` and the `a`/`b` cycle, both on `[42, ,]`. The
-      two retained ones are not interchangeable — `a`/`b` catches an
-      implementation that tests the `rest`'s own canonical data, and `r`
-      catches one whose emptiness analysis reaches `close` cycles but not `or`
-      cycles, which is the only way to fail one and pass the other.
+      empty rest. Kept: `r` and the `a`/`b` cycle on `[42, ,]`, and
+      `[close([], unknown), [1]]`. None is redundant — `a`/`b` catches a test
+      on the `rest`'s own canonical data, `r` catches an emptiness analysis
+      reaching `close` cycles but not `or` cycles, and `unknown` catches a test
+      that reads the absence of a `rest` key as elimination.
       Changelog entry prefixed `**BREAKING CHANGES:**` — the empty-rest
       spellings stop accepting a trailing hole, an observable narrowing for
       callers using the explicit-rest form. #1712 labelled its analogous
