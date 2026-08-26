@@ -457,6 +457,16 @@ Stage 2 (one PR, after stage 1 lands):
 
 - [ ] `option` as a nullary schema in `../module.f.mjs`/`../types.ts` — a new
       `Tag0`, so `visit`'s `Visitor` in `../common/module.f.mjs` gains the case.
+- [ ] Give **both** schema-form readers an `option` handler that *rejects*
+      normally. `orVisit` tries the union's members in order, so for a present
+      value under `or(option, t)` the `option` branch is reached first and has to
+      return an ordinary error for `t` to be tried. Extending the `Visitor` type
+      is not enough to force this: `parseVisitor` (`../parse/module.f.mjs:292`)
+      and `validateVisitor` (`../validate/module.f.mjs:261`) are both
+      `/** @type {any} */ ({ … })`, so a missing handler is not a type error but
+      a `v.option is not a function` throw — and FunctionalScript has no
+      `try`/`catch` to contain it. Proof: a **present** value under
+      `or(option, t)`, through both readers.
 - [ ] Decide the migration's **semantics** before its spelling. `option(t)` is
       `or(t, undefined)` today, so it accepts a present `undefined` — verified,
       `validate({ a: number, b: option(string) })({ a: 1, b: undefined })` is
@@ -501,12 +511,17 @@ Stage 2 (one PR, after stage 1 lands):
       `arrayRebuild` is `entries => entries.map(([, v]) => v)`, so omitting an
       absent entry would rebuild `[, 3]` as `[3]`, shifting `3` to index 0 and
       returning a value that fails its own schema.
-- [ ] Decide the array kind's rebuild against FunctionalScript's own rules:
-      `Array.prototype.map` preserves holes, `Array.from({ length }, …)` does
-      not, and there is no index assignment or mutation to fall back on — so the
-      hole-preserving rebuild maps over the *value* while the check keeps walking
-      the schema. (Verified: `[, 3].map(v => v)` has no own index 0;
-      `Array.from({ length: 2 }, (_, i) => a[i])` does.)
+- [ ] The array kind's rebuild is **slice, then map**, and mapping alone is not
+      enough: `.map` preserves length, so `[1, or(option, number)]` against
+      `[1, ,]` would rebuild a sparse two-element array and serialize back to
+      `[1,null]` — the very defect stage 2 removes. Truncate to the last present
+      declared position first, then map the *parsed* element results over the
+      truncated array, so a trailing absent run shortens the result while an
+      interior hole survives. FunctionalScript's rules leave no other route:
+      `Array.from({ length }, …)` yields a dense array and there is no index
+      assignment or mutation. Verified: `[1, , 3].slice(0, 3)` keeps the hole at
+      1, `[1, , ,].slice(0, 1)` is `[1]` with length 1, and a `.map` after either
+      keeps the hole.
 - [ ] `../../../media/json/schema/module.f.mjs`: move `admitsUndefined` (and so
       `required`/`minItems`) to the absent bit, leave `stripUndefined` on
       `undefined`, and update `./proof.f.mjs` — a third renderer over the data
