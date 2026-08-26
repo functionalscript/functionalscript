@@ -1,7 +1,7 @@
 /**
  * @import { Or, Type } from '../types.ts'
  * @import { Data } from '../data/types.ts'
- * @import { Ts } from './types.ts'
+ * @import { Ts, TupleTs } from './types.ts'
  * @import { Assert } from '../../../asserts/types.ts'
  * @import { Equal } from '../../ts/types.ts'
  */
@@ -52,6 +52,17 @@ import { dataToTs, printer } from './module.f.mjs'
 // finds none. An optional position is what this transform produces, so one the
 // caller wrote is already in the target form and the mapping stands.
 /** @typedef {Assert<Equal<Ts<readonly [typeof number, (typeof string)?]>, readonly [number, string?]>>} _OptionalMember */
+
+// A union of tuple schemas is split per member, not once across the union.
+// Splitting the union lets the two halves distribute independently and the
+// spread then pairs every prefix with every suffix, so `[number, boolean]` —
+// A's prefix with B's suffix — would pass. Assignability again: this is a
+// statement about which values the union admits.
+/** @typedef {readonly [typeof number, _OptionString]} _BranchA */
+/** @typedef {readonly [typeof string, _OptionBoolean, _OptionNumber]} _BranchB */
+/** @typedef {Or<readonly [typeof number, undefined]>} _OptionNumber */
+/** @typedef {Assert<readonly [1, true] extends TupleTs<_BranchA | _BranchB> ? false : true>} _UnionKeepsBranchCorrelation */
+/** @typedef {Assert<readonly [1, 'x'] extends TupleTs<_BranchA | _BranchB> ? true : false>} _UnionAdmitsItsOwnBranches */
 
 /** @typedef {Assert<Equal<Ts<readonly [typeof number, typeof bigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, (boolean | undefined)?, (string | undefined)?]>>} _OptionalTail */
 
