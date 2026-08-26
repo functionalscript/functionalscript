@@ -243,6 +243,20 @@ rule the module's own closed containers do not follow.
         `[undefined, ,]` stays `ok / ok / error` — the disagreement the
         criterion exists to remove. Compare up to rule renaming, or ignore
         names that only discarded rules reserved.
+
+      That comparison already exists:
+      [`subset`](../data/module.f.mjs) applied both ways, which sees through
+      α-equivalent rules under different names — the property its own
+      `dropSubsumed` note names. Measured, it gives the intended verdict on
+      every row: true both ways for the four that drop, including the name
+      collision `equal` fails, and false for `r`, the `a`/`b` cycle and
+      `close([], unknown)`. Prefer it over inventing an α-equivalence check.
+      It is sound but incomplete — never true for a non-inclusion, but it may
+      answer false for an equality that holds only by distributing a union or
+      through a non-syntactic empty set. That direction is the safe one: an
+      incomplete answer keeps a `rest` that could have been dropped, leaving
+      the disagreement in place, and never collapses two memberships onto one
+      canonical form.
 - [ ] Pin those cases as **seven rows** — the first case needs one per
       spelling, since the three are not interchangeable: an implementation that
       recognises empty unions but not `close([never])` passes a row using
