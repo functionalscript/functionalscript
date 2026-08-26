@@ -487,7 +487,7 @@ Stage 2 (one PR, after stage 1 lands):
       `option` where omission was intended, leave it where a present `undefined`
       was — not a mechanical rewrite.
 - [ ] Migrate every `option(t)` call site to `or(option, t)` — 52 of them across
-      10 modules outside this one (`protocol/mcp` 10, `media/json/schema` 11 plus
+      10 files in 9 modules outside this one (`protocol/mcp` 10, `media/json/schema` 11 plus
       11 in its proof, `ci/common` 5, `mcp/evo` 5, `protocol/json_rpc` 3,
       `media/revision` 2, `media/note` 2, `mcp` 2, `mcp/cas` 1), plus this
       module's own proofs. The repo sets `checkJs`, so a missed site is
