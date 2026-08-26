@@ -659,8 +659,18 @@ Three of its features fall out of decisions already made:
 - **Go to definition, on a type.** An annotation body is an ordinary binding,
   so this is the same jump as any `const` — plain identifier resolution, not a
   type-language lookup. In a type grammar this is a bespoke feature; here it is
-  the one that costs nothing. Completion is likewise "in-scope bindings whose
-  value is a schema".
+  the one that costs nothing.
+- **Completion is not free**, and calling it "in-scope bindings whose value is
+  a schema" — as an earlier draft did — hides the cost. Deciding whether
+  `const t = makeType()` names a schema means *evaluating* it, and this
+  document argues at length elsewhere that such an initializer may be
+  expensive, may throw, or may not terminate. Doing that on a keystroke means
+  running arbitrary workspace code inside the editor, or hanging it. Stage 10
+  needs either static schema metadata it can consult without evaluating, or an
+  explicit sandboxed-and-bounded evaluation policy. This is the same question
+  as [open question 3](#open-questions) and stage 5's well-formedness problem,
+  arriving a third time: **nothing can tell a schema from a non-schema without
+  either running it or having a meta-schema.**
 
 The transport is largely built. LSP is JSON-RPC 2.0, and
 [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) already
@@ -860,6 +870,24 @@ are stated instead:
       ([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)) — the binding the name
       resolves to must be reducible to a schema value, and the error when it is
       not is a compile error.
+
+      **A schema must be stable across phases, and nothing yet requires that.**
+      A `Thunk` is a function, `visit` calls it, and commitment 4 permits a
+      schema to be imported from ordinary JavaScript — where its thunk or
+      initializer may be stateful or nondeterministic. So stage 4 can evaluate
+      a schema as `number`, emit a declaration from that, accept a program
+      against it, and then `validate` can call the same thunk at run time and
+      see `string`. Compile time and run time would disagree about what the
+      type *is*, which is the one thing this epic exists to prevent, and no
+      check anywhere would catch it.
+
+      Two ways to close it. Require schema construction to be **provably pure
+      and stable** — straightforward inside FunctionalScript, where there is no
+      state, and not enforceable for a schema imported from `.mjs`. Or
+      **serialize the compile-time schema for run-time use**, which is what
+      `toData` already produces: a function-free canonical form that cannot
+      re-evaluate to something else. The second needs no new analysis and makes
+      the guarantee structural, so it is the one to beat.
 - [ ] **5. Check literal right-hand sides** with `validate`. This is the first
       point at which the epic checks anything.
 
