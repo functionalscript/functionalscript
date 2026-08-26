@@ -78,6 +78,7 @@ fold into the 66D envelope work if it touches the same lines anyway.
 
 ## Related
 
-- `fjs/protocol/json_rpc/todo/response-constructors.md` — the envelope
-  *constructors*; this issue is the envelope *routing*. Complementary.
+- `errorResponseOf` / `successResponseOf` (`../module.f.mjs`) — the envelope
+  *constructors*, exported from this module; this issue is the envelope
+  *routing*. Complementary, and the skeleton below builds on them.
 - `fjs/protocol/mcp/todo/README.md` (66D) — per-method validate/response arms.

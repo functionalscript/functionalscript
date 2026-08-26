@@ -78,8 +78,29 @@ export const methodNotFound = rpcError(-32601)('Method not found')
 export const invalidParams = rpcError(-32602)('Invalid params')
 export const internalError = rpcError(-32603)('Internal error')
 
-/** @type {(id: Id) => (error: RpcError) => Response} */
-const errorResponseOf = id => error => ({ jsonrpc, error, id })
+/**
+ * The error half of the response envelope: `{ jsonrpc, error, id }`.
+ *
+ * Exported as one of a pair with {@link successResponseOf} — the `Response`
+ * schema, `jsonrpc`, `Id` and `RpcError` are all owned here, so the two shapes
+ * built from them are too. Every protocol layered on this module needs both
+ * (`fjs/protocol/mcp` and its stdio transport are the two consumers today),
+ * and a private constructor is what made each of them re-roll its own.
+ *
+ * @type {(id: Id) => (error: RpcError) => Response}
+ */
+export const errorResponseOf = id => error => ({ jsonrpc, error, id })
+
+/**
+ * The success half of the response envelope: `{ jsonrpc, result, id }`.
+ *
+ * The `…Of` suffix pairs with {@link errorResponseOf}, and both name the
+ * already-exported `successResponse` / `errorResponse` schemas they build a
+ * value of.
+ *
+ * @type {(id: Id) => (result: Unknown) => Response}
+ */
+export const successResponseOf = id => result => ({ jsonrpc, result, id })
 
 /**
  * Dispatches an already-parsed JSON-RPC value against `handlers`.
@@ -110,6 +131,6 @@ export const dispatch = handlers => value => {
     }
     const [t2, result] = handler(params)
     return t2 === 'ok'
-        ? { jsonrpc, result, id }
+        ? successResponseOf(id)(result)
         : errorResponseOf(id)(result)
 }
