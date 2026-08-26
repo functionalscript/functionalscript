@@ -40,7 +40,7 @@ The simplest path found so far is two steps.
    zero-argument functions, `try`/`catch` around each call, count passes and
    failures, `print` the failures, and `quit(1)` if any.
 
-   Two details are not optional, because the existing suite depends on both.
+   Three details are not optional, because the existing suite depends on each.
 
    **Accept a root only when its whole transitive relative graph is
    shell-loadable.** Discovery matches `proof.mjs` as well as `.f.mjs`, and
@@ -52,6 +52,16 @@ The simplest path found so far is two steps.
    package, and *report* what was excluded; a silent omission is a suite that
    shrinks without saying so. This is the same acceptance rule
    [browser-testing](browser-testing.md) states, for the same reason.
+
+   **Invert the `throw`-tagged calls.** FunctionalScript has no `try`/`catch`,
+   so a test that a call throws is written by nesting it under a `throw` key
+   ([fjs/AGENTS.md §1.5](../../AGENTS.md#15-never-use-trycatch-test-throwing-with-the-throw-key)),
+   and `collectTests` carries that down as `throws`. The runner has to read the
+   flag and invert: a throw is the pass and a clean return is the failure, as
+   `defaultTest` (`../module.f.mjs`) does. A walker that only counts thrown
+   errors as failures reports every expected throw in `fjs/asserts/proof.f.mjs`
+   as broken, and passes a `throw` test that quietly stopped throwing — the
+   more expensive half, since it reads as green.
 
    **Walk return values, not just the exported tree.** A test function may
    return a further sub-tree of test functions, and the suite uses it —
@@ -128,9 +138,10 @@ version-dependent — `print`, `putstr`, `quit`, `scriptArgs`, `os.getenv`,
       exclusions.
 - [ ] Run it under `js`, get a nonzero exit code from a failing proof, and wire
       the generate-and-run pair to an `fjs` command.
-- [ ] Fixtures: a passing proof, a failing proof, a `throw`-tagged proof, a
-      proof whose test returns a sub-tree, and a root reaching `node:` that
-      must be excluded rather than emitted — each verified to run in the shell,
+- [ ] Fixtures: a passing proof, a failing proof, a `throw`-tagged proof in
+      both directions (throwing passes, returning normally fails), a proof
+      whose test returns a sub-tree, and a root reaching `node:` that must be
+      excluded rather than emitted — each verified to run in the shell,
       not just to generate. Add a promise-returning proof once it is known
       whether the shell needs the job queue drained.
 - [ ] Add a CI job (`../../ci/`) only after proof bodies demonstrably execute
