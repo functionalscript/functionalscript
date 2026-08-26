@@ -78,6 +78,11 @@ type OptionPropertyLambda =
 
 Four node kinds, down from the seven in `chain-nodes.md`, and no walkers.
 
+The lambda tags are written bare above to keep the shape readable. They cannot
+stay that way: they collide with the node tags, and
+[Open questions](#open-questions) shows the witness and why `close` does not
+help. Read every lambda tag below as needing a prefix.
+
 ## Reading it
 
 Four steps, each a transition on the two bits:
@@ -213,24 +218,45 @@ that does.
 
 ## Open questions
 
-**The terminals collide under open tuples, and this one is a defect.** The
-grammar distinguishes terminal from continuing by *tuple length* on the same
-tag: `['()', Exp]` in `PropertyLambda` against `['()', Exp, OptionLambda]` in
-the other two. rtti tuples accept trailing elements, so a `PropertyLambda` slot
-handed `['()', c, someContinuation]` validates against the two-element schema,
-the extra element is ignored, and an executor reads it as terminal — silently
-dropping the rest of the chain. This is the collision the `|` step prefix was
-introduced for in `chain-nodes.md`, except it is now *inside* one vocabulary,
-where a prefix cannot separate it. Two complementary fixes, and both look right:
+**The tags collide, in two independent ways, and the grammar above cannot be
+implemented until both are fixed.**
 
-- Give every call production the same arity, with an explicit `null`
-  (`['()', Exp, null]` in `PropertyLambda`), so length never carries meaning.
-- State the terminals with `close` ([`../../types/rtti/module.f.mjs`](../../types/rtti/module.f.mjs)),
-  which has now landed — so the schema enforces it rather than trusting the
-  lowering.
+*Node against lambda, and this is the serious one.* `Call` is `['()', Exp, Exp]`
+and `OptionLambda`'s call is `['()', Exp, OptionLambda]` — same tag, and both
+exactly three elements. `null` is a `Primitive` and so an `Exp`
+([`../types.ts`](../types.ts)), and it is also `OptionLambda`'s terminator, so
 
-`['!()', Exp]` has the same shape but is collision-free by tag, so it is
-cosmetic there.
+```ts
+['()', f, null]
+```
+
+is simultaneously a well-formed `Call` node — call `f` with `null` as its
+arguments — and a well-formed `OptionLambda` — call the chain's value with `f`
+as its arguments, and stop. Measured against `validate`: `null` passes as an
+`Exp`, and `['()', 'f', null]` passes as the proposed `Call`. It is not a corner
+case either; `['()', f, ['()', g, null]]` is both at the next depth, and so on
+down.
+
+Because both readings have the same length, **`close` cannot separate them**.
+Only disjoint vocabularies can, which is exactly what the `|` step prefix does
+in [`chain-nodes.md`](./chain-nodes.md) — recorded there as a correctness
+requirement rather than a readability one, for this reason. So the lambda tags
+need prefixing (`|()`, `|.`, `|?.()`, `|!()`) or some equivalent split before
+any of this is implementable. `!()` is the one tag already disjoint from every
+node tag, which is why the collision is easy to miss when reading the grammar.
+
+*Terminal against continuing, within the lambda vocabulary.* Separately,
+`['()', Exp]` in `PropertyLambda` differs from `['()', Exp, OptionLambda]` only
+by length, and rtti tuples accept trailing elements — so a `PropertyLambda` slot
+handed `['()', c, someContinuation]` validates as the two-element form, the
+extra element is ignored, and an executor reads it as terminal, silently
+dropping the rest of the chain. This one *is* fixable as first thought: give
+every call production the same arity with an explicit `null`, and state the
+terminals with `close`
+([`../../types/rtti/module.f.mjs`](../../types/rtti/module.f.mjs)), which has now
+landed.
+
+Two collisions, two different fixes, and neither substitutes for the other.
 
 **What it costs.** Every property access carries a fourth operand, so plain
 `a.b` is `['.', a, b, null]` in every graph. `chain-nodes.md` supersedes an
@@ -256,8 +282,12 @@ folded in or kept as the record this one builds on is undecided.
 
 ## Tasks
 
-- [ ] Fix the terminal collision — uniform arity plus `close` — before anything
-      is implemented against this shape.
+- [ ] Prefix the lambda tags, or otherwise make the node and lambda
+      vocabularies disjoint. `['()', f, null]` is a valid `Call` node *and* a
+      valid `OptionLambda`, at equal length, so this is a prerequisite rather
+      than a cleanup.
+- [ ] Fix the terminal collision separately — uniform arity plus `close`. It is
+      a different collision and the prefix does not close it.
 - [ ] Decide `Index` against `Exp` in the naming positions.
 - [ ] Decide whether this supersedes [`chain-nodes.md`](./chain-nodes.md) or
       builds beside it.
