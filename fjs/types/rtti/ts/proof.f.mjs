@@ -1,5 +1,5 @@
 /**
- * @import { Type } from '../types.ts'
+ * @import { Or, Type } from '../types.ts'
  * @import { Data } from '../data/types.ts'
  * @import { Ts } from './types.ts'
  * @import { Assert } from '../../../asserts/types.ts'
@@ -11,26 +11,30 @@ import { toData, unitBit } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, close, record, or, option, never } from '../module.f.mjs'
 import { dataToTs, printer } from './module.f.mjs'
 
-const toTs = printer()
-
 // ── `Ts<T>` over a tuple schema ─────────────────────────────────────────────
+//
+// Spelled as schema *types* rather than `typeof` a value: these are type-level
+// facts, and a value existing only to be pointed at is an unused one.
 //
 // `TupleTs` splits off the trailing run of positions admitting `undefined` and
 // renders it optional, which needs a known length. A schema array of non-fixed
-// length has no trailing position to split off, so it keeps its element type
-// instead — the homomorphic mapping's answer. Pinned because a split that
-// falls back to the empty tuple silently renders such a schema `readonly []`,
-// and nothing else here would have caught it.
-const dynamicSchema = /** @type {const} */ ([number, bigint]).map(x => x)
-/** @typedef {Assert<Equal<Ts<typeof dynamicSchema>, readonly (number | bigint)[]>>} _NonFixedLength */
+// length — what `.map()` produces — has no trailing position to split off, so
+// it keeps its element type instead, the homomorphic mapping's answer. Pinned
+// because a split that falls back to the empty tuple silently renders such a
+// schema `readonly []`, and nothing else here would have caught it.
+/** @typedef {Assert<Equal<Ts<readonly (typeof number | typeof bigint)[]>, readonly (number | bigint)[]>>} _NonFixedLength */
 
-const optionalTail = /** @type {const} */ ([number, bigint, option(boolean), option(string)])
-/** @typedef {Assert<Equal<Ts<typeof optionalTail>, readonly [number, bigint, (boolean | undefined)?, (string | undefined)?]>>} _OptionalTail */
+/** @typedef {Or<readonly [typeof boolean, undefined]>} _OptionBoolean */
+/** @typedef {Or<readonly [typeof string, undefined]>} _OptionString */
+
+/** @typedef {Assert<Equal<Ts<readonly [typeof number, typeof bigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, (boolean | undefined)?, (string | undefined)?]>>} _OptionalTail */
 
 // Only the *trailing* run: TypeScript forbids a required element after an
 // optional one, so an interior position that admits `undefined` stays required.
-const interiorOption = /** @type {const} */ ([option(string), number])
-/** @typedef {Assert<Equal<Ts<typeof interiorOption>, readonly [string | undefined, number]>>} _InteriorStaysRequired */
+/** @typedef {Assert<Equal<Ts<readonly [_OptionString, typeof number]>, readonly [string | undefined, number]>>} _InteriorStaysRequired */
+
+const toTs = printer()
+
 const toTsMut = printer(true)
 
 /** @type {(rtti: Type, expected: string) => void} */
