@@ -22,15 +22,15 @@ tree of its own, and eleven open todos. Its siblings under `types/` are single
 data structures and type-level helpers.
 
 **Nobody under `types/` uses it.** Zero imports; `types/phantom/types.ts` names
-it only in a doc comment. All 63 import references come from `media` 33,
-`protocol` 11, `mcp` 8, `edag` 5, `ci` 3 and `emergent_testing` 3 — every one
+it only in a doc comment. All 64 import references come from `media` 33,
+`protocol` 11, `mcp` 8, `edag` 6, `ci` 3 and `emergent_testing` 3 — every one
 of them a peer of `types/`, not a member. It is simultaneously a heavily-used
 module and the least-connected one in the directory that holds it.
 
 **Consuming `types/` is not membership.** `rtti` imports `types/object`,
 `types/result`, `types/list`, `types/array`, `types/ts` and `types/phantom` —
 which is exactly what the rest of `fjs/` does: repo-wide, `types/list` has 81
-import references from 14 top-level directories, `types/result` 74 from 10,
+import references from 14 top-level directories, `types/result` 78 from 10,
 `types/object` 59 from 16. That is outside-consumer behaviour.
 
 **Its outward dependency points sideways, not down.** Other `types/*` modules do
@@ -112,8 +112,18 @@ Scope of the path edits:
     `kindset-eliminator.md` 6, `proof-shared-asserts.md` 3), naming the very
     subtree being moved. Repo-root-absolute, so no `../` arithmetic — a plain
     substitution to `fjs/rtti/…`.
-- Historical `changelog/` entries keep the old path. They are the record of
-  what shipped; leave them.
+- `changelog/` entries keep the old path — all 16, not only the 9 already
+  released. The 7 in `unreleased/` (1653, 1657, 1680, 1683, 1687, 1708, 1712)
+  have not shipped, so "the record of what shipped" is the wrong reason for
+  them. The right one is that an entry records what one pull request changed,
+  against the tree as it stood then, and releasing renames `unreleased/` to
+  `<version>/` "keeping the entry files exactly as they are"
+  ([changelog/README.md](../../changelog/README.md#layout)) — so rewriting an
+  unreleased entry's paths would make it describe a tree that never existed
+  when its PR landed. What tells a reader the module moved is the move's own
+  entry naming the rename, not a retroactive edit to its neighbours. If the
+  maintainer prefers the 7 rewritten so a single release reads coherently,
+  that is a defensible opposite call and belongs here as a decision.
 
 `fjs/media/json/rtti/` — the JSON binding — keeps its name and its place. It is
 named after what it binds, and no path collides.
@@ -157,12 +167,21 @@ named after what it binds, and no path collides.
       `todo/README.md` requires the fixing PR to delete its issue, capturing any
       design decision in a `README.md` first — here the membership argument, why
       `rtti` is a peer of `djs` rather than a member of `types/`, which belongs
-      in the moved `fjs/rtti/README.md` and should outlive this file. Turn the `Later candidates` bullet
-      in [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)
+      in the moved `fjs/rtti/README.md` and should outlive this file. Turn the
+      `Later candidates` bullet in
+      [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)
       into a done entry, the way its item 1 records the `basen` move.
 
 ### Related
 
+- **Merge-order hazard with the RTTI epic**
+  ([#1719](https://github.com/functionalscript/functionalscript/pull/1719)).
+  Its `todo/rtti-type-system.md` exists only on that branch and carries 43
+  `types/rtti` path references, so none of them appear in the counts above and
+  none of this plan's greps can see them. Whichever of the two lands second
+  rewrites paths the other just wrote. Cheapest order: land the epic first and
+  fold its 43 references into this move's inventory, since the epic is prose
+  about rtti while this move is the thing that invalidates paths.
 - [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)
   — the umbrella reorg. This is the same shape as its item 2, which moved
   `monoid` out of `types/` on the rule that `types/` admits data structures and
