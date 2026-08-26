@@ -24,8 +24,15 @@ import { dataToTs, printer } from './module.f.mjs'
 // schema `readonly []`, and nothing else here would have caught it.
 /** @typedef {Assert<Equal<Ts<readonly (typeof number | typeof bigint)[]>, readonly (number | bigint)[]>>} _NonFixedLength */
 
+// `option(t)` is `or(t, undefined)`; these are the schema types it produces.
 /** @typedef {Or<readonly [typeof boolean, undefined]>} _OptionBoolean */
 /** @typedef {Or<readonly [typeof string, undefined]>} _OptionString */
+
+// A variadic tuple has `length: number` for the same reason and keeps its
+// mapping too. Splitting it would peel the fixed last position off a prefix
+// whose length is unknown, leaving a flat array that admits `[1, 'x', 2]` —
+// which no schema of this shape validates.
+/** @typedef {Assert<Equal<Ts<readonly [...(typeof number)[], _OptionString]>, readonly [...number[], string | undefined]>>} _VariadicPrefix */
 
 /** @typedef {Assert<Equal<Ts<readonly [typeof number, typeof bigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, (boolean | undefined)?, (string | undefined)?]>>} _OptionalTail */
 

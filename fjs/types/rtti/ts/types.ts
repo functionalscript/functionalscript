@@ -128,10 +128,7 @@ type MappedTs<T extends Tuple> = Extract<{ readonly[K in keyof T]: Ts<T[K]> }, r
 type RequiredPart<M extends readonly unknown[]> =
     M extends readonly [...infer I extends readonly unknown[], infer L]
         ? undefined extends L ? RequiredPart<I> : M
-        // `M` itself, not `readonly []`: this branch is both the empty tuple
-        // (where they coincide) and a schema array of non-fixed length, which
-        // has no trailing position to split off and must keep its element type.
-        : M
+        : readonly []
 
 type OmittablePart<M extends readonly unknown[], Acc extends readonly unknown[] = readonly []> =
     M extends readonly [...infer I extends readonly unknown[], infer L]
@@ -144,11 +141,19 @@ type AsOptional<O extends readonly unknown[]> =
 export type TupleTs<T extends Tuple> =
     // readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]
     MappedTs<T> extends infer M extends readonly unknown[]
-        ? RequiredPart<M> extends infer R extends readonly unknown[]
-            ? OmittablePart<M> extends infer O extends readonly unknown[]
-                ? readonly [...R, ...AsOptional<O>]
+        // Splitting a trailing run off needs a *fixed* length. A schema array
+        // of non-fixed length (what `.map()` produces) and a variadic tuple
+        // (`[...(typeof number)[], option(string)]`) both have `length: number`
+        // and no last position to peel, so they keep the mapping as it is —
+        // splitting them would drop the element type and the prefix's shape
+        // respectively, and widen what `Ts<T>` admits.
+        ? number extends M['length']
+            ? M
+            : RequiredPart<M> extends infer R extends readonly unknown[]
+                ? OmittablePart<M> extends infer O extends readonly unknown[]
+                    ? readonly [...R, ...AsOptional<O>]
+                    : never
                 : never
-            : never
         : never
 
 type OptionalFields<T extends Struct> = {
