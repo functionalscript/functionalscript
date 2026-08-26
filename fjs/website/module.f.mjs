@@ -15,24 +15,28 @@ import { mapStep } from '../effects/module.f.mjs'
 const html = htmlUtf8(
     ['title', 'FunctionalScript browser tests'],
     ['style', `
-body { color: #202124; font: 16px system-ui; margin: 3rem auto; max-width: 48rem; padding: 0 1rem }
-[data-state="passed"] { color: #137333 }
-[data-state="failed"], [data-state="infrastructure-error"] { color: #b3261e }
-[data-test-results] { color: #202124 }
-[data-status="passed"]::marker { color: #137333 }
-[data-status="failed"] { color: #b3261e }
+:root { color-scheme: light dark; --bg: white; --text: black; --pass: #137333; --fail: #b3261e }
+@media (prefers-color-scheme: dark) {
+    :root { --bg: #121212; --text: #f1f1f1; --pass: #81c995; --fail: #f28b82 }
+}
+body { background-color: var(--bg); color: var(--text); font: 16px system-ui; margin: 3rem auto; max-width: 48rem; padding: 0 1rem }
+[data-state="passed"] [data-test-summary] { color: var(--pass) }
+[data-state="failed"] [data-test-summary], [data-state="infrastructure-error"] [data-test-summary] { color: var(--fail) }
+[data-test-results] { color: var(--text) }
+[data-status="passed"]::marker { color: var(--pass) }
+[data-status="failed"] { color: var(--fail) }
 pre { white-space: pre-wrap }
 `]
 )(
     ['main', { 'data-browser-tests': '', 'data-state': 'loading' },
-        ['h1', 'FunctionalScript browser tests'],
-        ['p', { 'data-test-summary': '' }, 'Loading…'],
-        ['button', { type: 'button', 'data-test-run': '' }, 'Run again'],
-        ['pre', ['ol', { 'data-test-results': '' }]],
         ['p', ['a',
             { href: 'https://github.com/functionalscript/functionalscript' },
             'GitHub Repository'
-        ]]
+        ]],
+        ['h1', 'FunctionalScript browser tests'],
+        ['p', { 'data-test-summary': '' }, 'Loading…'],
+        ['button', { type: 'button', 'data-test-run': '' }, 'Run again'],
+        ['pre', ['ol', { 'data-test-results': '' }]]
     ],
     ['script', { type: 'module', src: './browser-test-entry.mjs' }]
 )
