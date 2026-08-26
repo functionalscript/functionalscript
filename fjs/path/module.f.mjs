@@ -155,7 +155,11 @@ export const normalize = path => rejoin(split(toPosix(path)))
 export const concat = a => b => {
     const [rb, restb] = split(toPosix(b))
     if (rb !== '') { return rejoin([rb, restb]) }
-    const [ra, resta] = split(toPosix(a))
+    // `a` is normalized before its root is read, because what `a` *is* decides
+    // the join and only the folded form answers that: `./C:` and `x/../C:` are
+    // both the bare drive `C:`, and reading them unfolded would insert the
+    // separator that makes a drive root out of one.
+    const [ra, resta] = split(normalize(a))
     return rejoin([ra, stringConcat([resta, isBareDrive(resta) ? '' : '/', restb])])
 }
 

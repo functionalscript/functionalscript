@@ -244,6 +244,21 @@ const concatTest = [
         const c = concat("C:")("/abs")
         assertEq(c, "/abs")
     },
+    // The left side is folded before its root is read, so every spelling of a
+    // bare drive is one — testing the unfolded text caught only the literal.
+    () => {
+        const c = concat("./C:")("dir")
+        assertEq(c, "C:dir")
+    },
+    () => {
+        const c = concat("x/../C:")("dir")
+        assertEq(c, "C:dir")
+    },
+    // Whatever `a` spells, appending a relative `b` leaves its root alone.
+    () => {
+        ["C:", "./C:", "x/../C:", "C:/", "./a", "/a", "//a", "", "."].forEach(a =>
+            assertEq(root(concat(a)("dir")), root(normalize(a)), a))
+    },
     // An absolute `b` names a path on its own, so it replaces `a` rather than
     // being appended to it.
     () => {
