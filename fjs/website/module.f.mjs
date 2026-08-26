@@ -13,7 +13,7 @@ import { allOk, exitStep, writeFile } from '../effects/node/module.f.mjs'
 import { mapStep } from '../effects/module.f.mjs'
 
 const html = htmlUtf8(
-    ['title', 'Run FunctionalScript unit tests in the browser'],
+    ['title', 'Emergent Testing in the Browser'],
     ['style', `
 :root { color-scheme: light dark; --bg: white; --text: black; --pass: #137333; --fail: #b3261e }
 @media (prefers-color-scheme: dark) {
@@ -33,7 +33,15 @@ pre { white-space: pre-wrap }
             { href: 'https://github.com/functionalscript/functionalscript' },
             'GitHub Repository'
         ]],
-        ['h1', 'Run FunctionalScript unit tests in the browser'],
+        ['h1', 'Emergent Testing in the Browser'],
+        ['p',
+            'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
+            ['a',
+                { href: 'https://medium.com/javascript-in-plain-english/emergent-testing-in-javascript-e44760d71688?sk=42381f0d5cdff049acecb64c6f9d9531' },
+                'Read “Emergent Testing in JavaScript”'
+            ],
+            '.'
+        ],
         ['p', { 'data-test-summary': '' }, 'Loading…'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run again'],
         ['pre', ['ol', { 'data-test-results': '' }]]
