@@ -15,7 +15,7 @@
  * @module
  *
  * @import { Unknown } from '../../media/json/types.ts'
- * @import { Id, RpcError, Handlers, Response } from './types.ts'
+ * @import { Id, RpcError, Handlers, Response, SuccessResponse, ErrorResponse } from './types.ts'
  */
 
 import { at } from '../../types/object/module.f.mjs'
@@ -87,6 +87,13 @@ export const internalError = rpcError(-32603)('Internal error')
  * (`fjs/protocol/mcp` and its stdio transport are the two consumers today),
  * and a private constructor is what made each of them re-roll its own.
  *
+ * It answers the `Response` union rather than {@link ErrorResponse}, the branch
+ * it always builds. That is deliberate: every consumer in the tree is a
+ * dispatcher answering either arm — `dispatch` here, `mcpStep` and the stdio
+ * transport in `fjs/protocol/mcp` — and `Handle` is defined in terms of the
+ * union, so the branch type would have to be widened again at each of them.
+ * {@link ErrorResponse} is exported for a caller that does want it.
+ *
  * @type {(id: Id) => (error: RpcError) => Response}
  */
 export const errorResponseOf = id => error => ({ jsonrpc, error, id })
@@ -97,6 +104,9 @@ export const errorResponseOf = id => error => ({ jsonrpc, error, id })
  * The `…Of` suffix pairs with {@link errorResponseOf}, and both name the
  * already-exported `successResponse` / `errorResponse` schemas they build a
  * value of.
+ *
+ * It answers the union for the reason {@link errorResponseOf} does, and
+ * {@link SuccessResponse} names the branch for a caller that wants it.
  *
  * @type {(id: Id) => (result: Unknown) => Response}
  */
