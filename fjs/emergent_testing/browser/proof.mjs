@@ -20,10 +20,10 @@ export const proof = {
         assertEq(report.results[0]?.message, 'Unknown thrown value')
     },
     errorFields: async () => {
-        const error = new Error()
-        Object.defineProperties(error, {
-            message: { value: Symbol('message') },
-            stack: { value: Symbol('stack') },
+        const error = new Proxy(new Error(), {
+            get: (target, property) => property === 'message' || property === 'stack'
+                ? Symbol(property)
+                : Reflect.get(target, property),
         })
         const report = await run({ fail: () => { throw error } })
         assertEq(report.results[0]?.message, 'Symbol(message)')
