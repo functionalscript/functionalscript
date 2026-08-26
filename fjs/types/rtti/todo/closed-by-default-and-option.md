@@ -588,6 +588,21 @@ Stage 2 (one PR, after stage 1 lands):
       `_tupleOption`/`_tupleInteriorOption` pins, and `optionalTuplePosition` /
       `allOptionalTuple` in `../ts/proof.f.mjs`, which print the `undefined|`
       this stage removes.
+- [ ] Say which vocabulary a **`Phantom` annotation** is written in. `Ts`'s
+      phantom branch (`T extends { readonly [phantomKey]?: infer O } ? Exclude<O,
+      undefined>`) returns the annotation *before* the thunk walk — that is what
+      spares recursive schemas TS2589 — so a phantom-wrapped schema whose root
+      admits absence would otherwise render required. Moving the walk ahead of
+      the fast path would bring TS2589 back, so instead the annotation is
+      `_TsRaw`-shaped: it carries `Absent` when the schema's root admits absence,
+      the branch keeps `Exclude<O, undefined>` (which strips the optional-field
+      artifact, not the marker), and the public `Ts` strips `Absent` as it does
+      everywhere else. No new mechanism enforces it — the two asserts
+      `../../phantom/types.ts` already mandates catch a missing `Absent`, since
+      the one against the un-annotated thunk forces the structural walk. Runtime
+      is untouched: a `Phantom` has no runtime representation, so `admitsAbsence`
+      walks the same thunk either way. Proof: an optional `Phantom`-wrapped
+      member.
 - [ ] Pin `Ts<[1, or(option, number)]>` as `readonly[1,number?]` from both
       renderers, with the four assignability rows above — the exactness claim is
       the point of the two stages and should fail loudly if it regresses.
