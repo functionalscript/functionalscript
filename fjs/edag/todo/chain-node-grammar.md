@@ -155,7 +155,7 @@ forbidden here — they cannot be written:
 | `a?.b?.c` | no lambda has a `?.` production; `?.` is only ever a node tag |
 | `a.b(...c)?.d` | `PropertyLambda`'s `['()', Exp]` is terminal, so the chain exits |
 | `(a?.(...b))(...c)` | `OptionLambda` has no `!()`; the outer call is a plain `Call` |
-| `a?.b(...c)?.d` | `OptionLambda` has no `?.()`; the guarded access starts a node |
+| `a?.b(...c)?.d` | `OptionLambda` has no `?.`, so the guarded access starts a node |
 
 The same holds for the dead-prefix rule: `PropertyLambda` has no `.` production,
 so plain property paths nest and `a.b.c` has exactly one spelling. Read "exactly one"
@@ -190,9 +190,50 @@ put one.
 
 ## Verification
 
-19 chain shapes × 11 input kinds, comparing all 171 pairs on **value, throw kind,
-and which operands ran** — every index and argument side-effecting. No two
-distinct terms denote the same expression.
+19 chain shapes × 13 input kinds, comparing all 171 pairs on **value, throw
+kind, and which operands ran** — every index and argument side-effecting. Under
+V8, no two distinct terms denote the same expression.
+
+The inputs put a nullish at depth 0, 1 and 2, through both property and call
+edges, because a shallow oracle manufactures phantom duplicates — restrict the
+nullish to depth 0 and shapes that differ only deeper stop being distinguished
+at all:
+
+```
+d0  a=undefined | a=null | a=1
+d1  a.b=undefined | a.b=null | a.b=1 | a.b missing | a()=undefined | a()=fn
+d2  a.b()=undefined | a.b.c=undefined | a.b.c=1
+    full (a deep self-similar callable, every property also callable)
+```
+
+The shapes, each with the term the grammar assigns it:
+
+| JS | term |
+| --- | --- |
+| `a.b` | `['.', a, i, null]` |
+| `a.b(..)` | `['.', a, i, ['()', args]]` |
+| `(0, a.b)(..)` | `['()', ['.', a, i, null], args]` |
+| `a.b?.(..)` | `['.', a, i, ['?.()', args, null]]` |
+| `a.b.c` | `['.', ['.', a, i, null], j, null]` |
+| `a.b(..).c` | `['.', ['.', a, i, ['()', args]], j, null]` |
+| `a?.b` | `['?.', a, i, null]` |
+| `a?.b.c` | `['?.', a, i, ['.', j, null]]` |
+| `a?.b(..)` | `['?.', a, i, ['()', args, null]]` |
+| `(a?.b)(..)` | `['?.', a, i, ['!()', args]]` |
+| `a?.b?.(..)` | `['?.', a, i, ['?.()', args, null]]` |
+| `(a?.b.c)(..)` | `['?.', a, i, ['.', j, ['!()', args]]]` |
+| `(a?.b).c(..)` | `['.', ['?.', a, i, null], j, ['()', args]]` |
+| `a?.b.c(..)` | `['?.', a, i, ['.', j, ['()', args, null]]]` |
+| `a?.b(..).c(..)` | `['?.', a, i, ['()', args, ['.', j, ['()', args2, null]]]]` |
+| `a?.(..)` | `['?.()', a, args, null]` |
+| `a?.(..)(..)` | `['?.()', a, args, ['()', args2, null]]` |
+| `(a?.(..))(..)` | `['()', ['?.()', a, args, null], args2]` |
+| `a?.(..).c` | `['?.()', a, args, ['.', j, null]]` |
+
+Operands are named **positionally** — first index, second index, first argument
+list, second — so two shapes denoting the same computation produce the same log.
+An earlier run named them per-shape, which left some pairs permanently
+incomparable and undercounted the engine divergence below.
 
 The shapes cover every production and both terminals, including the four that
 differ only in where the region closes:
@@ -221,17 +262,21 @@ throw, because the parentheses end the chain and `undefined` is called. V8 does.
 JavaScriptCore, and so `bun test`, carries the short-circuit through the
 parentheses and yields `undefined`.
 
-That case is `!()`. Re-running the same 171 pairs under Bun collapses one:
+That case is `!()`. Re-running the same 171 pairs under Bun collapses **two**,
+and both are a `!()` term falling onto its `()`-continuing twin:
 
 ```ts
-a?.b(...c)     ['?.', a, b, ['()', c, null]]
-(a?.b)(...c)   ['?.', a, b, ['!()', c]]
+a?.b(...c)       ['?.', a, i, ['()', args, null]]
+(a?.b)(...c)     ['?.', a, i, ['!()', args]]
+
+a?.b.c(...d)     ['?.', a, i, ['.', j, ['()', args, null]]]
+(a?.b.c)(...d)   ['?.', a, i, ['.', j, ['!()', args]]]
 ```
 
-— indistinguishable under JavaScriptCore, distinct under V8. So a JS oracle
-cannot establish `!()` at all on every supported runner, and the argument-
-evaluation distinction above rests on the same engine. The remaining 170 pairs
-agree on both engines.
+— indistinguishable under JavaScriptCore, distinct under V8, and the second pair
+is one of the four listed above. So a JS oracle cannot establish `!()` at all on
+every supported runner, and the argument-evaluation distinction rests on the
+same engine. The remaining 169 pairs agree on both.
 
 This does not weaken the design; it locates where the evidence has to come from.
 The EDAG follows the specification whatever its host does, which is why
@@ -265,7 +310,10 @@ down.
 Because both readings have the same length, **`close` cannot separate them**.
 Only disjoint vocabularies can, which is exactly what the `|` step prefix does
 in [`chain-nodes.md`](./chain-nodes.md) — recorded there as a correctness
-requirement rather than a readability one, for this reason. So the lambda tags
+requirement rather than a readability one. Its witness is weaker than this one,
+though, and the difference matters: there the colliding shapes differ in
+*length*, so `close` would have settled it; here they are the same length, so
+`close` cannot. Same class, strictly stronger case. So the lambda tags
 need prefixing (`|()`, `|.`, `|?.()`, `|!()`) or some equivalent split before
 any of this is implementable. `!()` is the one tag already disjoint from every
 node tag, which is why the collision is easy to miss when reading the grammar.
