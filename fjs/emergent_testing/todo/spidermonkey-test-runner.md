@@ -126,9 +126,12 @@ version-dependent — `print`, `putstr`, `quit`, `scriptArgs`, `os.getenv`,
 
 ### Tasks
 
-- [ ] Declare a `spidermonkey` Nix job (`../../ci/nix/module.f.mjs`) pinning
-      the shell and Node from the existing Nixpkgs commit, and confirm the
-      package attribute and binary name it actually provides.
+- [ ] Declare a `spidermonkey` `NixJob` pinning the shell and Node from the
+      existing Nixpkgs commit, in a module that owns it the way
+      `nodeNixJobs` (`../../ci/node/module.f.mjs`) owns the Node ones, and add
+      it to `nixJobs` in `../../ci/module.f.mjs` — `nixFlakes` writes the
+      collection it is handed, so a job absent from that list generates no
+      flake. Confirm the package attribute and binary name it provides.
 - [ ] Check what that shell provides — output, exit code, args, environment,
       job queue, module loading. Note anything that makes the generated file
       unnecessary.
