@@ -102,6 +102,16 @@ overload.
 Renames follow through the ADT: the `'close'` tag becomes `'rest'`, and
 `InfoClose`/`Close`/`_MakeClose`/`CloseTs` become `InfoRest`/`Rest`/`_MakeRest`/`RestTs`.
 
+`open` needs a **`const` signature of its own** — `_MakeOpen` as
+`<const C extends ConstObject>(c: C) => Rest<C, Unknown>` — not just the renamed
+`_MakeRest`. Without the modifier a broad annotation still type-checks while
+`open([42])` loses its literal tuple shape and `Ts<typeof open([42])>` degrades
+to the container type. `../proof.f.mjs` already states this as a convention and
+pins it — "`or`, `option`, `array`, `record`, and `close` take `const` type
+parameters … the assertions below are what fail if one of the modifiers is
+dropped" — so `open` and `rest` join that list and that assertion block, rather
+than relying on the signature being written correctly once.
+
 **The data form does not change.** `{ members, rest? }` already carries an
 arbitrary rest and normalizes per kind, so this stage touches `toData`'s mapping
 and nothing in the algebra — no `subset`, `cmp`, `equal`, union or
@@ -566,6 +576,13 @@ Stage 2 (one PR, after stage 1 lands):
       data-side rule below then operates on a bit nothing ever sets. The tag
       enumerations are independent: adding `option` to `Tag0` does not reach this
       switch. Pin `toData(option)` and `toData(or(option, number))`.
+- [ ] `../data/types.ts:70-73` states the public contract that stage 2 breaks:
+      "`unit` is a bitset over the four singleton values; bit `1 << i` stands for
+      `unitList[i]` … (`['null', 'undefined', 'false', 'true']`)". A fifth bit
+      maps to no `unitList` entry, and the form is *serializable*, so a consumer
+      decoding stored data by that sentence cannot read bit 16 at all. Document
+      the absence bit there and in `unitList`'s own JSDoc, saying why it is not a
+      `unitList` member — it is not a DJS value.
 - [ ] `../data/module.f.mjs`: `absentBit` as the fifth unit bit — `unitBit` stays
       value-keyed, since the new bit has no JS value to key on — and `trimPrefix`
       and `objectMayOmit` switch to it. `allUnits` stays the four DJS units;
