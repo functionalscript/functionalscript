@@ -23,8 +23,7 @@ import { concat as pathConcat } from '../../path/module.f.mjs'
 import { parseFromTokens } from '../parser/module.f.mjs'
 import { parse as jsonParse } from '../../media/json/module.f.mjs'
 import { run } from '../ast/module.f.mjs'
-import { pure } from '../../effects/module.f.mjs'
-import { catchStep, foldStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { catchStep, foldStep, mapStep, pure, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 
 /**
@@ -65,16 +64,16 @@ const transpileWithImports = path => module => context => {
     const pathsArray = toArray(pathsCombine)
     const contextWithStack = { ...context, stack: { first: path, tail: context.stack } }
     const x0 = foldStep(pureOk(pathsArray), contextWithStack, foldNextModuleOp)
-    return step(
+    return mapStep(
         x0,
         contextWithImports => {
             const args = toArray(listMap(mapDjs(contextWithImports))(pathsCombine))
             const djs = { djs: run(module[1])(args) }
-            return pureOk({
+            return {
                 ...contextWithImports,
                 stack: drop(1)(contextWithImports.stack),
                 complete: setReplace(path)(djs)(contextWithImports.complete),
-            })
+            }
         })
 }
 
