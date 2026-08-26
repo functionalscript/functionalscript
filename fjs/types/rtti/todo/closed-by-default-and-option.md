@@ -282,6 +282,9 @@ this lands.
 **Absence at a tuple position is "no such own index"** — past the end or a hole,
 one rule for both. That makes the value side symmetric with the schema side
 settled in #1712, where a hole in a *schema* is a declared `undefined` position.
+Construction has to preserve it: an interior absent position must stay a hole,
+because materializing it as `undefined` now denotes a different value, and
+omitting it from a rebuilt list shifts every position after it.
 
 #### What it means for the two hard spellings
 
@@ -422,7 +425,18 @@ Stage 2 (one PR, after stage 1 lands):
       nothing, and pin `array(or())` against `new Array(1)`, where the thunk
       readers and the data form disagree today.
 - [ ] Readers: a declared member is absent when its key or index is not an own
-      one; `parse` omits an absent member instead of materializing `undefined`.
+      one. `parse` omits an absent member rather than materializing `undefined`:
+      the struct kind drops the key, and the array kind **preserves indices** —
+      a trailing absent run shortens the result, an interior one stays a hole.
+      `arrayRebuild` is `entries => entries.map(([, v]) => v)`, so omitting an
+      absent entry would rebuild `[, 3]` as `[3]`, shifting `3` to index 0 and
+      returning a value that fails its own schema.
+- [ ] Decide the array kind's rebuild against FunctionalScript's own rules:
+      `Array.prototype.map` preserves holes, `Array.from({ length }, …)` does
+      not, and there is no index assignment or mutation to fall back on — so the
+      hole-preserving rebuild maps over the *value* while the check keeps walking
+      the schema. (Verified: `[, 3].map(v => v)` has no own index 0;
+      `Array.from({ length: 2 }, (_, i) => a[i])` does.)
 - [ ] `../../../media/json/schema/module.f.mjs`: move `admitsUndefined` (and so
       `required`/`minItems`) to the absent bit, leave `stripUndefined` on
       `undefined`, and update `./proof.f.mjs` — a third renderer over the data
@@ -440,7 +454,9 @@ Stage 2 (one PR, after stage 1 lands):
       `[undefined, 3]` rejected for `[or(option, number), 3]`; the JSON
       round-trip case from
       [parse-omits-undefined-members](./parse-omits-undefined-members.md);
-      `{ a: option }` as a negative field.
+      `{ a: option }` as a negative field. Assert on the **built value**, not
+      only acceptance: `parse([or(option, number), 3])([, 3])` has no own index
+      `0` and carries `3` at index `1`.
 - [ ] Delete [parse-omits-undefined-members](./parse-omits-undefined-members.md);
       restate the absence rule in `../README.md` and `../data/README.md` as the
       absent bit rather than as `undefined`.
