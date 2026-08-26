@@ -7,7 +7,7 @@ const hex = baseN(4n, '0123456789abcdef')
 // A synthetic normalizer keeps this proof focused on `baseN`'s mechanism
 // rather than duplicating the rules owned by a concrete codec.
 const normalizedHex = baseN(4n, '0123456789abcdef', c =>
-    c === 'x' ? 'a' : c.toLowerCase())
+    c === 'x' ? 'a' : c === 'y' ? 'z' : c.toLowerCase())
 
 // Sample input for the `big` proof below: 262 144 `f` characters decode into a
 // 1 Mibit (`maxLength`) vector.
@@ -49,7 +49,7 @@ export const proof = {
         assertEq(normalizedHex.stringToVec('x'), a, 'x→a')
     },
     normalizeMiss: () => {
-        assertEq(normalizedHex.stringToVec('z'), null, 'unknown char should return null')
+        assertEq(normalizedHex.stringToVec('y'), null, 'normalizing to an unknown char should return null')
     },
     // Decodes a 1 Mibit hex string. With the O(n log n) `listToVec` builder this
     // runs in well under a second (was ~13 s node / ~43 s bun under the old
