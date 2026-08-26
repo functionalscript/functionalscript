@@ -207,29 +207,44 @@ export const proof = {
     // A dense prefix alone would only show that an optional *suffix* may be
     // truncated, so the cases below also omit position 2 while position 3 is
     // present, and omit a required position with everything after it present.
+    //
+    // Every case runs against the closed form too. `close` is a separate
+    // reader on all three — `closeContainerValidate`/`closeContainerParse`,
+    // and its own conversion in the data form — and it narrows *which values
+    // are members*, not which positions are required, so it must answer these
+    // identically. The one case where closing does change the answer is at the
+    // end.
     optionalPositions: () => {
         const t = /** @type {const} */ ([number, bigint, option(string), option(null)])
-        /** @type {(check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
-        const every = check =>
-            value => {
-                for (const read of [v, p, d]) { check(read(t)(value)) }
-            }
-        const accepted = every(assertOk)
-        const rejected = every(assertError)
-        accepted([2, 4n])                  // stops at the last required position
-        accepted([2, 4n, 'x'])             // the first optional present
-        accepted([2, 4n, 'x', null])       // both present
-        // Omission is independent, not just truncation: an absent member reads
-        // as `undefined` wherever it sits, so position 2 may be missing while
-        // position 3 is present. A hole and an explicit `undefined` are the
-        // same value, so both spellings are accepted.
-        accepted([2, 4n, , null])          //< a hole at position 2
-        accepted([2, 4n, undefined, null]) //< the same value, spelled densely
-        rejected([2])                      // `bigint` excludes `undefined`
-        rejected([2, 4n, 5])               // an optional that is present is still checked
-        // The mirror of the two rows above: `bigint` excludes `undefined`, so
-        // omitting position 1 fails however much of the rest is present.
-        rejected([2, , 'x', null])         //< a hole at position 1
+        /** @type {(rtti: Type) => (check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
+        const every = rtti =>
+            check =>
+                value => {
+                    for (const read of [v, p, d]) { check(read(rtti)(value)) }
+                }
+        for (const rtti of [t, close(t)]) {
+            const accepted = every(rtti)(assertOk)
+            const rejected = every(rtti)(assertError)
+            accepted([2, 4n])                  // stops at the last required position
+            accepted([2, 4n, 'x'])             // the first optional present
+            accepted([2, 4n, 'x', null])       // both present
+            // Omission is independent, not just truncation: an absent member
+            // reads as `undefined` wherever it sits, so position 2 may be
+            // missing while position 3 is present. A hole and an explicit
+            // `undefined` are the same value, so both spellings are accepted.
+            accepted([2, 4n, , null])          //< a hole at position 2
+            accepted([2, 4n, undefined, null]) //< the same value, spelled densely
+            rejected([2])                      // `bigint` excludes `undefined`
+            rejected([2, 4n, 5])               // an optional that is present is still checked
+            // The mirror of the two rows above: `bigint` excludes `undefined`,
+            // so omitting position 1 fails however much of the rest is present.
+            rejected([2, , 'x', null])         //< a hole at position 1
+        }
+        // What closing does change: an element past the declared positions is
+        // a member of the open set and not of the closed one.
+        const extra = [2, 4n, 'x', null, 'extra']
+        every(t)(assertOk)(extra)
+        every(close(t))(assertError)(extra)
     },
     boolean: {
         ok: () => {
