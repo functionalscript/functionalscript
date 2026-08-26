@@ -129,11 +129,19 @@ are both absence, so `close([number])` accepts `[1, undefined]`. Consistent
 with everything else RTTI says, and the direction the construction-side issue
 on the open [#1708](https://github.com/functionalscript/functionalscript/pull/1708)
 would push: `parse` would stop materializing the member it decided was absent,
-and its output would keep inhabiting a closed schema. The knob is the
-`undeclaredEntries` filter, **not** `fits` — and that filter is shared with the
-struct kind, so A also has to answer `close({ a: number })` against
-`{ a: 1, b: undefined }`, an error today with no `fits` involved. It costs the
-only way to reject a present-but-`undefined` trailing member.
+and its output would keep inhabiting a closed schema.
+
+**A needs both knobs, not one.** `[1, undefined]` trips both halves of
+`extra.length === 0 && fits(...)` independently — it is an undeclared entry
+*and* the array is one longer than declared — so the short-circuit says only
+which half fires first, not which one to change. Measured: filtering
+`undefined`-valued extras out of `undeclaredEntries` while leaving `fits` alone
+changes nothing at all in the tuple kind (`[1, undefined]` error, hole error);
+patching both gives `[1, undefined]` ok and the hole ok. So **A is C plus the
+extra-check change**, and it is the extra check that carries the struct kind
+along: `close({ a: number })` against `{ a: 1, b: undefined }` is an error
+today with no length check anywhere near it. A costs the only way to reject a
+present-but-`undefined` trailing member.
 
 **B. `length` is an attribute of an array value, and `close` is where it
 becomes observable.** Nothing changes. Then say so in
@@ -172,17 +180,22 @@ do not follow.
       container's undeclared ones — and give the reason `arraySetValidate`
       already gives, that this keeps the set equal to what `Ts<>` and JSON
       Schema render it as.
-- [ ] If A: the `undeclaredEntries` filter in `closeContainerValidate` and
-      `closeContainerParse`, plus `arraySetValidate` in
-      [`../data/module.f.mjs`](../data/module.f.mjs), so all three readers move
-      together — and decide the struct kind, which shares that filter.
-      Changelog: **BREAKING**, `close` accepts an undeclared `undefined`
-      member.
 - [ ] If C: the two tuple `fits`, in
       [`../validate/module.f.mjs`](../validate/module.f.mjs) and
       [`../parse/module.f.mjs`](../parse/module.f.mjs), and the
-      `value.length <= pn` half of `arraySetValidate`. Changelog:
+      `value.length <= pn` half of `arraySetValidate` in
+      [`../data/module.f.mjs`](../data/module.f.mjs). Changelog:
       **BREAKING**, `close` accepts a trailing hole.
+- [ ] If A: everything C touches, **plus** the `undeclaredEntries` filter in
+      `closeContainerValidate` and `closeContainerParse` and the matching
+      filter in `arraySetValidate` — patching either knob alone leaves
+      `[1, undefined]` rejected. Changelog: **BREAKING**, `close` accepts an
+      undeclared `undefined` member.
+- [ ] If A, decide the struct kind, which the extra check carries along, and
+      note it has a **fourth** site: the data form encodes a closed struct as
+      `rest: never` and reads it with `objectSetValidate`, which has no length
+      analogue to the tuple kind's, so `{ a: 1, b: undefined }` is rejected
+      there by the `rest` alone.
 - [ ] Either way, add `[close([number]), [42, undefined]]` to
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table.
       The hole row (`[close([number]), [42, ,]]`) is already there; the
