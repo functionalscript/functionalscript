@@ -241,11 +241,21 @@ module's own closed containers do not follow.
       `fits` wherever a `rest` is present, which would reject the values a
       non-empty `rest` exists to admit. `arraySetValidate` needs no change; the
       data form already normalizes the empty `rest` away, which is the half
-      that is right. Detect emptiness **semantically**, not as the exported
-      `never`: `or()` and `close([never])` are other spellings of the same set,
-      and all three accept `[1, ,]` today while their canonical data equals
-      `close([number])` and rejects it — so an implementation keying on the
-      singleton would pass a `never`-only proof with the disagreement intact.
+      that is right. Define "empty" as **whatever `toData` normalizes away** —
+      a `rest` whose canonical data is `never` — not as the exported `never`
+      value, and not as semantic emptiness in general. Both bounds matter:
+      keying on the singleton misses `or()` and `close([never])`, which are
+      other spellings whose canonical data *is* `never` (all three accept
+      `[1, ,]` today while their canonical data equals `close([number])` and
+      rejects it), so such an implementation would pass a `never`-only proof
+      with the disagreement intact. Reaching further than `toData` does is the
+      mirror-image mistake: `const r = () => ['close', [r], undefined]` has no
+      finite inhabitant, but `toData(r)` keeps a recursive rule rather than
+      `never`, so `toData(close([number], r))` still carries `rest: "r"` and
+      the data form runs its rest branch — all three accept `[1, ,]` there
+      today, and a schema reader clever enough to "recognise" that emptiness
+      would start rejecting what the data form accepts. Matching `toData`
+      exactly is what keeps the three aligned by construction.
       Pin it with `[close([number], never), [42, ,]]` **and** one independently
       constructed empty rest in
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs), asserting the
