@@ -307,11 +307,22 @@ that both sides retain**, in either direction, not only to the schema features
 TypeScript cannot express.
 
 *Inbound* is the obvious half: each incoming reference needs `parse` against a
-schema that names every part (per the paragraph above), a deep copy, a freeze,
-or an **enforceable** ownership transfer — not one the caller is merely
-documented to honour, since nothing checks that and TypeScript accepts a
-mutable value where a readonly input is expected. Stage 13 states what
+schema that names every part (per the paragraph above), a deep copy, a
+**recursive** freeze, or an **enforceable** ownership transfer — not one the
+caller is merely documented to honour, since nothing checks that and TypeScript
+accepts a mutable value where a readonly input is expected. Stage 13 states what
 "enforceable" would take.
+
+**"Freeze" has to mean the whole retained graph.** `Object.freeze` is shallow:
+it seals the outer container and leaves every nested reference writable, so a
+caller holding `input.child` mutates it afterwards and the root being frozen
+establishes nothing. Anything less than a recursive freeze over every reference
+retained is not a remedy at all — and a recursive one carries costs the other
+remedies do not: it **mutates the caller's own graph**, observably, which is a
+side effect on data the module was only handed; it has to handle cycles; and it
+cannot be applied to a graph the caller shares with something still live. Those
+costs are why reconstruction — `parse`, or a deep copy — is the better default,
+and freezing is listed as an option rather than the recommendation.
 
 *Outbound is the same hole mirrored*, and it is easy to miss because the value
 started inside. An exported value, or a function result, that FunctionalScript
@@ -321,7 +332,8 @@ changing an internal value — again with no write anywhere in FunctionalScript.
 named, exported and shared, and a `Const` schema is an ordinary object: a
 consumer that mutates the schema it was handed changes what the checker
 accepts, for everyone holding it. Outbound references need the same treatment —
-copy or freeze on the way out, or the module relinquishes its own alias, which
+copy or recursive freeze on the way out, or the module relinquishes its own
+alias, which
 is ownership transfer in the other direction — and under the same
 enforceability condition, since a note in a README binds the receiver no more
 than it binds the caller.
@@ -1246,7 +1258,10 @@ are stated instead:
       JavaScript in either direction, per
       [What a generated `.d.ts` can and cannot promise](#what-a-generated-dts-can-and-cannot-promise)
       and the boundary paragraphs above: `parse` against a fully naming schema,
-      a deep copy, a freeze, or an **enforceable** ownership transfer —
+      a deep copy, a **recursive** freeze — shallow `Object.freeze` seals only
+      the outer container and establishes nothing, see the boundary paragraphs
+      for why that makes reconstruction the better default — or an
+      **enforceable** ownership transfer —
       inbound, and the mirror of it outbound, where an exported schema object
       is the sharp case. Enforceable is the operative word: a transfer that is
       merely *documented* establishes nothing, since an ordinary JavaScript
@@ -1254,8 +1269,8 @@ are stated instead:
       readonly input is expected. Either the language gains the ownership
       tracking [mutability](../spec/todo/mutability.md) already contemplates —
       which is the only mechanism in sight that could make a transfer
-      checkable — or the remedy is reconstruction or freezing, which do not
-      depend on the caller's cooperation. The `close` policy and 668's call-validating wrapper are the same
+      checkable — or the remedy is reconstruction or recursive freezing, which
+      do not depend on the caller's cooperation. The `close` policy and 668's call-validating wrapper are the same
       decision seen from two angles, so settle them together.
 
       **Foreign calls into readable exports are in scope here**, and are the

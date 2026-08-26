@@ -59,7 +59,10 @@ trusted.
 
 ### Tasks
 
-- [ ] Design the extern RTTI representation for function schemas.
+- [ ] Design the RTTI representation for function schemas. **Subordinate to the
+  extern-vs-in-`data` decision below** — this task originally said "the extern
+  representation", which committed to the option that decision is supposed to
+  make.
 - [ ] Define `TsParams<F>` and `TsResult<F>` for function RTTI.
 - [ ] Decide what minimal validation is performed on the raw value before it is
   wrapped.
