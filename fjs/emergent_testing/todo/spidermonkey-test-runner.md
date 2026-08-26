@@ -15,7 +15,9 @@ recursion depth — is unverified on the third major engine.
 The obstacle is the host, not the language. `fjs t` is
 `testAll` (`../module.f.mjs`): `loadModuleMap` walks the tree with the
 `readdir` and `import` operations, and `runModuleMap` needs `sandbox`, `write`,
-`await`, `env`, and an exit code. The only runner that backs them with real
+and `await`, plus an exit code and the `env` its options carry — `env` is a
+field of `NodeProgramOptions` (`../../effects/node/types.ts`), not an
+operation. The only runner that backs them with real
 host IO is `../../effects/node/module.mjs`, which imports `node:fs`,
 `node:http`, `node:process`, and `node:test` at the top of the file. There is a
 second interpreter, `../../effects/node/virtual/module.f.mjs`, and it is
@@ -110,7 +112,7 @@ runs there. A `jsshell` download or jsvu's `sm` is a fine way to try this by
 hand first; Nix is what the committed setup should use.
 
 That is the whole first version. It deliberately does **not** port the effects
-layer: no `Effect` runner, no `ModuleMap`, no `sandbox`/`write`/`await`/`env`
+layer: no `Effect` runner, no `ModuleMap`, no `sandbox`/`write`/`await`
 operations, no `Reporter`. `runModuleMap` and the operations behind it are the
 Node runner's business, and reaching for them means writing a second host
 runner (a sibling of `../../effects/node/module.mjs` with no `node:` imports)
