@@ -111,6 +111,14 @@ const rejoin = ([r, rest]) => stringConcat([r, listJoin('/')(posixSegments(r !==
  * segment here, so `..` can still climb past a share — see
  * {@link split} for why the root stops at `//`.
  *
+ * A drive root is the one that folding can *create*. `/` and `//` are prefixes
+ * of the text, so no amount of `.`/`..` collapsing produces one; `C:/` is a
+ * segment's content, so a relative path whose first segment happens to be a
+ * drive letter becomes drive-rooted once folded — `root('./C:/a')` is `''`
+ * while `root(normalize('./C:/a'))` is `'C:/'`. On Windows that is the reading
+ * that is wanted; on a POSIX host with a directory actually named `C:` it is
+ * not, and this module has no way to tell the two apart after folding.
+ *
  * @type {(path: string) => string}
  */
 export const root = path => split(toPosix(path))[0]
