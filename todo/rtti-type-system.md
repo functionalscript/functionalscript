@@ -47,9 +47,20 @@ written in the language, in a `const`, never in a comment — built from
 `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`,
 `option`, `never`, `close`, plus `Const` (a primitive, tuple, or struct used
 directly as its own schema). It is a value: it can be named, imported,
-exported, passed to a function, and returned from one. Being a value costs
-nothing at run time — see
-[What a compile-time-only type costs](#what-a-compile-time-only-type-costs).
+exported, passed to a function, and returned from one.
+
+Being a value is not automatically free at run time, and an earlier draft of
+this paragraph said it was. A schema used *only* in annotations is droppable
+when it is a **local** initializer built from the RTTI constructors, because
+droppability there is a property of the node. When the annotation names a
+schema **imported** from another module, the import is not dropped: stage 12
+anchors that module root so the program still compiles, and an anchored root is
+retained and evaluated — that is what anchoring is for. So an annotation-only
+import from a module with expensive or throwing top-level work is still shipped
+and still runs. See
+[What a compile-time-only type costs](#what-a-compile-time-only-type-costs) for
+both halves, and stage 12 for what would be needed to make the imported half
+free.
 
 Anything the eDSL cannot yet say is a gap in the eDSL, to be closed there —
 not a reason to grow a second notation beside it. This is the rule that keeps
@@ -1381,7 +1392,10 @@ are stated instead:
 The issues this epic subsumes or coordinates. Each stays its own file; this one
 does not replace them.
 
-**Core — the epic is these three, in order:**
+**Core — the epic is these three.** They are *not* in the order listed: 668
+splits around inference, so the runnable order is 668's representation half
+(7a) → inference (6) → 668's checking half (7b), per
+[the gates](#tasks). Listed here by subject rather than by schedule.
 
 - [type-annotations](../spec/todo/3360-type-annotations.md) — the annotation
   form, the parser consequences, and the argument for why there is no type
