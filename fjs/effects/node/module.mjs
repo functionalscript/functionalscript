@@ -40,10 +40,16 @@ import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 
+/** The one thing this runner does with the socket a `connect` event hands it.
+ *
+ * @typedef {{ readonly end: (data: string) => void }} _Socket
+ */
+
 /**
  * @typedef {{
  *   readonly listen: (port: number, host: string) => void,
  *   readonly once: (event: string, f: (e: unknown) => void) => void,
+ *   on(event: string, f: (req: unknown, socket: _Socket) => void): void,
  *   readonly removeListener: (event: string, f: (e: unknown) => void) => void,
  * }} _Server
  */
@@ -156,6 +162,23 @@ const respondWith = res => status => message => {
         })
         .end(body)
 }
+
+/**
+ * The whole HTTP response to a `CONNECT`, as bytes on a raw socket.
+ *
+ * Written by hand rather than through {@link respondWith}, because the `connect`
+ * event hands over a socket and not a `ServerResponse` — there is no object to
+ * ask for a status line.
+ *
+ * @type {string}
+ */
+const connectRefusal =
+    'HTTP/1.1 501 Not Implemented\r\n'
+    + 'content-type: text/plain; charset=utf-8\r\n'
+    + 'content-length: 26\r\n'
+    + 'connection: close\r\n'
+    + '\r\n'
+    + 'this server cannot tunnel\n'
 
 /**
  * Answers one request through `listener`, or explains that it could not.
@@ -424,7 +447,27 @@ const runNodeEffect = asyncRun({
             const r = await asyncTryCatch(() => answer(req, res))
             if (r[0] === 'error') { tryCatch(() => failSafe(res)) }
         }
-        return ok(/** @satisfies {EffectServer} */ (asNominal(createServer(nodeRl))))
+        const server = createServer(nodeRl)
+        // A `CONNECT` never reaches the listener: Node routes it to the
+        // `connect` event, and with no handler there it drops the socket
+        // without a byte of HTTP — checked on Linux with Node 22.22.2, where
+        // `CONNECT localhost:18084 HTTP/1.1` closed the connection while a
+        // `POST` to the same server was answered. A client that asked a
+        // question deserves an answer, so the runner gives the one it can.
+        //
+        // `501`, not `405`. A `405` must carry `Allow` (RFC 9110 §15.5.6) and
+        // only the listener knows what it allows, while `501` is exactly what
+        // RFC 9110 §15.6.2 describes — a method the server cannot support for
+        // any resource. That is true of *every* server this effect layer can
+        // build: `RequestListener` maps a request frame to a response frame and
+        // has no vocabulary for a tunnel, so no listener could answer a
+        // `CONNECT` even if it were handed one.
+        //
+        // Answering here rather than passing it on follows the `413` and `500`
+        // above: the runner answers on the listener's behalf exactly when the
+        // listener structurally cannot.
+        server.on('connect', (_, socket) => { tryCatch(() => socket.end(connectRefusal)) })
+        return ok(/** @satisfies {EffectServer} */ (asNominal(server)))
     },
     // Binding is asynchronous, and its failure arrives as an `error` event
     // rather than a throw: answering `ok` the moment `listen` was *called*

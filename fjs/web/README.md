@@ -294,6 +294,15 @@ refused with the out-of-range values: Node reads it as "any free port", and
 nothing here can ask which one it got, so the URL it printed would name a dead
 port.
 
+**A `CONNECT` is answered by the runner, not by this module.** Node routes it to
+the server's `connect` event, so it never reaches a listener at all, and with no
+handler there the socket is dropped without a byte of HTTP. The Node runner
+answers `501 Not Implemented` — not `405`, since that must carry `Allow` and
+only a listener knows what it allows, while `501` is precisely a method the
+server cannot support for any resource. That is true of every server the effect
+layer can build: a `RequestListener` maps a request frame to a response frame
+and has no vocabulary for a tunnel.
+
 **The entry checked is not the entry read.** `stat` and `readFile` are two
 operations on a name, so an entry swapped between them answers for something
 that is gone: an oversized file becomes `500` instead of `413`, and a FIFO is
