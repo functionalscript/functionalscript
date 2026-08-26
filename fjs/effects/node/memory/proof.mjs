@@ -3,16 +3,15 @@
  *
  * @module
  *
- * @import { Key, MemOp } from '../../memory/types.ts'
+ * @import { Key } from '../../memory/types.ts'
  */
 
-import { asyncRun } from '../../module.mjs'
 import { errorSummary } from '../module.f.mjs'
 import {
     asNominal,
     create, read, write,
 } from '../../memory/module.f.mjs'
-import { memoryOperationMap, run } from './module.mjs'
+import { memoryRun, run } from './module.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { unwrap } from "../../../types/result/module.f.mjs"
 import { step, unwrapStep } from '../../module.f.mjs'
@@ -28,8 +27,8 @@ export const proof = {
         assert(r[0] === 'ok', r)
         assertEq(r[1], 2)
     },
-    reusedOperationMapPersists: async () => {
-        const runner = asyncRun(/** @type {import('../../types.ts').ToAsyncOperationMap<MemOp>} */ (memoryOperationMap()))
+    reusedRunnerPersists: async () => {
+        const runner = memoryRun()
         // `unwrapStep` empties the channel, so what the runner hands back is
         // an `ok` and these unwraps are total.
         const key = unwrap(await runner(unwrapStep(create(1), errorSummary)))

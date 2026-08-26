@@ -526,12 +526,25 @@ check its argument. A cast around a big object literal passed to a
 `ToAsyncOperationMap<O>`-shaped parameter, for example, blocks TypeScript from
 checking each operation's implementation against `O` — the object literal is no
 longer contextually typed by the call site, so a drifted handler shape is
-absorbed by the cast instead of flagged. Prefer no cast at all when the callee
-already supplies enough context (as `asyncRun(map)` does here) so the object
-literal is checked structurally on its own; reach for `@satisfies` only where a
-check without adopting the target type is actually wanted, e.g. a value that
-must additionally be nominal-branded — `asNominal(x) satisfies T` becomes
-`/** @satisfies {T} */ (asNominal(x))`, not `@type`.
+absorbed by the cast instead of flagged. Prefer no cast at all, so the object
+literal is checked structurally on its own.
+
+`asyncRun(map)` is worth spelling out, because the callee does **not** supply
+that context on its own: `ToAsyncOperationMap<O>` is a mapped type keyed on
+`O[0]`, not a homomorphic `{[K in keyof T]: …}`, so TypeScript cannot infer `O`
+back out of the argument. Left to argument inference `O` falls back to its
+`Operation` constraint — payloads and outputs `never` — which no real map is
+assignable to, and the call site reaches for exactly the cast this section warns
+about. **Annotate the result instead**: pin the runner's own type
+(`/** @type {MemoryRun} */`, `/** @type {_EffectToPromise} */`) and `O` is
+inferred from the return type, leaving the map checked. Both Node runners are
+written that way — `fjs/effects/node/module.mjs`'s `runNodeEffect` and
+`fjs/effects/node/memory/module.mjs`'s `memoryRun`.
+
+Reach for `@satisfies` only where a check without adopting the target type is
+actually wanted, e.g. a value that must additionally be nominal-branded —
+`asNominal(x) satisfies T` becomes `/** @satisfies {T} */ (asNominal(x))`, not
+`@type`.
 
 #### Mutually recursive constants: cross-reference with `typeof`
 
