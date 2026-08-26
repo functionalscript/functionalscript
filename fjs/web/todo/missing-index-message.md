@@ -56,6 +56,18 @@ nothing qualifies too — `/.`, `/%2E`, `/a/..` and `/fjs/..` all get
 against a root that has one. A trailing slash is sufficient, not necessary, and
 an implementation keying off it alone would leave these on the old sentence.
 
+**A hidden path keeps `not found`, though it is directory-form too.**
+`resolve` refuses a dot-prefixed segment *before* computing `isDirectory`, so
+`/.git/` never reaches the branch that appends `index.html` — and that
+ordering is right rather than an obstacle to route around. The new sentence is
+a claim about having looked; for a hidden path the server refused without
+touching the disk, so `no index.html in /.git/` would describe work it did not
+do. Non-disclosure is unaffected either way, which is worth stating plainly:
+the hidden refusal never consults the disk, so `/.git/` and `/.nonexistent/`
+answer identically whichever sentence they carry — verified. What separates
+them from `/foo/` is that the client wrote a dot, which the client already
+knows. So the question is which message is true, and only one of them is.
+
 Three constraints on the wording:
 
 - **Name the URL path, not the resolved path.** `fileResponse` already
@@ -106,7 +118,10 @@ echoing the parsed path instead would name a directory the client never wrote.
       something argues otherwise.
 - [ ] Answer a directory-form `404` with a sentence naming `index.html` and
       the URL path, leaving every other `404` as it is. Key it off `resolve`'s
-      own predicate, not off a trailing slash.
+      own predicate, not off a trailing slash — and off the branch that
+      appends `index.html`, so a hidden path keeps `not found`.
+- [ ] Prove `/.git/` still answers `not found`, and answers it identically to
+      `/.nonexistent/`, so the refusal stays ahead of the new sentence.
 - [ ] Prove that `/fjs/` and `/no-such-dir/` still answer identically — and
       `/README.md/` with them, which needs
       [notdir-status](./notdir-status.md) first. Without it the proof passes
