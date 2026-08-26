@@ -49,7 +49,7 @@ written in the language, in a `const`, never in a comment — built from
 directly as its own schema). It is a value: it can be named, imported,
 exported, passed to a function, and returned from one. Being a value costs
 nothing at run time — see
-[A compile-time-only type is not in the shipped program](#a-compile-time-only-type-is-not-in-the-shipped-program).
+[What a compile-time-only type costs](#what-a-compile-time-only-type-costs).
 
 Anything the eDSL cannot yet say is a gap in the eDSL, to be closed there —
 not a reason to grow a second notation beside it. This is the rule that keeps
@@ -291,12 +291,30 @@ Tracking ownership is the compiler's job; RTTI never sees a mutable value.
 
 | Source | Type system | Checked by | How long |
 | --- | --- | --- | --- |
-| `.f.mjs` | RTTI schemas + `//:` / `/*: */` | the FunctionalScript compiler | the destination |
+| `.f.js` | RTTI schemas + `//:` / `/*: */` | the FunctionalScript compiler | **the destination** |
+| `.f.mjs` | RTTI schemas + `//:` / `/*: */`, where the compiler can read the file | the FunctionalScript compiler, once it can | en route — it may use features the parser does not support yet |
 | `.mjs` | TypeScript types in JSDoc | `tsc` | indefinitely — it is ordinary JavaScript |
 | `types.ts` | TypeScript | `tsc` | **for a while** — until TypeScript is no longer used |
 | `.d.ts` | TypeScript | generated, not authored | as long as TypeScript consumers exist |
 
-The last column is the part that is easy to get wrong, because the two
+Two rows are FunctionalScript, and the split between them matters. The
+[extension contract](../fjs/fsc/README.md) says `.f.mjs` "may use
+FunctionalScript features the current parser/compiler does not support yet",
+while `.f.js` is "authored FunctionalScript that the current parser/compiler
+**must** accept". So `.f.js` is where this regime is finally at home, and
+`.f.mjs` is where it arrives file by file as the compiler catches up
+([migrate-typescript-to-mjs](./migrate-typescript-to-mjs.md) stage 3 is the
+rename).
+
+Naming only `.f.mjs` — as an earlier draft did — got this backwards twice: it
+claimed the checker for files the compiler may not be able to read, and dropped
+it for the files it definitely can. **The unit is not the extension; it is
+whether the compiler can read the file.** A `.f.mjs` module the parser cannot
+yet accept has no RTTI checking regardless of what it is annotated with, and
+stage 11 must not retire its JSDoc until it does — the rename to `.f.js` is
+exactly the event that says it can.
+
+The last column is otherwise the part that is easy to get wrong, because the two
 TypeScript rows have different futures.
 
 `.mjs` is ordinary JavaScript — mutation included, so the guarantees in
@@ -406,7 +424,7 @@ implementation detail, so this epic records it rather than picking.
 More than half the run-time and emission side is built. The compile-time side is
 the part that does not exist.
 
-### A compile-time-only type is not in the shipped program
+### What a compile-time-only type costs
 
 The standing objection to types-as-values is cost: TypeScript erases its types,
 and a type that is an ordinary value looks like one more thing to ship. It does
@@ -464,8 +482,18 @@ EDAG has the anchoring operation that can preserve a non-resulting computation.
 
 An annotation-only import is exactly that shape. So, stated honestly:
 
-- the run-time cost of a compile-time-only schema is zero **once imported roots
-  can be anchored**, which is the same `','` anchoring work that Stage 1 defers;
+- **within a module**, an unreferenced schema node is dropped, and that much is
+  sound today (a schema node is total, and total nodes are droppable);
+- **across a module boundary, anchoring does not make it free** — it makes it
+  *legal*. `,` "establishes all of its operands and takes the value of the last
+  one; the earlier operands exist for their throw-potential only"
+  ([`fjs/edag`](../fjs/edag/module.f.mjs)), so an anchored import root is
+  retained and evaluated, precisely so its failure is not deleted. An
+  annotation-only import from a module with expensive or throwing top-level
+  work is therefore still shipped and still runs. Dropping it needs effect and
+  totality analysis proving the *imported root* total — a different and larger
+  thing than proving the schema constructor total, and nothing in this epic
+  provides it;
 - until then a module whose only use of an import is in annotations is one of
   the cases that rule rejects, and the epic owes it a resolution rather than an
   assumption — [stage 12](#tasks);
@@ -517,8 +545,18 @@ The transport is largely built. LSP is JSON-RPC 2.0, and
 [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) already
 implements the envelope, the standard error codes, and `dispatch`, with
 [`mcp/stdio`](../fjs/protocol/mcp/stdio/module.f.mjs) as a working stdio server
-to copy. The framing differs — LSP uses `Content-Length` headers where MCP uses
-newline-delimited lines — so that layer is new, and small.
+to copy. Two pieces are genuinely new, and only one of them is small:
+
+- **framing** — LSP uses `Content-Length` headers where MCP uses
+  newline-delimited lines. Small.
+- **notification dispatch** — `dispatch` returns `null` for any message without
+  an `id` and never reaches a handler
+  ([`json_rpc`](../fjs/protocol/json_rpc/module.f.mjs)), which is correct for
+  JSON-RPC responses and wrong for a language server: `textDocument/didOpen`
+  and `didChange` are notifications, and they are how the server learns the
+  buffer's contents. Copied as-is, hover, diagnostics and completion would all
+  run against a document the server never received. Executing notification
+  handlers is stage 10 work, not transport it inherits.
 
 It is also the natural dogfood. `json_rpc`'s own messages are RTTI schemas
 today (`request`, `response`, `decodeRequest = parse(request)`), with its
@@ -764,8 +802,8 @@ annotations — which is most of them, once annotations are the point.
       failure. This is the `','` anchoring operation
       [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
       defers, read from this epic's side; it is what makes "a compile-time-only
-      type costs nothing" true across a module boundary rather than only within
-      a module.
+      type is legal across a module boundary — **not** what makes it free
+      there; the anchored root is still evaluated.
 
       **This is a prerequisite, not a side quest, and an earlier draft of this
       file said otherwise.** The rule in
@@ -808,7 +846,9 @@ annotations — which is most of them, once annotations are the point.
    what should the compiler do with a module whose only use of an import is in
    annotations — reject it, as Stage 1's reachability rule does today, or keep
    the import and pay for it? Rejecting is safe and unhelpful; keeping it makes
-   the "costs nothing" claim conditional on the module imported from.
+   the cost claim conditional on the module imported from. Note that anchoring
+   settles the rejection, not the cost: dropping an anchored root additionally
+   needs it proven total.
 7. **Ownership-tracked locals.** A local mutable object
    ([mutability](../spec/todo/mutability.md)) has no RTTI type while it is still
    mutable. Whether it may be annotated at all — with the schema its escaped
