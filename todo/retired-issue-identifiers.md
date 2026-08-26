@@ -32,9 +32,10 @@ Every cited identifier below has a file:
 |`i65Y-proof-by-export`|`issues/65Y-proof-by-export.md`|open|`emergent_testing/todo/65y-proof-asserteq-adoption.md` ×1|
 
 **18 bare citations across 13 files.** The column counts *bare* occurrences
-only. `i665-mcp` also appears twice as a working link — `mcp/todo/README.md`'s
-own anchor reference to its `## 665-mcp` section, and one in
-`json_rpc/todo/response-constructors.md` — and those need nothing. Regenerate the
+only. `i665-mcp` also appears once as a working link — `mcp/todo/README.md`'s
+own anchor reference to its `## 665-mcp` section — and that needs nothing. A
+second such link lived in `json_rpc/todo/response-constructors.md`, which was
+deleted when the constructors shipped. Regenerate the
 whole column rather than trusting it — an earlier revision of this issue built
 it from a scan that printed only the first two paths per identifier, and listed
 two of `i183`'s four sites.

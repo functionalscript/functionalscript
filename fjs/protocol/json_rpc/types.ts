@@ -8,7 +8,9 @@
 
 import type { Unknown } from '../../media/json/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { _id, request, error as errorSchema, response } from './module.f.mjs'
+import type {
+    _id, request, error as errorSchema, response, successResponse, errorResponse,
+} from './module.f.mjs'
 import type { Ts } from '../../types/rtti/ts/types.ts'
 
 export type Id = Ts<typeof _id>
@@ -25,6 +27,18 @@ export type RpcError = Ts<typeof errorSchema>
  * https://www.jsonrpc.org/specification#response_object
  */
 export type Response = Ts<typeof response>
+
+/**
+ * The success branch of {@link Response}: `result` is present, `error` is not.
+ *
+ * `successResponseOf` answers the `Response` union, not this — every consumer
+ * in the tree is a dispatcher that returns either arm. Name this where a
+ * caller genuinely holds one branch and wants `.result` without an `in` check.
+ */
+export type SuccessResponse = Ts<typeof successResponse>
+
+/** The error branch of {@link Response}, the mirror of {@link SuccessResponse}. */
+export type ErrorResponse = Ts<typeof errorResponse>
 
 /** A method implementation: maps `params` to a result or an `RpcError`. */
 export type Handler = (params: Unknown | undefined) => Result<Unknown, RpcError>

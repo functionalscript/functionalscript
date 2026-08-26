@@ -41,19 +41,18 @@ import { ioError, readLine, write } from '../../../effects/node/module.f.mjs'
 import { tryUtf8 } from '../../../text/module.f.mjs'
 import { parse, stringify } from '../../../media/json/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
-import { internalError, jsonrpc, parseError } from '../../json_rpc/module.f.mjs'
+import { errorResponseOf, internalError, parseError } from '../../json_rpc/module.f.mjs'
 import { error } from '../../../types/result/module.f.mjs'
 
 const stringifyJson = stringify(sort)
 
 /** The parse-error response (`-32700`, `id: null`) for a malformed input line. */
-/** @type {Response} */
-const parseErrorResponse = { jsonrpc, error: parseError, id: null }
+const parseErrorResponse = errorResponseOf(null)(parseError)
 
 /** An internal-error response (`-32603`) carrying `id`.
  * @type {(id: Response['id']) => Response}
  */
-const internalErrorResponse = id => ({ jsonrpc, error: internalError, id })
+const internalErrorResponse = id => errorResponseOf(id)(internalError)
 
 /** Encodes a response as a newline-terminated UTF-8 line and writes it to `stdout`.
  * @type {(resp: Response) => Effect<Write, void, IoChannel>}
