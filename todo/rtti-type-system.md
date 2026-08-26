@@ -233,19 +233,43 @@ the program above compiles.
 **None of that arises here.** A schema denotes a *set of immutable values*;
 `subset` is inclusion between two such sets, decided on the canonical
 [`data`](../fjs/types/rtti/data/module.f.mjs) form, with no writer anywhere to
-make the answer go stale. Three concrete consequences:
+make the answer go stale. Three concrete consequences — the first two holding
+**within FunctionalScript**, for the reason the next paragraph is careful
+about:
 
 - **A check stays true.** `validate` returns the value it was handed —
-  `Object.is(result, input)` — precisely because nothing can change it
-  afterwards. Verify-then-mutate, the standard hole in run-time validation
-  over mutable data, has no analogue.
+  `Object.is(result, input)` — and in a language with no mutation nothing can
+  change it afterwards, so verify-then-mutate, the standard hole in run-time
+  validation over mutable data, has no analogue.
 - **Compile time and run time agree by construction.** The same schema decides
   both, and there is no mutation in between to make the compile-time answer
   wrong at run time. That agreement is the epic's whole claim, and it is
   immutability that supports it.
 - **`subset` is data, not language semantics.** Assignability is a pure
   function of two canonical values, which is why it could ship long before the
-  checker that will use it.
+  checker that will use it. This one holds unconditionally: it is a fact about
+  two `Data` values and involves no runtime value at all.
+
+**That guarantee is the language's, not `validate`'s, and the boundary matters.**
+Immutability in `fjs/` is a convention the reviewer enforces
+([AGENTS.md](../AGENTS.md) §3), not something the JavaScript runtime provides —
+and `validate` returns the caller's own object, unfrozen. So a caller from
+ordinary JavaScript that keeps an alias can invalidate a successful result the
+moment after it is returned, and today, running on Node, every caller is such a
+caller. Verify-then-mutate is closed by the language, not by the reader.
+
+`validate` should not close it by freezing or copying: returning the value it
+was given *is* its contract — a content-addressed document's bytes are its
+identity, so a reconstruction is a different document
+([`rtti/README.md`](../fjs/types/rtti/README.md)) — and freezing the caller's
+object would be a mutation of it. The reader for a value arriving from outside
+the boundary is `parse`, which constructs a fresh value holding only what the
+schema declares; the README already assigns it that role, "the reader for a
+value coming *in* — from JSON, from a protocol frame".
+
+Which is one more reason the regime is `.f.mjs`-only (commitment 4). Inside it,
+the check stays true because nothing can write. Outside it, use `parse` and hold
+the result, or accept that a validated alias is only as stable as its holder.
 
 Where mutability is planned it stays outside RTTI's reach by design: local
 mutable objects with ownership tracking
@@ -474,8 +498,8 @@ so that issue's open question is answered yes by this stage.
 ### Tasks
 
 Ordered. Stage 1 is independent of everything else and can start today; stages
-3 onward are gated on the compiler; stage 10 gates stage 11; stage 12 is
-off to the side, gating a claim rather than a stage.
+3 onward are gated on the compiler; stages 9 and 10 both gate stage 11; stage 12
+is off to the side, gating a claim rather than a stage.
 
 - [ ] **1. `.d.ts` generation from schemas.** An `fjs` command over
       [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs), wired into
@@ -513,7 +537,10 @@ off to the side, gating a claim rather than a stage.
 - [ ] **9. Nominal types.** [`fjs/types/nominal`](../fjs/types/nominal/module.f.mjs)
       has no RTTI representation: either RTTI gains a brand-carrying wrapper, or
       nominal types stay a TypeScript-era construct
-      ([134-nominal-types-proposal](./134-nominal-types-proposal.md)).
+      ([134-nominal-types-proposal](./134-nominal-types-proposal.md)). Gates
+      stage 11 for every declaration with a nominal public type — branding is a
+      compile-time fiction (`asNominal` is `identity`), so nothing in the value
+      carries it and a generated `.d.ts` cannot recover it.
 - [ ] **10. A language server.** LSP over
       [`json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) — diagnostics with
       spans, hover, go-to-definition, completion — so that removing JSDoc does
@@ -522,7 +549,13 @@ off to the side, gating a claim rather than a stage.
 - [ ] **11. Retire `Ts<T>`, the JSDoc types in `.f.mjs`, and the `types.ts`
       beside them,** declaration by declaration — the two annotation forms are
       disjoint, so this needs no flag day and no module-at-a-time rule — once
-      1–8 and 10 hold. Convert against a declaration comparison,
+      1–10 hold, **stage 9 included**: a declaration whose public type is
+      nominal cannot retire before RTTI can carry a brand, or the generated
+      `.d.ts` silently widens it.
+      [`fjs/types/bit_vec`](../fjs/types/bit_vec/types.ts) is the concrete case
+      — `Vec = Nominal<'bit_vec', _Revision, bigint>` is a published
+      distinction that `bigint` alone does not make. Convert against a
+      declaration comparison,
       `Assert<Equal<Ts<typeof schema>, Declared>>`, not against both checkers
       accepting the initializer: they agree on a value without agreeing on a
       type. A `types.ts` goes when its module's schemas cover what it declared
