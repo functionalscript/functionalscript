@@ -15,11 +15,14 @@ recursion depth — is unverified on the third major engine.
 The obstacle is the host, not the language. `fjs t` is
 `testAll` (`../module.f.mjs`): `loadModuleMap` walks the tree with the
 `readdir` and `import` operations, and `runModuleMap` needs `sandbox`, `write`,
-`await`, `env`, and an exit code. The only runner for those operations is
-`../../effects/node/module.mjs`, which imports `node:fs`, `node:http`,
-`node:process`, and `node:test` at the top of the file. The SpiderMonkey shell
-(`js`) has none of them: no `node:` namespace, no package resolution, and no
-directory listing to build the module map from. Loading that runner in the
+`await`, `env`, and an exit code. The only runner that backs them with real
+host IO is `../../effects/node/module.mjs`, which imports `node:fs`,
+`node:http`, `node:process`, and `node:test` at the top of the file. There is a
+second interpreter, `../../effects/node/virtual/module.f.mjs`, and it is
+`node:`-free — but it answers `readdir` and `import` from simulated state, so
+it cannot discover the real tree, which is what discovery needs. The
+SpiderMonkey shell (`js`) has none of the Node APIs: no `node:` namespace, no
+package resolution, and no directory listing to build the module map from. Loading that runner in the
 shell fails before any proof is reached.
 
 ### Proposal
@@ -69,13 +72,14 @@ The simplest path found so far is two steps.
    `base.b32`. A walker that calls the outer function and stops counts one pass
    and silently skips the assertions inside. Recurse into each non-`throw`
    call's return value, with `null` marking the call boundary so paths render
-   as `outer().inner`, exactly as `collectTests` and `runModule`
-   (`../module.f.mjs`) already do. Import `collectTests` rather than
-   reimplementing it. Its chain is clean, and the extension is why:
-   `../effects/node/module.f.mjs` *declares* the operations as data, while the
-   `node:` imports live in its sibling `module.mjs`, the runner, which nothing
-   on this path reaches — the closure of `../module.f.mjs` is 35 modules with
-   no `node:` and no bare package specifier among them. Run the acceptance
+   as `outer().inner`, as `runModule` and `registerModule` (`../module.f.mjs`)
+   already do — `collectTests` itself only walks the static tree and calls
+   nothing; those two hand it each `[...path, null]` after a call returns.
+   Import `collectTests` rather than reimplementing it. Its chain is clean, and
+   the extension is why: `../effects/node/module.f.mjs` *declares* the
+   operations as data, while the `node:` imports live in its sibling
+   `module.mjs`, the runner, which nothing on this path reaches — no `node:`
+   and no bare package specifier appears anywhere in that closure. Run the acceptance
    check above over the generated file's own imports too, so that stays
    something the generator verifies rather than something this issue
    remembers.
@@ -90,15 +94,18 @@ commit (`../../ci/config/module.f.mjs`) and generates one flake per job
 CI, at a version the pin decides:
 
 ```sh
-nix develop ./nix/generated/spidermonkey --command js<version> --version
+nix develop ./nix/generated/spidermonkey --command js --version
 ```
 
-`js<version>` is a placeholder, and closing it is part of the first task: the
-package attribute (`pkgs.spidermonkey_NNN` — the versioned attributes are what
-Nixpkgs carries) and the binary's name (`js128` rather than plain `js`) both
-have to be read off the pinned commit rather than assumed, and every command
-here — this one and the `js --module` above — takes the name that check
-returns. The job needs Node in its `packages` too, since the generator step
+Both halves of that line are read off the pinned commit rather than assumed.
+The attribute is versioned — `spidermonkey_115`, `spidermonkey_128`, and
+`spidermonkey_140` are what Nixpkgs carries at `f4f6986`
+(`pkgs/top-level/all-packages.nix:4966-4968`) — while the binary needs no
+guessing at all: the package's `preFixup`
+(`pkgs/development/interpreters/spidermonkey/common.nix:174-178`)
+unconditionally symlinks `$out/bin/js` to `js<major>`, so plain `js` and
+`js140` both land on `PATH` and every `js …` command in this issue works as
+written. The job needs Node in its `packages` too, since the generator step
 runs there. A `jsshell` download or jsvu's `sm` is a fine way to try this by
 hand first; Nix is what the committed setup should use.
 
@@ -131,7 +138,8 @@ version-dependent — `print`, `putstr`, `quit`, `scriptArgs`, `os.getenv`,
       `nodeNixJobs` (`../../ci/node/module.f.mjs`) owns the Node ones, and add
       it to `nixJobs` in `../../ci/module.f.mjs` — `nixFlakes` writes the
       collection it is handed, so a job absent from that list generates no
-      flake. Confirm the package attribute and binary name it provides.
+      flake. `pkgs.spidermonkey_140` is the newest attribute the pinned commit
+      offers; confirm the version the built shell reports.
 - [ ] Check what that shell provides — output, exit code, args, environment,
       job queue, module loading. Note anything that makes the generated file
       unnecessary.
