@@ -22,8 +22,8 @@ second interpreter, `../../effects/node/virtual/module.f.mjs`, and it is
 `node:`-free — but it answers `readdir` and `import` from simulated state, so
 it cannot discover the real tree, which is what discovery needs. The
 SpiderMonkey shell (`js`) has none of the Node APIs: no `node:` namespace, no
-package resolution, and no directory listing to build the module map from. Loading that runner in the
-shell fails before any proof is reached.
+package resolution, and no directory listing to build the module map from.
+Loading that runner in the shell fails before any proof is reached.
 
 ### Proposal
 
@@ -79,8 +79,8 @@ The simplest path found so far is two steps.
    the extension is why: `../effects/node/module.f.mjs` *declares* the
    operations as data, while the `node:` imports live in its sibling
    `module.mjs`, the runner, which nothing on this path reaches — no `node:`
-   and no bare package specifier appears anywhere in that closure. Run the acceptance
-   check above over the generated file's own imports too, so that stays
+   and no bare package specifier appears anywhere in that closure. Run the
+   acceptance check above over the generated file's own imports too, so that stays
    something the generator verifies rather than something this issue
    remembers.
 
