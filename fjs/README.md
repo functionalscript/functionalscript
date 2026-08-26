@@ -30,6 +30,7 @@ fjs <command> [args]
 | `cas`    | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
 | `mcp`    | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
 | `ci`     | Generate the GitHub Actions CI workflow | [ci](ci/README.md) |
+| `web`    | Serve a directory over HTTP | [web](web/README.md) |
 | `run`    | Run a FunctionalScript module as a program | [below](#fjs-run--running-a-module-as-a-program) |
 | `help`   | Print available commands | |
 
@@ -58,6 +59,27 @@ fjs ci
 FunctionalScript's default workflow. Projects with custom CI setup code should keep
 using `fjs run <custom-ci-module>`, so their module can call `ci(setup)` with its own
 extra runtime steps.
+
+## `fjs web` — serving a directory
+
+```
+fjs web [root] [port]
+```
+
+Serves `root` (default `.`) over HTTP on `port` (default `8080`), mapping each
+request path to a file under it — enough to open the pages this repository
+generates in a browser, where a `file://` URL has no origin. It binds loopback,
+so what it serves stays on the machine it runs on. Both arguments are
+positional; `port` becomes `--port`, and `--host` becomes possible at all, once
+[`fjs/cli`](cli/README.md) has named options.
+
+```
+fjs web            # serve the working directory on http://127.0.0.1:8080/
+fjs web docs 3000  # serve ./docs on http://127.0.0.1:3000/
+```
+
+Details, and the list of what it deliberately does not do, are in
+[web](web/README.md).
 
 ## `fjs run` — running a module as a program
 

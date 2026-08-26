@@ -5,20 +5,22 @@
  *
  * @import { Vec } from '../../../types/bit_vec/types.ts'
  * @import { PartialMemOperationMap, RunInstance } from '../../mock/types.ts'
- * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, SandboxResult } from '../types.ts'
+ * @import { Dirent, FileStat, IoError, IoResult, Module, NodeOp, NodeProgramOptions, OpResult, RequestListener, SandboxResult, Server } from '../types.ts'
+ * @import { Operation } from '../../types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Error } from '../../../types/result/types.ts'
- * @import { Dir, JsModule, State, _Entity } from './types.ts'
+ * @import { Dir, JsModule, State, _Entity, _VirtualListener, _VirtualServer } from './types.ts'
  */
 
 import { assert, todo } from '../../../asserts/module.f.mjs'
 import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
-import { error, ok } from '../../../types/result/module.f.mjs'
-import { ioError, nodeCommands } from '../module.f.mjs'
+import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
+import { emptyHost, emptyHostError, ioError, nodeCommands } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
+import { asBase as asBaseServer, asNominal as asNominalServer } from '../../../types/nominal/module.f.mjs'
 
 /** @type {State} */
 export const emptyState = {
@@ -31,6 +33,9 @@ export const emptyState = {
     memoryNext: 0,
     memoryValues: {},
     randomNext: 0,
+    listening: [],
+    requests: [],
+    responses: [],
 }
 
 /**
@@ -321,6 +326,12 @@ const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
     return ok(result)
 })(path)
 
+/** What `stat` answers for a name that exists and is not a regular file.
+ *
+ * @type {IoResult<FileStat>}
+ */
+const notRegular = ok({ size: 0, isFile: false })
+
 /** Total byte size of a chunk-list file (each chunk is byte-aligned).
  *
  * @type {(chunks: readonly Vec[]) => number}
@@ -366,14 +377,192 @@ const writeBytesRawOp = (offset, data) => (dir, p) => {
 /** @type {(path: string, offset: number, data: Vec) => (state: State) => readonly [State, IoResult<void>]} */
 const writeBytesOp = (path, offset, data) => operation(writeBytesRawOp(offset, data))(path)
 
-/** @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]} */
-const statOp = readOperation((dir, path) => {
+/**
+ * `stat` reports what is there, including when what is there is not a regular
+ * file — a host stats a directory or a FIFO successfully and says it is not a
+ * file, and a caller's guard against reading one can only be exercised here if
+ * this runner does the same.
+ *
+ * Two entries answer `isFile: false`. A `JsModule` is this file system's stand-in
+ * for a name that exists and is not a file at all. A **directory** arrives as an
+ * empty remaining path, because `operation` has already descended into it — the
+ * one way to reach `statOp` with nothing left to look up — and that is what it
+ * means, root included.
+ *
+ * @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]}
+ */
+const statPath = readOperation((dir, path) => {
+    if (path.length === 0) { return notRegular }
     if (path.length !== 1) { return enoent }
     const file = dir[path[0]]
     if (file === undefined) { return enoent }
-    if (!isBinFile(file)) { return fail(`'${path[0]}' is not a file`) }
-    return ok({ size: fileSizeBytes(file) })
+    // `isBinFile` rather than a local `Array.isArray`: which entity kind a name
+    // holds is asked in one place now (#1697), and `stat` is one of its askers.
+    if (!isBinFile(file)) { return notRegular }
+    return ok({ size: fileSizeBytes(file), isFile: true })
 })
+
+/**
+ * An empty path names nothing, and `parse` cannot say so: it collapses to the
+ * same empty segment list `.` does, and `.` is the root. A host answers `ENOENT`
+ * for `stat('')`, so this asks the question `parse` has already thrown away —
+ * before the answer can depend on it.
+ *
+ * @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]}
+ */
+const statOp = path => path === '' ? state => [state, enoent] : statPath(path)
+
+// ── HTTP ──────────────────────────────────────────────────────────────────────
+//
+// There are no sockets here, but the two operations that *set up* a server still
+// have a faithful meaning without one: `createServer` hands back a handle, and
+// `listen` accepts exactly the requests the fixture queued. That is what makes a
+// request-in / response-out proof possible against the in-memory filesystem —
+// the same listener the Node runner would drive, driven by fixture data instead
+// of a socket. `forever` is the one HTTP-adjacent operation with no meaning
+// here; see the note on {@link virtual} below.
+
+/**
+ * Whether `port` is one a host would accept: an integer in `0`–`65535`, where
+ * `0` asks for an ephemeral one. Node throws `ERR_SOCKET_BAD_PORT` for anything
+ * else, and a runner that accepted `-1` or `NaN` would let a program be proven
+ * that cannot run.
+ *
+ * @type {(port: number) => boolean}
+ */
+const isPort = port => Number.isInteger(port) && port >= 0 && port <= maxPort
+
+/** @type {number} */
+const maxPort = 0xffff
+
+/** The port that asks for any free port rather than naming one.
+ *
+ * @type {number}
+ */
+const ephemeral = 0
+
+/**
+ * The handle **is** the listener.
+ *
+ * `Server` is a nominal over `unknown`, so what a runner keeps inside one is its
+ * own business: this one keeps the listener there, and `listen` takes it back
+ * out. In the state instead, it would model a runner with room for one server —
+ * two `createServer` calls and the second silently answers for the first, where
+ * the Node runner gives each its own socket — so it rides in the handle, and two
+ * servers in one program are two servers here too.
+ *
+ * A fresh record wraps it for that last reason: two calls with the *same*
+ * listener must still be two servers, and a handle that was the listener itself
+ * made them one — which `listen` then read as a single server listening twice.
+ *
+ * @type {(listener: RequestListener<Operation>) => (state: State) => readonly[State, OpResult<Server>]}
+ */
+const createServer = listener => state => {
+    // The same narrowing the Node runner performs before handing a request to
+    // it: `CreateServer` declares its listener over `Operation`, since a
+    // `Server` must not carry a type parameter, and a runner can only run one
+    // at its own operation set.
+    /** @type {_VirtualServer} */
+    const server = { listener: /** @type {_VirtualListener} */ (listener) }
+    /** @type {Server} */
+    const handle = asNominalServer(server)
+    return [state, ok(handle)]
+}
+
+/**
+ * Takes the address, then hands `server`'s listener every queued request in
+ * turn, threading the state through each and recording what came back. The
+ * queue is emptied, so a second `listen` does not re-deliver.
+ *
+ * **Binding can fail here, because it can fail on a host.** A port outside
+ * `0`–`65535` or not an integer is `ERR_SOCKET_BAD_PORT`, an address already
+ * taken is `EADDRINUSE`, and a server asked to listen twice is
+ * `ERR_SERVER_ALREADY_LISTEN` — the three failures Node reports, in the shape it
+ * reports them. Port `0` is the exception to the second: it names no port, so
+ * two servers asking for one do not collide. `Listen` became fallible precisely to carry them, and a runner
+ * that always succeeded would make a program that mishandles either look
+ * correct.
+ *
+ * **`unwrap` is total, and the type system is what makes it so.** A
+ * `RequestListener`'s channel is `never`, and a listener reaches that by
+ * absorbing every `Result` its effects produce — through `resultStep` /
+ * `resultMapStep`, which receive the whole `Result`, including this runner's
+ * `notImplemented` for an operation it lacks. So a listener that calls `exec`
+ * here does not fail: it is handed the refusal and answers with a response
+ * frame, which is the contract `RequestListener` states.
+ *
+ * A listener that propagated instead would make this throw — but such a
+ * listener does not type-check in that position (`Type 'IoChannel' is not
+ * assignable to type 'never'`), so the throw is the checked assertion of an
+ * invariant, not a case to handle. Handling it defensively would add a branch
+ * nothing can reach, which the coverage gate rejects and
+ * [`fjs/AGENTS.md`](../../../AGENTS.md) §1.2 tells you to restructure away.
+ *
+ * The listener comes out of the handle rather than out of the state, so which
+ * server was asked to listen is the one that answers — see {@link createServer}.
+ *
+ * @type {(server: Server, port: number, host: string) => (state: State) => readonly[State, IoResult<void>]}
+ */
+const listen = (server, port, host) => state => {
+    // Asked **first**, as the Node runner asks it: an empty host is refused
+    // before anything else is looked at, including whether this server is
+    // already listening. Node forms no opinion about `''` at all — it binds —
+    // so there is no host order to copy here and the two runners simply have to
+    // pick the same one. They did not at first: this check sat below the
+    // listening one, and an already-listening server retried with `''` reported
+    // `ERR_SERVER_ALREADY_LISTEN` here against `ERR_INVALID_ARG_VALUE` there.
+    if (host === emptyHost) { return [state, error(emptyHostError)] }
+    const bound = /** @type {_VirtualServer} */ (asBaseServer(server))
+    const { listener } = bound
+    // Asked **before** the port, because that is the order Node asks in: a
+    // server already listening reports `ERR_SERVER_ALREADY_LISTEN` for `-1`,
+    // `1.5`, `65536` and `NaN` alike — checked on Linux with Node 22.22.2 and on
+    // Darwin with Node 23.11.0, where the same values on a fresh server all
+    // report `ERR_SOCKET_BAD_PORT`. Which of two true things a failure names is
+    // part of what a runner promises, so a program branching on the code
+    // branches the same way here as there.
+    if (state.listening.some(b => b.server === bound)) {
+        return [state, error(ioError({
+            code: 'ERR_SERVER_ALREADY_LISTEN',
+            message: 'Listen method has been called more than once without closing.',
+        }))]
+    }
+    if (!isPort(port)) {
+        return [state, error(ioError({
+            code: 'ERR_SOCKET_BAD_PORT',
+            // Byte-for-byte what Node says, type included: this runner claims
+            // to report failures in the shape the host reports them, and a
+            // message that is nearly right is a claim that is not.
+            message: `options.port should be >= 0 and < 65536. Received type number (${port}).`,
+        }))]
+    }
+    // Lower-cased because a DNS name is case-insensitive and so is the
+    // hexadecimal of an IPv6 literal: `LOCALHOST` and `localhost` are one
+    // address, and a host refuses the second bind — checked on Linux with Node
+    // 22.22.2 and on Darwin with Node 23.11.0. Unlike the wildcard rules in
+    // [address-model](./todo/address-model.md), that equivalence is the same
+    // everywhere, so it is safe to model.
+    const address = `${host.toLowerCase()}:${port}`
+    // Port `0` asks the host for whichever port is free, so two servers that
+    // ask both get one — checked on Linux with Node 22.22.2 and on Darwin with
+    // Node 23.11.0: they come back bound to different ports.
+    // Comparing `host:0` to `host:0` would refuse the second, which is the worse
+    // direction to be wrong in: a runner that rejects a program a host accepts
+    // stops work that would have run.
+    if (port !== ephemeral && state.listening.some(b => b.address === address)) {
+        return [state, error(ioError({
+            code: 'EADDRINUSE',
+            message: `listen EADDRINUSE: address already in use ${address}`,
+        }))]
+    }
+    /** @type {State} */
+    let s = { ...state, listening: [...state.listening, { address, server: bound }], requests: [] }
+    for (const request of state.requests) {
+        const [next, response] = virtual(s)(listener(request))
+        s = { ...next, responses: [...next.responses, unwrap(response)] }
+    }
+    return [s, okVoid]
+}
 
 /** @type {PartialMemOperationMap<NodeOp, State>} */
 const map = {
@@ -424,6 +613,8 @@ const map = {
     createExclusive,
     writeBytes: writeBytesOp,
     stat: statOp,
+    createServer,
+    listen,
     randomInt: () => state => [{ ...state, randomNext: state.randomNext + 1 }, ok(state.randomNext)],
     now: () => state => [state, ok(state.epochNs)],
     // Virtual sandbox is a pass-through: the fixture's test function is
@@ -450,14 +641,22 @@ const map = {
 /**
  * The virtual runner.
  *
- * **It implements part of `NodeOp`, and says so.** `exec`, `createServer`,
- * `listen`, `forever` and `test` have no meaning against an in-memory
- * filesystem, and they used to be present as `todo` handlers — entries that
- * existed only to satisfy a total operation map and threw when reached. They
- * are simply absent now, so a program that asks for one gets
- * `error(notImplemented)` back through its own continuation and decides what an
- * incompatible runner means for it, which is what `NotImplemented` was
- * introduced for. A command that is not a `NodeOp` at all still panics.
+ * **It implements part of `NodeOp`, and says so.** `exec`, `forever` and `test`
+ * have no meaning against an in-memory filesystem, and they used to be present
+ * as `todo` handlers — entries that existed only to satisfy a total operation
+ * map and threw when reached. They are simply absent now, so a program that
+ * asks for one gets `error(notImplemented)` back through its own continuation
+ * and decides what an incompatible runner means for it, which is what
+ * `NotImplemented` was introduced for. A command that is not a `NodeOp` at all
+ * still panics.
+ *
+ * `forever` is absent for a reason no implementation could remove: its result
+ * type is `Result<never, NotImplemented>`, so `error(notImplemented)` is the
+ * *only* value it can produce — a runner that cannot block forever has nothing
+ * else to answer, and a server program run here therefore ends where it would
+ * otherwise have blocked. `createServer` and `listen` do have meanings without
+ * a socket and are implemented above, which is what makes the rest of such a
+ * program provable.
  *
  * @type {RunInstance<NodeOp, State>}
  */
