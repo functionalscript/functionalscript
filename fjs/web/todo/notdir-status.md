@@ -82,7 +82,12 @@ misconfigured server, which is the one case where `500` was telling the
 operator something true.
 
 So the root is checked in `main`, before `listen`: if it is not a directory,
-`errorExit` the way an out-of-range port already does. That is better than a
+`errorExit` the way an out-of-range port already does. **Both checks stat
+`served(root)`, never the argument as written** — `served` maps `''` to `.`,
+and `fjs web ''` is a supported invocation with proofs of its own
+(`emptyRoot`, twice). Statting the raw argument would make `stat('')` fail
+`ENOENT` and reject it at startup, and would misjudge the re-check below under
+`respond('')`. That is better than a
 per-request comparison of the offending component against the root — it needs
 no extra `stat` on the serving path, and it fails at the moment the mistake
 was made rather than on someone else's request.
@@ -97,8 +102,9 @@ microseconds apart; this one opens once and stays open, and it turns the
 operator's mistake into a lie told to every visitor. An earlier draft of this
 file claimed the two windows were the same size. They are not.
 
-So the mapping re-checks: on `ENOTDIR`, `stat` the root, and answer `404` only
-if it is still a directory — otherwise `500`, which is again the true answer.
+So the mapping re-checks: on `ENOTDIR`, `stat` `served(root)`, and answer
+`404` only if it is still a directory — otherwise `500`, which is again the
+true answer.
 The cost sits where it belongs, since `ENOTDIR` is the rare path and the
 serving path is untouched. What remains is a genuine race, between that
 re-check and the `stat` that produced the error, and it is the request-local
@@ -195,6 +201,8 @@ path that descends through a regular file, then map the error.
 - [ ] Add `isDirectory` to `FileStat`, in the node runner and the virtual one.
 - [ ] Reject a non-directory root in `main`, before `listen` — including a
       root that does not exist, and one that is neither file nor directory.
+      Stat `served(root)`, so `fjs web ''` keeps working; `emptyRoot` in
+      `proof.f.mjs` pins it.
 - [ ] Answer `404` for it from `fileResponse`, leaving `isNotFound` alone —
       but only after re-checking that the root is still a directory, so a root
       replaced after startup keeps answering `500`.
