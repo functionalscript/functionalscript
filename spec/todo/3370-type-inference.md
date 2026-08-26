@@ -75,7 +75,7 @@ Compared to level 2, this level contains dynamic information about subsets of th
 ## The inference domain: decide before designing
 
 Nothing else in stage 6 can be specified until this is settled, and once
-[668](../fjs/types/rtti/todo/668-rtti-function-types.md) lands 7a there is
+[668](../../fjs/types/rtti/todo/668-rtti-function-types.md) lands 7a there is
 otherwise no task anyone can pick up to unblock 7b.
 
 - [ ] **Decide the inference domain.** Either the `enum Type` bit-set lattice
