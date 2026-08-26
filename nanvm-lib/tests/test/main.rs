@@ -114,6 +114,24 @@ fn bigint_debug_format<A: IVm>() {
     }
 }
 
+/// Decimal display across limb and decimal-group boundaries.
+fn bigint_display_format<A: IVm>() {
+    let zero: BigInt<A> = 0u64.into();
+    assert_eq!(zero.to_string(), "0");
+
+    let two_to_64 = BigInt::<A>::normalize_new(Sign::Positive, [0, 1]);
+    assert_eq!(two_to_64.to_string(), "18446744073709551616");
+
+    let max_u128 = BigInt::<A>::normalize_new(Sign::Positive, [u64::MAX, u64::MAX]);
+    assert_eq!(
+        max_u128.to_string(),
+        "340282366920938463463374607431768211455"
+    );
+
+    let negative = BigInt::<A>::normalize_new(Sign::Negative, [0, 1]);
+    assert_eq!(negative.to_string(), "-18446744073709551616");
+}
+
 fn format_fn<A: IVm>() {
     let f = Function::<A>(A::InternalFunction::new_ok(
         ("myfunc".into(), 2),
@@ -185,6 +203,7 @@ fn gen_test<A: IVm>() {
     conversions::<A>();
     debug_format::<A>();
     bigint_debug_format::<A>();
+    bigint_display_format::<A>();
     unary_plus_bigint_message::<A>();
     bigint_add::<A>();
     bigint_mul::<A>();
