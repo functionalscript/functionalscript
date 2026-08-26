@@ -15,6 +15,9 @@ import {
     methodNotFound,
     invalidParams,
     internalError,
+    response,
+    errorResponseOf,
+    successResponseOf,
 } from './module.f.mjs'
 
 /** @type {(r: readonly [string, unknown]) => boolean} */
@@ -100,6 +103,32 @@ export const proof = {
         notification: () => {
             const r = d({ jsonrpc: '2.0', method: 'ping' })
             assertEq(r, null)
+        },
+    },
+
+    // The two envelope constructors are public API, so they are proven
+    // directly rather than only through `dispatch`. Each result is parsed back
+    // with this module's own `response` schema, which is the fact worth
+    // pinning: the constructor and the schema describing the shape it builds
+    // cannot drift apart.
+    responseOf: {
+        success: () => {
+            const r = successResponseOf(1)('pong')
+            assertEq(r.jsonrpc, '2.0')
+            assert('result' in r && r.result === 'pong', r)
+            assertEq(r.id, 1)
+            assert(isOk(parse(response)(r)), r)
+        },
+        // A non-`null` id on purpose: an `id` forced to `null` is a mutation
+        // this case would not see if it asked for `null` to begin with, and a
+        // string exercises the other arm of `Id` besides. `errorResponseOf`'s
+        // `null` id is covered by `dispatch.invalidRequest`.
+        error: () => {
+            const r = errorResponseOf('abc')(parseError)
+            assertEq(r.jsonrpc, '2.0')
+            assert('error' in r && r.error.code === -32700, r)
+            assertEq(r.id, 'abc')
+            assert(isOk(parse(response)(r)), r)
         },
     },
 }
