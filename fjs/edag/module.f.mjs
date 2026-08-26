@@ -3,23 +3,21 @@
  *
  * @import { Assert } from '../asserts/types.ts'
  * @import { Check, Check3 } from '../types/rtti/ts/types.ts'
+ * @import { Close } from '../types/rtti/types.ts'
  * @import {
  *  Array,
  *  Exp,
  *  Primitive,
  *  Property,
  *  NumberCast,
- *  PropertyAccessor,
  *  Object,
- *  LambdaPropertyAccessorId,
- *  LambdaPropertyAccessor,
- *  LambdaCallId,
- *  LambdaCall,
- *  Lambda,
- *  Lambdas,
+ *  PropertyLambda,
+ *  OptionLambda,
+ *  OptionPropertyLambda,
  *  Call,
- *  OptionalPropertyAccessor,
- *  OptionalCall,
+ *  Dot,
+ *  OptionDot,
+ *  OptionCall,
  *  Comma,
  *  Op2Id,
  *  Op2,
@@ -38,6 +36,7 @@
 import {
     bigint,
     boolean,
+    close,
     number,
     or,
     string,
@@ -45,13 +44,13 @@ import {
 } from "../types/rtti/module.f.mjs";
 
 /**
- * `propertyAccessor`, the call nodes, the `lambda` steps, and
- * `op0`/`op1`/`op2` (like `array`/`object`) are open on trailing/extra
- * elements — see "Structs and tuples are open" in
- * `../types/rtti/README.md`. Exact arity is spellable with `close` there
- * ("Closed containers"), not applied to these nodes yet. No operand of
- * any node here is optional: a chain step that does no further work carries
- * an empty `lambdas` array, never a missing position.
+ * Every tuple here is `close`d — the members it declares and nothing else
+ * ("Closed containers" in `../types/rtti/README.md`). That is not decoration:
+ * the chain grammar below claims each JS chain has exactly one spelling, and
+ * an open tuple would let any node carry a trailing element nothing reads,
+ * splitting one function into unboundedly many graphs. No operand of any node
+ * is optional either: a chain step that does no further work carries an
+ * explicit `null` continuation, never a missing position.
  *
  * Do not call `parse(exp)` or rely on `validate(exp)` rejecting cycles
  * without reading `../types/rtti/todo/identity-aware-parse.md` first —
@@ -70,10 +69,10 @@ import {
  *  typeof primitive,
  *  typeof array,
  *  typeof object,
- *  typeof propertyAccessor,
+ *  typeof dot,
  *  typeof call,
- *  typeof optionalPropertyAccessor,
- *  typeof optionalCall,
+ *  typeof optionDot,
+ *  typeof optionCall,
  *  typeof comma,
  *  typeof op2,
  *  typeof op1,
@@ -84,10 +83,10 @@ const _exp = () => (['or',
     primitive,
     array,
     object,
-    propertyAccessor,
+    dot,
     call,
-    optionalPropertyAccessor,
-    optionalCall,
+    optionDot,
+    optionCall,
     comma,
     op2,
     op1,
@@ -130,7 +129,7 @@ export const exps = rttiArray(exp)
  * Not a top-level `Exp`: `spread` only appears as an `items`/`properties`
  * alternative, never as an operand an operation node can hold directly.
  */
-export const spread = /** @type {const} */(['...', exp])
+export const spread = close(['...', exp])
 
 /** @typedef {Assert<Check<Spread, typeof spread>>} _Spread */
 
@@ -149,7 +148,7 @@ export const items = or(exp, spread)
  * [exp0, ...exp1]
  * ```
  */
-export const array = /** @type {const} */(['[]', rttiArray(items)])
+export const array = close(['[]', rttiArray(items)])
 
 /** @typedef {Assert<Check<Array, typeof array>>} _Array */
 
@@ -166,7 +165,7 @@ export const array = /** @type {const} */(['[]', rttiArray(items)])
  * value is coerced via JS `ToPropertyKey` when the property is defined —
  * see `../../todo/edag-stage1-discussion.md` subject 4.
  */
-export const property = /** @type {const} */([':', exp, exp])
+export const property = close([':', exp, exp])
 
 /** @typedef {Assert<Check<Property, typeof property>>} _Property */
 
@@ -202,7 +201,7 @@ export const properties = or(property, spread)
  * spellings assign a prototype instead and lose the property. See "the
  * `__proto__` key" in `../../spec/README.md`.
  */
-export const object = /** @type {const} */(['{}', rttiArray(properties)])
+export const object = close(['{}', rttiArray(properties)])
 
 /** @typedef {Assert<Check<Object, typeof object>>} _Object */
 
@@ -213,7 +212,7 @@ export const object = /** @type {const} */(['{}', rttiArray(properties)])
  * Number(exp)
  * ```
  */
-export const numberCast = /** @type {const} */(['Number', exp])
+export const numberCast = close(['Number', exp])
 
 /**
  * @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast
@@ -225,202 +224,242 @@ export const numberCast = /** @type {const} */(['Number', exp])
  * A property/index operand: a plain `string` or `number` key, or a `Number`
  * cast around a computed `exp` (`arr[i]`, where `i` is itself an expression).
  *
+ * Every naming position in the chain nodes below uses this rather than a bare
+ * `exp` — `.`, `?.`, and the `|.` step. Widening them to `exp` was weighed and
+ * rejected: `exp` and `index` overlap (`['Number', e]` is both a `numberCast`
+ * and an `op1`), so the wider spelling would buy a second reading of every
+ * computed key without buying any expression a `Number` cast cannot already
+ * name.
+ *
  * Does not exclude `'constructor'`/`'__proto__'` — TODO, see
  * `../types/rtti/todo/excluded-string-values.md`.
  */
 export const index = or(numberCast, string, number)
 
-// Property Accessor
+// Chain lambdas
+
+// A JS member chain carries two bits of hidden control flow that no value
+// carries: **P**, a receiver handed from a property access to a following
+// call, and **O**, a short-circuit region opened by an optional operator.
+// Neither bit live is the definition of a node boundary, so the three states
+// in which a chain can continue are exactly three lambda types — the fourth
+// cell of the table is an ordinary `Exp`:
+//
+// ```text
+//                    outside an option   inside an option
+// receiver live      propertyLambda      optionPropertyLambda
+// value only         (an exp)            optionLambda
+// ```
+//
+// A lambda is **not** an `exp`: it reads the chain's current value implicitly,
+// so it has no operand to hold one, and it cannot be lifted out as a shared
+// computation node — `['|.', 'b', null]` means nothing on its own, only as
+// the continuation of some chain node. That is the standing cost of this
+// shape: the receiver a step consumes cannot be shared, substituted, or
+// hashed.
+//
+// Four steps, each a transition on the two bits:
+//
+// ```text
+// |.      sets P, keeps O     a property access produces a receiver
+// |()     clears P, keeps O   a call consumes it
+// |?.()   clears P, sets O    a call consumes it and opens a region
+// |!()    clears P, clears O  a call consumes it and closes the region
+// ```
+//
+// Every tag carries the `|` prefix, and that is a correctness requirement
+// rather than a readability one. Unprefixed, `['()', f, null]` would be
+// simultaneously a well-formed `call` — call `f` with `null` as its arguments
+// — and a well-formed `optionLambda` — call the chain's value with `f` as its
+// arguments, and stop. The two readings have the same length, so `close`
+// cannot separate them; only disjoint vocabularies can.
+//
+// A production exists in a state exactly when moving that step into a nested
+// node would be **observable**, which is why the same step appears in one
+// state and not another. The sharpest case is `|.`: it is in
+// `optionPropertyLambda` and not in `propertyLambda`, though it wastes a
+// receiver either way — the difference is that O is live in one, and a region
+// does not let a step leave. That single asymmetry is what makes `(a?.b).c`
+// throw where `a?.b.c` does not.
 
 /**
+ * The continuation of a step that produced a plain value **inside** an open
+ * region — what `?.()` owns, and what a call step hands on.
+ *
+ * `|()` stays in the region because the region has to cover the call:
+ * `a?.(...b)(...c)` skips the second call too. `|.` stays for the same
+ * reason, and hands on a receiver. Neither `|?.()` nor `|!()` is here: with P
+ * dead there is nothing for a guard or a close to protect that a nested node
+ * would not protect equally, so admitting them would only add a second
+ * spelling.
+ *
+ * @type {() => readonly['or',
+ *  null,
+ *  Close<readonly['|()', typeof exp, typeof optionLambda]>,
+ *  Close<readonly['|.', typeof index, typeof optionPropertyLambda]>,
+ * ]}
+ */
+const _optionLambda = () => (['or',
+    null,
+    close(['|()', exp, optionLambda]),
+    close(['|.', index, optionPropertyLambda]),
+])
+
+/** @type {Phantom<typeof _optionLambda, OptionLambda>} */
+export const optionLambda = _optionLambda
+
+/**
+ * @typedef {Assert<Check3<OptionLambda, typeof _optionLambda, typeof optionLambda>>} _OptionLambda
+ */
+
+/**
+ * The continuation of a property step **inside** an open region — both bits
+ * live, so this is the state with every production.
+ *
+ * Its three call forms are a complete taxonomy of how a call can relate to
+ * the region around it, and there is no fourth:
+ *
  * ```js
- * exp0[exp1]
- * exp0.exp1
- * ```
- */
-export const propertyAccessor = /** @type {const} */(['.', exp, index])
-
-/**
- * @typedef {Assert<Check<PropertyAccessor, typeof propertyAccessor>>} _PropertyAccessor
- */
-
-// Lambdas — grouped by operand shape, like `op1`/`op2`
-
-/**
- * The two property steps, told apart by their tag: `|.` is
- *
- * ```js
- * a.exp0   // the `.exp0` step of a chain whose current value is `a`
+ * a?.b(...c)     // ['?.', a, 'b', ['|()',   c, null]]  inherits the guard
+ * a?.b?.(...c)   // ['?.', a, 'b', ['|?.()', c, null]]  adds its own
+ * (a?.b)(...c)   // ['?.', a, 'b', ['|!()',  c, null]]  escapes it
  * ```
  *
- * and `|?.` the optional `a?.exp0`. Both take the current chain value as
- * their input and an `index` as their only operand, so they are one schema —
- * the same rule that groups `op1`/`op2` by operand count rather than by what
- * each id means.
+ * `|!()` is the one step a short-circuit does not skip: the parentheses ended
+ * the region, so the `undefined` it produced is what gets called. `|!` pairs
+ * only with `()` because only a call consumes a receiver — a close-then-access
+ * `|!.` would just be a `dot` over the whole node, which nesting already
+ * spells.
  *
- * A property step reads the current value's property and makes that value the
- * receiver (`this`) of a later call step. `|?.` additionally short-circuits:
- * on a nullish input it produces `undefined`, leaves its `index` operand
- * unevaluated, and skips the remaining steps of the `lambdas` containing it.
+ * @type {() => readonly['or',
+ *  null,
+ *  Close<readonly['|()', typeof exp, typeof optionLambda]>,
+ *  Close<readonly['|.', typeof index, typeof optionPropertyLambda]>,
+ *  Close<readonly['|?.()', typeof exp, typeof optionLambda]>,
+ *  Close<readonly['|!()', typeof exp, null]>,
+ * ]}
  */
-export const lambdaPropertyAccessorId = or('|.', '|?.')
+const _optionPropertyLambda = () => (['or',
+    null,
+    close(['|()', exp, optionLambda]),
+    close(['|.', index, optionPropertyLambda]),
+    close(['|?.()', exp, optionLambda]),
+    close(['|!()', exp, null]),
+])
+
+/** @type {Phantom<typeof _optionPropertyLambda, OptionPropertyLambda>} */
+export const optionPropertyLambda = _optionPropertyLambda
 
 /**
- * @typedef {Assert<Check<LambdaPropertyAccessorId, typeof lambdaPropertyAccessorId>>} _LambdaPropertyAccessorId
- */
-
-export const lambdaPropertyAccessor = /** @type {const} */([lambdaPropertyAccessorId, index])
-
-/**
- * @typedef {Assert<Check<LambdaPropertyAccessor, typeof lambdaPropertyAccessor>>} _LambdaPropertyAccessor
+ * @typedef {Assert<Check3<OptionPropertyLambda, typeof _optionPropertyLambda, typeof optionPropertyLambda>>} _OptionPropertyLambda
  */
 
 /**
- * The two call steps, told apart by their tag: `|()` is
+ * The continuation of a `dot` — a receiver is live and no region is open.
  *
- * ```js
- * a(...exp0)   // the `(...exp0)` step of a chain whose value is `a`
- * ```
+ * Only the two call steps are here, because only a call can use a receiver.
+ * `|()` is terminal: with the receiver spent and no region to be inside, what
+ * follows an `a.b(...c)` is an ordinary expression over an ordinary value, so
+ * it nests. `|?.()` continues, since it opens a region that then owns the
+ * rest of the chain. There is no `|.` production, which is what gives a plain
+ * property path exactly one spelling: `a.b.c` is nested `dot`s and nothing
+ * else.
  *
- * and `|?.()` the optional `a?.(...exp0)`. Both take one `exp` operand
- * evaluating to the complete argument array — the same convention as `call` —
- * so, like the property steps above, they are one schema.
- *
- * A call step calls the current value with the current receiver, if a
- * property step established one, and clears it. `|?.()` short-circuits the
- * same way `|?.` does, on a nullish current value, leaving its argument
- * operand unevaluated.
+ * The terminal's third operand is a literal `null`, not the absence of one.
+ * Uniform arity is what keeps `close` able to tell it from `['|()', c, k]`:
+ * were the terminal two elements long, a continuation handed to a
+ * `propertyLambda` slot would be read as the terminal with the rest silently
+ * dropped.
  */
-export const lambdaCallId = or('|()', '|?.()')
-
-/** @typedef {Assert<Check<LambdaCallId, typeof lambdaCallId>>} _LambdaCallId */
-
-export const lambdaCall = /** @type {const} */([lambdaCallId, exp])
-
-/** @typedef {Assert<Check<LambdaCall, typeof lambdaCall>>} _LambdaCall */
+export const propertyLambda = or(
+    null,
+    close(['|()', exp, null]),
+    close(['|?.()', exp, optionLambda]),
+)
 
 /**
- * One structural step of a chain: a function of the current chain value with
- * its argument elided, which is what makes it a *lambda* rather than an
- * operation over operands. It is **not** an `exp` — it takes its input
- * implicitly, so it needs no operand for it, and it cannot be lifted out as
- * a shared computation node: `['|.', 'b']` means nothing on its own, only as
- * the n-th step of some `lambdas`.
- *
- * The two property steps establish a receiver, the two call steps consume
- * one; the two optional ids additionally short-circuit. None of the four
- * carries a continuation operand — the rest of the chain is simply the rest
- * of the `lambdas` they sit in.
+ * @typedef {Assert<Check<PropertyLambda, typeof propertyLambda>>} _PropertyLambda
  */
-export const lambda = or(lambdaPropertyAccessor, lambdaCall)
-
-/** @typedef {Assert<Check<Lambda, typeof lambda>>} _Lambda */
-
-/**
- * The rest of a chain, as a flat array of steps — the operand `call`,
- * `optionalPropertyAccessor`, and `optionalCall` use to spell out the
- * hidden control flow (HCF) of a JS member chain: the receiver a property
- * access carries into a following call as `this`, and the region an
- * optional link short-circuits.
- *
- * Both kinds of HCF live **only** in an operator's interpretation of a
- * `lambdas`, never in a value. Every `exp` evaluates to an ordinary value and nothing else: no
- * `exp` yields a receiver or a short-circuit state, so ordinary nodes stay
- * context-independent and shareable by identity as always.
- *
- * Evaluating a `lambdas` carries a current value and, optionally, a
- * receiver for it:
- *
- * ```text
- * a          current = a
- * |.b   ->   current = a.b,   this = a
- * |.c   ->   current = a.b.c, this = a.b
- * |()   ->   current = a.b.c(...) with this = a.b, and no receiver after
- * ```
- *
- * An optional step whose input is nullish produces `undefined` and skips
- * every step after it in **that same array**. A grouped subexpression ends
- * the region — `(a?.b).c` is a `.` over a complete `['?.', a, 'b', []]`, so
- * it throws where `a?.b.c` does not — which is exactly the distinction a
- * flat array of steps per region expresses.
- *
- * The empty `lambdas` does nothing: no further chain work, no receiver.
- */
-export const lambdas = rttiArray(lambda)
-
-/** @typedef {Assert<Check<Lambdas, typeof lambdas>>} _Lambdas */
 
 // Call
 
 /**
  * ```js
- * exp0(...exp2)              // ['()', exp0, [], exp2]
- * exp0.k(...exp2)            // ['()', exp0, [['|.', 'k']], exp2]
- * (exp0?.k)(...exp2)         // ['()', exp0, [['|?.', 'k']], exp2]
+ * exp0(...exp1)
  * ```
  *
- * The one call operator: it evaluates `exp0`, runs the `lambdas`, then calls
- * the value that lambdas arrived at. Whether the call keeps a `this` binding
- * is decided by that `lambdas` alone — a trailing property step leaves a
- * receiver and the call is a method call, an empty `lambdas` (or one ending
- * in a call step) leaves none and the call is an ordinary one. There is no
- * separate `.()` node and no "with this" tag: `a.b(...c)` is this operator
- * over `[['|.', 'b']]`, and the same operator spells receiver chains no
- * dedicated property-plus-call form could, such as `(a?.(...b)?.c)(...d)`.
+ * A call with **no** receiver and no region: the callee is an ordinary
+ * expression, so a chain never reaches this node — `a.b(...c)` is a `dot`
+ * whose continuation is the call, and `(0, a.b)(...c)` is this node over a
+ * complete `dot`. The two differ, which is why the distinction is structural.
  *
  * The last operand is one node evaluating to the complete argument array,
- * not a literal operand list: `f(a, b)` is `['()', f, [], ['[]', [a, b]]]`,
- * while spread `f(...xs)` is `['()', f, [], xs]`.
+ * not a literal operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]`,
+ * while spread `f(...xs)` is `['()', f, xs]`.
  */
-export const call = /** @type {const} */(['()', exp, lambdas, exp])
+export const call = close(['()', exp, exp])
 
 /** @typedef {Assert<Check<Call, typeof call>>} _Call */
 
-// Optional Property Accessor
+// Dot
 
 /**
  * ```js
- * exp0?.exp1                 // ['?.', exp0, exp1, []]
- * exp0?.exp1.k               // ['?.', exp0, exp1, [['|.', 'k']]]
+ * exp0[exp1]                 // ['.', exp0, exp1, null]
+ * exp0.k(...exp2)            // ['.', exp0, 'k', ['|()', exp2, null]]
+ * exp0.k?.(...exp2)          // ['.', exp0, 'k', ['|?.()', exp2, null]]
  * ```
  *
- * Optional property access, owning the rest of its optional region as a
- * `lambdas`. If `exp0` is nullish the result is `undefined` and neither the
- * `index` nor any step of the `lambdas` is evaluated — in particular
- * `a?.[k]` does not evaluate `k`. Otherwise the `lambdas` runs with
- * `exp0[exp1]` as the current value and `exp0` as the receiver, and the
- * node's result is whatever it arrives at — an ordinary value, receiver
- * state never escaping it.
+ * Property access, owning whatever the receiver it produces is used for. The
+ * `null` continuation is the plain read — the receiver is dropped, as JS
+ * drops it — and the two call continuations are the only things that can use
+ * it.
+ */
+export const dot = close(['.', exp, index, propertyLambda])
+
+/** @typedef {Assert<Check<Dot, typeof dot>>} _Dot */
+
+// Option Dot
+
+/**
+ * ```js
+ * exp0?.exp1                 // ['?.', exp0, exp1, null]
+ * exp0?.exp1.k               // ['?.', exp0, exp1, ['|.', 'k', null]]
+ * (exp0?.exp1)(...exp2)      // ['?.', exp0, exp1, ['|!()', exp2, null]]
+ * ```
+ *
+ * Optional property access, owning the rest of its optional region. If `exp0`
+ * is nullish the region short-circuits: neither the `index` nor any step of
+ * the continuation is evaluated — in particular `a?.[k]` does not evaluate
+ * `k` — and the node's value is `undefined`, unless the continuation reaches
+ * a `|!()`, which the parentheses put *outside* the region and which
+ * therefore calls that `undefined`.
  *
  * Where the region ends is the grouping: `a?.b.c` is one node,
- * `['?.', a, 'b', [['|.', 'c']]]`, while `(a?.b).c` is a `.` node over a
- * complete `['?.', a, 'b', []]` — and throws when `a` is nullish, as JS does.
+ * `['?.', a, 'b', ['|.', 'c', null]]`, while `(a?.b).c` is a `dot` over a
+ * complete `['?.', a, 'b', null]` — and throws when `a` is nullish, as JS
+ * does.
  */
-export const optionalPropertyAccessor = /** @type {const} */(['?.', exp, index, lambdas])
+export const optionDot = close(['?.', exp, index, optionPropertyLambda])
 
-/**
- * @typedef {Assert<Check<OptionalPropertyAccessor, typeof optionalPropertyAccessor>>} _OptionalPropertyAccessor
- */
+/** @typedef {Assert<Check<OptionDot, typeof optionDot>>} _OptionDot */
 
-// Optional Call
+// Option Call
 
 /**
  * ```js
- * exp0?.(...exp2)            // ['?.()', exp0, [], exp2, []]
- * (exp0?.k)?.(...exp2).m     // ['?.()', exp0, [['|?.', 'k']], exp2, [['|.', 'm']]]
+ * exp0?.(...exp1)            // ['?.()', exp0, exp1, null]
+ * exp0?.(...exp1).k          // ['?.()', exp0, exp1, ['|.', 'k', null]]
  * ```
  *
- * Optional call. Like `call`, the first `lambdas` runs before the call and
- * may leave the receiver it is made with; unlike `call`, the callee is
- * checked first: if the value that `exp` plus that first `lambdas` arrives
- * at is nullish, the result is `undefined` and neither the arguments nor the
- * second `lambdas` is evaluated. That second one is the rest of the optional
- * region, run on the call's result — the counterpart of the one
- * `optionalPropertyAccessor` owns.
+ * Optional call, owning the rest of its optional region the way `?.` does.
+ * The callee is an ordinary expression, so this node never carries a receiver
+ * — `a.b?.(...c)` is a `dot` with a `|?.()` continuation, not this. If `exp0`
+ * is nullish the arguments are not evaluated and the region short-circuits.
  */
-export const optionalCall = /** @type {const} */(['?.()', exp, lambdas, exp, lambdas])
+export const optionCall = close(['?.()', exp, exp, optionLambda])
 
-/** @typedef {Assert<Check<OptionalCall, typeof optionalCall>>} _OptionalCall */
+/** @typedef {Assert<Check<OptionCall, typeof optionCall>>} _OptionCall */
 
 // Comma
 
@@ -438,7 +477,7 @@ export const optionalCall = /** @type {const} */(['?.()', exp, lambdas, exp, lam
  * each splitting one function into two hashes. See the header of
  * `./proof.f.mjs`.
  */
-export const comma = /** @type {const} */([',', exps])
+export const comma = close([',', exps])
 
 /**
  * @typedef {Assert<Check<Comma, typeof comma>>} _Comma
@@ -458,7 +497,7 @@ export const op0Id = or('undefined', 'args', 'frame')
 
 /** @typedef {Assert<Check<Op0Id, typeof op0Id>>} _Op0Id */
 
-export const op0 = /** @type {const} */([op0Id])
+export const op0 = close([op0Id])
 
 /** @typedef {Assert<Check<Op0, typeof op0>>} _Op0 */
 
@@ -472,7 +511,7 @@ export const op1Id = or('String', 'Number', 'neg', '!', '~')
 
 /** @typedef {Assert<Check<Op1Id, typeof op1Id>>} _Op1Id */
 
-export const op1 = /** @type {const} */([op1Id, exp])
+export const op1 = close([op1Id, exp])
 
 /** @typedef {Assert<Check<Op1, typeof op1>>} _Op1 */
 
@@ -483,9 +522,10 @@ export const op1 = /** @type {const} */([op1Id, exp])
  * node evaluated in the enclosing scope, while the body is the inner
  * function's graph — deferred, never established when the closure is built,
  * only on each call, against that function's own `args`/`frame`. Calling one
- * is not here: a call carries a `lambdas` operand, so it is not binary — see
- * the `call` export for `['()', exp, lambdas, exp]` and what that operand
- * decides. `own` is exactly
+ * is not here: `()` is `['()', exp, exp]` and so *is* binary in operand
+ * count, but it is a chain node rather than an operation — the whole point of
+ * the chain vocabulary is that a call's receiver comes from the node holding
+ * it, which no `op2` id has anywhere to put. `own` is exactly
  * `Object.getOwnPropertyDescriptor(object, key)?.value` — no
  * getter invocation, no prototype chain — where the key operand must
  * evaluate to a string: a runtime-value constraint the shape-only schema
@@ -509,6 +549,6 @@ export const op2Id = or(
 
 /** @typedef {Assert<Check<Op2Id, typeof op2Id>>} _Op2Id */
 
-export const op2 = /** @type {const} */([op2Id, exp, exp])
+export const op2 = close([op2Id, exp, exp])
 
 /** @typedef {Assert<Check<Op2, typeof op2>>} _Op2 */
