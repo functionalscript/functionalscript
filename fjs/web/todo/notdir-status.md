@@ -72,6 +72,29 @@ what *this server* will answer as absent. If a later caller wants the same
 reading, the thing to share is a named predicate that says so, not a broader
 `isNotFound`.
 
+**But validate the root first, or the mapping swallows an operator error.**
+`ENOTDIR` does not only arise below a valid root. `fjs web README.md` serves a
+regular file as its root, so `join` produces `README.md/index.html` and *every*
+request stats a path descending through a file — the same errno, and nothing
+inside `fileResponse` can tell it from `/README.md/` under a good root. A
+blanket mapping would answer `404 not found` to every request against a
+misconfigured server, which is the one case where `500` was telling the
+operator something true.
+
+So the root is checked once, in `main`, before `listen`: if it is not a
+directory, `errorExit` the way an out-of-range port already does. That is
+better than a per-request comparison of the offending component against the
+root — it needs no extra `stat` per request, it fails at the moment the
+mistake was made rather than on someone else's request, and after it every
+`ENOTDIR` reaching `fileResponse` is client-caused by construction, which is
+what the mapping assumes. It leaves the same replace-underneath window as
+[stat-then-read](./stat-then-read.md), and no more.
+
+Worth noticing that this is already the answer on Windows, silently: `stat`
+there reports `ENOENT`, so `fjs web README.md` starts happily and answers
+`404` to everything — verified. The check makes both hosts say the same true
+thing at startup instead of two different misleading things per request.
+
 **Scope: `ENOTDIR` only, and the other two stay at `500` deliberately.** Two
 more `stat` failures reach the same directory-form shape and disclose the same
 way, on POSIX:
@@ -108,12 +131,19 @@ path that descends through a regular file, then map the error.
 
 - [ ] Report `ENOTDIR` from the virtual file system for a path descending
       through a regular file.
+- [ ] Reject a non-directory root in `main`, before `listen`.
 - [ ] Answer `404` for it from `fileResponse`, leaving `isNotFound` alone.
-- [ ] Prove `/README.md/` and `/nope.md/` answer identically, on a host whose
-      `stat` distinguishes them — a Windows run cannot see the difference.
+- [ ] Prove `/README.md/` and `/nope.md/` answer identically, through the
+      virtual runner — `proof.f.mjs` already drives `respond` that way, so
+      once the virtual file system reports `ENOTDIR` the proof runs anywhere
+      and covers the branch on every host. It must not be conditioned on the
+      host's `stat`, which would leave the new branch uncovered on Windows.
       The proof covers `ENOTDIR` and says so: `/locked/` and `/loop1/` stay at
       `500` by the scoping above, so it must not claim directory-form requests
       disclose nothing in general.
+- [ ] Check the real answer on a POSIX host once, separately — the virtual
+      file system models what the host does, and this is the issue where that
+      model was wrong on two platforms at once.
 - [ ] Update the response table in `module.f.mjs` and
       [`../README.md`](../README.md).
 
@@ -128,4 +158,6 @@ path that descends through a regular file, then map the error.
 - `fjs/cas/module.f.mjs` and `fjs/cas/evo/module.f.mjs` — its other two
   callers, whose documented readings settle that question.
 - `fjs/effects/node/virtual/module.f.mjs` — the file system that would grow the
-  error.
+  error, and the one `proof.f.mjs` already drives `respond` through.
+- [stat-then-read](./stat-then-read.md) — the replace-underneath window the
+  startup root check shares, and does not widen.
