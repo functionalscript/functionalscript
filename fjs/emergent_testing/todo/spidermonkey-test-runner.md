@@ -61,7 +61,14 @@ The simplest path found so far is two steps.
    call's return value, with `null` marking the call boundary so paths render
    as `outer().inner`, exactly as `collectTests` and `runModule`
    (`../module.f.mjs`) already do. Import `collectTests` rather than
-   reimplementing it: nothing in its import chain touches `node:`.
+   reimplementing it. Its chain is clean, and the extension is why:
+   `../effects/node/module.f.mjs` *declares* the operations as data, while the
+   `node:` imports live in its sibling `module.mjs`, the runner, which nothing
+   on this path reaches — the closure of `../module.f.mjs` is 35 modules with
+   no `node:` and no bare package specifier among them. Run the acceptance
+   check above over the generated file's own imports too, so that stays
+   something the generator verifies rather than something this issue
+   remembers.
 
 2. **Run it:** `js --module <out>/spidermonkey.mjs` — with whatever flags the
    pinned build needs.
@@ -73,16 +80,17 @@ commit (`../../ci/config/module.f.mjs`) and generates one flake per job
 CI, at a version the pin decides:
 
 ```sh
-nix develop ./nix/generated/spidermonkey --command js --version
+nix develop ./nix/generated/spidermonkey --command js<version> --version
 ```
 
-The job needs Node in its `packages` too, since the generator step runs there.
-Two things to check at the pinned commit rather than assume: the package
-attribute (`pkgs.spidermonkey_NNN` — the versioned attributes are what
-Nixpkgs carries) and the binary's name, which Nixpkgs versions as well
-(`js128`, not plain `js` — the `--command` above included). A `jsshell`
-download or jsvu's `sm` is a fine way to
-try this by hand first; Nix is what the committed setup should use.
+`js<version>` is a placeholder, and closing it is part of the first task: the
+package attribute (`pkgs.spidermonkey_NNN` — the versioned attributes are what
+Nixpkgs carries) and the binary's name (`js128` rather than plain `js`) both
+have to be read off the pinned commit rather than assumed, and every command
+here — this one and the `js --module` above — takes the name that check
+returns. The job needs Node in its `packages` too, since the generator step
+runs there. A `jsshell` download or jsvu's `sm` is a fine way to try this by
+hand first; Nix is what the committed setup should use.
 
 That is the whole first version. It deliberately does **not** port the effects
 layer: no `Effect` runner, no `ModuleMap`, no `sandbox`/`write`/`await`/`env`
