@@ -744,7 +744,16 @@ are stated instead:
   schema for every export, so it waits for stage 6 or an explicit manifest.
 - **3 onward** are gated on the compiler; **4 onward** additionally on
   compile-time evaluation ([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)).
-- **7 gates the general form of 6.**
+- **7 splits, and the halves sit on either side of 6.** 7 as one unit is a
+  cycle: 6's general form needs a function case in RTTI, while 7's
+  definition-checking needs the body's *inferred* result, which is 6. The seam
+  is between representing a contract and checking against one — **7a**
+  (the schema form, its place in the canonical algebra, the printer path)
+  gates the general form of 6; **7b** (static checking of readable
+  definitions) consumes 6. So the order is 7a → 6 → 7b, and "7 gates 6",
+  which this file said until review of #1719, is only true of 7a.
+  Inferring a call to an *unannotated* function is not part of this cycle: it
+  is ordinary recursion inside inference, and 6 owns its fixpoint.
 - **8, 9, 10 and 13 gate 11.**
 - **10 overlaps 6–9** rather than following them, since it needs only stage 5's
   first diagnostic.
@@ -910,13 +919,15 @@ are stated instead:
       arbitrary expression and ask `subset(inferred, declared)`. `subset`
       exists; the inference does not
       ([type inference](../spec/todo/3370-type-inference.md)). Most of the work.
-      **Its general form is gated on stage 7, not the other way round.**
+      **Its general form is gated on stage 7a, not the other way round** — on
+      the function *schema form*, not on stage 7b's checking of definitions,
+      which runs the other way and consumes this stage.
       [type-annotations](../spec/todo/3360-type-annotations.md) uses
       `const a /*: t */ = f(x)` as the representative non-literal right-hand
       side, and inferring a call means having `f`'s contract and its result
-      schema — which RTTI cannot hold until stage 7 gives it a function case.
+      schema — which RTTI cannot hold until stage 7a gives it a function case.
       Since FunctionalScript modules are almost entirely functions, this is the
-      common case rather than a corner. So either stage 7 runs before this one,
+      common case rather than a corner. So either stage 7a runs before this one,
       or this one is explicitly narrowed to call-free, function-free
       expressions first and widened afterwards. Say which; do not leave the
       order implied by the numbering.
@@ -957,25 +968,22 @@ are stated instead:
       already named the consequence: where the emitted declaration is *wider*
       than the schema (the `close`, `close(c, rest)`, and `NaN` / `-0` cases),
       a consumer can pass a value its `.d.ts` accepts and the schema rejects,
-      and “nothing validates it”. So restricting wrappers to opaque functions
-      is right about *why* the `Result`-returning wrapper must stay off
-      ordinary exports, and would be wrong if read as “no readable export
-      needs an entry check”.
+      and "nothing validates it". A consumer in **ordinary JavaScript** is not
+      bound by the declaration at all, so for that half the width of the
+      declaration is beside the point. Either way, restricting wrappers to
+      opaque functions is right about *why* the `Result`-returning wrapper must
+      stay off ordinary exports, and would be wrong if read as "no readable
+      export needs an entry check".
 
       **That path is stage 13's**, not a fourth deliverable here — it is a
       foreign call crossing the language boundary inbound, and stage 13 already
       owns the boundary in both directions and already says the `close` policy
-      and 668's wrapper are one decision. Two consequences follow for this
-      stage. First, whether the path is needed at all depends on which `.d.ts`
-      policy wins: options 2 and 3 there (restrict `close` in exported
-      contracts, or emit an exactness encoding) close the hole in the
-      declaration and leave nothing to adapt, while option 1 leaves it open and
-      requires an adapter. Second, the adapter is not 668's wrapper as written:
-      that wrapper returns `Result<…>` and so changes the published signature,
-      which collides with stage 11's rule that a retiring declaration must
-      reproduce what it published. An entry check on a readable export has to
-      either throw or be part of the declaration policy — which is the same
-      decision again, from the third angle.
+      and 668's wrapper are one decision. What stage 13 owes there splits by
+      consumer: conditional on the `.d.ts` policy for a TypeScript consumer,
+      unconditional for a JavaScript one. Either way the adapter is not 668's
+      wrapper as written: that wrapper returns `Result<…>` and so changes the
+      published signature, which collides with stage 11's rule that a retiring
+      declaration must reproduce what it published.
 
       668's limitation is that *runtime validation* cannot prove an arbitrary
       function's future behaviour. True, and it says nothing about statically
@@ -983,6 +991,22 @@ are stated instead:
       case would have forced the API-changing wrapper onto ordinary exported
       functions, or left the commonest case unchecked — either of which blocks
       stages 6 and 11 for most of the tree.
+
+      **This stage is two halves with a gate between them, and stage 6 sits in
+      the gap.** Checking a definition means checking "the body's inferred
+      result against the declared result schema" — and that inference *is*
+      stage 6, whose general form in turn needs the function schema form from
+      here. Read as one unit this stage and stage 6 deadlock. The seam is
+      between **representing** a contract and **checking against** one:
+
+      - **7a — representation.** The schema form, its place in the canonical
+        algebra, and the printer path (items 1–3 below). Needs no inference,
+        and gates the general form of stage 6.
+      - **7b — static checking of readable definitions.** The provenance split
+        above. Consumes stage 6's inference, so it follows it.
+
+      The runnable order is **7a → 6 → 7b**. Nothing else in the file depends
+      on 7's two halves landing together, and stage 11 waits for both anyway.
 
       **Adding the schema form is necessary and not sufficient**, because
       everything downstream of it runs on the canonical `data` form, and that
@@ -1192,13 +1216,41 @@ are stated instead:
       do. A TypeScript consumer calling an ordinary exported function is a
       foreign call site, and where the emitted declaration is wider than the
       schema — `close`, `close(c, rest)`, `NaN` / `-0` — it can pass a value
-      the declaration accepts and the schema rejects. Whether this stage owes
-      an entry check or nothing at all is decided by the `.d.ts` policy: under
-      options 2 and 3 the declaration stops being wider and there is nothing to
-      adapt; under option 1 there is, and the adapter cannot be 668's
-      `Result`-returning wrapper, which would change the published signature
-      that stage 11 requires be reproduced. That is a third face of the one
-      decision above, not a separate one.
+      the declaration accepts and the schema rejects.
+
+      **This splits by consumer, and only one half is conditional.** An earlier
+      draft of this paragraph said the `.d.ts` policy decides whether the stage
+      owes an entry check at all — that options 2 and 3 close the hole in the
+      declaration and leave nothing to adapt. That is true of a **TypeScript**
+      consumer and false of an **ordinary JavaScript** one, which no
+      declaration binds. A raw JavaScript caller passes a string to a
+      `number` parameter, or a malformed object to a `close`, whatever the
+      `.d.ts` says; so do a TypeScript caller reaching the export through
+      `any`, a `@ts-ignore`, or a dynamic property access. A declaration
+      constrains a consumer who type-checks against it and nobody else, so:
+
+      - **TypeScript consumers** — conditional. Options 2 and 3 make the
+        declaration exact and there is nothing left to adapt; option 1 leaves
+        the gap and needs an adapter.
+      - **Ordinary JavaScript consumers** — **unconditional**. This stage owes
+        a stated policy regardless of which `.d.ts` policy wins: validate at
+        entry, or declare the boundary explicitly untrusted and say what a
+        FunctionalScript function may assume about its arguments. The second is
+        a legitimate answer — it is roughly what the language does today — but
+        it has to be *chosen*, because commitment 3's soundness argument is
+        about what the language guarantees, and an unchecked foreign call is
+        outside it.
+
+      In neither case can the adapter be 668's `Result`-returning wrapper on an
+      ordinary export, which would change the published signature that stage 11
+      requires be reproduced.
+
+      **The general form of the error is worth stating once**, because this
+      file has now made it twice in opposite directions: first that a readable
+      *definition* leaves nothing to enforce, then that an exact *declaration*
+      does. Both confuse *knowing the right type* with *something checking it*.
+      A `.d.ts` is a description for a consumer who opts into checking; it is
+      never an enforcement mechanism, and nothing in this epic makes it one.
 
       **Gates stage 11.** Retiring JSDoc does not create this hole, but it
       removes the last thing that documents the intended shape at the boundary,

@@ -63,9 +63,18 @@ trusted.
 
 Added by [rtti-type-system](../../../../todo/rtti-type-system.md), which makes
 this issue its stage 7. Completing only the tasks above would leave that stage
-unfinished, and general inference and declaration retirement blocked with it:
+unfinished, and general inference and declaration retirement blocked with it.
 
-- [ ] **Static checking of readable definitions.** For a function defined in a
+**These four do not all run at the same point.** The epic's stage 6 (general
+inference) sits between them: checking a definition needs the body's *inferred*
+result, which is stage 6, while stage 6's general form needs the function
+schema form from here. Split at the seam between representing a contract and
+checking against one — the representation tasks (schema form, canonical
+algebra, printer path, and the extern-vs-in-`data` decision that settles them)
+are **7a** and run before stage 6; static checking of readable definitions is
+**7b** and runs after it. Taking all four as one unit deadlocks against stage 6.
+
+- [ ] **7b — static checking of readable definitions.** For a function defined in a
   compiler-readable module, no wrapper is needed: check the body's inferred
   result against the declared result schema, and each call site against the
   parameter schemas. The wrapper above is for *opaque* functions crossing a
@@ -82,21 +91,24 @@ unfinished, and general inference and declaration retirement blocked with it:
   [the epic's `.d.ts` promise](../../../../todo/rtti-type-system.md) — the
   consumer can pass a value the declaration accepts and the schema rejects,
   with nothing between. That path is the epic's **stage 13** (ownership at the
-  language boundary), not this issue: whether it needs an entry check at all is
-  decided by which `.d.ts` policy wins, and if it does, the check cannot be the
-  wrapper above, whose `Result` return would change the published signature.
-  Recorded here so this task is not read as "readable definition, therefore
-  nothing to enforce".
-- [ ] **A place in the canonical algebra.** Everything downstream runs on the
+  language boundary), not this issue. What stage 13 owes there splits by
+  consumer: for a **TypeScript** consumer it is conditional on which `.d.ts`
+  policy wins, since an exact declaration leaves nothing to adapt; for an
+  **ordinary JavaScript** consumer it is unconditional, because no declaration
+  binds that caller and it can pass anything at all. Either way the check
+  cannot be the wrapper above, whose `Result` return would change the published
+  signature. Recorded here so this task is not read as "readable definition,
+  therefore nothing to enforce".
+- [ ] **7a — a place in the canonical algebra.** Everything downstream runs on the
   function-free [`data`](../data/README.md) form: the epic's stage 6 checks
   through `subset`, and its stage 1 printer goes `toData → dataToTs`. Either
   function contracts go into `data`, or extern schemas need an equivalent
   `subset` path. This is where **variance** enters — function inclusion is
   contravariant in parameters and covariant in results, and `subset` today is
   inclusion over kinds with no variance notion at all.
-- [ ] **A printer path**, so a function-typed export has a declaration to
+- [ ] **7a — a printer path**, so a function-typed export has a declaration to
   generate.
-- [ ] Decide **extern vs in-`data`** for the representation. The Related note
+- [ ] **7a —** decide **extern vs in-`data`** for the representation. The Related note
   below contemplates extern; the two tasks above are what that choice has to
   pay for.
 
