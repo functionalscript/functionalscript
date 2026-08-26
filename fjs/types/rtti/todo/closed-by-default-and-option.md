@@ -178,16 +178,35 @@ is a bitset over `null, undefined, false, true`; absence is a fifth member of
 that kind — exactly as [`../data/README.md`](../data/README.md) describes
 `or(true, false)` being the two boolean bits rather than a special rule. Union,
 `subset`, `cmp`, `equal` and the coverage collapse are bitwise over that kind, so
-**none of them change**. The whole absence rule is two `& unitBit(undefined)`
-tests that become `& absentBit`:
+**the set algebra does not change**.
+
+The *normalizations* do, and only one of the three is a straight substitution:
 
 | site | today | stage 2 |
 | --- | --- | --- |
-| `trimPrefix` | a trailing position restating a `rest` that admits `undefined` is dropped | …that admits absence |
-| `objectMayOmit` | a key is omittable when its set admits `undefined` | …when its set admits absence |
+| `objectMayOmit` | a key is omittable when its set admits `undefined` | …when its set admits absence — a straight swap |
+| `objectSet`'s `isTop` | a declared key whose set is `unknown` is dropped, and only once the `rest` is gone | the rest guard **stays**; `isTop` becomes position-aware — `unknown` for a `rest`, `or(option, unknown)` for a declared member |
+| `trimPrefix` | a trailing position restating a `rest` that admits `undefined` is dropped | the rest no longer carries the bit, so the test moves to the trailing **declared position**: drop it when it admits absence and its absence-stripped set equals the rest |
 
-That is the entire structural cost, and it is why this shape is preferred over
-the wrapper `option(t)`: a wrapper is not a set of values, so it would have
+Neither of the last two can be reached by swapping the bit, and both would
+mis-canonicalize if it were:
+
+- **`trimPrefix`.** Measured today, `close([option(number)], option(number))` and
+  `array(option(number))` are the same `Node` — the rest admits `undefined`, so
+  the trim fires. Its stage-2 counterpart is `rest([or(option, number)], number)`:
+  position 0 may be absent and every present entry is a number, so it denotes the
+  same arrays as `array(number)`. But a `rest` carries no absent bit, so a bit
+  test on the rest is dead, the prefix survives, and two spellings of one set get
+  different `toData` — breaking `equal` and `cmp`.
+- **The declared-key drop.** `{ a: or(option, unknown) }` is closed after stage 1,
+  so it carries `rest: never` and denotes objects with at most the key `a`.
+  Dropping `a` would leave the empty object, a different set. `objectSet` already
+  guards the filter with `r === undefined` ("the rest is gone"); that guard stays
+  and only the predicate moves.
+
+That is the structural cost — one bit, one swap, two normalizations to redesign —
+and it is still why this shape is preferred over the wrapper `option(t)`: a
+wrapper is not a set of values, so it would have
 needed a second syntactic category (`Member = Type | Option<Type>`, legal only
 at a container position) and an `{ optional, node }` pair on every `props` entry
 and `prefix` position, with every algebra function and its proof rewritten.
@@ -196,9 +215,11 @@ and `prefix` position, with every algebra function and its proof rewritten.
 
 **`unknown` excludes it.** `unknown` is the set of DJS values and absence is not
 one, so "anything, or nothing" is `or(option, unknown)`. That is the top of a
-*declared member*, and it sharpens the ordering caveat `../data/README.md`
-records: a declared key is droppable exactly when its set is `or(option, unknown)`
-— a statement about one set, rather than about the `rest` having to be gone first.
+*declared member*, so the ordering caveat `../data/README.md` records — a
+declared key whose set is the top is dropped only once the `rest` is gone —
+**stays**, with `or(option, unknown)` as the top it tests. That guard is what
+keeps `{ a: or(option, unknown) }` denoting objects with at most the key `a`
+rather than the empty object.
 
 **It is observable only at a container position.** No caller can hand `validate`
 an argument that is not there, so a top-level schema admitting absence accepts
@@ -210,6 +231,29 @@ its position; a `rest` is checked against each *present* member. So the absent b
 in a `rest` constrains nothing and normalizes away on both kinds. This is not new
 behaviour: `../parse` and `../validate` walk a value with `Object.entries`, which
 skips holes, so `array(number)` accepts `[1, , 3]` today.
+
+**Length still bounds a closed array**, which settles the one case the strip
+creates rather than leaving it to be discovered. `array(option)` has an empty
+element set once the bit is stripped; a `never` rest normalizes to no rest, which
+on the array kind is the exact-length set, so `array(option)` is the empty array
+— not "hole-only arrays of any length". That is the reading `close` already has,
+and the readers already agree on it, with one exception:
+
+| schema | value | thunk `validate` | data `validate` | `parse` |
+| --- | --- | --- | --- | --- |
+| `close([])` | `new Array(1)` | error | error | error |
+| `close([1])` | `[1, ,]` | error | error | error |
+| `array(or())` | `new Array(1)` | **ok** | error | **ok** |
+
+The last row is a live divergence **today**: `toData(array(or()))` and
+`toData(close([]))` are the same `Node` (`{ array: [{ prefix: [] }] }`), yet the
+thunk readers accept a hole-only array for one and reject it for the other,
+because the `array` handler walks `Object.entries` and never bounds length.
+`../validate/proof.f.mjs` runs its acceptance table through all three readers but
+does not carry this row. Stage 2 reaches it through the natural spelling
+`array(option)`, so stage 2 must fix it — the array-kind readers bound length
+when the rest admits nothing. It deserves its own issue if it is fixed before
+this lands.
 
 **Absence at a tuple position is "no such own index"** — past the end or a hole,
 one rule for both. That makes the value side symmetric with the schema side
@@ -324,6 +368,16 @@ Stage 2 (one PR, after stage 1 lands):
       `or(option, unknown)` is the declared-member top.
 - [ ] Normalize the absent bit out of a `rest` on both kinds; pin
       `array(or(option, number))` → `array(number)` and the top-level spelling.
+- [ ] Redesign `trimPrefix` around the trailing **declared position** — drop it
+      when it admits absence and its absence-stripped set equals the rest — and
+      pin `rest([or(option, number)], number)` as `array(number)`. A bit test on
+      the rest is dead once rests carry no absent bit.
+- [ ] Make `isTop` position-aware: `or(option, unknown)` for a declared member,
+      `unknown` for a `rest`. Keep `objectSet`'s `r === undefined` guard, and pin
+      `{ a: or(option, unknown) }` (closed) as objects with at most the key `a`.
+- [ ] Bound length on the array kind's thunk readers when the rest admits
+      nothing, and pin `array(or())` against `new Array(1)`, where the thunk
+      readers and the data form disagree today.
 - [ ] Readers: a declared member is absent when its key or index is not an own
       one; `parse` omits an absent member instead of materializing `undefined`.
 - [ ] `../ts/types.ts`: strip the absent bit and render `a?:`; an interior tuple
