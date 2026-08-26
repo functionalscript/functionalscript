@@ -92,7 +92,10 @@ reconstructs `<T>(t: Type<T>) => Type<readonly [T, T]>`. So stage 8 is not
 only rendering: it needs that relationship reified — a type-variable schema the
 constructor can be applied to symbolically, or some equivalent — before a
 parameterised alias can be emitted, and until then stage 11 cannot retire the
-authored TypeScript declaration of an exported generic schema.
+authored TypeScript declaration of an exported generic schema. Symbolic
+application in turn needs the constructor to be **parametric**: one that
+inspects its argument (`t => t === number ? … : …`) takes the wrong branch on a
+synthetic variable. Stage 8 records the choice that follows.
 
 #### 2. Types are applied with a comment naming one
 
@@ -714,9 +717,12 @@ least one stage — 12 — has to land near the front. Renumbering again would
 churn every reference in and out of this file for no gain, so the dependencies
 are stated instead:
 
-- **12 before 3.** Anchoring gates annotation recognition itself, because once
-  the compiler consumes an annotation the binding behind it is unreachable, and
-  the module is rejected. It is numbered last and needed nearly first.
+- **12 before 4.** Anchoring gates the first stage that *consumes* an
+  annotation, not the one that recognizes it. Stage 3 adds a compile-time
+  reference in parser output and changes nothing about the runtime graph;
+  the rejection bites when that reference is erased while lowering to EDAG,
+  leaving the binding unreachable from the root. So stage 3 is free to proceed,
+  and stage 4 onward is not. It is numbered last and needed near the front.
 - **1's renderer half** can start today; its declaration-emission half needs a
   schema for every export, so it waits for stage 6 or an explicit manifest.
 - **3 onward** are gated on the compiler; **4 onward** additionally on
@@ -930,7 +936,19 @@ are stated instead:
       `<T>(t: Type<T>) => Type<readonly [T, T]>`. This stage therefore needs
       that relationship **reified** — a type-variable schema the constructor can
       be applied to symbolically, or an equivalent — and only then the
-      `.d.ts` / `Ts<>` rendering. Also confirm that naming every instantiation
+      `.d.ts` / `Ts<>` rendering.
+
+      **Symbolic application works only if the constructor is parametric**, and
+      commitment 1 as written does not require that. `t => t === number ?
+      string : bigint` is a schema-to-schema function that *observes* its
+      argument: applied to a synthetic variable it takes the `bigint` branch,
+      while the real `number` instantiation yields `string`, so the emitted
+      declaration would be confidently wrong rather than absent. This stage
+      therefore has to either restrict exported generic constructors to
+      parametric composition in the eDSL — a real narrowing of commitment 1,
+      and worth stating there if chosen — or reify the operations and control
+      flow that inspect a schema, which is a much larger thing. Pick before
+      building; symbolic application is not a strategy on its own. Also confirm that naming every instantiation
       (`const keys = array(key)`), which the name-only rule requires, does not
       become noise across the tree's `@template` uses.
 - [ ] **9. Nominal types.** [`fjs/types/nominal`](../fjs/types/nominal/module.f.mjs)
