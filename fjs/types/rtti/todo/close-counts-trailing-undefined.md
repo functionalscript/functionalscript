@@ -199,18 +199,26 @@ rule the module's own closed containers do not follow.
       `closeContainerValidate` and `closeContainerParse`. `arraySetValidate`
       needs no change — the data form already normalizes it away, which is the
       half that is right.
-- [ ] Define "empty" as **whatever `toData` normalizes away**: a `rest` whose
-      canonical data is `never`. Both bounds matter. Keying on the exported
-      `never` misses `or()` and `close([never])`, whose canonical data *is*
-      `never`, so such an implementation would pass a `never`-only proof with
-      the disagreement intact. Reaching further is the mirror-image mistake:
-      `const r = () => ['close', [r], undefined]` has no finite inhabitant, but
-      `toData(r)` keeps a recursive rule, so `toData(close([number], r))` still
-      carries `rest: "r"`, the data form runs its rest branch, and all three
-      accept `[1, ,]` there today — a reader clever enough to "recognise" that
-      emptiness would start rejecting what the data form accepts.
-- [ ] Pin it with `[close([number], never), [42, ,]]` **and** one independently
-      constructed empty rest in
+- [ ] Define "empty" **operationally, from the enclosing conversion**: drop the
+      `rest` exactly when `toData(close(c, rest))` drops it. Not semantic
+      emptiness, and not the `rest`'s own canonical data — three witnesses fix
+      the criterion between them, and only the operational one satisfies all
+      three:
+      - `never`, `or()` and `close([never])` are dropped by the enclosing
+        conversion, so all three must be dropped here too. Keying on the
+        exported `never` alone would pass a `never`-only proof with the
+        disagreement intact.
+      - `const r = () => ['close', [r], undefined]` has no finite inhabitant,
+        but `toData(close([number], r))` keeps `rest: "r"` and all three
+        readers accept `[1, ,]`. A reader that "recognised" that emptiness
+        would start rejecting what the data form accepts.
+      - `const a = () => ['or', b]; const b = () => ['or', a]` is the case that
+        rules out "canonical data is `never`" as the test: `toData(a)` **is**
+        `never`, yet `toData(close([number], a))` still carries `rest: "a"`
+        and all three accept `[1, ,]`. Dropping `a` on its standalone data
+        would recreate the disagreement one level in.
+- [ ] Pin it with `[close([number], never), [42, ,]]`, one independently
+      constructed empty rest, and the `a`/`b` witness above, in
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs), asserting the
       verdict outright: the shared table checks only that the three readers
       *agree*, so a row alone passes whenever all three move together.
