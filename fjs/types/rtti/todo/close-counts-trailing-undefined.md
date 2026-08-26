@@ -209,8 +209,8 @@ rule the module's own closed containers do not follow.
       the `rest` exactly when `toData(close(c, rest))` equals
       `toData(close(c))`. An equality, not an observation about whether the
       result carries a `rest` key, and not a judgement about the `rest` itself
-      — four witnesses fix the criterion between them, and only the equality
-      satisfies all four:
+      — four **cases** fix the criterion between them, and only the equality
+      satisfies all four (the first groups three spellings that behave alike):
       - `never`, `or()` and `close([never])` all make the conversion equal to
         `close(c)`'s, so all three must be dropped. Keying on the exported
         `never` alone would pass a `never`-only proof with the disagreement
@@ -230,7 +230,8 @@ rule the module's own closed containers do not follow.
         while `close([])` rejects it, and `toData(close([]))` is
         `{ array: [{ prefix: [] }] }`, so the equality separates them where
         the absence of a key does not.
-- [ ] Pin **all five** witnesses in
+- [ ] Pin those cases as **five rows** — the first case needs two, one per
+      spelling tested — in
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs), asserting the
       verdict outright: the shared table checks only that the three readers
       *agree*, so a row alone passes whenever all three move together. Dropped:
