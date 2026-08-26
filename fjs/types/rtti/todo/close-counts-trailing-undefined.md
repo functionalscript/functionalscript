@@ -237,11 +237,21 @@ module's own closed containers do not follow.
       `fits` wherever a `rest` is present, which would reject the values a
       non-empty `rest` exists to admit. `arraySetValidate` needs no change; the
       data form already normalizes the empty `rest` away, which is the half
-      that is right. Add `[close([number], never), [42, ,]]` to
-      [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table,
-      which is where a disagreement between the three readers is supposed to
-      surface. Changelog: a bug fix, not a **BREAKING** change — the two
-      spellings already denote one set.
+      that is right. Detect emptiness **semantically**, not as the exported
+      `never`: `or()` and `close([never])` are other spellings of the same set,
+      and all three accept `[1, ,]` today while their canonical data equals
+      `close([number])` and rejects it — so an implementation keying on the
+      singleton would pass a `never`-only proof with the disagreement intact.
+      Pin it with `[close([number], never), [42, ,]]` **and** one independently
+      constructed empty rest in
+      [`../validate/proof.f.mjs`](../validate/proof.f.mjs), asserting the
+      verdict outright rather than only adding rows: the shared table checks
+      that the three readers *agree*, so a row alone passes whenever all three
+      move together. Changelog: **BREAKING CHANGES** — `close(c, never)` and
+      the other empty-rest spellings stop accepting a trailing hole, which is
+      an observable narrowing for callers using the explicit-rest form even
+      though it is what the canonical semantics already said. #1712 labelled
+      its analogous reader-alignment change the same way.
 - [ ] Decide A, B or C.
 - [ ] If B, which is what the evidence here favours: say in
       [`../README.md`](../README.md) that a closed container bounds `length`
@@ -272,7 +282,11 @@ module's own closed containers do not follow.
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table.
       The hole row (`[close([number]), [42, ,]]`) is already there; the
       explicit-`undefined` one is what would have shown the two rejections
-      apart, and under B it is the row that pins the carve-out.
+      apart, and under B it is the row that pins the carve-out. A row is not
+      enough on its own — that table only pins that the three readers agree, so
+      it passes whenever all three move together. Assert the chosen verdict
+      with an `assertOk`/`assertError` oracle beside it, as `optionalPositions`
+      does.
 - [ ] Either way, say what a consumer wanting exactly one spelling per value
       should use — `or(close, close)` under B, or a normalizer
       ([`./identity-aware-parse.md`](./identity-aware-parse.md)) or a
