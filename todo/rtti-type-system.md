@@ -544,12 +544,15 @@ EDAG has the anchoring operation that can preserve a non-resulting computation.
 
 An annotation-only import is exactly that shape. So, stated honestly:
 
-- **within a module**, an unreferenced schema node is dropped **when the schema
-  is built from the RTTI constructors** — those build immutable values and
-  cannot throw, so the node is total and total nodes are droppable. This does
-  not extend to a schema built by an arbitrary call: `const t = makeType()` is
-  a schema-valued expression whose *evaluation* is not known total, and the
-  immutability of its result proves nothing about `makeType`. The same rule
+- **within a module**, an unreferenced schema node is dropped **when the whole
+  initializer expression is total** — every subexpression, not just the
+  outermost call. The RTTI constructors build immutable values and cannot
+  throw, so an initializer made only of them is total and total nodes are
+  droppable. Classifying by the outer constructor is not enough:
+  `const t = array(makeType())` is "built from the RTTI constructors" by that
+  reading, and JavaScript still evaluates `makeType()` first, so dropping the
+  initializer can delete a throw. Nor does it extend to `const t = makeType()`,
+  where the immutability of the result proves nothing about the call. The same rule
   that rejects unreachable imports applies inside the body — a potentially
   throwing entry must be preserved, and a module is rejected rather than have
   one discarded
