@@ -72,7 +72,18 @@ The set is finite and can be implemented using a bit-set.
 
 Compared to level 2, this level contains dynamic information about subsets of the type.
 
-### Related
+## Related
 
 - [rtti-type-system](../../todo/rtti-type-system.md) — the epic; this document
   is its stage 6, and most of its work.
+
+> **Not yet reconciled with the epic.** Two things above predate it and should
+> be read with that in mind. The reference to an annotation "named by an
+> ordinary expression" (line 6) is superseded: the epic narrows an annotation
+> body to a **single identifier**, as
+> [3360](./3360-type-annotations.md) now records. And the `enum Type` bit-set
+> lattice sketched here is a different design from RTTI's `Type` — this document
+> opens by saying type annotations "can help, but we can't trust them", which is
+> not the epic's position. Whether the lattice becomes the inference domain
+> *over* RTTI schemas, or is replaced by them, is unowned work and part of
+> stage 6.

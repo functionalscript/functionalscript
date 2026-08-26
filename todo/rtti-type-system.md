@@ -240,7 +240,7 @@ a later write silently invalidates — and TypeScript declines to, which is why
 the program above compiles.
 
 **None of that arises here.** A schema denotes a *set of immutable values*;
-`subset` is inclusion between two such sets, decided on the canonical
+`subset` is inclusion between two such sets, approximated soundly on the canonical
 [`data`](../fjs/types/rtti/data/module.f.mjs) form, with no writer anywhere to
 make the answer go stale. Three concrete consequences — the first two holding
 **within FunctionalScript**, for the reason the next paragraph is careful
@@ -339,7 +339,7 @@ Tracking ownership is the compiler's job; RTTI never sees a mutable value.
 | `.f.js` | RTTI schemas + `//:` / `/*: */` | the FunctionalScript compiler | **the destination** |
 | `.f.mjs` | RTTI schemas + `//:` / `/*: */`, where the compiler can read the file | the FunctionalScript compiler, once it can | en route — it may use features the parser does not support yet |
 | `.mjs` | TypeScript types in JSDoc | `tsc` | indefinitely — it is ordinary JavaScript |
-| `types.ts` | TypeScript | `tsc` | **for a while** — until TypeScript is no longer used |
+| `types.ts` | TypeScript | `tsc` | **for a while** — each retires with its module under stage 11 |
 | `.d.ts` | TypeScript | generated, not authored | as long as TypeScript consumers exist |
 
 Two rows are FunctionalScript, and the split between them matters. The
@@ -512,7 +512,7 @@ implementation detail, so this epic records it rather than picking.
 | Annotation syntax | — | not started |
 | Compile-time evaluation | [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) | not started |
 | Inference | [type inference](../spec/todo/3370-type-inference.md) | not started — most of the work |
-| Function schemas | [668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md) | not started — 1318 of 3772 JSDoc type bodies are function types |
+| Function schemas | [668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md) | not started — and most JSDoc type bodies in the tree are function types, so this gates most of stage 11 |
 | Generic schemas | the eDSL itself | **value layer done** — a schema-to-schema function needs no feature; only `.d.ts` / `Ts<>` rendering is missing |
 
 More than half the run-time and emission side is built. The compile-time side is
@@ -746,7 +746,15 @@ annotations — which is most of them, once annotations are the point.
         longer arrays the schema accepts — turning a non-problem into the
         problem the bullet above describes, in the opposite direction.
 
-      **Both divergences turn out to be the same shape**, and neither is fixed
+      **A third disagreement runs the other way.** `CloseTs<C> = ConstTs<C>`
+      ([`ts/types.ts`](../fjs/types/rtti/ts/types.ts)) drops a `close`'s `rest`
+      entirely — its own comment calls that "a documented gap" — so for
+      `close(c, rest)` the printer errs **wide** (an index of `number | string`,
+      above) while `Ts<>` errs **narrow**. They are not merely different; they
+      are wrong in opposite directions, which is worth knowing before anyone
+      tries to reconcile them by moving one toward the other.
+
+      **The other two divergences turn out to be the same shape**, and neither is fixed
       by changing the printer: in each case the printer agrees with what the
       readers accept and `Ts<>` is narrower. So stage 1 changes the printer for
       neither. What is left in both is **compatibility** — the previously
@@ -895,7 +903,7 @@ annotations — which is most of them, once annotations are the point.
       be applied to symbolically, or an equivalent — and only then the
       `.d.ts` / `Ts<>` rendering. Also confirm that naming every instantiation
       (`const keys = array(key)`), which the name-only rule requires, does not
-      become noise at 169 `@template` uses.
+      become noise across the tree's `@template` uses.
 - [ ] **9. Nominal types.** [`fjs/types/nominal`](../fjs/types/nominal/module.f.mjs)
       has no RTTI representation: either RTTI gains a brand-carrying wrapper, or
       nominal types stay a TypeScript-era construct
@@ -907,7 +915,9 @@ annotations — which is most of them, once annotations are the point.
       [`json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) — diagnostics with
       spans, hover, go-to-definition, completion — so that removing JSDoc does
       not remove the editor experience. Must ship *before* stage 11, and can
-      start as soon as stage 5 produces its first real diagnostic.
+      start once stage 5 produces its first real diagnostic — so it overlaps
+      stages 6–9 rather than following them, the one place the numbering is a
+      dependency order and not a schedule.
 - [ ] **11. Retire `Ts<T>`, the JSDoc types in `.f.mjs`, and the `types.ts`
       beside them,** declaration by declaration — the two annotation forms are
       disjoint, so this needs no flag day and no module-at-a-time rule.
@@ -1054,7 +1064,9 @@ does not replace them.
 - [new-pl.md § Type System](./new-pl.md#type-system) — the same idea one level
   out: type checking as an opt-in library rather than a language feature.
 - [edag-spec.md](./edag-spec.md) — already specifies the EDAG with RTTI and
-  generates Rust from it; the same schemas would feed both. It is also what
+  *plans* a Rust generator from it — the issue is `Status: open` with none of
+  its eight tasks done, one being "Implement a Rust code generator from RTTI
+  schemas" — and the same schemas would feed both. It is also what
   makes a compile-time-only schema free: source is serialized out of the graph,
   so an unreferenced schema is not emitted.
 - [edag-stage1-discussion.md](./edag-stage1-discussion.md) — "nodes proven total
@@ -1069,7 +1081,9 @@ does not replace them.
 
 - [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) — the compiler loading and
   running modules as meta-programming, which is what compile-time evaluation of
-  an annotation *is*. Nothing past stage 2 starts without it.
+  an annotation *is*. **Stage 4 onward** needs it — stage 3 is comment
+  recognition plus resolving one identifier against the module's bindings, which
+  needs neither the expression parser nor compile-time evaluation.
 - [migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md) — establishes
   the `.f.mjs` / `.mjs` / `types.ts` / `.d.ts` split that commitment 4 assigns
   type systems to. Its "`types.ts` may remain permanently" is permanence with
@@ -1084,18 +1098,22 @@ does not replace them.
   turns on it.
 - [mutability](../spec/todo/mutability.md) — not a dependency: RTTI describes
   the immutable values that ownership tracking produces, never the mutable ones
-  it tracks. Open question 6 is where the two meet.
+  it tracks. Open question 7 is where the two meet.
 
 **Affected, but standing on their own:**
 
 - [strict-static-analysis.md](./strict-static-analysis.md) and
   [tsconfig-strict-flags.md](./tsconfig-strict-flags.md) — the near-term work,
   unaffected. `tsc` remains the checker throughout.
-- [eslint.md](./eslint.md) — `no-inline-type-cast` and `no-unknown-jsdoc-tag`
+- [eslint.md](./eslint.md) — its three proposed custom rules (inline `@type`
+  cast, unknown JSDoc tag, type-predicate placement; it names no rule ids, and
+  none exist yet)
   are **transitional**, and must not be used to justify building a
   TypeScript-type grammar.
-- [inline-type-casts.md](./inline-type-casts.md) — stands unchanged; most of its
-  sites are noise under any type system.
+- [inline-type-casts.md](./inline-type-casts.md) — **implemented**, not
+  pending: its header records 273 of 357 sites removed or converted, with 84
+  remaining and a reason given for each. Nothing here changes that work or is
+  changed by it.
 - [publishing-packages](../fjs/ci/todo/publishing-packages.md) — consumes stage
   1's generated `.d.ts`.
 - [`fjs/types/rtti/ts/README.md`](../fjs/types/rtti/ts/README.md) — not an issue,
@@ -1103,6 +1121,20 @@ does not replace them.
 - [rtti-parse](../fjs/media/json/todo/rtti-parse.md) — reading JSON text
   straight against a schema; the run-time side continuing to grow around the
   same source of truth.
+- [identity-aware-parse](../fjs/types/rtti/todo/identity-aware-parse.md) —
+  **the one sibling issue that changes this plan's feasibility, not just its
+  scope.** Neither reader tracks input identity, so `validate` re-walks a shared
+  subgraph once per incoming edge and costs time *exponential in sharing depth*
+  — its P2 is a DoS note, with a 19-array value measured at 509ms. Stages 5–6
+  make `validate` and `subset` the compile-time checker, run over every
+  annotated declaration on every build, where sharing is the normal case rather
+  than an attack. This wants fixing before stage 5, not after.
+- [checked-const-pin](../fjs/types/rtti/todo/checked-const-pin.md) — how a
+  schema bound to a `const` pins its literal; open, no design agreed. It is the
+  ergonomics of commitment 2's "write it as a `const` first".
+- [excluded-string-values](../fjs/types/rtti/todo/excluded-string-values.md) —
+  `Type` has no negation, so a set like "any string but these" is unsayable.
+  A gap in the eDSL of exactly the kind commitment 1 says gets closed there.
 - [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) and
   [`fjs/protocol/mcp`](../fjs/protocol/mcp/README.md) — the transport stage 10
   builds on, and the precedent for describing a protocol's messages in RTTI.
