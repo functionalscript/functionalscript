@@ -60,7 +60,10 @@ while costing far more than one. Measured here, before and after:
 | 10,000  | 313 ms | 74 ms |
 | 20,000  | 2,995 ms | 104 ms |
 
-Doubling the count used to quadruple the time; now it roughly doubles it.
+Doubling the count used to quadruple the time; now it roughly doubles it. **The
+shape is the claim, not the magnitudes** — those are one machine's, on Linux with
+Node 22.22.2, and a reviewer's Darwin figures differ by roughly 6× while tracing
+the same curve.
 
 Those are `resolve` measured directly. Over a socket the request line stops at
 Node's 16 KB limit, so about **5,400 escapes** is the most a client can send —
@@ -176,7 +179,9 @@ copies everything received so far on every chunk, and 20,000 one-byte chunks is
 20 KB of payload and 200 million copies. A cap on payload size is not a cap on
 chunk count, and a request that will be refused must not cost more than one that
 is served. Measured here: 2,794 ms to refuse that request before, 167 ms after,
-and doubling the chunk count now doubles the time instead of quadrupling it.
+and doubling the chunk count now doubles the time instead of quadrupling it —
+again one machine's numbers, with the change in shape rather than the
+milliseconds being what is claimed.
 
 Past the cap it answers `413` itself, without calling the listener — there is no
 `IncomingMessage` to build up there, since its `body` is a single `Vec`. It also
