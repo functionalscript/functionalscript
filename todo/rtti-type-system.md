@@ -536,6 +536,14 @@ discovered by a consumer:
 None is obviously right, and the choice is a promise to consumers rather than an
 implementation detail, so this epic records it rather than picking.
 
+**None of the three covers the numeric cases, either.** Option 2 is written
+about `close`; option 3 says "where one exists", and for these it does not —
+TypeScript has no `NaN` literal type and does not distinguish `-0` from `0`, so
+there is nothing to encode. A `NaN`, `±Infinity` or `-0` schema in an **input**
+position therefore needs a boundary adapter under every policy, not just under
+option 1. Anywhere this file says options 2 and 3 leave nothing to adapt, read
+it as scoped to the object shapes TypeScript can name.
+
 ### What already exists
 
 | Piece | Where | State |
@@ -840,9 +848,24 @@ are stated instead:
       published declarations came from `Ts<>`, so emitting the printer's form
       widens what callers may pass — plus, for `unknown`, a genuine open
       question about which of `Ts<>` and the readers is right. Compatibility is
-      stage 11's, under its rule about reproducing what was published; the
-      `unknown` meaning question belongs in
-      [`rtti`](../fjs/types/rtti/README.md), not here.
+      stage 11's, under its rule about reproducing what was published.
+
+      **The `unknown` meaning question needs an owner with a gate, not just a
+      home.** Its natural home is [`rtti`](../fjs/types/rtti/README.md) rather
+      than this epic — but an earlier draft stopped there, and a question
+      deferred without a gate is one stage 11 can walk straight past. Four
+      sources disagree about what an exported `unknown` promises: the module
+      and its README say DJS-compatible values; `Ts<>` excludes functions and
+      symbols; the readers accept them
+      ([`validate`](../fjs/types/rtti/validate/module.f.mjs) and
+      [`parse`](../fjs/types/rtti/parse/module.f.mjs) both have
+      `unknown: () => ok`); and the printer emits TypeScript's unrestricted
+      `unknown`. Until one is chosen, an exported `unknown` has no settled
+      published meaning — so **stage 11 cannot retire a declaration containing
+      one** without either failing its own reproduce-what-was-published rule or
+      picking the answer implicitly, as a consumer-visible widening nobody
+      decided. Recorded in the stage 11 table as a blocked category so it
+      cannot be skipped.
 
       That symmetry is worth stating because two rounds of review corrected
       this stage in opposite directions before it appeared. Anyone re-scoping
@@ -964,8 +987,9 @@ are stated instead:
       question across all
       three rather than three unrelated corners.
 
-      **And it only reaches one of the two readers.** `data` exports `toData`,
-      `validate`, `subset`, `cmp` and `equal` — and **no `parse`**, and no
+      **And it only reaches one of the two readers.** Of `data`'s readers and
+      comparisons — `toData`, `validate`, `subset`, `cmp`, `equal` — there is
+      **no `parse`**, and no
       `Data`-to-`Type` reconstruction anywhere in the tree. So a snapshot can
       stabilize a `validate` call and cannot stabilize a `parse` one:
       [`parse`](../fjs/types/rtti/parse/module.f.mjs) takes the thunk-form
@@ -1252,7 +1276,7 @@ are stated instead:
       describes, which is why that section asks for a policy before this stage
       runs.
 
-      Four categories are known not to satisfy that rule today. The list is
+      Six categories are known not to satisfy that rule today. The list is
       **open**: assume there are more until someone enumerates `types.ts`
       exhaustively.
 
@@ -1262,15 +1286,21 @@ are stated instead:
       | Generic schema constructors | `pair = t => close([t, t])` | stage 8 — the argument-to-result relationship must be reified first |
       | Type-only utilities | `Index`, `Tuple`, `KeyOf`, `Includes` ([`types/array`](../fjs/types/array/types.ts)) | **nothing yet** — these describe no runtime value, so no schema and no printer produces them |
       | Polymorphic functions | `identity: <T>(value: T) => T` ([`types/function`](../fjs/types/function/module.f.mjs)) | **nothing yet** — a function schema with concrete parameter and result sets cannot say both positions share one caller-chosen type |
+      | Unsettled `unknown` | any exported schema containing `unknown` | **a decision, not a stage** — the module/README, `Ts<>`, the readers and the printer disagree about what it promises; see stage 1 |
       | Inexpressible sets | `close({ a: number })`; `close({ a: number }, string)`; a non-finite or `-0` const | **the policy above**, not a stage — TypeScript cannot name these sets, so the declaration is an upper bound however it is emitted |
 
-      The last two have no stage assigned, and that is the honest state: a
-      type-only utility is not a schema of anything, and RTTI has no type
-      variables, so neither `.d.ts` generation nor stage 8's reification
-      reaches them. Either the eDSL grows a representation (commitment 1 says
-      that is where such gaps get closed) or those files are **explicitly
-      retained** and the stage's claim narrows accordingly. Pick one before
-      starting; do not discover it per module.
+      **Type-only utilities** and **polymorphic functions** have no stage
+      assigned, and that is the honest state: a type-only utility is not a
+      schema of anything, and RTTI has no type variables, so neither `.d.ts`
+      generation nor stage 8's reification reaches them. Either the eDSL grows
+      a representation (commitment 1 says that is where such gaps get closed)
+      or those files are **explicitly retained** and the stage's claim narrows
+      accordingly. Pick one before starting; do not discover it per module.
+
+      The last two rows are not stages either, but for a different reason:
+      each is a **decision** someone has to take — what an exported `unknown`
+      promises, and which `.d.ts` policy wins — and neither can be deferred
+      past this stage without deciding it by accident.
 
       Convert against a declaration comparison rather than against both
       checkers accepting the initializer, since they agree on a value without
@@ -1384,9 +1414,27 @@ are stated instead:
       would have fallen in the conditional half. What matters is whether *this
       call* was statically checked against the declaration:
 
-      - **Statically checked call sites** — conditional. Options 2 and 3 make
-        the declaration exact and there is nothing left to adapt; option 1
-        leaves the gap and needs an adapter.
+      - **Statically checked call sites** — conditional, but on less than an
+        earlier draft claimed. Options 2 and 3 make the declaration exact *for
+        the shapes TypeScript can name*, and that buys exactly one thing:
+        the argument was a member of the schema's set **at the moment of the
+        call**. Two holes survive it, and both are this stage's:
+        - **Numeric singletons.** Option 2 restricts `close`, and option 3
+          needs an encoding to exist — TypeScript has no `NaN` literal type and
+          cannot distinguish `-0` from `0`, so neither option reaches a `NaN`,
+          `±Infinity` or `-0` schema in an input position. Those need an
+          adapter under *every* policy.
+        - **Ownership of a retained reference.** An exact `.d.ts` proves
+          membership, not ownership. A checked caller passing a mutable object
+          or array to an exact `readonly` parameter keeps its alias and can
+          mutate after the callee retains it, because `readonly` in TypeScript
+          constrains the callee's use, not the caller's. So any retained
+          reference still needs reconstruction, recursive freezing, or
+          enforceable transfer — checked call site or not.
+
+        What is left as genuinely conditional is narrow: a *non-retained*
+        argument of a shape TypeScript can name exactly. Option 1 leaves even
+        that open and needs an adapter.
       - **Every other call site** — **unconditional**: raw JavaScript, `any`,
         `@ts-ignore`, dynamic access, `eval`, a call from a consumer who simply
         does not run `tsc`.

@@ -38,9 +38,12 @@ implementation stages:
 migration**: a `types.ts` is not an implementation-migration target and must not
 be forced through JSDoc translation. It does not mean a `types.ts` outlives
 TypeScript itself. [rtti-type-system](./rtti-type-system.md) retires the ones
-beside `.f.mjs` modules — 92 of the 94 in the tree — once three things hold, not
-two: their types are RTTI schemas, their `.d.ts` is generated from them, **and
-the compiler can actually read the module**.
+beside `.f.mjs` modules — 92 of the 94 in the tree — but not on a short
+checklist. The epic's rule is that a declaration retires only when the
+generated `.d.ts` **reproduces what it published**, and it lists categories
+that do not satisfy that yet. Reading the conditions off as "schemas exist,
+`.d.ts` generated, compiler can read the module" is what an earlier draft of
+this note did, and all three can hold while the file still cannot go.
 
 That third condition is not a formality here, and an earlier draft of this note
 omitted it. The epic's unit is not the extension but whether the compiler can
@@ -50,6 +53,23 @@ leave it checked by nothing. Guaranteed acceptance is what the rename to `.f.js`
 signifies ([`fjs/fsc/README.md`](../fjs/fsc/README.md)), which makes step 3 of
 this migration a prerequisite for retiring those `types.ts` files rather than an
 independent track.
+
+Two further conditions come from the epic and neither is about this migration,
+so it is worth naming them here rather than letting this note read as the whole
+test:
+
+- **Every declaration in the file must be representable.** Adjacency to a
+  schema-bearing module is a fact about *placement*, not contents. A `types.ts`
+  can also hold declarations that describe no runtime value —
+  [`fjs/types/array/types.ts`](../fjs/types/array/types.ts) exports `Index`,
+  `Tuple`, `KeyOf`, `Includes` — and no schema and no printer produces those.
+  The epic assigns them no stage on purpose: either the eDSL grows a
+  representation, or those files are explicitly retained.
+- **The public subpath has to survive.** The package has no `exports` map and
+  ships `**/*.d.ts`, so `types.d.ts` is a public entry point a consumer may
+  import by path. Deleting the file breaks that consumer even when every
+  declaration in it is reproduced elsewhere, so retirement needs a
+  compatibility re-export or an explicit breaking change.
 
 Both still hold: a `types.ts` survives this migration untouched, and goes when
 TypeScript stops being the type system for FunctionalScript — for the modules

@@ -109,7 +109,10 @@ are **7a** and run before stage 6; static checking of readable definitions is
   language boundary), not this issue. What stage 13 owes there splits by
   call site: where the call was **statically checked** against the declaration
   it is conditional on which `.d.ts` policy wins, since an exact declaration
-  leaves nothing to adapt; for **every other call site** it is unconditional,
+  leaves nothing to adapt *for a non-retained argument of a shape TypeScript
+  can name* — numeric singletons (`NaN`, `±Infinity`, `-0`) and retained
+  mutable references need an adapter under every policy; for **every other
+  call site** it is unconditional,
   because no declaration binds that caller — raw JavaScript, but equally a
   TypeScript caller going through `any`, a `@ts-ignore`, or a dynamic access.
   The callee cannot tell the two apart at run time, so the unconditional half
