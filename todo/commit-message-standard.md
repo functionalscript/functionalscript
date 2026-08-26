@@ -91,9 +91,11 @@ Changelog:
   — a `Changelog: none` placeholder is noise on every such PR. This is a trade,
   not a free simplification: a mandatory section made a forgotten entry
   mechanically visible, and an omitted one is indistinguishable from a
-  correctly-absent one until a check derives "entry owed?" from the diff. That
-  check is [commit-message-enforcement.md](./commit-message-enforcement.md);
-  until it lands, "no missed changelog notes" is a convention again for
+  correctly-absent one until enforcement can tell the two apart. Whether it can
+  is open — changed paths rule out a documentation PR but not an internal
+  refactor, which touches source and owes nothing either — so until
+  [commit-message-enforcement.md](./commit-message-enforcement.md) settles the
+  predicate, "no missed changelog notes" is a convention again for
   behavior-changing PRs.
 - A breaking change starts its item with `**BREAKING CHANGES:**`, exactly as
   in the files — the version-bump decision reads the same marker from either

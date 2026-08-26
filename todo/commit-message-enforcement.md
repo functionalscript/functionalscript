@@ -38,12 +38,23 @@ section's items.
 An optional section gives up what a mandatory one bought, and the consistency
 check above does not buy it back: a behavior-changing PR that forgets *both*
 the entry file and the section is consistent, so it passes. Closing that needs
-a second check deriving **"entry owed?" from the diff** — a PR whose changed
-paths reach outside documentation, `todo/`, tests, and CI owes an entry — which
-is the only arbiter that separates a valid documentation PR from a forgotten
-release note. Until it exists, the Problem's "one forgotten PR at a time" is
-unaddressed for exactly that case, and the required check enforces shape rather
-than completeness.
+a second check deriving **"entry owed?" from the diff**, and the honest state
+of that idea is that its predicate is not settled. Changed paths give a
+*necessary* condition and not a sufficient one: a PR confined to documentation,
+`todo/`, tests, and CI owes nothing, but the converse fails — an internal
+refactor edits production source and owes nothing either, which the policy says
+in as many words. A check keyed on paths alone would block that refactor or
+push its author into a misleading release note.
+
+So the remaining question is how a PR represents "touched production source,
+changed no behavior" to a machine. The candidates: an author declaration
+required only on that narrow subset — the PRs that touch source and carry no
+entry, where the assertion carries information a machine cannot derive, unlike
+the blanket `Changelog: none` this rule dropped; or the check stays advisory,
+reporting rather than blocking, and the completeness guarantee is never
+mechanical. Pick one before building it. Until then the Problem's "one
+forgotten PR at a time" is unaddressed for exactly that case, and the required
+check enforces shape rather than completeness.
 
 One hole no pre-merge check covers: GitHub lets whoever clicks "Squash and
 merge" edit the commit message in the merge dialog. Backstops: don't touch
@@ -57,9 +68,13 @@ would block it outright but require an Enterprise plan.
 - [ ] PR-lint workflow (title format, `Changelog:` section well-formed and
       consistent with `changelog/unreleased/<PR>.md` when either is present)
       as a self-hosted `fjs/ci` module
-- [ ] "Entry owed?" check: fail a PR whose diff reaches outside documentation,
-      `todo/`, tests, and CI while carrying neither `changelog/unreleased/<PR>.md`
-      nor a `Changelog:` section — the arbiter an optional section needs
+- [ ] Decide how a PR represents "touched production source, changed no
+      behavior": a declaration scoped to that subset, or an advisory-only
+      check. Paths alone cannot decide it — internal refactors touch source
+      and owe no entry
+- [ ] "Entry owed?" check, once that is decided: flag a PR whose diff reaches
+      outside documentation, `todo/`, tests, and CI while carrying neither
+      `changelog/unreleased/<PR>.md` nor a `Changelog:` section
 - [ ] Branch protection: mark the lint a required status check
 - [ ] Post-merge audit: on `push` to `main`, verify the landed commit
       message matches the PR title `(#NNN)` and description
