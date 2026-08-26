@@ -261,6 +261,30 @@ export const proof = {
         const extra = /** @type {const} */ ([2, 4n, 'x', null, 'extra'])
         every(t)(assertOk)(extra)
         every(close(t))(assertError)(extra)
+        // How stopping short composes with running long: the two rules are
+        // independent, so the open form's accepted lengths run from the last
+        // required position upwards without a gap or a cap — 2, 3, 4, 5, and
+        // on. `close` caps the top at the declared count and leaves the bottom
+        // where it is.
+        every(t)(assertOk)([2, 4n, 'x', null, 'a', 'b'])
+    },
+    // An interior omittable position may be absent with a *required* position
+    // after it, which is the sharpest witness that absence is per position
+    // rather than truncation: `optionalPositions`'s hole is followed by
+    // another omittable position, so it cannot say this. Absence is also
+    // positional, not a shift — `[, 5]` holds `5` at position 1 and is
+    // accepted, while `[5]` holds it at position 0 and is not.
+    interiorOptionBeforeRequired: () => {
+        const t = /** @type {const} */ ([option(string), number])
+        /** @type {(check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
+        const every = check =>
+            value => {
+                for (const read of [v, p, d]) { check(read(t)(value)) }
+            }
+        every(assertOk)([, 5])          //< a hole at position 0
+        every(assertOk)([undefined, 5]) //< the same value, spelled densely
+        every(assertOk)(['x', 5])
+        every(assertError)([5])         //< `number` at position 1 is required
     },
     // The two tables above pin that the three readers *agree*; these pin what
     // they agree on, which is what the changelog entry claims.

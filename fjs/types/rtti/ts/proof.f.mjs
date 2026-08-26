@@ -34,6 +34,10 @@ import { dataToTs, printer } from './module.f.mjs'
 // which no schema of this shape validates.
 /** @typedef {Assert<Equal<Ts<readonly [...(typeof number)[], _OptionString]>, readonly [...number[], string | undefined]>>} _VariadicPrefix */
 
+// A rest element after a fixed prefix is the same shape from the other side,
+// and is held for the same reason: `length` is `number`, so the mapping stands.
+/** @typedef {Assert<Equal<Ts<readonly [typeof number, ...(typeof string)[]]>, readonly [number, ...string[]]>>} _RestTuple */
+
 /** @typedef {Assert<Equal<Ts<readonly [typeof number, typeof bigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, (boolean | undefined)?, (string | undefined)?]>>} _OptionalTail */
 
 // Only the *trailing* run: TypeScript forbids a required element after an
