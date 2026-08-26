@@ -197,6 +197,27 @@ export const proof = {
             assertEq(d(t)(value)[0], p(t)(value)[0], 'the data form must accept what `parse` accepts')
         }
     },
+    // The two proofs above compare the readers with one another, so a
+    // regression all three shared would pass them both. The table's rows for
+    // several trailing optional positions therefore carry their expected
+    // answer here as well: the rule is *per position*, not "the last one" —
+    // every trailing position whose set admits `undefined` may be absent, so
+    // an array may stop at the last required one.
+    trailingOptionalPositions: () => {
+        const t = /** @type {const} */ ([number, bigint, option(string), option(null)])
+        /** @type {(check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
+        const every = check =>
+            value => {
+                for (const read of [v, p, d]) { check(read(t)(value)) }
+            }
+        const accepted = every(assertOk)
+        const rejected = every(assertError)
+        accepted([2, 4n])            // stops at the last required position
+        accepted([2, 4n, 'x'])       // the first optional present
+        accepted([2, 4n, 'x', null]) // both present
+        rejected([2])                // `bigint` excludes `undefined`
+        rejected([2, 4n, 5])         // an optional that is present is still checked
+    },
     boolean: {
         ok: () => {
             /** @typedef {Assert<Equal<Ts<typeof boolean>, boolean>>} _RoundTrip */
