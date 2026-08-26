@@ -146,7 +146,15 @@ named after what it binds, and no path collides.
       targets rather than grepping for `types/rtti`, and covering inline code
       and fences as well as link syntax. Nothing here fails a test: `npx tsc`
       and `fjs test` see none of it.
-- [ ] Add `changelog/unreleased/` entry noting the breaking path change.
+- [ ] Add `changelog/unreleased/<PR>.md`, named by the move PR's own number,
+      with the entry prefixed **verbatim** `**BREAKING CHANGES:**`. That marker
+      is not decoration: it is the mechanical version-bump trigger — one such
+      entry anywhere in `unreleased/` means the release cannot be a patch
+      ([changelog/README.md](../../changelog/README.md), the table at `:98`),
+      so pre-1.0 this ships as `0.47.0`, not `0.46.2`. Omit it and removing the
+      published `functionalscript/fjs/types/rtti/…` path goes out under a patch
+      bump. AGENTS.md pairs the prefix with updating every importer in the same
+      PR, which the tasks above already do.
 - [ ] `npm run update`. The move edits `fjs/ci/common/module.f.mjs`, which is
       generator source, and `ci-update` regenerates committed files that CI
       drift-checks and fails on when stale (see `fjs/nanvm/update/module.f.mjs`).
