@@ -158,7 +158,25 @@ forbidden here — they cannot be written:
 | `a?.b(...c)?.d` | `OptionLambda` has no `?.()`; the guarded access starts a node |
 
 The same holds for the dead-prefix rule: `PropertyLambda` has no `.` production,
-so plain property paths nest and `a.b.c` has exactly one spelling. And the bound
+so plain property paths nest and `a.b.c` has exactly one spelling. Read "exactly one"
+throughout as *up to trailing elements*: RTTI tuples are open on that side by
+design, so `['|()', args, null, 'extra']` validates against the continuing
+production and an executor reading declared fields ignores the extra. That is
+not a property of this grammar — it holds of every tuple in the current node set
+too — and it does not multiply *graphs*, because `parse` drops what the schema
+does not declare:
+
+```
+parse(['()', Exp, Exp])  ['()','f',null]              -> ok ['()','f',null]
+                         ['()','f',null,'extra']      -> ok ['()','f',null]
+                         ['()','f',null,'e1','e2']    -> ok ['()','f',null]
+```
+
+`validate` keeps them ([`../../types/rtti/README.md`](../../types/rtti/README.md#structs-and-tuples-are-open)),
+so a pipeline that only validates does see the extra spellings. Closing every
+production would remove them at the schema instead, but that argues against a
+deliberate RTTI decision rather than with it, so the cheaper reading is that
+canonicality here is a `parse` obligation. And the bound
 that `chain-nodes.md` had to derive — *at most one `|?.`, and only as the first
 step* — is not a rule here at all, because the grammar offers nowhere else to
 put one.
@@ -288,6 +306,10 @@ folded in or kept as the record this one builds on is undecided.
       than a cleanup.
 - [ ] Fix the terminal collision separately — uniform arity plus `close`. It is
       a different collision and the prefix does not close it.
+- [ ] Decide where canonicality against trailing elements is owed: `parse` on
+      the way in, or `close` on every production. The first is what RTTI already
+      does; the second contradicts its documented openness. Either way, say so,
+      because "unspellable" is otherwise true only up to that.
 - [ ] Decide `Index` against `Exp` in the naming positions.
 - [ ] Decide whether this supersedes [`chain-nodes.md`](./chain-nodes.md) or
       builds beside it.
