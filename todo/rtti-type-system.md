@@ -289,10 +289,27 @@ needs one of: restricting `unknown` in schemas used at an external boundary,
 deep-copying what `unknown` admits, or saying plainly that a parsed `unknown`
 is a borrowed reference.
 
-Which is one more reason the regime is `.f.mjs`-only (commitment 4). Inside it,
-the check stays true because nothing can write. Outside it, `parse` a schema
-that names what it admits and hold the result — and where a schema says
-`unknown`, accept that the result is only as stable as its holder.
+**The general rule, of which `unknown` and `close` are instances: nothing about
+a type establishes runtime ownership.** "Inside FunctionalScript nothing can
+write" is a statement about FunctionalScript's *own* code. It says nothing
+about a caller in ordinary JavaScript that passed a reference in and kept one.
+An exported function that accepts and retains an array or object can have that
+value mutated underneath it afterwards, and the compiler containing no writes
+does not help: the write happens outside. A generated `readonly` declaration
+does not close it either — `readonly` constrains what the callee may do, and
+TypeScript accepts a mutable array or object where a readonly type is expected.
+
+So the boundary rule has to apply to **every reference-valued input crossing
+into FunctionalScript**, not only to the schema features TypeScript cannot
+express. Each incoming reference needs one of: `parse` against a schema that
+names every part (per the paragraph above); a deep copy; a freeze; or a stated
+ownership transfer that the caller is documented to honour. Which one is a
+cost/ergonomics decision, and it belongs with the same person deciding the
+`close` policy — the two are the same question asked about different values.
+
+That is one more reason the regime follows what the compiler can read
+(commitment 4), and a reason the guarantee in commitment 3 is worth reading as
+"no FunctionalScript code writes", not "this value cannot change".
 
 Where mutability is planned it stays outside RTTI's reach by design: local
 mutable objects with ownership tracking
