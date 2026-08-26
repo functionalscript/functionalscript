@@ -17,7 +17,7 @@
  * @import { Ts } from '../../types/rtti/ts/types.ts'
  * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
- * @import { Response, Id, RpcError } from '../json_rpc/types.ts'
+ * @import { Response } from '../json_rpc/types.ts'
  * @import { Type } from '../../types/rtti/types.ts'
  * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig, ProtocolVersions } from './types.ts'
  */
@@ -29,7 +29,7 @@ import { read, write } from '../../effects/memory/module.f.mjs'
 import {
     decodeRequest,
     rpcError, internalError, invalidRequest, invalidParams, methodNotFound,
-    jsonrpc,
+    errorResponseOf, successResponseOf,
 } from '../json_rpc/module.f.mjs'
 import { parse } from '../../types/rtti/parse/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
@@ -250,12 +250,6 @@ export const fromRegistry = registry => ({
 
 // ── Lifecycle / capability state machine ───────────────────────────────────────
 
-/** @type {(id: Id) => (error: RpcError) => Response} */
-const _errResponse = id => error => ({ jsonrpc, error, id })
-
-/** @type {(id: Id) => (result: Unknown) => Response} */
-const _okResponse = id => result => ({ jsonrpc, result, id })
-
 /** MCP error -32002: the client called a method before `initialize`. */
 export const notInitialized = rpcError(-32002)('Server not initialized')
 
@@ -319,7 +313,7 @@ export const mcpStep = ({
     value => {
         const [t, message] = decodeRequest(value)
         if (t === 'error') {
-            return pureOk(_errResponse(null)(invalidRequest))
+            return pureOk(errorResponseOf(null)(invalidRequest))
         }
         const { id, method, params } = message
 
@@ -356,8 +350,8 @@ export const mcpStep = ({
         if (method === 'ping') {
             const [pt] = parse(_noParams)(params)
             return pt === 'error'
-                ? pureOk(_errResponse(id)(invalidParams))
-                : pureOk(_okResponse(id)({}))
+                ? pureOk(errorResponseOf(id)(invalidParams))
+                : pureOk(successResponseOf(id)({}))
         }
 
         // `initialize` transitions uninitialized → initializing; reject if already done.
@@ -365,13 +359,13 @@ export const mcpStep = ({
             return resultStep(
                 read(stateKey),
                 r => {
-                    if (r[0] === 'error') { return pureOk(_errResponse(id)(internalError)) }
+                    if (r[0] === 'error') { return pureOk(errorResponseOf(id)(internalError)) }
                     if (r[1][0] !== 'uninitialized') {
-                        return pureOk(_errResponse(id)(invalidRequest))
+                        return pureOk(errorResponseOf(id)(invalidRequest))
                     }
                     const [pr, pv] = parse(initializeParams)(params)
                     if (pr === 'error') {
-                        return pureOk(_errResponse(id)(invalidParams))
+                        return pureOk(errorResponseOf(id)(invalidParams))
                     }
                     /** @type {InitializeResult} */
                     const result = {
@@ -387,8 +381,8 @@ export const mcpStep = ({
                     return resultStep(
                         write(stateKey, ['initializing']),
                         w => pureOk(w[0] === 'error'
-                            ? _errResponse(id)(internalError)
-                            : _okResponse(id)(result)),
+                            ? errorResponseOf(id)(internalError)
+                            : successResponseOf(id)(result)),
                     )
                 },
             )
@@ -401,39 +395,39 @@ export const mcpStep = ({
         return resultStep(
             read(stateKey),
             r => {
-                if (r[0] === 'error') { return pureOk(_errResponse(id)(internalError)) }
+                if (r[0] === 'error') { return pureOk(errorResponseOf(id)(internalError)) }
                 if (r[1][0] !== 'initialized') {
-                    return pureOk(_errResponse(id)(notInitialized))
+                    return pureOk(errorResponseOf(id)(notInitialized))
                 }
 
                 if (method === 'tools/list') {
                     if (capabilities.tools === undefined) {
-                        return pureOk(_errResponse(id)(methodNotFound))
+                        return pureOk(errorResponseOf(id)(methodNotFound))
                     }
                     // `params` may be absent — `tools/list` without a cursor.
                     const [t, pr] = parse(toolsListParams)(params === undefined ? {} : params)
                     return t === 'error'
-                        ? pureOk(_errResponse(id)(invalidParams))
+                        ? pureOk(errorResponseOf(id)(invalidParams))
                         : ioStep(
                             handlers.toolsList(pr),
-                            r => pureOk(_okResponse(id)(r)),
+                            r => pureOk(successResponseOf(id)(r)),
                         )
                 }
 
                 if (method === 'tools/call') {
                     if (capabilities.tools === undefined) {
-                        return pureOk(_errResponse(id)(methodNotFound))
+                        return pureOk(errorResponseOf(id)(methodNotFound))
                     }
                     const [t, pr] = parse(toolsCallParams)(params)
                     return t === 'error'
-                        ? pureOk(_errResponse(id)(invalidParams))
+                        ? pureOk(errorResponseOf(id)(invalidParams))
                         : ioStep(
                             handlers.toolsCall(pr),
-                            r => pureOk(_okResponse(id)(r)),
+                            r => pureOk(successResponseOf(id)(r)),
                         )
                 }
 
-                return pureOk(_errResponse(id)(methodNotFound))
+                return pureOk(errorResponseOf(id)(methodNotFound))
             },
         )
     }

@@ -20,11 +20,11 @@ const handler = at(method)(handlers)
 if (handler === null) { return errorResponseOf(id)(methodNotFound) }
 ```
 
-Effectful `mcpStep` (`fjs/protocol/mcp/module.f.mjs:264-287`):
+Effectful `mcpStep` (`fjs/protocol/mcp/module.f.mjs:314-346`):
 
 ```js
 const [t, message] = decodeRequest(value)
-if (t === 'error') { return pure(_errResponse(null)(invalidRequest)) }
+if (t === 'error') { return pure(errorResponseOf(null)(invalidRequest)) }
 const { id, method, params } = message
 if (id === undefined) {
     if (method === 'notifications/initialized') { ... }
@@ -78,6 +78,7 @@ fold into the 66D envelope work if it touches the same lines anyway.
 
 ## Related
 
-- `fjs/protocol/json_rpc/todo/response-constructors.md` — the envelope
-  *constructors*; this issue is the envelope *routing*. Complementary.
+- `errorResponseOf` / `successResponseOf` (`../module.f.mjs`) — the envelope
+  *constructors*, exported from this module; this issue is the envelope
+  *routing*. Complementary, and the skeleton below builds on them.
 - `fjs/protocol/mcp/todo/README.md` (66D) — per-method validate/response arms.
