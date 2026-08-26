@@ -146,10 +146,16 @@ today with no length check anywhere near it. A costs the only way to reject a
 present-but-`undefined` trailing member.
 
 **B. `length` is an attribute of an array value, and `close` is where it
-becomes observable.** Nothing changes. Then say so in
-[`../README.md`](../README.md) beside the absence rule, which reads as
-unconditional today, and keep `or(close(short), close(long))` as the supported
-way to state a canonical optional tail.
+becomes observable.** Nothing changes, and `or(close(short), close(long))`
+stays the supported way to state a canonical optional tail. What it owes the
+reader is narrower than "document the carve-out", because half of it is already
+inferable: "Closed containers" in [`../README.md`](../README.md) says a
+container whose undeclared members must be the *value* `undefined` states that
+rest as a wrapped const, which would be pointless if a bare `close(c)` admitted
+one. The **length** half is what no passage reaches — a hole is not an
+enumerable entry, so nothing in "the members `c` declares and no others" tells
+a reader that `close([number])` also bounds `value.length` and rejects
+`[1, ,]`.
 
 **C. A hole is absence; a present-but-`undefined` member is a member.** The
 middle: the two tuple `fits` and the data form's `value.length <= pn`, leaving
@@ -159,8 +165,9 @@ being about what a container *holds* rather than how long it is, which is what
 correct behaviour rather than a complaint.
 
 B is the incumbent and has the better of the argument on the correspondence it
-keeps; what it owes is a sentence, since the README states the absence rule
-unconditionally and a reader has no way to learn that `close` is carved out. A
+keeps; what it owes is one sentence about `length`, since "Structs and tuples
+are open" states the absence rule unconditionally and nothing anywhere says a
+closed container also bounds how long a value may be. A
 is the most consistent and the most expensive, and it is the only one that has
 to answer for the struct kind. C is the smallest, and buys the least: it
 removes the hole from the rendered-set correspondence while leaving the
@@ -176,12 +183,15 @@ do not follow.
 ## Tasks
 
 - [ ] Decide A, B or C.
-- [ ] If B, which is what the evidence here favours: state the carve-out in
-      [`../README.md`](../README.md) where the absence rule is — the rule holds
-      of every declared position and of the open forms, and stops at a closed
-      container's undeclared ones — and give the reason `arraySetValidate`
-      already gives, that this keeps the set equal to what `Ts<>` and JSON
-      Schema render it as.
+- [ ] If B, which is what the evidence here favours: say in
+      [`../README.md`](../README.md) that a closed container bounds `length`
+      too, so a trailing **hole** is a non-member — the one half no passage
+      reaches today — and give the reason `arraySetValidate` already gives,
+      that this keeps the set equal to what `Ts<>` and JSON Schema render it
+      as. Do **not** restate the explicit-`undefined` half: "Closed
+      containers" already implies it, by requiring a wrapped-const rest for
+      undeclared members that must be `undefined`, and a second telling risks
+      contradicting the first.
 - [ ] If C: the two tuple `fits`, in
       [`../validate/module.f.mjs`](../validate/module.f.mjs) and
       [`../parse/module.f.mjs`](../parse/module.f.mjs), and the
