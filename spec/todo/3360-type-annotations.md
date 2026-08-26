@@ -27,10 +27,14 @@ it.
 > annotation body, and whether a dotted `ns.myType`
 > ([namespace-import](./2220-namespace-import.md)) counts as a name is open.
 
-Depends on the compiler being able to
+**Evaluating and checking an annotation** depends on the compiler being able to
 load and run a module as meta-programming
-([`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md)) — nothing here can start
-before that. This is a working draft of a direction, not a plan: TypeScript
+([`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md)). Recognizing one does not:
+settling the annotation's form, matching the comment, and resolving its single
+identifier against the module's bindings need neither meta-programming nor the
+expression parser, and are stages 2–3 of
+[rtti-type-system](../../todo/rtti-type-system.md) — which they can start
+without. This is a working draft of a direction, not a plan: TypeScript
 remains the type checker meanwhile, and the near-term work is to turn the
 standard toolchain up as far as it goes
 ([`todo/strict-static-analysis.md`](../../todo/strict-static-analysis.md)).

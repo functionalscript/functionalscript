@@ -1122,13 +1122,22 @@ does not replace them.
   straight against a schema; the run-time side continuing to grow around the
   same source of truth.
 - [identity-aware-parse](../fjs/types/rtti/todo/identity-aware-parse.md) —
-  **the one sibling issue that changes this plan's feasibility, not just its
-  scope.** Neither reader tracks input identity, so `validate` re-walks a shared
-  subgraph once per incoming edge and costs time *exponential in sharing depth*
-  — its P2 is a DoS note, with a 19-array value measured at 509ms. Stages 5–6
-  make `validate` and `subset` the compile-time checker, run over every
-  annotated declaration on every build, where sharing is the normal case rather
-  than an attack. This wants fixing before stage 5, not after.
+  neither reader tracks input identity, so `validate` re-walks a shared subgraph
+  once per incoming edge and costs time *exponential in sharing depth* (a
+  19-array value at 509ms, ~14s by depth 22). Two limits on what that means
+  here, both worth stating because it is easy to over- or under-claim:
+  **`subset` is not implicated** — it is a function of two `Data` values, and
+  the issue is about the readers over runtime values — so only stage 5's use of
+  `validate` is exposed. And a *fully inline* literal has no sharing: each array
+  or object subexpression is a distinct container. The exposure is a literal
+  that names other bindings (`const a = [1]` … `[a, a]`), which does share, and
+  which the EDAG then deduplicates by identity — sharing is ordinary in
+  compiled form, as `fjs/djs/serializer`'s reference counting assumes.
+  At compile time this is not the issue's DoS threat model, which is untrusted
+  public input; it is a build-time cliff. So: **not a hard prerequisite for
+  stage 5**, but a constraint stage 5 must know it is under, and one that
+  becomes urgent the moment a checker runs `validate` over evaluated,
+  potentially shared reference graphs rather than over source literals.
 - [checked-const-pin](../fjs/types/rtti/todo/checked-const-pin.md) — how a
   schema bound to a `const` pins its literal; open, no design agreed. It is the
   ergonomics of commitment 2's "write it as a `const` first".
