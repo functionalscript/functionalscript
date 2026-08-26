@@ -11,7 +11,7 @@
  */
 
 import type { And, Equal } from '../../ts/types.ts'
-import type { Tag0, Tag1, Const, Or, String as RttiString, Struct, Tuple, Type, ConstObject } from '../types.ts'
+import type { Tag0, Tag1, Const, Or, Boolean as RttiBoolean, Bigint as RttiBigint, Number as RttiNumber, String as RttiString, Struct, Tuple, Type, ConstObject } from '../types.ts'
 import type { Assert } from '../../../asserts/types.ts'
 import type { phantomKey } from '../../phantom/types.ts'
 import type { StringMap } from '../../object/types.ts'
@@ -75,40 +75,78 @@ export type ArrayTs<T extends Type> = ReadonlyArray<Ts<T>>
 export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
 
 /**
- * Maps a tuple schema to a readonly tuple of resolved types.
+ * Maps a tuple schema to a readonly tuple of resolved types, with the
+ * **trailing** positions whose sets admit `undefined` rendered optional:
+ * `[number, bigint, option(boolean), option(string)]` becomes
+ * `readonly[number, bigint, (boolean|undefined)?, (string|undefined)?]`.
  *
- * **The commented-out line is the accurate mapping.** A tuple schema is *open*
- * — a longer array is a member of the set it describes (see "Structs and
- * tuples are open" in `../README.md`) — and the open form below says so. It is
- * commented out because TypeScript could not render it generically over an
- * arbitrary schema `T`, so this renders the closed approximation instead.
+ * That is the same rule {@link StructTs} applies per key — a member is
+ * required exactly when its set excludes `undefined` — so an array may stop
+ * at the last required position, which is what `../parse/module.f.mjs` and
+ * `../validate/module.f.mjs` accept. Only the trailing run: TypeScript
+ * forbids a required element after an optional one, so a position that admits
+ * `undefined` with a required one after it stays required with `undefined` in
+ * its type (see {@link _tupleInteriorOption}).
  *
- * `Struct`'s open-ness costs nothing to render: object types are structurally
- * open in TypeScript by default (a wider object is assignable to a narrower
- * one), which is exactly what `StructTs` already produces. `Tuple`'s open-ness
- * has no default counterpart — TypeScript tuples are exact-length — so
- * expressing "these positions, plus anything after" needs a rest element:
- * `readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]`.
- * That concrete shape is fine on its own; it breaks specifically because `T`
- * is generic here. TypeScript raises two errors trying it: TS2574 ("a rest
- * element type must be an array type"), because it cannot prove a mapped type
- * over a generic `keyof T` is array-shaped, and separately TS2589
- * (excessively deep instantiation) — confirmed by temporarily restoring the
- * line and running `tsc`.
+ * **Deriving this generically took three specific moves**, each defeating an
+ * error that sank the obvious spellings — do not simplify it back:
  *
- * That is a limitation of this renderer, **not** a statement about the value
- * model. The runtime printer (`./module.f.mjs`), which prints one concrete
- * pattern rather than a mapping over a generic `T`, emits the rest element
- * and so renders the open set exactly. Do not cite the exact mapping here as
- * evidence that tuples are closed and add a length check to
- * `../parse/module.f.mjs`; that inference is what produced #1622. A schema
- * that wants exact members says so explicitly — see {@link CloseTs} and
- * "Closed containers" in `../README.md`, where this mapping *is* the exact
- * one.
+ * - `MappedTs` resolves `Ts<>` **once per position**, and the split then walks
+ *   the mapped tuple rather than the schema. Testing `undefined extends
+ *   Ts<Last>` during the walk evaluates `Ts<>` twice per position and raises
+ *   TS2589 (excessively deep).
+ * - `Extract<…, readonly unknown[]>` is what makes a mapped type spreadable.
+ *   Spreading it directly raises TS2574 ("a rest element type must be an array
+ *   type") — TypeScript cannot prove a mapped type over a generic `keyof T` is
+ *   array-shaped. An `& readonly unknown[]` intersection silences that too,
+ *   but leaves the intersection in the rendered type, so `Equal<>` against a
+ *   hand-written tuple fails; `Extract` resolves clean.
+ * - `extends infer M extends …` forces each intermediate to resolve before it
+ *   is used in rest position. Without it the concrete instantiation works and
+ *   the generic one does not.
+ *
+ * A recursive form that prepends onto an all-optional tail (rather than
+ * splitting) crashes the compiler outright — a Go stack overflow in tsgo
+ * 7.0.2, not a diagnostic.
+ *
+ * **The remaining approximation is open-ness, and it is deliberate.** A tuple
+ * schema is *open* — a longer array is a member of the set it describes (see
+ * "Structs and tuples are open" in `../README.md`) — which needs a trailing
+ * rest element, `readonly[...mapped, ...readonly Unknown[]]`. That is still
+ * the derivation TypeScript will not carry generically, so what is rendered
+ * here is exact-length at the top end and optional at the bottom.
+ *
+ * Do not cite that exactness as evidence that tuples are closed and add a
+ * length check to `../parse/module.f.mjs`; that inference is what produced
+ * #1622. The runtime printer (`./module.f.mjs`) prints one concrete pattern
+ * rather than a mapping over a generic `T`, so it emits the rest element and
+ * renders the open set exactly. A schema that wants exact members says so —
+ * see {@link CloseTs} and "Closed containers" in `../README.md`.
  */
+type MappedTs<T extends Tuple> = Extract<{ readonly[K in keyof T]: Ts<T[K]> }, readonly unknown[]>
+
+type RequiredPart<M extends readonly unknown[]> =
+    M extends readonly [...infer I extends readonly unknown[], infer L]
+        ? undefined extends L ? RequiredPart<I> : M
+        : readonly []
+
+type OmittablePart<M extends readonly unknown[], Acc extends readonly unknown[] = readonly []> =
+    M extends readonly [...infer I extends readonly unknown[], infer L]
+        ? undefined extends L ? OmittablePart<I, readonly [L, ...Acc]> : Acc
+        : Acc
+
+type AsOptional<O extends readonly unknown[]> =
+    Extract<{ readonly[K in keyof O]+?: O[K] }, readonly unknown[]>
+
 export type TupleTs<T extends Tuple> =
     // readonly[...{ readonly[K in keyof T]: Ts<T[K]> }, ...readonly Unknown[]]
-    { readonly[K in keyof T]: Ts<T[K]> }
+    MappedTs<T> extends infer M extends readonly unknown[]
+        ? RequiredPart<M> extends infer R extends readonly unknown[]
+            ? OmittablePart<M> extends infer O extends readonly unknown[]
+                ? readonly [...R, ...AsOptional<O>]
+                : never
+            : never
+        : never
 
 type OptionalFields<T extends Struct> = {
     readonly[K in keyof T as undefined extends Ts<T[K]> ? K : never]?: Ts<T[K]>
@@ -123,7 +161,8 @@ type RequiredFields<T extends Struct> = {
  *
  * For `close(c)` this is the *exact* rendering rather than the approximation
  * {@link TupleTs} settles for: the set is the declared members and nothing
- * else, which is what a TypeScript tuple already means. (An object type stays
+ * else, which is what a TypeScript tuple — with its trailing omittable
+ * positions optional, as {@link TupleTs} renders them — already means. (An object type stays
  * structurally open, so a closed struct still renders as wide as TypeScript
  * can render it.)
  *
@@ -264,6 +303,29 @@ type _struct = Assert<Check<
 type _structOption = Assert<Check<
     { readonly a: string } & { readonly b?: string | undefined },
     { readonly a: RttiString, readonly b: Or<readonly[RttiString, undefined]> }
+>>
+
+/**
+ * The tuple counterpart of {@link _structOption}: a trailing position whose
+ * set admits `undefined` renders **optional**, so an array may stop at the
+ * last required one — the same rule, on the other kind.
+ */
+type _tupleOption = Assert<Check<
+    readonly[number, bigint, (boolean | undefined)?, (string | undefined)?],
+    readonly[RttiNumber, RttiBigint, Or<readonly[RttiBoolean, undefined]>, Or<readonly[RttiString, undefined]>]
+>>
+
+/**
+ * Only the *trailing* run. TypeScript forbids a required element after an
+ * optional one, so a position that admits `undefined` with a required one
+ * after it keeps `undefined` in its type and stays required. The runtime rule
+ * is unchanged — such a position may still be absent, since reading it yields
+ * `undefined` either way — this is what TypeScript can spell, not a narrower
+ * set.
+ */
+type _tupleInteriorOption = Assert<Check<
+    readonly[string | undefined, number],
+    readonly[Or<readonly[RttiString, undefined]>, RttiNumber]
 >>
 
 type _const = Assert<Check<12, () => readonly['const', 12]>>

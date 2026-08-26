@@ -2,8 +2,8 @@
 
 **Priority:** P2 — the array kind's JSON round-trip is a data defect, not just
 a canonicality gap
-**Status:** open — the struct half needs no design; the tuple half needs a
-decision (see [The tuple half is not free](#the-tuple-half-is-not-free))
+**Status:** open — both halves are now unblocked; what remains is the change
+itself (see [The type-level obstacle is gone](#the-type-level-obstacle-is-gone))
 
 ## Problem
 
@@ -82,61 +82,50 @@ the same rule — `undefined` is absence, whatever put it there:
   neither costs anything at the type level — but it is a decision, not a
   side effect to leave unstated.
 
-### The tuple half is not free
+### The type-level obstacle is gone
 
-The struct half costs nothing. `StructTs` already renders an
-admits-`undefined` key as optional (`OptionalFields` in
-[`../ts/types.ts`](../ts/types.ts)) and keeps `undefined` in the value type, so
-`{ a: 1 }` and `{ a: 1, b: undefined }` are both assignable under this repo's
-`exactOptionalPropertyTypes: true`. Confirmed with `npx tsc`.
+Both halves are now free at the type level.
 
-The tuple half is not. `TupleTs` maps a schema tuple to a **required-length**
-tuple, so `Ts<[number, option(string)]>` is `readonly [number, string | undefined]`
-and the dropped result is not assignable to it:
+The struct half always was. `StructTs` renders an admits-`undefined` key as
+optional (`OptionalFields` in [`../ts/types.ts`](../ts/types.ts)) and keeps
+`undefined` in the value type, so `{ a: 1 }` and `{ a: 1, b: undefined }` are
+both assignable under this repo's `exactOptionalPropertyTypes: true`.
+
+The tuple half was the blocker: `TupleTs` mapped a schema tuple to a
+**required-length** tuple, so a dropped result would not have inhabited its own
+declared type —
 
 ```
 error TS2322: Type '[number]' is not assignable to type 'readonly [number, string | undefined]'.
   Source has 1 element(s) but target requires 2.
 ```
 
-This matters more than the approximation `TupleTs` already documents. Today
-`Ts<T>` merely *understates the accepted set* — safe for a consumer of
-`parse`'s result, which always inhabits the rendered type. Dropping flips the
-direction: `parse`'s result would no longer inhabit its own declared type.
+`TupleTs` now renders the trailing admits-`undefined` positions optional, so
+`Ts<[number, bigint, option(boolean), option(string)]>` is
+`readonly[number, bigint, (boolean|undefined)?, (string|undefined)?]` and both
+spellings — `[1, 2n]` and `[1, 2n, undefined, undefined]` — inhabit it. The
+derivation and the three errors it had to defeat are in `TupleTs`'s doc
+comment; `_tupleOption` and `_tupleInteriorOption` pin the rendering.
 
-The target rendering is known and already shipped elsewhere: the runtime
-printer emits `readonly[42,(undefined|string)?,...readonly(unknown)[]]`
-(`../../../../changelog/unreleased/1680.md`), because it prints a concrete
-pattern rather than mapping a generic `T`. Only the generic transformer lacks
-it, the same limitation `TupleTs`'s doc comment records for the rest element.
-Two candidates, both wrong:
+That was the one thing this issue needed decided before it could proceed. What
+is left is the change itself, plus one question it does not settle:
+`array`/`record` share `parse`'s rebuilds, so the rule reaches them unless it
+is gated per kind (this issue says uniform — `ArrayTs` is an unbounded
+`ReadonlyArray` and `RecordTs`'s keys are already optional, so neither costs
+anything at the type level).
 
-- `{ readonly[K in keyof T]+?: Ts<T[K]> }` compiles, but marks *every* position
-  optional — `[]` would then typecheck against `[42]`'s schema.
-- `{ readonly[K in keyof T as undefined extends Ts<T[K]> ? K : never]+?: Ts<T[K]> }`
-  does not compile: the `as` clause drops the tuple-ness, `keyof T` widens to
-  `string | number | symbol`, and `T[K]` no longer satisfies `Type` (TS2344).
-
-So the decision this issue needs first:
-
-1. **Both kinds, with a working optional-position `TupleTs`.** The right answer
-   if the derivation exists; the two failures above are what has been tried.
-2. **Both kinds, accepting that `Ts<T>` overstates a tuple's length.** Cheapest,
-   and it keeps one rule on both kinds — but `parse`'s result would not inhabit
-   `Ts<T>`, a worse gap than the one `TupleTs` documents today. Only with the
-   changelog saying so.
-3. **Structs only.** Type-clean now, but it splits a rule `../README.md` states
-   once for both kinds, and leaves the JSON round-trip broken on exactly the
-   kind that breaks it.
+Only the *trailing* run renders optional, because TypeScript forbids a required
+element after an optional one. That is a spelling limit, not a narrower set: an
+interior position admitting `undefined` may still be absent at runtime, and
+`../validate/proof.f.mjs`'s `optionalPositions` pins exactly that.
 
 ## Tasks
 
-- [ ] Decide the tuple half. The struct half is unblocked either way.
+- [x] Decide the tuple half — `TupleTs` renders trailing omittable positions
+      optional, so neither kind is blocked at the type level any more.
 - [ ] Omit in `arrayRebuild`/`recordRebuild`: drop the key on the struct kind,
       the trailing `undefined` run on the array kind; open and closed alike.
 - [ ] Settle whether `array`/`record` follow (this issue says yes).
-- [ ] Attempt the optional-position `TupleTs` derivation; if it lands, `Ts<T>`
-      needs no exception.
 - [ ] `../README.md`: the two-readers table row "absent optional member"
       (`parse`: "present as `undefined`") and the openness row
       `[number, option(string)] | [42] | [42, undefined]`.
@@ -157,8 +146,9 @@ So the decision this issue needs first:
 - [`../README.md`](../README.md) — "Structs and tuples are open" states the
   absence rule this issue applies to construction, and "The two schema-form
   readers" tabulates the row that changes.
-- [`../ts/types.ts`](../ts/types.ts) — `TupleTs` (the generic-tuple limitation)
-  and `OptionalFields` (why the struct half is free).
+- [`../ts/types.ts`](../ts/types.ts) — `TupleTs` (the optional-position
+  derivation, and the errors it defeats) and `OptionalFields` (the struct
+  half's).
 - [sparse-tuple-schema-entries](./sparse-tuple-schema-entries.md) — the same
   "a hole and a declared `undefined` are one thing" question from the schema
   side; this one is the value side.

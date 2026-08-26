@@ -125,9 +125,17 @@ a narrower one — so `StructTs` already renders `Struct` openly with no extra
 work. A tuple type is exact-length by default, and expressing "these
 positions, plus anything after" needs a rest element applied *generically*
 over an arbitrary schema tuple `T`; that specific derivation is what
-TypeScript can't carry through (`TupleTs`'s doc comment has the two concrete
-errors). So `Ts<T>` renders `Tuple` closed even though the schema is open —
-one kind needed no workaround, the other has none.
+TypeScript can't carry through (`TupleTs`'s doc comment has the concrete
+errors). So `Ts<T>` renders `Tuple` exact-length at the top end even though
+the schema is open.
+
+The *bottom* end is rendered: a trailing position whose set admits
+`undefined` prints optional, so `Ts<[number, option(string)]>` is
+`readonly[number, (string|undefined)?]` and an array may stop at the last
+required position, exactly as both readers accept. Only the trailing run —
+TypeScript forbids a required element after an optional one, so an interior
+such position stays required with `undefined` in its type, which narrows the
+spelling and not the set.
 
 `parse/proof.f.mjs` and `validate/proof.f.mjs` pin openness on both kinds.
 
