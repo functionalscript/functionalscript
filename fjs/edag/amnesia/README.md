@@ -87,8 +87,8 @@ One corner where that would have been wrong is interpreted here instead. When
 `u` is nullish, `(u?.b)(d)` must throw: the parentheses end the optional
 chain, so `undefined` is what gets called. V8 does throw; JavaScriptCore
 (hence `bun test`) carries the short-circuit through the parentheses and
-evaluates to `undefined` (["Chains"](../README.md#chains)). `()` walks its
-`lambdas` itself and calls the `undefined` the chain produced, so the
+evaluates to `undefined` (["Chains"](../README.md#chains)). `_()` walks its
+`lambdas` itself and calls the `undefined` the region produced, so the
 specified answer comes out on every host — which is why
 [`proof.f.mjs`](./proof.f.mjs) can state that case at all, where the
 JavaScript of `../proof.f.mjs`'s `chainsJs` has to leave it out. A real
@@ -97,13 +97,21 @@ prototype chain to delegate to in the first place.
 
 ## Not implemented
 
-Every node in the schema now evaluates. The three that own a `lambdas` share
-one walk of it, and differ only in what they do with a region that
-short-circuited: `()` ends its region at the parentheses, so the `undefined`
-is what gets called and the node throws, while `?.` and `?.()` own their
-regions and the `undefined` is the node's value
-(["Chains"](../README.md#chains)). `['self']` is not in the schema yet, so a
-function reaches itself only by being passed as an argument.
+Every node in the schema now evaluates. The two walkers share one walk of a
+`lambdas` and differ only in what they do with the region it produced: `_()`
+calls it, so a short-circuit means `undefined` is what gets called and the
+node throws, while `_` reads it and that `undefined` is the node's value
+(["Chains"](../README.md#chains)). `?.` and `?.()` are the same walk over a
+region of one step, which is why they carry no `lambdas` of their own.
+`['self']` is not in the schema yet, so a function reaches itself only by
+being passed as an argument.
+
+What it does **not** check is the other half of a legal chain graph: the
+cardinality and minimality conditions of
+[`../canonical/module.f.mjs`](../canonical/module.f.mjs). A non-minimal walker
+evaluates here to exactly what its shorter spelling evaluates to — that is
+what makes the two duplicates — so this evaluator cannot tell them apart, and
+is not the place that rejects one.
 
 ## Where the real one goes
 

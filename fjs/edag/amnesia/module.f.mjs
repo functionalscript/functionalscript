@@ -90,9 +90,11 @@ const value = p => {
 /**
  * Walks a `lambdas` from the state `hcf`, one step at a time — the receiver
  * and the short-circuit of `../README.md`, "Chains", which live only here
- * and never in a value an `exp` produces. An empty `lambdas` is the seed
- * unchanged, and once a step short-circuits every later one is skipped with
- * its operand unevaluated.
+ * and never in a value an `exp` produces. Once a step short-circuits, every
+ * later one is skipped with its operand unevaluated.
+ *
+ * The two walkers hand it their whole `lambdas`; `?.` and `?.()` hand it the
+ * single step they are, so the skip has one implementation rather than three.
  *
  * @type {(f: (_: Exp) => unknown, lambdas: Lambdas, hcf: Hcf) => Hcf}
  */
@@ -132,15 +134,15 @@ const map = {
     '%': o2((a, b) => a % b),
     '&': o2((a, b) => a & b),
     '&&': o2lazy((a, b) => a && b()),
-    '()': (x, [, b, c, d]) => {
+    // A call with no receiver: the callee is a bare value, so `call` takes
+    // the one-element form and must not invent a `this` for it. The args
+    // operand is one node evaluating to the *complete* argument array —
+    // `f(a, b)` is `['()', f, ['[]', [a, b]]]` — and `=>` collects with
+    // `(...args)`, so it is spread. Passed as a single argument instead, the
+    // callee's `['args']` would be `[[a, b]]`.
+    '()': (x, [, f, args]) => {
         const i = vm(x)
-        // The chain of no steps is `applyLambda`'s seed handed straight
-        // back, so `f(...args)` needs no case of its own. The args operand
-        // is one node evaluating to the *complete* argument array — `f(a, b)`
-        // is `['()', f, [], ['[]', [a, b]]]` — and `=>` collects with
-        // `(...args)`, so it is spread. Passed as a single argument instead,
-        // the callee's `['args']` would be `[[a, b]]`.
-        return call(property(applyLambda(i, c, [i(b)])), () => i(d))
+        return call([i(f)], () => i(args))
     },
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
@@ -151,6 +153,14 @@ const map = {
     },
     '-': o2((a, b) => a - b),
     '.': o2((a, b) => a[b]),
+    // The one non-optional node carrying HCF: the base is the receiver, so
+    // the property is read and called in one step rather than through a
+    // value that would have lost it. `['()', ['.', a, b], c]` is the other
+    // reading — `(0, a.b)(...c)` — and the tag is what tells them apart.
+    '.()': (x, [, a, index, args]) => {
+        const i = vm(x)
+        return call({ obj: i(a), prop: i(index) }, () => i(args))
+    },
     '/': o2((a, b) => a / b),
     '<': o2((a, b) => a < b),
     '<<': o2((a, b) => a << b),
@@ -165,30 +175,27 @@ const map = {
     '>=': o2((a, b) => a >= b),
     '>>': o2((a, b) => a >> b),
     '>>>': o2((a, b) => a >>> b),
-    // The node's own `?.[index]` is the *first* step of its optional region
-    // and `lambdas` is the rest, so the whole region is one `applyLambda`.
-    // Dropping that first step would make `a?.b` evaluate to `a`.
+    // A region of exactly one step, which is why it needs no `lambdas`: the
+    // short-circuit skips this node's own `index` and nothing else. Reusing
+    // `applyLambda` for that one step keeps a single implementation of the
+    // skip; writing the guard out here would be a second one.
     //
     // `undefined` from the walk means the region short-circuited, and here
     // that is the node's value — `property` turns it back into the value
-    // `undefined` for `value` to read. `()` shares that step and reaches the
-    // opposite answer, because its parentheses end the region and the
-    // `undefined` is what gets called: `u?.b(d)` is `undefined` where
-    // `(u?.b)(d)` throws.
-    '?.': (x, [, a, index, lambdas]) => {
+    // `undefined` for `value` to read. `_()` shares that step and reaches
+    // the opposite answer, because it *calls* what the region produced:
+    // `u?.b(d)` is `undefined` where `(u?.b)(d)` throws.
+    '?.': (x, [, a, index]) => {
         const i = vm(x)
-        return value(property(applyLambda(i, [['|?.', index], ...lambdas], [i(a)])))
+        return value(property(applyLambda(i, [['|?.', index]], [i(a)])))
     },
-    // The same shape as `?.`, with one more `lambdas`: the first reaches the
-    // callee and may leave the receiver to call it with, the node's own
-    // optional call is the step between, and the second is the rest of the
-    // region, run on the call's result. `|?.()` is already that middle step
-    // — it checks the callee before evaluating the arguments — so the whole
-    // node is one walk again.
-    '?.()': (x, [, a, lambdas, args, tail]) => {
+    // The same, one step wide again, with the step being the optional call
+    // itself: it checks the callee before evaluating the arguments. No
+    // property precedes it, so the call has no receiver — the optional
+    // *method* call `a?.b(...c)` is `_`.
+    '?.()': (x, [, a, args]) => {
         const i = vm(x)
-        return value(property(applyLambda(
-            i, [...lambdas, ['|?.()', args], ...tail], [i(a)])))
+        return value(property(applyLambda(i, [['|?.()', args]], [i(a)])))
     },
     '??': o2lazy((a, b) => a ?? b()),
     Number: o1(Number),
@@ -204,6 +211,18 @@ const map = {
             (e instanceof Array) && e[0] === '...' ? spread(e[1]) : [f(e)])
     },
     '^': o2((a, b) => a ^ b),
+    // The two walkers: evaluate the base, walk the region, and differ only
+    // in what consumes the result — `_` reads the value, `_()` calls it with
+    // the receiver the last step left. That one word is the whole difference
+    // between `u?.b(d)` being `undefined` and `(u?.b)(d)` throwing.
+    '_': (x, [, a, lambdas]) => {
+        const i = vm(x)
+        return value(property(applyLambda(i, lambdas, [i(a)])))
+    },
+    '_()': (x, [, a, lambdas, args]) => {
+        const i = vm(x)
+        return call(property(applyLambda(i, lambdas, [i(a)])), () => i(args))
+    },
     args: ({args}) => args,
     frame: ({frame}) => frame,
     neg: o1(a => -a),

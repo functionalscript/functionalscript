@@ -15,10 +15,13 @@ export type Exp =
     | Primitive
     | Array
     | Object
-    | PropertyAccessor
+    | Dot
     | Call
-    | OptionalPropertyAccessor
-    | OptionalCall
+    | DotCall
+    | OptionDot
+    | OptionCall
+    | OptionChain
+    | OptionChainCall
     | Comma
     | Op2
     | Op1
@@ -70,9 +73,27 @@ export type NumberCast = readonly['Number', Exp]
 
 export type Index = number | NumberCast | string
 
-// propertyAccessor
+// dot — carries no hidden control flow
 
-export type PropertyAccessor = readonly['.', Exp, Index]
+export type Dot = readonly['.', Exp, Index]
+
+// call — a call with no receiver, carrying no hidden control flow
+
+export type Call = readonly['()', Exp, Exp]
+
+// dotCall — the one non-optional shape that carries hidden control flow: a
+// property access feeding a call, its receiver born and consumed inside the
+// node, so operands hold all of it
+
+export type DotCall = readonly['.()', Exp, Index, Exp]
+
+// optionDot — an optional region skipping nothing beyond its own index
+
+export type OptionDot = readonly['?.', Exp, Index]
+
+// optionCall — an optional region skipping nothing beyond its own arguments
+
+export type OptionCall = readonly['?.()', Exp, Exp]
 
 // lambdas — grouped by operand shape, like `Op1`/`Op2`
 
@@ -93,17 +114,15 @@ export type Lambda = LambdaPropertyAccessor | LambdaCall
 
 export type Lambdas = readonly Lambda[]
 
-// call
+// optionChain — an optional region spanning more than its own operands, its
+// value read
 
-export type Call = readonly['()', Exp, Lambdas, Exp]
+export type OptionChain = readonly['_', Exp, Lambdas]
 
-// optionalPropertyAccessor
+// optionChainCall — the same region, its value called with the receiver the
+// region's last step left
 
-export type OptionalPropertyAccessor = readonly['?.', Exp, Index, Lambdas]
-
-// optionalCall
-
-export type OptionalCall = readonly['?.()', Exp, Lambdas, Exp, Lambdas]
+export type OptionChainCall = readonly['_()', Exp, Lambdas, Exp]
 
 // Comma
 

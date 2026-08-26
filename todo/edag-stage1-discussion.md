@@ -180,12 +180,12 @@ Agreed points (not under discussion):
   optimization:
   [property-accessor](../spec/todo/2330-property-accessor.md) shows
   `a.indexOf(x)` and `const p = a.indexOf; p(x)` differ observably. It is
-  spelled by the `lambdas` operand of `["()", …]` (subject 6), not by a
-  distinct `".()"` tag.
+  spelled by the `".()"` tag (subject 6), which holds the receiver in its
+  own operands.
 - `args` is **a single operand that evaluates to an array**, not a
   literal list of operand nodes: `f(a, b)` is
-  `["()", f, [], ["[]", a, b]]`, while spread `f(...xs)` is just
-  `["()", f, [], xs]` and forwarding is `["()", f, [], ["args"]]` — free,
+  `["()", f, ["[]", a, b]]`, while spread `f(...xs)` is just
+  `["()", f, xs]` and forwarding is `["()", f, ["args"]]` — free,
   because `["args"]` is itself a first-class array (subject 2). A
   literal-list operand would save the `["[]", …]` wrapper in the
   common case but would need a spread marker for those. Same for every
@@ -221,11 +221,13 @@ schema is free to change independently of both.
 |`["{}", ...entry]`|`{ … }`|1|ordered object constructor; initial entry form is `[":", key, value]` (subject 4)|
 |`["args"]`|—|1|the arguments array (subject 2)|
 |`[".", object, property]`|`o.p`, `o[p]`|1|property access; `property` is restricted (see below)|
-|`["()", object, lambdas, args]`|`f(...args)`, `o.p(...args)`|2|call; `args` is one node yielding an array; `lambdas` is the chain run before the call and decides the `this` binding (subject 6)|
-|`["?.", object, property, lambdas]`|`o?.p`, and the rest of its optional chain|later|optional property access; same `property` restriction|
-|`["?.()", object, lambdas, args, lambdas]`|`f?.(...args)`, and the rest of its optional chain|later|optional call|
-|`["\|.", property]`|one `lambda`, the `.p` step of a chain|2|not an `exp` node — only valid inside a `lambdas` operand (subject 6); this is the step a method call's `lambdas` ends with, so Stage 2 needs it with `"()"`; same `property` restriction|
-|`["\|()", args]`, `["\|?.", property]`, `["\|?.()", args]`|one `lambda`, a step of a chain|later|the remaining steps: a call inside a chain, and the two optional ones|
+|`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is one node yielding an array (subject 6)|
+|`[".()", object, property, args]`|`o.p(...args)`|2|method call; `object` is the receiver, held in operands — the one non-optional shape carrying hidden control flow (subject 6); same `property` restriction|
+|`["?.", object, property]`|`o?.p`|later|optional property access; same `property` restriction|
+|`["?.()", callee, args]`|`f?.(...args)`|later|optional call of a value, with no receiver|
+|`["_", object, lambdas]`|an optional region, its value read|later|`a?.b.c`, `a?.b(...c)`, and every region reaching past its own operands; `lambdas` is a flat array of chain steps|
+|`["_()", object, lambdas, args]`|an optional region, its value called|later|`(a?.b)(...c)` — the region's last step supplies the receiver|
+|`["\|.", property]`, `["\|()", args]`, `["\|?.", property]`, `["\|?.()", args]`|one `lambda`, a step of a chain|later|not `exp` nodes — only valid inside the `lambdas` operand of a walker (subject 6); Stage 2 needs none of them, since `".()"` spells a method call outright|
 |`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|later|own property by a computed **string**; no prototype chain|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
@@ -938,7 +940,7 @@ name is a **validation** error at construction, and a computed string
 never reaches `"."` at all.
 
 **Decided for the structural tags: they are JS syntax too** —
-`[".", object, property]`, `["()", object, lambdas, args]`,
+`[".", object, property]`, `["()", callee, args]`,
 `["{}", …]`, `[":", key, value]`, `[",", …]`. Syntax is as much a host
 spelling as an operator symbol is. This supersedes the
 `at` / `call` / `bindCall` names used earlier in this document.
@@ -946,21 +948,24 @@ spelling as an operator symbol is. This supersedes the
 **Decided: `"."`, not `"[]"`.** `"."` is the shorter and more readable
 tag for property access.
 
-**Decided: one call tag, with a `lambdas` operand — no `".()"`.** An
-earlier draft gave the method call its own `[".()", object, property, args]`
-tag. It was replaced because a JS chain carries two kinds of hidden control
-flow that a fixed property-plus-call tag cannot express: the receiver a
-property access hands to a following call as `this`, and the region an
-optional link short-circuits — and parentheses move each boundary
-independently (`(a?.b).c` throws where `a?.b.c` is `undefined`). The
-settled vocabulary keeps every `exp` evaluating to an ordinary value and
-puts both kinds of control flow in a `lambdas`: a flat array of chain steps
-that only the `"()"`, `"?."`, and `"?.()"` nodes interpret. `a.b(...c)` is
-then `["()", a, [["|.", "b"]], c]`, and the same node also spells chains no
-property-plus-call tag could, such as `(a?.(...b)?.c)(...d)`. The shape of
-record and the worked examples are in
+**Decided: seven chain tags, and `".()"` is one of them.** A JS chain
+carries two kinds of hidden control flow that no single tag can express: the
+receiver a property access hands to a following call as `this`, and the
+region an optional link short-circuits — and parentheses move each boundary
+independently (`(a?.b).c` throws where `a?.b.c` is `undefined`). A draft
+answered that with one call tag carrying a `lambdas`, a flat array of chain
+steps; the settled vocabulary keeps the `lambdas` only where it is
+unavoidable. A receiver's lifetime is bounded at two operations, because the
+call ends it, so `a.b(...c)` fits fixed operands and is `[".()", a, "b", c]`;
+`"?."` and `"?.()"` likewise skip nothing beyond their own operands. Only a
+region reaching past its own operands is unbounded — `a?.b(...c).d.e…` — and
+only that needs an array of steps, which the two walkers `"_"` and `"_()"`
+carry. Every `exp` still evaluates to an ordinary value; what changed is that
+four of the seven no longer need a step vocabulary to say so, which is what
+lets a non-optional subset drop `lambdas` entirely. The shape of record and
+the worked examples are in
 [`fjs/edag/README.md`](../fjs/edag/README.md) — "Chains" — and the JSDoc on
-`lambdas` in [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs).
+the nodes in [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs).
 
 **Decided: the EDAG keeps three access operations, not one and not
 2330's five.** An earlier draft of this subject said `"."` was a single

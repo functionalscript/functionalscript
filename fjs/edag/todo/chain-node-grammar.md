@@ -5,17 +5,15 @@
 
 ## Problem
 
-[`chain-nodes.md`](./chain-nodes.md) settled what a chain node set should mean —
-**the shortest valid form**, where an expression that can be split into two is
-split — and then had to record that none of it fits in the schema:
-
-> With `lambdas` as `array(lambda)`, neither `array(T)` nor `or` states
-> cardinality or order, so the conditions are lowering rules plus a validation
-> pass, and `validate` accepts graphs the lowering never emits.
-
-So the design was right and unenforceable. Four duplicate families slipped
-through the schema, the minimality rule lived in prose, and a walker's shape had
-to be described rather than typed.
+The seven-kind node set that shipped — `.`, `()`, `.()`, `?.`, `?.()`, `_`,
+`_()` in [`../module.f.mjs`](../module.f.mjs) — settled what a chain node set
+should mean: **the shortest valid form**, where an expression that can be split
+into two is split. None of that fits in the schema. A `lambdas` is
+`array(lambda)`, and neither `array(T)` nor `or` states cardinality or order,
+so the conditions live in [`../canonical/`](../canonical/README.md), a pass
+`validate` knows nothing about — four duplicate families pass the schema, the
+minimality rule is prose plus a checker, and a walker's shape is described
+rather than typed.
 
 This proposal makes the rule structural. It replaces the flat `Lambdas` array
 with three mutually recursive lambda types, one per state a chain can be in.
@@ -23,8 +21,8 @@ Nothing is forbidden; the wrong shapes stop being expressible.
 
 ## The two bits
 
-`chain-nodes.md` opens by observing that hidden control flow comes in exactly
-two kinds: a **receiver** handed from a property access to a call, and a
+[Chains](../README.md#chains) opens by observing that hidden control flow comes
+in exactly two kinds: a **receiver** handed from a property access to a call, and a
 **short-circuit** region opened by an optional operator. Those are the two bits
 of state a chain carries, and they are what the lambda types track:
 
@@ -76,7 +74,7 @@ type OptionPropertyLambda =
     | ['!()', Exp]
 ```
 
-Four node kinds, down from the seven in `chain-nodes.md`, and no walkers.
+Four node kinds, down from the seven that shipped, and no walkers.
 
 The lambda tags are written bare above to keep the shape readable. They cannot
 stay that way: they collide with the node tags, and
@@ -128,7 +126,7 @@ Both terminals are the two steps that produce a value **outside** an option —
 one because there never was a region, one because it just closed one. `null` is
 the third exit: the chain simply ends, and any live bit is dropped. That is also
 the correct spelling of a bare `(a?.b)`, since closing a region with nothing
-after it is unobservable ([the parenthesis law](./chain-nodes.md)).
+after it is unobservable ([the parenthesis law](../README.md#the-parenthesis-law)).
 
 ### The absences carry the rule
 
@@ -147,8 +145,8 @@ protect a bit other than the one it consumes.
 
 ## What stops being expressible
 
-The four duplicate families `chain-nodes.md` lists under Open questions are not
-forbidden here — they cannot be written:
+The four duplicate families [`../canonical/proof.f.mjs`](../canonical/proof.f.mjs)
+has to reject are not forbidden here — they cannot be written:
 
 | family | why it is unspellable |
 | --- | --- |
@@ -184,7 +182,7 @@ against calling `parse(exp)` for precisely this reason.
 
 So the multiplicity is real and stays real. Closing every production, or an
 identity-aware normalizer, are the options; `parse` is not among them. And the bound
-that `chain-nodes.md` had to derive — *at most one `|?.`, and only as the first
+the shipped set has to derive — *at most one `|?.`, and only as the first
 step* — is not a rule here at all, because the grammar offers nowhere else to
 put one.
 
@@ -381,8 +379,9 @@ down.
 
 Because both readings have the same length, **`close` cannot separate them**.
 Only disjoint vocabularies can, which is exactly what the `|` step prefix does
-in [`chain-nodes.md`](./chain-nodes.md) — recorded there as a correctness
-requirement rather than a readability one. Its witness is weaker than this one,
+in the shipped step ids — recorded on `lambda` in
+[`../module.f.mjs`](../module.f.mjs) as a correctness requirement rather than a
+readability one. Its witness is weaker than this one,
 though, and the difference matters: there the colliding shapes differ in
 *length*, so `close` would have settled it; here they are the same length, so
 `close` cannot. Same class, strictly stronger case. So the lambda tags
@@ -404,7 +403,7 @@ landed.
 Two collisions, two different fixes, and neither substitutes for the other.
 
 **What it costs.** Every property access carries a fourth operand, so plain
-`a.b` is `['.', a, b, null]` in every graph. `chain-nodes.md` supersedes an
+`a.b` is `['.', a, b, null]` in every graph. The shipped set rejected an
 "Extend `.`" alternative on the ground that it turns property paths
 combinatorial — that objection does *not* apply here, since `PropertyLambda` has
 no `.` production and `a.b.c` keeps a unique spelling. The real cost is graph
@@ -413,17 +412,17 @@ size and hashing, not ambiguity.
 **Purity is unchanged, and still a cost.** The lambdas are structured now, but
 they are still not `Exp`s: the `a.b` inside `['.', a, b, ['?.()', c, null]]`
 cannot be shared, substituted, or hashed. Everything
-[`chain-nodes.md` says about purity](./chain-nodes.md) carries over intact.
+[Steps](../README.md#steps) says about that carries over intact.
 
 **`Index` against `Exp`.** Positions that name a property use `Index`
-([`../types.ts`](../types.ts)), matching today's nodes. `chain-nodes.md` records
-one alternative rejected because `Exp` and `Index` overlap, so widening these to
-`Exp` would need its own argument.
+([`../types.ts`](../types.ts)), matching today's nodes. A leading-path
+alternative was rejected for the shipped set because `Exp` and `Index` overlap,
+so widening these to `Exp` would need its own argument.
 
-**Relationship to `chain-nodes.md`.** This answers that issue's central open
-question rather than fixing its problem, so both files are live: its laws, its
-V8 matrix and its alternatives stay load-bearing here. Whether it should be
-folded in or kept as the record this one builds on is undecided.
+**Relationship to the shipped set.** This answers its central open question —
+where minimality lives — rather than changing what minimality means, so
+[Chains](../README.md#chains) stays load-bearing here: its partition, its
+parenthesis law, and its encodings are what the grammar has to reproduce.
 
 ## Tasks
 
@@ -439,11 +438,12 @@ folded in or kept as the record this one builds on is undecided.
       describes. Not `parse`: it is not identity-aware, and flattening an
       EDAG's sharing costs more than the multiplicity does.
 - [ ] Decide `Index` against `Exp` in the naming positions.
-- [ ] Decide whether this supersedes [`chain-nodes.md`](./chain-nodes.md) or
-      builds beside it.
+- [ ] Decide whether this supersedes the shipped seven kinds or builds beside
+      them. Adopting it would delete [`../canonical/`](../canonical/README.md),
+      whose whole content is the rule this grammar makes structural.
 - [ ] Weigh against ["no normal form"](../README.md): this buys more
-      canonicality than the seven-kind proposal, and buys it in the schema
-      rather than the lowering.
+      canonicality than the seven kinds do, and buys it in the schema rather
+      than in a pass beside it.
 - [ ] If adopted: the node schemas in [`../module.f.mjs`](../module.f.mjs), the
       types in [`../types.ts`](../types.ts), the `Map` and handlers in
       [`../amnesia/`](../amnesia/), the tables in [`../README.md`](../README.md),
@@ -456,12 +456,16 @@ folded in or kept as the record this one builds on is undecided.
       `a.b(...c)` against `(a?.b)(...c)`, and `(a?.b.c)(...d)` against
       `(a?.b).c(...d)`. Both are `TypeError` on a nullish base, so a proof
       comparing values and throw kinds alone would pass while the distinction
-      silently disappeared.
+      silently disappeared. `distinguished` in
+      [`../amnesia/proof.f.mjs`](../amnesia/proof.f.mjs) does this for the
+      shipped nodes and is the shape to follow.
 
 ## Related
 
-- [`./chain-nodes.md`](./chain-nodes.md) — the seven-kind proposal this answers
-- [`../README.md`](../README.md) — "Chains", the receiver and short-circuit rules
+- [`../README.md`](../README.md) — "Chains": the partition the seven shipped
+  kinds come from, the parenthesis law, and the encodings
+- [`../canonical/README.md`](../canonical/README.md) — the pass this grammar
+  would replace
 - [`../../types/rtti/module.f.mjs`](../../types/rtti/module.f.mjs) — `close`, for
   stating the terminals
 - [`../../types/rtti/todo/identity-aware-parse.md`](../../types/rtti/todo/identity-aware-parse.md)
