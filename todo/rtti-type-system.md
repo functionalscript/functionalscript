@@ -372,7 +372,11 @@ two agree. **For a TypeScript consumer reading a generated `.d.ts`, that
 agreement is bounded by what TypeScript can express**, and in at least one case
 it cannot express the schema at all.
 
-`close(c)` is the case. It means "these members and no others"; TypeScript
+**Two cases are known.** Both are the same shape — a schema whose set
+TypeScript has no way to name — and both are found in the emission path, not
+invented here.
+
+`close(c)` is the first. It means "these members and no others"; TypeScript
 object types are structurally open, so the closed set has no spelling, and both
 the printer and `Ts<>` emit the fields alone — the closest expressible
 *supertype*. A consumer can hold `{ a: 1, b: 2 }` in a variable, pass it where
@@ -404,6 +408,21 @@ stating rather than assuming:
   This is contravariance arriving early — the same axis stage 7 must introduce
   for function schemas, showing up first in what a declaration promises rather
   than in `subset`.
+
+**Non-finite numbers and `-0`** are the second, and they are smaller only in
+how often they appear. The printer renders a numeric const as
+`isFinite(c) ? String(c) : 'number'`
+([`fjs/types/ts`](../fjs/types/ts/module.f.mjs), which
+[`rtti/ts`](../fjs/types/rtti/ts/module.f.mjs) imports), so a `NaN`,
+`Infinity`, or `-Infinity` const becomes the type `number`, and `-0` becomes
+the literal `0`. Validation meanwhile uses `Object.is` **on purpose** — its doc
+comment says so, precisely to match `NaN` and to keep `+0` and `-0` distinct
+([`rtti/common`](../fjs/types/rtti/common/module.f.mjs)). So a `NaN` schema in
+an exported input position admits any number and rejects all but one, and a
+`-0` schema admits `+0` and rejects it. TypeScript has no `NaN` literal type
+and does not distinguish `-0` from `0`, so this is inexpressible in the same
+way `close` is, and it lands the same way under the position split above:
+under-promising on output, unsound on input.
 
 What this needs is a **stated policy**, decided before stage 11 rather than
 discovered by a consumer:
@@ -792,6 +811,7 @@ annotations — which is most of them, once annotations are the point.
       | Generic schema constructors | `pair = t => close([t, t])` | stage 8 — the argument-to-result relationship must be reified first |
       | Type-only utilities | `Index`, `Tuple`, `KeyOf`, `Includes` ([`types/array`](../fjs/types/array/types.ts)) | **nothing yet** — these describe no runtime value, so no schema and no printer produces them |
       | Polymorphic functions | `identity: <T>(value: T) => T` ([`types/function`](../fjs/types/function/module.f.mjs)) | **nothing yet** — a function schema with concrete parameter and result sets cannot say both positions share one caller-chosen type |
+      | Inexpressible sets | `close({ a: number })`; a `NaN` or `-0` const | **the policy above**, not a stage — TypeScript cannot name these sets, so the declaration is an upper bound however it is emitted |
 
       The last two have no stage assigned, and that is the honest state: a
       type-only utility is not a schema of anything, and RTTI has no type
