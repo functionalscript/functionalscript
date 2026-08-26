@@ -332,8 +332,10 @@ An npm package ships `.d.ts` so that TypeScript consumers see types; the
 declarations are **generated from the schemas**, never authored.
 [`fjs/types/rtti/ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs) is already
 that printer — `thunk RTTI → toData → dataToTs`, emitting canonical aliases with
-recursion handled — so this is plumbing plus an `fjs` command, and it is the
-stage that can land earliest and entirely on its own. It is also what lets a
+recursion handled — so this is close to plumbing plus an `fjs` command, and it
+is the stage that can land earliest and entirely on its own. Not *only*
+plumbing, though: the printer documents two places where it and `Ts<>` disagree,
+and both change what a generated declaration means. See stage 1. It is also what lets a
 `.f.mjs` module drop its JSDoc without any consumer noticing.
 
 ### What already exists
@@ -343,7 +345,7 @@ stage that can land earliest and entirely on its own. It is also what lets a
 | Schema constructors | [`fjs/types/rtti/module.f.mjs`](../fjs/types/rtti/module.f.mjs) | done |
 | Run-time checking | [`parse/`](../fjs/types/rtti/parse/module.f.mjs), [`validate/`](../fjs/types/rtti/validate/module.f.mjs) | done — same acceptance, differing only in what a success carries |
 | Canonical data form, `subset` | [`data/`](../fjs/types/rtti/data/module.f.mjs) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
-| TypeScript emission | [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs) | done — the `.d.ts` generator, minus the command |
+| TypeScript emission | [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on tuple openness, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
 | Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/types/rtti/ts/types.ts) | done, and transitional — see Problem |
 | Annotation syntax | — | not started |
 | Compile-time evaluation | [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) | not started |
@@ -514,7 +516,21 @@ is off to the side, gating a claim rather than a stage.
 - [ ] **1. `.d.ts` generation from schemas.** An `fjs` command over
       [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs), wired into
       packaging ([publishing-packages](../fjs/ci/todo/publishing-packages.md)).
-      No compiler work, no language change.
+      No compiler work and no language change — but **not just a command**.
+      The printer's own doc comment records two divergences from `Ts<>`, and
+      each makes an emitted declaration admit values the schema rejects:
+      - the `unknown` schema prints TypeScript's built-in `unknown`, while the
+        schema and `Ts<>` mean the DJS-shaped `Primitive | Array | Object`. A
+        consumer typed against the emitted form may pass a function or a symbol
+        and be rejected at run time — the exact compile-time/run-time
+        disagreement this epic exists to remove. Emit the DJS union, or a named
+        alias for it, not `unknown`.
+      - a tuple prints open (`readonly[42,...readonly(unknown)[]]`) while
+        `Ts<>` renders the closed approximation. Both are defensible — the
+        schema *is* open, and `TupleTs` says its closed rendering is a
+        limitation — but a `.d.ts` has to pick one and say so.
+
+      Settling these is part of stage 1, and stage 11 depends on the answer.
 - [ ] **2. Settle the annotation form.** Narrow the body from an expression to a
       name in [type-annotations](../spec/todo/3360-type-annotations.md), and
       settle which positions accept an annotation — `const`, parameter, return,
@@ -577,7 +593,7 @@ is off to the side, gating a claim rather than a stage.
 - [ ] **11. Retire `Ts<T>`, the JSDoc types in `.f.mjs`, and the `types.ts`
       beside them,** declaration by declaration — the two annotation forms are
       disjoint, so this needs no flag day and no module-at-a-time rule — once
-      1–10 hold, **stage 9 included**: a declaration whose public type is
+      1–10 hold, **stages 8 and 9 included**: a declaration whose public type is
       nominal cannot retire before RTTI can carry a brand, or the generated
       `.d.ts` silently widens it.
       [`fjs/types/bit_vec`](../fjs/types/bit_vec/types.ts) is the concrete case
@@ -586,10 +602,15 @@ is off to the side, gating a claim rather than a stage.
       schema is held up the same way and by stage 8: until the
       argument-to-result relationship is reified there is no parameterised
       declaration to generate, so its authored TypeScript cannot retire either.
-      Convert against a declaration comparison,
-      `Assert<Equal<Ts<typeof schema>, Declared>>`, not against both checkers
-      accepting the initializer: they agree on a value without agreeing on a
-      type. A `types.ts` goes when its module's schemas cover what it declared
+      Convert against a declaration comparison rather than against both
+      checkers accepting the initializer, since they agree on a value without
+      agreeing on a type — but compare against **the declaration that will
+      actually be emitted**, not against `Ts<>`. A bare
+      `Assert<Equal<Ts<typeof schema>, Declared>>` passes for an exact tuple
+      declaration and the generated `.d.ts` then widens it, because the printer
+      emits the open form where `Ts<>` renders the closed one. Either this
+      check runs against emitted-declaration semantics, or stage 1 first makes
+      `Ts<>` and the printer agree. A `types.ts` goes when its module's schemas cover what it declared
       and nothing outside still imports it; consumers keep seeing types through
       generated `.d.ts`. This is the stage where TypeScript stops being the type
       system for FunctionalScript, and it is per-module, not a cutover.
