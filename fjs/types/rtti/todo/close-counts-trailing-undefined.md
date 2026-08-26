@@ -312,11 +312,13 @@ rule the module's own closed containers do not follow.
       `arraySetValidate`. Changelog entry prefixed `**BREAKING CHANGES:**` —
       `close` accepts an undeclared `undefined` member.
 - [ ] If A, the canonicalization too, not only the readers — and as an
-      invariant rather than a list of spellings. **Under A, "admits only
-      `undefined`" stops distinguishing a member from its absence, so every
-      place the canonical form can record such a member has to collapse.**
-      Measured today, four spellings that A would make equal in membership and
-      leave distinct in data, two per kind:
+      invariant rather than a list of spellings. A's filter sits on the
+      *shared* `extra`, before the branch, so a `rest` is never asked about
+      `undefined` at all. **Under A the canonical form has to strip the
+      `undefined` component from every undeclared `rest`, and drop a `rest`
+      that strips to empty.** Both halves are needed, and the second is the
+      special case of the first. Measured today, four spellings the drop half
+      covers — equal in membership under A, distinct in data — two per kind:
 
       | schema | `toData` |
       | --- | --- |
@@ -325,12 +327,24 @@ rule the module's own closed containers do not follow.
       | `close({a:number})` | `{props:{a:…}, rest:{}}` |
       | `close({a:number}, cu)` | `{props:{a:…}, rest:{unit:2}}` |
 
-      (`cu` is `() => ['const', undefined]`.) Audit for the general case rather
-      than these four, since the list is not claimed exhaustive, and pin the
-      equalities.
+      (`cu` is `() => ['const', undefined]`.) Each strips to `never`, so the
+      drop half and the empty-`rest` criterion above agree on all four.
 
-      **A declared undefined-only position is not one of them.** The two
-      spellings that look like they belong above and do not are
+      **A mixed `rest` needs the strip half and nothing else catches it.**
+      `close([number], option(string))` and `close([number], string)` differ
+      today — only the first accepts `[1, undefined]` — and under a simulated
+      A they answer alike on `[1]`, `[1, undefined]`, `[1, 'x']`, `[1, ,]`
+      and `[1, 7]`, all three readers agreeing, because the filter removes the
+      `undefined` entry before either `rest` sees it. Their data stay
+      `rest: {unit:2, string:true}` and `rest: {string:true}`, and **both
+      `equal` and mutual `subset` answer false**, so the empty-`rest` criterion
+      leaves them apart: one membership, two `../../../cas` hashes. Pin this
+      equality alongside the four, and audit for the general case rather than
+      these five, since neither list is claimed exhaustive.
+
+      **Neither half touches a declared position.** Both act on the
+      undeclared `rest`, and a declared undefined-only position must stay. The
+      two spellings that look like they belong above and do not are
       `close([number, cu])`, whose data is `{prefix:[{number:true},{unit:2}]}`,
       and `close({a:number, b:cu})`, whose data is
       `{props:{a:…,b:{unit:2}}, rest:{}}`. A closed container reads a
@@ -367,7 +381,8 @@ rule the module's own closed containers do not follow.
       one canonical form — and one `../../../cas` hash — to two different
       memberships, which is the same defect this issue opens with, pointed the
       other way. The array rows go with A; the object rows go with struct-in
-      and not otherwise.
+      and not otherwise, and the strip half is gated the same way — an object
+      `rest` keeps its `undefined` component until the struct kind is in.
 - [ ] Either way, add `[close([number]), [42, undefined]]` to
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table,
       with an `assertOk`/`assertError` oracle beside it as `optionalPositions`
