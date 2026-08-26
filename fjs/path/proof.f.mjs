@@ -215,6 +215,35 @@ const concatTest = [
         const c = concat(concat("C:/a/m.f.js")(".."))("../../lib.f.js")
         assertEq(c, "C:/lib.f.js")
     },
+    // A bare drive is not a root, and `concat` does not make it one: joined
+    // with a separator, `C:` and `dir` would be the drive root `C:/dir`
+    // instead of the drive-relative `C:dir` — a different place on the disk.
+    () => {
+        const c = concat("C:")("dir")
+        assertEq(c, "C:dir")
+    },
+    () => {
+        const r = root(concat("C:")("dir"))
+        assertEq(r, "")
+    },
+    // The drive-absolute spelling is still reachable, and still a root.
+    () => {
+        const c = concat("C:/")("dir")
+        assertEq(c, "C:/dir")
+    },
+    () => {
+        const r = root(concat("C:/")("dir"))
+        assertEq(r, "C:/")
+    },
+    // Only a real bare drive skips the separator.
+    () => {
+        const c = concat("ab:")("dir")
+        assertEq(c, "ab:/dir")
+    },
+    () => {
+        const c = concat("C:")("/abs")
+        assertEq(c, "/abs")
+    },
     // An absolute `b` names a path on its own, so it replaces `a` rather than
     // being appended to it.
     () => {

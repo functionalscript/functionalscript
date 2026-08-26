@@ -44,6 +44,9 @@ const foldNormalizeOp = rooted => input => state => {
  */
 export const toPosix = path => path.replaceAll('\\', '/')
 
+/** @type {(c: string) => boolean} */
+const isDriveLetter = c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+
 /**
  * A Windows drive root, and only in its absolute spelling: `C:/` roots the
  * path, while a bare `C:` and the drive-relative `C:foo` — which names the
@@ -51,9 +54,24 @@ export const toPosix = path => path.replaceAll('\\', '/')
  *
  * @type {(p: string) => boolean}
  */
-const isDriveRoot = p =>
-    p.length >= 3 && p[1] === ':' && p[2] === '/' &&
-    ((p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z'))
+const isDriveRoot = p => p.length >= 3 && p[1] === ':' && p[2] === '/' && isDriveLetter(p[0])
+
+/**
+ * A bare drive, which {@link isDriveRoot} deliberately excludes — and which
+ * {@link concat} must therefore not turn into one. The separator `concat`
+ * inserts between its two arguments is what would do it: `C:` and `dir` joined
+ * with a `/` is the drive root `C:/dir` rather than the drive-relative `C:dir`,
+ * a different place on the disk. Joined without one, the answer stays the kind
+ * of path it started as.
+ *
+ * This keeps `concat` from changing a path's kind. It does not make the
+ * drive-relative form *resolve* like Windows: `C:dir` is one ordinary segment
+ * here, so `concat('C:dir')('../..')` is `'..'` where Windows says `C:..`.
+ * Modelling that needs a third kind of path, which this module does not have.
+ *
+ * @type {(p: string) => boolean}
+ */
+const isBareDrive = p => p.length === 2 && p[1] === ':' && isDriveLetter(p[0])
 
 /**
  * Splits an already-POSIX path into its root and everything after it, so that
@@ -138,7 +156,7 @@ export const concat = a => b => {
     const [rb, restb] = split(toPosix(b))
     if (rb !== '') { return rejoin([rb, restb]) }
     const [ra, resta] = split(toPosix(a))
-    return rejoin([ra, stringConcat([resta, '/', restb])])
+    return rejoin([ra, stringConcat([resta, isBareDrive(resta) ? '' : '/', restb])])
 }
 
 /**
