@@ -160,7 +160,13 @@ tuple kind (measured), and patching both is what admits it. **A is therefore C
 plus the extra-check change**, and the extra check carries the struct kind
 along — `close({ a: number })` against `{ a: 1, b: undefined }` is an error
 today with no length check anywhere near it. A costs the only way to reject a
-present-but-`undefined` trailing member. It shares its principle with
+present-but-`undefined` trailing member, and it reaches past the readers into
+the canonical form: `close([number])` and
+`close([number], () => ['const', undefined])` would then accept the same
+arrays, while `toData` still gives the first no `rest` and the second
+`rest: { unit: 2 }`, so `cmp` and `equal` would report two canonical sets for
+one membership. A therefore owes the data algebra a change too, not just the
+validators. It shares its principle with
 [`./parse-omits-undefined-members.md`](./parse-omits-undefined-members.md), but
 draws no support from it: that issue changes a *declared* position, where every
 answer here already agrees, so A stands or falls on undeclared ones alone.
@@ -270,6 +276,16 @@ rule the module's own closed containers do not follow.
 - [ ] If A: everything C touches, **plus** that filter and the matching one in
       `arraySetValidate`. Changelog entry prefixed `**BREAKING CHANGES:**` —
       `close` accepts an undeclared `undefined` member.
+- [ ] If A, the canonicalization too, not only the readers. Measured today,
+      `toData(close([number]))` is `{array:[{prefix:[{number:true}]}]}` and
+      `toData(close([number], () => ['const', undefined]))` is the same with
+      `rest: {unit: 2}` — correctly distinct, since their memberships differ.
+      Under A they would not: both accept `[1]`, `[1, undefined]`, a hole and
+      any longer run, so `cmp`/`equal` would name one set twice. Collapse a
+      `rest` of `{unit: 2}` on a closed array set, or whatever the equivalent
+      is once written, and pin the equality — the canonical form is what
+      `../../../cas` hashes, so two names for one set is worse here than a
+      reader disagreement.
 - [ ] Either way, add `[close([number]), [42, undefined]]` to
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table,
       with an `assertOk`/`assertError` oracle beside it as `optionalPositions`
