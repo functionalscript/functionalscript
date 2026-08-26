@@ -506,6 +506,14 @@ Stage 2 (one PR, after stage 1 lands):
       module's own proofs. The repo sets `checkJs`, so a missed site is
       `TS2554: Expected 0 arguments, but got 1` rather than a silent
       absence-only schema — verified — but the schemas are wrong until migrated.
+- [ ] `../data/module.f.mjs`: give `thunkUnion` an explicit `'option'` case
+      returning `{ unit: absentBit }`. Its switch ends in
+      `default: { return orUnion(state, t, rest) }`, and a nullary tag has an
+      empty `rest`, so without the case `toData(option)` is the empty union —
+      `never` — and `toData(or(option, number))` silently loses the bit. Every
+      data-side rule below then operates on a bit nothing ever sets. The tag
+      enumerations are independent: adding `option` to `Tag0` does not reach this
+      switch. Pin `toData(option)` and `toData(or(option, number))`.
 - [ ] `../data/module.f.mjs`: `absentBit` as the fifth unit bit — `unitBit` stays
       value-keyed, since the new bit has no JS value to key on — and `trimPrefix`
       and `objectMayOmit` switch to it. `allUnits` stays the four DJS units;
