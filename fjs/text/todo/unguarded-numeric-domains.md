@@ -7,14 +7,37 @@
 
 `utf8ByteToCodePointOp` and `utf16ByteToCodePointOp` now both check
 `Number.isInteger` before dispatching, because their range partitions cover
-only the *integers* in range and a fraction falls between two arms. Seven
-other sites have the same shape and no such check. All predate this issue and
-none is reachable from a `Vec`, a `u8List`, or a `string` — the inputs every
-in-tree caller supplies — so this is a domain-hygiene issue, not a live
-defect.
+only the *integers* in range and a fraction falls between two arms.
 
-The `text` decoders are done. What is left is the encode direction, two
-`ascii` helpers, two `code_point` predicates, and one in `bnf`:
+The root cause is one line — `contains = (b, e) => i => b <= i && i <= e`
+(`../../types/range/module.f.mjs:10`). It is a numeric range, nothing more, so
+every predicate built on it answers `true` for a fraction inside its bounds,
+however integral the domain its doc describes. Arithmetic downstream then
+truncates with `>>`, `&`, or `|`, and the fraction disappears into a plausible
+result.
+
+**The list below is what one sweep found, not a proof of completeness.** Its
+criterion: an export whose contract is stated over an integer domain, whose
+check is a bare `contains` range, and which answers for a non-integer instead
+of rejecting it. Add a row when another turns up rather than trusting the
+length of this one — it has been revised upward twice already.
+
+None of these is a live defect: none is reachable from a `Vec`, a `u8List`, or
+a `string`, the inputs every in-tree caller supplies.
+
+**Predicates.** These come first, and are why the rest are reachable: a caller
+that asks one of them has already been told the input is fine.
+
+| site | input | answers | contract |
+|---|---|---|---|
+| `code_point`'s `isHighSurrogate` (`:93`) | `0xd800.5` | `true` | "the 16-bit word (`U16`)" |
+| `code_point`'s `isLowSurrogate` (`:99`) | `0xdc00.5` | `true` | "the 16-bit word (`U16`)" |
+| `code_point`'s `isBmpCodePoint` (`:115`) | `65.5` | `true` | "the code point" |
+| `code_point`'s `isSupplementaryPlane` (`:122`) | `0x10000.5` | `true` | "code points `0x010000` - `0x10FFFF`" |
+| `code_point`'s `isValidCodePoint` (`:137`) | `65.5` | `true` | "in the Unicode range … and not a surrogate" |
+| `code_point`'s `isTextCodePoint` (`:161`) | `65.5` | `true` | "a code point at or above `0x0020` …" |
+
+**Sites that trust them, or repeat the shape.**
 
 | site | input | answers | contract |
 |---|---|---|---|
@@ -22,50 +45,63 @@ The `text` decoders are done. What is left is the encode direction, two
 | `utf16`'s `fromCodePointList` | `[65.5]` | `[65.5]` | emits the fraction as a code unit |
 | `ascii`'s `hexDigitValue` (`:259`) | `53.5` | `5.5` | "the value `0..15` … or `null`" |
 | `ascii`'s `hexDigitCodePoint` (`:271`) | `5.5` | `53.5` | "the … code point denoting a value in `0..15`" |
-| `code_point`'s `isValidCodePoint` (`:137`) | `65.5` | `true` | "in the Unicode range … and not a surrogate" |
-| `code_point`'s `isTextCodePoint` (`:161`) | `65.5` | `true` | "a code point at or above `0x0020` …" |
-| `bnf`'s `rangeEncode` (`:77`) | `(65.5, 66)` | same as `(65, 66)` | `isValid` admits it, then `& mask` truncates |
+| `bnf`'s `rangeEncode` (`../../bnf/module.f.mjs:77`) | `(65.5, 66)` | same as `(65, 66)` | `isValid` admits it, then `& mask` truncates |
 
-The two encoders disagree with each other on the same input, which is the
-tell: neither decided what a non-integer means, so each inherited whatever its
-arithmetic happened to do. The `ascii` pair is the sharpest — each returns a
-value outside the range its own doc states. The two predicates answer `true`
-for something that is not a code point at all, which is what lets the rest
-through: a caller that asks `isValidCodePoint` first has already been told the
-input is fine.
+`isSupplementaryPlane` is the sharpest: it *is* the gate in front of the
+`>>`/`&` truncation in both encoders (`../utf8/module.f.mjs:132`,
+`../utf16/module.f.mjs:78`), so the fraction reaches the shift through the
+check meant to stop it, and both encoders then answer exactly as they would
+for the integer:
+
+```
+utf16 fromCodePointList([0x10000.5])  ->  [55296, 56320]        // === [0x10000]
+utf8  fromCodePointList([0x10000.5])  ->  [240, 144, 128, 128]  // === [0x10000]
+```
+
+Gate-then-truncate is not hypothetical: `../utf8/module.f.mjs:299-305` filters
+every code point through `!isValidCodePoint(cp)` before encoding, and
+`../../media/type/module.f.mjs:157-158` gates on both predicates.
+
+In the BMP arm the two encoders disagree with each other — `utf8` truncates
+`[65.5]` to `[65]`, `utf16` emits `[65.5]` as a code unit — which is the tell
+that neither decided what a non-integer means; each inherited whatever its
+arithmetic did. Above the BMP they agree, because both truncate.
 
 ### Proposal
 
-Give each site the domain predicate its decoder twin already has —
-`Number.isInteger(i) && <range>(i)` — and decide, per site, whether a rejected
-input is `null`, an `errorMask`-tagged code point, or an assertion. The
-decoders' answer was "tagged error, state passed through"; an encoder has no
-error channel in its return type today, so `fromCodePointList` needs that
-decision made rather than assumed.
+Fix `contains`'s consumers, not `contains` itself: a numeric range is the
+right thing for a numeric range, and `types/range` has callers that are not
+code-point predicates. Give each site the domain predicate the decoders now
+have — `Number.isInteger(i) && <range>(i)` — most cheaply by making the
+`code_point` predicates integral, since the encoders reach their arithmetic
+through those.
 
-The two predicates and `hexDigitValue` need no design question: all three
-already answer `false`/`null` for out-of-domain input, so a non-integer joins
-that branch.
+Per site, decide what a rejected input becomes: `null`, an `errorMask`-tagged
+code point, or an assertion. The decoders' answer was "tagged error, state
+passed through"; an encoder has no error channel in its return type today, so
+`fromCodePointList` needs that decision made rather than assumed. The
+predicates and `hexDigitValue` need no such decision — all already answer
+`false`/`null` for out-of-domain input, so a non-integer joins that branch.
 
 ### Tasks
 
-- [ ] `isValidCodePoint` and `isTextCodePoint`: answer `false` for a
-      non-integer. Fixing these first narrows what the sites below can be
-      handed.
+- [ ] Make the six `code_point` predicates integral. This is the gate the
+      encoders reach their truncation through, so it narrows everything below.
 - [ ] `hexDigitValue`: `null` for a non-integer. `hexDigitCodePoint`: decide,
       since its return type has no `null` today.
 - [ ] Decide what `fromCodePointList` does with a non-integer code point on
       both sides, and make `utf8` and `utf16` agree.
 - [ ] `bnf`'s `isValid`: decide whether the assertion should reject a
       non-integer before `& mask` silently truncates it.
-- [ ] Consider whether `text/code_point` should own one `isCodePoint`
-      predicate the way `u8`/`u16` are now written, rather than several
-      near-copies.
+- [ ] Consider one `isCodePoint` owned by `text/code_point` rather than the
+      several near-copies the table above lists.
+- [ ] Re-sweep for exports built on `contains` once the above land, and record
+      what the sweep covered so the next reader knows its limits.
 
 ### Related
 
-- `fjs/text/utf8/module.f.mjs` — `u8`, and `fjs/text/utf16/module.f.mjs` —
-  `u16`: the shape to copy, and the doc comments explaining why the integer
-  check is not redundant with the range.
+- `../utf8/module.f.mjs` — `u8`, and `../utf16/module.f.mjs` — `u16`: the shape
+  to copy, and the doc comments explaining why the integer check is not
+  redundant with the range.
 - The deleted `byte-guard-accepts-non-integers.md` closed the UTF-8 decoder
   half of this class; this file keeps the rest of it tracked.
