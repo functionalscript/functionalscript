@@ -51,21 +51,24 @@ hole is no entry at all, so `undeclaredEntries`
 ([`../common/module.f.mjs`](../common/module.f.mjs)) finds nothing and only
 `fits` — `value.length <= declared` — rejects it. Patching both tuple `fits` to
 `() => true` settles which is which: `[1, undefined]` still errors, the hole
-flips to `ok`.
-
-The data form says the same thing in the same two halves —
+flips to `ok`. The data form says the same in the same two halves,
 `extra.length === 0 && value.length <= pn` in `arraySetValidate`
-([`../data/module.f.mjs`](../data/module.f.mjs)) — which is why all three
+([`../data/module.f.mjs`](../data/module.f.mjs)), which is why all three
 readers agree cell for cell on every schema above.
+
+So exactly one case rests on `length`, the attribute the absence rule says
+stops being observable after the last required position. The other rests on
+counting a present-but-`undefined` member as a member — defensible, but the
+same question one step in, since the rule says that member *is* absence.
 
 ### A defect falls out, and it has to be fixed whichever answer wins
 
 Both length checks sit in the **no-`rest`** branch. Supplying a `rest` skips
 them, and a hole is no entry, so it meets nothing on the way through — while
-the data form, which reads a normalized set rather than the spelling, still
-applies its own. `never` is a public spelling of the exact-members set, and
-`close(c)` and `close(c, never)` normalize to the identical `Data`, so the two
-must be one schema. They are not:
+the data form, reading a normalized set rather than a spelling, still applies
+its own. `never` is a public spelling of the exact-members set, and `close(c)`
+and `close(c, never)` normalize to the identical `Data`, so the two must be one
+schema. They are not:
 
 | schema | `[1]` | `[1, undefined]` | `[1, ,]` (a hole) |
 | --- | --- | --- | --- |
@@ -73,57 +76,37 @@ must be one schema. They are not:
 | `close([number], never)` | ok / ok / ok | error / error / error | **ok / ok / error** |
 
 (`validate` / `parse` / data form; `cmp` reports the two `toData` results
-equal.) That is a reader disagreement of exactly the kind
-[#1712](https://github.com/functionalscript/functionalscript/pull/1712) fixed,
-not a design choice: whichever of A, B or C is chosen, one spelling of a set
-cannot accept what another rejects. It is listed first in the tasks for that
-reason, and it means **B is not documentation-only**.
+equal.) That is a reader disagreement of exactly the kind #1712 fixed, not a
+design choice: whichever of A, B or C is chosen, one spelling of a set cannot
+accept what another rejects. It is listed first in the tasks for that reason,
+and it means **B is not documentation-only**.
 
-The narrow fix is **not** to consult `fits` on both branches: `fits` is
-`value.length <= declared`, so applying it wherever a `rest` is present would
-reject every value the `rest` exists to admit — `close([number], string)`
-would stop accepting `[1, 'x']`, which all three readers take today.
-
-It is to **normalize an empty `rest` to no `rest`**, which is what `toData`
-already does and why the two disagree in the first place:
+The fix is to **normalize an empty `rest` to no `rest`** — what `toData`
+already does, and why the two disagree in the first place:
 
 ```
 toData(close([number]))         {"array":[{"prefix":[{"number":true}]}]}
 toData(close([number], never))  {"array":[{"prefix":[{"number":true}]}]}   ← no rest
 ```
 
-The data form has already dropped the empty `rest` by the time it validates, so
-it takes the length bound; the schema-form readers still see `rest !== undefined`
-and skip it. Dropping an empty `rest` in `closeContainerValidate` and
-`closeContainerParse` before the branch makes `close(c, never)` *be*
-`close(c)`, which is what the README already says it is, and leaves every
-non-empty `rest` untouched. A `rest` of `unknown` normalizes to the open form
-and is unaffected either way.
-
-The alternative — validate a trailing hole against the `rest`, reading it as
-`undefined` — also reconciles the two, but it is a wider change: it would move
-`close([number], string)` against `[1, ,]` from ok to error in all three
-readers, where they agree today.
-
-So exactly one case rests on `length`, the attribute the absence rule says
-stops being observable after the last required position. The other rests on
-counting a present-but-`undefined` member as a member — defensible, but it is
-the same question one step in, since the rule says that member *is* absence.
+Not to consult `fits` wherever a `rest` is present: `fits` is
+`value.length <= declared`, so that would reject the values a `rest` exists to
+admit — `close([number], string)` would stop accepting `[1, 'x']`, which all
+three readers take today.
 
 ### The length half has a stated defence
 
-It is not an oversight, and the argument is already written down, in that same
-function:
+It is not an oversight, and the argument is already written down, in
+`arraySetValidate`:
 
 > a hole past it is not an entry, but the array is still that long, and this is
 > the set `Ts<>` renders as a tuple of exactly `pn` positions and JSON Schema
 > as `items: false`
 
-That is the real cost of moving either half: `Ts<close([number])>` is
-`readonly[number]`, which no length-2 array inhabits however its second element
-is spelled, and `items: false` says the same to a JSON Schema consumer. Drop
-the length check and the closed tuple's value set stops matching both of its
-own renderings.
+`Ts<close([number])>` is `readonly[number]`, which no length-2 array inhabits
+however its second element is spelled, and `items: false` says the same to a
+JSON Schema consumer. Drop the length check and the closed tuple's value set
+stops matching both of its own renderings.
 
 So the decision is not "fix an inconsistency" but a choice between two
 correspondences the module currently cannot both keep: **absence is
@@ -136,8 +119,7 @@ is what it renders as** (which dropping it breaks).
 operand that rejects a present-but-`undefined` slot, and it rejects it through
 the extra check: position 3 is undeclared in the short alternative, and not a
 `propertyLambda` in the long one. So a consumer that wants **one spelling per
-value** — where a second spelling is a second hash — depends on the answer
-here.
+value** — where a second spelling is a second hash — depends on the answer.
 
 [`../../../edag`](../../../edag/README.md) is the sole consumer of `close`
 outside this directory, and it states its uniqueness claim as literal:
@@ -160,149 +142,110 @@ mechanism it does not describe, and under an answer that reads a hole as
 absence it would stop being held at all — leaving one node with two spellings
 and two hashes.
 
-**A declared `option` position is *not* governed by this issue.** Row 3 above
-already accepts `[1]` and `[1, undefined]` alike, and so would
-`close(['.', exp, index, option(propertyLambda)])` — measured, all four of
+**Out of scope: a declared `option` position.** Measured, all four of
 `['.', a, 'b', null]`, `['.', a, 'b']`, `['.', a, 'b', undefined]` and a hole
-validate against it. Whether a chain continuation could be spelled
-`option(propertyLambda)` rather than the literal `null` it carries today is a
-question about `option` at a declared position — now spellable at the type
-level too, since [#1708](https://github.com/functionalscript/functionalscript/pull/1708)
-renders such a position optional — and the absence rule answers it the same way
-under every option below. It is recorded here only to keep it out: it is not an
-argument for either answer.
+validate against `close(['.', exp, index, option(propertyLambda)])`, under
+every answer below — row 3 above is the same fact. Whether a chain
+continuation could be spelled that way is a separate question, noted only to
+keep it out.
 
 ## The decision
 
 **A. Absence is absence, however spelled.** A trailing `undefined` and a hole
-are both absence, so `close([number])` accepts `[1, undefined]`. It is the
-answer consistent with everything else RTTI says about absence, and it applies
-the same rule
-[`./parse-omits-undefined-members.md`](./parse-omits-undefined-members.md)
-applies to construction — but that is a shared principle, **not** support: that
-issue changes what `parse` builds at a *declared* position, where every answer
-here already agrees. `close([number, option(string)])` accepts `[1]` today
-(row 3 above), so an omitting `parse`'s output inhabits its closed schema under
-B and C as readily as under A. A stands or falls on undeclared positions alone.
-
-**A needs both knobs, not one.** `[1, undefined]` trips both halves of
-`extra.length === 0 && fits(...)` independently — it is an undeclared entry
-*and* the array is one longer than declared — so the short-circuit says only
-which half fires first, not which one to change. Measured: filtering
-`undefined`-valued extras out of `undeclaredEntries` while leaving `fits` alone
-changes nothing at all in the tuple kind (`[1, undefined]` error, hole error);
-patching both gives `[1, undefined]` ok and the hole ok. So **A is C plus the
-extra-check change**, and it is the extra check that carries the struct kind
-along: `close({ a: number })` against `{ a: 1, b: undefined }` is an error
+are both absence, so `close([number])` accepts `[1, undefined]` — the answer
+consistent with everything else RTTI says. It needs **both** knobs, not one:
+`[1, undefined]` trips both halves independently, so filtering
+`undefined`-valued extras while leaving `fits` alone changes nothing in the
+tuple kind (measured), and patching both is what admits it. **A is therefore C
+plus the extra-check change**, and the extra check carries the struct kind
+along — `close({ a: number })` against `{ a: 1, b: undefined }` is an error
 today with no length check anywhere near it. A costs the only way to reject a
-present-but-`undefined` trailing member.
+present-but-`undefined` trailing member. It shares its principle with
+[`./parse-omits-undefined-members.md`](./parse-omits-undefined-members.md), but
+draws no support from it: that issue changes a *declared* position, where every
+answer here already agrees, so A stands or falls on undeclared ones alone.
 
 **B. `length` is an attribute of an array value, and `close` is where it
-becomes observable.** No *acceptance* changes beyond the `close(c, never)` fix
-above, which every answer owes, and `or(close(short), close(long))` stays the
-supported way to state a canonical optional tail. What it owes the
-reader is narrower than "document the carve-out", because half of it is already
-inferable: "Closed containers" in [`../README.md`](../README.md) says a
-container whose undeclared members must be the *value* `undefined` states that
-rest as a wrapped const, which would be pointless if a bare `close(c)` admitted
-one. The **length** half is what no passage reaches — a hole is not an
-enumerable entry, so nothing in "the members `c` declares and no others" tells
-a reader that `close([number])` also bounds `value.length` and rejects
-`[1, ,]`.
+becomes observable.** No acceptance changes beyond the `close(c, never)` fix
+every answer owes, and `or(close(short), close(long))` stays the supported way
+to state a canonical optional tail. What it owes the reader is one sentence
+about `length`: the explicit-`undefined` half is already inferable, since
+"Closed containers" requires a wrapped-const rest for undeclared members that
+must be `undefined`, which would be pointless if a bare `close(c)` admitted
+one. Nothing anywhere reaches the length half — a hole is not an enumerable
+entry, so "the members `c` declares and no others" never tells a reader that
+`close([number])` also bounds `value.length`.
 
 **C. A hole is absence; a present-but-`undefined` member is a member.** The
 middle: the two tuple `fits` and the data form's `value.length <= pn`, leaving
 the extra check — and so the struct kind — untouched. It reads the rule as
 being about what a container *holds* rather than how long it is, which is what
-`Object.entries` already sees. Under it this file's title is a description of
-correct behaviour rather than a complaint.
+`Object.entries` already sees.
 
 B is the incumbent and has the better of the argument on the correspondence it
-keeps; what it owes is one sentence about `length`, since "Structs and tuples
-are open" states the absence rule unconditionally and nothing anywhere says a
-closed container also bounds how long a value may be. A
-is the most consistent and the most expensive, and it is the only one that has
-to answer for the struct kind. C is the smallest, and buys the least: it
-removes the hole from the rendered-set correspondence while leaving the
-explicit `undefined` outside the absence rule, so it satisfies neither
-correspondence fully.
-
-On the evidence here B, documented, is the answer — which makes this issue one
-defect to fix, one sentence to write, and two rejected alternatives recorded,
-rather than the wholesale behaviour change it looked like from the table alone.
-The one thing no answer should do is leave the README stating a rule the
-module's own closed containers do not follow.
+keeps, and owes only that sentence. A is the most consistent and the most
+expensive, and the only one that has to answer for the struct kind. C is the
+smallest and buys the least: it removes the hole from the rendered-set
+correspondence while leaving the explicit `undefined` outside the absence rule,
+satisfying neither fully. On this evidence B, documented, is the answer —
+making this issue one defect to fix, one sentence to write, and two rejected
+alternatives recorded. What no answer should do is leave the README stating a
+rule the module's own closed containers do not follow.
 
 ## Tasks
 
 - [ ] **First, and independent of the decision:** make `close(c, never)` and
       `close(c)` answer alike, by dropping an empty `rest` before the branch in
-      `closeContainerValidate` and `closeContainerParse` — not by consulting
-      `fits` wherever a `rest` is present, which would reject the values a
-      non-empty `rest` exists to admit. `arraySetValidate` needs no change; the
-      data form already normalizes the empty `rest` away, which is the half
-      that is right. Define "empty" as **whatever `toData` normalizes away** —
-      a `rest` whose canonical data is `never` — not as the exported `never`
-      value, and not as semantic emptiness in general. Both bounds matter:
-      keying on the singleton misses `or()` and `close([never])`, which are
-      other spellings whose canonical data *is* `never` (all three accept
-      `[1, ,]` today while their canonical data equals `close([number])` and
-      rejects it), so such an implementation would pass a `never`-only proof
-      with the disagreement intact. Reaching further than `toData` does is the
-      mirror-image mistake: `const r = () => ['close', [r], undefined]` has no
-      finite inhabitant, but `toData(r)` keeps a recursive rule rather than
-      `never`, so `toData(close([number], r))` still carries `rest: "r"` and
-      the data form runs its rest branch — all three accept `[1, ,]` there
-      today, and a schema reader clever enough to "recognise" that emptiness
-      would start rejecting what the data form accepts. Matching `toData`
-      exactly is what keeps the three aligned by construction.
-      Pin it with `[close([number], never), [42, ,]]` **and** one independently
+      `closeContainerValidate` and `closeContainerParse`. `arraySetValidate`
+      needs no change — the data form already normalizes it away, which is the
+      half that is right.
+- [ ] Define "empty" as **whatever `toData` normalizes away**: a `rest` whose
+      canonical data is `never`. Both bounds matter. Keying on the exported
+      `never` misses `or()` and `close([never])`, whose canonical data *is*
+      `never`, so such an implementation would pass a `never`-only proof with
+      the disagreement intact. Reaching further is the mirror-image mistake:
+      `const r = () => ['close', [r], undefined]` has no finite inhabitant, but
+      `toData(r)` keeps a recursive rule, so `toData(close([number], r))` still
+      carries `rest: "r"`, the data form runs its rest branch, and all three
+      accept `[1, ,]` there today — a reader clever enough to "recognise" that
+      emptiness would start rejecting what the data form accepts.
+- [ ] Pin it with `[close([number], never), [42, ,]]` **and** one independently
       constructed empty rest in
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs), asserting the
-      verdict outright rather than only adding rows: the shared table checks
-      that the three readers *agree*, so a row alone passes whenever all three
-      move together. Changelog entry prefixed `**BREAKING CHANGES:**`, the
-      repository's exact marker: `close(c, never)` and the other empty-rest
-      spellings stop accepting a trailing hole, which is
-      an observable narrowing for callers using the explicit-rest form even
-      though it is what the canonical semantics already said. #1712 labelled
-      its analogous reader-alignment change the same way.
+      verdict outright: the shared table checks only that the three readers
+      *agree*, so a row alone passes whenever all three move together.
+      Changelog entry prefixed `**BREAKING CHANGES:**` — the empty-rest
+      spellings stop accepting a trailing hole, an observable narrowing for
+      callers using the explicit-rest form. #1712 labelled its analogous
+      reader-alignment change the same way.
 - [ ] Decide A, B or C.
-- [ ] If B, which is what the evidence here favours: say in
-      [`../README.md`](../README.md) that a closed container bounds `length`
-      too, so a trailing **hole** is a non-member — the one half no passage
-      reaches today — and give the reason `arraySetValidate` already gives,
-      that this keeps the set equal to what `Ts<>` and JSON Schema render it
-      as. Do **not** restate the explicit-`undefined` half: "Closed
-      containers" already implies it, by requiring a wrapped-const rest for
-      undeclared members that must be `undefined`, and a second telling risks
-      contradicting the first.
+- [ ] If B, which the evidence favours: say in [`../README.md`](../README.md)
+      that a closed container bounds `length` too, so a trailing **hole** is a
+      non-member, giving the reason `arraySetValidate` already gives — it keeps
+      the set equal to what `Ts<>` and JSON Schema render it as. Do **not**
+      restate the explicit-`undefined` half; "Closed containers" already
+      implies it, and a second telling risks contradicting the first.
 - [ ] If C: the two tuple `fits`, in
       [`../validate/module.f.mjs`](../validate/module.f.mjs) and
       [`../parse/module.f.mjs`](../parse/module.f.mjs), and the
-      `value.length <= pn` half of `arraySetValidate` in
-      [`../data/module.f.mjs`](../data/module.f.mjs). Changelog entry prefixed
+      `value.length <= pn` half of `arraySetValidate`. Changelog entry prefixed
       `**BREAKING CHANGES:**` — `close` accepts a trailing hole.
 - [ ] If A: everything C touches, **plus** the `undeclaredEntries` filter in
       `closeContainerValidate` and `closeContainerParse` and the matching
-      filter in `arraySetValidate` — patching either knob alone leaves
-      `[1, undefined]` rejected. Changelog entry prefixed
+      filter in `arraySetValidate`. Changelog entry prefixed
       `**BREAKING CHANGES:**` — `close` accepts an undeclared `undefined`
       member.
 - [ ] If A, decide the struct kind, which the extra check carries along, and
-      note it has a **fourth** site: the data form encodes a closed struct as
+      note its **fourth** site: the data form encodes a closed struct as
       `rest: never` and reads it with `objectSetValidate`, which has no length
-      analogue to the tuple kind's, so `{ a: 1, b: undefined }` is rejected
-      there by the `rest` alone.
+      analogue, so `{ a: 1, b: undefined }` is rejected there by the `rest`
+      alone.
 - [ ] Either way, add `[close([number]), [42, undefined]]` to
-      [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table.
-      The hole row (`[close([number]), [42, ,]]`) is already there; the
-      explicit-`undefined` one is what would have shown the two rejections
-      apart, and under B it is the row that pins the carve-out. A row is not
-      enough on its own — that table only pins that the three readers agree, so
-      it passes whenever all three move together. Assert the chosen verdict
-      with an `assertOk`/`assertError` oracle beside it, as `optionalPositions`
-      does.
+      [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table,
+      with an `assertOk`/`assertError` oracle beside it as `optionalPositions`
+      has. The hole row is already there; the explicit-`undefined` one is what
+      would have shown the two rejections apart, and under B it pins the
+      carve-out.
 - [ ] Either way, say what a consumer wanting exactly one spelling per value
       should use — `or(close, close)` under B, or a normalizer
       ([`./identity-aware-parse.md`](./identity-aware-parse.md)) or a
@@ -311,7 +254,7 @@ module's own closed containers do not follow.
       [`../../../edag/README.md`](../../../edag/README.md). Both admit a
       hole-padded array as a second spelling of every node, so the claim would
       no longer be literal — A admits a trailing `undefined` on top of that.
-      Only B leaves the sentence true as written.
+      Only B leaves it true as written.
 
 ## Related
 
@@ -327,17 +270,13 @@ module's own closed containers do not follow.
   the same "a hole is `undefined`" reading, applied to the schema. This is the
   value side, and `close` is where the two readings part.
 - [`./parse-omits-undefined-members.md`](./parse-omits-undefined-members.md) —
-  the same rule, read by `parse` on the way *out*. Filed with
-  [#1708](https://github.com/functionalscript/functionalscript/pull/1708),
-  which landed the `Ts<>` half: a trailing omittable position now renders
-  optional, so a declared position's rendering tracks its value set.
-  **Deliberately not folded into it**, though an earlier draft of this file
-  said to: the two ask different questions of different readers, and either can
-  be answered without the other. That one is about what `parse` *builds* at a
-  **declared** position it found absent; this one is about whether an
-  **undeclared** trailing `undefined` or hole is a member at all. Answer A here
-  would make them agree at the closed boundary, which is the only place they
-  meet.
+  the same rule, read by `parse` on the way *out*, filed with
+  [#1708](https://github.com/functionalscript/functionalscript/pull/1708).
+  **Not folded into it:** that one asks what `parse` *builds* at a **declared**
+  position it found absent, this one whether an **undeclared** trailing
+  `undefined` or hole is a member at all, and either can be answered without
+  the other. Answer A would make them agree at the closed boundary, the only
+  place they meet.
 - [`../../../edag/README.md`](../../../edag/README.md) and
   [`../../../edag/module.f.mjs`](../../../edag/module.f.mjs) — the only
   consumer of `close` outside this directory, its literal uniqueness claim, and
