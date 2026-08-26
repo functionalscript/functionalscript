@@ -273,9 +273,20 @@ The cost is that `rest(c, X)` and `rest(c, X')` are then structurally distinct
 while denoting one set, which is exactly the incompleteness
 [`../data/README.md`](../data/README.md) already accepts and documents for rule
 *names* — semantically equal, structurally distinct, and mutual `subset`s rather
-than `equal`. To keep that property here, `subset` masks the absent bit when it
-compares rest positions; without the mask the two spellings would not even be
-mutual subsets, which is the part that would actually be wrong.
+than `equal`. `subset` gets there by **resolving** the rest rather than masking
+the bit — it already resolves references coinductively — and comparing present
+parts.
+
+Masking would be unsound, and the case that shows it is reachable: for
+`X = or(option, Y)` with `Y = or(X)`, the pure `or` cycle dissolves to the absent
+bit alone, so `X`'s present part is empty. Then `rest(c, X)` keeps a `rest` and
+admits any hole-only array, while the stripped `X'` is `never`, which normalizes
+to no `rest` and so **bounds the length** — the two denote different sets, not one
+set spelled twice. A mask would report them as mutual subsets, and `subset`
+answering `true` for a non-inclusion is the one thing `../data/README.md`
+promises it never does. So the structural distinctness is an accepted
+incompleteness where the present part is non-empty, and simply *correct* where it
+is empty.
 
 Materializing derived rules instead would restore full canonicality at the price
 of a fixpoint construction over the rule graph, a naming scheme that cannot
@@ -558,6 +569,12 @@ Stage 2 (one PR, after stage 1 lands):
       assignment or mutation. Verified: `[1, , 3].slice(0, 3)` keeps the hole at
       1, `[1, , ,].slice(0, 1)` is `[1]` with length 1, and a `.map` after either
       keeps the hole.
+- [ ] `../ts/module.f.mjs`, the **runtime printer**: `arraySetToTs` and
+      `objectSetToTs` decide optionality through their own `admitsUndefined`
+      (`:159`, `:184`, `:217`), so without this `{ a: or(option, number) }` and
+      `[1, or(option, number)]` print required members while `Ts<>` and both
+      readers treat them as optional — and the two-renderer pin below could not
+      hold. Move them to the absent bit and update `../ts/proof.f.mjs`.
 - [ ] `../../../media/json/schema/module.f.mjs`: move `admitsUndefined` (and so
       `required`/`minItems`) to the absent bit, leave `stripUndefined` on
       `undefined`, and update `./proof.f.mjs` — a third renderer over the data
@@ -597,9 +614,12 @@ Stage 2 (one PR, after stage 1 lands):
       `_TsRaw`-shaped: it carries `Absent` when the schema's root admits absence,
       the branch keeps `Exclude<O, undefined>` (which strips the optional-field
       artifact, not the marker), and the public `Ts` strips `Absent` as it does
-      everywhere else. No new mechanism enforces it — the two asserts
-      `../../phantom/types.ts` already mandates catch a missing `Absent`, since
-      the one against the un-annotated thunk forces the structural walk. Runtime
+      everywhere else. Enforcing it needs a **new assert**: the existing pair
+      compares through public `Ts`, which strips `Absent` from both sides, so
+      `Check3<number, typeof raw, typeof wrapped>` passes even when `_TsRaw<raw>`
+      is `Absent | number` and the annotation says `number` — and the member then
+      renders required. Add a `_TsRaw`-level check (`CheckRaw<A, B> = Equal<A,
+      _TsRaw<B>>`) for the raw half, since that is the only half with teeth here. Runtime
       is untouched: a `Phantom` has no runtime representation, so `admitsAbsence`
       walks the same thunk either way. Proof: an optional `Phantom`-wrapped
       member.
