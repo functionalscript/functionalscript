@@ -395,6 +395,26 @@ those two errors at the price of a second syntactic category — but it is a tra
 and each degenerate spelling's normal form should be pinned by a proof so it
 stays deliberate rather than incidental.
 
+**The entry node keeps its bit**, and that asymmetry with the rest is deliberate
+rather than an oversight. At the entry, `or(option, number)` and `number` accept
+exactly the same inputs — nothing can be handed to a call that is not there — yet
+they stay structurally distinct, so `equal` is false between them and `subset`
+holds only from `number` to the union. They are different *sets*, and this form
+compares sets; the entry position simply cannot witness the difference.
+
+Stripping there instead would cost more than it buys. A rest node has no life
+outside its position: it is a field of a pattern, and every value that position
+ever sees is a present member, so the bit is vacuous by construction. An entry
+node **is the schema** — a `Data` is serializable and a consumer may embed it at
+a member position, where the bit is live again. Stripping it at the root would
+make `toData` lose information that reappears as a silent meaning change on
+reuse, which is worse than an `equal` that answers "different" for two schemas
+that behave alike in one position.
+
+So this joins the same list as the rule-name limit in
+[`../data/README.md`](../data/README.md): semantically indistinguishable *here*,
+structurally distinct, and content-addressed apart. Stated, not latent.
+
 On the name: `option` is kept as proposed. It names the modality where `absent`
 or `none` would name the value, but as the only spelling it is unambiguous, and
 `or(option, number)` reads correctly. Do **not** reintroduce an `option(t)`
