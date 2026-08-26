@@ -285,23 +285,47 @@ rule the module's own closed containers do not follow.
       invariant rather than a list of spellings. **Under A, "admits only
       `undefined`" stops distinguishing a member from its absence, so every
       place the canonical form can record such a member has to collapse.**
-      Measured today, six spellings that A would make equal in membership and
-      leave distinct in data:
+      Measured today, four spellings that A would make equal in membership and
+      leave distinct in data, two per kind:
 
       | schema | `toData` |
       | --- | --- |
       | `close([number])` | `{prefix:[{number:true}]}` |
       | `close([number], cu)` | `{prefix:[{number:true}], rest:{unit:2}}` |
-      | `close([number, cu])` | `{prefix:[{number:true},{unit:2}]}` |
       | `close({a:number})` | `{props:{a:…}, rest:{}}` |
       | `close({a:number}, cu)` | `{props:{a:…}, rest:{unit:2}}` |
-      | `close({a:number, b:cu})` | `{props:{a:…,b:{unit:2}}, rest:{}}` |
 
-      (`cu` is `() => ['const', undefined]`.) So it is not one rule about an
-      array `rest`: a trailing `{unit:2}` prefix node, an object `rest` and an
-      undefined-only property each need the same treatment. Audit for the
-      general case rather than these six, since the list is not claimed
-      exhaustive, and pin the equalities.
+      (`cu` is `() => ['const', undefined]`.) Audit for the general case rather
+      than these four, since the list is not claimed exhaustive, and pin the
+      equalities.
+
+      **A declared undefined-only position is not one of them.** The two
+      spellings that look like they belong above and do not are
+      `close([number, cu])`, whose data is `{prefix:[{number:true},{unit:2}]}`,
+      and `close({a:number, b:cu})`, whose data is
+      `{props:{a:…,b:{unit:2}}, rest:{}}`. A closed container reads a
+      **declared** member through `getItem` — `value[k]`, which walks the
+      prototype chain — and enumerates **undeclared** ones with
+      `Object.entries`, which is own-only. An inherited member is therefore
+      invisible to the shorter schema and fatal to the longer one, whatever the
+      undeclared branch is patched to do:
+
+      ```js
+      const proto = Object.assign(Object.create(Array.prototype), { 1: 'x' })
+      const v = Object.setPrototypeOf([1], proto)
+      ```
+
+      `close([number])` accepts `v`; `close([number, cu])` rejects it. The
+      object kind splits the same way on `{ a: 1 }` with an inherited
+      `b: 'x'`. All three readers agree on every one of those cells, today and
+      under a simulated A — the declared-member walk runs before and
+      independently of `extra`, `rest` and `fits`, so no patch confined to the
+      undeclared branch reaches it. Collapsing those two nodes would hand one
+      `../../../cas` hash to sets that differ. Either make container membership
+      read own members only, which is the value-side half of
+      [`./schema-walk-own-indices.md`](./schema-walk-own-indices.md) and is
+      undecided there, or keep both nodes and add an inherited-member row to
+      the proof.
 
       **Collapse exactly what the readers stopped distinguishing, per kind.**
       The invariant follows the decision above, it does not outrun it: with the
@@ -309,7 +333,7 @@ rule the module's own closed containers do not follow.
       against `close({ a: number })`, so collapsing the object rows would give
       one canonical form — and one `../../../cas` hash — to two different
       memberships, which is the same defect this issue opens with, pointed the
-      other way. The array rows go with A; rows four to six go with struct-in
+      other way. The array rows go with A; the object rows go with struct-in
       and not otherwise.
 - [ ] Either way, add `[close([number]), [42, undefined]]` to
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table,
@@ -340,6 +364,10 @@ rule the module's own closed containers do not follow.
 - [PR #1712](https://github.com/functionalscript/functionalscript/pull/1712) —
   the same "a hole is `undefined`" reading, applied to the schema. This is the
   value side, and `close` is where the two readings part.
+- [`./schema-walk-own-indices.md`](./schema-walk-own-indices.md) — the same
+  own-versus-inherited split, on the schema. Its closing note calls the value
+  side settled because the readers agree there, and they do; A is what would
+  make it matter anyway.
 - [`./parse-omits-undefined-members.md`](./parse-omits-undefined-members.md) —
   the same rule, read by `parse` on the way *out*, filed with
   [#1708](https://github.com/functionalscript/functionalscript/pull/1708).

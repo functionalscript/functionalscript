@@ -61,9 +61,13 @@ Undecided; the two options are not a ladder.
 Option 2 is only coherent if **both** move. Changing `tupleSchemaEntries` alone
 re-opens the split that #1712 closed — measured on the probes above.
 
-The value side is a separate question and looks settled: `getItem` reads
-`value[k]`, which follows a value's prototype chain too, and the readers agree
-with each other there today.
+The value side is a separate question, and settled only in the sense that the
+readers agree: `getItem` reads `value[k]`, which follows a value's prototype
+chain too, while `undeclaredEntries` enumerates own keys only. Answer A in
+[`./close-counts-trailing-undefined.md`](./close-counts-trailing-undefined.md)
+would make that asymmetry load-bearing — it asks the canonical form to equate
+`close([number])` with `close([number, () => ['const', undefined]])`, which an
+inherited index at 1 tells apart.
 
 ## Tasks
 
