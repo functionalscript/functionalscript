@@ -230,7 +230,7 @@ section of [proof.f.mjs](proof.f.mjs) is one case per family.
 | `a?.b?.c` | no lambda has a `?.` production; `?.` is only ever a node tag, so a guarded property access always starts a node |
 | `a.b(...c)?.d` | `propertyLambda`'s `\|()` is terminal, so the chain exits |
 | `(a?.(...b))(...c)` | `optionLambda` has no `\|!()`; the outer call is a plain `()` |
-| `a?.b(...c)?.d` | `optionLambda` has no guarded step either |
+| `a?.b(...c)?.(...d)` | `optionLambda` has no guarded step either — the property variant `a?.b(...c)?.d` is family 1 |
 
 The same holds for dead prefixes: `propertyLambda` has no `|.` production, so
 plain property paths nest and `a.b.c` has exactly one spelling. "Exactly one"
@@ -265,12 +265,21 @@ reading, and an executor must produce it whatever its host does — as
 throw on every runner. `(u?.b).c`, the property counterpart, throws everywhere
 and is what `chainsJs` pins for this boundary.
 
-The same engine split is why one *pair* of spellings has no JavaScript proof
-either: `a.b(...c)` and `(a?.b)(...c)` are both `TypeError` on a nullish base
-and differ only in whether the arguments ran — the first throws at the access
-with `c` untouched, the second short-circuits, evaluates `c`, and throws at
-the call. `(a?.b.c)(...d)` against `(a?.b).c(...d)` is the same pair one step
-further in. Both live in `amnesia/proof.f.mjs`, where the node is the oracle.
+One pair of spellings has no proof **anywhere**, and it is worth being exact
+about why. `a.b(...c)` and `(a?.b)(...c)` are both `TypeError` on a nullish
+base and differ only in whether the arguments ran: the first throws at the
+access with `c` untouched, the second short-circuits, evaluates `c`, and
+throws at the call. `(a?.b.c)(...d)` against `(a?.b).c(...d)` is the same pair
+one step further in. JavaScript cannot pin them, because they are `|!()`
+terms; and neither can the node, because *both* readings throw, this language
+has no mutation for a skipped operand to record itself with, and a `throw`
+case is pass/fail rather than payload-inspecting (`fjs/AGENTS.md` §1.5). What
+`amnesia/proof.f.mjs` pins is that each side throws where it should. The order
+itself is carried by the shape of `callProperty` in
+[amnesia/module.f.mjs](amnesia/module.f.mjs) — it takes the argument *node*
+and evaluates it inside the call expression, so JavaScript's own order applies
+— and by that function's JSDoc, which says so. Take an evaluated array there
+instead and every test still passes.
 
 Two further points about that disagreement, both worth knowing before reading
 the commented cases in `chainsJs.throw`. It is the *engine*, not bun's

@@ -186,6 +186,9 @@ export const proof = {
             assertNoMatch(v(['?.', 'a', 'b', null, 'extra']))
             assertNoMatch(v(['?.()', 'f', 1, null, 'extra']))
             assertNoMatch(v(['.', 'a', 'b', ['|()', 1, null, 'extra']]))
+            assertNoMatch(v(['.', 'a', 'b', ['|?.()', 1, null, 'extra']]))
+            assertNoMatch(v(['?.', 'a', 'b', ['|.', 'c', null, 'extra']]))
+            assertNoMatch(v(['?.', 'a', 'b', ['|!()', 1, null, 'extra']]))
             assertNoMatch(v(['.', 'a', ['Number', 1, 'extra'], null]))
         },
     },
@@ -257,6 +260,11 @@ export const proof = {
             assertOk(vOptionPropertyLambda(['|.', 'c', null]))
             assertOk(vOptionPropertyLambda(['|?.()', 1, null]))
             assertOk(vOptionPropertyLambda(['|!()', 1, null]))
+            // `|.` hands the region back to this same state, so every
+            // production above is reachable one property step further in —
+            // `a?.b.c?.(...d)` is the guarded call through a `|.`.
+            assertOk(vOptionPropertyLambda(['|.', 'c', ['|?.()', 1, null]]))
+            assertOk(vOptionPropertyLambda(['|.', 'c', ['|.', 'd', null]]))
         },
         // `|.` takes an `index` and the call steps take an `exp`, the same
         // operand schemas the nodes use — so a general `exp` in a naming
@@ -407,6 +415,8 @@ export const proof = {
             // (a?.b.c)(...args) — the region closes after a property step,
             // which is the same `|!()` one step further in.
             assertOk(v(['?.', 'a', 'b', ['|.', 'c', ['|!()', 'args', null]]]))
+            // a?.b.c?.(...args) — and so is the guarded call.
+            assertOk(v(['?.', 'a', 'b', ['|.', 'c', ['|?.()', 'args', null]]]))
         },
         // The operands an optional node skips on its nullish branch have to
         // be operands *of* that node, which is what makes `k`/`a`
@@ -596,12 +606,16 @@ export const proof = {
         // The two spellings that differ *only* in whether the arguments ran —
         // `a.b(...c)` throws at the access with `c` untouched, `(a?.b)(...c)`
         // short-circuits, evaluates `c`, and throws at the call — cannot be
-        // pinned here at all, and neither can `(u?.at)(0)` itself: both are
+        // pinned here, nor by the node either: both readings throw, and a
+        // `throw` case is pass/fail rather than payload-inspecting. What
+        // carries that order is the shape of `callProperty` in
+        // `./amnesia/module.f.mjs`; "Where the host engines disagree" in
+        // `./README.md` states the gap. Nor can `(u?.at)(0)` be pinned: both are
         // `|!()` terms, JavaScriptCore (so `bun test`) carries the
         // short-circuit through the parentheses and answers `undefined` where
         // V8 throws, so asserting either answer would redden a runner. The
         // node is unaffected — `['?.', u, 'at', ['|!()', …, null]]` means the
-        // throwing reading — and `chain.throw.closeStepOnUndefined` in
+        // throwing reading — and `optionRegion.throw.closeStepOnUndefined` in
         // `./amnesia/proof.f.mjs` pins it by evaluating the node, which is
         // the only oracle that works on every runner. See "Chains" in
         // `./README.md`. `throw.groupedOptional` below pins the same boundary

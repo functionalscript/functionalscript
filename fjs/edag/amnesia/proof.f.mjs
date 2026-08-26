@@ -398,6 +398,9 @@ export const proof = {
         eq(['?.', ['[]', [42]], 'at', ['|!()', ['[]', [0]], null]], 42)
         // (a?.b.c)(...d) — the same close one property step further in.
         eq(['?.', methods, 'o', ['|.', 'id', ['|!()', ['[]', [7]], null]]], 7)
+        // a?.b.c?.(...d) — the guarded call reached through a property step,
+        // which is the region handing `optionPropertyLambda` back to itself.
+        eq(['?.', methods, 'o', ['|.', 'id', ['|?.()', ['[]', [7]], null]]], 7)
         // a?.b(...c).d(...e) — one region across two calls, the second
         // making its own receiver.
         eq(['?.', ['{}', [[':', 'g', constMethods]]], 'g',
@@ -480,6 +483,20 @@ export const proof = {
             // `optionLambda` for `optionPropertyLambda`.
             closeStepAfterOptionCall: () =>
                 ev(['?.()', undef, boom, ['|.', boomIndex, ['|!()', noArgs, null]]]),
+            // `(a.absent?.(...b).m)(...d)` — and from a `.` node, whose
+            // `|?.()` opens a region that short-circuits at once. That is the
+            // third and last entry to `skip`, so between them the three cases
+            // cover every state a region can be abandoned in.
+            closeStepAfterPropertyGuard: () =>
+                ev(['.', methods, 'absent',
+                    ['|?.()', boom, ['|.', boomIndex, ['|!()', noArgs, null]]]]),
+            // `(a.absent?.(...b))(...d)` — the same short-circuit under a
+            // *node* boundary instead of a step: the `.` node evaluates to
+            // `undefined` and the `()` over it calls that. The step spelling
+            // above and this one are the two halves of the parenthesis law
+            // at the same place, and they agree.
+            callOfSkippedGuard: () =>
+                ev(['()', ['.', methods, 'absent', ['|?.()', boom, null]], noArgs]),
         },
     },
     // The frame is the only channel outward: a body's leaves are constants,

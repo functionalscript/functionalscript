@@ -51,20 +51,14 @@ const o1 =
 const nullish = v => v === undefined || v === null
 
 /**
- * The argument array of a call, **deferred**: one node evaluating to the
- * *complete* array, spread at the call site — `f(a, b)` is
- * `['()', f, ['[]', [a, b]]]`, and `=>` collects with `(...args)`. Passed as a
- * single argument instead, the callee's `['args']` would be `[[a, b]]`.
+ * The argument array of a call: one node evaluating to the *complete* array,
+ * spread at the call site — `f(a, b)` is `['()', f, ['[]', [a, b]]]`, and `=>`
+ * collects with `(...args)`. Passed as a single argument instead, the callee's
+ * `['args']` would be `[[a, b]]`.
  *
- * It is a thunk because JavaScript reads the callee before it evaluates the
- * arguments: `a.b(...c)` throws at the access when `a` is nullish, with `c`
- * untouched, where `(a?.b)(...c)` reaches the call and so evaluates `c` first.
- * Forcing it in an argument position would put every argument list ahead of
- * the property read and lose that order.
- *
- * @type {(f: _Eval, e: Exp) => () => readonly any[]}
+ * @type {(f: _Eval, e: Exp) => readonly any[]}
  */
-const argsOf = (f, e) => () => /**@type {any}*/(f(e))
+const argsOf = (f, e) => /**@type {any}*/(f(e))
 
 /**
  * Calls a bare value — no receiver.
@@ -75,18 +69,30 @@ const argsOf = (f, e) => () => /**@type {any}*/(f(e))
  * method would then silently succeed on the wrapper instead of throwing:
  * `((a.at)(0))(0)` returned `Array.prototype.at`.
  *
- * @type {(v: unknown, a: () => readonly any[]) => unknown}
+ * @type {(f: _Eval, v: unknown, e: Exp) => unknown}
  */
-const callValue = (v, a) => /**@type {any}*/(v)(...a())
+const callValue = (f, v, e) => /**@type {any}*/(v)(...argsOf(f, e))
 
 /**
  * Calls `obj[prop]` *on* `obj`. That receiver is the whole reason a property
  * access owns its call rather than handing on a value: `[42].at(0)` is `42`
  * only because `at` is called on the array.
  *
- * @type {(obj: any, prop: any, a: () => readonly any[]) => unknown}
+ * **The argument node, not the argument array.** Both helpers take the operand
+ * and evaluate it themselves, inside the call expression, so that JavaScript's
+ * own order applies: the callee is read first, then the arguments. That order
+ * is observable — `a.b(...c)` throws at the access when `a` is nullish with
+ * `c` untouched, where `(a?.b)(...c)` reaches the call and so evaluates `c`
+ * before throwing — and it is *not* provable here: both readings throw, this
+ * language has no mutation for an operand to record itself with, and a `throw`
+ * case is pass/fail rather than payload-inspecting (`fjs/AGENTS.md` §1.5). So
+ * the structure carries what a proof cannot. Taking an evaluated array instead
+ * would put every argument list ahead of the property read, and every test
+ * here would still pass.
+ *
+ * @type {(f: _Eval, obj: any, prop: any, e: Exp) => unknown}
  */
-const callProperty = (obj, prop, a) => obj[prop](...a())
+const callProperty = (f, obj, prop, e) => obj[prop](...argsOf(f, e))
 
 /**
  * The short-circuit. A region whose guard failed produces `undefined` and
@@ -105,7 +111,7 @@ const callProperty = (obj, prop, a) => obj[prop](...a())
 const skip = (f, k) => {
     if (k === null) { return undefined }
     return k[0] === '|!()'
-        ? callValue(undefined, argsOf(f, k[1]))
+        ? callValue(f, undefined, k[1])
         : skip(f, k[2])
 }
 
@@ -120,7 +126,7 @@ const optionLambda = (f, v, k) => {
     if (k === null) { return v }
     const [o, e, cont] = k
     switch (o) {
-        case '|()': return optionLambda(f, callValue(v, argsOf(f, e)), cont)
+        case '|()': return optionLambda(f, callValue(f, v, e), cont)
         case '|.': return optionPropertyLambda(f, v, f(e), cont)
     }
 }
@@ -142,11 +148,11 @@ const optionPropertyLambda = (f, obj, prop, k) => {
     const [o, e, cont] = k
     switch (o) {
         case '|.': return optionPropertyLambda(f, obj[prop], f(e), cont)
-        case '|()': return optionLambda(f, callProperty(obj, prop, argsOf(f, e)), cont)
-        case '|!()': return callProperty(obj, prop, argsOf(f, e))
+        case '|()': return optionLambda(f, callProperty(f, obj, prop, e), cont)
+        case '|!()': return callProperty(f, obj, prop, e)
         case '|?.()': return nullish(obj[prop])
             ? skip(f, cont)
-            : optionLambda(f, callProperty(obj, prop, argsOf(f, e)), cont)
+            : optionLambda(f, callProperty(f, obj, prop, e), cont)
     }
 }
 
@@ -164,10 +170,10 @@ const propertyLambda = (f, obj, prop, k) => {
     if (k === null) { return obj[prop] }
     const [o, e, cont] = k
     switch (o) {
-        case '|()': return callProperty(obj, prop, argsOf(f, e))
+        case '|()': return callProperty(f, obj, prop, e)
         case '|?.()': return nullish(obj[prop])
             ? skip(f, cont)
-            : optionLambda(f, callProperty(obj, prop, argsOf(f, e)), cont)
+            : optionLambda(f, callProperty(f, obj, prop, e), cont)
     }
 }
 
@@ -184,7 +190,7 @@ const map = {
     // `throw.detachedReceiver` is the difference.
     '()': (x, [, a, b]) => {
         const i = vm(x)
-        return callValue(i(a), argsOf(i, b))
+        return callValue(i, i(a), b)
     },
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
@@ -233,7 +239,7 @@ const map = {
     '?.()': (x, [, a, b, k]) => {
         const i = vm(x)
         const f = i(a)
-        return nullish(f) ? skip(i, k) : optionLambda(i, callValue(f, argsOf(i, b)), k)
+        return nullish(f) ? skip(i, k) : optionLambda(i, callValue(i, f, b), k)
     },
     '??': o2lazy((a, b) => a ?? b()),
     Number: o1(Number),

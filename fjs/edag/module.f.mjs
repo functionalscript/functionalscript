@@ -405,10 +405,14 @@ export const call = close(['()', exp, exp])
 
 /**
  * ```js
- * exp0[exp1]                 // ['.', exp0, exp1, null]
+ * exp0.k                     // ['.', exp0, 'k', null]
+ * exp0[exp1]                 // ['.', exp0, ['Number', exp1], null]
  * exp0.k(...exp2)            // ['.', exp0, 'k', ['|()', exp2, null]]
  * exp0.k?.(...exp2)          // ['.', exp0, 'k', ['|?.()', exp2, null]]
  * ```
+ *
+ * The naming operand is an `index`, not an `exp`, so a computed key is spelled
+ * `['Number', exp]`: `['.', a, ['args'], null]` does not validate.
  *
  * Property access, owning whatever the receiver it produces is used for. The
  * `null` continuation is the plain read — the receiver is dropped, as JS
@@ -423,9 +427,10 @@ export const dot = close(['.', exp, index, propertyLambda])
 
 /**
  * ```js
- * exp0?.exp1                 // ['?.', exp0, exp1, null]
- * exp0?.exp1.k               // ['?.', exp0, exp1, ['|.', 'k', null]]
- * (exp0?.exp1)(...exp2)      // ['?.', exp0, exp1, ['|!()', exp2, null]]
+ * exp0?.k                    // ['?.', exp0, 'k', null]
+ * exp0?.[exp1]               // ['?.', exp0, ['Number', exp1], null]
+ * exp0?.k.m                  // ['?.', exp0, 'k', ['|.', 'm', null]]
+ * (exp0?.k)(...exp2)         // ['?.', exp0, 'k', ['|!()', exp2, null]]
  * ```
  *
  * Optional property access, owning the rest of its optional region. If `exp0`
