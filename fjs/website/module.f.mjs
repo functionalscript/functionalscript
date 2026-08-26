@@ -16,8 +16,6 @@ const html = htmlUtf8(
     ['title', 'FunctionalScript browser tests'],
     ['style', `
 body { color: #202124; font: 16px system-ui; margin: 3rem auto; max-width: 48rem; padding: 0 1rem }
-[data-state="loading"] [data-test-summary]::before { content: "Loading…" }
-[data-state="running"] [data-test-summary]::before { content: "Running…" }
 [data-state="passed"] { color: #137333 }
 [data-state="failed"], [data-state="infrastructure-error"] { color: #b3261e }
 [data-test-results] { color: #202124 }
@@ -28,7 +26,7 @@ pre { white-space: pre-wrap }
 )(
     ['main', { 'data-browser-tests': '', 'data-state': 'loading' },
         ['h1', 'FunctionalScript browser tests'],
-        ['p', { 'data-test-summary': '' }],
+        ['p', { 'data-test-summary': '' }, 'Loading…'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run again'],
         ['pre', ['ol', { 'data-test-results': '' }]],
         ['p', ['a',

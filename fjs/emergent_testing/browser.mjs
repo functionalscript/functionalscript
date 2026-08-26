@@ -38,8 +38,7 @@ const collect = (path, throws, value) => {
 /** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
 const runOne = (module, path, throws, fn, result) => {
     const start = performance.now()
-    return Promise.resolve().then(fn).then(
-        value => {
+    const passed = value => {
             const duration = performance.now() - start
             if (throws) {
                 const failure = { module, path: formatPath(path), status: 'failed', duration,
@@ -55,8 +54,8 @@ const runOne = (module, path, throws, fn, result) => {
                 result(success)
                 return [success, ...results.flat()]
             })
-        },
-        error => {
+        }
+    const failed = error => {
             const duration = performance.now() - start
             if (throws) {
                 const success = { module, path: formatPath(path), status: 'passed', duration }
@@ -68,6 +67,12 @@ const runOne = (module, path, throws, fn, result) => {
             result(failure)
             return [failure]
         }
+    // Wrap the raw return so Promise resolution does not assimilate arbitrary
+    // objects with a `then` proof property. The Node runner awaits only actual
+    // promises, and browser execution must preserve that same test-tree rule.
+    return Promise.resolve().then(() => [fn()]).then(
+        ([value]) => value instanceof Promise ? value.then(passed, failed) : passed(value),
+        failed
     )
 }
 
@@ -83,12 +88,16 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             () => runOne(module, path, throws, fn, result)
         )
     )
-    const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0))
-    const completed = tests.reduce((promise, test, index) => promise.then(results =>
-        (index % 25 === 0 ? yieldToBrowser() : Promise.resolve())
-            .then(test)
-            .then(next => [...results, ...next])
-    ), Promise.resolve(/** @type {readonly _BrowserTestResult[]} */ ([])))
+    const batchSize = 25
+    /** @type {(index: number, results: readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]>} */
+    const runBatch = (index, results) => {
+        const batch = tests.slice(index, index + batchSize)
+        if (batch.length === 0) { return Promise.resolve(results) }
+        return Promise.all(batch.map(test => test())).then(next =>
+            new Promise(resolve => setTimeout(resolve, 0, [...results, ...next.flat()]))
+        ).then(next => runBatch(index + batchSize, next))
+    }
+    const completed = runBatch(0, [])
     return completed.then(results => {
         const failed = results.filter(result => result.status === 'failed').length
         return {
