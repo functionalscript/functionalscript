@@ -164,16 +164,38 @@ it is a supported state rather than a tolerated one:**
 export const ks = ['a', 1]
 ```
 
-Two reasons it earns its keep while the tree migrates. Where RTTI cannot yet say
-something — function types being the large case ([stage 7](#tasks)) — JSDoc
-covers that declaration and RTTI covers the rest of the module, in the same
-file, with no either/or and no waiting for the eDSL to catch up. And where both
-are present the two checkers **cross-check each other**: a value the schema
-accepts and the `@typedef` rejects, or the reverse, is exactly the silent drift
-this epic exists to remove ([Problem](#problem)) — reported, instead of latent.
-Carrying both is therefore a diagnostic worth having during a conversion, not a
-cost to minimize, even though the end state for a `.f.mjs` module is the RTTI
-annotation alone.
+It earns its keep while the tree migrates, mainly because RTTI cannot yet say
+everything — function types being the large case ([stage 7](#tasks)) — so JSDoc
+covers that declaration while RTTI covers the rest of the module, in the same
+file, with no either/or and no waiting for the eDSL to catch up. The end state
+for a `.f.mjs` module is still the RTTI annotation alone.
+
+**What carrying both does not do is detect drift.** Both checkers run against
+the *initializer*, so they disagree only when some actual value witnesses the
+disagreement — and usually none does:
+
+```js
+/** @type {number | string} */
+//: string          // narrower than the JSDoc type, and nothing here says so
+export const x = 'x'
+```
+
+`'x'` satisfies both, so both pass, while the two declarations plainly disagree.
+Detecting *that* means comparing the declarations to each other rather than each
+to a value, which is a separate, cheap, compile-time check — and one this
+repository already has the pieces for, since `Ts<T>` renders a schema as a
+TypeScript type and `Assert`/`Equal` pin type-level facts
+([`fjs/asserts/types.ts`](../fjs/asserts/types.ts),
+[`fjs/types/ts/types.ts`](../fjs/types/ts/types.ts)), exactly as
+`rtti/types.ts` uses them today:
+
+```ts
+type _ = Assert<Equal<Ts<typeof declaredSchema>, DeclaredJsDocType>>
+```
+
+That is what a conversion should lean on — a claim about the two declarations —
+not on both checkers happening to accept the value in front of them. Stage 11
+carries it.
 
 [type-annotations](../spec/todo/3360-type-annotations.md) reaches the same
 conclusion — "`/*: … */` and JSDoc's `/** … */` coexist while the tree
@@ -312,7 +334,9 @@ this for DJS values, counting references, hoisting shared ones to `const cN`,
 and emitting nothing for what nothing points at. A schema imported and named
 only to be mentioned in `//: myType` annotations has no edge from anything the
 program evaluates: the annotation is a comment, the compiler consumed it at
-compile time, and no node refers to the binding. **It is not in the output.**
+compile time, and no node refers to the binding, so **the schema is not built in
+the shipped program** — subject to one unsettled question about the *import*
+itself, below.
 
 The same schema passed to `validate` *is* referenced, so it stays — once, shared
 by both uses, because the graph deduplicates by identity rather than by import
@@ -332,20 +356,42 @@ Three things follow:
   schema at all; one that validates a protocol frame ships exactly the schemas
   it validates; a module doing both ships one copy.
 
-The drop is sound rather than merely convenient, and by the EDAG's own rule.
-[edag-stage1-discussion](./edag-stage1-discussion.md) establishes that throwing
-is the only effect, and that "nodes proven total are freely movable and
-droppable" — it is precisely nodes that might throw that cannot be dropped
-silently. RTTI schema construction builds immutable values and has no failure
-mode, so a schema node is total by construction and meets that condition
-exactly.
+**Within a module** the drop is sound by the EDAG's own rule, not merely
+convenient. [edag-stage1-discussion](./edag-stage1-discussion.md) establishes
+that throwing is the only effect, and that "nodes proven total are freely
+movable and droppable" — it is precisely nodes that might throw that cannot be
+dropped silently. RTTI schema construction builds immutable values and has no
+failure mode, so a schema node is total by construction and meets that
+condition.
 
-Two honest qualifications. This is a property of the FunctionalScript compiler
+**Across a module boundary it is not settled, and this epic does not get to
+assume it.** Proving the schema constructor total says nothing about the root of
+the module the schema was imported from: the transpiler evaluates every imported
+module before the importing body, even when the binding is never referenced, so
+an import whose module has a throwing top-level computation is observable
+precisely by throwing. Dropping such an import would delete a failure from the
+program. [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
+is explicit about it and takes the conservative branch: Stage 1 **rejects** a
+source module when an import parameter is not reachable from the module EDAG
+root — "deliberately a reachability rule, not an effect analysis" — until the
+EDAG has the anchoring operation that can preserve a non-resulting computation.
+
+An annotation-only import is exactly that shape. So, stated honestly:
+
+- the run-time cost of a compile-time-only schema is zero **once imported roots
+  can be anchored**, which is the same `','` anchoring work that Stage 1 defers;
+- until then a module whose only use of an import is in annotations is one of
+  the cases that rule rejects, and the epic owes it a resolution rather than an
+  assumption — [stage 12](#tasks);
+- the resolution is anchoring, not an exemption for schema modules. That
+  `fjs/types/rtti/module.f.mjs` has no throwing top-level computation is true
+  and is not a rule; a schema can be imported from anywhere.
+
+Two further qualifications. This is a property of the FunctionalScript compiler
 and its EDAG, so it arrives with them, not with today's `.f.mjs`-on-Node
-execution, where importing the RTTI module is an ordinary run-time import
-([compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) is the
-rollout). And it says nothing about `.mjs`, which is ordinary JavaScript held to
-ordinary bundler rules.
+execution, where importing the RTTI module is an ordinary run-time import. And
+it says nothing about `.mjs`, which is ordinary JavaScript held to ordinary
+bundler rules.
 
 There is a pleasing closure here: `fjs/edag/` owns "the RTTI schema used to
 define those types" ([edag-spec](./edag-spec.md)), so the graph that decides
@@ -428,7 +474,8 @@ so that issue's open question is answered yes by this stage.
 ### Tasks
 
 Ordered. Stage 1 is independent of everything else and can start today; stages
-3 onward are gated on the compiler; stage 10 gates stage 11.
+3 onward are gated on the compiler; stage 10 gates stage 11; stage 12 is
+off to the side, gating a claim rather than a stage.
 
 - [ ] **1. `.d.ts` generation from schemas.** An `fjs` command over
       [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs), wired into
@@ -475,10 +522,21 @@ Ordered. Stage 1 is independent of everything else and can start today; stages
 - [ ] **11. Retire `Ts<T>`, the JSDoc types in `.f.mjs`, and the `types.ts`
       beside them,** declaration by declaration — the two annotation forms are
       disjoint, so this needs no flag day and no module-at-a-time rule — once
-      1–8 and 10 hold. A `types.ts` goes when its module's schemas cover what it
-      declared and nothing outside still imports it; consumers keep seeing types
-      through generated `.d.ts`. This is the stage where TypeScript stops being
-      the type system for FunctionalScript, and it is per-module, not a cutover.
+      1–8 and 10 hold. Convert against a declaration comparison,
+      `Assert<Equal<Ts<typeof schema>, Declared>>`, not against both checkers
+      accepting the initializer: they agree on a value without agreeing on a
+      type. A `types.ts` goes when its module's schemas cover what it declared
+      and nothing outside still imports it; consumers keep seeing types through
+      generated `.d.ts`. This is the stage where TypeScript stops being the type
+      system for FunctionalScript, and it is per-module, not a cutover.
+- [ ] **12. Anchor unreachable imported module roots,** so that an
+      annotation-only import neither is rejected nor silently deletes a
+      failure. This is the `','` anchoring operation
+      [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
+      defers, read from this epic's side; it is what makes "a compile-time-only
+      type costs nothing" true across a module boundary rather than only within
+      a module. Not on the critical path for stages 1–11 — it decides the cost,
+      not the checking — but the claim is not sound until it lands.
 
 ### Open questions
 
@@ -502,7 +560,12 @@ Ordered. Stage 1 is independent of everything else and can start today; stages
 5. **Cost.** Every annotation reaches a module evaluation. A name makes the
    cache key obvious — the binding — but whether the compiler memoizes schemas
    across a build is still open.
-6. **Ownership-tracked locals.** A local mutable object
+6. **Annotation-only imports.** Until imported roots can be anchored (stage 12),
+   what should the compiler do with a module whose only use of an import is in
+   annotations — reject it, as Stage 1's reachability rule does today, or keep
+   the import and pay for it? Rejecting is safe and unhelpful; keeping it makes
+   the "costs nothing" claim conditional on the module imported from.
+7. **Ownership-tracked locals.** A local mutable object
    ([mutability](../spec/todo/mutability.md)) has no RTTI type while it is still
    mutable. Whether it may be annotated at all — with the schema its escaped
    form will satisfy — or simply cannot be, is undecided, and it is the one
