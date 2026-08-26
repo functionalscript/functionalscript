@@ -133,6 +133,14 @@ values arrive.
       it must reject a no-kind value exactly where `parse` does now — otherwise
       this divergence is simply recreated in the second reader.
 
+      Aligning *acceptance* is not sufficient for `parse`, either, because
+      `Data` does not preserve what `parse` returns: it reconstructs from the
+      first matching branch, and `toData` canonicalizes branch order away.
+      `parse(or({ a: number }, { b: number }))({ a: 1, b: 2 })` is `{ a: 1 }`
+      while the reversed union gives `{ b: 2 }`, and the two `Data` values
+      compare `equal`. A data-driven `parse` has to decide what it returns
+      there — a design question this issue does not settle.
+
 ### Related
 
 - [rtti-type-system](../../../../todo/rtti-type-system.md) — its **stage 4**
