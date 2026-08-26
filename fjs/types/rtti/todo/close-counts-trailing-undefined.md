@@ -251,8 +251,9 @@ module's own closed containers do not follow.
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs), asserting the
       verdict outright rather than only adding rows: the shared table checks
       that the three readers *agree*, so a row alone passes whenever all three
-      move together. Changelog: **BREAKING CHANGES** — `close(c, never)` and
-      the other empty-rest spellings stop accepting a trailing hole, which is
+      move together. Changelog entry prefixed `**BREAKING CHANGES:**`, the
+      repository's exact marker: `close(c, never)` and the other empty-rest
+      spellings stop accepting a trailing hole, which is
       an observable narrowing for callers using the explicit-rest form even
       though it is what the canonical semantics already said. #1712 labelled
       its analogous reader-alignment change the same way.
@@ -270,13 +271,14 @@ module's own closed containers do not follow.
       [`../validate/module.f.mjs`](../validate/module.f.mjs) and
       [`../parse/module.f.mjs`](../parse/module.f.mjs), and the
       `value.length <= pn` half of `arraySetValidate` in
-      [`../data/module.f.mjs`](../data/module.f.mjs). Changelog:
-      **BREAKING**, `close` accepts a trailing hole.
+      [`../data/module.f.mjs`](../data/module.f.mjs). Changelog entry prefixed
+      `**BREAKING CHANGES:**` — `close` accepts a trailing hole.
 - [ ] If A: everything C touches, **plus** the `undeclaredEntries` filter in
       `closeContainerValidate` and `closeContainerParse` and the matching
       filter in `arraySetValidate` — patching either knob alone leaves
-      `[1, undefined]` rejected. Changelog: **BREAKING**, `close` accepts an
-      undeclared `undefined` member.
+      `[1, undefined]` rejected. Changelog entry prefixed
+      `**BREAKING CHANGES:**` — `close` accepts an undeclared `undefined`
+      member.
 - [ ] If A, decide the struct kind, which the extra check carries along, and
       note it has a **fourth** site: the data form encodes a closed struct as
       `rest: never` and reads it with `objectSetValidate`, which has no length
