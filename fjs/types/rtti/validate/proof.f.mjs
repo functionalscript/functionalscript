@@ -73,6 +73,14 @@ const rows = [
     [[/** @type {const} */ (42)], [42, 'extra']],
     [{ a: /** @type {const} */ (42) }, { a: 42, b: 'x' }],
     [[number, option(string)], [42]],
+    // the rule is per position, not "the last one": every trailing position
+    // whose set admits `undefined` may be absent, so an array may stop at the
+    // last required one
+    [[number, bigint, option(string), option(null)], [2, 4n]],
+    [[number, bigint, option(string), option(null)], [2, 4n, 'x']],
+    [[number, bigint, option(string), option(null)], [2, 4n, 'x', null]],
+    [[number, bigint, option(string), option(null)], [2]],
+    [[number, bigint, option(string), option(null)], [2, 4n, 5]],
     [[/** @type {const} */ (42)], []],
     [{ a: number, b: option(string) }, { a: 1 }],
     [{ a: number }, { a: 'one' }],
