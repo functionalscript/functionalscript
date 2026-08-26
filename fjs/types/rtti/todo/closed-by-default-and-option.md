@@ -425,8 +425,11 @@ Stage 1 (one PR):
       `fjs/emergent_testing`). `../../../media/json/schema/module.f.mjs` follows
       the data form, so a bare struct now renders `additionalProperties: false`
       on its own — correct, and its proof pins the old output.
-- [ ] Proofs: the acceptance tables in `../parse/proof.f.mjs`,
-      `../validate/proof.f.mjs` (37 `close` sites) and `../data/proof.f.mjs` (39).
+- [ ] Proofs: the acceptance tables in `../data/proof.f.mjs` (50 `close` sites),
+      `../validate/proof.f.mjs` (37) and `../parse/proof.f.mjs` (24), plus
+      `../ts/proof.f.mjs` (11) and `../proof.f.mjs` (2) — 124 in all. (Counted by
+      occurrence; a per-line count reads 39 for `../data/proof.f.mjs`, which is
+      the figure to distrust.)
 - [ ] Changelog: **BREAKING CHANGES:** a bare `Struct`/`Tuple` schema is closed;
       `close(c, rest)` is `rest(c, r)`, and `open(c)` is the old bare form.
 
@@ -434,6 +437,16 @@ Stage 2 (one PR, after stage 1 lands):
 
 - [ ] `option` as a nullary schema in `../module.f.mjs`/`../types.ts` — a new
       `Tag0`, so `visit`'s `Visitor` in `../common/module.f.mjs` gains the case.
+- [ ] Decide the migration's **semantics** before its spelling. `option(t)` is
+      `or(t, undefined)` today, so it accepts a present `undefined` — verified,
+      `validate({ a: number, b: option(string) })({ a: 1, b: undefined })` is
+      `ok`. Rewriting it to `or(option, t)` therefore **narrows** every migrated
+      schema; the faithful translation is `or(option, t, undefined)`. This issue
+      takes the narrowing deliberately — it is what stage 2 is for, and
+      `exactOptionalPropertyTypes` already rejects the present-`undefined`
+      spelling at an optional key — but each production site is reviewed rather
+      than swept, and the changelog says the schemas got stricter, not that a
+      spelling changed.
 - [ ] Migrate every `option(t)` call site to `or(option, t)` — 52 of them across
       10 modules outside this one (`protocol/mcp` 10, `media/json/schema` 11 plus
       11 in its proof, `ci/common` 5, `mcp/evo` 5, `protocol/json_rpc` 3,
@@ -491,15 +504,21 @@ Stage 2 (one PR, after stage 1 lands):
       `[undefined, 3]` rejected for `[or(option, number), 3]`; the JSON
       round-trip case from
       [parse-omits-undefined-members](./parse-omits-undefined-members.md);
-      `{ a: option }` as a negative field. Assert on the **built value**, not
+      `{ a: option }` as a negative field. Delete the pin this abolishes:
+      `../validate/proof.f.mjs:290`, `every(rtti)(assertOk)([undefined, 5])`
+      commented "the same value, spelled densely", run against
+      `[option(string), number]` through all three readers and through
+      `close(t)` — under stage 2 that value is present-`undefined` at position 0
+      and is no longer the same value as `[, 5]`. Assert on the **built value**, not
       only acceptance: `parse([or(option, number), 3])([, 3])` has no own index
       `0` and carries `3` at index `1`.
 - [ ] Delete [parse-omits-undefined-members](./parse-omits-undefined-members.md);
       restate the absence rule in `../README.md` and `../data/README.md` as the
       absent bit rather than as `undefined`.
 - [ ] Changelog: **BREAKING CHANGES:** `option` is a nullary schema denoting
-      absence — `option(t)` becomes `or(option, t)` — and `parse` no longer
-      materializes an absent member.
+      absence. `option(t)` becomes `or(option, t)`, which also **narrows**: a
+      schema that accepted a present `undefined` at that member no longer does.
+      `parse` no longer materializes an absent member.
 
 ## Related
 
@@ -520,3 +539,17 @@ Stage 2 (one PR, after stage 1 lands):
 - [excluded-string-values](./excluded-string-values.md) — the other proposed `Type`
   ADT extension, and the bar it sets: a data-form mapping worked out end to end
   before code.
+- [#1716](https://github.com/functionalscript/functionalscript/pull/1716) —
+  **collides with stage 1.** It is an open issue about `close` counting a
+  trailing `undefined` as a present member, so its whole lever is the
+  `close(c, rest?)` overload stage 1 deletes; its answer B would write a README
+  sentence stage 1 then rewrites. It also already documents the defect family
+  this file's `array(or())` row belongs to: an empty `rest` skips the length
+  check in `closeContainerValidate`, so `close([number], never)` and
+  `close([number])` part company on a hole. Land one before the other starts,
+  and restate whichever lands second in the survivor's vocabulary.
+- [#1719](https://github.com/functionalscript/functionalscript/pull/1719) —
+  **collides with both stages.** The epic makes RTTI the single source of truth
+  for the type system and works its examples in the eDSL as it stands today —
+  `close([t, t])` and `option(key)` — every one of which this proposal
+  respells. Its stage list is unaffected; its worked examples are not.
