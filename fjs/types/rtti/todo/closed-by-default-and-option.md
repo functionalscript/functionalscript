@@ -594,6 +594,22 @@ Stage 2 (one PR, after stage 1 lands):
       assignment or mutation. Verified: `[1, , 3].slice(0, 3)` keeps the hole at
       1, `[1, , ,].slice(0, 1)` is `[1]` with length 1, and a `.map` after either
       keeps the hole.
+- [ ] Drive that rebuild by the **own**-index test the check uses, not by
+      `slice`/`map` alone. Both use HasProperty, so an index the value only
+      *inherits* is materialized as an own property of the result — measured,
+      with `Array.prototype[0]` defined, `[, 3].slice(0, 2)` and
+      `[, 3].map(v => v)` both give `["PROTO", 3]` with
+      `Object.hasOwn(result, 0)` true. That contradicts this stage's own rule
+      and can rebuild a value the schema rejects. The same measurement settles
+      the test to use: `0 in [, 3]` is **true** once the prototype supplies the
+      index, so it is `Object.hasOwn`, never `in`, while `Object.entries` stays
+      own-only. Reachable only from plain JavaScript — FunctionalScript has
+      neither mutation nor prototype writes — so it constrains the construction
+      rather than rejecting the slice-then-map shape, on the same footing as the
+      overridden-`Symbol.iterator` case `../common/module.f.mjs` documents and
+      the prototype asymmetry
+      [close-counts-trailing-undefined](./close-counts-trailing-undefined.md)
+      records.
 - [ ] `../ts/module.f.mjs`, the **runtime printer**: `arraySetToTs` and
       `objectSetToTs` decide optionality through their own `admitsUndefined`
       (`:159`, `:184`, `:217`), so without this `{ a: or(option, number) }` and
