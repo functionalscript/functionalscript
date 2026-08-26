@@ -6,7 +6,8 @@
 Two stages, in this order:
 
 1. a bare `Const` is **closed**; `open(c)` / `rest(c, r)` state otherwise;
-2. `option(t)` means **the member may be absent**, no longer `or(t, undefined)`.
+2. `option` becomes a **nullary schema denoting absence**, so a member that may
+   be omitted is `or(option, t)` rather than `or(t, undefined)`.
 
 One issue rather than two, because stage 2 reads the acceptance tables stage 1
 rewrites. In the other order every table, proof and consumer schema is rewritten
@@ -155,63 +156,110 @@ reader can carry. The cost is paid where it is visible — the protocol structs 
 to be writing. Revisit only if the `open(...)` wrappers in the protocol modules
 turn out to obscure more than the single rule buys.
 
-### Stage 2 — `option(t)` means the member may be absent
+### Stage 2 — `option` is the absent value
 
-`option(t)` states that the member **may be omitted**; when present it must be `t`.
-It stops being a union and stops being a `Type`.
+`option` is a nullary schema like `boolean` or `unknown` — `() => ['option']` —
+denoting one thing: **the member that is not there**. It takes no argument and
+wraps nothing; a member that may be omitted says so by union.
 
-**It is not a set of values, so it is not a `Type`.** "May be omitted" is a
-property of a position in a container, not of a value — `array(option(number))`,
-`record(option(t))` and `or(option(x), y)` have no meaning. The ADT splits:
-
+```js
+{ a: or(option, number) }             // `a` may be absent, or a number
+{ a: or(number, undefined) }          // `a` must be present, may hold `undefined`
+{ a: or(option, number, undefined) }  // today's `option(number)`
+[or(option, number), 3]               // position 0 may be a hole
 ```
-Member = Type | Option<Type>
-```
 
-legal only directly at a struct key or a tuple position. That is exactly
-TypeScript's rule for `?`, and it is the price of the gap being closed; today's
-uniformity is what buys the gap.
+Absence stops being a spelling of `undefined` and becomes a value in its own
+right. Everything else follows from the representation the data form already
+has.
 
-**Absence, per kind.** A struct key is absent when the value has no such own key.
-A tuple position is absent when the value has no such index — past the end *or* a
-hole — which makes the value side symmetric with the schema side settled in #1712,
-where a hole in a schema is a declared `undefined` position.
+**It costs one bit.** `unitList` in [`../data/module.f.mjs`](../data/module.f.mjs)
+is a bitset over `null, undefined, false, true`; absence is a fifth member of
+that kind — exactly as [`../data/README.md`](../data/README.md) describes
+`or(true, false)` being the two boolean bits rather than a special rule. Union,
+`subset`, `cmp`, `equal` and the coverage collapse are bitwise over that kind, so
+**none of them change**. The whole absence rule is two `& unitBit(undefined)`
+tests that become `& absentBit`:
+
+| site | today | stage 2 |
+| --- | --- | --- |
+| `trimPrefix` | a trailing position restating a `rest` that admits `undefined` is dropped | …that admits absence |
+| `objectMayOmit` | a key is omittable when its set admits `undefined` | …when its set admits absence |
+
+That is the entire structural cost, and it is why this shape is preferred over
+the wrapper `option(t)`: a wrapper is not a set of values, so it would have
+needed a second syntactic category (`Member = Type | Option<Type>`, legal only
+at a container position) and an `{ optional, node }` pair on every `props` entry
+and `prefix` position, with every algebra function and its proof rewritten.
+
+#### The four rules the bit needs
+
+**`unknown` excludes it.** `unknown` is the set of DJS values and absence is not
+one, so "anything, or nothing" is `or(option, unknown)`. That is the top of a
+*declared member*, and it sharpens the ordering caveat `../data/README.md`
+records: a declared key is droppable exactly when its set is `or(option, unknown)`
+— a statement about one set, rather than about the `rest` having to be gone first.
+
+**It is observable only at a container position.** No caller can hand `validate`
+an argument that is not there, so a top-level schema admitting absence accepts
+exactly what the rest of its union accepts. Nothing has to enforce this:
+`unionValidate` is only ever reached with a present value.
+
+**A `rest` never sees it.** A declared member is checked as the value *read* at
+its position; a `rest` is checked against each *present* member. So the absent bit
+in a `rest` constrains nothing and normalizes away on both kinds. This is not new
+behaviour: `../parse` and `../validate` walk a value with `Object.entries`, which
+skips holes, so `array(number)` accepts `[1, , 3]` today.
+
+**Absence at a tuple position is "no such own index"** — past the end or a hole,
+one rule for both. That makes the value side symmetric with the schema side
+settled in #1712, where a hole in a *schema* is a declared `undefined` position.
+
+#### What it means for the two hard spellings
+
+Both cases that a wrapper design would have had to forbid are ordinary unions
+here, with ordinary meanings:
 
 | schema | accepts | rejects |
 | --- | --- | --- |
-| `{ a: option(string) }` | `{}`, `{ a: 'x' }` | `{ a: undefined }` |
-| `{ a: or(string, undefined) }` | `{ a: 'x' }`, `{ a: undefined }` | `{}` |
-| `{ a: option(or(string, undefined)) }` | all three | — |
-| `[number, option(string)]` | `[42]`, `[42, 'x']` | `[42, undefined]` |
+| `[or(option, number), 3]` | `[, 3]` | `[undefined, 3]`, `[3]` |
+| `or(option, number, string)` at a key | `{}`, `{ a: 1 }`, `{ a: 'x' }` | `{ a: undefined }` |
 
-The third row is today's `option`, so **nothing becomes inexpressible** — stage 2
-is strictly additive.
+`or(option(number), string)` in the old spelling simply flattens to the second
+row — `or` is union and the absent bit merges like any other.
 
-**The data form pays a flag.** A `props` entry and an array `prefix` position
-become `{ optional, node }`. Union is `optional ||`, `subset` is
-`optional ⇒ optional` plus node inclusion, `cmp`/`equal` gain the field, and the
-rule "a member is required exactly when its set excludes `undefined`" is replaced
-by the flag everywhere it is stated — `../README.md`, `../data/README.md`, and the
-degenerate-pattern simplification that drops "a trailing position restating a
-`rest` that admits absence".
+Two sets also become expressible that neither today's design nor a wrapper can
+say: `{ a: option }` is "objects with no `a`", and `open({ a: option })` is that
+plus anything else — a negative field.
 
-**The readers gain a presence check** in place of read-yields-`undefined`, and
-`parse`'s output stops being a choice: an absent optional member stays absent, a
-present one is built. That closes
-[parse-omits-undefined-members](./parse-omits-undefined-members.md) — delete it in
-this stage — and with it the array kind's JSON round-trip defect.
+#### Rendering
 
-**`Ts<>` becomes exact under `exactOptionalPropertyTypes`:** `option(t)` renders
-`readonly k?: t`, `or(t, undefined)` renders `readonly k: t | undefined`.
-`OptionalFields`/`RequiredFields` in [`../ts/types.ts`](../ts/types.ts) key on the
-`Option` wrapper instead of on `undefined extends Ts<T[K]>`. `TupleTs`'s
-trailing-run limit stays — TypeScript forbids a required element after an optional
-one — but it is now a *rendering* limit only, with no claim about the set.
+`StructTs` renders a key whose set admits absence as optional, with the absent
+bit stripped from what it prints: `or(option, number)` → `readonly a?: number`,
+`or(number, undefined)` → `readonly a: number | undefined`. Under
+`exactOptionalPropertyTypes` those are already distinct in TypeScript, so the
+rendering becomes exact.
 
-**Where the distinction is observable.** `JSON.stringify` drops an
-`undefined`-valued key, so no JSON-sourced value exhibits it. It matters for
-in-memory values, for DJS text, and for `../../../cas` addressing, where two
-RTTI-equal values that serialize differently address differently.
+For tuples the trailing run renders optional as it does now. An *interior*
+position admitting absence renders `T | undefined` — TypeScript forbids a
+required element after an optional one, and `undefined` is what TypeScript
+reading a hole actually gives — so `[or(option, number), 3]` is
+`readonly [number | undefined, 3]`. A rendering limit, not a narrower set.
+
+#### The trade, stated
+
+Legal-but-degenerate spellings replace illegal ones. `array(or(option, number))`
+and a top-level `or(option, number)` are meaningless rather than rejected: the
+first normalizes to `array(number)`, the second accepts what `number` accepts.
+For a set-theoretic form, normalizing beats forbidding — a wrapper would buy
+those two errors at the price of a second syntactic category — but it is a trade,
+and each degenerate spelling's normal form should be pinned by a proof so it
+stays deliberate rather than incidental.
+
+On the name: `option` is kept as proposed. It names the modality where `absent`
+or `none` would name the value, but as the only spelling it is unambiguous, and
+`or(option, number)` reads correctly. Do **not** reintroduce an `option(t)`
+helper alongside it — one name, one thing.
 
 ## Tasks
 
@@ -240,20 +288,29 @@ Stage 1 (one PR):
 
 Stage 2 (one PR, after stage 1 lands):
 
-- [ ] `Member = Type | Option<Type>` in `../types.ts`; `option` legal only at a
-      struct key or tuple position, and rejected under `array`/`record`/`or`.
-- [ ] `../data`: `{ optional, node }` on `props` entries and `prefix` positions;
-      `subset`, `cmp`, `equal`, union and the degenerate simplifications.
-- [ ] `../parse`/`../validate`: presence check per kind — own key for structs, own
-      index (past end or hole) for tuples. `parse` omits an absent member.
-- [ ] `../ts/types.ts`: `OptionalFields` keys on `Option`; `option(t)` → `k?: t`.
-- [ ] Proof: the JSON round-trip case from
-      [parse-omits-undefined-members](./parse-omits-undefined-members.md), and a
-      row separating `{}` from `{ a: undefined }`.
+- [ ] `option` as a nullary schema in `../module.f.mjs`/`../types.ts` — a new
+      `Tag0`, so `visit`'s `Visitor` in `../common/module.f.mjs` gains the case.
+- [ ] `../data/module.f.mjs`: `absentBit` as the fifth unit bit — `unitBit` stays
+      value-keyed, since the new bit has no JS value to key on — and `trimPrefix`
+      and `objectMayOmit` switch to it. `allUnits` stays the four DJS units;
+      `or(option, unknown)` is the declared-member top.
+- [ ] Normalize the absent bit out of a `rest` on both kinds; pin
+      `array(or(option, number))` → `array(number)` and the top-level spelling.
+- [ ] Readers: a declared member is absent when its key or index is not an own
+      one; `parse` omits an absent member instead of materializing `undefined`.
+- [ ] `../ts/types.ts`: strip the absent bit and render `a?:`; an interior tuple
+      position that admits absence renders `T | undefined`.
+- [ ] Proofs: `{}` separated from `{ a: undefined }`; `[, 3]` accepted and
+      `[undefined, 3]` rejected for `[or(option, number), 3]`; the JSON
+      round-trip case from
+      [parse-omits-undefined-members](./parse-omits-undefined-members.md);
+      `{ a: option }` as a negative field.
 - [ ] Delete [parse-omits-undefined-members](./parse-omits-undefined-members.md);
-      restate the absence rule in `../README.md` and `../data/README.md` as the flag.
-- [ ] Changelog: **BREAKING CHANGES:** `option(t)` is omission, not
-      `or(t, undefined)`; `parse` no longer materializes an absent member.
+      restate the absence rule in `../README.md` and `../data/README.md` as the
+      absent bit rather than as `undefined`.
+- [ ] Changelog: **BREAKING CHANGES:** `option` is a nullary schema denoting
+      absence — `option(t)` becomes `or(option, t)` — and `parse` no longer
+      materializes an absent member.
 
 ## Related
 
