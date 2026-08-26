@@ -277,9 +277,22 @@ the boundary is `parse`, which constructs a fresh value holding only what the
 schema declares; the README already assigns it that role, "the reader for a
 value coming *in* — from JSON, from a protocol frame".
 
+**`parse` is the boundary only where the schema names every part.** It
+constructs a fresh container, but `unknown` is `() => ok` and `ok` returns the
+value it was handed
+([`parse`](../fjs/types/rtti/parse/module.f.mjs)), so a value admitted through
+an `unknown` — the whole schema, or one field of a struct — comes back as the
+caller's own object, aliases intact. `parse(unknown)(obj)` *is* `obj`. So the
+advice "use `parse` and hold the result" holds for a schema with no `unknown`
+in it and fails quietly for one with `unknown` anywhere inside. Closing that
+needs one of: restricting `unknown` in schemas used at an external boundary,
+deep-copying what `unknown` admits, or saying plainly that a parsed `unknown`
+is a borrowed reference.
+
 Which is one more reason the regime is `.f.mjs`-only (commitment 4). Inside it,
-the check stays true because nothing can write. Outside it, use `parse` and hold
-the result, or accept that a validated alias is only as stable as its holder.
+the check stays true because nothing can write. Outside it, `parse` a schema
+that names what it admits and hold the result — and where a schema says
+`unknown`, accept that the result is only as stable as its holder.
 
 Where mutability is planned it stays outside RTTI's reach by design: local
 mutable objects with ownership tracking
@@ -734,13 +747,22 @@ annotations — which is most of them, once annotations are the point.
       3–4. So stage 1 splits:
       - *independent, startable today* — schema → type expression, the
         `unknown` and tuple decisions above, and the `fjs` command around them;
-      - *needs an export-to-schema association* — emitting a module's
-        declarations. Either an explicit manifest naming export and schema, or
-        this half waits for annotation recognition.
+      - *needs a schema for **every** export* — emitting a module's
+        declarations. Annotation recognition is not enough: this design wants
+        annotations **rare**, with inference carrying the burden
+        ([type-annotations](../spec/todo/3360-type-annotations.md)), so after
+        stages 3–4 a typical module has annotated exports and unannotated ones,
+        and emitting only the former silently drops public API from the
+        `.d.ts`. Partial input yields a partial declaration file, which is
+        worse than none.
 
-      A manifest is the cheaper way to ship stage 1 early and is worth it if
-      `.d.ts` output is wanted before the compiler exists; otherwise move
-      declaration emission after stage 3 and keep stage 1 to the renderer.
+      That leaves three ways to close it, and one must be chosen rather than
+      assumed: a **complete manifest** naming every export's schema; a rule
+      that **every export is annotated** (in tension with keeping annotations
+      rare); or **waiting for stage 6**, so inference supplies the schemas
+      annotations do not. A manifest is the cheapest way to ship `.d.ts` output
+      before the compiler exists; otherwise this half waits for stage 6, not
+      stage 3.
 
       **Annotations are not sufficient even then, for a module that exports a
       schema.** `export const myType = or(number, string)` —
