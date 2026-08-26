@@ -12,7 +12,7 @@ import { nonEmpty, empty as emptyList } from '../../effects/list/module.f.mjs'
 import { pureError } from '../../effects/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { ioError } from '../../effects/node/module.f.mjs'
-import { detect, detectStream, detectVec } from './module.f.mjs'
+import { detect, detectPath, detectStream, detectVec } from './module.f.mjs'
 
 // Builds a big-endian `Vec` from a list of byte values — mirrors how the CAS
 // store would hold the leading bytes of a stored blob.
@@ -340,6 +340,29 @@ export const proof = {
             assertEq(m.type, 'base64')
             assertEq(m.mime_type, 'application/octet-stream')
             assertEq(m.length, 3n)
+        },
+    },
+    detectPath: {
+        // A text type carries the charset, so the answer is a complete header
+        // value rather than a bare media type.
+        text: () => {
+            assertEq(detectPath('index.html'), 'text/html; charset=utf-8')
+            assertEq(detectPath('a/b/main.css'), 'text/css; charset=utf-8')
+            assertEq(detectPath('module.f.mjs'), 'text/javascript; charset=utf-8')
+        },
+        // A binary type does not: `charset` says nothing about bytes.
+        binary: () => {
+            assertEq(detectPath('logo.png'), 'image/png')
+            assertEq(detectPath('photo.JPG'), 'image/jpeg')
+            assertEq(detectPath('vm.wasm'), 'application/wasm')
+        },
+        // The names that carry no extension, plus an extension nothing claims.
+        fallback: () => {
+            assertEq(detectPath('README'), 'application/octet-stream')
+            assertEq(detectPath('.gitignore'), 'application/octet-stream')
+            assertEq(detectPath('archive.tar.zst'), 'application/octet-stream')
+            // A dot in a parent directory is not this file's extension.
+            assertEq(detectPath('v1.2/README'), 'application/octet-stream')
         },
     },
 }

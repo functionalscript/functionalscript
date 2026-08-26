@@ -1,20 +1,31 @@
 /**
- * @import { Dir } from './types.ts'
- * @import { NodeOp } from '../types.ts'
+ * @import { Dir, State } from './types.ts'
+ * @import { IncomingMessage, NodeOp, RequestListener } from '../types.ts'
  * @import { Effect } from '../../types.ts'
  * @import { IoChannel } from '../types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
-import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive } from '../module.f.mjs'
+import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
+import { history, historyStep, pureOk, step } from '../../module.f.mjs'
+import { utf8, utf8ToString } from '../../../text/module.f.mjs'
 import { emptyState, virtual } from './module.f.mjs'
 import { do_ } from '../../module.f.mjs'
 import { catchStep } from '../../module.f.mjs'
 
 /**
- * Asserts that a channel error is a host failure carrying `message` — the
+ * Asserts that a channel error is a host failure carrying `code` — the
  * normalized shape every runner reports, virtual and Node alike.
+ * @type {(e: IoChannel, code: string) => void}
+ */
+const assertIoCode = (e, code) => {
+    assert(e[0] === 'ioError', e)
+    assertEq(e[1].code, code)
+}
+
+/**
+ * Asserts that a channel error is a host failure carrying `message`.
  * @type {(e: IoChannel, message: string) => void}
  */
 const assertIoMessage = (e, message) => {
@@ -408,14 +419,38 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(writeBytes('file', 5, vec8(0x43n)))
         assert(result[0] === 'error')
     },
+    statOnDirectory: () => {
+        // A host stats a directory successfully and says it is not a file. The
+        // empty remaining path is how one arrives here: `operation` has already
+        // descended into it.
+        /** @type {Dir} */
+        const root = { docs: { 'index.html': [vec8(0x41n)] } }
+        const [, result] = virtual({ ...emptyState, root })(stat('docs'))
+        assert(result[0] === 'ok', result)
+        assertEq(result[1].isFile, false)
+    },
+    statOnEmptyPath: () => {
+        // An empty path is not the root, though `parse` collapses both to no
+        // segments at all. A host answers `ENOENT`, so this does.
+        const [, result] = virtual(emptyState)(stat(''))
+        assert(result[0] === 'error', result)
+        assertIoCode(result[1], 'ENOENT')
+        // `.` *is* the root, and stats as the directory it is.
+        const [, root] = virtual(emptyState)(stat('.'))
+        assert(root[0] === 'ok', root)
+        assertEq(root[1].isFile, false)
+    },
     statOnJsModule: () => {
-        // stat on a JsModule entry (neither an array nor a descendable
-        // directory) covers the !Array.isArray(file) branch of statOp.
+        // A `JsModule` entry is this file system's non-regular name: it exists
+        // and stats fine, and says it is not a file — the shape a host reports
+        // for a FIFO or a device, and what a caller's guard against reading one
+        // has to be able to see.
         /** @type {Dir} */
         const root = { 'a.f.ts': () => ({}) }
         const [, result] = virtual({ ...emptyState, root })(stat('a.f.ts'))
-        assert(result[0] === 'error')
-        assertIoMessage(result[1], `'a.f.ts' is not a file`)
+        assert(result[0] === 'ok', result)
+        assertEq(result[1].isFile, false)
+        assertEq(result[1].size, 0)
     },
     largeFileReadBytes: () => {
         // A file stored as two 128 KiB chunks is larger than maxLengthBytes.
@@ -427,5 +462,182 @@ export const proof = {
         const root = { 'large': [chunk0, chunk1] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('large', chunkSize, 1))
         assert(result[0] === 'ok')
+    },
+    // A server without a socket: `createServer` stores the listener and
+    // `listen` hands it the requests the fixture queued, which is what makes a
+    // request-in / response-out proof possible here at all.
+    http: {
+        answersQueuedRequests: () => {
+            /** @type {(url: string) => IncomingMessage} */
+            const get = url => ({ method: 'GET', url, headers: {}, body: empty })
+            /** @type {RequestListener<never>} */
+            const listener = ({ url }) =>
+                pureOk({ status: 200, headers: {}, body: utf8(`echo ${url}`) })
+            const e = step(createServer(listener), server => listen(server, 8080, '127.0.0.1'))
+            /** @type {State} */
+            const state = { ...emptyState, requests: [get('/a'), get('/b')] }
+            const [s, result] = virtual(state)(e)
+            assert(result[0] === 'ok', result)
+            assertEq(s.listening.map(b => b.address).join(), '127.0.0.1:8080')
+            // The queue is emptied, so a second `listen` cannot answer the same
+            // request twice.
+            assertEq(s.requests.length, 0)
+            assertEq(s.responses.map(r => utf8ToString(r.body)).join(', '), 'echo /a, echo /b')
+        },
+        // Two servers in one program are two servers here, as they are on a
+        // host: `listen` answers with the listener its *handle* carries, not
+        // with whichever was created last.
+        dispatchesThroughTheHandle: () => {
+            /** @type {(name: string) => RequestListener<never>} */
+            const named = name => () => pureOk({ status: 200, headers: {}, body: utf8(name) })
+            // Flat, because the third link needs the *first* one's value: a
+            // history carries `a` forward instead of a nested continuation
+            // closing over it.
+            const created = history(createServer(named('a')))
+            const both = historyStep(created, () => createServer(named('b')))
+            const first = step(both, ([, a]) => listen(a, 8080, '127.0.0.1'))
+            /** @type {State} */
+            const state = {
+                ...emptyState,
+                requests: [{ method: 'GET', url: '/', headers: {}, body: empty }],
+            }
+            const [s, result] = virtual(state)(first)
+            assert(result[0] === 'ok', result)
+            assertEq(utf8ToString(s.responses[0].body), 'a')
+        },
+        // A port a host would refuse is refused here, or a program that cannot
+        // run anywhere could still be proven.
+        badPort: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            /** @type {(port: number) => void} */
+            const rejects = port => {
+                const e = step(createServer(listener), server => listen(server, port, '127.0.0.1'))
+                const [s, result] = virtual(emptyState)(e)
+                assert(result[0] === 'error', result)
+                assertIoCode(result[1], 'ERR_SOCKET_BAD_PORT')
+                // The message is Node's own, type and all — the shape is the
+                // claim this runner makes.
+                assertIoMessage(
+                    result[1],
+                    `options.port should be >= 0 and < 65536. Received type number (${port}).`)
+                assertEq(s.listening.length, 0)
+            }
+            rejects(-1)
+            rejects(1.5)
+            rejects(65536)
+            rejects(NaN)
+        },
+        // Port `0` names no port: two servers asking the host for a free one
+        // both get one, so refusing the second would reject a program that runs.
+        ephemeralPorts: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const first = history(createServer(listener))
+            const second = historyStep(first, () => createServer(listener))
+            const bound = historyStep(second, b => listen(b, 0, '127.0.0.1'))
+            const e = step(bound, ([, , a]) => listen(a, 0, '127.0.0.1'))
+            const [s, result] = virtual(emptyState)(e)
+            assert(result[0] === 'ok', result)
+            assertEq(s.listening.length, 2)
+        },
+        // Binding fails here the way it fails on a host, which is the whole
+        // point of `Listen` being fallible: a program that mishandles either
+        // failure must not look correct against this runner.
+        addressInUse: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const first = history(createServer(listener))
+            const second = historyStep(first, () => createServer(listener))
+            // `historyStep` spreads the history over its continuation, newest
+            // first: `b` here is the second server, and `a` the first.
+            const bound = historyStep(second, b => listen(b, 8080, '127.0.0.1'))
+            const e = step(bound, ([, , a]) => listen(a, 8080, '127.0.0.1'))
+            const [s, result] = virtual(emptyState)(e)
+            assert(result[0] === 'error', result)
+            assertIoCode(result[1], 'EADDRINUSE')
+            // The first server keeps the address it took.
+            assertEq(s.listening.length, 1)
+        },
+        // A DNS name is case-insensitive, so `LOCALHOST` takes the address
+        // `localhost` then asks for — checked on Linux with Node 22.22.2 and on
+        // Darwin with Node 23.11.0, where the second bind is `EADDRINUSE`.
+        addressInUseIgnoresCase: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const first = history(createServer(listener))
+            const second = historyStep(first, () => createServer(listener))
+            const bound = historyStep(second, b => listen(b, 8080, 'LOCALHOST'))
+            const e = step(bound, ([, , a]) => listen(a, 8080, 'localhost'))
+            const [s, result] = virtual(emptyState)(e)
+            assert(result[0] === 'error', result)
+            assertIoCode(result[1], 'EADDRINUSE')
+            assertIoMessage(
+                result[1],
+                'listen EADDRINUSE: address already in use localhost:8080')
+            // Recorded lower-cased, whichever case asked for it.
+            assertEq(s.listening.length, 1)
+            assertEq(s.listening[0].address, 'localhost:8080')
+        },
+        // `''` is the host a program did not state, and Node binds every
+        // interface for it — so both runners refuse it rather than forward it.
+        emptyHostRefused: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const created = history(createServer(listener))
+            const e = step(created, ([server]) => listen(server, 8080, ''))
+            const [s, result] = virtual(emptyState)(e)
+            assert(result[0] === 'error', result)
+            assertIoCode(result[1], 'ERR_INVALID_ARG_VALUE')
+            assertIoMessage(
+                result[1],
+                `The argument 'host' must not be empty. Received ''`)
+            // Nothing bound.
+            assertEq(s.listening.length, 0)
+        },
+        // And it is refused *first*: a server already listening, retried with
+        // an empty host, names the host and not the state. Node has no order of
+        // its own to copy here — it binds `''` — so the two runners have only
+        // to agree, and the Node runner asks this before it touches the socket.
+        emptyHostBeatsAlreadyListening: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const created = history(createServer(listener))
+            const bound = historyStep(created, server => listen(server, 8080, '127.0.0.1'))
+            const e = step(bound, ([, server]) => listen(server, 9090, ''))
+            const [, result] = virtual(emptyState)(e)
+            assert(result[0] === 'error', result)
+            assertIoCode(result[1], 'ERR_INVALID_ARG_VALUE')
+        },
+        alreadyListening: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            /** @type {(second: number) => IoChannel} */
+            const again = second => {
+                const created = history(createServer(listener))
+                const bound = historyStep(created, server => listen(server, 8080, '127.0.0.1'))
+                const e = step(bound, ([, server]) => listen(server, second, '127.0.0.1'))
+                const [, result] = virtual(emptyState)(e)
+                assert(result[0] === 'error', result)
+                return result[1]
+            }
+            assertIoCode(again(9090), 'ERR_SERVER_ALREADY_LISTEN')
+            // And it is asked before the port is: a server already listening
+            // reports this for a port no server could take, where the same
+            // value on a fresh server is `ERR_SOCKET_BAD_PORT`. That is the
+            // order Node asks in, checked on Linux with Node 22.22.2 and on
+            // Darwin with Node 23.11.0.
+            assertIoCode(again(-1), 'ERR_SERVER_ALREADY_LISTEN')
+            assertIoCode(again(65536), 'ERR_SERVER_ALREADY_LISTEN')
+            assertIoCode(again(NaN), 'ERR_SERVER_ALREADY_LISTEN')
+        },
+        // `forever` is the operation this runner cannot answer — its result
+        // type leaves it nothing but `notImplemented` to return — so a server
+        // program run here ends where it would otherwise have blocked.
+        foreverIsNotImplemented: () => {
+            const [, result] = virtual(emptyState)(forever())
+            assert(result[0] === 'error', result)
+            assertEq(result[1][1], 'forever')
+        },
     },
 }
