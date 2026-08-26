@@ -137,8 +137,13 @@ TypeScript aliases out.
    > belong to that epic's stage 13 rather than here.
 
    So what an annotation on a function *means* is settled; what is still
-   missing is the schema form to write one with. Until 668 lands that, `/*: */`
-   can join `@type` on a function declaration but not replace it.
+   missing is the schema form to write one with — and until 668's
+   representation half lands, a function annotation is **unavailable, not
+   merely weaker**. There is no function case in RTTI, so there is no binding a
+   `/*: */` on a function could name: evaluation would either reject it as not
+   a schema or accept something like `unknown`, which supplies none of the
+   checking described above. So on a function declaration `@type` stays the
+   only option, and `/*: */` joins it on the rest of the module.
 
 4. **Generic schemas.** Roughly 190 `@template` uses today (re-measure rather
    than cite; the figure drifts). A generic type is naturally a

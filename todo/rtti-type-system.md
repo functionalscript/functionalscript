@@ -929,8 +929,31 @@ are stated instead:
       re-evaluate to something else. The second needs no new analysis and makes
       the guarantee structural, so it is the one to beat.
 
-      **It is not semantics-preserving today, and that is a precondition, not a
-      caveat.** Reusing the `data` form at run time means validating through
+      **And the snapshot has to survive being written down.** Reusing the
+      compile-time schema at run time means embedding it in the shipped
+      program, which means serializing it — and
+      [`data/README.md`](../fjs/types/rtti/data/README.md) states the corner
+      itself: JSON's number model "writes a `NaN` literal member as `null` and
+      drops `-0`'s sign, so a schema using those two as literal members does
+      not round-trip textually today and needs a serializer that preserves
+      them". It is shared by both serializers — DJS covers the rest of the form
+      including `bigint` literals, but numbers go to `JSON.stringify`
+      ([`json/serializer`](../fjs/media/json/serializer/module.f.mjs)). A
+      snapshot of `close({ x: NaN })` would come back as `close({ x: null })`,
+      so the run-time schema would differ from the one the compiler checked
+      against — the exact disagreement this remedy exists to prevent, arrived
+      at through the fix rather than the bug. So this stage needs a lossless
+      number serializer, or an explicit restriction barring `NaN` and `-0` as
+      literal members of a snapshotted schema, before the remedy is sound.
+
+      Note this is the **third** mechanism these two values break, after the
+      printer rendering a non-finite const as `number` and `-0` as `0`, and
+      `validate` matching them with `Object.is` on purpose. Whoever picks up
+      the `.d.ts` policy should treat `NaN` / `-0` as one question across all
+      three rather than three unrelated corners.
+
+      **It is not semantics-preserving today either, and that is a
+      precondition, not a caveat.** Reusing the `data` form at run time means validating through
       `data`'s reader, and it accepts values the thunk readers reject:
       `unionValidate` dispatches on primitives and arrays and lets everything
       else fall through to object validation, while `validate` and `parse`
