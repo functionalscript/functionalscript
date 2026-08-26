@@ -29,7 +29,7 @@ module and the least-connected one in the directory that holds it.
 
 **Consuming `types/` is not membership.** `rtti` imports `types/object`,
 `types/result`, `types/list`, `types/array`, `types/ts` and `types/phantom` —
-which is exactly what the rest of `fjs/` does: repo-wide, `types/list` has 81
+which is exactly what the rest of `fjs/` does: repo-wide, `types/list` has 82
 import references from 14 top-level directories, `types/result` 78 from 10,
 `types/object` 59 from 16. That is outside-consumer behaviour.
 
@@ -183,13 +183,20 @@ named after what it binds, and no path collides.
 ### Related
 
 - **Merge-order hazard with the RTTI epic**
-  ([#1719](https://github.com/functionalscript/functionalscript/pull/1719)).
-  Its `todo/rtti-type-system.md` exists only on that branch and carries 43
-  `types/rtti` path references, so none of them appear in the counts above and
-  none of this plan's greps can see them. Whichever of the two lands second
-  rewrites paths the other just wrote. Cheapest order: land the epic first and
-  fold its 43 references into this move's inventory, since the epic is prose
-  about rtti while this move is the thing that invalidates paths.
+  ([#1719](https://github.com/functionalscript/functionalscript/pull/1719)),
+  in two facets, neither visible to any inventory run on this branch.
+  - `todo/rtti-type-system.md` exists only on that branch and is dense in
+    `types/rtti` path references — 45 at its head `f736b79`, 43 a few commits
+    earlier. **Treat any figure here as a snapshot**: that branch is active, so
+    re-measure at merge time rather than trusting this line.
+  - It also adds files *inside* `fjs/types/rtti/todo/` — one at `f736b79`
+    (`data-validate-admits-non-djs-values.md`) — which the move would itself
+    relocate, so the two changes collide on the subtree as well as on
+    references to it.
+
+  Whichever lands second rewrites paths the other just wrote. Cheapest order:
+  land the epic first, then re-run this plan's inventory over the merged tree —
+  the epic is prose about rtti, while this move is what invalidates paths.
 - [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)
   — the umbrella reorg. This is the same shape as its item 2, which moved
   `monoid` out of `types/` on the rule that `types/` admits data structures and
