@@ -43,6 +43,22 @@ fjs/effects/browser/         browser operations and interpreter, only if useful
 └── types.ts                 operation types
 ```
 
+Website preparation follows the same boundary. Restore the package command to
+the FunctionalScript entry point:
+
+```json
+"index-html": "node ./fjs/module.mjs r ./fjs/website/module.f.mjs"
+```
+
+`fjs/website/module.f.mjs` must own proof discovery, manifest generation, and
+HTML/entry generation as one `NodeProgram`. Do not invoke a non-FunctionalScript
+preparation script such as `website/browser-prepare.mjs` directly from an npm
+script. If preparation needs a Node capability that the FunctionalScript
+program cannot currently express, add the smallest operation to
+`fjs/effects/node/` and its real and virtual interpreters instead of bypassing
+Effects. Existing `readdir`, `readFile`, and `writeFile` operations should be
+reused where sufficient.
+
 Move `emergent_testing/browser.mjs` to
 `emergent_testing/browser/module.mjs`. It should become a thin impure shell:
 provide browser capabilities, start the pure program, render semantic events,
@@ -80,6 +96,9 @@ are shared.
   are asynchronous values.
 - Browser modules must not import Node built-ins, the Node effect interpreter,
   `node:test`, or Playwright.
+- Website build-time filesystem access must be expressed by the FunctionalScript
+  `NodeProgram` through Node effects; npm scripts must not run an impure helper
+  as a second application entry point.
 - The browser host runner must remain usable as native JavaScript with no
   bundling or transpilation.
 - Pure `.f.mjs` additions require co-located proofs with complete line,
@@ -100,6 +119,12 @@ are shared.
       values without terminal or DOM fields.
 - [ ] Decide whether browser import/time/yield/publication justify
       `fjs/effects/browser/`; document the decision before adding operations.
+- [ ] Move static proof discovery and `_browser-suite.mjs` generation into
+      `fjs/website/module.f.mjs`; extend `fjs/effects/node/` only for a concrete
+      missing capability and prove the real and virtual interpretations.
+- [ ] Delete `fjs/website/browser-prepare.mjs` and restore `index-html` to
+      `node ./fjs/module.mjs r ./fjs/website/module.f.mjs` once the
+      FunctionalScript generator owns the complete build.
 - [ ] Add `emergent_testing/browser/module.f.mjs` for pure browser application
       composition and its complete proof.
 - [ ] Move the current browser host code to
