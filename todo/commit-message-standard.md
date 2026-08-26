@@ -71,10 +71,11 @@ before merge:
 
 Set the repository's default squash message to **"Pull request title and
 description"**, so the body is reviewed prose instead of the intermediate
-commit list. The PR description then contains a `Changelog:` section — the
-last section of the body *before an optional trailer block* (`Co-Authored-By:`,
-generated-with lines, session links; about half of recent PR bodies end with
-one, this PR's included, so "ends with" would be a spec bug) — holding exactly
+commit list. When the change affects behavior or the public API, the PR
+description then contains a `Changelog:` section — the last section of the body
+*before an optional trailer block* (`Co-Authored-By:`, generated-with lines,
+session links; about half of recent PR bodies end with one, this PR's included,
+so "ends with" would be a spec bug) — holding exactly
 the list items that would go into `changelog/unreleased/<PR>.md`, in the same
 restricted Markdown subset, no PR link (the title's `(#NNN)` identifies it):
 
@@ -86,9 +87,9 @@ Changelog:
   same cost as the accumulator it replaces
 ```
 
-- A PR that needs no entry (docs, `todo/`, CI-only) writes `Changelog: none`.
-  The section is **mandatory** either way — its absence is a lint failure,
-  which is what makes "no missed changelog notes" checkable instead of hoped.
+- A PR that needs no entry (docs, `todo/`, CI-only) omits the section entirely
+  — a `Changelog: none` placeholder is noise on every such PR, and the PR's own
+  diff is what says whether an entry was owed.
 - A breaking change starts its item with `**BREAKING CHANGES:**`, exactly as
   in the files — the version-bump decision reads the same marker from either
   source.
