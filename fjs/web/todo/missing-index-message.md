@@ -86,9 +86,11 @@ Three constraints on the wording:
 - **Echo the percent-encoded spelling, never the decoded one.** The candidates
   disagree — the raw target, the decoded path and the re-joined segments
   differ for `/fjs%2F` (decodes to `/fjs/`) and `/fjs/./` (re-joins to `fjs`)
-  — but the choice is not only cosmetic. `percentDecode` rejects just NUL and
-  invalid UTF-8, so `/%1B%5B31m/` and `/a%0Ab/` decode to real control
-  characters, and a body is not only read by browsers: `curl` and `wget` write
+  — but the choice is not only cosmetic. Nothing on the way in excludes a
+  control character: `percentDecode` rejects a malformed escape and invalid
+  UTF-8, `resolve` rejects NUL separately, and `/%1B%5B31m/` and `/a%0Ab/` are
+  none of those — they decode to real control characters. A body is not only
+  read by browsers: `curl` and `wget` write
   it to a terminal, where an ANSI or OSC sequence is acted on rather than
   displayed. `text/plain` and `nosniff` bound what a *browser* does with the
   bytes and say nothing about that, so calling them harmless was wrong.
@@ -104,7 +106,10 @@ Three constraints on the wording:
   `percentDecode`'s output directly.
 
   Nothing echoes anything today — the current answer is the constant `not
-  found` — so this is a property to build in, not a bug to fix.
+  found` — so this is a property to build in, not a bug to fix. And nothing
+  needs plumbing for it: `respond` already binds `parseTarget(url)` for the
+  host check, so `target.path` is in scope where the message would be built.
+  Only the `isDirectory` fact below has to travel.
 
 The obstacle is that the distinction is gone by the time it is needed.
 `resolve` computes `isDirectory` and then returns `Result<string, Refusal>` —
