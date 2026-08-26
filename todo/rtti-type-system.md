@@ -308,7 +308,10 @@ TypeScript cannot express.
 
 *Inbound* is the obvious half: each incoming reference needs `parse` against a
 schema that names every part (per the paragraph above), a deep copy, a freeze,
-or a stated ownership transfer the caller is documented to honour.
+or an **enforceable** ownership transfer — not one the caller is merely
+documented to honour, since nothing checks that and TypeScript accepts a
+mutable value where a readonly input is expected. Stage 13 states what
+"enforceable" would take.
 
 *Outbound is the same hole mirrored*, and it is easy to miss because the value
 started inside. An exported value, or a function result, that FunctionalScript
@@ -319,7 +322,9 @@ named, exported and shared, and a `Const` schema is an ordinary object: a
 consumer that mutates the schema it was handed changes what the checker
 accepts, for everyone holding it. Outbound references need the same treatment —
 copy or freeze on the way out, or the module relinquishes its own alias, which
-is ownership transfer in the other direction.
+is ownership transfer in the other direction — and under the same
+enforceability condition, since a note in a README binds the receiver no more
+than it binds the caller.
 
 Which remedy is a cost/ergonomics decision, and it belongs with the same person
 deciding the `close` policy — all of it is one question asked about different

@@ -56,7 +56,34 @@ trusted.
 - [ ] Add or design a sandboxed wrapper that returns
   `Effect<Sandbox, Result<TsResult<F>, unknown>>`.
 - [ ] Document the runtime limitation: function RTTI describes callable
-  contracts, but the contract is enforced at call boundaries.
+  contracts, but the contract is enforced at call boundaries. **State its
+  scope**: it is a limit on *runtime validation of an arbitrary function*, not
+  on statically checking a definition the compiler can read — see the next
+  task.
+
+Added by [rtti-type-system](../../../../todo/rtti-type-system.md), which makes
+this issue its stage 7. Completing only the tasks above would leave that stage
+unfinished, and general inference and declaration retirement blocked with it:
+
+- [ ] **Static checking of readable definitions.** For a function defined in a
+  compiler-readable module, no wrapper is needed: check the body's inferred
+  result against the declared result schema, and each call site against the
+  parameter schemas. The wrapper above is for *opaque* functions crossing a
+  runtime boundary, and that is the only place its `Result` return is
+  justified. Splitting the two by provenance is what keeps the API-changing
+  wrapper off ordinary exported functions.
+- [ ] **A place in the canonical algebra.** Everything downstream runs on the
+  function-free [`data`](../data/README.md) form: the epic's stage 6 checks
+  through `subset`, and its stage 1 printer goes `toData → dataToTs`. Either
+  function contracts go into `data`, or extern schemas need an equivalent
+  `subset` path. This is where **variance** enters — function inclusion is
+  contravariant in parameters and covariant in results, and `subset` today is
+  inclusion over kinds with no variance notion at all.
+- [ ] **A printer path**, so a function-typed export has a declaration to
+  generate.
+- [ ] Decide **extern vs in-`data`** for the representation. The Related note
+  below contemplates extern; the two tasks above are what that choice has to
+  pay for.
 
 ### Related
 
