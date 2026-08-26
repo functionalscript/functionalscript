@@ -102,6 +102,30 @@ undeclared keys are unconstrained, a tuple's `rest` is `unknown` — so
 [Closed containers](#closed-containers) below. Closedness is stated, never
 inferred.
 
+#### A hole is a declared position
+
+A `Tuple` schema is read by **length**, so a sparse one declares as many
+positions as it is long and a hole is a position whose schema is `undefined`:
+
+| schema | value | all three readers |
+| --- | --- | --- |
+| `new Array(1)` | `[undefined]` | ok |
+| `new Array(1)` | `[1, 2, 3]` | error |
+| `[, number]` | `[undefined, 5]` | ok |
+| `[, number]` | `[9, 5]` | error |
+
+Reading index `0` of `new Array(1)` yields `undefined`, and `undefined` is a
+`Const` schema in its own right, so this is what follows from `Tuple` being
+`readonly Type[]`. `Object.entries` — which skips holes — was the schema-form
+readers' entry list until it disagreed with the data form's `for…of` on exactly
+these rows; `tupleSchemaEntries` in `common/module.f.mjs` is now the one place
+that says how a tuple schema is read, and `structSchemaEntries` is its struct
+counterpart. The alternative reading would make `new Array(1)` and `[]` the
+same schema while `[undefined]` stayed different from both.
+
+Nothing about a dense schema changes: on an array without holes the two entry
+lists are identical.
+
 #### This is deliberate; please do not "fix" it
 
 The tempting mistake is to read `Ts<T>` and conclude tuples must be exact:

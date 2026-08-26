@@ -18,6 +18,8 @@
  * - `eachEntry`: the container entry loop (array/record/tuple/struct). Callers
  *   choose what (if anything) to accumulate, so a caller that only needs
  *   pass/fail pays no allocation per entry.
+ * - `tupleSchemaEntries`/`structSchemaEntries`: what a container schema
+ *   declares, per kind — the entry list its readers walk.
  * - `undeclaredEntries`: the other half of a closed container's loop — the
  *   entries a `Tuple`/`Struct` schema does not name.
  * - `orVisit`: the shared `or` handler — try each variant's recursive walker,
@@ -29,10 +31,10 @@
  * @module
  *
  * @import { Primitive, Unknown } from '../ts/types.ts'
- * @import { Const, Info0, Primitive0, Tag1, Tuple, Type } from '../types.ts'
+ * @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
  * @import { Error, Result as CommonResult } from '../../result/types.ts'
  * @import { StringMap } from '../../object/types.ts'
- * @import { Validate, Visitor, IsContainer, Container, ResultE, ValidateE, ValidationError } from './types.ts'
+ * @import { Validate, Visitor, IsContainer, Container, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -129,6 +131,33 @@ export const eachEntry =
         }
         return ok(acc)
     }
+
+/**
+ * What a `Tuple` schema declares, read by **length**.
+ *
+ * `Array.from` yields `undefined` for a hole and preserves the schema's
+ * length, so a hole is a declared position whose schema is `undefined` — which
+ * is a `Const` schema in its own right, and exactly what reading index `0` of
+ * `new Array(1)` gives. That is the reading `../data/module.f.mjs`'s
+ * `containerUnion` has always had, so the canonical data form stays fixed.
+ *
+ * `Object.entries` skips holes, which is why it is not used here: it would
+ * make `new Array(1)` and `[]` the same schema while `[undefined]` stayed
+ * different from both. On a dense array the two agree exactly.
+ *
+ * @type {SchemaEntries<Tuple>}
+ */
+export const tupleSchemaEntries = rtti =>
+    Array.from(rtti, (t, i) => [String(i), t])
+
+/**
+ * What a `Struct` schema declares: its enumerable own keys. A struct has no
+ * holes, so there is nothing for this to disagree with.
+ *
+ * @type {SchemaEntries<Struct>}
+ */
+export const structSchemaEntries = rtti =>
+    Object.entries(rtti)
 
 /**
  * The entries of `value` that `declared` does not name.

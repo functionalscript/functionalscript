@@ -76,12 +76,23 @@ const rows = [
     [[/** @type {const} */ (42)], []],
     [{ a: number, b: option(string) }, { a: 1 }],
     [{ a: number }, { a: 'one' }],
+    // a hole in a tuple schema is a declared position whose schema is
+    // `undefined`, so the schema's length is what it declares — the reading
+    // the data form has always had, and the one `Object.entries` lost
+    [new Array(1), [1, 2, 3]],
+    [new Array(1), [undefined]],
+    [new Array(1), []],
+    [[, number], [9, 5]],
+    [[, number], [undefined, 5]],
     // the closed counterparts of the four openness rows, and the rest
     [close([number]), [42]],
     [close([number]), [42, 'extra']],
     [close([number]), [42, ,]],
     [close([number]), Object.assign([42], { foo: 1 })],
     [close([number]), []],
+    [close(new Array(1)), new Array(1)],
+    [close(new Array(1)), [undefined]],
+    [close(new Array(1)), [1]],
     [close([number, option(string)]), [42]],
     [close({ a: number }), { a: 1 }],
     [close({ a: number }), { a: 1, b: 'x' }],

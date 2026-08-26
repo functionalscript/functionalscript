@@ -20,6 +20,10 @@
  * member reads as `undefined`, on both kinds — so a shorter array whose
  * trailing position admits `undefined` is accepted and the gap is filled.
  *
+ * A tuple schema declares by length, so a hole in one is a declared position
+ * whose schema is `undefined` — see "A hole is a declared position" in
+ * `../README.md`.
+ *
  * Openness is what makes this forward-compatible with extended serialization
  * formats: a schema-based parser keeps working when newer versions of the
  * format add extra fields or tuple elements.
@@ -45,11 +49,11 @@
  *
  * @module
  *
- * @import { ConstObject, Info1, Struct, Tag1, Tuple, Type } from '../types.ts'
+ * @import { ConstObject, Info1, Tag1, Type } from '../types.ts'
  * @import { Result as CommonResult } from '../../result/types.ts'
  * @import { StringMap } from '../../object/types.ts'
  * @import { List } from '../../list/types.ts'
- * @import { Container, IsContainer, ValidateE, ValidationError, Visitor } from '../common/types.ts'
+ * @import { Container, IsContainer, SchemaEntries, ValidateE, ValidationError, Visitor } from '../common/types.ts'
  * @import { Unknown } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
  */
@@ -63,6 +67,8 @@ import {
     isObject,
     orVisit,
     primitive0Validate,
+    structSchemaEntries,
+    tupleSchemaEntries,
     undeclaredEntries,
     verror,
     visit,
@@ -127,26 +133,28 @@ const arrayParse = containerParse(isArray, arrayRebuild)
 const recordParse = containerParse(isObject, recordRebuild)
 
 /**
- * Builds a parser for `Tuple` or `Struct` const schemas. It iterates the
- * *schema's* entries, which is what makes both kinds open: a longer array or
- * an undeclared key is never visited, so it is accepted and left out of the
- * rebuilt result.
+ * Builds a parser for `Tuple` or `Struct` const schemas. It iterates what the
+ * *schema* declares — `schemaEntries`, per kind — which is what makes both
+ * kinds open: a longer array or an undeclared key is never visited, so it is
+ * accepted and left out of the rebuilt result.
  */
 const constContainerParse =
     /**
      * @template {Unknown} C
+     * @template {ConstObject} S
      * @param {IsContainer<C>} isContainer
+     * @param {SchemaEntries<S>} schemaEntries
      * @param {(value: C, k: string) => Unknown} getItem
      * @param {_Rebuild} rebuild
-     * @returns {<T extends Tuple | Struct>(rtti: T) => Parse<T>}
+     * @returns {<T extends S>(rtti: T) => Parse<T>}
      */
-    (isContainer, getItem, rebuild) =>
+    (isContainer, schemaEntries, getItem, rebuild) =>
     rtti => value => {
         if (!isContainer(value)) {
             return verror('unexpected value')
         }
         const r = eachEntry(
-            entries(rtti),
+            schemaEntries(rtti),
             (k, t) => (/** @type {any} */ (parse(t))(getItem(value, k))),
             emptyEntries,
             consEntry,
@@ -156,12 +164,14 @@ const constContainerParse =
 
 const tupleParse = constContainerParse(
     isArray,
+    tupleSchemaEntries,
     (value, k) => value[Number(k)],
     arrayRebuild,
 )
 
 const structParse = constContainerParse(
     isObject,
+    structSchemaEntries,
     (value, k) => value[k],
     recordRebuild,
 )
@@ -182,16 +192,18 @@ const noAccumulate = () => undefined
 const closeContainerParse =
     /**
      * @template {ReadonlyArray<Unknown> | StringMap<Unknown>} C
+     * @template {ConstObject} S
      * @param {IsContainer<C>} isContainer
+     * @param {SchemaEntries<S>} schemaEntries
      * @param {(value: C, k: string) => Unknown} getItem
      * @param {_Rebuild} rebuild
      * @param {(value: C, declared: number) => boolean} fits
-     * @returns {(rtti: ConstObject, rest: Type | undefined) => ValidateE}
+     * @returns {(rtti: S, rest: Type | undefined) => ValidateE}
      */
-    (isContainer, getItem, rebuild, fits) =>
+    (isContainer, schemaEntries, getItem, rebuild, fits) =>
     (rtti, rest) => {
         // Depend on the schema alone, so they are computed once per schema.
-        const rttiEntries = entries(rtti)
+        const rttiEntries = schemaEntries(rtti)
         const declared = rttiEntries.map(([k]) => k)
         return value => {
             if (!isContainer(value)) {
@@ -218,6 +230,7 @@ const closeContainerParse =
 
 const closeTupleParse = closeContainerParse(
     isArray,
+    tupleSchemaEntries,
     (value, k) => value[Number(k)],
     arrayRebuild,
     (value, declared) => value.length <= declared,
@@ -225,6 +238,7 @@ const closeTupleParse = closeContainerParse(
 
 const closeStructParse = closeContainerParse(
     isObject,
+    structSchemaEntries,
     (value, k) => value[k],
     recordRebuild,
     () => true,
@@ -232,7 +246,9 @@ const closeStructParse = closeContainerParse(
 
 /** @type {(rtti: ConstObject, rest: Type | undefined) => ValidateE} */
 const closeParse = (rtti, rest) =>
-    (rtti instanceof Array ? closeTupleParse : closeStructParse)(rtti, rest)
+    rtti instanceof Array
+        ? closeTupleParse(rtti, rest)
+        : closeStructParse(rtti, rest)
 
 const orParse =
     /**
