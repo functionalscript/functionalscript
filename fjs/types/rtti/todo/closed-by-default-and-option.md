@@ -465,6 +465,13 @@ Stage 1 (one PR):
       rewrite. `../../../../AGENTS.md` requires a fixed issue to be deleted in
       the PR that fixes it, and leaving it would advertise work against an API
       that is gone.
+- [ ] Migrate the other two todos that **survive** stage 1, since the stages are
+      separate PRs and the tree must not advertise a deleted API between them:
+      [prefix-then-rest-tuple](./prefix-then-rest-tuple.md) `:30-31` links the
+      `#closed-containers` anchor stage 1 removes and describes `close(c, rest)`
+      as what makes its shape spellable; and
+      [parse-omits-undefined-members](./parse-omits-undefined-members.md) keeps
+      two `close(...)` spellings right up to its stage 2 deletion.
 - [ ] Migrate [schema-walk-own-indices](./schema-walk-own-indices.md), which
       **survives** stage 1 rather than being deleted by it: `:69-72` links to
       `close-counts-trailing-undefined.md` — gone by then — and states its
@@ -620,6 +627,20 @@ Stage 2 (one PR, after stage 1 lands):
       before-dispatch test, or the data reader rejects `{}` and sparse tuples
       that both thunk readers accept, and `validate/proof.f.mjs`'s three-reader
       table breaks.
+- [ ] A member absent by own-key but supplied by the **prototype** must still
+      satisfy the member's present part, or `validate`'s success type goes
+      unsound — and this is a regression the own-key rule introduces, not a
+      corner it inherits. Measured today:
+      `validate({ a: option(number) })(Object.create({ a: 'bad' }))` is an
+      **error**, because `getItem` reads through the prototype and checks
+      `'bad'` against `number`. Under the own-key rule alone it becomes `ok`,
+      and the returned object — `validate` hands back what it was given, so it
+      cannot sanitize by rebuilding as `parse` does — reads `.a` as `'bad'`
+      while `Ts` promises `number | undefined`. So the absence test rejects when
+      `Object.hasOwn` is false, HasProperty is true, and the inherited value is
+      outside the member's present set. Proof: that exact value against
+      `{ a: option(number) }` and `{ a: option(string) }`, which today answer
+      error and ok respectively.
 - [ ] Readers: a declared member is absent when its key or index is not an own
       one. `parse` omits an absent member rather than materializing `undefined`:
       the struct kind drops the key, and the array kind **preserves indices** —
