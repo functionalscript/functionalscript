@@ -515,7 +515,7 @@ implementation detail, so this epic records it rather than picking.
 | Piece | Where | State |
 | --- | --- | --- |
 | Schema constructors | [`fjs/types/rtti/module.f.mjs`](../fjs/types/rtti/module.f.mjs) | done |
-| Run-time checking | [`parse/`](../fjs/types/rtti/parse/module.f.mjs), [`validate/`](../fjs/types/rtti/validate/module.f.mjs) | done — same acceptance, differing only in what a success carries |
+| Run-time checking | [`parse/`](../fjs/types/rtti/parse/module.f.mjs), [`validate/`](../fjs/types/rtti/validate/module.f.mjs) | done — same acceptance, differing only in what a success carries. `data`'s reader is **not** a third with the same acceptance: see [data-validate-admits-non-djs-values](../fjs/types/rtti/todo/data-validate-admits-non-djs-values.md) |
 | Canonical data form, `subset` | [`data/`](../fjs/types/rtti/data/module.f.mjs) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
 | TypeScript emission | [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on tuple openness, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
 | Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/types/rtti/ts/types.ts) | done, and transitional — see Problem |
@@ -905,6 +905,23 @@ are stated instead:
       `toData` already produces: a function-free canonical form that cannot
       re-evaluate to something else. The second needs no new analysis and makes
       the guarantee structural, so it is the one to beat.
+
+      **It is not semantics-preserving today, and that is a precondition, not a
+      caveat.** Reusing the `data` form at run time means validating through
+      `data`'s reader, and it accepts values the thunk readers reject:
+      `unionValidate` dispatches on primitives and arrays and lets everything
+      else fall through to object validation, while `validate` and `parse`
+      guard object positions with `isObject`. Measured at `0d54eddd`,
+      `validate({})(() => 1)` is an error and
+      `data.validate(toData({}))(() => 1)` is `ok`; the same holds for a symbol,
+      and for `record(number)` in place of `{}`. It is confined to object
+      schemas a property-free value satisfies vacuously — `{ a: number }`
+      rejects in both — which is precisely what makes it easy to adopt this
+      remedy without noticing. Swapping readers to fix *which schema* run time
+      sees would change *what that schema accepts*, trading one compile-time /
+      run-time disagreement for another. Filed as
+      [data-validate-admits-non-djs-values](../fjs/types/rtti/todo/data-validate-admits-non-djs-values.md),
+      which this stage is gated on.
 
       **It does not reach function schemas if stage 7a goes extern.** `data` is
       function-free by construction, so a function contract living outside it
