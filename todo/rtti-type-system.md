@@ -388,16 +388,34 @@ stating rather than assuming:
   compile time and run time do agree. The gap exists only where a schema is
   projected into TypeScript for an outside consumer — commitment 5's audience,
   not commitment 1's.
-- **The projection errs upward.** A generated declaration is a supertype of the
-  schema's set wherever TypeScript cannot express it exactly, so the failure
-  mode is a value TypeScript accepts and the schema rejects — caught at the
-  validation boundary, loudly — rather than the reverse.
+- **The projection errs upward, and what that costs depends on the position.**
+  A generated declaration is a supertype of the schema's set wherever
+  TypeScript cannot express it exactly. In an **output** position — an exported
+  const, a function's result — that is harmless: the value was produced by code
+  the schema governs, so a wider declaration merely under-promises. In an
+  **input** position it is not, and an earlier draft of this section claimed
+  otherwise. `close({ a: number })` on an exported parameter tells a TypeScript
+  caller it may pass a variable carrying extra keys, and **nothing validates
+  it**: no stage injects a check at a package call boundary, so the callee
+  receives a value outside its schema silently. "Caught loudly at the
+  validation boundary" is true only where such a boundary exists, and for a
+  plain exported function it does not.
+
+  This is contravariance arriving early — the same axis stage 7 must introduce
+  for function schemas, showing up first in what a declaration promises rather
+  than in `subset`.
 
 What this needs is a **stated policy**, decided before stage 11 rather than
 discovered by a consumer:
 
 1. narrow the promise — say plainly that a `.d.ts` is an upper bound, and that
-   exactness lives in the schema; or
+   exactness lives in the schema. **Adequate only in output positions**; in an
+   input position it documents a hole rather than closing one, so it has to be
+   paired with a boundary wrapper. Note that the wrapper 668 proposes
+   (`validateFunc`) returns `Result<…>`, which changes the published signature
+   — and so collides with stage 11's rule that a retiring declaration must
+   reproduce what it published. Whichever way this goes, those two decisions
+   are one decision; or
 2. restrict `close` in exported contracts, so published types are ones
    TypeScript can express; or
 3. emit an exactness encoding where one exists (a branded field, an
