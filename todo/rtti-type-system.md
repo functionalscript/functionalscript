@@ -900,9 +900,27 @@ are stated instead:
       Deciding that is part of the stage, not a detail under it.
 - [ ] **7. Function schemas**
       ([668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md)),
-      and what an annotation on a function *means* — a compile-time check that
-      cannot be completed, or a wrapper validating each call. Until this is
-      settled, `//:` can join `@type` but not replace it.
+      and what an annotation on a function *means*. An earlier draft posed that
+      as two choices — a compile-time check that cannot be completed, or a
+      wrapper validating each call — and **that is a false choice**, inherited
+      from a framing about runtime validation. It splits by provenance:
+
+      - **A function defined in a compiler-readable module** is statically
+        checkable, with no wrapper and no API change: check the body's inferred
+        result against the declared result schema, and check each call site
+        against the parameter schemas. This is ordinary type checking and it is
+        what stages 5–6 already do for other values.
+      - **An opaque function crossing a runtime boundary** — one arriving from
+        ordinary JavaScript, or whose definition the compiler cannot see — is
+        the case 668's wrapper is for, and the case where its `Result` return
+        is justified.
+
+      668's limitation is that *runtime validation* cannot prove an arbitrary
+      function's future behaviour. True, and it says nothing about statically
+      checking a definition the compiler can read. Reading it as the general
+      case would have forced the API-changing wrapper onto ordinary exported
+      functions, or left the commonest case unchecked — either of which blocks
+      stages 6 and 11 for most of the tree.
 
       **Adding the schema form is necessary and not sufficient**, because
       everything downstream of it runs on the canonical `data` form, and that
@@ -1094,9 +1112,16 @@ are stated instead:
       JavaScript in either direction, per
       [What a generated `.d.ts` can and cannot promise](#what-a-generated-dts-can-and-cannot-promise)
       and the boundary paragraphs above: `parse` against a fully naming schema,
-      a deep copy, a freeze, or a documented ownership transfer — inbound, and
-      the mirror of it outbound, where an exported schema object is the sharp
-      case. The `close` policy and 668's call-validating wrapper are the same
+      a deep copy, a freeze, or an **enforceable** ownership transfer —
+      inbound, and the mirror of it outbound, where an exported schema object
+      is the sharp case. Enforceable is the operative word: a transfer that is
+      merely *documented* establishes nothing, since an ordinary JavaScript
+      caller can keep an alias and TypeScript accepts a mutable value where a
+      readonly input is expected. Either the language gains the ownership
+      tracking [mutability](../spec/todo/mutability.md) already contemplates —
+      which is the only mechanism in sight that could make a transfer
+      checkable — or the remedy is reconstruction or freezing, which do not
+      depend on the caller's cooperation. The `close` policy and 668's call-validating wrapper are the same
       decision seen from two angles, so settle them together.
 
       **Gates stage 11.** Retiring JSDoc does not create this hole, but it
