@@ -47,7 +47,9 @@ written in the language, in a `const`, never in a comment — built from
 `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`,
 `option`, `never`, `close`, plus `Const` (a primitive, tuple, or struct used
 directly as its own schema). It is a value: it can be named, imported,
-exported, passed to a function, and returned from one.
+exported, passed to a function, and returned from one. Being a value costs
+nothing at run time — see
+[A compile-time-only type is not in the shipped program](#a-compile-time-only-type-is-not-in-the-shipped-program).
 
 Anything the eDSL cannot yet say is a gap in the eDSL, to be closed there —
 not a reason to grow a second notation beside it. This is the rule that keeps
@@ -296,6 +298,59 @@ stage that can land earliest and entirely on its own. It is also what lets a
 More than half the run-time and emission side is built. The compile-time side is
 the part that does not exist.
 
+### A compile-time-only type is not in the shipped program
+
+The standing objection to types-as-values is cost: TypeScript erases its types,
+and a type that is an ordinary value looks like one more thing to ship. It does
+not apply here, and answering it needs no erasure rule.
+
+A FunctionalScript module compiles to an [EDAG](./edag-spec.md), and source is
+serialized back **out of the graph**, by reference count, emitting only what is
+reachable —
+[`fjs/djs/serializer`](../fjs/djs/serializer/module.f.mjs) already does exactly
+this for DJS values, counting references, hoisting shared ones to `const cN`,
+and emitting nothing for what nothing points at. A schema imported and named
+only to be mentioned in `//: myType` annotations has no edge from anything the
+program evaluates: the annotation is a comment, the compiler consumed it at
+compile time, and no node refers to the binding. **It is not in the output.**
+
+The same schema passed to `validate` *is* referenced, so it stays — once, shared
+by both uses, because the graph deduplicates by identity rather than by import
+site.
+
+Three things follow:
+
+- **No `import type`, and no erasure rule.** Reachability already answers the
+  question, so the language needs no second import form, no annotation
+  distinguishing type imports from value imports, and no specification of which
+  constructs vanish. One import, one binding, and the graph decides.
+- **The two cannot disagree.** In a language with a separate type-import form,
+  marking something `type` that is needed at run time is a whole bug class.
+  Here the emitted program is a function of the graph, so "reachable at run
+  time" and "kept" are the same statement.
+- **Pay for what you check.** A module that only checks at compile time ships no
+  schema at all; one that validates a protocol frame ships exactly the schemas
+  it validates; a module doing both ships one copy.
+
+The drop is sound rather than merely convenient, and by the EDAG's own rule.
+[edag-stage1-discussion](./edag-stage1-discussion.md) establishes that throwing
+is the only effect, and that "nodes proven total are freely movable and
+droppable" — it is precisely nodes that might throw that cannot be dropped
+silently. RTTI schema construction builds immutable values and has no failure
+mode, so a schema node is total by construction and meets that condition
+exactly.
+
+Two honest qualifications. This is a property of the FunctionalScript compiler
+and its EDAG, so it arrives with them, not with today's `.f.mjs`-on-Node
+execution, where importing the RTTI module is an ordinary run-time import
+([compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) is the
+rollout). And it says nothing about `.mjs`, which is ordinary JavaScript held to
+ordinary bundler rules.
+
+There is a pleasing closure here: `fjs/edag/` owns "the RTTI schema used to
+define those types" ([edag-spec](./edag-spec.md)), so the graph that decides
+what ships is itself described by the type system whose cost it decides.
+
 ### Editor support is part of the work, not an extra
 
 Today a `.f.mjs` module gets its editor experience for free: VSCode runs the
@@ -487,7 +542,15 @@ does not replace them.
 - [new-pl.md § Type System](./new-pl.md#type-system) — the same idea one level
   out: type checking as an opt-in library rather than a language feature.
 - [edag-spec.md](./edag-spec.md) — already specifies the EDAG with RTTI and
-  generates Rust from it; the same schemas would feed both.
+  generates Rust from it; the same schemas would feed both. It is also what
+  makes a compile-time-only schema free: source is serialized out of the graph,
+  so an unreferenced schema is not emitted.
+- [edag-stage1-discussion.md](./edag-stage1-discussion.md) — "nodes proven total
+  are freely movable and droppable", the rule a schema node satisfies.
+- [serialization](../spec/todo/serialization.md) and
+  [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) — code
+  as an FJS value, and the rollout that brings the above from DJS values to
+  modules.
 - [134-nominal-types-proposal](./134-nominal-types-proposal.md) — stage 9.
 
 **Depends on:**
