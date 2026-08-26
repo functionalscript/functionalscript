@@ -1,12 +1,16 @@
 ## browser-testing. Run FunctionalScript proofs inside real browsers
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
-FunctionalScript has no test path that executes proof functions and their
-module dependencies inside browser JavaScript realms.
+FunctionalScript now has a first website-hosted path that executes proof
+functions and their module dependencies inside a browser JavaScript realm. It
+generates a proof-source manifest, loads modules with native `import()`, runs
+recursive proofs, and renders a serializable report. The shared application
+boundary, dependency-graph rejection, automated browser controllers, and
+cross-browser validation described below are still missing.
 
 An earlier revision of this plan was built around transpiling authored `.f.ts`
 to browser-loadable `.f.js`. That premise is gone: authored source is `.f.mjs`
@@ -136,8 +140,10 @@ workers, or visual regression testing.
       unsupported dependencies clearly.
 - [ ] Create the JavaScript-only application root with a generated entry
       module covering every accepted module.
-- [ ] Implement the browser-compatible emergent-test runner and report API.
-- [ ] Implement the HTML UI and integrate it into the FunctionalScript
+- [x] Implement the first browser-compatible emergent-test runner and report
+      API; follow up by sharing its pure semantics with `fjs t` in
+      [share-browser-console-runner](share-browser-console-runner.md).
+- [x] Implement the HTML UI and integrate it into the FunctionalScript
       website.
 - [ ] Add shared controller code for preparation, serving, report validation,
       and timeout handling.
@@ -151,5 +157,7 @@ workers, or visual regression testing.
 ### Related
 
 - [`.f.mjs` proof discovery and coverage](f-mjs-test-and-coverage.md)
+- [Shared browser/console runner core](share-browser-console-runner.md)
+- [Explicit browser test controls](browser-test-controls.md)
 - [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
 - [project roadmap](../../../todo/plan/roadmap.md)
