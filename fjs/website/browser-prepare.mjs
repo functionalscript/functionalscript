@@ -26,7 +26,8 @@ const files = async directory => {
 
 /** @type {(source: string) => boolean} */
 const exportsProof = source =>
-    source.includes('export const proof') ||
+    source.split('export const proof').slice(1).some(part =>
+        part.startsWith(' ') || part.startsWith('\n') || part.startsWith('=')) ||
     source.split('export {').slice(1).some(part => part.split('}')[0].split(',')
         .some(name => (name.split(' as ')[1] ?? name).trim() === 'proof'))
 

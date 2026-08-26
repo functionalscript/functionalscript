@@ -47,18 +47,19 @@ three independent test frameworks.
 ```text
 browser-test output
 ├── index.html
-├── browser-test-entry.mjs
-├── browser-test-runner.mjs
+├── _browser-test-entry.mjs
+├── fjs/emergent_testing/browser.mjs
 └── authored or copied .f.mjs / .mjs modules
 ```
 
-`index.html` starts the runner; the generated entry module explicitly imports
-every selected module that exports `proof`, and native browser ES-module
-loading evaluates the full transitive graph. The application exposes HTML and
-JavaScript only — it does not serve the repository working tree, declaration
-files, `types.ts` (type-only imports are JSDoc comments and never produce a
-request), or paths outside the application root. The browser runner must not
-import the Node effect runner, `node:test`, Node built-ins, or Playwright.
+`index.html` starts the runner. The website integration currently loads the
+generated list of proof sources with native `import()` from the repository
+working tree; this is not the isolated application root described by this
+section. The eventual application exposes HTML and JavaScript only — it does
+not serve the repository working tree, declaration files, `types.ts` (type-only
+imports are JSDoc comments and never produce a request), or paths outside the
+application root. The browser runner must not import the Node effect runner,
+`node:test`, Node built-ins, or Playwright.
 
 ### Selection
 
