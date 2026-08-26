@@ -120,9 +120,15 @@ named after what it binds, and no path collides.
       Expect a no-op — rtti's location is not embedded in any generated output —
       and commit whatever it does write.
 - [ ] `npx tsc`, `fjs test`, `npm run cov` — proofs and 100% coverage unchanged.
-      No Rust file references rtti, so `cargo test`/`clippy`/`fmt` stay out of
-      scope under AGENTS.md's "only if you touched Rust"; they come back in only
-      if the step above regenerates the Rust operator tests.
+- [ ] `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt -- --check`.
+      The move touches no Rust — nothing under `nanvm-lib/` references rtti —
+      but that governs only whether running them locally is worth the time,
+      not whether they gate the PR: `.github/workflows/ci.yml` runs all three
+      on every pull request with no path filter (24 `cargo clippy` invocations
+      across the platform jobs, `cargo fmt -- --check` at `:312`), so
+      AGENTS.md's "only if you touched Rust" is advice for the local loop and
+      CI is the enforcer. Expect them untouched; they become a real check only
+      if `npm run update` regenerates the Rust operator tests.
 - [ ] Delete this file, and close out the umbrella entry. `git mv` moves only the
       rtti subtree, so this issue would survive its own completion, and
       `todo/README.md` requires the fixing PR to delete its issue, capturing any
