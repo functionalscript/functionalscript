@@ -436,11 +436,12 @@ const runNodeEffect = asyncRun({
         // An empty host is the trap this operation's required `host` argument
         // exists to close, so it is refused rather than forwarded. Node treats
         // `''` exactly as it treats an omitted argument and binds the
-        // unspecified address — measured on Linux with Node 22.22.2, where
-        // `listen(0, '')` reports `0.0.0.0` — which is how a missing
-        // configuration value publishes a server on every interface while the
-        // program believes it stated an address. A program that wants every
-        // interface says `'0.0.0.0'` or `'::'` and means it.
+        // unspecified address — `0.0.0.0` on Linux with Node 22.22.2 and `::`
+        // on Darwin with Node 23.11.0, a different address each and the same
+        // mistake — which is how a missing configuration value publishes a
+        // server on every interface while the program believes it stated an
+        // address. A program that wants every interface says `'0.0.0.0'` or
+        // `'::'` and means it.
         //
         // The error is Node's own code and message shape for an argument it
         // rejects, since a caller reading `IoError.code` should not have to

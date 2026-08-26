@@ -42,7 +42,9 @@ export const ioError = info => ['ioError', info]
  *
  * Node treats `''` exactly as it treats an omitted argument and binds the
  * unspecified address — measured on Linux with Node 22.22.2, where
- * `listen(0, '')` reports `0.0.0.0`. `Listen` takes the host precisely so that
+ * `listen(0, '')` reports `0.0.0.0`, and on Darwin with Node 23.11.0, where it
+ * reports `::`. **Which** unspecified address is the platform's business; that
+ * it is one of them is universal. `Listen` takes the host precisely so that
  * an address is stated rather than inherited, and a missing configuration value
  * arriving as `''` inherits the widest one there is. Every runner refuses it, so
  * a program proven against the virtual one binds where the Node one binds.
