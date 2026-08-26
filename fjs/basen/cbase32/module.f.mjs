@@ -47,15 +47,17 @@ export const vecToCBase32 = v => {
 
 /** @type {(s: string) => Nullable<Vec>} */
 export const cBase32ToVec = s => {
-    let v = cBase32ToVec5x(s)
-    if (v === null) { return null }
-    // Strip the padding: trailing zeros up to and including the sentinel `1` bit.
-    // A string with no sentinel — only zero symbols (`0`/`o`), or empty — exhausts
-    // to `empty` and is rejected as `null` rather than looping forever.
-    while (v !== empty) {
-        const [last, rest] = popBack1(v)
-        v = rest
-        if (last === 1n) { return v }
+    // The encoder always puts the sentinel in the final 5-bit character.
+    // Decode that character separately so its padding never makes the main
+    // vector exceed `maxLength` before the padding is stripped.
+    const head = cBase32ToVec5x(s.slice(0, -1))
+    if (head === null) { return null }
+    let tail = cBase32ToVec5x(s.slice(-1))
+    if (tail === null) { return null }
+    while (tail !== empty) {
+        const [last, rest] = popBack1(tail)
+        tail = rest
+        if (last === 1n) { return concat(head)(rest) }
     }
     return null
 }

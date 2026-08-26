@@ -2,7 +2,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
-import { empty, vec } from '../../types/bit_vec/module.f.mjs'
+import { empty, maxLength, vec } from '../../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
@@ -75,5 +75,14 @@ export const proof = {
         assertEq(cBase32ToVec("0"), null, 'single zero symbol must be null')
         assertEq(cBase32ToVec("00"), null, 'all-zero symbols must be null')
         assertEq(cBase32ToVec("o"), null, 'o (maps to 0) must be null')
-    }
+    },
+    maxLengthBoundary: () => {
+        const value = vec(maxLength)(0n)
+        const encoded = vecToCBase32(value)
+        assertEq(cBase32ToVec(encoded), value)
+    },
+    decodeOverflow: () => {
+        // The head alone is wider than `maxLength`, so decoding rejects it.
+        assertEq(cBase32ToVec('0'.repeat(209_717) + 'g'), null)
+    },
 }
