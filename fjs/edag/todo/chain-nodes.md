@@ -586,6 +586,9 @@ node in a property position.
 
 ## Related
 
+- [`./chain-node-grammar.md`](./chain-node-grammar.md) — a successor shape that
+  answers [Open questions](#open-questions): it makes minimality structural by
+  replacing `Lambdas` with one lambda type per chain state
 - [`../README.md`](../README.md) — "Chains", the receiver and short-circuit rules
 - [`../../djs/todo/compile-modules-to-edag.md`](../../djs/todo/compile-modules-to-edag.md)
   — the lowering that would have to emit the normal form
