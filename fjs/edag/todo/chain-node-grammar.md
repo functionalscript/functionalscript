@@ -163,20 +163,27 @@ throughout as *up to trailing elements*: RTTI tuples are open on that side by
 design, so `['|()', args, null, 'extra']` validates against the continuing
 production and an executor reading declared fields ignores the extra. That is
 not a property of this grammar — it holds of every tuple in the current node set
-too — and it does not multiply *graphs*, because `parse` drops what the schema
-does not declare:
+too, which is why [`../README.md`](../README.md) already carries it as a caveat
+rather than a bug.
+
+`parse` does drop what a schema does not declare, and it is tempting to call
+that the answer:
 
 ```
-parse(['()', Exp, Exp])  ['()','f',null]              -> ok ['()','f',null]
-                         ['()','f',null,'extra']      -> ok ['()','f',null]
-                         ['()','f',null,'e1','e2']    -> ok ['()','f',null]
+parse(['()', Exp, Exp])  ['()','f',null,'extra']  ->  ok ['()','f',null]
 ```
 
-`validate` keeps them ([`../../types/rtti/README.md`](../../types/rtti/README.md#structs-and-tuples-are-open)),
-so a pipeline that only validates does see the extra spellings. Closing every
-production would remove them at the schema instead, but that argues against a
-deliberate RTTI decision rather than with it, so the cheaper reading is that
-canonicality here is a `parse` obligation. And the bound
+It is not the answer here. `parse` constructs a fresh container at every
+position it visits, so two edges reaching the same input reference come back as
+two distinct outputs — the identity loss measured in
+[`../../types/rtti/todo/identity-aware-parse.md`](../../types/rtti/todo/identity-aware-parse.md).
+An EDAG's sharing is observable and part of what a function *means*, so
+canonicalizing a graph through `parse` would flatten the one property the
+representation exists to carry. [`../module.f.mjs`](../module.f.mjs) warns
+against calling `parse(exp)` for precisely this reason.
+
+So the multiplicity is real and stays real. Closing every production, or an
+identity-aware normalizer, are the options; `parse` is not among them. And the bound
 that `chain-nodes.md` had to derive — *at most one `|?.`, and only as the first
 step* — is not a rule here at all, because the grammar offers nowhere else to
 put one.
@@ -306,10 +313,11 @@ folded in or kept as the record this one builds on is undecided.
       than a cleanup.
 - [ ] Fix the terminal collision separately — uniform arity plus `close`. It is
       a different collision and the prefix does not close it.
-- [ ] Decide where canonicality against trailing elements is owed: `parse` on
-      the way in, or `close` on every production. The first is what RTTI already
-      does; the second contradicts its documented openness. Either way, say so,
-      because "unspellable" is otherwise true only up to that.
+- [ ] Make "exactly one spelling" hold literally against trailing elements —
+      `close` on every production, or the identity-aware normalizer
+      [`../../types/rtti/todo/identity-aware-parse.md`](../../types/rtti/todo/identity-aware-parse.md)
+      describes. Not `parse`: it is not identity-aware, and flattening an
+      EDAG's sharing costs more than the multiplicity does.
 - [ ] Decide `Index` against `Exp` in the naming positions.
 - [ ] Decide whether this supersedes [`chain-nodes.md`](./chain-nodes.md) or
       builds beside it.
@@ -336,5 +344,7 @@ folded in or kept as the record this one builds on is undecided.
 - [`../README.md`](../README.md) — "Chains", the receiver and short-circuit rules
 - [`../../types/rtti/module.f.mjs`](../../types/rtti/module.f.mjs) — `close`, for
   stating the terminals
+- [`../../types/rtti/todo/identity-aware-parse.md`](../../types/rtti/todo/identity-aware-parse.md)
+  — why `parse` cannot canonicalize a graph whose sharing is observable
 - [`../../djs/todo/compile-modules-to-edag.md`](../../djs/todo/compile-modules-to-edag.md)
   — the lowering, which would have far less to enforce under this shape
