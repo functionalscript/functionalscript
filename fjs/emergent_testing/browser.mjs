@@ -7,23 +7,45 @@
  * automated outer controller is responsible for consuming that status and
  * choosing a nonzero process exit code.
  *
+ * Every DOM entry point reaches the page through the `root` element it is
+ * given — `root.ownerDocument` and its `defaultView` — never through the
+ * runner realm's own `window`/`document`. A page embedding the suite in an
+ * iframe therefore renders into that frame, and a proof can drive the module
+ * with a stand-in root.
+ *
  * @module
  */
 
 import { collectTests, fmtPath } from './module.f.mjs'
 
-/** @type {(error: unknown) => readonly [string, string]} */
-const errorDetails = error => {
+/** @type {(value: unknown) => string} */
+const text = value => {
     try {
-        if (error instanceof Error) {
-            const message = String(error.message)
-            return [message, error.stack === undefined ? message : String(error.stack)]
-        }
-        return [String(error), String(error)]
+        return String(value)
     } catch {
-        return ['Unknown thrown value', 'Unknown thrown value']
+        return 'Unknown thrown value'
     }
 }
+
+/** @type {(error: unknown) => readonly [string, string]} */
+const errorDetails = error => {
+    if (error instanceof Error) {
+        const message = text(error.message)
+        return [message, error.stack === undefined ? message : text(error.stack)]
+    }
+    return [text(error), text(error)]
+}
+
+/**
+ * Recognizes a native promise from any realm. `instanceof Promise` sees only
+ * the runner realm's promises, so a proof returning `iframe.contentWindow
+ * .Promise.resolve(...)` would be reported as passed without being awaited.
+ * The brand check accepts cross-realm promises while still refusing to
+ * assimilate an arbitrary object that happens to carry a `then` proof entry.
+ *
+ * @type {(value: unknown) => boolean}
+ */
+const isPromise = value => Object.prototype.toString.call(value) === '[object Promise]'
 
 /** @typedef {{ readonly module: string, readonly path: string, readonly status: string, readonly duration: number, readonly message?: string, readonly stack?: string }} _BrowserTestResult */
 /** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
@@ -66,9 +88,21 @@ const runOne = (module, path, throws, fn, result) => {
     // objects with a `then` proof property. The Node runner awaits only actual
     // promises, and browser execution must preserve that same test-tree rule.
     return Promise.resolve().then(() => [fn()]).then(
-        ([value]) => value instanceof Promise ? value.then(passed, failed) : passed(value),
+        ([value]) => isPromise(value) ? Promise.resolve(value).then(passed, failed) : passed(value),
         failed
     )
+}
+
+/** @type {(status: string, duration: number, results: readonly _BrowserTestResult[]) => BrowserTestReport} */
+const reportOf = (status, duration, results) => {
+    const failed = results.filter(result => result.status === 'failed').length
+    return {
+        status,
+        browser: navigator.userAgent,
+        totals: { tests: results.length, passed: results.length - failed, failed },
+        duration,
+        results,
+    }
 }
 
 /**
@@ -93,20 +127,37 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
         ).then(next => runBatch(index + batchSize, next))
     }
     const completed = runBatch(0, [])
-    return completed.then(results => {
-        const failed = results.filter(result => result.status === 'failed').length
-        return {
-            status: failed === 0 ? 'passed' : 'failed',
-            browser: navigator.userAgent,
-            totals: { tests: results.length, passed: results.length - failed, failed },
-            duration: performance.now() - start,
-            results,
-        }
-    })
+    return completed.then(results => reportOf(
+        results.some(result => result.status === 'failed') ? 'failed' : 'passed',
+        performance.now() - start,
+        results,
+    ))
 }
 
 /** @typedef {(source: string) => Promise<{ readonly proof?: unknown }>} _BrowserImporter */
 /** @typedef {{ readonly status: 'loaded', readonly source: string, readonly proof: unknown } | { readonly status: 'error', readonly source: string, readonly error: unknown }} _LoadedModule */
+/** @typedef {Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }} _TestWindow */
+
+/** @type {(root: Element) => _TestWindow | null} */
+const viewOf = root => root.ownerDocument.defaultView
+
+/**
+ * Renders the settled report into the page, publishes the run as
+ * `fjsBrowserTestReport` on the root's window, and announces it with
+ * `fjs-browser-test-complete`.
+ *
+ * @type {(root: Element, report: Promise<BrowserTestReport>) => Promise<BrowserTestReport>}
+ */
+const publish = (root, report) => {
+    const view = viewOf(root)
+    const done = report.then(value => {
+        renderBrowserReport(root, value)
+        view?.dispatchEvent(new CustomEvent('fjs-browser-test-complete', { detail: value }))
+        return value
+    })
+    if (view !== null) { view.fjsBrowserTestReport = done }
+    return done
+}
 
 /**
  * Loads proof modules after the page has rendered, reporting module-loading
@@ -129,30 +180,27 @@ export const startBrowserTestSources = (root, sources, importer) => {
         error => /** @type {const} */ ({ status: 'error', source, error })
     )))
     const report = modules.then(loadedModules => {
-        const rejected = loadedModules.find(module => module.status === 'error')
-        if (rejected !== undefined && rejected.status === 'error') {
-            const { error, source } = rejected
-            const [message, stack] = errorDetails(error)
-            const failure = { module: source, path: '', status: 'failed',
-                duration: performance.now() - start, message, stack }
-            /** @type {BrowserTestReport} */
-            const value = {
-                status: 'infrastructure-error',
-                browser: navigator.userAgent,
-                totals: { tests: 0, passed: 0, failed: 0 },
-                duration: failure.duration,
-                results: [failure],
-            }
-            renderBrowserReport(root, value)
-            window.dispatchEvent(new CustomEvent('fjs-browser-test-complete', { detail: value }))
-            return value
+        const rejected = loadedModules.flatMap(module =>
+            module.status === 'error' ? [module] : [])
+        if (rejected.length !== 0) {
+            // A module that never linked has no tests to run, so the run stops
+            // here. Each rejection is still counted as a failed result: totals
+            // that disagreed with `results` would tell an automated consumer
+            // the suite was empty rather than broken.
+            const duration = performance.now() - start
+            return publish(root, Promise.resolve(reportOf('infrastructure-error', duration,
+                rejected.map(({ source, error }) => {
+                    const [message, stack] = errorDetails(error)
+                    return { module: source, path: '', status: 'failed', duration, message, stack }
+                }))))
         }
-        return startBrowserTests(root, loadedModules.map(module =>
-            /** @type {const} */ ([module.source, module.status === 'loaded' ? module.proof : undefined])
-        ))
+        return startBrowserTests(root, loadedModules.flatMap(module =>
+            module.status === 'loaded'
+                ? [/** @type {const} */ ([module.source, module.proof])]
+                : []))
     })
-    const browserWindow = /** @type {Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }} */ (window)
-    browserWindow.fjsBrowserTestReport = report
+    const view = viewOf(root)
+    if (view !== null) { view.fjsBrowserTestReport = report }
     return report
 }
 
@@ -169,17 +217,18 @@ export const renderBrowserReport = (root, report) => {
     const summary = root.querySelector('[data-test-summary]')
     if (summary !== null) {
         summary.textContent = report.status === 'infrastructure-error'
-            ? `Infrastructure error (${report.duration.toFixed(1)} ms)`
+            ? `Infrastructure error: ${report.totals.failed} failed to load (${report.duration.toFixed(1)} ms)`
             : `${report.totals.passed} passed, ${report.totals.failed} failed (${report.duration.toFixed(1)} ms)`
     }
     const output = root.querySelector('[data-test-results]')
     if (output !== null) {
-        output.replaceChildren(...report.results.map(renderResult))
+        output.replaceChildren(...report.results.map(result =>
+            renderResult(root.ownerDocument, result)))
     }
 }
 
-/** @type {(result: _BrowserTestResult) => HTMLLIElement} */
-const renderResult = result => {
+/** @type {(document: Document, result: _BrowserTestResult) => HTMLLIElement} */
+const renderResult = (document, result) => {
     const item = document.createElement('li')
     item.setAttribute('data-status', result.status)
     const detail = result.status === 'failed' ? `: ${result.message}\n${result.stack}` : ''
@@ -198,17 +247,10 @@ export const startBrowserTests = (root, modules) => {
     const output = root.querySelector('[data-test-results]')
     if (output !== null) { output.replaceChildren() }
     let completed = 0
-    const report = runBrowserProofs(modules, result => {
+    return publish(root, runBrowserProofs(modules, result => {
         completed += 1
         const summary = root.querySelector('[data-test-summary]')
         if (summary !== null) { summary.textContent = `${completed} tests completed…` }
-        if (output !== null) { output.append(renderResult(result)) }
-    }).then(value => {
-        renderBrowserReport(root, value)
-        window.dispatchEvent(new CustomEvent('fjs-browser-test-complete', { detail: value }))
-        return value
-    })
-    const browserWindow = /** @type {Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }} */ (window)
-    browserWindow.fjsBrowserTestReport = report
-    return report
+        if (output !== null) { output.append(renderResult(root.ownerDocument, result)) }
+    }))
 }
