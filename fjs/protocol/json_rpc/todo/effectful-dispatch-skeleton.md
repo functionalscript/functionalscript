@@ -24,7 +24,7 @@ Effectful `mcpStep` (`fjs/protocol/mcp/module.f.mjs:264-287`):
 
 ```js
 const [t, message] = decodeRequest(value)
-if (t === 'error') { return pure(_errResponse(null)(invalidRequest)) }
+if (t === 'error') { return pure(errorResponseOf(null)(invalidRequest)) }
 const { id, method, params } = message
 if (id === undefined) {
     if (method === 'notifications/initialized') { ... }

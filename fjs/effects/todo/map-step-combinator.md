@@ -26,7 +26,7 @@ Two shapes, both the same thing:
 // fjs/protocol/mcp/module.f.mjs:347-350
 : step(
     handlers.toolsList(pr),
-    r => pure(_okResponse(id)(r)),
+    r => pure(successResponseOf(id)(r)),
 )
 ```
 
