@@ -336,6 +336,19 @@ two renderers agree — today the runtime printer prints the open tail
 `../ts/proof.f.mjs`) while `Ts<>` cannot, and afterwards both print
 `readonly[1,number?]`.
 
+There is a **third** renderer over the data form:
+`../../../media/json/schema/module.f.mjs` derives `required` and `minItems` from
+`admitsUndefined`, and drops `undefined` from an optional member's schema with
+`stripUndefined`. Stage 2 splits those two uses, which today are one thing:
+
+- `admitsUndefined` drives `required`/`minItems`, so it asks about **absence** and
+  moves to the absent bit. Without that, `{ a: or(option, number) }` renders
+  `required: ["a"]` while RTTI accepts `{}`.
+- `stripUndefined` asks what JSON can **carry**, so it stays keyed on `undefined`.
+  A key of `or(number, undefined)` is then required and renders as `number`: JSON
+  has no way to write the `undefined` case, so the rendering under-approximates —
+  the same corner the module already documents for `NaN` and `-0`.
+
 An *interior* position admitting absence still renders `T | undefined` —
 TypeScript forbids a required element after an optional one, and `undefined` is
 what TypeScript reading a hole actually gives — so `[or(option, number), 3]` is
@@ -376,7 +389,9 @@ Stage 1 (one PR):
 - [ ] Migrate consumers: drop 21 `close(...)` in `../../../edag/module.f.mjs`;
       wrap the protocol structs in `open(...)`; audit the other 13 modules that
       import the schema surface (`fjs/media/*`, `fjs/mcp/*`, `fjs/ci/common`,
-      `fjs/emergent_testing`).
+      `fjs/emergent_testing`). `../../../media/json/schema/module.f.mjs` follows
+      the data form, so a bare struct now renders `additionalProperties: false`
+      on its own — correct, and its proof pins the old output.
 - [ ] Proofs: the acceptance tables in `../parse/proof.f.mjs`,
       `../validate/proof.f.mjs` (37 `close` sites) and `../data/proof.f.mjs` (39).
 - [ ] Changelog: **BREAKING CHANGES:** a bare `Struct`/`Tuple` schema is closed;
@@ -408,6 +423,11 @@ Stage 2 (one PR, after stage 1 lands):
       readers and the data form disagree today.
 - [ ] Readers: a declared member is absent when its key or index is not an own
       one; `parse` omits an absent member instead of materializing `undefined`.
+- [ ] `../../../media/json/schema/module.f.mjs`: move `admitsUndefined` (and so
+      `required`/`minItems`) to the absent bit, leave `stripUndefined` on
+      `undefined`, and update `./proof.f.mjs` — a third renderer over the data
+      form, and the one whose output is wrong rather than merely imprecise if it
+      is missed.
 - [ ] `../ts/types.ts`: strip the absent bit and render `a?:`; an interior tuple
       position that admits absence renders `T | undefined`. Update the
       `_tupleOption`/`_tupleInteriorOption` pins, and `optionalTuplePosition` /
