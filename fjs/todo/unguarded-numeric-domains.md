@@ -10,7 +10,7 @@
 only the *integers* in range and a fraction falls between two arms.
 
 The root cause is one line — `contains = (b, e) => i => b <= i && i <= e`
-(`../../types/range/module.f.mjs:10`). It is a numeric range, nothing more, so
+(`../types/range/module.f.mjs:10`). It is a numeric range, nothing more, so
 every predicate built on it answers `true` for a fraction inside its bounds,
 however integral the domain its doc describes. Arithmetic downstream then
 truncates with `>>`, `&`, or `|`, and the fraction disappears into a plausible
@@ -30,26 +30,26 @@ that asks one of them has already been told the input is fine.
 
 | site | input | answers | contract |
 |---|---|---|---|
-| `code_point`'s `isHighSurrogate` (`:93`) | `0xd800.5` | `true` | "the 16-bit word (`U16`)" |
-| `code_point`'s `isLowSurrogate` (`:99`) | `0xdc00.5` | `true` | "the 16-bit word (`U16`)" |
-| `code_point`'s `isBmpCodePoint` (`:115`) | `65.5` | `true` | "the code point" |
-| `code_point`'s `isSupplementaryPlane` (`:122`) | `0x10000.5` | `true` | "code points `0x010000` - `0x10FFFF`" |
-| `code_point`'s `isValidCodePoint` (`:137`) | `65.5` | `true` | "in the Unicode range … and not a surrogate" |
-| `code_point`'s `isTextCodePoint` (`:161`) | `65.5` | `true` | "a code point at or above `0x0020` …" |
+| `text/code_point`'s `isHighSurrogate` (`../text/code_point/module.f.mjs:93`) | `0xd800.5` | `true` | "the 16-bit word (`U16`)" |
+| `text/code_point`'s `isLowSurrogate` (`:99`) | `0xdc00.5` | `true` | "the 16-bit word (`U16`)" |
+| `text/code_point`'s `isBmpCodePoint` (`:115`) | `65.5` | `true` | "the code point" |
+| `text/code_point`'s `isSupplementaryPlane` (`:122`) | `0x10000.5` | `true` | "code points `0x010000` - `0x10FFFF`" |
+| `text/code_point`'s `isValidCodePoint` (`:137`) | `65.5` | `true` | "in the Unicode range … and not a surrogate" |
+| `text/code_point`'s `isTextCodePoint` (`:161`) | `65.5` | `true` | "a code point at or above `0x0020` …" |
 
 **Sites that trust them, or repeat the shape.**
 
 | site | input | answers | contract |
 |---|---|---|---|
-| `utf8`'s `fromCodePointList` | `[65.5]` | `[65]` | truncates to a valid byte, silently |
-| `utf16`'s `fromCodePointList` | `[65.5]` | `[65.5]` | emits the fraction as a code unit |
-| `ascii`'s `hexDigitValue` (`:259`) | `53.5` | `5.5` | "the value `0..15` … or `null`" |
-| `ascii`'s `hexDigitCodePoint` (`:271`) | `5.5` | `53.5` | "the … code point denoting a value in `0..15`" |
-| `bnf`'s `rangeEncode` (`../../bnf/module.f.mjs:77`) | `(65.5, 66)` | same as `(65, 66)` | `isValid` admits it, then `& mask` truncates |
+| `text/utf8`'s `fromCodePointList` | `[65.5]` | `[65]` | truncates to a valid byte, silently |
+| `text/utf16`'s `fromCodePointList` | `[65.5]` | `[65.5]` | emits the fraction as a code unit |
+| `text/ascii`'s `hexDigitValue` (`../text/ascii/module.f.mjs:259`) | `53.5` | `5.5` | "the value `0..15` … or `null`" |
+| `text/ascii`'s `hexDigitCodePoint` (`:271`) | `5.5` | `53.5` | "the … code point denoting a value in `0..15`" |
+| `bnf`'s `rangeEncode` (`../bnf/module.f.mjs:77`) | `(65.5, 66)` | same as `(65, 66)` | `isValid` admits it, then `& mask` truncates |
 
 `isSupplementaryPlane` is the sharpest: it *is* the gate in front of the
-`>>`/`&` truncation in both encoders (`../utf8/module.f.mjs:132`,
-`../utf16/module.f.mjs:78`), so the fraction reaches the shift through the
+`>>`/`&` truncation in both encoders (`../text/utf8/module.f.mjs:132`,
+`../text/utf16/module.f.mjs:78`), so the fraction reaches the shift through the
 check meant to stop it, and both encoders then answer exactly as they would
 for the integer:
 
@@ -58,9 +58,9 @@ utf16 fromCodePointList([0x10000.5])  ->  [55296, 56320]        // === [0x10000]
 utf8  fromCodePointList([0x10000.5])  ->  [240, 144, 128, 128]  // === [0x10000]
 ```
 
-Gate-then-truncate is not hypothetical: `../utf8/module.f.mjs:299-305` filters
+Gate-then-truncate is not hypothetical: `../text/utf8/module.f.mjs:299-305` filters
 every code point through `!isValidCodePoint(cp)` before encoding, and
-`../../media/type/module.f.mjs:157-158` gates on both predicates.
+`../media/type/module.f.mjs:157-158` gates on both predicates.
 
 In the BMP arm the two encoders disagree with each other — `utf8` truncates
 `[65.5]` to `[65]`, `utf16` emits `[65.5]` as a code unit — which is the tell
@@ -100,8 +100,11 @@ predicates and `hexDigitValue` need no such decision — all already answer
 
 ### Related
 
-- `../utf8/module.f.mjs` — `u8`, and `../utf16/module.f.mjs` — `u16`: the shape
-  to copy, and the doc comments explaining why the integer check is not
+- `../text/utf8/module.f.mjs` — `u8`, and `../text/utf16/module.f.mjs` — `u16`: the
+  shape to copy, and the doc comments explaining why the integer check is not
   redundant with the range.
-- The deleted `byte-guard-accepts-non-integers.md` closed the UTF-8 decoder
-  half of this class; this file keeps the rest of it tracked.
+- The deleted `fjs/text/utf8/todo/byte-guard-accepts-non-integers.md` closed the
+  UTF-8 decoder half of this class; this file keeps the rest of it tracked.
+- It lives in `fjs/todo/` rather than under any one module's `todo/` because the
+  class spans `text/`, `bnf/`, and `types/range/`, which is what
+  [todo/README.md](../../todo/README.md) reserves this directory for.
