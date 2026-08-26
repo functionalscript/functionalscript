@@ -46,12 +46,31 @@ Answer `404`: a path that descends through a regular file names nothing, and
 whether the file it descends through exists is not a distinction worth
 publishing.
 
-Where to put the test is the open question. Widening `isNotFound` to admit
-`ENOTDIR` changes what *every* caller of it treats as absent, which is a
-decision belonging to `fjs/effects/node` rather than to this module; a test
-local to `fileResponse` keeps the blast radius here but leaves the next caller
-to rediscover it. The platform split argues for the shared answer — `ENOENT`
-and `ENOTDIR` are the same fact wearing two names, and only one host says which.
+**Test it in `fileResponse`, not in `isNotFound`.** Widening the shared
+predicate is the tempting reading — `ENOENT` and `ENOTDIR` are one fact
+wearing two names, and which one a host says is not a distinction this module
+wants. But `isNotFound` has two other callers, and both document, in prose, an
+intent that widening would violate:
+
+- `fjs/cas`'s `list` answers `ok([])` for an absent store and surfaces
+  everything else, because *"a `.cas` that exists but cannot be read
+  (permissions, corruption) is a genuine storage error and is surfaced, not
+  masked as 'no hashes'"*. A store path with a regular file among its
+  components would start reporting as an **empty store**.
+- `fjs/cas/evo`'s `decodeReadRevision` splits `revision not found` from
+  `failed to read revision`, because *"calling any of those 'not found' would
+  deny a stored revision exists"*. It would start denying one.
+
+Both would fail quietly, in the direction that loses data rather than the one
+that raises an error, and neither is a trade this issue is entitled to make on
+their behalf. A predicate named for one errno is the wrong place to put a
+second one that only some of its callers want.
+
+So the answer is local: `fileResponse` already tests `notRegular` and
+`tooLarge` before reaching `isNotFound`, and this is the same kind of test —
+what *this server* will answer as absent. If a later caller wants the same
+reading, the thing to share is a named predicate that says so, not a broader
+`isNotFound`.
 
 The obstacle is the same as its sibling's: the virtual file system never
 reports `ENOTDIR`, so the branch would be unreachable, which the coverage gate
@@ -63,8 +82,7 @@ path that descends through a regular file, then map the error.
 
 - [ ] Report `ENOTDIR` from the virtual file system for a path descending
       through a regular file.
-- [ ] Answer `404` for it, deciding first whether the test belongs in
-      `isNotFound` or in `fileResponse`.
+- [ ] Answer `404` for it from `fileResponse`, leaving `isNotFound` alone.
 - [ ] Prove `/README.md/` and `/nope.md/` answer identically, on a host whose
       `stat` distinguishes them.
 - [ ] Update the response table in `module.f.mjs` and
@@ -76,6 +94,9 @@ path that descends through a regular file, then map the error.
   `ENAMETOOLONG`, without the disclosure or the platform split.
 - [missing-index-message](./missing-index-message.md) — triggers on the
   directory-form request this leaks through.
-- `fjs/effects/node/module.f.mjs` — `isNotFound`, the `ENOENT`-only test.
+- `fjs/effects/node/module.f.mjs` — `isNotFound`, the `ENOENT`-only test this
+  deliberately leaves alone.
+- `fjs/cas/module.f.mjs` and `fjs/cas/evo/module.f.mjs` — its other two
+  callers, whose documented readings settle that question.
 - `fjs/effects/node/virtual/module.f.mjs` — the file system that would grow the
   error.
