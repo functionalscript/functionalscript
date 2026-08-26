@@ -45,6 +45,15 @@ export type Visitor<R> = {
     readonly unknown: () => R
 }
 
+/**
+ * Reads what a container schema declares, as `[key, Type]` pairs — one per
+ * container kind, since a `Tuple` is read by length and a `Struct` by
+ * enumerable key. See `tupleSchemaEntries` in `./module.f.mjs` for why the two
+ * readings are not interchangeable on a sparse array.
+ */
+export type SchemaEntries<S extends ConstObject> =
+    (rtti: S) => ReadonlyArray<readonly [string, Type]>
+
 /** Type guard narrowing `Unknown` to a specific container type `C`. */
 export type IsContainer<C extends Unknown> = (value: Unknown) => value is C
 

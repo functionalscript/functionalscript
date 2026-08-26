@@ -1,8 +1,8 @@
 /**
  * Execution semantics of `vm` — one section per operand shape, since that is
  * how `map`'s handlers are built (`o1`/`o2`/`o2lazy`), plus the nodes that
- * evaluate their operands themselves (`,`, `[]`, `{}`, and the three that
- * walk a `lambdas` — `()`, `?.`, and `?.()`). Nothing is `todo` any more.
+ * evaluate their operands themselves (`,`, `[]`, `{}`, and the four chain
+ * nodes — `()`, `.`, `?.`, and `?.()`). Nothing is `todo` any more.
  * This is the executing counterpart of `../proof.f.mjs`, which pins what the
  * schema *accepts*; nothing here validates.
  *
@@ -10,7 +10,7 @@
  * @import { Context } from './types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
- * @import { Array as ExpArray, Call, Op1, Op2 } from '../types.ts'
+ * @import { Array as ExpArray, Call, Dot, Index, Op1, Op2 } from '../types.ts'
  * @import { Get } from './types.ts'
  */
 
@@ -19,11 +19,12 @@ import { vm } from './module.f.mjs'
 
 // `TagMap` exists so a dispatcher generic over `K` sees one handler
 // signature; these pin the tag -> node-tuple correlation it is built on,
-// including the two tags whose node kinds are not `op1`/`op2`.
+// including the tags whose node kinds are not `op1`/`op2`.
 /** @typedef {Assert<Equal<Get<'+'>, Op2>>} _PlusIsOp2 */
 /** @typedef {Assert<Equal<Get<'neg'>, Op1>>} _NegIsOp1 */
 /** @typedef {Assert<Equal<Get<'[]'>, ExpArray>>} _BracketsIsArray */
 /** @typedef {Assert<Equal<Get<'()'>, Call>>} _CallIsCall */
+/** @typedef {Assert<Equal<Get<'.'>, Dot>>} _DotIsDot */
 
 /** @type {Context} */
 const context = { frame: { x: 1 }, args: [10, 20] }
@@ -45,14 +46,27 @@ const same = (e, expected) => { assertStructurallySame(ev(e), expected) }
  * `throw` section calls its forced counterparts.
  * @type {Exp}
  */
-const boom = ['.', null, 'x']
+const boom = ['.', null, 'x', null]
+
+/**
+ * The same, in a naming position: an `index` is a `string`, a `number`, or a
+ * `Number` cast, so this is how a skipped step's *index* is made observable.
+ * @type {Index}
+ */
+const boomIndex = ['Number', boom]
+
+/** `['undefined']`, the node — the nullish input every guard is about. @type {Exp} */
+const undef = ['undefined']
+
+/** `[]` as an argument list, for a call whose arguments are beside the point. @type {Exp} */
+const noArgs = ['[]', []]
 
 /**
  * `a => a` with an empty frame — the smallest callable, used wherever a
  * case is about the call and not about what the callee computes.
  * @type {Exp}
  */
-const identity = ['=>', ['[]', []], ['.', ['args'], 0]]
+const identity = ['=>', ['[]', []], ['.', ['args'], 0, null]]
 
 /** `(...a) => a` — hands back the whole argument array. @type {Exp} */
 const argsNode = ['=>', ['[]', []], ['args']]
@@ -95,7 +109,7 @@ export const proof = {
     // `op0` — the three handlers that read `context` instead of operands.
     // `undefined` is a node, not the bare value (see `Primitive`).
     op0: () => {
-        eq(['undefined'], undefined)
+        eq(undef, undefined)
         eq(['frame'], context.frame)
         eq(['args'], context.args)
         // ... and `context` is threaded, not defaulted: another one is seen.
@@ -137,11 +151,15 @@ export const proof = {
         eq(['>>', -8, 1], -4)
         eq(['>>>', -1, 31], 1)
     },
-    // `.` and `own` are `o2` too, but they read a property rather than
-    // combine two numbers, and they differ on the prototype chain.
+    // `.` with a `null` continuation is the plain read — the receiver it
+    // produced is dropped, exactly as reading `a.b` for its value drops it.
+    // `own` is the `o2` next to it, and they differ on the prototype chain.
     property: () => {
-        eq(['.', ['[]', [1, 2, 3]], 1], 2)
-        eq(['.', ['{}', [[':', 'a', 7]]], 'a'], 7)
+        eq(['.', ['[]', [1, 2, 3]], 1, null], 2)
+        eq(['.', ['{}', [[':', 'a', 7]]], 'a', null], 7)
+        // An `index` is a string, a number, or `['Number', exp]`, and all
+        // three name a property the same way.
+        eq(['.', ['[]', [1, 2, 3]], ['Number', '1'], null], 2)
         eq(['own', ['{}', [[':', 'a', 7]]], 'a'], 7)
         // Absent: no descriptor, so `?.value` is `undefined` rather than a
         // read of `undefined.value`.
@@ -153,7 +171,7 @@ export const proof = {
         // `own`'s key operand must *evaluate* to one, so `1` is rejected
         // rather than silently reading `'1'` — see `throw.ownNonStringKey`.
         eq(['own', ['{}', [[':', '1', 42]]], '1'], 42)
-        assert(typeof ev(['.', ['{}', []], 'toString']) === 'function')
+        assert(typeof ev(['.', ['{}', []], 'toString', null]) === 'function')
     },
     // `o2lazy` — the right operand is a thunk, so these three short-circuit.
     // Each case that claims "not evaluated" uses `boom`, which throws if it
@@ -200,7 +218,7 @@ export const proof = {
         // has, and most values have none — a nullish one contributes nothing
         // rather than throwing, which is where it parts from array spread.
         same(['{}', [['...', null]]], {})
-        same(['{}', [['...', ['undefined']]]], {})
+        same(['{}', [['...', undef]]], {})
         same(['{}', [['...', 1]]], {})
         same(['{}', [['...', true]]], {})
         // ... and a string contributes its indices.
@@ -210,10 +228,10 @@ export const proof = {
     // every other node kind and sees the same context at any depth.
     nested: () => {
         eq(['+', ['+', 1, 2], 3], 6)
-        eq(['.', ['args'], 1], 20)
-        eq(['.', ['frame'], 'x'], 1)
+        eq(['.', ['args'], 1, null], 20)
+        eq(['.', ['frame'], 'x', null], 1)
         same(
-            ['{}', [[':', 'a', ['[]', [['.', ['args'], 0], ['neg', 1]]]]]],
+            ['{}', [[':', 'a', ['[]', [['.', ['args'], 0, null], ['neg', 1]]]]]],
             { a: [10, -1] },
         )
     },
@@ -230,263 +248,277 @@ export const proof = {
         // the `=>` node is shared, the values it produces are not.
         assert(ev(identity) !== ev(identity))
     },
-    // A call rebuilds the callee's scope from two places: `frame` comes from
-    // the closure, `args` from the call site.
+    // `()` — the call with no receiver and no region. A call rebuilds the
+    // callee's scope from two places: `frame` comes from the closure, `args`
+    // from the call site.
     call: () => {
-        eq(['()', identity, [], ['[]', [7]]], 7)
+        eq(['()', identity, ['[]', [7]]], 7)
         // The args operand is one node evaluating to the complete argument
         // array, so `['args']` in the callee *is* that array — not the array
         // wrapped in another one, and not just its first element.
-        same(['()', argsNode, [], ['[]', [5, 6]]], [5, 6])
-        same(['()', argsNode, [], ['[]', []]], [])
+        same(['()', argsNode, ['[]', [5, 6]]], [5, 6])
+        same(['()', argsNode, noArgs], [])
         // ... and any node evaluating to an array serves, which is what
         // makes `f(...xs)` need no `...` node: the whole array passes through.
-        same(['()', argsNode, [], ['[]', [1, ['...', ['[]', [2, 3]]]]]], [1, 2, 3])
+        same(['()', argsNode, ['[]', [1, ['...', ['[]', [2, 3]]]]]], [1, 2, 3])
         // Operands are evaluated in the *caller's* scope, before the callee's
         // exists: the callee expression as much as the arguments.
-        eq(['()', ['.', ['[]', [identity]], 0], [], ['[]', [['+', 3, 4]]]], 7)
+        eq(['()', ['.', ['[]', [identity]], 0, null], ['[]', [['+', 3, 4]]]], 7)
     },
-    // The other side of that `lambdas` guard: a non-empty one, the chain
-    // that reaches the callee. A step is a function of the current chain
-    // value with its argument elided — `../README.md`, "Chains" — so it can
-    // be neither an `exp` nor shared, and the receiver and the short-circuit
-    // exist only while the chain is being walked. One case group per step
-    // id; all four end in the node's own final call.
+    // The continuation of a `.` node — `propertyLambda`, the state with a
+    // live receiver and no region around it. A step is a function of the
+    // chain's current value with its argument elided (`../README.md`,
+    // "Chains"), so it can be neither an `exp` nor shared, and the receiver
+    // exists only while the chain is being walked. Only the two call steps
+    // are here, because only a call spends a receiver.
     chain: {
-        // `['|.', index]` — a property step. The value called is the
-        // property, and the object it came from stays behind as the
-        // receiver (`receiver`, below).
-        propertyStep: () => {
+        // `['|()', exp, null]` — the terminal call step. The value called is
+        // the property, and the object it came from is the receiver
+        // (`receiver`, below).
+        callStep: () => {
             // a.b(...c)
-            eq(['()', methods, [['|.', 'id']], ['[]', [7]]], 7)
-            // (a.b.c)(...d) — steps compose, each reading the last value,
-            // and a non-optional chain means the same parenthesized or not.
-            eq(['()', methods, [['|.', 'o'], ['|.', 'id']], ['[]', [7]]], 7)
+            eq(['.', methods, 'id', ['|()', ['[]', [7]], null]], 7)
+            // (a.b.c)(...d) — a plain property path nests, and a non-optional
+            // chain means the same parenthesized or not.
+            eq(['.', ['.', methods, 'o', null], 'id', ['|()', ['[]', [7]], null]], 7)
             // The args operand is still one node evaluating to the whole
             // argument array: a chain changes what is called, not how it is
             // called.
-            same(['()', methods, [['|.', 'args']], ['[]', [5, 6]]], [5, 6])
-            same(['()', methods, [['|.', 'args']], ['[]', []]], [])
-            // An `index` is a string, a number, or `['Number', exp]` — the
-            // three forms `.` takes, evaluated the same way.
-            eq(['()', ['[]', [identity]], [['|.', 0]], ['[]', [7]]], 7)
-            eq(['()', ['[]', [identity]], [['|.', ['Number', '0']]], ['[]', [7]]], 7)
+            same(['.', methods, 'args', ['|()', ['[]', [5, 6]], null]], [5, 6])
+            same(['.', methods, 'args', ['|()', noArgs, null]], [])
+            // The three `index` forms, in the naming position of the node
+            // that owns the call.
+            eq(['.', ['[]', [identity]], 0, ['|()', ['[]', [7]], null]], 7)
+            eq(['.', ['[]', [identity]], ['Number', '0'], ['|()', ['[]', [7]], null]], 7)
         },
-        // `['|()', exp]` — a call step: call the current value with the
-        // current receiver, then *clear* it. `o.f()(7)` is `7`; were the
-        // receiver kept instead, the final call would be `o.f(7)` and this
-        // would evaluate to the inner closure rather than to `7`.
-        callStep: () => {
-            // f(...a)(...b), with no receiver at either end.
-            eq(['()', constIdentity, [['|()', ['[]', []]]], ['[]', [7]]], 7)
-            eq(['()', methods, [['|.', 'f'], ['|()', ['[]', []]]], ['[]', [7]]], 7)
+        // `['|?.()', exp, k]` — the guarded call step: it spends the receiver
+        // and *opens* a region, so unlike `|()` it carries a continuation.
+        // With a non-nullish value it behaves exactly as `|()` does.
+        optionCallStep: () => {
+            // a.b?.(...c)
+            eq(['.', methods, 'id', ['|?.()', ['[]', [7]], null]], 7)
+            // a.b?.(...c).d(...e) — the region it opened owns the rest.
+            eq(['.', ['{}', [[':', 'g', constMethods]]], 'g', ['|?.()', noArgs,
+                ['|.', 'id', ['|()', ['[]', [7]], null]]]], 7)
         },
-        // `['|?.', index]` and `['|?.()', exp]` — the optional pair, which
-        // differs from the plain one only on a nullish input. Every case
-        // here has a non-nullish one, so each behaves as its counterpart;
-        // the other branch is under `throw`, where it belongs, since `()`
-        // is the *grouped* spelling and calls what the chain produced.
-        optionalStep: () => {
-            // (a?.b)(...c) and (a?.(...b))(...c)
-            eq(['()', methods, [['|?.', 'id']], ['[]', [7]]], 7)
-            eq(['()', constIdentity, [['|?.()', ['[]', []]]], ['[]', [7]]], 7)
-            // (a.b?.(...c))(...d) — an optional call step consuming the
-            // receiver the property step before it left.
-            eq(['()', methods, [['|.', 'f'], ['|?.()', ['[]', []]]], ['[]', [7]]], 7)
-            // (a?.(...b)?.c)(...d) — the receiver chain `../README.md` gives
-            // as the reason there is no `.()` node: a call step, then a
-            // property step making a receiver for the final call.
-            eq(['()', constMethods,
-                [['|?.()', ['[]', []]], ['|?.', 'id']], ['[]', [7]]], 7)
+        // ... and the guard is the whole difference: on a nullish value the
+        // region opens and immediately short-circuits, so the node is
+        // `undefined` rather than a call on nothing — and neither the
+        // arguments nor any later step runs.
+        optionCallStepSkips: () => {
+            eq(['.', ['{}', []], 'absent', ['|?.()', boom, null]], undefined)
+            eq(['.', ['{}', [[':', 'b', null]]], 'b', ['|?.()', boom,
+                ['|.', boomIndex, ['|()', boom, null]]]], undefined)
         },
         // The receiver is what a property step leaves behind, and it is
         // real rather than bookkeeping: `[42].at(0)` is `42` only because
-        // `at` is called *on* the array. A `.` node computes the same
-        // function value and drops it (`throw.detachedReceiver`) — the pair
-        // `chainsJs.receiver` makes in JavaScript, made here by the nodes.
-        // `|?.` keeps it too, which is why `(a?.b)(d)` is one `()` with a
-        // `|?.` step rather than a completed `['?.', …]` node handing on an
-        // ordinary value.
+        // `at` is called *on* the array. A `.` node with a `null`
+        // continuation computes the same function value and drops it
+        // (`throw.detachedReceiver`) — the pair `chainsJs.receiver` makes in
+        // JavaScript, made here by the nodes.
         receiver: () => {
-            eq(['()', ['[]', [42]], [['|.', 'at']], ['[]', [0]]], 42)
-            eq(['()', ['[]', [42]], [['|?.', 'at']], ['[]', [0]]], 42)
+            eq(['.', ['[]', [42]], 'at', ['|()', ['[]', [0]], null]], 42)
+            eq(['.', ['[]', [42]], 'at', ['|?.()', ['[]', [0]], null]], 42)
             // A call step consumed the receiver of the step before it, so
-            // `'ab'.at(0).toUpperCase()` needs the second one to make its
-            // own — the chain carries at most the last property step's.
-            eq(['()', 'ab',
-                [['|.', 'at'], ['|()', ['[]', [0]]], ['|.', 'toUpperCase']],
-                ['[]', []]], 'A')
+            // `'ab'.at(0).toUpperCase()` needs a second `.` node to make its
+            // own — which is exactly why `|()` is terminal here.
+            eq(['.',
+                ['.', 'ab', 'at', ['|()', ['[]', [0]], null]],
+                'toUpperCase',
+                ['|()', noArgs, null]], 'A')
         },
         throw: {
-            // A nullish input short-circuits the chain, and under `()` that
-            // is always an error: this node is the *grouped* spelling
-            // `(u?.b)(d)`, whose parentheses end the optional region, so
-            // `undefined` is what ends up being called. That is the
-            // specification's reading — see "Chains" in `../README.md`,
-            // where it is also why `chainsJs` cannot pin this in JavaScript:
-            // JavaScriptCore carries the short-circuit through the
-            // parentheses. The node denotes the throw on every host, so
-            // unlike the JavaScript, these cases can be stated at all.
-            optionalPropertyOnUndefined: () =>
-                ev(['()', ['undefined'], [['|?.', 'at']], ['[]', [0]]]),
-            optionalPropertyOnNull: () =>
-                ev(['()', null, [['|?.', 'at']], ['[]', [0]]]),
-            optionalCallOnUndefined: () =>
-                ev(['()', ['undefined'], [['|?.()', ['[]', []]]], ['[]', []]]),
-            optionalCallOnNull: () =>
-                ev(['()', null, [['|?.()', ['[]', []]]], ['[]', []]]),
-            // The nullish value need not be the chain's input: a property
-            // step reading an absent property produces one mid-chain.
-            optionalCallOnAbsentProperty: () =>
-                ev(['()', methods,
-                    [['|.', 'absent'], ['|?.()', ['[]', []]]], ['[]', []]]),
-            // Once a step has short-circuited, every step after it is
-            // skipped, operands and all: `['Number', boom]` would throw if
-            // the skipped `|.` evaluated its index. Both readings throw
-            // here, so this pins that the path exists, not which error came
-            // out of it — `fjs/AGENTS.md` §1.5 on not over-investing in a
-            // throw's payload.
-            skipsTheRestOfTheChain: () =>
-                ev(['()', ['undefined'],
-                    [['|?.', 'at'], ['|.', ['Number', boom]]], ['[]', []]]),
-            // `const at = a.at; at(0)` — the receiver a `|.` step keeps is
-            // exactly what reading the same property as a `.` node drops,
+            // `const at = a.at; at(0)` — the receiver a `.` node keeps for
+            // the call it owns is exactly what a `null` continuation drops,
             // and the host method is strict, so the detached call throws.
             detachedReceiver: () =>
-                ev(['()', ['.', ['[]', [42]], 'at'], [], ['[]', [0]]]),
+                ev(['()', ['.', ['[]', [42]], 'at', null], ['[]', [0]]]),
             // `((a.at)(0))(0)` — the same detachment reached through a call
-            // step, so the callee is a bare value rather than an accessor.
+            // node, so the callee is a bare value rather than an accessor.
             // A host method is what makes that observable: an `=>` closure
             // ignores whatever `this` it is handed, so only this spelling
             // catches a receiver *invented* for a bare value — which is
-            // what `p[0](...)` in `call` did, returning `Array.prototype.at`
-            // where JavaScript throws. See `call` in `./module.f.mjs`.
-            detachedReceiverAfterCallStep: () =>
-                ev(['()', ['.', ['[]', [42]], 'at'],
-                    [['|()', ['[]', [0]]]], ['[]', [0]]]),
-            // A step is only as good as what it lands on: a property step
-            // onto a value that is not callable reaches the same host
-            // `TypeError` as `throw.callNonFunction`, one node earlier.
-            propertyStepOnNonFunction: () =>
-                ev(['()', ['{}', [[':', 'a', 1]]], [['|.', 'a']], ['[]', []]]),
+            // what a method-call spelling of `callValue` would do, returning
+            // `Array.prototype.at` where JavaScript throws. See `callValue`
+            // in `./module.f.mjs`.
+            detachedReceiverAfterCall: () =>
+                ev(['()',
+                    ['()', ['.', ['[]', [42]], 'at', null], ['[]', [0]]],
+                    ['[]', [0]]]),
+            // A step is only as good as what it lands on: a call step onto a
+            // value that is not callable reaches the same host `TypeError`
+            // as `throw.callNonFunction`, one node earlier.
+            callStepOnNonFunction: () =>
+                ev(['.', ['{}', [[':', 'a', 1]]], 'a', ['|()', noArgs, null]]),
+            // A `.` node guards nothing, so a nullish base throws at the
+            // access — the operand-evaluation half of the pair
+            // `../proof.f.mjs`'s `chainsJs.throw` cannot state in JavaScript:
+            // here the arguments are never reached, where
+            // `optionRegion.throw.closeStepOnUndefined` evaluates them and
+            // then calls `undefined`.
+            propertyOnUndefined: () => ev(['.', undef, 'at', ['|()', noArgs, null]]),
+            propertyOnNull: () => ev(['.', null, 'at', ['|()', noArgs, null]]),
         },
     },
-    // `?.` — the other node that owns a `lambdas`, and the one that owns a
-    // whole optional *region*: its own `?.[index]` is the region's first
-    // step, `lambdas` the rest, and a nullish link makes the node itself
-    // `undefined` instead of running into a call. Every case here has a
-    // counterpart under `chain` that throws for exactly that reason.
-    optionalPropertyAccessor: () => {
-        // a?.b — the node's own step, which is the whole node when
-        // `lambdas` is empty. Reading `a` and skipping the step would
+    // `?.` — the node that opens an optional *region*: its own `?.[index]`
+    // is the region's first step and the continuation is the rest, so a
+    // nullish input makes the node `undefined` instead of running into a
+    // call. Every case here has a counterpart under `chain` that throws for
+    // exactly that reason.
+    optionDot: () => {
+        // a?.b — the node's own step, which is the whole node when the
+        // continuation is `null`. Reading `a` and skipping the step would
         // evaluate to `a` itself, so these pin the index is applied.
-        eq(['?.', ['{}', [[':', 'a', 7]]], 'a', []], 7)
+        eq(['?.', ['{}', [[':', 'a', 7]]], 'a', null], 7)
         // A closure is a value like any other — compared by `typeof`, since
         // every evaluation of a `=>` builds a fresh one (see `lambda`).
-        assert(typeof ev(['?.', methods, 'id', []]) === 'function')
-        same(['?.', ['[]', [1, 2, 3]], 1, []], 2)
-        eq(['?.', ['[]', [1, 2, 3]], ['Number', '1'], []], 2)
+        assert(typeof ev(['?.', methods, 'id', null]) === 'function')
+        same(['?.', ['[]', [1, 2, 3]], 1, null], 2)
+        eq(['?.', ['[]', [1, 2, 3]], ['Number', '1'], null], 2)
         // An absent property is `undefined`, not an error: `?.` guards its
         // *input*, never its result.
-        eq(['?.', ['{}', []], 'absent', []], undefined)
+        eq(['?.', ['{}', []], 'absent', null], undefined)
         // ... and on a nullish input the node is `undefined`, both ways of
         // being nullish.
-        eq(['?.', ['undefined'], 'a', []], undefined)
-        eq(['?.', null, 'a', []], undefined)
-        // a?.b.c — `lambdas` continues the region, and the steps run when
-        // nothing short-circuited.
+        eq(['?.', undef, 'a', null], undefined)
+        eq(['?.', null, 'a', null], undefined)
+        // a?.b.c — `|.` continues the region, handing the receiver on within
+        // it, and the steps run when nothing short-circuited.
         eq(['?.', ['{}', [[':', 'o', ['{}', [[':', 'a', 7]]]]]], 'o',
-            [['|.', 'a']]], 7)
-        // a?.b(...c) — the receiver survives the node's own step into a call
-        // step, which is why `?.` carries `lambdas` rather than evaluating
-        // to a value a `()` node would then have to call: `[42]?.at(0)` is
-        // `42` only if `at` is called *on* the array.
-        eq(['?.', ['[]', [42]], 'at', [['|()', ['[]', [0]]]]], 42)
+            ['|.', 'a', null]], 7)
+        // a?.b(...c) — `|()` inherits the region's guard and the receiver
+        // survives into it, which is why `?.` owns its call rather than
+        // evaluating to a value a `()` node would then have to call:
+        // `[42]?.at(0)` is `42` only if `at` is called *on* the array.
+        eq(['?.', ['[]', [42]], 'at', ['|()', ['[]', [0]], null]], 42)
+        // a?.b?.(...c) — `|?.()` adds its own guard on top of the region's.
+        eq(['?.', ['[]', [42]], 'at', ['|?.()', ['[]', [0]], null]], 42)
+        // (a?.b)(...c) — `|!()` escapes the region, and keeps the receiver:
+        // the parentheses end the chain, they do not detach the reference.
+        eq(['?.', ['[]', [42]], 'at', ['|!()', ['[]', [0]], null]], 42)
+        // (a?.b.c)(...d) — the same close one property step further in.
+        eq(['?.', methods, 'o', ['|.', 'id', ['|!()', ['[]', [7]], null]]], 7)
+        // a?.b.c?.(...d) — the guarded call reached through a property step,
+        // which is the region handing `optionPropertyLambda` back to itself.
+        eq(['?.', methods, 'o', ['|.', 'id', ['|?.()', ['[]', [7]], null]]], 7)
+        // a?.b(...c).d(...e) — one region across two calls, the second
+        // making its own receiver.
+        eq(['?.', ['{}', [[':', 'g', constMethods]]], 'g',
+            ['|()', noArgs, ['|.', 'id', ['|()', ['[]', [7]], null]]]], 7)
     },
-    // The short-circuit, which is this node's whole reason to exist: it
-    // returns rather than throws, so — unlike `()`, where every nullish case
-    // is a `throw` — the skip is directly observable, operands included.
-    optionalRegion: () => {
-        // u?.b.c is `undefined`, where `(u?.b).c` throws: one `lambdas`
-        // against two nodes (`../README.md`, "Chains"). `boom` as the
-        // skipped step's index would throw if the step ran.
-        eq(['?.', ['undefined'], 'a', [['|.', ['Number', boom]]]], undefined)
-        // u?.b(...c) is `undefined`, where `(u?.b)(...c)` throws —
-        // `chain.throw.optionalPropertyOnUndefined` is the same shape one
-        // node over. The skipped call's arguments are not evaluated either.
-        eq(['?.', ['undefined'], 'at', [['|()', boom]]], undefined)
-        // The node's own index is skipped too, which is the operand
-        // `../proof.f.mjs`'s `chainsJs.shortCircuit` pins in JavaScript as
-        // `u?.[todo()]`.
-        eq(['?.', ['undefined'], ['Number', boom], []], undefined)
-        eq(['?.', null, ['Number', boom], [['|.', ['Number', boom]]]], undefined)
-        // A link mid-region short-circuits the same way: here `a.b` is
-        // `undefined`, so `|?.` skips itself and everything after it.
-        eq(['?.', ['{}', [[':', 'b', ['undefined']]]], 'b',
-            [['|?.', ['Number', boom]], ['|.', ['Number', boom]]]], undefined)
-    },
-    // `?.()` — the last node with a `lambdas`, and the only one with two.
-    // The first reaches the callee and may leave the receiver to call it
-    // with, the node's own optional call is the step between, and the second
-    // is the rest of the region, run on the call's result.
-    optionalCall: () => {
-        // f?.(...c) — an empty first `lambdas`, so no receiver.
-        eq(['?.()', identity, [], ['[]', [7]], []], 7)
+    // `?.()` — the other region-opening node. Its callee is an ordinary
+    // expression, so it never carries a receiver; what it owns is the rest
+    // of the region, run on the call's result.
+    optionCall: () => {
+        // f?.(...c)
+        eq(['?.()', identity, ['[]', [7]], null], 7)
         // ... and the args operand is one node evaluating to the whole
         // argument array, as everywhere else a call takes one.
-        same(['?.()', argsNode, [], ['[]', [5, 6]], []], [5, 6])
-        // a.b?.(...c) — the first `lambdas` ends in a property step, so the
-        // call keeps its receiver. `[42].at?.(0)` is `42` only if `at` is
-        // called *on* the array; `chainsJs.receiver` pins the same line in
-        // JavaScript.
-        eq(['?.()', ['[]', [42]], [['|.', 'at']], ['[]', [0]], []], 42)
-        // (a?.b)?.(...c) — the same with the property step optional, the
-        // spelling whose parentheses moved the region boundary.
-        eq(['?.()', ['[]', [42]], [['|?.', 'at']], ['[]', [0]], []], 42)
-        eq(['?.()', methods, [['|.', 'id']], ['[]', [7]], []], 7)
-        // (f?.(...c)).d(...e) — the second `lambdas` runs on the call's
-        // result and makes its own receiver for the call step in it.
-        eq(['?.()', constMethods, [], ['[]', []],
-            [['|.', 'id'], ['|()', ['[]', [7]]]]], 7)
+        same(['?.()', argsNode, ['[]', [5, 6]], null], [5, 6])
+        // f?.(...c)(...d) — `|()` stays inside the region.
+        eq(['?.()', constIdentity, noArgs, ['|()', ['[]', [7]], null]], 7)
+        // f?.(...c).d(...e) — `|.` makes a receiver for the call after it,
+        // which is the receiver chain `../README.md` gives as the reason
+        // there is no `.()` node.
+        eq(['?.()', constMethods, noArgs,
+            ['|.', 'id', ['|()', ['[]', [7]], null]]], 7)
     },
-    // The optional call's own short-circuit, and the two others that reach
-    // it: unlike `()`, a nullish callee here is the node's value, so — as
-    // with `?.` — every skip is observable by returning rather than throwing.
-    optionalCallRegion: () => {
-        // f?.(...c) with a nullish `f`: `undefined`, and the arguments are
-        // not evaluated. Both ways of being nullish.
-        eq(['?.()', ['undefined'], [], boom, []], undefined)
-        eq(['?.()', null, [], boom, []], undefined)
-        // a.b?.(...c) where `a.b` is absent — the callee the first
-        // `lambdas` arrives at is what gets checked, not `a`.
-        eq(['?.()', methods, [['|.', 'absent']], boom, []], undefined)
-        // The second `lambdas` is skipped along with the call.
-        eq(['?.()', ['undefined'], [], boom, [['|.', ['Number', boom]]]],
-            undefined)
-        // (u?.k)?.(...c).m — a short-circuit inside the *first* `lambdas`
-        // reaches the same end, skipping the call, its arguments, and the
-        // second `lambdas` with it.
-        eq(['?.()', ['undefined'], [['|?.', ['Number', boom]]], boom,
-            [['|.', ['Number', boom]]]], undefined)
+    // The short-circuit, which is what the two region-opening nodes exist
+    // for: they return rather than throw, so — unlike a `.` node, where
+    // every nullish case is a `throw` — the skip is directly observable,
+    // operands included.
+    optionRegion: {
+        skips: () => {
+            // u?.b.c is `undefined`, where `(u?.b).c` throws: one region
+            // against two nodes (`../README.md`, "Chains"). `boomIndex` as
+            // the skipped step's index would throw if the step ran.
+            eq(['?.', undef, 'a', ['|.', boomIndex, null]], undefined)
+            // u?.b(...c) is `undefined`, where `(u?.b)(...c)` throws — the
+            // pair `throw.closeStepOnUndefined` completes. The skipped
+            // call's arguments are not evaluated either.
+            eq(['?.', undef, 'at', ['|()', boom, null]], undefined)
+            // The node's own index is skipped too, which is the operand
+            // `../proof.f.mjs`'s `chainsJs.shortCircuit` pins in JavaScript
+            // as `u?.[todo()]`.
+            eq(['?.', undef, boomIndex, null], undefined)
+            eq(['?.', null, boomIndex, ['|.', boomIndex, null]], undefined)
+            // A guarded step mid-region short-circuits the same way: here
+            // `a.b` is `undefined`, so `|?.()` skips itself and everything
+            // after it.
+            eq(['?.', ['{}', [[':', 'b', undef]]], 'b',
+                ['|?.()', boom, ['|.', boomIndex, null]]], undefined)
+            // The nullish value need not be the node's own input: a property
+            // step reading an absent property produces one mid-region, and
+            // the guard after it skips the rest.
+            eq(['?.', methods, 'absent', ['|?.()', boom, null]], undefined)
+            // f?.(...c) with a nullish `f`: `undefined`, and the arguments
+            // are not evaluated. Both ways of being nullish.
+            eq(['?.()', undef, boom, null], undefined)
+            eq(['?.()', null, boom, null], undefined)
+            // ... and the continuation is skipped along with the call.
+            eq(['?.()', undef, boom, ['|.', boomIndex, ['|()', boom, null]]],
+                undefined)
+        },
+        throw: {
+            // `(u?.b)(...c)` — the one step a short-circuit does *not* skip.
+            // The parentheses ended the region, so the `undefined` it
+            // produced is what gets called, and that is a throw on every
+            // host. It cannot be pinned in JavaScript at all:
+            // JavaScriptCore (so `bun test`) carries the short-circuit
+            // through the parentheses and answers `undefined`, which is why
+            // `../proof.f.mjs`'s `chainsJs.throw.groupedOptionalCall` is
+            // commented out. The node denotes the throw regardless — see
+            // "Chains" in `../README.md`.
+            closeStepOnUndefined: () =>
+                ev(['?.', undef, 'at', ['|!()', noArgs, null]]),
+            closeStepOnNull: () =>
+                ev(['?.', null, 'at', ['|!()', noArgs, null]]),
+            // `(u?.b.c)(...d)` — the same, reached past a skipped `|.`: the
+            // walk that drops steps has to keep looking for the close rather
+            // than stop at the first one it skips.
+            closeStepPastSkippedProperty: () =>
+                ev(['?.', undef, 'at', ['|.', boomIndex, ['|!()', noArgs, null]]]),
+            // `(u?.(...a).c)(...d)` — and it reaches one from the other
+            // region-opening node too, through the `|.` that leaves
+            // `optionLambda` for `optionPropertyLambda`.
+            closeStepAfterOptionCall: () =>
+                ev(['?.()', undef, boom, ['|.', boomIndex, ['|!()', noArgs, null]]]),
+            // `(a.absent?.(...b).m)(...d)` — and from a `.` node, whose
+            // `|?.()` opens a region that short-circuits at once. That is the
+            // third and last entry to `skip`, so between them the three cases
+            // cover every state a region can be abandoned in.
+            closeStepAfterPropertyGuard: () =>
+                ev(['.', methods, 'absent',
+                    ['|?.()', boom, ['|.', boomIndex, ['|!()', noArgs, null]]]]),
+            // `(a.absent?.(...b))(...d)` — the same short-circuit under a
+            // *node* boundary instead of a step: the `.` node evaluates to
+            // `undefined` and the `()` over it calls that. The step spelling
+            // above and this one are the two halves of the parenthesis law
+            // at the same place, and they agree.
+            callOfSkippedGuard: () =>
+                ev(['()', ['.', methods, 'absent', ['|?.()', boom, null]], noArgs]),
+        },
     },
     // The frame is the only channel outward: a body's leaves are constants,
     // `['args']` and `['frame']`, so a captured value has to arrive as data.
     closure: () => {
         // `['=>', ['[]', [100]], …]` captures `100` at closure-creation time.
-        eq(['()', ['=>', ['[]', [100]], ['+', ['.', ['args'], 0], ['.', ['frame'], 0]]],
-            [], ['[]', [5]]], 105)
+        eq(['()', ['=>', ['[]', [100]],
+            ['+', ['.', ['args'], 0, null], ['.', ['frame'], 0, null]]],
+            ['[]', [5]]], 105)
         // Nested: the outer call's argument is copied into the inner frame,
         // and the inner body reads it as `['frame']` — the same node
-        // `['.', ['args'], 0]` could not have been shared across the `=>`.
+        // `['.', ['args'], 0, null]` could not have been shared across the `=>`.
         const outer = /** @type {Exp} */ ([
             '=>', ['[]', []],
-            ['=>', ['[]', [['.', ['args'], 0]]], ['.', ['frame'], 0]],
+            ['=>', ['[]', [['.', ['args'], 0, null]]], ['.', ['frame'], 0, null]],
         ])
-        eq(['()', ['()', outer, [], ['[]', [7]]], [], ['[]', []]], 7)
+        eq(['()', ['()', outer, ['[]', [7]]], noArgs], 7)
         // The frame operand is evaluated in the enclosing scope, so it sees
         // that scope's `['args']` — the one place a `=>` node reaches out.
         assertEq(vm({ frame: null, args: [11] })(
-            ['()', ['=>', ['[]', [['.', ['args'], 0]]], ['.', ['frame'], 0]], [], ['[]', []]]),
+            ['()', ['=>', ['[]', [['.', ['args'], 0, null]]], ['.', ['frame'], 0, null]],
+                noArgs]),
             11)
     },
     // Closures are ordinary values: passable as arguments, returnable, and
@@ -495,30 +527,30 @@ export const proof = {
         // `(g, x) => g(x)`
         const apply = /** @type {Exp} */ ([
             '=>', ['[]', []],
-            ['()', ['.', ['args'], 0], [], ['[]', [['.', ['args'], 1]]]],
+            ['()', ['.', ['args'], 0, null], ['[]', [['.', ['args'], 1, null]]]],
         ])
-        eq(['()', apply, [], ['[]', [identity, 7]]], 7)
+        eq(['()', apply, ['[]', [identity, 7]]], 7)
         // `x => y => x + y`, applied twice — the classic case the frame
         // exists for.
         const add = /** @type {Exp} */ ([
             '=>', ['[]', []],
-            ['=>', ['[]', [['.', ['args'], 0]]],
-                ['+', ['.', ['frame'], 0], ['.', ['args'], 0]]],
+            ['=>', ['[]', [['.', ['args'], 0, null]]],
+                ['+', ['.', ['frame'], 0, null], ['.', ['args'], 0, null]]],
         ])
-        eq(['()', ['()', add, [], ['[]', [2]]], [], ['[]', [3]]], 5)
+        eq(['()', ['()', add, ['[]', [2]]], ['[]', [3]]], 5)
     },
     throw: {
         // The index of a `?.` whose input is *not* nullish is evaluated, the
-        // mirror of `optionalRegion`'s skipped operands.
-        evaluatedIndex: () => ev(['?.', ['{}', []], ['Number', boom], []]),
+        // mirror of `optionRegion.skips`'s skipped operands.
+        evaluatedIndex: () => ev(['?.', ['{}', []], boomIndex, null]),
         // ... and so are an optional call's arguments once its callee turns
         // out to be there.
-        evaluatedArgument: () => ev(['?.()', identity, [], boom, []]),
+        evaluatedArgument: () => ev(['?.()', identity, boom, null]),
         // `?.()` guards against a *nullish* callee, not against a
         // non-callable one: `1?.()` is the host `TypeError`, exactly as
         // `throw.callNonFunction` is for `()`.
-        optionalCallOnNonFunction: () =>
-            ev(['?.()', ['{}', [[':', 'a', 1]]], [['|.', 'a']], ['[]', []], []]),
+        optionCallOnNonFunction: () =>
+            ev(['?.()', ['.', ['{}', [[':', 'a', 1]]], 'a', null], noArgs, null]),
         // An array spread iterates its operand, so a non-iterable one throws
         // where the object form would have contributed nothing.
         arraySpreadOfNumber: () => ev(['[]', [['...', 1]]]),
@@ -528,7 +560,7 @@ export const proof = {
         ownNonStringKey: () => ev(['own', ['{}', [[':', '1', 42]]], 1]),
         // Not a function: `()` calls whatever the callee operand evaluates
         // to, so this is the host `TypeError`, not a check of its own.
-        callNonFunction: () => ev(['()', 1, [], ['[]', []]]),
+        callNonFunction: () => ev(['()', 1, noArgs]),
         // The other side of `lazy`: with the left operand that does not
         // short-circuit, the thunk *is* forced and `boom` throws. Without
         // these, `o2lazy` returning `a` unconditionally would still pass.

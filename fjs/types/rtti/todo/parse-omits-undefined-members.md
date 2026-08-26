@@ -149,9 +149,14 @@ interior position admitting `undefined` may still be absent at runtime, and
 - [`../ts/types.ts`](../ts/types.ts) — `TupleTs` (the optional-position
   derivation, and the errors it defeats) and `OptionalFields` (the struct
   half's).
-- [sparse-tuple-schema-entries](./sparse-tuple-schema-entries.md) — the same
-  "a hole and a declared `undefined` are one thing" question from the schema
-  side; this one is the value side.
+- The same "a hole and a declared `undefined` are one thing" question from the
+  *schema* side, which this issue asks from the *value* side. It shipped as
+  [#1712](https://github.com/functionalscript/functionalscript/pull/1712) —
+  `parse` and `validate` read a tuple schema by length, so a hole in one is a
+  declared position whose schema is `undefined`. That settles the schema side
+  in favour of the reading this issue assumes, and leaves
+  [schema-walk-own-indices](./schema-walk-own-indices.md) as what remains of
+  it: whether that walk goes by own indices or by iteration.
 - [PR #1708](https://github.com/functionalscript/functionalscript/pull/1708) —
   added the acceptance rows for several trailing optional positions, which is
   where the construction side came up.
