@@ -1001,12 +1001,39 @@ are stated instead:
       boundary work rather than a corner of it.
 
       So this stage owes **one of two things, named rather than assumed**: a
-      data-driven `parse` beside `data.validate`, or a lossless
-      `Data` → `Type` reconstruction that every reader can take. The second is
-      the smaller surface and keeps both existing APIs; the first mirrors what
-      `data.validate` already did for the other reader. Either way it is a
+      data-driven `parse` beside `data.validate`, or a `Data` → `Type`
+      reconstruction that every reader can take. Either way it is a
       deliverable, not an implementation detail, because without it the phrase
       "run time reuses the snapshot" is only true of half the run time.
+
+      **And neither path is free, because `Data` does not preserve what `parse`
+      returns.** An earlier draft of this paragraph called the reconstruction
+      "lossless" without saying lossless *of what*. `Data` is a canonical form
+      of the **set of accepted values**; `parse`'s result is not a function of
+      that set. `parse` reconstructs from the **first matching branch**, so
+      branch order is observable in its output, and `toData` normalizes it
+      away. Measured at `fd805961`:
+
+      ```
+      parse(or({ a: number }, { b: number }))({ a: 1, b: 2 })  ->  ok { a: 1 }
+      parse(or({ b: number }, { a: number }))({ a: 1, b: 2 })  ->  ok { b: 2 }
+      toData of the two                                        ->  identical
+      cmp = 0, equal = true
+      ```
+
+      So a snapshot that round-trips acceptance perfectly can still change
+      which value `parse` hands back, for any union whose branches overlap on
+      the input. That is not a corner: **stage 13's inbound remedy is `parse`
+      against a naming schema**, so the value the boundary reconstructs is
+      exactly what would silently change.
+
+      This stage therefore owes a third thing, and it is a genuine fork:
+      either the snapshot **retains branch and reconstruction information**
+      beyond canonical `Data` — in which case it is not `Data` and `subset`
+      cannot consume it directly — or `parse` is **redesigned to canonical
+      output semantics** and that becomes a deliberate, documented change to
+      what it returns. Both are larger than "add a reader", and choosing
+      neither means the snapshot quietly changes program behaviour.
 
       **It is not semantics-preserving today either, and that is a
       precondition, not a caveat.** Reusing the `data` form at run time means validating through
