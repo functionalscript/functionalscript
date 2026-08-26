@@ -965,9 +965,27 @@ are stated instead:
       start once stage 5 produces its first real diagnostic — so it overlaps
       stages 6–9 rather than following them, the one place the numbering is a
       dependency order and not a schedule.
-- [ ] **11. Retire `Ts<T>`, the JSDoc types in `.f.mjs`, and the `types.ts`
-      beside them,** declaration by declaration — the two annotation forms are
-      disjoint, so this needs no flag day and no module-at-a-time rule.
+- [ ] **11. Retire `Ts<T>`, the JSDoc types in every compiler-readable
+      FunctionalScript module — `.f.js`, and `.f.mjs` once the parser accepts
+      it — and the `types.ts` beside them.**
+
+      **Retirement has two granularities, and they are not the same.** Removing
+      a declaration's JSDoc is *per-declaration*: the two annotation forms are
+      disjoint, so a module can carry both, one, or neither, with no flag day.
+      Switching where a module's `.d.ts` comes from is *per-module*, because
+      the artifact is. A mixed module — some declarations retired, some not —
+      has no source for a complete one: `tsc` cannot see `//:` and so cannot
+      emit a retired declaration's contract, and the generator knows only
+      schemas, while stage 1 rules that a partial `.d.ts` is worse than none.
+
+      So one of two things has to be true, and this stage must say which:
+      either the generator can **merge** — schema-generated contracts for
+      retired declarations, `tsc`-derived ones for the rest, in one file — or
+      the `.d.ts` switch is **module-at-a-time** even while the source edits
+      stay per-declaration, meaning a module's JSDoc all goes at once or none
+      of it does. The merge is more work and keeps the incremental property
+      that made per-declaration attractive; module-at-a-time is simpler and
+      gives up that property for `.d.ts`-publishing modules.
 
       **One rule governs the whole stage: a declaration retires only when the
       generated `.d.ts` reproduces what it published.** Not "when a schema
@@ -1036,7 +1054,8 @@ are stated instead:
       preserved rather than discarded. Once the compiler consumes an
       annotation, a binding used only to name or build that annotation's schema
       is exactly that — so such a module does not compile, which is a gate on
-      stages 3–5 and on stage 11, not a question of runtime cost.
+      stages 4–5 and on stage 11 — **not** stage 3, which only records and
+      resolves the annotation — and not a question of runtime cost.
 
       Both halves bind only where the use is annotation-*only* and the
       computation is not already total: a module that also passes the schema to
