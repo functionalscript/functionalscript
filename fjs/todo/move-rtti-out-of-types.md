@@ -114,7 +114,21 @@ named after what it binds, and no path collides.
 - [ ] Check every relative link in the moved subtree resolves, in both
       directions; a broken markdown link fails no test.
 - [ ] Add `changelog/unreleased/` entry noting the breaking path change.
+- [ ] `npm run update`. The move edits `fjs/ci/common/module.f.mjs`, which is
+      generator source, and `ci-update` regenerates committed files that CI
+      drift-checks and fails on when stale (see `fjs/nanvm/update/module.f.mjs`).
+      Expect a no-op — rtti's location is not embedded in any generated output —
+      and commit whatever it does write.
 - [ ] `npx tsc`, `fjs test`, `npm run cov` — proofs and 100% coverage unchanged.
+      No Rust file references rtti, so `cargo test`/`clippy`/`fmt` stay out of
+      scope under AGENTS.md's "only if you touched Rust"; they come back in only
+      if the step above regenerates the Rust operator tests.
+- [ ] Delete this file, and close out the umbrella entry. `git mv` moves only the
+      rtti subtree, so this issue would survive its own completion, and
+      `todo/README.md` requires the fixing PR to delete its issue — capturing any
+      design decision in a `README.md` first. Turn the `Later candidates` bullet
+      in [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)
+      into a done entry, the way its item 1 records the `basen` move.
 
 ### Related
 
