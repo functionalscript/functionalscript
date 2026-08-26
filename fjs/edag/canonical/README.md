@@ -53,6 +53,14 @@ spelling it loses to named beside it.
   Rewriting here would mean rebuilding containers, which loses the sharing an
   EDAG exists to carry, for the same reason `parse` cannot canonicalize one
   ([identity-aware-parse.md](../../types/rtti/todo/identity-aware-parse.md)).
+- **Not a reader of the open tail.** Tuples are open
+  ([Caveats](../README.md#caveats)), so an element past a node's declared
+  arity is data the node never evaluates. `validate` ignores it and so does
+  this: `['args', x]` is a valid `['args']` whatever `x` is, and a pass that
+  walked `x` would reject a runtime-valid graph for what its ignored tail
+  happens to hold.
+- **Not a shape check.** It assumes a graph `validate(exp)` already accepts,
+  which is what makes reading declared positions safe.
 - **Not identity-aware**, like `validate`: a shared subgraph is walked once
   per incoming edge, so cost is exponential in depth and a cycle overflows the
   stack rather than being rejected.

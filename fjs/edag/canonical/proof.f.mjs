@@ -10,7 +10,7 @@
  * checks. `../proof.f.mjs`'s `optionChain.shapeAcceptsWhatCanonicalRejects`
  * is the other half of that pair.
  *
- * @import { Exp } from '../types.ts'
+ * @import { Exp, Lambda } from '../types.ts'
  * @import { ChainMessage } from './types.ts'
  */
 
@@ -28,6 +28,21 @@ const rejected = message => e => {
         /** @type {{ readonly message: ChainMessage }} */(value).message,
         message)
 }
+
+/**
+ * A node carrying an element past its declared operands. Runtime-valid —
+ * rtti tuples are open — but not assignable to `Exp`, whose static tuples
+ * are closed: the rendering approximation `../README.md` records under
+ * Caveats. The cast is that gap, not a claim about the value.
+ * The parameter is `unknown[]` rather than `Exp[]` because the operand
+ * arrays a container declares are not `Exp`s either — the same reason
+ * `validate` takes an `Unknown`.
+ * @type {(node: readonly unknown[]) => Exp}
+ */
+const openExp = node => /** @type {Exp} */ (node)
+
+/** The same gap, one level in, for a chain step. @type {(step: readonly unknown[]) => Lambda} */
+const openLambda = step => /** @type {Lambda} */ (step)
 
 const tooFewSteps = rejected('too few steps')
 const deadPrefix = rejected('a dead prefix before the region')
@@ -73,6 +88,7 @@ export const proof = {
     // walker's base and arguments.
     reachedAnywhere: () => {
         const bad = /** @type {Exp} */ (['_', 'a', [['|?.', 'b']]])
+        tooFewSteps(['()', bad, 'b'])
         tooFewSteps(['[]', [1, bad]])
         tooFewSteps(['[]', [['...', bad]]])
         tooFewSteps(['{}', [[':', 'k', bad]]])
@@ -139,6 +155,39 @@ export const proof = {
         cutInside(['_', 'a', [['|?.()', 'b'], ['|()', 'c'], ['|?.()', 'd']]])
         // A `_()` is cut the same way; only its own trailing call is special.
         cutInside(['_()', 'a', [['|?.', 'b'], ['|()', 'c'], ['|?.', 'd']], 'e'])
+    },
+    // Only *declared* operands are walked. Tuples are open, so an element
+    // past a node's arity is data the node never evaluates: `validate`
+    // ignores it, and reading it here would reject a runtime-valid graph
+    // for what its ignored tail happens to hold — or, on a malformed tail,
+    // fail to answer at all. Each case below carries the same non-canonical
+    // walker `reachedAnywhere` rejects in a declared position.
+    openTails: () => {
+        const bad = /** @type {Exp} */ (['_', 'a', [['|?.', 'b']]])
+        // The three operation arities, which is what decides how much of a
+        // tuple is declared: `op0` none, `op1` one, `op2` two.
+        ok(openExp(['args', bad]))
+        ok(openExp(['neg', 1, bad]))
+        ok(openExp(['+', 1, 2, bad]))
+        // ... and every chain node, whose arities the tags carry.
+        ok(openExp(['.', 'a', 'b', bad]))
+        ok(openExp(['()', 'a', 'b', bad]))
+        ok(openExp(['.()', 'a', 'b', 'c', bad]))
+        ok(openExp(['?.', 'a', 'b', bad]))
+        ok(openExp(['?.()', 'a', 'b', bad]))
+        ok(openExp(['_', 'a', [['|?.', 'b'], ['|.', 'c']], bad]))
+        ok(openExp(['_()', 'a', [['|?.', 'b']], 'c', bad]))
+        // The containers hold their operands in one declared array, so a
+        // tail sits past that array rather than among its elements.
+        ok(openExp(['[]', [1], bad]))
+        ok(openExp(['{}', [], bad]))
+        ok(openExp([',', [1, 2], bad]))
+        // A step has an open tail of its own, read the same way: its
+        // operand is at one declared position and the rest is tail.
+        ok(['_', 'a', [openLambda(['|?.', 'b', bad]), ['|.', 'c']]])
+        // A tail too short to be a node of its own is still just a tail —
+        // reading one would throw rather than report.
+        ok(openExp(['args', openExp(['_'])]))
     },
     // Minimality, the far end: `_()`'s own call takes the last step's
     // receiver, so a trailing call step — which already cleared one — leaves

@@ -29,6 +29,13 @@
  * guarded itself. Every other guarded step is a `|?.()`, either opening the
  * region or bound to the property step ahead of it.
  *
+ * It takes a graph `validate(exp)` already accepts, and reads only the
+ * operands each node **declares**. Tuples are open ("Caveats" in
+ * `../README.md`), so an element past a node's declared arity is data the
+ * node never evaluates; `validate` ignores it, and so does this — walking it
+ * would reject a runtime-valid graph for what its ignored tail happens to
+ * hold, and a malformed tail is not this pass's to report.
+ *
  * Like `validate`, this is not identity-aware: a shared subgraph is walked
  * once per incoming edge. See `../../types/rtti/todo/identity-aware-parse.md`.
  *
@@ -39,7 +46,13 @@
  * @import { Result } from '../../types/result/types.ts'
  */
 
+import { op1Id, op2Id } from '../module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
+import { validate } from '../../types/rtti/validate/module.f.mjs'
+
+const validateOp1Id = validate(op1Id)
+
+const validateOp2Id = validate(op2Id)
 
 /** A step that opens a short-circuit region. @type {(l: Lambda) => boolean} */
 const optionStep = ([id]) => id === '|?.' || id === '|?.()'
@@ -106,23 +119,40 @@ const propertyChildren = p => p[0] === ':' ? [p[1], p[2]] : [p[1]]
 const lambdaChild = ([, operand]) => operand
 
 /**
- * Every node whose operands are all `exp`s, which is every node except the
- * containers and the two walkers. `Index` is an `Exp`, so the tag is the
- * only element skipped.
+ * How many `exp` operands an operation node declares — `op0` none, `op1`
+ * one, `op2` two. Asked of the id vocabularies rather than of a list
+ * repeated here, so adding an id needs no edit in this module. An id in
+ * none of them declares nothing, which is what keeps this total.
+ * @type {(id: string) => number}
+ */
+const opArity = id =>
+    validateOp1Id(id)[0] === 'ok' ? 1 :
+    validateOp2Id(id)[0] === 'ok' ? 2 :
+    0
+
+/**
+ * `op0`/`op1`/`op2`, whose declared operands are all `exp`s: the tag says
+ * how many, and everything past them is the open tail.
  * @type {(e: readonly[string, ...readonly Exp[]]) => readonly Exp[]}
  */
-const tailChildren = ([, ...rest]) => rest
+const opChildren = ([id, ...rest]) => rest.slice(0, opArity(id))
 
-/** @type {(e: Exp) => readonly Exp[]} */
+/**
+ * The operands a node declares, and only those — see the open-tail note in
+ * the module header for why the tail past them is not walked.
+ * @type {(e: Exp) => readonly Exp[]}
+ */
 const children = e => {
     if (!(e instanceof Array)) { return [] }
     switch (e[0]) {
         case '[]': return e[1].flatMap(itemChildren)
         case '{}': return e[1].flatMap(propertyChildren)
         case ',': return e[1]
+        case '.': case '()': case '?.': case '?.()': return [e[1], e[2]]
+        case '.()': return [e[1], e[2], e[3]]
         case '_': return [e[1], ...e[2].map(lambdaChild)]
         case '_()': return [e[1], ...e[2].map(lambdaChild), e[3]]
-        default: return tailChildren(e)
+        default: return opChildren(e)
     }
 }
 
@@ -144,6 +174,9 @@ const expErrors = e => [...nodeErrors(e), ...children(e).flatMap(expErrors)]
  * conditions, and hands `e` back unchanged when they all hold. The first
  * violation found in a depth-first walk is the reported one; a graph with
  * several has several, and this names one at a time.
+ *
+ * `e` must be a graph `validate(exp)` accepts. Shape is that function's job,
+ * not this one's, and the two together are what make a graph legal.
  *
  * @type {(e: Exp) => Result<Exp, ChainError>}
  */
