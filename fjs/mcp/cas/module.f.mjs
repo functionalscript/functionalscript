@@ -171,6 +171,14 @@ const detectDialect = detect([revisionDialect, lockDialect, noteDialect])
  * }} _Meta */
 
 /**
+ * Maps a media-type detector verdict to the `cas_get` wire metadata.
+ *
+ * @type {(uri: string) => (detected: { readonly length: bigint, readonly mime_type: string, readonly type: 'text' | 'base64' }) => _Meta}
+ */
+const toMeta = uri => ({ length, mime_type: mimeType, type }) =>
+    ({ length: Number(length), mimeType, type, uri })
+
+/**
  * Registry of all CAS tools, bound to `home` and the Evo cache at
  * `cacheKey`. `cas_add` is the only tool that writes, so it is the only one
  * that needs `cacheKey`: a successfully stored blob is folded into the Evo
@@ -220,21 +228,21 @@ export const casToolRegistry = home => cacheKey => {
                     return pureOk(errorResult(`invalid cBase32 hash: ${r.hash}`))
                 }
                 const uri = c.url(key)
+                const meta = toMeta(uri)
                 return resultStep(
                     detectStream(c.read(key)),
                     ([tag, detected]) => {
                         if (tag === 'error') {
                             return pureOk(errorResult(`no such hash: ${r.hash}`))
                         }
-                        const { length, mime_type: mimeType, type } = detected
-                        /** @type {_Meta} */
-                        const meta = { length: Number(length), mimeType, type, uri }
+                        const { length, type } = detected
+                        const detectedMeta = meta(detected)
                         if (r.content !== true) {
                             // A dialect match can only be decided from the whole parsed blob;
                             // only attempt the extra bounded read when it stands a chance
                             // (whole-blob text within the same cap `content: true` allows).
                             if (type !== 'text' || length > maxLengthBytes) {
-                                return pureOk(okResult(toJson(meta)))
+                                return pureOk(okResult(toJson(detectedMeta)))
                             }
                             return resultStep(
                                 collectRead(c.read(key)),
@@ -242,9 +250,9 @@ export const casToolRegistry = home => cacheKey => {
                                     // Already known to fit from the streaming pass above, so an
                                     // error here means the hash vanished between reads; fall back
                                     // to the streaming verdict rather than fail the whole request.
-                                    if (collectTag === 'error') { return pureOk(okResult(toJson(meta))) }
+                                    if (collectTag === 'error') { return pureOk(okResult(toJson(detectedMeta))) }
                                     const refined = detectDialect(value)
-                                    return pureOk(okResult(toJson({ ...meta, mimeType: refined.mime_type })))
+                                    return pureOk(okResult(toJson(meta(refined))))
                                 }
                             )
                         }
@@ -267,8 +275,7 @@ export const casToolRegistry = home => cacheKey => {
                                 // hand — is reflected in the inline result too, not just the
                                 // streaming guess.
                                 const refined = detectDialect(value)
-                                /** @type {_Meta} */
-                                const refinedMeta = { length: Number(refined.length), mimeType: refined.mime_type, type: refined.type, uri }
+                                const refinedMeta = meta(refined)
                                 if (refined.type === 'text') {
                                     // `type: 'text'` means the detector validated `value` as
                                     // whole-blob UTF-8 with a byte-aligned length (see
