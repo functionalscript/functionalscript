@@ -498,6 +498,14 @@ export const proof = {
             assertEq(u?.[todo()], undefined)
             assertEq(u?.(todo()), undefined)
         },
+        // The quiet half of `throw.groupedOptional`: a group ends the chain,
+        // but when what follows is itself guarded the ending is unobservable.
+        grouping: () => {
+            /** @type {any} */
+            const u = undefined
+            assertEq((u?.at)?.name, undefined)
+            assertEq((u?.at)?.(0), undefined)
+        },
         // What the naive desugaring of `?.` gets right, every branch of it:
         // `undefined` on either nullish input, and on anything else the *same
         // function* `a.at` denotes. Nothing is wrong with any of those values
@@ -518,9 +526,10 @@ export const proof = {
         },
         // The call counterpart of `throw.groupedOptional` — `(u?.at)(0)`,
         // which calls `undefined` and throws under the spec and V8 — is
-        // deliberately absent: JavaScriptCore (so `bun test`) short-circuits
-        // it and evaluates to `undefined` instead, so asserting either
-        // answer would redden a runner. The node it denotes is unaffected —
+        // carried commented out in `throw` below: JavaScriptCore (so
+        // `bun test`) short-circuits it and evaluates to `undefined` instead,
+        // so asserting either answer would redden a runner. The node it
+        // denotes is unaffected —
         // `['()', u, [['|?.', 'at']], …]` means the throwing reading — and
         // `throw.groupedOptional` pins the same boundary through a property
         // access, where every engine agrees. See "Chains" in `./README.md`.
@@ -545,6 +554,30 @@ export const proof = {
             // input those same operands *are* evaluated.
             evaluatedIndex: () => [42]?.[todo()],
             evaluatedArgument: () => [42].at?.(todo()),
+            // `(u?.(0))(1)` — the inner call already cleared the receiver, so
+            // the group's boundary carries nothing and every runner agrees.
+            groupedOptionalCallOfCall: () => {
+                /** @type {any} */
+                const u = undefined
+                return (u?.(0))(1)
+            },
+            // Two shapes bun answers differently, so neither can be
+            // asserted. Both throw everywhere else; see "Chains" in
+            // `./README.md` for which is the engine and which is the
+            // transpiler. The second must stay commented rather than merely
+            // fail: bun rejects it at parse, taking the file down.
+            //
+            // groupedOptionalCall: () => {
+            //     /** @type {any} */
+            //     const u = undefined
+            //     return (u?.at)(0)
+            // },
+            //
+            // groupedOptionalTag: () => {
+            //     /** @type {any} */
+            //     const u = undefined
+            //     return (u?.at)`tag`
+            // },
         },
     },
     // `f(...args)[k](obj.a)` in AST form — exercises the mutual recursion
