@@ -489,6 +489,15 @@ Stage 2 (one PR, after stage 1 lands):
       spelling at an optional key — but each production site is reviewed rather
       than swept, and the changelog says the schemas got stricter, not that a
       spelling changed.
+- [ ] Migrate the **documentation and instructions** too, which the compiled-call
+      sweep does not reach and no checker flags. Verified sites:
+      `../../../protocol/mcp/README.md:71` hands readers
+      `greeting: option(string)` to copy, which would silently become an
+      absence-only schema; `../../../AGENTS.md:383` and `:405` name `option`
+      among the schema-taking exports carrying a `const` type parameter, which
+      it stops being; and this module's own prose — `../README.md` (3 sites),
+      `../ts/README.md` (2), `../data/README.md` (3). The `option` in
+      `../../../bnf/todo/207.md` is a different one and is out of scope.
 - [ ] Audit the members that spell optionality **directly** as `or(…, undefined)`,
       which the `option(` sweep does not reach and `checkJs` cannot flag — they
       stay syntactically valid and silently become *required*. Verified sites:
@@ -618,6 +627,17 @@ Stage 2 (one PR, after stage 1 lands):
       the prototype asymmetry
       [close-counts-trailing-undefined](./close-counts-trailing-undefined.md)
       records.
+- [ ] State the bound rather than implying a construction that does not exist:
+      against a prototype-supplied index, **no** immutable builder can produce
+      the hole. An `Object.hasOwn` guard *inside* the callback does not help —
+      `.map` creates the own output element whatever the callback returns
+      (measured: the guarded map still gives `hasOwn(result, 0)` true) — and a
+      fresh `Array(n)` inherits the index too, so it is no cleaner source. The
+      escapes are `Object.assign` or index assignment, both mutation, both
+      forbidden. So `parse` materializes the inherited value in that case, and
+      `validate` is untouched because it returns the value it was given. Pin it
+      as a bounded divergence, unreachable from FunctionalScript, rather than
+      leaving the task reading as though a sanitized source were available.
 - [ ] `../ts/module.f.mjs`, the **runtime printer**: `arraySetToTs` and
       `objectSetToTs` decide optionality through their own `admitsUndefined`
       (`:159`, `:184`, `:217`), so without this `{ a: or(option, number) }` and
