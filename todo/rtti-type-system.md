@@ -405,7 +405,10 @@ TypeScript type-level API, and it exists because TypeScript is currently how
 this repository states types. Once a `.f.mjs` module's types are RTTI schemas
 and its `.d.ts` is generated from them, a `types.ts` beside it has no remaining
 job — the schema *is* the type-level API, and it is a value rather than a
-declaration. 92 of the 94 `types.ts` files in the tree sit next to a
+declaration. **Provided the compiler can read that module**: per the rule
+below, a `.f.mjs` the parser does not yet accept has no RTTI checking whatever
+it is annotated with, so its `types.ts` is still carrying the types and
+retiring it would leave the module checked by nothing. 92 of the 94 `types.ts` files in the tree sit next to a
 `module.f.mjs`, so the *file* is adjacent to a schema-bearing module in nearly
 every case.
 

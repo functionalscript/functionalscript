@@ -38,10 +38,22 @@ implementation stages:
 migration**: a `types.ts` is not an implementation-migration target and must not
 be forced through JSDoc translation. It does not mean a `types.ts` outlives
 TypeScript itself. [rtti-type-system](./rtti-type-system.md) retires the ones
-beside `.f.mjs` modules — 92 of the 94 in the tree — once their types are RTTI
-schemas and their `.d.ts` is generated from them. Both hold: a `types.ts`
-survives this migration untouched, and goes when TypeScript stops being the type
-system for FunctionalScript.
+beside `.f.mjs` modules — 92 of the 94 in the tree — once three things hold, not
+two: their types are RTTI schemas, their `.d.ts` is generated from them, **and
+the compiler can actually read the module**.
+
+That third condition is not a formality here, and an earlier draft of this note
+omitted it. The epic's unit is not the extension but whether the compiler can
+read the file: a `.f.mjs` module using syntax the parser does not yet accept has
+no RTTI checking whatever it is annotated with, so retiring its TypeScript would
+leave it checked by nothing. Guaranteed acceptance is what the rename to `.f.js`
+signifies ([`fjs/fsc/README.md`](../fjs/fsc/README.md)), which makes step 3 of
+this migration a prerequisite for retiring those `types.ts` files rather than an
+independent track.
+
+Both still hold: a `types.ts` survives this migration untouched, and goes when
+TypeScript stops being the type system for FunctionalScript — for the modules
+the compiler can read.
 
 The existing compiler-compatibility migration in
 [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) is **blocked by** this
