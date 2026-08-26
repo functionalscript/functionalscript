@@ -79,11 +79,31 @@ not a design choice: whichever of A, B or C is chosen, one spelling of a set
 cannot accept what another rejects. It is listed first in the tasks for that
 reason, and it means **B is not documentation-only**.
 
-The narrow fix is to consult `fits` on both branches rather than only when
-`rest` is absent — the `rest` loop constrains the entries a value *has*, and
-`fits` constrains how long it may be, so they are independent questions and the
-second is being skipped for no stated reason. A `rest` of `unknown` normalizes
-to the open form, which is unaffected either way.
+The narrow fix is **not** to consult `fits` on both branches: `fits` is
+`value.length <= declared`, so applying it wherever a `rest` is present would
+reject every value the `rest` exists to admit — `close([number], string)`
+would stop accepting `[1, 'x']`, which all three readers take today.
+
+It is to **normalize an empty `rest` to no `rest`**, which is what `toData`
+already does and why the two disagree in the first place:
+
+```
+toData(close([number]))         {"array":[{"prefix":[{"number":true}]}]}
+toData(close([number], never))  {"array":[{"prefix":[{"number":true}]}]}   ← no rest
+```
+
+The data form has already dropped the empty `rest` by the time it validates, so
+it takes the length bound; the schema-form readers still see `rest !== undefined`
+and skip it. Dropping an empty `rest` in `closeContainerValidate` and
+`closeContainerParse` before the branch makes `close(c, never)` *be*
+`close(c)`, which is what the README already says it is, and leaves every
+non-empty `rest` untouched. A `rest` of `unknown` normalizes to the open form
+and is unaffected either way.
+
+The alternative — validate a trailing hole against the `rest`, reading it as
+`undefined` — also reconciles the two, but it is a wider change: it would move
+`close([number], string)` against `[1, ,]` from ok to error in all three
+readers, where they agree today.
 
 So exactly one case rests on `length`, the attribute the absence rule says
 stops being observable after the last required position. The other rests on
@@ -212,10 +232,12 @@ module's own closed containers do not follow.
 ## Tasks
 
 - [ ] **First, and independent of the decision:** make `close(c, never)` and
-      `close(c)` answer alike. Consult `fits` on both branches of
-      `closeContainerValidate` and `closeContainerParse`, and the same in
-      `arraySetValidate`'s `rest` branch; add
-      `[close([number], never), [42, ,]]` to
+      `close(c)` answer alike, by dropping an empty `rest` before the branch in
+      `closeContainerValidate` and `closeContainerParse` — not by consulting
+      `fits` wherever a `rest` is present, which would reject the values a
+      non-empty `rest` exists to admit. `arraySetValidate` needs no change; the
+      data form already normalizes the empty `rest` away, which is the half
+      that is right. Add `[close([number], never), [42, ,]]` to
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table,
       which is where a disagreement between the three readers is supposed to
       surface. Changelog: a bug fix, not a **BREAKING** change — the two
