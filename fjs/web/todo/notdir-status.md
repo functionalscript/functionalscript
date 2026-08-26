@@ -81,14 +81,32 @@ blanket mapping would answer `404 not found` to every request against a
 misconfigured server, which is the one case where `500` was telling the
 operator something true.
 
-So the root is checked once, in `main`, before `listen`: if it is not a
-directory, `errorExit` the way an out-of-range port already does. That is
-better than a per-request comparison of the offending component against the
-root — it needs no extra `stat` per request, it fails at the moment the
-mistake was made rather than on someone else's request, and after it every
-`ENOTDIR` reaching `fileResponse` is client-caused by construction, which is
-what the mapping assumes. It leaves the same replace-underneath window as
-[stat-then-read](./stat-then-read.md), and no more.
+So the root is checked in `main`, before `listen`: if it is not a directory,
+`errorExit` the way an out-of-range port already does. That is better than a
+per-request comparison of the offending component against the root — it needs
+no extra `stat` on the serving path, and it fails at the moment the mistake
+was made rather than on someone else's request.
+
+**But a startup check alone does not establish the invariant the mapping
+needs.** Rename the root, or replace it with a regular file, and every later
+`stat(root/…)` is `ENOTDIR` from the root itself — which `fileResponse` would
+then report as a client-caused `404` for the rest of the process's life. That
+is not the request-local window
+[stat-then-read](./stat-then-read.md) describes, where two calls race
+microseconds apart; this one opens once and stays open, and it turns the
+operator's mistake into a lie told to every visitor. An earlier draft of this
+file claimed the two windows were the same size. They are not.
+
+So the mapping re-checks: on `ENOTDIR`, `stat` the root, and answer `404` only
+if it is still a directory — otherwise `500`, which is again the true answer.
+The cost sits where it belongs, since `ENOTDIR` is the rare path and the
+serving path is untouched. What remains is a genuine race, between that
+re-check and the `stat` that produced the error, and it is the request-local
+kind that `stat-then-read` already covers — a wrong status in a vanishing
+window rather than a wrong status forever.
+
+Keep the startup check as well. It is what turns the common case — a mistyped
+root — into immediate feedback instead of a `500` that waits for a visitor.
 
 Worth noticing that this is already the answer on Windows, silently: `stat`
 there reports `ENOENT`, so `fjs web README.md` starts happily and answers
@@ -155,7 +173,9 @@ path that descends through a regular file, then map the error.
 - [ ] Add `isDirectory` to `FileStat`, in the node runner and the virtual one.
 - [ ] Reject a non-directory root in `main`, before `listen` — including a
       root that does not exist, and one that is neither file nor directory.
-- [ ] Answer `404` for it from `fileResponse`, leaving `isNotFound` alone.
+- [ ] Answer `404` for it from `fileResponse`, leaving `isNotFound` alone —
+      but only after re-checking that the root is still a directory, so a root
+      replaced after startup keeps answering `500`.
 - [ ] Prove `/README.md/` and `/nope.md/` answer identically, through the
       virtual runner — `proof.f.mjs` already drives `respond` that way, so
       once the virtual file system reports `ENOTDIR` the proof runs anywhere
@@ -184,5 +204,6 @@ path that descends through a regular file, then map the error.
   callers, whose documented readings settle that question.
 - `fjs/effects/node/virtual/module.f.mjs` — the file system that would grow the
   error, and the one `proof.f.mjs` already drives `respond` through.
-- [stat-then-read](./stat-then-read.md) — the replace-underneath window the
-  startup root check shares, and does not widen.
+- [stat-then-read](./stat-then-read.md) — the request-local replace-underneath
+  race, which is what the `ENOTDIR` re-check degrades to, and which a startup
+  check on its own would have been much worse than.
