@@ -321,11 +321,14 @@ rule the module's own closed containers do not follow.
       under a simulated A — the declared-member walk runs before and
       independently of `extra`, `rest` and `fits`, so no patch confined to the
       undeclared branch reaches it. Collapsing those two nodes would hand one
-      `../../../cas` hash to sets that differ. Either make container membership
-      read own members only, which is the value-side half of
-      [`./schema-walk-own-indices.md`](./schema-walk-own-indices.md) and is
-      undecided there, or keep both nodes and add an inherited-member row to
-      the proof.
+      `../../../cas` hash to sets that differ. The four rows above are
+      untouched by it — across the same prototype values, `close([number])` and
+      `close([number], cu)` answer alike on every one — so this bounds A's
+      collapse rather than blocking it. Either make container membership read
+      own members only, the value-side counterpart of
+      [`./schema-walk-own-indices.md`](./schema-walk-own-indices.md), raised
+      there but not among its tasks, or keep both nodes and add an
+      inherited-member row to the proof.
 
       **Collapse exactly what the readers stopped distinguishing, per kind.**
       The invariant follows the decision above, it does not outrun it: with the
@@ -365,9 +368,10 @@ rule the module's own closed containers do not follow.
   the same "a hole is `undefined`" reading, applied to the schema. This is the
   value side, and `close` is where the two readings part.
 - [`./schema-walk-own-indices.md`](./schema-walk-own-indices.md) — the same
-  own-versus-inherited split, on the schema. Its closing note calls the value
-  side settled because the readers agree there, and they do; A is what would
-  make it matter anyway.
+  own-versus-inherited split, on the schema. The readers agree on the value
+  side, so it is not a defect; it still bounds A, by keeping two declared
+  spellings apart that A would otherwise merge. Neither file's decision is a
+  prerequisite for the other's.
 - [`./parse-omits-undefined-members.md`](./parse-omits-undefined-members.md) —
   the same rule, read by `parse` on the way *out*, filed with
   [#1708](https://github.com/functionalscript/functionalscript/pull/1708).

@@ -61,13 +61,16 @@ Undecided; the two options are not a ladder.
 Option 2 is only coherent if **both** move. Changing `tupleSchemaEntries` alone
 re-opens the split that #1712 closed — measured on the probes above.
 
-The value side is a separate question, and settled only in the sense that the
-readers agree: `getItem` reads `value[k]`, which follows a value's prototype
-chain too, while `undeclaredEntries` enumerates own keys only. Answer A in
+The value side is a separate question, and settled in the sense that matters
+here: `getItem` reads `value[k]`, following a value's prototype chain, while
+`undeclaredEntries` enumerates own keys only — an asymmetry, but one all three
+readers share. It is not inert, though: it bounds what a canonicalization may
+merge. In
 [`./close-counts-trailing-undefined.md`](./close-counts-trailing-undefined.md)
-would make that asymmetry load-bearing — it asks the canonical form to equate
-`close([number])` with `close([number, () => ['const', undefined]])`, which an
-inherited index at 1 tells apart.
+it is the reason answer A keeps `close([number, () => ['const', undefined]])`
+distinct from `close([number])`, an inherited index at 1 telling those two
+apart, while the spellings A does merge answer alike on the same values.
+Neither decision is a prerequisite for the other.
 
 ## Tasks
 
