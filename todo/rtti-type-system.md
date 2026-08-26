@@ -1118,7 +1118,10 @@ are stated instead:
       readonly [string]` is the documented case, along with non-syntactically
       empty left sides and short array patterns. Rejecting on every `false`
       would reject valid programs. So this stage owes a third answer —
-      `true` / `false` / *cannot decide* — and a policy for the third: accept
+      `true` / `false` / *cannot decide* — which **today's API cannot express**:
+      `subset` is `(a: Data) => (b: Data) => boolean`, so producing the third
+      answer needs a tri-state API or a separate completeness witness before any
+      policy can be applied. Then a policy for the third: accept
       with a run-time check, ask for an annotation, or complete the algorithm in
       the direction `data/README.md` names (semantic subtyping, CDuce-style).
       Deciding that is part of the stage, not a detail under it.

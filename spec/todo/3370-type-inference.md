@@ -91,9 +91,22 @@ otherwise no task anyone can pick up to unblock 7b.
       - the inferred thing must be comparable to a *declared* RTTI schema, so
         whatever the domain is, there has to be a total map from it into
         something `subset` accepts;
-      - `subset` is **sound and deliberately incomplete**, so the domain has to
-        tolerate a third answer — *cannot decide* — and the stage owes a policy
-        for it.
+      - `subset` is **sound and deliberately incomplete**, so the checker needs
+        a third answer — *cannot decide* — and **today's API cannot express
+        one**: `subset` is
+        `(a: Data) => (b: Data) => boolean`
+        ([`data/module.f.mjs`](../../fjs/types/rtti/data/module.f.mjs)), so a
+        `false` conflates a genuine non-inclusion with a documented
+        undecidable case such as
+        `readonly [number | string] ⊆ readonly [number] | readonly [string]`.
+        Tolerating the third answer is not enough — nothing *produces* it. So
+        this task also owes one of: a **tri-state inclusion API**, a separate
+        **completeness witness** saying whether a given pair falls in the
+        decidable fragment, or completing the algorithm in the direction
+        [`data/README.md`](../../fjs/types/rtti/data/README.md) names. Without
+        one, stage 6 cannot both reject definite type errors and fall back on
+        incomplete ones — it has to pick a single behaviour for `false` and
+        will be wrong for one of the two.
 
 - [ ] **Then** specify inference itself against that domain, including the
       fixpoint for a call to an unannotated function, which is inference's own
