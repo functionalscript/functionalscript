@@ -277,14 +277,27 @@ rule the module's own closed containers do not follow.
 - [ ] If A: everything C touches, **plus** that filter and the matching one in
       `arraySetValidate`. Changelog entry prefixed `**BREAKING CHANGES:**` —
       `close` accepts an undeclared `undefined` member.
-- [ ] If A, the canonicalization too, not only the readers. Measured today,
-      `toData(close([number]))` is `{array:[{prefix:[{number:true}]}]}` and
-      `toData(close([number], () => ['const', undefined]))` is the same with
-      `rest: {unit: 2}` — correctly distinct, since their memberships differ.
-      Under A they would not: both accept `[1]`, `[1, undefined]`, a hole and
-      any longer run, so `cmp`/`equal` would name one set twice. Collapse a
-      `rest` of `{unit: 2}` on a closed array set, or whatever the equivalent
-      is once written, and pin the equality — the canonical form is what
+- [ ] If A, the canonicalization too, not only the readers — and as an
+      invariant rather than a list of spellings. **Under A, "admits only
+      `undefined`" stops distinguishing a member from its absence, so every
+      place the canonical form can record such a member has to collapse.**
+      Measured today, six spellings that A would make equal in membership and
+      leave distinct in data:
+
+      | schema | `toData` |
+      | --- | --- |
+      | `close([number])` | `{prefix:[{number:true}]}` |
+      | `close([number], cu)` | `{prefix:[{number:true}], rest:{unit:2}}` |
+      | `close([number, cu])` | `{prefix:[{number:true},{unit:2}]}` |
+      | `close({a:number})` | `{props:{a:…}, rest:{}}` |
+      | `close({a:number}, cu)` | `{props:{a:…}, rest:{unit:2}}` |
+      | `close({a:number, b:cu})` | `{props:{a:…,b:{unit:2}}, rest:{}}` |
+
+      (`cu` is `() => ['const', undefined]`.) So it is not one rule about an
+      array `rest`: a trailing `{unit:2}` prefix node, an object `rest`, and an
+      undefined-only property each need the same treatment, in both kinds.
+      Audit for the general case rather than these six, since the list is not
+      claimed exhaustive, and pin the equalities. The canonical form is what
       `../../../cas` hashes, so two names for one set is worse here than a
       reader disagreement.
 - [ ] Either way, add `[close([number]), [42, undefined]]` to
