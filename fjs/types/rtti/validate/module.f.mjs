@@ -29,11 +29,13 @@
  * ## Structs and tuples are open
  *
  * Openness is the shared rule, not a `parse` detail — see "Structs and tuples
- * are open" in `../README.md`. `validate` iterates the *schema's* entries, so
- * an undeclared key or a longer array is never visited: it is accepted, and it
- * is still there afterwards because the value is returned as-is. An absent
+ * are open" in `../README.md`. `validate` iterates what the *schema* declares,
+ * so an undeclared key or a longer array is never visited: it is accepted, and
+ * it is still there afterwards because the value is returned as-is. An absent
  * member reads as `undefined`, so a member is required exactly when its set
- * excludes `undefined`.
+ * excludes `undefined`. A tuple schema declares by length, so a hole is a
+ * position whose schema is `undefined` — see "A hole is a declared position" in
+ * `../README.md`.
  *
  * **Do not add a length check for tuples here.** `Ts<readonly [42]>` is the
  * exact tuple only because TypeScript cannot express the open one (see
@@ -72,8 +74,8 @@
  * @module
  *
  * @import { Unknown } from '../ts/types.ts'
- * @import { ConstObject, Info1, Struct, Tag1, Tuple, Type } from '../types.ts'
- * @import { Container, IsContainer, Validate, ValidateE, Visitor } from '../common/types.ts'
+ * @import { ConstObject, Info1, Tag1, Type } from '../types.ts'
+ * @import { Container, IsContainer, SchemaEntries, Validate, ValidateE, Visitor } from '../common/types.ts'
  * @import { StringMap } from '../../object/types.ts'
  */
 
@@ -85,6 +87,8 @@ import {
     isObject,
     orVisit,
     primitive0Validate,
+    structSchemaEntries,
+    tupleSchemaEntries,
     undeclaredEntries,
     verror,
     visit,
@@ -129,23 +133,25 @@ const arrayValidate = containerValidate(isArray)
 const recordValidate = containerValidate(isObject)
 
 /**
- * Builds a validator for `Tuple` or `Struct` const schemas. It iterates the
- * *schema's* entries, which is what makes both kinds open: a longer array or
- * an undeclared key is never visited, so it is accepted — and, the value being
- * returned as it came, it survives.
+ * Builds a validator for `Tuple` or `Struct` const schemas. It iterates what
+ * the *schema* declares — `schemaEntries`, per kind — which is what makes both
+ * kinds open: a longer array or an undeclared key is never visited, so it is
+ * accepted — and, the value being returned as it came, it survives.
  */
 const constContainerValidate =
     /**
      * @template {Unknown} C
+     * @template {ConstObject} S
      * @param {IsContainer<C>} isContainer
+     * @param {SchemaEntries<S>} schemaEntries
      * @param {(value: C, k: string) => Unknown} getItem
-     * @returns {<T extends Tuple | Struct>(rtti: T) => Validate<T>}
+     * @returns {<T extends S>(rtti: T) => Validate<T>}
      */
-    (isContainer, getItem) =>
+    (isContainer, schemaEntries, getItem) =>
     rtti => {
         // Depends on `rtti` alone, so it is computed once per schema rather
         // than once per validated value.
-        const rttiEntries = entries(rtti)
+        const rttiEntries = schemaEntries(rtti)
         return value => {
             if (!isContainer(value)) {
                 return verror('unexpected value')
@@ -164,11 +170,13 @@ const constContainerValidate =
 
 const tupleValidate = constContainerValidate(
     isArray,
+    tupleSchemaEntries,
     (value, k) => value[Number(k)],
 )
 
 const structValidate = constContainerValidate(
     isObject,
+    structSchemaEntries,
     (value, k) => value[k],
 )
 
@@ -186,15 +194,17 @@ const structValidate = constContainerValidate(
 const closeContainerValidate =
     /**
      * @template {ReadonlyArray<Unknown> | StringMap<Unknown>} C
+     * @template {ConstObject} S
      * @param {IsContainer<C>} isContainer
+     * @param {SchemaEntries<S>} schemaEntries
      * @param {(value: C, k: string) => Unknown} getItem
      * @param {(value: C, declared: number) => boolean} fits
-     * @returns {(rtti: ConstObject, rest: Type | undefined) => ValidateE}
+     * @returns {(rtti: S, rest: Type | undefined) => ValidateE}
      */
-    (isContainer, getItem, fits) =>
+    (isContainer, schemaEntries, getItem, fits) =>
     (rtti, rest) => {
         // Depend on the schema alone, so they are computed once per schema.
-        const rttiEntries = entries(rtti)
+        const rttiEntries = schemaEntries(rtti)
         const declared = rttiEntries.map(([k]) => k)
         return value => {
             if (!isContainer(value)) {
@@ -221,19 +231,23 @@ const closeContainerValidate =
 
 const closeTupleValidate = closeContainerValidate(
     isArray,
+    tupleSchemaEntries,
     (value, k) => value[Number(k)],
     (value, declared) => value.length <= declared,
 )
 
 const closeStructValidate = closeContainerValidate(
     isObject,
+    structSchemaEntries,
     (value, k) => value[k],
     () => true,
 )
 
 /** @type {(rtti: ConstObject, rest: Type | undefined) => ValidateE} */
 const closeValidate = (rtti, rest) =>
-    (rtti instanceof Array ? closeTupleValidate : closeStructValidate)(rtti, rest)
+    rtti instanceof Array
+        ? closeTupleValidate(rtti, rest)
+        : closeStructValidate(rtti, rest)
 
 const orValidate =
     /**

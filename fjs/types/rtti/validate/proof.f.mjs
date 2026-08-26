@@ -76,12 +76,28 @@ const rows = [
     [[/** @type {const} */ (42)], []],
     [{ a: number, b: option(string) }, { a: 1 }],
     [{ a: number }, { a: 'one' }],
+    // a hole in a tuple schema is a declared position whose schema is
+    // `undefined`, so the schema's length is what it declares — the reading
+    // the data form has always had, and the one `Object.entries` lost
+    [new Array(1), [1, 2, 3]],
+    [new Array(1), [undefined]],
+    [new Array(1), []],
+    [[, number], [9, 5]],
+    [[, number], [undefined, 5]],
+    // and a non-index enumerable own property is no position at all: a tuple
+    // schema is read by index, so `foo` was declared and then matched against
+    // `value[NaN]`, which no ordinary value carries
+    [Object.assign([number], { foo: string }), [1]],
+    [Object.assign([number], { foo: string }), Object.assign([1], { foo: 'x' })],
     // the closed counterparts of the four openness rows, and the rest
     [close([number]), [42]],
     [close([number]), [42, 'extra']],
     [close([number]), [42, ,]],
     [close([number]), Object.assign([42], { foo: 1 })],
     [close([number]), []],
+    [close(new Array(1)), new Array(1)],
+    [close(new Array(1)), [undefined]],
+    [close(new Array(1)), [1]],
     [close([number, option(string)]), [42]],
     [close({ a: number }), { a: 1 }],
     [close({ a: number }), { a: 1, b: 'x' }],
@@ -188,6 +204,28 @@ export const proof = {
         for (const [t, value] of rows) {
             assertEq(d(t)(value)[0], p(t)(value)[0], 'the data form must accept what `parse` accepts')
         }
+    },
+    // The two tables above pin that the three readers *agree*; these pin what
+    // they agree on, which is what the changelog entry claims.
+    sparseTuple: {
+        holeIsDeclaredUndefined: () => {
+            assertError(validate([, number])([9, 5]))
+            assertOk(validate([, number])([undefined, 5]))
+            assertError(validate(new Array(1))([1, 2, 3]))
+            assertOk(validate(new Array(1))([undefined]))
+        },
+        // A hole is a position, so a closed sparse schema is as long as it
+        // looks: `declared.length` is the schema's length, not its key count.
+        closedArityIsTheSchemaLength: () => {
+            assertOk(validate(close(new Array(1)))([undefined]))
+            assertError(validate(close(new Array(1)))([1]))
+        },
+        nonIndexPropertyIsNotDeclared: () => {
+            const schema = Object.assign([number], { foo: string })
+            assertOk(validate(schema)([1]))
+            assertOk(validate(schema)(Object.assign([1], { foo: 'x' })))
+            assertError(validate(schema)(['x']))
+        },
     },
     boolean: {
         ok: () => {

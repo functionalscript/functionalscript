@@ -526,12 +526,35 @@ check its argument. A cast around a big object literal passed to a
 `ToAsyncOperationMap<O>`-shaped parameter, for example, blocks TypeScript from
 checking each operation's implementation against `O` — the object literal is no
 longer contextually typed by the call site, so a drifted handler shape is
-absorbed by the cast instead of flagged. Prefer no cast at all when the callee
-already supplies enough context (as `asyncRun(map)` does here) so the object
-literal is checked structurally on its own; reach for `@satisfies` only where a
-check without adopting the target type is actually wanted, e.g. a value that
-must additionally be nominal-branded — `asNominal(x) satisfies T` becomes
-`/** @satisfies {T} */ (asNominal(x))`, not `@type`.
+absorbed by the cast instead of flagged. Prefer no cast at all, so the object
+literal is checked structurally on its own.
+
+`asyncRun(map)` is worth spelling out, because the callee does **not** supply
+that context on its own: `ToAsyncOperationMap<O>` is a mapped type keyed on
+`O[0]`, not a homomorphic `{[K in keyof T]: …}`, so TypeScript cannot infer `O`
+back out of the argument. Left to argument inference `O` falls back to its
+`Operation` constraint — payloads and outputs `never` — which no real map is
+assignable to, and the call site reaches for exactly the cast this section warns
+about. **Annotate the result instead**: pin the runner's own type
+(`/** @type {_EffectToPromise} */`, `/** @type {MemoryRun} */`) and `O` is
+inferred from the return type, giving the call a real `O` to check its argument
+against. Both Node runners are written that way —
+`fjs/effects/node/module.mjs`'s `runNodeEffect` and
+`fjs/effects/node/memory/module.mjs`'s `memoryRun`.
+
+What that buys differs with what the call passes, and only the first case is
+the hazard this section is about. `runNodeEffect` passes an object **literal**,
+so its annotation is the only thing checking any handler — without it nothing
+is checked. `memoryRun` passes an already-annotated call result, whose handlers
+are checked at the factory regardless; there the annotation buys agreement
+between the *declared map type* and `O`, caught at the runner rather than
+wherever the map is spread next. Both are worth having. Don't claim the second
+is the first.
+
+Reach for `@satisfies` only where a check without adopting the target type is
+actually wanted, e.g. a value that must additionally be nominal-branded —
+`asNominal(x) satisfies T` becomes `/** @satisfies {T} */ (asNominal(x))`, not
+`@type`.
 
 #### Mutually recursive constants: cross-reference with `typeof`
 

@@ -3,10 +3,9 @@
  * node kind — see the union immediately below for the current list, rather
  * than enumerating it here too, where it silently drifts stale as nodes are
  * added — each pinned against its rtti schema in the sibling module with
- * `Assert<Check<..., typeof ...>>`. The pin is exact up to tuple openness:
- * the schema accepts trailing extras (`['args', 'extra']` validates) while
- * these tuples are closed — the rendering approximation documented at
- * `TupleTs` in `../types/rtti/ts/types.ts`.
+ * `Assert<Check<..., typeof ...>>`. Every tuple here is closed on both sides:
+ * the schemas state `close`, so these types are exact rather than the
+ * approximation `TupleTs` in `../types/rtti/ts/types.ts` describes.
  */
 
 // exp
@@ -15,10 +14,10 @@ export type Exp =
     | Primitive
     | Array
     | Object
-    | PropertyAccessor
+    | Dot
     | Call
-    | OptionalPropertyAccessor
-    | OptionalCall
+    | OptionDot
+    | OptionCall
     | Comma
     | Op2
     | Op1
@@ -70,40 +69,59 @@ export type NumberCast = readonly['Number', Exp]
 
 export type Index = number | NumberCast | string
 
-// propertyAccessor
-
-export type PropertyAccessor = readonly['.', Exp, Index]
-
-// lambdas — grouped by operand shape, like `Op1`/`Op2`
-
-export type LambdaPropertyAccessorId = '|.' | '|?.'
-
-export type LambdaPropertyAccessor = readonly[LambdaPropertyAccessorId, Index]
-
-export type LambdaCallId = '|()' | '|?.()'
-
-export type LambdaCall = readonly[LambdaCallId, Exp]
+// chain lambdas — one type per state a chain can be in, named by the two bits
+// of hidden control flow it carries: a live receiver (`Property`) and an open
+// short-circuit region (`Option`). Neither bit live is a node boundary, which
+// is why the fourth combination is an `Exp` and not a fourth type.
 
 /**
- * A structural step of a chain, never an `Exp`: a `Lambda` reads the
- * current chain value implicitly, so it has no place to hold one, and it
- * cannot be extracted as a shared computation node.
+ * The continuation of a `Dot`: a receiver is live, no region is open.
+ *
+ * Only a call can be here — a property step would waste the receiver with no
+ * region to keep it in, so `a.b.c` nests `Dot`s instead.
  */
-export type Lambda = LambdaPropertyAccessor | LambdaCall
+export type PropertyLambda =
+    | null
+    | readonly['|()', Exp, null]
+    | readonly['|?.()', Exp, OptionLambda]
 
-export type Lambdas = readonly Lambda[]
+/**
+ * The continuation of a step that produced a plain value inside an open
+ * region: `OptionCall`'s, and every call step that stays in its region.
+ */
+export type OptionLambda =
+    | null
+    | readonly['|()', Exp, OptionLambda]
+    | readonly['|.', Index, OptionPropertyLambda]
+
+/**
+ * The continuation of a property step inside an open region: both bits live,
+ * so this is the state with every production — the three ways a call can
+ * relate to the region it sits in, plus the property step the region keeps
+ * from leaving.
+ */
+export type OptionPropertyLambda =
+    | null
+    | readonly['|()', Exp, OptionLambda]
+    | readonly['|.', Index, OptionPropertyLambda]
+    | readonly['|?.()', Exp, OptionLambda]
+    | readonly['|!()', Exp, null]
 
 // call
 
-export type Call = readonly['()', Exp, Lambdas, Exp]
+export type Call = readonly['()', Exp, Exp]
 
-// optionalPropertyAccessor
+// dot
 
-export type OptionalPropertyAccessor = readonly['?.', Exp, Index, Lambdas]
+export type Dot = readonly['.', Exp, Index, PropertyLambda]
 
-// optionalCall
+// optionDot
 
-export type OptionalCall = readonly['?.()', Exp, Lambdas, Exp, Lambdas]
+export type OptionDot = readonly['?.', Exp, Index, OptionPropertyLambda]
+
+// optionCall
+
+export type OptionCall = readonly['?.()', Exp, Exp, OptionLambda]
 
 // Comma
 
