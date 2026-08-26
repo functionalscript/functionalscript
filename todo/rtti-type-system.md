@@ -739,7 +739,8 @@ are stated instead:
   reference in parser output and changes nothing about the runtime graph;
   the rejection bites when that reference is erased while lowering to EDAG,
   leaving the binding unreachable from the root. So stage 3 is free to proceed,
-  and stage 4 onward is not. It is numbered last and needed near the front.
+  and stage 4 onward is not. It is numbered 12 of 13 and needed near the
+  front.
 - **1's renderer half** can start today; its declaration-emission half needs a
   schema for every export, so it waits for stage 6 or an explicit manifest.
 - **3 onward** are gated on the compiler; **4 onward** additionally on
@@ -748,13 +749,20 @@ are stated instead:
   cycle: 6's general form needs a function case in RTTI, while 7's
   definition-checking needs the body's *inferred* result, which is 6. The seam
   is between representing a contract and checking against one — **7a**
-  (the schema form, its place in the canonical algebra, the printer path)
-  gates the general form of 6; **7b** (static checking of readable
-  definitions) consumes 6. So the order is 7a → 6 → 7b, and "7 gates 6",
+  (the schema form, its place in the canonical algebra, the printer path, and
+  a canonical serializable form) gates the general form of 6; **7b** (static
+  checking of readable definitions) consumes 6. So the order is 7a → 6 → 7b, and "7 gates 6",
   which this file said until review of #1719, is only true of 7a.
   Inferring a call to an *unannotated* function is not part of this cycle: it
   is ordinary recursion inside inference, and 6 owns its fixpoint.
-- **8, 9, 10 and 13 gate 11.**
+- **7, 8, 9, 10 and 13 gate 11.** 7 was missing from this list until review of
+  #1719 while two other places asserted it, and it gates 11 through both
+  halves: without **7a** a function-typed export has no declaration to
+  generate, so nothing can reproduce what its JSDoc published; without **7b**
+  retiring that JSDoc leaves those definitions checked by nothing at all,
+  which is not "TypeScript stops being the type system" but "no type system".
+  Since function types are ~46% of the tree's JSDoc bodies, this is most of
+  stage 11 rather than an edge of it.
 - **10 overlaps 6–9** rather than following them, since it needs only stage 5's
   first diagnostic.
 
