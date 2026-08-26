@@ -230,14 +230,18 @@ rule the module's own closed containers do not follow.
         while `close([])` rejects it, and `toData(close([]))` is
         `{ array: [{ prefix: [] }] }`, so the equality separates them where
         the absence of a key does not.
-- [ ] Pin those cases as **five rows** — the first case needs two, one per
-      spelling tested — in
+- [ ] Pin those cases as **six rows** — the first case needs one per spelling,
+      since the three are not interchangeable: an implementation that
+      recognises empty unions but not `close([never])` passes a row using
+      `or()` while keeping that spelling's disagreement, and one keyed on
+      identity passes the converse. Name all three rather than "an
+      independently constructed empty rest". In
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs), asserting the
       verdict outright: the shared table checks only that the three readers
-      *agree*, so a row alone passes whenever all three move together. Dropped:
-      `[close([number], never), [42, ,]]` and one independently constructed
-      empty rest. Kept: `r` and the `a`/`b` cycle on `[42, ,]`, and
-      `[close([], unknown), [1]]`. None is redundant — `a`/`b` catches a test
+      *agree*, so a row alone passes whenever all three move together. Dropped,
+      on `[42, ,]`: `close([number], never)`, `close([number], or())` and
+      `close([number], close([never]))`. Kept: `r` and the `a`/`b`
+      cycle on `[42, ,]`, and `[close([], unknown), [1]]`. None is redundant — `a`/`b` catches a test
       on the `rest`'s own canonical data, `r` catches an emptiness analysis
       reaching `close` cycles but not `or` cycles, and `unknown` catches a test
       that reads the absence of a `rest` key as elimination.
@@ -294,12 +298,19 @@ rule the module's own closed containers do not follow.
       | `close({a:number, b:cu})` | `{props:{a:…,b:{unit:2}}, rest:{}}` |
 
       (`cu` is `() => ['const', undefined]`.) So it is not one rule about an
-      array `rest`: a trailing `{unit:2}` prefix node, an object `rest`, and an
-      undefined-only property each need the same treatment, in both kinds.
-      Audit for the general case rather than these six, since the list is not
-      claimed exhaustive, and pin the equalities. The canonical form is what
-      `../../../cas` hashes, so two names for one set is worse here than a
-      reader disagreement.
+      array `rest`: a trailing `{unit:2}` prefix node, an object `rest` and an
+      undefined-only property each need the same treatment. Audit for the
+      general case rather than these six, since the list is not claimed
+      exhaustive, and pin the equalities.
+
+      **Collapse exactly what the readers stopped distinguishing, per kind.**
+      The invariant follows the decision above, it does not outrun it: with the
+      struct kind **out**, the readers still reject `{ a: 1, b: undefined }`
+      against `close({ a: number })`, so collapsing the object rows would give
+      one canonical form — and one `../../../cas` hash — to two different
+      memberships, which is the same defect this issue opens with, pointed the
+      other way. The array rows go with A; rows four to six go with struct-in
+      and not otherwise.
 - [ ] Either way, add `[close([number]), [42, undefined]]` to
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table,
       with an `assertOk`/`assertError` oracle beside it as `optionalPositions`
