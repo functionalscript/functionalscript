@@ -972,28 +972,38 @@ annotations — which is most of them, once annotations are the point.
       above and nothing outside still imports it. This is the stage where
       TypeScript stops being the type system for FunctionalScript — for the
       declarations it can reach.
-- [ ] **12. Anchor unreachable imported module roots,** so that an
-      annotation-only import neither is rejected nor silently deletes a
-      failure. This is the `','` anchoring operation
+- [ ] **12. Anchor every unreachable non-resulting computation an annotation
+      leaves behind** — both **imported module roots** and **local
+      initializers** — so that an annotation-only schema neither is rejected
+      nor silently deletes a failure. This is the `','` anchoring operation
       [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
-      defers, read from this epic's side; it is what makes "a compile-time-only
-      type is legal across a module boundary — **not** what makes it free
-      there; the anchored root is still evaluated.
+      defers, read from this epic's side. It makes such a schema **legal**, not
+      free: an anchored computation is still evaluated, which is the point of
+      anchoring.
 
       **This is a prerequisite, not a side quest, and an earlier draft of this
       file said otherwise.** The rule in
       [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
       *rejects* a module whose import parameter is unreachable from the EDAG
-      root. Once the compiler consumes an annotation, an import used only to
-      name or build that annotation's schema is exactly that — so such a module
-      does not compile, which is a gate on stages 3–5 and on stage 11, not a
-      question of runtime cost.
+      root, and equally requires a potentially throwing body entry to be
+      preserved rather than discarded. Once the compiler consumes an
+      annotation, a binding used only to name or build that annotation's schema
+      is exactly that — so such a module does not compile, which is a gate on
+      stages 3–5 and on stage 11, not a question of runtime cost.
 
-      It binds only where an import is annotation-*only*: a module that also
-      passes the schema to `validate` keeps it reachable and is unaffected.
-      Until this lands, a module in that position must either keep a runtime
-      use of the schema alive — which is a wart, and worth naming as one — or
+      Both halves bind only where the use is annotation-*only* and the
+      computation is not already total: a module that also passes the schema to
+      `validate` keeps it reachable, and an initializer built entirely from the
+      RTTI constructors is droppable without anchoring. What is left is an
+      annotation-only import, or an annotation-only local whose initializer
+      contains a call — `const t = array(makeType())` included, since the
+      argument is evaluated first. Until this lands, such a module must keep a
+      runtime use of the schema alive — a wart, and worth naming as one — or
       keep the JSDoc it was going to retire.
+
+      An alternative to anchoring the local half is a totality analysis that
+      can prove the initializer safe to drop. That is a different and larger
+      piece of work; whichever is chosen, one of them owns this.
 
 ### Open questions
 
