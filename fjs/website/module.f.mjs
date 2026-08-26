@@ -37,7 +37,7 @@ pre { white-space: pre-wrap }
         ['p',
             'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
             ['a',
-                { href: 'https://medium.com/javascript-in-plain-english/emergent-testing-in-javascript-e44760d71688?sk=42381f0d5cdff049acecb64c6f9d9531' },
+                { href: 'https://medium.com/javascript-in-plain-english/emergent-testing-in-javascript-e44760d71688' },
                 'Read “Emergent Testing in JavaScript”'
             ],
             '.'

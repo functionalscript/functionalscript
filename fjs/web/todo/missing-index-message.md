@@ -13,7 +13,7 @@ that, so the first reading is that the address is wrong.
 
 It is reachable from a clean checkout. `index.html` is a build artifact and is
 gitignored, so `fjs web` in a fresh tree answers `not found` at `/` until
-`npm run index-html` has run. Nothing in the response points at that.
+`npm run website` has run. Nothing in the response points at that.
 
 The same sentence covers every other refusal:
 
