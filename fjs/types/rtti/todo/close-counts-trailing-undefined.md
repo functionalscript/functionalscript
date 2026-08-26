@@ -175,11 +175,15 @@ argument for either answer.
 ## The decision
 
 **A. Absence is absence, however spelled.** A trailing `undefined` and a hole
-are both absence, so `close([number])` accepts `[1, undefined]`. Consistent
-with everything else RTTI says, and the direction
+are both absence, so `close([number])` accepts `[1, undefined]`. It is the
+answer consistent with everything else RTTI says about absence, and it applies
+the same rule
 [`./parse-omits-undefined-members.md`](./parse-omits-undefined-members.md)
-pushes on the construction side: `parse` would stop materializing the member it
-decided was absent, and its output would keep inhabiting a closed schema.
+applies to construction — but that is a shared principle, **not** support: that
+issue changes what `parse` builds at a *declared* position, where every answer
+here already agrees. `close([number, option(string)])` accepts `[1]` today
+(row 3 above), so an omitting `parse`'s output inhabits its closed schema under
+B and C as readily as under A. A stands or falls on undeclared positions alone.
 
 **A needs both knobs, not one.** `[1, undefined]` trips both halves of
 `extra.length === 0 && fits(...)` independently — it is an undeclared entry
