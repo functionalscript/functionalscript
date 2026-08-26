@@ -943,13 +943,22 @@ are stated instead:
       so the run-time schema would differ from the one the compiler checked
       against — the exact disagreement this remedy exists to prevent, arrived
       at through the fix rather than the bug. So this stage needs a lossless
-      number serializer, or an explicit restriction barring `NaN` and `-0` as
-      literal members of a snapshotted schema, before the remedy is sound.
+      number serializer, or an explicit restriction on the literal members of a
+      snapshotted schema, before the remedy is sound. **The restriction has to
+      cover every non-finite number, not just `NaN`** — `numberSerialize`
+      delegates all numbers to `JSON.stringify`, which renders `Infinity` and
+      `-Infinity` as `null` too, so `close({ x: Infinity })` snapshots as
+      `close({ x: null })` exactly as the `NaN` case does. Plus `-0`, which is
+      lost differently: it serializes as `0` rather than `null`. An earlier
+      draft of this paragraph named only `NaN` and `-0`, while the printer
+      paragraph above already said *non-finite* — the same slip in one file,
+      one section apart.
 
-      Note this is the **third** mechanism these two values break, after the
+      Note this is the **third** mechanism these values break, after the
       printer rendering a non-finite const as `number` and `-0` as `0`, and
       `validate` matching them with `Object.is` on purpose. Whoever picks up
-      the `.d.ts` policy should treat `NaN` / `-0` as one question across all
+      the `.d.ts` policy should treat non-finite numbers and `-0` as one
+      question across all
       three rather than three unrelated corners.
 
       **It is not semantics-preserving today either, and that is a
@@ -980,6 +989,21 @@ are stated instead:
       function contracts inside `data`.
 - [ ] **5. Check literal right-hand sides** with `validate`. This is the first
       point at which the epic checks anything.
+
+      **Check against stage 4's snapshot, not by re-entering the thunk.**
+      `validate` walks the thunk graph, so `visit` calls the schema's thunk
+      again — which means stage 4 stabilizing the schema does not reach this
+      stage. A stateful imported thunk alternating between `number` and
+      `string` hands `toData` one answer for the snapshot, the declaration and
+      run time, and hands this stage the other for the literal check: the
+      program is then compile-time-checked against a schema nothing else in the
+      pipeline uses. Stage 4's remedy only holds if every later phase reads the
+      *snapshot*, so this stage reads it too — which makes it depend on the
+      `data` reader divergence being fixed first
+      ([data-validate-admits-non-djs-values](../fjs/types/rtti/todo/data-validate-admits-non-djs-values.md)),
+      since checking against the snapshot means checking with `data`'s reader.
+      Requiring schema purity instead is the alternative, and it is the same
+      choice stage 4 already records — decided once, for both stages.
 
       **It needs the schema itself checked first, and nothing yet does that.**
       `visit` assumes its input already satisfies the static `Type` contract:
@@ -1048,7 +1072,8 @@ are stated instead:
       site — and
       [the `.d.ts` section](#what-a-generated-dts-can-and-cannot-promise) has
       already named the consequence: where the emitted declaration is *wider*
-      than the schema (the `close`, `close(c, rest)`, and `NaN` / `-0` cases),
+      than the schema (the `close`, `close(c, rest)`, and non-finite / `-0`
+      cases),
       a consumer can pass a value its `.d.ts` accepts and the schema rejects,
       and "nothing validates it". A consumer in **ordinary JavaScript** is not
       bound by the declaration at all, so for that half the width of the
@@ -1213,7 +1238,7 @@ are stated instead:
       | Generic schema constructors | `pair = t => close([t, t])` | stage 8 — the argument-to-result relationship must be reified first |
       | Type-only utilities | `Index`, `Tuple`, `KeyOf`, `Includes` ([`types/array`](../fjs/types/array/types.ts)) | **nothing yet** — these describe no runtime value, so no schema and no printer produces them |
       | Polymorphic functions | `identity: <T>(value: T) => T` ([`types/function`](../fjs/types/function/module.f.mjs)) | **nothing yet** — a function schema with concrete parameter and result sets cannot say both positions share one caller-chosen type |
-      | Inexpressible sets | `close({ a: number })`; `close({ a: number }, string)`; a `NaN` or `-0` const | **the policy above**, not a stage — TypeScript cannot name these sets, so the declaration is an upper bound however it is emitted |
+      | Inexpressible sets | `close({ a: number })`; `close({ a: number }, string)`; a non-finite or `-0` const | **the policy above**, not a stage — TypeScript cannot name these sets, so the declaration is an upper bound however it is emitted |
 
       The last two have no stage assigned, and that is the honest state: a
       type-only utility is not a schema of anything, and RTTI has no type
@@ -1312,7 +1337,8 @@ are stated instead:
       *definitions* statically checkable and so reads as if nothing is left to
       do. A TypeScript consumer calling an ordinary exported function is a
       foreign call site, and where the emitted declaration is wider than the
-      schema — `close`, `close(c, rest)`, `NaN` / `-0` — it can pass a value
+      schema — `close`, `close(c, rest)`, non-finite / `-0` — it can pass a
+      value
       the declaration accepts and the schema rejects.
 
       **This splits by call site, and only one half is conditional.** An earlier
