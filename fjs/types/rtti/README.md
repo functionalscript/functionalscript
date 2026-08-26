@@ -123,8 +123,15 @@ that says how a tuple schema is read, and `structSchemaEntries` is its struct
 counterpart. The alternative reading would make `new Array(1)` and `[]` the
 same schema while `[undefined]` stayed different from both.
 
-Nothing about a dense schema changes: on an array without holes the two entry
-lists are identical.
+The same rule settles a tuple schema's **non-index** enumerable own properties,
+which are no positions either. `Object.assign([number], { foo: string })`
+declares one position and nothing named `foo`: a tuple is read by index, so the
+entry reading declared `foo` and then matched it against `value[NaN]` — the
+property literally named `NaN`, which no ordinary value carries. The data form
+ignored it all along; now so do the schema-form readers.
+
+Nothing about a dense schema changes: on an array with neither holes nor extra
+own properties the two entry lists are identical.
 
 #### This is deliberate; please do not "fix" it
 

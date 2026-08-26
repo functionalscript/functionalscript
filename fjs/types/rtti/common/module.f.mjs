@@ -143,7 +143,10 @@ export const eachEntry =
  *
  * `Object.entries` skips holes, which is why it is not used here: it would
  * make `new Array(1)` and `[]` the same schema while `[undefined]` stayed
- * different from both. On a dense array the two agree exactly.
+ * different from both. It also yields a non-index own property, which is no
+ * position either — `getItem` reads a tuple by index, so such a key was
+ * declared and then matched against `value[NaN]`. `Array.from` answers
+ * positions only. On a plain dense array the two agree exactly.
  *
  * @type {SchemaEntries<Tuple>}
  */
