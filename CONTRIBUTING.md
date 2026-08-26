@@ -183,8 +183,9 @@ squash, so their messages are working notes.
   appends, and never write a `(#NNN)` of your own. A release pull request's
   title is the bare version: `0.45.0`.
 - **Description.** Free prose — motivation, design, measurements, alternatives
-  considered — then a `Changelog:` section, the last section before an optional
-  trailer block (`Co-Authored-By:`, generated-with lines, session links):
+  considered — then, when the change affects behavior or the public API, a
+  `Changelog:` section, the last section before an optional trailer block
+  (`Co-Authored-By:`, generated-with lines, session links):
 
   ```
   <free prose>
@@ -198,8 +199,7 @@ squash, so their messages are working notes.
   same Markdown subset, same `**BREAKING CHANGES:**` prefix where it applies,
   no PR link ([changelog/README.md](./changelog/README.md#entries)). A pull
   request that doesn't change behavior or the public API needs no entry and
-  writes `Changelog: none`. The section is **mandatory** either way, so a
-  forgotten entry is a visible omission rather than a silent one.
+  omits the section entirely.
 
   It duplicates the entry file on purpose: the file is what today's release
   process reads, the section is what a generator reading Git history would
