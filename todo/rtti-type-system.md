@@ -550,7 +550,8 @@ Three things follow:
   marking something `type` that is needed at run time is a whole bug class.
   Here the emitted program is a function of the graph, so "reachable at run
   time" and "kept" are the same statement.
-- **Pay for what you check.** A module that only checks at compile time ships no
+- **Pay for what you check** — with the anchoring caveat below. A module whose
+  schemas are local and total ships no
   schema at all; one that validates a protocol frame ships exactly the schemas
   it validates; a module doing both ships one copy.
 
@@ -590,9 +591,10 @@ An annotation-only import is exactly that shape. So, stated honestly:
   one discarded
   ([compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)) — so
   an annotation-only local schema from such a call is in exactly the position
-  stage 12 addresses for imports. **Stage 12 as written anchors imported roots
-  only**; local initializers need the same treatment, or a totality analysis
-  that can prove the call safe to drop;
+  stage 12 addresses. **Stage 12 covers both** — imported roots and local
+  initializers — so the work is owned; what stays open is whether the local
+  half is served by anchoring or by a totality analysis that can prove the call
+  safe to drop;
 - **across a module boundary, anchoring does not make it free** — it makes it
   *legal*. `,` "establishes all of its operands and takes the value of the last
   one; the earlier operands exist for their throw-potential only"
@@ -706,12 +708,23 @@ so that issue's open question is answered yes by this stage.
 
 ### Tasks
 
-Ordered. Stage 1's renderer half can start today; its
-declaration-emission half needs an export-to-schema association and so waits
-for stage 3 or for an explicit manifest. Stages 3 onward are gated on the
-compiler; stage 7 gates the general form of stage 6; stages 8, 9 and 10 gate
-stage 11; and stage 12 gates any module whose only use of an import is in
-annotations — which is most of them, once annotations are the point.
+**The numbers are labels, not a schedule.** They were assigned as this document
+grew and have been renumbered twice; the gates below are the real order, and at
+least one stage — 12 — has to land near the front. Renumbering again would
+churn every reference in and out of this file for no gain, so the dependencies
+are stated instead:
+
+- **12 before 3.** Anchoring gates annotation recognition itself, because once
+  the compiler consumes an annotation the binding behind it is unreachable, and
+  the module is rejected. It is numbered last and needed nearly first.
+- **1's renderer half** can start today; its declaration-emission half needs a
+  schema for every export, so it waits for stage 6 or an explicit manifest.
+- **3 onward** are gated on the compiler; **4 onward** additionally on
+  compile-time evaluation ([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)).
+- **7 gates the general form of 6.**
+- **8, 9 and 10 gate 11.**
+- **10 overlaps 6–9** rather than following them, since it needs only stage 5's
+  first diagnostic.
 
 - [ ] **1. `.d.ts` generation from schemas.** An `fjs` command over
       [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs), wired into
@@ -836,6 +849,22 @@ annotations — which is most of them, once annotations are the point.
       not is a compile error.
 - [ ] **5. Check literal right-hand sides** with `validate`. This is the first
       point at which the epic checks anything.
+
+      **It needs the schema itself checked first, and nothing yet does that.**
+      `visit` assumes its input already satisfies the static `Type` contract:
+      an unrecognized tag falls through to `v.primitive0(tag)`
+      ([`rtti/common`](../fjs/types/rtti/common/module.f.mjs)), so a binding
+      whose value is `() => ['wat']` is reducible, callable, and behaves as a
+      type that rejects everything — rather than producing the "that is not a
+      schema" compile error stage 4 owes. An always-failing type is the worst
+      possible diagnostic: every annotated site fails, and none of them says
+      why.
+
+      So either stage 4 checks well-formedness when it evaluates a binding, or
+      a meta-schema over `Type` is a prerequisite here. That is
+      [open question 3](#open-questions) becoming load-bearing rather than
+      speculative, and it wants deciding before the checker is written, not
+      after.
 - [ ] **6. Inference, then general right-hand sides.** Infer a schema for an
       arbitrary expression and ask `subset(inferred, declared)`. `subset`
       exists; the inference does not
