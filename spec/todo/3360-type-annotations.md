@@ -166,14 +166,19 @@ TypeScript aliases out.
 
 ## Consequences for the TypeScript-era work
 
-- [inline-type-casts.md](../../todo/inline-type-casts.md) stands unchanged. It describes
-  the code as it is today, and 208 of its 357 sites are noise under any type
-  system.
-- [eslint.md](../../todo/eslint.md)'s `no-inline-type-cast` and `no-unknown-jsdoc-tag`
-  are **transitional**: worth having while JSDoc is the annotation form, but
-  they must not be used to justify building a TypeScript-type grammar. Both are
+- [inline-type-casts.md](../../todo/inline-type-casts.md) is **implemented** —
+  its header records 273 of 357 sites removed or converted, with 84 remaining
+  and a reason for each. (An earlier draft here called it unchanged and cited
+  208 of 357; that predates the audit landing.) Nothing in this direction
+  changes that work or is changed by it.
+- [eslint.md](../../todo/eslint.md)'s three proposed custom rules — inline
+  `@type` cast, unknown JSDoc tag, type-predicate placement — are
+  **transitional**: worth having while JSDoc is the annotation form, but they
+  must not be used to justify building a TypeScript-type grammar. All three are
   satisfiable by matching on the comment's first character plus the JS token
-  stream, with no type parsing.
+  stream, with no type parsing. (An earlier draft here called them
+  `no-inline-type-cast` and `no-unknown-jsdoc-tag`; `eslint.md` names no rule
+  ids and none exist yet, so those were never real names.)
 - [tsconfig-strict-flags.md](../../todo/tsconfig-strict-flags.md) and
   [strict-static-analysis.md](../../todo/strict-static-analysis.md) are unaffected, and
   are the near-term work. `npx tsc` and the standard toolchain remain the

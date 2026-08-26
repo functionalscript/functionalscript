@@ -517,7 +517,7 @@ implementation detail, so this epic records it rather than picking.
 | Annotation syntax | — | not started |
 | Compile-time evaluation | [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) | not started |
 | Inference | [type inference](../spec/todo/3370-type-inference.md) | not started — most of the work |
-| Function schemas | [668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md) | not started — and most JSDoc type bodies in the tree are function types, so this gates most of stage 11 |
+| Function schemas | [668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md) | not started — and **nearly half** the tree's JSDoc type bodies are function types (~46% when measured in review of #1719; counts drift, so re-measure rather than cite this), so it gates a large share of stage 11 |
 | Generic schemas | the eDSL itself | **value layer done** — a schema-to-schema function needs no feature; only `.d.ts` / `Ts<>` rendering is missing |
 
 More than half the run-time and emission side is built. The compile-time side is
