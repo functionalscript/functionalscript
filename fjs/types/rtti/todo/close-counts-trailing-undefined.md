@@ -217,11 +217,16 @@ rule the module's own closed containers do not follow.
         `never`, yet `toData(close([number], a))` still carries `rest: "a"`
         and all three accept `[1, ,]`. Dropping `a` on its standalone data
         would recreate the disagreement one level in.
-- [ ] Pin it with `[close([number], never), [42, ,]]`, one independently
-      constructed empty rest, and the `a`/`b` witness above, in
+- [ ] Pin **all four** witnesses in
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs), asserting the
       verdict outright: the shared table checks only that the three readers
-      *agree*, so a row alone passes whenever all three move together.
+      *agree*, so a row alone passes whenever all three move together. Dropped:
+      `[close([number], never), [42, ,]]` and one independently constructed
+      empty rest. Retained: `r` and the `a`/`b` cycle, both on `[42, ,]`. The
+      two retained ones are not interchangeable — `a`/`b` catches an
+      implementation that tests the `rest`'s own canonical data, and `r`
+      catches one whose emptiness analysis reaches `close` cycles but not `or`
+      cycles, which is the only way to fail one and pass the other.
       Changelog entry prefixed `**BREAKING CHANGES:**` — the empty-rest
       spellings stop accepting a trailing hole, an observable narrowing for
       callers using the explicit-rest form. #1712 labelled its analogous
