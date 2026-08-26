@@ -64,3 +64,5 @@ trusted.
   proof leaves need function-valued schemas if `Proof` is derived from RTTI.
 - [`../data`](../data/README.md) — serializable/function-free RTTI data
   form; extern function schemas may need to remain outside that core form.
+- [rtti-type-system](../../../../todo/rtti-type-system.md) — the epic; this
+  document is its stage 7, and gates `//:` replacing `@type` on functions.

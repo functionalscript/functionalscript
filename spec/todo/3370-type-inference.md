@@ -71,3 +71,8 @@ The set is finite and can be implemented using a bit-set.
 ### Level 3
 
 Compared to level 2, this level contains dynamic information about subsets of the type.
+
+### Related
+
+- [rtti-type-system](../../todo/rtti-type-system.md) — the epic; this document
+  is its stage 6, and most of its work.

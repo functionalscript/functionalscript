@@ -161,6 +161,9 @@ TypeScript aliases out.
 
 ## Related
 
+- [rtti-type-system](../../todo/rtti-type-system.md) — the epic this
+  document is the spec-side half of: RTTI as the sole source of truth for
+  compile-time and run-time verification. Stages 2–5 land here.
 - [`fjs/types/rtti/README.md`](../../fjs/types/rtti/README.md) — the schema system
   this builds on.
 - [`fjs/types/rtti/todo/668-rtti-function-types.md`](../../fjs/types/rtti/todo/668-rtti-function-types.md) —
