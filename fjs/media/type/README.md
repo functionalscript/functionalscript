@@ -108,6 +108,48 @@ regardless. The factors are independent — adding a property (e.g. a streaming
 SHA-256 for verify-on-read) is a new field, one `push` line, and one `finish`
 clause, touching no existing transition.
 
+## By extension (`detectPath`)
+
+`detect` and `detectVec` answer "what are these bytes"; `detectPath` answers
+"what does this file name claim to be", from the extension alone:
+
+```ts
+import { detectPath } from './module.f.mjs'
+
+detectPath('index.html')   // 'text/html; charset=utf-8'
+detectPath('logo.png')     // 'image/png'
+detectPath('README')       // 'application/octet-stream'
+```
+
+Both questions have to be asked from somewhere, and neither answer substitutes
+for the other. A server sending `Content-Type` needs the name: `text/html`,
+`text/css` and `text/javascript` are byte-identical UTF-8 text, so no sniffer can
+separate them, yet a browser treats them as three different things. Sniffing
+stays the answer for stored bytes that carry no name at all, which is the CAS
+case above.
+
+The table is deliberately small — the types the pages under
+[`fjs/website`](../../website/) are built from, plus the image formats the magic
+bytes already recognize:
+
+| extension | media type |
+|-----------|------------|
+| `.html`   | `text/html` |
+| `.css`    | `text/css` |
+| `.js`, `.mjs` | `text/javascript` |
+| `.json`   | `application/json` |
+| `.svg`    | `image/svg+xml` |
+| `.png`    | `image/png` |
+| `.jpg`, `.jpeg` | `image/jpeg` |
+| `.gif`    | `image/gif` |
+| `.webp`   | `image/webp` |
+| `.wasm`   | `application/wasm` |
+| `.txt`    | `text/plain` |
+
+A `text/*` answer carries `; charset=utf-8`, so the result is a complete header
+value; anything else — no extension, a leading-dot name, an extension not in the
+table — is `application/octet-stream`.
+
 ## Consumers
 
 - [`fjs/mcp/cas`](../../mcp/cas/) — `cas_get` classifies with the state machine on
@@ -116,3 +158,5 @@ clause, touching no existing transition.
   `content: true` is requested, so the three-way verdict has a single
   implementation. The pure `detect` remains for callers that only need
   magic-byte sniffing over a `Vec` they already hold.
+- [`fjs/web`](../../web/) — the static file server sends `detectPath` of the
+  file it resolved as the response's `Content-Type`.

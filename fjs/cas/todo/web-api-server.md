@@ -72,11 +72,10 @@ HTML form is an exposure-matrix decision for
 
 - [ ] Wait for the CAS command architecture design
       ([command-architecture](./command-architecture.md)).
-- [ ] Design streaming HTTP request/response body effects in
-      `fjs/effects/node` (today `IncomingMessage`/`ServerResponse` carry a
-      single `Vec` body, buffered whole by the runner) — prerequisite for
-      arbitrary-size `add`/`get`; without it the adapter keeps the 128 KiB
-      inline cap.
+- [ ] Streaming HTTP request/response body effects in `fjs/effects/node`
+      ([streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md))
+      — prerequisite for arbitrary-size `add`/`get`; without it the adapter
+      keeps the 128 KiB inline cap.
 - [ ] Design authentication and the exposed command subset.
 - [ ] Design the HTML browsing surface: routes / content negotiation, the
       list and blob pages, dialect-aware rendering (revision DAG links).
@@ -96,6 +95,9 @@ HTML form is an exposure-matrix decision for
   navigable DAG.
 - `fjs/effects/node/todo/requestlistener-stateful.md` — HTTP listener
   effects groundwork.
+- [`fjs/web`](../../web/README.md) — the static file server, already built on
+  these effects; a CAS HTTP front end is the same layer with a command set
+  behind it instead of a file system.
 - `fjs/effects/node/module.f.mjs` (`IncomingMessage`/`ServerResponse`) — the
   whole-body `Vec` HTTP effects that need a streaming redesign before this
   transport can carry blobs past 128 KiB.
