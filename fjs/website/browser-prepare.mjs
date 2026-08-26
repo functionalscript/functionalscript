@@ -2,6 +2,11 @@
 
 import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { run } from '../effects/node/module.mjs'
+import { toPosix } from '../path/module.f.mjs'
+import { main } from './module.f.mjs'
 
 const sourceRoot = new URL('../', import.meta.url)
 const output = new URL('../emergent_testing/browser-suite.mjs', import.meta.url)
@@ -30,9 +35,11 @@ const selected = (await Promise.all(candidates.map(async url =>
     exportsProof(await readFile(url, 'utf8')) ? [url] : []
 ))).flat().toSorted((a, b) => a.pathname.localeCompare(b.pathname))
 
-const entries = selected.map(url =>
-    `    './fjs/${relative(sourceRoot.pathname, url.pathname)}',`
-)
+const sourcePath = fileURLToPath(sourceRoot)
+const entries = selected.map(url => {
+    const path = toPosix(relative(sourcePath, fileURLToPath(url)))
+    return `    './fjs/${path}',`
+})
 const manifest = [
     '/** Generated browser proof source map. Modules are loaded after the page renders. */',
     '',
@@ -44,3 +51,4 @@ const manifest = [
 ].join('\n')
 
 await writeFile(output, manifest)
+await run(main)
