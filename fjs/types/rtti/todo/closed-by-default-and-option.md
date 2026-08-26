@@ -437,8 +437,9 @@ Stage 1 (one PR):
 
 - [ ] `../module.f.mjs`: `rest(c, r)` and `open(c)`; delete `close`. `'close'` →
       `'rest'` in `../types.ts`, with `InfoRest`/`Rest`/`_MakeRest`.
-- [ ] `../data/module.f.mjs`: map a bare `Const` to `{ prefix }` / `{ props, rest: never }`
-      and `open(c)` to the mirror. No algebra change — assert that in the PR.
+- [ ] `../data/module.f.mjs`: map a bare `Const` to `{ prefix }` /
+      `{ props, rest: never }` and `open(c)` to the mirror. No algebra change —
+      assert that in the PR.
 - [ ] `../parse` and `../validate`: reject an undeclared member of a bare `Const`;
       the tuple length check returns.
 - [ ] `../ts/types.ts`: `RestTs` **renders the tuple tail** — a rename alone
@@ -498,8 +499,9 @@ Stage 2 (one PR, after stage 1 lands):
       `option` where omission was intended, leave it where a present `undefined`
       was — not a mechanical rewrite.
 - [ ] Migrate every `option(t)` call site to `or(option, t)` — 52 of them across
-      10 files in 9 modules outside this one (`protocol/mcp` 10, `media/json/schema` 11 plus
-      11 in its proof, `ci/common` 5, `mcp/evo` 5, `protocol/json_rpc` 3,
+      10 files in 9 modules outside this one (`protocol/mcp` 10,
+      `media/json/schema` 11 plus 11 in its proof, `ci/common` 5, `mcp/evo` 5,
+      `protocol/json_rpc` 3,
       `media/revision` 2, `media/note` 2, `mcp` 2, `mcp/cas` 1), plus this
       module's own proofs. The repo sets `checkJs`, so a missed site is
       `TS2554: Expected 0 arguments, but got 1` rather than a silent
@@ -510,10 +512,15 @@ Stage 2 (one PR, after stage 1 lands):
       `or(option, unknown)` is the declared-member top.
 - [ ] Normalize the absent bit out of an **inline** `rest` on both kinds; pin
       `array(or(option, number))` → `array(number)` and the top-level spelling.
-- [ ] Leave a **referenced** `rest` unstripped, and mask the absent bit where
-      `subset` compares rest positions, so the two spellings stay mutual subsets.
-      Pin `X = or(option, array(X))` used as a rest, and add the case to
-      `../data/README.md`'s list of accepted structural incompleteness.
+- [ ] Leave a **referenced** `rest` unstripped, and have `subset` **resolve** it
+      rather than mask the bit — masking is unsound where the reference's present
+      part is empty (see above), so there is no context in which the mask is the
+      rule. Expect one-way inclusion there, not mutual: `rest(c, X')` ⊆
+      `rest(c, X)` when `X` is absence-only, since the stripped form bounds the
+      length and the syntactic one does not. Pin `X = or(option, array(X))` used
+      as a rest for the non-empty case, the absence-only cycle for the empty one,
+      and add both to `../data/README.md`'s list of accepted structural
+      incompleteness.
 - [ ] The same exemption covers a referenced **trailing position**, which the
       redesigned `trimPrefix` reaches independently: for mutually recursive
       `X`/`Y` where `X` normalizes to `or(option, number)`,
@@ -527,6 +534,14 @@ Stage 2 (one PR, after stage 1 lands):
       when it admits absence and its absence-stripped set equals the rest — and
       pin `rest([or(option, number)], number)` as `array(number)`. A bit test on
       the rest is dead once rests carry no absent bit.
+- [ ] Except when **both** the stripped position and the rest are empty. A bare
+      `[option]` is closed, so its rest is `never` and its sole position strips
+      to `never` too — the rule above would drop the position and normalize it to
+      `[]`. Those are different sets: `[option]` accepts `new Array(1)` (index 0
+      absent, length within the declared prefix) and `[]` rejects that length, so
+      the trim would make the data form disagree with the thunk readers and have
+      `equal`/`cmp` identify two array sets that differ. Pin `[option]` against
+      `new Array(1)` and `[]`.
 - [ ] Make `isTop` position-aware: `or(option, unknown)` for a declared member,
       `unknown` for a `rest`. Keep `objectSet`'s `r === undefined` guard, and pin
       `{ a: or(option, unknown) }` (closed) as objects with at most the key `a`.
@@ -541,8 +556,9 @@ Stage 2 (one PR, after stage 1 lands):
       branches of `or(option, number)` would reject `{}`. So `common` gains an
       `admitsAbsence(schema)` predicate and each container loop asks it first:
       a member whose key or index is not an own one succeeds iff its schema
-      admits absence, and only a present member is dispatched. The predicate **traverses
-      nested unions**, with a visited set for cycles: schema-form `or` does no
+      admits absence, and only a present member is dispatched. The predicate
+      **traverses nested unions**, with a visited set for cycles: schema-form
+      `or` does no
       flattening (its own doc says so), so `or(or(option, number), string)` has
       no `option` among its direct members while admitting absence, and a
       shallow test would reject `{}`. It descends `or` nodes and the thunks they
@@ -619,8 +635,9 @@ Stage 2 (one PR, after stage 1 lands):
       `Check3<number, typeof raw, typeof wrapped>` passes even when `_TsRaw<raw>`
       is `Absent | number` and the annotation says `number` — and the member then
       renders required. Add a `_TsRaw`-level check (`CheckRaw<A, B> = Equal<A,
-      _TsRaw<B>>`) for the raw half, since that is the only half with teeth here. Runtime
-      is untouched: a `Phantom` has no runtime representation, so `admitsAbsence`
+      _TsRaw<B>>`) for the raw half, since that is the only half with teeth
+      here. Runtime is untouched: a `Phantom` has no runtime representation, so
+      `admitsAbsence`
       walks the same thunk either way. Proof: an optional `Phantom`-wrapped
       member.
 - [ ] Pin `Ts<[1, or(option, number)]>` as `readonly[1,number?]` from both
@@ -665,15 +682,19 @@ Stage 2 (one PR, after stage 1 lands):
 - [excluded-string-values](./excluded-string-values.md) — the other proposed `Type`
   ADT extension, and the bar it sets: a data-form mapping worked out end to end
   before code.
-- [#1716](https://github.com/functionalscript/functionalscript/pull/1716) —
-  **collides with stage 1.** It is an open issue about `close` counting a
-  trailing `undefined` as a present member, so its whole lever is the
-  `close(c, rest?)` overload stage 1 deletes; its answer B would write a README
-  sentence stage 1 then rewrites. It also already documents the defect family
-  this file's `array(or())` row belongs to: an empty `rest` skips the length
-  check in `closeContainerValidate`, so `close([number], never)` and
-  `close([number])` part company on a hole. Land one before the other starts,
-  and restate whichever lands second in the survivor's vocabulary.
+- [close-counts-trailing-undefined](./close-counts-trailing-undefined.md) —
+  **collides with stage 1**, and it has landed
+  ([#1716](https://github.com/functionalscript/functionalscript/pull/1716)), so
+  this file is the one that restates. Its whole lever is the `close(c, rest?)`
+  overload stage 1 deletes, and the README sentence its answer B owes — that a
+  closed container bounds `length` — is one stage 1 rewrites. It also already
+  documents the defect family this file's `array(or())` row belongs to: an empty
+  `rest` skips the length check in `closeContainerValidate`, so
+  `close([number], never)` and `close([number])` part company on a hole.
+- [move-rtti-out-of-types](../../../todo/move-rtti-out-of-types.md) — if that
+  lands first, every relative path in this file is re-anchored. Nothing here
+  depends on the location, so it is a mechanical re-base, not a redesign; the
+  order just needs picking rather than discovering.
 - [#1719](https://github.com/functionalscript/functionalscript/pull/1719) —
   **collides with both stages.** The epic makes RTTI the single source of truth
   for the type system and works its examples in the eDSL as it stands today —
