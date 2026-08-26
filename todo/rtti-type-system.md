@@ -37,7 +37,7 @@ verification of FunctionalScript.** One schema, written once, is what the
 compiler checks against, what `validate`/`parse` check against at run time, and
 what a published `.d.ts` is generated from.
 
-Four commitments make that concrete.
+Five commitments make that concrete.
 
 #### 1. Types are values, written in the RTTI eDSL
 
@@ -54,6 +54,34 @@ not a reason to grow a second notation beside it. This is the rule that keeps
 the whole direction from collapsing back into "a superset of JavaScript with a
 type grammar", which is the thing this project exists to avoid
 ([types-for-fs.md](./types-for-fs.md)).
+
+**The eDSL is expected to grow, and growing it is library work.** Today it says
+primitives, `array`, `record`, `or`, `option`, `never`, `close`, and consts. It
+does not yet say functions
+([668](../fjs/types/rtti/todo/668-rtti-function-types.md)) or brands
+([134](./134-nominal-types-proposal.md)), and it will need to say more than
+that. Because a type is a *value*, each of those is a new exported function in
+a module — not a keyword, not a grammar production, not a tokenizer change, and
+not an edit to the annotation form, which stays `//: name` forever.
+
+Generics are the example worth stating, because they are usually the point at
+which a type language becomes a second language. **A generic type is a function
+from schemas to schemas** — and the eDSL ships two already, `array` and
+`record`, which are exactly that shape. A third is a `const`:
+
+```js
+const pair = t => close([t, t])   // a generic type, in the language, today
+
+const pairOfKeys = pair(key)      // an instantiation is a `const`, like any other
+//: pairOfKeys
+export const kk = ['a', 1]
+```
+
+Nothing in the value layer has to change, nothing in the annotation form has to
+change, and no variance annotations, inference rules, or checker support for a
+generic type grammar have to be invented — roughly the entire cost TypeScript
+pays for the same feature. What is missing is only the rendering side: `.d.ts`
+emission and `Ts<>` for a parameterised alias (stage 8).
 
 #### 2. Types are applied with a comment naming one
 
@@ -107,7 +135,57 @@ of this epic, which reaches the same two forms by a longer route and states the
 body as an expression; **this epic narrows it to a name**, and stage 2 is where
 that narrowing lands in the spec.
 
-#### 3. Scope: FunctionalScript files only
+#### 3. Every RTTI type is immutable, and that is what makes it sound
+
+RTTI cannot describe a mutable value, and this is a feature rather than a
+missing one. FunctionalScript values are immutable, and the eDSL has no way to
+spell a writable member: `Ts<T>` renders every struct member, array, record,
+and tuple as `readonly`
+([`ts/types.ts`](../fjs/types/rtti/ts/types.ts)), because there is no other
+thing for it to render.
+
+That is the difference between this checker and TypeScript's, and it is not a
+detail. [types-for-fs.md](./types-for-fs.md) states the flaw in one example:
+
+```ts
+type A = { p: number }
+const f = (a: A) => { a.p = 42 }
+
+const a: { p: 5 } = { p: 5 }
+f(a) // accepted, and now `a.p === 42`
+```
+
+`{ p: 5 }` is assignable to `{ p: number }` and yet is not safely usable as one,
+because a writer on the other side can invalidate the narrower type. Every
+mutable type system then has to buy the difference back — variance rules,
+`readonly` as a separate modifier to track, aliasing analysis, narrowings that
+a later write silently invalidates — and TypeScript declines to, which is why
+the program above compiles.
+
+**None of that arises here.** A schema denotes a *set of immutable values*;
+`subset` is inclusion between two such sets, decided on the canonical
+[`data`](../fjs/types/rtti/data/module.f.mjs) form, with no writer anywhere to
+make the answer go stale. Three concrete consequences:
+
+- **A check stays true.** `validate` returns the value it was handed —
+  `Object.is(result, input)` — precisely because nothing can change it
+  afterwards. Verify-then-mutate, the standard hole in run-time validation
+  over mutable data, has no analogue.
+- **Compile time and run time agree by construction.** The same schema decides
+  both, and there is no mutation in between to make the compile-time answer
+  wrong at run time. That agreement is the epic's whole claim, and it is
+  immutability that supports it.
+- **`subset` is data, not language semantics.** Assignability is a pure
+  function of two canonical values, which is why it could ship long before the
+  checker that will use it.
+
+Where mutability is planned it stays outside RTTI's reach by design: local
+mutable objects with ownership tracking
+([mutability](../spec/todo/mutability.md)) become immutable at the point they
+escape, and it is the escaped, immutable value that a schema describes.
+Tracking ownership is the compiler's job; RTTI never sees a mutable value.
+
+#### 4. Scope: FunctionalScript files only
 
 | Source | Type system | Checked by |
 | --- | --- | --- |
@@ -116,14 +194,16 @@ that narrowing lands in the spec.
 | `types.ts` | TypeScript | `tsc` |
 | `.d.ts` | TypeScript | generated, not authored |
 
-`.mjs` is ordinary JavaScript and stays in the TypeScript world indefinitely;
-this is not a migration that ends with JSDoc deleted from the tree. The two
+`.mjs` is ordinary JavaScript — mutation included, so the guarantees in
+commitment 3 do not hold there — and stays in the TypeScript world
+indefinitely; this is not a migration that ends with JSDoc deleted from the
+tree. The two
 regimes coexist by file extension, which is the same seam
 [migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md) already
 establishes, and `.f.mjs` modules keep their JSDoc until the RTTI checker can
 actually replace it.
 
-#### 4. `.d.ts` is generated, for consumers only
+#### 5. `.d.ts` is generated, for consumers only
 
 An npm package ships `.d.ts` so that TypeScript consumers see types; the
 declarations are **generated from the schemas**, never authored.
@@ -146,6 +226,7 @@ stage that can land earliest and entirely on its own. It is also what lets a
 | Compile-time evaluation | [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) | not started |
 | Inference | [type inference](../spec/todo/3370-type-inference.md) | not started — most of the work |
 | Function schemas | [668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md) | not started — 1318 of 3772 JSDoc type bodies are function types |
+| Generic schemas | the eDSL itself | **value layer done** — a schema-to-schema function needs no feature; only `.d.ts` / `Ts<>` rendering is missing |
 
 More than half the run-time and emission side is built. The compile-time side is
 the part that does not exist.
@@ -159,7 +240,12 @@ the part that does not exist.
 - **Expressions inside an annotation.** Not even the language's own: the body is
   one name. A comment that can hold a call can hold a sub-language, and that is
   the road back to a type grammar. Give the type a `const` and use its name.
-- **Typing `.mjs` with RTTI.** Ordinary JavaScript keeps TypeScript and JSDoc.
+- **Describing mutable values.** RTTI has no writable member and is not getting
+  one. A value becomes describable when it becomes immutable, which for
+  ownership-tracked locals is the point it escapes
+  ([mutability](../spec/todo/mutability.md)).
+- **Typing `.mjs` with RTTI.** Ordinary JavaScript keeps TypeScript and JSDoc,
+  and its mutation is exactly why.
 - **Replacing `tsc` soon.** `tsc` and the standard toolchain are the checker
   until every stage below has landed, and turning them up as far as they go is
   the near-term work ([strict-static-analysis.md](./strict-static-analysis.md),
@@ -233,6 +319,11 @@ Ordered. Stage 1 is independent of everything else and can start today; stages
 5. **Cost.** Every annotation reaches a module evaluation. A name makes the
    cache key obvious — the binding — but whether the compiler memoizes schemas
    across a build is still open.
+6. **Ownership-tracked locals.** A local mutable object
+   ([mutability](../spec/todo/mutability.md)) has no RTTI type while it is still
+   mutable. Whether it may be annotated at all — with the schema its escaped
+   form will satisfy — or simply cannot be, is undecided, and it is the one
+   place the two designs touch.
 
 ### Related
 
@@ -251,7 +342,8 @@ does not replace them.
   as useful as what can be inferred without them. Stage 6.
 - [668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md) —
   RTTI cannot describe a function today, and FunctionalScript modules are
-  almost entirely functions. Stage 7.
+  almost entirely functions. Stage 7, and the first real test of "growing the
+  eDSL is library work".
 
 **Design background:**
 
@@ -261,7 +353,9 @@ does not replace them.
   [`rtti/data`](../fjs/types/rtti/data/module.f.mjs); the parser half is this
   epic.
 - [types-for-fs.md](./types-for-fs.md) — why TypeScript's own type system is not
-  the target: it cannot analyze mutable types soundly.
+  the target: it cannot analyze mutable types soundly, which is the argument
+  commitment 3 turns around. It also already sketches `const x = //: RTTI-TYPE`
+  under "Benefits" — the annotation form of this epic, proposed there first.
 - [new-pl.md § Type System](./new-pl.md#type-system) — the same idea one level
   out: type checking as an opt-in library rather than a language feature.
 - [edag-spec.md](./edag-spec.md) — already specifies the EDAG with RTTI and
@@ -274,7 +368,7 @@ does not replace them.
   running modules as meta-programming, which is what compile-time evaluation of
   an annotation *is*. Nothing past stage 2 starts without it.
 - [migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md) — establishes
-  the `.f.mjs` / `.mjs` / `types.ts` / `.d.ts` split that commitment 3 assigns
+  the `.f.mjs` / `.mjs` / `types.ts` / `.d.ts` split that commitment 4 assigns
   type systems to.
 - [fjs-nanvm-integration.md](./fjs-nanvm-integration.md) — the path to a
   compiler that parses authored FunctionalScript.
@@ -284,6 +378,9 @@ does not replace them.
   repository's own `.f.mjs` sources are not yet input the parser accepts.
 - [namespace-import](../spec/todo/2220-namespace-import.md) — open question 1
   turns on it.
+- [mutability](../spec/todo/mutability.md) — not a dependency: RTTI describes
+  the immutable values that ownership tracking produces, never the mutable ones
+  it tracks. Open question 6 is where the two meet.
 
 **Affected, but standing on their own:**
 
