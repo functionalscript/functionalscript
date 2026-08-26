@@ -108,6 +108,28 @@ window rather than a wrong status forever.
 Keep the startup check as well. It is what turns the common case — a mistyped
 root — into immediate feedback instead of a `500` that waits for a visitor.
 
+**A root that is deleted rather than replaced is left as it is, and that is a
+cost decision.** Renaming or removing the root makes every later `stat` fail
+`ENOENT`, not `ENOTDIR`, so it takes the existing `isNotFound` branch and
+answers `404` — the same permanent operator failure reported as client-caused
+absence, and no re-check catches it. The symmetric fix would be to validate
+the root before accepting any `ENOENT` too, and that is declined here: an
+`ENOENT` `404` is the most common answer a static server gives, so this would
+put a second `stat` on the hot path to improve a diagnostic, where the
+`ENOTDIR` re-check pays nothing on it. That is a trade rather than a
+principle, and it should be stated as one.
+
+Note also that `404` is not *false* in either case — with the root gone or a
+file, nothing under it exists. What the `500` buys is telling the operator
+which mistake they made, so what is lost by the asymmetry is diagnostic reach,
+not correctness.
+
+The version that answers both, and needs no re-check at all, is holding the
+root **open** and resolving beneath the handle, so it cannot be swapped
+underneath the server at any point. That is the effect
+[stat-then-read](./stat-then-read.md) is already blocked on, and this is a
+second reason to want it.
+
 Worth noticing that this is already the answer on Windows, silently: `stat`
 there reports `ENOENT`, so `fjs web README.md` starts happily and answers
 `404` to everything — verified. The check makes both hosts say the same true

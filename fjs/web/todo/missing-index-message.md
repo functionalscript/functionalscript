@@ -95,15 +95,22 @@ Three constraints on the wording:
   displayed. `text/plain` and `nosniff` bound what a *browser* does with the
   bytes and say nothing about that, so calling them harmless was wrong.
 
-  The encoded form cannot carry the problem. A raw control byte never reaches
-  this module — Node's parser answers `400 Bad Request` on the request line
-  before the listener runs, verified — so in the target such a character
-  exists only as the printable text `%1B`. Echoing the target's path as
-  received therefore needs no escaping pass and no list of dangerous
-  characters, which is the version of this that cannot rot. Echoing a
-  normalized path instead is fine on the same terms, provided it is
-  re-encoded before it reaches the body; what must not happen is quoting
-  `percentDecode`'s output directly.
+  So the message percent-encodes what it echoes, rather than trusting what it
+  was handed. Over HTTP a raw control byte does not reach this module — Node's
+  parser answers `400 Bad Request` on the request line before the listener
+  runs, verified — but that is a property of one caller, not of `respond`.
+  `respond` is exported, `IncomingMessage.url` is an unrestricted `string`,
+  and `proof.f.mjs` already calls it directly through the virtual runner with
+  whatever URL a case names; a non-Node runner is the same story. Relying on
+  the parser would put the invariant outside the function that depends on it,
+  which is the arrangement that quietly stops holding.
+
+  An encoding pass over the echoed path is total and needs no list of
+  dangerous characters: encode everything outside the safe set, and `%1B`
+  survives as `%1B` whether it arrived encoded or raw. It also makes the
+  raw-versus-normalized choice free of safety consequences, since either is
+  encoded on the way out. What must not happen is quoting `percentDecode`'s
+  output — or the target's — into the body unprocessed.
 
   Nothing echoes anything today — the current answer is the constant `not
   found` — so this is a property to build in, not a bug to fix. And nothing
@@ -146,7 +153,10 @@ re-encoded on the way out — so that choice stays open on its own merits.
 - [ ] Prove `/.git/` still answers `not found`, and answers it identically to
       `/.nonexistent/`, so the refusal stays ahead of the new sentence.
 - [ ] Prove `/%1B%5B31m/` echoes `%1B%5B31m` and not the escape it names, so
-      no answer this server writes can drive a terminal.
+      no answer this server writes can drive a terminal — and prove it for a
+      *raw* control character too, by calling `respond` directly the way
+      `proof.f.mjs` already does, since that path has no HTTP parser in front
+      of it.
 - [ ] Prove that `/fjs/` and `/no-such-dir/` still answer identically — and
       `/README.md/` with them, which needs
       [notdir-status](./notdir-status.md) first. Without it the proof passes
