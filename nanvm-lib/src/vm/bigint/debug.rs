@@ -10,7 +10,7 @@ impl<A: IVm> Debug for BigInt<A> {
         if self.is_zero() {
             return f.write_str("0n");
         }
-        if *self.0.header() == Sign::Negative {
+        if self.sign() == Sign::Negative {
             f.write_char('-')?;
         }
         f.write_str("0x")?;
