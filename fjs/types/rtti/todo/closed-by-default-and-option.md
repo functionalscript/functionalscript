@@ -451,6 +451,20 @@ Stage 1 (one PR):
       please do not 'fix' it" and "Closed containers" with the closed default and
       the `open`/`rest` spelling; keep the `Ts<>` direction note above.
       `../validate/module.f.mjs`: delete the "Do not add a length check" paragraph.
+- [ ] `../../../edag/README.md` explains the ADT's exactness in terms of the API
+      stage 1 deletes — `:33` ("Every tuple in the schema is stated `close`d")
+      and `:238` (`['.', a, 'b', null, 'extra']` rejected because "the schema is
+      `close`d"), with `:245` resting the disjointness argument on `close` too.
+      After stage 1 those passages name a function that no longer exists and
+      credit the wrong mechanism for the rejection; restate them in the
+      closed-by-default model.
+- [ ] Delete [close-counts-trailing-undefined](./close-counts-trailing-undefined.md),
+      whose whole subject is the `close(c, rest?)` overload stage 1 removes, and
+      carry anything still live into this file — its defect half is the
+      length-bounding task above, and its documentation half is the README
+      rewrite. `../../../../AGENTS.md` requires a fixed issue to be deleted in
+      the PR that fixes it, and leaving it would advertise work against an API
+      that is gone.
 - [ ] Migrate consumers: drop 21 `close(...)` in `../../../edag/module.f.mjs`;
       wrap the protocol structs in `open(...)`; audit the other 13 modules that
       import the schema surface (`fjs/media/*`, `fjs/mcp/*`, `fjs/ci/common`,
@@ -490,14 +504,19 @@ Stage 2 (one PR, after stage 1 lands):
       than swept, and the changelog says the schemas got stricter, not that a
       spelling changed.
 - [ ] Migrate the **documentation and instructions** too, which the compiled-call
-      sweep does not reach and no checker flags. Verified sites:
-      `../../../protocol/mcp/README.md:71` hands readers
-      `greeting: option(string)` to copy, which would silently become an
-      absence-only schema; `../../../AGENTS.md:383` and `:405` name `option`
-      among the schema-taking exports carrying a `const` type parameter, which
-      it stops being; and this module's own prose — `../README.md` (3 sites),
-      `../ts/README.md` (2), `../data/README.md` (3). The `option` in
-      `../../../bnf/todo/207.md` is a different one and is out of scope.
+      sweep does not reach and no checker flags. A missed call is `TS2554` at
+      build time; a missed doc is a working example that quietly builds the wrong
+      schema for whoever copies it. Twenty sites across eight files:
+      `../README.md` (3), `../ts/README.md` (2), `../data/README.md` (3),
+      `../../../protocol/mcp/README.md:71` (a copy-me
+      `greeting: option(string)`), `../../../media/revision/README.md` (5,
+      including the `option(true)` presence-flag idiom it recommends twice),
+      `../../../media/note/README.md` (2),
+      `../../../media/note/todo/extend-note-format.md` (2), and
+      `../../../AGENTS.md` (`:383` and `:405`, which describe a parameter
+      `option` stops having). Two near-misses stay out: `option` in
+      `../../../bnf/todo/207.md` is `bnf`'s own combinator, and the `option(s)`
+      in `../../../cas/evo/todo/cache-staleness.md` is English, not code.
 - [ ] Audit the members that spell optionality **directly** as `or(…, undefined)`,
       which the `option(` sweep does not reach and `checkJs` cannot flag — they
       stay syntactically valid and silently become *required*. Verified sites:
