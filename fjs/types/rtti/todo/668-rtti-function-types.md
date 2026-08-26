@@ -85,17 +85,21 @@ are **7a** and run before stage 6; static checking of readable definitions is
   **The split is over definitions; call sites split separately.** A readable
   definition makes the body checkable, and every call site the compiler can
   see checkable with it — but not a call it cannot see. A function exported to
-  a TypeScript consumer is that case: readable definition, foreign call site.
+  any consumer outside the compiler's view is that case: readable definition,
+  foreign call site.
   Where the generated declaration is wider than the schema — `close`,
   `close(c, rest)`, non-finite numbers and `-0`, all listed under
   [the epic's `.d.ts` promise](../../../../todo/rtti-type-system.md) — the
   consumer can pass a value the declaration accepts and the schema rejects,
   with nothing between. That path is the epic's **stage 13** (ownership at the
   language boundary), not this issue. What stage 13 owes there splits by
-  consumer: for a **TypeScript** consumer it is conditional on which `.d.ts`
-  policy wins, since an exact declaration leaves nothing to adapt; for an
-  **ordinary JavaScript** consumer it is unconditional, because no declaration
-  binds that caller and it can pass anything at all. Either way the check
+  call site: where the call was **statically checked** against the declaration
+  it is conditional on which `.d.ts` policy wins, since an exact declaration
+  leaves nothing to adapt; for **every other call site** it is unconditional,
+  because no declaration binds that caller — raw JavaScript, but equally a
+  TypeScript caller going through `any`, a `@ts-ignore`, or a dynamic access.
+  The callee cannot tell the two apart at run time, so the unconditional half
+  is the one that sets the floor. Either way the check
   cannot be the wrapper above, whose `Result` return would change the published
   signature. Recorded here so this task is not read as "readable definition,
   therefore nothing to enforce".
@@ -109,8 +113,18 @@ are **7a** and run before stage 6; static checking of readable definitions is
 - [ ] **7a — a printer path**, so a function-typed export has a declaration to
   generate.
 - [ ] **7a —** decide **extern vs in-`data`** for the representation. The Related note
-  below contemplates extern; the two tasks above are what that choice has to
+  below contemplates extern; the tasks above are what that choice has to
   pay for.
+- [ ] **7a — a canonical serializable form that run time reuses.** The
+  requirement the extern option most easily fails, and the one that is not
+  about assignability or printing. The epic's stage 4 closes its
+  schema-stability hole by serializing the compile-time schema through
+  `toData`, and [`data`](../data/README.md) is function-free by construction —
+  so an extern function schema is precisely what `toData` cannot pin. Without
+  its own canonical form, a stateful imported thunk can present one contract
+  while the compiler checks and another when `validate` runs. An extern path
+  owes this in addition to a `subset` path and a printer; keeping function
+  contracts inside `data` gets it for free.
 
 ### Related
 

@@ -897,6 +897,14 @@ are stated instead:
       `toData` already produces: a function-free canonical form that cannot
       re-evaluate to something else. The second needs no new analysis and makes
       the guarantee structural, so it is the one to beat.
+
+      **It does not reach function schemas if stage 7a goes extern.** `data` is
+      function-free by construction, so a function contract living outside it
+      has nothing for `toData` to serialize and this remedy silently does not
+      apply there. That makes a canonical serializable form a requirement on
+      the extern option rather than a nicety — recorded as
+      [stage 7](#tasks)'s fourth deliverable — and it is a reason to prefer
+      function contracts inside `data`.
 - [ ] **5. Check literal right-hand sides** with `validate`. This is the first
       point at which the epic checks anything.
 
@@ -962,8 +970,9 @@ are stated instead:
       **The split is over definitions, and call sites split separately.** A
       readable definition makes the *body* checkable and every call site the
       compiler can see checkable with it; it says nothing about a call the
-      compiler cannot see. An exported function called by a TypeScript consumer
-      is exactly that — readable definition, foreign call site — and
+      compiler cannot see. An exported function called from outside the
+      compiler's view is exactly that — readable definition, foreign call
+      site — and
       [the `.d.ts` section](#what-a-generated-dts-can-and-cannot-promise) has
       already named the consequence: where the emitted declaration is *wider*
       than the schema (the `close`, `close(c, rest)`, and `NaN` / `-0` cases),
@@ -979,8 +988,9 @@ are stated instead:
       foreign call crossing the language boundary inbound, and stage 13 already
       owns the boundary in both directions and already says the `close` policy
       and 668's wrapper are one decision. What stage 13 owes there splits by
-      consumer: conditional on the `.d.ts` policy for a TypeScript consumer,
-      unconditional for a JavaScript one. Either way the adapter is not 668's
+      call site: conditional on the `.d.ts` policy where the call was
+      statically checked against the declaration, unconditional everywhere else
+      — and the callee cannot tell which it got. Either way the adapter is not 668's
       wrapper as written: that wrapper returns `Result<…>` and so changes the
       published signature, which collides with stage 11's rule that a retiring
       declaration must reproduce what it published.
@@ -1016,7 +1026,7 @@ are stated instead:
       668 itself contemplates an **extern** form that "may need to remain
       outside that core form" — and a schema outside it has no assignability
       and no declaration to emit, so function JSDoc still could not retire.
-      This stage therefore owes three things, not one:
+      This stage therefore owes four things, not one:
 
       1. the function schema form itself;
       2. a place in the canonical algebra — either function contracts inside
@@ -1026,9 +1036,20 @@ are stated instead:
          and `subset` today is inclusion over kinds with no variance notion at
          all;
       3. a printer path, so a function-typed export has a declaration to
-         generate.
+         generate;
+      4. **a canonical serializable form that run time reuses** — the
+         requirement the extern option most easily fails. Stage 4 closes the
+         schema-stability hole by serializing the compile-time schema via
+         `toData`, and `data` is function-free by construction, so an extern
+         function schema is exactly the thing `toData` cannot pin. Leave that
+         and a stateful imported thunk can yield one contract while the
+         compiler checks and another when `validate` runs — the same
+         compile-time/run-time disagreement stage 4 exists to prevent, in the
+         one part of the type language stage 4's remedy does not reach.
+         An extern path must therefore carry its own canonical form that run
+         time reuses, not merely a `subset` path and a printer.
 
-      Whether 668's extern direction can carry 2 and 3, or whether function
+      Whether 668's extern direction can carry 2, 3 and 4, or whether function
       contracts must go into `data` proper, is the decision that unblocks the
       function-typed JSDoc bodies — the ~46% measured in the table above — and
       it belongs in 668, so this stage is not done until 668 answers it.
@@ -1218,7 +1239,7 @@ are stated instead:
       schema — `close`, `close(c, rest)`, `NaN` / `-0` — it can pass a value
       the declaration accepts and the schema rejects.
 
-      **This splits by consumer, and only one half is conditional.** An earlier
+      **This splits by call site, and only one half is conditional.** An earlier
       draft of this paragraph said the `.d.ts` policy decides whether the stage
       owes an entry check at all — that options 2 and 3 close the hole in the
       declaration and leave nothing to adapt. That is true of a **TypeScript**
@@ -1227,30 +1248,50 @@ are stated instead:
       `number` parameter, or a malformed object to a `close`, whatever the
       `.d.ts` says; so do a TypeScript caller reaching the export through
       `any`, a `@ts-ignore`, or a dynamic property access. A declaration
-      constrains a consumer who type-checks against it and nobody else, so:
+      constrains a consumer who type-checks against it and nobody else.
 
-      - **TypeScript consumers** — conditional. Options 2 and 3 make the
-        declaration exact and there is nothing left to adapt; option 1 leaves
-        the gap and needs an adapter.
-      - **Ordinary JavaScript consumers** — **unconditional**. This stage owes
-        a stated policy regardless of which `.d.ts` policy wins: validate at
-        entry, or declare the boundary explicitly untrusted and say what a
-        FunctionalScript function may assume about its arguments. The second is
-        a legitimate answer — it is roughly what the language does today — but
-        it has to be *chosen*, because commitment 3's soundness argument is
-        about what the language guarantees, and an unchecked foreign call is
-        outside it.
+      **The line is drawn at the call site, not at the consumer's language.**
+      An earlier draft of these bullets split by consumer — TypeScript
+      conditional, JavaScript unconditional — which contradicts the sentence
+      immediately above it: a TypeScript consumer reaching the export through
+      `any`, a `@ts-ignore`, or a dynamic property access is unchecked too, and
+      would have fallen in the conditional half. What matters is whether *this
+      call* was statically checked against the declaration:
+
+      - **Statically checked call sites** — conditional. Options 2 and 3 make
+        the declaration exact and there is nothing left to adapt; option 1
+        leaves the gap and needs an adapter.
+      - **Every other call site** — **unconditional**: raw JavaScript, `any`,
+        `@ts-ignore`, dynamic access, `eval`, a call from a consumer who simply
+        does not run `tsc`.
+
+      **And the callee cannot tell the two apart**, which is what makes the
+      unconditional half dominate rather than merely coexist. Nothing at run
+      time distinguishes an argument that arrived through a checked call from
+      one that did not, so this stage owes a stated policy for arriving values
+      regardless of which `.d.ts` policy wins: validate at entry, or declare
+      the boundary explicitly untrusted and say what a FunctionalScript
+      function may assume about its arguments. The second is a legitimate
+      answer — it is roughly what the language does today — but it has to be
+      *chosen*, because commitment 3's soundness argument is about what the
+      language guarantees, and an unchecked foreign call is outside it. The
+      conditional half then decides only whether a *checked* call needs
+      adaptation on top of that policy.
 
       In neither case can the adapter be 668's `Result`-returning wrapper on an
       ordinary export, which would change the published signature that stage 11
       requires be reproduced.
 
       **The general form of the error is worth stating once**, because this
-      file has now made it twice in opposite directions: first that a readable
-      *definition* leaves nothing to enforce, then that an exact *declaration*
-      does. Both confuse *knowing the right type* with *something checking it*.
-      A `.d.ts` is a description for a consumer who opts into checking; it is
-      never an enforcement mechanism, and nothing in this epic makes it one.
+      file made it three times in a row while review of #1719 was in flight:
+      that a readable *definition* leaves nothing to enforce; then that an
+      exact *declaration* does; then that being written in *TypeScript* makes a
+      consumer a checked one. All three confuse *knowing the right type* with
+      *something checking it*. A `.d.ts` is a description that a consumer may
+      opt into checking against; it is never an enforcement mechanism, nothing
+      in this epic makes it one, and the callee cannot observe whether anyone
+      opted in. Enforcement at this boundary is whatever the callee does with
+      the value it was handed — nothing else on the outside counts.
 
       **Gates stage 11.** Retiring JSDoc does not create this hole, but it
       removes the last thing that documents the intended shape at the boundary,
