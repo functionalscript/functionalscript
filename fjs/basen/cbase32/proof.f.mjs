@@ -76,9 +76,12 @@ export const proof = {
         assertEq(cBase32ToVec("00"), null, 'all-zero symbols must be null')
         assertEq(cBase32ToVec("o"), null, 'o (maps to 0) must be null')
     },
-    maxLengthBoundary: () => {
+    decodeAtMaxLengthSucceeds: () => {
         const value = vec(maxLength)(0n)
-        const encoded = vecToCBase32(value)
+        // Construct the boundary encoding directly. Encoding a `maxLength`
+        // vector exceeds Bun's own BigInt size limit while adding the stop
+        // bit, independently of this decoder regression.
+        const encoded = '0'.repeat(209_715) + '8'
         assertEq(cBase32ToVec(encoded), value)
     },
     decodeOverflow: () => {
