@@ -105,11 +105,28 @@ Three constraints on the wording:
   the parser would put the invariant outside the function that depends on it,
   which is the arrangement that quietly stops holding.
 
-  An encoding pass over the echoed path is total and needs no list of
-  dangerous characters: encode everything outside the safe set, and `%1B`
-  survives as `%1B` whether it arrived encoded or raw. It also makes the
-  raw-versus-normalized choice free of safety consequences, since either is
-  encoded on the way out. What must not happen is quoting `percentDecode`'s
+  The pass has to be spelled out, because the obvious one is wrong: a
+  general-purpose URI encoder escapes the `%` too, turning `/%1B%5B31m/` into
+  `/%251B%255B31m/` — unreadable, and not what the proof below asks for. And
+  preserving every `%` is not a rule either, since a lone one is not an
+  escape. So:
+
+  - a `%XX` triplet — `isEscape`, the predicate `percentDecode` already uses
+    — passes through verbatim;
+  - unreserved characters and `/` pass through;
+  - every other byte is percent-encoded, which is what catches a raw control
+    character.
+
+  Preserving triplets is total rather than a special case: by the time this
+  message is built `resolve` has accepted the path, and `percentDecode`
+  rejects a malformed escape, so every `%` present already begins a valid
+  triplet. A direct call to `respond` cannot smuggle a lone `%` past that —
+  it takes the same route — while it *can* carry a raw control byte, which
+  the third rule encodes.
+
+  So `%1B` survives as `%1B` whether it arrived encoded or raw, and the
+  raw-versus-normalized choice stays free of safety consequences, since either
+  is encoded on the way out. What must not happen is quoting `percentDecode`'s
   output — or the target's — into the body unprocessed.
 
   Nothing echoes anything today — the current answer is the constant `not

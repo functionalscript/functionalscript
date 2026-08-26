@@ -66,11 +66,19 @@ that raises an error, and neither is a trade this issue is entitled to make on
 their behalf. A predicate named for one errno is the wrong place to put a
 second one that only some of its callers want.
 
-So the answer is local: `fileResponse` already tests `notRegular` and
-`tooLarge` before reaching `isNotFound`, and this is the same kind of test —
-what *this server* will answer as absent. If a later caller wants the same
-reading, the thing to share is a named predicate that says so, not a broader
-`isNotFound`.
+So the answer is local: this is the same kind of test as `fileResponse`'s
+existing `notRegular` and `tooLarge` cases — what *this server* will answer as
+absent. If a later caller wants the same reading, the thing to share is a
+named predicate that says so, not a broader `isNotFound`.
+
+**The branch itself goes in `respond`, not in `fileResponse`.** `fileResponse`
+is `(path) => (Result) => ServerResponse`: pure, and holding neither `root`
+nor any way to run a `stat`, so the re-check below cannot live there. `respond`
+has both, and already ends in `resultMapStep(bytes, r => ok(fileResponse(path)(r)))`
+— where `resultMapStep` is by definition `resultStep` over a *pure* function.
+Dropping to `resultStep` is the whole change: the `ENOTDIR` case becomes a
+`step(stat(served(root)), …)` deciding `404` or `500`, every other case stays
+`fileResponse(path)(r)` as today, and `fileResponse` keeps its signature.
 
 **But validate the root first, or the mapping swallows an operator error.**
 `ENOTDIR` does not only arise below a valid root. `fjs web README.md` serves a
@@ -203,8 +211,9 @@ path that descends through a regular file, then map the error.
       root that does not exist, and one that is neither file nor directory.
       Stat `served(root)`, so `fjs web ''` keeps working; `emptyRoot` in
       `proof.f.mjs` pins it.
-- [ ] Answer `404` for it from `fileResponse`, leaving `isNotFound` alone —
-      but only after re-checking that the root is still a directory, so a root
+- [ ] Answer `404` for it from `respond` — `resultStep` in place of
+      `resultMapStep`, leaving `fileResponse` and `isNotFound` alone — and
+      only after re-checking that the root is still a directory, so a root
       replaced after startup keeps answering `500`.
 - [ ] Prove `/README.md/` and `/nope.md/` answer identically, through the
       virtual runner — `proof.f.mjs` already drives `respond` that way, so
