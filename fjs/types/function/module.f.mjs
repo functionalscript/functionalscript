@@ -1,6 +1,6 @@
 /**
- * Function combinators: composition, identity, argument flipping, and the
- * chainable `Fn` wrapper.
+ * Function combinators: composition, identity, sequential iteration, argument
+ * flipping, and the chainable `Fn` wrapper.
  *
  * @module
  *
@@ -20,6 +20,24 @@ export const compose = g => f => x => f(g(x))
  * @type {<T>(value: T) => T}
  */
 export const identity = value => value
+
+/**
+ * Applies `f` to `value` `n` times sequentially.
+ *
+ * Unlike monoid `repeat`, this performs every application, taking O(n)
+ * applications. A non-positive `n` leaves `value` unchanged.
+ *
+ * @type {(n: bigint) => <T>(f: (value: T) => T) => (value: T) => T}
+ */
+export const iterate = n => f => value => {
+    let v = value
+    let i = 0n
+    while (i < n) {
+        v = f(v)
+        i = i + 1n
+    }
+    return v
+}
 
 /**
  * Flips the arguments of a curried function.
