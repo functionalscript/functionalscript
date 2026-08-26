@@ -32,6 +32,9 @@ Create `fjs/common/` for cross-cutting reusable algorithms, starting by moving `
 
 - Tooling bucket for `bnf`, `fsc`, and possibly `js` (grammar/compiler tooling;
   the content-facing formats go to `fjs/media/`, see below).
+- Promote `types/rtti` to `fjs/rtti` — the same membership rule as item 2, applied
+  to the largest thing in `types/`. See
+  [move-rtti-out-of-types](./move-rtti-out-of-types.md).
 - Storage bucket for `cas` + `sul`; testing bucket for `asserts` + `emergent_testing`.
 
 ### 4. `fjs/media/` — content formats and media-type detection
