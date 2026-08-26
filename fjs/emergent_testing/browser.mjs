@@ -38,6 +38,7 @@ const collect = (path, throws, value) => {
 /** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
 const runOne = (module, path, throws, fn, result) => {
     const start = performance.now()
+    /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
     const passed = value => {
             const duration = performance.now() - start
             if (throws) {
@@ -55,6 +56,7 @@ const runOne = (module, path, throws, fn, result) => {
                 return [success, ...results.flat()]
             })
         }
+    /** @type {(error: unknown) => readonly _BrowserTestResult[]} */
     const failed = error => {
             const duration = performance.now() - start
             if (throws) {
