@@ -184,6 +184,41 @@ export const errorResult = text =>
     ({ ...okResult(text), isError: true })
 
 /**
+ * Answers a tool call with the outcome of one fallible operation: the `ok`
+ * value rendered by `text`, the failure rendered by `errorText` and tagged
+ * `isError`. It is the third member of the {@link okResult} / {@link errorResult}
+ * family — the one that picks between them — and it empties the error channel,
+ * because a tool-level failure is a result the client reads, never a transport
+ * error.
+ *
+ * Every tool whose body is a single `Evo`- or `Cas`-shaped call is that
+ * dispatch and nothing else, so each one is a single line:
+ *
+ * ```js
+ * ({ subject }) => toolResultStep(e.head(subject), lines, evoSummary)
+ * ```
+ *
+ * **Both renderers are required, and `errorText` is the load-bearing one** —
+ * for the reason `unwrapStep` gives for its own `summary`
+ * (`fjs/effects/module.f.mjs`): a renderer written for a particular error
+ * channel cannot accept a wider one, so a fallible call added upstream turns
+ * into a compile error at the tool that has to say what the new failure reads
+ * like, instead of silently reaching the client as whatever `String` made of
+ * it. `evoSummary` and `errorSummary` are the two in use today.
+ *
+ * @type {<O extends Operation, T, E>(
+ *     e: Effect<O, T, E>,
+ *     text: (value: T) => string,
+ *     errorText: (e: E) => string,
+ * ) => Effect<O, ToolsCallResult, never>}
+ */
+export const toolResultStep = (e, text, errorText) => resultMapStep(
+    e,
+    ([tag, value]) => ok(tag === 'error'
+        ? errorResult(errorText(value))
+        : okResult(text(value))))
+
+/**
  * Builds `McpHandlers` from a registry of tool entries.
  *
  * This factory generates `toolsList` and `toolsCall` handlers that work with a

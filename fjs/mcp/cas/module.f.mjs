@@ -123,7 +123,7 @@ import { noteDialect } from '../../media/note/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import {
-    toolEntry, errorResult, okResult,
+    toolEntry, errorResult, okResult, toolResultStep,
 } from '../../protocol/mcp/module.f.mjs'
 import { collectRead, fileCas } from '../../cas/module.f.mjs'
 import { errorSummary } from '../../effects/node/module.f.mjs'
@@ -302,12 +302,10 @@ export const casToolRegistry = home => cacheKey => {
             'cas_list',
             'List all stored content hashes (cBase32), one per line.',
             casListArgs,
-            () => resultStep(
+            () => toolResultStep(
                 c.list(),
-                r => pureOk(r[0] === 'error'
-                    ? errorResult(errorSummary(r[1]))
-                    : okResult(r[1].map(vecToCBase32).join('\n')))
-            ),
+                hs => hs.map(vecToCBase32).join('\n'),
+                errorSummary),
         ),
     ]
 }
