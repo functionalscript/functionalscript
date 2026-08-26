@@ -1,4 +1,4 @@
-import { concat, isProperPrefix, join, normalize, parse, relativize, root, toPosix } from "./module.f.mjs"
+import { concat, escapes, isProperPrefix, join, normalize, parse, relativize, root, toPosix } from "./module.f.mjs"
 import { assertEq } from '../asserts/module.f.mjs'
 
 const normalizeTest = [
@@ -59,6 +59,42 @@ const normalizeTest = [
     () => {
         const norm = normalize("")
         assertEq(norm, "")
+    },
+]
+
+const escapesTest = [
+    // A `..` that cancels a real segment does not escape; one with nothing
+    // left to cancel does. `parse` cannot answer this — it folds with the root
+    // in place, which is exactly what removes the escaping `..`.
+    () => {
+        assertEq(escapes("/a/../b"), false)
+    },
+    () => {
+        assertEq(escapes("/../b"), true)
+    },
+    () => {
+        assertEq(escapes("a/../../b"), true)
+    },
+    () => {
+        assertEq(escapes("a/b/../c"), false)
+    },
+    // Taking the root off is not the same as dropping one leading `/`: these
+    // remainders read as rooted again, and a second fold would clamp the very
+    // `..` being looked for.
+    () => {
+        assertEq(escapes("///../secret"), true)
+    },
+    () => {
+        assertEq(escapes("/C:/../../secret"), true)
+    },
+    () => {
+        assertEq(escapes("//../secret"), true)
+    },
+    () => {
+        assertEq(escapes("C:/../secret"), true)
+    },
+    () => {
+        assertEq(escapes(""), false)
     },
 ]
 
@@ -368,4 +404,4 @@ const isProperPrefixTest = [
     },
 ]
 
-export const proof = { normalizeTest, rootTest, parseTest, concatTest, joinTest, relativizeTest, toPosixTest, isProperPrefixTest }
+export const proof = { normalizeTest, escapesTest, rootTest, parseTest, concatTest, joinTest, relativizeTest, toPosixTest, isProperPrefixTest }

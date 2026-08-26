@@ -44,7 +44,7 @@ import {
     stat,
 } from '../effects/node/module.f.mjs'
 import { detectPath } from '../media/type/module.f.mjs'
-import { join, parse, root as pathRoot } from '../path/module.f.mjs'
+import { escapes, join, parse } from '../path/module.f.mjs'
 import { isValidCodePoint } from '../text/code_point/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { fromCodePointList, toCodePointList } from '../text/utf8/module.f.mjs'
@@ -272,13 +272,10 @@ export const resolve = root => url => {
     const decoded = percentDecode(target.path)
     if (decoded === null || decoded.includes(nul)) { return refuse(400)('malformed request URL') }
     const segments = parse(decoded)
-    // Escape is decided on the path with its root taken off, because `parse`
-    // clamps a `..` that would climb past a root and the survivor is the whole
-    // signal here. `/a/../b` collapses either way and is served; `/../b` keeps
-    // its `..` only once the leading `/` is gone, and is refused.
-    if (parse(decoded.slice(pathRoot(decoded).length)).includes('..')) {
-        return refuse(400)('request path escapes the served root')
-    }
+    // `escapes` rather than a `..` among `segments`: `parse` folds with the
+    // root in place, so it clamps away the very `..` this refuses. `/a/../b`
+    // collapses and is served; `/../b` escapes and is not.
+    if (escapes(decoded)) { return refuse(400)('request path escapes the served root') }
     if (segments.some(isHidden)) { return refuse(404)('not found') }
     const isDirectory = segments.length === 0 || decoded.endsWith('/')
     return ok(join(base, ...(isDirectory ? [...segments, 'index.html'] : segments)))

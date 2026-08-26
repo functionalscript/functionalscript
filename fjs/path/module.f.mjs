@@ -141,6 +141,25 @@ export const parse = path => {
 }
 
 /**
+ * Whether a `..` in `path` would climb above its root — what a caller asks when
+ * it has to *refuse* a traversal rather than clamp one.
+ *
+ * {@link parse} cannot answer it: `parse` folds with the root in place, and the
+ * escaping `..` is precisely what that removes. Here the root comes off first
+ * and the remainder folds as a relative path, where a `..` with nothing left to
+ * cancel survives to be counted.
+ *
+ * Taking the root off is not the same as dropping a leading `/`. The remainder
+ * of `///../x` is `//../x` and the remainder of `/C:/../../x` is
+ * `C:/../../x` — both read as rooted again, and folding them a second time
+ * would clamp the very `..` being looked for. The fold is told there is no
+ * root instead of being handed a string that looks like it has none.
+ *
+ * @type {(path: string) => boolean}
+ */
+export const escapes = path => posixSegments(false)(split(toPosix(path))[1]).includes('..')
+
+/**
  * Normalizes a path string by parsing and rejoining it with POSIX separators,
  * keeping the root: `normalize('/a/./b')` is `'/a/b'` and `normalize('/')` is
  * `'/'`.
