@@ -129,11 +129,55 @@ Recognizing an annotation is then nearly free. The tokenizer keeps a comment's
 body verbatim, so the forms are separated by the body's first character — `:`
 is an annotation, `*` is JSDoc, anything else is a comment — and what follows
 is one identifier to resolve against the module's bindings. No block grammar,
-no type grammar, no second parser, and no expression parser either. See
-[type-annotations](../spec/todo/3360-type-annotations.md), the spec-side half
-of this epic, which reaches the same two forms by a longer route and states the
-body as an expression; **this epic narrows it to a name**, and stage 2 is where
-that narrowing lands in the spec.
+no type grammar, no second parser, and no expression parser either.
+
+**Why a new sigil instead of `/** @type {…} */`.** Because there are two
+checkers, and they must not collide. `@type` is TypeScript's tag, with
+TypeScript's type language inside it; putting an RTTI name there would make one
+comment the input to two tools that disagree about what its body means, and
+every diagnostic would have two possible owners. A distinct sigil makes the two
+sets **disjoint by construction**: `tsc` sees `/*: keys */` as an ordinary
+comment and ignores it, the RTTI checker sees `/** @type {…} */` as JSDoc and
+ignores it, and the body's first character is what separates them — which is
+why that cheap tokenizer distinction is the mechanism here and not just an
+optimization.
+
+What disjointness buys is the whole migration. Both checkers run over the same
+`.f.mjs` file at the same time, so:
+
+- adding an RTTI annotation can never break `tsc`, which is the checker
+  meanwhile (see [Non-goals](#non-goals));
+- stage 10 is per-annotation, not per-module and certainly not a flag day: a
+  declaration can carry both forms, one form, or neither, and the file stays
+  valid input to both tools throughout;
+- the step is reversible, because removing an annotation of either kind leaves
+  the other untouched.
+
+**Both on one declaration is allowed — during the transition above, mainly, but
+it is a supported state rather than a tolerated one:**
+
+```js
+/** @type {readonly (number | string)[]} */
+//: keys
+export const ks = ['a', 1]
+```
+
+Two reasons it earns its keep while the tree migrates. Where RTTI cannot yet say
+something — function types being the large case ([stage 7](#tasks)) — JSDoc
+covers that declaration and RTTI covers the rest of the module, in the same
+file, with no either/or and no waiting for the eDSL to catch up. And where both
+are present the two checkers **cross-check each other**: a value the schema
+accepts and the `@typedef` rejects, or the reverse, is exactly the silent drift
+this epic exists to remove ([Problem](#problem)) — reported, instead of latent.
+Carrying both is therefore a diagnostic worth having during a conversion, not a
+cost to minimize, even though the end state for a `.f.mjs` module is the RTTI
+annotation alone.
+
+[type-annotations](../spec/todo/3360-type-annotations.md) reaches the same
+conclusion — "`/*: … */` and JSDoc's `/** … */` coexist while the tree
+migrates" — and is the spec-side half of this epic. It states the body as an
+expression; **this epic narrows it to a name**, and stage 2 is where that
+narrowing lands in the spec.
 
 #### 3. Every RTTI type is immutable, and that is what makes it sound
 
@@ -249,7 +293,10 @@ the part that does not exist.
 - **Replacing `tsc` soon.** `tsc` and the standard toolchain are the checker
   until every stage below has landed, and turning them up as far as they go is
   the near-term work ([strict-static-analysis.md](./strict-static-analysis.md),
-  [tsconfig-strict-flags.md](./tsconfig-strict-flags.md)).
+  [tsconfig-strict-flags.md](./tsconfig-strict-flags.md)). This is a
+  non-goal that only works because the two annotation forms are disjoint
+  (commitment 2): `tsc` keeps checking a file that has started to carry RTTI
+  annotations, because it cannot see them.
 - **Hand-written `.d.ts`.** Generated or absent.
 
 ### Tasks
@@ -294,8 +341,10 @@ Ordered. Stage 1 is independent of everything else and can start today; stages
       has no RTTI representation: either RTTI gains a brand-carrying wrapper, or
       nominal types stay a TypeScript-era construct
       ([134-nominal-types-proposal](./134-nominal-types-proposal.md)).
-- [ ] **10. Retire `Ts<T>` and the JSDoc types in `.f.mjs`,** module by module,
-      once 1–8 hold. Consumers keep seeing types through generated `.d.ts`.
+- [ ] **10. Retire `Ts<T>` and the JSDoc types in `.f.mjs`,** declaration by
+      declaration — the two forms are disjoint, so this needs no flag day and
+      no module-at-a-time rule — once 1–8 hold. Consumers keep seeing types
+      through generated `.d.ts`.
 
 ### Open questions
 
