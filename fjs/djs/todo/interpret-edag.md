@@ -50,9 +50,10 @@ reuse the first call's `[1]`. Sharing of a body node remains memoized within eac
 individual invocation.
 
 As the compiler lands the staged operators, the direct interpreter should support the
-same EDAG forms: Stage 1 adds `.` property access; Stage 2 adds non-capturing `=>` and
-`()` — with the empty `lambdas` for an ordinary call and a `['|.', property]` step for a
-method call.
+same EDAG forms: Stage 1 adds `.` property access with a `null` continuation; Stage 2
+adds non-capturing `=>`, the ordinary call `['()', callee, args]`, and the method call
+— a `.` node whose continuation is `['|()', args, null]`, which is what carries the
+`this` binding.
 
 Stage 2 deliberately has **no frame support** — a restriction on *this interpreter*, not
 on the EDAG schema: `fjs/edag/module.f.mjs` already validates `frame` as a general `exp`
@@ -95,10 +96,10 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Validate the final EDAG before interpretation.
 - [ ] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
       it through the host JavaScript engine.
-- [ ] Support Stage 1 `['.', object, property]` property access.
-- [ ] Support Stage 2 `['=>', null, body]` and `['()', object, lambdas, args]` when
-      those operators land — the empty `lambdas` for an ordinary call, a trailing
-      `['|.', property]` step for a method call, which supplies the `this` binding.
+- [ ] Support Stage 1 `['.', object, property, null]` property access.
+- [ ] Support Stage 2 `['=>', null, body]`, `['()', callee, args]` for an ordinary
+      call, and `['.', object, property, ['|()', args, null]]` for a method call —
+      the step is what supplies the `this` binding — when those operators land.
 - [ ] Do **not** implement `['frame']` or non-empty closure frames in Stage 2.
 - [ ] Memoize results by EDAG node identity within one evaluation context so shared
       constructors preserve reference identity.
@@ -114,11 +115,12 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Add Stage 2 proofs for non-capturing functions, ordinary calls, and method calls.
 - [ ] Whenever the optional nodes enter the interpreted subset, execute them per
       "Chains" in [`../../edag/README.md`](../../edag/README.md) — receiver state
-      created by the property steps, consumed by the call steps and by an
-      expression-level call whose `lambdas` ends in one; an optional step's `index` or
-      argument operand left unevaluated on its nullish branch, which the proofs must
-      observe (`a?.[k]`, `f?.(...a)`), along with the short-circuit of the rest of
-      that `lambdas`.
+      created by `.`/`?.` and the `|.` step, consumed by the three call steps; an
+      optional node's `index` or argument operand left unevaluated on its nullish
+      branch, which the proofs must observe (`a?.[k]`, `f?.(...a)`), along with the
+      short-circuit of the rest of the continuation — and its one exception, `|!()`,
+      which the parentheses put outside the region and which therefore runs on the
+      `undefined` a short-circuit produced.
 - [ ] Add an invocation-scope proof such as calling `x => [x]` with `1` and `2`:
       results contain the corresponding argument and do not reuse the constructed
       array across calls, while repeated references inside one call still share.
