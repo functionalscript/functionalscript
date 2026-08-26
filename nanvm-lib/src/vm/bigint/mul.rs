@@ -1,7 +1,7 @@
 use crate::{
     common::{sized_index::SizedIndex, vec::with_default},
     sign::Sign,
-    vm::{BigInt, IContainer, IVm},
+    vm::{BigInt, IVm},
 };
 
 use std::ops::Mul;
@@ -34,7 +34,7 @@ impl<A: IVm> Mul for BigInt<A> {
             i += 1;
         }
 
-        let sign = if self.0.header() == rhs.0.header() {
+        let sign = if self.sign() == rhs.sign() {
             Sign::Positive
         } else {
             Sign::Negative
