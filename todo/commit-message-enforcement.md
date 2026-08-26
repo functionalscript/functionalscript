@@ -11,30 +11,39 @@ documentation edit rather than a linter change plus a rule migration.
 ## Problem
 
 Once the standard is documented, it is still only a convention: nothing stops
-a PR with a malformed title or a malformed `Changelog:` section from merging.
-The format must be machine-checked before the merge button enables, or the
-history the changelog generator would read degrades one forgotten PR at a
-time.
+a PR with a malformed title, a malformed `Changelog:` section, or a behavior
+change carrying no changelog note at all from merging. The format must be
+machine-checked before the merge button enables, or the history the changelog
+generator would read degrades one forgotten PR at a time.
 
 ## Proposal
 
 The format is enforced *before* merge by a **required status check**: a
-workflow on `pull_request` with types `[opened, edited, synchronize,
-reopened]` reads the PR title and body from the event payload and fails
-unless the title matches the format and any `Changelog:` section is the last
-section of the body before an optional trailer block (`Co-Authored-By:`,
-generated-with lines, session links — about half of recent PR bodies end with
-one). The section is optional: a PR that changes neither behavior nor the
-public API omits it, so its absence is not a failure — the entry file under
-`changelog/unreleased/` and the section travel together, and a PR that has one
-without the other is what the check catches. The `edited` trigger makes the
-check re-run when the title or description is fixed — no push needed to
-re-green. Branch protection marks the check required, which disables the merge
-button until it passes. The
-linter itself is a self-hosted FunctionalScript module (`fjs/ci`), and the
+workflow on `pull_request` with types `[opened, edited, synchronize, reopened]`
+reads the PR title and body from the event payload and fails unless the title
+matches the format and any `Changelog:` section is the last section of the body
+before an optional trailer block (`Co-Authored-By:`, generated-with lines,
+session links — about half of recent PR bodies end with one). The section is
+optional: a PR that changes neither behavior nor the public API omits it, so
+its absence is not a failure — the entry file under `changelog/unreleased/` and
+the section travel together, and a PR that has one without the other is what
+the check catches. The `edited` trigger makes the check re-run when the title
+or description is fixed — no push needed to re-green. Branch protection marks
+the check required, which disables the merge button until it passes. The linter
+itself is a self-hosted FunctionalScript module (`fjs/ci`), and the
 changelog-subset Markdown parser planned in
 [changelog-website.md](./changelog-website.md) is the validator for the
 section's items.
+
+An optional section gives up what a mandatory one bought, and the consistency
+check above does not buy it back: a behavior-changing PR that forgets *both*
+the entry file and the section is consistent, so it passes. Closing that needs
+a second check deriving **"entry owed?" from the diff** — a PR whose changed
+paths reach outside documentation, `todo/`, tests, and CI owes an entry — which
+is the only arbiter that separates a valid documentation PR from a forgotten
+release note. Until it exists, the Problem's "one forgotten PR at a time" is
+unaddressed for exactly that case, and the required check enforces shape rather
+than completeness.
 
 One hole no pre-merge check covers: GitHub lets whoever clicks "Squash and
 merge" edit the commit message in the merge dialog. Backstops: don't touch
@@ -48,6 +57,9 @@ would block it outright but require an Enterprise plan.
 - [ ] PR-lint workflow (title format, `Changelog:` section well-formed and
       consistent with `changelog/unreleased/<PR>.md` when either is present)
       as a self-hosted `fjs/ci` module
+- [ ] "Entry owed?" check: fail a PR whose diff reaches outside documentation,
+      `todo/`, tests, and CI while carrying neither `changelog/unreleased/<PR>.md`
+      nor a `Changelog:` section — the arbiter an optional section needs
 - [ ] Branch protection: mark the lint a required status check
 - [ ] Post-merge audit: on `push` to `main`, verify the landed commit
       message matches the PR title `(#NNN)` and description
