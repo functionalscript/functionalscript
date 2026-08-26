@@ -31,7 +31,9 @@ import * as testContext from 'node:test'
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
-import { exitCode, toIoError, usesInlineTestContext } from './module.f.mjs'
+import {
+    emptyHost, emptyHostCode, emptyHostMessage, exitCode, toIoError, usesInlineTestContext,
+} from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
@@ -431,6 +433,22 @@ const runNodeEffect = asyncRun({
     // the URL it was serving. So this settles on the outcome, not on the call.
     listen: (server, port, host) => io(() => new Promise((resolve, reject) => {
         const s = /** @type {_Server} */ (asBase(server))
+        // An empty host is the trap this operation's required `host` argument
+        // exists to close, so it is refused rather than forwarded. Node treats
+        // `''` exactly as it treats an omitted argument and binds the
+        // unspecified address — measured on Linux with Node 22.22.2, where
+        // `listen(0, '')` reports `0.0.0.0` — which is how a missing
+        // configuration value publishes a server on every interface while the
+        // program believes it stated an address. A program that wants every
+        // interface says `'0.0.0.0'` or `'::'` and means it.
+        //
+        // The error is Node's own code and message shape for an argument it
+        // rejects, since a caller reading `IoError.code` should not have to
+        // learn a second vocabulary for a refusal that is this runner's own.
+        if (host === emptyHost) {
+            reject(Object.assign(new Error(emptyHostMessage), { code: emptyHostCode }))
+            return
+        }
         // Each handler removes the other, so exactly one outcome is recorded and
         // neither is left attached. `once` only removes the handler that fired:
         // a failed bind used to leave its `listening` handler behind, and a

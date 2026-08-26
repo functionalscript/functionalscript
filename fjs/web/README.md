@@ -294,6 +294,15 @@ refused with the out-of-range values: Node reads it as "any free port", and
 nothing here can ask which one it got, so the URL it printed would name a dead
 port.
 
+**The entry checked is not the entry read.** `stat` and `readFile` are two
+operations on a name, so an entry swapped between them answers for something
+that is gone: an oversized file becomes `500` instead of `413`, and a FIFO is
+opened despite the `isFile` guard. Doing it properly means reading through one
+opened handle, and `Fs` offers no handles:
+[stat-then-read](./todo/stat-then-read.md). Whoever can swap an entry inside the
+served tree can already put anything there, so the window costs the *promises*
+in the table above rather than the boundary itself.
+
 **Symlinks are followed.** `resolve` decides containment from the URL, which a
 link inside the root can defeat by pointing outside it — the root boundary holds
 for paths, not for the file system's own indirection. Checking it properly needs

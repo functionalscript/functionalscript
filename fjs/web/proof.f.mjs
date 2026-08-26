@@ -14,6 +14,7 @@ import { empty, length, vec } from '../types/bit_vec/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
 import { main, resolve, respond } from './module.f.mjs'
 
+/** @type {string} */
 const page = '<h1>hi</h1>'
 
 /** A file system with a page at the root and one in a subdirectory.

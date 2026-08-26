@@ -579,6 +579,22 @@ export const proof = {
             assertEq(s.listening.length, 1)
             assertEq(s.listening[0].address, 'localhost:8080')
         },
+        // `''` is the host a program did not state, and Node binds every
+        // interface for it — so both runners refuse it rather than forward it.
+        emptyHostRefused: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const created = history(createServer(listener))
+            const e = step(created, ([server]) => listen(server, 8080, ''))
+            const [s, result] = virtual(emptyState)(e)
+            assert(result[0] === 'error', result)
+            assertIoCode(result[1], 'ERR_INVALID_ARG_VALUE')
+            assertIoMessage(
+                result[1],
+                `The argument 'host' must not be empty. Received ''`)
+            // Nothing bound.
+            assertEq(s.listening.length, 0)
+        },
         alreadyListening: () => {
             /** @type {RequestListener<never>} */
             const listener = () => pureOk({ status: 200, headers: {}, body: empty })

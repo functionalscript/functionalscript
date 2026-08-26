@@ -38,6 +38,50 @@ import {
 export const ioError = info => ['ioError', info]
 
 /**
+ * The host a {@link Listen} refuses.
+ *
+ * Node treats `''` exactly as it treats an omitted argument and binds the
+ * unspecified address — measured on Linux with Node 22.22.2, where
+ * `listen(0, '')` reports `0.0.0.0`. `Listen` takes the host precisely so that
+ * an address is stated rather than inherited, and a missing configuration value
+ * arriving as `''` inherits the widest one there is. Every runner refuses it, so
+ * a program proven against the virtual one binds where the Node one binds.
+ *
+ * @type {string}
+ */
+export const emptyHost = ''
+
+/**
+ * Node's own code for an argument it rejects, reported here for a value Node
+ * itself accepts: a caller reading `IoError.code` should not have to learn a
+ * second vocabulary for a refusal that is the runner's own.
+ *
+ * @type {string}
+ */
+export const emptyHostCode = 'ERR_INVALID_ARG_VALUE'
+
+/** Node's message shape for {@link emptyHostCode} — `The argument '<name>'
+ * <reason>. Received <value>`.
+ *
+ * @type {string}
+ */
+export const emptyHostMessage = `The argument 'host' must not be empty. Received ''`
+
+/**
+ * The failure a runner reports for {@link emptyHost}.
+ *
+ * The virtual runner answers with this value and the Node runner throws an
+ * `Error` carrying the same two literals, which is what keeps the two from
+ * drifting apart on a refusal neither inherits from Node.
+ *
+ * @type {IoError}
+ */
+export const emptyHostError = ioError({
+    code: emptyHostCode,
+    message: emptyHostMessage,
+})
+
+/**
  * Normalizes a **thrown** value into an {@link IoError}: the OS error code when
  * the host attached a string one, and a message that is the `Error`'s own or
  * the value's string form.

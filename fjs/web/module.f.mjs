@@ -135,6 +135,10 @@ const percentDecode = s => {
  * @typedef {{ readonly authority: Nullable<string>, readonly path: string }} _Target
  */
 
+/** What separates a scheme from the authority that follows it.
+ *
+ * @type {string}
+ */
 const schemeMark = '://'
 
 /** The schemes an absolute-form target may name.

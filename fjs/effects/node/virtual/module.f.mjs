@@ -17,7 +17,7 @@ import { isProperPrefix, join, parse } from '../../../path/module.f.mjs'
 import { utf8ToString } from '../../../text/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, vec } from '../../../types/bit_vec/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
-import { ioError, nodeCommands } from '../module.f.mjs'
+import { emptyHost, emptyHostError, ioError, nodeCommands } from '../module.f.mjs'
 import { partialRun } from '../../mock/module.f.mjs'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
 import { asBase as asBaseServer, asNominal as asNominalServer } from '../../../types/nominal/module.f.mjs'
@@ -519,6 +519,11 @@ const listen = (server, port, host) => state => {
             message: 'Listen method has been called more than once without closing.',
         }))]
     }
+    // Refused for the reason the Node runner refuses it: `''` is the host a
+    // program did not state, and Node binds every interface for it. Asked with
+    // the port rather than before the listening check, since Node never reaches
+    // an opinion about this value at all — there is no order to match.
+    if (host === emptyHost) { return [state, error(emptyHostError)] }
     if (!isPort(port)) {
         return [state, error(ioError({
             code: 'ERR_SOCKET_BAD_PORT',

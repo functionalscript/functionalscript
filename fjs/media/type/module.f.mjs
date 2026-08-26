@@ -307,7 +307,10 @@ const byExtension = /** @type {const} */ ({
     txt: 'text/plain',
 })
 
-/** The answer for a name whose extension is absent or unknown. */
+/** The answer for a name whose extension is absent or unknown.
+ *
+ * @type {string}
+ */
 const octetStream = 'application/octet-stream'
 
 /**
