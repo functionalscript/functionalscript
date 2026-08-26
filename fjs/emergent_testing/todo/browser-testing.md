@@ -45,7 +45,7 @@ three independent test frameworks.
 ### Shared browser test application
 
 ```text
-browser-test output
+eventual isolated browser-test application root
 ├── index.html
 ├── _browser-test-entry.mjs
 ├── fjs/emergent_testing/browser.mjs
