@@ -250,16 +250,26 @@ rule the module's own closed containers do not follow.
       [`../parse/module.f.mjs`](../parse/module.f.mjs), and the
       `value.length <= pn` half of `arraySetValidate`. Changelog entry prefixed
       `**BREAKING CHANGES:**` — `close` accepts a trailing hole.
-- [ ] If A: everything C touches, **plus** the `undeclaredEntries` filter in
-      `closeContainerValidate` and `closeContainerParse` and the matching
-      filter in `arraySetValidate`. Changelog entry prefixed
-      `**BREAKING CHANGES:**` — `close` accepts an undeclared `undefined`
-      member.
-- [ ] If A, decide the struct kind, which the extra check carries along, and
-      note its **fourth** site: the data form encodes a closed struct as
+- [ ] If A, **decide the struct kind before writing any of it**, because the
+      code cannot leave it open: `undeclaredEntries` is called once in the body
+      of `closeContainerValidate` and `closeContainerParse`, which both kinds
+      instantiate, so filtering it there makes `close({ a: number })` accept
+      `{ a: 1, b: undefined }` whether or not that was decided. The struct kind
+      also has a **fourth** site — the data form encodes a closed struct as
       `rest: never` and reads it with `objectSetValidate`, which has no length
       analogue, so `{ a: 1, b: undefined }` is rejected there by the `rest`
       alone.
+- [ ] If A **and the struct kind is out**: scope the filter to the tuple kind
+      by passing it in per-kind, as `fits`, `getItem` and `schemaEntries`
+      already are, rather than filtering in the shared body.
+- [ ] If A **and the struct kind is in**: `objectSetValidate` changes too, or
+      the data form keeps rejecting what `validate` and `parse` now accept —
+      measured, an extra-check-only patch flips the struct case in those two
+      and leaves the data form at `error`. Add a struct oracle beside the
+      tuple ones.
+- [ ] If A: everything C touches, **plus** that filter and the matching one in
+      `arraySetValidate`. Changelog entry prefixed `**BREAKING CHANGES:**` —
+      `close` accepts an undeclared `undefined` member.
 - [ ] Either way, add `[close([number]), [42, undefined]]` to
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table,
       with an `assertOk`/`assertError` oracle beside it as `optionalPositions`
