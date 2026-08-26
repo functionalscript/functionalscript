@@ -119,11 +119,15 @@ export const proof = {
             assertEq(r.id, 1)
             assert(isOk(parse(response)(r)), r)
         },
+        // A non-`null` id on purpose: an `id` forced to `null` is a mutation
+        // this case would not see if it asked for `null` to begin with, and a
+        // string exercises the other arm of `Id` besides. `errorResponseOf`'s
+        // `null` id is covered by `dispatch.invalidRequest`.
         error: () => {
-            const r = errorResponseOf(null)(parseError)
+            const r = errorResponseOf('abc')(parseError)
             assertEq(r.jsonrpc, '2.0')
             assert('error' in r && r.error.code === -32700, r)
-            assertEq(r.id, null)
+            assertEq(r.id, 'abc')
             assert(isOk(parse(response)(r)), r)
         },
     },
