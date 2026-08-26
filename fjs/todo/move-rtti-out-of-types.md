@@ -64,13 +64,21 @@ The move is its own PR, touching nothing else, per the one-move-per-PR rule in
 Scope of the path edits:
 
 - 30 code files outside `rtti/` import it (`media` 14, `protocol` 6, `mcp` 5,
-  `ci` 2, `edag` 2, `emergent_testing` 1); each drops one `../` from
-  `types/rtti/…` to `rtti/…`. Four more name the old path in doc comments only
+  `ci` 2, `edag` 2, `emergent_testing` 1). Each drops the `types/` segment and
+  keeps its `../` count — `../types/rtti/…` → `../rtti/…` from `edag`,
+  `../../../types/rtti/…` → `../../../rtti/…` from `media/json/rtti`. Four more
+  name the old path in doc comments only
   — `edag/types.ts`, `media/json/module.f.mjs`, `nanvm/types.ts`,
   `types/phantom/types.ts`.
-- 51 import lines in 16 files *inside* `rtti/` re-anchor: `../../object/…` and
-  its siblings become `../types/object/…`, while `../../../asserts`,
-  `../../../djs` and `../../../js` each lose a level.
+- 58 import lines in 16 files *inside* `rtti/` re-anchor, by one rule that
+  holds at every nesting depth: **a path into `types/` keeps its `../` count
+  and gains a `types/` segment; a path out of `types/` loses one `../`.**
+  Nesting depth is preserved either way — do not rewrite by pattern. From the
+  `rtti/` root, `../object/…` → `../types/object/…` and `../../asserts` →
+  `../asserts`; from a subdirectory one level down, `../../object/…` →
+  `../../types/object/…` and `../../../djs` → `../../djs`. The 39 inward paths
+  are `object` 12, `result` 10, `ts` 9, `array` 3, `phantom` 3, `list` 2; the
+  19 outward are `asserts` 16, `djs` 2, `js` 1.
 - ~30 markdown files outside `changelog/` carry relative links into the
   directory.
 - Historical `changelog/` entries keep the old path. They are the record of
@@ -82,7 +90,8 @@ named after what it binds, and no path collides.
 ### Tasks
 
 - [ ] `git mv fjs/types/rtti fjs/rtti` (keeps history for `--follow`).
-- [ ] Re-anchor the 51 relative imports inside `fjs/rtti/`.
+- [ ] Re-anchor the 58 external imports inside `fjs/rtti/`, by the depth rule
+      above rather than by a blanket pattern substitution.
 - [ ] Update the 30 importing code files, and the four doc-comment references.
 - [ ] Update markdown links outside `changelog/`, including `fjs/AGENTS.md`
       (§3 references `types/rtti`, `types/rtti/parse`, `types/rtti/validate`).
