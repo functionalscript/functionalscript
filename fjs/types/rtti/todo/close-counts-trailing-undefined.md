@@ -356,6 +356,20 @@ rule the module's own closed containers do not follow.
       equality alongside the four, and audit for the general case rather than
       these five, since neither list is claimed exhaustive.
 
+      **The strip is context-local, not a rewrite of the shared rule.** One
+      thunk can be both a declared member and the `rest`, and the data form
+      points both at one rule: `const r = () => ['or', undefined, array(r)]`
+      with `close([r], r)` converts to `prefix: ["r"]` and `rest: "r"`.
+      Rewriting `r` to drop its `unit: 2` strips the declared position too —
+      `[]` and `[undefined]`, values the `rest` never sees, flip from ok to
+      error. Deriving a context-local `rest` instead, `array(r)` in place of
+      the reference, leaves `r` alone and agrees with the original on `[]`,
+      `[undefined]`, `[[]]`, `[[], undefined]` and `[[], []]` under a
+      simulated A. Pin that the declared occurrence still admits absence after
+      the `rest` is normalized; measure it against A's data form, since with
+      today's `extra` a stripped `rest` rejects `[[], undefined]` for an
+      unrelated reason.
+
       **Neither half touches a declared position.** Both act on the
       undeclared `rest`, and a declared undefined-only position must stay. The
       two spellings that look like they belong above and do not are
