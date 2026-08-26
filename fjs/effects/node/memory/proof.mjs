@@ -4,6 +4,7 @@
  * @module
  *
  * @import { Key } from '../../memory/types.ts'
+ * @import { Uuid } from './module.mjs'
  */
 
 import { errorSummary } from '../module.f.mjs'
@@ -35,6 +36,23 @@ export const proof = {
         await runner(write(key, 2))
         const result = unwrap(await runner(unwrapStep(read(key), errorSummary)))
         assertEq(result, 2)
+    },
+    runnersDoNotShareStore: async () => {
+        // Both runners mint the *same* key id, so the id cannot be what tells
+        // them apart — only store ownership can. A store shared between
+        // runners (module-level rather than per call) passes every other proof
+        // here; this is the one that fails it.
+        /** @type {Uuid} */
+        const uuid = () => 'fixed'
+        const a = memoryRun(uuid)
+        const b = memoryRun(uuid)
+        const key = unwrap(await a(unwrapStep(create(1), errorSummary)))
+        const result = await b(read(key)).then(
+            () => undefined,
+            error => error,
+        )
+        assert(result instanceof Error, result)
+        assertEq(result.message, 'memory key not found: fixed', result)
     },
     missingKeyThrows: async () => {
         /** @type {Key<number>} */

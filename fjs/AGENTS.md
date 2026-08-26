@@ -536,10 +536,20 @@ back out of the argument. Left to argument inference `O` falls back to its
 `Operation` constraint — payloads and outputs `never` — which no real map is
 assignable to, and the call site reaches for exactly the cast this section warns
 about. **Annotate the result instead**: pin the runner's own type
-(`/** @type {MemoryRun} */`, `/** @type {_EffectToPromise} */`) and `O` is
-inferred from the return type, leaving the map checked. Both Node runners are
-written that way — `fjs/effects/node/module.mjs`'s `runNodeEffect` and
+(`/** @type {_EffectToPromise} */`, `/** @type {MemoryRun} */`) and `O` is
+inferred from the return type, giving the call a real `O` to check its argument
+against. Both Node runners are written that way —
+`fjs/effects/node/module.mjs`'s `runNodeEffect` and
 `fjs/effects/node/memory/module.mjs`'s `memoryRun`.
+
+What that buys differs with what the call passes, and only the first case is
+the hazard this section is about. `runNodeEffect` passes an object **literal**,
+so its annotation is the only thing checking any handler — without it nothing
+is checked. `memoryRun` passes an already-annotated call result, whose handlers
+are checked at the factory regardless; there the annotation buys agreement
+between the *declared map type* and `O`, caught at the runner rather than
+wherever the map is spread next. Both are worth having. Don't claim the second
+is the first.
 
 Reach for `@satisfies` only where a check without adopting the target type is
 actually wanted, e.g. a value that must additionally be nominal-branded —

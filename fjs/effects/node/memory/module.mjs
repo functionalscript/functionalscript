@@ -69,11 +69,21 @@ export const memoryOperationMap = (uuid = randomUUID) => {
  * TypeScript cannot infer `O` back out of one — only a homomorphic
  * `{[K in keyof T]: …}` is reversed. Left to argument inference `O` falls back
  * to its `Operation` constraint, whose payloads and outputs are `never`, and no
- * real map is assignable to that; the call site then needs a cast, and a cast in
- * *that* position stops each handler from being checked against `O` at all (see
- * [`fjs/AGENTS.md`](../../../AGENTS.md)). Annotating the result instead lets
- * `O` be inferred from the return type, so the map stays checked. The Node
- * runner pins `runNodeEffect` the same way (`../module.mjs`).
+ * real map is assignable to that; the call site then needs a cast. Annotating
+ * the result instead lets `O` be inferred from the return type, which is what
+ * gives the call a real `O` to check the argument against.
+ *
+ * **What that check is worth here is narrow, so it is worth stating exactly.**
+ * Each handler is already checked against `MemOp` by
+ * {@link memoryOperationMap}'s own annotation, and was before this call was
+ * written — a drifted handler is reported there, at the factory, either way.
+ * What the runner adds is agreement between the *declared map type* and
+ * `MemOp`: give `MemoryOperationMap` a narrower operation set and this line
+ * reports the missing handler, where an unchecked call site would leave it to
+ * whoever spreads the map next. The wider hazard — a cast stripping the
+ * contextual type from an object *literal*, so no handler is checked at all —
+ * is `runNodeEffect`'s (`../module.mjs`), which passes a literal; this call
+ * passes an already-annotated result.
  * @type {(uuid?: Uuid) => MemoryRun}
  */
 export const memoryRun = (uuid = randomUUID) => asyncRun(memoryOperationMap(uuid))
