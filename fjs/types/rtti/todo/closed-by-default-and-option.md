@@ -465,6 +465,14 @@ Stage 1 (one PR):
       rewrite. `../../../../AGENTS.md` requires a fixed issue to be deleted in
       the PR that fixes it, and leaving it would advertise work against an API
       that is gone.
+- [ ] Migrate [schema-walk-own-indices](./schema-walk-own-indices.md), which
+      **survives** stage 1 rather than being deleted by it: `:69-72` links to
+      `close-counts-trailing-undefined.md` — gone by then — and states its
+      value-side constraint as `close([number, () => ['const', undefined]])`
+      against `close([number])`, a spelling the API no longer has. Retarget the
+      link at this file and restate the pair in the closed-by-default form; the
+      constraint itself is untouched, since it is about the prototype asymmetry
+      and not about `close`.
 - [ ] Migrate consumers: drop 21 `close(...)` in `../../../edag/module.f.mjs`;
       wrap the protocol structs in `open(...)`; audit the other 13 modules that
       import the schema surface (`fjs/media/*`, `fjs/mcp/*`, `fjs/ci/common`,
@@ -719,7 +727,14 @@ Stage 2 (one PR, after stage 1 lands):
       is `Absent | number` and the annotation says `number` — and the member then
       renders required. Add a `_TsRaw`-level check (`CheckRaw<A, B> = Equal<A,
       _TsRaw<B>>`) for the raw half, since that is the only half with teeth
-      here. Runtime is untouched: a `Phantom` has no runtime representation, so
+      here — and update the **contract that mandates the weak pair**:
+      `../../phantom/types.ts:26-38` tells every `Phantom` user to guard with
+      two `Check`s "or `Check3`, which pairs the two into one assert", both of
+      which route through public `Ts`. A caller following that documentation
+      after stage 2 silently renders a wrapped optional member required. The
+      JSDoc has to require the raw assert and say how a caller spells it, which
+      means `Absent` and `CheckRaw` become part of the exported surface rather
+      than internal names. Runtime is untouched: a `Phantom` has no runtime representation, so
       `admitsAbsence`
       walks the same thunk either way. Proof: an optional `Phantom`-wrapped
       member.
