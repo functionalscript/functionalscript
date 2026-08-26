@@ -352,8 +352,8 @@ same engine. The remaining 169 pairs agree on both.
 
 This does not weaken the design; it locates where the evidence has to come from.
 The EDAG follows the specification whatever its host does, which is why
-`chainsJs` in [`../proof.f.mjs`](../proof.f.mjs) deliberately omits this
-spelling and `chain.throw.optionalPropertyOnUndefined` in
+`chainsJs` in [`../proof.f.mjs`](../proof.f.mjs) carries this spelling
+commented out and `chain.throw.optionalPropertyOnUndefined` in
 [`../amnesia/proof.f.mjs`](../amnesia/proof.f.mjs) pins the throw by evaluating
 the node instead. `!()` needs the same treatment, and it is the one production
 that does.

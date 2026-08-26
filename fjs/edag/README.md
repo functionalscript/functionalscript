@@ -168,6 +168,17 @@ produce it whatever its host engine does — as
 throw on every runner. `(u?.b).c`, the property counterpart, throws everywhere
 and is what `chainsJs` pins for this boundary.
 
+Two further points about that disagreement, both worth knowing before reading
+the commented cases in `chainsJs.throw`. It is the *engine*, not bun's
+transpiler: `(u?.b)(d)` is equally wrong through `eval` and `new Function`
+under bun, which hand the source straight to JavaScriptCore. And there is a
+second, separate defect next to it — bun rejects `` (u?.b)`tag` `` at parse
+with `SyntaxError: Cannot use tagged templates in an optional chain`, where
+`eval` of the same text throws correctly, so that one *is* the transpiler.
+It is [oven-sh/bun#31812](https://github.com/oven-sh/bun/issues/31812), filed
+for the `new` sibling `new (baz()?.qux)()`; one root cause, the parenthesis
+ceasing to end the chain, so restrictions that hold inside it leak past.
+
 ## Caveats
 
 - Tuples are open on the trailing side: `['args', 'extra']` validates.
