@@ -9,7 +9,7 @@
 
 import { errorSummary } from '../module.f.mjs'
 import {
-    asNominal,
+    asBase, asNominal,
     create, read, write,
 } from '../../memory/module.f.mjs'
 import { memoryRun, run } from './module.mjs'
@@ -53,6 +53,19 @@ export const proof = {
         )
         assert(result instanceof Error, result)
         assertEq(result.message, 'memory key not found: fixed', result)
+    },
+    runIsPerCall: async () => {
+        // `run` builds a runner per call, so the store the first call wrote to
+        // is gone by the second. One runner shared across every `run` — the
+        // other half of the store-ownership mutant — passes every other proof
+        // here, including `runnersDoNotShareStore`.
+        const key = unwrap(await run(unwrapStep(create(1), errorSummary)))
+        const result = await run(read(key)).then(
+            () => undefined,
+            error => error,
+        )
+        assert(result instanceof Error, result)
+        assertEq(result.message, `memory key not found: ${asBase(key)}`, result)
     },
     missingKeyThrows: async () => {
         /** @type {Key<number>} */

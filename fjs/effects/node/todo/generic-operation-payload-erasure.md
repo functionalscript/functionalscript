@@ -6,15 +6,20 @@
 ### Problem
 
 An `Operation` may declare a generic signature — `MemRead` is
-`<T>(key: Key<T>) => OpResult<T>`, `Sandbox` is
-`<T>(f: () => SandboxResult<T>) => …`. `Pr<O, K>` reads the payload and the
-output off that signature with `infer P` / `infer R`, and inference through a
-generic signature instantiates its type parameter at the constraint. So the
-handler an operation map writes receives `T = unknown` and has to cast its way
-back — `fjs/effects/node/virtual/module.f.mjs:627` is
+`<T>(key: Key<T>) => OpResult<T>`, and `Sandbox` (`../types.ts:325`) is
+`<T>(f: () => T) => OpResult<SandboxResult<T>>`. `Pr<O, K>` reads the payload
+and the output off that signature with `infer P` / `infer R`, and inference
+through a generic signature instantiates its type parameter at the constraint.
+So the handler an operation map writes receives `T = unknown` and has to cast
+its way back — `fjs/effects/node/virtual/module.f.mjs:627` is
 `sandbox: f => … ok(/** @type {SandboxResult<unknown>} */ (f()))`, and without
 the cast `f()` is `unknown`, which `OpResult<SandboxResult<unknown>>` will not
 take.
+
+Note where `SandboxResult` sits: on the *output* side, wrapping what the handler
+must produce, not inside `f`. That is the whole reason the cast is needed. Were
+the payload `f: () => SandboxResult<T>`, erasure would hand the handler a
+`SandboxResult<unknown>` already and there would be nothing to cast.
 
 The same erasure is why `fjs/effects/memory/module.f.mjs:34,39` cast the
 `do_('memCreate')` / `do_('memRead')` results back to their generic shapes.
