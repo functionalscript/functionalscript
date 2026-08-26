@@ -1,9 +1,10 @@
 # `close` splits one value into a member and a non-member
 
-**Priority:** P3 — nothing is broken today; what is missing is the decision,
-which a consumer already depends on without either module saying so
-**Status:** open — a decision about what `close` states, not a patch to one
-reader
+**Priority:** P2 — `close(c, never)` and `close(c)` are one set that the three
+readers answer differently, which is a defect rather than a decision; the
+decision it sits inside is P3
+**Status:** open — one reader disagreement to fix, then a choice between two
+correspondences the module cannot currently both keep
 
 ## Problem
 
@@ -55,7 +56,34 @@ flips to `ok`.
 The data form says the same thing in the same two halves —
 `extra.length === 0 && value.length <= pn` in `arraySetValidate`
 ([`../data/module.f.mjs`](../data/module.f.mjs)) — which is why all three
-readers agree cell for cell.
+readers agree cell for cell on every schema above.
+
+### A defect falls out, and it has to be fixed whichever answer wins
+
+Both length checks sit in the **no-`rest`** branch. Supplying a `rest` skips
+them, and a hole is no entry, so it meets nothing on the way through — while
+the data form, which reads a normalized set rather than the spelling, still
+applies its own. `never` is a public spelling of the exact-members set, and
+`close(c)` and `close(c, never)` normalize to the identical `Data`, so the two
+must be one schema. They are not:
+
+| schema | `[1]` | `[1, undefined]` | `[1, ,]` (a hole) |
+| --- | --- | --- | --- |
+| `close([number])` | ok / ok / ok | error / error / error | error / error / error |
+| `close([number], never)` | ok / ok / ok | error / error / error | **ok / ok / error** |
+
+(`validate` / `parse` / data form; `cmp` reports the two `toData` results
+equal.) That is a reader disagreement of exactly the kind
+[#1712](https://github.com/functionalscript/functionalscript/pull/1712) fixed,
+not a design choice: whichever of A, B or C is chosen, one spelling of a set
+cannot accept what another rejects. It is listed first in the tasks for that
+reason, and it means **B is not documentation-only**.
+
+The narrow fix is to consult `fits` on both branches rather than only when
+`rest` is absent — the `rest` loop constrains the entries a value *has*, and
+`fits` constrains how long it may be, so they are independent questions and the
+second is being skipped for no stated reason. A `rest` of `unknown` normalizes
+to the open form, which is unaffected either way.
 
 So exactly one case rests on `length`, the attribute the absence rule says
 stops being observable after the last required position. The other rests on
@@ -146,8 +174,9 @@ today with no length check anywhere near it. A costs the only way to reject a
 present-but-`undefined` trailing member.
 
 **B. `length` is an attribute of an array value, and `close` is where it
-becomes observable.** Nothing changes, and `or(close(short), close(long))`
-stays the supported way to state a canonical optional tail. What it owes the
+becomes observable.** No *acceptance* changes beyond the `close(c, never)` fix
+above, which every answer owes, and `or(close(short), close(long))` stays the
+supported way to state a canonical optional tail. What it owes the
 reader is narrower than "document the carve-out", because half of it is already
 inferable: "Closed containers" in [`../README.md`](../README.md) says a
 container whose undeclared members must be the *value* `undefined` states that
@@ -174,14 +203,23 @@ removes the hole from the rendered-set correspondence while leaving the
 explicit `undefined` outside the absence rule, so it satisfies neither
 correspondence fully.
 
-On the evidence here B, documented, is the answer — which makes this issue a
-documentation fix with two rejected alternatives recorded, rather than the
-behaviour change it looked like from the table alone. The one thing no answer
-should do is leave the README stating a rule the module's own closed containers
-do not follow.
+On the evidence here B, documented, is the answer — which makes this issue one
+defect to fix, one sentence to write, and two rejected alternatives recorded,
+rather than the wholesale behaviour change it looked like from the table alone.
+The one thing no answer should do is leave the README stating a rule the
+module's own closed containers do not follow.
 
 ## Tasks
 
+- [ ] **First, and independent of the decision:** make `close(c, never)` and
+      `close(c)` answer alike. Consult `fits` on both branches of
+      `closeContainerValidate` and `closeContainerParse`, and the same in
+      `arraySetValidate`'s `rest` branch; add
+      `[close([number], never), [42, ,]]` to
+      [`../validate/proof.f.mjs`](../validate/proof.f.mjs)'s acceptance table,
+      which is where a disagreement between the three readers is supposed to
+      surface. Changelog: a bug fix, not a **BREAKING** change — the two
+      spellings already denote one set.
 - [ ] Decide A, B or C.
 - [ ] If B, which is what the evidence here favours: say in
       [`../README.md`](../README.md) that a closed container bounds `length`
