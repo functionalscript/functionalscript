@@ -299,13 +299,28 @@ does not help: the write happens outside. A generated `readonly` declaration
 does not close it either — `readonly` constrains what the callee may do, and
 TypeScript accepts a mutable array or object where a readonly type is expected.
 
-So the boundary rule has to apply to **every reference-valued input crossing
-into FunctionalScript**, not only to the schema features TypeScript cannot
-express. Each incoming reference needs one of: `parse` against a schema that
-names every part (per the paragraph above); a deep copy; a freeze; or a stated
-ownership transfer that the caller is documented to honour. Which one is a
-cost/ergonomics decision, and it belongs with the same person deciding the
-`close` policy — the two are the same question asked about different values.
+So the boundary rule has to apply to **every reference crossing the boundary
+that both sides retain**, in either direction, not only to the schema features
+TypeScript cannot express.
+
+*Inbound* is the obvious half: each incoming reference needs `parse` against a
+schema that names every part (per the paragraph above), a deep copy, a freeze,
+or a stated ownership transfer the caller is documented to honour.
+
+*Outbound is the same hole mirrored*, and it is easy to miss because the value
+started inside. An exported value, or a function result, that FunctionalScript
+also keeps a reference to can be mutated by the JavaScript that received it,
+changing an internal value — again with no write anywhere in FunctionalScript.
+**An exported schema is the sharp case**, because commitment 1 wants schemas
+named, exported and shared, and a `Const` schema is an ordinary object: a
+consumer that mutates the schema it was handed changes what the checker
+accepts, for everyone holding it. Outbound references need the same treatment —
+copy or freeze on the way out, or the module relinquishes its own alias, which
+is ownership transfer in the other direction.
+
+Which remedy is a cost/ergonomics decision, and it belongs with the same person
+deciding the `close` policy — all of it is one question asked about different
+values and directions.
 
 That is one more reason the regime follows what the compiler can read
 (commitment 4), and a reason the guarantee in commitment 3 is worth reading as
