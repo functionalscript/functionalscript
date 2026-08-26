@@ -2,7 +2,7 @@ use core::ops::Shl;
 
 use crate::{
     common::{div_mod::DivMod, sized_index::SizedIndex},
-    vm::{Any, BigInt, IContainer, IVm},
+    vm::{Any, BigInt, IVm},
 };
 
 const TOO_LARGE: &str = "shl: shift amount too large";
@@ -58,7 +58,7 @@ impl<A: IVm> Shl for BigInt<A> {
             "shl: result must be normalized and non-empty"
         );
 
-        Ok(Self::unchecked_new(*self.0.header(), value))
+        Ok(Self::unchecked_new(self.sign(), value))
     }
 }
 
