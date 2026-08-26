@@ -280,12 +280,26 @@ rule the module's own closed containers do not follow.
       callers using the explicit-rest form. #1712 labelled its analogous
       reader-alignment change the same way.
 - [ ] Decide A, B or C.
-- [ ] If B, which the evidence favours: say in [`../README.md`](../README.md)
-      that a closed container bounds `length` too, so a trailing **hole** is a
-      non-member, giving the reason `arraySetValidate` already gives — it keeps
-      the set equal to what `Ts<>` and JSON Schema render it as. Do **not**
-      restate the explicit-`undefined` half; "Closed containers" already
-      implies it, and a second telling risks contradicting the first.
+- [ ] If B, which the evidence favours: put the invariant where
+      `../../../AGENTS.md` puts invariants — the JSDoc on the `close` export in
+      [`../module.f.mjs`](../module.f.mjs), which is also what reaches the
+      emitted declarations and editor hovers — and keep
+      [`../README.md`](../README.md) for the reason.
+
+      State it qualified: a **no-rest closed tuple** bounds `length`, so a
+      trailing **hole** is a non-member. Not "a closed container" — measured,
+      `close([number])` rejects `[1, ,]` while `close([number], string)`
+      accepts it, because a `rest` skips the branch both length checks sit in,
+      and the struct kind has no length to bound (`fits` is `() => true`
+      there). The `close` doc comment today says `close([number])` is "exactly
+      one number", which is true and still leaves a reader unable to predict
+      that cell.
+
+      The reason stays in the README: it keeps the set equal to what `Ts<>`
+      and JSON Schema render it as, which is what `arraySetValidate` already
+      says. Do **not** restate the explicit-`undefined` half in either place;
+      "Closed containers" already implies it, and a second telling risks
+      contradicting the first.
 - [ ] If C: the two tuple `fits`, in
       [`../validate/module.f.mjs`](../validate/module.f.mjs) and
       [`../parse/module.f.mjs`](../parse/module.f.mjs), and the
