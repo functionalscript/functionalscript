@@ -276,15 +276,25 @@ export const proof = {
     // accepted, while `[5]` holds it at position 0 and is not.
     interiorOptionBeforeRequired: () => {
         const t = /** @type {const} */ ([option(string), number])
-        /** @type {(check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
-        const every = check =>
-            value => {
-                for (const read of [v, p, d]) { check(read(t)(value)) }
-            }
-        every(assertOk)([, 5])          //< a hole at position 0
-        every(assertOk)([undefined, 5]) //< the same value, spelled densely
-        every(assertOk)(['x', 5])
-        every(assertError)([5])         //< `number` at position 1 is required
+        /** @type {(rtti: Type) => (check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
+        const every = rtti =>
+            check =>
+                value => {
+                    for (const read of [v, p, d]) { check(read(rtti)(value)) }
+                }
+        // Closed too, for the reason `optionalPositions` runs both: `close` is
+        // its own reader on all three, and this schema is not one of the
+        // shapes the trailing-option cases there already put through it.
+        for (const rtti of [t, close(t)]) {
+            every(rtti)(assertOk)([, 5])          //< a hole at position 0
+            every(rtti)(assertOk)([undefined, 5]) //< the same value, spelled densely
+            every(rtti)(assertOk)(['x', 5])
+            every(rtti)(assertError)([5])         //< `number` at position 1 is required
+        }
+        // And the one answer closing changes here as well.
+        const extra = /** @type {const} */ (['x', 5, 'extra'])
+        every(t)(assertOk)(extra)
+        every(close(t))(assertError)(extra)
     },
     // The two tables above pin that the three readers *agree*; these pin what
     // they agree on, which is what the changelog entry claims.
