@@ -310,7 +310,15 @@ this repository states types. Once a `.f.mjs` module's types are RTTI schemas
 and its `.d.ts` is generated from them, a `types.ts` beside it has no remaining
 job — the schema *is* the type-level API, and it is a value rather than a
 declaration. 92 of the 94 `types.ts` files in the tree sit next to a
-`module.f.mjs`, so this is nearly all of them.
+`module.f.mjs`, so the *file* is adjacent to a schema-bearing module in nearly
+every case.
+
+That is a fact about placement, not about contents, and the distinction
+matters: a `types.ts` also holds declarations that describe no runtime value at
+all — [`fjs/types/array/types.ts`](../fjs/types/array/types.ts) exports
+`Index`, `Tuple`, `KeyOf`, `Includes`, conditional utilities over other types —
+and no schema, printer, or reification produces those. Stage 11 states the
+rule and the known exceptions.
 
 That is not a contradiction of
 [migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md), which says four
@@ -333,9 +341,10 @@ declarations are **generated from the schemas**, never authored.
 [`fjs/types/rtti/ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs) is already
 that printer — `thunk RTTI → toData → dataToTs`, emitting canonical aliases with
 recursion handled — so this is close to plumbing plus an `fjs` command, and it
-is the stage that can land earliest and entirely on its own. Not *only*
-plumbing, though: the printer documents two places where it and `Ts<>` disagree,
-and both change what a generated declaration means. See stage 1. It is also what lets a
+is the stage that can land earliest. Not *only* plumbing, though, and not entirely on
+its own: the printer documents two places where it and `Ts<>` disagree, both of
+which change what a generated declaration means, and rendering a schema is not
+the same as knowing which export carries it. See stage 1. It is also what lets a
 `.f.mjs` module drop its JSDoc without any consumer noticing.
 
 ### What already exists
@@ -509,9 +518,11 @@ so that issue's open question is answered yes by this stage.
 
 ### Tasks
 
-Ordered. Stage 1 is independent of everything else and can start today; stages
-3 onward are gated on the compiler; stages 9 and 10 both gate stage 11; stage 12
-is off to the side, gating a claim rather than a stage.
+Ordered. Stage 1's renderer half can start today; its
+declaration-emission half needs an export-to-schema association and so waits
+for stage 3 or for an explicit manifest. Stages 3 onward are gated on the
+compiler; stages 8, 9 and 10 gate stage 11; stage 12 is off to the side, gating
+a claim rather than a stage.
 
 - [ ] **1. `.d.ts` generation from schemas.** An `fjs` command over
       [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs), wired into
@@ -531,6 +542,23 @@ is off to the side, gating a claim rather than a stage.
         limitation — but a `.d.ts` has to pick one and say so.
 
       Settling these is part of stage 1, and stage 11 depends on the answer.
+
+      **And it is not fully independent of the compiler stages.** The printer
+      renders *a schema* to a type expression;
+      [`dataToTs`](../fjs/types/rtti/ts/module.f.mjs) returns aliases plus that
+      expression, not `export const ks: …`. Generating a module's `.d.ts` also
+      needs to know **which export has which schema**, and that association is
+      exactly what an annotation supplies — which does not exist until stages
+      3–4. So stage 1 splits:
+      - *independent, startable today* — schema → type expression, the
+        `unknown` and tuple decisions above, and the `fjs` command around them;
+      - *needs an export-to-schema association* — emitting a module's
+        declarations. Either an explicit manifest naming export and schema, or
+        this half waits for annotation recognition.
+
+      A manifest is the cheaper way to ship stage 1 early and is worth it if
+      `.d.ts` output is wanted before the compiler exists; otherwise move
+      declaration emission after stage 3 and keep stage 1 to the renderer.
 - [ ] **2. Settle the annotation form.** Narrow the body from an expression to a
       name in [type-annotations](../spec/todo/3360-type-annotations.md), and
       settle which positions accept an annotation — `const`, parameter, return,
@@ -592,16 +620,33 @@ is off to the side, gating a claim rather than a stage.
       start as soon as stage 5 produces its first real diagnostic.
 - [ ] **11. Retire `Ts<T>`, the JSDoc types in `.f.mjs`, and the `types.ts`
       beside them,** declaration by declaration — the two annotation forms are
-      disjoint, so this needs no flag day and no module-at-a-time rule — once
-      1–10 hold, **stages 8 and 9 included**: a declaration whose public type is
-      nominal cannot retire before RTTI can carry a brand, or the generated
-      `.d.ts` silently widens it.
-      [`fjs/types/bit_vec`](../fjs/types/bit_vec/types.ts) is the concrete case
-      — `Vec = Nominal<'bit_vec', _Revision, bigint>` is a published
-      distinction that `bigint` alone does not make. An exported **generic**
-      schema is held up the same way and by stage 8: until the
-      argument-to-result relationship is reified there is no parameterised
-      declaration to generate, so its authored TypeScript cannot retire either.
+      disjoint, so this needs no flag day and no module-at-a-time rule.
+
+      **One rule governs the whole stage: a declaration retires only when the
+      generated `.d.ts` reproduces what it published.** Not "when a schema
+      exists for it" — when the emitted declaration means the same thing.
+      Anything else silently changes a published API, and does it in the
+      artifact consumers actually read.
+
+      Four categories are known not to satisfy that rule today. The list is
+      **open**: assume there are more until someone enumerates `types.ts`
+      exhaustively.
+
+      | Category | Example | Blocked on |
+      | --- | --- | --- |
+      | Nominal / branded | `Vec = Nominal<'bit_vec', _Revision, bigint>` ([`bit_vec`](../fjs/types/bit_vec/types.ts)) | stage 9 — branding is a compile-time fiction, so nothing in the value carries it |
+      | Generic schema constructors | `pair = t => close([t, t])` | stage 8 — the argument-to-result relationship must be reified first |
+      | Type-only utilities | `Index`, `Tuple`, `KeyOf`, `Includes` ([`types/array`](../fjs/types/array/types.ts)) | **nothing yet** — these describe no runtime value, so no schema and no printer produces them |
+      | Polymorphic functions | `identity: <T>(value: T) => T` ([`types/function`](../fjs/types/function/module.f.mjs)) | **nothing yet** — a function schema with concrete parameter and result sets cannot say both positions share one caller-chosen type |
+
+      The last two have no stage assigned, and that is the honest state: a
+      type-only utility is not a schema of anything, and RTTI has no type
+      variables, so neither `.d.ts` generation nor stage 8's reification
+      reaches them. Either the eDSL grows a representation (commitment 1 says
+      that is where such gaps get closed) or those files are **explicitly
+      retained** and the stage's claim narrows accordingly. Pick one before
+      starting; do not discover it per module.
+
       Convert against a declaration comparison rather than against both
       checkers accepting the initializer, since they agree on a value without
       agreeing on a type — but compare against **the declaration that will
@@ -610,10 +655,12 @@ is off to the side, gating a claim rather than a stage.
       declaration and the generated `.d.ts` then widens it, because the printer
       emits the open form where `Ts<>` renders the closed one. Either this
       check runs against emitted-declaration semantics, or stage 1 first makes
-      `Ts<>` and the printer agree. A `types.ts` goes when its module's schemas cover what it declared
-      and nothing outside still imports it; consumers keep seeing types through
-      generated `.d.ts`. This is the stage where TypeScript stops being the type
-      system for FunctionalScript, and it is per-module, not a cutover.
+      `Ts<>` and the printer agree.
+
+      A `types.ts` goes when every declaration in it retires under the rule
+      above and nothing outside still imports it. This is the stage where
+      TypeScript stops being the type system for FunctionalScript — for the
+      declarations it can reach.
 - [ ] **12. Anchor unreachable imported module roots,** so that an
       annotation-only import neither is rejected nor silently deletes a
       failure. This is the `','` anchoring operation
