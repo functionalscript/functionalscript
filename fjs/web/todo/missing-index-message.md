@@ -83,12 +83,28 @@ Three constraints on the wording:
   `resolve` runs, so a rebound origin never reaches a `404` at all. Those
   defend the socket; this defends what an answer says.) Both should keep
   answering the same sentence.
-- **Pin which string is echoed.** The candidates disagree — the raw target,
-  the decoded path, and the re-joined segments differ for `/fjs%2F` (decodes
-  to `/fjs/`) and `/fjs/./` (re-joins to `fjs`) — and `percentDecode` rejects
-  only NUL and invalid UTF-8, so `/a%0Ab/` and `/%1B%5B31m/` carry control
-  characters through. Harmless in a `text/plain` body served `nosniff`, and no
-  disclosure, but a message quoting the client needs one defined spelling.
+- **Echo the percent-encoded spelling, never the decoded one.** The candidates
+  disagree — the raw target, the decoded path and the re-joined segments
+  differ for `/fjs%2F` (decodes to `/fjs/`) and `/fjs/./` (re-joins to `fjs`)
+  — but the choice is not only cosmetic. `percentDecode` rejects just NUL and
+  invalid UTF-8, so `/%1B%5B31m/` and `/a%0Ab/` decode to real control
+  characters, and a body is not only read by browsers: `curl` and `wget` write
+  it to a terminal, where an ANSI or OSC sequence is acted on rather than
+  displayed. `text/plain` and `nosniff` bound what a *browser* does with the
+  bytes and say nothing about that, so calling them harmless was wrong.
+
+  The encoded form cannot carry the problem. A raw control byte never reaches
+  this module — Node's parser answers `400 Bad Request` on the request line
+  before the listener runs, verified — so in the target such a character
+  exists only as the printable text `%1B`. Echoing the target's path as
+  received therefore needs no escaping pass and no list of dangerous
+  characters, which is the version of this that cannot rot. Echoing a
+  normalized path instead is fine on the same terms, provided it is
+  re-encoded before it reaches the body; what must not happen is quoting
+  `percentDecode`'s output directly.
+
+  Nothing echoes anything today — the current answer is the constant `not
+  found` — so this is a property to build in, not a bug to fix.
 
 The obstacle is that the distinction is gone by the time it is needed.
 `resolve` computes `isDirectory` and then returns `Result<string, Refusal>` —
@@ -111,6 +127,8 @@ sentence too — the message would be true, and treating it as a directory
 request would not be. And `/fjs/..` is directory-form without looking it, so
 `no index.html in /fjs/..` names a path that reads as a file's neighbour;
 echoing the parsed path instead would name a directory the client never wrote.
+Either answer satisfies the encoding constraint above — a normalized path is
+re-encoded on the way out — so that choice stays open on its own merits.
 
 ### Tasks
 
@@ -122,6 +140,8 @@ echoing the parsed path instead would name a directory the client never wrote.
       appends `index.html`, so a hidden path keeps `not found`.
 - [ ] Prove `/.git/` still answers `not found`, and answers it identically to
       `/.nonexistent/`, so the refusal stays ahead of the new sentence.
+- [ ] Prove `/%1B%5B31m/` echoes `%1B%5B31m` and not the escape it names, so
+      no answer this server writes can drive a terminal.
 - [ ] Prove that `/fjs/` and `/no-such-dir/` still answer identically — and
       `/README.md/` with them, which needs
       [notdir-status](./notdir-status.md) first. Without it the proof passes
