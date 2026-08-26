@@ -119,8 +119,11 @@ element after an optional one. That is a spelling limit, not a narrower set: an
 interior position admitting `undefined` may still be absent at runtime, which
 `../validate/proof.f.mjs`'s `interiorOptionBeforeRequired` pins —
 `[option(string), number]` accepts `[, 5]`, the required position after the
-hole being present. `optionalPositions` cannot say it: its hole is followed by
-another omittable position, so truncation explains that row equally well.
+hole being present. `optionalPositions` cannot say it: its hole falls *inside*
+the trailing omittable run, so no position the renderer marks required follows
+it. (Not that truncation explains that row — truncation would predict its
+rejection, and all three readers accept it, which is what that proof's own
+comment records.)
 
 ## Tasks
 
