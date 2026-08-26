@@ -79,21 +79,39 @@ Scope of the path edits:
   `../../types/object/…` and `../../../djs` → `../../djs`. The 39 inward paths
   are `object` 12, `result` 10, `ts` 9, `array` 3, `phantom` 3, `list` 2; the
   19 outward are `asserts` 16, `djs` 2, `js` 1.
-- Markdown breaks in **both** directions, and the same rule settles both.
-  - *Into `rtti/`*: 32 files outside it (`changelog/` aside) name the old path
-    — 18 carry 36 relative links, which drop the `types/` segment and keep
-    their `../` count; the other 14 mention it in prose or a code fence and
-    are edited by hand.
-  - *Out of `rtti/`*: the moved files' own outward links break too, and this
-    is easy to miss because nothing outside the subtree changes. 15 links in
-    7 files, every one leaving `types/`, so every one loses a `../`:
+- Markdown breaks in **both** directions, in four classes. **Inventory by
+  resolving paths, not by grepping `types/rtti`** — string matching misses
+  every reference that reaches the subtree without spelling that segment, and
+  link-syntax matching misses every path written in inline code or a fence.
+  - *Into `rtti/`* — **37 links in 19 files** (`changelog/` aside), found by
+    resolving every relative markdown target and asking whether it lands in
+    the subtree. 36 spell `types/` and simply drop it, keeping their `../`
+    count. The 37th does not: `fjs/types/todo/66d-ts-printer-tuple-readonly-fold.md`
+    reaches a sibling as `../rtti/ts/module.f.mjs`, so it *gains* a `../` and
+    becomes `../../rtti/ts/module.f.mjs` — the opposite direction from the
+    rule covering the other 36, and invisible to both a `types/rtti` grep and
+    a check confined to the moved subtree. A further 14 files name the old
+    path in prose or a fence and are edited by hand.
+  - *Out of `rtti/`, as links* — the moved files' own outward links break too,
+    easy to miss because nothing outside the subtree changes. 15 links in 7
+    files, every one leaving `types/`, so every one loses a `../`:
     `README.md` reaches `media/json/todo/rtti-parse.md` as `../../media/…` →
     `../media/…`; `data/README.md` has `../../../bnf/…` and `../../../djs/…`;
     `todo/` has four `../../../edag/module.f.mjs`, four
     `../../../../todo/…`, two `../../../../spec/todo/…`, one
-    `../../../emergent_testing/…` and one `../../../AGENTS.md`. No outward
-    markdown link targets a `types/` sibling, so none gains a `types/`
-    segment.
+    `../../../emergent_testing/…` and one `../../../AGENTS.md`. None targets a
+    `types/` sibling, so none gains a `types/` segment.
+  - *Out of `rtti/`, not as links* — 16 relative refs in 6 files written as
+    inline code or inside fences, so no link checker sees them, each losing a
+    `../` like the links: `../../../cas` in
+    `todo/parse-omits-undefined-members.md`,
+    `../../../media/json/schema/module.f.mjs` in `todo/identity-aware-parse.md`,
+    and the `edag`/`spec`/`todo` refs across `todo/`.
+  - *Self-referential* — 21 literal `fjs/types/rtti/…` paths in 4 moved todo
+    files (`shared-helper-reuse.md` 6, `export-node-accessors.md` 6,
+    `kindset-eliminator.md` 6, `proof-shared-asserts.md` 3), naming the very
+    subtree being moved. Repo-root-absolute, so no `../` arithmetic — a plain
+    substitution to `fjs/rtti/…`.
 - Historical `changelog/` entries keep the old path. They are the record of
   what shipped; leave them.
 
@@ -106,13 +124,18 @@ named after what it binds, and no path collides.
 - [ ] Re-anchor the 58 external imports inside `fjs/rtti/`, by the depth rule
       above rather than by a blanket pattern substitution.
 - [ ] Update the 30 importing code files, and the four doc-comment references.
-- [ ] Update the 36 inbound markdown links and the 14 prose mentions outside
+- [ ] Update the 37 inbound links and the 14 prose mentions outside
       `changelog/`, including `fjs/AGENTS.md` (§3 references `types/rtti`,
-      `types/rtti/parse`, `types/rtti/validate`).
-- [ ] Re-anchor the 15 outbound links in the moved `README.md` and `todo/`
-      files — each loses one `../`.
-- [ ] Check every relative link in the moved subtree resolves, in both
-      directions; a broken markdown link fails no test.
+      `types/rtti/parse`, `types/rtti/validate`) and the sibling link in
+      `fjs/types/todo/66d-ts-printer-tuple-readonly-fold.md`, which gains a
+      `../` rather than dropping a segment.
+- [ ] Re-anchor the moved subtree's outward references — 15 links plus 16
+      non-link refs in inline code and fences — each losing one `../`, and
+      rewrite the 21 literal `fjs/types/rtti/…` self-paths.
+- [ ] Check every path reference resolves, in both directions, by resolving
+      targets rather than grepping for `types/rtti`, and covering inline code
+      and fences as well as link syntax. Nothing here fails a test: `npx tsc`
+      and `fjs test` see none of it.
 - [ ] Add `changelog/unreleased/` entry noting the breaking path change.
 - [ ] `npm run update`. The move edits `fjs/ci/common/module.f.mjs`, which is
       generator source, and `ci-update` regenerates committed files that CI
