@@ -35,12 +35,33 @@ The simplest path found so far is two steps.
 
 1. **Generate one file, on Node.** Walk the tree with the discovery half of
    `loadModuleMap` (`../../dev/module.f.mjs`, `shouldLoad`) and write a single
-   `.mjs` file that *statically* imports every module exporting `proof`,
-   followed by a small runner: walk each `proof` value, call the zero-argument
-   functions, `try`/`catch` around each call, count passes and failures, `print`
-   the failures, and `quit(1)` if any. Reuse `parseTestSet` (`../module.f.mjs`)
-   for the walk if importing it stays free of the effects layer; inline the
-   dozen lines if it does not.
+   `.mjs` file that *statically* imports every **accepted** module exporting
+   `proof`, followed by a small runner: walk each `proof` value, call the
+   zero-argument functions, `try`/`catch` around each call, count passes and
+   failures, `print` the failures, and `quit(1)` if any.
+
+   Two details are not optional, because the existing suite depends on both.
+
+   **Accept a root only when its whole transitive relative graph is
+   shell-loadable.** Discovery matches `proof.mjs` as well as `.f.mjs`, and
+   `fjs/effects/node/memory/proof.mjs` reaches `node:crypto` through its
+   `./module.mjs`. A static import graph is loaded in full before a line of the
+   runner executes, so one such root does not fail its own tests — it aborts
+   the run before any proof is reached. Inspect each root's transitive
+   dependencies, reject the ones reaching a `node:` import or an external
+   package, and *report* what was excluded; a silent omission is a suite that
+   shrinks without saying so. This is the same acceptance rule
+   [browser-testing](browser-testing.md) states, for the same reason.
+
+   **Walk return values, not just the exported tree.** A test function may
+   return a further sub-tree of test functions, and the suite uses it —
+   `fjs/crypto/sha2/proof.f.mjs` returns its `s256` and `s224` cases from
+   `base.b32`. A walker that calls the outer function and stops counts one pass
+   and silently skips the assertions inside. Recurse into each non-`throw`
+   call's return value, with `null` marking the call boundary so paths render
+   as `outer().inner`, exactly as `collectTests` and `runModule`
+   (`../module.f.mjs`) already do. Import `collectTests` rather than
+   reimplementing it: nothing in its import chain touches `node:`.
 
 2. **Run it:** `js --module <out>/spidermonkey.mjs` — with whatever flags the
    pinned build needs.
@@ -93,14 +114,17 @@ version-dependent — `print`, `putstr`, `quit`, `scriptArgs`, `os.getenv`,
 - [ ] Check what that shell provides — output, exit code, args, environment,
       job queue, module loading. Note anything that makes the generated file
       unnecessary.
-- [ ] Add the Node-side generator: static imports of every proof module plus
-      the inline runner, written to one file.
+- [ ] Add the Node-side generator: static imports of every accepted proof
+      module plus the inline runner, written to one file. Reject roots whose
+      transitive graph reaches `node:` or an external package, and report the
+      exclusions.
 - [ ] Run it under `js`, get a nonzero exit code from a failing proof, and wire
       the generate-and-run pair to an `fjs` command.
-- [ ] Fixtures: a passing proof, a failing proof, and a `throw`-tagged proof —
-      each verified to run in the shell, not just to generate. Add a
-      promise-returning proof once it is known whether the shell needs the job
-      queue drained.
+- [ ] Fixtures: a passing proof, a failing proof, a `throw`-tagged proof, a
+      proof whose test returns a sub-tree, and a root reaching `node:` that
+      must be excluded rather than emitted — each verified to run in the shell,
+      not just to generate. Add a promise-returning proof once it is known
+      whether the shell needs the job queue drained.
 - [ ] Add a CI job (`../../ci/`) only after proof bodies demonstrably execute
       in the shell, and add the row to the runtime table in
       [CONTRIBUTING.md](../../../CONTRIBUTING.md).
