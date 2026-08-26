@@ -72,6 +72,32 @@ what *this server* will answer as absent. If a later caller wants the same
 reading, the thing to share is a named predicate that says so, not a broader
 `isNotFound`.
 
+**Scope: `ENOTDIR` only, and the other two stay at `500` deliberately.** Two
+more `stat` failures reach the same directory-form shape and disclose the same
+way, on POSIX:
+
+| request | POSIX |
+|---|---|
+| `/locked/` — a directory with an `index.html`, mode `000` | `500 io error: EACCES` |
+| `/loop1/` — a symlink cycle | `500 io error: ELOOP` |
+
+Both are left as they are, because the doctrine that makes `ENOTDIR` a `404`
+does not reach them. `ENOTDIR` fires on any ordinary file — every served tree
+has thousands, so any client can ask — which is what makes it client-caused. A
+mode-`000` directory or a symlink cycle is an entry an operator placed, and a
+`500` saying the host could not read what it was pointed at is not obviously
+the wrong answer. Reopen them on their own evidence, not as a corollary of
+this.
+
+`EISDIR` needs no entry: `stat` succeeds on a directory and `isFile` is false,
+so it is already `notRegular` → `404`.
+
+**All three are POSIX-only.** Windows has none of them — `ENOTDIR` arrives as
+`ENOENT` (see the table above), mode `000` does not stop traversal, so
+`stat('locked/index.html')` simply succeeds, and a symlink cycle reports
+`ENOENT` rather than `ELOOP`. So the oracle is a property of POSIX hosts, and
+a proof of its absence has to run on one.
+
 The obstacle is the same as its sibling's: the virtual file system never
 reports `ENOTDIR`, so the branch would be unreachable, which the coverage gate
 rejects and `fjs/AGENTS.md` §1.2 says to restructure away rather than leave
@@ -84,7 +110,10 @@ path that descends through a regular file, then map the error.
       through a regular file.
 - [ ] Answer `404` for it from `fileResponse`, leaving `isNotFound` alone.
 - [ ] Prove `/README.md/` and `/nope.md/` answer identically, on a host whose
-      `stat` distinguishes them.
+      `stat` distinguishes them — a Windows run cannot see the difference.
+      The proof covers `ENOTDIR` and says so: `/locked/` and `/loop1/` stay at
+      `500` by the scoping above, so it must not claim directory-form requests
+      disclose nothing in general.
 - [ ] Update the response table in `module.f.mjs` and
       [`../README.md`](../README.md).
 

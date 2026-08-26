@@ -110,7 +110,10 @@ echoing the parsed path instead would name a directory the client never wrote.
 - [ ] Prove that `/fjs/` and `/no-such-dir/` still answer identically — and
       `/README.md/` with them, which needs
       [notdir-status](./notdir-status.md) first. Without it the proof passes
-      while the directory-form shape still leaks.
+      while the directory-form shape still leaks. It will pass anyway for
+      `/locked/` and `/loop1/`, which that issue scopes out on purpose, so
+      state what the proof covers rather than letting it read as "no
+      directory-form request discloses".
 - [ ] Update the response table in `module.f.mjs` and the prose in
       [`../README.md`](../README.md).
 
@@ -118,7 +121,10 @@ echoing the parsed path instead would name a directory the client never wrote.
 
 - [`fjs/web`](../README.md) — "Deliberately absent", where the missing
   directory listing and the `/docs` vs `/docs/` split are settled.
-- [notdir-status](./notdir-status.md) — the one directory-form request whose
-  status already discloses, which this issue's proof depends on.
+- [notdir-status](./notdir-status.md) — a directory-form request whose status
+  already discloses, which this issue's proof depends on. Not the only one: it
+  scopes itself to `ENOTDIR` and leaves `EACCES` and `ELOOP` at `500`
+  deliberately, so directory-form requests still do not answer uniformly on a
+  POSIX host.
 - [`fjs/website`](../../website/) — writes the `index.html` whose absence this
   is about.
