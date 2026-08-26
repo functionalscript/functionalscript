@@ -47,7 +47,7 @@ Website preparation follows the same boundary. Restore the package command to
 the FunctionalScript entry point:
 
 ```json
-"index-html": "node ./fjs/module.mjs r ./fjs/website/module.f.mjs"
+"website": "node ./fjs/module.mjs r ./fjs/website/module.f.mjs"
 ```
 
 `fjs/website/module.f.mjs` must own proof discovery, manifest generation, and
@@ -122,9 +122,10 @@ are shared.
 - [ ] Move static proof discovery and `_browser-suite.mjs` generation into
       `fjs/website/module.f.mjs`; extend `fjs/effects/node/` only for a concrete
       missing capability and prove the real and virtual interpretations.
-- [ ] Delete `fjs/website/browser-prepare.mjs` and restore `index-html` to
-      `node ./fjs/module.mjs r ./fjs/website/module.f.mjs` once the
-      FunctionalScript generator owns the complete build.
+- [ ] Delete `fjs/website/browser-prepare.mjs` and make the sole `website`
+      command `node ./fjs/module.mjs r ./fjs/website/module.f.mjs` once the
+      FunctionalScript generator owns the complete build; do not restore the
+      removed `index-html` alias.
 - [ ] Add `emergent_testing/browser/module.f.mjs` for pure browser application
       composition and its complete proof.
 - [ ] Move the current browser host code to
