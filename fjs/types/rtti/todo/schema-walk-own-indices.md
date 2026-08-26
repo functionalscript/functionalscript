@@ -32,11 +32,12 @@ validate(h)([undefined])               // error — the inherited schema wins ov
 
 **Neither is a disagreement, which is why this is P4 rather than a bug.** All
 three readers answer the same on both, because they make the same walk — and
-before `a6117ea`'s parent they did *not*: `Object.entries` reads own enumerable
-keys only, so the schema-form readers and the data form split on both probes.
-Closing that split is what
-[#1712](https://github.com/functionalscript/functionalscript/pull/1712) did. What
-is left is a question about which walk the agreed-on one should be.
+before `4eb0142`, the code commit of
+[#1712](https://github.com/functionalscript/functionalscript/pull/1712), they did
+*not*: `Object.entries` reads own enumerable keys only, so the schema-form
+readers and the data form split on both probes. Closing that split is what that
+commit did, and every commit from it onward agrees. What is left is a question
+about which walk the agreed-on one should be.
 
 FunctionalScript can express neither schema — it has no symbols and no mutation
 — so both are reachable only from a caller already writing plain JavaScript, and
