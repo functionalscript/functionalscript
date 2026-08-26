@@ -34,6 +34,15 @@ implementation stages:
 3. after implementation TypeScript is gone, migrate compiler-supported
    FunctionalScript implementations from `.f.mjs` to authored `.f.js`.
 
+"Permanently" above, and everywhere below it, means **with respect to this
+migration**: a `types.ts` is not an implementation-migration target and must not
+be forced through JSDoc translation. It does not mean a `types.ts` outlives
+TypeScript itself. [rtti-type-system](./rtti-type-system.md) retires the ones
+beside `.f.mjs` modules — 92 of the 94 in the tree — once their types are RTTI
+schemas and their `.d.ts` is generated from them. Both hold: a `types.ts`
+survives this migration untouched, and goes when TypeScript stops being the type
+system for FunctionalScript.
+
 The existing compiler-compatibility migration in
 [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) is **blocked by** this
 stage-1 implementation task.

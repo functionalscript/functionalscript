@@ -231,21 +231,42 @@ Tracking ownership is the compiler's job; RTTI never sees a mutable value.
 
 #### 4. Scope: FunctionalScript files only
 
-| Source | Type system | Checked by |
-| --- | --- | --- |
-| `.f.mjs` | RTTI schemas + `//:` / `/*: */` | the FunctionalScript compiler |
-| `.mjs` | TypeScript types in JSDoc | `tsc` |
-| `types.ts` | TypeScript | `tsc` |
-| `.d.ts` | TypeScript | generated, not authored |
+| Source | Type system | Checked by | How long |
+| --- | --- | --- | --- |
+| `.f.mjs` | RTTI schemas + `//:` / `/*: */` | the FunctionalScript compiler | the destination |
+| `.mjs` | TypeScript types in JSDoc | `tsc` | indefinitely — it is ordinary JavaScript |
+| `types.ts` | TypeScript | `tsc` | **for a while** — until TypeScript is no longer used |
+| `.d.ts` | TypeScript | generated, not authored | as long as TypeScript consumers exist |
+
+The last column is the part that is easy to get wrong, because the two
+TypeScript rows have different futures.
 
 `.mjs` is ordinary JavaScript — mutation included, so the guarantees in
 commitment 3 do not hold there — and stays in the TypeScript world
-indefinitely; this is not a migration that ends with JSDoc deleted from the
-tree. The two
-regimes coexist by file extension, which is the same seam
-[migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md) already
-establishes, and `.f.mjs` modules keep their JSDoc until the RTTI checker can
-actually replace it.
+indefinitely. This is not a migration that ends with JSDoc deleted from the
+tree.
+
+**`types.ts` is different: it stays for a while, not forever.** It is a
+TypeScript type-level API, and it exists because TypeScript is currently how
+this repository states types. Once a `.f.mjs` module's types are RTTI schemas
+and its `.d.ts` is generated from them, a `types.ts` beside it has no remaining
+job — the schema *is* the type-level API, and it is a value rather than a
+declaration. 92 of the 94 `types.ts` files in the tree sit next to a
+`module.f.mjs`, so this is nearly all of them.
+
+That is not a contradiction of
+[migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md), which says four
+times that authored `types.ts` "may remain permanently" — but it is a narrower
+reading of that word, and worth stating plainly. There, permanence is with
+respect to *that* migration: a `types.ts` is not an implementation-migration
+target and must not be forced through JSDoc translation. It says nothing about
+what happens when TypeScript stops being the type system, which is what this
+epic is about. Both hold: a `types.ts` survives stage 1 of that migration
+untouched, and retires under stage 10 of this one.
+
+The regimes coexist by file extension either way, which is the seam that
+document already establishes, and `.f.mjs` modules keep their JSDoc and their
+`types.ts` until the RTTI checker can actually replace them.
 
 #### 5. `.d.ts` is generated, for consumers only
 
@@ -341,10 +362,13 @@ Ordered. Stage 1 is independent of everything else and can start today; stages
       has no RTTI representation: either RTTI gains a brand-carrying wrapper, or
       nominal types stay a TypeScript-era construct
       ([134-nominal-types-proposal](./134-nominal-types-proposal.md)).
-- [ ] **10. Retire `Ts<T>` and the JSDoc types in `.f.mjs`,** declaration by
-      declaration — the two forms are disjoint, so this needs no flag day and
-      no module-at-a-time rule — once 1–8 hold. Consumers keep seeing types
-      through generated `.d.ts`.
+- [ ] **10. Retire `Ts<T>`, the JSDoc types in `.f.mjs`, and the `types.ts`
+      beside them,** declaration by declaration — the two annotation forms are
+      disjoint, so this needs no flag day and no module-at-a-time rule — once
+      1–8 hold. A `types.ts` goes when its module's schemas cover what it
+      declared and nothing outside still imports it; consumers keep seeing types
+      through generated `.d.ts`. This is the stage where TypeScript stops being
+      the type system for FunctionalScript, and it is per-module, not a cutover.
 
 ### Open questions
 
@@ -418,7 +442,8 @@ does not replace them.
   an annotation *is*. Nothing past stage 2 starts without it.
 - [migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md) — establishes
   the `.f.mjs` / `.mjs` / `types.ts` / `.d.ts` split that commitment 4 assigns
-  type systems to.
+  type systems to. Its "`types.ts` may remain permanently" is permanence with
+  respect to *that* migration; stage 10 here is what eventually retires them.
 - [fjs-nanvm-integration.md](./fjs-nanvm-integration.md) — the path to a
   compiler that parses authored FunctionalScript.
 - [`fjs/bnf/todo/layered-parser.md`](../fjs/bnf/todo/layered-parser.md) — the
