@@ -102,6 +102,44 @@ undeclared keys are unconstrained, a tuple's `rest` is `unknown` — so
 [Closed containers](#closed-containers) below. Closedness is stated, never
 inferred.
 
+#### A hole is a declared position
+
+A `Tuple` schema is read by **length**, so a sparse one declares as many
+positions as it is long and a hole is a position whose schema is `undefined`:
+
+| schema | value | all three readers |
+| --- | --- | --- |
+| `new Array(1)` | `[undefined]` | ok |
+| `new Array(1)` | `[1, 2, 3]` | error |
+| `[, number]` | `[undefined, 5]` | ok |
+| `[, number]` | `[9, 5]` | error |
+
+Reading index `0` of `new Array(1)` yields `undefined`, and `undefined` is a
+`Const` schema in its own right, so this is what follows from `Tuple` being
+`readonly Type[]`. `Object.entries` — which skips holes — was the schema-form
+readers' entry list until it disagreed with the data form's `for…of` on exactly
+these rows; `tupleSchemaEntries` in `common/module.f.mjs` is now the one place
+that says how a tuple schema is read, and `structSchemaEntries` is its struct
+counterpart. The alternative reading would make `new Array(1)` and `[]` the
+same schema while `[undefined]` stayed different from both.
+
+The same rule settles a tuple schema's **non-index** enumerable own properties,
+which are no positions either. `Object.assign([number], { foo: string })`
+declares one position and nothing named `foo`: a tuple is read by index, so the
+entry reading declared `foo` and then matched it against `value[NaN]` — the
+property literally named `NaN`, which no ordinary value carries. The data form
+ignored it all along; now so do the schema-form readers.
+
+"By length" is how every schema anyone can write is read; the mechanism is the
+iterator, the same one `containerUnion` walks, so the two agree by construction
+rather than by two rules that happen to coincide. That matters only for a schema
+carrying an overridden `Symbol.iterator` — which FunctionalScript cannot build,
+having neither symbols nor mutation — where reading indices here would put the
+schema-form readers back at odds with the data form.
+
+Nothing about a dense schema changes: on an array with neither holes nor extra
+own properties the two entry lists are identical.
+
 #### This is deliberate; please do not "fix" it
 
 The tempting mistake is to read `Ts<T>` and conclude tuples must be exact:

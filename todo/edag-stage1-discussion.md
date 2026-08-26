@@ -94,14 +94,14 @@ the EDAG's sharing structure and DJS's graph structure are the same thing.
 
 ```js
 // const f = (...a) => { const x = a[0]; return [x, x] }
-const x = [".", ["args"], 0]
+const x = [".", ["args"], 0, null]
 export default ["[]", x, x]          // the body is one node; x is interior
 
 // (...a) => { const check = a[0].length; return a[1] } — with comma (later)
 const a = ["args"]
 export default [",",
-    [".", [".", a, 0], "length"],  // assert: value unused
-    [".", a, 1],                    // the result: last, as in JS (a, b) → b
+    [".", [".", a, 0, null], "length", null],  // assert: value unused
+    [".", a, 1, null],              // the result: last, as in JS (a, b) → b
 ]
 ```
 
@@ -180,12 +180,12 @@ Agreed points (not under discussion):
   optimization:
   [property-accessor](../spec/todo/2330-property-accessor.md) shows
   `a.indexOf(x)` and `const p = a.indexOf; p(x)` differ observably. It is
-  spelled by the `lambdas` operand of `["()", …]` (subject 6), not by a
+  spelled by the property-access node owning its call (subject 6), not by a
   distinct `".()"` tag.
 - `args` is **a single operand that evaluates to an array**, not a
   literal list of operand nodes: `f(a, b)` is
-  `["()", f, [], ["[]", a, b]]`, while spread `f(...xs)` is just
-  `["()", f, [], xs]` and forwarding is `["()", f, [], ["args"]]` — free,
+  `["()", f, ["[]", a, b]]`, while spread `f(...xs)` is just
+  `["()", f, xs]` and forwarding is `["()", f, ["args"]]` — free,
   because `["args"]` is itself a first-class array (subject 2). A
   literal-list operand would save the `["[]", …]` wrapper in the
   common case but would need a spread marker for those. Same for every
@@ -220,12 +220,12 @@ schema is free to change independently of both.
 |`["[]", ...node]`|`[…]`|1|array constructor|
 |`["{}", ...entry]`|`{ … }`|1|ordered object constructor; initial entry form is `[":", key, value]` (subject 4)|
 |`["args"]`|—|1|the arguments array (subject 2)|
-|`[".", object, property]`|`o.p`, `o[p]`|1|property access; `property` is restricted (see below)|
-|`["()", object, lambdas, args]`|`f(...args)`, `o.p(...args)`|2|call; `args` is one node yielding an array; `lambdas` is the chain run before the call and decides the `this` binding (subject 6)|
-|`["?.", object, property, lambdas]`|`o?.p`, and the rest of its optional chain|later|optional property access; same `property` restriction|
-|`["?.()", object, lambdas, args, lambdas]`|`f?.(...args)`, and the rest of its optional chain|later|optional call|
-|`["\|.", property]`|one `lambda`, the `.p` step of a chain|2|not an `exp` node — only valid inside a `lambdas` operand (subject 6); this is the step a method call's `lambdas` ends with, so Stage 2 needs it with `"()"`; same `property` restriction|
-|`["\|()", args]`, `["\|?.", property]`, `["\|?.()", args]`|one `lambda`, a step of a chain|later|the remaining steps: a call inside a chain, and the two optional ones|
+|`[".", object, property, k]`|`o.p`, `o[p]`, `o.p(...args)`|1|property access, owning whatever its receiver is used for; `k` is `null` for a plain read; `property` is restricted (see below)|
+|`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is one node yielding an array (subject 6)|
+|`["?.", object, property, k]`|`o?.p`, and the rest of its optional region|later|optional property access; same `property` restriction|
+|`["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|optional call|
+|`["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the step a method call's `.` node carries, so Stage 2 needs it|
+|`["\|.", property, k]`, `["\|?.()", args, k]`, `["\|!()", args, null]`|one chain step|later|the remaining steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
 |`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|later|own property by a computed **string**; no prototype chain|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
@@ -249,11 +249,14 @@ Tags are **JS syntax wherever JS has syntax for the operation** — hence
 operator symbols below. This is [DESIGN.md §8](../DESIGN.md) again: the host
 language already spells these, so the EDAG reuses the spelling instead of
 inventing a vocabulary to be memorized and translated. A chain step is the
-same spelling behind a `"|"`, which marks it as a step rather than a node:
-`"|."` is the `.b` of a chain, `"|?.()"` its `?.(…)`.
+same spelling behind a `"|"`, which marks it as a step rather than a node —
+and the prefix is load-bearing, not decorative: without it `["()", f, null]`
+would read equally as a call node and as a chain step. `"|."` is the `.b` of
+a chain, `"|?.()"` its `?.(…)`, and `"|!()"` the call a group puts outside an
+optional region.
 
-**The property operand is restricted**, in `"."`, `"?."`, `"|."`, and
-`"|?."` alike. It
+**The property operand is restricted**, in `"."`, `"?."`, and `"|."`
+alike. It
 must be one of:
 
 - a **string constant** that is not on the prohibited list
@@ -346,20 +349,20 @@ All operators are post-stage-1: stage 1 has no operators at all.
 |Form|JS|Stage|Notes|
 |----|--|-----|-----|
 |`["throw", node]`|`throw v`|later|always fails; never produces a value|
-|`["self"]`|—|later|the function itself; recursion is `["()", ["self"], [], args]`|
+|`["self"]`|—|later|the function itself; recursion is `["()", ["self"], args]`|
 |`["frame"]`|—|later|the captured-consts frame, an array — as `["args"]` is for arguments|
 
 **`["frame"]` and the closed-scope model.** A closure's free values are
 copied into a frame when the function object is created — the scheme
 [function-frame](../spec/todo/3111-function-frame.md) chooses — and
 `["frame"]` is that array. It needs no accessor of its own: a slot is
-ordinary indexing, `[".", ["frame"], 0]`, exactly as an argument is
-`[".", ["args"], 0]` (subject 2).
+ordinary indexing, `[".", ["frame"], 0, null]`, exactly as an argument is
+`[".", ["args"], 0, null]` (subject 2).
 
 Frame construction mirrors a call: `["=>", frame, body]`, where
 `frame` is one node evaluating to an array — built in the *enclosing*
 scope, usually `["[]", …]` — and `body` is the inner function's
-graph. Compare `["()", f, [], args]`: same shape, one for entering a call,
+graph. Compare `["()", f, args]`: same shape, one for entering a call,
 one for creating a closure.
 
 ```js
@@ -367,7 +370,7 @@ one for creating a closure.
 // inside f, building b — f puts its own ["self"] into b's frame:
 ["=>", ["[]", ["self"]], /* b's body */ …]
 // inside b, calling f — slot 0 of b's frame:
-["()", [".", ["frame"], 0], [], ["[]", [".", ["args"], 0]]]
+["()", [".", ["frame"], 0, null], ["[]", [".", ["args"], 0, null]]]
 ```
 
 Consequences:
@@ -707,22 +710,22 @@ arguments passed to the function.**
 - The arguments array is first-class and always an array — the actual
   arguments the caller passed, whatever the declaration looked like.
   Missing arguments read as `undefined` via ordinary array indexing; extra
-  arguments are simply present; forwarding is `["()", f, [], ["args"]]` —
+  arguments are simply present; forwarding is `["()", f, ["args"]]` —
   all ordinary array semantics, matching JS.
 - Declared parameters are a compiler-side naming convention over the
   arguments array, not an EDAG concept; declared arity matters only for
   `.length` and `toString(f)` fidelity (subject 7).
 - The rejected `["arg", i]` (single-argument access, no reified array)
   cannot express rest parameters (`(...xs) => xs`) or forwarding;
-  `["arg", i]` is expressible as `[".", ["args"], i]` while the reverse
+  `["arg", i]` is expressible as `[".", ["args"], i, null]` while the reverse
   is not.
 
 Examples — named parameters are positions in the arguments array; the
 compiler erases names:
 
 ```js
-const f = (...a) => a[5]   // [".", ["args"], 5]
-const g = (a) => a[5]      // [".", [".", ["args"], 0], 5]
+const f = (...a) => a[5]   // [".", ["args"], 5, null]
+const g = (a) => a[5]      // [".", [".", ["args"], 0, null], 5, null]
 ```
 
 ### 3. Lazy operators and the branch extension path
@@ -895,7 +898,7 @@ the FJS compiler would never emit. To validate:
   unrepresentable ([Operations](#operations)). `"Number"` never returns a
   string, so it can never rebuild a prohibited name at run time — unlike
   `"+"`, which concatenates at its binary arity
-  (`[".", o, ["+", "constr", "uctor"]]` would reach `Object`) and does
+  (`[".", o, ["+", "constr", "uctor"], null]` would reach `Object`) and does
   not exist at all at unary arity (above). The prohibited-name list comes
   from
   [property-accessor](../spec/todo/2330-property-accessor.md), and
@@ -938,7 +941,7 @@ name is a **validation** error at construction, and a computed string
 never reaches `"."` at all.
 
 **Decided for the structural tags: they are JS syntax too** —
-`[".", object, property]`, `["()", object, lambdas, args]`,
+`[".", object, property, k]`, `["()", callee, args]`,
 `["{}", …]`, `[":", key, value]`, `[",", …]`. Syntax is as much a host
 spelling as an operator symbol is. This supersedes the
 `at` / `call` / `bindCall` names used earlier in this document.
@@ -946,7 +949,7 @@ spelling as an operator symbol is. This supersedes the
 **Decided: `"."`, not `"[]"`.** `"."` is the shorter and more readable
 tag for property access.
 
-**Decided: one call tag, with a `lambdas` operand — no `".()"`.** An
+**Decided: no `".()"`; a chain node owns its continuation.** An
 earlier draft gave the method call its own `[".()", object, property, args]`
 tag. It was replaced because a JS chain carries two kinds of hidden control
 flow that a fixed property-plus-call tag cannot express: the receiver a
@@ -954,13 +957,21 @@ property access hands to a following call as `this`, and the region an
 optional link short-circuits — and parentheses move each boundary
 independently (`(a?.b).c` throws where `a?.b.c` is `undefined`). The
 settled vocabulary keeps every `exp` evaluating to an ordinary value and
-puts both kinds of control flow in a `lambdas`: a flat array of chain steps
-that only the `"()"`, `"?."`, and `"?.()"` nodes interpret. `a.b(...c)` is
-then `["()", a, [["|.", "b"]], c]`, and the same node also spells chains no
-property-plus-call tag could, such as `(a?.(...b)?.c)(...d)`. The shape of
+carries both kinds of control flow in a **continuation** operand: a linked
+chain of steps that only `"."`, `"?."`, and `"?.()"` interpret. `a.b(...c)`
+is then `[".", a, "b", ["|()", c, null]]`, and the vocabulary also spells
+chains no property-plus-call tag could, such as `(a?.b.c)(...d)`.
+
+An intermediate revision made that operand a flat *array* of steps held by
+`"()"`, `"?."`, and `"?.()"`. It was replaced in turn: an array states
+neither the order nor the cardinality of what may appear in it, so four
+families of duplicate spellings validated and the minimality rule had to
+live in prose. The three continuation types — one per state of the two
+control-flow bits — make those families unspellable instead. The shape of
 record and the worked examples are in
 [`fjs/edag/README.md`](../fjs/edag/README.md) — "Chains" — and the JSDoc on
-`lambdas` in [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs).
+the lambda schemas in
+[`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs).
 
 **Decided: the EDAG keeps three access operations, not one and not
 2330's five.** An earlier draft of this subject said `"."` was a single
@@ -970,8 +981,8 @@ an optimization:
 
 |EDAG|2330|key|
 |---|----|---|
-|`[".", o, p]`|`at`, plus `instance_property` for the implemented names 2330 lists — 2330 routes every other name to `own_property`|string constant (permitted), or a number|
-|`["()", o, [["\|.", p]], args]`|`instance_method_call` + `at_call`|same|
+|`[".", o, p, null]`|`at`, plus `instance_property` for the implemented names 2330 lists — 2330 routes every other name to `own_property`|string constant (permitted), or a number|
+|`[".", o, p, ["\|()", args, null]]`|`instance_method_call` + `at_call`|same|
 |`["own", o, k]`|`own_property`|any computed string; own properties only|
 
 `"."` merges 2330's static-name and numeric-index commands because the
@@ -1172,7 +1183,7 @@ const b = 3
 ```
 
 In `f`'s body, `a` is a captured value — frame slot 0 — while `f()` is
-`["()", ["self"], [], ["[]"]]`, needing no frame entry at all.
+`["()", ["self"], ["[]"]]`, needing no frame entry at all.
 
 This is exactly what makes frames constructible. `["=>", frame, body]`
 evaluates its `frame` operand *first*, so every captured value must
@@ -1226,7 +1237,7 @@ name the function did not compute itself:
 
 **Largely answered by `["frame"]`** ([Operations](#operations)): free
 values are captured into the frame when the closure is created, and read
-back as `[".", ["frame"], i]`. `["self"]` covers self-reference, which
+back as `[".", ["frame"], i, null]`. `["self"]` covers self-reference, which
 no frame can seed at the top level. What remains open:
 
 - **which values go into a frame, and in what order** — the compiler
@@ -1267,7 +1278,7 @@ none of this ([Operations](#operations)).
 **Status:** open
 
 Everything expressible by looping is expressible by recursion —
-`["()", ["self"], [], args]` with a `"?:"` base case — and the NaNVM may
+`["()", ["self"], args]` with a `"?:"` base case — and the NaNVM may
 implement **TCO** — but most JavaScript engines do not, and FS
 compiles to JavaScript (`.f.js`) as well as to Rust. A recursion-only
 language would therefore stack-overflow on ordinary JS engines for
