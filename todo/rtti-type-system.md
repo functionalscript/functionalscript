@@ -79,11 +79,20 @@ const pairOfKeys = pair(key)      // an instantiation is a `const`, like any oth
 export const kk = ['a', 1]
 ```
 
-Nothing in the value layer has to change, nothing in the annotation form has to
-change, and no variance annotations, inference rules, or checker support for a
-generic type grammar have to be invented — roughly the entire cost TypeScript
-pays for the same feature. What is missing is only the rendering side: `.d.ts`
-emission and `Ts<>` for a parameterised alias (stage 8).
+Nothing in the annotation form has to change, and no variance annotations,
+inference rules, or checker support for a generic type grammar have to be
+invented — roughly the entire cost TypeScript pays for the same feature. To
+*write and use* a generic type, the value layer needs nothing.
+
+**Emitting a declaration for one is a different matter, and does need something
+new.** The printer takes a concrete `Type` and walks a finite schema graph;
+`pair` is an opaque function whose relationship between argument and result is
+nowhere represented as data, and no number of concrete instantiations
+reconstructs `<T>(t: Type<T>) => Type<readonly [T, T]>`. So stage 8 is not
+only rendering: it needs that relationship reified — a type-variable schema the
+constructor can be applied to symbolically, or some equivalent — before a
+parameterised alias can be emitted, and until then stage 11 cannot retire the
+authored TypeScript declaration of an exported generic schema.
 
 #### 2. Types are applied with a comment naming one
 
@@ -245,10 +254,11 @@ about:
   both, and there is no mutation in between to make the compile-time answer
   wrong at run time. That agreement is the epic's whole claim, and it is
   immutability that supports it.
-- **`subset` is data, not language semantics.** Assignability is a pure
-  function of two canonical values, which is why it could ship long before the
-  checker that will use it. This one holds unconditionally: it is a fact about
-  two `Data` values and involves no runtime value at all.
+- **`subset` is data, not language semantics.** Inclusion is a pure function of
+  two canonical values, which is why it could ship long before the checker that
+  will use it. This one holds unconditionally: it is a fact about two `Data`
+  values and involves no runtime value at all. It is a *sound approximation* of
+  assignability rather than assignability itself — see stage 6.
 
 **That guarantee is the language's, not `validate`'s, and the boundary matters.**
 Immutability in `fjs/` is a convention the reviewer enforces
@@ -332,7 +342,7 @@ stage that can land earliest and entirely on its own. It is also what lets a
 | --- | --- | --- |
 | Schema constructors | [`fjs/types/rtti/module.f.mjs`](../fjs/types/rtti/module.f.mjs) | done |
 | Run-time checking | [`parse/`](../fjs/types/rtti/parse/module.f.mjs), [`validate/`](../fjs/types/rtti/validate/module.f.mjs) | done — same acceptance, differing only in what a success carries |
-| Canonical data form, `subset` | [`data/`](../fjs/types/rtti/data/module.f.mjs) | done — `subset` **is** assignability as a decidable operation, the primitive a checker needs |
+| Canonical data form, `subset` | [`data/`](../fjs/types/rtti/data/module.f.mjs) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
 | TypeScript emission | [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs) | done — the `.d.ts` generator, minus the command |
 | Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/types/rtti/ts/types.ts) | done, and transitional — see Problem |
 | Annotation syntax | — | not started |
@@ -523,16 +533,34 @@ is off to the side, gating a claim rather than a stage.
       arbitrary expression and ask `subset(inferred, declared)`. `subset`
       exists; the inference does not
       ([type inference](../spec/todo/3370-type-inference.md)). Most of the work.
+      **A `false` from `subset` is not a type error.** It is
+      [sound and deliberately incomplete](../fjs/types/rtti/data/README.md#subset-is-sound-and-deliberately-incomplete):
+      it never says `true` wrongly, but it says `false` for inclusions that hold
+      only semantically — `readonly [number | string] ⊆ readonly [number] |
+      readonly [string]` is the documented case, along with non-syntactically
+      empty left sides and short array patterns. Rejecting on every `false`
+      would reject valid programs. So this stage owes a third answer —
+      `true` / `false` / *cannot decide* — and a policy for the third: accept
+      with a run-time check, ask for an annotation, or complete the algorithm in
+      the direction `data/README.md` names (semantic subtyping, CDuce-style).
+      Deciding that is part of the stage, not a detail under it.
 - [ ] **7. Function schemas**
       ([668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md)),
       and what an annotation on a function *means* — a compile-time check that
       cannot be completed, or a wrapper validating each call. Until this is
       settled, `//:` can join `@type` but not replace it.
 - [ ] **8. Generic schemas.** A generic type is a function from schemas to
-      schemas — `array` and `record` already are — so the value layer needs
-      nothing. Two things do: `.d.ts` emission for a parameterised alias, and
-      the fact that under the name-only rule every *instantiation* must also be
-      named (`const keys = array(key)`), which is worth confirming does not
+      schemas — `array` and `record` already are — so *writing and using* one
+      needs nothing new. **Emitting a declaration for one does.** The printer
+      walks a concrete schema graph, while a constructor like
+      `pair = t => close([t, t])` is an opaque function whose argument-to-result
+      relationship is nowhere represented as data, and instantiating it at
+      concrete types does not recover
+      `<T>(t: Type<T>) => Type<readonly [T, T]>`. This stage therefore needs
+      that relationship **reified** — a type-variable schema the constructor can
+      be applied to symbolically, or an equivalent — and only then the
+      `.d.ts` / `Ts<>` rendering. Also confirm that naming every instantiation
+      (`const keys = array(key)`), which the name-only rule requires, does not
       become noise at 169 `@template` uses.
 - [ ] **9. Nominal types.** [`fjs/types/nominal`](../fjs/types/nominal/module.f.mjs)
       has no RTTI representation: either RTTI gains a brand-carrying wrapper, or
@@ -554,8 +582,11 @@ is off to the side, gating a claim rather than a stage.
       `.d.ts` silently widens it.
       [`fjs/types/bit_vec`](../fjs/types/bit_vec/types.ts) is the concrete case
       — `Vec = Nominal<'bit_vec', _Revision, bigint>` is a published
-      distinction that `bigint` alone does not make. Convert against a
-      declaration comparison,
+      distinction that `bigint` alone does not make. An exported **generic**
+      schema is held up the same way and by stage 8: until the
+      argument-to-result relationship is reified there is no parameterised
+      declaration to generate, so its authored TypeScript cannot retire either.
+      Convert against a declaration comparison,
       `Assert<Equal<Ts<typeof schema>, Declared>>`, not against both checkers
       accepting the initializer: they agree on a value without agreeing on a
       type. A `types.ts` goes when its module's schemas cover what it declared
