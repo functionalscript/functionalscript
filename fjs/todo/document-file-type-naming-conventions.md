@@ -13,17 +13,26 @@ the file types or points to the other.
 Document the file-type conventions in `fjs/README.md`, next to the existing CLI
 and `main`-export conventions:
 
-### `module.*` — a module
+### `module.*` — a package entry point
 
-- `module.f.mjs` — authored FunctionalScript module: pure by construction and
-  safe to bulk-load. `.f.js` is the planned spelling for parser-compatible,
-  dependency-closed groups once authored-`.f.js` package support exists, not a
-  spelling authors use today.
-- `module.mjs` — vanilla JavaScript host integration. It may use capabilities
-  outside FunctionalScript and may run effects at import time.
-- `types.ts` — authored, type-only TypeScript module. It may stand alone when a
-  declaration has no runtime representation, or accompany a runtime module,
-  and is imported only with `import type` or JSDoc `@import`.
+- `module.f.mjs` — a package entry point authored in FunctionalScript: pure by
+  construction and safe to bulk-load.
+- `module.mjs` — a package entry point authored as vanilla JavaScript host
+  integration. It may use capabilities outside FunctionalScript and may run
+  effects at import time.
+
+The `module` basename marks the package entry point, not every module. Other
+authored FunctionalScript sources use a descriptive basename with the same
+`.f.mjs` marker, such as `bnf.f.mjs` and `json.f.mjs`; other host JavaScript
+sources similarly use `.mjs`. `.f.js` is the planned FunctionalScript spelling
+for parser-compatible, dependency-closed groups once authored-`.f.js` package
+support exists, not a spelling authors use today.
+
+### `types.ts` — a type-only module
+
+An authored, type-only TypeScript module. It may stand alone when a declaration
+has no runtime representation, or accompany a runtime module, and is imported
+only with `import type` or JSDoc `@import`.
 
 ### `proof.*` — a module that proves other modules
 
