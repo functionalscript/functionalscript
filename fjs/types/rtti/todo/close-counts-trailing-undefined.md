@@ -209,8 +209,9 @@ rule the module's own closed containers do not follow.
       the `rest` exactly when `toData(close(c, rest))` equals
       `toData(close(c))`. An equality, not an observation about whether the
       result carries a `rest` key, and not a judgement about the `rest` itself
-      — four **cases** fix the criterion between them, and only the equality
-      satisfies all four (the first groups three spellings that behave alike):
+      — five **cases** fix the criterion between them, and only the equality,
+      compared up to rule renaming, satisfies all five (the first groups three
+      spellings that behave alike):
       - `never`, `or()` and `close([never])` all make the conversion equal to
         `close(c)`'s, so all three must be dropped. Keying on the exported
         `never` alone would pass a `never`-only proof with the disagreement
@@ -230,22 +231,36 @@ rule the module's own closed containers do not follow.
         while `close([])` rejects it, and `toData(close([]))` is
         `{ array: [{ prefix: [] }] }`, so the equality separates them where
         the absence of a key does not.
-- [ ] Pin those cases as **six rows** — the first case needs one per spelling,
-      since the three are not interchangeable: an implementation that
+      - Two separately constructed
+        `const r = () => ['or', undefined, array(r)]`, one in `c` and one
+        inside the `rest`, rule out the exported
+        [`equal`](../data/module.f.mjs) as the comparison.
+        `close([r2, never])` converts to `never`, so it is an empty rest by
+        the criterion's intent — but converting it reserves the name `r`, so
+        `c`'s rule is named `r0` where `toData(close([r1]))` names it `r`.
+        `equal` compares recursive definitions by rule name, as its own doc
+        comment says, so it answers false, the `rest` is kept, and
+        `[undefined, ,]` stays `ok / ok / error` — the disagreement the
+        criterion exists to remove. Compare up to rule renaming, or ignore
+        names that only discarded rules reserved.
+- [ ] Pin those cases as **seven rows** — the first case needs one per
+      spelling, since the three are not interchangeable: an implementation that
       recognises empty unions but not `close([never])` passes a row using
       `or()` while keeping that spelling's disagreement, and one keyed on
       identity passes the converse. Name all three rather than "an
       independently constructed empty rest". In
       [`../validate/proof.f.mjs`](../validate/proof.f.mjs), asserting the
       verdict outright: the shared table checks only that the three readers
-      *agree*, so a row alone passes whenever all three move together. Dropped,
-      on `[42, ,]`: `close([number], never)`, `close([number], or())` and
-      `close([number], close([never]))`. Kept: `r` and the `a`/`b` cycle on
-      `[42, ,]`, and `[close([], unknown), [1]]`. None is redundant — `a`/`b`
-      catches a test on the `rest`'s own canonical data, `r` catches an
-      emptiness analysis reaching `close` cycles but not `or` cycles, and
-      `unknown` catches a test that reads the absence of a `rest` key as
-      elimination.
+      *agree*, so a row alone passes whenever all three move together.
+      Dropped: `close([number], never)`, `close([number], or())` and
+      `close([number], close([never]))` on `[42, ,]`, and
+      `close([r1], close([r2, never]))` on `[undefined, ,]`. Kept: `r` and the
+      `a`/`b` cycle on `[42, ,]`, and `[close([], unknown), [1]]`. None is
+      redundant — `a`/`b` catches a test on the `rest`'s own canonical data,
+      `r` catches an emptiness analysis reaching `close` cycles but not `or`
+      cycles, `unknown` catches a test that reads the absence of a `rest` key
+      as elimination, and the name collision catches a comparison sensitive to
+      rule names.
       Changelog entry prefixed `**BREAKING CHANGES:**` — the empty-rest
       spellings stop accepting a trailing hole, an observable narrowing for
       callers using the explicit-rest form. #1712 labelled its analogous
