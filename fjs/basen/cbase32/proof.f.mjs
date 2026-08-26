@@ -75,6 +75,12 @@ export const proof = {
         assertEq(cBase32ToVec("0"), null, 'single zero symbol must be null')
         assertEq(cBase32ToVec("00"), null, 'all-zero symbols must be null')
         assertEq(cBase32ToVec("o"), null, 'o (maps to 0) must be null')
+        assertEq(cBase32ToVec('u'), null, 'invalid trailing symbol must be null')
+        assertEq(cBase32ToVec('u8'), null, 'invalid symbol before sentinel must be null')
+    },
+    trailingZeroSymbols: () => {
+        assertEq(cBase32ToVec('g0'), empty)
+        assertEq(cBase32ToVec('80'), vec(1n)(0n))
     },
     decodeAtMaxLengthSucceeds: () => {
         const value = vec(maxLength)(0n)
@@ -85,7 +91,9 @@ export const proof = {
         assertEq(cBase32ToVec(encoded), value)
     },
     decodeOverflow: () => {
-        // The head alone is wider than `maxLength`, so decoding rejects it.
+        // Reject both an independently oversized head and a valid head whose
+        // retained tail would push the combined result over `maxLength`.
         assertEq(cBase32ToVec('0'.repeat(209_717) + 'g'), null)
+        assertEq(cBase32ToVec('0'.repeat(209_715) + '1'), null)
     },
 }
