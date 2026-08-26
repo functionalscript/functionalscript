@@ -18,7 +18,7 @@
     "dev-update": "node ./fjs/module.mjs r ./fjs/dev/update/module.f.mjs",
     "update": "npm run ci-update && npm install && deno install && bun install",
     "index-html": "node ./fjs/website/browser-prepare.mjs",
-    "website": "npm run prepack && npm run index-html"
+    "website": "npm run index-html"
   },
   "engines": {
     "node": ">=22"
