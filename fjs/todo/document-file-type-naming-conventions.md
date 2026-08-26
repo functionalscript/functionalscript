@@ -3,7 +3,12 @@
 **Priority:** P3
 **Status:** open
 
-The repo uses several filename conventions to signal what a file *is* — pure module, proof, application entry point — but the conventions are only implied by usage. There is no single place that defines them.
+The repo uses several filename conventions to signal what a file *is* — pure
+module, proof, application entry point — but their documentation is split.
+[`fjs/AGENTS.md` §3.5](../AGENTS.md#35-functionalscript-module-rules) owns the
+FunctionalScript source and type-only import rules, while `fjs/README.md` owns
+the CLI and `main`-export conventions. Neither gives a reader a short map of
+the file types or points to the other.
 
 Document the file-type conventions in `fjs/README.md`, next to the existing CLI
 and `main`-export conventions:
@@ -11,8 +16,9 @@ and `main`-export conventions:
 ### `module.*` — a module
 
 - `module.f.mjs` — authored FunctionalScript module: pure by construction and
-  safe to bulk-load. `.f.js` is the planned spelling after the compiler's
-  extension migration, not a spelling authors use today.
+  safe to bulk-load. `.f.js` is the planned spelling for parser-compatible,
+  dependency-closed groups once authored-`.f.js` package support exists, not a
+  spelling authors use today.
 - `module.mjs` — vanilla JavaScript host integration. It may use capabilities
   outside FunctionalScript and may run effects at import time.
 - `types.ts` — authored, type-only TypeScript companion. It has no runtime
@@ -22,8 +28,9 @@ and `main`-export conventions:
 
 Tests other modules. Usually exports only `proof` (the proof tree). See [`fjs/emergent_testing/README.md`](../emergent_testing/README.md).
 
-- `proof.f.mjs` — authored FunctionalScript proof. `.f.js` is the planned
-  spelling after the compiler's extension migration.
+- `proof.f.mjs` — authored FunctionalScript proof. Like implementation modules,
+  proofs move to `.f.js` only in parser-compatible, dependency-closed groups
+  once authored-`.f.js` package support exists.
 - `proof.mjs` — vanilla JavaScript proof, used when the proof needs host
   capabilities that FunctionalScript excludes.
 
@@ -45,10 +52,10 @@ The host-side `module.mjs` runner is separate when an application needs one.
 Existing and new applications both follow this convention; no entry-point
 rename is required.
 
-### Proof
+### Tasks
 
-- Add the conventions as a dedicated section in `fjs/README.md` and link to
-  the existing compiler, testing, and `fjs run` documentation instead of
-  duplicating their details.
-- Check every spelling against the files currently authored under `fjs/`.
-- Remove this issue in the same pull request as the documentation.
+- [ ] Add the conventions as a dedicated section in `fjs/README.md`; link to
+      the source rules in `fjs/AGENTS.md` and the existing compiler, testing,
+      and `fjs run` documentation instead of duplicating their details.
+- [ ] Check every spelling against the files currently authored under `fjs/`.
+- [ ] Remove this issue in the same pull request as the documentation.
