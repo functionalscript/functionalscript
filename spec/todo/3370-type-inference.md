@@ -72,6 +72,33 @@ The set is finite and can be implemented using a bit-set.
 
 Compared to level 2, this level contains dynamic information about subsets of the type.
 
+## The inference domain: decide before designing
+
+Nothing else in stage 6 can be specified until this is settled, and once
+[668](../fjs/types/rtti/todo/668-rtti-function-types.md) lands 7a there is
+otherwise no task anyone can pick up to unblock 7b.
+
+- [ ] **Decide the inference domain.** Either the `enum Type` bit-set lattice
+      sketched above becomes a lattice *over* RTTI schemas, or RTTI's `Type`
+      replaces it outright. They are different designs, not two spellings of
+      one: the lattice is a fixed set of bits, while an RTTI schema is an
+      open-ended value with structure — records, tuples, unions, literal
+      members — and the epic's checking step is `subset(inferred, declared)`
+      over that structure.
+
+      Two constraints the choice has to satisfy, both from the epic:
+
+      - the inferred thing must be comparable to a *declared* RTTI schema, so
+        whatever the domain is, there has to be a total map from it into
+        something `subset` accepts;
+      - `subset` is **sound and deliberately incomplete**, so the domain has to
+        tolerate a third answer — *cannot decide* — and the stage owes a policy
+        for it.
+
+- [ ] **Then** specify inference itself against that domain, including the
+      fixpoint for a call to an unannotated function, which is inference's own
+      recursion rather than a dependency on 668.
+
 ## Related
 
 - [rtti-type-system](../../todo/rtti-type-system.md) — the epic; this document
@@ -85,5 +112,7 @@ Compared to level 2, this level contains dynamic information about subsets of th
 > lattice sketched here is a different design from RTTI's `Type` — this document
 > opens by saying type annotations "can help, but we can't trust them", which is
 > not the epic's position. Whether the lattice becomes the inference domain
-> *over* RTTI schemas, or is replaced by them, is unowned work and part of
-> stage 6.
+> *over* RTTI schemas, or is replaced by them, is **this document's first
+> task** — see below. An earlier draft called it "unowned work and part of
+> stage 6", which left it owned by nobody: the epic implements nothing and
+> names this document as stage 6, so "part of stage 6" is a pointer back here.

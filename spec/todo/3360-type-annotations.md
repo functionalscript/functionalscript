@@ -159,10 +159,20 @@ TypeScript aliases out.
 
 ## Sketch of an order, when the time comes
 
-1. Recognize `/*: … */` in the compiler's parser and hand its body to the
-   existing expression parser.
-2. Evaluate the annotation expression at compile time
-   ([`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md)).
+1. Recognize `/*: … */` in the compiler's parser and read its body as a
+   **single identifier** — not as an expression handed to the expression
+   parser. That is the whole point of the narrowing above: the annotation
+   grammar is one name, so recognizing it needs no expression grammar inside a
+   comment, and the parser gains no new syntax surface.
+2. Resolve that name to a binding in scope and evaluate **the binding** at
+   compile time ([`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md)) — ordinary
+   identifier resolution, the same lookup any other reference gets. There is no
+   "annotation expression" to evaluate.
+
+   *(An earlier draft of these two steps said to hand the body to the
+   expression parser and evaluate an annotation expression. That predates the
+   narrowing and would have reintroduced exactly the grammar-in-comments the
+   design rejects.)*
 3. Generate `.d.ts` from the schemas — `fjs/types/rtti/ts` is already the
    printer, so this is plumbing plus a `fjs` command, and it is the step that
    could land earliest and independently.
@@ -176,7 +186,7 @@ TypeScript aliases out.
 
 - [`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md) — the compiler loading and
   running modules as meta-programming, which is what compile-time evaluation of
-  an annotation expression means.
+  an annotation's named binding requires.
 - [fjs-nanvm-integration.md](../../todo/fjs-nanvm-integration.md) and
   [migrate-typescript-to-mjs.md](../../todo/migrate-typescript-to-mjs.md) — the path to a
   compiler that parses authored FunctionalScript.
