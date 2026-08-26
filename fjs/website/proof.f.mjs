@@ -15,9 +15,9 @@ export const proof = {
         /** @type {Dir} */
         const root = { '.github': { workflows: {} } }
         const state = { ...emptyState, root }
-        const [_, result] = virtual(state)(main())
+        const [generated, result] = virtual(state)(main())
         assertEq(exitCode(result), 0)
-        assertNotNullish(state.root['index.html'], 'expected generated HTML')
-        assertNotNullish(state.root['browser-test-entry.mjs'], 'expected generated entry module')
+        assertNotNullish(generated.root['index.html'], 'expected generated HTML')
+        assertNotNullish(generated.root['browser-test-entry.mjs'], 'expected generated entry module')
     },
 }
