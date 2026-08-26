@@ -513,6 +513,20 @@ Stage 2 (one PR, after stage 1 lands):
 - [ ] Bound length on the array kind's thunk readers when the rest admits
       nothing, and pin `array(or())` against `new Array(1)`, where the thunk
       readers and the data form disagree today.
+- [ ] Absence is decided by the **container loop, before dispatch** — it cannot
+      be decided by the recursive reader, which is handed only the value read.
+      `constContainerValidate`/`constContainerParse` call
+      `validate(v)(getItem(value, k))`, so an absent key arrives as plain
+      `undefined`; with the `option` handler rejecting normally (below), both
+      branches of `or(option, number)` would reject `{}`. So `common` gains an
+      `admitsAbsence(schema)` predicate and each container loop asks it first:
+      a member whose key or index is not an own one succeeds iff its schema
+      admits absence, and only a present member is dispatched. The predicate is
+      **shallow** — the top-level union's members, looking for `option` — so it
+      needs no recursion and cannot cycle on a self-referencing thunk. The data
+      form already has this exact shape in `objectMayOmit`, which asks the
+      question of the pattern rather than of the value, so this brings the thunk
+      readers in line rather than inventing a mechanism.
 - [ ] Readers: a declared member is absent when its key or index is not an own
       one. `parse` omits an absent member rather than materializing `undefined`:
       the struct kind drops the key, and the array kind **preserves indices** —
@@ -546,9 +560,14 @@ Stage 2 (one PR, after stage 1 lands):
       on `Absent extends Ts<T[K]>` and renders `Exclude<Ts<T[K]>, Absent>`;
       `ArrayTs`/`RecordTs` `Exclude` it from their element type, so
       `Ts<array(or(option, number))>` stays `readonly number[]` — the type-level
-      counterpart of "a rest never sees it"; and the reader result types
-      (`../common/types.ts`'s `Result<T>`) `Exclude` it at the entry, which is
-      "observable only at a container position" in this vocabulary. An interior
+      counterpart of "a rest never sees it". Split the transformer to keep the
+      marker internal: `_TsRaw<T>` preserves it for the container mappings to
+      read, and the public `Ts<T>` is `Exclude<_TsRaw<T>, Absent>`. Excluding it
+      only in the reader results would leave `Ts<typeof or(option, number)>` as
+      `Absent | number` for direct consumers and for `Check`, a union no runtime
+      value can inhabit and one the runtime printer has no way to spell. With the
+      split, `Result<T>` needs no exclusion of its own — "observable only at a
+      container position" falls out of the public entry. An interior
       tuple position that admits absence still renders `T | undefined`. Update the
       `_tupleOption`/`_tupleInteriorOption` pins, and `optionalTuplePosition` /
       `allOptionalTuple` in `../ts/proof.f.mjs`, which print the `undefined|`
