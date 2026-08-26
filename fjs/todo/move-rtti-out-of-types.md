@@ -22,16 +22,16 @@ tree of its own, and eleven open todos. Its siblings under `types/` are single
 data structures and type-level helpers.
 
 **Nobody under `types/` uses it.** Zero imports; `types/phantom/types.ts` names
-it only in a doc comment. All 49 references come from `media`, `protocol`,
-`mcp`, `edag`, `ci` and `emergent_testing` — every one of them a peer of
-`types/`, not a member. It is simultaneously the most-imported thing in
-`types/` and the least-connected to it.
+it only in a doc comment. All 63 import references come from `media` 33,
+`protocol` 11, `mcp` 8, `edag` 5, `ci` 3 and `emergent_testing` 3 — every one
+of them a peer of `types/`, not a member. It is simultaneously a heavily-used
+module and the least-connected one in the directory that holds it.
 
 **Consuming `types/` is not membership.** `rtti` imports `types/object`,
 `types/result`, `types/list`, `types/array`, `types/ts` and `types/phantom` —
-which is exactly what `media`, `protocol` and `edag` do (`types/list` 33
-references, `types/object` 31, `types/result` 28). That is outside-consumer
-behaviour.
+which is exactly what the rest of `fjs/` does: repo-wide, `types/list` has 81
+import references from 14 top-level directories, `types/result` 74 from 10,
+`types/object` 59 from 16. That is outside-consumer behaviour.
 
 **Its outward dependency points sideways, not down.** Other `types/*` modules do
 reach outside — `bigint`, `bit_vec`, `number`, `prime_field` and `string` import
