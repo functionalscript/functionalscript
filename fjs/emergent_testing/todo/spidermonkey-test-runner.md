@@ -80,8 +80,8 @@ The simplest path found so far is two steps.
    operations as data, while the `node:` imports live in its sibling
    `module.mjs`, the runner, which nothing on this path reaches — no `node:`
    and no bare package specifier appears anywhere in that closure. Run the
-   acceptance check above over the generated file's own imports too, so that stays
-   something the generator verifies rather than something this issue
+   acceptance check above over the generated file's own imports too, so that
+   stays something the generator verifies rather than something this issue
    remembers.
 
 2. **Run it:** `js --module <out>/spidermonkey.mjs` — with whatever flags the
