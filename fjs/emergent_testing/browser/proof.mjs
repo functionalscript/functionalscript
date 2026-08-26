@@ -19,4 +19,14 @@ export const proof = {
         assertEq(report.status, 'failed')
         assertEq(report.results[0]?.message, 'Unknown thrown value')
     },
+    errorFields: async () => {
+        const error = new Error()
+        Object.defineProperties(error, {
+            message: { value: Symbol('message') },
+            stack: { value: Symbol('stack') },
+        })
+        const report = await run({ fail: () => { throw error } })
+        assertEq(report.results[0]?.message, 'Symbol(message)')
+        assertEq(report.results[0]?.stack, 'Symbol(stack)')
+    },
 }

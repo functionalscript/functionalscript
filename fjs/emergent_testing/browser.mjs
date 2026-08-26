@@ -15,9 +15,11 @@ import { collectTests, fmtPath } from './module.f.mjs'
 /** @type {(error: unknown) => readonly [string, string]} */
 const errorDetails = error => {
     try {
-        return error instanceof Error
-            ? [error.message, error.stack ?? error.message]
-            : [String(error), String(error)]
+        if (error instanceof Error) {
+            const message = String(error.message)
+            return [message, error.stack === undefined ? message : String(error.stack)]
+        }
+        return [String(error), String(error)]
     } catch {
         return ['Unknown thrown value', 'Unknown thrown value']
     }
