@@ -14,9 +14,7 @@ export const proof = () => {
     const result = r('hello')
     assertEq(result, 5, r)
 
-    /** @type {(x: number) => number} */
-    const increment = x => x + 1
-    assertEq(iterate(0n)(increment)(5), 5, iterate)
-    assertEq(iterate(3n)(increment)(5), 8, iterate)
-    assertEq(iterate(-1n)(increment)(5), 5, iterate)
+    assertEq(iterate(0n)(5)(x => x + 1), 5, iterate)
+    assertEq(iterate(3n)(5)(x => x + 1), 8, iterate)
+    assertEq(iterate(-1n)(5)(x => x + 1), 5, iterate)
 }
