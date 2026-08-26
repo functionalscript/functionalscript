@@ -2,7 +2,7 @@ use std::ops::Neg;
 
 use crate::{
     common::sized_index::SizedIndex,
-    vm::{BigInt, IContainer, IVm},
+    vm::{BigInt, IVm},
 };
 
 impl<A: IVm> Neg for BigInt<A> {
@@ -11,7 +11,7 @@ impl<A: IVm> Neg for BigInt<A> {
         if self.is_zero() {
             self
         } else {
-            Self::unchecked_new(self.0.header().flip(), self.index_iter())
+            Self::unchecked_new(self.sign().flip(), self.index_iter())
         }
     }
 }
