@@ -347,6 +347,47 @@ which change what a generated declaration means, and rendering a schema is not
 the same as knowing which export carries it. See stage 1. It is also what lets a
 `.f.mjs` module drop its JSDoc without any consumer noticing.
 
+### What a generated `.d.ts` can and cannot promise
+
+The epic's thesis is that one schema decides compile time and run time, so the
+two agree. **For a TypeScript consumer reading a generated `.d.ts`, that
+agreement is bounded by what TypeScript can express**, and in at least one case
+it cannot express the schema at all.
+
+`close(c)` is the case. It means "these members and no others"; TypeScript
+object types are structurally open, so the closed set has no spelling, and both
+the printer and `Ts<>` emit the fields alone — the closest expressible
+*supertype*. A consumer can hold `{ a: 1, b: 2 }` in a variable, pass it where
+`close({ a: number })` was declared, satisfy `tsc`, and be rejected by
+`validate`. That is the exact disagreement this epic exists to remove,
+surviving inside its own deliverable.
+
+Two things keep this from undermining the whole direction, and both need
+stating rather than assuming:
+
+- **It is a boundary property, not a checker property.** Inside FunctionalScript
+  the checker reads the schema itself, so `close` is enforced exactly and
+  compile time and run time do agree. The gap exists only where a schema is
+  projected into TypeScript for an outside consumer — commitment 5's audience,
+  not commitment 1's.
+- **The projection errs upward.** A generated declaration is a supertype of the
+  schema's set wherever TypeScript cannot express it exactly, so the failure
+  mode is a value TypeScript accepts and the schema rejects — caught at the
+  validation boundary, loudly — rather than the reverse.
+
+What this needs is a **stated policy**, decided before stage 11 rather than
+discovered by a consumer:
+
+1. narrow the promise — say plainly that a `.d.ts` is an upper bound, and that
+   exactness lives in the schema; or
+2. restrict `close` in exported contracts, so published types are ones
+   TypeScript can express; or
+3. emit an exactness encoding where one exists (a branded field, an
+   `Exact<T>` helper), accepting its ergonomic cost.
+
+None is obviously right, and the choice is a promise to consumers rather than an
+implementation detail, so this epic records it rather than picking.
+
 ### What already exists
 
 | Piece | Where | State |
@@ -541,7 +582,18 @@ a claim rather than a stage.
         schema *is* open, and `TupleTs` says its closed rendering is a
         limitation — but a `.d.ts` has to pick one and say so.
 
-      Settling these is part of stage 1, and stage 11 depends on the answer.
+      Settling those two is part of stage 1, and stage 11 depends on the answer.
+
+      A third gap is **not** settleable, and belongs in a different column.
+      `close({ a: number })` prints as `{ readonly a: number }`, and `Ts<>`
+      renders it identically, because — in the printer's own words —
+      "TypeScript object types are structurally open, so 'and no other key' has
+      no spelling there". A consumer can hold a `{ a: 1, b: 2 }` in a variable,
+      pass it against that declaration, and be rejected at run time by the
+      schema that declaration came from. Unlike the two above, no emission
+      choice fixes it: the set the schema denotes is not expressible in the
+      target language. See
+      [What a generated `.d.ts` can and cannot promise](#what-a-generated-dts-can-and-cannot-promise).
 
       **And it is not fully independent of the compiler stages.** The printer
       renders *a schema* to a type expression;
@@ -627,6 +679,16 @@ a claim rather than a stage.
       exists for it" — when the emitted declaration means the same thing.
       Anything else silently changes a published API, and does it in the
       artifact consumers actually read.
+
+      That rule is necessary and **not sufficient**. It preserves the published
+      API; it does not by itself deliver the schema/declaration agreement the
+      epic promises, because a declaration can be reproduced faithfully and
+      still be wider than the schema — `close` is the standing case, and the
+      old and new declarations there are identical *and* both wider. Retiring
+      such a declaration is safe for consumers and still leaves the gap
+      [the `.d.ts` section](#what-a-generated-dts-can-and-cannot-promise)
+      describes, which is why that section asks for a policy before this stage
+      runs.
 
       Four categories are known not to satisfy that rule today. The list is
       **open**: assume there are more until someone enumerates `types.ts`
