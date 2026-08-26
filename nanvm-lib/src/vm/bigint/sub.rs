@@ -1,11 +1,11 @@
 use core::ops::Sub;
 
-use crate::vm::{BigInt, IContainer, IVm};
+use crate::vm::{BigInt, IVm};
 
 impl<A: IVm> Sub for BigInt<A> {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
-        let rhs_sign = rhs.0.header().flip();
+        let rhs_sign = rhs.sign().flip();
         self.add_signed(rhs, rhs_sign)
     }
 }
