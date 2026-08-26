@@ -454,15 +454,22 @@ Stage 1 (one PR):
 - [ ] `../../../edag/README.md` explains the ADT's exactness in terms of the API
       stage 1 deletes — `:33` ("Every tuple in the schema is stated `close`d")
       and `:238` (`['.', a, 'b', null, 'extra']` rejected because "the schema is
-      `close`d"), with `:245` resting the disjointness argument on `close` too.
-      After stage 1 those passages name a function that no longer exists and
-      credit the wrong mechanism for the rejection; restate them in the
-      closed-by-default model.
+      `close`d"), with `:245` saying `close` "could not have separated them;
+      only disjoint vocabularies can" — the one place `close` is named for what
+      it does *not* do, so it needs restating as a spelling and not as a
+      mechanism correction. After stage 1 all three name a function that no
+      longer exists, and `:238` additionally credits the wrong mechanism for the
+      rejection; restate them in the closed-by-default model.
 - [ ] Delete [close-counts-trailing-undefined](./close-counts-trailing-undefined.md),
       whose whole subject is the `close(c, rest?)` overload stage 1 removes, and
       carry anything still live into this file — its defect half is the
       length-bounding task above, and its documentation half is the README
-      rewrite. `../../../../AGENTS.md` requires a fixed issue to be deleted in
+      rewrite. One concrete item is easy to lose in "anything still live": its
+      proof task, adding `[close([number]), [42, undefined]]` to
+      `../validate/proof.f.mjs`'s acceptance table with an oracle beside it —
+      the explicit-`undefined` row that tells the two rejections apart. Carry
+      that row in the closed-by-default spelling; the mechanical migration count
+      above is a different task and does not cover it. `../../../../AGENTS.md` requires a fixed issue to be deleted in
       the PR that fixes it, and leaving it would advertise work against an API
       that is gone.
 - [ ] Migrate the other two todos that **survive** stage 1, since the stages are
@@ -528,8 +535,10 @@ Stage 2 (one PR, after stage 1 lands):
       including the `option(true)` presence-flag idiom it recommends twice),
       `../../../media/note/README.md` (2),
       `../../../media/note/todo/extend-note-format.md` (2), and
-      `../../../AGENTS.md` (`:383` and `:405`, which describe a parameter
-      `option` stops having). Two near-misses stay out: `option` in
+      `../../../AGENTS.md` — `:383` writes `option(...)` among the schema
+      references, a call form it stops having, while `:405` lists `option` as a
+      bare name among `types/rtti`'s exports, so that one is a description to
+      re-word rather than a spelling to fix. Two near-misses stay out: `option` in
       `../../../bnf/todo/207.md` is `bnf`'s own combinator, and the `option(s)`
       in `../../../cas/evo/todo/cache-staleness.md` is English, not code.
 - [ ] Audit the members that spell optionality **directly** as `or(…, undefined)`,
