@@ -1,4 +1,4 @@
-use crate::vm::{IContainer, IVm, bigint::BigInt};
+use crate::vm::{IVm, bigint::BigInt};
 use std::cmp::Ordering;
 
 impl<A: IVm> PartialOrd for BigInt<A> {
@@ -11,8 +11,8 @@ impl<A: IVm> Ord for BigInt<A> {
     fn cmp(&self, rhs: &Self) -> Ordering {
         use crate::sign::Sign;
 
-        let lhs_sign = *self.0.header();
-        let rhs_sign = *rhs.0.header();
+        let lhs_sign = self.sign();
+        let rhs_sign = rhs.sign();
 
         match (lhs_sign, rhs_sign) {
             (Sign::Positive, Sign::Negative) => Ordering::Greater,

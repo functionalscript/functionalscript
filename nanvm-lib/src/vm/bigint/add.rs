@@ -1,11 +1,11 @@
 use core::ops::Add;
 
-use crate::vm::{BigInt, IContainer, IVm};
+use crate::vm::{BigInt, IVm};
 
 impl<A: IVm> Add for BigInt<A> {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        let rhs_sign = *rhs.0.header();
+        let rhs_sign = rhs.sign();
         self.add_signed(rhs, rhs_sign)
     }
 }
