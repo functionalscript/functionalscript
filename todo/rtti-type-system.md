@@ -649,13 +649,19 @@ annotations — which is most of them, once annotations are the point.
       are **not the same kind of problem**, and an earlier draft of this stage
       wrongly said both let a declaration admit values the schema rejects:
 
-      - **`unknown` — the printer is wider than the schema.** It prints
-        TypeScript's built-in `unknown`, while the schema and `Ts<>` mean the
-        DJS-shaped `Primitive | Array | Object`. A consumer typed against the
-        emitted form may pass a function or a symbol and be rejected at run
-        time — the exact compile-time/run-time disagreement this epic exists to
-        remove. Emit the DJS union, or a named alias for it, not `unknown`.
-        This one is a defect.
+      - **`unknown` — the printer matches the runtime; `Ts<>` is the narrow
+        one.** Both readers implement the `unknown` case as `() => ok`
+        ([`validate`](../fjs/types/rtti/validate/module.f.mjs),
+        [`parse`](../fjs/types/rtti/parse/module.f.mjs)), so the schema as
+        *executed* accepts anything, functions and symbols included. The
+        printer's TypeScript `unknown` says the same. It is `Ts<>` that maps to
+        the DJS-shaped `Primitive | Array | Object` and so promises less than
+        the schema delivers. **Do not "fix" this by emitting the DJS union:**
+        that would make a declaration reject values the runtime accepts —
+        reversing the mismatch rather than removing it. Reconciling `Ts<>` with
+        the readers, or narrowing both readers deliberately, is the real
+        question, and it is a decision about what `unknown` *means*, not about
+        emission.
       - **Tuple openness — the printer is right and `Ts<>` is narrow.** A tuple
         schema *is* open: `validate` "iterates what the schema declares, so an
         undeclared key or a longer array is never visited: it is accepted"
@@ -668,12 +674,21 @@ annotations — which is most of them, once annotations are the point.
         longer arrays the schema accepts — turning a non-problem into the
         problem the bullet above describes, in the opposite direction.
 
-      So stage 1 settles one thing, not two: emit the DJS union for `unknown`.
-      What remains for tuples is not soundness but **compatibility** — a
-      previously published declaration was the narrow one, and replacing it
-      with the open form widens what callers may pass. That is stage 11's
-      question, under its rule about reproducing what was published, and it is
-      recorded there rather than here.
+      **Both divergences turn out to be the same shape**, and neither is fixed
+      by changing the printer: in each case the printer agrees with what the
+      readers accept and `Ts<>` is narrower. So stage 1 changes the printer for
+      neither. What is left in both is **compatibility** — the previously
+      published declarations came from `Ts<>`, so emitting the printer's form
+      widens what callers may pass — plus, for `unknown`, a genuine open
+      question about which of `Ts<>` and the readers is right. Compatibility is
+      stage 11's, under its rule about reproducing what was published; the
+      `unknown` meaning question belongs in
+      [`rtti`](../fjs/types/rtti/README.md), not here.
+
+      That symmetry is worth stating because two rounds of review corrected
+      this stage in opposite directions before it appeared. Anyone re-scoping
+      stage 1 should start from the readers' behaviour, not from `Ts<>` or the
+      printer's doc comment.
 
       A further gap is **not** settleable, and belongs in a different column.
       `close({ a: number })` prints as `{ readonly a: number }`, and `Ts<>`
