@@ -125,6 +125,27 @@ const safeTool = toolEntry(
 )
 ```
 
+A tool whose whole body is one fallible call does not write that dispatch out.
+`toolResultStep` is the `Result` → `ToolsCallResult` adapter — it renders the
+`ok` value, renders the failure as an `isError` result, and empties the error
+channel, so the handler is a single line:
+
+```ts
+import { toolResultStep } from './module.f.mjs'
+
+const headTool = toolEntry(
+    'evo_head',
+    'The current head hashes of a subject, one per line',
+    evoHeadArgs,
+    ({ subject }) => toolResultStep(e.head(subject), hs => hs.join('\n'), evoSummary),
+)
+```
+
+Both renderers are required. The error one is what pins the handler to a
+particular error channel, so a fallible call added upstream becomes a compile
+error at the tool that has to say what the new failure reads like — the reason
+`unwrapStep` (`fjs/effects/module.f.mjs`) asks for its `summary`.
+
 ## The CAS MCP Server: A Real-World Example
 
 The content-addressable store MCP adapter (`fjs/mcp/cas/module.f.mjs`) demonstrates the pattern in production:

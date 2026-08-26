@@ -47,6 +47,10 @@ impl<A: IVm> BigInt<A> {
         self.0.items().is_empty()
     }
 
+    fn sign(&self) -> Sign {
+        *self.0.header()
+    }
+
     /// The function doesn't normalize the bigint.
     fn unchecked_new(sign: Sign, items: impl IntoIterator<Item = u64>) -> Self {
         Self(A::InternalBigInt::new_ok(sign, items))
@@ -76,7 +80,7 @@ impl<A: IVm> BigInt<A> {
     /// via `Neg`, because `Neg` rebuilds the container (copying every word) —
     /// don't "simplify" `sub` back to `self + (-rhs)`.
     fn add_signed(self, rhs: Self, rhs_sign: Sign) -> Self {
-        let lhs_sign = *self.0.header();
+        let lhs_sign = self.sign();
         let (sign, vec) = if lhs_sign == rhs_sign {
             (lhs_sign, self.abs_add_vec(rhs))
         } else {
