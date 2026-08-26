@@ -21,8 +21,9 @@ and `main`-export conventions:
   spelling authors use today.
 - `module.mjs` — vanilla JavaScript host integration. It may use capabilities
   outside FunctionalScript and may run effects at import time.
-- `types.ts` — authored, type-only TypeScript companion. It has no runtime
-  representation and is imported only with `import type` or JSDoc `@import`.
+- `types.ts` — authored, type-only TypeScript module. It may stand alone when a
+  declaration has no runtime representation, or accompany a runtime module,
+  and is imported only with `import type` or JSDoc `@import`.
 
 ### `proof.*` — a module that proves other modules
 
