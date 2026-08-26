@@ -17,8 +17,7 @@
     "ci-update": "node ./fjs/module.mjs ci && node ./fjs/module.mjs r ./fjs/nanvm/update/module.f.mjs",
     "dev-update": "node ./fjs/module.mjs r ./fjs/dev/update/module.f.mjs",
     "update": "npm run ci-update && npm install && deno install && bun install",
-    "index-html": "node ./fjs/website/browser-prepare.mjs",
-    "website": "npm run index-html"
+    "website": "node ./fjs/website/browser-prepare.mjs"
   },
   "engines": {
     "node": ">=22"
