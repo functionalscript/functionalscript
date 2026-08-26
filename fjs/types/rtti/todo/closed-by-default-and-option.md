@@ -494,6 +494,15 @@ Stage 2 (one PR, after stage 1 lands):
       `subset` compares rest positions, so the two spellings stay mutual subsets.
       Pin `X = or(option, array(X))` used as a rest, and add the case to
       `../data/README.md`'s list of accepted structural incompleteness.
+- [ ] The same exemption covers a referenced **trailing position**, which the
+      redesigned `trimPrefix` reaches independently: for mutually recursive
+      `X`/`Y` where `X` normalizes to `or(option, number)`,
+      `toData(rest([X], number))` stores the prefix as `"X"`, and neither
+      `trimPrefix` nor `arraySet` takes a rule set to resolve it with (verified —
+      both are `(prefix, rest) => …`). So a referenced trailing position is left
+      untrimmed by the same rule that leaves a referenced rest alone, and
+      `rest([X], number)` stays structurally distinct from `array(number)`. Pin
+      it beside the rest case rather than leaving it to be discovered.
 - [ ] Redesign `trimPrefix` around the trailing **declared position** — drop it
       when it admits absence and its absence-stripped set equals the rest — and
       pin `rest([or(option, number)], number)` as `array(number)`. A bit test on
@@ -527,8 +536,20 @@ Stage 2 (one PR, after stage 1 lands):
       `undefined`, and update `./proof.f.mjs` — a third renderer over the data
       form, and the one whose output is wrong rather than merely imprecise if it
       is missed.
-- [ ] `../ts/types.ts`: strip the absent bit and render `a?:`; an interior tuple
-      position that admits absence renders `T | undefined`. Update the
+- [ ] `../ts/types.ts`: "strip the absent bit" is data-form vocabulary and does
+      not apply here — `OptionalFields` keys on `undefined extends Ts<T[K]>`, so
+      the type level sees members already reduced through `Ts`. Map `option` to a
+      **branded uninhabited marker** (`Absent`, a `unique symbol` brand). Not
+      `never`, which vanishes in a union and takes the information with it; not
+      `undefined`, which would make `or(undefined, number)` optional too and
+      conflate the pair this stage exists to separate. Then `OptionalFields` keys
+      on `Absent extends Ts<T[K]>` and renders `Exclude<Ts<T[K]>, Absent>`;
+      `ArrayTs`/`RecordTs` `Exclude` it from their element type, so
+      `Ts<array(or(option, number))>` stays `readonly number[]` — the type-level
+      counterpart of "a rest never sees it"; and the reader result types
+      (`../common/types.ts`'s `Result<T>`) `Exclude` it at the entry, which is
+      "observable only at a container position" in this vocabulary. An interior
+      tuple position that admits absence still renders `T | undefined`. Update the
       `_tupleOption`/`_tupleInteriorOption` pins, and `optionalTuplePosition` /
       `allOptionalTuple` in `../ts/proof.f.mjs`, which print the `undefined|`
       this stage removes.
