@@ -7,9 +7,14 @@
 
 > **Quotes refreshed against the current handler (2026-08).** `mcpStep` has been
 > restructured since this was written — `validate` → `parse`, `pure` → `pureOk`,
-> the `.step` method → the standalone `ioStep`, and a lifecycle `resultStep(read(
-> stateKey), …)` now wraps `initialize` and the `tools/*` pair. The repetition
-> survived all of it: the code below is the handler as it stands.
+> the `.step` method → the standalone `ioStep`, a lifecycle `resultStep(read(
+> stateKey), …)` now wraps `initialize` and the `tools/*` pair, and the private
+> `_errResponse` / `_okResponse` wrappers are gone in favour of `json_rpc`'s
+> exported `errorResponseOf` / `successResponseOf`. The repetition survived all
+> of it: the code below is the handler as it stands.
+>
+> **Build the helper on the imported constructors**, not on new local wrappers —
+> reintroducing a private pair is what this module just stopped doing.
 
 ### Problem
 
@@ -20,7 +25,7 @@ every method arm. The shape is always:
 ```ts
 const [t, pr] = parse(<schema>)(<params>)
 return t === 'error'
-    ? pureOk(_errResponse(id)(invalidParams))
+    ? pureOk(errorResponseOf(id)(invalidParams))
     : <success using pr>
 ```
 
@@ -28,14 +33,14 @@ It appears four times in `mcpStep` (in `fjs/protocol/mcp/module.f.mjs`), and the
 four do not even spell the destructure the same way:
 
 - `ping` — `parse(_noParams)(params)` as `[pt]`, success is
-  `pureOk(_okResponse(id)({}))`.
+  `pureOk(successResponseOf(id)({}))`.
 - `initialize` — `parse(initializeParams)(params)` as `[pr, pv]`, success builds
   an `InitializeResult` and writes state; the whole arm sits inside a
   `resultStep(read(stateKey), …)` that rejects a non-`uninitialized` session.
 - `tools/list` — `parse(toolsListParams)(params === undefined ? {} : params)` as
-  `[t, pr]`, success is `ioStep(handlers.toolsList(pr), r => pureOk(_okResponse(id)(r)))`.
+  `[t, pr]`, success is `ioStep(handlers.toolsList(pr), r => pureOk(successResponseOf(id)(r)))`.
 - `tools/call` — `parse(toolsCallParams)(params)` as `[t, pr]`, success is
-  `ioStep(handlers.toolsCall(pr), r => pureOk(_okResponse(id)(r)))`.
+  `ioStep(handlers.toolsCall(pr), r => pureOk(successResponseOf(id)(r)))`.
 
 A fifth site, `notifications/initialized`, runs `parse(_noParams)(params)` but
 answers `pureOk(null)` on either branch, since a notification never gets a
@@ -52,21 +57,21 @@ handler runs:
 ```ts
 // tools/list
 if (capabilities.tools === undefined) {
-    return pureOk(_errResponse(id)(methodNotFound))
+    return pureOk(errorResponseOf(id)(methodNotFound))
 }
 const [t, pr] = parse(toolsListParams)(params === undefined ? {} : params)
 return t === 'error'
-    ? pureOk(_errResponse(id)(invalidParams))
-    : ioStep(handlers.toolsList(pr), r => pureOk(_okResponse(id)(r)))
+    ? pureOk(errorResponseOf(id)(invalidParams))
+    : ioStep(handlers.toolsList(pr), r => pureOk(successResponseOf(id)(r)))
 
 // tools/call
 if (capabilities.tools === undefined) {
-    return pureOk(_errResponse(id)(methodNotFound))
+    return pureOk(errorResponseOf(id)(methodNotFound))
 }
 const [t, pr] = parse(toolsCallParams)(params)
 return t === 'error'
-    ? pureOk(_errResponse(id)(invalidParams))
-    : ioStep(handlers.toolsCall(pr), r => pureOk(_okResponse(id)(r)))
+    ? pureOk(errorResponseOf(id)(invalidParams))
+    : ioStep(handlers.toolsCall(pr), r => pureOk(successResponseOf(id)(r)))
 ```
 
 Both now sit inside one `resultStep(read(stateKey), …)` that has already
@@ -74,7 +79,7 @@ rejected an unreadable state (`internalError`) and a non-`initialized` one
 (`notInitialized`), so the capability gate is the only per-method guard left
 above the envelope.
 
-The repeated `t === 'error' ? pureOk(_errResponse(id)(invalidParams)) : …`
+The repeated `t === 'error' ? pureOk(errorResponseOf(id)(invalidParams)) : …`
 envelope forces a reader to diff each arm to confirm the only thing that varies
 is the schema and the success branch — exactly the readability cost AGENTS.md
 calls out: "When two code branches share most of their structure, refactor so
@@ -84,7 +89,7 @@ the shared part appears once and only the difference lives in the conditional."
 
 1. **A `validated` helper** that captures the `id`-bound `invalidParams` failure
    and forwards the decoded value to a success continuation. Because `id`,
-   `params`, and the `_errResponse`/`invalidParams` pair are per-request, the
+   `params`, and the `errorResponseOf`/`invalidParams` pair are per-request, the
    helper lives inside `mcpStep` (it genuinely closes over `id`), or — preferred
    per the "thread context rather than close over locals" rule — at module scope
    taking `id` as a parameter:
@@ -94,7 +99,7 @@ the shared part appears once and only the difference lives in the conditional."
        <O extends Operation>(onOk: (value: Ts<T>) => Effect<MemOp | O, Response | null, never>) => {
            const [t, pr] = parse(schema)(params)
            return t === 'error'
-               ? pureOk(_errResponse(id)(invalidParams))
+               ? pureOk(errorResponseOf(id)(invalidParams))
                : onOk(/** @type {Ts<T>} */ (pr))
        }
    ```
@@ -133,8 +138,8 @@ the shared part appears once and only the difference lives in the conditional."
    const toolMethod = (capabilities: ServerCapabilities, id: Id) =>
        <const T extends Type, O extends Operation>(schema: T, params: Unknown, handler: (v: Ts<T>) => Effect<O, Unknown, never>) =>
            capabilities.tools === undefined
-               ? pureOk(_errResponse(id)(methodNotFound))
-               : validated(id, schema, params)(pr => ioStep(handler(pr), r => pureOk(_okResponse(id)(r))))
+               ? pureOk(errorResponseOf(id)(methodNotFound))
+               : validated(id, schema, params)(pr => ioStep(handler(pr), r => pureOk(successResponseOf(id)(r))))
    ```
 
    **It has to thread its context, for the same reason `validated` does.**

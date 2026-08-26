@@ -23,10 +23,10 @@ Two shapes, both the same thing:
 *Projection* (`x => pure(f(x))`):
 
 ```ts
-// fjs/protocol/mcp/module.f.mjs:347-350
+// fjs/protocol/mcp/module.f.mjs:411-414
 : step(
     handlers.toolsList(pr),
-    r => pure(_okResponse(id)(r)),
+    r => pure(successResponseOf(id)(r)),
 )
 ```
 
