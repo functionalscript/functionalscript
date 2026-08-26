@@ -114,17 +114,34 @@ TypeScript aliases out.
    is most of the work.
 
 3. **Function types.** `Type` has no function case, and FunctionalScript modules
-   are almost entirely functions — 1318 of the 3772 JSDoc type bodies in the
-   tree are function types. The schema side is already tracked as
-   [`fjs/types/rtti/todo/668-rtti-function-types.md`](../../fjs/types/rtti/todo/668-rtti-function-types.md),
-   which reaches the same conclusion the annotation side needs: a function can
-   be checked as callable, but its contract is only observable when it is
-   called. What remains open here is what an annotation on a function should
-   therefore *mean* — a compile-time check that cannot be completed, or a
-   wrapper that validates each call. Until that is settled, `/*: */` can join
-   `@type` but not replace it.
+   are almost entirely functions — **nearly half** the tree's JSDoc type bodies
+   are function types (~46% when measured in review of #1719; counts drift, so
+   re-measure rather than cite this). The schema side is tracked as
+   [`fjs/types/rtti/todo/668-rtti-function-types.md`](../../fjs/types/rtti/todo/668-rtti-function-types.md).
 
-4. **Generic schemas.** 169 `@template` uses today. A generic type is naturally a
+   > **Superseded by the epic.** An earlier draft here posed the annotation
+   > question as a choice between "a compile-time check that cannot be
+   > completed" and "a wrapper that validates each call", reading 668's runtime
+   > limitation as the general case. That framing is retired by
+   > [rtti-type-system](../../todo/rtti-type-system.md) stage 7, which splits by
+   > **provenance** instead: a function whose definition the compiler can read
+   > is statically checkable with no wrapper and no API change — check the
+   > body's inferred result against the declared result schema, and each visible
+   > call site against the parameter schemas — while 668's `Result`-returning
+   > wrapper is for an *opaque* function crossing a runtime boundary, which is
+   > the only place its API change is justified. 668 scopes its own limitation
+   > to "runtime validation of an arbitrary function", so it never claimed the
+   > general case.
+   >
+   > Calls the compiler cannot see are a separate matter from either, and
+   > belong to that epic's stage 13 rather than here.
+
+   So what an annotation on a function *means* is settled; what is still
+   missing is the schema form to write one with. Until 668 lands that, `/*: */`
+   can join `@type` on a function declaration but not replace it.
+
+4. **Generic schemas.** Roughly 190 `@template` uses today (re-measure rather
+   than cite; the figure drifts). A generic type is naturally a
    *function from schemas to schemas* — `array` and `record` already are — so
    the value layer needs nothing new. What needs design is `Ts<>` and `.d.ts`
    emission for a parameterised alias.

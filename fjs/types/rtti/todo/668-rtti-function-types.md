@@ -16,9 +16,20 @@ when the function is called.
 
 ### Proposal
 
-Add an extern RTTI form for functions. It should be able to describe parameter
-types and result type, while keeping the runtime contract explicit: validating a
-function schema should not pretend it can prove all future calls are valid.
+Add an RTTI form for functions, able to describe parameter types and a result
+type, while keeping the runtime contract explicit: validating a function schema
+should not pretend it can prove all future calls are valid.
+
+> **Where the form lives is not settled here.** This section originally said
+> "add an **extern** RTTI form", and the sketch below is written that way. That
+> is one of two options, not a decision:
+> [rtti-type-system](../../../../todo/rtti-type-system.md) made this issue its
+> stage 7, and the 7a tasks below ask whether an extern form can actually pay
+> for a `subset` path, a printer path, and a canonical serializable form, or
+> whether function contracts have to go into
+> [`data`](../data/README.md) proper. Read the API sketch below as a
+> description of the runtime *contract* — which holds either way — rather than
+> as a commitment to the representation.
 
 One practical API is a wrapper that validates calls:
 
@@ -112,9 +123,11 @@ are **7a** and run before stage 6; static checking of readable definitions is
   inclusion over kinds with no variance notion at all.
 - [ ] **7a — a printer path**, so a function-typed export has a declaration to
   generate.
-- [ ] **7a —** decide **extern vs in-`data`** for the representation. The Related note
-  below contemplates extern; the tasks above are what that choice has to
-  pay for.
+- [ ] **7a —** decide **extern vs in-`data`** for the representation. The
+  Proposal above sketches extern and the Related note contemplates it, but
+  neither settles it: the tasks above are what that choice has to pay for, and
+  the decision is which option can. Whichever wins, update the Proposal to
+  match rather than leaving the sketch reading as a commitment.
 - [ ] **7a — a canonical serializable form that run time reuses.** The
   requirement the extern option most easily fails, and the one that is not
   about assignability or printing. The epic's stage 4 closes its
