@@ -141,6 +141,33 @@ The prose that defends the old default is deleted, not softened: `../README.md`'
 check" paragraph. The length check returns — now stated by the model rather than
 inferred from `Ts<>`, which is what made #1622 wrong at the time.
 
+#### `RestTs` must render the tail
+
+A straight rename is not enough. `CloseTs<C> = ConstTs<C>` ignores its rest
+today, which was harmless while the rest was the rare, explicitly-closed case.
+After stage 1 the *open* form is the wrapper, so the same definition would make
+`Ts<typeof open([42])>` the exact `readonly [42]` while
+`validate(open([42]))([42, 'extra'])` accepts and returns two elements — the
+unsound cast this issue opens with, moved from the bare form to `open` rather
+than removed.
+
+The struct kind needs nothing: an open struct's declared props already *are* its
+accurate TypeScript type, since object types are width-open. Only the tuple kind
+needs a tail, and the tail is expressible — measured against this repo's `tsc`:
+
+| type | accepts | rejects |
+| --- | --- | --- |
+| `readonly [...Mapped<readonly [42]>, ...string[]]` | `[42]`, `[42, 'x', 'y']` | `[42, 99]` |
+| `readonly [...Mapped<readonly [42]>, ...unknown[]]` — the `open(c)` case | `[42, 'anything', 1, null]` | `[43]` |
+| `readonly [number, string?, ...boolean[]]` | — | type-checks, so a rest may follow an optional element |
+
+That is narrower than it looks: `TupleTs`'s documented failure is the generic
+derivation *composed with* the trailing-optional transform, not the tail on its
+own. The tail shape works; composing the two is a spike stage 1 has to run. If
+it cannot be composed, `RestTs` renders the tail where it can and states the
+gap — what it must not do is keep returning an exact tuple for an open schema,
+which is the lie in the first place.
+
 #### Alternative considered: a kind-dependent default
 
 Making a bare `Tuple` closed and a bare `Struct` open would leave `Ts<>` exact on
@@ -383,8 +410,11 @@ Stage 1 (one PR):
       and `open(c)` to the mirror. No algebra change — assert that in the PR.
 - [ ] `../parse` and `../validate`: reject an undeclared member of a bare `Const`;
       the tuple length check returns.
-- [ ] `../ts/types.ts`: `RestTs`; rewrite `TupleTs`'s doc comment — the exact
-      rendering is now the model, not an approximation.
+- [ ] `../ts/types.ts`: `RestTs` **renders the tuple tail** — a rename alone
+      relocates the unsound cast to `open(c)` (see above). Spike whether the
+      tail composes with the trailing-optional derivation; state the gap if not.
+      Rewrite `TupleTs`'s doc comment — the exact rendering is now the model,
+      not an approximation.
 - [ ] `../README.md`: replace "Structs and tuples are open", "This is deliberate;
       please do not 'fix' it" and "Closed containers" with the closed default and
       the `open`/`rest` spelling; keep the `Ts<>` direction note above.
@@ -404,6 +434,13 @@ Stage 2 (one PR, after stage 1 lands):
 
 - [ ] `option` as a nullary schema in `../module.f.mjs`/`../types.ts` — a new
       `Tag0`, so `visit`'s `Visitor` in `../common/module.f.mjs` gains the case.
+- [ ] Migrate every `option(t)` call site to `or(option, t)` — 52 of them across
+      10 modules outside this one (`protocol/mcp` 10, `media/json/schema` 11 plus
+      11 in its proof, `ci/common` 5, `mcp/evo` 5, `protocol/json_rpc` 3,
+      `media/revision` 2, `media/note` 2, `mcp` 2, `mcp/cas` 1), plus this
+      module's own proofs. The repo sets `checkJs`, so a missed site is
+      `TS2554: Expected 0 arguments, but got 1` rather than a silent
+      absence-only schema — verified — but the schemas are wrong until migrated.
 - [ ] `../data/module.f.mjs`: `absentBit` as the fifth unit bit — `unitBit` stays
       value-keyed, since the new bit has no JS value to key on — and `trimPrefix`
       and `objectMayOmit` switch to it. `allUnits` stays the four DJS units;
