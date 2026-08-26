@@ -7,7 +7,7 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { msb, lsb, length, vec, empty } from '../../types/bit_vec/module.f.mjs'
+import { msb, lsb, length, maxLength, vec, empty } from '../../types/bit_vec/module.f.mjs'
 import { baseN } from '../module.f.mjs'
 
 //                         0123456789abcdef
@@ -47,15 +47,23 @@ export const vecToCBase32 = v => {
 
 /** @type {(s: string) => Nullable<Vec>} */
 export const cBase32ToVec = s => {
-    let v = cBase32ToVec5x(s)
-    if (v === null) { return null }
-    // Strip the padding: trailing zeros up to and including the sentinel `1` bit.
-    // A string with no sentinel — only zero symbols (`0`/`o`), or empty — exhausts
-    // to `empty` and is rejected as `null` rather than looping forever.
-    while (v !== empty) {
-        const [last, rest] = popBack1(v)
-        v = rest
-        if (last === 1n) { return v }
+    // Locate the sentinel from the end one character at a time. This preserves
+    // accepted non-canonical spellings with trailing zero characters without
+    // ever materialising their padded body as one oversized vector.
+    for (let i = s.length - 1; i >= 0; i--) {
+        let tail = cBase32ToVec5x(s[i])
+        if (tail === null) { return null }
+        while (tail !== empty) {
+            const [last, rest] = popBack1(tail)
+            tail = rest
+            if (last === 1n) {
+                const head = cBase32ToVec5x(s.slice(0, i))
+                if (head === null || length(head) + length(rest) > maxLength) {
+                    return null
+                }
+                return concat(head)(rest)
+            }
+        }
     }
     return null
 }
