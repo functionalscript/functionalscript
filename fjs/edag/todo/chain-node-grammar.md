@@ -191,13 +191,21 @@ put one.
 ## Verification
 
 19 chain shapes × 13 input kinds, comparing all 171 pairs on **value, throw
-kind, and which operands ran** — every index and argument side-effecting. Under
-V8, no two distinct terms denote the same expression.
+kind, receiver identity, and which operands ran** — every index and argument
+side-effecting, every callee reporting its `this`. Under V8, no two distinct
+terms denote the same expression.
 
-The inputs put a nullish at depth 0, 1 and 2, through both property and call
-edges, because a shallow oracle manufactures phantom duplicates — restrict the
-nullish to depth 0 and shapes that differ only deeper stop being distinguished
-at all:
+Receiver identity belongs in that list and is not decoration: drop it and
+`a.b(..)` merges with `(0, a.b)(..)` across all 13 inputs, leaving 18 of 19
+distinct.
+
+The inputs put a nullish at depths 0, 1 and 2, through both property and call
+edges, because a shallow battery manufactures phantom duplicates. Over these 19
+shapes the effect is blunt but real — three depth-0 inputs alone collapse 10
+pairs, and adding back a single deep input separates all 19 again — so the
+spread is insurance against a wider term space rather than something this matrix
+needs. `d1 a.b missing` is behaviourally identical to `d1 a.b=undefined` here,
+since nothing observes `in`, so 13 kinds are 12 effective ones:
 
 ```
 d0  a=undefined | a=null | a=1
@@ -233,7 +241,71 @@ The shapes, each with the term the grammar assigns it:
 Operands are named **positionally** — first index, second index, first argument
 list, second — so two shapes denoting the same computation produce the same log.
 An earlier run named them per-shape, which left some pairs permanently
-incomparable and undercounted the engine divergence below.
+incomparable and undercounted the engine divergence below. That run also used a
+narrower battery of 11 inputs; the 13 above are the corrected one, and `C(19,2)`
+is 171 either way, so no pair count moved.
+
+The harness, so the numbers can be re-run rather than taken on trust — save and
+run under both `node` and `bun`:
+
+```js
+const make = (depth, tag) => {                    // `a.b` is callable and has .b/.c
+    const self = function () {
+        return make(depth - 1, `${tag}(this=${this === undefined ? 'undef' : (this.$ ?? '?')})`)
+    }
+    self.$ = tag
+    if (depth > 0) for (const k of ['b', 'c']) {
+        Object.defineProperty(self, k, { value: make(depth - 1, `${tag}.${k}`) })
+    }
+    return self
+}
+const inputs = [
+    () => undefined, () => null, () => 1, () => make(5, 'A'),
+    () => ({ b: undefined }), () => ({ b: null }), () => ({ b: 1 }), () => ({}),
+    () => () => undefined, () => () => make(4, 'R'),
+    () => ({ b: () => undefined }), () => ({ b: { c: undefined } }), () => ({ b: { c: 1 } }),
+]
+let log
+const I1 = () => { log.push('i1'); return 'b' }, I2 = () => { log.push('i2'); return 'c' }
+const A1 = () => { log.push('a1'); return 1 },   A2 = () => { log.push('a2'); return 2 }
+const exprs = [
+    ['a.b',            a => a[I1()]],
+    ['a.b(..)',        a => a[I1()](A1())],
+    ['(0,a.b)(..)',    a => (0, a[I1()])(A1())],
+    ['a.b?.(..)',      a => a[I1()]?.(A1())],
+    ['a.b.c',          a => a[I1()][I2()]],
+    ['a.b(..).c',      a => a[I1()](A1())[I2()]],
+    ['a?.b',           a => a?.[I1()]],
+    ['a?.b.c',         a => a?.[I1()][I2()]],
+    ['a?.b(..)',       a => a?.[I1()](A1())],
+    ['(a?.b)(..)',     a => (a?.[I1()])(A1())],
+    ['a?.b?.(..)',     a => a?.[I1()]?.(A1())],
+    ['(a?.b.c)(..)',   a => (a?.[I1()][I2()])(A1())],
+    ['(a?.b).c(..)',   a => (a?.[I1()])[I2()](A1())],
+    ['a?.b.c(..)',     a => a?.[I1()][I2()](A1())],
+    ['a?.b(..).c(..)', a => a?.[I1()](A1())[I2()](A2())],
+    ['a?.(..)',        a => a?.(A1())],
+    ['a?.(..)(..)',    a => a?.(A1())(A2())],
+    ['(a?.(..))(..)',  a => (a?.(A1()))(A2())],
+    ['a?.(..).c',      a => a?.(A1())[I2()]],
+]
+const cell = (f, mk) => {
+    log = []
+    let out
+    try {
+        const v = f(mk())
+        out = 'ok:' + (v === undefined ? 'undefined'
+            : typeof v === 'function' || (v && v.$) ? String(v.$) : JSON.stringify(v))
+    } catch (e) { out = 'throw:' + e.constructor.name }
+    return `${out}/[${log.join(',')}]`
+}
+const rows = exprs.map(([js, f]) => ({ js, v: inputs.map(mk => cell(f, mk)).join('|') }))
+let dup = 0
+for (let i = 0; i < rows.length; i += 1) for (let j = i + 1; j < rows.length; j += 1) {
+    if (rows[i].v === rows[j].v) { dup += 1; console.log(`COLLAPSE ${rows[i].js} == ${rows[j].js}`) }
+}
+console.log(`${rows.length} shapes, ${inputs.length} inputs -> ${dup} collapse(s)`)
+```
 
 The shapes cover every production and both terminals, including the four that
 differ only in where the region closes:
