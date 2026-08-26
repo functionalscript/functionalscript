@@ -645,22 +645,37 @@ annotations — which is most of them, once annotations are the point.
       [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs), wired into
       packaging ([publishing-packages](../fjs/ci/todo/publishing-packages.md)).
       No compiler work and no language change — but **not just a command**.
-      The printer's own doc comment records two divergences from `Ts<>`, and
-      each makes an emitted declaration admit values the schema rejects:
-      - the `unknown` schema prints TypeScript's built-in `unknown`, while the
-        schema and `Ts<>` mean the DJS-shaped `Primitive | Array | Object`. A
-        consumer typed against the emitted form may pass a function or a symbol
-        and be rejected at run time — the exact compile-time/run-time
-        disagreement this epic exists to remove. Emit the DJS union, or a named
-        alias for it, not `unknown`.
-      - a tuple prints open (`readonly[42,...readonly(unknown)[]]`) while
-        `Ts<>` renders the closed approximation. Both are defensible — the
-        schema *is* open, and `TupleTs` says its closed rendering is a
-        limitation — but a `.d.ts` has to pick one and say so.
+      The printer's own doc comment records two divergences from `Ts<>`. They
+      are **not the same kind of problem**, and an earlier draft of this stage
+      wrongly said both let a declaration admit values the schema rejects:
 
-      Settling those two is part of stage 1, and stage 11 depends on the answer.
+      - **`unknown` — the printer is wider than the schema.** It prints
+        TypeScript's built-in `unknown`, while the schema and `Ts<>` mean the
+        DJS-shaped `Primitive | Array | Object`. A consumer typed against the
+        emitted form may pass a function or a symbol and be rejected at run
+        time — the exact compile-time/run-time disagreement this epic exists to
+        remove. Emit the DJS union, or a named alias for it, not `unknown`.
+        This one is a defect.
+      - **Tuple openness — the printer is right and `Ts<>` is narrow.** A tuple
+        schema *is* open: `validate` "iterates what the schema declares, so an
+        undeclared key or a longer array is never visited: it is accepted"
+        ([`rtti/validate`](../fjs/types/rtti/validate/module.f.mjs)). The
+        printer's open form therefore admits exactly what the schema admits,
+        and it is `Ts<>`'s closed rendering that is the approximation —
+        `TupleTs` says so itself. **Do not "reconcile" these by closing the
+        printer.** `validate`'s doc comment says "Do not add a length check for
+        tuples here" for the same reason, and a closed `.d.ts` would reject
+        longer arrays the schema accepts — turning a non-problem into the
+        problem the bullet above describes, in the opposite direction.
 
-      A third gap is **not** settleable, and belongs in a different column.
+      So stage 1 settles one thing, not two: emit the DJS union for `unknown`.
+      What remains for tuples is not soundness but **compatibility** — a
+      previously published declaration was the narrow one, and replacing it
+      with the open form widens what callers may pass. That is stage 11's
+      question, under its rule about reproducing what was published, and it is
+      recorded there rather than here.
+
+      A further gap is **not** settleable, and belongs in a different column.
       `close({ a: number })` prints as `{ readonly a: number }`, and `Ts<>`
       renders it identically, because — in the printer's own words —
       "TypeScript object types are structurally open, so 'and no other key' has
@@ -687,6 +702,22 @@ annotations — which is most of them, once annotations are the point.
       A manifest is the cheaper way to ship stage 1 early and is worth it if
       `.d.ts` output is wanted before the compiler exists; otherwise move
       declaration emission after stage 3 and keep stage 1 to the renderer.
+
+      **Annotations are not sufficient even then, for a module that exports a
+      schema.** `export const myType = or(number, string)` —
+      [type-annotations](../spec/todo/3360-type-annotations.md)'s own example —
+      is a case an annotation cannot describe: annotations say what *other*
+      exports are, and `myType`'s own runtime value is an `Or` thunk, not a
+      `number | string`. Emitting `dataToTs(myType)` would declare the
+      represented type and misdeclare the value; omitting the export would
+      delete public API a consumer needs in order to reuse the schema. Since
+      schemas are values and this epic expects them to be shared and imported,
+      this is the common case, not an exotic one.
+
+      What it needs is a way to declare a schema's *own* type — a meta-schema
+      describing `Type`, inference over schema-valued expressions, or a
+      manifest that carries the export's runtime type alongside its schema.
+      Whichever, it is stage 1 work and does not fall out of stages 3–4.
 - [ ] **2. Settle the annotation form.** Narrow the body from an expression to a
       name in [type-annotations](../spec/todo/3360-type-annotations.md), and
       settle which positions accept an annotation — `const`, parameter, return,
