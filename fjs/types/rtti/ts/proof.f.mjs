@@ -1,6 +1,9 @@
 /**
- * @import { Type } from '../types.ts'
+ * @import { Or, Type } from '../types.ts'
  * @import { Data } from '../data/types.ts'
+ * @import { Ts, TupleTs } from './types.ts'
+ * @import { Assert } from '../../../asserts/types.ts'
+ * @import { Equal } from '../../ts/types.ts'
  */
 
 import { assertEq } from '../../../asserts/module.f.mjs'
@@ -8,7 +11,74 @@ import { toData, unitBit } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, close, record, or, option, never } from '../module.f.mjs'
 import { dataToTs, printer } from './module.f.mjs'
 
+// ── `Ts<T>` over a tuple schema ─────────────────────────────────────────────
+//
+// Spelled as schema *types* rather than `typeof` a value: these are type-level
+// facts, and a value existing only to be pointed at is an unused one.
+//
+// `TupleTs` splits off the trailing run of positions admitting `undefined` and
+// renders it optional, which needs a known length. A schema array of non-fixed
+// length — what `.map()` produces — has no trailing position to split off, so
+// it keeps its element type instead, the homomorphic mapping's answer. Pinned
+// because a split that falls back to the empty tuple silently renders such a
+// schema `readonly []`, and nothing else here would have caught it.
+/** @typedef {Assert<Equal<Ts<readonly (typeof number | typeof bigint)[]>, readonly (number | bigint)[]>>} _NonFixedLength */
+
+// `option(t)` is `or(t, undefined)`; these are the schema types it produces.
+/** @typedef {Or<readonly [typeof boolean, undefined]>} _OptionBoolean */
+/** @typedef {Or<readonly [typeof string, undefined]>} _OptionString */
+
+// A variadic tuple is the shape the `length` guard exists for, and the only
+// one: its peel *succeeds*, binding the unknown-length prefix to `I`, so
+// without the guard the reconstruction flattens it. The others below reach the
+// fallback because their peel fails, and are held by that alone.
+//
+// Asserted as assignability rather than with `Equal<>`. `Equal<>` reports this
+// shape as unchanged whether or not the guard is in place — it cannot see the
+// difference — so an `Equal<>` pin here passes over the bug it is meant to
+// catch. What the flattening actually costs is a string admitted in the number
+// prefix, so that is what these state.
+/** @typedef {readonly [...(typeof number)[], _OptionString]} _VariadicSchema */
+/** @typedef {Assert<readonly [1, 'x', 2] extends Ts<_VariadicSchema> ? false : true>} _VariadicPrefixRejectsMixedPrefix */
+/** @typedef {Assert<readonly [1, 2, 'x'] extends Ts<_VariadicSchema> ? true : false>} _VariadicPrefixAdmitsItsOwnShape */
+
+// A rest element after a fixed prefix is the same shape from the other side,
+// and is held for the same reason: `length` is `number`, so the mapping stands.
+//
+// This row and `_NonFixedLength` document intent rather than discriminate a
+// mechanism. The guard and the fallback both answer `M` for these two shapes,
+// so neither single mutation moves them — only removing both at once does.
+// The rows that pin one mechanism each are `_VariadicPrefixRejectsMixedPrefix`
+// (the guard), `_OptionalMember` (the fallback) and
+// `_UnionKeepsBranchCorrelation` (the distribution).
+/** @typedef {Assert<Equal<Ts<readonly [typeof number, ...(typeof string)[]]>, readonly [number, ...string[]]>>} _RestTuple */
+
+// A schema whose own tuple type already marks a member optional is held by the
+// *fallback* rather than the length guard: its length is `1 | 2`, not `number`,
+// so it reaches the split, where the peel needs a required last element and
+// finds none. An optional position is what this transform produces, so one the
+// caller wrote is already in the target form and the mapping stands.
+/** @typedef {Assert<Equal<Ts<readonly [typeof number, (typeof string)?]>, readonly [number, string?]>>} _OptionalMember */
+
+// A union of tuple schemas is split per member, not once across the union.
+// Splitting the union lets the two halves distribute independently and the
+// spread then pairs every prefix with every suffix, so `[number, boolean]` —
+// A's prefix with B's suffix — would pass. Assignability again: this is a
+// statement about which values the union admits.
+/** @typedef {readonly [typeof number, _OptionString]} _BranchA */
+/** @typedef {readonly [typeof string, _OptionBoolean, _OptionNumber]} _BranchB */
+/** @typedef {Or<readonly [typeof number, undefined]>} _OptionNumber */
+/** @typedef {Assert<readonly [1, true] extends TupleTs<_BranchA | _BranchB> ? false : true>} _UnionKeepsBranchCorrelation */
+/** @typedef {Assert<readonly [1, 'x'] extends TupleTs<_BranchA | _BranchB> ? true : false>} _UnionAdmitsItsOwnBranches */
+
+/** @typedef {Assert<Equal<Ts<readonly [typeof number, typeof bigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, (boolean | undefined)?, (string | undefined)?]>>} _OptionalTail */
+
+// Only the *trailing* run: TypeScript forbids a required element after an
+// optional one, so an interior position that admits `undefined` stays required.
+/** @typedef {Assert<Equal<Ts<readonly [_OptionString, typeof number]>, readonly [string | undefined, number]>>} _InteriorStaysRequired */
+
 const toTs = printer()
+
 const toTsMut = printer(true)
 
 /** @type {(rtti: Type, expected: string) => void} */

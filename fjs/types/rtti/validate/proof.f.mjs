@@ -73,6 +73,14 @@ const rows = [
     [[/** @type {const} */ (42)], [42, 'extra']],
     [{ a: /** @type {const} */ (42) }, { a: 42, b: 'x' }],
     [[number, option(string)], [42]],
+    // the rule is per position, not "the last one": every trailing position
+    // whose set admits `undefined` may be absent, so an array may stop at the
+    // last required one
+    [[number, bigint, option(string), option(null)], [2, 4n]],
+    [[number, bigint, option(string), option(null)], [2, 4n, 'x']],
+    [[number, bigint, option(string), option(null)], [2, 4n, 'x', null]],
+    [[number, bigint, option(string), option(null)], [2]],
+    [[number, bigint, option(string), option(null)], [2, 4n, 5]],
     [[/** @type {const} */ (42)], []],
     [{ a: number, b: option(string) }, { a: 1 }],
     [{ a: number }, { a: 'one' }],
@@ -204,6 +212,89 @@ export const proof = {
         for (const [t, value] of rows) {
             assertEq(d(t)(value)[0], p(t)(value)[0], 'the data form must accept what `parse` accepts')
         }
+    },
+    // The two proofs above compare the readers with one another, so a
+    // regression all three shared would pass them both. The table's rows for
+    // a schema with several optional positions therefore carry their expected
+    // answer here as well.
+    //
+    // The rule is *per position*, not "the last one": a position is required
+    // exactly when its set excludes `undefined`, independently of the others.
+    // A dense prefix alone would only show that an optional *suffix* may be
+    // truncated, so the cases below also omit position 2 while position 3 is
+    // present, and omit a required position with everything after it present.
+    //
+    // Every case runs against the closed form too. `close` is a separate
+    // reader on all three — `closeContainerValidate`/`closeContainerParse`,
+    // and its own conversion in the data form — and it narrows *which values
+    // are members*, not which positions are required, so it must answer these
+    // identically. The one case where closing does change the answer is at the
+    // end.
+    optionalPositions: () => {
+        const t = /** @type {const} */ ([number, bigint, option(string), option(null)])
+        /** @type {(rtti: Type) => (check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
+        const every = rtti =>
+            check =>
+                value => {
+                    for (const read of [v, p, d]) { check(read(rtti)(value)) }
+                }
+        for (const rtti of [t, close(t)]) {
+            const accepted = every(rtti)(assertOk)
+            const rejected = every(rtti)(assertError)
+            accepted([2, 4n])                  // stops at the last required position
+            accepted([2, 4n, 'x'])             // the first optional present
+            accepted([2, 4n, 'x', null])       // both present
+            // Omission is independent, not just truncation: an absent member
+            // reads as `undefined` wherever it sits, so position 2 may be
+            // missing while position 3 is present. A hole and an explicit
+            // `undefined` are the same value, so both spellings are accepted.
+            accepted([2, 4n, , null])          //< a hole at position 2
+            accepted([2, 4n, undefined, null]) //< the same value, spelled densely
+            rejected([2])                      // `bigint` excludes `undefined`
+            rejected([2, 4n, 5])               // an optional that is present is still checked
+            // The mirror of the two rows above: `bigint` excludes `undefined`,
+            // so omitting position 1 fails however much of the rest is present.
+            rejected([2, , 'x', null])         //< a hole at position 1
+        }
+        // What closing does change: an element past the declared positions is
+        // a member of the open set and not of the closed one.
+        const extra = /** @type {const} */ ([2, 4n, 'x', null, 'extra'])
+        every(t)(assertOk)(extra)
+        every(close(t))(assertError)(extra)
+        // How stopping short composes with running long: the two rules are
+        // independent, so the open form's accepted lengths run from the last
+        // required position upwards without a gap or a cap — 2, 3, 4, 5, and
+        // on. `close` caps the top at the declared count and leaves the bottom
+        // where it is.
+        every(t)(assertOk)([2, 4n, 'x', null, 'a', 'b'])
+    },
+    // An interior omittable position may be absent with a *required* position
+    // after it, which is the sharpest witness that absence is per position
+    // rather than truncation: `optionalPositions`'s hole is followed by
+    // another omittable position, so it cannot say this. Absence is also
+    // positional, not a shift — `[, 5]` holds `5` at position 1 and is
+    // accepted, while `[5]` holds it at position 0 and is not.
+    interiorOptionBeforeRequired: () => {
+        const t = /** @type {const} */ ([option(string), number])
+        /** @type {(rtti: Type) => (check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
+        const every = rtti =>
+            check =>
+                value => {
+                    for (const read of [v, p, d]) { check(read(rtti)(value)) }
+                }
+        // Closed too, for the reason `optionalPositions` runs both: `close` is
+        // its own reader on all three, and this schema is not one of the
+        // shapes the trailing-option cases there already put through it.
+        for (const rtti of [t, close(t)]) {
+            every(rtti)(assertOk)([, 5])          //< a hole at position 0
+            every(rtti)(assertOk)([undefined, 5]) //< the same value, spelled densely
+            every(rtti)(assertOk)(['x', 5])
+            every(rtti)(assertError)([5])         //< `number` at position 1 is required
+        }
+        // And the one answer closing changes here as well.
+        const extra = /** @type {const} */ (['x', 5, 'extra'])
+        every(t)(assertOk)(extra)
+        every(close(t))(assertError)(extra)
     },
     // The two tables above pin that the three readers *agree*; these pin what
     // they agree on, which is what the changelog entry claims.
