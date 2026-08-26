@@ -24,35 +24,44 @@ shell fails before any proof is reached.
 
 ### Proposal
 
-Split the work at the line the shell draws: everything that needs the
-filesystem happens on Node, ahead of time, and the shell receives a
-self-contained program.
+**Take the simplest thing that runs proofs on SpiderMonkey, and keep taking it.**
+Everything below is the simplest path found so far, not a design to defend: if
+the shell can run the suite with less machinery — a flag, a loader hook, a
+`js` invocation that needs no generated file at all — that is the solution, and
+this issue should shrink to it. Nothing here is worth building for its own
+sake.
 
-1. **Preparation, on Node.** A new command generates the entry point rather
-   than discovering modules at run time. It reuses the discovery half of
-   `loadModuleMap` (`../../dev/module.f.mjs`) to find every module matching
-   `shouldLoad`, and writes an entry module that *statically* imports each one
-   and exports the same `ModuleMap` shape `runModuleMap` already consumes —
-   relative path to module namespace. No `readdir` and no `import` operation
-   survives into the shell.
+The simplest path found so far is two steps.
 
-2. **A SpiderMonkey host runner.** A sibling of `../../effects/node/module.mjs`
-   with no `node:` imports, implementing only the operations the built-in
-   runner reaches: `write` (`putstr` / `print`), `sandbox` (`try`/`catch`, as
-   the Node runner does — the host runner is plain JavaScript, not
-   FunctionalScript), `await` (the shell's job queue), `env` (`os.getenv`), and
-   the process exit code (`quit`). Everything else answers `notImplemented`,
-   which is what that channel is for.
+1. **Generate one file, on Node.** Walk the tree with the discovery half of
+   `loadModuleMap` (`../../dev/module.f.mjs`, `shouldLoad`) and write a single
+   `.mjs` file that *statically* imports every module exporting `proof`,
+   followed by a small runner: walk each `proof` value, call the zero-argument
+   functions, `try`/`catch` around each call, count passes and failures, `print`
+   the failures, and `quit(1)` if any. Reuse `parseTestSet` (`../module.f.mjs`)
+   for the walk if importing it stays free of the effects layer; inline the
+   dozen lines if it does not.
 
-3. **Invocation.** `js --module <out>/entry.mjs`, with the flags the pinned
-   build needs, exiting nonzero when a proof fails.
+2. **Run it:** `js --module <out>/spidermonkey.mjs` — the `js` binary from a
+   `jsshell` distribution (`sm` under jsvu) — with whatever flags the pinned
+   build needs.
 
-The Node wrapper is also the general escape hatch: anything the shell turns out
-to lack — module resolution, reading a fixture, listing a directory — is
-prepared on Node and baked into the generated program instead of being asked of
-the shell at run time. If the shell's module loader cannot resolve the relative
-imports of the generated entry, the same step emits one classic script instead
-of a module graph; that is a change to the generator, not to the design.
+That is the whole first version. It deliberately does **not** port the effects
+layer: no `Effect` runner, no `ModuleMap`, no `sandbox`/`write`/`await`/`env`
+operations, no `Reporter`. `runModuleMap` and the operations behind it are the
+Node runner's business, and reaching for them means writing a second host
+runner (a sibling of `../../effects/node/module.mjs` with no `node:` imports)
+before knowing whether a `print`-and-`quit` script would have done. Do that
+only when something concrete demands it — the shared reporter output, or
+proofs that return promises needing the job queue — and only for the operations
+that demand it.
+
+The Node side is the escape hatch for everything the shell lacks: module
+resolution, listing a directory, reading a fixture. Prepare it on Node and bake
+it into the generated file rather than asking the shell for it at run time. If
+the shell's module loader will not resolve the generated file's relative
+imports, emit one flat script instead of a module graph — a change to the
+generator, not to the design.
 
 The shell's exact API surface is the first unknown to close, and it is
 version-dependent — `print`, `putstr`, `quit`, `scriptArgs`, `os.getenv`,
@@ -61,18 +70,17 @@ version-dependent — `print`, `putstr`, `quit`, `scriptArgs`, `os.getenv`,
 
 ### Tasks
 
-- [ ] Pin a SpiderMonkey build and record, in a README beside the runner, which
-      shell functions and flags it actually provides — output, exit, args,
-      environment, job queue, module loading.
-- [ ] Add the SpiderMonkey host runner: `write`, `sandbox`, `await`, `env`,
-      exit code; no `node:` imports; `notImplemented` for the rest.
-- [ ] Add the Node-side generator that discovers proof modules and writes an
-      entry module exporting a static `ModuleMap`.
-- [ ] Wire it to an `fjs` command and make a failing proof produce a nonzero
-      exit code.
-- [ ] Fixtures: a passing proof, a failing proof, a `throw`-tagged proof, and a
-      proof returning a promise — each verified to run in the shell, not just
-      to generate.
+- [ ] Pin a SpiderMonkey build and check what its shell actually provides —
+      output, exit code, args, environment, job queue, module loading. Note
+      anything that makes the generated file unnecessary.
+- [ ] Add the Node-side generator: static imports of every proof module plus
+      the inline runner, written to one file.
+- [ ] Run it under `js`, get a nonzero exit code from a failing proof, and wire
+      the generate-and-run pair to an `fjs` command.
+- [ ] Fixtures: a passing proof, a failing proof, and a `throw`-tagged proof —
+      each verified to run in the shell, not just to generate. Add a
+      promise-returning proof once it is known whether the shell needs the job
+      queue drained.
 - [ ] Add a CI job (`../../ci/`) only after proof bodies demonstrably execute
       in the shell, and add the row to the runtime table in
       [CONTRIBUTING.md](../../../CONTRIBUTING.md).
@@ -81,7 +89,8 @@ version-dependent — `print`, `putstr`, `quit`, `scriptArgs`, `os.getenv`,
 
 ### Out of scope
 
-Making SpiderMonkey a supported runtime for the `fjs` CLI as a whole;
+A SpiderMonkey effects runner, until the simple script proves insufficient;
+making SpiderMonkey a supported runtime for the `fjs` CLI as a whole;
 integration tests that need real IO (`http`, `childProcess`, filesystem
 writes); registration with an external test framework (`register` in
 `../module.f.mjs` — the shell has no framework to register with); coverage.
