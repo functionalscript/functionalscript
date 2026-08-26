@@ -90,9 +90,57 @@ const rootTest = [
         const r = root("\\\\srv\\share")
         assertEq(r, "//")
     },
+    // A Windows drive is a root, so `..` cannot climb off it — `C:\\..` is
+    // `C:\\` on Windows, not the parent of the drive.
     () => {
         const r = root("C:/a")
+        assertEq(r, "C:/")
+    },
+    () => {
+        const r = root("c:/a")
+        assertEq(r, "c:/")
+    },
+    () => {
+        const norm = normalize("C:/..")
+        assertEq(norm, "C:/")
+    },
+    () => {
+        const norm = normalize("C:/a/../../..")
+        assertEq(norm, "C:/")
+    },
+    () => {
+        const norm = normalize("C:/")
+        assertEq(norm, "C:/")
+    },
+    // Only the absolute spelling roots. A bare `C:` and the drive-relative
+    // `C:foo` — the current directory *on* drive C — stay ordinary segments,
+    // and a prefix that is not a single letter is not a drive at all.
+    () => {
+        const r = root("C:")
         assertEq(r, "")
+    },
+    () => {
+        const r = root("C:a/b")
+        assertEq(r, "")
+    },
+    () => {
+        const r = root("1:/x")
+        assertEq(r, "")
+    },
+    () => {
+        const r = root("ab:/x")
+        assertEq(r, "")
+    },
+    // The UNC root stops at `//`: `server/share` are ordinary segments, so a
+    // `..` can still climb past a share. Parsing them into the root would let
+    // a `../` fold into it, which is what a root must never allow.
+    () => {
+        const c = concat("//srv/share")("../..")
+        assertEq(c, "//")
+    },
+    () => {
+        const p = parse("//a/b")
+        assertEq(join(...p), "a/b")
     },
 ]
 
@@ -158,6 +206,14 @@ const concatTest = [
     () => {
         const c = concat("/a")("../..")
         assertEq(c, "/")
+    },
+    () => {
+        const c = concat("C:/a/b/m.f.js")("..")
+        assertEq(c, "C:/a/b")
+    },
+    () => {
+        const c = concat(concat("C:/a/m.f.js")(".."))("../../lib.f.js")
+        assertEq(c, "C:/lib.f.js")
     },
     // An absolute `b` names a path on its own, so it replaces `a` rather than
     // being appended to it.

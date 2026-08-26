@@ -2,9 +2,10 @@
  * Path parsing and normalization helpers for portable module paths.
  *
  * A path is a {@link root} followed by segments. The root is what makes the
- * path absolute — `/`, or `//` for a UNC share — and it is not a segment:
- * it survives normalization, and `..` cannot escape it. Everything after it
- * folds by the usual rules, so `a//b` is `a/b` and `a/../b` is `b`.
+ * path absolute — `/`, `//` for a UNC path, or `C:/` for a Windows drive —
+ * and it is not a segment: it survives normalization, and `..` cannot escape
+ * it. Everything after it folds by the usual rules, so `a//b` is `a/b` and
+ * `a/../b` is `b`.
  *
  * @module
  *
@@ -44,37 +45,57 @@ const foldNormalizeOp = rooted => input => state => {
 export const toPosix = path => path.replaceAll('\\', '/')
 
 /**
- * The root marker of an already-POSIX path, and the segment fold over one.
- * Both take a path {@link toPosix} has already been applied to, so a public
- * entry point converts its arguments once and every step below reads the same
- * separators.
+ * A Windows drive root, and only in its absolute spelling: `C:/` roots the
+ * path, while a bare `C:` and the drive-relative `C:foo` — which names the
+ * current directory *on* drive C — do not, and stay ordinary segments.
  *
- * @type {(p: string) => string}
+ * @type {(p: string) => boolean}
  */
-const posixRoot = p => {
-    if (!p.startsWith('/')) { return '' }
-    return p.startsWith('//') && !p.startsWith('///') ? '//' : '/'
-}
-
-/** @type {(rooted: boolean) => (p: string) => readonly string[]} */
-const posixSegments = rooted => p => toArray(fold(foldNormalizeOp(rooted))([])(p.split('/')))
-
-/** @type {(r: string) => (p: string) => string} */
-const rejoin = r => p => stringConcat([r, listJoin('/')(posixSegments(r !== '')(p))])
+const isDriveRoot = p =>
+    p.length >= 3 && p[1] === ':' && p[2] === '/' &&
+    ((p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z'))
 
 /**
- * The root marker of a path: `'//'` for a UNC path, `'/'` for a POSIX
- * absolute path, and `''` for a relative one.
+ * Splits an already-POSIX path into its root and everything after it, so that
+ * `root + rest` is the path again. The root carries its own trailing separator
+ * — `'/'`, `'//'`, `'C:/'`, or `''` — which is what lets {@link rejoin} put a
+ * path back together without a separator of its own.
  *
- * Exactly two leading slashes are a UNC root — `//server/share`, the form
- * POSIX leaves implementation-defined and Windows spells `\\server\share`.
- * Three or more are an ordinary root with empty segments after it, which is
- * what POSIX requires. A Windows drive letter needs no case of its own: `C:`
- * is already a non-empty segment and survives the fold unchanged.
+ * A root is a fixed-width prefix here, never a parsed one. `//` marks a UNC
+ * path but stops there rather than swallowing `server/share`: those are two
+ * arbitrary segments, and a path like `//a/../../etc/passwd` would fold `../`
+ * *into* the root, which is precisely what a root must not do. Three or more
+ * leading slashes are an ordinary root followed by empty segments, which is
+ * what POSIX requires.
+ *
+ * @type {(p: string) => readonly [root: string, rest: string]}
+ */
+const split = p =>
+    p.startsWith('//') && !p.startsWith('///') ? ['//', p.slice(2)]
+    : p.startsWith('/') ? ['/', p.slice(1)]
+    : isDriveRoot(p) ? [p.slice(0, 3), p.slice(3)]
+    : ['', p]
+
+/** @type {(rooted: boolean) => (rest: string) => readonly string[]} */
+const posixSegments = rooted => rest => toArray(fold(foldNormalizeOp(rooted))([])(rest.split('/')))
+
+/** @type {(s: readonly [string, string]) => string} */
+const rejoin = ([r, rest]) => stringConcat([r, listJoin('/')(posixSegments(r !== '')(rest))])
+
+/**
+ * The root of a path, carrying its trailing separator: `'/'` for a POSIX
+ * absolute path, `'//'` for a UNC one, `'C:/'` for a Windows drive, and `''`
+ * for a relative path.
+ *
+ * `..` cannot escape whatever this answers, so it is also the definition of
+ * how far up a path can go. On Windows that is not quite the whole story: the
+ * `server/share` of a UNC path is part of its root there and is an ordinary
+ * segment here, so `..` can still climb past a share — see
+ * {@link split} for why the root stops at `//`.
  *
  * @type {(path: string) => string}
  */
-export const root = path => posixRoot(toPosix(path))
+export const root = path => split(toPosix(path))[0]
 
 /**
  * Splits a path into normalized segments, *without* its root — `parse('/a/b')`
@@ -89,8 +110,8 @@ export const root = path => posixRoot(toPosix(path))
  * @type {(path: string) => readonly string[]}
  */
 export const parse = path => {
-    const p = toPosix(path)
-    return posixSegments(posixRoot(p) !== '')(p)
+    const [r, rest] = split(toPosix(path))
+    return posixSegments(r !== '')(rest)
 }
 
 /**
@@ -100,10 +121,7 @@ export const parse = path => {
  *
  * @type {Unary<string, string>}
  */
-export const normalize = path => {
-    const p = toPosix(path)
-    return rejoin(posixRoot(p))(p)
-}
+export const normalize = path => rejoin(split(toPosix(path)))
 
 /**
  * Concatenates two path fragments and returns a normalized path.
@@ -117,11 +135,10 @@ export const normalize = path => {
  * @type {Reduce<string>}
  */
 export const concat = a => b => {
-    const pa = toPosix(a)
-    const pb = toPosix(b)
-    const rb = posixRoot(pb)
-    const [r, p] = rb === '' ? [posixRoot(pa), stringConcat([pa, '/', pb])] : [rb, pb]
-    return rejoin(r)(p)
+    const [rb, restb] = split(toPosix(b))
+    if (rb !== '') { return rejoin([rb, restb]) }
+    const [ra, resta] = split(toPosix(a))
+    return rejoin([ra, stringConcat([resta, '/', restb])])
 }
 
 /**
