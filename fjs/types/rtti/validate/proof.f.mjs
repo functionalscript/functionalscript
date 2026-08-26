@@ -199,11 +199,15 @@ export const proof = {
     },
     // The two proofs above compare the readers with one another, so a
     // regression all three shared would pass them both. The table's rows for
-    // several trailing optional positions therefore carry their expected
-    // answer here as well: the rule is *per position*, not "the last one" —
-    // every trailing position whose set admits `undefined` may be absent, so
-    // an array may stop at the last required one.
-    trailingOptionalPositions: () => {
+    // a schema with several optional positions therefore carry their expected
+    // answer here as well.
+    //
+    // The rule is *per position*, not "the last one": a position is required
+    // exactly when its set excludes `undefined`, independently of the others.
+    // A dense prefix alone would only show that an optional *suffix* may be
+    // truncated, so the cases below also omit position 2 while position 3 is
+    // present, and omit a required position with everything after it present.
+    optionalPositions: () => {
         const t = /** @type {const} */ ([number, bigint, option(string), option(null)])
         /** @type {(check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
         const every = check =>
@@ -212,11 +216,20 @@ export const proof = {
             }
         const accepted = every(assertOk)
         const rejected = every(assertError)
-        accepted([2, 4n])            // stops at the last required position
-        accepted([2, 4n, 'x'])       // the first optional present
-        accepted([2, 4n, 'x', null]) // both present
-        rejected([2])                // `bigint` excludes `undefined`
-        rejected([2, 4n, 5])         // an optional that is present is still checked
+        accepted([2, 4n])                  // stops at the last required position
+        accepted([2, 4n, 'x'])             // the first optional present
+        accepted([2, 4n, 'x', null])       // both present
+        // Omission is independent, not just truncation: an absent member reads
+        // as `undefined` wherever it sits, so position 2 may be missing while
+        // position 3 is present. A hole and an explicit `undefined` are the
+        // same value, so both spellings are accepted.
+        accepted([2, 4n, , null])          //< a hole at position 2
+        accepted([2, 4n, undefined, null]) //< the same value, spelled densely
+        rejected([2])                      // `bigint` excludes `undefined`
+        rejected([2, 4n, 5])               // an optional that is present is still checked
+        // The mirror of the two rows above: `bigint` excludes `undefined`, so
+        // omitting position 1 fails however much of the rest is present.
+        rejected([2, , 'x', null])         //< a hole at position 1
     },
     boolean: {
         ok: () => {
