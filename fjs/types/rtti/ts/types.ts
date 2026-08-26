@@ -133,6 +133,13 @@ type RequiredPart<M extends readonly unknown[]> =
         // and neither does the empty tuple, where the two coincide. Both keep
         // the mapping: an optional position is what this transform produces,
         // so one the caller wrote is already in the target form.
+        //
+        // Keeping the whole mapping does mean a position *before* the caller's
+        // optional one is not optionalized even where TypeScript could spell
+        // it: `[N, option(B), (S)?]` renders `readonly [number, boolean |
+        // undefined, string?]`, not `(boolean | undefined)?`. That is what the
+        // homomorphic mapping has always rendered for such a schema, so this
+        // preserves the behaviour rather than introducing it.
         : M
 
 type OmittablePart<M extends readonly unknown[], Acc extends readonly unknown[] = readonly []> =

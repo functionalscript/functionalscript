@@ -44,6 +44,13 @@ import { dataToTs, printer } from './module.f.mjs'
 
 // A rest element after a fixed prefix is the same shape from the other side,
 // and is held for the same reason: `length` is `number`, so the mapping stands.
+//
+// This row and `_NonFixedLength` document intent rather than discriminate a
+// mechanism. The guard and the fallback both answer `M` for these two shapes,
+// so neither single mutation moves them — only removing both at once does.
+// The rows that pin one mechanism each are `_VariadicPrefixRejectsMixedPrefix`
+// (the guard), `_OptionalMember` (the fallback) and
+// `_UnionKeepsBranchCorrelation` (the distribution).
 /** @typedef {Assert<Equal<Ts<readonly [typeof number, ...(typeof string)[]]>, readonly [number, ...string[]]>>} _RestTuple */
 
 // A schema whose own tuple type already marks a member optional is held by the

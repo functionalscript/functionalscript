@@ -116,8 +116,11 @@ anything at the type level).
 
 Only the *trailing* run renders optional, because TypeScript forbids a required
 element after an optional one. That is a spelling limit, not a narrower set: an
-interior position admitting `undefined` may still be absent at runtime, and
-`../validate/proof.f.mjs`'s `optionalPositions` pins exactly that.
+interior position admitting `undefined` may still be absent at runtime, which
+`../validate/proof.f.mjs`'s `interiorOptionBeforeRequired` pins —
+`[option(string), number]` accepts `[, 5]`, the required position after the
+hole being present. `optionalPositions` cannot say it: its hole is followed by
+another omittable position, so truncation explains that row equally well.
 
 ## Tasks
 
