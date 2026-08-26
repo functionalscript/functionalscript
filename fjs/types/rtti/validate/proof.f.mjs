@@ -242,7 +242,7 @@ export const proof = {
         }
         // What closing does change: an element past the declared positions is
         // a member of the open set and not of the closed one.
-        const extra = [2, 4n, 'x', null, 'extra']
+        const extra = /** @type {const} */ ([2, 4n, 'x', null, 'extra'])
         every(t)(assertOk)(extra)
         every(close(t))(assertError)(extra)
     },
