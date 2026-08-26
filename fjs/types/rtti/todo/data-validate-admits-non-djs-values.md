@@ -20,10 +20,14 @@ if (isArray(value)) { return patternsValidate(u.array, arraySetValidate(rules), 
 return patternsValidate(u.object, objectSetValidate(rules), value)
 ```
 
-A function or symbol therefore reaches object validation, and passes wherever a
-value with no own enumerable entries passes vacuously.
+A function or symbol therefore reaches object validation, and passes wherever
+the object pattern happens to accept it — which is not only the vacuous case,
+because `objectSetValidate` reads a declared property as `value[k]` and so sees
+a function's `length` and `name` and a symbol's `description`.
 
-Measured at `b47b1376`:
+Measured at `1d25da6e`:
+
+Against `f = (a, b) => 1`:
 
 | schema | `validate` | `data.validate` | `toData` kinds |
 | --- | --- | --- | --- |
@@ -33,18 +37,34 @@ Measured at `b47b1376`:
 | `record(number)` | error | **ok** | `object` |
 | `or(number, {})` | error | **ok** | `number,object` |
 | `option({})` | error | **ok** | `unit,object` |
+| `{ length: number }` | error | **ok** | `object` |
+| `{ name: string }` | error | **ok** | `object` |
+| `{ length: number, name: string }` | error | **ok** | `object` |
 | `{ a: number }` | error | error | `object` |
+| `{ length: string }` | error | error | `object` |
 | `array(number)` | error | error | `array` |
 
-A symbol behaves exactly as the function does in every row.
+A symbol behaves the same way, through its own intrinsics:
+`{ description: string }` diverges, `{ a: number }` does not.
 
 Two things this shows that the one-line description does not.
 
-**The divergence is confined to object patterns a value with no own enumerable
-entries satisfies vacuously.** `{ a: number }` rejects in both, because the
-property is missing; arrays and primitives route correctly. So the readers
-agree on any schema with a required property, which is what makes the
-disagreement easy to miss when spot-checking.
+**The divergence is not confined to vacuous patterns**, though an earlier draft
+of this issue said it was. `objectSetValidate` reads each *declared* property as
+`value[k]`, which does not require an object and does not care about
+enumerability — so a required property diverges whenever the no-kind value
+happens to carry one of that type. A function has `length` (number) and `name`
+(string); a symbol has `description` (string). `Object.entries` is empty for
+both, so the `rest` check never objects either.
+
+The rule is therefore: **`data.validate` accepts a no-kind value for an object
+pattern whenever every declared property reads to a conforming value and the
+rest check passes vacuously** — which covers `{}`, `record(...)`, and any struct
+whose declared properties the intrinsics happen to satisfy. `{ a: number }`
+rejects only because a function has no `a`, and `{ length: string }` only
+because `f.length` is a number. That is a much wider set than "the empty
+struct", and it means a real schema can hit this: `{ name: string }` is an
+ordinary shape to write.
 
 **And it is not simply "`data` is too permissive".** For `unknown` the readers
 *agree*, and they agree **because** of the fall-through: the thunk reader
@@ -99,6 +119,12 @@ values arrive.
 - [ ] Cover functions and symbols in tests against `unknown`, `{}`,
       `record(...)`, `or(number, {})` and `option({})`, in **both** readers, so
       neither the divergence nor its mirror image can return.
+- [ ] Cover **required-property** schemas the intrinsics satisfy —
+      `{ length: number }` and `{ name: string }` for a function,
+      `{ description: string }` for a symbol — plus the near misses that must
+      keep rejecting (`{ a: number }`, `{ length: string }`). A test matrix
+      built only from vacuous patterns would pass over the case a real schema
+      is most likely to hit.
 - [ ] Check `toData`, `subset` and the other `data` entry points for the same
       "all kinds means all values" assumption.
 

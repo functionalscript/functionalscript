@@ -972,10 +972,11 @@ are stated instead:
       guard object positions with `isObject`. Measured at `b47b1376`,
       `validate({})(() => 1)` is an error and
       `data.validate(toData({}))(() => 1)` is `ok`; the same holds for a symbol,
-      and for `record(number)` in place of `{}`. It is confined to object
-      schemas a property-free value satisfies vacuously — `{ a: number }`
-      rejects in both — which is precisely what makes it easy to adopt this
-      remedy without noticing. Swapping readers to fix *which schema* run time
+      and for `record(number)` in place of `{}`. It reaches further than vacuous
+      patterns: `objectSetValidate` reads each declared property as `value[k]`
+      without requiring an object, so `{ length: number }` and `{ name: string }`
+      also diverge for a function, and `{ description: string }` for a symbol.
+      `{ a: number }` rejects in both only because a function has no `a`. Swapping readers to fix *which schema* run time
       sees would change *what that schema accepts*, trading one compile-time /
       run-time disagreement for another. Nor is the repair a one-liner: for
       `unknown` the two readers *agree*, and agree only because of the same
