@@ -1142,11 +1142,17 @@ does not replace them.
 - [edag-spec.md](./edag-spec.md) — already specifies the EDAG with RTTI and
   *plans* a Rust generator from it — the issue is `Status: open` with none of
   its eight tasks done, one being "Implement a Rust code generator from RTTI
-  schemas" — and the same schemas would feed both. It is also what
-  makes a compile-time-only schema free: source is serialized out of the graph,
-  so an unreferenced schema is not emitted.
+  schemas" — and the same schemas would feed both. It is also the mechanism
+  behind the cost discussion: source is serialized out of the graph, so an
+  unreferenced node is not emitted. **Not the same as free** — see
+  [What a compile-time-only type costs](#what-a-compile-time-only-type-costs),
+  which holds only for a local initializer that is wholly total. An annotation
+  naming an *imported* schema keeps the anchored root, and if that root
+  constructs or exports the schema, the schema ships and is evaluated.
 - [edag-stage1-discussion.md](./edag-stage1-discussion.md) — "nodes proven total
-  are freely movable and droppable", the rule a schema node satisfies.
+  are freely movable and droppable", the rule a schema node satisfies **when
+  its whole initializer is total**, which the RTTI constructors are and an
+  arbitrary call is not.
 - [serialization](../spec/todo/serialization.md) and
   [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) — code
   as an FJS value, and the rollout that brings the above from DJS values to
