@@ -20,7 +20,7 @@ const handler = at(method)(handlers)
 if (handler === null) { return errorResponseOf(id)(methodNotFound) }
 ```
 
-Effectful `mcpStep` (`fjs/protocol/mcp/module.f.mjs:314-322`):
+Effectful `mcpStep` (`fjs/protocol/mcp/module.f.mjs:314-346`):
 
 ```js
 const [t, message] = decodeRequest(value)
