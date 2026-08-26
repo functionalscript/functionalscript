@@ -8,7 +8,7 @@ import { run } from '../effects/node/module.mjs'
 import { toPosix } from '../path/module.f.mjs'
 import { main } from './module.f.mjs'
 
-const sourceRoot = new URL('../', import.meta.url)
+const sourceRoot = new URL('../../', import.meta.url)
 const output = new URL('../emergent_testing/_browser-suite.mjs', import.meta.url)
 
 /** @type {(name: string) => boolean} */
@@ -18,7 +18,7 @@ const authored = name => name.endsWith('.f.mjs')
 const files = async directory => {
     const entries = await readdir(directory, { withFileTypes: true })
     return (await Promise.all(entries.map(entry => {
-        if (entry.name.startsWith('.')) { return [] }
+        if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'target') { return [] }
         const url = new URL(entry.isDirectory() ? `${entry.name}/` : entry.name, directory)
         return entry.isDirectory() ? files(url) : authored(entry.name) ? [url] : []
     }))).flat()
@@ -39,7 +39,7 @@ const selected = (await Promise.all(candidates.map(async url =>
 const sourcePath = fileURLToPath(sourceRoot)
 const entries = selected.map(url => {
     const path = toPosix(relative(sourcePath, fileURLToPath(url)))
-    return `    './fjs/${path}',`
+    return `    './${path}',`
 })
 const manifest = [
     '/** Generated browser proof source map. Modules are loaded after the page renders. */',
