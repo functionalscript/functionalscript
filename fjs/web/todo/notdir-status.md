@@ -95,6 +95,27 @@ there reports `ENOENT`, so `fjs web README.md` starts happily and answers
 `404` to everything — verified. The check makes both hosts say the same true
 thing at startup instead of two different misleading things per request.
 
+**The check needs an operation the effect layer does not have.** `FileStat` is
+`{ size, isFile }`, so `isFile === false` is not "is a directory" — it also
+covers a FIFO, a device, a socket, and the virtual runner's `JsModule`, whose
+`_Entity` is `readonly Vec[] | Dir | JsModule`. Serving any of those as a root
+is the same operator error as serving a regular file, so the check has to name
+what it wants: **add `isDirectory` to `FileStat`**, in the node runner and the
+virtual one together, and reject a root that is not one — including the case
+where both flags are false.
+
+Not `readdir(root)`, which needs no new API and is the obvious alternative. It
+answers a different question: a directory may be traversable without being
+listable — mode `--x` permits opening a known path under it while `readdir`
+fails `EACCES` — so a root that this server can serve perfectly well would be
+refused at startup. Reading a whole directory to discard it is the smaller
+objection.
+
+Failure handling is the same `errorExit` either way, and covers two cases:
+`stat` failing at all — a root that does not exist — and a root that exists
+and is not a directory. Both are the command line being wrong, which is what
+`main` already reports that way for a port.
+
 **Scope: `ENOTDIR` only, and the other two stay at `500` deliberately.** Two
 more `stat` failures reach the same directory-form shape and disclose the same
 way, on POSIX:
@@ -131,7 +152,9 @@ path that descends through a regular file, then map the error.
 
 - [ ] Report `ENOTDIR` from the virtual file system for a path descending
       through a regular file.
-- [ ] Reject a non-directory root in `main`, before `listen`.
+- [ ] Add `isDirectory` to `FileStat`, in the node runner and the virtual one.
+- [ ] Reject a non-directory root in `main`, before `listen` — including a
+      root that does not exist, and one that is neither file nor directory.
 - [ ] Answer `404` for it from `fileResponse`, leaving `isNotFound` alone.
 - [ ] Prove `/README.md/` and `/nope.md/` answer identically, through the
       virtual runner — `proof.f.mjs` already drives `respond` that way, so
@@ -155,6 +178,8 @@ path that descends through a regular file, then map the error.
   directory-form request this leaks through.
 - `fjs/effects/node/module.f.mjs` — `isNotFound`, the `ENOENT`-only test this
   deliberately leaves alone.
+- `fjs/effects/node/types.ts` — `FileStat`, which grows `isDirectory` for the
+  root check.
 - `fjs/cas/module.f.mjs` and `fjs/cas/evo/module.f.mjs` — its other two
   callers, whose documented readings settle that question.
 - `fjs/effects/node/virtual/module.f.mjs` — the file system that would grow the
