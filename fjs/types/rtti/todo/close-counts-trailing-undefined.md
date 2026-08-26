@@ -275,10 +275,18 @@ rule the module's own closed containers do not follow.
       cycles, `unknown` catches a test that reads the absence of a `rest` key
       as elimination, and the name collision catches a comparison sensitive to
       rule names.
-      Changelog entry prefixed `**BREAKING CHANGES:**` — the empty-rest
-      spellings stop accepting a trailing hole, an observable narrowing for
-      callers using the explicit-rest form. #1712 labelled its analogous
-      reader-alignment change the same way.
+      Changelog entry prefixed `**BREAKING CHANGES:**`, worded for the order
+      it lands in — `../../../AGENTS.md` gives a PR one improvement, so this
+      fix and the decision are separate entries. Taken **first**, as this list
+      has it, the length bound is still in place and the empty-rest spellings
+      *stop* accepting a trailing hole: an observable narrowing for callers
+      using the explicit-rest form, which is how #1712 labelled its analogous
+      reader-alignment change. Taken **after A or C**, the same change is a
+      *widening* — both remove the bound, so `close([number])` and
+      `close([number], never)` alike answer `ok / ok / ok` on `[42, ,]`,
+      measured under a simulated C — and the entry has to say so instead. The
+      fix is independent of the decision in what it does, not in how it reads
+      to a caller.
 - [ ] Decide A, B or C.
 - [ ] If B, which the evidence favours: put the invariant where
       `../../../AGENTS.md` puts invariants — the JSDoc on the `close` export in
