@@ -3,7 +3,7 @@
  * @import { ValidationError } from './types.ts'
  */
 
-import { eachEntry, undeclaredEntries } from './module.f.mjs'
+import { eachEntry, structSchemaEntries, tupleSchemaEntries, undeclaredEntries } from './module.f.mjs'
 import { error, ok } from '../../result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 
@@ -71,6 +71,34 @@ export const proof = {
         // A hole is no entry, which is why the array kind also answers with its
         // length — see `fits` in `../parse/module.f.mjs`.
         holeIsNotAnEntry: () => assertEq(undeclaredEntries(['0'], [1, , 3]).length, 1),
+    },
+    // What a container schema declares, per kind. A tuple is read by length,
+    // so a hole is a declared position whose schema is `undefined` — the same
+    // reading `../data/module.f.mjs` has, and the reason the two kinds need
+    // different entry readers at all.
+    schemaEntries: {
+        tuple: () => assertStructurallySame(
+            tupleSchemaEntries([1, 'a']),
+            [['0', 1], ['1', 'a']],
+        ),
+        // `Object.entries` would answer `[]` here, and `[['0', undefined]]` for
+        // `[undefined]` — two schemas that denote the same set, read as two.
+        tupleHole: () => assertStructurallySame(
+            tupleSchemaEntries(new Array(1)),
+            [['0', undefined]],
+        ),
+        tupleHoleIsTheDenseReading: () => assertStructurallySame(
+            tupleSchemaEntries(new Array(1)),
+            tupleSchemaEntries([undefined]),
+        ),
+        struct: () => assertStructurallySame(
+            structSchemaEntries({ a: 1, b: 'x' }),
+            [['a', 1], ['b', 'x']],
+        ),
+        empty: () => {
+            assertEq(tupleSchemaEntries([]).length, 0)
+            assertEq(structSchemaEntries({}).length, 0)
+        },
     },
     pathPrefixed: () => {
         /** @type {(k: string, v: number) => Result<number, ValidationError>} */
