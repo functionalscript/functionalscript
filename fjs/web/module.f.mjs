@@ -44,7 +44,7 @@ import {
     stat,
 } from '../effects/node/module.f.mjs'
 import { detectPath } from '../media/type/module.f.mjs'
-import { join, parse } from '../path/module.f.mjs'
+import { escapes, join, parse } from '../path/module.f.mjs'
 import { isValidCodePoint } from '../text/code_point/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
 import { fromCodePointList, toCodePointList } from '../text/utf8/module.f.mjs'
@@ -257,11 +257,16 @@ const served = root => root === '' ? '.' : root
  * plainly a bad request.
  *
  * **Traversal is rejected in segment space, not by string comparison.**
- * `parse` collapses `.` and `..` the way the file system would, so `..` can only
- * survive it by pointing above the root; that is the whole check. Comparing the
- * joined path against `root` textually would be the weaker test, and it cannot
- * even be written here: `normalize` drops a leading empty segment, so an
- * absolute root would come back relative.
+ * `escapes` folds the path with its root taken off, so a `..` with nothing left
+ * to cancel survives to be counted; that is the whole check. `parse` cannot
+ * answer it — `parse` folds *with* the root in place, and clamping away such a
+ * `..` is precisely what it does, which is why reading its output for one
+ * silently stopped working. Nor is taking the root off the same as dropping a
+ * leading `/`: the remainder of `///../x` is `//../x`, which reads as rooted
+ * again, so the question belongs to `fjs/path` rather than to string surgery
+ * here. Comparing the joined path against `root` textually is the weaker test;
+ * it became expressible once `normalize` began keeping roots, and is still not
+ * what is done.
  *
  * @type {Resolve}
  */
@@ -272,7 +277,9 @@ export const resolve = root => url => {
     const decoded = percentDecode(target.path)
     if (decoded === null || decoded.includes(nul)) { return refuse(400)('malformed request URL') }
     const segments = parse(decoded)
-    if (segments.includes('..')) { return refuse(400)('request path escapes the served root') }
+    // `escapes`, not a `..` among `segments` — see the traversal note above.
+    // `/a/../b` collapses and is served; `/../b` escapes and is not.
+    if (escapes(decoded)) { return refuse(400)('request path escapes the served root') }
     if (segments.some(isHidden)) { return refuse(404)('not found') }
     const isDirectory = segments.length === 0 || decoded.endsWith('/')
     return ok(join(base, ...(isDirectory ? [...segments, 'index.html'] : segments)))

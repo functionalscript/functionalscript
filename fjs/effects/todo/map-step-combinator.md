@@ -32,7 +32,9 @@ Two shapes, both the same thing:
 
 Also `fjs/dev/module.f.mjs`, `fjs/cas/evo/module.f.mjs`,
 `fjs/mcp/evo/module.f.mjs`, `fjs/cas/module.f.mjs`, `fjs/mcp/cas/module.f.mjs`,
-`fjs/protocol/mcp/module.f.mjs`, `fjs/emergent_testing/module.f.mjs`.
+`fjs/protocol/mcp/module.f.mjs`, `fjs/emergent_testing/module.f.mjs`. The plain
+context projection in `fjs/djs/transpiler/module.f.mjs` has also been converted;
+its two `pure(Result)` sites are channel constructors, not `mapStep` candidates.
 
 *Constant projection* (`() => pure(v)`), overwhelmingly the "do the work, then
 yield an exit code" shape of a `NodeProgram`:
