@@ -1,4 +1,4 @@
-import { fn } from './module.f.mjs'
+import { fn, iterate } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = () => {
@@ -13,4 +13,8 @@ export const proof = () => {
 
     const result = r('hello')
     assertEq(result, 5, r)
+
+    assertEq(iterate(0n)(5)(x => x + 1), 5, iterate)
+    assertEq(iterate(3n)(5)(x => x + 1), 8, iterate)
+    assertEq(iterate(-1n)(5)(x => x + 1), 5, iterate)
 }
