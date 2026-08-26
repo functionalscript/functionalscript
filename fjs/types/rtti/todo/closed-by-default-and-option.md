@@ -240,11 +240,39 @@ bit stripped from what it prints: `or(option, number)` → `readonly a?: number`
 `exactOptionalPropertyTypes` those are already distinct in TypeScript, so the
 rendering becomes exact.
 
-For tuples the trailing run renders optional as it does now. An *interior*
-position admitting absence renders `T | undefined` — TypeScript forbids a
-required element after an optional one, and `undefined` is what TypeScript
-reading a hole actually gives — so `[or(option, number), 3]` is
-`readonly [number | undefined, 3]`. A rendering limit, not a narrower set.
+For tuples the trailing run renders optional with the absent bit stripped, and
+that rendering is **exact** — the first time `TupleTs` and the schema denote the
+same set. `Ts<[1, or(option, number)]>` is `readonly [1, number?]`, and
+TypeScript agrees on every row (checked against this repo's `tsc`):
+
+| value | the schema | `readonly [1, number?]` |
+| --- | --- | --- |
+| `[1]` | accepts | assignable |
+| `[1, 2]` | accepts | assignable |
+| `[1, undefined]` | rejects | `TS2322` |
+| `[1, 2, 3]` | rejects (closed) | not assignable |
+
+Reading position `1` still gives `number | undefined`, which is what JavaScript
+gives for an index that may not be there, so the type is honest in both
+directions. The exactness depends on `exactOptionalPropertyTypes` — with the flag
+off, TypeScript accepts `[1, undefined]` at an optional tuple position too
+(checked both ways) — and this repo already sets it.
+
+It takes **both** stages. Stage 1 supplies the length: while a bare tuple is
+open, an exact-length rendering is the unsound cast this issue opens with. Stage
+2 supplies the element type: while `option(number)` is `or(number, undefined)`,
+the position can only render `(number|undefined)?`, which admits the very
+`[1, undefined]` the closed spelling should reject. Together they also make the
+two renderers agree — today the runtime printer prints the open tail
+(`readonly[number,(undefined|string)?,...readonly(unknown)[]]`,
+`../ts/proof.f.mjs`) while `Ts<>` cannot, and afterwards both print
+`readonly[1,number?]`.
+
+An *interior* position admitting absence still renders `T | undefined` —
+TypeScript forbids a required element after an optional one, and `undefined` is
+what TypeScript reading a hole actually gives — so `[or(option, number), 3]` is
+`readonly [number | undefined, 3]`. That one stays a rendering limit, not a
+narrower set.
 
 #### The trade, stated
 
@@ -299,7 +327,13 @@ Stage 2 (one PR, after stage 1 lands):
 - [ ] Readers: a declared member is absent when its key or index is not an own
       one; `parse` omits an absent member instead of materializing `undefined`.
 - [ ] `../ts/types.ts`: strip the absent bit and render `a?:`; an interior tuple
-      position that admits absence renders `T | undefined`.
+      position that admits absence renders `T | undefined`. Update the
+      `_tupleOption`/`_tupleInteriorOption` pins, and `optionalTuplePosition` /
+      `allOptionalTuple` in `../ts/proof.f.mjs`, which print the `undefined|`
+      this stage removes.
+- [ ] Pin `Ts<[1, or(option, number)]>` as `readonly[1,number?]` from both
+      renderers, with the four assignability rows above — the exactness claim is
+      the point of the two stages and should fail loudly if it regresses.
 - [ ] Proofs: `{}` separated from `{ a: undefined }`; `[, 3]` accepted and
       `[undefined, 3]` rejected for `[or(option, number), 3]`; the JSON
       round-trip case from
