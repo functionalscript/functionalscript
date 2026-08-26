@@ -22,6 +22,14 @@ The method is known before the body is: `fjs/web` answers `405` to everything
 but `GET` and `HEAD`, and never reads a body at all. Buffering one for a method
 the listener will refuse is work nobody asked for.
 
+`CONNECT` is the one method that already works this way, and shows what the
+saving looks like. Node raises it on the request line, so the runner's `501`
+goes out before a byte of body is read — measured on Darwin with Node 23.11.0,
+where a `CONNECT` declaring twenty megabytes and sending a hundred kilobytes was
+answered in 2 ms and closed at 3, against a `POST` with the same body that had
+no answer at 6,000 ms. It reaches that path by not being a request at all rather
+than by any decision made here, but the shape of the win is the same one.
+
 ### Proposal
 
 Two independent halves, either of which helps:
