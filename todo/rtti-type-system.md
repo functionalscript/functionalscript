@@ -562,8 +562,9 @@ so that issue's open question is answered yes by this stage.
 Ordered. Stage 1's renderer half can start today; its
 declaration-emission half needs an export-to-schema association and so waits
 for stage 3 or for an explicit manifest. Stages 3 onward are gated on the
-compiler; stages 8, 9 and 10 gate stage 11; stage 12 is off to the side, gating
-a claim rather than a stage.
+compiler; stage 7 gates the general form of stage 6; stages 8, 9 and 10 gate
+stage 11; and stage 12 gates any module whose only use of an import is in
+annotations — which is most of them, once annotations are the point.
 
 - [ ] **1. `.d.ts` generation from schemas.** An `fjs` command over
       [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs), wired into
@@ -629,6 +630,16 @@ a claim rather than a stage.
       arbitrary expression and ask `subset(inferred, declared)`. `subset`
       exists; the inference does not
       ([type inference](../spec/todo/3370-type-inference.md)). Most of the work.
+      **Its general form is gated on stage 7, not the other way round.**
+      [type-annotations](../spec/todo/3360-type-annotations.md) uses
+      `const a /*: t */ = f(x)` as the representative non-literal right-hand
+      side, and inferring a call means having `f`'s contract and its result
+      schema — which RTTI cannot hold until stage 7 gives it a function case.
+      Since FunctionalScript modules are almost entirely functions, this is the
+      common case rather than a corner. So either stage 7 runs before this one,
+      or this one is explicitly narrowed to call-free, function-free
+      expressions first and widened afterwards. Say which; do not leave the
+      order implied by the numbering.
       **A `false` from `subset` is not a type error.** It is
       [sound and deliberately incomplete](../fjs/types/rtti/data/README.md#subset-is-sound-and-deliberately-incomplete):
       it never says `true` wrongly, but it says `false` for inclusions that hold
@@ -729,8 +740,22 @@ a claim rather than a stage.
       [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
       defers, read from this epic's side; it is what makes "a compile-time-only
       type costs nothing" true across a module boundary rather than only within
-      a module. Not on the critical path for stages 1–11 — it decides the cost,
-      not the checking — but the claim is not sound until it lands.
+      a module.
+
+      **This is a prerequisite, not a side quest, and an earlier draft of this
+      file said otherwise.** The rule in
+      [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)
+      *rejects* a module whose import parameter is unreachable from the EDAG
+      root. Once the compiler consumes an annotation, an import used only to
+      name or build that annotation's schema is exactly that — so such a module
+      does not compile, which is a gate on stages 3–5 and on stage 11, not a
+      question of runtime cost.
+
+      It binds only where an import is annotation-*only*: a module that also
+      passes the schema to `validate` keeps it reachable and is unaffected.
+      Until this lands, a module in that position must either keep a runtime
+      use of the schema alive — which is a wart, and worth naming as one — or
+      keep the JSDoc it was going to retire.
 
 ### Open questions
 
