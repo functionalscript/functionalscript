@@ -35,31 +35,38 @@ const collect = (path, throws, value) => {
     return []
 }
 
-/** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown) => Promise<readonly _BrowserTestResult[]>} */
-const runOne = (module, path, throws, fn) => {
+/** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
+const runOne = (module, path, throws, fn, result) => {
     const start = performance.now()
     return Promise.resolve().then(fn).then(
         value => {
             const duration = performance.now() - start
             if (throws) {
-                return [{ module, path: formatPath(path), status: 'failed', duration,
-                    message: 'Expected the proof to throw', stack: '' }]
+                const failure = { module, path: formatPath(path), status: 'failed', duration,
+                    message: 'Expected the proof to throw', stack: '' }
+                result(failure)
+                return [failure]
             }
             const children = collect([...path, null], false, value)
             return Promise.all(children.map(([childPath, childThrows, child]) =>
-                runOne(module, childPath, childThrows, child)
-            )).then(results => [
-                { module, path: formatPath(path), status: 'passed', duration },
-                ...results.flat(),
-            ])
+                runOne(module, childPath, childThrows, child, result)
+            )).then(results => {
+                const success = { module, path: formatPath(path), status: 'passed', duration }
+                result(success)
+                return [success, ...results.flat()]
+            })
         },
         error => {
             const duration = performance.now() - start
             if (throws) {
-                return [{ module, path: formatPath(path), status: 'passed', duration }]
+                const success = { module, path: formatPath(path), status: 'passed', duration }
+                result(success)
+                return [success]
             }
             const [message, stack] = errorDetails(error)
-            return [{ module, path: formatPath(path), status: 'failed', duration, message, stack }]
+            const failure = { module, path: formatPath(path), status: 'failed', duration, message, stack }
+            result(failure)
+            return [failure]
         }
     )
 }
@@ -67,13 +74,13 @@ const runOne = (module, path, throws, fn) => {
 /**
  * Runs named proof exports and returns the serializable browser report.
  *
- * @type {(modules: readonly (readonly [string, unknown])[]) => Promise<BrowserTestReport>}
+ * @type {(modules: readonly (readonly [string, unknown])[], result?: (result: _BrowserTestResult) => void) => Promise<BrowserTestReport>}
  */
-export const runBrowserProofs = modules => {
+export const runBrowserProofs = (modules, result = () => undefined) => {
     const start = performance.now()
     const tests = modules.flatMap(([module, proof]) =>
         collect([], false, proof).map(([path, throws, fn]) =>
-            runOne(module, path, throws, fn)
+            runOne(module, path, throws, fn, result)
         )
     )
     return Promise.all(tests).then(nested => {
@@ -105,14 +112,17 @@ export const renderBrowserReport = (root, report) => {
     }
     const output = root.querySelector('[data-test-results]')
     if (output !== null) {
-        output.replaceChildren(...report.results
-            .filter(result => result.status === 'failed')
-            .map(result => {
-                const item = document.createElement('li')
-                item.textContent = `${result.module} ${result.path}: ${result.message}\n${result.stack}`
-                return item
-            }))
+        output.replaceChildren(...report.results.map(renderResult))
     }
+}
+
+/** @type {(result: _BrowserTestResult) => HTMLLIElement} */
+const renderResult = result => {
+    const item = document.createElement('li')
+    item.setAttribute('data-status', result.status)
+    const detail = result.status === 'failed' ? `: ${result.message}\n${result.stack}` : ''
+    item.textContent = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.module} ${result.path} (${result.duration.toFixed(1)} ms)${detail}`
+    return item
 }
 
 /**
@@ -123,7 +133,15 @@ export const renderBrowserReport = (root, report) => {
  */
 export const startBrowserTests = (root, modules) => {
     setState(root, 'running')
-    const report = runBrowserProofs(modules).then(value => {
+    const output = root.querySelector('[data-test-results]')
+    if (output !== null) { output.replaceChildren() }
+    let completed = 0
+    const report = runBrowserProofs(modules, result => {
+        completed += 1
+        const summary = root.querySelector('[data-test-summary]')
+        if (summary !== null) { summary.textContent = `${completed} tests completed…` }
+        if (output !== null) { output.append(renderResult(result)) }
+    }).then(value => {
         renderBrowserReport(root, value)
         window.dispatchEvent(new CustomEvent('fjs-browser-test-complete', { detail: value }))
         return value

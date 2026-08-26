@@ -20,6 +20,9 @@ body { color: #202124; font: 16px system-ui; margin: 3rem auto; max-width: 48rem
 [data-state="running"] [data-test-summary]::before { content: "Running…" }
 [data-state="passed"] { color: #137333 }
 [data-state="failed"], [data-state="infrastructure-error"] { color: #b3261e }
+[data-test-results] { color: #202124 }
+[data-status="passed"]::marker { color: #137333 }
+[data-status="failed"] { color: #b3261e }
 pre { white-space: pre-wrap }
 `]
 )(
@@ -37,11 +40,12 @@ pre { white-space: pre-wrap }
 )
 
 const entry = utf8(`import { startBrowserTests } from './fjs/emergent_testing/browser.mjs'
+import { browserProofModules } from './fjs/emergent_testing/browser-suite.mjs'
 import { proof } from './fjs/website/browser.mjs'
 
 const root = /** @type {Element} */ (document.querySelector('[data-browser-tests]'))
 /** @type {readonly (readonly [string, unknown])[]} */
-const modules = [['./fjs/website/browser.mjs', proof]]
+const modules = [...browserProofModules, ['./fjs/website/browser.mjs', proof]]
 const start = () => startBrowserTests(root, modules)
 const runButton = /** @type {Element} */ (document.querySelector('[data-test-run]'))
 runButton.addEventListener('click', start)
