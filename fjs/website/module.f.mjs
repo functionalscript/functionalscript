@@ -46,8 +46,14 @@ import { browserProofSources } from './fjs/emergent_testing/_browser-suite.mjs'
 
 const root = /** @type {Element} */ (document.querySelector('[data-browser-tests]'))
 const sources = [...browserProofSources, './fjs/website/browser.mjs']
-const start = () => startBrowserTestSources(root, sources, source => import(source))
 const runButton = /** @type {Element} */ (document.querySelector('[data-test-run]'))
+const start = () => {
+    runButton.setAttribute('disabled', '')
+    return startBrowserTestSources(root, sources, source => import(source)).then(report => {
+        runButton.removeAttribute('disabled')
+        return report
+    })
+}
 runButton.addEventListener('click', start)
 if (new URL(location.href).searchParams.get('run') !== 'false') { start() }
 `)

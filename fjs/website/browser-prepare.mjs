@@ -28,7 +28,7 @@ const files = async directory => {
 const exportsProof = source =>
     source.includes('export const proof') ||
     source.split('export {').slice(1).some(part => part.split('}')[0].split(',')
-        .some(name => name.trim().split(' ')[0] === 'proof'))
+        .some(name => (name.split(' as ')[1] ?? name).trim() === 'proof'))
 
 const candidates = await files(sourceRoot)
 const selected = (await Promise.all(candidates.map(async url =>

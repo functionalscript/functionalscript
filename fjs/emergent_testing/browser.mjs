@@ -3,37 +3,28 @@
  *
  * The module deliberately has no Node dependencies: generated applications
  * import it directly as an ES module in the browser.
+ * Proof failures resolve the published report with `status: 'failed'`; an
+ * automated outer controller is responsible for consuming that status and
+ * choosing a nonzero process exit code.
  *
  * @module
  */
 
-/** @type {(path: readonly (string | null)[]) => string} */
-const formatPath = path => path.map((part, index) =>
-    part === null ? '()'
-    : index === 0 ? part
-    : `.${part}`
-).join('')
+import { collectTests, fmtPath } from './module.f.mjs'
 
 /** @type {(error: unknown) => readonly [string, string]} */
-const errorDetails = error => error instanceof Error
-    ? [error.message, error.stack ?? error.message]
-    : [String(error), String(error)]
+const errorDetails = error => {
+    try {
+        return error instanceof Error
+            ? [error.message, error.stack ?? error.message]
+            : [String(error), String(error)]
+    } catch {
+        return ['Unknown thrown value', 'Unknown thrown value']
+    }
+}
 
 /** @typedef {{ readonly module: string, readonly path: string, readonly status: string, readonly duration: number, readonly message?: string, readonly stack?: string }} _BrowserTestResult */
 /** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
-
-/** @type {(path: readonly (string | null)[], throws: boolean, value: unknown) => readonly (readonly [readonly (string | null)[], boolean, () => unknown])[]} */
-const collect = (path, throws, value) => {
-    if (typeof value === 'function' && value.length === 0) {
-        return [[path, throws, /** @type {() => unknown} */ (value)]]
-    }
-    if (value !== null && typeof value === 'object') {
-        return Object.entries(value).flatMap(([key, child]) =>
-            collect([...path, key], throws || key === 'throw', child)
-        )
-    }
-    return []
-}
 
 /** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
 const runOne = (module, path, throws, fn, result) => {
@@ -42,16 +33,16 @@ const runOne = (module, path, throws, fn, result) => {
     const passed = value => {
             const duration = performance.now() - start
             if (throws) {
-                const failure = { module, path: formatPath(path), status: 'failed', duration,
+                const failure = { module, path: fmtPath(path), status: 'failed', duration,
                     message: 'Expected the proof to throw', stack: '' }
                 result(failure)
                 return [failure]
             }
-            const children = collect([...path, null], false, value)
-            return Promise.all(children.map(([childPath, childThrows, child]) =>
-                runOne(module, childPath, childThrows, child, result)
+            const children = collectTests([...path, null], false, value)
+            return Promise.all(children.map(([childPath, child]) =>
+                runOne(module, childPath, child.throws, child.fn, result)
             )).then(results => {
-                const success = { module, path: formatPath(path), status: 'passed', duration }
+                const success = { module, path: fmtPath(path), status: 'passed', duration }
                 result(success)
                 return [success, ...results.flat()]
             })
@@ -60,12 +51,12 @@ const runOne = (module, path, throws, fn, result) => {
     const failed = error => {
             const duration = performance.now() - start
             if (throws) {
-                const success = { module, path: formatPath(path), status: 'passed', duration }
+                const success = { module, path: fmtPath(path), status: 'passed', duration }
                 result(success)
                 return [success]
             }
             const [message, stack] = errorDetails(error)
-            const failure = { module, path: formatPath(path), status: 'failed', duration, message, stack }
+            const failure = { module, path: fmtPath(path), status: 'failed', duration, message, stack }
             result(failure)
             return [failure]
         }
@@ -86,8 +77,8 @@ const runOne = (module, path, throws, fn, result) => {
 export const runBrowserProofs = (modules, result = () => undefined) => {
     const start = performance.now()
     const tests = modules.flatMap(([module, proof]) =>
-        collect([], false, proof).map(([path, throws, fn]) =>
-            () => runOne(module, path, throws, fn, result)
+        collectTests([], false, proof).map(([path, entry]) =>
+            () => runOne(module, path, entry.throws, entry.fn, result)
         )
     )
     const batchSize = 25
@@ -125,16 +116,20 @@ export const startBrowserTestSources = (root, sources, importer) => {
     setState(root, 'loading')
     let loaded = 0
     const summary = root.querySelector('[data-test-summary]')
-    const modules = Promise.all(sources.map(source => importer(source).then(module => {
-        loaded += 1
-        if (summary !== null) { summary.textContent = `Loading ${loaded}/${sources.length}: ${source}` }
-        return /** @type {const} */ ([source, module.proof])
-    })))
-    const report = modules.then(
-        loadedModules => startBrowserTests(root, loadedModules),
-        error => {
+    const modules = Promise.all(sources.map(source => importer(source).then(
+        module => {
+            loaded += 1
+            if (summary !== null) { summary.textContent = `Loading ${loaded}/${sources.length}: ${source}` }
+            return { status: 'loaded', source, proof: module.proof }
+        },
+        error => ({ status: 'error', source, error })
+    )))
+    const report = modules.then(loadedModules => {
+        const rejected = loadedModules.find(module => module.status === 'error')
+        if (rejected !== undefined && rejected.status === 'error') {
+            const { error, source } = rejected
             const [message, stack] = errorDetails(error)
-            const failure = { module: '<module loader>', path: '', status: 'failed',
+            const failure = { module: source, path: '', status: 'failed',
                 duration: performance.now() - start, message, stack }
             /** @type {BrowserTestReport} */
             const value = {
@@ -148,7 +143,10 @@ export const startBrowserTestSources = (root, sources, importer) => {
             window.dispatchEvent(new CustomEvent('fjs-browser-test-complete', { detail: value }))
             return value
         }
-    )
+        return startBrowserTests(root, loadedModules.map(module =>
+            /** @type {const} */ ([module.source, module.status === 'loaded' ? module.proof : undefined])
+        ))
+    })
     const browserWindow = /** @type {Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }} */ (window)
     browserWindow.fjsBrowserTestReport = report
     return report
@@ -166,7 +164,9 @@ export const renderBrowserReport = (root, report) => {
     setState(root, report.status)
     const summary = root.querySelector('[data-test-summary]')
     if (summary !== null) {
-        summary.textContent = `${report.totals.passed} passed, ${report.totals.failed} failed (${report.duration.toFixed(1)} ms)`
+        summary.textContent = report.status === 'infrastructure-error'
+            ? `Infrastructure error (${report.duration.toFixed(1)} ms)`
+            : `${report.totals.passed} passed, ${report.totals.failed} failed (${report.duration.toFixed(1)} ms)`
     }
     const output = root.querySelector('[data-test-results]')
     if (output !== null) {
