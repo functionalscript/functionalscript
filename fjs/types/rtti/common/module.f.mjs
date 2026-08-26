@@ -141,6 +141,17 @@ export const eachEntry =
  * `new Array(1)` gives. That is the reading `../data/module.f.mjs`'s
  * `containerUnion` has always had, so the canonical data form stays fixed.
  *
+ * `Array.from` walks the iterator, which is the *same* walk `containerUnion`
+ * makes, and that is the point rather than an accident: the two agree by
+ * construction. It holds even for a schema carrying an overridden
+ * `Symbol.iterator`, where reading indices here would disagree with the data
+ * form all over again — verified: such a schema is read as `number` by the
+ * entry reading and as `string` by `containerUnion`. Reading *both* by index
+ * is defensible, but it changes the canonical, content-addressed data form and
+ * belongs with that decision, not here. FunctionalScript cannot build such a
+ * schema in the first place: it has no symbols and no mutation, so the case is
+ * reachable only from plain JavaScript, which is also why no proof can pin it.
+ *
  * `Object.entries` skips holes, which is why it is not used here: it would
  * make `new Array(1)` and `[]` the same schema while `[undefined]` stayed
  * different from both. It also yields a non-index own property, which is no

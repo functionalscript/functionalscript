@@ -130,6 +130,13 @@ entry reading declared `foo` and then matched it against `value[NaN]` — the
 property literally named `NaN`, which no ordinary value carries. The data form
 ignored it all along; now so do the schema-form readers.
 
+"By length" is how every schema anyone can write is read; the mechanism is the
+iterator, the same one `containerUnion` walks, so the two agree by construction
+rather than by two rules that happen to coincide. That matters only for a schema
+carrying an overridden `Symbol.iterator` — which FunctionalScript cannot build,
+having neither symbols nor mutation — where reading indices here would put the
+schema-form readers back at odds with the data form.
+
 Nothing about a dense schema changes: on an array with neither holes nor extra
 own properties the two entry lists are identical.
 
