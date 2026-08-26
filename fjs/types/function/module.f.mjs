@@ -27,9 +27,9 @@ export const identity = value => value
  * Unlike monoid `repeat`, this performs every application, taking O(n)
  * applications. A non-positive `n` leaves `value` unchanged.
  *
- * @type {(n: bigint) => <T>(f: (value: T) => T) => (value: T) => T}
+ * @type {(n: bigint) => <T>(value: T) => (f: (value: T) => T) => T}
  */
-export const iterate = n => f => value => {
+export const iterate = n => value => f => {
     let v = value
     let i = 0n
     while (i < n) {
