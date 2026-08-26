@@ -656,6 +656,31 @@ annotations — which is most of them, once annotations are the point.
       and what an annotation on a function *means* — a compile-time check that
       cannot be completed, or a wrapper validating each call. Until this is
       settled, `//:` can join `@type` but not replace it.
+
+      **Adding the schema form is necessary and not sufficient**, because
+      everything downstream of it runs on the canonical `data` form, and that
+      form is *function-free* by construction
+      ([`data/README.md`](../fjs/types/rtti/data/README.md)). Stage 6 checks
+      through `data`'s `subset`; stage 1's printer goes `toData → dataToTs`.
+      668 itself contemplates an **extern** form that "may need to remain
+      outside that core form" — and a schema outside it has no assignability
+      and no declaration to emit, so function JSDoc still could not retire.
+      This stage therefore owes three things, not one:
+
+      1. the function schema form itself;
+      2. a place in the canonical algebra — either function contracts inside
+         `data`, or an equivalent `subset` path for extern schemas. Note this
+         is where **variance** enters the epic for the first time: function
+         inclusion is contravariant in parameters and covariant in results,
+         and `subset` today is inclusion over kinds with no variance notion at
+         all;
+      3. a printer path, so a function-typed export has a declaration to
+         generate.
+
+      Whether 668's extern direction can carry 2 and 3, or whether function
+      contracts must go into `data` proper, is the decision that unblocks the
+      1318 function-typed JSDoc bodies. It belongs in 668, and this stage is
+      not done until 668 answers it.
 - [ ] **8. Generic schemas.** A generic type is a function from schemas to
       schemas — `array` and `record` already are — so *writing and using* one
       needs nothing new. **Emitting a declaration for one does.** The printer
