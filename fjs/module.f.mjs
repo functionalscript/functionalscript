@@ -14,6 +14,7 @@ import { main as ciMain } from './ci/module.f.mjs'
 import { errorExit, errorMessage, exitStep, import_ } from './effects/node/module.f.mjs'
 import { dispatch } from './cli/module.f.mjs'
 import { casMcpServer } from './mcp/module.f.mjs'
+import { main as webMain } from './web/module.f.mjs'
 import { resultStep } from './effects/module.f.mjs'
 
 /** @type {Commands<NodeOp>} */
@@ -52,6 +53,11 @@ const commands = [
         names: ['ci', 'i'],
         description: 'Generate the GitHub Actions CI workflow',
         handler: ciMain,
+    },
+    {
+        names: ['web', 'w'],
+        description: 'Serve a directory over HTTP',
+        handler: webMain,
     },
     {
         names: ['run', 'r'],

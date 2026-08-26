@@ -181,8 +181,21 @@ export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, I
 
 // stat
 
-/** File metadata returned by `stat`. Only `size` (in bytes) for now. */
-export type FileStat = { readonly size: number }
+/**
+ * File metadata returned by `stat`: the size in bytes, and whether the entry is
+ * a *regular* file.
+ *
+ * `isFile` is not a convenience. Reading a FIFO, a device or a socket is not
+ * reading a file: `open` on a FIFO with no writer blocks until one appears, so a
+ * `readFile` that reaches one never returns and holds a thread-pool slot for as
+ * long as it waits. Size cannot stand in for the check — a FIFO stats as zero
+ * bytes and passes every bound. It is the same question `Dirent` answers for a
+ * directory listing, asked about one path.
+ */
+export type FileStat = {
+    readonly size: number
+    readonly isFile: boolean
+}
 
 export type Stat = readonly['stat', (path: string) => IoResult<FileStat>]
 
@@ -223,7 +236,22 @@ export type CreateServer = ['createServer', (listener: RequestListener<Operation
 
 // listen
 
-export type Listen = ['listen', (server: Server, port: number) => OpResult<void>]
+/**
+ * Starts accepting connections on `port` of `host`.
+ *
+ * The host is **required**, and that is the whole point of it: Node's own
+ * `listen(port)` binds the unspecified address, so omitting it publishes the
+ * server to every interface — a default nobody chose, and one a program serving
+ * local files must not get by writing less. Pass `'127.0.0.1'` for loopback
+ * only, `'0.0.0.0'` (or `'::'`) to accept from anywhere.
+ *
+ * It answers an {@link IoResult} because binding is where a server most often
+ * fails — the port is taken, the address is not the host's — and that failure
+ * arrives asynchronously, as the server's `error` event. An operation that
+ * answered the moment `listen` was *called* would report a server that never
+ * started, and leave the host to kill the process a moment later.
+ */
+export type Listen = ['listen', (server: Server, port: number, host: string) => IoResult<void>]
 
 // HTTP
 
