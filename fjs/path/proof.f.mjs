@@ -271,10 +271,24 @@ const concatTest = [
         const r = root(concat("C:/")("dir"))
         assertEq(r, "C:/")
     },
-    // Only a real bare drive skips the separator.
+    // Only a real bare drive skips the separator: the letter's case does not
+    // matter, a non-letter is not a drive, and `C:foo` is longer than a bare
+    // drive — reading it as one would join it to `C:foox`.
     () => {
         const c = concat("ab:")("dir")
         assertEq(c, "ab:/dir")
+    },
+    () => {
+        const c = concat("c:")("dir")
+        assertEq(c, "c:dir")
+    },
+    () => {
+        const c = concat("1:")("dir")
+        assertEq(c, "1:/dir")
+    },
+    () => {
+        const c = concat("C:foo")("x")
+        assertEq(c, "C:foo/x")
     },
     () => {
         const c = concat("C:")("/abs")
