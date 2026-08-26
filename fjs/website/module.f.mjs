@@ -13,7 +13,7 @@ import { allOk, exitStep, writeFile } from '../effects/node/module.f.mjs'
 import { mapStep } from '../effects/module.f.mjs'
 
 const html = htmlUtf8(
-    ['title', 'Run FunctionalScript unit tests in your browser'],
+    ['title', 'Run FunctionalScript unit tests in the browser'],
     ['style', `
 :root { color-scheme: light dark; --bg: white; --text: black; --pass: #137333; --fail: #b3261e }
 @media (prefers-color-scheme: dark) {
@@ -33,7 +33,7 @@ pre { white-space: pre-wrap }
             { href: 'https://github.com/functionalscript/functionalscript' },
             'GitHub Repository'
         ]],
-        ['h1', 'Run FunctionalScript unit tests in your browser'],
+        ['h1', 'Run FunctionalScript unit tests in the browser'],
         ['p', { 'data-test-summary': '' }, 'Loading…'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run again'],
         ['pre', ['ol', { 'data-test-results': '' }]]
