@@ -240,11 +240,12 @@ rule the module's own closed containers do not follow.
       verdict outright: the shared table checks only that the three readers
       *agree*, so a row alone passes whenever all three move together. Dropped,
       on `[42, ,]`: `close([number], never)`, `close([number], or())` and
-      `close([number], close([never]))`. Kept: `r` and the `a`/`b`
-      cycle on `[42, ,]`, and `[close([], unknown), [1]]`. None is redundant — `a`/`b` catches a test
-      on the `rest`'s own canonical data, `r` catches an emptiness analysis
-      reaching `close` cycles but not `or` cycles, and `unknown` catches a test
-      that reads the absence of a `rest` key as elimination.
+      `close([number], close([never]))`. Kept: `r` and the `a`/`b` cycle on
+      `[42, ,]`, and `[close([], unknown), [1]]`. None is redundant — `a`/`b`
+      catches a test on the `rest`'s own canonical data, `r` catches an
+      emptiness analysis reaching `close` cycles but not `or` cycles, and
+      `unknown` catches a test that reads the absence of a `rest` key as
+      elimination.
       Changelog entry prefixed `**BREAKING CHANGES:**` — the empty-rest
       spellings stop accepting a trailing hole, an observable narrowing for
       callers using the explicit-rest form. #1712 labelled its analogous
@@ -322,8 +323,8 @@ rule the module's own closed containers do not follow.
       independently of `extra`, `rest` and `fits`, so no patch confined to the
       undeclared branch reaches it. Collapsing those two nodes would hand one
       `../../../cas` hash to sets that differ. The four rows above are
-      untouched by it — across the same prototype values, `close([number])` and
-      `close([number], cu)` answer alike on every one — so this bounds A's
+      untouched by it — across the same prototype values, `close([number])`
+      and `close([number], cu)` answer alike on every one — so this bounds A's
       collapse rather than blocking it. Either make container membership read
       own members only, the value-side counterpart of
       [`./schema-walk-own-indices.md`](./schema-walk-own-indices.md), raised
