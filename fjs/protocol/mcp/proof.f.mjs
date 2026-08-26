@@ -9,6 +9,7 @@
  * @import {
  *   ToolsListParams,
  *   ToolsCallParams,
+ *   ToolsCallResult,
  *   McpHandlers,
  *   McpConfig,
  *   McpSessionState,
@@ -17,7 +18,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
-import { history, historyStep, mapStep, pureOk, step } from '../../effects/module.f.mjs'
+import { history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { error, ok, unwrap as unwrapResult } from '../../types/result/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { internalError } from '../json_rpc/module.f.mjs'
@@ -25,6 +26,7 @@ import { string } from '../../types/rtti/module.f.mjs'
 import { asBase, asNominal, create, read } from '../../effects/memory/module.f.mjs'
 import {
     uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,
+    toolResultStep,
 } from './module.f.mjs'
 
 // ── Memory mock ────────────────────────────────────────────────────────────────
@@ -214,6 +216,25 @@ const firstText = resp => {
     const { text } = item
     assert(typeof text === 'string', text)
     return text
+}
+
+// ── `toolResultStep` renderers ────────────────────────────────────────────────
+
+// Shared by both branches so each renderer is written once and reached once:
+// the `ok` test exercises `dashes`, the `error` test `errorText`.
+
+/** @type {(xs: readonly string[]) => string} */
+const dashes = xs => xs.join('-')
+
+/** @type {(e: string) => string} */
+const errorText = e => `failed: ${e}`
+
+/** The `text` of the first content item of a `ToolsCallResult`. */
+/** @type {(r: ToolsCallResult) => string} */
+const textOf = r => {
+    const [item] = r.content
+    assert(item.type === 'text', item)
+    return item.text
 }
 
 // ── Test messages ─────────────────────────────────────────────────────────────
@@ -521,6 +542,26 @@ export const proof = {
             const [item] = r[1].content
             assert(item.type === 'text', item)
             assertEq(item.text, 'add:x')
+        },
+    },
+
+    // `toolResultStep` picks between `okResult` and `errorResult`, so both
+    // branches are the whole of it — and the error branch is the one that
+    // proves the failure stays in-band (`isError`) instead of escaping as a
+    // transport error, which the `never` error channel is the type-level claim
+    // of.
+    toolResultStep: {
+        okIsRendered: () => {
+            const [r] = runPure(toolResultStep(pureOk(['a', 'b']), dashes, errorText))
+            assert(r !== undefined && r[0] === 'ok', r)
+            assertEq(r[1].isError, undefined)
+            assertEq(textOf(r[1]), 'a-b')
+        },
+        errorIsRenderedInBand: () => {
+            const [r] = runPure(toolResultStep(pureError('gone'), dashes, errorText))
+            assert(r !== undefined && r[0] === 'ok', r)
+            assertEq(r[1].isError, true)
+            assertEq(textOf(r[1]), 'failed: gone')
         },
     },
 }
