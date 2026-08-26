@@ -128,7 +128,12 @@ type MappedTs<T extends Tuple> = Extract<{ readonly[K in keyof T]: Ts<T[K]> }, r
 type RequiredPart<M extends readonly unknown[]> =
     M extends readonly [...infer I extends readonly unknown[], infer L]
         ? undefined extends L ? RequiredPart<I> : M
-        : readonly []
+        // `M`, not `readonly []`. The peel needs a *required* last element, so
+        // a tuple whose last element is already optional does not match it —
+        // and neither does the empty tuple, where the two coincide. Both keep
+        // the mapping: an optional position is what this transform produces,
+        // so one the caller wrote is already in the target form.
+        : M
 
 type OmittablePart<M extends readonly unknown[], Acc extends readonly unknown[] = readonly []> =
     M extends readonly [...infer I extends readonly unknown[], infer L]

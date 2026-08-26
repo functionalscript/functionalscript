@@ -28,15 +28,30 @@ import { dataToTs, printer } from './module.f.mjs'
 /** @typedef {Or<readonly [typeof boolean, undefined]>} _OptionBoolean */
 /** @typedef {Or<readonly [typeof string, undefined]>} _OptionString */
 
-// A variadic tuple has `length: number` for the same reason and keeps its
-// mapping too. Splitting it would peel the fixed last position off a prefix
-// whose length is unknown, leaving a flat array that admits `[1, 'x', 2]` —
-// which no schema of this shape validates.
-/** @typedef {Assert<Equal<Ts<readonly [...(typeof number)[], _OptionString]>, readonly [...number[], string | undefined]>>} _VariadicPrefix */
+// A variadic tuple is the shape the `length` guard exists for, and the only
+// one: its peel *succeeds*, binding the unknown-length prefix to `I`, so
+// without the guard the reconstruction flattens it. The others below reach the
+// fallback because their peel fails, and are held by that alone.
+//
+// Asserted as assignability rather than with `Equal<>`. `Equal<>` reports this
+// shape as unchanged whether or not the guard is in place — it cannot see the
+// difference — so an `Equal<>` pin here passes over the bug it is meant to
+// catch. What the flattening actually costs is a string admitted in the number
+// prefix, so that is what these state.
+/** @typedef {readonly [...(typeof number)[], _OptionString]} _VariadicSchema */
+/** @typedef {Assert<readonly [1, 'x', 2] extends Ts<_VariadicSchema> ? false : true>} _VariadicPrefixRejectsMixedPrefix */
+/** @typedef {Assert<readonly [1, 2, 'x'] extends Ts<_VariadicSchema> ? true : false>} _VariadicPrefixAdmitsItsOwnShape */
 
 // A rest element after a fixed prefix is the same shape from the other side,
 // and is held for the same reason: `length` is `number`, so the mapping stands.
 /** @typedef {Assert<Equal<Ts<readonly [typeof number, ...(typeof string)[]]>, readonly [number, ...string[]]>>} _RestTuple */
+
+// A schema whose own tuple type already marks a member optional is held by the
+// *fallback* rather than the length guard: its length is `1 | 2`, not `number`,
+// so it reaches the split, where the peel needs a required last element and
+// finds none. An optional position is what this transform produces, so one the
+// caller wrote is already in the target form and the mapping stands.
+/** @typedef {Assert<Equal<Ts<readonly [typeof number, (typeof string)?]>, readonly [number, string?]>>} _OptionalMember */
 
 /** @typedef {Assert<Equal<Ts<readonly [typeof number, typeof bigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, (boolean | undefined)?, (string | undefined)?]>>} _OptionalTail */
 
