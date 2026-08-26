@@ -2,7 +2,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
-import { empty, vec } from '../../types/bit_vec/module.f.mjs'
+import { empty, maxLength, vec } from '../../types/bit_vec/module.f.mjs'
 import { cBase32ToVec, cBase32ToVec5x, vec5xToCBase32, vecToCBase32 } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
@@ -75,5 +75,27 @@ export const proof = {
         assertEq(cBase32ToVec("0"), null, 'single zero symbol must be null')
         assertEq(cBase32ToVec("00"), null, 'all-zero symbols must be null')
         assertEq(cBase32ToVec("o"), null, 'o (maps to 0) must be null')
-    }
+        assertEq(cBase32ToVec('u'), null, 'invalid trailing symbol must be null')
+        assertEq(cBase32ToVec('u8'), null, 'invalid symbol before sentinel must be null')
+        assertEq(cBase32ToVec('8u'), null, 'invalid symbol after sentinel must be null')
+    },
+    trailingZeroSymbols: () => {
+        assertEq(cBase32ToVec('g0'), empty)
+        assertEq(cBase32ToVec('80'), vec(1n)(0n))
+    },
+    decodeAtMaxLengthSucceeds: () => {
+        const value = vec(maxLength)(0n)
+        // Construct the boundary encoding directly. Encoding a `maxLength`
+        // vector exceeds Bun's own BigInt size limit while adding the stop
+        // bit, independently of this decoder regression.
+        const encoded = '0'.repeat(209_715) + '8'
+        assertEq(cBase32ToVec(encoded), value)
+    },
+    decodeOverflow: () => {
+        // Reject both an independently oversized head and a valid head whose
+        // retained tail would push the combined result over `maxLength`.
+        assertEq(cBase32ToVec('0'.repeat(209_717) + 'g'), null)
+        assertEq(cBase32ToVec('0'.repeat(209_715) + '4'), null)
+        assertEq(cBase32ToVec('0'.repeat(209_715) + '1'), null)
+    },
 }
