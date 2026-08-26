@@ -323,7 +323,9 @@ is ownership transfer in the other direction.
 
 Which remedy is a cost/ergonomics decision, and it belongs with the same person
 deciding the `close` policy — all of it is one question asked about different
-values and directions.
+values and directions, and **[stage 13](#tasks) owns it**. Naming the question
+without giving it a stage is what let it sit unowned through several revisions
+of this section.
 
 That is one more reason the regime follows what the compiler can read
 (commitment 4), and a reason the guarantee in commitment 3 is worth reading as
@@ -728,7 +730,7 @@ are stated instead:
 - **3 onward** are gated on the compiler; **4 onward** additionally on
   compile-time evaluation ([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)).
 - **7 gates the general form of 6.**
-- **8, 9 and 10 gate 11.**
+- **8, 9, 10 and 13 gate 11.**
 - **10 overlaps 6–9** rather than following them, since it needs only stage 5's
   first diagnostic.
 
@@ -1034,7 +1036,18 @@ are stated instead:
       `Ts<>` and the printer agree.
 
       A `types.ts` goes when every declaration in it retires under the rule
-      above and nothing outside still imports it. This is the stage where
+      above and nothing outside still imports it — **and that is not sufficient
+      for a published module.** The package has no `exports` map and ships
+      `**/*.d.ts`, so `types.d.ts` is a public subpath: emitted declarations
+      reference `…/types.ts` specifiers, and
+      [packed-consumer-validation](../fjs/ci/packed-consumer-validation.md)
+      exists to prove those resolve to the shipped `types.d.ts` on every
+      consumer toolchain. Deleting the file removes that subpath even when
+      every declaration in it is reproduced elsewhere, which breaks a consumer
+      that imports it by path. Retirement therefore needs either a
+      compatibility `types.d.ts` that re-exports from the generated
+      declarations, or an explicit breaking change with a changelog entry —
+      "no internal importer" is a necessary condition, not the whole one. This is the stage where
       TypeScript stops being the type system for FunctionalScript — for the
       declarations it can reach.
 - [ ] **12. Anchor every unreachable non-resulting computation an annotation
@@ -1057,10 +1070,16 @@ are stated instead:
       stages 4–5 and on stage 11 — **not** stage 3, which only records and
       resolves the annotation — and not a question of runtime cost.
 
-      Both halves bind only where the use is annotation-*only* and the
-      computation is not already total: a module that also passes the schema to
-      `validate` keeps it reachable, and an initializer built entirely from the
-      RTTI constructors is droppable without anchoring. What is left is an
+      Both halves bind where the use is annotation-*only* — a module that also
+      passes the schema to `validate` keeps it reachable and is unaffected.
+      **The totality exemption applies to locals only.** An initializer built
+      entirely from the RTTI constructors is droppable without anchoring,
+      because droppability there is a property of the node. The import rule is
+      not an effect analysis and says so: it rejects on *reachability*, so an
+      annotation-only import is rejected even when the module it names is
+      wholly total, and nothing in the compiler establishes that totality
+      across a module boundary anyway. Exempting total imports would need that
+      cross-module analysis first. What is left is an
       annotation-only import, or an annotation-only local whose initializer
       contains a call — `const t = array(makeType())` included, since the
       argument is evaluated first. Until this lands, such a module must keep a
@@ -1070,6 +1089,21 @@ are stated instead:
       An alternative to anchoring the local half is a totality analysis that
       can prove the initializer safe to drop. That is a different and larger
       piece of work; whichever is chosen, one of them owns this.
+- [ ] **13. Ownership at the language boundary.** Decide and implement what
+      happens to a reference crossing between FunctionalScript and ordinary
+      JavaScript in either direction, per
+      [What a generated `.d.ts` can and cannot promise](#what-a-generated-dts-can-and-cannot-promise)
+      and the boundary paragraphs above: `parse` against a fully naming schema,
+      a deep copy, a freeze, or a documented ownership transfer — inbound, and
+      the mirror of it outbound, where an exported schema object is the sharp
+      case. The `close` policy and 668's call-validating wrapper are the same
+      decision seen from two angles, so settle them together.
+
+      **Gates stage 11.** Retiring JSDoc does not create this hole, but it
+      removes the last thing that documents the intended shape at the boundary,
+      and commitment 3's soundness argument assumes an answer this stage has to
+      supply. Without it stage 11 can complete while ordinary JavaScript can
+      still mutate a value the checker relied on.
 
 ### Open questions
 
