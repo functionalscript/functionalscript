@@ -8,14 +8,29 @@ export const myType = or(number, string)
 export const a /*: myType */ = 'hello'
 ```
 
-An annotation is a comment holding an ordinary expression that evaluates to an
-RTTI schema. The compiler loads that expression at compile time and checks the
-annotated value against it.
+An annotation is a comment holding the **name** of an RTTI schema. The compiler
+loads that name's value at compile time and checks the annotated value against
+it.
 
-Depends on [expression](./3410-expression.md) and on the compiler being able to
+> **Narrowed by the epic.** This document was written with the annotation body
+> as an ordinary *expression* handed to the expression parser, and the rest of
+> it below still reads that way.
+> [rtti-type-system](../../todo/rtti-type-system.md) narrows the body to a
+> single identifier bound by a `const` or an `import`: no call, no member
+> access, no operator, no literal. Anything more is written as an ordinary
+> `const` first and annotated by its name. A comment that can hold a call can
+> hold a sub-language, which is the road back to a type grammar; a bare name
+> has no scoping, evaluation order, or error messages of its own, and it makes
+> recognition one token rather than a parse. Reconciling the text below with
+> that rule is stage 2 of the epic — including the two consequences it has:
+> [expression](./3410-expression.md) is no longer a dependency of the
+> annotation body, and whether a dotted `ns.myType`
+> ([namespace-import](./2220-namespace-import.md)) counts as a name is open.
+
+Depends on the compiler being able to
 load and run a module as meta-programming
 ([`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md)) — nothing here can start
-before both. This is a working draft of a direction, not a plan: TypeScript
+before that. This is a working draft of a direction, not a plan: TypeScript
 remains the type checker meanwhile, and the near-term work is to turn the
 standard toolchain up as far as it goes
 ([`todo/strict-static-analysis.md`](../../todo/strict-static-analysis.md)).
@@ -43,10 +58,11 @@ much of the burden as possible so annotations stay rare. `/*: … */` and JSDoc'
 There is no type grammar to write. A JSDoc-shaped design would need one — a
 block grammar, and underneath it a grammar for a subset of TypeScript's type
 expressions — and that second layer is the superset this project exists to
-avoid, re-implemented in the repository's own BNF. The annotation body is an
-expression in the module's own scope, which the FunctionalScript parser already
-handles. What is needed is only a way to recognize the annotation and hand its
-body to the existing expression parser.
+avoid, re-implemented in the repository's own BNF. The annotation body is a
+name in the module's own scope. What is needed is only a way to recognize the
+annotation and resolve that one identifier against the module's bindings — not
+even the expression parser is involved, once the body is narrowed to a name as
+above.
 
 That recognition is nearly free today. The tokenizer keeps a block comment's
 body verbatim, so the three forms differ in their first character:

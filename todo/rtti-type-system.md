@@ -41,8 +41,9 @@ Four commitments make that concrete.
 
 #### 1. Types are values, written in the RTTI eDSL
 
-There is **no type language to invent**. A type is an ordinary expression built
-from [`fjs/types/rtti/module.f.mjs`](../fjs/types/rtti/module.f.mjs) —
+There is **no type language to invent**. A type is an ordinary expression —
+written in the language, in a `const`, never in a comment — built from
+[`fjs/types/rtti/module.f.mjs`](../fjs/types/rtti/module.f.mjs) —
 `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`,
 `option`, `never`, `close`, plus `Const` (a primitive, tuple, or struct used
 directly as its own schema). It is a value: it can be named, imported,
@@ -54,36 +55,57 @@ the whole direction from collapsing back into "a superset of JavaScript with a
 type grammar", which is the thing this project exists to avoid
 ([types-for-fs.md](./types-for-fs.md)).
 
-#### 2. Types are applied with a comment, in one of two forms
+#### 2. Types are applied with a comment naming one
 
 ```js
-//: rttiTypeName
-/*: rttiTypeName */
+//: myType
+/*: myType */
 ```
 
-Both hold the *same thing*: an ordinary expression, resolved in the module's own
-scope, that evaluates to an RTTI schema. The two differ only in placement — the
-line form annotates what follows it, the block form annotates in the middle of
-an expression:
+The body is a **name** — a single identifier, bound in the module by a `const`
+or an `import`, whose value is an RTTI schema. Nothing else is accepted: no
+call, no member access, no operator, no literal. The two forms hold the same
+thing and differ only in placement: the line form annotates what follows it,
+the block form annotates inside an expression.
+
+Anything more than a name is written as an ordinary `const` first, in the
+language, where it already belongs:
 
 ```js
-import { array, number, or, string } from 'functionalscript/fjs/types/rtti/module.f.mjs'
+import { array, number, option, or, string } from 'functionalscript/fjs/types/rtti/module.f.mjs'
 
-export const key = or(number, string)
+const key = or(number, string)
+const keys = array(key)
+const maybeKey = option(key)
 
 //: key
 export const a = 'hello'
 
-export const first = (xs /*: array(key) */) /*: option(key) */ => xs[0]
+export const first = (xs /*: keys */) /*: maybeKey */ => xs[0]
 ```
 
-Recognizing these is nearly free. The tokenizer keeps a comment's body verbatim,
-so the forms are separated by the body's first character — `:` is an
-annotation, `*` is JSDoc, anything else is a comment — and the body then goes to
-the **expression parser that already exists**. No block grammar, no type
-grammar, no second parser. See
-[type-annotations](../spec/todo/3360-type-annotations.md), which works this out
-in detail and is the spec-side half of this epic.
+**A name, not an expression, is the whole point.** Handing the comment body to
+the expression parser would still be a sub-language living in comments — with
+its own scoping, its own evaluation order, its own error messages, and its own
+pressure to grow, which is how every type grammar starts. A bare identifier has
+none of that. It also makes recognition a single token rather than a parse, and
+compile-time evaluation memoizable by binding rather than by expression
+([open question 4](#open-questions)).
+
+The restriction costs nothing, because naming a type is something you want
+anyway. A named schema is exportable, reusable, printable in a diagnostic, and
+emitted to `.d.ts` under that name; an inline `array(key)` is anonymous at every
+one of those points.
+
+Recognizing an annotation is then nearly free. The tokenizer keeps a comment's
+body verbatim, so the forms are separated by the body's first character — `:`
+is an annotation, `*` is JSDoc, anything else is a comment — and what follows
+is one identifier to resolve against the module's bindings. No block grammar,
+no type grammar, no second parser, and no expression parser either. See
+[type-annotations](../spec/todo/3360-type-annotations.md), the spec-side half
+of this epic, which reaches the same two forms by a longer route and states the
+body as an expression; **this epic narrows it to a name**, and stage 2 is where
+that narrowing lands in the spec.
 
 #### 3. Scope: FunctionalScript files only
 
@@ -134,6 +156,9 @@ the part that does not exist.
   dialect, not a new one. Commitment 1 is the whole point of the epic.
 - **New syntax beyond the two comment forms.** `//:` and `/*: */` are the entire
   surface area added to the language.
+- **Expressions inside an annotation.** Not even the language's own: the body is
+  one name. A comment that can hold a call can hold a sub-language, and that is
+  the road back to a type grammar. Give the type a `const` and use its name.
 - **Typing `.mjs` with RTTI.** Ordinary JavaScript keeps TypeScript and JSDoc.
 - **Replacing `tsc` soon.** `tsc` and the standard toolchain are the checker
   until every stage below has landed, and turning them up as far as they go is
@@ -150,17 +175,18 @@ Ordered. Stage 1 is independent of everything else and can start today; stages
       [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs), wired into
       packaging ([publishing-packages](../fjs/ci/todo/publishing-packages.md)).
       No compiler work, no language change.
-- [ ] **2. Settle the annotation form.** Which positions accept an annotation —
-      `const`, parameter, return, export — and what the line form attaches to.
-      Write it into [type-annotations](../spec/todo/3360-type-annotations.md).
-- [ ] **3. Recognize `//:` and `/*: */` in the parser** and hand the body to the
-      existing expression parser
-      ([expression](../spec/todo/3410-expression.md)). A distinct token kind is
-      cleaner than inspecting the first character; neither adds a grammar.
+- [ ] **2. Settle the annotation form.** Narrow the body from an expression to a
+      name in [type-annotations](../spec/todo/3360-type-annotations.md), and
+      settle which positions accept an annotation — `const`, parameter, return,
+      export — and what the line form attaches to.
+- [ ] **3. Recognize `//:` and `/*: */` in the parser** and resolve the one
+      identifier in the body against the module's bindings. A distinct token
+      kind is cleaner than inspecting the body's first character; neither adds a
+      grammar, and neither needs the expression parser.
 - [ ] **4. Evaluate an annotation at compile time**
-      ([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)) — including which
-      expressions may be referenced, and the error when one is not
-      compile-time known.
+      ([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)) — the binding the name
+      resolves to must be reducible to a schema value, and the error when it is
+      not is a compile error.
 - [ ] **5. Check literal right-hand sides** with `validate`. This is the first
       point at which the epic checks anything.
 - [ ] **6. Inference, then general right-hand sides.** Infer a schema for an
@@ -174,8 +200,10 @@ Ordered. Stage 1 is independent of everything else and can start today; stages
       settled, `//:` can join `@type` but not replace it.
 - [ ] **8. Generic schemas.** A generic type is a function from schemas to
       schemas — `array` and `record` already are — so the value layer needs
-      nothing. `.d.ts` emission for a parameterised alias does.
-      169 `@template` uses today.
+      nothing. Two things do: `.d.ts` emission for a parameterised alias, and
+      the fact that under the name-only rule every *instantiation* must also be
+      named (`const keys = array(key)`), which is worth confirming does not
+      become noise at 169 `@template` uses.
 - [ ] **9. Nominal types.** [`fjs/types/nominal`](../fjs/types/nominal/module.f.mjs)
       has no RTTI representation: either RTTI gains a brand-carrying wrapper, or
       nominal types stay a TypeScript-era construct
@@ -185,16 +213,26 @@ Ordered. Stage 1 is independent of everything else and can start today; stages
 
 ### Open questions
 
-1. **Staging.** Which expressions may an annotation reference — module-level
-   constants only, or anything the compiler can reduce?
-2. **Schemas that are themselves checked.** An annotation's expression is a
-   value in the same module system; whether a schema is checked against
+1. **Qualified names.** Is `ns.myType` a name or a member access? It reads as
+   one name to a person and is a property lookup to a parser, and the answer
+   decides whether a module using a namespace import
+   ([namespace-import](../spec/todo/2220-namespace-import.md)) must add a named
+   import just to annotate. Allowing a dotted name is the one relaxation worth
+   considering; allowing it to be *general* member access is not.
+2. **Which bindings qualify.** A name resolves to a binding that has to reduce
+   to a schema value — module-level `const` and `import` only, or anything the
+   compiler can reduce? A name is not automatically compile-time known just
+   because it is a name.
+3. **Schemas that are themselves checked.** The value a name resolves to is an
+   ordinary value in the same module system; whether it is checked against
    `Type`'s own schema, and what that costs, is unanswered.
-3. **Error reporting.** A failed check is a `{ path, message }` from a run-time
+4. **Error reporting.** A failed check is a `{ path, message }` from a run-time
    reader. What that looks like as a compile-time diagnostic — with a source
-   span — is undesigned.
-4. **Cost.** Every annotation is a module evaluation. Whether the compiler
-   memoizes schemas across a build, and on what key, is open.
+   span, and with the type's *name* in it, which is one thing the name-only rule
+   buys — is undesigned.
+5. **Cost.** Every annotation reaches a module evaluation. A name makes the
+   cache key obvious — the binding — but whether the compiler memoizes schemas
+   across a build is still open.
 
 ### Related
 
@@ -206,7 +244,9 @@ does not replace them.
 - [type-annotations](../spec/todo/3360-type-annotations.md) — the annotation
   form, the parser consequences, and the argument for why there is no type
   grammar. The spec-side statement of commitments 1 and 2; stages 2–5 land
-  there.
+  there. It states the annotation body as an ordinary expression handed to the
+  expression parser; **this epic narrows it to a name**, and stage 2 is that
+  edit.
 - [type inference](../spec/todo/3370-type-inference.md) — annotations are only
   as useful as what can be inferred without them. Stage 6.
 - [668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md) —
@@ -242,6 +282,8 @@ does not replace them.
   transducer stack the tokenizer work in stage 3 belongs to.
 - [js-string-literals](../spec/todo/2460-js-string-literals.md) — the
   repository's own `.f.mjs` sources are not yet input the parser accepts.
+- [namespace-import](../spec/todo/2220-namespace-import.md) — open question 1
+  turns on it.
 
 **Affected, but standing on their own:**
 
@@ -260,3 +302,6 @@ does not replace them.
 - [rtti-parse](../fjs/media/json/todo/rtti-parse.md) — reading JSON text
   straight against a schema; the run-time side continuing to grow around the
   same source of truth.
+- [expression](../spec/todo/3410-expression.md) — **not** a dependency, which is
+  the point of the name-only rule: an annotation body needs no expression
+  parser. It stays a dependency of the *language*, not of this epic.
