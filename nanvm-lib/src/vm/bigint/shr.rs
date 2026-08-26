@@ -2,7 +2,7 @@ use core::ops::Shr;
 
 use crate::{
     common::{div_mod::DivMod, sized_index::SizedIndex},
-    vm::{BigInt, IContainer, IVm},
+    vm::{BigInt, IVm},
 };
 
 impl<A: IVm> Shr for BigInt<A> {
@@ -38,7 +38,7 @@ impl<A: IVm> Shr for BigInt<A> {
             }
         }
 
-        Self::normalize_new(*self.0.header(), value)
+        Self::normalize_new(self.sign(), value)
     }
 }
 
