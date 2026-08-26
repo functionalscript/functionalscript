@@ -595,6 +595,20 @@ export const proof = {
             // Nothing bound.
             assertEq(s.listening.length, 0)
         },
+        // And it is refused *first*: a server already listening, retried with
+        // an empty host, names the host and not the state. Node has no order of
+        // its own to copy here — it binds `''` — so the two runners have only
+        // to agree, and the Node runner asks this before it touches the socket.
+        emptyHostBeatsAlreadyListening: () => {
+            /** @type {RequestListener<never>} */
+            const listener = () => pureOk({ status: 200, headers: {}, body: empty })
+            const created = history(createServer(listener))
+            const bound = historyStep(created, server => listen(server, 8080, '127.0.0.1'))
+            const e = step(bound, ([, server]) => listen(server, 9090, ''))
+            const [, result] = virtual(emptyState)(e)
+            assert(result[0] === 'error', result)
+            assertIoCode(result[1], 'ERR_INVALID_ARG_VALUE')
+        },
         alreadyListening: () => {
             /** @type {RequestListener<never>} */
             const listener = () => pureOk({ status: 200, headers: {}, body: empty })

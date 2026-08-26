@@ -504,6 +504,14 @@ const createServer = listener => state => {
  * @type {(server: Server, port: number, host: string) => (state: State) => readonly[State, IoResult<void>]}
  */
 const listen = (server, port, host) => state => {
+    // Asked **first**, as the Node runner asks it: an empty host is refused
+    // before anything else is looked at, including whether this server is
+    // already listening. Node forms no opinion about `''` at all — it binds —
+    // so there is no host order to copy here and the two runners simply have to
+    // pick the same one. They did not at first: this check sat below the
+    // listening one, and an already-listening server retried with `''` reported
+    // `ERR_SERVER_ALREADY_LISTEN` here against `ERR_INVALID_ARG_VALUE` there.
+    if (host === emptyHost) { return [state, error(emptyHostError)] }
     const bound = /** @type {_VirtualServer} */ (asBaseServer(server))
     const { listener } = bound
     // Asked **before** the port, because that is the order Node asks in: a
@@ -519,11 +527,6 @@ const listen = (server, port, host) => state => {
             message: 'Listen method has been called more than once without closing.',
         }))]
     }
-    // Refused for the reason the Node runner refuses it: `''` is the host a
-    // program did not state, and Node binds every interface for it. Asked with
-    // the port rather than before the listening check, since Node never reaches
-    // an opinion about this value at all — there is no order to match.
-    if (host === emptyHost) { return [state, error(emptyHostError)] }
     if (!isPort(port)) {
         return [state, error(ioError({
             code: 'ERR_SOCKET_BAD_PORT',
