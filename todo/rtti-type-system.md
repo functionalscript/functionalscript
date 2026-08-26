@@ -964,6 +964,26 @@ are stated instead:
       question across all
       three rather than three unrelated corners.
 
+      **And it only reaches one of the two readers.** `data` exports `toData`,
+      `validate`, `subset`, `cmp` and `equal` — and **no `parse`**, and no
+      `Data`-to-`Type` reconstruction anywhere in the tree. So a snapshot can
+      stabilize a `validate` call and cannot stabilize a `parse` one:
+      [`parse`](../fjs/types/rtti/parse/module.f.mjs) takes the thunk-form
+      `Type` and walks it, re-entering the thunk, while handing it the `Data`
+      instead would change its signature. That is the reader this epic leans on
+      hardest — stage 13's inbound remedy is "`parse` against a schema that
+      names every part", and commitment 3's argument for reconstruction over
+      freezing rests on it — so leaving `parse` unstabilized undercuts the
+      boundary work rather than a corner of it.
+
+      So this stage owes **one of two things, named rather than assumed**: a
+      data-driven `parse` beside `data.validate`, or a lossless
+      `Data` → `Type` reconstruction that every reader can take. The second is
+      the smaller surface and keeps both existing APIs; the first mirrors what
+      `data.validate` already did for the other reader. Either way it is a
+      deliverable, not an implementation detail, because without it the phrase
+      "run time reuses the snapshot" is only true of half the run time.
+
       **It is not semantics-preserving today either, and that is a
       precondition, not a caveat.** Reusing the `data` form at run time means validating through
       `data`'s reader, and it accepts values the thunk readers reject:

@@ -127,6 +127,11 @@ values arrive.
       is most likely to hit.
 - [ ] Check `toData`, `subset` and the other `data` entry points for the same
       "all kinds means all values" assumption.
+- [ ] Whatever is decided here has to hold for **`parse` too**, and `data` has
+      no `parse` and no `Data`-to-`Type` reconstruction today. If one is added
+      (see [rtti-type-system](../../../../todo/rtti-type-system.md) stage 4),
+      it must reject a no-kind value exactly where `parse` does now — otherwise
+      this divergence is simply recreated in the second reader.
 
 ### Related
 
