@@ -67,7 +67,7 @@ export type ToolEntry<O extends Operation> = {
  * **`never` is a claim, not an absence.** The handler behind this does perform
  * effects and they can fail — a session-state read is dispatched by a runner
  * that may decline it. It says `never` because it has *absorbed* those: a
- * request's failure becomes `_errResponse(id)(internalError)` and a
+ * request's failure becomes `errorResponseOf(id)(internalError)` and a
  * notification's is dropped, there being no frame to put it in. Spelling that
  * as `Effect<…, never>` puts the decision in the type where a reader can
  * disagree with it, which an opaque payload could not.

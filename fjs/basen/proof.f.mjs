@@ -4,15 +4,10 @@ import { baseN } from './module.f.mjs'
 
 const hex = baseN(4n, '0123456789abcdef')
 
-const cb32 = baseN(5n, '0123456789abcdefghjkmnpqrstvwxyz', c => {
-    const lower = c.toLowerCase()
-    switch (lower) {
-        case 'i': { return '1' }
-        case 'l': { return '1' }
-        case 'o': { return '0' }
-        default: { return lower }
-    }
-})
+// A synthetic normalizer keeps this proof focused on `baseN`'s mechanism
+// rather than duplicating the rules owned by a concrete codec.
+const normalizedHex = baseN(4n, '0123456789abcdef', c =>
+    c === 'x' ? 'a' : c === 'y' ? 'z' : c.toLowerCase())
 
 // Sample input for the `big` proof below: 262 144 `f` characters decode into a
 // 1 Mibit (`maxLength`) vector.
@@ -48,16 +43,13 @@ export const proof = {
     },
     normalizeHit: () => {
         // 'A' lowercases to 'a' — same vector as the lowercase input.
-        const a = cb32.stringToVec('A')
-        const b = cb32.stringToVec('a')
+        const a = normalizedHex.stringToVec('A')
+        const b = normalizedHex.stringToVec('a')
         assertEq(a, b, [a, b])
-        // Crockford folds: i,l → 1 and o → 0.
-        assertEq(cb32.stringToVec('I'), cb32.stringToVec('1'), 'I→1')
-        assertEq(cb32.stringToVec('l'), cb32.stringToVec('1'), 'l→1')
-        assertEq(cb32.stringToVec('o'), cb32.stringToVec('0'), 'o→0')
+        assertEq(normalizedHex.stringToVec('x'), a, 'x→a')
     },
     normalizeMiss: () => {
-        assertEq(cb32.stringToVec('u'), null, 'unknown char should return null')
+        assertEq(normalizedHex.stringToVec('y'), null, 'normalizing to an unknown char should return null')
     },
     // Decodes a 1 Mibit hex string. With the O(n log n) `listToVec` builder this
     // runs in well under a second (was ~13 s node / ~43 s bun under the old
