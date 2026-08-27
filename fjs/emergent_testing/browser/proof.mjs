@@ -191,7 +191,7 @@ export const proof = {
         assertEq(report.totals.failed, 1)
         assertEq(report.results[0]?.module, 'a')
         assertEq(report.results[0]?.message, '404')
-        assert(summary.textContent.startsWith('Infrastructure error: 1 failed to load'), summary.textContent)
+        assert(summary.textContent.startsWith('Infrastructure error: 1 failed'), summary.textContent)
         assertEq(states.join(','), 'loading,running,infrastructure-error')
     },
     // The importer is page code, so obtaining the promise is itself a failure
@@ -282,6 +282,39 @@ export const proof = {
         assertEq(report.status, 'passed')
         assertEq(report.totals.passed, 1)
     },
+    // Describing a panic reads the value that caused it, so a value every trap
+    // of which throws *itself* makes the description panic in turn. That is the
+    // last handler there is: it may not fail, or the guard against a stuck page
+    // becomes the thing that sticks it.
+    unreadableFailure: async () => {
+        /** @type {ProxyHandler<object>} */
+        const handler = {}
+        const hostile = new Proxy({}, handler)
+        const rethrow = () => { throw hostile }
+        Object.assign(handler, { has: rethrow, get: rethrow, ownKeys: rethrow })
+        const { root, states } = page()
+        const report = await startBrowserTestSources(root, ['a'], async () => ({
+            proof: { boom: () => { throw hostile } },
+        }))
+        assertEq(report.status, 'infrastructure-error')
+        assertEq(report.results[0]?.message, 'The run failed with a value that cannot be read')
+        assertEq(states.join(','), 'loading,running,infrastructure-error')
+    },
+    // `infrastructure-error` covers a panic and a runner missing an operation as
+    // well as a module that would not link, so the summary must not diagnose
+    // every one of them as a loading failure.
+    infrastructureSummaryNamesNoCause: () => {
+        const { root, summary } = page()
+        renderBrowserReport(root, {
+            status: 'infrastructure-error',
+            browser: 'x',
+            totals: { tests: 1, passed: 0, failed: 1 },
+            duration: 0,
+            results: [{ module: '', path: '', status: 'failed', duration: 0, message: 'no sandbox', stack: '' }],
+        })
+        assert(!summary.textContent.includes('to load'), summary.textContent)
+        assert(summary.textContent.startsWith('Infrastructure error: 1 failed'), summary.textContent)
+    },
     // A root whose document has no window still runs and still answers: there
     // is simply nowhere to publish the promise or dispatch the event.
     withoutView: async () => {
@@ -330,8 +363,14 @@ export const proof = {
         awaitsPlainValue: async () => {
             assertEq(unwrap(await awaitOp(7))[0], 7)
         },
+        // Epoch milliseconds, as the Node runner answers — but read through
+        // `performance`, so two reads never come out in the wrong order however
+        // the system clock is adjusted between them.
         now: async () => {
-            assert(unwrap(await now()) > 0)
+            const before = unwrap(await now())
+            const after = unwrap(await now())
+            assert(before > Date.UTC(2020, 0, 1), before)
+            assert(after >= before, [before, after])
         },
         sandboxMeasures: async () => {
             const { result, duration } = unwrap(await sandbox(() => 1))

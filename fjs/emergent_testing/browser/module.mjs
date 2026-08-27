@@ -35,10 +35,20 @@ import { browserOperationMap } from '../../effects/browser/module.mjs'
 import { errorDetails } from '../module.f.mjs'
 import { main, reportOf } from './module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
+import { tryCatch } from '../../types/result/module.mjs'
 
 /** @typedef {Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }} _TestWindow */
 
 /** @typedef {<T, E>(effect: Effect<BrowserOp, T, E>) => Promise<Result<T, E>>} _Run */
+
+/**
+ * What a run is reported as when even *describing* its panic panicked.
+ *
+ * There is nothing left to say about the value at that point — every way of
+ * reading it is a way of being thrown by it — so the report says exactly that
+ * rather than inventing a message.
+ */
+const unreadableFailure = 'The run failed with a value that cannot be read'
 
 /** @type {(root: Element) => _TestWindow | null} */
 const viewOf = root => root.ownerDocument.defaultView
@@ -83,7 +93,11 @@ export const renderBrowserReport = (root, report) => {
     const summary = root.querySelector('[data-test-summary]')
     if (summary !== null) {
         summary.textContent = report.status === 'infrastructure-error'
-            ? `Infrastructure error: ${report.totals.failed} failed to load (${report.duration.toFixed(1)} ms)`
+            // Not "failed to load": this status also covers a run that panicked
+            // and a runner missing an operation, and naming the wrong cause
+            // sends a reader to debug their imports. Each result below carries
+            // its own module and message, so the detail is not lost.
+            ? `Infrastructure error: ${report.totals.failed} failed (${report.duration.toFixed(1)} ms)`
             : `${report.totals.passed} passed, ${report.totals.failed} failed (${report.duration.toFixed(1)} ms)`
     }
     const output = root.querySelector('[data-test-results]')
@@ -162,7 +176,17 @@ export const startBrowserTestSources = (root, sources, importer = source => impo
     const settled = run(main({ browser, sources })).then(
         ([, value]) => value,
         error => {
-            const [message, stack] = errorDetails(error)
+            // Describing the panic reads the value that caused it, and the
+            // value is the reason there was one: a proxy whose traps throw
+            // *itself* makes `errorDetails` panic in turn. This is the last
+            // handler there is, so it is the one that may not fail — a second
+            // failure here is the page stuck in `running` again, with the
+            // guard that was supposed to prevent it. What it cannot describe,
+            // it says it cannot describe.
+            const described = tryCatch(() => errorDetails(error))
+            const [message, stack] = described[0] === 'ok'
+                ? described[1]
+                : [unreadableFailure, '']
             return reportOf('infrastructure-error', browser, 0, [
                 { module: '', path: '', status: 'failed', duration: 0, message, stack }])
         })

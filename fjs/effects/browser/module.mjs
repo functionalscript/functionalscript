@@ -112,6 +112,13 @@ export const browserOperationMap = (run, importer = source => import(source)) =>
     // before it ever starts loading — is a load failure like any other, so it
     // is caught here rather than escaping the effect it belongs to.
     import: path => io(async () => importer(path)),
-    now: async () => ok(Date.now()),
+    // `performance.timeOrigin + performance.now()`, not `Date.now()`. The
+    // operation means the same thing either way — milliseconds since the epoch,
+    // as the Node runner answers — but this one cannot go backwards. A suite
+    // runs for minutes, an NTP correction lands inside one, and the report's
+    // duration is the difference between two of these reads: with wall-clock
+    // time that difference can come out negative or inflated, which is what the
+    // deleted browser runner avoided by measuring in `performance.now()`.
+    now: async () => ok(performance.timeOrigin + performance.now()),
     sandbox: async f => ok(await sandbox(f)),
 })
