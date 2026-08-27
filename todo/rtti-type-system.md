@@ -1308,8 +1308,22 @@ are stated instead:
       stages 6–9 rather than following them, the one place the numbering is a
       dependency order and not a schedule.
 - [ ] **11. Retire `Ts<T>`, the JSDoc types in every compiler-readable
-      FunctionalScript module — `.f.js`, and `.f.mjs` once the parser accepts
-      it — and the `types.ts` beside them.**
+      FunctionalScript module — `.f.js`, and a `.f.mjs` only once it has been
+      renamed to `.f.js` — and the `types.ts` beside them.**
+
+      **"Once the parser accepts it" is the wrong test, and an earlier draft of
+      this heading used it.** It disagreed with this file's own readability rule
+      above — "the rename to `.f.js` is exactly the event that says it can" —
+      and with
+      [migrate-typescript-to-mjs](./migrate-typescript-to-mjs.md), which makes
+      that migration's step 3 a prerequisite rather than a parallel track. The
+      difference is not pedantic: an authored `.f.js` is a **compatibility
+      commitment** the parser must keep
+      ([`fjs/fsc/README.md`](../fjs/fsc/README.md)), while a `.f.mjs` that the
+      parser happens to accept today carries no such promise. Retiring JSDoc on
+      the strength of "it parses right now" leaves the module checked by
+      nothing the first time that stops being true — and nothing would flag it,
+      because the JSDoc it would have fallen back on is gone.
 
       **Retirement has two granularities, and they are not the same.** Removing
       a declaration's JSDoc is *per-declaration*: the two annotation forms are
