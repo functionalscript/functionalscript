@@ -91,7 +91,7 @@ Some TypeScript types are derived from runtime values rather than declared
 independently. These values include RTTI definitions, for example:
 
 ```ts
-import { type } from './meta.f.mjs'
+import type { type } from './meta.f.mjs'
 
 export type Value = Ts<typeof type>
 ```
@@ -99,7 +99,7 @@ export type Value = Ts<typeof type>
 and ordinary constants whose literal value is used by a type query, for example:
 
 ```ts
-import { statuses } from './meta.f.mjs'
+import type { statuses } from './meta.f.mjs'
 
 export type Status = typeof statuses[number]
 ```
@@ -116,11 +116,25 @@ private.ts  # private compile-time types
 
 Both `types.ts` and `private.ts` may depend on `meta.f.mjs` for
 `Ts<typeof ...>`, `typeof ...`, indexed access over `as const`-style values, and
-similar type derivation. This is an intentional dependency on runtime values,
-not a violation of the public/private type boundary. `meta.f.mjs` is ordinary
-runtime FunctionalScript source and is packaged like other required `.f.mjs`
-modules; it is not a private type artifact merely because `private.ts` may use
-it.
+similar type derivation. These dependencies are still type-only from TypeScript's
+point of view: the imported value is mentioned only through a type query, so the
+import must be erased.
+
+All imports in authored TypeScript type files use the named type-only form:
+
+```ts
+import type { PublicType } from './types.ts'
+import type { metadataValue } from './meta.f.mjs'
+```
+
+Do not use a runtime `import { ... }`, `import * as ...`, or side-effect import in
+`types.ts` or `private.ts`. This matches the repository rule that authored
+TypeScript is type-only source and prevents a type module from acquiring runtime
+behavior merely because `typeof` refers to an exported `.f.mjs` value.
+
+`meta.f.mjs` itself is ordinary runtime FunctionalScript source and is packaged
+like other required `.f.mjs` modules; it is not a private type artifact merely
+because `private.ts` may use it.
 
 Do not move a runtime value into `types.ts` or `private.ts` merely to avoid this
 dependency: runtime values belong in `.f.mjs`. Values whose primary purpose is
@@ -139,9 +153,11 @@ Dependency rules:
 
 - `module.f.mjs` and `proof.f.mjs` may use both `types.ts` and `private.ts`
   through JSDoc `@import`.
-- `private.ts` may import public types from `types.ts`.
-- `types.ts` and `private.ts` may depend on runtime type metadata from
+- `private.ts` may `import type { ... }` public types from `types.ts`.
+- `types.ts` and `private.ts` may `import type { ... }` runtime type metadata from
   `meta.f.mjs` for `Ts<typeof ...>`, `typeof ...`, and similar derivation.
+- all imports in `types.ts` and `private.ts` are named `import type { ... }`
+  imports; they must not create runtime dependencies.
 - `types.ts` must not depend on `private.ts`.
 - A public exported API must not require a `private.ts` type by name.
 
@@ -232,6 +248,9 @@ rather than retaining `private.d.ts` to make such a leak resolve.
 - [ ] Move runtime values whose primary purpose is type derivation into
       `meta.f.mjs`; include both RTTI definitions and non-RTTI constants used by
       `Ts<typeof ...>`, `typeof ...`, or equivalent type queries.
+- [ ] Require every import in authored TypeScript type files (`types.ts` and
+      `private.ts`) to use named `import type { ... }`, including imports from
+      `meta.f.mjs` used only through `typeof`.
 - [ ] Update Node coverage selection to include both `module.f.mjs` and
       `meta.f.mjs` under the existing 100% thresholds.
 - [ ] Update Deno `cov` and `cov-html` include filters to include both
@@ -256,9 +275,9 @@ rather than retaining `private.d.ts` to make such a leak resolve.
       declaration edge.
 - [ ] Extend the fixture with `meta.f.mjs` containing both an RTTI value and a
       non-RTTI literal constant used to derive TypeScript types in `types.ts` or
-      `private.ts`; verify the source tree and packed consumer resolve both
-      metadata dependencies correctly, and that executable `meta.f.mjs` code is
-      included in both Node and Deno coverage.
+      `private.ts`; import both with `import type { ... }`, verify the source tree
+      and packed consumer resolve both metadata dependencies correctly, and that
+      executable `meta.f.mjs` code is included in both Node and Deno coverage.
 - [ ] Verify a clean TypeScript consumer can install the packed tarball and use
       the public API without any private artifact present.
 
@@ -272,6 +291,9 @@ rather than retaining `private.d.ts` to make such a leak resolve.
 - All public file-scope named TypeScript types live in `types.ts`.
 - All private file-scope named TypeScript types live in `private.ts` and keep
   their leading `_`; private function-local typedefs also keep `_`.
+- Every import in `types.ts` and `private.ts` uses named `import type { ... }`;
+  these files have no runtime imports, including for `.f.mjs` values referenced
+  only through `typeof`.
 - Runtime values whose primary purpose is to define, describe, or derive
   type-level information live in `meta.f.mjs`; this includes RTTI definitions
   and non-RTTI constants used by `Ts<typeof ...>`, `typeof ...`, and similar
