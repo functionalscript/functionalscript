@@ -299,38 +299,35 @@ in the shared `sandbox` — step 4 and after in
 [share the browser and console proof runners](share-browser-console-runner.md) —
 and never in one host alone.
 
-### Known shared gap: a `Promise` subclass with an overridden `then`
+### `fjs t` still hangs on a promise whose `constructor` was replaced
 
 `await` adopts a promise's internal state only when its `constructor` is the
-intrinsic `Promise`. For a subclass — or a native promise whose `constructor`
-has been replaced — resolution assimilates the value by calling its `then`
-instead, so a no-op override never settles and the run hangs:
+intrinsic `Promise`. Otherwise resolution assimilates the value by calling its
+`then`, so a `Promise` subclass — or any promise whose `constructor` has been
+replaced — that also overrides `then` never settles:
 
 | value | `fjs t` | browser |
 | --- | --- | --- |
-| `class Sub extends Promise { then() {} }`, resolved | **HUNG** | **HUNG** |
+| `class Sub extends Promise { then() {} }`, resolved | **HUNG** | settles |
 
-Measured; both runners, identically, because both decide with `instanceof
-Promise` and then `await`. That sameness is the point: it is a property of the
-shared rule, not a browser regression, and it is recorded here rather than
-patched in one host.
+The browser subscribes with the intrinsic `Promise.prototype.then` rather than
+`await`, which ignores the override — about fifteen lines, and not the machinery
+this issue deleted: `speciesFails`, the `constructor` shadow and its retry are
+still gone, because those *recover* a hostile species rather than subscribe.
+`promiseWithReplacedConstructorStillSettles` pins it.
 
-**Not fixed, deliberately.** The intrinsic-`then` subscription described above
-would fix it, and reintroducing that machinery to defend a value the runner
-cannot meet is the trade this issue already rejected: authored FunctionalScript
-has no `Promise`, no `class`, and no `extends`, so only an impure `.mjs` proof
-can construct this — the same category as the fixtures deleted with the
-machinery.
+**`fjs t` owes the same fix**, and it is one line in `effects/node/module.mjs`'s
+`sandbox` once the settlement path is shared — step 4 and after in
+[share the browser and console proof runners](share-browser-console-runner.md).
+Until then the two differ, which is a difference with a written reason: the
+browser had this behaviour before the deletion, losing it was a regression, and
+a regression is not deferrable. `fjs t`'s hang is older than this work and is
+deferred behind this note.
 
-It is also worth being clear about what it is a special case of. **Any** proof
+It is also worth knowing what neither runner can fix here: **any** proof
 returning a promise that never settles hangs any runner —
-`() => new Promise(() => {})` needs no subclass and no override. A runner that
-survived the subclass case would still hang on that one. Bounding a proof's
-running time is the general answer, and it is not this issue.
-
-If the day comes that a proof legitimately returns a `Promise` subclass, the
-material for the fix is above, and the fix belongs in the shared `sandbox` so
-both runners get it at once.
+`() => new Promise(() => {})` needs no subclass and no override. Bounding a
+proof's running time is the general answer and is not this issue.
 
 ### Constraints
 
