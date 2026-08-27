@@ -45,7 +45,7 @@ type derivation are needed:
 ```text
 module.f.mjs  # implementation; no file-scope @typedef
 proof.f.mjs   # proofs; no file-scope @typedef
-meta.f.mjs    # runtime metadata used to define/derive types
+meta.f.mjs    # runtime constants used by TypeScript type definitions/proofs
 types.ts      # public types + `_` helpers required to express them
 private.ts    # implementation-private `_` types
 ```
@@ -60,6 +60,7 @@ public type                                      -> types.ts
 private `_` helper required by a public type     -> types.ts
 other file-scope private `_` type                -> private.ts
 function-local typedef                           -> allowed in place
+runtime constant used by TypeScript types/proofs -> meta.f.mjs
 ```
 
 A `_` helper required to define a public type is still private by name and need
@@ -115,8 +116,13 @@ exported aliases in generated `.d.ts` / `.d.mts` files.
 
 #### Type metadata
 
-Some TypeScript types are derived from runtime values rather than declared
-independently. These values include RTTI definitions:
+`meta.f.mjs` contains runtime constants that TypeScript type definitions or
+file-scope type proofs refer to. The values do **not** need to be RTTI, and they
+do not need to exist primarily for type-system purposes. A normal runtime
+constant belongs in `meta.f.mjs` when its literal value or inferred type is part
+of a TypeScript type definition/proof.
+
+This includes RTTI definitions:
 
 ```ts
 import type { type } from './meta.f.mjs'
@@ -124,7 +130,7 @@ import type { type } from './meta.f.mjs'
 export type Value = Ts<typeof type>
 ```
 
-and ordinary constants whose literal value is used by a type query:
+ordinary literal constants:
 
 ```ts
 import type { statuses } from './meta.f.mjs'
@@ -132,10 +138,37 @@ import type { statuses } from './meta.f.mjs'
 export type Status = typeof statuses[number]
 ```
 
-Put runtime values whose primary purpose is to define, describe, or derive
-type-level information in `meta.f.mjs`. Values whose primary purpose is normal
-program behavior remain in `module.f.mjs` even if their types are reused
-incidentally.
+and runtime tables that are also used by normal implementation code:
+
+```js
+// meta.f.mjs
+export const framingKeywords =
+    /** @type {const} */ (['import', 'const', 'export', 'default', 'from'])
+```
+
+```ts
+// private.ts
+import type { framingKeywords } from './meta.f.mjs'
+
+type _KeywordsAreComplete =
+    Assert<Equal<(typeof framingKeywords)[number], _FramingKeyword>>
+```
+
+```js
+// module.f.mjs
+import { framingKeywords } from './meta.f.mjs'
+```
+
+This is the intended solution for file-scope type proofs over module constants:
+move the referenced constant to `meta.f.mjs`, keep its runtime consumers using a
+normal JavaScript import, and move the file-scope private proof/type to
+`private.ts` (or `types.ts` when it is required by a public declaration). The
+constant does not become RTTI merely because it lives in `meta.f.mjs`; `meta`
+means that its value participates in the type-level model.
+
+Do not move arbitrary runtime values to `meta.f.mjs` merely because their type
+could theoretically be queried. The trigger is an actual TypeScript type
+reference/proof (`typeof`, `Ts<typeof ...>`, indexed access, etc.).
 
 Both `types.ts` and `private.ts` may depend on `meta.f.mjs` for
 `Ts<typeof ...>`, `typeof ...`, indexed access over literal values, and similar
@@ -158,12 +191,15 @@ the same coverage expectations as `module.f.mjs`.
 
 - `module.f.mjs` and `proof.f.mjs` may use `types.ts` and `private.ts` through
   JSDoc `@import`.
+- `module.f.mjs` and other runtime modules may import runtime constants normally
+  from `meta.f.mjs`.
 - `private.ts` may `import type { ... }` public types from `types.ts`.
 - `types.ts` must not depend on `private.ts`.
 - `_` helpers required to express public aliases remain in `types.ts` rather
   than creating a `types.ts -> private.ts` edge.
-- `types.ts` and `private.ts` may `import type { ... }` runtime metadata from
-  `meta.f.mjs`.
+- `types.ts` and `private.ts` may `import type { ... }` constants from
+  `meta.f.mjs` when those values participate in TypeScript type definitions or
+  proofs.
 - all imports in `types.ts` and `private.ts` are named `import type { ... }`
   imports and must not create runtime dependencies.
 - a public declaration must never depend on the removable `private.ts` module.
@@ -193,9 +229,10 @@ re-exports in `module.f.mjs` merely to preserve the old type-only subpath: that
 would reintroduce the file-scope typedef/declaration noise this convention is
 intended to remove.
 
-This breaking rule applies to type entry points, not runtime exports. Moving
-runtime values to `meta.f.mjs` requires its own API decision if those values are
-publicly imported at runtime.
+This breaking rule applies to type entry points, not runtime exports. Moving a
+public runtime constant from `module.f.mjs` to `meta.f.mjs` requires its own API
+decision: preserve the old runtime entry point with a re-export or make that
+runtime move an explicit breaking change and update importers/changelog.
 
 #### Declaration emission and packaging
 
@@ -259,8 +296,12 @@ References to packaged `meta.f.mjs` are allowed.
       `module.f.mjs`, and `proof.f.mjs` into each directory's `private.ts`.
 - [ ] Keep lexical type-proof typedefs inside the functions whose local values
       they inspect.
-- [ ] Move runtime values whose primary purpose is type derivation into
-      `meta.f.mjs`, including RTTI definitions and non-RTTI literal constants.
+- [ ] Move runtime constants referenced by TypeScript type definitions/proofs
+      into `meta.f.mjs`, including RTTI definitions, non-RTTI literal constants,
+      and ordinary runtime tables whose literal/inferred types are asserted.
+- [ ] Move file-scope private type proofs over those constants to `private.ts`
+      (or keep helpers in `types.ts` when required by a public declaration), and
+      use `import type { ... }` to reference the `meta.f.mjs` values.
 - [ ] Require every import in `types.ts` and `private.ts` to use named
       `import type { ... }`.
 - [ ] Update Node coverage selection to include both `module.f.mjs` and
@@ -280,9 +321,10 @@ References to packaged `meta.f.mjs` are allowed.
       - a function-local `_` typedef depending on a lexical value.
       Verify the first remains self-contained in `types.d.ts`, the second's
       intermediate `private.d.ts` is removed, and the third does not escape.
-- [ ] Extend the fixture with `meta.f.mjs` containing both an RTTI value and a
-      non-RTTI literal constant used through `import type { ... }`, and verify
-      source checking, packing, clean-consumer resolution, and Node/Deno coverage.
+- [ ] Extend the fixture with `meta.f.mjs` containing an RTTI value, a non-RTTI
+      literal constant, and a runtime-used constant whose type is asserted from
+      `private.ts`; verify runtime imports, type-only imports, source checking,
+      packing, clean-consumer resolution, and Node/Deno coverage.
 - [ ] Verify a clean TypeScript consumer can install the packed tarball and use
       the public API without any private artifact present.
 
@@ -301,7 +343,11 @@ References to packaged `meta.f.mjs` are allowed.
 - Other private file-scope types live in `private.ts` and keep `_`.
 - `types.ts` never depends on `private.ts`.
 - Every import in `types.ts` and `private.ts` uses named `import type { ... }`.
-- Runtime values primarily used for type derivation live in `meta.f.mjs`.
+- Runtime constants referenced by TypeScript type definitions/proofs live in
+  `meta.f.mjs`, whether they are RTTI, literal metadata, or ordinary runtime
+  tables also consumed by implementation code.
+- File-scope private proofs over such constants can live in `private.ts` without
+  exporting implementation locals from `module.f.mjs`.
 - Node and Deno coverage include executable `meta.f.mjs` files.
 - Declaration emission may create `private.d.ts`; the final `prepack` step
   removes it before package contents are selected.
