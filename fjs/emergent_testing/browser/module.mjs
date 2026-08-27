@@ -32,7 +32,7 @@
 
 import { asyncRun } from '../../effects/module.mjs'
 import { browserOperationMap } from '../../effects/browser/module.mjs'
-import { errorDetails } from '../module.f.mjs'
+import { errorDetails, fmtCall } from '../module.f.mjs'
 import { main, reportOf } from './module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import { tryCatch } from '../../types/result/module.mjs'
@@ -79,7 +79,9 @@ const renderResult = (document, result) => {
     const item = document.createElement('li')
     item.setAttribute('data-status', result.status)
     const detail = result.status === 'failed' ? `: ${result.message}\n${result.stack}` : ''
-    item.textContent = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.module} ${result.path} (${result.duration.toFixed(1)} ms)${detail}`
+    // `fmtCall`, so a test is named here exactly as `fjs t` names it — one
+    // identifier, one spelling, whichever runner is reporting.
+    item.textContent = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${fmtCall(result.module, result.path)} (${result.duration.toFixed(1)} ms)${detail}`
     return item
 }
 

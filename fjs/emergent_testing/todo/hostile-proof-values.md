@@ -77,13 +77,10 @@ handler in each of the three runners, the `CommandSet` entries, the `walk`
 change and its new result shape, and the mock maps in
 `effects/common/proof.f.mjs` and `emergent_testing/browser/proof.f.mjs`.
 
-**The brand check** for cross-realm promises needs a test that a page cannot
-forge and that no proof tree can pass by accident. Candidates:
-`Promise.resolve(p) === p` on the value's own constructor, or asking each realm
-the runner knows about. Whatever is chosen must be one function both
-interpreters call, or the two drift again. Do it when proofs genuinely execute
-in more than one realm — the point [browser-testing](browser-testing.md) reaches
-with iframes or workers.
+**The brand check** for cross-realm promises is not designed here. It belongs
+with the two mechanisms it keeps being confused with — a module namespace
+adopting a `then`, and a proof tree refusing to — which are studied together in
+[imports, promises and realms](imports-promises-realms.md).
 
 ### Tasks
 
@@ -103,5 +100,7 @@ with iframes or workers.
 
 ### Related
 
+- [Imports, promises and realms](imports-promises-realms.md) — where the
+  cross-realm brand check is studied.
 - [Browser testing](browser-testing.md)
 - [Test-runner behavior](661-test-runner-behavior.md)

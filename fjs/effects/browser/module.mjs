@@ -58,8 +58,14 @@ import { toVec } from '../../types/uint8array/module.f.mjs'
  *
  * Yielding per effect would be the simpler rule and the wrong one: `setTimeout`
  * clamps to 4 ms once nested, which is minutes across a few thousand proofs.
+ *
+ * A count is the wrong measure and this number is a mitigation, not a design:
+ * proofs differ in cost by orders of magnitude, so a slice of ten fast ones
+ * yields immediately while a slice holding one slow one stalls the page for as
+ * long as that proof runs. Yielding on elapsed time instead is
+ * `fjs/emergent_testing/todo/report-scheduling.md`.
  */
-const batchSize = 25
+const batchSize = 10
 
 /** @type {() => Promise<void>} */
 const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })

@@ -330,14 +330,31 @@ export const fmtPath = path =>
     path.reduce((/** @type {string} */ acc, k) => acc + fmtKey(k), '')
 
 /**
- * Formats a fully-qualified test identifier as a JS-like expression, e.g.
- * `import("./math.proof.f.ts").add()` or `import("./a.proof.f.ts").users[3].name()`.
+ * A fully-qualified test identifier, from a module and an **already-rendered**
+ * key chain: `import("./math.proof.f.mjs").proof.add()`.
+ *
+ * This is the one place the format lives, and it takes the rendered chain
+ * rather than a {@link Path} so that a reporter holding a {@link TestResult} —
+ * whose `path` is already a string — names a test exactly as `fjs t` does. It
+ * did not, and the browser page rendered `./math.proof.f.mjs .add` while the
+ * terminal rendered the call expression: one identifier in two spellings, which
+ * is the drift a shared runner is supposed to make impossible.
+ *
+ * @type {(file: string, path: string) => string}
+ */
+export const fmtCall = (file, path) =>
+    `import(${JSON.stringify(file)}).proof${path}()`
+
+/**
+ * {@link fmtCall} over a {@link Path} that has not been rendered yet, e.g.
+ * `import("./math.proof.f.ts").proof.add()` or
+ * `import("./a.proof.f.ts").proof.users[3].name()`.
  * Self-contained per line — suitable for parallel output and as a CLI filter argument.
  *
  * @type {(file: string, path: Path) => string}
  */
 export const fmtImport = (file, path) =>
-    `import(${JSON.stringify(file)}).proof${fmtPath(path)}()`
+    fmtCall(file, fmtPath(path))
 
 /**
  * Renders a key chain for terminal output: `| ` per level of depth, followed

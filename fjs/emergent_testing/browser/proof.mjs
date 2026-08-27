@@ -136,6 +136,12 @@ export const proof = {
         assertEq(report.totals.tests, 1)
         assertEq(report.results[0]?.path, '.x')
         assertEq(statuses(results).join(','), 'passed')
+        // The page names a test exactly as `fjs t` names it. The two spellings
+        // had drifted — `./a .x` here against the call expression there — which
+        // is the thing a shared runner is supposed to make impossible.
+        assert(
+            results.children[0]?.textContent.startsWith('PASS import("a").proof.x()'),
+            results.children[0]?.textContent)
         assert(summary.textContent.startsWith('1 passed, 0 failed'), summary.textContent)
         assertEq(states.join(','), 'loading,running,passed')
         assertEq(view.events.length, 1)
