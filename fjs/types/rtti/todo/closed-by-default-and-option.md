@@ -178,6 +178,34 @@ it cannot be composed, `RestTs` renders the tail where it can and states the
 gap — what it must not do is keep returning an exact tuple for an open schema,
 which is the lie in the first place.
 
+##### The tail admits holes, so it renders `| undefined`
+
+The tail as written above would trade one unsound cast for a smaller one. Both
+readers check an undeclared member as an *entry*, and a hole is no entry, so
+`validate(rest([42], string))([42, , ])` is `ok` — verified on this repo's
+`main`, spelled `close([42], string)`: `length` is 2, `Object.hasOwn(v, 1)` is
+`false`, and the result is `['ok', …]`. `readonly [...Mapped<readonly [42]>,
+...string[]]` types index 1 as `string`, and
+[`../../../../tsconfig.json:96`](../../../../tsconfig.json) has
+`noUncheckedIndexedAccess` commented out, so nothing adds the `undefined` back
+at the use site. The accepted value reads `undefined` where the type says
+`string`.
+
+So the tail renders `...(Ts<R> | undefined)[]`, in `RestTs` and in the runtime
+printer (`../ts/module.f.mjs`) alike. That is not a hedge — it is what "a rest
+never sees an absent member" (stage 2's rule, and today's behaviour already)
+says on the type side, stated once rather than discovered by a caller. The
+common case pays nothing: `open(c)` has `rest: unknown`, and
+`unknown | undefined` is `unknown`, so `...unknown[]` is unchanged. Only an
+explicit `rest(c, r)` widens.
+
+Do **not** take the other branch — making the readers reject a hole past the
+prefix — without reopening stage 2 with it. It would buy the narrower tail, but
+it contradicts the undeclared-entry rule both stages are built on, and it is a
+behaviour change stage 1 otherwise does not make. Pin the sparse case
+(`rest([42], string)` against `[42, , ]`) in `../ts/proof.f.mjs` beside the tail
+rows, so whichever way it is settled is recorded rather than re-derived.
+
 #### Alternative considered: a kind-dependent default
 
 Making a bare `Tuple` closed and a bare `Struct` open would leave `Ts<>` exact on
@@ -457,10 +485,38 @@ Stage 1 (one PR):
       tail composes with the trailing-optional derivation; state the gap if not.
       Rewrite `TupleTs`'s doc comment — the exact rendering is now the model,
       not an approximation.
+- [ ] Render that tail as `...(Ts<R> | undefined)[]`, in `RestTs` and in the
+      runtime printer `../ts/module.f.mjs`, because both readers accept a hole
+      past the prefix (see above; `open(c)` is unaffected, since
+      `unknown | undefined` is `unknown`). Pin `rest([42], string)` against
+      `[42, , ]` in `../ts/proof.f.mjs`.
 - [ ] `../README.md`: replace "Structs and tuples are open", "This is deliberate;
       please do not 'fix' it" and "Closed containers" with the closed default and
       the `open`/`rest` spelling; keep the `Ts<>` direction note above.
       `../validate/module.f.mjs`: delete the "Do not add a length check" paragraph.
+- [ ] `../parse/module.f.mjs`'s **module doc** is the longest single statement of
+      the open default anywhere in the tree and stage 1 inverts all of it:
+      `:8-14` opens "**Structs and tuples are open.** A value carrying more than
+      the schema declares is accepted", `:31-37` is a standing instruction not to
+      add a length check ("Do not read … as 'tuples are closed' … A schema that
+      wants exact members says so, with `close`", citing #1622), `:39-43`
+      contrasts `close(c)` with `close(c, rest)`, and the `@example` at `:280-289`
+      builds three of its five lines on the open reading plus two `close(...)`
+      calls. The `#1622` history is worth keeping in some form — it records *why*
+      the open reading was defended — but it has to read as history rather than
+      as a rule, and the "do not fix it" instruction has to go, or the next
+      reader will restore the behaviour stage 1 removes. This is the same edit as
+      the `../validate/module.f.mjs` paragraph above, on a file that says much
+      more.
+- [ ] Two more link/prose sites outside `../`, both surviving stage 1:
+      `../../../media/json/todo/rtti-parse.md:246-255` asserts "Structs and
+      tuples are open there" as the behaviour its own parser inherits, and links
+      `#closed-containers` for the closed case that stage 1 makes the default —
+      so the inheritance claim inverts, not just the anchor; and
+      `./excluded-string-values.md:40-42` cites `Closed containers` — the same
+      `../README.md#closed-containers` anchor — as the precedent it measures
+      itself against, which needs the anchor retargeted and the precedent
+      re-worded now that it is not an extension but the default.
 - [ ] `../../../edag/README.md` explains the ADT's exactness in terms of the API
       stage 1 deletes — `:33` ("Every tuple in the schema is stated `close`d")
       and `:238` (`['.', a, 'b', null, 'extra']` rejected because "the schema is
@@ -609,6 +665,29 @@ Stage 2 (one PR, after stage 1 lands):
       correct today because `option(number)` admits `{ a: undefined }`, wrong
       once it does not. Its comment — "the open-struct spelling, which was sound
       before, still is" — has to change with it.
+- [ ] Split the **array** position test the same way, which the struct strip
+      above does not reach. `arraySetSubset` (`../data/module.f.mjs:425-436`)
+      hands each left position straight to `nodeSubset` —
+      `p.prefix.every((el, i) => le(el, qAt(i)))` — so the absent bit is compared
+      as an ordinary member and closed `[or(option, number)]` ⊆ `array(number)`
+      answers false, though the left's only values are `new Array(1)` and
+      `[number]` and `array(number)` admits both (it walks own entries, so it
+      accepts a hole). Give the position the two questions the object kind
+      already asks: compare the **absence-stripped** left set against `qAt(i)`,
+      and separately require that the right admits absence at `i` when the left
+      does — which it does when `i >= q.prefix.length` (a hole there is no entry)
+      or when `q.prefix[i]` carries the bit. The left's own `rest` needs neither,
+      since a rest carries no absent bit after normalization. Pin
+      `[or(option, number)]` ⊆ `array(number)` as **true** and
+      `[or(option, number)]` ⊆ `rest([number], never)` as **false**, the pair
+      that tells the two halves apart.
+- [ ] Restate `arraySetSubset`'s doc comment with it. Its "the shortest needs no
+      test of its own" argument is spelled in terms of `undefined` membership —
+      "otherwise `undefined` would be a member of `p.prefix[i]` and not of
+      `q.prefix[i]`" — and after stage 2 the property it needs is the absent bit,
+      not `undefined`. The absence-implication check above *is* that argument
+      made explicit, so the comment should point at it rather than restate the
+      old reason.
 - [ ] Leave a **referenced** `rest` unstripped, and have `subset` **resolve** it
       rather than mask the bit — masking is unsound where the reference's present
       part is empty (see above), so there is no context in which the mask is the
