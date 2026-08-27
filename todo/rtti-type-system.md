@@ -121,6 +121,10 @@ synthetic variable. Stage 8 records the choice that follows.
 /*: myType */
 ```
 
+Annotations are **secondary to inference**: they may guide or constrain the
+checker, but they are not the source of truth and cannot make an unproven type
+claim true.
+
 The body is a **name** — a single identifier, bound in the module by a `const`
 or an `import`, whose value is an RTTI schema. Nothing else is accepted: no
 call, no member access, no operator, no literal. The two forms hold the same
@@ -451,29 +455,33 @@ which change what a generated declaration means, and rendering a schema is not
 the same as knowing which export carries it. See stage 1. It is also what lets a
 `.f.mjs` module drop its JSDoc without any consumer noticing.
 
-### Proof-backed narrowing and specialization
+### Inference, narrowing, and specialization
 
 This system should have no unchecked equivalent of TypeScript's `as`, `as any`,
 double casts, or another construct that simply tells the checker to trust a type
-claim. A type or refinement claim must instead be established in one of two
-ways:
+claim.
 
-1. **Static proof.** The type-system compiler proves the property from the
-   program and the RTTI facts it already knows.
-2. **Runtime proof.** An assertion checks the property and narrows the value on
-   the successful branch. If it fails, evaluation cannot continue on that
-   branch.
+**Types are inferred from program behavior.** On a successful EDAG path, each
+operation may refine what is known about its inputs and outputs; branches that
+do not continue are excluded from that continuation. `assert` is only a
+convenient ordinary operation for making such a refinement explicit, not
+privileged type-system machinery. A validator's successful branch narrows by
+the same rule.
 
-The assertion is an ordinary FunctionalScript computation, not type syntax. The
-important invariant is that every narrowing is backed by either a compile-time
-proof or an executed runtime check; uncertainty becomes a proof obligation, not
-an escape hatch.
+Because throws are generally semantically equivalent in EDAG, refinement
+normally depends on the facts established by reaching a path, not on which
+throw would have happened first. Exceptional cases can be decided later without
+changing this direction.
 
-That does not imply permanent runtime overhead. Assertions are ordinary EDAG
-computations. If the compiler proves an assertion is total and always succeeds,
-it may remove it; proving only that the failure branch is unreachable is not
-enough. A conservative compiler can keep more checks while a stronger one
-removes them without weakening type safety.
+There is no unchecked escape hatch: narrowing follows from inference over
+program semantics. Annotations may guide or constrain inference, but they do
+not make an unproven claim true.
+
+This does not imply permanent runtime overhead. A check used only to establish
+a fact is ordinary EDAG computation. If the compiler proves that removing it
+preserves semantics — for a throwing check, that includes proving it total and
+always successful — it may remove the check. A conservative compiler can keep
+more checks while a stronger one removes them without weakening type safety.
 
 **The same proofs are optimization facts.** They can justify specialization
 where the compiler proves the specialized operation equivalent to the original.
