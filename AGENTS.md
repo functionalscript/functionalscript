@@ -100,16 +100,19 @@ documentation — needs neither. Breaking changes are welcome when they improve
 the API — prefix the entry with `**BREAKING CHANGES:**` and update every
 importer in the same PR.
 
-Answer a review, don't absorb it. A reviewer who asks a **design document** (a
-`todo/` file) to spell out an implementation is told the choice belongs to the
-implementer, and that answer goes **into the design document**; prototype when
-the question is genuinely open, and record what the prototype uncovered rather
-than the prototype itself. A reviewer who asks an **implementation** for another
-feature gets a new `todo/` issue to investigate it and a link to that issue,
-never a wider diff. Even a known crash may be deferred the same way — a small
-step merged with the defect written down beats a PR that never converges — as
-long as the `todo/` file names what breaks and the input that breaks it. Only a
-**regression** must be fixed here. The rule under all of it: no knowledge from a
+**Merge the knowledge.** Working a PR teaches something, and a small step merged
+with what was learned written down beats two hundred iterations of a PR that
+never lands. So answer a review, don't absorb it. A reviewer who asks a **design
+document** (a `todo/` file) to spell out an implementation is told the choice
+belongs to the implementer, and that answer goes **into the design document**;
+prototype when the question is genuinely open, and record what the prototype
+uncovered rather than the prototype itself. A reviewer who asks an
+**implementation** for another feature gets a new `todo/` issue to investigate
+it and a link to that issue, never a wider diff. Even a known crash may be
+deferred the same way, as long as the `todo/` file names what breaks and the
+input that breaks it; only a **regression** must be fixed here. And when the PR
+itself cannot land, drop the code and merge what it taught — a rewritten
+`todo/`, a recorded failure — rather than abandoning both. No knowledge from a
 review may be left in the review thread alone.
 
 Commit-message format, the PR checklist, and addressing review comments:

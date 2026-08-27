@@ -213,12 +213,20 @@ squash, so their messages are working notes.
 
 ### Addressing review comments
 
-Most review comments are simply right: fix the bug, take the simpler
-expression, answer the question. The rest ask the pull request to grow rather
-than to improve, and an author may push back on those — but a push-back is
-never a dismissal. Each one leaves something behind in the repository, because
-a reason that lives only in a review thread is gone the moment the pull request
-is merged.
+One criterion decides all of this. Working on a pull request teaches you
+something — about the design, about the runtime, about the shape the code wants
+to take — and that knowledge is the part worth keeping. **Merge the
+knowledge.** A small step merged with what was learned written down beats two
+hundred iterations of a pull request that never lands: the merged step is a
+result somebody can build on, and the abandoned pull request is nothing at all,
+however much understanding went into it.
+
+Most review comments are therefore simply right and simply fixed: the bug, the
+simpler expression, the answer to the question. The rest ask the pull request
+to grow rather than to improve, and an author may push back on those — but a
+push-back is never a dismissal. Each one leaves something behind in the
+repository, because a reason that lives only in a review thread is gone the
+moment the pull request is merged.
 
 - **A design document asked for implementation detail.** A pull request whose
   diff is a `todo/` file — or a design section of a `README.md` — settles *what*
@@ -259,10 +267,9 @@ is merged.
 
 A comment saying the change is **wrong** is not automatically this pull
 request's work either. Even a known edge case that crashes the program may be
-deferred, and often should be: **a small step merged with the knowledge written
-down beats two hundred iterations that arrive nowhere.** A pull request that
-grows a fix for every defect a reviewer can name stops converging, and the
-knowledge that went into it is lost when it is abandoned.
+deferred, and by the criterion above it often should be: a pull request that
+grows a fix for every defect a reviewer can name stops converging, and
+everything it learned goes with it when it is abandoned.
 
 What makes that push-back legitimate is the same thing as in the two cases
 above — **the `todo/` issue must be filed**, and it must carry the knowledge
@@ -279,6 +286,15 @@ So the question to ask about a review comment is not "is this in scope" but
 diff — then fix it here. In the design document, or in a new `todo/` issue —
 then write it there, and reply with the link. Only "in the review thread" is
 the wrong answer; that is the one place it will not survive.
+
+And when the honest answer is "nowhere, because this pull request is never
+going to land" — the design was wrong, the approach does not work, the review
+turned up more than the change can carry — then **change what the pull request
+is**. Drop the code and keep what it taught: a rewritten `todo/`, a design
+document recording the approach that failed and why, a note in the module's
+`README.md`. Merge that. A pull request that lands three paragraphs nobody has
+to rediscover has done more than one that closes after a hundred comments with
+no diff at all.
 
 The same holds once a design leaves review and someone implements it: a `todo/`
 that cannot be implemented the way it describes is rewritten, never forced
