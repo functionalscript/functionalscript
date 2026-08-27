@@ -67,12 +67,12 @@ dependency-update procedure: [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## 3. FunctionalScript and TypeScript (`fjs/`)
 
-Runtime code under `fjs/` is FunctionalScript by default: write it in `.f.mjs`.
-Plain implementation `.mjs` is reserved for effect implementations — common,
-Node, browser, or other platform-specific effect code. Non-FunctionalScript
-proofs may use `proof.mjs` when the proof itself requires host JavaScript
-behavior that FunctionalScript forbids. Do not put ordinary pure logic in
-`.mjs`; isolate the effectful boundary there and keep the rest in `.f.mjs`.
+Business logic under `fjs/` belongs in FunctionalScript: write it in `.f.mjs`.
+Use plain `.mjs` only for code that cannot reasonably be FunctionalScript because
+it performs effects or depends on host JavaScript behavior, such as effect
+implementations, platform adapters, runners, test harnesses, and host-specific
+proofs. Keep such `.mjs` files thin: isolate the impure or host-specific boundary
+there and move business logic into `.f.mjs`.
 
 Every new `.f.mjs` module ships a co-located `proof.f.mjs` with **100% proof
 coverage** — every export called, every line executed, every branch taken.
