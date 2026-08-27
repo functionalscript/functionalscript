@@ -552,15 +552,23 @@ Stage 1 (one PR):
       `readonly number[]`. This is the **whole reader family**, not the tail:
       stage 1 neither introduces it nor worsens it, and it cannot be fixed by
       extending a walk, because a prototype may define any index and the
-      readable set is unbounded. Two honest ends: bound the readable set by
-      rejecting an array whose prototype is not `Array.prototype` at the
-      `isArray` boundary — one check, after which every index walk in this
-      family becomes complete, at the cost of rejecting array subclasses — or
-      state the incompleteness in `../README.md` beside the other accepted ones.
-      Prefer the first; it is what makes the task above, and stage 2's declared
-      -member one, true rather than nearly true. Decide it in stage 1 because
-      that is where the tail starts *claiming* an element type, and give it its
-      own issue if it grows past a boundary check.
+      readable set is unbounded. **State the incompleteness** in `../README.md`
+      beside the other accepted ones, and treat any prototype check as a
+      narrowing rather than a fix. Rejecting an array whose prototype is not
+      `Array.prototype` closes only the per-value half: with
+      `Array.prototype[10] = 99`, `[42]` has exactly `Array.prototype` and
+      `length` 1, and `validate(close([42], string))` still accepts it while
+      `v[10]` reads `99` — measured, along with `close([42])` and `array(number)`
+      on the same realm. The two halves differ in kind, which is why no single
+      check covers both: a per-value prototype is a property of the argument, so
+      a reader can inspect it; pollution of the intrinsic is a property of the
+      *realm*, invisible to any per-value test and free to change between a check
+      and a read. Both need host code outside the FunctionalScript subset, which
+      forbids mutation — so this belongs in the README's assumptions, next to the
+      others the readers already rest on, rather than in a boundary check
+      pretending to be complete. Say so in stage 1: that is where the tail starts
+      *claiming* an element type, and a reader who finds the claim before the
+      caveat will trust it.
 - [ ] …except when the rest **normalizes away**, where the tail is omitted and
       the exact tuple is rendered — otherwise `rest([42], or())` (stage 1) and
       `rest([42], option)` (stage 2, whose inline rest normalizes away entirely)
