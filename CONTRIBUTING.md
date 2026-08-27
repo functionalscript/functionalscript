@@ -267,6 +267,20 @@ moment the pull request is merged.
   to the pull request under review is fine when the file is all that it adds;
   otherwise file it separately, so this pull request stays one change.
 
+- **A reviewer turned one case into a universal rule.** "Always fix a crash
+  inside what the feature claims to support", "always open a new issue", "never
+  ship a limit" — each is one real situation written as though it covered every
+  other. The situation behind it is usually genuine; the rule is what fails.
+  Applied to the case the reviewer did not have in view it forces work that buys
+  nothing, and once it is written down everyone who reads it repeats it. Answer
+  with the case that breaks it — the internal script whose 128 KB limit nobody
+  can reach settles more here than any argument about the principle — and then
+  say **what the decision actually depends on**: who runs this code, which
+  inputs are real, what the `todo/` tree already holds. Those are things the
+  author is looking at and the reviewer is not, which is why the call stays with
+  the author. Record the dependency rather than the exception, or the next
+  reader proposes the same rule again.
+
 A comment saying the change is **wrong** is not automatically this pull
 request's work either. Even a known edge case that crashes the program may be
 deferred, and by the criterion above it often should be: a pull request that
