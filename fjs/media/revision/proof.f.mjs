@@ -228,7 +228,7 @@ export const proof = {
             assertEq(t, 'error')
         },
 
-        // rtti structs are open: extra fields don't break validation — the
+        // `revisionSchema` says `open`: extra fields don't break validation — the
         // additive forward-compatibility path the versioning rule relies on.
         extraFieldsAccepted: () => {
             const [t] = validate(revisionOf({ future: 'field' }))

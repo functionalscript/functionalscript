@@ -102,8 +102,8 @@ are **7a** and run before stage 6; static checking of readable definitions is
   see checkable with it — but not a call it cannot see. A function exported to
   any consumer outside the compiler's view is that case: readable definition,
   foreign call site.
-  Where the generated declaration is wider than the schema — `close`,
-  `close(c, rest)`, non-finite numbers and `-0`, all listed under
+  Where the generated declaration is wider than the schema — a closed struct,
+  `rest(c, r)`, non-finite numbers and `-0`, all listed under
   [the epic's `.d.ts` promise](../../../../todo/rtti-type-system.md) — the
   consumer can pass a value the declaration accepts and the schema rejects,
   with nothing between. That path is the epic's **stage 13** (ownership at the

@@ -192,6 +192,9 @@ const rows = [
     [rest([number], number), inheritedIndex()],
     [rest({ a: number }, string), { a: 1, b: 'x' }],
     [rest({ a: number }, string), { a: 1, b: 2 }],
+    // a stated rest with nothing to answer for: the struct kind has no length,
+    // so it fits whatever the rest is
+    [rest({ a: number }, string), { a: 1 }],
     // an unconstrained rest is `open`
     [rest([number], unknown), [1, 'x']],
     [rest({ a: number }, unknown), { a: 1, b: 'x' }],
@@ -758,6 +761,20 @@ export const proof = {
             assertOk(v(rest([number], orCycleA))([42, ,]))
             assertOk(validate(open([]))([1]))
         },
+    },
+    // The two ways an array can reach past a closed prefix, told apart. The
+    // acceptance table pins that the three readers agree on both; these assert
+    // the verdict, since a row alone passes whenever all three move together.
+    // The hole is rejected by *length* — it is no member, so the member check
+    // alone would let it through — and the explicit `undefined` by the member
+    // check, since it is a member and the schema declares no position for it.
+    // A closed tuple therefore has exactly one spelling per value.
+    beyondAClosedPrefix: () => {
+        for (const read of [v, p, d]) {
+            assertError(read([/** @type {const} */ (42)])([42, ,]))
+            assertError(read([/** @type {const} */ (42)])([42, undefined]))
+            assertOk(read([/** @type {const} */ (42)])([42]))
+        }
     },
     // A member the prototype supplies past the prefix is a member: `length`
     // says how far the array reaches, and an index below it that reads a value

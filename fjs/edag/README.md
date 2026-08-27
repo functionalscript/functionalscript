@@ -30,9 +30,10 @@ The shape is defined once, as an [RTTI](../types/rtti/) schema in
 [module.f.mjs](module.f.mjs) — the specification of record, checkable at
 runtime with `validate(exp)` (shape only — see Caveats). [types.ts](types.ts) carries the same shape at
 the type level, pinned against the schema with `Assert<Check<...>>` so the
-two cannot drift. Every tuple in the schema is stated `close`d, so the static
-tuples and the runtime ones agree exactly — the approximation
-[TupleTs](../types/rtti/ts/types.ts) settles for *is* the closed rendering.
+two cannot drift. Every tuple in the schema is closed — none of them says
+`open`, which is what an rtti tuple needs to admit more than it declares — so
+the static tuples and the runtime ones agree exactly, an exact-length
+[TupleTs](../types/rtti/ts/types.ts) rendering over an exact-length set.
 [proof.f.mjs](proof.f.mjs) pins what the schema accepts and rejects, node
 kind by node kind — validation behavior, not execution semantics — with
 `comma` excepted until its placeholder shape settles. Its `ownJs` and
@@ -235,15 +236,15 @@ section of [proof.f.mjs](proof.f.mjs) is one case per family.
 The same holds for dead prefixes: `propertyLambda` has no `|.` production, so
 plain property paths nest and `a.b.c` has exactly one spelling. "Exactly one"
 is literal rather than "up to trailing junk", because every tuple in the
-schema is `close`d — `['.', a, 'b', null, 'extra']` does not validate.
+schema is closed — `['.', a, 'b', null, 'extra']` does not validate.
 
 Two things the vocabulary makes disjoint deserve stating, because neither is
 cosmetic. **The `|` prefix is a correctness requirement.** Unprefixed,
 `['()', f, null]` would be simultaneously a well-formed `()` node — call `f`
 with `null` as its arguments — and a well-formed `optionLambda` — call the
 chain's value with `f` as its arguments, and stop. The two readings have the
-same length, so `close` could not have separated them; only disjoint
-vocabularies can. **Terminals state their `null`.** `propertyLambda`'s `|()`
+same length, so closedness could not have separated them — it bounds a tuple's
+length and says nothing about its tag; only disjoint vocabularies can. **Terminals state their `null`.** `propertyLambda`'s `|()`
 and `optionPropertyLambda`'s `|!()` end the chain, and they say so with an
 explicit third operand rather than by being one element shorter: a
 two-element terminal handed a real continuation would validate as the

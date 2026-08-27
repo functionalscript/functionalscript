@@ -609,9 +609,10 @@ export const proof = {
         // *entry*, so a present `undefined` must belong to `rest` itself.
         //
         // One "read set" of `rest ∪ undefined` folded the two together, which
-        // stayed sound only because an open struct's `rest` was `unknown` and
-        // failed the trailing rest check. `close` supplies `never` there, so
-        // the fold became reachable and answered `true` for a non-inclusion.
+        // stayed sound only while a struct's `rest` was `unknown` and failed
+        // the trailing rest check. A bare struct now supplies `never` there,
+        // so the fold is reachable from every schema and answered `true` for a
+        // non-inclusion.
         presenceIsNotAbsence: () => {
             const p = toData({ a: option(number) })
             const q = toData(record(number))

@@ -45,8 +45,8 @@ There is **no type language to invent**. A type is an ordinary expression —
 written in the language, in a `const`, never in a comment — built from
 [`fjs/types/rtti/module.f.mjs`](../fjs/types/rtti/module.f.mjs) —
 `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`,
-`option`, `never`, `close`, plus `Const` (a primitive, tuple, or struct used
-directly as its own schema). It is a value: it can be named, imported,
+`option`, `never`, `rest`, `open`, plus `Const` (a primitive, tuple, or struct
+used directly as its own schema, closed). It is a value: it can be named, imported,
 exported, passed to a function, and returned from one.
 
 Being a value is not automatically free at run time, and an earlier draft of
@@ -69,7 +69,8 @@ type grammar", which is the thing this project exists to avoid
 ([types-for-fs.md](./types-for-fs.md)).
 
 **The eDSL is expected to grow, and growing it is library work.** Today it says
-primitives, `array`, `record`, `or`, `option`, `never`, `close`, and consts. It
+primitives, `array`, `record`, `or`, `option`, `never`, `rest`, `open`, and
+consts. It
 does not yet say functions
 ([668](../fjs/types/rtti/todo/668-rtti-function-types.md)) or brands
 ([134](./134-nominal-types-proposal.md)), and it will need to say more than
@@ -83,7 +84,7 @@ from schemas to schemas** — and the eDSL ships two already, `array` and
 `record`, which are exactly that shape. A third is a `const`:
 
 ```js
-const pair = t => close([t, t])   // a generic type, in the language, today
+const pair = t => [t, t]          // a generic type, in the language, today
 
 const pairOfKeys = pair(key)      // an instantiation is a `const`, like any other
 //: pairOfKeys
@@ -303,8 +304,8 @@ needs one of: restricting `unknown` in schemas used at an external boundary,
 deep-copying what `unknown` admits, or saying plainly that a parsed `unknown`
 is a borrowed reference.
 
-**The general rule, of which `unknown` and `close` are instances: nothing about
-a type establishes runtime ownership.** "Inside FunctionalScript nothing can
+**The general rule, of which `unknown` and a closed struct are instances:
+nothing about a type establishes runtime ownership.** "Inside FunctionalScript nothing can
 write" is a statement about FunctionalScript's *own* code. It says nothing
 about a caller in ordinary JavaScript that passed a reference in and kept one.
 An exported function that accepts and retains an array or object can have that
@@ -350,7 +351,7 @@ enforceability condition, since a note in a README binds the receiver no more
 than it binds the caller.
 
 Which remedy is a cost/ergonomics decision, and it belongs with the same person
-deciding the `close` policy — all of it is one question asked about different
+deciding the closed-struct policy — all of it is one question asked about different
 values and directions, and **[stage 13](#tasks) owns it**. Naming the question
 without giving it a stage is what let it sit unowned through several revisions
 of this section.
@@ -457,19 +458,23 @@ it cannot express the schema at all.
 TypeScript has no way to name — and all are found in the emission path, not
 invented here.
 
-`close(c)` is the first. It means "these members and no others"; TypeScript
-object types are structurally open, so the closed set has no spelling, and both
-the printer and `Ts<>` emit the fields alone — the closest expressible
-*supertype*. A consumer can hold `{ a: 1, b: 2 }` in a variable, pass it where
-`close({ a: number })` was declared, satisfy `tsc`, and be rejected by
-`validate`. That is the exact disagreement this epic exists to remove,
-surviving inside its own deliverable.
+**A closed struct** is the first, and since a bare `Struct` is closed that is
+every struct schema that does not say `open`. It means "these members and no
+others"; TypeScript object types are structurally open, so the closed set has
+no spelling, and both the printer and `Ts<>` emit the fields alone — the
+closest expressible *supertype*. A consumer can hold `{ a: 1, b: 2 }` in a
+variable, pass it where `{ a: number }` was declared, satisfy `tsc`, and be
+rejected by `validate`. That is the exact disagreement this epic exists to
+remove, surviving inside its own deliverable. (The *tuple* kind has no such
+gap: a TypeScript tuple is exact-length, so `Ts<>` renders a closed tuple
+exactly — which is what stage 1 of
+[option-as-omission](../fjs/types/rtti/todo/option-as-omission.md) settled.)
 
 Two things keep this from undermining the whole direction, and both need
 stating rather than assuming:
 
 - **It is a boundary property, not a checker property.** Inside FunctionalScript
-  the checker reads the schema itself, so `close` is enforced exactly and
+  the checker reads the schema itself, so closedness is enforced exactly and
   compile time and run time do agree. The gap exists only where a schema is
   projected into TypeScript for an outside consumer — commitment 5's audience,
   not commitment 1's.
@@ -479,7 +484,7 @@ stating rather than assuming:
   const, a function's result — that is harmless: the value was produced by code
   the schema governs, so a wider declaration merely under-promises. In an
   **input** position it is not, and an earlier draft of this section claimed
-  otherwise. `close({ a: number })` on an exported parameter tells a TypeScript
+  otherwise. `{ a: number }` on an exported parameter tells a TypeScript
   caller it may pass a variable carrying extra keys, and **nothing validates
   it**: no stage injects a check at a package call boundary, so the callee
   receives a value outside its schema silently. "Caught loudly at the
@@ -490,17 +495,17 @@ stating rather than assuming:
   for function schemas, showing up first in what a declaration promises rather
   than in `subset`.
 
-**`close(c, rest)`** is the second, and it is not fixed by fixing the first.
+**`rest(c, r)`** is the second, and it is not fixed by fixing the first.
 TypeScript requires an index signature to cover the declared keys too, so the
 printer widens the index type "to the union of the rest and the declared value
 types — the closest expressible supertype"
-([`rtti/ts`](../fjs/types/rtti/ts/module.f.mjs)). `close({ a: number }, string)`
+([`rtti/ts`](../fjs/types/rtti/ts/module.f.mjs)). `rest({ a: number }, string)`
 therefore emits an index of `number | string`, and a caller may pass
 `{ a: 1, b: 2 }` — a numeric extra key, which the schema rejects because its
-rest is `string`. Note that an exact-key encoding for the one-argument
-`close(c)` form would **not** rescue this: the problem here is not the absence
-of exactness but that TypeScript cannot hold "these keys at these types, all
-*other* keys at that type" as two separate constraints.
+rest is `string`. Note that an exact-key encoding for the bare, closed form
+would **not** rescue this: the problem here is not the absence of exactness but
+that TypeScript cannot hold "these keys at these types, all *other* keys at
+that type" as two separate constraints.
 
 **Non-finite numbers and `-0`** are the third, and they are smaller only in
 how often they appear. The printer renders a numeric const as
@@ -514,7 +519,7 @@ comment says so, precisely to match `NaN` and to keep `+0` and `-0` distinct
 an exported input position admits any number and rejects all but one, and a
 `-0` schema admits `+0` and rejects it. TypeScript has no `NaN` literal type
 and does not distinguish `-0` from `0`, so this is inexpressible in the same
-way `close` is, and it lands the same way under the position split above:
+way a closed struct is, and it lands the same way under the position split above:
 under-promising on output, unsound on input.
 
 What this needs is a **stated policy**, decided before stage 11 rather than
@@ -528,8 +533,8 @@ discovered by a consumer:
    — and so collides with stage 11's rule that a retiring declaration must
    reproduce what it published. Whichever way this goes, those two decisions
    are one decision; or
-2. restrict `close` in exported contracts, so published types are ones
-   TypeScript can express; or
+2. restrict closed structs and stated rests in exported contracts, so published
+   types are ones TypeScript can express; or
 3. emit an exactness encoding where one exists (a branded field, an
    `Exact<T>` helper), accepting its ergonomic cost.
 
@@ -537,7 +542,7 @@ None is obviously right, and the choice is a promise to consumers rather than an
 implementation detail, so this epic records it rather than picking.
 
 **None of the three covers the numeric cases, either.** Option 2 is written
-about `close`; option 3 says "where one exists", and for these it does not —
+about object shapes; option 3 says "where one exists", and for these it does not —
 TypeScript has no `NaN` literal type and does not distinguish `-0` from `0`, so
 there is nothing to encode. A `NaN`, `±Infinity` or `-0` schema in an **input**
 position therefore needs a boundary adapter under every policy, not just under
@@ -822,25 +827,25 @@ are stated instead:
         the readers, or narrowing both readers deliberately, is the real
         question, and it is a decision about what `unknown` *means*, not about
         emission.
-      - **Tuple openness — the printer is right and `Ts<>` is narrow.** A tuple
-        schema *is* open: `validate` "iterates what the schema declares, so an
-        undeclared key or a longer array is never visited: it is accepted"
-        ([`rtti/validate`](../fjs/types/rtti/validate/module.f.mjs)). The
-        printer's open form therefore admits exactly what the schema admits,
-        and it is `Ts<>`'s closed rendering that is the approximation —
-        `TupleTs` says so itself. **Do not "reconcile" these by closing the
-        printer.** `validate`'s doc comment says "Do not add a length check for
-        tuples here" for the same reason, and a closed `.d.ts` would reject
-        longer arrays the schema accepts — turning a non-problem into the
-        problem the bullet above describes, in the opposite direction.
+      - **Tuple openness — settled, and it went the other way.** A bare tuple
+        schema is now *closed*, so the exact-length rendering `Ts<>` gives it is
+        the model rather than an approximation of it, and the printer prints the
+        same exact tuple. `open(c)` is what admits a longer array, and both
+        renderers emit the tail that says so. This bullet used to record a live
+        divergence and no longer does; stage 1 of
+        [option-as-omission](../fjs/types/rtti/todo/option-as-omission.md)
+        removed it.
 
-      **A third disagreement runs the other way.** `CloseTs<C> = ConstTs<C>`
-      ([`ts/types.ts`](../fjs/types/rtti/ts/types.ts)) drops a `close`'s `rest`
-      entirely — its own comment calls that "a documented gap" — so for
-      `close(c, rest)` the printer errs **wide** (an index of `number | string`,
-      above) while `Ts<>` errs **narrow**. They are not merely different; they
-      are wrong in opposite directions, which is worth knowing before anyone
-      tries to reconcile them by moving one toward the other.
+      **A third disagreement runs the other way, and has narrowed.** `RestTs`
+      ([`ts/types.ts`](../fjs/types/rtti/ts/types.ts)) now renders a stated
+      rest's tuple tail, so the two agree on every rest a schema states
+      directly. What is left is the *empty*-rest recognition: the printer goes
+      through the data form and recognizes one semantically, while `RestTs`
+      recognizes only the directly spellable `or()` and keeps the tail
+      otherwise. On the object kind the printer still errs **wide** (an index of
+      `number | string`, above) where `Ts<>` renders the declared fields alone.
+      They are wrong in opposite directions there, which is worth knowing before
+      anyone tries to reconcile them by moving one toward the other.
 
       **The other two divergences turn out to be the same shape**, and neither is fixed
       by changing the printer: in each case the printer agrees with what the
@@ -874,7 +879,7 @@ are stated instead:
       printer's doc comment.
 
       A further gap is **not** settleable, and belongs in a different column.
-      `close({ a: number })` prints as `{ readonly a: number }`, and `Ts<>`
+      The closed `{ a: number }` prints as `{ readonly a: number }`, and `Ts<>`
       renders it identically, because — in the printer's own words —
       "TypeScript object types are structurally open, so 'and no other key' has
       no spelling there". A consumer can hold a `{ a: 1, b: 2 }` in a variable,
@@ -1007,7 +1012,7 @@ are stated instead:
       them". It is shared by both serializers — DJS covers the rest of the form
       including `bigint` literals, but numbers go to `JSON.stringify`
       ([`json/serializer`](../fjs/media/json/serializer/module.f.mjs)). A
-      snapshot of `close({ x: NaN })` would come back as `close({ x: null })`,
+      snapshot of `{ x: NaN }` would come back as `{ x: null }`,
       so the run-time schema would differ from the one the compiler checked
       against — the exact disagreement this remedy exists to prevent, arrived
       at through the fix rather than the bug. So this stage needs a lossless
@@ -1015,8 +1020,8 @@ are stated instead:
       snapshotted schema, before the remedy is sound. **The restriction has to
       cover every non-finite number, not just `NaN`** — `numberSerialize`
       delegates all numbers to `JSON.stringify`, which renders `Infinity` and
-      `-Infinity` as `null` too, so `close({ x: Infinity })` snapshots as
-      `close({ x: null })` exactly as the `NaN` case does. Plus `-0`, which is
+      `-Infinity` as `null` too, so `{ x: Infinity }` snapshots as
+      `{ x: null }` exactly as the `NaN` case does. Plus `-0`, which is
       lost differently: it serializes as `0` rather than `null`. An earlier
       draft of this paragraph named only `NaN` and `-0`, while the printer
       paragraph above already said *non-finite* — the same slip in one file,
@@ -1193,7 +1198,7 @@ are stated instead:
       site — and
       [the `.d.ts` section](#what-a-generated-dts-can-and-cannot-promise) has
       already named the consequence: where the emitted declaration is *wider*
-      than the schema (the `close`, `close(c, rest)`, and non-finite / `-0`
+      than the schema (the closed-struct, `rest(c, r)`, and non-finite / `-0`
       cases),
       a consumer can pass a value its `.d.ts` accepts and the schema rejects,
       and "nothing validates it". A consumer in **ordinary JavaScript** is not
@@ -1205,7 +1210,7 @@ are stated instead:
 
       **That path is stage 13's**, not a fourth deliverable here — it is a
       foreign call crossing the language boundary inbound, and stage 13 already
-      owns the boundary in both directions and already says the `close` policy
+      owns the boundary in both directions and already says the closed-struct policy
       and 668's wrapper are one decision. What stage 13 owes there splits by
       call site: conditional on the `.d.ts` policy where the call was
       statically checked against the declaration, unconditional everywhere else
@@ -1277,7 +1282,7 @@ are stated instead:
       schemas — `array` and `record` already are — so *writing and using* one
       needs nothing new. **Emitting a declaration for one does.** The printer
       walks a concrete schema graph, while a constructor like
-      `pair = t => close([t, t])` is an opaque function whose argument-to-result
+      `pair = t => [t, t]` is an opaque function whose argument-to-result
       relationship is nowhere represented as data, and instantiating it at
       concrete types does not recover
       `<T>(t: Type<T>) => Type<readonly [T, T]>`. This stage therefore needs
@@ -1357,7 +1362,7 @@ are stated instead:
       That rule is necessary and **not sufficient**. It preserves the published
       API; it does not by itself deliver the schema/declaration agreement the
       epic promises, because a declaration can be reproduced faithfully and
-      still be wider than the schema — `close` is the standing case, and the
+      still be wider than the schema — the closed struct is the standing case, and the
       old and new declarations there are identical *and* both wider. Retiring
       such a declaration is safe for consumers and still leaves the gap
       [the `.d.ts` section](#what-a-generated-dts-can-and-cannot-promise)
@@ -1371,11 +1376,11 @@ are stated instead:
       | Category | Example | Blocked on |
       | --- | --- | --- |
       | Nominal / branded | `Vec = Nominal<'bit_vec', _Revision, bigint>` ([`bit_vec`](../fjs/types/bit_vec/types.ts)) | stage 9 — branding is a compile-time fiction, so nothing in the value carries it |
-      | Generic schema constructors | `pair = t => close([t, t])` | stage 8 — the argument-to-result relationship must be reified first |
+      | Generic schema constructors | `pair = t => [t, t]` | stage 8 — the argument-to-result relationship must be reified first |
       | Type-only utilities | `Index`, `Tuple`, `KeyOf`, `Includes` ([`types/array`](../fjs/types/array/types.ts)) | **nothing yet** — these describe no runtime value, so no schema and no printer produces them |
       | Polymorphic functions | `identity: <T>(value: T) => T` ([`types/function`](../fjs/types/function/module.f.mjs)) | **nothing yet** — a function schema with concrete parameter and result sets cannot say both positions share one caller-chosen type |
       | Unsettled `unknown` | any exported schema containing `unknown` | **a decision, not a stage** — the module/README, `Ts<>`, the readers and the printer disagree about what it promises; see stage 1 |
-      | Inexpressible sets | `close({ a: number })`; `close({ a: number }, string)`; a non-finite or `-0` const | **the policy above**, not a stage — TypeScript cannot name these sets, so the declaration is an upper bound however it is emitted |
+      | Inexpressible sets | the closed `{ a: number }`; `rest({ a: number }, string)`; a non-finite or `-0` const | **the policy above**, not a stage — TypeScript cannot name these sets, so the declaration is an upper bound however it is emitted |
 
       **Type-only utilities** and **polymorphic functions** have no stage
       assigned, and that is the honest state: a type-only utility is not a
@@ -1471,7 +1476,7 @@ are stated instead:
       tracking [mutability](../spec/todo/mutability.md) already contemplates —
       which is the only mechanism in sight that could make a transfer
       checkable — or the remedy is reconstruction or recursive freezing, which
-      do not depend on the caller's cooperation. The `close` policy and 668's call-validating wrapper are the same
+      do not depend on the caller's cooperation. The closed-struct policy and 668's call-validating wrapper are the same
       decision seen from two angles, so settle them together.
 
       **`parse` is not fit for a hostile boundary today, and this stage cannot
@@ -1503,7 +1508,7 @@ are stated instead:
       *definitions* statically checkable and so reads as if nothing is left to
       do. A TypeScript consumer calling an ordinary exported function is a
       foreign call site, and where the emitted declaration is wider than the
-      schema — `close`, `close(c, rest)`, non-finite / `-0` — it can pass a
+      schema — a closed struct, `rest(c, r)`, non-finite / `-0` — it can pass a
       value
       the declaration accepts and the schema rejects.
 
@@ -1513,7 +1518,7 @@ are stated instead:
       declaration and leave nothing to adapt. That is true of a **TypeScript**
       consumer and false of an **ordinary JavaScript** one, which no
       declaration binds. A raw JavaScript caller passes a string to a
-      `number` parameter, or a malformed object to a `close`, whatever the
+      `number` parameter, or a malformed object to a closed struct, whatever the
       `.d.ts` says; so do a TypeScript caller reaching the export through
       `any`, a `@ts-ignore`, or a dynamic property access. A declaration
       constrains a consumer who type-checks against it and nobody else.
@@ -1531,7 +1536,7 @@ are stated instead:
         the shapes TypeScript can name*, and that buys exactly one thing:
         the argument was a member of the schema's set **at the moment of the
         call**. Two holes survive it, and both are this stage's:
-        - **Numeric singletons.** Option 2 restricts `close`, and option 3
+        - **Numeric singletons.** Option 2 restricts closed structs, and option 3
           needs an encoding to exist — TypeScript has no `NaN` literal type and
           cannot distinguish `-0` from `0`, so neither option reaches a `NaN`,
           `±Infinity` or `-0` schema in an input position. Those need an
