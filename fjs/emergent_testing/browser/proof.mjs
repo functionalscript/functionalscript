@@ -215,6 +215,20 @@ export const proof = {
     // has no promises, so nothing it executes can produce this value. Only an
     // impure proof reaching for `node:vm` can, as this one does.
 
+    // The brand check itself runs user code: `instanceof` consults
+    // `getPrototypeOf`, and a proxy can trap it. `fjs t` checks inside
+    // `sandbox`'s `try`/`catch` and reports the value as its test's failure;
+    // the page must do the same, because a run that rejects leaves it in
+    // `running` with no report and no completion event — the one outcome an
+    // automated controller cannot act on.
+    hostileBrandCheckIsReported: async () => {
+        const report = await run({
+            nested: () => new Proxy({}, { getPrototypeOf: () => { throw 'trap' } }),
+        })
+        assertEq(report.status, 'failed')
+        assertEq(report.results[0]?.path, '.nested')
+        assertEq(report.results[0]?.message, 'trap')
+    },
     // `await`, not `value.then(...)`. A promise can replace its own `then`, and
     // it can make `constructor[Symbol.species]` build something that is not a
     // promise at all; `.then` consults both, `await` consults neither and reads

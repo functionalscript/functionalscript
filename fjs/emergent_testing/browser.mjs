@@ -166,7 +166,19 @@ const runOne = (module, path, throws, fn, result) => {
     // machinery this replaces and the measurements behind removing it.
     /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
     const settled = async value => {
-        if (!(value instanceof Promise)) { return passed(value) }
+        // Even the brand check runs user code: `instanceof` consults
+        // `getPrototypeOf`, which a proxy can trap and a revoked one always
+        // throws from. `fjs t` performs this check inside `sandbox`'s
+        // `try`/`catch`, so it reports such a value as its test's failure; this
+        // handler has no enclosing `try`, so without one here the whole run
+        // rejects and the page never leaves `running`.
+        let isPromise = false
+        try {
+            isPromise = value instanceof Promise
+        } catch (error) {
+            return failed(error)
+        }
+        if (!isPromise) { return passed(value) }
         /** @type {readonly [unknown]} */
         let resolved
         // Only the `await` is guarded. A throw from `passed` is the traversal's

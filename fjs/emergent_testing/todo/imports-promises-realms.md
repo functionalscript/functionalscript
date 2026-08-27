@@ -210,6 +210,10 @@ non-promise. `await` on a same-realm promise adopts internal state and consults
 neither, which is why three lines recover everything the machinery gave for the
 values this runner can actually meet. `awaitIgnoresAnOwnThenOverride` and
 `awaitIgnoresACustomSpecies` pin both, and both fail against `.then`.
+`hostileBrandCheckIsReported` pins the third thing `fjs t` does that the page
+must too: run the `instanceof` inside a guard, because the check consults
+`getPrototypeOf` and a proxy can trap it — unguarded, the run rejects and the
+page never leaves `running`.
 
 `subscribe`, `speciesFails`, `runPromise` and `species.proof.mjs` are deleted. `crossRealmPromise` became
 `crossRealmPromiseIsWalkedAsATree`, which pins the two runners agreeing rather
@@ -242,6 +246,39 @@ material is preserved above: the intrinsic `Promise.prototype.then` is both the
 brand check and the subscription, its `Reflect.apply` must sit outside a `new
 Promise` executor, and a throw from it must not be conflated with "not a
 promise". Reach for it then, not now.
+
+### Known shared gap: a `Promise` subclass with an overridden `then`
+
+`await` adopts a promise's internal state only when its `constructor` is the
+intrinsic `Promise`. For a subclass — or a native promise whose `constructor`
+has been replaced — resolution assimilates the value by calling its `then`
+instead, so a no-op override never settles and the run hangs:
+
+| value | `fjs t` | browser |
+| --- | --- | --- |
+| `class Sub extends Promise { then() {} }`, resolved | **HUNG** | **HUNG** |
+
+Measured; both runners, identically, because both decide with `instanceof
+Promise` and then `await`. That sameness is the point: it is a property of the
+shared rule, not a browser regression, and it is recorded here rather than
+patched in one host.
+
+**Not fixed, deliberately.** The intrinsic-`then` subscription described above
+would fix it, and reintroducing that machinery to defend a value the runner
+cannot meet is the trade this issue already rejected: authored FunctionalScript
+has no `Promise`, no `class`, and no `extends`, so only an impure `.mjs` proof
+can construct this — the same category as the fixtures deleted with the
+machinery.
+
+It is also worth being clear about what it is a special case of. **Any** proof
+returning a promise that never settles hangs any runner —
+`() => new Promise(() => {})` needs no subclass and no override. A runner that
+survived the subclass case would still hang on that one. Bounding a proof's
+running time is the general answer, and it is not this issue.
+
+If the day comes that a proof legitimately returns a `Promise` subclass, the
+material for the fix is above, and the fix belongs in the shared `sandbox` so
+both runners get it at once.
 
 ### Constraints
 
