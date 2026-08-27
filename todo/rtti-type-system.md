@@ -32,6 +32,11 @@ the thing that reads it.
 
 ### Proposal
 
+**This type system is a layer on top of FunctionalScript, not part of the
+FunctionalScript specification.** FunctionalScript remains type-agnostic:
+`//:` and `/*: */` are ordinary comments to the language; the RTTI layer gives
+them meaning using the comment/token stream exposed by the toolchain.
+
 **RTTI is the single source of truth for both compile-time and run-time type
 verification of FunctionalScript.** One schema, written once, is what the
 compiler checks against, what `validate`/`parse` check against at run time, and
@@ -115,6 +120,10 @@ synthetic variable. Stage 8 records the choice that follows.
 //: myType
 /*: myType */
 ```
+
+Annotations are **secondary to inference**: they may guide or constrain the
+checker, but they are not the source of truth and cannot make an unproven type
+claim true.
 
 The body is a **name** — a single identifier, bound in the module by a `const`
 or an `import`, whose value is an RTTI schema. Nothing else is accepted: no
@@ -221,11 +230,10 @@ That is what a conversion should lean on — a claim about the two declarations 
 not on both checkers happening to accept the value in front of them. Stage 11
 carries it.
 
-[type-annotations](../spec/todo/3360-type-annotations.md) reaches the same
-conclusion — "`/*: … */` and JSDoc's `/** … */` coexist while the tree
-migrates" — and is the spec-side half of this epic. It states the body as an
-expression; **this epic narrows it to a name**, and stage 2 is where that
-narrowing lands in the spec.
+[type-annotations](../spec/todo/3360-type-annotations.md) is the design note for
+this annotation convention despite living under `spec/todo`; it does not add
+type semantics to FunctionalScript. It states the body as an expression; **this
+epic narrows it to a name**, and stage 2 is where that narrowing lands.
 
 #### 3. Every RTTI type is immutable, and that is what makes it sound
 
@@ -447,6 +455,77 @@ which change what a generated declaration means, and rendering a schema is not
 the same as knowing which export carries it. See stage 1. It is also what lets a
 `.f.mjs` module drop its JSDoc without any consumer noticing.
 
+### Inference, narrowing, and specialization
+
+This system should have no unchecked equivalent of TypeScript's `as`, `as any`,
+double casts, or another construct that simply tells the checker to trust a type
+claim.
+
+**Types are inferred from program behavior.** On a successful EDAG path, each
+operation may refine what is known about its inputs and outputs; branches that
+do not continue are excluded from that continuation. `assert` is only a
+convenient ordinary operation for making such a refinement explicit, not
+privileged type-system machinery. A validator's successful branch narrows by
+the same rule.
+
+Because throws are generally semantically equivalent in EDAG, refinement
+normally depends on the facts established by reaching a path, not on which
+throw would have happened first. Exceptional cases can be decided later without
+changing this direction.
+
+There is no unchecked escape hatch: narrowing follows from inference over
+program semantics. Annotations may guide or constrain inference, but they do
+not make an unproven claim true.
+
+This does not imply permanent runtime overhead. A check used only to establish
+a fact is ordinary EDAG computation. If the compiler proves that removing it
+preserves semantics — for a throwing check, that includes proving it total and
+always successful — it may remove the check. A conservative compiler can keep
+more checks while a stronger one removes them without weakening type safety.
+
+**The same proofs are optimization facts.** They can justify specialization
+where the compiler proves the specialized operation equivalent to the original.
+For example, proving a SHA-256 value and the relevant intermediate operations
+fit fixed widths (or have explicit modular semantics) can replace generic
+`bigint` operations with target-specific fixed-width instructions or intrinsics.
+
+Matrices and tensors are the same pattern. Proofs may establish shape,
+dimensions, element type, bounds, layout, alignment, sparsity, or device
+placement. Those facts can turn generic FunctionalScript code into fixed loops,
+vector operations, tiled matrix operations, fused kernels, or code targeting
+CPUs, GPUs, NPUs, and other accelerators.
+
+**Automatic differentiation is another possible transformation over the same
+semantic foundation.** For an EDAG subset whose primitives have defined
+derivative rules, including their behavior at nondifferentiable points,
+reverse-mode differentiation can construct the backward graph used for
+neural-network training; unsupported operations are outside that transform.
+
+```text
+x -> matmul -> relu -> matmul -> loss
+                              |
+                              v
+                        differentiation
+                              |
+                              v
+                  gradients of weights and x
+```
+
+The generated gradient graph is itself subject to the same proofs and
+optimizations: known tensor shapes and element types specialize gradient
+operations, dead intermediates can disappear, forward and backward operations
+can be fused, and the result can be lowered to GPUs or other specialized
+hardware.
+
+The broader goal is that **domain-specific semantics live in libraries, proofs,
+and program transformations rather than requiring a new language for every
+domain**. FunctionalScript remains the small, type-agnostic semantic foundation;
+RTTI/refinement systems, tensor libraries, automatic differentiation, and
+hardware lowering live on top of it. This makes the same foundation suitable
+for machine-learning programs without requiring application code to cross a
+stack of specialized source languages merely to communicate facts the program
+and its proofs already contain.
+
 ### What a generated `.d.ts` can and cannot promise
 
 The epic's thesis is that one schema decides compile time and run time, so the
@@ -558,7 +637,7 @@ it as scoped to the object shapes TypeScript can name.
 | Canonical data form, `subset` | [`data/`](../fjs/rtti/data/module.f.mjs) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
 | TypeScript emission | [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on tuple openness, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
 | Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/rtti/ts/types.ts) | done, and transitional — see Problem |
-| Annotation syntax | — | not started |
+| Annotation convention | — | not started |
 | Compile-time evaluation | [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) | not started |
 | Inference | [type inference](../spec/todo/3370-type-inference.md) | not started — most of the work |
 | Function schemas | [668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md) | not started — and **nearly half** the tree's JSDoc type bodies are function types (~46% when measured in review of #1719; counts drift, so re-measure rather than cite this), so it gates a large share of stage 11 |
@@ -745,8 +824,8 @@ so that issue's open question is answered yes by this stage.
 
 - **A type grammar.** Not a subset of TypeScript's type expressions, not a JSDoc
   dialect, not a new one. Commitment 1 is the whole point of the epic.
-- **New syntax beyond the two comment forms.** `//:` and `/*: */` are the entire
-  surface area added to the language.
+- **New FunctionalScript syntax.** `//:` and `/*: */` remain ordinary comments;
+  only the RTTI layer interprets them.
 - **Expressions inside an annotation.** Not even the language's own: the body is
   one name. A comment that can hold a call can hold a sub-language, and that is
   the road back to a type grammar. Give the type a `const` and use its name.
@@ -934,11 +1013,12 @@ are stated instead:
       name in [type-annotations](../spec/todo/3360-type-annotations.md), and
       settle which positions accept an annotation — `const`, parameter, return,
       export — and what the line form attaches to.
-- [ ] **3. Recognize `//:` and `/*: */` in the parser** and resolve the one
-      identifier in the body against the module's bindings — under the scope
-      rule stage 2 settles per [open question 2](#open-questions), since
-      module-scope-only and "anything reducible" are different lookups. A distinct token
-      kind is cleaner than inspecting the body's first character; neither adds a
+- [ ] **3. Recognize `//:` and `/*: */` in the RTTI type-system frontend** from
+      the tokenizer/parser comment stream and resolve the one identifier in the
+      body against the module's bindings — under the scope rule stage 2 settles
+      per [open question 2](#open-questions), since module-scope-only and
+      "anything reducible" are different lookups. A distinct token kind is
+      cleaner than inspecting the body's first character; neither adds a
       grammar, and neither needs the expression parser.
 - [ ] **4. Evaluate an annotation at compile time**
       ([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)) — the binding the name
@@ -1651,11 +1731,10 @@ splits around inference, so the runnable order is 668's representation half
 [the gates](#tasks). Listed here by subject rather than by schedule.
 
 - [type-annotations](../spec/todo/3360-type-annotations.md) — the annotation
-  form, the parser consequences, and the argument for why there is no type
-  grammar. The spec-side statement of commitments 1 and 2; stages 2–5 land
-  there. It states the annotation body as an ordinary expression handed to the
-  expression parser; **this epic narrows it to a name**, and stage 2 is that
-  edit.
+  form, the tooling consequences, and the argument for why there is no type
+  grammar. The design note for commitments 1 and 2; stages 2–5 land there. It
+  states the annotation body as an ordinary expression handed to the expression
+  parser; **this epic narrows it to a name**, and stage 2 is that edit.
 - [type inference](../spec/todo/3370-type-inference.md) — annotations are only
   as useful as what can be inferred without them. Stage 6.
 - [668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md) —
