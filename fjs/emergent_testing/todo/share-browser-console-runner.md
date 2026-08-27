@@ -116,21 +116,16 @@ and is reviewable without the next one.
       expectation is applied through the same `invert` both runners now use, so
       "did this leaf pass" has one answer. Describing a *thrown value* stayed
       with each host, deliberately — see below.
-- [ ] **3. One `sandbox`.** Executing a proof body — the clock either side, the
-      `try`/`catch`, and the rule that only an actual `Promise` is awaited — is
-      the operation both runners must agree on exactly, and the one place where
-      they currently do not. **This step is blocked on a decision, not on
-      work**: the browser carries ~150 lines of `Symbol.species` machinery that
-      `fjs t` has no equivalent for, so merging the two answers the cross-realm
-      question in [imports, promises and realms](imports-promises-realms.md).
-      **That investigation is now done, and it unblocks this step rather than
-      complicating it.** FunctionalScript has no promises: across 125 pure
-      `.f.mjs` proof modules there are zero leaves that return one, and all 39
-      that exist are `async` functions in five impure `.mjs` proofs — same
-      realm, our own code. The browser's cross-realm machinery defends only
-      against its own fixtures. So this step is `p instanceof Promise`, exactly
-      as `fjs t` does it, and `species.proof.mjs` goes with the machinery. Doing it inside a port is how
-      the last attempt lost a defence nobody chose to lose.
+- [x] **3. One `sandbox`.** Done, and it turned out to be a deletion. The
+      browser suite runs authored `.f.mjs` only and FunctionalScript has no
+      promises, so nothing the browser executes can be one: the
+      `Symbol.species` machinery — `subscribe`, `speciesFails`, `runPromise` and
+      `species.proof.mjs` — defended values the browser cannot produce, against
+      fixtures that are themselves `.mjs` and never run in a browser. Replaced
+      by `instanceof Promise`, which is what `fjs t` does. The measurements are
+      in [imports, promises and realms](imports-promises-realms.md); the scope
+      rule they rest on is in [browser testing](browser-testing.md).
+
 - [ ] **4. Common effects.** Move the host-independent operations (`all`,
       `await`, `fetch`, `import`, `now`, `sandbox`) out of `effects/node` into a
       shared module that `effects/node` re-exports unchanged, so nothing has to
@@ -147,7 +142,8 @@ and is reviewable without the next one.
 - [ ] **8. The layout move**, and the website preparation program.
 
 Steps 3 and 7 are the ones that change behaviour, so they are the ones to keep
-smallest. Anything a step reveals goes to an issue and is fixed for both runners
+smallest. Step 3 changed less than expected: with the scope written down, it was
+a removal. Anything a step reveals goes to an issue and is fixed for both runners
 later, never inside the step.
 
 **What step 2 revealed, recorded rather than fixed.** With the status shared,

@@ -1,7 +1,7 @@
 ## Investigate imports, promises and realms
 
 **Priority:** P3
-**Status:** open — investigated; a decision is now the only thing missing
+**Status:** closed for the runner; open only as a note for iframes and workers
 
 ### Problem
 
@@ -41,7 +41,7 @@ adopted) is the thing the runner deliberately refuses to do (`then` is a name),
 and the check that separates them (`instanceof`) is the one that does not
 survive a realm boundary.
 
-### What to investigate
+### What was investigated
 
 This is a study, not a design. It is worth doing before
 [browser-testing](browser-testing.md) puts proofs in iframes or workers, because
@@ -195,15 +195,18 @@ with a key named `then` — a proof called `then`. `p instanceof Promise` refuse
 it correctly, which is what `thenIsATestName` asserts and what makes the
 structural rule hold.
 
-### Recommendation, revised twice
+### Outcome
 
-**Do it exactly as `fjs t` does: `p instanceof Promise`, await, done.** Delete
-the species machinery and `species.proof.mjs` with it.
+**Done.** The browser's `sandbox` decides with `p instanceof Promise`, exactly as
+`fjs t` does; `subscribe`, `speciesFails`, `runPromise` and `species.proof.mjs`
+are deleted. `crossRealmPromise` became
+`crossRealmPromiseIsWalkedAsATree`, which pins the two runners agreeing rather
+than the browser defending alone — the gap is real, shared, and recorded here.
 
 Strictly, the browser needs no promise handling whatever — it runs only
-`.f.mjs`. Keeping `instanceof` there anyway is the cheap and honest choice: it
-is one expression, it keeps the two runners' `sandbox` identical rather than
-"identical except the browser omits a branch", and it costs nothing to carry.
+`.f.mjs`. `instanceof` is kept anyway: one expression, and it keeps the two
+runners' `sandbox` identical rather than "identical except the browser omits a
+branch", which is the kind of small asymmetry drift starts from.
 
 That is not a compromise on correctness. It is correct for every value the
 language can produce, and for every value any proof in this repository actually

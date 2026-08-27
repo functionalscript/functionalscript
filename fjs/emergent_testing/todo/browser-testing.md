@@ -64,6 +64,34 @@ imports are JSDoc comments and never produce a request), or paths outside the
 application root. The browser runner must not import the Node effect runner,
 `node:test`, Node built-ins, or Playwright.
 
+### Scope: authored FunctionalScript only
+
+**The browser suite runs `.f.mjs` and nothing else.** `website/browser-prepare.mjs`
+selects on `name.endsWith('.f.mjs')`; the generated manifest currently carries
+137 modules, none of them anything else. That is the design, not a first
+iteration to be widened later.
+
+It follows from what the two kinds of module are. Authored FunctionalScript is
+pure — no host objects, no `node:` imports, no promises, no `async` — so a
+`.f.mjs` proof means the same thing in every runner, and the extension is a
+sufficient declaration for a static selector that never imports anything. An
+impure `.mjs` proof means whatever its host provides: `node:fs`, `node:vm`,
+`process`, `node:test`, a filesystem, a subprocess. Loading those into a page and
+expecting them to test anything is not a goal — see
+[impure `.mjs` proofs are Node-only](host-targeted-tests.md).
+
+Two things follow that are easy to get wrong:
+
+- **The runner needs no promise handling of its own.** FunctionalScript cannot
+  produce a promise, so nothing the browser executes can be one. `fjs t`'s
+  `instanceof Promise` is kept only so both runners' `sandbox` reads the same,
+  and the cross-realm machinery that used to sit here is gone. See
+  [imports, promises and realms](imports-promises-realms.md).
+- **The impure proofs that drive the browser runner are not part of the suite.**
+  `emergent_testing/browser/proof.mjs` tests browser code, but it is `.mjs`, so
+  it runs under `fjs t` in Node against this module called as a library. Testing
+  the browser runner and running in a browser are different things.
+
 ### Selection
 
 The named `proof` export is the source of truth; filenames are conventions.
