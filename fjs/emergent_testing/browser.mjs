@@ -42,9 +42,6 @@ const errorDetails = error => {
     return [fallback, fallback]
 }
 
-/** @typedef {{ readonly module: string, readonly path: string, readonly status: string, readonly duration: number, readonly message?: string, readonly stack?: string }} _BrowserTestResult */
-/** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
-
 /**
  * Uses the intrinsic Promise `then` as the native-promise brand check. Unlike
  * `instanceof`, it accepts promises from another realm; unlike
@@ -52,15 +49,19 @@ const errorDetails = error => {
  * Calling the intrinsic also avoids consulting an arbitrary object's own
  * `then` property.
  *
- * @type {(value: unknown, fulfilled: (value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[], rejected: (error: unknown) => readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]> | null}
+ * @type {(value: unknown) => boolean}
  */
-const runPromise = (value, fulfilled, rejected) => {
+const isPromise = value => {
     try {
-        return Promise.prototype.then.call(value, fulfilled, rejected)
+        Reflect.apply(Promise.prototype.then, value, [() => undefined, () => undefined])
+        return true
     } catch {
-        return null
+        return false
     }
 }
+
+/** @typedef {{ readonly module: string, readonly path: string, readonly status: string, readonly duration: number, readonly message?: string, readonly stack?: string }} _BrowserTestResult */
+/** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
 
 /** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
 const runOne = (module, path, throws, fn, result) => {
@@ -100,10 +101,7 @@ const runOne = (module, path, throws, fn, result) => {
     // objects with a `then` proof property. The Node runner awaits only actual
     // promises, and browser execution must preserve that same test-tree rule.
     return Promise.resolve().then(() => [fn()]).then(
-        ([value]) => {
-            const promise = runPromise(value, passed, failed)
-            return promise === null ? passed(value) : promise
-        },
+        ([value]) => isPromise(value) ? Promise.resolve(value).then(passed, failed) : passed(value),
         failed
     )
 }
