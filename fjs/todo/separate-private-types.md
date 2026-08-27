@@ -204,14 +204,13 @@ the same coverage expectations as `module.f.mjs`.
   imports and must not create runtime dependencies.
 - a public declaration must never depend on the removable `private.ts` module.
 
-#### Breaking public type migration
+#### Breaking public API migration
 
-Moving a public file-scope JSDoc typedef from `module.f.mjs` or `proof.f.mjs` to
-`types.ts` changes its published import path. Treat that relocation as an
-intentional breaking API change rather than preserving the old type entry point
-with compatibility re-exports.
+Moving public definitions to their dedicated files changes their published
+import paths. Treat these relocations as intentional breaking API changes rather
+than preserving the old entry points with compatibility re-exports.
 
-For example, if consumers previously imported a type from:
+For public types, if consumers previously imported a type from:
 
 ```text
 ./module.f.mjs
@@ -223,16 +222,23 @@ and the type moves to `types.ts`, its new public type entry point is:
 ./types.ts
 ```
 
-The migration must update every repository importer to the new path and record
-the breaking change in the changelog. Do not leave compatibility typedefs or
-re-exports in `module.f.mjs` merely to preserve the old type-only subpath: that
-would reintroduce the file-scope typedef/declaration noise this convention is
-intended to remove.
+For public runtime constants, if consumers previously imported a value from:
 
-This breaking rule applies to type entry points, not runtime exports. Moving a
-public runtime constant from `module.f.mjs` to `meta.f.mjs` requires its own API
-decision: preserve the old runtime entry point with a re-export or make that
-runtime move an explicit breaking change and update importers/changelog.
+```text
+./module.f.mjs
+```
+
+and the value moves to `meta.f.mjs`, its new runtime entry point is:
+
+```text
+./meta.f.mjs
+```
+
+In both cases, update every repository importer to the new path and record the
+breaking change in the changelog. Do **not** leave compatibility typedefs,
+exports, or re-exports in `module.f.mjs` to preserve the old entry point. The
+point of the migration is to make the source/API boundaries explicit rather than
+carry aliases from the old layout indefinitely.
 
 #### Declaration emission and packaging
 
@@ -299,6 +305,11 @@ References to packaged `meta.f.mjs` are allowed.
 - [ ] Move runtime constants referenced by TypeScript type definitions/proofs
       into `meta.f.mjs`, including RTTI definitions, non-RTTI literal constants,
       and ordinary runtime tables whose literal/inferred types are asserted.
+- [ ] Treat moves of public runtime constants to `meta.f.mjs` as breaking API
+      changes: update every repository runtime importer to the new path and
+      record the break in the changelog.
+- [ ] Do not add compatibility exports or re-exports in `module.f.mjs` for
+      runtime constants moved to `meta.f.mjs`.
 - [ ] Move file-scope private type proofs over those constants to `private.ts`
       (or keep helpers in `types.ts` when required by a public declaration), and
       use `import type { ... }` to reference the `meta.f.mjs` values.
@@ -338,6 +349,10 @@ References to packaged `meta.f.mjs` are allowed.
   intentional breaking API change: repository importers use the new path, the
   changelog records the break, and no compatibility typedef/re-export preserves
   the old type entry point.
+- Moving a public runtime constant from `module.f.mjs` to `meta.f.mjs` is an
+  intentional breaking API change: repository runtime importers use the new
+  path, the changelog records the break, and no compatibility export/re-export
+  preserves the old runtime entry point.
 - Private `_` helpers required to express public types also remain in `types.ts`
   and are not source exports merely because they are declaration helpers.
 - Other private file-scope types live in `private.ts` and keep `_`.
