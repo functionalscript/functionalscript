@@ -292,6 +292,9 @@ with `SyntaxError: Cannot use tagged templates in an optional chain`, where
 It is [oven-sh/bun#31812](https://github.com/oven-sh/bun/issues/31812), filed
 for the `new` sibling `new (baz()?.qux)()`; one root cause, the parenthesis
 ceasing to end the chain, so restrictions that hold inside it leak past.
+Both halves are tracked, with the versions they were measured on and what
+unblocks them, in
+[bun-optional-chain-parentheses.md](../../todo/blocked/bun-optional-chain-parentheses.md).
 
 ### The cost
 
