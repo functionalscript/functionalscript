@@ -21,7 +21,7 @@
  * @import { LockField, LockFieldSchema, LockMap, LockSchema, Revision, RevisionError } from './types.ts'
  */
 
-import { array, number, option, string } from '../../types/rtti/module.f.mjs'
+import { array, number, open, option, string } from '../../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
 import { parse as parseJson } from '../json/module.f.mjs'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
@@ -113,8 +113,14 @@ export const lockField = () => ['or', hash, lock]
  * rtti schema for a `revision` BLOB. See the README for the full semantics of
  * each field; `dialect` is the type discriminant, matched here as an exact
  * literal so structural validation alone rejects any other dialect's blob.
+ *
+ * `open`, and deliberately so: a bare struct is closed, so an older reader
+ * would reject a blob a newer writer had added a field to, and this dialect's
+ * own versioning rule — additive extension keeps the tag, see `./README.md` —
+ * is stated in terms of that older reader accepting it. Do not drop the
+ * wrapper.
  */
-export const revisionSchema = /** @type {const} */ ({
+export const revisionSchema = open(/** @type {const} */ ({
     dialect,
     subject: string,
     parents: array(hash),
@@ -122,7 +128,7 @@ export const revisionSchema = /** @type {const} */ ({
     generation: number,
     archived: option(true),
     lock: option(lockField),
-})
+}))
 
 /** Serializes a revision canonically, recursively sorting every object's property names.
  * @type {(revision: Revision) => string}

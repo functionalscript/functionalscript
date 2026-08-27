@@ -89,7 +89,7 @@ export const proof = {
             assertEq(t, 'error')
         },
 
-        // rtti structs are open, so unknown fields are ignored rather than
+        // `noteSchema` says `open`, so unknown fields are ignored rather than
         // rejected — the additive forward-compatibility path every future
         // extension (title, tags, dates, …) relies on.
         unknownFieldsIgnored: () => {

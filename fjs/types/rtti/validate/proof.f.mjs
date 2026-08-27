@@ -10,7 +10,7 @@
 import { validate } from './module.f.mjs'
 import { parse } from '../parse/module.f.mjs'
 import { toData, validate as dataValidate } from '../data/module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, close, record, or, option } from '../module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../module.f.mjs'
 import { unwrap } from '../../result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 
@@ -41,9 +41,52 @@ const p = t => /** @type {any} */ (parse(t))
 const d = t => dataValidate(toData(t))
 
 /**
- * The acceptance table. Rows cover both container kinds, openness and
- * closedness on both, the short-array rule, primitives, `or`, and misses —
- * every reader of a schema has to answer them the same way.
+ * A rest that is its own container, so nothing about it is inline: the
+ * conversion keeps `rest: "recursiveRest"` rather than recognizing that no
+ * finite array inhabits it, and every reader accepts a hole past the prefix
+ * accordingly. It is one of the two rests {@link emptyRests} must *not*
+ * recognize.
+ *
+ * @typedef {() => readonly ['rest', readonly [_RecursiveRest], typeof never]} _RecursiveRest
+ */
+
+/** @type {_RecursiveRest} */
+const recursiveRest = () => ['rest', [recursiveRest], never]
+
+/**
+ * The other one: a pure `or` cycle. `toData(orCycleA)` **is** `never`, yet as a
+ * rest it converts to a reference and stays, so a test on the rest's own
+ * canonical data would answer the opposite of the criterion.
+ *
+ * @typedef {() => readonly ['or', _OrCycleB]} _OrCycleA
+ * @typedef {() => readonly ['or', _OrCycleA]} _OrCycleB
+ */
+
+/** @type {_OrCycleA} */
+const orCycleA = () => ['or', orCycleB]
+
+/** @type {_OrCycleB} */
+const orCycleB = () => ['or', orCycleA]
+
+/**
+ * Two separately constructed copies of one recursive rule. Converting a rest
+ * reserves its rule name first, so the container's copy is named `r0` where
+ * converting the container alone names it `r` — which is what rules `equal`
+ * out as the comparison behind {@link emptyRests}.
+ *
+ * @typedef {() => readonly ['or', undefined, () => readonly ['array', _SelfList]]} _SelfList
+ */
+
+/** @type {_SelfList} */
+const selfList0 = () => ['or', undefined, array(selfList0)]
+
+/** @type {_SelfList} */
+const selfList1 = () => ['or', undefined, array(selfList1)]
+
+/**
+ * The acceptance table. Rows cover both container kinds, the closed default
+ * and a stated rest on both, the short-array rule, primitives, `or`, and
+ * misses — every reader of a schema has to answer them the same way.
  *
  * @type {readonly (readonly [Type, Unknown])[]}
  */
@@ -66,12 +109,35 @@ const rows = [
     [array(number), Object.assign([1], { foo: 'x' })],
     [array(number), Object.assign([1], { '-1': 'x' })],
     [array(number), Object.assign([1], { '01': 'x' })],
+    // an empty element set is the empty array, not "any number of holes": the
+    // data form normalizes such a rest away, which leaves the exact-length
+    // pattern, and the thunk readers bound the length to match
+    [array(or()), []],
+    [array(or()), new Array(1)],
+    [array(number), [, ,]],
     [record(number), { a: 1 }],
     [record(number), { a: 'one' }],
     [record(number), []],
-    // the four openness rows
+    // the closed default, on both kinds
     [[/** @type {const} */ (42)], [42, 'extra']],
+    [[/** @type {const} */ (42)], [42]],
+    [[/** @type {const} */ (42)], [42, undefined]],
+    [[/** @type {const} */ (42)], [42, ,]],
+    [[/** @type {const} */ (42)], Object.assign([42], { foo: 1 })],
+    [[/** @type {const} */ (42)], []],
     [{ a: /** @type {const} */ (42) }, { a: 42, b: 'x' }],
+    [{ a: /** @type {const} */ (42) }, { a: 42 }],
+    // a key declared `unknown` is a member the schema has, so the canonical
+    // form must not drop it the way an `open` struct's is dropped
+    [{ a: unknown }, { a: 1 }],
+    [{ a: unknown }, { a: 1, b: 2 }],
+    // and the same rows under `open`, which is the form that admits them
+    [open([/** @type {const} */ (42)]), [42, 'extra']],
+    [open({ a: /** @type {const} */ (42) }), { a: 42, b: 'x' }],
+    [open([]), [1]],
+    [open({}), { a: 1 }],
+    // closedness is about *undeclared* members and leaves the short-array rule
+    // alone
     [[number, option(string)], [42]],
     // the rule is per position, not "the last one": every trailing position
     // whose set admits `undefined` may be absent, so an array may stop at the
@@ -81,49 +147,52 @@ const rows = [
     [[number, bigint, option(string), option(null)], [2, 4n, 'x', null]],
     [[number, bigint, option(string), option(null)], [2]],
     [[number, bigint, option(string), option(null)], [2, 4n, 5]],
-    [[/** @type {const} */ (42)], []],
     [{ a: number, b: option(string) }, { a: 1 }],
     [{ a: number }, { a: 'one' }],
     // a hole in a tuple schema is a declared position whose schema is
     // `undefined`, so the schema's length is what it declares — the reading
     // the data form has always had, and the one `Object.entries` lost
     [new Array(1), [1, 2, 3]],
+    [new Array(1), new Array(1)],
     [new Array(1), [undefined]],
+    [new Array(1), [1]],
     [new Array(1), []],
     [[, number], [9, 5]],
     [[, number], [undefined, 5]],
     // and a non-index enumerable own property is no position at all: a tuple
-    // schema is read by index, so `foo` was declared and then matched against
-    // `value[NaN]`, which no ordinary value carries
+    // schema is read by index, so `foo` declares nothing — which leaves a
+    // value's own `foo` an undeclared member like any other
     [Object.assign([number], { foo: string }), [1]],
     [Object.assign([number], { foo: string }), Object.assign([1], { foo: 'x' })],
-    // the closed counterparts of the four openness rows, and the rest
-    [close([number]), [42]],
-    [close([number]), [42, 'extra']],
-    [close([number]), [42, ,]],
-    [close([number]), Object.assign([42], { foo: 1 })],
-    [close([number]), []],
-    [close(new Array(1)), new Array(1)],
-    [close(new Array(1)), [undefined]],
-    [close(new Array(1)), [1]],
-    [close([number, option(string)]), [42]],
-    [close({ a: number }), { a: 1 }],
-    [close({ a: number }), { a: 1, b: 'x' }],
-    // a key declared `unknown` is a member the schema has, so the canonical
-    // form must not drop it the way an open struct's is dropped
-    [close({ a: unknown }), { a: 1 }],
-    [close({ a: unknown }), { a: 1, b: 2 }],
-    [close([number], string), [1, 'x', 'y']],
-    [close([number], string), [1, 2]],
-    [close({ a: number }, string), { a: 1, b: 'x' }],
-    [close({ a: number }, string), { a: 1, b: 2 }],
-    // an unconstrained rest is the open form again
-    [close([number], unknown), [1, 'x']],
-    [close({ a: number }, unknown), { a: 1, b: 'x' }],
-    [close([]), []],
-    [close([]), [1]],
-    [close({}), {}],
-    [close({}), { a: 1 }],
+    [open(Object.assign([number], { foo: string })), Object.assign([1], { foo: 'x' })],
+    // a stated rest: what an undeclared member must be
+    [rest([number], string), [1, 'x', 'y']],
+    [rest([number], string), [1, 2]],
+    // a hole past the prefix is no member, so it meets no rest — which is what
+    // the `| undefined` in the rendered tail says
+    [rest([number], string), [1, ,]],
+    // An index the prototype supplies, and a key past the index range, are
+    // members too — both need in-place mutation to build, so their rows run
+    // through the same three readers in `../host.proof.mjs`.
+    [rest({ a: number }, string), { a: 1, b: 'x' }],
+    [rest({ a: number }, string), { a: 1, b: 2 }],
+    // a stated rest with nothing to answer for: the struct kind has no length,
+    // so it fits whatever the rest is
+    [rest({ a: number }, string), { a: 1 }],
+    // an unconstrained rest is `open`
+    [rest([number], unknown), [1, 'x']],
+    [rest({ a: number }, unknown), { a: 1, b: 'x' }],
+    // an empty one is the bare form, so the length is bounded again
+    [rest([number], never), [1, ,]],
+    [rest([number], or()), [1, ,]],
+    [rest([number], [or()]), [1, ,]],
+    [rest([number], [or()]), [1, 2]],
+    // …and a rest the conversion keeps is not empty, however few values it
+    // has: these two are the pair that tells the criterion from an emptiness
+    // analysis
+    [rest([number], recursiveRest), [1, ,]],
+    [rest([number], orCycleA), [1, ,]],
+    [rest([selfList0], [selfList1, never]), [undefined, ,]],
     [or(number, string), true],
     [or(number, string), 'hello'],
     [option(number), undefined],
@@ -151,16 +220,17 @@ export const proof = {
             // The contrast that motivates the module.
             assert('b' in unwrap(parse(schema)(input)), 'parse materializes it')
         },
-        // An undeclared member survives. `parse` accepts it too — structs and
-        // tuples are open — but does not carry it into what it builds.
+        // An undeclared member survives — where the schema admits one at all.
+        // `parse` accepts the same values and does not carry the member into
+        // what it builds.
         undeclaredMemberSurvives: () => {
-            const schema = { a: number }
+            const schema = open({ a: number })
             const struct = { a: 1, b: 'extra' }
             assertStructurallySame(unwrap(validate(schema)(struct)), { a: 1, b: 'extra' })
             assert(!('b' in unwrap(parse(schema)(struct))), 'parse drops it')
             // The same on the other kind: a longer array keeps its tail.
             const tuple = [1, 'extra']
-            assertStructurallySame(unwrap(validate([number])(tuple)), [1, 'extra'])
+            assertStructurallySame(unwrap(validate(open([number]))(tuple)), [1, 'extra'])
         },
         // On success the result *is* the argument. This is the property the
         // other two follow from, and the mirror of `../parse/proof.f.mjs`'s
@@ -178,7 +248,7 @@ export const proof = {
             same(unknown, arr)
             const obj = { a: 1, b: 2 }
             same(record(number), obj)
-            same({ a: number }, obj)
+            same({ a: number, b: number }, obj)
             same(or(string, record(number)), obj)
             const nested = { xs: [{ a: 1 }] }
             same({ xs: array({ a: number }) }, nested)
@@ -224,11 +294,11 @@ export const proof = {
     // truncated, so the cases below also omit position 2 while position 3 is
     // present, and omit a required position with everything after it present.
     //
-    // Every case runs against the closed form too. `close` is a separate
-    // reader on all three — `closeContainerValidate`/`closeContainerParse`,
-    // and its own conversion in the data form — and it narrows *which values
-    // are members*, not which positions are required, so it must answer these
-    // identically. The one case where closing does change the answer is at the
+    // Every case runs against the `open` form too. A stated rest is a separate
+    // reader on all three — `restContainerValidate`/`restContainerParse`, and
+    // its own conversion in the data form — and it widens *which values are
+    // members*, not which positions are required, so it must answer these
+    // identically. The one case where opening does change the answer is at the
     // end.
     optionalPositions: () => {
         const t = /** @type {const} */ ([number, bigint, option(string), option(null)])
@@ -238,7 +308,7 @@ export const proof = {
                 value => {
                     for (const read of [v, p, d]) { check(read(rtti)(value)) }
                 }
-        for (const rtti of [t, close(t)]) {
+        for (const rtti of [t, open(t)]) {
             const accepted = every(rtti)(assertOk)
             const rejected = every(rtti)(assertError)
             accepted([2, 4n])                  // stops at the last required position
@@ -256,17 +326,17 @@ export const proof = {
             // so omitting position 1 fails however much of the rest is present.
             rejected([2, , 'x', null])         //< a hole at position 1
         }
-        // What closing does change: an element past the declared positions is
-        // a member of the open set and not of the closed one.
+        // What opening does change: an element past the declared positions is
+        // a member of the open set and not of the bare, closed one.
         const extra = /** @type {const} */ ([2, 4n, 'x', null, 'extra'])
-        every(t)(assertOk)(extra)
-        every(close(t))(assertError)(extra)
+        every(t)(assertError)(extra)
+        every(open(t))(assertOk)(extra)
         // How stopping short composes with running long: the two rules are
         // independent, so the open form's accepted lengths run from the last
         // required position upwards without a gap or a cap — 2, 3, 4, 5, and
-        // on. `close` caps the top at the declared count and leaves the bottom
-        // where it is.
-        every(t)(assertOk)([2, 4n, 'x', null, 'a', 'b'])
+        // on. The bare form caps the top at the declared count and leaves the
+        // bottom where it is.
+        every(open(t))(assertOk)([2, 4n, 'x', null, 'a', 'b'])
     },
     // An interior omittable position may be absent with a *required* position
     // after it, which is the sharpest witness that absence is per position
@@ -282,19 +352,19 @@ export const proof = {
                 value => {
                     for (const read of [v, p, d]) { check(read(rtti)(value)) }
                 }
-        // Closed too, for the reason `optionalPositions` runs both: `close` is
-        // its own reader on all three, and this schema is not one of the
-        // shapes the trailing-option cases there already put through it.
-        for (const rtti of [t, close(t)]) {
+        // Open too, for the reason `optionalPositions` runs both: a stated
+        // rest is its own reader on all three, and this schema is not one of
+        // the shapes the trailing-option cases there already put through it.
+        for (const rtti of [t, open(t)]) {
             every(rtti)(assertOk)([, 5])          //< a hole at position 0
             every(rtti)(assertOk)([undefined, 5]) //< the same value, spelled densely
             every(rtti)(assertOk)(['x', 5])
             every(rtti)(assertError)([5])         //< `number` at position 1 is required
         }
-        // And the one answer closing changes here as well.
+        // And the one answer opening changes here as well.
         const extra = /** @type {const} */ (['x', 5, 'extra'])
-        every(t)(assertOk)(extra)
-        every(close(t))(assertError)(extra)
+        every(t)(assertError)(extra)
+        every(open(t))(assertOk)(extra)
     },
     // The two tables above pin that the three readers *agree*; these pin what
     // they agree on, which is what the changelog entry claims.
@@ -305,16 +375,21 @@ export const proof = {
             assertError(validate(new Array(1))([1, 2, 3]))
             assertOk(validate(new Array(1))([undefined]))
         },
-        // A hole is a position, so a closed sparse schema is as long as it
-        // looks: `declared.length` is the schema's length, not its key count.
-        closedArityIsTheSchemaLength: () => {
-            assertOk(validate(close(new Array(1)))([undefined]))
-            assertError(validate(close(new Array(1)))([1]))
+        // A hole is a position, so a sparse schema is as long as it looks:
+        // `declared.length` is the schema's length, not its key count.
+        arityIsTheSchemaLength: () => {
+            assertOk(validate(new Array(1))([undefined]))
+            assertError(validate(new Array(1))([1]))
         },
+        // A tuple schema is read by index, so `foo` declares no position — it
+        // is not matched against anything, and on the value side it is an
+        // undeclared member like any other, which the closed form rejects and
+        // `open` admits.
         nonIndexPropertyIsNotDeclared: () => {
             const schema = Object.assign([number], { foo: string })
             assertOk(validate(schema)([1]))
-            assertOk(validate(schema)(Object.assign([1], { foo: 'x' })))
+            assertError(validate(schema)(Object.assign([1], { foo: 'x' })))
+            assertOk(validate(open(schema))(Object.assign([1], { foo: 'x' })))
             assertError(validate(schema)(['x']))
         },
     },
@@ -431,15 +506,13 @@ export const proof = {
         tuple: {
             ok: () => assertStructurallySame(
                 unwrap(validate([42, 'hello'])([42, 'hello'])), [42, 'hello']),
-            // A tuple is OPEN, and the extras are still there afterwards. This
-            // is deliberate — see "Structs and tuples are open" in
-            // ../README.md. Do not restore #1622's length check on the
-            // strength of `Ts<readonly [42]>` being an exact tuple; that
-            // mapping is exact only because TypeScript could not express the
-            // open one (see ../ts/types.ts `TupleTs`).
-            extraItemsAcceptedAndKept: () => {
+            // A tuple is CLOSED, so a longer array is not one of its values —
+            // see "Structs and tuples are closed" in ../README.md. Under
+            // `open` it is, and it comes back as it went in.
+            extraItemsRejected: () => {
                 const long = [42, 1, 2, 3]
-                assert(Object.is(unwrap(validate([42])(long)), long),
+                assertError(validate([42])(long))
+                assert(Object.is(unwrap(validate(open([42]))(long)), long),
                     'the longer array comes back as it went in')
             },
             // An absent member reads as `undefined`, so a position is required
@@ -547,7 +620,7 @@ export const proof = {
         // result. `parse` here returns a length-1 array; `validate` returns
         // the length-3 one it was given.
         firstMatchWins: () => {
-            const t = or([number], array(number))
+            const t = or(open([number]), array(number))
             const input = [1, 2, 3]
             assert(Object.is(unwrap(validate(t)(input)), input), 'expected the original array')
             assertStructurallySame(unwrap(parse(t)(input)), [1])
@@ -612,36 +685,90 @@ export const proof = {
             assertError(x({ a: 42 }))
         },
     },
-    // Closedness narrows acceptance and nothing else: a success still carries
+    // A stated rest widens acceptance and nothing else: a success still carries
     // the very value it was given. The acceptance half is in the table above,
     // run through all three readers; what is left to pin here is that
-    // `validate` stays verbatim on the new form too.
-    close: {
+    // `validate` stays verbatim on that form too.
+    rest: {
         verbatim: () => {
             const value = [1, 'x', 'y']
-            assert(Object.is(unwrap(validate(close([number], string))(value)), value),
+            assert(Object.is(unwrap(validate(rest([number], string))(value)), value),
                 'the value comes back as it went in')
             const struct = { a: 1, b: 'x' }
-            assert(Object.is(unwrap(validate(close({ a: number }, string))(struct)), struct),
+            assert(Object.is(unwrap(validate(rest({ a: number }, string))(struct)), struct),
                 'and so does an object with rest-matching keys')
         },
-        // An absent optional member still stays absent — closing a container
+        // An absent optional member still stays absent — a container's rest
         // says nothing about a member it declares.
         absentOptionalStaysAbsent: () => {
-            const out = unwrap(validate(close({ a: number, b: option(string) }))({ a: 1 }))
+            const out = unwrap(validate({ a: number, b: option(string) })({ a: 1 }))
             assert(!('b' in out), 'an absent optional member must stay absent')
         },
         path: () => {
-            assertErrorPath(['1'])(validate(close([number, number]))([1, 'two']))
-            assertErrorPath(['b'])(validate(close({ a: number }, string))({ a: 1, b: 2 }))
+            assertErrorPath(['1'])(validate([number, number])([1, 'two']))
+            assertErrorPath(['b'])(validate(rest({ a: number }, string))({ a: 1, b: 2 }))
             // The rejection of an undeclared member is about the container, so
             // it is reported at the container.
-            assertErrorPath([])(validate(close({ a: number }))({ a: 1, b: 2 }))
+            assertErrorPath([])(validate({ a: number })({ a: 1, b: 2 }))
         },
         notAContainer: () => {
-            assertError(validate(close([number]))({}))
-            assertError(validate(close({ a: number }))([]))
+            assertError(validate(rest([number], string))({}))
+            assertError(validate(rest({ a: number }, string))([]))
         },
+    },
+    // The three-reader table pins that the readers *agree* on the empty-rest
+    // criterion; these assert the verdict outright, since a row alone passes
+    // whenever all three move together. Each spelling is named rather than
+    // covered by "an independently constructed empty rest": an implementation
+    // recognizing empty unions but not `[or()]` passes the `or()` row while
+    // keeping that spelling's disagreement, and one keyed on the exported
+    // `never`'s identity passes the converse.
+    emptyRests: {
+        dropped: () => {
+            for (const r of [never, or(), [or()]]) {
+                assertError(validate(rest([number], r))([42, ,]))
+            }
+            // The name collision: converting the rest reserves `r`, so the
+            // container's own rule is named `r0` — which `equal` reads as a
+            // different schema and `subset` both ways does not.
+            assertError(v(rest([selfList0], [selfList1, never]))([undefined, ,]))
+        },
+        kept: () => {
+            // A rest the conversion keeps is not empty however few values it
+            // has: `recursiveRest` catches an emptiness analysis that reaches
+            // container cycles, `orCycleA` one that tests the rest's own
+            // canonical data, and `unknown` one that reads the absence of a
+            // `rest` key as elimination.
+            // `v` rather than `validate`: `Ts<>` walks a recursive schema
+            // structurally, and these two exist to be recursive.
+            assertOk(v(rest([number], recursiveRest))([42, ,]))
+            assertOk(v(rest([number], orCycleA))([42, ,]))
+            assertOk(validate(open([]))([1]))
+        },
+    },
+    // The two ways an array can reach past a closed prefix, told apart. The
+    // acceptance table pins that the three readers agree on both; these assert
+    // the verdict, since a row alone passes whenever all three move together.
+    // The hole is rejected by *length* — it is no member, so the member check
+    // alone would let it through — and the explicit `undefined` by the member
+    // check, since it is a member and the schema declares no position for it.
+    // A closed tuple therefore has exactly one spelling per value.
+    beyondAClosedPrefix: () => {
+        for (const read of [v, p, d]) {
+            assertError(read([/** @type {const} */ (42)])([42, ,]))
+            assertError(read([/** @type {const} */ (42)])([42, undefined]))
+            assertOk(read([/** @type {const} */ (42)])([42]))
+        }
+    },
+    // The walk is bounded by what the value and its prototypes carry rather
+    // than by `length`: a sparse array as long as the index space allows
+    // answers at once, where materializing the range exhausted memory first.
+    // The verdicts are the ordinary ones — a bare tuple is too short for it,
+    // a rest with nothing present past the prefix admits it.
+    lengthDoesNotBoundTheWalk: () => {
+        const big = new Array(2 ** 32 - 1)
+        assertError(v([option(string)])(big))
+        assertOk(v(rest([], string))(big))
     },
     arrayOptional: () => {
         const a = /** @type {const} */([number, option(string)])

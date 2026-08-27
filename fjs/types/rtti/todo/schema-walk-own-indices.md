@@ -61,16 +61,19 @@ Undecided; the two options are not a ladder.
 Option 2 is only coherent if **both** move. Changing `tupleSchemaEntries` alone
 re-opens the split that #1712 closed — measured on the probes above.
 
-The value side is a separate question, and settled in the sense that matters
-here: `getItem` reads `value[k]`, following a value's prototype chain, while
-`undeclaredEntries` enumerates own keys only — an asymmetry, but one all three
-readers share. It is not inert, though: it bounds what a canonicalization may
-merge. In
-[`./close-counts-trailing-undefined.md`](./close-counts-trailing-undefined.md)
-it is the reason answer A keeps `close([number, () => ['const', undefined]])`
-distinct from `close([number])`, an inherited index at 1 telling those two
-apart, while the spellings A does merge answer alike on the same values.
-Neither decision is a prerequisite for the other.
+The value side is a separate question, and mostly settled: `getItem` reads
+`value[k]`, following a value's prototype chain, and `undeclaredMembers` now
+walks `0 … length - 1` and holds every *readable* index to the schema, so the
+declared and undeclared halves agree and all three readers share the reading.
+What is left is the region **at or above `length`**, which no walk bounded by
+the value reaches — see "Beyond `length`" in `../README.md`.
+
+That residue is not inert: it bounds what a canonicalization may merge. It is
+what keeps `[number, () => ['const', undefined]]` distinct from `[number]` —
+an inherited index at 1 tells those two apart, since the first *reads* it and
+the second is bounded by its length — while spellings that differ only in how
+they say "nothing there" answer alike on the same values. Neither decision is a
+prerequisite for the other.
 
 ## Tasks
 

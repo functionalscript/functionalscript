@@ -19,7 +19,7 @@
  */
 
 import { at } from '../../types/object/module.f.mjs'
-import { number, string, or, option } from '../../types/rtti/module.f.mjs'
+import { number, open, string, or, option } from '../../types/rtti/module.f.mjs'
 import { parse } from '../../types/rtti/parse/module.f.mjs'
 import { unknown } from '../../media/json/rtti/module.f.mjs'
 
@@ -32,29 +32,34 @@ export const _id = or(string, number, null)
  * A request or notification envelope. `id` present → request (a response is
  * expected); `id` absent → notification (no response). `params` is optional.
  *
+ * `open`, as every envelope in this module is: a bare struct is closed, and a
+ * peer implementing a later revision of the protocol may send members this one
+ * does not name — rejecting those outright is the opposite of what a wire
+ * format wants. Do not drop the wrapper.
+ *
  * https://www.jsonrpc.org/specification#request_object
  */
-export const request = /** @type {const} */ ({
+export const request = open(/** @type {const} */ ({
     jsonrpc,
     method: string,
     params: option(unknown),
     id: option(_id),
-})
+}))
 
-/** The JSON-RPC error object. */
-export const error = /** @type {const} */ ({
+/** The JSON-RPC error object — `open`, for the reason {@link request} gives. */
+export const error = open(/** @type {const} */ ({
     code: number,
     message: string,
     data: option(unknown),
-})
+}))
 
-export const successResponse = /** @type {const} */ ({ jsonrpc, result: unknown, id: _id })
-export const errorResponse = /** @type {const} */ ({ jsonrpc, error, id: _id })
+export const successResponse = open(/** @type {const} */ ({ jsonrpc, result: unknown, id: _id }))
+export const errorResponse = open(/** @type {const} */ ({ jsonrpc, error, id: _id }))
 
 /**
  * A response envelope: either a success (`result`) or an error (`error`).
  * Derived from the rtti schema via `Ts<>` — the same declaration is the
- * runtime decoder and the static type, with no drift. rtti structs are open
+ * runtime decoder and the static type, with no drift. Both arms say `open`
  * (extra keys allowed), so "result XOR error" is not enforced at runtime; in
  * practice the dispatcher only ever constructs one or the other.
  *

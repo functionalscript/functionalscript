@@ -11,7 +11,7 @@
  */
 
 import type { And, Equal } from '../../ts/types.ts'
-import type { Tag0, Tag1, Const, Or, Boolean as RttiBoolean, Bigint as RttiBigint, Number as RttiNumber, String as RttiString, Struct, Tuple, Type, ConstObject } from '../types.ts'
+import type { Tag0, Tag1, Const, Or, Boolean as RttiBoolean, Bigint as RttiBigint, Number as RttiNumber, String as RttiString, Unknown as RttiUnknown, Struct, Tuple, Type, ConstObject } from '../types.ts'
 import type { Assert } from '../../../asserts/types.ts'
 import type { phantomKey } from '../../phantom/types.ts'
 import type { StringMap } from '../../object/types.ts'
@@ -109,19 +109,12 @@ export type RecordTs<T extends Type> = { readonly[K in string]?: Ts<T> }
  * splitting) crashes the compiler outright — a Go stack overflow in tsgo
  * 7.0.2, not a diagnostic.
  *
- * **The remaining approximation is open-ness, and it is deliberate.** A tuple
- * schema is *open* — a longer array is a member of the set it describes (see
- * "Structs and tuples are open" in `../README.md`) — which needs a trailing
- * rest element, `readonly[...mapped, ...readonly Unknown[]]`. That is still
- * the derivation TypeScript will not carry generically, so what is rendered
- * here is exact-length at the top end and optional at the bottom.
- *
- * Do not cite that exactness as evidence that tuples are closed and add a
- * length check to `../parse/module.f.mjs`; that inference is what produced
- * #1622. The runtime printer (`./module.f.mjs`) prints one concrete pattern
- * rather than a mapping over a generic `T`, so it emits the rest element and
- * renders the open set exactly. A schema that wants exact members says so —
- * see {@link CloseTs} and "Closed containers" in `../README.md`.
+ * **The exact length is the model, not an approximation of it.** A bare tuple
+ * schema is *closed* — the positions it declares and no others (see "Structs
+ * and tuples are closed" in `../README.md`) — which is what a TypeScript tuple
+ * already means, so this rendering and the schema denote the same set and
+ * `validate`'s success cast is sound. A schema admitting more says so, and
+ * {@link RestTs} renders the tail it says it with.
  */
 type MappedTs<T extends Tuple> = Extract<{ readonly[K in keyof T]: Ts<T[K]> }, readonly unknown[]>
 
@@ -188,27 +181,64 @@ type RequiredFields<T extends Struct> = {
 }
 
 /**
- * Maps a closed container schema to the resolved type of its declared members
- * — `ConstTs<C>`, the same mapping the open form gets.
+ * Maps a container with a stated rest to the resolved type of its declared
+ * members, **plus the tail the rest states**.
  *
- * For `close(c)` this is the *exact* rendering rather than the approximation
- * {@link TupleTs} settles for: the set is the declared members and nothing
- * else, which is what a TypeScript tuple — with its trailing omittable
- * positions optional, as {@link TupleTs} renders them — already means. (An object type stays
- * structurally open, so a closed struct still renders as wide as TypeScript
- * can render it.)
+ * The struct kind needs no tail: an object type is width-open in TypeScript,
+ * so `ConstTs<C>` already admits the undeclared keys — as wide as TypeScript
+ * can render either way.
  *
- * For `close(c, rest)` the rest is **not rendered**, and that is a gap in this
- * transformer, not in the model. Expressing "these positions, plus anything
- * after" over a generic schema tuple is the derivation {@link TupleTs}
- * documents TypeScript as unable to carry, and rendering only one of the two
- * kinds would be worse than rendering neither. It costs nothing where it
- * matters most: `../parse/module.f.mjs` builds the declared members and no
- * others, so this *is* what a closed parse returns either way. The runtime
- * printer (`./module.f.mjs`) goes through the data form and renders the rest
- * exactly.
+ * The tuple kind does, and a rename of the old exact-only rendering would have
+ * relocated the unsound cast rather than removing it: `Ts<typeof open([42])>`
+ * would be the exact `readonly[42]` while `validate(open([42]))([42, 'x'])`
+ * accepts and hands back two elements.
+ *
+ * **The tail admits `undefined`.** Both readers check an undeclared member as
+ * a member, and a hole past the prefix is no member, so
+ * `validate(rest([42], string))([42, , ])` is `ok` and index 1 reads
+ * `undefined`. `...(Ts<R> | undefined)[]` is what "a rest never sees an absent
+ * member" says on the type side. The common case pays nothing: `open(c)`'s
+ * rest is `unknown`, which already admits `undefined`.
+ *
+ * **An empty rest renders no tail**, since `rest(c, or())` is the bare `c` —
+ * one set, so one rendering, and `readonly[42, ...undefined[]]` would admit
+ * the `[42, undefined]` both readers reject. What counts as empty is
+ * `emptyRest`'s question in `../data/module.f.mjs`, and that is a `toData`
+ * conversion plus `subset` both ways, which `types.ts` cannot invoke. Nor is
+ * `Ts<R> extends never` a substitute — `Ts<readonly[Or<readonly[]>]>` is
+ * `readonly[never]`, whose `length` is `1`. So this recognizes the one
+ * directly spellable empty rest, `or()`, and **keeps the tail whenever it
+ * cannot tell**. The conservatism has a direction: a kept tail is wider than
+ * the schema but sound — every accepted value still has the rendered type,
+ * which is the only direction a success cast needs — while a wrongly dropped
+ * one is the unsound cast. Where that leaves this and the runtime printer
+ * disagreeing (`rest([42], readonly[Or<readonly[]>])`, which the data form
+ * recognizes as empty and this does not) the printer is the narrower of the
+ * two; see {@link _restEmptyIndirect}.
+ *
+ * The other place the two differ is a rest with **no prefix**, which is the
+ * uniform array: `rest([], string)` and `array(string)` are one set, so the
+ * printer — which goes through the data form and sees one node — prints
+ * `ArrayTs`'s `readonly(string)[]` for both, while this renders the tail and
+ * so answers `readonly(string|undefined)[]` for the first. The tail is the
+ * sound one of the two, a hole being no member on either spelling; `ArrayTs`
+ * carries that gap already and closing it is its own change, not this one's.
+ * See {@link _restNoPrefix}.
  */
-export type CloseTs<C extends ConstObject> = ConstTs<C>
+export type RestTs<C extends ConstObject, R extends Type> =
+    C extends Tuple ? TupleRestTs<C, R> : ConstTs<C>
+
+/**
+ * `[R] extends [...]` rather than a naked `R`: a naked one distributes, and a
+ * union rest would then render a union of tuples rather than a tuple whose
+ * tail is a union.
+ */
+type TupleRestTs<C extends Tuple, R extends Type> =
+    [R] extends [Or<readonly []>]
+        ? TupleTs<C>
+        : TupleTs<C> extends infer M extends readonly unknown[]
+            ? readonly [...M, ...ReadonlyArray<Ts<R> | undefined>]
+            : never
 
 /** Maps a struct schema to a readonly object of resolved types, with optional fields for schemas that include `undefined`. */
 export type StructTs<T extends Struct> =
@@ -291,8 +321,8 @@ export type Ts<T extends Type> =
         I extends readonly['record', infer E extends Type] ? { readonly[k in string]?: Ts<E> } :
         // Or
         I extends readonly['or', ...infer A extends readonly Type[]] ? Ts<A[number]> :
-        // Close — the rest, when there is one, is a documented gap; see `CloseTs`
-        I extends readonly['close', infer C extends ConstObject, ...readonly unknown[]] ? CloseTs<C> :
+        // Rest
+        I extends readonly['rest', infer C extends ConstObject, infer R extends Type] ? RestTs<C, R> :
         //
         never
     ) :
@@ -394,16 +424,54 @@ type _SelfArrayType = () => readonly['array', _SelfArrayType]
 
 type _selfArray = Assert<Check<_SelfArray, _SelfArrayType>>
 
-type _closeTuple = Assert<Check<
-    readonly[12, true],
-    () => readonly['close', readonly[12, true]]>>
+/** A bare `Const` is closed, and renders exactly. */
+type _bareTuple = Assert<Check<readonly[12, true], readonly[12, true]>>
 
-type _closeStruct = Assert<Check<
-    { readonly a: string },
-    () => readonly['close', { readonly a: RttiString }]>>
+type _bareStruct = Assert<Check<{ readonly a: string }, { readonly a: RttiString }>>
 
-// The rest is the documented gap: `Ts<>` renders the declared members alone,
-// which is exactly what a closed `parse` builds.
-type _closeRest = Assert<Check<
+/** An empty rest is the bare form, and renders as it does. */
+type _restEmpty = Assert<Check<
     readonly[12],
-    () => readonly['close', readonly[12], RttiString]>>
+    () => readonly['rest', readonly[12], Or<readonly[]>]>>
+
+/**
+ * The tail a stated rest renders, with the `undefined` a hole past the prefix
+ * reads as.
+ */
+type _restTail = Assert<Check<
+    readonly[12, ...readonly (string | undefined)[]],
+    () => readonly['rest', readonly[12], RttiString]>>
+
+/** `open(c)`: `Unknown` already admits `undefined`, so the tail is unchanged. */
+type _restOpen = Assert<Check<
+    readonly[12, ...readonly Unknown[]],
+    () => readonly['rest', readonly[12], RttiUnknown]>>
+
+/** The tail composes with the trailing-optional split. */
+type _restOptionTail = Assert<Check<
+    readonly[number, (string | undefined)?, ...readonly (boolean | undefined)[]],
+    () => readonly['rest', readonly[RttiNumber, Or<readonly[RttiString, undefined]>], RttiBoolean]>>
+
+/**
+ * A rest with no prefix is the uniform array, and renders the tail rather than
+ * `ArrayTs` — the sound half of the divergence {@link RestTs} documents.
+ */
+type _restNoPrefix = Assert<Check<
+    readonly (string | undefined)[],
+    () => readonly['rest', readonly[], RttiString]>>
+
+/** A struct's rest needs no rendering — an object type is width-open already. */
+type _restStruct = Assert<Check<
+    { readonly a: string },
+    () => readonly['rest', { readonly a: RttiString }, RttiNumber]>>
+
+/**
+ * The conservative half of the empty-rest rule, and the one row that separates
+ * this renderer from the runtime one: `readonly[or()]` is an empty rest — the
+ * data form converts the whole pattern to the exact `readonly[12]` and the
+ * printer drops the tail — while a syntactic test cannot see it, so the tail
+ * stays. Wider than the schema, and sound: the schema admits no such value.
+ */
+type _restEmptyIndirect = Assert<Check<
+    readonly[12, ...readonly (readonly[never] | undefined)[]],
+    () => readonly['rest', readonly[12], readonly[Or<readonly[]>]]>>

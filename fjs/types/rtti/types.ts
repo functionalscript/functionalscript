@@ -11,7 +11,7 @@
  * ```
  * Type = Const | Thunk
  * Thunk = () => Info
- * Info = ['const', Const] | Info0<Tag0> | Info1<Tag1, Type> | InfoClose<ConstObject, Type>
+ * Info = ['const', Const] | Info0<Tag0> | Info1<Tag1, Type> | InfoRest<ConstObject, Type>
  * ```
  *
  * ## Nullary schemas (no type parameter)
@@ -32,12 +32,12 @@
  * Inside a recursive `Thunk`-based definition, wrap consts with `() => ['const', c]`
  * to keep the schema uniform.
  *
- * ## Closed containers
+ * ## Undeclared members
  *
- * A `Struct` or a `Tuple` on its own is **open** — a value carrying more than
- * it declares is a member. `close(c)` states the exact-members set instead, and
- * `close(c, rest)` states "the declared members, plus any number of members
- * belonging to `rest`". See "Structs and tuples are open" in `./README.md`.
+ * A `Struct` or a `Tuple` on its own is **closed** — it admits the members it
+ * declares and no others. `rest(c, r)` states the set every undeclared member
+ * belongs to, and `open(c)` is `rest(c, unknown)`: any undeclared member at
+ * all. See "Structs and tuples are closed" in `./README.md`.
  *
  * ## Converting to TypeScript types
  *
@@ -97,9 +97,8 @@ export type Type =
         | readonly['record', Type]
         // Or
         | readonly['or', ...readonly Type[]]
-        // InfoClose<ConstObject, Type>
-        | readonly['close', ConstObject]
-        | readonly['close', ConstObject, Type]
+        // InfoRest<ConstObject, Type>
+        | readonly['rest', ConstObject, Type]
     ))
     | Const
 
@@ -111,8 +110,7 @@ type _AssertType = Assert<Equal<
         | Info0<Tag0>
         | Info1<Tag1, Type>
         | readonly['or', ...readonly Type[]]
-        | readonly['close', ConstObject]
-        | readonly['close', ConstObject, Type]
+        | InfoRest<ConstObject, Type>
         )
     )>>
 
@@ -155,19 +153,28 @@ export type Record<T extends Type> = Type1<'record', T>
 export type Or<T extends readonly Type[]> = () => readonly['or', ...T]
 
 /**
- * Info tuple for a closed container: `readonly[tag, container, rest]`, where
- * `rest` is the set every member the container does not declare belongs to.
- * A `rest` of `undefined` — written out or left off the tuple entirely —
- * admits no undeclared member at all.
+ * Info tuple for a container with a stated rest: `readonly[tag, container,
+ * rest]`, where `rest` is the set every member the container does not declare
+ * belongs to. A bare `C` is the same set with a rest of `never`, and needs no
+ * spelling of its own.
  */
-export type InfoClose<C extends ConstObject, R extends Type> = readonly['close', C, R]
+export type InfoRest<C extends ConstObject, R extends Type> = readonly['rest', C, R]
 
 /**
- * Schema type for a closed container `C` whose undeclared members are `R`.
- * `R` defaults to `undefined` — no undeclared member — so `Close<C>` is the
- * type of `close(c)`, matching the constructor's own optional parameter.
+ * Schema type for a container `C` whose undeclared members are `R`. Both
+ * parameters are required: `never` — the bare `C` — is the identity a schema
+ * writes by leaving the wrapper off, so there is no default to state.
  */
-export type Close<C extends ConstObject, R extends Type = undefined> = () => InfoClose<C, R>
+export type Rest<C extends ConstObject, R extends Type> = () => InfoRest<C, R>
 
-export type _MakeClose =
-    <const C extends ConstObject, const R extends Type = undefined>(c: C, rest?: R) => Close<C, R>
+export type _MakeRest =
+    <const C extends ConstObject, const R extends Type>(c: C, r: R) => Rest<C, R>
+
+/**
+ * `open`'s signature. It is not `_MakeRest` partially applied: the `const`
+ * modifier is what keeps `open([42])` a literal tuple rather than widening it
+ * to `Type[]`, so the modifier has to be restated here. `../proof.f.mjs` pins
+ * that, as it does for every other `const`-taking constructor.
+ */
+export type _MakeOpen =
+    <const C extends ConstObject>(c: C) => Rest<C, Unknown>

@@ -3,7 +3,6 @@
  *
  * @import { Assert } from '../asserts/types.ts'
  * @import { Check, Check3 } from '../types/rtti/ts/types.ts'
- * @import { Close } from '../types/rtti/types.ts'
  * @import {
  *  Array,
  *  Exp,
@@ -36,7 +35,6 @@
 import {
     bigint,
     boolean,
-    close,
     number,
     or,
     string,
@@ -44,13 +42,15 @@ import {
 } from "../types/rtti/module.f.mjs";
 
 /**
- * Every tuple here is `close`d — the members it declares and nothing else
- * ("Closed containers" in `../types/rtti/README.md`). That is not decoration:
- * the chain grammar below claims each JS chain has exactly one spelling, and
- * an open tuple would let any node carry a trailing element nothing reads,
- * splitting one function into unboundedly many graphs. No operand of any node
- * is optional either: a chain step that does no further work carries an
- * explicit `null` continuation, never a missing position.
+ * Every tuple here is closed — the members it declares and nothing else, which
+ * is what a bare `Tuple` says ("Structs and tuples are closed" in
+ * `../types/rtti/README.md`). That is load-bearing rather than incidental: the
+ * chain grammar below claims each JS chain has exactly one spelling, and an
+ * `open` tuple would let any node carry a trailing element nothing reads,
+ * splitting one function into unboundedly many graphs. So do **not** wrap any
+ * of these in `open`. No operand of any node is optional either: a chain step
+ * that does no further work carries an explicit `null` continuation, never a
+ * missing position.
  *
  * Do not call `parse(exp)` or rely on `validate(exp)` rejecting cycles
  * without reading `../types/rtti/todo/identity-aware-parse.md` first —
@@ -129,7 +129,7 @@ export const exps = rttiArray(exp)
  * Not a top-level `Exp`: `spread` only appears as an `items`/`properties`
  * alternative, never as an operand an operation node can hold directly.
  */
-export const spread = close(['...', exp])
+export const spread = /** @type {const} */ (['...', exp])
 
 /** @typedef {Assert<Check<Spread, typeof spread>>} _Spread */
 
@@ -148,7 +148,7 @@ export const items = or(exp, spread)
  * [exp0, ...exp1]
  * ```
  */
-export const array = close(['[]', rttiArray(items)])
+export const array = /** @type {const} */ (['[]', rttiArray(items)])
 
 /** @typedef {Assert<Check<Array, typeof array>>} _Array */
 
@@ -165,7 +165,7 @@ export const array = close(['[]', rttiArray(items)])
  * value is coerced via JS `ToPropertyKey` when the property is defined —
  * see `../../todo/edag-stage1-discussion.md` subject 4.
  */
-export const property = close([':', exp, exp])
+export const property = /** @type {const} */ ([':', exp, exp])
 
 /** @typedef {Assert<Check<Property, typeof property>>} _Property */
 
@@ -201,7 +201,7 @@ export const properties = or(property, spread)
  * spellings assign a prototype instead and lose the property. See "the
  * `__proto__` key" in `../../spec/README.md`.
  */
-export const object = close(['{}', rttiArray(properties)])
+export const object = /** @type {const} */ (['{}', rttiArray(properties)])
 
 /** @typedef {Assert<Check<Object, typeof object>>} _Object */
 
@@ -212,7 +212,7 @@ export const object = close(['{}', rttiArray(properties)])
  * Number(exp)
  * ```
  */
-export const numberCast = close(['Number', exp])
+export const numberCast = /** @type {const} */ (['Number', exp])
 
 /**
  * @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast
@@ -271,7 +271,7 @@ export const index = or(numberCast, string, number)
 // rather than a readability one. Unprefixed, `['()', f, null]` would be
 // simultaneously a well-formed `call` — call `f` with `null` as its arguments
 // — and a well-formed `optionLambda` — call the chain's value with `f` as its
-// arguments, and stop. The two readings have the same length, so `close`
+// arguments, and stop. The two readings have the same length, so closedness
 // cannot separate them; only disjoint vocabularies can.
 //
 // A production exists in a state exactly when moving that step into a nested
@@ -295,14 +295,14 @@ export const index = or(numberCast, string, number)
  *
  * @type {() => readonly['or',
  *  null,
- *  Close<readonly['|()', typeof exp, typeof optionLambda]>,
- *  Close<readonly['|.', typeof index, typeof optionPropertyLambda]>,
+ *  readonly['|()', typeof exp, typeof optionLambda],
+ *  readonly['|.', typeof index, typeof optionPropertyLambda],
  * ]}
  */
 const _optionLambda = () => (['or',
     null,
-    close(['|()', exp, optionLambda]),
-    close(['|.', index, optionPropertyLambda]),
+    /** @type {const} */ (['|()', exp, optionLambda]),
+    /** @type {const} */ (['|.', index, optionPropertyLambda]),
 ])
 
 /** @type {Phantom<typeof _optionLambda, OptionLambda>} */
@@ -333,18 +333,18 @@ export const optionLambda = _optionLambda
  *
  * @type {() => readonly['or',
  *  null,
- *  Close<readonly['|()', typeof exp, typeof optionLambda]>,
- *  Close<readonly['|.', typeof index, typeof optionPropertyLambda]>,
- *  Close<readonly['|?.()', typeof exp, typeof optionLambda]>,
- *  Close<readonly['|!()', typeof exp, null]>,
+ *  readonly['|()', typeof exp, typeof optionLambda],
+ *  readonly['|.', typeof index, typeof optionPropertyLambda],
+ *  readonly['|?.()', typeof exp, typeof optionLambda],
+ *  readonly['|!()', typeof exp, null],
  * ]}
  */
 const _optionPropertyLambda = () => (['or',
     null,
-    close(['|()', exp, optionLambda]),
-    close(['|.', index, optionPropertyLambda]),
-    close(['|?.()', exp, optionLambda]),
-    close(['|!()', exp, null]),
+    /** @type {const} */ (['|()', exp, optionLambda]),
+    /** @type {const} */ (['|.', index, optionPropertyLambda]),
+    /** @type {const} */ (['|?.()', exp, optionLambda]),
+    /** @type {const} */ (['|!()', exp, null]),
 ])
 
 /** @type {Phantom<typeof _optionPropertyLambda, OptionPropertyLambda>} */
@@ -366,15 +366,15 @@ export const optionPropertyLambda = _optionPropertyLambda
  * else.
  *
  * The terminal's third operand is a literal `null`, not the absence of one.
- * Uniform arity is what keeps `close` able to tell it from `['|()', c, k]`:
+ * Uniform arity is what keeps closedness able to tell it from `['|()', c, k]`:
  * were the terminal two elements long, a continuation handed to a
  * `propertyLambda` slot would be read as the terminal with the rest silently
  * dropped.
  */
 export const propertyLambda = or(
     null,
-    close(['|()', exp, null]),
-    close(['|?.()', exp, optionLambda]),
+    /** @type {const} */ (['|()', exp, null]),
+    /** @type {const} */ (['|?.()', exp, optionLambda]),
 )
 
 /**
@@ -397,7 +397,7 @@ export const propertyLambda = or(
  * not a literal operand list: `f(a, b)` is `['()', f, ['[]', [a, b]]]`,
  * while spread `f(...xs)` is `['()', f, xs]`.
  */
-export const call = close(['()', exp, exp])
+export const call = /** @type {const} */ (['()', exp, exp])
 
 /** @typedef {Assert<Check<Call, typeof call>>} _Call */
 
@@ -419,7 +419,7 @@ export const call = close(['()', exp, exp])
  * drops it — and the two call continuations are the only things that can use
  * it.
  */
-export const dot = close(['.', exp, index, propertyLambda])
+export const dot = /** @type {const} */ (['.', exp, index, propertyLambda])
 
 /** @typedef {Assert<Check<Dot, typeof dot>>} _Dot */
 
@@ -445,7 +445,7 @@ export const dot = close(['.', exp, index, propertyLambda])
  * complete `['?.', a, 'b', null]` — and throws when `a` is nullish, as JS
  * does.
  */
-export const optionDot = close(['?.', exp, index, optionPropertyLambda])
+export const optionDot = /** @type {const} */ (['?.', exp, index, optionPropertyLambda])
 
 /** @typedef {Assert<Check<OptionDot, typeof optionDot>>} _OptionDot */
 
@@ -462,7 +462,7 @@ export const optionDot = close(['?.', exp, index, optionPropertyLambda])
  * — `a.b?.(...c)` is a `dot` with a `|?.()` continuation, not this. If `exp0`
  * is nullish the arguments are not evaluated and the region short-circuits.
  */
-export const optionCall = close(['?.()', exp, exp, optionLambda])
+export const optionCall = /** @type {const} */ (['?.()', exp, exp, optionLambda])
 
 /** @typedef {Assert<Check<OptionCall, typeof optionCall>>} _OptionCall */
 
@@ -482,7 +482,7 @@ export const optionCall = close(['?.()', exp, exp, optionLambda])
  * each splitting one function into two hashes. See the header of
  * `./proof.f.mjs`.
  */
-export const comma = close([',', exps])
+export const comma = /** @type {const} */ ([',', exps])
 
 /**
  * @typedef {Assert<Check<Comma, typeof comma>>} _Comma
@@ -502,7 +502,7 @@ export const op0Id = or('undefined', 'args', 'frame')
 
 /** @typedef {Assert<Check<Op0Id, typeof op0Id>>} _Op0Id */
 
-export const op0 = close([op0Id])
+export const op0 = /** @type {const} */ ([op0Id])
 
 /** @typedef {Assert<Check<Op0, typeof op0>>} _Op0 */
 
@@ -516,7 +516,7 @@ export const op1Id = or('String', 'Number', 'neg', '!', '~')
 
 /** @typedef {Assert<Check<Op1Id, typeof op1Id>>} _Op1Id */
 
-export const op1 = close([op1Id, exp])
+export const op1 = /** @type {const} */ ([op1Id, exp])
 
 /** @typedef {Assert<Check<Op1, typeof op1>>} _Op1 */
 
@@ -554,6 +554,6 @@ export const op2Id = or(
 
 /** @typedef {Assert<Check<Op2Id, typeof op2Id>>} _Op2Id */
 
-export const op2 = close([op2Id, exp, exp])
+export const op2 = /** @type {const} */ ([op2Id, exp, exp])
 
 /** @typedef {Assert<Check<Op2, typeof op2>>} _Op2 */

@@ -3,7 +3,7 @@
  * @import { ValidationError } from './types.ts'
  */
 
-import { eachEntry, structSchemaEntries, tupleSchemaEntries, undeclaredEntries } from './module.f.mjs'
+import { eachEntry, structSchemaEntries, tupleSchemaEntries, undeclaredMembers } from './module.f.mjs'
 import { error, ok } from '../../result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 
@@ -54,23 +54,36 @@ export const proof = {
         assert(r[0] === 'error')
         assertEq(calls, 1)
     },
-    // The other half of a closed container's loop. One filter answers both
-    // kinds: a struct's undeclared keys, and — a tuple's declared keys being
-    // the canonical spellings of its positions — an array's positions past the
-    // prefix together with the keys that are no position at all.
+    // The other half of a container's loop: the members a bare schema rejects
+    // and a `rest` one holds to its rest. One function answers both kinds — a
+    // struct's undeclared own keys, and an array's positions past the prefix
+    // together with the own keys that are no position at all.
     undeclared: {
         struct: () => {
-            const r = undeclaredEntries(['a'], { a: 1, b: 2 })
+            const r = undeclaredMembers(['a'], { a: 1, b: 2 })
             assertStructurallySame(r, [['b', 2]])
         },
+        // The positions come first, in index order, then the keys that name
+        // none — so the reported error path is the leftmost failing member.
         tuple: () => {
-            const r = undeclaredEntries(['0'], Object.assign([1, 2], { foo: 3, '01': 4 }))
+            const r = undeclaredMembers(['0'], Object.assign([1, 2], { foo: 3, '01': 4 }))
             assertStructurallySame(r, [['1', 2], ['foo', 3], ['01', 4]])
         },
-        none: () => assertEq(undeclaredEntries(['a'], { a: 1 }).length, 0),
-        // A hole is no entry, which is why the array kind also answers with its
-        // length — see `fits` in `../parse/module.f.mjs`.
-        holeIsNotAnEntry: () => assertEq(undeclaredEntries(['0'], [1, , 3]).length, 1),
+        none: () => assertEq(undeclaredMembers(['a'], { a: 1 }).length, 0),
+        // A hole is no member, so it meets no `rest` — which is why the array
+        // kind also answers with its `length`; see `fits` in
+        // `../parse/module.f.mjs`.
+        holeIsNoMember: () => assertEq(undeclaredMembers(['0'], [1, , 3]).length, 1),
+        // The walk is bounded by what the value and its prototypes carry, not
+        // by `length` — this one carries a single own property, `length`, so
+        // it answers at once. Materializing the range instead exhausted memory
+        // long before any check could reject the value.
+        lengthDoesNotBoundTheWalk: () =>
+            assertEq(undeclaredMembers([], new Array(2 ** 32 - 1)).length, 0),
+        // An index the prototype supplies is a member too, and a canonical
+        // numeric key past the index range is one by the non-index half. Both
+        // need in-place mutation to build, so they are pinned in
+        // `../host.proof.mjs` — see its module doc.
     },
     // What a container schema declares, per kind. A tuple is read by length,
     // so a hole is a declared position whose schema is `undefined` — the same
