@@ -177,10 +177,21 @@ TypeScript aliases out.
    printer, so this is plumbing plus a `fjs` command, and it is the step that
    could land earliest and independently.
 4. Check literal right-hand sides with `validate`.
-5. Design inference, then check general right-hand sides with `subset`.
-6. Resolve the function-schema question
-   ([668-rtti-function-types](../../fjs/types/rtti/todo/668-rtti-function-types.md))
-   before `/*: */` goes beyond constants.
+5. Resolve the function-schema **representation**
+   ([668-rtti-function-types](../../fjs/types/rtti/todo/668-rtti-function-types.md)'s
+   7a tasks — the schema form, its place in the canonical algebra, a printer
+   path, a canonical serializable form). This comes *before* general inference,
+   not after: inferring the representative `f(x)` right-hand side needs `f`'s
+   contract and result schema, and RTTI has no function case until 7a lands.
+6. Design inference, then check general right-hand sides with `subset`.
+7. **Then** static checking of readable function definitions (668's 7b), which
+   consumes the inference from step 6.
+
+   *(An earlier draft ordered 5 and 6 the other way round — inference first,
+   function schemas "before `/*: */` goes beyond constants". That cannot be
+   implemented: it is the deadlock
+   [rtti-type-system](../../todo/rtti-type-system.md) documents, and the reason
+   668 splits into 7a and 7b at all.)*
 
 ## Depends on
 

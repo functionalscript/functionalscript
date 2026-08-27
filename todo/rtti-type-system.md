@@ -1469,6 +1469,38 @@ are stated instead:
       do not depend on the caller's cooperation. The `close` policy and 668's call-validating wrapper are the same
       decision seen from two angles, so settle them together.
 
+      **Reconstruction is the default remedy, and it has two defects today.**
+      Both bite exactly where this stage puts it — on a value arriving from
+      ordinary JavaScript, which is by definition not under the language's
+      control:
+
+      - **No cycle guard.** `parse` recurses without tracking visited
+        references, so a cyclic foreign graph against a recursive schema
+        overflows the stack rather than being rejected. Measured at
+        `f1ce7bfb`: with `const t = () => ['array', t]` and an array containing
+        itself, `parse(t)(a)` throws
+        `RangeError: Maximum call stack size exceeded`. A naïve deep copy has
+        the same defect. At a boundary this is worse than a wrong answer — a
+        malformed argument from outside crashes the callee, which is a denial
+        of service reachable by any caller. This stage needs cycle detection
+        with an explicit rejection, or a cycle-aware copier.
+      - **Sharing is not preserved.**
+        [identity-aware-parse](../fjs/types/rtti/todo/identity-aware-parse.md)
+        already documents it: the generic `parse` "would silently flatten every
+        DAG into a tree", changing the hash of a value whose reference sharing
+        is part of its meaning. The EDAG is that case by construction —
+        `["[]", x, x]` and `["[]", ["{}"], ["{}"]]` are different functions
+        precisely because sharing is observable. So `parse` is not a safe
+        ownership adapter for such a schema, and neither is an ordinary deep
+        copy. This stage needs an identity-preserving reconstruction path, or
+        an explicit restriction of the remedy to document-shaped values where
+        identity is irrelevant — and it should say which, because the failure
+        is silent.
+
+      Neither defect argues against reconstruction as the default; both say the
+      reconstruction this stage relies on does not exist yet in a form fit for
+      a hostile boundary.
+
       **Foreign calls into readable exports are in scope here**, and are the
       case most easily missed, because stage 7's provenance split makes their
       *definitions* statically checkable and so reads as if nothing is left to
