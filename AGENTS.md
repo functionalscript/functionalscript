@@ -48,7 +48,8 @@ Find or file the issue in `todo/` first, next to the code it describes; for
 anything non-trivial make sure it contains a concrete design before writing
 code — and if that design turns out not to be implementable as written, rewrite
 the issue rather than forcing the code through
-([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Write the code
+([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Deviating from a
+design is fine; deviating silently is not. Write the code
 plus its proof, run `npm run update` after changing source, run the check set
 above, and delete the `todo/` issue file in the same PR that fixes it.
 

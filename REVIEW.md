@@ -15,18 +15,27 @@ document, or in a `todo/` issue. "In the review thread" is the wrong answer.
 
 | The comment | The answer |
 | ----------- | ---------- |
-| A design document is asked for implementation detail | The choice belongs to the implementer — write that into the document |
+| A design document is asked for implementation detail | Answer it, or leave it to the implementer — either way in the document |
 | An implementation is asked for another feature | Find or file a `todo/`, and reply with the link |
 | One case is generalized into a rule | Answer with the case that breaks it, and record what the decision depends on |
 | A defect is reported | Fix it, or defer it behind a `todo/` that names the input that breaks it |
 
-A design settles *what* and *why*; data structures, helper splits, and internal
-names are the implementer's. A reviewer calling a design **vague** claims the
-opposite, and [DESIGN.md §3](./DESIGN.md#3-design-before-implementation) backs
-them: a design that settles neither what nor why blocks implementation. The test
-is whether two implementers working from it would produce the same observable
-behavior and the same API — if they would, what is still open is theirs to
-choose; if they would not, finish the design instead of pushing back.
+A `todo/` may be as detailed as its author managed, or barely more than a
+problem statement. Detail is not discouraged and neither state is wrong; what
+differs is what comes next.
+
+- **Overspecified.** The implementer is not bound by it. Deviating is fine —
+  deviating silently is not, so the reason goes into the document.
+- **Underspecified.** The next person adds what is missing, in a pull request
+  that need not implement anything. That is what [DESIGN.md
+  §3](./DESIGN.md#3-design-before-implementation) means by updating the issue
+  before writing code against it, and it is an increment like any other. Detail
+  is missing where two implementers working from the design would not produce
+  the same observable behavior and the same API.
+
+So a reviewer asking a design for detail is asking for something legitimate:
+answer with the detail, or say the choice belongs to the implementer. Either
+way it lands in the document rather than the thread.
 
 A pull request implements one feature, so "while you're here" is a second one.
 And a rule generalized from one real case fails on the case the reviewer did not
