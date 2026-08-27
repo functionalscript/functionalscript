@@ -134,16 +134,30 @@ are **7a** and run before stage 6; static checking of readable definitions is
   neither settles it: the tasks above are what that choice has to pay for, and
   the decision is which option can. Whichever wins, update the Proposal to
   match rather than leaving the sketch reading as a commitment.
-- [ ] **7a — a canonical serializable form that run time reuses.** The
-  requirement the extern option most easily fails, and the one that is not
-  about assignability or printing. The epic's stage 4 closes its
-  schema-stability hole by serializing the compile-time schema through
-  `toData`, and [`data`](../data/README.md) is function-free by construction —
-  so an extern function schema is precisely what `toData` cannot pin. Without
-  its own canonical form, a stateful imported thunk can present one contract
-  while the compiler checks and another when `validate` runs. An extern path
-  owes this in addition to a `subset` path and a printer; keeping function
-  contracts inside `data` gets it for free.
+- [ ] **7a — whatever stage 4's stabilization strategy requires of a function
+  schema.** Not, as an earlier draft of this task said, "a canonical
+  serializable form" full stop: that presumed stage 4 would take the
+  snapshot route, and [the epic](../../../../todo/rtti-type-system.md) now
+  leaves purity-versus-snapshot open — with the stronger observation that a
+  snapshot reaches only the consumers it is threaded through, while purity is a
+  property of the binding and holds for every use at once.
+
+  So this deliverable is **conditional on that choice**:
+
+  - if stage 4 requires **provable purity**, a function schema must be able to
+    satisfy it, and nothing needs serializing;
+  - if stage 4 takes the **snapshot**, a function schema needs a canonical
+    serializable form — which the extern option most easily fails, since
+    [`data`](../data/README.md) is function-free by construction, so an extern
+    function schema is precisely what `toData` cannot pin. Keeping function
+    contracts inside `data` gets it for free.
+
+  Either way, note what serialization alone does **not** buy: for a
+  nondeterministic `.mjs` binding that is exported or handed to `validate`
+  directly, putting its contract in `data` does not make the original thunk
+  reuse the snapshot, so run time can still observe a different contract. That
+  is stage 4's problem rather than this issue's, but it is the reason this task
+  cannot be settled before stage 4 is.
 
 ### Related
 

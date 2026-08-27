@@ -784,7 +784,8 @@ are stated instead:
   definition-checking needs the body's *inferred* result, which is 6. The seam
   is between representing a contract and checking against one — **7a**
   (the schema form, its place in the canonical algebra, the printer path, and
-  a canonical serializable form) gates the general form of 6; **7b** (static
+  and whatever stage 4's stabilization needs of a function schema) gates the
+  general form of 6; **7b** (static
   checking of readable definitions) consumes 6. So the order is 7a → 6 → 7b, and "7 gates 6",
   which this file said until review of #1719, is only true of 7a.
   Inferring a call to an *unannotated* function is not part of this cycle: it
@@ -1097,10 +1098,11 @@ are stated instead:
       **It does not reach function schemas if stage 7a goes extern.** `data` is
       function-free by construction, so a function contract living outside it
       has nothing for `toData` to serialize and this remedy silently does not
-      apply there. That makes a canonical serializable form a requirement on
-      the extern option rather than a nicety — recorded as
-      [stage 7](#tasks)'s fourth deliverable — and it is a reason to prefer
-      function contracts inside `data`.
+      apply there. So **if** this stage takes the snapshot route, a canonical
+      serializable form becomes a requirement on the extern option rather than
+      a nicety — recorded as [stage 7](#tasks)'s fourth deliverable, which is
+      conditional on this same choice — and it is a reason to prefer function
+      contracts inside `data`.
 - [ ] **5. Check literal right-hand sides** with `validate`. This is the first
       point at which the epic checks anything.
 
@@ -1252,17 +1254,18 @@ are stated instead:
          all;
       3. a printer path, so a function-typed export has a declaration to
          generate;
-      4. **a canonical serializable form that run time reuses** — the
-         requirement the extern option most easily fails. Stage 4 closes the
-         schema-stability hole by serializing the compile-time schema via
-         `toData`, and `data` is function-free by construction, so an extern
-         function schema is exactly the thing `toData` cannot pin. Leave that
-         and a stateful imported thunk can yield one contract while the
-         compiler checks and another when `validate` runs — the same
-         compile-time/run-time disagreement stage 4 exists to prevent, in the
-         one part of the type language stage 4's remedy does not reach.
-         An extern path must therefore carry its own canonical form that run
-         time reuses, not merely a `subset` path and a printer.
+      4. **whatever stage 4's stabilization strategy requires of a function
+         schema** — conditional, because stage 4 leaves purity-versus-snapshot
+         open. Under **purity**, a function schema has to be able to satisfy it
+         and nothing needs serializing. Under the **snapshot**, it needs a
+         canonical serializable form, which the extern option most easily
+         fails: `data` is function-free by construction, so an extern function
+         schema is exactly the thing `toData` cannot pin, and a stateful
+         imported thunk could then yield one contract while the compiler checks
+         and another when `validate` runs — the disagreement stage 4 exists to
+         prevent, in the one part of the type language its remedy would not
+         reach. An earlier draft stated this deliverable unconditionally, which
+         presumed the snapshot had won.
 
       Whether 668's extern direction can carry 2, 3 and 4, or whether function
       contracts must go into `data` proper, is the decision that unblocks the
