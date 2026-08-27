@@ -655,7 +655,9 @@ export const proof = {
             // Two shapes bun answers differently, so neither can be
             // asserted. Both throw everywhere else; see "Chains" in
             // `./README.md` for which is the engine and which is the
-            // transpiler. The second must stay commented rather than merely
+            // transpiler, and
+            // `../../todo/blocked/bun-optional-chain-parentheses.md` for what
+            // unblocks them. The second must stay commented rather than merely
             // fail: bun rejects it at parse, taking the file down.
             //
             // groupedOptionalCall: () => {

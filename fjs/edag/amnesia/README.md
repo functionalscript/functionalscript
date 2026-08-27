@@ -88,7 +88,9 @@ One corner where that would have been wrong is interpreted here instead. When
 `u` is nullish, `(u?.b)(d)` must throw: the parentheses end the optional
 chain, so `undefined` is what gets called. V8 does throw; JavaScriptCore
 (hence `bun test`) carries the short-circuit through the parentheses and
-evaluates to `undefined` (["Chains"](../README.md#chains)). That spelling is
+evaluates to `undefined` (["Chains"](../README.md#chains), tracked in
+[bun-optional-chain-parentheses.md](../../../todo/blocked/bun-optional-chain-parentheses.md)).
+That spelling is
 a `|!()` step, and `skip` in [module.f.mjs](./module.f.mjs) is what carries
 it: a short-circuited region drops every step it meets except that one, which
 runs on the `undefined` the region produced. So the specified answer comes out
