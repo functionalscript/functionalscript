@@ -32,6 +32,11 @@ the thing that reads it.
 
 ### Proposal
 
+**This type system is a layer on top of FunctionalScript, not part of the
+FunctionalScript specification.** FunctionalScript itself remains type-agnostic;
+RTTI schemas, inference, assertions, and checking are ordinary mechanisms that
+a higher-level compiler or tool can interpret.
+
 **RTTI is the single source of truth for both compile-time and run-time type
 verification of FunctionalScript.** One schema, written once, is what the
 compiler checks against, what `validate`/`parse` check against at run time, and
@@ -446,6 +451,74 @@ its own: the printer documents two places where it and `Ts<>` disagree, both of
 which change what a generated declaration means, and rendering a schema is not
 the same as knowing which export carries it. See stage 1. It is also what lets a
 `.f.mjs` module drop its JSDoc without any consumer noticing.
+
+### Proof-backed narrowing and specialization
+
+This system should have no unchecked equivalent of TypeScript's `as`, `as any`,
+double casts, or another construct that simply tells the checker to trust a type
+claim. A type or refinement claim must instead be established in one of two
+ways:
+
+1. **Static proof.** The type-system compiler proves the property from the
+   program and the RTTI facts it already knows.
+2. **Runtime proof.** An assertion checks the property and narrows the value on
+   the successful branch. If it fails, evaluation cannot continue on that
+   branch.
+
+The assertion is an ordinary FunctionalScript computation, not type syntax. The
+important invariant is that every narrowing is backed by either a compile-time
+proof or an executed runtime check; uncertainty becomes a proof obligation, not
+an escape hatch.
+
+That does not imply permanent runtime overhead. Assertions become nodes in the
+EDAG like other computations. If later analysis proves an assertion can never
+fail, its failure branch is dead and the check can be removed. A conservative
+compiler can therefore keep more checks at run time, while a stronger compiler
+can remove them without weakening type safety.
+
+**The same proofs are optimization facts.** Once a property is established, the
+compiler can specialize everything downstream that depends on it. For example,
+proving that a value passed to a SHA-256 implementation is a `bigint` whose
+value fits in 256 bits can replace generic arbitrary-precision operations with
+fixed-width operations and enable lowering to target-specific instructions or
+intrinsics.
+
+Matrices and tensors are the same pattern. Proofs may establish shape,
+dimensions, element type, bounds, layout, alignment, sparsity, or device
+placement. Those facts can turn generic FunctionalScript code into fixed loops,
+vector operations, tiled matrix operations, fused kernels, or code targeting
+CPUs, GPUs, NPUs, and other accelerators.
+
+**Automatic differentiation is another program transformation over the same
+semantic foundation.** A pure computation represented as an EDAG can be
+transformed into another computation that calculates its derivatives.
+Reverse-mode automatic differentiation can construct the backward graph used
+for neural-network training:
+
+```text
+x -> matmul -> relu -> matmul -> loss
+                              |
+                              v
+                        differentiation
+                              |
+                              v
+                  gradients of weights and x
+```
+
+The generated gradient graph is itself subject to the same proofs and
+optimizations: known tensor shapes and element types specialize gradient
+operations, dead intermediates can disappear, forward and backward operations
+can be fused, and the result can be lowered to GPUs or other specialized
+hardware.
+
+The broader goal is that **domain-specific semantics live in libraries, proofs,
+and program transformations rather than requiring a new language for every
+domain**. FunctionalScript remains the small, type-agnostic semantic foundation;
+RTTI/refinement systems, tensor libraries, automatic differentiation, and
+hardware lowering live on top of it. This makes the same foundation suitable
+for machine-learning programs without requiring application code to cross a
+stack of specialized source languages merely to communicate facts the program
+and its proofs already contain.
 
 ### What a generated `.d.ts` can and cannot promise
 
