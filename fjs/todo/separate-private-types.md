@@ -5,7 +5,8 @@
 
 ### Problem
 
-FunctionalScript currently mixes named types with implementation/proof source:
+FunctionalScript currently mixes named types with runtime/proof source. Common
+examples are:
 
 ```text
 module.f.mjs  # implementation + file-scope JSDoc typedefs
@@ -13,11 +14,13 @@ proof.f.mjs   # proofs + file-scope JSDoc typedefs
 types.ts      # public types + private helpers
 ```
 
-TypeScript declaration emit turns file-scope JSDoc `@typedef`s into exported
-aliases, so implementation-private names leak into generated `.d.mts` files.
-The existing leading-`_` convention marks those names private by contract, but
-the declarations still contain noise and make the source/package boundary less
-clear.
+Other authored FunctionalScript companions, such as `testlib.f.mjs`, can contain
+the same file-scope typedefs and are subject to the same declaration emit.
+TypeScript turns file-scope JSDoc `@typedef`s in authored `.f.mjs` files into
+exported aliases, so implementation-private names leak into generated `.d.mts`
+files. The existing leading-`_` convention marks those names private by contract,
+but the declarations still contain noise and make the source/package boundary
+less clear.
 
 The goal is to give every file-scope named type a deliberate home while keeping
 public declarations self-contained.
@@ -27,12 +30,17 @@ public declarations self-contained.
 Use this directory convention where needed:
 
 ```text
-module.f.mjs  # implementation; no file-scope @typedef
-proof.f.mjs   # proofs; no file-scope @typedef
+module.f.mjs  # implementation
+proof.f.mjs   # proofs
 meta.f.mjs    # runtime constants referenced by TypeScript types/proofs
 types.ts      # public declaration closure
 private.ts    # other implementation-private file-scope types
 ```
+
+No authored `.f.mjs` file may declare a **file-scope** JSDoc `@typedef`,
+regardless of basename or role. This includes `module.f.mjs`, `proof.f.mjs`,
+`meta.f.mjs`, `testlib.f.mjs`, and other descriptive FunctionalScript
+companions. Function-local typedefs remain allowed as described below.
 
 Private type names continue to start with `_`.
 
@@ -86,8 +94,9 @@ closure, not a mechanical destination for every `_` name.
 
 #### Function-local typedefs
 
-Function-local JSDoc `@typedef` declarations are allowed everywhere. They may
-refer to lexical values that cannot be named from a sibling TypeScript file.
+Function-local JSDoc `@typedef` declarations are allowed in any authored source
+file. They may refer to lexical values that cannot be named from a sibling
+TypeScript file.
 
 For example:
 
@@ -175,9 +184,9 @@ include it under the same expectations as `module.f.mjs`.
 
 #### Breaking migration; no compatibility re-exports
 
-Moving a public file-scope type from `module.f.mjs` / `proof.f.mjs` to
-`types.ts` changes its public type import path. Moving a public runtime constant
-from `module.f.mjs` to `meta.f.mjs` changes its runtime import path.
+Moving a public file-scope type from any authored `.f.mjs` file to `types.ts`
+changes its public type import path. Moving a public runtime constant from
+`module.f.mjs` to `meta.f.mjs` changes its runtime import path.
 
 Treat both as intentional breaking API changes:
 
@@ -241,22 +250,26 @@ types.ts    # public declaration closure
 private.ts  # implementation-private file-scope types outside that closure
 ```
 
-Both remain type-only modules and use named `import type { ... }` imports.
+Both remain type-only modules and use named `import type { ... }` imports. The
+same policy must also state that file-scope JSDoc `@typedef` is prohibited in
+**all** authored `.f.mjs` files, not just `module.*` and `proof.*` entry points.
 
 ### Tasks
 
 - [ ] Document `types.ts`, `private.ts`, and `meta.f.mjs` beside the existing
-      `module.*` / `proof.*` file conventions.
+      FunctionalScript file conventions, including descriptive `.f.mjs`
+      companions.
 - [ ] Update `fjs/AGENTS.md` to allow `types.ts` and `private.ts` as the authored
-      TypeScript type-module roles and document the public-declaration-closure
-      rule.
+      TypeScript type-module roles, document the public-declaration-closure rule,
+      and prohibit file-scope `@typedef` in every authored `.f.mjs` file.
 - [ ] Update `fjs/fsc/README.md` and delete or narrow
       `todo/blocked/jsdoc-typedef-strip-internal.md` so they no longer prescribe
       a conflicting private-JSDoc strategy.
-- [ ] Prohibit file-scope JSDoc `@typedef` in `module.f.mjs` and `proof.f.mjs`;
-      allow function-local `@typedef` everywhere.
+- [ ] Prohibit file-scope JSDoc `@typedef` in every authored `.f.mjs`, including
+      `module.f.mjs`, `proof.f.mjs`, `meta.f.mjs`, `testlib.f.mjs`, and other
+      descriptive companions; allow function-local `@typedef` everywhere.
 - [ ] Keep the leading `_` convention for every private type name.
-- [ ] Move public file-scope named types from implementation/proof JSDoc into
+- [ ] Move public file-scope named types from authored `.f.mjs` JSDoc into
       `types.ts` as a breaking migration; update importers and changelog.
 - [ ] Keep or inline every private `_` helper required transitively by any
       shipped public declaration in `types.ts`, including helpers appearing in
@@ -287,13 +300,16 @@ Both remain type-only modules and use named `import type { ... }` imports.
         declaration (the `_SortedArray`/`find` shape);
       - an implementation-private type in `private.ts`;
       - a function-local typedef depending on a lexical value;
+      - a descriptive companion such as `testlib.f.mjs` whose former file-scope
+        typedef is moved to the appropriate TypeScript file;
       - `meta.f.mjs` with RTTI, literal, and runtime-used constants.
 - [ ] Verify source checking, declaration emit/cleanup, Node+Deno coverage,
       packing, and clean-consumer type checking.
 
 ### Acceptance criteria
 
-- `module.f.mjs` and `proof.f.mjs` contain no file-scope JSDoc `@typedef`.
+- No authored `.f.mjs` file contains a file-scope JSDoc `@typedef`, regardless
+  of basename or role.
 - Function-local JSDoc `@typedef` is allowed everywhere; private names keep `_`
   and do not escape as exported declaration aliases.
 - `types.ts` is the public declaration closure: public types plus any private
@@ -319,7 +335,8 @@ Both remain type-only modules and use named `import type { ... }` imports.
   resolvable from shipped declarations, including helpers used by exported
   runtime-value/function signatures.
 - `fjs/AGENTS.md` no longer says `types.ts` is the only authored TypeScript and
-  documents both `types.ts` and `private.ts` with the declaration-closure rule.
+  documents both `types.ts` and `private.ts`, the declaration-closure rule, and
+  the all-authored-`.f.mjs` file-scope typedef prohibition.
 - `fjs/fsc/README.md` and the blocked `@internal`/`stripInternal` TODO no longer
   prescribe a conflicting private-JSDoc strategy.
 - A clean TypeScript consumer type-checks successfully against the packed
