@@ -702,9 +702,9 @@ Three of its features fall out of decisions already made:
   running arbitrary workspace code inside the editor, or hanging it. Stage 10
   needs either static schema metadata it can consult without evaluating, or an
   explicit sandboxed-and-bounded evaluation policy. This is the same question
-  as [open question 3](#open-questions) and stage 5's well-formedness problem,
-  arriving a third time: **nothing can tell a schema from a non-schema without
-  either running it or having a meta-schema.**
+  as [open question 3](#open-questions), stage 5's well-formedness problem and
+  stage 4's evaluation, arriving a fourth time: **nothing can tell a schema
+  from a non-schema without either running it or having a meta-schema.**
 
 The transport is largely built. LSP is JSON-RPC 2.0, and
 [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) already
@@ -937,6 +937,24 @@ are stated instead:
       resolves to must be reducible to a schema value, and the error when it is
       not is a compile error.
 
+      **"Evaluate" needs a bound and a sandbox here too, and an earlier draft
+      required them only of stage 10.** That was inconsistent: the editor path
+      and the compiler path run the same arbitrary workspace code, and this
+      stage's is the one that has to produce the compile error above. An
+      initializer — or an imported `.mjs` module reached through it — may not
+      terminate, in which case compilation hangs *before* it can report
+      anything; may throw, which must become a diagnostic rather than a
+      compiler crash; and may be effectful, in which case it runs with whatever
+      privileges the compiler has.
+      [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) does not state a policy
+      today. So this stage needs the same answer stage 10 does — static schema
+      metadata consultable without evaluating, or an explicit
+      sandboxed-and-bounded evaluation policy — and it is the same question a
+      **fourth** time, after stage 5's well-formedness problem,
+      [open question 3](#open-questions), and stage 10's completion. Whoever
+      answers it should answer it once, for the compiler and the editor
+      together.
+
       **A schema must be stable across phases, and nothing yet requires that.**
       A `Thunk` is a function, `visit` calls it, and commitment 4 permits a
       schema to be imported from ordinary JavaScript — where its thunk or
@@ -954,6 +972,27 @@ are stated instead:
       `toData` already produces: a function-free canonical form that cannot
       re-evaluate to something else. The second needs no new analysis and makes
       the guarantee structural, so it is the one to beat.
+
+      **But the snapshot only reaches the readers, and the thunk stays a
+      first-class value.** A schema binding is an ordinary value: it can be
+      exported, passed to user code, or handed to `validate(t)` by the program
+      itself. Embedding a serialized snapshot for the compiler's use does not
+      make any of those observe it — the original thunk is still there and can
+      still re-evaluate differently. Closing that needs a semantics-preserving
+      rewrite of **every** runtime use, and neither obvious rewrite is
+      semantics-preserving: substituting the `Data` changes the type of the
+      binding and breaks the `Type` API its consumers are written against,
+      while reconstructing a fresh thunk from the snapshot changes observable
+      identity — `Object.is` on two references to the same schema, and any
+      memoization keyed on it.
+
+      This is the strongest argument for the *first* remedy, and it is why the
+      two are not simply cheaper-versus-dearer. **Purity is a property of the
+      binding**, so it holds for every use of it at once; a snapshot is an
+      artifact handed to particular consumers, so it holds only where it is
+      threaded. If the snapshot route is taken, this stage owes an explicit
+      statement of which uses it covers and what happens to the rest — not a
+      claim that run time reuses it.
 
       **And the snapshot has to survive being written down.** Reusing the
       compile-time schema at run time means embedding it in the shipped
