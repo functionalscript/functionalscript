@@ -89,7 +89,7 @@ export const proof = {
         },
 
         // No `subject`, `parents`, `generation` or `archived`: this dialect is
-        // a value, not a step. rtti structs are open, so such fields are
+        // a value, not a step. `lockSchema` says `open`, so such fields are
         // ignored rather than rejected — the additive forward-compatibility
         // path, the same one the revision dialect relies on.
         revisionFieldsIgnored: () => {

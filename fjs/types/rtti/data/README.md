@@ -49,26 +49,30 @@ pattern is a tuple-with-rest: a `prefix` entry constrains the value *read* at
 that position — reading past the array's end yields `undefined`, so a position
 is required exactly when its set excludes `undefined` — and `rest` constrains
 every position after the prefix, admitting nothing there when it is absent. A
-tuple schema is `{ prefix, rest: unknown }` (open, like a struct), a uniform
-array is `{ prefix: [], rest }`, and `{ prefix }` alone is the exact-length
-set. A longer tuple pattern is included in a shorter one — which the coverage
-collapse uses to drop `[number, number]` from `or([number, number], [number])`,
-the array counterpart of dropping `{ a, b }` from `or({ a, b }, { a })`.
+bare tuple schema is `{ prefix }` alone — the exact-length set — an `open` one
+is `{ prefix, rest: unknown }`, and a uniform array is `{ prefix: [], rest }`.
+A longer tuple pattern is included in a shorter one *when both are open* —
+which the coverage collapse uses to drop `open([number, number])` from
+`or(open([number, number]), open([number]))`, the array counterpart of dropping
+`{ a, b }` from `or(open({ a, b }), open({ a }))`.
 
 **Records and structs share one kind** for the same reason, and by the same
 rule one kind over: a `props` entry constrains the value *read* at that key —
 reading an absent key yields `undefined`, so a key is required exactly when
 its set excludes `undefined`, and `option(t)` props are optional with no extra
-mechanism. `rest` constrains the values at the remaining *present* keys; a
-struct leaves them unconstrained (no `rest`), matching TypeScript's structural
-typing.
+mechanism. `rest` constrains the values at the remaining *present* keys; an
+`open` struct leaves them unconstrained (no `rest`), matching TypeScript's
+structural typing, and a bare, closed one says `rest: never`.
 
 The two kinds spell openness with opposite `rest` values, which is what the
 identity elements of the two positions differ in: undeclared *keys* are
-unconstrained by default, so an open struct needs no `rest` and a closed one
-would say `rest: never`; positions past a *prefix* are admitted by nothing by
-default, so an open tuple says `rest: unknown` and a closed one needs no
-`rest`. `arraySet` and `objectSet` normalize each identity away accordingly.
+unconstrained by the absent `rest`, so an open struct needs none and a closed
+one says `rest: never`; positions past a *prefix* are admitted by nothing when
+the `rest` is absent, so an open tuple says `rest: unknown` and a closed one
+needs none. `arraySet` and `objectSet` normalize each identity away
+accordingly. Both kinds' *schema-form* default is now the closed one, so the
+two spellings a bare container reaches are `{ prefix }` and
+`{ props, rest: never }`.
 
 **Recursion uses named references**, following `fjs/bnf/data`: a `Data` is
 `readonly [RuleSet, Node]`, where nested positions hold either an inline
@@ -155,28 +159,30 @@ now.
 
 ## Tuple length
 
-A `Tuple` schema is open on both readers, and says so here as
-`{ prefix, rest: unknown }` — the same values `parse` and `../validate` admit
-(see [Structs and tuples are open](../README.md#structs-and-tuples-are-open)),
-including the short array whose missing positions all admit `undefined`:
+A bare `Tuple` schema is **closed** on all three readers, and says so here as
+`{ prefix }` with no `rest`: nothing past the prefix, so the array is at most
+`prefix.length` long — and at least as long as its last position excluding
+`undefined` (see
+[Structs and tuples are closed](../README.md#structs-and-tuples-are-closed)).
+`open(c)` is the thunk-form schema that widens it, converting to a `rest` of
+`unknown`, and `rest(c, R)` to that `R`; a `rest` of `never` normalizes back to
+no `rest` at all on this kind, so `rest(c, never)` and the bare `c` are one
+`Node`. See [Open containers](../README.md#open-containers).
 
 ```js
-parse([42])([42, 'extra'])                       // ['ok', [42]]
-validate(toData([42]))([42, 'extra'])            // ['ok', [42, 'extra']]
+parse([42])([42, 'extra'])                       // ['error', …]
+parse(open([42]))([42, 'extra'])                 // ['ok', [42]]
+validate(toData(open([42])))([42, 'extra'])      // ['ok', [42, 'extra']]
 parse([number, option(string)])([42])            // ['ok', [42, undefined]]
 validate(toData([number, option(string)]))([42]) // ['ok', [42]]
 ```
 
 `../validate/proof.f.mjs` runs one acceptance table through all three readers,
 so a `toData` that changed which values a schema admits fails there rather
-than silently.
-
-That leaves `{ prefix }`, with no `rest`, as the *exact-length* set: nothing
-past the prefix, so the array is at most `prefix.length` long — and at least
-as long as its last position excluding `undefined`. `close` is the thunk-form
-schema that spells it: `close(c)` converts to a `rest` of `never`, which
-normalizes to no `rest` at all on this kind, and `close(c, R)` to that `R`.
-See [Closed containers](../README.md#closed-containers).
+than silently. That table is also where the empty-`rest` criterion is pinned:
+`emptyRest` decides whether a stated rest makes any difference to the canonical
+form, and it is what the *thunk* readers bound an array's length by, so they
+agree with this form by asking it rather than by re-deriving the rule.
 
 That is also where the object kind's normalization has an ordering to respect.
 A declared key whose set is the whole value domain is dropped — but only once

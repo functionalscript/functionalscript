@@ -22,7 +22,7 @@
  * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig, ProtocolVersions } from './types.ts'
  */
 
-import { boolean, string, option, array, record, or } from '../../types/rtti/module.f.mjs'
+import { boolean, string, open, option, array, record, or } from '../../types/rtti/module.f.mjs'
 import { pureOk, resultMapStep, resultStep, step as ioStep } from '../../effects/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import { read, write } from '../../effects/memory/module.f.mjs'
@@ -37,42 +37,48 @@ import { unknown } from '../../media/json/rtti/module.f.mjs'
 
 // ── Shared ─────────────────────────────────────────────────────────────────────
 
+// Every struct below says `open`, and that is the protocol's requirement
+// rather than a default: a bare struct is closed, and a peer implementing a
+// later revision of MCP sends members this one does not name — a schema that
+// rejected them would fail every such peer outright, where ignoring them is
+// what the specification asks for. Do not drop a wrapper.
+
 /** Name + version pair sent in `initialize` requests and responses. */
-export const implementation = /** @type {const} */ ({
+export const implementation = open(/** @type {const} */ ({
     name: string,
     version: string,
-})
+}))
 
 // ── Capabilities ───────────────────────────────────────────────────────────────
 
-const toolsCapability = /** @type {const} */ ({ listChanged: option(boolean) })
+const toolsCapability = open(/** @type {const} */ ({ listChanged: option(boolean) }))
 
 /** Server capabilities advertised in the `initialize` response. */
-export const serverCapabilities = /** @type {const} */ ({
+export const serverCapabilities = open(/** @type {const} */ ({
     tools: option(toolsCapability),
-})
+}))
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
 
 /** Params for the `initialize` request. */
-export const initializeParams = /** @type {const} */ ({
+export const initializeParams = open(/** @type {const} */ ({
     protocolVersion: string,
     capabilities: unknown,
     clientInfo: implementation,
-})
+}))
 
 /** Result for the `initialize` request. */
-export const initializeResult = /** @type {const} */ ({
+export const initializeResult = open(/** @type {const} */ ({
     protocolVersion: string,
     capabilities: serverCapabilities,
     serverInfo: implementation,
     instructions: option(string),
-})
+}))
 
 // ── Content ────────────────────────────────────────────────────────────────────
 
 /** Plain-text content item returned by a tool call. */
-export const textContent = /** @type {const} */ ({ type: 'text', text: string })
+export const textContent = open(/** @type {const} */ ({ type: 'text', text: string }))
 
 /**
  * A binary resource carried inside an {@link embeddedResource}: a base64
@@ -80,17 +86,17 @@ export const textContent = /** @type {const} */ ({ type: 'text', text: string })
  * `BlobResource` shape — the idiomatic way to return typed binary content so a
  * `mimeType` travels alongside the bytes and clients know how to route them.
  */
-export const blobResource = /** @type {const} */ ({
+export const blobResource = open(/** @type {const} */ ({
     uri: string,
     mimeType: option(string),
     blob: string,
-})
+}))
 
 /** An `EmbeddedResource` content item wrapping a {@link blobResource}. */
-export const embeddedResource = /** @type {const} */ ({
+export const embeddedResource = open(/** @type {const} */ ({
     type: 'resource',
     resource: blobResource,
-})
+}))
 
 /**
  * A single item in a `tools/call` result's `content` array: either plain
@@ -106,34 +112,34 @@ export const contentItem = or(textContent, embeddedResource)
  * `inputSchema` is a JSON Schema object — use `toJsonSchema` to derive it from
  * an rtti schema.
  */
-export const tool = /** @type {const} */ ({
+export const tool = open(/** @type {const} */ ({
     name: string,
     description: option(string),
     inputSchema: unknown,
-})
+}))
 
 /**
  * Params for the `tools/list` request. `cursor` is an opaque pagination token
  * from a previous `ToolsListResult.nextCursor`.
  */
-export const toolsListParams = /** @type {const} */ ({
+export const toolsListParams = open(/** @type {const} */ ({
     cursor: option(string),
-})
+}))
 
-export const toolsListResult = /** @type {const} */ ({
+export const toolsListResult = open(/** @type {const} */ ({
     tools: array(tool),
     nextCursor: option(string),
-})
+}))
 
-export const toolsCallParams = /** @type {const} */ ({
+export const toolsCallParams = open(/** @type {const} */ ({
     name: string,
     arguments: option(record(unknown)),
-})
+}))
 
-export const toolsCallResult = /** @type {const} */ ({
+export const toolsCallResult = open(/** @type {const} */ ({
     content: array(contentItem),
     isError: option(boolean),
-})
+}))
 
 // ── Dispatch ───────────────────────────────────────────────────────────────────
 

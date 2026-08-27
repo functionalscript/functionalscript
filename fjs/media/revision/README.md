@@ -260,8 +260,8 @@ moment the first revision is written.)
 time, and it is why the reference is a widening of `lock` rather than a
 `lockRef` sibling.
 
-A sibling field would be schema-additive — rtti structs are open, so an older
-reader would still validate the blob — and it would then read `lock` as absent:
+A sibling field would be schema-additive — `revisionSchema` says `open`, so an
+older reader would still validate the blob — and it would then read `lock` as absent:
 *no bindings were recorded*, the field's documented constant meaning. It would
 resolve dependencies through mutable heads and believe the result reproducible.
 That is precisely the silent misread this rule exists to prevent, and the same

@@ -5,10 +5,10 @@
  * The format is deliberately minimal: the dialect tag, the text, and
  * optionally the subjects the item depends on and a priority. Everything
  * else a richer item needs — a title, tags, dates, a status — is a future
- * **optional** field:
- * rtti structs are open, so additive extension keeps the tag (see the
- * versioning rule in `fjs/media/revision/README.md`), and starting minimal is
- * what keeps every extension additive.
+ * **optional** field: {@link noteSchema} says `open`, so an older reader
+ * accepts a blob a newer writer has added fields to and additive extension
+ * keeps the tag (see the versioning rule in `fjs/media/revision/README.md`),
+ * and starting minimal is what keeps every extension additive.
  *
  * Like `vnd.fjs.lock`, a note is a **value**, not a step: no timestamps, no
  * author, no history of its own. Edits over time are ordinary
@@ -32,7 +32,7 @@
  * @import { Note, NoteError } from './types.ts'
  */
 
-import { array, option, or, string } from '../../types/rtti/module.f.mjs'
+import { array, open, option, or, string } from '../../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
 import { parse as parseJson, stringify } from '../json/module.f.mjs'
 import { okThen } from '../../types/result/module.f.mjs'
@@ -91,12 +91,19 @@ export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
  */
 export const priorities = /** @type {const} */ (['P1', 'P2', 'P3', 'P4', 'P5'])
 
-export const noteSchema = /** @type {const} */ ({
+/**
+ * `open`, and that is the extension strategy rather than a default: a bare
+ * struct is closed, so an older reader would reject a blob a newer writer had
+ * added a field to, and the versioning rule in
+ * `../revision/README.md` — additive extension keeps the tag — depends on the
+ * older reader accepting it. Do not drop the wrapper.
+ */
+export const noteSchema = open(/** @type {const} */ ({
     dialect,
     text: string,
     dependencies: option(array(string)),
     priority: option(or(...priorities)),
-})
+}))
 
 /** Serializes a note canonically, sorting every object's property names.
  * @type {(note: Note) => string}

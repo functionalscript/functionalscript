@@ -25,7 +25,7 @@
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { at, definedEntries, definedValues } from '../../object/module.f.mjs'
 import { ok } from '../../result/module.f.mjs'
-import { eachEntry, isArray, verror } from '../common/module.f.mjs'
+import { eachEntry, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
 
 /**
  * The unit kind's enumeration: bit `1 << i` of a {@link UnionSet}'s `unit`
@@ -322,8 +322,8 @@ const trimPrefix = (prefix, rest) =>
  * prefix restating its `rest` is {@link trimPrefix}'d away; an unconstrained
  * `rest` with nothing left before it is every array.
  *
- * Every array set is stated with a `rest` — `unknown` for an open tuple,
- * the element set for a uniform array, `never` for a `close`d tuple — so this
+ * Every array set is stated with a `rest` — `never` for a bare tuple,
+ * `unknown` for an `open` one, the element set for a uniform array — so this
  * takes one rather than an optional one; the absent `rest` is what it
  * normalizes an empty one *to*.
  *
@@ -346,7 +346,7 @@ const arraySet = (prefix, rest) => {
  * rule: an undeclared key may be absent, or must belong to `rest`, which
  * leaves it unconstrained exactly when there is no `rest` — so with one
  * present a key saying "anything" says strictly more than leaving it out.
- * `close`'s empty `rest` is where the two part company —
+ * A bare struct's empty `rest` is where the two part company —
  * `{ props: { a: unknown }, rest: never }` admits `{ a: 1 }` and
  * `{ props: {}, rest: never }` admits only `{}`.
  *
@@ -450,7 +450,7 @@ const keyed = n => [n, typeof n === 'string' ? `r:${n}` : undefined]
  * holds it, whereas an *undeclared* key is checked as an entry, so a present
  * `undefined` must belong to `rest` itself (see {@link objectSetValidate}).
  * Folding the two into one "read set" of `rest ∪ undefined` made
- * `close({ a: option(number) })` a subset of `record(number)`, which admits
+ * `{ a: option(number) }` a subset of `record(number)`, which admits
  * `{ a: undefined }` on the left and rejects it on the right.
  *
  * @type {(pattern: ObjectSet) => (k: string) => _Keyed}
@@ -538,6 +538,23 @@ const nodeSubset = ctx => assumed => (a, b) =>
  */
 export const subset = ([aRules, aNode]) => ([bRules, bNode]) =>
     nodeSubset([aRules, bRules])({})(aNode, bNode)
+
+/**
+ * Whether `a` and `b` denote the same set: {@link subset} both ways.
+ *
+ * Weaker as a test than {@link equal} and stronger as an answer. `equal`
+ * compares canonical *structure*, so it reports two α-equivalent recursive
+ * definitions — the same shape under different rule names — as different;
+ * `subset` resolves references coinductively and sees through the renaming
+ * (see `./README.md`). It inherits `subset`'s incompleteness in exchange: an
+ * equality that holds only by distributing a union, or through a non-syntactic
+ * empty set, is answered `false`. That direction is the safe one — a `false`
+ * here never merges two memberships — so a caller may treat a `true` as
+ * conclusive and a `false` as "not established".
+ *
+ * @type {(a: Data) => (b: Data) => boolean}
+ */
+export const equivalent = a => b => subset(a)(b) && subset(b)(a)
 
 // ── coverage collapse ────────────────────────────────────────────────────────
 
@@ -765,21 +782,22 @@ const primitiveUnion = p => {
 const containerMemo = (state, c) => {
     const done = assoc(state.done, c)
     if (done !== undefined) { return [state, done] }
-    const [state1, u] = containerUnion(state, c, undefined)
+    const [state1, u] = containerUnion(state, c, never)
     return [{ ...state1, done: [...state1.done, [c, u]] }, u]
 }
 
 /**
  * The union of a const container, with `rest` the set every member it does not
- * declare belongs to, or `undefined` for the open default.
+ * declare belongs to.
  *
- * Used bare, both kinds are **open** — a value carrying more than the schema
- * declares is a member — so the default maps onto the `rest` that says so:
- * `unknown` past a tuple's prefix, and, for a struct, the absent `rest` that
- * already leaves the undeclared keys unconstrained. `close` is what supplies a
- * `rest` of its own; `never` for the exact-members set.
+ * Used bare, both kinds are **closed** — the declared members and no others —
+ * so the default maps onto the `rest` that says so, `never` on either kind.
+ * `rest`/`open` is what supplies one of its own; `unknown` is the open form,
+ * which the two kinds spell differently in the canonical data (a tuple's
+ * `rest: unknown`, a struct's absent `rest`) and {@link arraySet} /
+ * {@link objectSet} normalize to.
  *
- * @type {(state: _State, c: ConstObject, rest: Node | undefined) => readonly [_State, UnionSet]}
+ * @type {(state: _State, c: ConstObject, rest: Node) => readonly [_State, UnionSet]}
  */
 const containerUnion = (state, c, rest) => {
     let s = state
@@ -791,7 +809,7 @@ const containerUnion = (state, c, rest) => {
             s = s1
             prefix = [...prefix, n]
         }
-        return [s, arraySet(prefix, rest ?? unknown)]
+        return [s, arraySet(prefix, rest)]
     }
     /** @type {readonly (readonly [string, Node])[]} */
     let props = []
@@ -804,17 +822,17 @@ const containerUnion = (state, c, rest) => {
 }
 
 /**
- * The union of a `close` schema. The container is walked here rather than
+ * The union of a `rest` schema. The container is walked here rather than
  * through {@link containerMemo}: that memo is keyed by the container's
- * identity alone, and the same object closed and left open are two different
- * sets. The enclosing thunk is memoized by {@link convertThunk} either way, so
- * nothing is recomputed and a cycle through a `close` still closes.
+ * identity alone, and the same object with two different rests is two
+ * different sets. The enclosing thunk is memoized by {@link convertThunk}
+ * either way, so nothing is recomputed and a cycle through a `rest` still
+ * closes.
  *
- * @type {(state: _State, c: ConstObject, rest: Type | undefined) => readonly [_State, UnionSet]}
+ * @type {(state: _State, c: ConstObject, r: Type) => readonly [_State, UnionSet]}
  */
-const closeUnion = (state, c, rest) => {
-    if (rest === undefined) { return containerUnion(state, c, never) }
-    const [state1, restNode] = nodeOf(state)(rest)
+const restUnion = (state, c, r) => {
+    const [state1, restNode] = nodeOf(state)(r)
     return containerUnion(state1, c, restNode)
 }
 
@@ -890,10 +908,10 @@ const thunkUnion = (state, t) => {
             const [state1, value] = nodeOf(state)(rest[0])
             return [state1, objectSet([], value)]
         }
-        case 'close': {
+        case 'rest': {
             const [c, r] = rest
             assert(typeof c === 'object' && c !== null, c)
-            return closeUnion(state, c, r)
+            return restUnion(state, c, r)
         }
         default: { return orUnion(state, t, rest) }
     }
@@ -1099,27 +1117,17 @@ const patternsValidate = (k, item, value) => {
 }
 
 /**
- * The position `k` names, or `undefined` when `k` names no position at all.
- * `Object.entries` hands over every enumerable own key of the array object,
- * and only the canonical spelling of a non-negative integer is an index:
- * `'-1'`, `'01'`, `'1.5'` and `' 1'` are ordinary properties of it, however
- * `Number` maps them. Round-tripping the number back through `String` is what
- * rejects every non-canonical spelling at once, rather than one at a time.
- *
- * @type {(k: string) => number | undefined}
- */
-const arrayIndex = k => {
-    const i = Number(k)
-    return Number.isInteger(i) && i >= 0 && String(i) === k ? i : undefined
-}
-
-/**
  * The declared positions are checked by reading the value at each — a
  * position past the end reads as `undefined`, so a position is required
  * exactly when its set excludes `undefined`, and no minimum length is tested
  * for. What is left over is tested against `rest`, or, with no `rest`, must
  * not be there at all. Same shape as {@link objectSetValidate}, one kind
  * over.
+ *
+ * `undeclaredMembers` is what the schema-form readers walk too, so "what is
+ * left over" is one rule rather than two that happen to coincide — including
+ * an index the prototype supplies, which an own-entry filter here answered
+ * `ok` for while the rendered tail claimed the `rest`'s type over it.
  *
  * @type {(rules: RuleSet) => (p: ArraySet) => (value: readonly Unknown[]) => ResultE}
  */
@@ -1133,13 +1141,7 @@ const arraySetValidate = rules => p => value => {
         noAccumulate,
     )
     if (declared[0] === 'error') { return declared }
-    // What the prefix does not declare: an index past it, and every key that
-    // is not an index at all. The other readers walk the value's entries
-    // rather than its length, so both have to be answered here the same way.
-    const extra = Object.entries(value).filter(([k]) => {
-        const i = arrayIndex(k)
-        return i === undefined || i >= pn
-    })
+    const extra = undeclaredMembers(p.prefix.map((_, i) => String(i)), value)
     if (rest === undefined) {
         // Nothing past the prefix, by length as well as by entry: a hole past
         // it is not an entry, but the array is still that long, and this is
@@ -1191,6 +1193,48 @@ const unionValidate = rules => u => value => {
 
 /** @type {(rules: RuleSet) => (n: Node) => (value: Unknown) => ResultE} */
 const nodeValidate = rules => n => unionValidate(rules)(resolve(rules)(n))
+
+/**
+ * Whether `r`, as the rest of the container `c`, admits nothing — so that
+ * `rest(c, r)` and the bare, closed `c` denote one set.
+ *
+ * This is what the schema-form readers bound an array's length by, and it is
+ * asked *here* on purpose: `arraySet` is where an empty rest normalizes away,
+ * so the readers agree with this form by asking it rather than by re-deriving
+ * the same rule and drifting. Stated as **making no difference to the
+ * canonical form** — the conversion of `rest(c, r)` denoting the same set as
+ * the conversion of `c` — and not as a judgement about `r` on its own, nor as
+ * a reading of whether the conversion kept a `rest` key. Five cases fix it
+ * between them, and only this equality satisfies all five:
+ *
+ * - `never`, `or()` and `[or()]` all convert `rest(c, r)` to `c`'s own
+ *   conversion, so all three are empty. Keying on the exported `never` alone
+ *   would pass a `never`-only proof with the other two spellings still
+ *   disagreeing.
+ * - `const r = () => ['rest', [r], never]` has no finite inhabitant, yet the
+ *   conversion keeps `rest: "r"`, so it is *not* empty here. A reader
+ *   recognizing that emptiness would start rejecting what this form accepts.
+ * - `const a = () => ['or', b]; const b = () => ['or', a]` rules out the
+ *   rest's *own* canonical data as the test: {@link toData} of `a` is `never`,
+ *   and the conversion still keeps `rest: "a"`.
+ * - `unknown` rules out "the conversion kept no `rest` key" as the test:
+ *   `toData(rest([], unknown))` is `{ array: true }` — the whole kind, with no
+ *   `rest` key — because a top rest collapses the pattern rather than being
+ *   dropped from it.
+ * - Two separately constructed copies of one recursive rule, one in `c` and
+ *   one in `r`, rule out {@link equal} as the comparison: converting the rest
+ *   reserves the name, so `c`'s rule is named `r0` where converting `c` alone
+ *   names it `r`, and `equal` compares recursive definitions by rule name.
+ *
+ * {@link equivalent} answers all five. It is incomplete, and in the direction
+ * that costs nothing here: an unrecognized empty rest leaves the length
+ * unbounded, which is what a *kept* `rest` key means in this form anyway, so
+ * the readers still agree with it.
+ *
+ * @type {(c: ConstObject, r: Type) => boolean}
+ */
+export const emptyRest = (c, r) =>
+    equivalent(toData(/** @type {Type} */ (() => ['rest', c, r])))(toData(c))
 
 /**
  * Data-driven validation — the counterpart of `../validate` that consumes a

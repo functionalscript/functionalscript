@@ -26,30 +26,33 @@
  * it to convention. Which reader a caller wants, and why both exist, is in
  * "The two schema-form readers" in `../README.md`.
  *
- * ## Structs and tuples are open
+ * ## Structs and tuples are closed
  *
- * Openness is the shared rule, not a `parse` detail — see "Structs and tuples
- * are open" in `../README.md`. `validate` iterates what the *schema* declares,
- * so an undeclared key or a longer array is never visited: it is accepted, and
- * it is still there afterwards because the value is returned as-is. An absent
- * member reads as `undefined`, so a member is required exactly when its set
- * excludes `undefined`. A tuple schema declares by length, so a hole is a
- * position whose schema is `undefined` — see "A hole is a declared position" in
- * `../README.md`.
+ * Closedness is the shared rule, not a `parse` detail — see "Structs and
+ * tuples are closed" in `../README.md`. A bare `Struct` or `Tuple` admits the
+ * members it declares and no others, so an undeclared key or an index past the
+ * prefix rejects the value. A tuple answers by **length** as well as by
+ * member, because a hole past the prefix is no member and would slip through
+ * the member check alone.
  *
- * **Do not add a length check for tuples here.** `Ts<readonly [42]>` is the
- * exact tuple only because TypeScript cannot express the open one (see
- * `../ts/types.ts` `TupleTs`); reading that rendering as the value model is
- * what produced #1622, whose check lived in this module's ancestor and was
- * deleted with it. A schema that wants exact members says so, with `close` —
- * see "Closed containers" in `../README.md`.
+ * Closedness is about *undeclared* members and leaves the required/optional
+ * rule alone: an absent member reads as `undefined`, so a member is required
+ * exactly when its set excludes `undefined`, and a schema whose trailing
+ * position admits it still accepts a shorter array. A tuple schema declares by
+ * length, so a hole in the *schema* is a position whose schema is `undefined`
+ * — see "A hole is a declared position" in `../README.md`.
  *
- * ## Closed containers
+ * The length check is the model rather than an inference from `Ts<>`. #1622
+ * added one by reading `Ts<readonly[42]>`'s exact tuple as the value model
+ * while the model said open, and it was reverted for that reason; what has
+ * changed since is the model, not the reading.
  *
- * `close(c)` admits only the members `c` declares, and `close(c, rest)` admits
- * those plus any number of members belonging to `rest`. This narrows what is
- * accepted and changes nothing else: a success still carries the very value it
- * was given, undeclared members included.
+ * ## Stated rests
+ *
+ * `rest(c, r)` admits the declared members plus any number of members
+ * belonging to `r`, and `open(c)` — `rest(c, unknown)` — admits anything else
+ * besides. This widens what is accepted and changes nothing else: a success
+ * still carries the very value it was given, undeclared members included.
  *
  * ## Dispatch strategy
  *
@@ -63,9 +66,9 @@
  *
  * ## Recursion safety
  *
- * For `array` and `record` schemas, the inner item validator is instantiated
- * lazily — only after confirming the container is non-empty. This prevents
- * infinite recursion when validating recursive schemas like
+ * The inner validator of an `array`, a `record` or a `rest` is instantiated
+ * lazily — only after confirming there is a member for it to read. This
+ * prevents infinite recursion when validating recursive schemas like
  * `const list = () => ['array', list]`.
  *
  * See `./types.ts` for the `Path`/`Result`/`Validate`/`ValidationError`
@@ -75,7 +78,7 @@
  *
  * @import { Unknown } from '../ts/types.ts'
  * @import { ConstObject, Info1, Tag1, Type } from '../types.ts'
- * @import { Container, IsContainer, SchemaEntries, Validate, ValidateE, Visitor } from '../common/types.ts'
+ * @import { Container, Fits, IsContainer, SchemaEntries, Validate, ValidateE, Visitor } from '../common/types.ts'
  * @import { StringMap } from '../../object/types.ts'
  */
 
@@ -89,121 +92,102 @@ import {
     primitive0Validate,
     structSchemaEntries,
     tupleSchemaEntries,
-    undeclaredEntries,
+    undeclaredMembers,
     verror,
     visit,
 } from '../common/module.f.mjs'
-
-const { entries } = Object
+import { emptyRest } from '../data/module.f.mjs'
 
 /** `validate` has nothing to collect from a successful entry — only pass/fail matters. */
 const noAccumulate = () => undefined
+
+/** A uniform container declares no member by name, so every one is undeclared. */
+/** @type {readonly string[]} */
+const noDeclared = []
 
 /**
  * Builds a validator for `array` or `record` schemas.
  * The inner item validator is instantiated lazily (only when the container is
  * non-empty) to avoid infinite recursion with recursive schemas.
+ *
+ * The members are `undeclaredMembers`', not `Object.entries`': `array(t)` is
+ * `rest([], t)`, so the two have to walk a value the same way — an own-entry
+ * walk here skipped an index the prototype supplies while the data form's
+ * reader found it, which broke the acceptance agreement the three readers are
+ * pinned on.
+ *
+ * `fits` bounds the array kind's length when its element set admits nothing,
+ * which is what the data form says by normalizing such a `rest` away: an
+ * `array(or())` is the *empty* array and not "any number of holes". It is
+ * consulted only where it can change the answer — no member present, and the
+ * value reaching further than that — so an ordinary array never asks.
  */
 const containerValidate =
     /**
      * @template {Tag1} K
      * @param {IsContainer<Container<K>>} isContainer
+     * @param {(item: Type) => Fits<Container<K>>} restFits
      * @returns {<I extends Type>(item: I) => Validate<Info1<K, I>>}
      */
-    isContainer =>
-    item => value => {
-        if (!isContainer(value)) {
-            return verror('unexpected value')
-        }
-        const e = entries(value)
-        if (e.length === 0) {
-            return /** @type {any} */ (ok(value))
-        }
-        // Note: we shouldn't instantiate `itemValidate` until we make sure `entries` is not empty.
-        //       Otherwise, we can get infinite recursion on empty arrays and objects
-        const itemValidate = validate(item)
-        const r = eachEntry(e, (_k, v) => itemValidate(v), undefined, noAccumulate)
-        // `value` is Container<K>, but Ts<Info1<K,I>> = readonly Ts<I>[] | Record<string,Ts<I>>.
-        // TypeScript can't narrow the container's element types through the validation loop.
-        return r[0] === 'error' ? r : /** @type {any} */ (ok(value))
-    }
-
-const arrayValidate = containerValidate(isArray)
-
-const recordValidate = containerValidate(isObject)
-
-/**
- * Builds a validator for `Tuple` or `Struct` const schemas. It iterates what
- * the *schema* declares — `schemaEntries`, per kind — which is what makes both
- * kinds open: a longer array or an undeclared key is never visited, so it is
- * accepted — and, the value being returned as it came, it survives.
- */
-const constContainerValidate =
-    /**
-     * @template {Unknown} C
-     * @template {ConstObject} S
-     * @param {IsContainer<C>} isContainer
-     * @param {SchemaEntries<S>} schemaEntries
-     * @param {(value: C, k: string) => Unknown} getItem
-     * @returns {<T extends S>(rtti: T) => Validate<T>}
-     */
-    (isContainer, schemaEntries, getItem) =>
-    rtti => {
-        // Depends on `rtti` alone, so it is computed once per schema rather
+    (isContainer, restFits) =>
+    item => {
+        // Depends on the schema alone, so it is built once per schema rather
         // than once per validated value.
-        const rttiEntries = schemaEntries(rtti)
+        const fits = restFits(item)
         return value => {
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            const r = eachEntry(
-                rttiEntries,
-                (k, v) => /** @type {any} */ (validate(v))(getItem(value, k)),
-                undefined,
-                noAccumulate,
-            )
-            // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
-            // structurally equivalent to C — TypeScript can't narrow element types through the loop.
+            const e = undeclaredMembers(noDeclared, value)
+            if (e.length === 0) {
+                return fits(value, 0)
+                    ? /** @type {any} */ (ok(value))
+                    : verror('unexpected value')
+            }
+            // Note: we shouldn't instantiate `itemValidate` until we make sure `entries` is not empty.
+            //       Otherwise, we can get infinite recursion on empty arrays and objects
+            const itemValidate = validate(item)
+            const r = eachEntry(e, (_k, v) => itemValidate(v), undefined, noAccumulate)
+            // `value` is Container<K>, but Ts<Info1<K,I>> = readonly Ts<I>[] | Record<string,Ts<I>>.
+            // TypeScript can't narrow the container's element types through the validation loop.
             return r[0] === 'error' ? r : /** @type {any} */ (ok(value))
         }
     }
 
-const tupleValidate = constContainerValidate(
+const arrayValidate = containerValidate(
     isArray,
-    tupleSchemaEntries,
-    (value, k) => value[Number(k)],
+    // The cast is the price of one factory over two kinds: `Container<K>` is
+    // the union until `K` is bound, and only the array arm has a `length`.
+    item => (value, declared) =>
+        /** @type {ReadonlyArray<Unknown>} */ (value).length <= declared || !emptyRest([], item),
 )
 
-const structValidate = constContainerValidate(
-    isObject,
-    structSchemaEntries,
-    (value, k) => value[k],
-)
+const recordValidate = containerValidate(isObject, () => () => true)
 
 /**
- * Builds a validator for a **closed** `Tuple` or `Struct`. The declared
- * members are checked exactly as the open form checks them, and every member
- * the schema does not name is held to `rest` — or rejected outright when there
- * is none.
+ * Builds a validator for `Tuple` or `Struct` const schemas — **closed**: the
+ * members the schema declares and no others. It reads each declared member,
+ * then answers for every member of the value the schema does not name.
  *
  * `fits` is the one thing the two kinds do not share. An undeclared member is
- * an entry on both, but an array is also *as long as it is*: a hole past the
- * prefix is no entry and would slip through the entry check alone, so the
+ * a member on both, but an array is also *as long as it is*: a hole past the
+ * prefix is no member and would slip through the member check alone, so the
  * array kind answers with its length as well.
  */
-const closeContainerValidate =
+const constContainerValidate =
     /**
      * @template {ReadonlyArray<Unknown> | StringMap<Unknown>} C
      * @template {ConstObject} S
      * @param {IsContainer<C>} isContainer
      * @param {SchemaEntries<S>} schemaEntries
      * @param {(value: C, k: string) => Unknown} getItem
-     * @param {(value: C, declared: number) => boolean} fits
-     * @returns {(rtti: S, rest: Type | undefined) => ValidateE}
+     * @param {Fits<C>} fits
+     * @returns {<T extends S>(rtti: T) => Validate<T>}
      */
     (isContainer, schemaEntries, getItem, fits) =>
-    (rtti, rest) => {
-        // Depend on the schema alone, so they are computed once per schema.
+    rtti => {
+        // Depend on `rtti` alone, so they are computed once per schema rather
+        // than once per validated value.
         const rttiEntries = schemaEntries(rtti)
         const declared = rttiEntries.map(([k]) => k)
         return value => {
@@ -217,37 +201,96 @@ const closeContainerValidate =
                 noAccumulate,
             )
             if (r[0] === 'error') { return r }
-            const extra = undeclaredEntries(declared, value)
-            if (rest === undefined) {
-                return extra.length === 0 && fits(value, declared.length)
-                    ? ok(value)
-                    : verror('unexpected value')
-            }
-            const restValidate = /** @type {any} */ (validate(rest))
-            const e = eachEntry(extra, (_k, v) => restValidate(v), undefined, noAccumulate)
-            return e[0] === 'error' ? e : ok(value)
+            // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
+            // structurally equivalent to C — TypeScript can't narrow element types through the loop.
+            return undeclaredMembers(declared, value).length === 0 && fits(value, declared.length)
+                ? /** @type {any} */ (ok(value))
+                : verror('unexpected value')
         }
     }
 
-const closeTupleValidate = closeContainerValidate(
+const tupleValidate = constContainerValidate(
     isArray,
     tupleSchemaEntries,
     (value, k) => value[Number(k)],
     (value, declared) => value.length <= declared,
 )
 
-const closeStructValidate = closeContainerValidate(
+const structValidate = constContainerValidate(
     isObject,
     structSchemaEntries,
     (value, k) => value[k],
     () => true,
 )
 
-/** @type {(rtti: ConstObject, rest: Type | undefined) => ValidateE} */
-const closeValidate = (rtti, rest) =>
+/**
+ * Builds a validator for a container with a stated `rest`. The declared
+ * members are read exactly as the bare form reads them, and every member the
+ * schema does not name is held to `rest`.
+ *
+ * `restFits` carries the array kind's length bound, which a `rest` removes
+ * only while it admits something. An empty one says what the bare form says,
+ * so `rest(c, or())` and `c` stay one set — the criterion for "empty" is
+ * `emptyRest`'s, and it is consulted only when nothing is present past the
+ * prefix, since a member that got there and passed is itself the proof that
+ * the rest admits something.
+ */
+const restContainerValidate =
+    /**
+     * @template {ReadonlyArray<Unknown> | StringMap<Unknown>} C
+     * @template {ConstObject} S
+     * @param {IsContainer<C>} isContainer
+     * @param {SchemaEntries<S>} schemaEntries
+     * @param {(value: C, k: string) => Unknown} getItem
+     * @param {(rtti: S, r: Type) => Fits<C>} restFits
+     * @returns {(rtti: S, r: Type) => ValidateE}
+     */
+    (isContainer, schemaEntries, getItem, restFits) =>
+    (rtti, r) => {
+        // Depend on the schema alone, so they are computed once per schema.
+        const rttiEntries = schemaEntries(rtti)
+        const declared = rttiEntries.map(([k]) => k)
+        const fits = restFits(rtti, r)
+        return value => {
+            if (!isContainer(value)) {
+                return verror('unexpected value')
+            }
+            const d = eachEntry(
+                rttiEntries,
+                (k, v) => /** @type {any} */ (validate(v))(getItem(value, k)),
+                undefined,
+                noAccumulate,
+            )
+            if (d[0] === 'error') { return d }
+            const extra = undeclaredMembers(declared, value)
+            if (extra.length === 0) {
+                return fits(value, declared.length) ? ok(value) : verror('unexpected value')
+            }
+            const restValidate = /** @type {any} */ (validate(r))
+            const e = eachEntry(extra, (_k, v) => restValidate(v), undefined, noAccumulate)
+            return e[0] === 'error' ? e : ok(value)
+        }
+    }
+
+const restTupleValidate = restContainerValidate(
+    isArray,
+    tupleSchemaEntries,
+    (value, k) => value[Number(k)],
+    (rtti, r) => (value, declared) => value.length <= declared || !emptyRest(rtti, r),
+)
+
+const restStructValidate = restContainerValidate(
+    isObject,
+    structSchemaEntries,
+    (value, k) => value[k],
+    () => () => true,
+)
+
+/** @type {(rtti: ConstObject, r: Type) => ValidateE} */
+const restValidate = (rtti, r) =>
     rtti instanceof Array
-        ? closeTupleValidate(rtti, rest)
-        : closeStructValidate(rtti, rest)
+        ? restTupleValidate(rtti, r)
+        : restStructValidate(rtti, r)
 
 const orValidate =
     /**
@@ -261,7 +304,7 @@ const orValidate =
 const validateVisitor = /** @type {any} */ ({
     tuple: tupleValidate,
     struct: structValidate,
-    close: closeValidate,
+    rest: restValidate,
     array: arrayValidate,
     record: recordValidate,
     or: orValidate,
@@ -290,16 +333,16 @@ const validateVisitor = /** @type {any} */ ({
  * v(input)      // ['ok', input] — the same array, not a copy
  * v([1, 'two']) // ['error', { path: ['1'], message: 'unexpected value' }]
  *
- * // open, and the extras are still there afterwards
- * validate([number, number])([1, 2, 3])    // ['ok', [1, 2, 3]]
- * validate({ a: number })({ a: 1, b: 2 })  // ['ok', { a: 1, b: 2 }]
+ * // closed, so a member the schema does not name rejects the value
+ * validate([number, number])([1, 2, 3])    // ['error', …]
+ * validate({ a: number })({ a: 1, b: 2 })  // ['error', …]
  *
  * // an absent optional member stays absent
  * validate({ a: number, b: option(string) })({ a: 1 })  // ['ok', { a: 1 }]
  *
- * // closed, so the extras are what the schema says they may be — or nothing
- * validate(close({ a: number }))({ a: 1, b: 2 })          // ['error', …]
- * validate(close({ a: number }, number))({ a: 1, b: 2 })  // ['ok', { a: 1, b: 2 }]
+ * // a stated rest says what the undeclared members may be; `open` says anything
+ * validate(rest({ a: number }, number))({ a: 1, b: 2 })  // ['ok', { a: 1, b: 2 }]
+ * validate(open({ a: number }))({ a: 1, b: 'x' })        // ['ok', { a: 1, b: 'x' }]
  * ```
  *
  * @type {<const T extends Type>(rtti: T) => Validate<T>}

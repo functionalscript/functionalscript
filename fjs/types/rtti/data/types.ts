@@ -30,10 +30,10 @@ export type KindSet<T> = true | readonly T[]
  *   `rest`.
  * - `rest` absent: there is nothing past the prefix.
  *
- * A tuple schema is `{ prefix, rest: unknown }` — tuples are open, so an
- * array carrying more than the schema declares is a member (see "Structs and
- * tuples are open" in `../README.md`) — a uniform array schema is
- * `{ prefix: [], rest }`, and `{ prefix }` alone is the exact-length set.
+ * A bare tuple schema is `{ prefix }` alone — the exact-length set, since
+ * tuples are closed (see "Structs and tuples are closed" in `../README.md`) —
+ * an `open` one is `{ prefix, rest: unknown }`, and a uniform array schema is
+ * `{ prefix: [], rest }`.
  * All are points of the same kind, so a longer tuple pattern included in a
  * shorter one is a plain pattern inclusion, the array counterpart of a wider
  * struct included in a narrower one.

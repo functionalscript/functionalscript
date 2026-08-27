@@ -20,7 +20,7 @@ export type RpcError = Ts<typeof errorSchema>
 /**
  * A response envelope: either a success (`result`) or an error (`error`).
  * Derived from the rtti schema via `Ts<>` — the same declaration is the
- * runtime decoder and the static type, with no drift. rtti structs are open
+ * runtime decoder and the static type, with no drift. Both arms say `open`
  * (extra keys allowed), so "result XOR error" is not enforced at runtime; in
  * practice the dispatcher only ever constructs one or the other.
  *

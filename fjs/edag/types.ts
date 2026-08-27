@@ -4,7 +4,7 @@
  * than enumerating it here too, where it silently drifts stale as nodes are
  * added — each pinned against its rtti schema in the sibling module with
  * `Assert<Check<..., typeof ...>>`. Every tuple here is closed on both sides:
- * the schemas state `close`, so these types are exact rather than the
+ * none of the schemas says `open`, so these types are exact rather than the
  * approximation `TupleTs` in `../types/rtti/ts/types.ts` describes.
  */
 

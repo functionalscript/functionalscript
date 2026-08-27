@@ -135,6 +135,10 @@ import { syncRevision } from '../../cas/evo/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
+//
+// Closed, as the bare form says: a tool's argument list is a vocabulary this
+// server defines rather than a format a client extends, and the JSON Schema
+// derived from these now advertises exactly what the validator enforces.
 
 /** Arguments for `cas_add`: content to store, with optional encoding type. */
 export const casAddArgs = /** @type {const} */ ({

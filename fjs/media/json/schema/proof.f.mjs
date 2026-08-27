@@ -3,7 +3,7 @@
  * @import { Data } from '../../../types/rtti/data/types.ts'
  */
 
-import { boolean, number, string, bigint, never, unknown, array, record, or, option } from '../../../types/rtti/module.f.mjs'
+import { boolean, number, string, bigint, never, unknown, array, open, record, or, option } from '../../../types/rtti/module.f.mjs'
 import { stringify } from '../module.f.mjs'
 import { dataToJsonSchema, toJsonSchema, unknown as schemaUnknown } from './module.f.mjs'
 import { unitBit } from '../../../types/rtti/data/module.f.mjs'
@@ -80,52 +80,77 @@ export const proof = {
     record: eq(record(string), { type: 'object', additionalProperties: { type: 'string' } }),
     // `anyOf` members follow the canonical kind order, not the operand order
     or: eq(or(string, number), { anyOf: [{ type: 'number' }, { type: 'string' }] }),
-    // a tuple is open, so `items` admits what follows the prefix; a position
-    // admitting `undefined` may be absent instead, which is `minItems`
+    // A bare tuple is closed, which JSON Schema spells `items: false`; a
+    // position admitting `undefined` may be absent instead, which is
+    // `minItems`. `open` is what admits what follows the prefix, and prints
+    // the unconstrained `items: {}`.
     tuple: {
         allRequired: eq(/** @type {const} */ ([number, string]), {
             type: 'array',
             prefixItems: [{ type: 'number' }, { type: 'string' }],
             minItems: 2,
-            items: {},
+            items: false,
         }),
         withOptional: eq(/** @type {const} */ ([number, option(string)]), {
             type: 'array',
             prefixItems: [{ type: 'number' }, { type: 'string' }],
             minItems: 1,
-            items: {},
+            items: false,
         }),
         allOptional: eq(/** @type {const} */ ([option(number)]), {
             type: 'array',
             prefixItems: [{ type: 'number' }],
+            items: false,
+        }),
+        open: eq(open(/** @type {const} */ ([number, string])), {
+            type: 'array',
+            prefixItems: [{ type: 'number' }, { type: 'string' }],
+            minItems: 2,
             items: {},
         }),
     },
+    // The same on the other kind: a bare struct names every key it admits,
+    // which is `additionalProperties: { not: {} }`.
     struct: {
         allRequired: eq(/** @type {const} */ ({ x: number, y: string }), {
             type: 'object',
             properties: { x: { type: 'number' }, y: { type: 'string' } },
             required: ['x', 'y'],
+            additionalProperties: { not: {} },
         }),
         withOptional: eq(/** @type {const} */ ({ x: number, y: option(string) }), {
             type: 'object',
             properties: { x: { type: 'number' }, y: { type: 'string' } },
             required: ['x'],
+            additionalProperties: { not: {} },
         }),
         allOptional: eq(/** @type {const} */ ({ x: option(number) }), {
             type: 'object',
             properties: { x: { type: 'number' } },
+            additionalProperties: { not: {} },
+        }),
+        // a closed struct declaring nothing is the empty object
+        empty: eq(/** @type {const} */ ({}), {
+            type: 'object',
+            additionalProperties: { not: {} },
         }),
         // an unconstrained struct is the whole object kind
-        empty: eq(/** @type {const} */ ({}), { type: 'object' }),
+        openEmpty: eq(open(/** @type {const} */ ({})), { type: 'object' }),
+        open: eq(open(/** @type {const} */ ({ x: number, y: string })), {
+            type: 'object',
+            properties: { x: { type: 'number' }, y: { type: 'string' } },
+            required: ['x', 'y'],
+        }),
         orOptional: eq(/** @type {const} */ ({ x: or(string, number, undefined) }), {
             type: 'object',
             properties: { x: { anyOf: [{ type: 'number' }, { type: 'string' }] } },
+            additionalProperties: { not: {} },
         }),
         withConst: eq(/** @type {const} */ ({ x: null, y: string }), {
             type: 'object',
             properties: { x: { const: null }, y: { type: 'string' } },
             required: ['x', 'y'],
+            additionalProperties: { not: {} },
         }),
         optionalOfEveryKind: eq(/** @type {const} */ ({
             a: option(number),
@@ -144,6 +169,7 @@ export const proof = {
                 e: { type: 'object', additionalProperties: { type: 'string' } },
                 f: { const: null },
             },
+            additionalProperties: { not: {} },
         }),
     },
     schemaUnknownTag: () => {
@@ -165,6 +191,7 @@ export const proof = {
                 name: { type: 'string' },
             },
             required: ['id'],
+            additionalProperties: { not: {} },
         }),
         // the top position is required — the array cannot end before the
         // `number` after it — so its `undefined` is not stripped away
@@ -172,7 +199,7 @@ export const proof = {
             type: 'array',
             prefixItems: [{}, { type: 'number' }],
             minItems: 2,
-            items: {},
+            items: false,
         }),
     },
     normalization: {
@@ -183,16 +210,37 @@ export const proof = {
         literalAbsorbed: eq(or(42, number), { type: 'number' }),
         duplicateLiteral: eq(or(1, 1), { const: 1 }),
         never: eq(never, { not: {} }),
-        // an open tuple declaring nothing is the whole array kind
-        emptyTuple: eq(/** @type {const} */ ([]), { type: 'array' }),
-        // a longer tuple pattern is included in a shorter one, both open
+        // a closed tuple declaring nothing is the empty array
+        emptyTuple: eq(/** @type {const} */ ([]), { type: 'array', items: false }),
+        // an open one declaring nothing is the whole array kind
+        openEmptyTuple: eq(open(/** @type {const} */ ([])), { type: 'array' }),
+        // a longer tuple pattern is included in a shorter one when both are
+        // open; closed, the two lengths are disjoint and both patterns stay
         coverageCollapse: eq(
-            or([number, number], [number]),
+            or(open([number, number]), open([number])),
             {
                 type: 'array',
                 prefixItems: [{ type: 'number' }],
                 minItems: 1,
                 items: {},
+            }),
+        noCollapseWhenClosed: eq(
+            or(/** @type {const} */ ([number, number]), /** @type {const} */ ([number])),
+            {
+                anyOf: [
+                    {
+                        type: 'array',
+                        prefixItems: [{ type: 'number' }],
+                        minItems: 1,
+                        items: false,
+                    },
+                    {
+                        type: 'array',
+                        prefixItems: [{ type: 'number' }, { type: 'number' }],
+                        minItems: 2,
+                        items: false,
+                    },
+                ],
             }),
         commutative: () => {
             const a = serialize(toJsonSchema(or(string, number)))
@@ -215,6 +263,7 @@ export const proof = {
         optionalRecursiveProperty: eq(/** @type {const} */ ({ p: option(list) }), {
             type: 'object',
             properties: { p: { type: 'array', items: listRef } },
+            additionalProperties: { not: {} },
             $defs: { list: listDef },
         }),
         revisionLock: eq(lock, {
@@ -237,12 +286,13 @@ export const proof = {
                 type: 'object',
                 properties: { name: { type: 'string' } },
                 required: ['name'],
+                additionalProperties: { not: {} },
             }
             eq(/** @type {const} */ ([person, person]), {
                 type: 'array',
                 prefixItems: [personSchema, personSchema],
                 minItems: 2,
-                items: {},
+                items: false,
             })()
         },
     },
