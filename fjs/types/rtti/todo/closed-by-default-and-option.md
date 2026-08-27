@@ -680,7 +680,14 @@ Stage 1 (one PR):
       mechanism correction. After stage 1 all three name a function that no
       longer exists, and `:238` additionally credits the wrong mechanism for the
       rejection; restate them in the closed-by-default model.
-- [ ] Delete [close-counts-trailing-undefined](./close-counts-trailing-undefined.md),
+- [ ] Delete [close-counts-trailing-undefined](./close-counts-trailing-undefined.md)
+      **and retarget the two references that outlive it** — this file's own
+      stage-2 task citing "the prototype asymmetry
+      close-counts-trailing-undefined records", and its `## Related` entry. Both
+      sit after stage 1 in a file that survives to stage 2, so deleting without
+      them leaves dangling links in the active design document. The stage-1
+      tasks that name it (this one and the carry-over below) are fine: they are
+      the PR doing the deleting.
       whose whole subject is the `close(c, rest?)` overload stage 1 removes, and
       carry anything still live into this file — its defect half is the
       length-bounding task further down this list, its documentation half is
