@@ -1,8 +1,13 @@
-/** Generates the browser proof manifest without importing authored modules. */
+/**
+ * Generates the browser proof manifest without importing authored modules.
+ *
+ * @import { BindingName } from 'typescript'
+ */
 
 import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 
 import { run } from '../effects/node/module.mjs'
 import { toPosix } from '../path/module.f.mjs'
@@ -24,12 +29,36 @@ const files = async directory => {
     }))).flat()
 }
 
+/** @type {(name: BindingName) => boolean} */
+const bindsProof = name => ts.isIdentifier(name)
+    ? name.text === 'proof'
+    : name.elements.some(element =>
+        !ts.isOmittedExpression(element) && bindsProof(element.name))
+
 /** @type {(source: string) => boolean} */
-const exportsProof = source =>
-    source.split('export const proof').slice(1).some(part =>
-        part.startsWith(' ') || part.startsWith('\n') || part.startsWith('=')) ||
-    source.split('export {').slice(1).some(part => part.split('}')[0].split(',')
-        .some(name => (name.split(' as ')[1] ?? name).trim() === 'proof'))
+const exportsProof = source => {
+    const file = ts.createSourceFile('candidate.f.mjs', source,
+        ts.ScriptTarget.Latest, false, ts.ScriptKind.JS)
+    return file.statements.some(statement => {
+        if (ts.isExportDeclaration(statement)) {
+            const clause = statement.exportClause
+            if (clause === undefined) { return false }
+            return ts.isNamespaceExport(clause)
+                ? clause.name.text === 'proof'
+                : clause.elements.some(element => element.name.text === 'proof')
+        }
+        const exported = ts.canHaveModifiers(statement) &&
+            (ts.getModifiers(statement) ?? []).some(modifier =>
+                modifier.kind === ts.SyntaxKind.ExportKeyword)
+        if (!exported) { return false }
+        if (ts.isVariableStatement(statement)) {
+            return statement.declarationList.declarations.some(declaration =>
+                bindsProof(declaration.name))
+        }
+        return (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) &&
+            statement.name?.text === 'proof'
+    })
+}
 
 /** @type {(line: string, prefix: string, quote: string) => readonly string[]} */
 const quoted = (line, prefix, quote) =>
