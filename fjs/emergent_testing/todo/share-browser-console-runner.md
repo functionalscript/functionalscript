@@ -168,6 +168,44 @@ the walk's state rather than from the reporter, so they stay honest and the
 summary still reports the failures. Worth remembering when reading output while
 changing this function.
 
+### Why the remaining steps are worth taking
+
+Steps 4 through 7 look like tidying — move some operations, add an interpreter,
+share a reporter, delete a traversal. They are not. They draw a boundary the
+browser runner does not have, and the promise episode is what its absence costs.
+
+`browser.mjs` is impure `.mjs`, so a live host promise and a proof tree travel
+the same code path, and the code has to ask *which of these is a promise?* That
+is an identity-by-origin question — `instanceof` asks which copy of the
+constructor made the value, not what the value is — and asking it in a place
+that handles business logic is what produced ~150 lines of `Symbol.species`
+machinery, several rounds of review, two measured ways to hang the suite, and a
+reversal. The answer, in the end, was that the question should not have been
+there: the runner executes only pure FunctionalScript, which has no promises.
+
+`fjs t` mostly escapes this already, and not by being more careful. `sandbox` is
+an *operation*: the promise is awaited inside the interpreter and the pure core
+receives a `SandboxResult`. The host value never reaches the logic. That is the
+same discipline `fjs/effects` applies to a live HTTP server, which pure code
+holds as `Nominal<'server', '160855c4…', unknown>` — a handle whose identity is
+a content hash, with the real object kept by the interpreter.
+
+So the remaining steps are that boundary, applied to the browser:
+
+- **step 4** puts the host-independent operations somewhere both hosts can name;
+- **step 5** gives the browser an interpreter, which is where its host values
+  belong;
+- **steps 6 and 7** move reporting and traversal into the pure core, which is
+  where host values must never be.
+
+When they are done, `instanceof Promise` lives in exactly one interpreter, as
+glue, and no shared code asks the question. The three lines in `browser.mjs`
+today are in the right *place* only because the boundary has not been drawn
+there yet — they are temporary in a way the rest of the shared core is not.
+See [`todo/plan/capl.md`](../../../todo/plan/capl.md), which argues the general
+form: logic pure, serializable and content-addressed; host values behind
+handles.
+
 ### Preliminary design
 
 Share semantics, not host mechanics. The console runner should keep using the
