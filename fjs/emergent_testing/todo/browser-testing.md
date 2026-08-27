@@ -166,6 +166,20 @@ workers, or visual regression testing.
       today, and `npm run website` only *generates* the suite: it exits `0` with
       a failing proof in the manifest, so the browser suite is not a gate
       anywhere yet.
+- [ ] Keep a module-loading failure's stack. This section requires failures to
+      retain "module path, test path, message, and stack", and a *proof* failure
+      does — but a **load** failure no longer does. Linking is an `Import`
+      effect now, and its failure is an `IoError`, which is `{ code?, message }`:
+      `toIoError` drops the stack, so the report shows `stack: ''` where the
+      deleted runner showed the loader's own frames, which are what name the
+      importing module and line for a broken graph. The fix is one additive
+      optional field, `stack?: string` on `IoErrorInfo` in
+      `../../effects/common/types.ts`, filled by `toIoError` and read by
+      `infrastructureResult`. `IoError`'s rationale for dropping it — "a stack, a
+      `cause`, and arbitrary own properties do not survive a wire hop" — is right
+      about the last two and wrong about a stack, which is a string. Note that
+      reading `.stack` is a user-observable operation on a hostile value, the
+      same exposure `toIoError` already has reading `.message`.
 - [ ] Assert a floor on the number of proofs a run discovers. Nothing does
       today, in any runner: a `collectTests` that silently skipped most leaves
       would keep `fjs t` at exit `0`, and a suite that loses coverage cannot
