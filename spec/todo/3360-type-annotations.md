@@ -181,27 +181,24 @@ TypeScript aliases out.
    expression parser and evaluate an annotation expression. That predates the
    narrowing and would have reintroduced exactly the grammar-in-comments the
    design rejects.)*
-3. Generate `.d.ts` from the schemas — `fjs/types/rtti/ts` is already the
-   printer, so this is plumbing plus a `fjs` command, and it is the step that
-   could land earliest and independently.
-4. Check literal right-hand sides with `validate`.
-5. Resolve the function-schema **representation**
-   ([668-rtti-function-types](../../fjs/types/rtti/todo/668-rtti-function-types.md)'s
-   7a tasks — the schema form, its place in the canonical algebra, a printer
-   path, and whatever stage 4's stabilization strategy turns out to require of
-   a function schema; that last one is **conditional**, since under provable
-   purity nothing needs serializing). This comes *before* general inference,
-   not after: inferring the representative `f(x)` right-hand side needs `f`'s
-   contract and result schema, and RTTI has no function case until 7a lands.
-6. Design inference, then check general right-hand sides with `subset`.
-7. **Then** static checking of readable function definitions (668's 7b), which
-   consumes the inference from step 6.
 
-   *(An earlier draft ordered 5 and 6 the other way round — inference first,
-   function schemas "before `/*: */` goes beyond constants". That cannot be
-   implemented: it is the deadlock
-   [rtti-type-system](../../todo/rtti-type-system.md) documents, and the reason
-   668 splits into 7a and 7b at all.)*
+**Everything past step 2 belongs to the epic, and this list deliberately stops
+restating it.** [rtti-type-system](../../todo/rtti-type-system.md)'s Tasks
+section owns declaration generation, literal checking, inference, function
+schemas and their order — `.d.ts` emission, stage 5's reader, the 7a → 6 → 7b
+split, and the gates between them. Read the order there.
+
+That is a change of approach, not an omission. This list previously enumerated
+those stages in its own words, and went stale **four separate times** during
+review of #1719 while the epic's analysis moved underneath it: it told
+implementers to hand the annotation body to the expression parser, ordered
+inference before function schemas, omitted the anchoring gate, and described
+`.d.ts` generation as plumbing that could land first. Each restatement was
+internally coherent and quietly wrong, and a restatement cannot be kept correct
+by anything short of re-reading the source it paraphrases.
+
+Steps 1 and 2 stay because they are this document's own subject — the
+annotation form and how a name resolves — rather than a paraphrase of a stage.
 
 ## Depends on
 
