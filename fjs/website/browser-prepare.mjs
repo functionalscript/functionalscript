@@ -1,13 +1,8 @@
-/**
- * Generates the browser proof manifest without importing authored modules.
- *
- * @import { BindingName } from 'typescript'
- */
+/** Generates the browser proof manifest without importing authored modules. */
 
 import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import ts from 'typescript'
 
 import { run } from '../effects/node/module.mjs'
 import { toPosix } from '../path/module.f.mjs'
@@ -29,35 +24,73 @@ const files = async directory => {
     }))).flat()
 }
 
-/** @type {(name: BindingName) => boolean} */
-const bindsProof = name => ts.isIdentifier(name)
-    ? name.text === 'proof'
-    : name.elements.some(element =>
-        !ts.isOmittedExpression(element) && bindsProof(element.name))
+/**
+ * Blanks comments and quoted literals before looking for export declarations.
+ * Export declarations cannot occur inside a string, comment, or template, so
+ * this is enough to distinguish syntax from source text without depending on
+ * the TypeScript compiler API (not exposed by TypeScript 7).
+ *
+ * @type {(source: string) => string}
+ */
+const codeOnly = source => {
+    let result = ''
+    let index = 0
+    while (index < source.length) {
+        const char = source[index]
+        const next = source[index + 1]
+        if (char === '/' && next === '/') {
+            index += 2
+            while (index < source.length && source[index] !== '\n') { index += 1 }
+            result += '\n'
+            index += 1
+            continue
+        }
+        if (char === '/' && next === '*') {
+            index += 2
+            while (index < source.length && !(source[index] === '*' && source[index + 1] === '/')) {
+                result += source[index] === '\n' ? '\n' : ' '
+                index += 1
+            }
+            result += '  '
+            index += 2
+            continue
+        }
+        if (char === '\'' || char === '"' || char === '`') {
+            const quote = char
+            result += ' '
+            index += 1
+            while (index < source.length) {
+                if (source[index] === '\\') {
+                    result += '  '
+                    index += 2
+                    continue
+                }
+                if (source[index] === quote) {
+                    result += ' '
+                    index += 1
+                    break
+                }
+                result += source[index] === '\n' ? '\n' : ' '
+                index += 1
+            }
+            continue
+        }
+        result += char
+        index += 1
+    }
+    return result
+}
 
 /** @type {(source: string) => boolean} */
 const exportsProof = source => {
-    const file = ts.createSourceFile('candidate.f.mjs', source,
-        ts.ScriptTarget.Latest, false, ts.ScriptKind.JS)
-    return file.statements.some(statement => {
-        if (ts.isExportDeclaration(statement)) {
-            const clause = statement.exportClause
-            if (clause === undefined) { return false }
-            return ts.isNamespaceExport(clause)
-                ? clause.name.text === 'proof'
-                : clause.elements.some(element => element.name.text === 'proof')
-        }
-        const exported = ts.canHaveModifiers(statement) &&
-            (ts.getModifiers(statement) ?? []).some(modifier =>
-                modifier.kind === ts.SyntaxKind.ExportKeyword)
-        if (!exported) { return false }
-        if (ts.isVariableStatement(statement)) {
-            return statement.declarationList.declarations.some(declaration =>
-                bindsProof(declaration.name))
-        }
-        return (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) &&
-            statement.name?.text === 'proof'
-    })
+    const code = codeOnly(source)
+    if (/\bexport\s+(?:const|let|var|function|class)\s+proof\b/.test(code)) { return true }
+    if (/\bexport\s*\*\s*as\s+proof\b/.test(code)) { return true }
+    return [...code.matchAll(/\bexport\s*\{([^}]*)\}/g)].some(match =>
+        (match[1] ?? '').split(',').some(item => {
+            const names = item.trim().split(/\s+as\s+/)
+            return (names[names.length - 1] ?? '') === 'proof'
+        }))
 }
 
 /** @type {(line: string, prefix: string, quote: string) => readonly string[]} */
