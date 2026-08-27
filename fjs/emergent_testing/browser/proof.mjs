@@ -166,6 +166,33 @@ export const proof = {
         assertEq(report.totals.tests, 2)
         assertEq(report.results[1]?.path, '.nested().then')
     },
+    frozenPromiseTag: async () => {
+        // A non-extensible spoof leaves the runner nothing to shadow, the same
+        // dead end a pinned promise reaches. It is still an ordinary proof
+        // tree, so it is walked rather than reported as a brand-check failure.
+        const report = await run({
+            nested: () => Object.freeze({
+                [Symbol.toStringTag]: 'Promise',
+                then: () => undefined,
+            }),
+        })
+        assertEq(report.totals.tests, 2)
+        assertEq(report.totals.failed, 0)
+        assertEq(report.results[1]?.path, '.nested().then')
+    },
+    returnedTreeThrows: async () => {
+        // Reading the returned tree runs user code. When it throws, the test
+        // that produced the value fails and the page still reaches a terminal
+        // state — a rejected run would leave it in `running` forever.
+        const p = page()
+        const report = await startBrowserTests(p.root,
+            [['m', { nested: () => ({ get bad() { throw new Error('getter') } }) }]])
+        assertEq(report.status, 'failed')
+        assertStructurallySame({ ...report.totals }, { tests: 1, passed: 0, failed: 1 })
+        assertEq(report.results[0]?.message, 'getter')
+        assertStructurallySame([...p.states], ['running', 'failed'])
+        assertEq(p.view.events.length, 1)
+    },
     thenIsATestName: async () => {
         // A `then` proof entry is a test called `then`, never a thenable for
         // the runner to adopt.

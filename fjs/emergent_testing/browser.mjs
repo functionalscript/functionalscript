@@ -18,6 +18,8 @@
 
 import { collectTests, fmtPath } from './module.f.mjs'
 
+/** @import { _TestAndPath } from './types.ts' */
+
 /** @type {(value: unknown) => string} */
 const text = value => {
     try {
@@ -46,6 +48,28 @@ const errorDetails = error => {
 /** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
 
 /**
+ * Reproduces the lookup `then` performs before it builds its result promise:
+ * `constructor`, then its `Symbol.species`. A genuine promise with a hostile
+ * species throws here too; an object that only claims to be a promise failed
+ * the brand check first and reads its `constructor` cleanly. That is what
+ * separates a promise nothing can subscribe to from an ordinary proof tree,
+ * once shadowing `constructor` has turned out to be impossible.
+ *
+ * @type {(value: unknown) => boolean}
+ */
+const speciesFails = value => {
+    try {
+        if (value === null || value === undefined) { return false }
+        const constructor = /** @type {{ readonly constructor?: unknown }} */ (value).constructor
+        if (constructor === null || constructor === undefined) { return false }
+        /** @type {{ readonly [Symbol.species]?: unknown }} */ (constructor)[Symbol.species]
+        return false
+    } catch {
+        return true
+    }
+}
+
+/**
  * Runs the intrinsic Promise `then` only for genuine promises. The first call
  * is both the native brand check and the normal await path, so arbitrary proof
  * objects with a `then` key are never assimilated.
@@ -55,10 +79,12 @@ const errorDetails = error => {
  * current realm's Promise and retry the same intrinsic call; the shadow is
  * removed immediately after the handlers are attached.
  *
- * A promise that pins its own `constructor` leaves nothing to shadow, so no
- * subscription is possible at all. The species failure is then reported
- * against the test that produced the promise — the same outcome `await` gives
- * it in the Node runner — because a result nobody can observe is not a pass.
+ * A promise that pins its own `constructor`, or is frozen, leaves nothing to
+ * shadow, so no subscription is possible at all. The species failure is then
+ * reported against the test that produced the promise — the same outcome
+ * `await` gives it in the Node runner — because a result nobody can observe is
+ * not a pass. A non-extensible object that merely claims to be a promise
+ * reaches the same dead end and is still walked as the proof tree it is.
  *
  * @type {(value: unknown, fulfilled: (value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[], rejected: (error: unknown) => readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]> | null}
  */
@@ -85,10 +111,11 @@ const runPromise = (value, fulfilled, rejected) => {
             descriptor = Object.getOwnPropertyDescriptor(value, 'constructor')
             Object.defineProperty(value, 'constructor', { value: Promise, configurable: true })
         } catch {
-            // A pinned `constructor`: the promise cannot be subscribed to, so
-            // its test fails on the species error instead of passing on a
-            // value that was never awaited.
-            return Promise.resolve(rejected(error))
+            // Nothing to shadow, so the value is whatever its own lookup says:
+            // a promise that cannot be subscribed to fails on the species error
+            // rather than passing on a result that was never awaited, and a
+            // frozen spoof is an ordinary proof tree.
+            return speciesFails(value) ? Promise.resolve(rejected(error)) : null
         }
         try {
             return call()
@@ -125,7 +152,17 @@ const runOne = (module, path, throws, fn, result) => {
                 result(failure)
                 return [failure]
             }
-            const children = collectTests([...path, null], false, value)
+            // Reading the returned tree runs user code: an enumerable getter
+            // or a proxy trap can throw. That is a failure of the test that
+            // produced the value, never of the run — a rejected run leaves the
+            // page in `running` with no report and no completion event.
+            /** @type {readonly _TestAndPath[]} */
+            let children
+            try {
+                children = collectTests([...path, null], false, value)
+            } catch (error) {
+                return failed(error)
+            }
             return Promise.all(children.map(([childPath, child]) =>
                 runOne(module, childPath, child.throws, child.fn, result)
             )).then(results => {
