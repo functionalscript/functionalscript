@@ -168,6 +168,35 @@ the same coverage expectations as `module.f.mjs`.
   imports and must not create runtime dependencies.
 - a public declaration must never depend on the removable `private.ts` module.
 
+#### Breaking public type migration
+
+Moving a public file-scope JSDoc typedef from `module.f.mjs` or `proof.f.mjs` to
+`types.ts` changes its published import path. Treat that relocation as an
+intentional breaking API change rather than preserving the old type entry point
+with compatibility re-exports.
+
+For example, if consumers previously imported a type from:
+
+```text
+./module.f.mjs
+```
+
+and the type moves to `types.ts`, its new public type entry point is:
+
+```text
+./types.ts
+```
+
+The migration must update every repository importer to the new path and record
+the breaking change in the changelog. Do not leave compatibility typedefs or
+re-exports in `module.f.mjs` merely to preserve the old type-only subpath: that
+would reintroduce the file-scope typedef/declaration noise this convention is
+intended to remove.
+
+This breaking rule applies to type entry points, not runtime exports. Moving
+runtime values to `meta.f.mjs` requires its own API decision if those values are
+publicly imported at runtime.
+
 #### Declaration emission and packaging
 
 `private.ts` is source-only and remains in the normal TypeScript program so its
@@ -220,7 +249,10 @@ References to packaged `meta.f.mjs` are allowed.
 - [ ] Keep the leading `_` convention for every private type name, including
       private helpers in `types.ts` and function-local private typedefs.
 - [ ] Move public file-scope named types from implementation/proof JSDoc into
-      `types.ts`.
+      `types.ts` as a breaking type-API migration; update every repository
+      importer to the new `types.ts` path and record the break in the changelog.
+- [ ] Do not add compatibility typedefs or re-exports to preserve old
+      `module.f.mjs` type entry points.
 - [ ] Keep `_` helpers required to express public declarations in `types.ts`;
       do not create `types.ts -> private.ts` dependencies.
 - [ ] Move other private file-scope named types out of `types.ts`,
@@ -260,6 +292,10 @@ References to packaged `meta.f.mjs` are allowed.
 - Function-local JSDoc `@typedef` declarations are allowed everywhere; private
   ones keep `_` and do not escape as exported declaration aliases.
 - Public file-scope types live in `types.ts`.
+- Moving a public type from `module.f.mjs` / `proof.f.mjs` to `types.ts` is an
+  intentional breaking API change: repository importers use the new path, the
+  changelog records the break, and no compatibility typedef/re-export preserves
+  the old type entry point.
 - Private `_` helpers required to express public types also remain in `types.ts`
   and are not source exports merely because they are declaration helpers.
 - Other private file-scope types live in `private.ts` and keep `_`.
