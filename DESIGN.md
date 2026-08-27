@@ -107,46 +107,66 @@ on top of the weaker design.
   belongs in `fjs/path`, not inline in a loader). First search for an appropriate
   existing module; create a new one only if no good fit exists. This is different
   from DRY extraction: it is always appropriate.
-- **Follow the example** — when the same capability already exists elsewhere,
-  share it first, document what still differs, and fix what you find in every
-  context at once. See below.
+- **Follow the example** — one skeleton for every context; differences live in
+  the parts it calls, and improvements go into the skeleton so everyone gets
+  them. See below.
 - **Avoid side effects and mutability.**
 
 ### Follow the example
 
 When a capability already exists somewhere in the repository and is being
 brought to a second context — another host, another backend, another runner —
-**the existing one is the specification.** The order of work is:
+**the existing one is the specification.**
 
-1. **Share the code.** Take the existing implementation as the shared core.
-2. **Adjust where the second context genuinely requires it.** Different hosts
-   have different APIs, and a wrapper or an adapter around the shared core is
-   the normal, expected shape. Two contexts may end up behaving slightly
-   differently for reasons their hosts impose.
-3. **Document every difference that remains,** at the point where it is made.
+What is shared is the **skeleton**: the control flow, the order of operations,
+the decisions and their names — the shape of the whole thing. Every context runs
+that same skeleton. Where a context differs, it differs by supplying a different
+**part** that the skeleton calls out to, at a place the skeleton names. It does
+not differ by having a skeleton of its own.
+
+So there are exactly two ways to accommodate a context, and both are additive:
+
+- **Adjust that context's part.** A browser writes rows into a DOM where a
+  terminal writes lines to stdout; those are two implementations of one named
+  part, and the skeleton above them cannot tell which it has.
+- **Improve the skeleton, for everyone.** If what the new context needs is
+  something the skeleton should have had, put it there. Every context gets it,
+  and that is a feature of the change rather than a side effect to apologize
+  for.
+
+There is no third way. A branch inside the skeleton that asks which host it is
+running on is a fork wearing a shared name, and it is worse than two honest
+implementations, because nothing about the shared name signals the difference. A
+context that cannot be served by any existing part means the skeleton is missing
+an extension point: add the point — one more named part that every context then
+supplies — rather than a special case.
+
+The order of work follows from that:
+
+1. **Share the skeleton.** Take the existing implementation as the core, with
+   its behaviour unchanged.
+2. **Adjust the parts** the new context genuinely requires, or extend the
+   skeleton so it can express what the new context needs.
+3. **Document every difference that remains,** at the part where it is made.
 4. **Open an issue for each problem the port revealed,** rather than fixing it
    inside the port.
-5. **Solve each issue for every context at once,** so they stay in sync.
-
-The cost of skipping a step is not paid where it is skipped. Steps 1–2 without
-3–5 give something that *looks* unified and is not: two behaviours behind one
-name, which is worse than two implementations behind two names, because nothing
-signals the difference.
+5. **Solve each issue in the skeleton or in every part at once,** so the
+   contexts stay in sync.
 
 The parts worth stating outright:
 
 **Differences are allowed; undocumented differences are not.** The goal is not
 one identical behaviour — a browser has no stdout and a terminal has no DOM, and
 pretending otherwise invents a host that does not exist. The goal is that every
-difference is deliberate, written down, and traceable to the host that forced
-it. "This context can do better here" is not such a reason: that is an
-improvement, and improvements go through step 4.
+difference lives in a named part, is deliberate, and is traceable to something
+the host forced. "This context could do better here" is not such a reason: that
+is an improvement, and an improvement belongs in the skeleton, where everyone
+gets it.
 
-**Solve it for both, or for neither.** Once an issue from step 4 is picked up,
-the fix lands in every context, in the same change. A fix in one context only is
-how the two drift back apart, and it hides the finding from the place that has
-had the defect longest — which is usually the older one. This is the step that
-keeps the contexts in sync, and it is the one under time pressure to skip.
+**Solve it for every context, or for none.** Once an issue from step 4 is picked
+up, the fix lands everywhere in the same change. A fix in one context only is how
+the contexts drift back apart, and it hides the finding from the place that has
+had the defect longest — usually the older one.
 
 **The example may be simple for a reason.** What looks like a gap from inside
 the new context is often a decision made in the old one. Copy it first; if it

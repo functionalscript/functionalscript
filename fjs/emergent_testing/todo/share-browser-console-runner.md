@@ -31,17 +31,26 @@ repository does not want to pay again, and the record of why is worth more than
 the code was. **The order of work is the deliverable here, not just the final
 shape.** See [DESIGN.md §4, "Follow the example"](../../../DESIGN.md).
 
-**Share the code, then keep the two in sync.** The order is: share; adjust
-where the host genuinely requires it; document every difference that remains;
-open an issue for each problem the port revealed; and solve each of those issues
-for **both** runners at once. The last step is the one that matters and the one
-under pressure to skip.
+**One skeleton, with named parts.** The thing to share is the *runner itself*:
+the order in which modules are linked, leaves discovered, bodies executed,
+throws inverted, results counted and the run concluded. Both hosts run that same
+skeleton. Everything host-specific is a **part** the skeleton calls at a place it
+names — where the leaf body is executed, where a result is reported, where a
+module is linked — and a part is where a browser is allowed to be a browser.
 
-Differences are fine — a browser has no stdout, a terminal has no DOM, and the
-two will use different APIs and wrappers around the same core. *Undocumented*
-differences are not. The attempt shared the modules and then let the browser
-keep its own test-name format, its own scheduling policy and its own clock, none
-of which the host forced. That is the failure mode: it *looks* like success —
+That gives exactly two ways to accommodate a host, both additive: change *that
+host's part*, or *improve the skeleton so every host benefits*. There is no
+third. A branch inside the skeleton asking which host it is running on is a fork
+wearing a shared name. A host need that no existing part can express means the
+skeleton is missing an extension point — add the point, which every host then
+supplies, rather than a special case.
+
+Differences between the parts are fine and expected: a DOM row and a terminal
+line are two implementations of the same named part, and the skeleton above them
+cannot tell which it has. *Undocumented* differences are not. The attempt shared
+the modules and then let the browser keep its own test-name format, its own
+scheduling policy and its own clock — none of which its host forced, and none of
+which belonged in a part. That is the failure mode: it *looks* like success —
 one module, one name — while two behaviours hide behind it, and two
 implementations behind two names would have been more honest, because nothing
 about the shared name signals the difference.
@@ -75,11 +84,12 @@ both are properly issues rather than fixes inside a port:
   [Hostile thrown values and cross-realm promises](hostile-proof-values.md) and
   [Imports, promises and realms](imports-promises-realms.md).
 
-The rule that follows: **land the shared core with behaviour unchanged, then
-take each new problem as its own change that lands in both runners together.**
-An improvement the browser could have is an issue, not something to introduce
-inside a port. A behaviour the port cannot preserve is a finding to record
-before it merges, not a silent divergence to explain in review.
+The rule that follows: **land the shared skeleton with behaviour unchanged, then
+take each new problem as its own change — in the skeleton where it belongs
+there, so both runners get it, or in every part at once.** An improvement the
+browser could have is an issue, not something to introduce inside a port. A
+behaviour the port cannot preserve is a finding to record before it merges, not
+a silent divergence to explain in review.
 
 **Keep the change reviewable.** The attempt was 2646 insertions and 1408
 deletions across 35 files in one PR — a move, a rewrite, a new effects layer, a
@@ -183,10 +193,14 @@ are shared.
 - Both runners must produce the same test name for the same leaf. This one is
   not a host difference: nothing about a browser prevents it, and a divergence
   here is the visible sign that the semantics underneath were never unified.
-- Every remaining difference between the two runners is documented where it is
-  made, and traceable to something the host forced. Host APIs and wrappers may
-  differ freely; behaviour may differ only for a written reason.
-- A fix for a problem either runner has lands in both, in the same change.
+- The skeleton never asks which host it is running on. Anything host-specific is
+  a part it calls; anything it cannot express through a part is a missing
+  extension point, not a special case.
+- Every remaining difference between the two runners lives in a part, is
+  documented there, and is traceable to something the host forced. Host APIs and
+  wrappers may differ freely; behaviour may differ only for a written reason.
+- A fix for a problem either runner has lands in the skeleton, or in every part
+  at once — in the same change.
 - Browser modules must not import Node built-ins, the Node effect interpreter,
   `node:test`, or Playwright.
 - Website build-time filesystem access must be expressed by the FunctionalScript
@@ -210,6 +224,9 @@ are shared.
 
 - [ ] Inventory duplicated semantics in `emergent_testing/module.f.mjs` and
       `emergent_testing/browser.mjs`, and define the smallest shared API.
+- [ ] Name the skeleton's parts explicitly — execute a leaf, report a result,
+      link a module — and check that nothing host-specific is left outside one
+      of them.
 - [ ] Make the existing `collectTests`/path behavior the single source of truth
       for console and browser execution.
 - [ ] Share the test-name format, and prove both runners name the same leaf
