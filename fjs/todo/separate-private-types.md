@@ -45,7 +45,7 @@ of basename or whether the file is FunctionalScript. This includes
 `testlib.f.mjs`, and other descriptive companions. Function-local typedefs remain
 allowed as described below.
 
-Private type names continue to start with `_`.
+Private type and runtime constant names continue to start with `_`.
 
 #### Public declaration closure
 
@@ -149,22 +149,30 @@ and normal runtime tables whose type is asserted:
 
 ```js
 // meta.f.mjs
-export const framingKeywords =
+export const _framingKeywords =
     /** @type {const} */ (['import', 'const', 'export', 'default', 'from'])
 ```
 
 ```ts
 // private.ts
-import type { framingKeywords } from './meta.f.mjs'
+import type { _framingKeywords } from './meta.f.mjs'
 
 type _KeywordsAreComplete =
-    Assert<Equal<(typeof framingKeywords)[number], _FramingKeyword>>
+    Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
 ```
 
 ```js
 // module.f.mjs
-import { framingKeywords } from './meta.f.mjs'
+import { _framingKeywords } from './meta.f.mjs'
 ```
+
+Private constants in `meta.f.mjs` use the same leading-`_` API convention as
+private types. They may need to be exported so sibling runtime or TypeScript
+modules can name them, but that export is module linkage rather than public API:
+consumers must not depend on `_`-prefixed constants directly. Renaming or removing
+such a name is not a breaking change solely because it was exported. As with
+private types, changes that alter an actual public runtime/type contract still
+follow the normal breaking-change rules.
 
 The trigger is an actual TypeScript type dependency (`typeof`, `Ts<typeof ...>`,
 indexed access, a type proof, etc.), not merely that a runtime value *could* be
@@ -289,7 +297,8 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
 - [ ] Prohibit file-scope JSDoc `@typedef` in every authored `.mjs`, including
       `.f.mjs`, host `module.mjs` / `proof.mjs`, and descriptive companions;
       allow function-local `@typedef` everywhere.
-- [ ] Keep the leading `_` convention for every private type name.
+- [ ] Keep the leading `_` convention for every private type and private runtime
+      metadata constant name.
 - [ ] Move public file-scope named types from authored `.mjs` JSDoc into
       `types.ts` as a breaking migration; update importers and changelog.
 - [ ] Keep or inline every private `_` helper required transitively by any
@@ -301,7 +310,8 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
 - [ ] Keep lexical type-proof typedefs inside their functions.
 - [ ] Move runtime constants actually referenced by TypeScript type
       definitions/proofs into `meta.f.mjs`, including RTTI values, non-RTTI
-      literal constants, and runtime-used tables.
+      literal constants, and runtime-used tables; prefix private ones with `_`
+      even when they must be exported for sibling-module access.
 - [ ] Move file-scope private proofs over those constants to `private.ts` (or
       `types.ts` when part of the public declaration closure) and use
       `import type { ... }`.
@@ -328,7 +338,7 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
         former file-scope typedef is moved to the appropriate TypeScript file;
       - a non-FunctionalScript authored `.mjs` file whose former file-scope
         typedef is moved to the appropriate TypeScript file;
-      - `meta.f.mjs` with RTTI, literal, and runtime-used constants.
+      - `meta.f.mjs` with RTTI, literal, runtime-used, and private `_` constants.
 - [ ] Include a retained JSDoc `@import ... './private.ts'` comment in an emitted
       declaration fixture and verify the clean consumer succeeds without
       `private.ts`; this proves comments do not create package dependencies.
@@ -352,9 +362,11 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
 - `types.ts` and every packed public declaration are independent of `private.ts`.
 - Every import in `types.ts` and `private.ts` uses named `import type { ... }`.
 - Runtime constants referenced by TypeScript definitions/proofs live in
-  `meta.f.mjs`, whether RTTI or not. Emergent testing loads `meta.f.mjs`, Node and
-  Deno coverage filters include it, and the existing coverage thresholds apply;
-  this convention does not prescribe how developers satisfy those thresholds.
+  `meta.f.mjs`, whether RTTI or not. Private constants use leading `_` even when
+  exported for sibling-module access; `_` marks them private by contract.
+  Emergent testing loads `meta.f.mjs`, Node and Deno coverage filters include it,
+  and the existing coverage thresholds apply; this convention does not prescribe
+  how developers satisfy those thresholds.
 - Moving public types to `types.ts` and public runtime metadata to `meta.f.mjs`
   are breaking migrations: importers and changelog are updated and no
   compatibility re-exports preserve old entry points.
