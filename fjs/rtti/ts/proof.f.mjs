@@ -1,15 +1,15 @@
 /**
- * @import { Or, Type } from '../../../rtti/types.ts'
- * @import { Data } from '../../../rtti/data/types.ts'
- * @import { Ts, TupleTs } from './types.ts'
- * @import { Assert } from '../../../asserts/types.ts'
- * @import { Equal } from '../../ts/types.ts'
+ * @import { Or, Type } from '../types.ts'
+ * @import { Data } from '../data/types.ts'
+ * @import { Ts, TupleTs } from '../../types/rtti/ts/types.ts'
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
  */
 
-import { assertEq } from '../../../asserts/module.f.mjs'
-import { toData, unitBit } from '../../../rtti/data/module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, open, record, or, option, rest, never } from '../../../rtti/module.f.mjs'
-import { dataToTs, printer } from './module.f.mjs'
+import { assertEq } from '../../asserts/module.f.mjs'
+import { toData, unitBit } from '../data/module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, open, record, or, option, rest, never } from '../module.f.mjs'
+import { dataToTs, printer } from '../../types/rtti/ts/module.f.mjs'
 
 // ── `Ts<T>` over a tuple schema ─────────────────────────────────────────────
 //
