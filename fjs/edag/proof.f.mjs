@@ -15,7 +15,7 @@
  * @import { StringMap } from '../types/object/types.ts'
  */
 
-import { validate } from '../types/rtti/validate/module.f.mjs'
+import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
     exp, op0Id, op1Id, op2Id,

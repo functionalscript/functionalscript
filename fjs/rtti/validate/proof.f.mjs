@@ -7,7 +7,7 @@
  * @import { Assert } from '../../asserts/types.ts'
  */
 
-import { validate } from '../../types/rtti/validate/module.f.mjs'
+import { validate } from './module.f.mjs'
 import { parse } from '../parse/module.f.mjs'
 import { toData, validate as dataValidate } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../module.f.mjs'
