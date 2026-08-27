@@ -25,6 +25,7 @@
  *
  * @module
  *
+ * @import { _Failure } from './private.ts'
  * @import { TerminalRange } from '../types.ts'
  * @import { Rule as DataRule, RuleSet, Sequence } from '../data/types.ts'
  * @import { Rule as FRule } from '../types.ts'
@@ -40,16 +41,7 @@ import { definedEntries } from '../../types/object/module.f.mjs'
 import { emptyTagMap, isRepeat, toData } from '../data/module.f.mjs'
 import { leafAt, mrFail, mrSuccess, physicalIdx, symbolAt } from '../matcher/module.f.mjs'
 
-/**
- * The furthest-failure record while matching, positioned by the complete
- * {@link Cursor}. {@link DescentFailure} is its public, physically-positioned
- * form.
- *
- * @typedef {{
- *     readonly pos: Cursor
- *     readonly expected: readonly TerminalRange[]
- * }} _Failure
- */
+
 
 /**
  * The machine's own result: a {@link DescentMatchResult} positioned by the
