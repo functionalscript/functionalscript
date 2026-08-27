@@ -214,6 +214,38 @@ export const proof = {
     // its own: a browser suite runs authored `.f.mjs` only, and FunctionalScript
     // has no promises, so nothing it executes can produce this value. Only an
     // impure proof reaching for `node:vm` can, as this one does.
+
+    // `await`, not `value.then(...)`. A promise can replace its own `then`, and
+    // it can make `constructor[Symbol.species]` build something that is not a
+    // promise at all; `.then` consults both, `await` consults neither and reads
+    // the promise's internal state. These two pin that the browser awaits the
+    // way `fjs t` does rather than merely checking the same brand.
+    awaitIgnoresAnOwnThenOverride: async () => {
+        const promised = Promise.resolve({ child: () => undefined })
+        // A no-op override: anything that calls it instead of awaiting gets
+        // `undefined` and loses the subtree.
+        Object.defineProperty(promised, 'then', { value: () => undefined })
+        const report = await run({ nested: () => promised })
+        assertEq(report.totals.tests, 2)
+        assertEq(report.results[1]?.path, '.nested().child')
+    },
+    awaitIgnoresACustomSpecies: async () => {
+        // `then` builds its answer through `constructor[Symbol.species]`, and
+        // this one returns an ordinary object, so `.then` would hand back a
+        // non-promise before the proof had settled.
+        const species = function (/** @type {(...args: (() => void)[]) => void} */ executor) {
+            executor(() => undefined, () => undefined)
+            return { notAPromise: true }
+        }
+        const promised = new Promise(resolve =>
+            setTimeout(resolve, 1, { child: () => { throw 'boom' } }))
+        Object.defineProperty(promised, 'constructor',
+            { value: { [Symbol.species]: species }, configurable: true })
+        const report = await run({ nested: () => promised })
+        assertEq(report.totals.tests, 2)
+        assertEq(report.totals.failed, 1)
+        assertEq(report.results[1]?.path, '.nested().child')
+    },
     crossRealmPromiseIsWalkedAsATree: async () => {
         const other = runInNewContext('({ resolve: value => Promise.resolve(value) })')
         const report = await run({

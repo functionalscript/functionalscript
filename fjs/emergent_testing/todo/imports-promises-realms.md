@@ -50,10 +50,14 @@ that is the point at which cross-realm promises stop being hypothetical.
 - **State the layering.** One document saying which layer adopts a `then` and
   which layer refuses to, and why both are right. Until that exists, every fix
   to one looks like a bug in the other.
-- [x] **Find a brand check that survives a realm and cannot be forged.** Done —
-  see Findings. `Promise.resolve(p) === p` against the value's own constructor
-  works, combined with `instanceof`; it is forgeable only deliberately.
-  Whatever is chosen must be one function every interpreter calls.
+- [x] **Find a brand check that survives a realm and cannot be forged.**
+  Answered, and the answer is **no standalone constructor-based check was
+  accepted**. `Promise.resolve(p) === p` against the value's own constructor
+  looked right and misclassifies an ordinary identity-`resolve` tree, hanging
+  the run; and no brand check reaches the case where the value *is* a promise
+  and the subscription is the defect. See Findings. The question stopped
+  mattering once the scope was written down: the browser runs `.f.mjs` only, so
+  it never meets a promise it did not create.
 - **Decide whether the runner should see namespace objects at all.** If
   discovery handed the runner a plain record of proofs rather than the module
   namespace, the `then` export hazard would not reach it — and the `then`-export
@@ -197,9 +201,17 @@ structural rule hold.
 
 ### Outcome
 
-**Done.** The browser's `sandbox` decides with `p instanceof Promise`, exactly as
-`fjs t` does; `subscribe`, `speciesFails`, `runPromise` and `species.proof.mjs`
-are deleted. `crossRealmPromise` became
+**Done.** The browser's `sandbox` decides with `p instanceof Promise` and then
+**`await`s** — exactly as `fjs t` does, and the `await` is the load-bearing half.
+`value.then(a, b)` is a different operation: it calls the value's own `then` and
+builds its answer through `constructor[Symbol.species]`, either of which a
+promise can replace, so a proof's subtree can be lost or the run handed a
+non-promise. `await` on a same-realm promise adopts internal state and consults
+neither, which is why three lines recover everything the machinery gave for the
+values this runner can actually meet. `awaitIgnoresAnOwnThenOverride` and
+`awaitIgnoresACustomSpecies` pin both, and both fail against `.then`.
+
+`subscribe`, `speciesFails`, `runPromise` and `species.proof.mjs` are deleted. `crossRealmPromise` became
 `crossRealmPromiseIsWalkedAsATree`, which pins the two runners agreeing rather
 than the browser defending alone — the gap is real, shared, and recorded here.
 

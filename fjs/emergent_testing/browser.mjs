@@ -146,10 +146,17 @@ const runOne = (module, path, throws, fn, result) => {
             result(failure)
             return [failure]
         }
-    // `instanceof Promise`, exactly as `fjs t` decides it. The value is wrapped
-    // in a tuple first so that resolving it cannot assimilate a proof tree that
-    // happens to carry a `then` key: such a tree is a sub-tree with a test
-    // called `then` in it, in both runners.
+    // `instanceof Promise` and then `await`, which is exactly what `fjs t`'s
+    // `sandbox` does — and the `await` is not incidental. `value.then(a, b)`
+    // would be a different operation: it calls the value's *own* `then`, and it
+    // builds its answer through `constructor[Symbol.species]`, so a promise
+    // carrying either can hand back something that is not its result. `await`
+    // on a same-realm promise adopts the promise's internal state and consults
+    // neither.
+    //
+    // The value is wrapped in a tuple first so that resolving it cannot
+    // assimilate a proof tree carrying a `then` key: such a tree is a sub-tree
+    // with a test called `then` in it, in both runners.
     //
     // This runner executes authored FunctionalScript and nothing else — the
     // suite is selected by `website/browser-prepare.mjs` on `.f.mjs` — and
@@ -157,12 +164,22 @@ const runOne = (module, path, throws, fn, result) => {
     // from the impure proofs that drive this module from Node, and those are
     // same-realm by construction. See `todo/imports-promises-realms.md` for the
     // machinery this replaces and the measurements behind removing it.
-    return Promise.resolve().then(() => [fn()]).then(
-        ([value]) => value instanceof Promise
-            ? value.then(passed, failed)
-            : passed(value),
-        failed
-    )
+    /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
+    const settled = async value => {
+        if (!(value instanceof Promise)) { return passed(value) }
+        /** @type {readonly [unknown]} */
+        let resolved
+        // Only the `await` is guarded. A throw from `passed` is the traversal's
+        // own and has its own handling; catching it here would report a broken
+        // proof tree as a rejected promise.
+        try {
+            resolved = [await value]
+        } catch (error) {
+            return failed(error)
+        }
+        return passed(resolved[0])
+    }
+    return Promise.resolve().then(() => [fn()]).then(([value]) => settled(value), failed)
 }
 
 /** @type {(status: string, duration: number, results: readonly _BrowserTestResult[]) => BrowserTestReport} */
