@@ -14,7 +14,6 @@
  * @module
  *
  * @import { DataRule, Rule as FRule, Sequence as FSequence } from '../types.ts'
- * @import { StringMap } from '../../types/object/types.ts'
  * @import { StringSet } from '../../types/string_set/types.ts'
  * @import { _EmptyTagMap, _FRuleMap, _NewRule } from './private.ts'
  * @import { EmptyTag, Repeat, Rule, RuleSet, Sequence, Variant } from './types.ts'
@@ -37,8 +36,6 @@ import { contains, set } from '../../types/string_set/module.f.mjs'
  * @returns {rule is Repeat}
  */
 export const isRepeat = rule => typeof rule === 'string'
-
-
 
 /** @type {(map: _EmptyTagMap) => (rule: Rule) => EmptyTag} */
 const emptyTagOf = map => rule => {
