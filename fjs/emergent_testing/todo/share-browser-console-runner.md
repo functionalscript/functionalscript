@@ -227,6 +227,15 @@ are shared.
 - Both runners must produce the same test name for the same leaf. This one is
   not a host difference: nothing about a browser prevents it, and a divergence
   here is the visible sign that the semantics underneath were never unified.
+  Note that a name embeds a *module key*, and a module key is relative to the
+  root a run was given: `fjs t` invoked in `fjs/types/list` names a leaf
+  `import("./proof.f.mjs")...` where the same leaf from the repository root is
+  `import("./fjs/types/list/proof.f.mjs")...`. That is `fjs t` differing from
+  itself across roots, not the two runners differing, and it is deliberate — a
+  subtree run reports a subtree. But two reports are only comparable when their
+  roots agree, and once the browser suite is a gate the question of which root a
+  report declares is worth settling. It belongs to the report shape, with
+  `path`.
 - The skeleton never asks which host it is running on. Anything host-specific is
   a part it calls; anything it cannot express through a part is a missing
   extension point, not a special case.
