@@ -260,25 +260,6 @@ export const proof = {
         assertEq(report.totals.failed, 1)
         assertEq(report.results[1]?.path, '.nested().child')
     },
-    // A fulfilled value that is *itself* a proof tree with a `then` test must
-    // reach the traversal as data. The subscription answers a tuple for exactly
-    // this: resolving a wrapper promise with the tree directly would assimilate
-    // it — `resolve` treats a `then` as a resolver and waits for a settlement
-    // that never comes.
-    //
-    // The `then` arrives after the promise has fulfilled, because
-    // `Promise.resolve({ then })` never settles in the first place, in any
-    // implementation and with no runner involved.
-
-    // The case plain `await` cannot handle, reached most naturally by
-    // `class Sub extends Promise { then() {} }`: `await` adopts a promise's
-    // internal state only when its `constructor` is the intrinsic `Promise`,
-    // and otherwise assimilates it through `then` — so a no-op override never
-    // settles and the run hangs with no report at all.
-    //
-    // This is a regression guard. The runner handled it before this change; an
-    // intermediate version of this change, which used plain `await`, did not.
-
     // The other half of the species story, and the half the deleted
     // `species.proof.mjs` used to cover: `await` is not *immune* to a custom
     // species, only undiverted by a valid one. A species that throws fails while
