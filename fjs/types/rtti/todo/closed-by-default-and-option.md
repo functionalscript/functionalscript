@@ -543,32 +543,19 @@ Stage 1 (one PR):
       `rest([42], string)` and against `rest([42], number)`, which must answer
       error and ok. Stage 2's declared-member prototype task is the same
       hazard one region to the left; the two should read as one rule.
-- [ ] That walk covers the indices below `length`, and an inherited index can
-      lie **above** it, where no walk bounded by the value reaches it. Measured:
-      `[42]` whose prototype carries `10: 99` has `length` 1, and
-      `validate(rest([42], string))` accepts it while `v[10]` reads `99` — but
-      so does `validate(close([42]))`, and `validate(array(number))` accepts an
-      empty array whose prototype carries `10: 'no'` while `Ts` says
-      `readonly number[]`. This is the **whole reader family**, not the tail:
-      stage 1 neither introduces it nor worsens it, and it cannot be fixed by
-      extending a walk, because a prototype may define any index and the
-      readable set is unbounded. **State the incompleteness** in `../README.md`
-      beside the other accepted ones, and treat any prototype check as a
-      narrowing rather than a fix. Rejecting an array whose prototype is not
-      `Array.prototype` closes only the per-value half: with
-      `Array.prototype[10] = 99`, `[42]` has exactly `Array.prototype` and
-      `length` 1, and `validate(close([42], string))` still accepts it while
-      `v[10]` reads `99` — measured, along with `close([42])` and `array(number)`
-      on the same realm. The two halves differ in kind, which is why no single
-      check covers both: a per-value prototype is a property of the argument, so
-      a reader can inspect it; pollution of the intrinsic is a property of the
-      *realm*, invisible to any per-value test and free to change between a check
-      and a read. Both need host code outside the FunctionalScript subset, which
-      forbids mutation — so this belongs in the README's assumptions, next to the
-      others the readers already rest on, rather than in a boundary check
-      pretending to be complete. Say so in stage 1: that is where the tail starts
-      *claiming* an element type, and a reader who finds the claim before the
-      caveat will trust it.
+- [ ] **Needs its own investigation, not a design here.** That walk covers the
+      indices below `length`; an inherited index above it is readable and no walk
+      bounded by the value reaches it. Measured: with `Array.prototype[10] = 99`,
+      `validate(rest([42], string))([42])` is `ok` and `v[10]` reads `99` — and so
+      are `close([42])` and `array(number)` on the same realm, so this is the
+      whole reader family and predates both stages. Neither obvious remedy
+      settles it: a prototype-identity check closes only the per-value half, and
+      "check the intrinsic" is a realm-wide property that can change between the
+      check and the read. What stage 1 owes is the honest note in `../README.md`
+      — the tail is the first place these readers *claim* an element type, so the
+      caveat has to arrive with the claim. The rest is a separate issue, and
+      probably a question about what the FunctionalScript subset assumes of its
+      host rather than about rtti.
 - [ ] …except when the rest **normalizes away**, where the tail is omitted and
       the exact tuple is rendered — otherwise `rest([42], or())` (stage 1) and
       `rest([42], option)` (stage 2, whose inline rest normalizes away entirely)
