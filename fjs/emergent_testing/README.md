@@ -5,6 +5,33 @@ verify behaviour. There is no `describe`/`it`/`expect` API — a proof is just a
 function or an object tree, so it can be imported, composed, and inspected like
 any other value.
 
+## Scope
+
+**In a browser, this framework runs authored FunctionalScript — `.f.mjs` — and
+nothing else.** `website/browser-prepare.mjs` selects on the extension and the
+generated manifest contains only those modules. That is the design, not a first
+iteration: an impure `.mjs` proof means whatever its host gives it — `node:fs`,
+`node:vm`, `process`, `node:test`, a filesystem, a subprocess — and a page has
+none of those. Loading Node-targeted JavaScript into a browser and expecting it
+to test anything is not a goal.
+
+**Under `fjs t` the framework also runs a few impure `.mjs` proofs**, because
+some things can only be tested against a real host — the effect interpreters,
+and this framework's own browser adapter, which runs in Node against a DOM
+stand-in. That is a deliberate, small exception, not an invitation.
+
+**Covering every edge case of plain JavaScript is explicitly not a goal.** A
+proof is FunctionalScript: no `Promise`, no `class`, no `Proxy`, no `Symbol`, no
+mutation. Values that need those to construct — a promise from another realm, an
+object impersonating one, a hostile `Symbol.species` — cannot come from a proof,
+and the runners do not defend against them. Where that costs something, it is
+measured and written down in
+[`todo/imports-promises-realms.md`](./todo/imports-promises-realms.md) rather
+than guarded against in code, and the guard is written the day an input needs it.
+
+The two runners are meant to agree. Where they cannot, the difference is
+recorded with the reason.
+
 ## Concepts
 
 Three terms are used precisely throughout this document:

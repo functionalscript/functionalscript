@@ -66,6 +66,9 @@ application root. The browser runner must not import the Node effect runner,
 
 ### Scope: authored FunctionalScript only
 
+The standing rule lives in [the README](../README.md#scope); this section is
+what it means for the browser suite specifically.
+
 **The browser suite runs `.f.mjs` and nothing else.** `website/browser-prepare.mjs`
 selects on `name.endsWith('.f.mjs')`; the generated manifest currently carries
 137 modules, none of them anything else. That is the design, not a first

@@ -3,6 +3,11 @@
 **Priority:** P3
 **Status:** on-hold
 
+> **Scope.** In a browser this framework runs `.f.mjs` and nothing else; under
+> `fjs t` it also runs a few impure `.mjs` proofs; and covering every edge case
+> of plain JavaScript is not a goal. See
+> [the README](../README.md#scope) — everything below is read under that rule.
+
 ### Problem
 
 Three mechanisms meet in the runner, none of them is written down as a rule, and
