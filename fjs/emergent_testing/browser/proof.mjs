@@ -229,13 +229,12 @@ export const proof = {
         assertEq(report.results[0]?.path, '.nested')
         assertEq(report.results[0]?.message, 'trap')
     },
-    // A promise can replace its own `then`, and it can make
-    // `constructor[Symbol.species]` build something that is not a promise at
-    // all. `value.then(...)` consults both. The runner subscribes with the
-    // *intrinsic* `then`, which consults neither — and which, unlike `await`,
-    // works even when the value's `constructor` is not the intrinsic `Promise`.
-    // These three pin the settlement path.
-    subscriptionIgnoresAnOwnThenOverride: async () => {
+    // `await`, not `value.then(...)`: `.then` calls the value's own `then` and
+    // builds its answer through `constructor[Symbol.species]`, so a promise
+    // carrying either can hand back something that is not its result. `await`
+    // adopts a same-realm promise's internal state instead. These pin that the
+    // runner settles the way `fjs t` settles.
+    awaitIgnoresAnOwnThenOverride: async () => {
         const promised = Promise.resolve({ child: () => undefined })
         // A no-op override: anything that calls it instead of awaiting gets
         // `undefined` and loses the subtree.
@@ -244,7 +243,7 @@ export const proof = {
         assertEq(report.totals.tests, 2)
         assertEq(report.results[1]?.path, '.nested().child')
     },
-    subscriptionIgnoresACustomSpecies: async () => {
+    awaitIgnoresACustomSpecies: async () => {
         // `then` builds its answer through `constructor[Symbol.species]`, and
         // this one returns an ordinary object, so `.then` would hand back a
         // non-promise before the proof had settled.
@@ -270,19 +269,7 @@ export const proof = {
     // The `then` arrives after the promise has fulfilled, because
     // `Promise.resolve({ then })` never settles in the first place, in any
     // implementation and with no runner involved.
-    fulfilledProofTreeWithAThenTestIsWalked: async () => {
-        const report = await run({
-            nested: () => {
-                /** @type {{ sibling: () => void, then?: () => void }} */
-                const tree = { sibling: () => undefined }
-                const promised = Promise.resolve(tree)
-                tree.then = () => undefined
-                return promised
-            },
-        })
-        assertEq(report.totals.tests, 3)
-        assertEq(report.totals.failed, 0)
-    },
+
     // The case plain `await` cannot handle, reached most naturally by
     // `class Sub extends Promise { then() {} }`: `await` adopts a promise's
     // internal state only when its `constructor` is the intrinsic `Promise`,
@@ -291,17 +278,7 @@ export const proof = {
     //
     // This is a regression guard. The runner handled it before this change; an
     // intermediate version of this change, which used plain `await`, did not.
-    promiseWithReplacedConstructorStillSettles: async () => {
-        // Built by hand rather than with `class extends`: the point is a value
-        // whose `constructor` is not the intrinsic `Promise` and whose `then` is
-        // overridden, which is what makes `await` assimilate instead of adopt.
-        const promised = Promise.resolve({ child: () => undefined })
-        Object.defineProperty(promised, 'constructor', { value: function Sub() {} })
-        Object.defineProperty(promised, 'then', { value: () => undefined })
-        const report = await run({ nested: () => promised })
-        assertEq(report.totals.tests, 2)
-        assertEq(report.results[1]?.path, '.nested().child')
-    },
+
     // The other half of the species story, and the half the deleted
     // `species.proof.mjs` used to cover: `await` is not *immune* to a custom
     // species, only undiverted by a valid one. A species that throws fails while

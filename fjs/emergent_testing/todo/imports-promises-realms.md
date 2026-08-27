@@ -339,6 +339,52 @@ returning a promise that never settles hangs any runner —
 `() => new Promise(() => {})` needs no subclass and no override. Bounding a
 proof's running time is the general answer and is not this issue.
 
+### If a runner ever needs to accept generic input
+
+Everything below is deleted from the browser runner and unreachable from
+authored FunctionalScript, which has no `Promise`, `class`, `Proxy` or `Symbol`.
+It is recorded so that the day a runner must accept values it did not author —
+impure `.mjs` proofs, an iframe, a worker, a third party calling
+`runBrowserProofs` — the work is a lookup rather than a rediscovery. Each row is
+measured, against the implementation that had the machinery and the one that
+does not.
+
+| input | with the machinery | with `instanceof` + `await` |
+| --- | --- | --- |
+| cross-realm promise resolving to a sub-tree | subtree runs | subtree never discovered, reported `passed` |
+| cross-realm promise that rejects | reported as a failure | **the process dies** on an unhandled rejection, before any report |
+| object with `Promise.prototype` on its chain and no internal slots | walked as a proof tree | reported as a failure; its sub-tree lost |
+| promise whose `constructor[Symbol.species]` throws, `constructor` configurable | recovered — subtree runs | reported as a failure |
+| the same, `constructor` non-configurable | reported as a failure | reported as a failure |
+| non-extensible impostor | walked as a proof tree | reported as a failure |
+| promise fulfilled with a proof tree that gains a `then` test afterwards | walked | walked |
+
+And what each deleted piece was for, which was written down nowhere and is why
+deleting it looked free:
+
+- **the intrinsic `Promise.prototype.then` as the brand check** — the only test
+  that survives a realm boundary, because `instanceof` asks about *this* realm's
+  prototype;
+- **shadowing `constructor` with the intrinsic `Promise` and retrying** — one
+  step doing two jobs: it separates an impostor from a genuine promise whose
+  species failed, and it *recovers* the second;
+- **`speciesFails` and the `Object.prototype.toString` re-check** — the same
+  separation for a value that cannot be shadowed.
+
+Three things to consider first, if the day comes:
+
+- **Ask what changed, before restoring any of it.** The reason this was deleted
+  is that the browser suite runs authored `.f.mjs` only. If that is still true,
+  the answer is still no machinery. If it is not, the scope rule in
+  [browser testing](browser-testing.md) is what actually moved, and this
+  follows from it rather than the other way round.
+- **Put it in the shared `sandbox`, not one host.** `fjs t` has every gap in the
+  table above and has had them for the project's whole life, with no incident;
+  fixing one runner alone re-creates the split this work exists to remove.
+- **Bound a proof's running time.** Two rows above are hangs, and the general
+  answer to a hang is a deadline, not a promise-shaped defence — `() => new
+  Promise(() => {})` needs none of this machinery to stop a run forever.
+
 ### Constraints
 
 - An object carrying a `then` proof property must stay an ordinary proof tree.

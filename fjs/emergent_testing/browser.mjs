@@ -75,45 +75,6 @@ const errorDetails = error => {
 /** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
 
 /**
- * Waits for a promise the way `await` does when it can — by the promise's own
- * settlement, not by anything the value can replace.
- *
- * `await` is not always that. It adopts a promise's internal state only when the
- * value's `constructor` is the intrinsic `Promise`; otherwise resolution
- * assimilates it by calling its `then`, so a `Promise` subclass — or a promise
- * whose `constructor` has been replaced — that also overrides `then` never
- * settles, and the run hangs with no report. The intrinsic `then`, applied
- * directly, ignores the override.
- *
- * **The `Reflect.apply` is outside the executor on purpose.** A throw inside a
- * `new Promise` executor rejects that promise instead of propagating, and this
- * one has to propagate: a promise whose `constructor[Symbol.species]` fails
- * throws here, and the caller reports it against the test that produced the
- * value — which is what `fjs t` does with it too.
- *
- * **The answer is a tuple, for the same reason `fn()`'s is.** Resolving the
- * wrapper with the fulfilled value directly would assimilate it: a proof tree
- * carrying a zero-argument `then` test is a thenable to `resolve`, which would
- * call it as a resolver and wait for a settlement that never comes. The tree
- * has to reach the traversal as data, so it travels wrapped.
- *
- * @type {(value: Promise<unknown>) => Promise<readonly [unknown]>}
- */
-const intrinsicSubscribe = value => {
-    /** @type {(v: readonly [unknown]) => void} */
-    let ok = () => undefined
-    /** @type {(e: unknown) => void} */
-    let no = () => undefined
-    /** @type {Promise<readonly [unknown]>} */
-    const settled = new Promise((resolve, reject) => { ok = resolve; no = reject })
-    Reflect.apply(Promise.prototype.then, value, [
-        /** @type {(v: unknown) => void} */ (v => ok([v])),
-        no,
-    ])
-    return settled
-}
-
-/**
  * A failure of a whole module — one that will not link, or whose `proof` export
  * cannot be enumerated. It does not go through `testResult`, and that is the
  * point: there is no leaf here, so there is no path and no `fmtImport` name to
@@ -185,17 +146,18 @@ const runOne = (module, path, throws, fn, result) => {
             result(failure)
             return [failure]
         }
-    // `instanceof Promise` decides, exactly as `fjs t`'s `sandbox` decides.
-    // Settlement then goes through the intrinsic `then` rather than `await`,
-    // for the reason `intrinsicSubscribe` gives: `await` adopts internal state
-    // only for a promise whose `constructor` is the intrinsic `Promise`, and
-    // assimilates the rest through a `then` the value can replace.
+    // `instanceof Promise`, then `await` — the whole of `fjs t`'s promise
+    // handling, spelled the same way here.
     //
-    // Neither the value's own `then` nor its `constructor[Symbol.species]` can
-    // divert the result. That is not immunity: a species that throws, or that
-    // is not a constructor, fails while the intrinsic `then` reads it, and the
-    // failure is reported against the test that produced the value — the same
-    // outcome `fjs t` gives it, and better than losing the sub-tree in silence.
+    // It is deliberately not more than that. A promise can replace its own
+    // `then`, present a `constructor` that is not the intrinsic `Promise`, or
+    // carry a `Symbol.species` that fails, and each of those defeats `await` in
+    // a different way. Defending against them takes about 150 lines, none of
+    // which authored FunctionalScript can reach: it has no `Promise`, no
+    // `class`, no `Proxy` and no `Symbol`. `todo/imports-promises-realms.md`
+    // records each case, what the deleted machinery did about it, and what a
+    // runner does without it — to be implemented when an input that needs it
+    // actually exists.
     //
     // The value is wrapped in a tuple first so that resolving it cannot
     // assimilate a proof tree carrying a `then` key: such a tree is a sub-tree
@@ -225,11 +187,11 @@ const runOne = (module, path, throws, fn, result) => {
         if (!isPromise) { return passed(value) }
         /** @type {readonly [unknown]} */
         let resolved
-        // Only the subscription is guarded. A throw from `passed` is the
-        // traversal's own and has its own handling; catching it here would
-        // report a broken proof tree as a rejected promise.
+        // Only the `await` is guarded. A throw from `passed` is the traversal's
+        // own and has its own handling; catching it here would report a broken
+        // proof tree as a rejected promise.
         try {
-            resolved = await intrinsicSubscribe(/** @type {Promise<unknown>} */ (value))
+            resolved = [await value]
         } catch (error) {
             return failed(error)
         }
