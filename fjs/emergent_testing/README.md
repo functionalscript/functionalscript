@@ -21,22 +21,20 @@ and this framework's own browser adapter, which runs in Node against a DOM
 stand-in. That is a deliberate, small exception, not an invitation.
 
 **Covering every edge case of plain JavaScript is explicitly not a goal.**
-FunctionalScript has no parser or compiler yet, so "this file is
-FunctionalScript" is a convention held up by review and by the `.f.mjs` suffix,
-not a property anything checks — the browser's selector matches the suffix and a
-named `proof` export, and nothing more. The convention also has deliberate
-exceptions: this framework's own `proof.f.mjs` uses `Promise` precisely because
-it tests how promises are handled, and `Symbol.iterator` is ordinary in `.f.mjs`
-throughout the repository.
-
-So the runners handle what proofs actually produce, not everything a
-`.f.mjs`-suffixed file could contain. A promise from another realm, a value
-impersonating a promise, a hostile `Symbol.species`: none has ever come from a
-proof, none is defended against, and each is measured and recorded in
+FunctionalScript has no `Promise`, so a proof cannot return one, and the values
+that need one to construct — a promise from another realm, a value impersonating
+one, a hostile `Symbol.species` — cannot come from a proof either. The runners do
+not defend against them. Each case is measured and recorded in
 [`todo/imports-promises-realms.md`](./todo/imports-promises-realms.md) with what
-a runner does without the defence. The guard gets written the day an input needs
-it — and the day a parser exists, this stops being a convention and the question
-changes shape.
+a runner does without the defence, and a guard is written the day an input needs
+one.
+
+FunctionalScript has no parser or compiler yet, so that rule is held up by the
+`.f.mjs` suffix and by review rather than by a check — the browser's selector
+matches the suffix and a named `proof` export, nothing more. **A `.f.mjs` that
+breaks the rule is a defect to fix, not an exception to design around.** Where
+one is found it gets a `todo/` and is removed; the rule is not weakened to
+accommodate it.
 
 The two runners are meant to agree. Where they cannot, the difference is
 recorded with the reason.
