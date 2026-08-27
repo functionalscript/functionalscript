@@ -63,6 +63,13 @@ its left, but moving a type proof must not introduce a reverse edge merely to
 keep the proof near the declaration it checks. The order is a layering rule, not
 a requirement that every file directly import its immediate neighbor.
 
+The file-placement conventions below are defaults, not a mechanical classifier.
+Analyze concrete cases and prefer the simplest organization that preserves this
+dependency order. In particular, do not force a recursive RTTI constant into
+`meta.f.mjs` when expressing its recursion requires a named annotation from
+`types.ts`; keeping that constant downstream can be cleaner than creating a
+`meta.f.mjs -> types.ts` reverse edge.
+
 Place assertions in the earliest layer that can legitimately see everything they
 assert without reversing this order:
 
@@ -94,11 +101,24 @@ signatures: () => {
 }
 ```
 
-Do not create a broad exception merely because a type proof uses `typeof` on a
-runtime function. First check whether the proof can move to a downstream proof
-file while preserving the dependency order. Narrow exceptions may still be
-needed, but they should be justified by a concrete case after the cleaner
-placement has been ruled out.
+Recursive metadata needs the same case-by-case treatment. Two current examples
+illustrate the intended approach:
+
+- `fjs/media/revision`: `LockMap` / `LockSchema` stay in `types.ts`; the recursive
+  `lock` RTTI constant may stay in `module.f.mjs` because its initializer needs
+  the named `LockSchema` annotation from `types.ts`; the `Assert<Check<...>>`
+  consistency checks that currently make `types.ts` import `module.f.mjs` move
+  downstream into a function in `proof.f.mjs`.
+- `fjs/edag`: recursive RTTI such as `exp` may stay in `module.f.mjs` when its
+  explicit annotation depends on the public EDAG types; file-scope consistency
+  assertions such as `Assert<Check...>` move into one or more proof functions so
+  the RTTI/type relationship is still pinned without leaking typedefs or
+  reversing the dependency order.
+
+These examples do not establish a special rule for every recursive type. They
+show the process: inspect the cycle, preserve the dependency direction, and move
+verification downstream when that produces a clearer structure. Narrow
+exceptions may still be needed after the concrete case has been analyzed.
 
 #### Public declaration closure
 
@@ -107,14 +127,14 @@ helpers when they are required to express any shipped public declaration.
 "Public declaration" includes both exported type aliases and declarations of
 exported runtime values/functions.
 
-The placement rule is:
+The default placement guide is:
 
 ```text
 public type                                         -> types.ts
 private `_` helper used by any public declaration   -> types.ts
 other file-scope private `_` type                   -> private.ts
 function-local typedef                              -> allowed in place
-runtime metadata constant used to define types      -> meta.f.mjs
+runtime metadata constant used to define types      -> meta.f.mjs, when layering permits
 ```
 
 For example, a helper used by a public type stays in `types.ts`:
@@ -178,11 +198,19 @@ exported aliases in generated `.d.ts` / `.d.mts` files.
 
 #### `meta.f.mjs`
 
-`meta.f.mjs` contains runtime metadata constants whose literal/inferred values are
-part of the type-level model. They do not need to be RTTI, and normal runtime code
-may also consume them. Typical cases are RTTI descriptors, `as const`-style data,
-and lookup tables whose literal shape is used to define or derive TypeScript
-types.
+`meta.f.mjs` is the preferred home for runtime metadata constants whose
+literal/inferred values are part of the type-level model when they can live there
+without reversing the dependency order. They do not need to be RTTI, and normal
+runtime code may also consume them. Typical cases are RTTI descriptors,
+`as const`-style data, and lookup tables whose literal shape is used to define or
+derive TypeScript types.
+
+This is a convention, not an absolute rule. A recursive metadata constant that
+needs a named annotation from `types.ts` may remain in `module.f.mjs` rather than
+creating a reverse dependency. In such a case, move consistency assertions to a
+downstream proof function when that removes the reverse edge or file-scope typedef
+leak. The `media/revision` and `edag` examples above are the current models for
+this analysis.
 
 `meta.f.mjs` is **not** a destination for ordinary implementation functions just
 because a type proof inspects their signature with `typeof`, `ReturnType`, or
@@ -348,6 +376,9 @@ as `todo/proof.f.mjs` remain outside the convention.
       descriptive companions.
 - [ ] Document and preserve the dependency order
       `meta.f.mjs <- types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`.
+- [ ] Treat the placement table as a default design guide, not a mechanical rule;
+      analyze recursive or otherwise constrained metadata case by case before
+      introducing exceptions or reverse dependencies.
 - [ ] Update root `AGENTS.md` to prohibit file-scope JSDoc `@typedef` in every
       authored `.mjs` file anywhere in the repository.
 - [ ] Update `fjs/AGENTS.md` to allow `types.ts` and `private.ts` as the authored
@@ -376,15 +407,24 @@ as `todo/proof.f.mjs` remain outside the convention.
       `step` / `catchStep` / `resultStep` / `mapStep` / `resultMapStep` /
       `unwrapStep` into one or more proof functions with function-local typedefs
       in `fjs/effects/proof.f.mjs`.
+- [ ] Review recursive metadata cases individually. For `fjs/media/revision`,
+      keep the recursive `lock` RTTI in `module.f.mjs` if its `LockSchema`
+      annotation requires `types.ts`, and move the `LockMap` / `LockField`
+      consistency asserts into a proof function. Apply the same analysis to
+      recursive EDAG RTTI such as `exp`: keep it in `module.f.mjs` when needed to
+      preserve layering and move file-scope consistency asserts into proof
+      functions.
 - [ ] Keep lexical type-proof typedefs inside their functions.
-- [ ] Move runtime metadata constants used to define/derive TypeScript types into
-      `meta.f.mjs`, including RTTI values, non-RTTI literal constants, and
-      runtime-used tables; prefix private ones with `_` even when they must be
-      exported for sibling-module access. Do not move ordinary implementation
-      functions merely because a proof inspects their type.
-- [ ] Move file-scope private proofs over metadata constants to `private.ts` (or
-      `types.ts` when part of the public declaration closure) and use
-      `import type { ... }`.
+- [ ] Prefer `meta.f.mjs` for runtime metadata constants used to define/derive
+      TypeScript types when that placement preserves the dependency order,
+      including RTTI values, non-RTTI literal constants, and runtime-used tables;
+      prefix private ones with `_` even when they must be exported for
+      sibling-module access. Do not move ordinary implementation functions, or
+      recursively annotated metadata that would reverse the dependency order,
+      merely because a proof inspects their type.
+- [ ] Move file-scope private proofs over metadata constants to `private.ts`,
+      `types.ts`, or a downstream proof function according to the concrete
+      dependency graph; do not force one placement mechanically.
 - [ ] Treat moves of public runtime constants to `meta.f.mjs` as breaking API
       changes; update runtime importers and changelog, with no compatibility
       re-exports.
@@ -406,6 +446,8 @@ as `todo/proof.f.mjs` remain outside the convention.
       - a function-local typedef depending on a lexical value;
       - an implementation-function signature assertion placed downstream in a
         proof rather than creating a `types.ts -> module.f.mjs` dependency;
+      - a recursive metadata case whose named type annotation keeps it in
+        `module.f.mjs` while its consistency assert moves into a proof function;
       - a FunctionalScript descriptive companion such as `testlib.f.mjs` whose
         former file-scope typedef is moved to the appropriate TypeScript file;
       - a non-FunctionalScript authored `.mjs` file whose former file-scope
@@ -426,6 +468,10 @@ as `todo/proof.f.mjs` remain outside the convention.
   `meta.f.mjs <- types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`
   is preserved; type assertions do not create reverse edges merely for
   convenience.
+- File placement follows the dependency order and concrete design needs rather
+  than a blanket syntactic rule; recursive metadata may remain in `module.f.mjs`
+  when moving it to `meta.f.mjs` would require a `types.ts` dependency, with
+  consistency assertions moved downstream when appropriate.
 - No authored `.mjs` file anywhere in the repository contains a file-scope JSDoc
   `@typedef`, regardless of directory, basename, FunctionalScript marker, or role.
 - Function-local JSDoc `@typedef` is allowed everywhere; private names keep `_`
@@ -442,12 +488,12 @@ as `todo/proof.f.mjs` remain outside the convention.
   in `proof.f.mjs`) rather than forcing those functions into `meta.f.mjs` or
   importing implementation functions into `types.ts`.
 - Every import in `types.ts` and `private.ts` uses named `import type { ... }`.
-- Runtime metadata constants used to define/derive TypeScript types live in
-  `meta.f.mjs`, whether RTTI or not. Private constants use leading `_` even when
-  exported for sibling-module access; `_` marks them private by contract.
-  Emergent testing loads `meta.f.mjs`, Node and Deno coverage filters include it,
-  and the existing coverage thresholds apply; this convention does not prescribe
-  how developers satisfy those thresholds.
+- Runtime metadata constants used to define/derive TypeScript types normally live
+  in `meta.f.mjs` when the dependency order permits it. Private constants use
+  leading `_` even when exported for sibling-module access; `_` marks them private
+  by contract. Emergent testing loads `meta.f.mjs`, Node and Deno coverage filters
+  include it, and the existing coverage thresholds apply; this convention does
+  not prescribe how developers satisfy those thresholds.
 - Moving public types to `types.ts` and public runtime metadata to `meta.f.mjs`
   are breaking migrations: importers and changelog are updated and no
   compatibility re-exports preserve old entry points.
