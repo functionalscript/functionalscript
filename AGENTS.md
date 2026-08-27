@@ -119,8 +119,8 @@ input is refused or asserted on, never answered with a plausible wrong value
 ([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)). That refusal
 is a mitigation, not the end of it: refuse fast, file the `todo/`, then fix it.
 And when the PR itself cannot land, drop the code and merge what it taught — a
-rewritten `todo/`, a recorded failure — rather than abandoning both. No knowledge from a
-review may be left in the review thread alone.
+rewritten `todo/`, a recorded failure — rather than abandoning both. No
+knowledge from a review may be left in the review thread alone.
 
 Commit-message format, the PR checklist, and addressing review comments:
 [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
