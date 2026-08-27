@@ -1563,7 +1563,23 @@ are stated instead:
       one that did not, so this stage owes a stated policy for arriving values
       regardless of which `.d.ts` policy wins: validate at entry, or declare
       the boundary explicitly untrusted and say what a FunctionalScript
-      function may assume about its arguments. The second is a legitimate
+      function may assume about its arguments.
+
+      **"Validate at entry" is gated on identity-aware validation**, and that
+      is a prerequisite rather than a footnote. `validate` does not track input
+      identity, so it re-walks a shared subgraph once per incoming edge and
+      costs time exponential in sharing depth — measured at `515f9175`:
+      3.9 ms at depth 10, 12.9 ms at 14, 30.1 ms at 16, 125 ms at 18, roughly
+      doubling per level, consistent with the 509 ms at 19 arrays
+      [the issue](../fjs/types/rtti/todo/identity-aware-parse.md) records.
+      Deploying that reader at this boundary means a foreign caller can hand
+      over a small, *acyclic*, perfectly well-typed argument and consume
+      unbounded CPU — the issue's own threat model, arrived at from the other
+      side. So either
+      [identity-aware-parse](../fjs/types/rtti/todo/identity-aware-parse.md)
+      lands first, or this policy is restricted to inputs without reference
+      sharing — and note the cycle guard above does not help, because this
+      input has no cycle. The second is a legitimate
       answer — it is roughly what the language does today — but it has to be
       *chosen*, because commitment 3's soundness argument is about what the
       language guarantees, and an unchecked foreign call is outside it. The
@@ -1732,8 +1748,13 @@ splits around inference, so the runnable order is 668's representation half
   19-array value at 509ms, ~14s by depth 22). Two limits on what that means
   here, both worth stating because it is easy to over- or under-claim:
   **`subset` is not implicated** — it is a function of two `Data` values, and
-  the issue is about the readers over runtime values — so only stage 5's use of
-  `validate` is exposed. And a *fully inline* literal has no sharing: each array
+  the issue is about the readers over runtime values. But stage 5 is **not**
+  the only exposed stage, as an earlier draft of this paragraph said:
+  [stage 13](#tasks) offers "validate at entry" as one of its two answers for
+  the unconditional half of the boundary, and a foreign caller's argument is
+  precisely the untrusted public input the issue's threat model is about. So
+  the exposure splits: at compile time it is a build-time cliff; at the
+  language boundary it is the DoS vector as filed, and gates that policy. And a *fully inline* literal has no sharing: each array
   or object subexpression is a distinct container. The exposure is a literal
   that names other bindings (`const a = [1]` … `[a, a]`), which does share, and
   which the EDAG then deduplicates by identity — sharing is ordinary in
