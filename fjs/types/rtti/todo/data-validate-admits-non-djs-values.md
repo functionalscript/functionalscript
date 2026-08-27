@@ -136,6 +136,19 @@ structure to descend into. That means either a data representation for
 the top and walks members anyway. Whichever, tests must cover **nested**
 no-kind values, not only root ones.
 
+**And recursive descent needs a cycle policy, stated before it is required.**
+None of the readers tracks visited references today, so a walk that descends
+into members will revisit a cyclic object indefinitely and overflow the stack —
+the same defect the epic's stage 13 records for `parse` at the language
+boundary, arrived at here from the opposite direction. Under the *current*
+`unknown` this never arises, because the top short-circuits and never descends;
+requiring recursion is what introduces it. So this option owes an explicit
+choice — **reject a cycle** with a diagnostic, or **track identity** and treat a
+revisited reference as already-checked — plus a cyclic-input test. Note that the
+two choices are not interchangeable: identity tracking is also what
+[identity-aware-parse](identity-aware-parse.md) needs for its own reasons, so
+picking it here may pay for both.
+
 That is why the decision has to come first. Building a function/symbol kind
 under option 1 and then narrowing `unknown` later would leave a representation
 designed for values the type language had decided not to admit.
@@ -161,6 +174,10 @@ values arrive.
       `patternsValidate`, so a root-only guard still accepts
       `{ nested: () => 1 }`. Cover nested no-kind values in the tests, not just
       root ones.
+- [ ] If that recursive check is adopted, **decide the cycle policy first** —
+      reject, or track visited references — since no reader has a visited-set
+      today and descending without one overflows the stack on a cyclic input.
+      Add a cyclic-input test alongside the nested ones.
 - [ ] Cover functions and symbols in tests against `unknown`, `{}`,
       `record(...)`, `or(number, {})` and `option({})`, in **both** readers, so
       neither the divergence nor its mirror image can return.
