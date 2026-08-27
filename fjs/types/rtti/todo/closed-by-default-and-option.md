@@ -568,8 +568,11 @@ Stage 1 (one PR):
 - [ ] Delete [close-counts-trailing-undefined](./close-counts-trailing-undefined.md),
       whose whole subject is the `close(c, rest?)` overload stage 1 removes, and
       carry anything still live into this file — its defect half is the
-      length-bounding task above, and its documentation half is the README
-      rewrite. One concrete item is easy to lose in "anything still live": its
+      length-bounding task above, its documentation half is the README
+      rewrite, and its **criterion** for an empty rest is the task above
+      those two, which is the piece "anything still live" reads past most
+      easily because it looks like an implementation detail of the first.
+      One concrete item is easy to lose in "anything still live": its
       proof task, adding `[close([number]), [42, undefined]]` to
       `../validate/proof.f.mjs`'s acceptance table with an oracle beside it —
       the explicit-`undefined` row that tells the two rejections apart. Carry
@@ -611,10 +614,30 @@ Stage 1 (one PR):
       `../ts/proof.f.mjs` (11) and `../proof.f.mjs` (2) — 124 in all. (Counted by
       occurrence; a per-line count reads 39 for `../data/proof.f.mjs`, which is
       the figure to distrust.)
+- [ ] Carry [close-counts-trailing-undefined](./close-counts-trailing-undefined.md)'s
+      **definition of an empty rest** into this file before deleting it — its
+      third task, the one the carry-over item below does not cover, because the
+      criterion is neither the defect half nor the documentation half. "The rest
+      admits nothing" is not a syntactic test: `[or()]` is closed after stage 1
+      and has no inhabitant, and measured today
+      `validate(close([42], [or()]))([42, , ])` is `ok` while
+      `validate(close([42], [or()]))([42, 1])` is `error` — so a reader keying
+      on the exported `never` bounds nothing here, and the empty-rest `RestTs`
+      rule above would then type an accepted length-2 array as the exact
+      `readonly [42]`. That file works the criterion out in full and its
+      conclusions transfer unchanged: define empty as `toData(rest(c, r))`
+      equalling `toData` of the bare closed `c`, compared **up to rule
+      renaming** with `subset` applied both ways rather than with `equal`; the
+      five cases that fix it (the three interchangeable-looking spellings
+      `never`/`or()`/`close([never])`, the two recursive rests that must *not*
+      be recognised, and `unknown`, which rules out "the conversion kept no
+      `rest` key" as the test) are the reason a simpler rule fails. Carry the
+      seven proof rows with it.
 - [ ] Bound length on the array kind's thunk readers when the rest admits
-      nothing, and pin `array(or())` against `new Array(1)` and
-      `rest([42], or())` against `[42, , ]`, where the thunk readers and the
-      data form disagree today. **This belongs to stage 1, not stage 2**, even
+      nothing **by that criterion**, and pin `array(or())` against
+      `new Array(1)`, `rest([42], or())` against `[42, , ]`, and
+      `rest([42], [or()])` against `[42, , ]` — the third is the row that tells
+      a semantic classifier from a syntactic one. **This belongs to stage 1, not stage 2**, even
       though the divergence predates both: stage 1 is what makes `RestTs` render
       an empty rest as the exact tuple (see above), so shipping the rendering
       without the bound would hand `rest([42], or())` a `readonly [42]` over a
@@ -697,6 +720,16 @@ Stage 2 (one PR, after stage 1 lands):
       `media/json/schema/proof.f.mjs:121` and `:136`. Each is a decision — add
       `option` where omission was intended, leave it where a present `undefined`
       was — not a mechanical rewrite.
+- [ ] One of those decisions has a **second copy in a surviving todo**:
+      [checked-const-pin](./checked-const-pin.md) `:14` and `:36` quote
+      `casAddArgs` — the `mcp/cas/module.f.mjs:142` schema above — twice, as the
+      motivating example for its own proposal. It is not a call site, so neither
+      the `option(` sweep nor `checkJs` reaches it, and it outlives stage 2. If
+      the CAS decision goes to `or(option, 'text', 'base64')`, the todo would be
+      left arguing from a schema whose `type` key is now *required*, which is
+      the opposite of what its example illustrates. Rewrite both quotes to
+      whatever that decision picks, in the same PR — the point it makes about
+      unchecked `as const` pins is untouched either way.
 - [ ] Migrate every `option(t)` call site to `or(option, t)` — 52 of them across
       10 files in 9 modules outside this one (`protocol/mcp` 10,
       `media/json/schema` 11 plus 11 in its proof, `ci/common` 5, `mcp/evo` 5,
