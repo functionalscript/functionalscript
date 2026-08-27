@@ -34,7 +34,7 @@ module.f.mjs  # FunctionalScript implementation
 module.mjs    # host integration, when needed
 proof.f.mjs   # FunctionalScript proofs
 proof.mjs     # host proofs, when needed
-meta.f.mjs    # runtime constants referenced by TypeScript types/proofs
+meta.f.mjs    # runtime metadata constants used to define/derive types
 types.ts      # public declaration closure
 private.ts    # other implementation-private file-scope types
 ```
@@ -46,6 +46,53 @@ of basename or whether the file is FunctionalScript. This includes
 allowed as described below.
 
 Private type and runtime constant names continue to start with `_`.
+
+#### Dependency order
+
+Keep the source dependency order:
+
+```text
+meta.f.mjs <- types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs
+```
+
+The arrow points from a dependency to a dependent: a file may depend on files to
+its left, but moving a type proof must not introduce a reverse edge merely to
+keep the proof near the declaration it checks. The order is a layering rule, not
+a requirement that every file directly import its immediate neighbor.
+
+Place assertions in the earliest layer that can legitimately see everything they
+assert without reversing this order:
+
+- invariants entirely inside the public type model belong in `types.ts`;
+- implementation-private type invariants belong in `private.ts` when they do not
+  need downstream implementation values;
+- assertions about `module.f.mjs` implementations, including function signatures,
+  belong downstream in `proof.f.mjs`, normally as function-local typedef proofs;
+- host-specific implementation assertions belong downstream in `proof.mjs`.
+
+For example, `fjs/effects/types.ts` currently imports `step`, `catchStep`,
+`resultStep`, `mapStep`, `resultMapStep`, and `unwrapStep` from `module.f.mjs`
+only to assert their inferred signatures with `ReturnType<typeof ...>`. Those
+assertions verify the implementation layer, so the migration should move them to
+`proof.f.mjs` rather than move the implementation functions into `meta.f.mjs`.
+A representative proof can stay lexical:
+
+```js
+signature: () => {
+    /**
+     * @typedef {Assert<Equal<
+     *   ReturnType<typeof step<_AddOp, number, NotImplemented, _MulOp, string, string>>,
+     *   Effect<_AddOp | _MulOp, string, NotImplemented | string>
+     * >>} _StepSig
+     */
+}
+```
+
+Do not create a broad exception merely because a type proof uses `typeof` on a
+runtime function. First check whether the proof can move to a downstream proof
+file while preserving the dependency order. Narrow exceptions may still be
+needed, but they should be justified by a concrete case after the cleaner
+placement has been ruled out.
 
 #### Public declaration closure
 
@@ -61,7 +108,7 @@ public type                                         -> types.ts
 private `_` helper used by any public declaration   -> types.ts
 other file-scope private `_` type                   -> private.ts
 function-local typedef                              -> allowed in place
-runtime constant referenced by TS types/proofs      -> meta.f.mjs
+runtime metadata constant used to define types      -> meta.f.mjs
 ```
 
 For example, a helper used by a public type stays in `types.ts`:
@@ -125,11 +172,18 @@ exported aliases in generated `.d.ts` / `.d.mts` files.
 
 #### `meta.f.mjs`
 
-`meta.f.mjs` contains runtime constants whose literal/inferred types are actually
-referenced by TypeScript type definitions or file-scope type proofs. They do not
-need to be RTTI and do not need to exist primarily for type-system purposes.
+`meta.f.mjs` contains runtime metadata constants whose literal/inferred values are
+part of the type-level model. They do not need to be RTTI, and normal runtime code
+may also consume them. Typical cases are RTTI descriptors, `as const`-style data,
+and lookup tables whose literal shape is used to define or derive TypeScript
+types.
 
-Examples include RTTI values:
+`meta.f.mjs` is **not** a destination for ordinary implementation functions just
+because a type proof inspects their signature with `typeof`, `ReturnType`, or
+`Parameters`. Such functions stay in `module.f.mjs`; place their signature proofs
+downstream according to the dependency-order rule above.
+
+Examples of metadata include RTTI values:
 
 ```ts
 import type { type } from './meta.f.mjs'
@@ -173,10 +227,6 @@ consumers must not depend on `_`-prefixed constants directly. Renaming or removi
 such a name is not a breaking change solely because it was exported. As with
 private types, changes that alter an actual public runtime/type contract still
 follow the normal breaking-change rules.
-
-The trigger is an actual TypeScript type dependency (`typeof`, `Ts<typeof ...>`,
-indexed access, a type proof, etc.), not merely that a runtime value *could* be
-queried.
 
 Runtime code imports values from `meta.f.mjs` normally. Authored TypeScript type
 modules use only named type-only imports:
@@ -281,16 +331,20 @@ private.ts  # implementation-private file-scope types outside that closure
 
 Both remain type-only modules and use named `import type { ... }` imports. The
 same policy must also state that file-scope JSDoc `@typedef` is prohibited in
-**all authored `.mjs` files**, including non-FunctionalScript host JavaScript.
+**all authored `.mjs` files**, including non-FunctionalScript host JavaScript,
+and document the dependency order above.
 
 ### Tasks
 
 - [ ] Document `types.ts`, `private.ts`, and `meta.f.mjs` beside the existing
       JavaScript/FunctionalScript file conventions, including host `.mjs` and
       descriptive companions.
+- [ ] Document and preserve the dependency order
+      `meta.f.mjs <- types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`.
 - [ ] Update `fjs/AGENTS.md` to allow `types.ts` and `private.ts` as the authored
-      TypeScript type-module roles, document the public-declaration-closure rule,
-      and prohibit file-scope `@typedef` in every authored `.mjs` file.
+      TypeScript type-module roles, document the public-declaration-closure and
+      dependency-order rules, and prohibit file-scope `@typedef` in every
+      authored `.mjs` file.
 - [ ] Update `fjs/fsc/README.md` and delete or narrow
       `todo/blocked/jsdoc-typedef-strip-internal.md` so they no longer prescribe
       a conflicting private-JSDoc strategy.
@@ -305,14 +359,20 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
       shipped public declaration in `types.ts`, including helpers appearing in
       exported runtime-value/function signatures.
 - [ ] Move only other implementation-private file-scope types to `private.ts`;
-      do not create `types.ts -> private.ts` or public-declaration -> `private.ts`
+      do not create reverse dependency edges or public-declaration -> `private.ts`
       dependencies.
+- [ ] Review type assertions that currently reverse the dependency order. Move
+      implementation-signature assertions downstream into proof files where
+      possible; specifically, move the `fjs/effects/types.ts` assertions over
+      `step` / `catchStep` / `resultStep` / `mapStep` / `resultMapStep` /
+      `unwrapStep` to function-local proofs in `fjs/effects/proof.f.mjs`.
 - [ ] Keep lexical type-proof typedefs inside their functions.
-- [ ] Move runtime constants actually referenced by TypeScript type
-      definitions/proofs into `meta.f.mjs`, including RTTI values, non-RTTI
-      literal constants, and runtime-used tables; prefix private ones with `_`
-      even when they must be exported for sibling-module access.
-- [ ] Move file-scope private proofs over those constants to `private.ts` (or
+- [ ] Move runtime metadata constants used to define/derive TypeScript types into
+      `meta.f.mjs`, including RTTI values, non-RTTI literal constants, and
+      runtime-used tables; prefix private ones with `_` even when they must be
+      exported for sibling-module access. Do not move ordinary implementation
+      functions merely because a proof inspects their type.
+- [ ] Move file-scope private proofs over metadata constants to `private.ts` (or
       `types.ts` when part of the public declaration closure) and use
       `import type { ... }`.
 - [ ] Treat moves of public runtime constants to `meta.f.mjs` as breaking API
@@ -334,6 +394,8 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
         declaration (the `_SortedArray`/`find` shape);
       - an implementation-private type in `private.ts`;
       - a function-local typedef depending on a lexical value;
+      - an implementation-function signature assertion placed downstream in a
+        proof rather than creating a `types.ts -> module.f.mjs` dependency;
       - a FunctionalScript descriptive companion such as `testlib.f.mjs` whose
         former file-scope typedef is moved to the appropriate TypeScript file;
       - a non-FunctionalScript authored `.mjs` file whose former file-scope
@@ -349,6 +411,10 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
 
 ### Acceptance criteria
 
+- The dependency order
+  `meta.f.mjs <- types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`
+  is preserved; type assertions do not create reverse edges merely for
+  convenience.
 - No authored `.mjs` file contains a file-scope JSDoc `@typedef`, regardless of
   basename, FunctionalScript marker, or role.
 - Function-local JSDoc `@typedef` is allowed everywhere; private names keep `_`
@@ -360,8 +426,12 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
   public declaration closure and is expected to be used sparingly where
   `types.ts` already describes most of a module's type surface.
 - `types.ts` and every packed public declaration are independent of `private.ts`.
+- Assertions about ordinary implementation-function signatures live downstream
+  of `module.f.mjs` (normally in function-local `proof.f.mjs` typedefs) rather
+  than forcing those functions into `meta.f.mjs` or importing implementation
+  functions into `types.ts`.
 - Every import in `types.ts` and `private.ts` uses named `import type { ... }`.
-- Runtime constants referenced by TypeScript definitions/proofs live in
+- Runtime metadata constants used to define/derive TypeScript types live in
   `meta.f.mjs`, whether RTTI or not. Private constants use leading `_` even when
   exported for sibling-module access; `_` marks them private by contract.
   Emergent testing loads `meta.f.mjs`, Node and Deno coverage filters include it,
@@ -381,8 +451,9 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
   resolvable from shipped declarations, including helpers used by exported
   runtime-value/function signatures.
 - `fjs/AGENTS.md` no longer says `types.ts` is the only authored TypeScript and
-  documents both `types.ts` and `private.ts`, the declaration-closure rule, and
-  the all-authored-`.mjs` file-scope typedef prohibition.
+  documents both `types.ts` and `private.ts`, the declaration-closure and
+  dependency-order rules, and the all-authored-`.mjs` file-scope typedef
+  prohibition.
 - `fjs/fsc/README.md` and the blocked `@internal`/`stripInternal` TODO no longer
   prescribe a conflicting private-JSDoc strategy.
 - A clean TypeScript consumer type-checks successfully against the packed
