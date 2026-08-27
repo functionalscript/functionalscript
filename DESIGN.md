@@ -107,7 +107,46 @@ on top of the weaker design.
   belongs in `fjs/path`, not inline in a loader). First search for an appropriate
   existing module; create a new one only if no good fit exists. This is different
   from DRY extraction: it is always appropriate.
+- **Follow the example** — when the same capability already exists elsewhere,
+  match it before improving on it. See below.
 - **Avoid side effects and mutability.**
+
+### Follow the example
+
+When a capability already exists somewhere in the repository and is being
+brought to a second context — another host, another backend, another runner —
+**the existing one is the specification.** Reproduce its behaviour first,
+including the simplifications it made and the things it does not do. Only once
+the second context matches the first is it worth asking whether either should
+change.
+
+This is not the same as reusing code, and it is the part that is easy to skip
+while believing the principle is satisfied. Sharing a module and then giving the
+new context its own rules produces something that *looks* unified and is not:
+two behaviours behind one name, which is worse than two implementations behind
+two names, because nothing signals the difference.
+
+The rule has three consequences worth stating outright.
+
+**A difference has to be justified, not merely noticed.** "The new context can
+do better here" is a reason to file an issue, not a reason to diverge inside a
+port. The example may be simple *for a reason* that is not visible from inside
+the new context — `fjs t` runs proofs one after another, and its report is
+readable, attributable and reproducible because of it.
+
+**A problem the new context reveals is everyone's problem.** If porting exposes
+that a measurement is inaccurate, that an error loses attribution, or that an
+ordering is unspecified, then it was very likely already true of the example and
+merely easier to see now. Fix it once, for both, as its own change — or record
+it as an issue. Fixing it only in the new context leaves the two out of step and
+hides the finding from the place that has had the defect longest.
+
+**Solve it for the shared code or not at all.** A workaround that lives in one
+host is a fork with extra steps. Either the shared layer learns the answer, or
+the issue stays open and honest.
+
+The order, then, is: reuse and match the example; land that; *then* take the
+new problems one at a time, as changes that apply everywhere.
 
 ### Exception to DRY: performance measurement
 
