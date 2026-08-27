@@ -208,26 +208,38 @@ const arrayIndex = k => {
  * `new Array(2 ** 32 - 1)` — which carries one own property, `length` — into
  * billions of iterations before any check could reject it.
  *
- * `in` rather than `hasOwn`, and after the `length` test: a name is a
- * *candidate* because something on the chain declares it, and a member because
- * the array reads it there.
+ * The own names are **already the answer** for all but a pathological value:
+ * `[[OwnPropertyKeys]]` yields integer indices ascending and without repeats,
+ * so an ordinary array pays one linear pass and no sort. Only an index the
+ * chain supplies and the value does not is merged in, and that set is empty
+ * unless someone has put an index on a prototype — which is why the dedup it
+ * needs may be quadratic without costing an ordinary array anything. Deduping
+ * the whole list instead made every `array(t)` read quadratic in its length:
+ * 829 ms at 40 000 elements against 3 ms at 1 000.
+ *
+ * No `in` test: a name reached this way is a property of the value or of
+ * something it inherits from, so the array reads at it by construction.
  *
  * @type {(value: ReadonlyArray<Unknown>) => readonly number[]}
  */
 const readIndices = value => {
-    /** @type {readonly string[]} */
-    let names = []
-    for (let o = /** @type {object | null} */ (value); o !== null; o = Object.getPrototypeOf(o)) {
-        names = [...names, ...Object.getOwnPropertyNames(o)]
-    }
     const { length } = value
-    return names
-        .flatMap(k => {
-            const i = arrayIndex(k)
-            return i !== undefined && i < length && i in value ? [i] : []
-        })
+    /** @type {(names: readonly string[]) => readonly number[]} */
+    const indices = names => names.flatMap(k => {
+        const i = arrayIndex(k)
+        return i !== undefined && i < length ? [i] : []
+    })
+    const own = indices(Object.getOwnPropertyNames(value))
+    /** @type {readonly number[]} */
+    let chain = []
+    for (let o = Object.getPrototypeOf(value); o !== null; o = Object.getPrototypeOf(o)) {
+        chain = [...chain, ...indices(Object.getOwnPropertyNames(o))]
+    }
+    if (chain.length === 0) { return own }
+    const inherited = chain
+        .filter(i => !Object.hasOwn(value, i))
         .filter((i, at, a) => a.indexOf(i) === at)
-        .toSorted((a, b) => a - b)
+    return inherited.length === 0 ? own : [...own, ...inherited].toSorted((a, b) => a - b)
 }
 
 /**

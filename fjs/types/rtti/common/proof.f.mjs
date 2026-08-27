@@ -74,26 +74,16 @@ export const proof = {
         // kind also answers with its `length`; see `fits` in
         // `../parse/module.f.mjs`.
         holeIsNoMember: () => assertEq(undeclaredMembers(['0'], [1, , 3]).length, 1),
-        // An index the prototype supplies *is* one, though it is no own entry:
-        // `length` says the array reaches that far and the index reads a value.
-        inheritedIndexIsAMember: () => {
-            const value = [1, ,]
-            Object.setPrototypeOf(value, [0, 99])
-            assertStructurallySame(undeclaredMembers(['0'], value), [['1', 99]])
-        },
-        // `2 ** 32 - 1` is not an index: assigning it creates an ordinary
-        // enumerable property and leaves `length` alone, so it is a member by
-        // the non-index half. Reading it as an index put it past both halves.
-        beyondTheIndexRangeIsAMember: () => assertStructurallySame(
-            undeclaredMembers(['0'], Object.assign([1], { '4294967295': 2 })),
-            [['4294967295', 2]],
-        ),
         // The walk is bounded by what the value and its prototypes carry, not
         // by `length` — this one carries a single own property, `length`, so
         // it answers at once. Materializing the range instead exhausted memory
         // long before any check could reject the value.
         lengthDoesNotBoundTheWalk: () =>
             assertEq(undeclaredMembers([], new Array(2 ** 32 - 1)).length, 0),
+        // An index the prototype supplies is a member too, and a canonical
+        // numeric key past the index range is one by the non-index half. Both
+        // need in-place mutation to build, so they are pinned in
+        // `../host.proof.mjs` — see its module doc.
     },
     // What a container schema declares, per kind. A tuple is read by length,
     // so a hole is a declared position whose schema is `undefined` — the same

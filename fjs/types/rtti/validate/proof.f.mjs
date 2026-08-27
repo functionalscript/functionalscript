@@ -84,32 +84,6 @@ const selfList0 = () => ['or', undefined, array(selfList0)]
 const selfList1 = () => ['or', undefined, array(selfList1)]
 
 /**
- * An array whose index 1 is readable through the **prototype**: `length` says
- * 2, index 1 is no own entry, and reading it gives `99`. `Array.isArray` looks
- * at the value and not at its prototype, so this is still an array to every
- * reader — and the member is one a `rest` has to answer for, or the tail
- * `../ts/types.ts` renders would claim the rest's type over a number.
- *
- * @type {() => readonly Unknown[]}
- */
-const inheritedIndex = () => {
-    const value = [42, ,]
-    Object.setPrototypeOf(value, [0, 99])
-    return value
-}
-
-/**
- * An array carrying `4294967295` — one past the last index the language has.
- * Assigning it creates an ordinary enumerable property and leaves `length` at
- * `1`, so it is an undeclared member that no `length`-bounded walk reaches; a
- * reader treating it as an index found it on neither path and let it through a
- * closed container.
- *
- * @type {() => readonly Unknown[]}
- */
-const beyondIndexRange = () => Object.assign([1], { '4294967295': 2 })
-
-/**
  * The acceptance table. Rows cover both container kinds, the closed default
  * and a stated rest on both, the short-array rule, primitives, `or`, and
  * misses — every reader of a schema has to answer them the same way.
@@ -197,18 +171,9 @@ const rows = [
     // a hole past the prefix is no member, so it meets no rest — which is what
     // the `| undefined` in the rendered tail says
     [rest([number], string), [1, ,]],
-    // an index read through the prototype *is* a member, and is held to the
-    // rest like any other — on the uniform reader as well as the tuple one,
-    // which is what keeps all three readers on one walk
-    [rest([number], string), inheritedIndex()],
-    [rest([number], number), inheritedIndex()],
-    [array(string), inheritedIndex()],
-    [array(number), inheritedIndex()],
-    // a key past the last index the language has is an ordinary property, so
-    // it is a member by the non-index half and `length` never sees it
-    [[number], beyondIndexRange()],
-    [rest([number], string), beyondIndexRange()],
-    [rest([number], number), beyondIndexRange()],
+    // An index the prototype supplies, and a key past the index range, are
+    // members too — both need in-place mutation to build, so their rows run
+    // through the same three readers in `../host.proof.mjs`.
     [rest({ a: number }, string), { a: 1, b: 'x' }],
     [rest({ a: number }, string), { a: 1, b: 2 }],
     // a stated rest with nothing to answer for: the struct kind has no length,
@@ -793,25 +758,6 @@ export const proof = {
             assertError(read([/** @type {const} */ (42)])([42, ,]))
             assertError(read([/** @type {const} */ (42)])([42, undefined]))
             assertOk(read([/** @type {const} */ (42)])([42]))
-        }
-    },
-    // A member the prototype supplies past the prefix is a member: `length`
-    // says how far the array reaches, and an index below it that reads a value
-    // is one the rest has to answer for. Filtering own entries alone answered
-    // `ok` here while the rendered tail claimed `string` over a number.
-    inheritedIndexMeetsTheRest: () => {
-        const value = inheritedIndex()
-        assertEq(value.length, 2, 'the array reaches past the prefix')
-        assert(!Object.hasOwn(value, 1), 'and index 1 is no own entry')
-        assertError(validate(rest([number], string))(value))
-        assert(Object.is(unwrap(validate(rest([number], number))(value)), value),
-            'and it is checked against the rest like any other member')
-        // `array(t)` is `rest([], t)`, so it walks the value the same way. An
-        // own-entry walk here answered `ok` while the data form's reader
-        // rejected the same value against the same schema.
-        for (const read of [v, p, d]) {
-            assertError(read(array(string))(value))
-            assertOk(read(array(number))(value))
         }
     },
     // The walk is bounded by what the value and its prototypes carry rather
