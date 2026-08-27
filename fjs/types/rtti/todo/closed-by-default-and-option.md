@@ -482,6 +482,14 @@ Stage 1 (one PR):
       above is a different task and does not cover it. `../../../../AGENTS.md` requires a fixed issue to be deleted in
       the PR that fixes it, and leaving it would advertise work against an API
       that is gone.
+- [ ] `../data/README.md:158-179` is the data form's architectural contract and
+      states the **opposite** of stage 1 throughout: "A `Tuple` schema is open on
+      both readers, and says so here as `{ prefix, rest: unknown }`", a link to
+      `#structs-and-tuples-are-open`, a worked block whose four lines all assume
+      the open reading, and `close(c)` named as the spelling for the exact-length
+      set with a link to `#closed-containers`. Stage 1 inverts every one of those,
+      and since the stages land separately the public data-form contract would
+      otherwise describe the reverse of the code for a whole release.
 - [ ] Migrate the other two todos that **survive** stage 1, since the stages are
       separate PRs and the tree must not advertise a deleted API between them:
       [prefix-then-rest-tuple](./prefix-then-rest-tuple.md) `:30-31` links the
@@ -589,6 +597,18 @@ Stage 2 (one PR, after stage 1 lands):
       `or(option, unknown)` is the declared-member top.
 - [ ] Normalize the absent bit out of an **inline** `rest` on both kinds; pin
       `array(or(option, number))` → `array(number)` and the top-level spelling.
+- [ ] `objectPresentSet` strips the absent bit too — it answers "what may be
+      **present** at this key", while `objectMayOmit` answers whether the key may
+      be missing, and `objectSetSubset` calls both. Left unstripped, the closed
+      `{ a: or(option, number) }` tests `(Absent | number) ⊆ number` against
+      `record(number)` and answers false, though its only values are `{}` and
+      `{ a: number }`, both of which `record(number)` admits — so coverage
+      collapse stops firing and equivalent unions stay structurally unequal.
+      `../data/proof.f.mjs:620` is the row that **flips**:
+      `assert(!subset(toData({ a: option(number) }))(toData(record(number))))`,
+      correct today because `option(number)` admits `{ a: undefined }`, wrong
+      once it does not. Its comment — "the open-struct spelling, which was sound
+      before, still is" — has to change with it.
 - [ ] Leave a **referenced** `rest` unstripped, and have `subset` **resolve** it
       rather than mask the bit — masking is unsound where the reference's present
       part is empty (see above), so there is no context in which the mask is the
