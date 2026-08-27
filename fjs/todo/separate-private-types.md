@@ -21,8 +21,10 @@ emits them as exported type aliases even when they were intended to be private.
 Private declarations in `types.ts` likewise appear in the shipped `types.d.ts`.
 
 Moving all named types out of implementation/proof files and splitting public
-from private TypeScript types removes this leakage structurally instead of
-trying to strip it after declaration generation.
+from private TypeScript types removes the JSDoc typedef leakage structurally.
+TypeScript will still emit a declaration for an imported `private.ts`, because
+that source file is part of the declaration program; that generated private
+declaration must be removed before packaging.
 
 The leading `_` convention should remain: file placement and name visibility are
 complementary signals.
@@ -66,18 +68,33 @@ This leaves generated declarations free to describe the public API, including
 structural types inferred from exported values/functions, without also exporting
 implementation-local typedef names simply because they were declared in JSDoc.
 
-`private.ts` is source-only. It must be type-checked, but package declaration
-emission must not generate or ship `private.d.ts`, and the package must not ship
-`private.ts` itself.
+#### Declaration emission and packaging
+
+`private.ts` is source-only and remains in the normal TypeScript program so its
+types and all `@import` users are checked. Consequently, the existing
+`tsc --emitDeclarationOnly` pass will also generate `private.d.ts`; `exclude`
+cannot suppress that output once another program input imports `private.ts`.
+
+Do not require TypeScript to avoid generating that intermediate file. Instead,
+make private declaration cleanup an explicit packaging step:
+
+1. run normal declaration emission and the existing declaration round-trip
+   type-check;
+2. delete every generated `private.d.ts` before `npm pack` selects package
+   contents;
+3. verify that no declaration which remains in the package references
+   `private.ts` or `private.d.ts`.
+
+The cleanup must operate on generated artifacts only; authored `private.ts`
+remains available for source-tree type-checking. Neither `private.ts` nor the
+intermediate generated `private.d.ts` is shipped.
 
 Generated declarations such as `module.f.d.mts` may be produced from source that
 uses `private.ts`, but no shipped declaration may reference `private.ts` or a
 `private.d.ts` artifact. If an exported declaration needs a private type, either
 that type is actually public and belongs in `types.ts`, or the public declaration
-must be expressible without exposing the private type name.
-
-This should be enforced by the build/package checks rather than relying only on
-review convention.
+must be expressible without exposing the private type name. The package check
+must fail rather than retaining `private.d.ts` to make such a leak resolve.
 
 ### Tasks
 
@@ -90,14 +107,17 @@ review convention.
       `proof.f.mjs` into each directory's `private.ts` where applicable.
 - [ ] Keep `private.ts` in normal TypeScript type-checking without generating a
       runtime JavaScript file for it.
-- [ ] Exclude `private.ts` from declaration/package output: do not generate or
-      ship `private.d.ts` and do not ship `private.ts`.
+- [ ] Add a post-declaration-emit packaging step that deletes generated
+      `private.d.ts` files before `npm pack`.
+- [ ] Do not ship authored `private.ts`.
 - [ ] Reject shipped generated declarations that reference `private.ts` or
-      `private.d.ts`.
+      `private.d.ts`; do not preserve `private.d.ts` merely to satisfy such a
+      reference.
 - [ ] Add a fixture where `module.f.mjs` and `proof.f.mjs` use `_`-prefixed types
-      from `private.ts` without declaring any `@typedef`; verify their generated
-      declarations contain no implementation-local typedef exports and the packed
-      package contains no private type file.
+      from `private.ts` without declaring any `@typedef`; verify declaration emit
+      creates the intermediate `private.d.ts`, cleanup removes it, generated
+      public declarations contain no implementation-local typedef exports, and
+      the packed package contains no private type file.
 - [ ] Verify a clean TypeScript consumer can use the packed public API without
       any private artifact present.
 
@@ -108,6 +128,8 @@ review convention.
 - All private named types live in `private.ts` and keep their leading `_`.
 - Generated public declarations do not expose private named typedefs merely as a
   consequence of declaration emission.
+- Declaration emission may create `private.d.ts`, but the packaging cleanup
+  removes it before package contents are selected.
 - Neither `private.ts` nor `private.d.ts` is shipped.
 - No shipped `.d.ts` / `.d.mts` file references `private.ts` or `private.d.ts`.
 
