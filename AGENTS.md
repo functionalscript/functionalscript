@@ -46,9 +46,11 @@ actually touches its subject.
 
 Find or file the issue in `todo/` first, next to the code it describes; for
 anything non-trivial make sure it contains a concrete design before writing
-code. Write the code plus its proof, run `npm run update` after changing source,
-run the check set above, and delete the `todo/` issue file in the same PR that
-fixes it.
+code. Deviating from that design later is fine; deviating silently is not, and
+a design that cannot be built as written is rewritten rather than forced
+through ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Write the
+code plus its proof, run `npm run update` after changing source, run the check
+set above, and delete the `todo/` issue file in the same PR that fixes it.
 
 Format, priorities, where each issue file belongs, and how GitHub-reported bugs
 become `todo/` files: [todo/README.md](./todo/README.md).
@@ -95,6 +97,17 @@ documentation — needs neither. Breaking changes are welcome when they improve
 the API — prefix the entry with `**BREAKING CHANGES:**` and update every
 importer in the same PR.
 
-Commit-message format and the PR checklist: [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
+**Merge the knowledge.** A small step merged with what was learned written down
+beats two hundred iterations of a PR that never lands. Answer a review, don't
+absorb it — and never only in the thread, which is the one place the answer
+will not survive. A crash may be deferred behind a `todo/` naming the input
+that breaks it; a **regression** may not, and neither may **silence** — an
+unsupported input is refused, never answered with a plausible wrong value
+([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)).
+
+Which comments to fix, which to push back on, and what a push-back leaves
+behind: [REVIEW.md](./REVIEW.md).
+Commit-message format and the PR checklist:
+[CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
 Changelog entry rules, breaking changes, and versioning:
 [changelog/README.md](./changelog/README.md).

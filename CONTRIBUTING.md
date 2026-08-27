@@ -8,10 +8,12 @@ native FunctionalScript VM, in Rust).
 start in [AGENTS.md](./AGENTS.md).** Read it before opening a pull request — it
 applies to human and AI contributors alike. That file is a map: the
 repository-wide design principles are in [DESIGN.md](./DESIGN.md), the
-FunctionalScript and TypeScript rules in [fjs/AGENTS.md](./fjs/AGENTS.md), and
-the Rust ones in [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md). This file covers
-getting a working environment and opening a pull request; every document links
-to the others rather than restating them, so they cannot drift apart.
+FunctionalScript and TypeScript rules in [fjs/AGENTS.md](./fjs/AGENTS.md), the
+Rust ones in [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md), and what to do with
+the comments a review leaves on your pull request in
+[REVIEW.md](./REVIEW.md). This file covers getting a working environment and
+opening a pull request; every document links to the others rather than
+restating them, so they cannot drift apart.
 
 ## Issues
 
@@ -210,6 +212,11 @@ squash, so their messages are working notes.
   with their working-note messages and no `(#NNN)`; a merge commit would bury
   the pull request in a two-parent graph. Nothing lands on `main` outside a
   pull request.
+
+### Addressing review comments
+
+Once the pull request is open, which comments to fix, which to push back on,
+and what a push-back has to leave behind: [REVIEW.md](./REVIEW.md).
 
 ## OpenAI Codex environment
 

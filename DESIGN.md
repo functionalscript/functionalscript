@@ -15,6 +15,7 @@ brief at the top of [AGENTS.md](./AGENTS.md); everything here is their full text
 7. [CLI parameters over environment variables](#7-cli-parameters-over-environment-variables)
 8. [Embedded DSLs should reuse host-language syntax](#8-embedded-dsls-should-reuse-host-language-syntax)
 9. [Maximize signal-to-noise](#9-maximize-signal-to-noise)
+10. [Refuse what you cannot handle](#10-refuse-what-you-cannot-handle)
 
 ---
 
@@ -32,8 +33,9 @@ the algorithm, the data structure, or the API — instead of hacking special cas
 into an otherwise general design (byte-prefix sniffing instead of real parsing,
 key-order assumptions, hardcoded fast paths). A documented implementation limit
 that a later generic improvement can lift (e.g. a size bound on a buffering
-parser) is an acceptable interim answer; a semantic assumption baked into a
-format or contract for speed is not.
+parser) is an acceptable interim answer — provided crossing it is refused rather
+than silently mishandled ([§10](#10-refuse-what-you-cannot-handle)); a semantic
+assumption baked into a format or contract for speed is not.
 
 ## 2. The API is the most important part of quality
 
@@ -78,6 +80,16 @@ on top of the weaker design.
 - When a discrepancy is found between an issue's design and reality (a missing
   API, a wrong environment variable, an incompatible type), correct the design
   document and surface the problem rather than silently working around it.
+- That holds just as much once implementation is under way and the effort
+  already spent is what argues for pushing on. It is not a reason to continue;
+  it is what paid for knowing the design is wrong. Prototyping to find out is
+  fine — shipping against a design you have already disproved is not.
+- Prefer changing a design and implementing it in **separate pull requests**.
+  Landed together, only the end state survives, and which parts were decided
+  beforehand and which were discovered while building is what a later reader
+  cannot recover. A preference, not a rule: where splitting costs more than it
+  returns — a one-line correction the code makes obvious — say in the
+  description that both are there.
 - Before relying on an undocumented or assumed runtime behavior (environment
   variable names, API shape, framework detection), verify it with a small test or
   source check rather than assuming.
@@ -211,3 +223,43 @@ without reading every detail.
 
 **Optimize for progressive understanding:** abstraction first, structure second,
 details last.
+
+## 10. Refuse what you cannot handle
+
+**An input the code does not support is refused, never approximated.** When an
+operation meets a case it cannot handle correctly — a size past the limit it
+implements, a shape the parser does not cover, a combination the design left
+out — it has to say so at the boundary. Returning something plausible and wrong
+is the one outcome that is never acceptable: it passes every test that only
+checks for the absence of a failure, and by the time somebody notices, the
+wrong answer sits in a file nobody can tell apart from the right ones. A crash
+is a bug report with a stack trace; silent corruption is a bug that first has
+to be discovered.
+
+There are two ways to refuse, and the choice between them is the one drawn in
+[fjs/AGENTS.md
+§1.5](./fjs/AGENTS.md#15-never-use-trycatch-test-throwing-with-the-throw-key):
+
+- **Reject** when the input is one a caller may legitimately hand over and is
+  expected to handle — an oversized buffer, a malformed document, a name that
+  does not resolve. Express it as a `try*` function returning `Nullable<T>` (or
+  a `Result`) and let the caller branch on it, as in
+  [§6](#6-never-precompute-a-size-to-predict-whether-something-fits).
+- **Panic** — `throw` in FunctionalScript, `panic!` in Rust, an assert at the
+  entry of the operation — when the input violates something the caller was
+  supposed to guarantee, so there is nothing sensible for it to do with a
+  `null` anyway.
+
+A documented implementation limit ([§1](#1-simplicity-first)) is acceptable only
+under this rule: the limit has to be enforced where it is crossed. "Handles up
+to 128 KB" is a limit when the 129th kilobyte is refused, and a latent
+corruption when it is truncated, wrapped, or quietly mis-encoded.
+
+Refusing is the **mitigation**, not the resolution. The order is: refuse now —
+a check and a `throw` is minutes of work and stops the wrong answers today —
+then file the `todo/`, then fix it. That order makes the real fix schedulable
+instead of urgent, because nothing is being corrupted while it is designed. The
+exception is the limit meant to stay: a bound chosen on purpose is part of the
+API, documented where the API is, and needs no issue. Say which of the two it
+is — "we refuse this for now" and "we refuse this by design" read identically
+at the call site.
