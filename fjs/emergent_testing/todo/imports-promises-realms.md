@@ -253,6 +253,46 @@ brand check and the subscription, its `Reflect.apply` must sit outside a `new
 Promise` executor, and a throw from it must not be conflated with "not a
 promise". Reach for it then, not now.
 
+### What the cross-realm gap actually costs, and the options
+
+Both runners walk a cross-realm promise as an ordinary value. Measured, the
+consequences are not one symptom but two, and the second is worse than the
+phrase "reported as a pass" suggests:
+
+| the proof returns | what happens |
+| --- | --- |
+| a cross-realm promise **resolving** to a sub-tree | reported `passed`; the tests inside it are never discovered, because a promise has no enumerable keys — one test where there are two |
+| a cross-realm promise that **rejects** | never awaited, so the rejection is unhandled — under Node's default `--unhandled-rejections=throw` the **process dies before the report is read** |
+
+`crossRealmPromiseSilentlyPasses` pins the first. The second is deliberately not
+a proof: a test that kills the runner is not a test, which is itself worth
+knowing about this failure mode.
+
+Three ways to respond, with what each costs:
+
+- **Leave it.** Both runners agree, and the value is unreachable from authored
+  FunctionalScript — only an impure proof using `node:vm`, an iframe or a worker
+  can build one. This is the current state. Its price is the table above, and
+  a proof that names it.
+- **Subscribe with the intrinsic `then`** (the deleted machinery). Correct on
+  every case. Its price is ~150 lines in the path that executes every proof
+  body, plus `speciesFails` and the shadow to tell "not a promise" from "promise
+  I cannot subscribe to". Belongs in the shared `sandbox` if taken, never in one
+  runner.
+- **Refuse the value loudly** — report an unsupported cross-realm promise as a
+  failure rather than walking it. Cheaper than subscribing and *not free*: it
+  needs a detector, and the only candidate is `Object.prototype.toString`, which
+  this study measured at 5 of 7. Its two misses are exactly `spoofedPromiseTag`
+  and `frozenPromiseTag` — so a proof tree that carries a `then` key and sets
+  `Symbol.toStringTag: 'Promise'` would be failed instead of walked. That trades
+  a silent pass on an unreachable value for a false failure on a reachable one,
+  which is why it is recorded rather than done.
+
+Whichever is chosen, it is a change to the rule both runners share, so it lands
+in the shared `sandbox` — step 4 and after in
+[share the browser and console proof runners](share-browser-console-runner.md) —
+and never in one host alone.
+
 ### Known shared gap: a `Promise` subclass with an overridden `then`
 
 `await` adopts a promise's internal state only when its `constructor` is the

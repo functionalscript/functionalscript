@@ -260,14 +260,33 @@ export const proof = {
         assertEq(report.totals.failed, 1)
         assertEq(report.results[1]?.path, '.nested().child')
     },
-    crossRealmPromiseIsWalkedAsATree: async () => {
-        const other = runInNewContext('({ resolve: value => Promise.resolve(value) })')
-        const report = await run({
+    // **This pins a defect, not a desired behaviour.** The name says so on
+    // purpose: it appears in the suite output and in any report built from it,
+    // where a reader meets the failure mode rather than an assertion that reads
+    // like an endorsement.
+    //
+    // A rejected cross-realm promise is reported as a **pass**, and a resolved
+    // one's subtree disappears — a promise has no enumerable keys, so the tests
+    // inside it are never counted. `fjs t` does exactly the same, which is why
+    // it is not fixed here: it is a property of the shared rule, and one runner
+    // fixing it alone is the divergence this work exists to remove. See
+    // `../todo/imports-promises-realms.md`, which carries the options and what
+    // each costs.
+    crossRealmPromiseSilentlyPasses: async () => {
+        const other = runInNewContext('({ resolve: v => Promise.resolve(v) })')
+        const resolved = await run({
             nested: () => other.resolve({ child: () => { throw 'boom' } }),
         })
-        assertEq(report.totals.tests, 1)
-        assertEq(report.totals.failed, 0)
-        assertEq(report.results[0]?.path, '.nested')
+        // One test where there are two: the `child` inside the promise is never
+        // discovered.
+        assertEq(resolved.totals.tests, 1)
+        assertEq(resolved.totals.failed, 0)
+        assertEq(resolved.results[0]?.path, '.nested')
+        // A *rejected* cross-realm promise is the sharper symptom and cannot be
+        // proven here: never awaited, its rejection goes unhandled, and Node's
+        // default takes the process down before the report is even read. That
+        // is measured in `../todo/imports-promises-realms.md` rather than
+        // asserted, because a proof that kills the runner is not a proof.
     },
     spoofedPromiseTag: async () => {
         const report = await run({
