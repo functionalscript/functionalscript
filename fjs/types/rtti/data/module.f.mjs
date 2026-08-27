@@ -19,7 +19,7 @@
  * @import { Primitive, Unknown } from '../ts/types.ts'
  * @import { ResultE } from '../../../rtti/common/types.ts'
  * @import { StringMap } from '../../object/types.ts'
- * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from './types.ts'
+ * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../rtti/data/types.ts'
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'

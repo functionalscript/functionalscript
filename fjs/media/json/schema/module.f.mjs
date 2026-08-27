@@ -18,7 +18,7 @@
  * @module
  *
  * @import { Type as RttiType } from '../../../rtti/types.ts'
- * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../types/rtti/data/types.ts'
+ * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../rtti/data/types.ts'
  * @import { Ts, Check } from '../../../types/rtti/ts/types.ts'
  * @import { Phantom } from '../../../types/phantom/types.ts'
  * @import { Assert } from '../../../asserts/types.ts'

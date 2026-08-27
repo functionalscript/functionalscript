@@ -1,6 +1,6 @@
 /**
  * @import { Or } from '../types.ts'
- * @import { Data } from '../../types/rtti/data/types.ts'
+ * @import { Data } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'

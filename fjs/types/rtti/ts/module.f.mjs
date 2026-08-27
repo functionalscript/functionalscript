@@ -15,7 +15,7 @@
  *
  * @import { Printer, StructField } from '../../ts/types.ts'
  * @import { Type } from '../../../rtti/types.ts'
- * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../data/types.ts'
+ * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../rtti/data/types.ts'
  */
 
 import { assertNotNullish } from '../../../asserts/module.f.mjs'

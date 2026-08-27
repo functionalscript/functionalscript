@@ -1,6 +1,6 @@
 /**
  * @import { Unknown } from './module.f.mjs'
- * @import { Data } from '../../../types/rtti/data/types.ts'
+ * @import { Data } from '../../../rtti/data/types.ts'
  */
 
 import { boolean, number, string, bigint, never, unknown, array, open, record, or, option } from '../../../rtti/module.f.mjs'

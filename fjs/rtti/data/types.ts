@@ -10,7 +10,7 @@
  * @module
  */
 
-import type { StringMap } from '../../object/types.ts'
+import type { StringMap } from '../../types/object/types.ts'
 
 /**
  * A set of values of one kind: `true` is the whole kind, an array lists its
