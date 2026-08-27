@@ -44,9 +44,9 @@
  *
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { DetectMeta } from './type/types.ts'
- * @import { Rest, Struct, Type } from '../types/rtti/types.ts'
- * @import { Ts, Unknown } from '../types/rtti/ts/types.ts'
- * @import { ValidateE } from '../types/rtti/common/types.ts'
+ * @import { Rest, Struct, Type } from '../rtti/types.ts'
+ * @import { Ts, Unknown } from '../rtti/ts/types.ts'
+ * @import { ValidateE } from '../rtti/common/types.ts'
  * @import { DialectEntry } from './types.ts'
  */
 
@@ -54,7 +54,7 @@ import { fromVec } from '../text/utf8/module.f.mjs'
 import { detectVec } from './type/module.f.mjs'
 import { parse } from './json/module.f.mjs'
 import { assert, assertNotNullish } from '../asserts/module.f.mjs'
-import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
+import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 
 /** The default refinement: structural validation alone decides the match. */
 const always = () => true

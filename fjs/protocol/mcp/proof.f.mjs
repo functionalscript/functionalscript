@@ -22,7 +22,7 @@ import { history, historyStep, mapStep, pureError, pureOk, step } from '../../ef
 import { error, ok, unwrap as unwrapResult } from '../../types/result/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { internalError } from '../json_rpc/module.f.mjs'
-import { string } from '../../types/rtti/module.f.mjs'
+import { string } from '../../rtti/module.f.mjs'
 import { asBase, asNominal, create, read } from '../../effects/memory/module.f.mjs'
 import {
     uninitializedState, mcpStep, notInitialized, fromRegistry, toolEntry, okResult,

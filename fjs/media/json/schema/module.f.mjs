@@ -2,7 +2,7 @@
  * Converts an rtti schema to a JSON Schema (draft 2020-12) object.
  *
  * {@link toJsonSchema} routes through the serializable RTTI data form
- * (`fjs/types/rtti/data`): `thunk RTTI → toData → dataToJsonSchema`. The data
+ * (`fjs/rtti/data`): `thunk RTTI → toData → dataToJsonSchema`. The data
  * form is a finite graph, so recursive schemas — which the thunk graph
  * represents as self-referencing functions with no leaves — terminate:
  * every named rule is emitted exactly once under `$defs` and every graph
@@ -17,17 +17,17 @@
  *
  * @module
  *
- * @import { Type as RttiType } from '../../../types/rtti/types.ts'
- * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../types/rtti/data/types.ts'
- * @import { Ts, Check } from '../../../types/rtti/ts/types.ts'
+ * @import { Type as RttiType } from '../../../rtti/types.ts'
+ * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../rtti/data/types.ts'
+ * @import { Ts, Check } from '../../../rtti/ts/types.ts'
  * @import { Phantom } from '../../../types/phantom/types.ts'
  * @import { Assert } from '../../../asserts/types.ts'
  */
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { at, definedEntries } from '../../../types/object/module.f.mjs'
-import { array, number, option, or, record, string } from '../../../types/rtti/module.f.mjs'
-import { cmp, toData, unitBit, unknown as top, withoutUnits } from '../../../types/rtti/data/module.f.mjs'
+import { array, number, option, or, record, string } from '../../../rtti/module.f.mjs'
+import { cmp, toData, unitBit, unknown as top, withoutUnits } from '../../../rtti/data/module.f.mjs'
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
 
 /** @type {() => readonly ['const', typeof unknownConst]} */

@@ -17,12 +17,12 @@
  * @import { Unknown } from '../json/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { DialectEntry } from '../types.ts'
- * @import { String as RttiString } from '../../types/rtti/types.ts'
+ * @import { String as RttiString } from '../../rtti/types.ts'
  * @import { LockField, LockFieldSchema, LockMap, LockSchema, Revision, RevisionError } from './types.ts'
  */
 
-import { array, number, open, option, string } from '../../types/rtti/module.f.mjs'
-import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
+import { array, number, open, option, string } from '../../rtti/module.f.mjs'
+import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 import { parse as parseJson } from '../json/module.f.mjs'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
 import { error, ok, okThen } from '../../types/result/module.f.mjs'
@@ -56,7 +56,7 @@ export const hash = string
  *
  * Self-referential through {@link lockValue}, which is a module-level
  * constant rather than a union rebuilt inside the thunk: the rtti data form
- * (`fjs/types/rtti/data`, which `toJsonSchema` routes through) closes
+ * (`fjs/rtti/data`, which `toJsonSchema` routes through) closes
  * reference cycles by *identity*, so a schema handing out a fresh union thunk
  * on every call would present an infinite graph and never terminate.
  *

@@ -22,13 +22,13 @@ export type { phantomKey }
  *
  * **`T` is an unchecked annotation, not a derivation** — nothing stops it from
  * being wrong, and once something reads it back (e.g. `Ts<>` in
- * `fjs/types/rtti/ts/types.ts`, which short-circuits to `T` instead of
+ * `fjs/rtti/ts/types.ts`, which short-circuits to `T` instead of
  * structurally recursing), a wrong `T` is trusted silently. Guard every
  * `Phantom<typeof rawThunk, T>` with two asserts: one against the
  * un-annotated `rawThunk` (forces the real structural check, catching a
  * wrong `T`) and one against the phantom-wrapped export (catches the export
  * and the raw thunk drifting apart), using `Check` from
- * `fjs/types/rtti/ts/types.ts` — or `Check3`, which pairs the two into one
+ * `fjs/rtti/ts/types.ts` — or `Check3`, which pairs the two into one
  * assert. See `fjs/edag/module.f.mjs` (`_exp`/`exp`) for the pattern:
  *
  * ```ts

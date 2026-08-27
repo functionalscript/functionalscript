@@ -49,7 +49,7 @@
  * @import { Evo } from '../../cas/evo/types.ts'
  */
 
-import { string, option, array } from '../../types/rtti/module.f.mjs'
+import { string, option, array } from '../../rtti/module.f.mjs'
 import { lockField } from '../../media/revision/module.f.mjs'
 import { evoSummary } from '../../cas/evo/module.f.mjs'
 import { toolEntry, toolResultStep } from '../../protocol/mcp/module.f.mjs'

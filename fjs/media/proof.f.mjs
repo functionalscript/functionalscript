@@ -8,7 +8,7 @@ import { detect, dialectEntry } from './module.f.mjs'
 import { dialect, revisionDialect } from './revision/module.f.mjs'
 import { dialect as lockDialectName, lockDialect } from './lock/module.f.mjs'
 import { dialect as noteDialectName, noteDialect } from './note/module.f.mjs'
-import { number, open, string } from '../types/rtti/module.f.mjs'
+import { number, open, string } from '../rtti/module.f.mjs'
 
 // All test strings here are ASCII, so char code === UTF-8 byte value.
 /** @type {(s: string) => Vec} */

@@ -109,7 +109,7 @@
  * @import { Key } from '../../effects/memory/types.ts'
  */
 
-import { string, option, or, boolean } from '../../types/rtti/module.f.mjs'
+import { string, option, or, boolean } from '../../rtti/module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { pureOk, resultStep } from '../../effects/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'

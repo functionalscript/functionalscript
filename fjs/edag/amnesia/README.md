@@ -44,7 +44,7 @@ compounds in the same way. A chain of 22 shared additions,
 | here | 8,388,607 (~0.3 s) |
 
 Exponential in depth, and the leaf alone is visited 4,194,304 times.
-[`validate`](../../types/rtti/validate/module.f.mjs) has the same flaw for the
+[`validate`](../../rtti/validate/module.f.mjs) has the same flaw for the
 same reason, which is where the word for it comes from. The models that do
 preserve identity, and what each is for, are in
 [execution-models.md](../execution-models.md).

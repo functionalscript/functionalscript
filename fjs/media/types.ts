@@ -5,7 +5,7 @@
  * @module
  */
 
-import type { Unknown } from '../types/rtti/ts/types.ts'
+import type { Unknown } from '../rtti/ts/types.ts'
 
 /**
  * One registered dialect: the name it tags itself with, and a predicate

@@ -32,7 +32,7 @@ identifiers — is not specific to this generator and lives in
 ## Writing a case
 
 Operands and expectations are ordinary JavaScript values, following
-[`fjs/types/rtti`](../types/rtti/README.md)'s convention that a constant is its
+[`fjs/rtti`](../rtti/README.md)'s convention that a constant is its
 own description:
 
 ```js

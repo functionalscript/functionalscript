@@ -69,7 +69,7 @@ implementation; the directory/module boundary is the important part.
 
 ### Proposal
 
-Define the EDAG with **RTTI** ([`fjs/types/rtti`](../fjs/types/rtti/README.md)):
+Define the EDAG with **RTTI** ([`fjs/rtti`](../fjs/rtti/README.md)):
 an RTTI schema in `fjs/edag/` is the specification of record, and Rust code
 for the EDAG types and the `Function` constructor's input
 validation/construction is **generated** from it.
@@ -79,7 +79,7 @@ Why RTTI:
 - Single source of truth: the FJS side gets the TypeScript types (`Ts<T>`),
   `validate`, and `parse` directly from the schema; the Rust side gets
   generated types and validation code from the same schema.
-- Precedent: [`fjs/types/rtti/ts`](../fjs/types/rtti/ts/README.md) already
+- Precedent: [`fjs/rtti/ts`](../fjs/rtti/ts/README.md) already
   prints schemas as TypeScript types; the Rust generator follows the same
   pattern with a Rust printer.
 - RTTI already supports the shapes an EDAG needs: structs, tuples, `or`
@@ -120,7 +120,7 @@ standard JSON numeric policy remains separate in
 - [ ] Implement a Rust code generator from RTTI schemas: EDAG types +
       validation of the `Any` shape accepted by the `Function` constructor
       (following the pattern of the TypeScript printer in
-      [`fjs/types/rtti/ts`](../fjs/types/rtti/ts/README.md)).
+      [`fjs/rtti/ts`](../fjs/rtti/ts/README.md)).
 - [ ] Provide conformance examples (test vectors) shared by the FJS and Rust
       implementations.
 

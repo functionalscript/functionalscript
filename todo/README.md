@@ -113,7 +113,7 @@ survives, or the word **`retired`** beside it with the target named:
 
 ```md
 - [i167](../fjs/types/bit_vec/module.f.mjs) — the `bit_vec` re-binding.
-- i143 (retired; shipped as [`fjs/types/rtti/data/`](../fjs/types/rtti/data/module.f.mjs)) — …
+- i143 (retired; shipped as [`fjs/rtti/data/`](../fjs/rtti/data/module.f.mjs)) — …
 ```
 
 Write `retired` in the second form; it is the word that makes the resolution

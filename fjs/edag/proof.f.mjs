@@ -10,12 +10,12 @@
  * which `comma` is now the sole route to; it pins the operand array's
  * element schema, and claims nothing about what a `,` means.
  *
- * @import { ValidationError } from '../types/rtti/common/types.ts'
- * @import { Unknown } from '../types/rtti/ts/types.ts'
+ * @import { ValidationError } from '../rtti/common/types.ts'
+ * @import { Unknown } from '../rtti/ts/types.ts'
  * @import { StringMap } from '../types/object/types.ts'
  */
 
-import { validate } from '../types/rtti/validate/module.f.mjs'
+import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
     exp, op0Id, op1Id, op2Id,
@@ -29,7 +29,7 @@ const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
  * `exp` is a top-level `or` trying every node kind in turn, so when a value
  * matches none of them the reported failure is always the root (`path: []`,
  * `message: 'no match'`) — there is no single branch whose deeper path is
- * "the" failure. Same rule as `../types/rtti/validate/proof.f.mjs`'s `orRoot`.
+ * "the" failure. Same rule as `../rtti/validate/proof.f.mjs`'s `orRoot`.
  * The three lambda schemas are `or`s too, so their failures report the same
  * way.
  * @type {(r: readonly [string, unknown]) => void}
