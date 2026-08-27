@@ -12,7 +12,7 @@ import { runInNewContext } from 'node:vm'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from '../browser.mjs'
 
-/** @typedef {{ readonly tag: string, readonly attributes: Map<string, string>, readonly ownerDocument: _Document, textContent: string, children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
+/** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
 /** @typedef {{ defaultView: _View | null, readonly createElement: (tag: string) => _Element }} _Document */
 /** @typedef {{ events: readonly CustomEvent[], readonly dispatchEvent: (event: Event) => boolean, fjsBrowserTestReport?: Promise<unknown> }} _View */
 
@@ -35,7 +35,10 @@ const element = (document, tag, attributes, states) => {
         children: [],
         setAttribute: (name, value) => {
             if (name === 'data-state') { states.push(value) }
-            self.attributes.set(name, value)
+            self.attributes = new Map([...self.attributes, [name, value]])
+        },
+        removeAttribute: name => {
+            self.attributes = new Map([...self.attributes].filter(([key]) => key !== name))
         },
         // The runner only ever queries an attribute selector of `[name]` form.
         querySelector: selector => self.children.reduce(
@@ -53,7 +56,7 @@ const element = (document, tag, attributes, states) => {
  * paragraph and the result list. `states` records every `data-state` written,
  * so a proof can check the whole progression and not just its last step.
  *
- * @type {(withView?: boolean) => { readonly root: Element, readonly summary: _Element, readonly results: _Element, readonly view: _View, readonly states: readonly string[] }}
+ * @type {(withView?: boolean) => { readonly root: Element, readonly summary: _Element, readonly results: _Element, readonly runButton: _Element, readonly view: _View, readonly states: readonly string[] }}
  */
 const page = (withView = true) => {
     /** @type {string[]} */
@@ -75,11 +78,13 @@ const page = (withView = true) => {
     const root = element(document, 'main', ['data-browser-tests'], states)
     root.replaceChildren(
         element(document, 'p', ['data-test-summary'], states),
+        element(document, 'button', ['data-test-run'], states),
         element(document, 'ol', ['data-test-results'], states))
     return {
         root: /** @type {Element} */ (/** @type {unknown} */ (root)),
         summary: assertNotNullish(root.querySelector('[data-test-summary]')),
         results: assertNotNullish(root.querySelector('[data-test-results]')),
+        runButton: assertNotNullish(root.querySelector('[data-test-run]')),
         view,
         states,
     }
@@ -304,6 +309,14 @@ export const proof = {
         assertStructurallySame([...p.states], ['loading', 'running', 'passed'])
         assertEq(await p.view.fjsBrowserTestReport, report)
     },
+    sourcesLoadingSummaryIsSynchronous: () => {
+        // The summary must not keep showing idle text through loading: it is
+        // replaced the instant a run starts, before any import has had a
+        // chance to settle — even one that never does.
+        const p = page()
+        void startBrowserTestSources(p.root, ['a.mjs', 'b.mjs'], () => new Promise(() => undefined))
+        assertEq(p.summary.textContent, 'Loading 0/2')
+    },
     sourcesProgress: async () => {
         const p = page()
         /** @type {(module: { readonly proof?: unknown }) => void} */
@@ -330,6 +343,69 @@ export const proof = {
         assertEq(report.results[0]?.message, 'no loader for bad.mjs')
         assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
         assertEq(p.view.events.length, 1)
+    },
+    runControlAbsentButtonIsIgnored: async () => {
+        // An embedding root with no `[data-test-run]` control is still
+        // supported: `setState` finds nothing to toggle and moves on rather
+        // than throwing.
+        /** @type {string[]} */
+        const states = []
+        /** @type {_Document} */
+        const document = {
+            defaultView: null,
+            createElement: tag => element(document, tag, [], states),
+        }
+        const root = element(document, 'main', ['data-browser-tests'], states)
+        root.replaceChildren(
+            element(document, 'p', ['data-test-summary'], states),
+            element(document, 'ol', ['data-test-results'], states))
+        const report = await startBrowserTests(/** @type {Element} */ (/** @type {unknown} */ (root)),
+            [['m', { ok: () => undefined }]])
+        assertEq(report.status, 'passed')
+    },
+    runControlDisabledWhileActive: async () => {
+        // `Run` must be passive — genuinely disabled, not just click-ignoring —
+        // for the whole span between a click and the next terminal state:
+        // through loading and through execution.
+        const p = page()
+        /** @type {(module: { readonly proof?: unknown }) => void} */
+        let release = () => undefined
+        /** @type {Promise<{ readonly proof?: unknown }>} */
+        const pending = new Promise(resolve => { release = resolve })
+        const done = startBrowserTestSources(p.root, ['a.mjs'], () => pending)
+        await Promise.resolve()
+        assertEq(p.states[0], 'loading')
+        assertEq(p.runButton.attributes.has('disabled'), true)
+        release({ proof: { t: () => undefined } })
+        await Promise.resolve()
+        await Promise.resolve()
+        assertEq(p.runButton.attributes.has('disabled'), true)
+        const report = await done
+        assertEq(report.status, 'passed')
+        // Terminal state hands control back: a new run can be started.
+        assertEq(p.runButton.attributes.has('disabled'), false)
+    },
+    runControlReenabledAfterFailure: async () => {
+        // A failed or infrastructure-error run is just as terminal as a passed
+        // one: `Run` reactivates either way.
+        const p = page()
+        const report = await startBrowserTestSources(p.root, ['bad.mjs'],
+            source => Promise.reject(new Error(`offline: ${source}`)))
+        assertEq(report.status, 'infrastructure-error')
+        assertEq(p.runButton.attributes.has('disabled'), false)
+    },
+    runControlNewRunAfterCompletion: async () => {
+        // The same action starts every run: nothing but the `Run` control's
+        // own state stands between a completed run and the next one.
+        const p = page()
+        await startBrowserTestSources(p.root, ['a.mjs'],
+            () => Promise.resolve({ proof: { t: () => undefined } }))
+        assertEq(p.runButton.attributes.has('disabled'), false)
+        const second = await startBrowserTestSources(p.root, ['a.mjs'],
+            () => Promise.resolve({ proof: { t: () => undefined } }))
+        assertEq(second.status, 'passed')
+        assertStructurallySame([...p.states],
+            ['loading', 'running', 'passed', 'loading', 'running', 'passed'])
     },
     sourcesLoadFailure: async () => {
         const p = page()

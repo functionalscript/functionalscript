@@ -334,6 +334,11 @@ export const startBrowserTestSources = (root, sources, importer) => {
     setState(root, 'loading')
     let loaded = 0
     const summary = root.querySelector('[data-test-summary]')
+    // Set synchronously, before any import settles: otherwise the page keeps
+    // showing its idle text throughout loading — indefinitely, if a module
+    // import never settles — even though the state and control already
+    // changed.
+    if (summary !== null) { summary.textContent = `Loading 0/${sources.length}` }
     // The importer is supplied by the page, so obtaining the promise is itself
     // a failure point: a synchronous throw becomes a rejection here and is
     // reported as a loader failure, rather than escaping past a `loading` state
@@ -380,8 +385,26 @@ export const startBrowserTestSources = (root, sources, importer) => {
     return report
 }
 
-/** @type {(root: Element, state: string) => void} */
-const setState = (root, state) => root.setAttribute('data-state', state)
+/**
+ * Sets the runner state and keeps the `Run` control's real disabled state in
+ * sync with it: passive while a suite is loading or running, active in every
+ * other state (idle, or any terminal status). A disabled attribute is used
+ * rather than a click handler that silently ignores the action, so assistive
+ * technology sees the same unavailability a sighted user does.
+ *
+ * @type {(root: Element, state: string) => void}
+ */
+const setState = (root, state) => {
+    root.setAttribute('data-state', state)
+    const runButton = root.querySelector('[data-test-run]')
+    if (runButton !== null) {
+        if (state === 'loading' || state === 'running') {
+            runButton.setAttribute('disabled', '')
+        } else {
+            runButton.removeAttribute('disabled')
+        }
+    }
+}
 
 /**
  * Renders a completed report in the browser test page.

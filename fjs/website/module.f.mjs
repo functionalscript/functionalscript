@@ -28,7 +28,7 @@ body { background-color: var(--bg); color: var(--text); font: 16px system-ui; ma
 pre { white-space: pre-wrap }
 `]
 )(
-    ['main', { 'data-browser-tests': '', 'data-state': 'loading' },
+    ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
         ['p', ['a',
             { href: 'https://github.com/functionalscript/functionalscript' },
             'GitHub Repository'
@@ -42,8 +42,8 @@ pre { white-space: pre-wrap }
             ],
             '.'
         ],
-        ['p', { 'data-test-summary': '' }, 'Loading…'],
-        ['button', { type: 'button', 'data-test-run': '' }, 'Run again'],
+        ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
+        ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
         ['pre', ['ol', { 'data-test-results': '' }]]
     ],
     ['script', { type: 'module', src: './_browser-test-entry.mjs' }]
@@ -55,15 +55,8 @@ import { browserProofSources } from './fjs/emergent_testing/_browser-suite.mjs'
 const root = /** @type {Element} */ (document.querySelector('[data-browser-tests]'))
 const sources = [...browserProofSources, './fjs/website/browser.mjs']
 const runButton = /** @type {Element} */ (document.querySelector('[data-test-run]'))
-const start = () => {
-    runButton.setAttribute('disabled', '')
-    return startBrowserTestSources(root, sources, source => import(source)).then(report => {
-        runButton.removeAttribute('disabled')
-        return report
-    })
-}
+const start = () => startBrowserTestSources(root, sources, source => import(source))
 runButton.addEventListener('click', start)
-if (new URL(location.href).searchParams.get('run') !== 'false') { start() }
 `)
 
 /** @type {Effect<WriteFile | Write | All, 0, number>} */
