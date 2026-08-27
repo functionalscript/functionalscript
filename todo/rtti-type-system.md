@@ -784,7 +784,7 @@ are stated instead:
   definition-checking needs the body's *inferred* result, which is 6. The seam
   is between representing a contract and checking against one — **7a**
   (the schema form, its place in the canonical algebra, the printer path, and
-  and whatever stage 4's stabilization needs of a function schema) gates the
+  whatever stage 4's stabilization needs of a function schema) gates the
   general form of 6; **7b** (static
   checking of readable definitions) consumes 6. So the order is 7a → 6 → 7b, and "7 gates 6",
   which this file said until review of #1719, is only true of 7a.
@@ -1485,9 +1485,11 @@ are stated instead:
         sharing is part of its meaning
         ([identity-aware-parse](../fjs/types/rtti/todo/identity-aware-parse.md),
         which already owns this);
-      - `validate` costs time exponential in sharing depth — 3.9 ms at depth
-        10, 125 ms at 18 — which that same issue classifies as a DoS vector
-        against untrusted input.
+      - `validate` costs time exponential in sharing depth, which that same
+        issue classifies as a DoS vector against untrusted input. Its recorded
+        figure is 509 ms for a 19-array value; absolute timings vary by more
+        than an order of magnitude across machines, so the growth rate is the
+        claim, not any particular number.
 
       A naïve deep copy shares the first two. **The scope of the fix is the
       open question**: whether these are three defects or one missing
