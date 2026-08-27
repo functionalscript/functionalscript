@@ -1,7 +1,7 @@
 ## Investigate imports, promises and realms
 
 **Priority:** P3
-**Status:** closed for the runner; open only as a note for iframes and workers
+**Status:** on-hold
 
 ### Problem
 
@@ -206,6 +206,12 @@ it correctly, which is what `thenIsATestName` asserts and what makes the
 structural rule hold.
 
 ### Outcome
+
+**The investigation is finished and its decision is implemented; what is left is
+deferred, which is what `on-hold` above means.** Nothing here is waiting on a
+person: it is waiting on proofs running in iframes or workers, which nothing
+does today. The file stays because the measurements below are the input to that
+decision when it arrives, and re-deriving them cost several review rounds.
 
 **Done.** The browser's `sandbox` decides with `p instanceof Promise` and then
 **`await`s** — exactly as `fjs t` does, and the `await` is the load-bearing half.

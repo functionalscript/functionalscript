@@ -1,9 +1,12 @@
 ## Move the browser runner's business logic to FunctionalScript
 
 **Priority:** P2
-**Status:** open — migration debt
+**Status:** open
 
 ### Problem
+
+This is migration debt under the rule that business logic belongs in `.f.mjs`,
+not a new proposal.
 
 [`browser.mjs`](../browser.mjs) is a plain `.mjs` file holding a whole test
 runner. Under the repository rule that business logic belongs in `.f.mjs` and
