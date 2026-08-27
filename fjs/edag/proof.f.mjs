@@ -10,7 +10,7 @@
  * which `comma` is now the sole route to; it pins the operand array's
  * element schema, and claims nothing about what a `,` means.
  *
- * @import { ValidationError } from '../types/rtti/common/types.ts'
+ * @import { ValidationError } from '../rtti/common/types.ts'
  * @import { Unknown } from '../types/rtti/ts/types.ts'
  * @import { StringMap } from '../types/object/types.ts'
  */

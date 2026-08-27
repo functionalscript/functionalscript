@@ -1,11 +1,11 @@
 /**
- * @import { Result } from '../../result/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { ValidationError } from './types.ts'
  */
 
-import { eachEntry, structSchemaEntries, tupleSchemaEntries, undeclaredMembers } from './module.f.mjs'
-import { error, ok } from '../../result/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { eachEntry, structSchemaEntries, tupleSchemaEntries, undeclaredMembers } from '../../types/rtti/common/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** @typedef {ReadonlyArray<readonly [string, number]>} _Entries */
 

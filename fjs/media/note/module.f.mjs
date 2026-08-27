@@ -27,7 +27,7 @@
  *
  * @import { Unknown } from '../json/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { ValidationError } from '../../types/rtti/common/types.ts'
+ * @import { ValidationError } from '../../rtti/common/types.ts'
  * @import { DialectEntry } from '../types.ts'
  * @import { Note, NoteError } from './types.ts'
  */

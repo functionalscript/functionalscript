@@ -1,5 +1,5 @@
 /**
- * @import { ValidationError } from '../common/types.ts'
+ * @import { ValidationError } from '../../../rtti/common/types.ts'
  * @import { Equal } from '../../ts/types.ts'
  * @import { Ts } from '../ts/types.ts'
  * @import { Parse } from './types.ts'

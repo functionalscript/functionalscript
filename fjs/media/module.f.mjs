@@ -46,7 +46,7 @@
  * @import { DetectMeta } from './type/types.ts'
  * @import { Rest, Struct, Type } from '../rtti/types.ts'
  * @import { Ts, Unknown } from '../types/rtti/ts/types.ts'
- * @import { ValidateE } from '../types/rtti/common/types.ts'
+ * @import { ValidateE } from '../rtti/common/types.ts'
  * @import { DialectEntry } from './types.ts'
  */
 

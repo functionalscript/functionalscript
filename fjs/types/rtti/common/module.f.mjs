@@ -36,7 +36,7 @@
  * @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../../../rtti/types.ts'
  * @import { Error, Result as CommonResult } from '../../result/types.ts'
  * @import { StringMap } from '../../object/types.ts'
- * @import { Validate, Visitor, IsContainer, Container, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
+ * @import { Validate, Visitor, IsContainer, Container, ResultE, SchemaEntries, ValidateE, ValidationError } from '../../../rtti/common/types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'

@@ -5,9 +5,9 @@
  */
 
 import type { Type } from '../../../rtti/types.ts'
-import type { Result as CommonValidateResult, Validate } from '../common/types.ts'
+import type { Result as CommonValidateResult, Validate } from '../../../rtti/common/types.ts'
 
-export type { Path, ValidationError } from '../common/types.ts'
+export type { Path, ValidationError } from '../../../rtti/common/types.ts'
 
 /** Parse result: either the freshly constructed typed value or a `ValidationError`. */
 export type Result<T extends Type> = CommonValidateResult<T>
