@@ -122,10 +122,13 @@ and is reviewable without the next one.
       they currently do not. **This step is blocked on a decision, not on
       work**: the browser carries ~150 lines of `Symbol.species` machinery that
       `fjs t` has no equivalent for, so merging the two answers the cross-realm
-      question in [imports, promises and realms](imports-promises-realms.md) —
-      which that file marks as investigation. Settle it there first. Doing it
-      inside a port is how the last attempt lost a defence nobody chose to
-      lose.
+      question in [imports, promises and realms](imports-promises-realms.md).
+      **That investigation is now done** and carries a measured recommendation:
+      a three-line brand check gets six of the seven cases, fixes a real `fjs t`
+      exposure — a cross-realm promise's whole subtree is invisible to it today
+      — and gives up one exotic case the 150 lines cover. What is left is the
+      choice, which is one sentence either way. Doing it inside a port is how
+      the last attempt lost a defence nobody chose to lose.
 - [ ] **4. Common effects.** Move the host-independent operations (`all`,
       `await`, `fetch`, `import`, `now`, `sandbox`) out of `effects/node` into a
       shared module that `effects/node` re-exports unchanged, so nothing has to
