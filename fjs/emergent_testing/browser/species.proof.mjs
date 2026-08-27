@@ -1,15 +1,16 @@
 import { assertEq } from '../../asserts/module.f.mjs'
 import { runBrowserProofs } from '../browser.mjs'
 
-class ThrowingSpeciesPromise extends Promise {
-    static get [Symbol.species]() { throw new Error('species') }
-}
-
 export const proof = {
     throwingSpecies: async () => {
-        const promised = ThrowingSpeciesPromise.resolve({
+        const promised = Promise.resolve({
             child: () => { throw 'boom' },
         })
+        const constructor = {}
+        Object.defineProperty(constructor, Symbol.species, {
+            get: () => { throw new Error('species') },
+        })
+        Object.defineProperty(promised, 'constructor', { value: constructor })
         const report = await runBrowserProofs([['proof', {
             nested: () => promised,
         }]])
