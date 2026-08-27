@@ -1,75 +1,51 @@
-## A convention for saying which host a non-FunctionalScript test targets
+## Impure `.mjs` proofs are Node-only, and that is the answer
 
 **Priority:** P5
-**Status:** open — no demand for it yet; filed so the constraint is written down
+**Status:** not planned — recorded so it is not rediscovered as a gap
 
-### Problem
+### The decision
 
-Authored FunctionalScript runs anywhere. `.f.mjs` is pure — no host objects, no
-`node:` imports, no promises — so a `.f.mjs` proof means the same thing in
-`fjs t`, in a browser, and in any runner added later. That is why the browser
-suite can select on the extension alone (`website/browser-prepare.mjs`:
-`name => name.endsWith('.f.mjs')`) and be right.
+**The browser runs authored FunctionalScript and nothing else.**
+`website/browser-prepare.mjs` selects on `name.endsWith('.f.mjs')`, the generated
+manifest carries 137 such modules, and impure `.mjs` proofs are excluded by
+construction. That is correct behaviour, not a limitation.
 
-Impure `.mjs` proofs have no such property, and there is no way to say what they
-need. Today there are five, and they differ:
+Loading JavaScript written against Node into a browser and expecting it to test
+anything is a nightmare, and nobody has asked for it. A Node proof reaches for
+`node:fs`, `node:vm`, `process`, `node:test`, a filesystem and a subprocess — a
+page has none of them, and no convention for labelling tests changes that. The
+promise question that led here is the smallest visible corner of it.
 
-| proof | what it needs |
-| --- | --- |
-| `effects/node/memory/proof.mjs` | Node |
-| `rtti/host.proof.mjs` | Node |
-| `website/browser-source.proof.mjs` | Node |
-| `emergent_testing/browser/proof.mjs` | Node, though it *tests* browser code |
-| `emergent_testing/browser/species.proof.mjs` | Node, likewise |
+**So there is no work item here.** This file exists because the reasoning is
+worth keeping: the `.f.mjs`-only rule looks like an omission if you meet it
+without context, and someone will otherwise decide it needs fixing.
 
-The last two are the interesting ones: they exercise the browser runner by
-calling it as a library from Node with a DOM stand-in. So "which host does this
-test target" and "which host does this test *describe*" are different questions,
-and a convention has to answer the first without being confused by the second.
+### Why `.f.mjs` needs no convention
 
-The current rule — impure proofs are Node-only, by construction — is correct and
-costs nothing, because nobody has wanted otherwise. **This issue is not a
-proposal to change that.** It exists so that the day someone does want a
-browser-only impure test, the constraint is already written down rather than
-rediscovered.
+Authored FunctionalScript is pure — no host objects, no `node:` imports, no
+promises — so a `.f.mjs` proof means the same thing in `fjs t`, in a browser,
+and in any runner added later. The extension *is* the declaration. That is what
+lets the browser select statically, without importing anything, and be right.
 
-### Why it is P5
+### If it ever comes up
 
-Nothing is blocked. The browser suite runs 137 `.f.mjs` modules and excludes
-impure proofs by construction; that is the desired behaviour, not a limitation
-being worked around. Running Node tests in a browser is not a goal — a promise
-would be the least of what goes wrong, since a Node proof reaches for `node:fs`,
-`node:vm`, `process` and a filesystem that a page does not have.
+Only if someone has a concrete impure test they want a browser to run, and can
+say why it cannot be written as `.f.mjs`. Two things a design would then have to
+face, both easy to miss:
 
-The cost of *not* doing this is small and known: an impure test that could run in
-a browser does not, and nobody notices, because none exists.
-
-### Preliminary design
-
-Unexplored on purpose. Things a design would have to settle:
-
-- **Where the declaration lives.** A filename convention (`proof.node.mjs`,
-  `proof.browser.mjs`) is discoverable without executing anything, which is what
-  the browser's static selection needs. An export (`export const hosts = […]`)
-  is more expressive and requires importing the module to read it — which the
-  preparation program deliberately does not do.
-- **What the vocabulary is.** `node` and `browser` are the two that exist. A
-  list is probably better than a single value, and "runs anywhere" already has a
-  spelling: `.f.mjs`.
-- **What a runner does with a test it cannot host.** Skipping silently is the
-  behaviour that hides a suite quietly losing coverage — see the proof-count
-  floor in [browser testing](browser-testing.md). Reporting it as skipped, with
-  a reason, is the honest form.
-- **Whether the graph still has to be checked.** A test declaring `browser` and
-  importing `node:fs` is a lie the preparation program should catch, which is
-  the dependency-graph acceptance
+- **Targeting and describing are different questions.**
+  `emergent_testing/browser/proof.mjs` and `species.proof.mjs` *test* browser
+  code but *run* in Node, against the browser runner called as a library with a
+  DOM stand-in. A filename convention that conflates the two would mislabel
+  exactly those files.
+- **A declaration is a claim, and claims need checking.** A test declaring
+  `browser` while importing `node:fs` is a lie the preparation program has to
+  catch — the dependency-graph acceptance
   [browser testing](browser-testing.md) already specifies.
 
 ### Related
 
 - [Run FunctionalScript proofs inside real browsers](browser-testing.md) — the
-  selection and dependency-graph rules this would extend.
-- [Imports, promises and realms](imports-promises-realms.md) — why the
-  `.f.mjs`-only rule makes the browser's promise machinery unnecessary, and what
-  changes if that rule is ever relaxed.
-- [`.f.mjs` proof discovery and coverage](f-mjs-test-and-coverage.md)
+  `.f.mjs` selection rule this records the reasoning for.
+- [Imports, promises and realms](imports-promises-realms.md) — why that rule
+  makes the browser's promise machinery unnecessary.

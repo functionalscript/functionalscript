@@ -165,7 +165,7 @@ workers, or visual regression testing.
 - [`.f.mjs` proof discovery and coverage](f-mjs-test-and-coverage.md)
 - [Shared browser/console runner core](share-browser-console-runner.md)
 - [Explicit browser test controls](browser-test-controls.md)
-- [Host-targeted tests](host-targeted-tests.md) — the convention impure `.mjs`
-  proofs would need before a browser could run any of them
+- [Impure `.mjs` proofs are Node-only](host-targeted-tests.md) — why the
+  `.f.mjs`-only selection rule is the answer rather than a gap
 - [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
 - [project roadmap](../../../todo/plan/roadmap.md)

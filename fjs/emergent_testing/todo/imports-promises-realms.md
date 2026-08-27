@@ -175,7 +175,7 @@ testing the cross-realm machinery. **The defence exists to defend against its
 own fixtures**, and deleting both leaves nothing uncovered.
 
 **In the browser it is stronger than that: a promise cannot occur at all.** The
-browser suite selects only authored FunctionalScript —
+browser suite runs authored FunctionalScript and nothing else —
 `website/browser-prepare.mjs` line 16 is `name => name.endsWith('.f.mjs')`, and
 the generated manifest carries 137 modules, none of them anything else. Impure
 `.mjs` proofs are excluded by construction, and rightly so: a browser has no
@@ -217,12 +217,11 @@ hang the suite. The second, correcting that, concluded the browser's mechanism
 was right and `fjs t` should adopt it — trading 150 lines and a subtle
 subscription protocol for a threat model that does not exist here.
 
-**If the browser suite ever runs impure `.mjs` proofs** — which needs a
-convention for saying which host a non-FunctionalScript test targets, filed as
-[host-targeted tests](host-targeted-tests.md) — or **if proofs ever run in
-iframes or workers**, which [browser testing](browser-testing.md) contemplates
-and nothing does today, then a promise, and eventually a cross-realm one,
-becomes reachable for the first time. That is the moment to
+**If proofs ever run in iframes or workers** — which
+[browser testing](browser-testing.md) contemplates and nothing does today — a
+cross-realm promise becomes reachable for the first time. (Running impure `.mjs`
+proofs in a browser is the other way it could happen, and is
+[not planned](host-targeted-tests.md).) That is the moment to
 revisit this, with a real case in hand rather than a constructed one, and the
 material is preserved above: the intrinsic `Promise.prototype.then` is both the
 brand check and the subscription, its `Reflect.apply` must sit outside a `new
