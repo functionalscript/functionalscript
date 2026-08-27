@@ -39,6 +39,16 @@ export const proof = {
             exports('export{ proof }')
             exports('export {proof} from \'./x.mjs\'')
         },
+        patterns: () => {
+            // A declaration can bind through a pattern, and the repository
+            // already exports through one: `export const { merge, get } = map`.
+            exports('export const { proof } = value')
+            exports('export const { value: proof } = source')
+            exports('export const { a, proof } = source')
+            exports('export const [proof] = source')
+            doesNot('export const { proof: alias } = source')
+            doesNot('export const { other } = source')
+        },
         namespace: () => {
             exports('export * as proof from \'./x.mjs\'')
             exports('export *as proof from \'./x.mjs\'')

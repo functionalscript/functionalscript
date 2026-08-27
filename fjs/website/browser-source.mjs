@@ -117,11 +117,30 @@ const declaredName = (list, at) =>
     list[at] === 'function' && list[at + 1] === '*' ? at + 2 : at + 1
 
 /**
- * Whether the words following an `export` bind the name `proof`: a
- * declaration — `async` and `function*` included — a namespace re-export, or a
- * named list. A list entry exports the last name of its `as` chain, so
- * `{ implementation as proof }` binds `proof` and `{ proof as implementation }`
- * does not. An unclosed list is incomplete syntax and binds nothing.
+ * Whether a bracketed group starting at `at` binds `proof`. A named export list
+ * and a binding pattern name what they bind the same way — the last name of an
+ * entry — so `{ implementation as proof }` and `{ value: proof }` both bind
+ * `proof`, while `{ proof as implementation }` and `{ proof: alias }` bind the
+ * other name. An unclosed group is incomplete syntax and binds nothing.
+ *
+ * @type {(list: readonly string[], at: number, close: string) => boolean}
+ */
+const groupBinds = (list, at, close) => {
+    const end = list.indexOf(close, at + 1)
+    if (end === -1) { return false }
+    return list.slice(at + 1, end)
+        .join(' ')
+        .split(',')
+        .some(item => {
+            const names = item.split(' ').filter(name => name !== '')
+            return names[names.length - 1] === 'proof'
+        })
+}
+
+/**
+ * Whether the words following an `export` bind the name `proof`: a declaration
+ * — `async`, `function*` and binding patterns included — a namespace re-export,
+ * or a named list.
  *
  * @type {(list: readonly string[], at: number) => boolean}
  */
@@ -130,18 +149,17 @@ const bindsProof = (list, at) => {
     if (head === undefined) { return false }
     // `async` modifies the declaration that follows it and binds nothing itself.
     if (head === 'async') { return bindsProof(list, at + 1) }
-    if (declarations.includes(head)) { return list[declaredName(list, at)] === 'proof' }
+    if (declarations.includes(head)) {
+        // A declaration binds one name, or a pattern of them: the repository
+        // exports through one already — `export const { merge, get } = map`.
+        const name = declaredName(list, at)
+        const bound = list[name]
+        if (bound === '{') { return groupBinds(list, name, '}') }
+        if (bound === '[') { return groupBinds(list, name, ']') }
+        return bound === 'proof'
+    }
     if (head === '*') { return list[at + 1] === 'as' && list[at + 2] === 'proof' }
-    if (head !== '{') { return false }
-    const close = list.indexOf('}', at + 1)
-    if (close === -1) { return false }
-    return list.slice(at + 1, close)
-        .join(' ')
-        .split(',')
-        .some(item => {
-            const names = item.split(' ').filter(name => name !== '')
-            return names[names.length - 1] === 'proof'
-        })
+    return head === '{' && groupBinds(list, at, '}')
 }
 
 /**
