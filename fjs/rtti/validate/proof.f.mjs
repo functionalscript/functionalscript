@@ -1,18 +1,18 @@
 /**
- * @import { ValidationError, ValidateE, Validate } from '../../../rtti/common/types.ts'
- * @import { Type } from '../../../rtti/types.ts'
- * @import { Equal } from '../../ts/types.ts'
- * @import { Ts, Unknown } from '../../../rtti/ts/types.ts'
- * @import { Unknown as DjsUnknown } from '../../../djs/types.ts'
- * @import { Assert } from '../../../asserts/types.ts'
+ * @import { ValidationError, ValidateE, Validate } from '../common/types.ts'
+ * @import { Type } from '../types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
+ * @import { Ts, Unknown } from '../ts/types.ts'
+ * @import { Unknown as DjsUnknown } from '../../djs/types.ts'
+ * @import { Assert } from '../../asserts/types.ts'
  */
 
-import { validate } from './module.f.mjs'
-import { parse } from '../../../rtti/parse/module.f.mjs'
-import { toData, validate as dataValidate } from '../../../rtti/data/module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../../../rtti/module.f.mjs'
-import { unwrap } from '../../result/module.f.mjs'
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { validate } from '../../types/rtti/validate/module.f.mjs'
+import { parse } from '../parse/module.f.mjs'
+import { toData, validate as dataValidate } from '../data/module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 /** @type {(r: readonly [string, unknown]) => void} */
 const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
