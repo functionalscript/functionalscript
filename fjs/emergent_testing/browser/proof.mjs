@@ -133,6 +133,17 @@ export const proof = {
         assertEq(report.status, 'failed')
         assertEq(report.results[0]?.message, 'Unknown thrown value')
     },
+    crossRealmError: async () => {
+        // An Error from another realm is not `instanceof Error` here, and its
+        // stack is what the report exists to carry.
+        const other = runInNewContext(
+            '({ fail: () => { throw new Error(\'cross boom\') } })')
+        const report = await run({ fail: other.fail })
+        assertEq(report.results[0]?.message, 'cross boom')
+        const stack = report.results[0]?.stack ?? ''
+        assert(stack !== 'cross boom', stack)
+        assert(stack.includes('cross boom'), stack)
+    },
     errorWithoutStack: async () => {
         const error = new Error('no stack')
         const report = await run({ fail: () => { throw Object.assign(error, { stack: undefined }) } })

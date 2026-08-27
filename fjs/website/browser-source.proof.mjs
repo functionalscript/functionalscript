@@ -124,6 +124,11 @@ export const proof = {
             assertStructurallySame(
                 [...specifiers('// import \'node:fs\'\n')],
                 [])
+            // Including when the prose trails a declaration that is real: a
+            // module blocked by its own comment would be dropped in silence.
+            assertStructurallySame(
+                [...specifiers('import \'./ok.mjs\' // import \'node:fs\'\n')],
+                ['./ok.mjs'])
         },
         prose: () => {
             // A documentation line quoting names is not an import declaration.

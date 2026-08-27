@@ -14,11 +14,11 @@
  * with a stand-in root.
  *
  * @module
+ *
+ * @import { _TestAndPath } from './types.ts'
  */
 
 import { collectTests, fmtPath } from './module.f.mjs'
-
-/** @import { _TestAndPath } from './types.ts' */
 
 /** @type {(value: unknown) => string} */
 const text = value => {
@@ -29,16 +29,29 @@ const text = value => {
     }
 }
 
-/** @type {(error: unknown) => readonly [string, string]} */
+/**
+ * The message and stack to report a thrown value by.
+ *
+ * An Error thrown from another realm — an iframe, a worker — is not
+ * `instanceof Error` here, and its stack is the very thing the report exists to
+ * carry. What the fields say is therefore the test, not where the value was
+ * made: anything carrying `message` or `stack` is read as the failure it
+ * describes, and everything else by its own text.
+ *
+ * @type {(error: unknown) => readonly [string, string]}
+ */
 const errorDetails = error => {
     try {
-        if (error instanceof Error) {
-            const message = text(error.message)
-            return [message, error.stack === undefined ? message : text(error.stack)]
+        if (error !== null && (typeof error === 'object' || typeof error === 'function')
+            && ('message' in error || 'stack' in error)) {
+            const { message, stack } = /** @type {{ readonly message?: unknown, readonly stack?: unknown }} */ (error)
+            const described = text(message)
+            return [described, stack === undefined ? described : text(stack)]
         }
     } catch {
-        // Error identity checks and Error fields are user-observable operations:
-        // revoked proxies and accessors can throw while the failure is inspected.
+        // Reading the fields, and asking whether they are there at all, are
+        // user-observable operations: revoked proxies and accessors can throw
+        // while the failure is inspected.
     }
     const fallback = text(error)
     return [fallback, fallback]
