@@ -33,6 +33,11 @@ differs is what comes next.
   is missing where two implementers working from the design would not produce
   the same observable behavior and the same API.
 
+Keep the two apart where you can: change the design in one pull request,
+implement in the next. Landed together, only the end state survives — and which
+parts were decided beforehand and which were discovered while building is
+exactly what the next reader needs and cannot recover from that diff.
+
 So a reviewer asking a design for detail is asking for something legitimate:
 answer with the detail, or say the choice belongs to the implementer. Either
 way it lands in the document rather than the thread.
