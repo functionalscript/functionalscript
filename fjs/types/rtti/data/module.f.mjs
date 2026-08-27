@@ -25,7 +25,7 @@
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { at, definedEntries, definedValues } from '../../object/module.f.mjs'
 import { ok } from '../../result/module.f.mjs'
-import { eachEntry, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
+import { eachEntry, isArray, undeclaredMembers, verror } from '../../../rtti/common/module.f.mjs'
 
 /**
  * The unit kind's enumeration: bit `1 << i` of a {@link UnionSet}'s `unit`

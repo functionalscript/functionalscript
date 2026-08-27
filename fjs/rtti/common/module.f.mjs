@@ -32,17 +32,17 @@
  *
  * @module
  *
- * @import { Primitive, Unknown } from '../ts/types.ts'
- * @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../../../rtti/types.ts'
- * @import { Error, Result as CommonResult } from '../../result/types.ts'
- * @import { StringMap } from '../../object/types.ts'
- * @import { Validate, Visitor, IsContainer, Container, ResultE, SchemaEntries, ValidateE, ValidationError } from '../../../rtti/common/types.ts'
+ * @import { Primitive, Unknown } from '../../types/rtti/ts/types.ts'
+ * @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
+ * @import { Error, Result as CommonResult } from '../../types/result/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
+ * @import { Validate, Visitor, IsContainer, Container, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
  */
 
-import { assert } from '../../../asserts/module.f.mjs'
-import { error, ok } from '../../result/module.f.mjs'
-import { isArray as commonIsArray } from '../../array/module.f.mjs'
-import { isObject as commonIsObject } from '../../object/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.mjs'
+import { isArray as commonIsArray } from '../../types/array/module.f.mjs'
+import { isObject as commonIsObject } from '../../types/object/module.f.mjs'
 
 /** Builds an error result with empty path and the given message. */
 /** @type {(message: string) => Error<ValidationError>} */

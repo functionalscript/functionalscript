@@ -68,7 +68,7 @@ import {
     undeclaredMembers,
     verror,
     visit,
-} from '../common/module.f.mjs'
+} from '../../../rtti/common/module.f.mjs'
 import { emptyRest } from '../data/module.f.mjs'
 
 /** @typedef {CommonResult<Unknown, ValidationError>} _ItemResult */

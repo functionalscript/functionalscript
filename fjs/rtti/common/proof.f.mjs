@@ -3,7 +3,7 @@
  * @import { ValidationError } from './types.ts'
  */
 
-import { eachEntry, structSchemaEntries, tupleSchemaEntries, undeclaredMembers } from '../../types/rtti/common/module.f.mjs'
+import { eachEntry, structSchemaEntries, tupleSchemaEntries, undeclaredMembers } from './module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
