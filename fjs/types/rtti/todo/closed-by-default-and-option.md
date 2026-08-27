@@ -206,6 +206,27 @@ behaviour change stage 1 otherwise does not make. Pin the sparse case
 (`rest([42], string)` against `[42, , ]`) in `../ts/proof.f.mjs` beside the tail
 rows, so whichever way it is settled is recorded rather than re-derived.
 
+The widening is guarded by one condition: **an empty rest renders no tail at
+all.** Applied blindly, `...(Ts<R> | undefined)[]` turns an absence-only or
+empty rest into `...undefined[]` — `rest([42], option)` after stage 2 strips its
+inline rest to nothing (the normalization task below), so both readers and the
+runtime printer see the exact `[42]`, while the formula would compute
+`Ts<typeof option>` as `never`, add `undefined`, and render
+`readonly [42, ...undefined[]]`, admitting `[42, undefined]` where the schema
+rejects it. Same for `rest([42], or())` in stage 1, where the rest is empty
+without any absence involved. So the rule is: strip absence from the rest, and
+if what remains is empty, render the exact tuple; otherwise render
+`...(Ts<R> | undefined)[]`. Pin `rest([42], or())` in stage 1 and
+`rest([42], option)` in stage 2.
+
+The exact rendering for an empty rest is only *fully* right once the length
+bound lands: `validate(close([42], or()))([42, , ])` is `ok` today while
+`validate(close([42]))([42, , ])` is `error` — measured — which is the
+`array(or())` divergence the acceptance table above records and the stage-1
+task below fixes. The two are the same fix seen from the two sides, and neither
+is complete alone: without the bound, the exact tuple still understates
+`length` on exactly the spelling this paragraph exempts from the tail.
+
 #### Alternative considered: a kind-dependent default
 
 Making a bare `Tuple` closed and a bare `Struct` open would leave `Ts<>` exact on
@@ -490,6 +511,14 @@ Stage 1 (one PR):
       past the prefix (see above; `open(c)` is unaffected, since
       `unknown | undefined` is `unknown`). Pin `rest([42], string)` against
       `[42, , ]` in `../ts/proof.f.mjs`.
+- [ ] …except when the absence-stripped rest is **empty**, where the tail is
+      omitted and the exact tuple is rendered — otherwise `rest([42], or())`
+      (stage 1) and `rest([42], option)` (stage 2, whose inline rest normalizes
+      away entirely) render `readonly [42, ...undefined[]]` and admit
+      `[42, undefined]`, which both readers reject. Pin both. This shares its
+      other half with the length-bound task below: until that lands,
+      `validate(close([42], or()))([42, , ])` is `ok` while
+      `validate(close([42]))([42, , ])` is `error`.
 - [ ] `../README.md`: replace "Structs and tuples are open", "This is deliberate;
       please do not 'fix' it" and "Closed containers" with the closed default and
       the `open`/`rest` spelling; keep the `Ts<>` direction note above.
