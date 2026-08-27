@@ -13,7 +13,7 @@
  * @module
  *
  * @import { Effect } from '../types.ts'
- * @import { IoResult, Server as EffectServer, Headers, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
+ * @import { Server as EffectServer, Headers, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
@@ -30,6 +30,7 @@ import * as testContext from 'node:test'
 
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import { asyncRun } from '../module.mjs'
+import { awaitPromise, io, sandbox } from '../common/module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import {
     emptyHost, emptyHostCode, emptyHostMessage, exitCode, toIoError, usesInlineTestContext,
@@ -84,22 +85,6 @@ import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 const createServer = http.createServer
 
 /** @typedef {<T, E>(effect: Effect<NodeOp, T, E>) => Promise<Result<T, E>>} _EffectToPromise */
-
-/**
- * Performs host IO, reporting a thrown failure as an {@link IoResult} error.
- *
- * Every filesystem, network, and subprocess handler below goes through it, so
- * the `catch` that turns an exception into effect data — and the normalization
- * that keeps the channel serializable — happens in exactly one place.
- *
- * @template T
- * @param {() => Promise<T>} f
- * @returns {Promise<IoResult<T>>}
- */
-const io = async f => {
-    const r = await asyncTryCatch(f)
-    return r[0] === 'ok' ? r : error(toIoError(r[1]))
-}
 
 /**
  * Reads a request body, giving up at the `Vec` cap rather than at the point
@@ -245,35 +230,6 @@ const asyncImport = v => {
     const s1 = s0.startsWith(prefix) ? s0 : `${prefix}${s0}`
     return import(s1)
 }
-
-/**
- * @template T
- * @param {() => T} f
- * @returns {Promise<{ readonly result: Result<T, unknown>, readonly duration: number }>}
- */
-const sandbox = async f => {
-    /** @type {Result<T, unknown>} */
-    let result
-    let after
-    const before = performance.now()
-    try {
-        let p = f()
-        after = performance.now()
-        if (p instanceof Promise) {
-            p = await p
-            after = performance.now()
-        }
-        result = ok(p)
-    } catch (e) {
-        after = performance.now()
-        result = error(e)
-    }
-    return { result, duration: after - before }
-}
-
-/** @type {(p: unknown) => Promise<readonly [unknown]>} */
-const awaitPromise = async p =>
-    [p instanceof Promise ? await p : p]
 
 const { now } = Date
 

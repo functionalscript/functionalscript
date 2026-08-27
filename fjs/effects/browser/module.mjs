@@ -16,13 +16,11 @@
  *
  * @import { Effect, ToAsyncOperationMap } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { CommonOp, Module, SandboxResult } from '../common/types.ts'
- * @import { IoResult } from '../common/types.ts'
+ * @import { CommonOp, Module } from '../common/types.ts'
  */
 
-import { toIoError } from '../common/module.f.mjs'
-import { error, ok } from '../../types/result/module.f.mjs'
-import { asyncTryCatch } from '../../types/result/module.mjs'
+import { awaitPromise, io, sandbox } from '../common/module.mjs'
+import { ok } from '../../types/result/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
 
 /**
@@ -90,56 +88,6 @@ const runBatched = async (run, effects) => {
 }
 
 /**
- * Performs host IO, reporting a thrown failure as an {@link IoResult} error.
- *
- * The browser twin of the Node runner's `io`: the one place where an exception
- * becomes ordinary effect data, normalized so nothing past it sees the thrown
- * object.
- *
- * @template T
- * @param {() => Promise<T>} f
- * @returns {Promise<IoResult<T>>}
- */
-const io = async f => {
-    const r = await asyncTryCatch(f)
-    return r[0] === 'ok' ? r : error(toIoError(r[1]))
-}
-
-/**
- * Runs `f` and measures it, exactly as the Node runner does: a genuine
- * `Promise` is awaited and a rejection is caught, and any other value — a proof
- * tree carrying a `then` property included — is the result as it stands.
- *
- * That equality is the point. `fjs t` and this runner walk the same proof trees
- * through the same shared semantics (`fjs/emergent_testing/module.f.mjs`), so
- * the one operation that actually *executes* a proof body has to agree with its
- * Node counterpart or the two runners disagree about what a suite means.
- *
- * @template T
- * @param {() => T} f
- * @returns {Promise<SandboxResult<T>>}
- */
-const sandbox = async f => {
-    /** @type {Result<T, unknown>} */
-    let result
-    let after
-    const before = performance.now()
-    try {
-        let p = f()
-        after = performance.now()
-        if (p instanceof Promise) {
-            p = await p
-            after = performance.now()
-        }
-        result = ok(p)
-    } catch (e) {
-        after = performance.now()
-        result = error(e)
-    }
-    return { result, duration: after - before }
-}
-
-/**
  * The browser's handlers for the host-independent operations.
  *
  * `run` is the composed runner the caller builds — the one that also knows the
@@ -152,7 +100,7 @@ const sandbox = async f => {
  */
 export const browserOperationMap = (run, importer = source => import(source)) => ({
     all: async (...effects) => ok(await runBatched(run, effects)),
-    await: async p => ok([p instanceof Promise ? await p : p]),
+    await: async p => ok(await awaitPromise(p)),
     fetch: url => io(async () => {
         const response = await globalThis.fetch(url)
         if (!response.ok) {

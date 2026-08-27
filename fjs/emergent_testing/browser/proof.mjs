@@ -229,6 +229,59 @@ export const proof = {
         assertEq(states.join(','), 'loading,running,infrastructure-error')
         assertEq(view.events.length, 1)
     },
+    // The summary must not keep showing idle text through loading: it is
+    // replaced the instant a run starts, before any import has had a chance to
+    // settle — even one that never does.
+    loadingSummaryIsSynchronous: () => {
+        const { root, summary } = page()
+        void startBrowserTestSources(root, ['a.mjs', 'b.mjs'], () => new Promise(() => undefined))
+        assertEq(summary.textContent, 'Loading 0/2')
+    },
+    // ...and it counts up as modules link, so a slow graph shows progress
+    // rather than one frozen line.
+    loadingProgress: async () => {
+        const { root, summary } = page()
+        /** @type {(module: Module) => void} */
+        let release = () => undefined
+        /** @type {Promise<Module>} */
+        const pending = new Promise(resolve => { release = resolve })
+        const done = startBrowserTestSources(root, ['a.mjs', 'b.mjs'],
+            source => source === 'a.mjs' ? Promise.resolve({ proof: {} }) : pending)
+        await Promise.resolve()
+        await Promise.resolve()
+        assertEq(summary.textContent, 'Loading 1/2: a.mjs')
+        release({ proof: {} })
+        assertEq((await done).status, 'passed')
+    },
+    // The same action starts every run: nothing but the `Run` control's own
+    // state stands between a completed run and the next one.
+    newRunAfterCompletion: async () => {
+        const { root, runButton, states } = page()
+        /** @type {() => Promise<Module>} */
+        const load = () => Promise.resolve({ proof: { t: () => undefined } })
+        await startBrowserTestSources(root, ['a.mjs'], load)
+        assert(!runButton.attributes.has('disabled'))
+        const second = await startBrowserTestSources(root, ['a.mjs'], load)
+        assertEq(second.status, 'passed')
+        assertEq(second.totals.tests, 1)
+        assertEq(states.join(','), 'loading,running,passed,loading,running,passed')
+    },
+    // Rendering a result is the page's own code, so it is a failure point of
+    // the page and not of the run: a renderer that throws must not cost the
+    // report every consumer is waiting for.
+    renderingThrows: async () => {
+        const { root, results } = page()
+        const append = results.append
+        const report = await startBrowserTestSources(root, ['a.mjs'], async () => {
+            // Break rendering only once the run is under way, so the page is
+            // built normally and only the per-result append fails.
+            Object.assign(results, { append: () => { throw new Error('render') } })
+            return { proof: { t: () => undefined } }
+        })
+        Object.assign(results, { append })
+        assertEq(report.status, 'passed')
+        assertEq(report.totals.passed, 1)
+    },
     // A root whose document has no window still runs and still answers: there
     // is simply nowhere to publish the promise or dispatch the event.
     withoutView: async () => {

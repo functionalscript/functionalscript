@@ -159,7 +159,17 @@ workers, or visual regression testing.
       `playwright/test` and reuses the shared controller.
 - [ ] Run the same application in Chromium, Firefox, and WebKit.
 - [ ] Add the validation fixtures above; add CI only after proof bodies
-      demonstrably execute inside browsers.
+      demonstrably execute inside browsers. **That gate is now met** — the
+      unified runner was driven in Chromium over the generated page, 3435 proofs
+      linked and executed, so what still blocks a CI job is the controller
+      below, not evidence. Nothing in `.github/workflows/` starts a browser
+      today, and `npm run website` only *generates* the suite: it exits `0` with
+      a failing proof in the manifest, so the browser suite is not a gate
+      anywhere yet.
+- [ ] Assert a floor on the number of proofs a run discovers. Nothing does
+      today, in any runner: a `collectTests` that silently skipped most leaves
+      would keep `fjs t` at exit `0`, and a suite that loses coverage cannot
+      report that it has.
 
 ### Related
 

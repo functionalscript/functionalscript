@@ -161,6 +161,16 @@ operations of its own, which is why it and `fjs t` can share every line of proof
 semantics between them. `./node/` re-exports every common name, so a consumer
 that already imports one module for `readFile` keeps importing it for `sandbox`.
 
+**Part of the interpretation is common too**, and
+[`./common/module.mjs`](./common/module.mjs) holds it: `sandbox`'s
+`try`/`catch`-and-measure, `await`'s promise test, and the `io` wrapper that
+turns a thrown value into an `IoError`. None of them touches a host — a bare
+JavaScript realm has `Promise`, a clock and a `catch` — and `sandbox` in
+particular is the operation that actually *executes* a proof body, so a runner
+that spelled it its own way would make a test suite mean different things in
+different hosts. The two runners did have it byte-identical, with a comment in
+one saying it matched the other; a comment is not a mechanism.
+
 An interpreter lives beside the host it interprets — [`./node/module.mjs`](./node/module.mjs),
 [`./browser/module.mjs`](./browser/module.mjs) — and the browser one implements
 `CommonOp` and nothing else. There is no browser filesystem and no browser

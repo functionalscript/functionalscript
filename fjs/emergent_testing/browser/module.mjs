@@ -134,8 +134,15 @@ export const startBrowserTestSources = (root, sources, importer = source => impo
         ...browserOperationMap(effect => run(effect), load),
         report: async result => {
             results = [...results, result]
-            if (summary !== null) { summary.textContent = `${results.length} tests completed…` }
-            if (output !== null) { output.append(renderResult(root.ownerDocument, result)) }
+            // Showing a result as it lands is the page's own rendering, and it
+            // must not take the run down with it: the report is the one thing
+            // the page is still waiting for, and it is already recorded above.
+            try {
+                if (summary !== null) { summary.textContent = `${results.length} tests completed…` }
+                if (output !== null) { output.append(renderResult(root.ownerDocument, result)) }
+            } catch {
+                // The result stays in the report the run resolves with.
+            }
             return ok(undefined)
         },
         reported: async () => ok(results),
