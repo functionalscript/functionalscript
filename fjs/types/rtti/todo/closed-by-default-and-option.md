@@ -669,10 +669,10 @@ Stage 1 (one PR):
 - [ ] Delete [close-counts-trailing-undefined](./close-counts-trailing-undefined.md),
       whose whole subject is the `close(c, rest?)` overload stage 1 removes, and
       carry anything still live into this file — its defect half is the
-      length-bounding task above, its documentation half is the README
-      rewrite, and its **criterion** for an empty rest is the task above
-      those two, which is the piece "anything still live" reads past most
-      easily because it looks like an implementation detail of the first.
+      length-bounding task further down this list, its documentation half is
+      the README rewrite, and its **criterion** for an empty rest is the task
+      just before that one, which is the piece "anything still live" reads past
+      most easily because it looks like an implementation detail of the first.
       One concrete item is easy to lose in "anything still live": its
       proof task, adding `[close([number]), [42, undefined]]` to
       `../validate/proof.f.mjs`'s acceptance table with an oracle beside it —
@@ -717,7 +717,7 @@ Stage 1 (one PR):
       the figure to distrust.)
 - [ ] Carry [close-counts-trailing-undefined](./close-counts-trailing-undefined.md)'s
       **definition of an empty rest** into this file before deleting it — its
-      third task, the one the carry-over item below does not cover, because the
+      third task, the one the carry-over item above does not cover, because the
       criterion is neither the defect half nor the documentation half. "The rest
       admits nothing" is not a syntactic test: `[or()]` is closed after stage 1
       and has no inhabitant, and measured today
