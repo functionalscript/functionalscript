@@ -380,8 +380,26 @@ export const startBrowserTestSources = (root, sources, importer) => {
     return report
 }
 
-/** @type {(root: Element, state: string) => void} */
-const setState = (root, state) => root.setAttribute('data-state', state)
+/**
+ * Sets the runner state and keeps the `Run` control's real disabled state in
+ * sync with it: passive while a suite is loading or running, active in every
+ * other state (idle, or any terminal status). A disabled attribute is used
+ * rather than a click handler that silently ignores the action, so assistive
+ * technology sees the same unavailability a sighted user does.
+ *
+ * @type {(root: Element, state: string) => void}
+ */
+const setState = (root, state) => {
+    root.setAttribute('data-state', state)
+    const runButton = root.querySelector('[data-test-run]')
+    if (runButton !== null) {
+        if (state === 'loading' || state === 'running') {
+            runButton.setAttribute('disabled', '')
+        } else {
+            runButton.removeAttribute('disabled')
+        }
+    }
+}
 
 /**
  * Renders a completed report in the browser test page.
