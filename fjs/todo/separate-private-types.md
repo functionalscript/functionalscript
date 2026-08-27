@@ -231,12 +231,27 @@ Conceptually:
 tsc --noEmit false --emitDeclarationOnly && tsc && <delete generated private.d.ts files>
 ```
 
-Validation of the packed artifact must prove both:
+Do **not** rewrite or post-process emitted declaration text. TypeScript may retain
+source JSDoc comments such as:
+
+```js
+/** @import { _Private } from './private.ts' */
+```
+
+inside an emitted `.d.ts` / `.d.mts`. In a declaration file this is a comment,
+not a TypeScript import or module dependency, so it may remain after
+`private.d.ts` is deleted.
+
+Validation of the packed artifact must prove:
 
 - neither authored `private.ts` nor generated `private.d.ts` is shipped;
-- no packed `.d.ts` / `.d.mts` references a directory's private type module,
-  regardless of the exact emitted suffix.
+- no packed `.d.ts` / `.d.mts` has a **semantic TypeScript dependency** on a
+  directory's private type module.
 
+A raw text search for `private.ts` / `@import` is therefore incorrect because it
+would reject harmless retained comments. If a structural scan is used, it must
+ignore comments and reject only actual declaration syntax that creates a module
+dependency. The clean-consumer TypeScript check is the final semantic validation.
 References to packaged `meta.f.mjs` are allowed.
 
 #### Repository-policy reconciliation
@@ -308,8 +323,10 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
       proof imports solely to make otherwise-unused metadata appear in coverage.
 - [ ] Keep `private.ts` in normal TypeScript checking without runtime JS emit.
 - [ ] Make deletion of generated `private.d.ts` the final `prepack` step.
-- [ ] Inspect the `npm pack` artifact for private files and private declaration
-      dependencies.
+- [ ] Do not rewrite/post-process emitted declarations to remove retained JSDoc
+      `@import` comments; they are non-semantic in `.d.ts` / `.d.mts`.
+- [ ] Inspect the `npm pack` artifact for private files and **semantic** private
+      declaration dependencies, ignoring retained comments.
 - [ ] Add a fixture covering:
       - a private helper required by a public type alias;
       - a private helper required by an exported runtime value/function
@@ -321,6 +338,9 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
       - a non-FunctionalScript authored `.mjs` file whose former file-scope
         typedef is moved to the appropriate TypeScript file;
       - `meta.f.mjs` with RTTI, literal, and runtime-used constants.
+- [ ] Include a retained JSDoc `@import ... './private.ts'` comment in an emitted
+      declaration fixture and verify the clean consumer succeeds without
+      `private.ts`; this proves comments do not create package dependencies.
 - [ ] In the fixture, runtime-load at least one metadata path to prove that the
       Node/Deno coverage filters include loaded `meta.f.mjs`; do not use the
       fixture to impose a requirement that every metadata module/export in the
@@ -351,8 +371,11 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
   compatibility re-exports preserve old entry points.
 - Declaration emit may create `private.d.ts`; final-`prepack` cleanup removes it
   before package contents are selected.
+- Emitted declarations are not text-postprocessed: retained JSDoc `@import`
+  comments may mention `private.ts` and are allowed because they do not create a
+  TypeScript module dependency.
 - The packed tarball contains neither `private.ts` nor `private.d.ts`, and no
-  packed declaration depends on the private module.
+  packed declaration has a semantic dependency on the private module.
 - Public declaration helpers retained in `types.ts` remain self-contained and
   resolvable from shipped declarations, including helpers used by exported
   runtime-value/function signatures.
@@ -362,7 +385,8 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
 - `fjs/fsc/README.md` and the blocked `@internal`/`stripInternal` TODO no longer
   prescribe a conflicting private-JSDoc strategy.
 - A clean TypeScript consumer type-checks successfully against the packed
-  tarball after private artifacts are removed.
+  tarball after private artifacts are removed, including when retained comments
+  mention the removed private source path.
 
 ### Related
 
