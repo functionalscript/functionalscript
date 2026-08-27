@@ -174,6 +174,22 @@ with `node:vm`, an iframe or a worker. The only proofs that do are the ones
 testing the cross-realm machinery. **The defence exists to defend against its
 own fixtures**, and deleting both leaves nothing uncovered.
 
+**In the browser it is stronger than that: a promise cannot occur at all.** The
+browser suite selects only authored FunctionalScript —
+`website/browser-prepare.mjs` line 16 is `name => name.endsWith('.f.mjs')`, and
+the generated manifest carries 137 modules, none of them anything else. Impure
+`.mjs` proofs are excluded by construction, and rightly so: a browser has no
+business running Node tests, and a promise is only the first thing that would go
+wrong. So every leaf the browser runner executes is pure FunctionalScript, and
+pure FunctionalScript has no promises.
+
+Which means the machinery is circular twice over. It lives in the runner that
+*only* executes `.f.mjs`; it is exercised by `species.proof.mjs` and the
+cross-realm proofs, which are `.mjs` and therefore **never run in a browser at
+all** — they run under `fjs t`, in Node, against the browser runner called as a
+library. Machinery in the browser path, tested by fixtures that never reach the
+browser, guarding values the browser cannot produce.
+
 The one promise-adjacent value *pure* FunctionalScript can produce is an object
 with a key named `then` — a proof called `then`. `p instanceof Promise` refuses
 it correctly, which is what `thenIsATestName` asserts and what makes the
@@ -183,6 +199,11 @@ structural rule hold.
 
 **Do it exactly as `fjs t` does: `p instanceof Promise`, await, done.** Delete
 the species machinery and `species.proof.mjs` with it.
+
+Strictly, the browser needs no promise handling whatever — it runs only
+`.f.mjs`. Keeping `instanceof` there anyway is the cheap and honest choice: it
+is one expression, it keeps the two runners' `sandbox` identical rather than
+"identical except the browser omits a branch", and it costs nothing to carry.
 
 That is not a compromise on correctness. It is correct for every value the
 language can produce, and for every value any proof in this repository actually
@@ -196,9 +217,12 @@ hang the suite. The second, correcting that, concluded the browser's mechanism
 was right and `fjs t` should adopt it — trading 150 lines and a subtle
 subscription protocol for a threat model that does not exist here.
 
-**If proofs ever run in iframes or workers** — which
-[browser testing](browser-testing.md) contemplates and nothing does today — a
-cross-realm promise becomes reachable for the first time. That is the moment to
+**If the browser suite ever runs impure `.mjs` proofs** — which needs a
+convention for saying which host a non-FunctionalScript test targets, filed as
+[host-targeted tests](host-targeted-tests.md) — or **if proofs ever run in
+iframes or workers**, which [browser testing](browser-testing.md) contemplates
+and nothing does today, then a promise, and eventually a cross-realm one,
+becomes reachable for the first time. That is the moment to
 revisit this, with a real case in hand rather than a constructed one, and the
 material is preserved above: the intrinsic `Promise.prototype.then` is both the
 brand check and the subscription, its `Reflect.apply` must sit outside a `new
