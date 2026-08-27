@@ -93,10 +93,14 @@ catch.
 
 Two things follow that are easy to get wrong:
 
-- **The runner needs no promise handling of its own.** FunctionalScript cannot
-  produce a promise, so nothing the browser executes can be one. `fjs t`'s
-  `instanceof Promise` is kept only so both runners' `sandbox` reads the same,
-  and the cross-realm machinery that used to sit here is gone. See
+- **The runner's promise handling is a required guard, not decoration.**
+  FunctionalScript as specified has no promises, so a conforming proof produces
+  none — but selection is by filename with no content check, so a module that
+  does not conform is loaded and can return one. The `instanceof Promise` check
+  and the settlement behind it are what keep that from silently losing a
+  sub-tree, and they are not to be deleted on the grounds that the language
+  forbids the input. What *was* deleted is the `Symbol.species` recovery
+  machinery, which is a different thing. See
   [imports, promises and realms](imports-promises-realms.md).
 - **The impure proofs that drive the browser runner are not part of the suite.**
   `emergent_testing/browser/proof.mjs` tests browser code, but it is `.mjs`, so
@@ -118,9 +122,12 @@ The named `proof` export is the source of truth; filenames are conventions.
    omission or a Node fallback — when the graph reaches a `node:` import or an
    unresolved external package.
 
-Extending selection to generic `.mjs` modules with Node-dependent graphs is
-optional, later, and may introduce environment metadata; it does not block the
-first working browser suite.
+Extending selection to generic `.mjs` modules is **not** planned — see the scope
+section above, which supersedes this paragraph's earlier "optional, later"
+framing. A Node-dependent proof needs `node:fs`, `node:vm`, `process` and a
+filesystem, none of which a page has, and no environment metadata changes that.
+What remains open is the *rejection*: a `.f.mjs` whose graph reaches a `node:`
+import must be reported, which is the dependency-graph acceptance above.
 
 ### In-browser runner and report
 

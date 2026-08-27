@@ -91,16 +91,25 @@ const errorDetails = error => {
  * throws here, and the caller reports it against the test that produced the
  * value — which is what `fjs t` does with it too.
  *
- * @type {(value: Promise<unknown>) => Promise<unknown>}
+ * **The answer is a tuple, for the same reason `fn()`'s is.** Resolving the
+ * wrapper with the fulfilled value directly would assimilate it: a proof tree
+ * carrying a zero-argument `then` test is a thenable to `resolve`, which would
+ * call it as a resolver and wait for a settlement that never comes. The tree
+ * has to reach the traversal as data, so it travels wrapped.
+ *
+ * @type {(value: Promise<unknown>) => Promise<readonly [unknown]>}
  */
 const intrinsicSubscribe = value => {
-    /** @type {(v: unknown) => void} */
+    /** @type {(v: readonly [unknown]) => void} */
     let ok = () => undefined
     /** @type {(e: unknown) => void} */
     let no = () => undefined
-    /** @type {Promise<unknown>} */
+    /** @type {Promise<readonly [unknown]>} */
     const settled = new Promise((resolve, reject) => { ok = resolve; no = reject })
-    Reflect.apply(Promise.prototype.then, value, [ok, no])
+    Reflect.apply(Promise.prototype.then, value, [
+        /** @type {(v: unknown) => void} */ (v => ok([v])),
+        no,
+    ])
     return settled
 }
 
@@ -220,7 +229,7 @@ const runOne = (module, path, throws, fn, result) => {
         // traversal's own and has its own handling; catching it here would
         // report a broken proof tree as a rejected promise.
         try {
-            resolved = [await intrinsicSubscribe(/** @type {Promise<unknown>} */ (value))]
+            resolved = await intrinsicSubscribe(/** @type {Promise<unknown>} */ (value))
         } catch (error) {
             return failed(error)
         }

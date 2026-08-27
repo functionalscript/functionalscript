@@ -261,6 +261,28 @@ export const proof = {
         assertEq(report.totals.failed, 1)
         assertEq(report.results[1]?.path, '.nested().child')
     },
+    // A fulfilled value that is *itself* a proof tree with a `then` test must
+    // reach the traversal as data. The subscription answers a tuple for exactly
+    // this: resolving a wrapper promise with the tree directly would assimilate
+    // it — `resolve` treats a `then` as a resolver and waits for a settlement
+    // that never comes.
+    //
+    // The `then` arrives after the promise has fulfilled, because
+    // `Promise.resolve({ then })` never settles in the first place, in any
+    // implementation and with no runner involved.
+    fulfilledProofTreeWithAThenTestIsWalked: async () => {
+        const report = await run({
+            nested: () => {
+                /** @type {{ sibling: () => void, then?: () => void }} */
+                const tree = { sibling: () => undefined }
+                const promised = Promise.resolve(tree)
+                tree.then = () => undefined
+                return promised
+            },
+        })
+        assertEq(report.totals.tests, 3)
+        assertEq(report.totals.failed, 0)
+    },
     // The case plain `await` cannot handle, reached most naturally by
     // `class Sub extends Promise { then() {} }`: `await` adopts a promise's
     // internal state only when its `constructor` is the intrinsic `Promise`,
