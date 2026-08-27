@@ -538,8 +538,12 @@ Stage 1 (one PR):
       measured, `validate(close([42], string))` returns `ok` on a `[42, , ]`
       whose prototype carries `1: 99` — under the new tail that is
       `string | undefined` over a number. Walk `prefix.length … length - 1` and
-      check every index with HasProperty, skipping the genuinely absent ones;
-      `parse` needs nothing, since it rebuilds. Pin that value against
+      check every index with HasProperty, skipping the genuinely absent ones.
+      Do the same in `../data/module.f.mjs` — `arraySetValidate` filters
+      `Object.entries` on its own path, and measured, the data reader answers
+      `ok` on that value exactly as the thunk one does, so fixing only
+      `undeclaredEntries` would leave the two disagreeing. `parse` needs
+      nothing, since it rebuilds. Pin that value against
       `rest([42], string)` and against `rest([42], number)`, which must answer
       error and ok. Stage 2's declared-member prototype task is the same
       hazard one region to the left; the two should read as one rule.
@@ -626,14 +630,24 @@ Stage 1 (one PR):
       inverts. All of these are `.ts`/`.mjs` declaration files, so the tag and
       constructor edits touch the code beside them without a checker ever
       looking at the sentence.
-- [ ] Three **consumer** modules justify a design decision by the open default,
-      which the call-site audit reaches only as calls: `../../../protocol/json_rpc/types.ts:23`
-      and `../../../protocol/json_rpc/module.f.mjs:57` both say "rtti structs
-      are open, so additive extension keeps the tag", and
-      `../../../media/note/module.f.mjs:9` says the same. After stage 1 the
-      premise holds only where the struct is wrapped in `open(...)` — so
-      wrapping them is not enough; the sentence has to say *why* it is wrapped,
-      or the next reader unwraps it and silently breaks forward compatibility.
+- [ ] Eight **consumer** sites justify a design decision by the open default,
+      which the call-site audit reaches only as calls. After stage 1 the premise
+      holds only where the struct is wrapped in `open(...)` — so wrapping them is
+      not enough; the sentence has to say *why* it is wrapped, or the next reader
+      unwraps it and silently breaks forward compatibility. In `protocol`:
+      `../../../protocol/json_rpc/types.ts:23` and
+      `../../../protocol/json_rpc/module.f.mjs:57`. In `media`, where the claim
+      carries a whole extension strategy rather than one decision:
+      `../../../media/note/module.f.mjs:9`,
+      `../../../media/note/README.md:8-11` ("rtti structs are open, so every
+      future capability … is an **optional** field added under the same tag"),
+      and `../../../media/revision/README.md:263-266`, which reasons about what
+      an *older reader* would accept. Three more are proof comments —
+      `../../../media/note/proof.f.mjs:92-94`,
+      `../../../media/revision/proof.f.mjs:231-232` and
+      `../../../media/lock/proof.f.mjs:91-94` — each stating the rule as the
+      reason its row expects `ok`, so the rows keep passing under `open(...)`
+      while their stated reason stops being true.
 - [ ] `../parse/module.f.mjs`'s **module doc** is the longest single statement of
       the open default anywhere in the tree and stage 1 inverts all of it:
       `:8-14` opens "**Structs and tuples are open.** A value carrying more than
