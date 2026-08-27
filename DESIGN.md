@@ -15,6 +15,7 @@ brief at the top of [AGENTS.md](./AGENTS.md); everything here is their full text
 7. [CLI parameters over environment variables](#7-cli-parameters-over-environment-variables)
 8. [Embedded DSLs should reuse host-language syntax](#8-embedded-dsls-should-reuse-host-language-syntax)
 9. [Maximize signal-to-noise](#9-maximize-signal-to-noise)
+10. [Refuse what you cannot handle](#10-refuse-what-you-cannot-handle)
 
 ---
 
@@ -32,8 +33,9 @@ the algorithm, the data structure, or the API — instead of hacking special cas
 into an otherwise general design (byte-prefix sniffing instead of real parsing,
 key-order assumptions, hardcoded fast paths). A documented implementation limit
 that a later generic improvement can lift (e.g. a size bound on a buffering
-parser) is an acceptable interim answer; a semantic assumption baked into a
-format or contract for speed is not.
+parser) is an acceptable interim answer — provided crossing it is refused rather
+than silently mishandled ([§10](#10-refuse-what-you-cannot-handle)); a semantic
+assumption baked into a format or contract for speed is not.
 
 ## 2. The API is the most important part of quality
 
@@ -222,3 +224,34 @@ without reading every detail.
 
 **Optimize for progressive understanding:** abstraction first, structure second,
 details last.
+
+## 10. Refuse what you cannot handle
+
+**An input the code does not support is refused, never approximated.** When an
+operation meets a case it cannot handle correctly — a size past the limit it
+implements, a shape the parser does not cover, a combination the design left
+out — it has to say so at the boundary. Returning something plausible and wrong
+is the one outcome that is never acceptable: it passes every test that only
+checks for the absence of a failure, it spreads through everything downstream,
+and by the time somebody notices, the wrong answer sits in a file nobody can
+tell apart from the right ones. A crash is a bug report with a stack trace;
+silent corruption is a bug that first has to be discovered.
+
+There are two ways to refuse, and the choice between them is the one drawn in
+[fjs/AGENTS.md
+§1.5](./fjs/AGENTS.md#15-never-use-trycatch-test-throwing-with-the-throw-key):
+
+- **Reject** when the input is one a caller may legitimately hand over and is
+  expected to handle — an oversized buffer, a malformed document, a name that
+  does not resolve. Express it as a `try*` function returning `Nullable<T>` (or
+  a `Result`) and let the caller branch on it, as in
+  [§6](#6-never-precompute-a-size-to-predict-whether-something-fits).
+- **Panic** — `throw` in FunctionalScript, `panic!` in Rust, an assert at the
+  entry of the operation — when the input violates something the caller was
+  supposed to guarantee, so there is nothing sensible for it to do with a
+  `null` anyway.
+
+A documented implementation limit ([§1](#1-simplicity-first)) is acceptable only
+under this rule: the limit has to be enforced where it is crossed. "Handles up
+to 128 KB" is a limit when the 129th kilobyte is refused, and a latent
+corruption when it is truncated, wrapped, or quietly mis-encoded.

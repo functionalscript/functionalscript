@@ -296,6 +296,14 @@ before it lands. In between, ask who runs this, what they can hand it, and what
 it costs them when it breaks — then write that answer into the `todo/`, so the
 deferral is a judgement on record rather than an omission.
 
+Whichever end of that range you are at, a deferred limit has to be a **loud**
+one. An unsupported input that crashes is already the good case: it is visible,
+it is reproducible, and the `todo/` says when it will be handled. An
+unsupported input that returns a plausible wrong answer is not deferrable at
+all — making it fail is this pull request's work. Refuse it or assert on it
+([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)), and defer only
+the support behind the `todo/`. Support can wait; silence cannot.
+
 So the question to ask about a review comment is not "is this in scope" but
 **"where does this knowledge live once the pull request is merged?"** In the
 diff — then fix it here. In the design document, or in a new `todo/` issue —
