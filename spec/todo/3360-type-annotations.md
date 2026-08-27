@@ -8,14 +8,33 @@ export const myType = or(number, string)
 export const a /*: myType */ = 'hello'
 ```
 
-An annotation is a comment holding an ordinary expression that evaluates to an
-RTTI schema. The compiler loads that expression at compile time and checks the
-annotated value against it.
+An annotation is a comment holding the **name** of an RTTI schema. The compiler
+loads that name's value at compile time and checks the annotated value against
+it.
 
-Depends on [expression](./3410-expression.md) and on the compiler being able to
+> **Narrowed by the epic.** This document was written with the annotation body
+> as an ordinary *expression* handed to the expression parser, and the rest of
+> it below still reads that way.
+> [rtti-type-system](../../todo/rtti-type-system.md) narrows the body to a
+> single identifier bound by a `const` or an `import`: no call, no member
+> access, no operator, no literal. Anything more is written as an ordinary
+> `const` first and annotated by its name. A comment that can hold a call can
+> hold a sub-language, which is the road back to a type grammar; a bare name
+> has no scoping, evaluation order, or error messages of its own, and it makes
+> recognition one token rather than a parse. Reconciling the text below with
+> that rule is stage 2 of the epic — including the two consequences it has:
+> [expression](./3410-expression.md) is no longer a dependency of the
+> annotation body, and whether a dotted `ns.myType`
+> ([namespace-import](./2220-namespace-import.md)) counts as a name is open.
+
+**Evaluating and checking an annotation** depends on the compiler being able to
 load and run a module as meta-programming
-([`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md)) — nothing here can start
-before both. This is a working draft of a direction, not a plan: TypeScript
+([`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md)). Recognizing one does not:
+settling the annotation's form, matching the comment, and resolving its single
+identifier against the module's bindings need neither meta-programming nor the
+expression parser, and are stages 2–3 of
+[rtti-type-system](../../todo/rtti-type-system.md) — which they can start
+without. This is a working draft of a direction, not a plan: TypeScript
 remains the type checker meanwhile, and the near-term work is to turn the
 standard toolchain up as far as it goes
 ([`todo/strict-static-analysis.md`](../../todo/strict-static-analysis.md)).
@@ -43,10 +62,11 @@ much of the burden as possible so annotations stay rare. `/*: … */` and JSDoc'
 There is no type grammar to write. A JSDoc-shaped design would need one — a
 block grammar, and underneath it a grammar for a subset of TypeScript's type
 expressions — and that second layer is the superset this project exists to
-avoid, re-implemented in the repository's own BNF. The annotation body is an
-expression in the module's own scope, which the FunctionalScript parser already
-handles. What is needed is only a way to recognize the annotation and hand its
-body to the existing expression parser.
+avoid, re-implemented in the repository's own BNF. The annotation body is a
+name in the module's own scope. What is needed is only a way to recognize the
+annotation and resolve that one identifier against the module's bindings — not
+even the expression parser is involved, once the body is narrowed to a name as
+above.
 
 That recognition is nearly free today. The tokenizer keeps a block comment's
 body verbatim, so the three forms differ in their first character:
@@ -94,17 +114,39 @@ TypeScript aliases out.
    is most of the work.
 
 3. **Function types.** `Type` has no function case, and FunctionalScript modules
-   are almost entirely functions — 1318 of the 3772 JSDoc type bodies in the
-   tree are function types. The schema side is already tracked as
-   [`fjs/types/rtti/todo/668-rtti-function-types.md`](../../fjs/types/rtti/todo/668-rtti-function-types.md),
-   which reaches the same conclusion the annotation side needs: a function can
-   be checked as callable, but its contract is only observable when it is
-   called. What remains open here is what an annotation on a function should
-   therefore *mean* — a compile-time check that cannot be completed, or a
-   wrapper that validates each call. Until that is settled, `/*: */` can join
-   `@type` but not replace it.
+   are almost entirely functions — **nearly half** the tree's JSDoc type bodies
+   are function types (~46% when measured in review of #1719; counts drift, so
+   re-measure rather than cite this). The schema side is tracked as
+   [`fjs/types/rtti/todo/668-rtti-function-types.md`](../../fjs/types/rtti/todo/668-rtti-function-types.md).
 
-4. **Generic schemas.** 169 `@template` uses today. A generic type is naturally a
+   > **Superseded by the epic.** An earlier draft here posed the annotation
+   > question as a choice between "a compile-time check that cannot be
+   > completed" and "a wrapper that validates each call", reading 668's runtime
+   > limitation as the general case. That framing is retired by
+   > [rtti-type-system](../../todo/rtti-type-system.md) stage 7, which splits by
+   > **provenance** instead: a function whose definition the compiler can read
+   > is statically checkable with no wrapper and no API change — check the
+   > body's inferred result against the declared result schema, and each visible
+   > call site against the parameter schemas — while 668's `Result`-returning
+   > wrapper is for an *opaque* function crossing a runtime boundary, which is
+   > the only place its API change is justified. 668 scopes its own limitation
+   > to "runtime validation of an arbitrary function", so it never claimed the
+   > general case.
+   >
+   > Calls the compiler cannot see are a separate matter from either, and
+   > belong to that epic's stage 13 rather than here.
+
+   So what an annotation on a function *means* is settled; what is still
+   missing is the schema form to write one with — and until 668's
+   representation half lands, a function annotation is **unavailable, not
+   merely weaker**. There is no function case in RTTI, so there is no binding a
+   `/*: */` on a function could name: evaluation would either reject it as not
+   a schema or accept something like `unknown`, which supplies none of the
+   checking described above. So on a function declaration `@type` stays the
+   only option, and `/*: */` joins it on the rest of the module.
+
+4. **Generic schemas.** Roughly 190 `@template` uses today (re-measure rather
+   than cite; the figure drifts). A generic type is naturally a
    *function from schemas to schemas* — `array` and `record` already are — so
    the value layer needs nothing new. What needs design is `Ts<>` and `.d.ts`
    emission for a parameterised alias.
@@ -117,24 +159,56 @@ TypeScript aliases out.
 
 ## Sketch of an order, when the time comes
 
-1. Recognize `/*: … */` in the compiler's parser and hand its body to the
-   existing expression parser.
-2. Evaluate the annotation expression at compile time
-   ([`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md)).
-3. Generate `.d.ts` from the schemas — `fjs/types/rtti/ts` is already the
-   printer, so this is plumbing plus a `fjs` command, and it is the step that
-   could land earliest and independently.
-4. Check literal right-hand sides with `validate`.
-5. Design inference, then check general right-hand sides with `subset`.
-6. Resolve the function-schema question
-   ([668-rtti-function-types](../../fjs/types/rtti/todo/668-rtti-function-types.md))
-   before `/*: */` goes beyond constants.
+1. Recognize `/*: … */` in the compiler's parser and read its body as a
+   **single identifier** — not as an expression handed to the expression
+   parser. That is the whole point of the narrowing above: the annotation
+   grammar is one name, so recognizing it needs no expression grammar inside a
+   comment, and the parser gains no new syntax surface.
+2. Resolve that name to a binding in scope and evaluate **the binding** at
+   compile time ([`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md)) — ordinary
+   identifier resolution, the same lookup any other reference gets. There is no
+   "annotation expression" to evaluate.
+
+   **Anchoring comes first.** Once the compiler consumes an annotation, a
+   binding used *only* to name or build a schema becomes unreachable from the
+   EDAG root when the reference is erased during lowering — and the module
+   compiler rejects that, so the module does not compile. That is the epic's
+   **stage 12**, which it requires before stage 4 for exactly this reason;
+   recognizing an annotation (step 1) is unaffected. Do not start this step
+   without it.
+
+   *(An earlier draft of these two steps said to hand the body to the
+   expression parser and evaluate an annotation expression. That predates the
+   narrowing and would have reintroduced exactly the grammar-in-comments the
+   design rejects.)*
+
+**Everything past step 2 belongs to the epic, and this list deliberately stops
+restating it.** [rtti-type-system](../../todo/rtti-type-system.md)'s Tasks
+section owns declaration generation, literal checking, inference, function
+schemas and their order — `.d.ts` emission, stage 5's reader, the 7a → 6 → 7b
+split, and the gates between them. Read the order there.
+
+That is a change of approach, not an omission. This list previously enumerated
+those stages in its own words, and went stale **four separate times** during
+review of #1719 while the epic's analysis moved underneath it: it told
+implementers to hand the annotation body to the expression parser, ordered
+inference before function schemas, omitted the anchoring gate, and described
+`.d.ts` generation as plumbing that could land first. Each restatement was
+internally coherent and quietly wrong, and a restatement cannot be kept correct
+by anything short of re-reading the source it paraphrases.
+
+Steps 1 and 2 stay because they are this document's own subject — the
+annotation form and how a name resolves — rather than a paraphrase of a stage.
 
 ## Depends on
 
+- [compile-modules-to-edag](../../fjs/djs/todo/compile-modules-to-edag.md) —
+  the `,` anchoring operation for a non-resulting computation. Without it a
+  module whose only use of an import is in an annotation is **rejected**, so
+  this is a prerequisite of evaluating an annotation, not a later optimization.
 - [`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md) — the compiler loading and
   running modules as meta-programming, which is what compile-time evaluation of
-  an annotation expression means.
+  an annotation's named binding requires.
 - [fjs-nanvm-integration.md](../../todo/fjs-nanvm-integration.md) and
   [migrate-typescript-to-mjs.md](../../todo/migrate-typescript-to-mjs.md) — the path to a
   compiler that parses authored FunctionalScript.
@@ -146,14 +220,19 @@ TypeScript aliases out.
 
 ## Consequences for the TypeScript-era work
 
-- [inline-type-casts.md](../../todo/inline-type-casts.md) stands unchanged. It describes
-  the code as it is today, and 208 of its 357 sites are noise under any type
-  system.
-- [eslint.md](../../todo/eslint.md)'s `no-inline-type-cast` and `no-unknown-jsdoc-tag`
-  are **transitional**: worth having while JSDoc is the annotation form, but
-  they must not be used to justify building a TypeScript-type grammar. Both are
+- [inline-type-casts.md](../../todo/inline-type-casts.md) is **implemented** —
+  its header records 273 of 357 sites removed or converted, with 84 remaining
+  and a reason for each. (An earlier draft here called it unchanged and cited
+  208 of 357; that predates the audit landing.) Nothing in this direction
+  changes that work or is changed by it.
+- [eslint.md](../../todo/eslint.md)'s three proposed custom rules — inline
+  `@type` cast, unknown JSDoc tag, type-predicate placement — are
+  **transitional**: worth having while JSDoc is the annotation form, but they
+  must not be used to justify building a TypeScript-type grammar. All three are
   satisfiable by matching on the comment's first character plus the JS token
-  stream, with no type parsing.
+  stream, with no type parsing. (An earlier draft here called them
+  `no-inline-type-cast` and `no-unknown-jsdoc-tag`; `eslint.md` names no rule
+  ids and none exist yet, so those were never real names.)
 - [tsconfig-strict-flags.md](../../todo/tsconfig-strict-flags.md) and
   [strict-static-analysis.md](../../todo/strict-static-analysis.md) are unaffected, and
   are the near-term work. `npx tsc` and the standard toolchain remain the
@@ -161,6 +240,9 @@ TypeScript aliases out.
 
 ## Related
 
+- [rtti-type-system](../../todo/rtti-type-system.md) — the epic this
+  document is the spec-side half of: RTTI as the sole source of truth for
+  compile-time and run-time verification. Stages 2–5 land here.
 - [`fjs/types/rtti/README.md`](../../fjs/types/rtti/README.md) — the schema system
   this builds on.
 - [`fjs/types/rtti/todo/668-rtti-function-types.md`](../../fjs/types/rtti/todo/668-rtti-function-types.md) —
