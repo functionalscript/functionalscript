@@ -15,7 +15,7 @@
  *
  * @module
  *
- * @import { Const, ConstObject, Type } from '../types.ts'
+ * @import { Const, ConstObject, Type } from '../../../rtti/types.ts'
  * @import { Primitive, Unknown } from '../ts/types.ts'
  * @import { ResultE } from '../common/types.ts'
  * @import { StringMap } from '../../object/types.ts'

@@ -7,7 +7,7 @@
  * @import { Includes } from '../array/types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../ts/types.ts'
- * @import { Tag0, Primitive0, _Type0, Bigint, Unknown, Tag1, _MakeType1, _MakeOpen, _MakeRest, Or, Type } from './types.ts'
+ * @import { Tag0, Primitive0, _Type0, Bigint, Unknown, Tag1, _MakeType1, _MakeOpen, _MakeRest, Or, Type } from '../../rtti/types.ts'
  */
 
 import { includes } from '../array/module.f.mjs'

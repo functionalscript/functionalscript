@@ -9,7 +9,7 @@
 import type { Ts } from '../../types/rtti/ts/types.ts'
 import type { Unknown } from '../../media/json/types.ts'
 import type { Effect, Operation } from '../../effects/types.ts'
-import type { Type } from '../../types/rtti/types.ts'
+import type { Type } from '../../rtti/types.ts'
 import type { Response } from '../json_rpc/types.ts'
 import type {
     implementation,

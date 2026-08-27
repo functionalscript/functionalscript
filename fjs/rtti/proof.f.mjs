@@ -1,12 +1,12 @@
 /**
- * @import { StringMap } from '../object/types.ts'
- * @import { Assert } from '../../asserts/types.ts'
- * @import { Equal } from '../ts/types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
+ * @import { Assert } from '../asserts/types.ts'
+ * @import { Equal } from '../types/ts/types.ts'
  * @import { Or, Rest, Type1, Unknown } from './types.ts'
  */
 
-import { assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
+import { assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
+import { array, number, open, option, or, record, rest, string, unknown } from '../types/rtti/module.f.mjs'
 
 /** @typedef {StringMap<readonly unknown[]>} _Tests */
 

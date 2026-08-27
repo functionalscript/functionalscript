@@ -17,7 +17,7 @@
  * @import { Unknown } from '../json/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { DialectEntry } from '../types.ts'
- * @import { String as RttiString } from '../../types/rtti/types.ts'
+ * @import { String as RttiString } from '../../rtti/types.ts'
  * @import { LockField, LockFieldSchema, LockMap, LockSchema, Revision, RevisionError } from './types.ts'
  */
 

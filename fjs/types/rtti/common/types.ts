@@ -5,7 +5,7 @@
  */
 
 import type { Primitive, Unknown } from '../ts/types.ts'
-import type { ConstObject, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
+import type { ConstObject, Primitive0, Struct, Tag1, Tuple, Type } from '../../../rtti/types.ts'
 import type { Result as CommonResult } from '../../result/types.ts'
 import type { Ts } from '../ts/types.ts'
 import type { StringMap } from '../../object/types.ts'

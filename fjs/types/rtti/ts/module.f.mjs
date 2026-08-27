@@ -14,7 +14,7 @@
  * @module
  *
  * @import { Printer, StructField } from '../../ts/types.ts'
- * @import { Type } from '../types.ts'
+ * @import { Type } from '../../../rtti/types.ts'
  * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../data/types.ts'
  */
 

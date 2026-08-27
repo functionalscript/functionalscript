@@ -1,6 +1,6 @@
 /**
  * @import { ValidationError, ValidateE, Validate } from '../common/types.ts'
- * @import { Type } from '../types.ts'
+ * @import { Type } from '../../../rtti/types.ts'
  * @import { Equal } from '../../ts/types.ts'
  * @import { Ts, Unknown } from '../ts/types.ts'
  * @import { Unknown as DjsUnknown } from '../../../djs/types.ts'

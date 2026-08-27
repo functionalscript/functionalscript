@@ -18,7 +18,7 @@
  * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Response } from '../json_rpc/types.ts'
- * @import { Type } from '../../types/rtti/types.ts'
+ * @import { Type } from '../../rtti/types.ts'
  * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig, ProtocolVersions } from './types.ts'
  */
 

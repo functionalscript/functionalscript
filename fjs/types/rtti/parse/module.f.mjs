@@ -45,7 +45,7 @@
  *
  * @module
  *
- * @import { ConstObject, Info1, Tag1, Type } from '../types.ts'
+ * @import { ConstObject, Info1, Tag1, Type } from '../../../rtti/types.ts'
  * @import { Result as CommonResult } from '../../result/types.ts'
  * @import { StringMap } from '../../object/types.ts'
  * @import { List } from '../../list/types.ts'

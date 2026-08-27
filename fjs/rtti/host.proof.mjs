@@ -17,7 +17,7 @@
  *
  * @module
  *
- * @import { Type } from '../types/rtti/types.ts'
+ * @import { Type } from './types.ts'
  * @import { ValidateE } from '../types/rtti/common/types.ts'
  * @import { Unknown } from '../types/rtti/ts/types.ts'
  */

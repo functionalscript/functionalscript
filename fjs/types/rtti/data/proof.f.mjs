@@ -1,5 +1,5 @@
 /**
- * @import { Or } from '../types.ts'
+ * @import { Or } from '../../../rtti/types.ts'
  * @import { Data } from './types.ts'
  */
 
