@@ -123,11 +123,13 @@ and is reviewable without the next one.
       work**: the browser carries ~150 lines of `Symbol.species` machinery that
       `fjs t` has no equivalent for, so merging the two answers the cross-realm
       question in [imports, promises and realms](imports-promises-realms.md).
-      **That investigation is now done** and carries a measured recommendation:
-      a three-line brand check gets six of the seven cases, fixes a real `fjs t`
-      exposure — a cross-realm promise's whole subtree is invisible to it today
-      — and gives up one exotic case the 150 lines cover. What is left is the
-      choice, which is one sentence either way. Doing it inside a port is how
+      **That investigation is now done** and its answer is the opposite of what
+      was expected: the browser's mechanism is right and `fjs t` should adopt
+      it. A brand check cannot replace it — the intrinsic `then` is both the
+      check and a subscription that ignores an own `then`, and two measured
+      cases hang without it. What is left to choose is only whether the shared
+      `sandbox` keeps the `constructor` shadow-and-retry, which is the one
+      genuinely optional part. Doing it inside a port is how
       the last attempt lost a defence nobody chose to lose.
 - [ ] **4. Common effects.** Move the host-independent operations (`all`,
       `await`, `fetch`, `import`, `now`, `sandbox`) out of `effects/node` into a

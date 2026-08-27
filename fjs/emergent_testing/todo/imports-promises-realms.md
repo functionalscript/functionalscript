@@ -89,82 +89,93 @@ Two things this corrects about the story we had been telling:
   promise has no enumerable own keys — so every test inside it silently
   disappears. In the fixture, `fjs t` reported 6 tests where 7 exist. A false
   pass is visible in a total; a test that was never counted is not.
-- **The 150 lines buy less than assumed.** Of the seven cases, the browser and
-  `fjs t` differ on exactly three: the two cross-realm rows, and the
-  configurable hostile-species row. The spoof defences everyone worries about
-  are not a difference at all — `instanceof Promise` already refuses a
-  `Symbol.toStringTag` spoof, in both runners.
+- **The spoof defences everyone worries about are not a difference at all** —
+  `instanceof Promise` already refuses a `Symbol.toStringTag` spoof, in both
+  runners. (An earlier draft of this section went on to conclude that the
+  browser's machinery therefore bought little. That conclusion was wrong; see
+  the two sections below, which is where this study actually landed.)
 
-#### A brand check that survives a realm
+#### A brand check is not enough, and `await` is the wrong subscription
 
-The candidate this file named turns out to work, in combination with the check
-that is already there:
+The candidate this file named — `v instanceof Promise || v.constructor?.resolve?.(v) === v`
+— classifies six of seven values correctly, and recommending it was still
+wrong. Two hazards, both raised in review of the first draft of these findings
+and both **reproduced**, and both ending in a **hang** rather than a wrong
+result:
 
-```js
-const isPromise = v => {
-    if (v instanceof Promise) { return true }
-    try {
-        const c = v?.constructor
-        return typeof c?.resolve === 'function' && c.resolve(v) === v
-    } catch { return false }
-}
-```
+- **A proof tree can be a false positive without anyone forging anything.** A
+  tree whose constructor has an identity-style `resolve` — `class A { static
+  resolve(x) { return x } }` — satisfies the check. It is then awaited, its
+  enumerable `then` proof is assimilated as a resolver, and a zero-argument
+  `then` test that ignores its arguments never settles. Measured: `HUNG`. The
+  first draft dismissed this as "deliberate forgery"; it is neither deliberate
+  nor forgery.
+- **Classifying correctly is not sufficient.** A genuine cross-realm promise
+  with an overridden own `then` passes any brand check — it really is a promise
+  — and `await` then calls that override, because `await` on a promise from
+  another realm goes through `then` rather than adopting it directly. A no-op
+  override never settles. Measured: `HUNG`.
 
-`Promise.resolve` returns its argument unchanged when the argument is a promise
-whose `constructor` is the receiver — a native identity that holds in the
-promise's *own* realm, which is the thing `instanceof` cannot reach across.
+The second is the important one: it is not about *identifying* a promise at all.
+No brand check can fix it, because the defect is in the subscription that
+follows.
 
-| value | `instanceof` | `toStringTag` | `instanceof \|\| ctor.resolve` |
+**The intrinsic `then` is both, and gets everything right.** What the browser
+does — `Reflect.apply(Promise.prototype.then, v, [onOk, onErr])` — is a native
+brand check that throws for a non-promise, *and* a subscription that ignores the
+value's own `then`:
+
+| value | `instanceof` | `instanceof \|\| ctor.resolve` | intrinsic `then` |
 | --- | --- | --- | --- |
 | same-realm promise | ✅ | ✅ | ✅ |
 | cross-realm promise | ❌ | ✅ | ✅ |
-| plain `{ then }` tree | ✅ | ✅ | ✅ |
-| tagged spoof | ✅ | ❌ | ✅ |
-| frozen tagged spoof | ✅ | ❌ | ✅ |
-| hostile-species promise | ✅ | ✅ | ✅ |
-| deliberately forged `constructor.resolve` | ✅ | ✅ | ❌ |
+| **cross-realm, own `then` override** | ❌ | **HANGS** | ✅ |
+| plain `{ then }` proof tree | ✅ | ✅ | ✅ |
+| tagged spoof | ✅ | ✅ | ✅ |
+| frozen tagged spoof | ✅ | ✅ | ✅ |
+| **identity-`resolve` constructor tree** | ✅ | **HANGS** | ✅ |
 
-Six of seven, against `instanceof`'s six and `toStringTag`'s five — and the one
-it misses is the one nobody reaches by accident. A proof named `then` has
-`Object` for a constructor and `Object.resolve` does not exist, so the rule this
-file exists to protect — an object carrying a `then` proof stays a proof tree —
-holds. Forging `constructor.resolve` to return its own receiver is not something
-a test author does by mistake, and proofs are this repository's own code rather
-than adversarial input.
+One detail is not incidental: the `Reflect.apply` has to sit **outside** a `new
+Promise` executor. A throw inside an executor rejects the promise instead of
+propagating, so the brand check becomes uncatchable — which is exactly why
+`subscribe` in `../browser.mjs` captures its `settle` first and applies
+afterwards. Written the obvious way instead, the check throws out of the runner.
 
-**Measured in place.** Prototyped in `effects/node/module.mjs`'s `sandbox` and
-`awaitPromise` and reverted: the rejected cross-realm promise becomes a failure,
-the resolved one's subtree is discovered and its failing child reported (6 tests
-→ 7), the spoof and hostile-species rows are unchanged, and the full suite stays
-3477/3477 at 100% coverage. So it is three lines, it fixes a real `fjs t` bug,
-and it costs nothing that is currently working.
+#### The species handling is load-bearing too
 
-#### What it does not buy
+Prototyped in `effects/node`'s `sandbox`, treating a throw from the intrinsic
+`then` as "not a promise": the cross-realm rows are fixed as expected, but the
+hostile-species promise turns from `error: species` into a silent **`ok` with
+its subtree lost** — because "this is not a promise" and "this is a promise I
+cannot subscribe to" become the same answer. Telling those apart is what
+`speciesFails`, the `Object.prototype.toString` re-check and the `constructor`
+shadow in `runPromise` are for. They are not decoration.
 
-The configurable hostile-species case — a genuine promise whose `constructor`
-has been replaced by one whose `Symbol.species` getter throws, where the browser
-today shadows `constructor` with the intrinsic `Promise` for the length of one
-subscription and thereby still runs the subtree. A brand check cannot recover
-that, because the failure happens *after* the check, inside `then`. Keeping it
-means keeping `subscribe`, `speciesFails` and the shadow — roughly the whole 150
-lines — for one row of the table.
+### Recommendation, revised
 
-### Recommendation
+**The browser's mechanism is right, and `fjs t` should adopt it.** That reverses
+the first draft of these findings, which recommended replacing it with three
+lines; the three lines would have introduced two ways to hang the suite into the
+runner that gates this repository.
 
-Adopt the combined check in the shared `sandbox`, and drop the species
-machinery, recording the configurable hostile-species case as knowingly given
-up. That is one rule, stated in three lines, that both runners can hold; it
-closes an exposure `fjs t` has today; and it leaves the browser worse off in
-exactly one exotic case rather than in the three the naive port would have.
+So step 3 is no longer a question of *whether* to keep the machinery, but of how
+much of it the shared `sandbox` needs:
 
-The alternative — keep the machinery and make `fjs t` adopt it — is available
-and is not obviously wrong, but it is 150 lines of `constructor` shadowing in
-the path that executes every proof body in both hosts, to defend a case that has
-never been observed outside a proof written to construct it.
+- `subscribe` — the intrinsic-`then` brand check and subscription. **Keep.** It
+  is the whole answer to cross-realm promises, own-`then` overrides and spoofs,
+  and it is about fifteen lines.
+- `speciesFails` and the re-check — distinguishing "not a promise" from "promise
+  I cannot subscribe to". **Keep**, unless the runner is content to report a
+  hostile-species promise as a silent pass, which it should not be.
+- The `constructor` shadow-and-retry — *recovering* a configurable
+  hostile-species promise so its subtree still runs. **This is the only
+  genuinely optional part**, and the only one the first draft's "one exotic row"
+  description actually applied to. Dropping it costs the `throwingSpecies`
+  proof; `pinnedThrowingSpecies` holds either way.
 
-**This is the decision that unblocks step 3 of
-[share the browser and console proof runners](share-browser-console-runner.md).**
-Either answer unblocks it; what must not happen is a port choosing by accident.
+Adopting this in `fjs t` fixes the cross-realm exposure — a rejected cross-realm
+promise reported as a pass, and a resolved one's subtree never discovered — and
+costs `fjs t` nothing it currently has.
 
 ### Constraints
 
