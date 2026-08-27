@@ -9,6 +9,7 @@
  * shared core and its own proofs; what is checked here is that a browser run
  * reaches it, renders it, and publishes it.
  *
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Module } from '../../effects/common/types.ts'
  * @import { CommonRun } from '../../effects/browser/module.mjs'
  * @import { BrowserTestReport } from './types.ts'
@@ -18,6 +19,7 @@ import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { browserOperationMap } from '../../effects/browser/module.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
+import { all as allEffect, sandbox as sandboxEffect } from '../../effects/common/module.f.mjs'
 import { renderBrowserReport, startBrowserTestSources } from './module.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 
@@ -386,6 +388,29 @@ export const proof = {
         all: async () => {
             const results = unwrap(await all(pureOk(1), pureOk(2)))
             assertEq(results.map(unwrap).join(','), '1,2')
+        },
+        // Slicing must not serialize: every child is *started* before any is
+        // awaited, so a child waiting on something a later sibling produces
+        // still sees that sibling run. Awaiting each slice before starting the
+        // next hangs this — the releaser sits in the second slice, which is
+        // never reached — on a graph the Node runner completes.
+        allStartsEveryChildBeforeAwaiting: async () => {
+            /** @type {(value: unknown) => void} */
+            let release = () => undefined
+            /** @type {Promise<unknown>} */
+            const gate = new Promise(resolve => { release = resolve })
+            const filler = sandboxEffect(() => 0)
+            const waits = sandboxEffect(() => gate)
+            const releases = sandboxEffect(() => { release(1); return 0 })
+            const many = [waits, ...[...new Array(9).keys()].map(() => filler), releases]
+            /** @type {'hung'} */
+            const hung = 'hung'
+            const outcome = await Promise.race([
+                commonRun(allEffect(...many)),
+                new Promise(resolve => { setTimeout(resolve, 1000, hung) }),
+            ])
+            assert(outcome !== hung, 'all serialized its slices')
+            assertEq(unwrap(/** @type {Result<readonly unknown[], never>} */ (outcome)).length, 11)
         },
         // Past the batch size `all` hands the event loop back, which is the only
         // thing that lets a page paint mid-suite: a timer queued before the call

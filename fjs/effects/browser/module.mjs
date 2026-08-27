@@ -73,8 +73,19 @@ const batchSize = 10
 const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
 
 /**
- * Runs `effects` in slices of {@link batchSize}, yielding to the event loop
- * between them, and answers every `Result` in the order the effects were given.
+ * Starts `effects` in slices of {@link batchSize}, yielding to the event loop
+ * between one slice's *launch* and the next, and answers every `Result` in the
+ * order the effects were given.
+ *
+ * **Every effect is started before any is awaited**, which is not a detail.
+ * `all` promises its children run concurrently, and a runner that awaited each
+ * slice before starting the next would break that promise rather than merely
+ * delay it: a child waiting on something a later sibling produces would wait
+ * for a sibling that is never started, and the run would hang with no report —
+ * on a graph the Node runner completes. Yielding between launches costs
+ * nothing, because what a slice does when it starts is exactly the work worth
+ * bounding: a proof body runs synchronously inside `sandbox` before that
+ * handler's first `await`.
  *
  * @template T
  * @template E
@@ -83,16 +94,15 @@ const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
  * @returns {Promise<readonly Result<T, E>[]>}
  */
 const runBatched = async (run, effects) => {
-    /** @type {readonly Result<T, E>[]} */
-    let done = []
+    /** @type {readonly Promise<Result<T, E>>[]} */
+    let started = []
     let index = 0
     while (index < effects.length) {
-        const batch = await Promise.all(effects.slice(index, index + batchSize).map(e => run(e)))
-        done = [...done, ...batch]
+        started = [...started, ...effects.slice(index, index + batchSize).map(e => run(e))]
         index += batchSize
         if (index < effects.length) { await macrotask() }
     }
-    return done
+    return Promise.all(started)
 }
 
 /**

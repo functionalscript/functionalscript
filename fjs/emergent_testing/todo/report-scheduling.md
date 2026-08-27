@@ -31,9 +31,12 @@ result-counts a reader ever sees — how often the page visibly moves.
 | `all` schedules | run | first row | progress steps |
 | --- | ---: | ---: | ---: |
 | no yielding at all (`Promise.all`) | 39.7 s | **39.8 s** | 2 |
-| slices of 10, `setTimeout` yield | 40.2 s | 3.5 s | 49 |
-| every result, `setTimeout` yield | **58.1 s** | 3.5 s | 229 |
-| **every result, `MessageChannel` yield** | **40.4 s** | 3.6 s | 123 |
+| slices of 10, `setTimeout` yield | 39.8 s | 4.0 s | 29 |
+| every launch, `setTimeout` yield | **58.1 s** | 3.5 s | 229 |
+| **every launch, `MessageChannel` yield** | **41.1 s** | 3.1 s | 91 |
+
+(Sampled at 150 ms, so "progress steps" is a floor and varies a little run to
+run; the shape is what matters, not the digits.)
 
 Two things fall out, and the first is not what "remove the batching" expected:
 
@@ -44,10 +47,22 @@ and a browser cannot paint between microtasks, so the whole suite is one task.
 The run is not faster for it either (39.7 s against 40.2 s).
 
 **The grouping was never the point — the clamp was.** Yielding after *every*
-result is what a reader actually wants, and it costs nothing: 40.4 s against
-39.7 s with no yielding, about 2%. It cost 45% only through `setTimeout`, which
-clamps to 4 ms once nested — 3435 results × 4 ms is the entire difference.
-`MessageChannel` (or `scheduler.yield()` where available) has no clamp.
+launch is what a reader actually wants, and it costs about 3%: 41.1 s against
+39.7 s with no yielding, and it reaches the first row sooner. It cost 45% only
+through `setTimeout`, which clamps to 4 ms once nested — 3435 × 4 ms is the
+entire difference. `MessageChannel` (or `scheduler.yield()` where available) has
+no clamp.
+
+**A yield between *launches*, never between a launch and its result.** `all`
+promises its children run concurrently, and a slice loop that awaited each slice
+before starting the next broke that promise rather than delaying it: a child
+waiting on something a later sibling produces waited for a sibling that was
+never started, and the run hung with no report — on a graph the Node runner
+completes. That is fixed and pinned by
+`operations.allStartsEveryChildBeforeAwaiting`; the numbers above are from the
+fixed loop. It is also why "yield after every result" is the wrong way to say
+this: per-*result* yielding is sequential execution, which is a bigger break
+than the batching it was meant to remove.
 
 So batching was the wrong mechanism, as suspected, but not because scheduling is
 unnecessary: it was a workaround for a bad yield primitive, and the workaround is
@@ -59,11 +74,13 @@ yielding gives and grouping only approximates.
 
 - [x] Remove the batching and the yield; run the real suite in a browser and
       write down what actually happens. — table above.
-- [ ] Replace `batchSize`/`runBatched` with a yield after every result, over a
-      yield primitive with no clamp; delete the batch-size constant entirely.
+- [ ] Replace `batchSize` with a yield after every *launch*, over a yield
+      primitive with no clamp; delete the batch-size constant entirely. Keep
+      the launch-then-await shape — the concurrency, not just the boundary.
 - [ ] Re-point `operations.allYieldsBetweenBatches` at the new behaviour: it
       pins that a boundary exists between children, and should pin that one
-      exists after *each* child.
+      exists after *each* child. `allStartsEveryChildBeforeAwaiting` stays as
+      it is — it pins the concurrency, which no scheduling change may cost.
 - [ ] Check the yield primitive across browsers, and whether `scheduler.yield()`
       is worth preferring where it exists.
 
