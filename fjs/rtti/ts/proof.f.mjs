@@ -1,7 +1,7 @@
 /**
  * @import { Or, Type } from '../types.ts'
  * @import { Data } from '../data/types.ts'
- * @import { Ts, TupleTs } from '../../types/rtti/ts/types.ts'
+ * @import { Ts, TupleTs } from './types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
  */

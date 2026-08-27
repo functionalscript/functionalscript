@@ -45,7 +45,7 @@
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { DetectMeta } from './type/types.ts'
  * @import { Rest, Struct, Type } from '../rtti/types.ts'
- * @import { Ts, Unknown } from '../types/rtti/ts/types.ts'
+ * @import { Ts, Unknown } from '../rtti/ts/types.ts'
  * @import { ValidateE } from '../rtti/common/types.ts'
  * @import { DialectEntry } from './types.ts'
  */

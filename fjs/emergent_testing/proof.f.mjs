@@ -5,7 +5,7 @@
  * @import { JsModule } from '../effects/node/virtual/types.ts'
  * @import { Reporter } from './types.ts'
  * @import { All, Await, Import, Readdir, Test, TestContext } from '../effects/node/types.ts'
- * @import { Ts } from '../types/rtti/ts/types.ts'
+ * @import { Ts } from '../rtti/ts/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'

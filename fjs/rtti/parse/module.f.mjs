@@ -50,7 +50,7 @@
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Container, Fits, IsContainer, SchemaEntries, ValidateE, ValidationError, Visitor } from '../common/types.ts'
- * @import { Unknown } from '../../types/rtti/ts/types.ts'
+ * @import { Unknown } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
  */
 

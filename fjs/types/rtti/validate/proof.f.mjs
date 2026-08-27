@@ -2,7 +2,7 @@
  * @import { ValidationError, ValidateE, Validate } from '../../../rtti/common/types.ts'
  * @import { Type } from '../../../rtti/types.ts'
  * @import { Equal } from '../../ts/types.ts'
- * @import { Ts, Unknown } from '../ts/types.ts'
+ * @import { Ts, Unknown } from '../../../rtti/ts/types.ts'
  * @import { Unknown as DjsUnknown } from '../../../djs/types.ts'
  * @import { Assert } from '../../../asserts/types.ts'
  */

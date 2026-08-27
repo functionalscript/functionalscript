@@ -2,7 +2,7 @@
  * @module
  *
  * @import { Assert } from '../asserts/types.ts'
- * @import { Check, Check3 } from '../types/rtti/ts/types.ts'
+ * @import { Check, Check3 } from '../rtti/ts/types.ts'
  * @import {
  *  Array,
  *  Exp,

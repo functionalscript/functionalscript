@@ -11,7 +11,7 @@
  * element schema, and claims nothing about what a `,` means.
  *
  * @import { ValidationError } from '../rtti/common/types.ts'
- * @import { Unknown } from '../types/rtti/ts/types.ts'
+ * @import { Unknown } from '../rtti/ts/types.ts'
  * @import { StringMap } from '../types/object/types.ts'
  */
 

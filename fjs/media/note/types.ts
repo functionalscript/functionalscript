@@ -3,7 +3,7 @@
  */
 
 import type { ValidationError } from '../../rtti/common/types.ts'
-import type { Ts } from '../../types/rtti/ts/types.ts'
+import type { Ts } from '../../rtti/ts/types.ts'
 import type { noteSchema } from './module.f.mjs'
 
 /** The TypeScript type derived from `noteSchema` — the single source of truth. */

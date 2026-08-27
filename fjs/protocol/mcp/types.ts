@@ -6,7 +6,7 @@
  * @module
  */
 
-import type { Ts } from '../../types/rtti/ts/types.ts'
+import type { Ts } from '../../rtti/ts/types.ts'
 import type { Unknown } from '../../media/json/types.ts'
 import type { Effect, Operation } from '../../effects/types.ts'
 import type { Type } from '../../rtti/types.ts'

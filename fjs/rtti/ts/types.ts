@@ -10,11 +10,11 @@
  * @module
  */
 
-import type { And, Equal } from '../../ts/types.ts'
-import type { Tag0, Tag1, Const, Or, Boolean as RttiBoolean, Bigint as RttiBigint, Number as RttiNumber, String as RttiString, Unknown as RttiUnknown, Struct, Tuple, Type, ConstObject } from '../../../rtti/types.ts'
-import type { Assert } from '../../../asserts/types.ts'
-import type { phantomKey } from '../../phantom/types.ts'
-import type { StringMap } from '../../object/types.ts'
+import type { And, Equal } from '../../types/ts/types.ts'
+import type { Tag0, Tag1, Const, Or, Boolean as RttiBoolean, Bigint as RttiBigint, Number as RttiNumber, String as RttiString, Unknown as RttiUnknown, Struct, Tuple, Type, ConstObject } from '../types.ts'
+import type { Assert } from '../../asserts/types.ts'
+import type { phantomKey } from '../../types/phantom/types.ts'
+import type { StringMap } from '../../types/object/types.ts'
 
 /**
  * The set of primitive literal types representable as rtti `Const` values.

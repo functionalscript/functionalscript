@@ -4,7 +4,7 @@
  * @module
  *
  * @import { ValidateE } from '../../../rtti/common/types.ts'
- * @import { Unknown } from '../../../types/rtti/ts/types.ts'
+ * @import { Unknown } from '../../../rtti/ts/types.ts'
  */
 
 import { assertEq } from '../../../asserts/module.f.mjs'

@@ -14,7 +14,7 @@
  * @module
  *
  * @import { Unknown } from '../../media/json/types.ts'
- * @import { Ts } from '../../types/rtti/ts/types.ts'
+ * @import { Ts } from '../../rtti/ts/types.ts'
  * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Response } from '../json_rpc/types.ts'

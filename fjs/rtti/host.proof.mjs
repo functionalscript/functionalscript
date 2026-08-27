@@ -19,7 +19,7 @@
  *
  * @import { Type } from './types.ts'
  * @import { ValidateE } from './common/types.ts'
- * @import { Unknown } from '../types/rtti/ts/types.ts'
+ * @import { Unknown } from './ts/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'

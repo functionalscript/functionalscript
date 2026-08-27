@@ -4,10 +4,10 @@
  * @module
  */
 
-import type { Primitive, Unknown } from '../../types/rtti/ts/types.ts'
+import type { Primitive, Unknown } from '../ts/types.ts'
 import type { ConstObject, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
 import type { Result as CommonResult } from '../../types/result/types.ts'
-import type { Ts } from '../../types/rtti/ts/types.ts'
+import type { Ts } from '../ts/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
 
 /** A path to a sub-value within the validated structure. Each step is an object key or stringified array index. */
