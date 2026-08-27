@@ -11,6 +11,7 @@ import { runInNewContext } from 'node:vm'
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from '../browser.mjs'
+import { fmtImport } from '../module.f.mjs'
 
 /** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
 /** @typedef {{ defaultView: _View | null, readonly createElement: (tag: string) => _Element }} _Document */
@@ -105,6 +106,24 @@ export const proof = {
     path: async () => {
         const report = await run({ 'a.b': () => undefined })
         assertEq(report.results[0]?.path, '["a.b"]')
+    },
+    // The page and `fjs t` must name a leaf identically, or two reports of the
+    // same suite cannot be compared. Asserting against `fmtImport` — the
+    // function the console runner prints its result lines with — is what makes
+    // that a shared fact rather than two spellings that happen to agree today.
+    nameMatchesTheConsoleRunner: async () => {
+        const report = await run({ nested: () => ({ child: () => undefined }) })
+        assertEq(report.results[0]?.name, fmtImport('proof', ['nested']))
+        assertEq(report.results[1]?.name, fmtImport('proof', ['nested', null, 'child']))
+        assertEq(report.results[1]?.name, 'import("proof").proof.nested().child()')
+    },
+    // A module that cannot be enumerated has no leaf to name, and an empty
+    // `path` does not distinguish it from a proof exported as a bare function.
+    // The module is what is known, so the module is the name.
+    unreadableModuleIsNamedByItsSource: async () => {
+        const report = await run(new Proxy({}, { ownKeys: () => { throw 'hostile' } }))
+        assertEq(report.status, 'failed')
+        assertEq(report.results[0]?.name, 'proof')
     },
     arbitraryThrow: async () => {
         const report = await run({ fail: () => { throw Object.create(null) } })
@@ -295,10 +314,10 @@ export const proof = {
             browser: 'test',
             totals: { tests: 1, passed: 1, failed: 0 },
             duration: 1,
-            results: [{ module: 'm', path: '.t', status: 'passed', duration: 0.5 }],
+            results: [{ module: 'm', path: '.t', name: 'import("m").proof.t()', status: 'passed', duration: 0.5 }],
         })
         assertEq(p.summary.textContent, '1 passed, 0 failed (1.0 ms)')
-        assertEq(p.results.children[0]?.textContent, 'PASS m .t (0.5 ms)')
+        assertEq(p.results.children[0]?.textContent, 'PASS import("m").proof.t() (0.5 ms)')
     },
     sources: async () => {
         const p = page()
