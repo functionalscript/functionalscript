@@ -1,20 +1,20 @@
 /**
- * @import { ValidationError } from '../../../rtti/common/types.ts'
- * @import { Equal } from '../../ts/types.ts'
- * @import { Ts } from '../ts/types.ts'
- * @import { Parse } from './types.ts'
- * @import { Unknown as DjsUnknown } from '../../../djs/types.ts'
- * @import { Assert } from '../../../asserts/types.ts'
- * @import { Phantom } from '../../phantom/types.ts'
+ * @import { ValidationError } from '../common/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
+ * @import { Ts } from '../../types/rtti/ts/types.ts'
+ * @import { Parse } from '../../types/rtti/parse/types.ts'
+ * @import { Unknown as DjsUnknown } from '../../djs/types.ts'
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Phantom } from '../../types/phantom/types.ts'
  */
 
-import { parse } from './module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, open, record, rest, or, option } from '../../../rtti/module.f.mjs'
+import { parse } from '../../types/rtti/parse/module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, open, record, rest, or, option } from '../module.f.mjs'
 import {
     assert,
     assertEq,
     assertStructurallySame,
-} from '../../../asserts/module.f.mjs'
+} from '../../asserts/module.f.mjs'
 
 /** @type {(r: readonly [string, unknown]) => void} */
 const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
