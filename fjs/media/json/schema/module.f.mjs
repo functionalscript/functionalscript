@@ -2,7 +2,7 @@
  * Converts an rtti schema to a JSON Schema (draft 2020-12) object.
  *
  * {@link toJsonSchema} routes through the serializable RTTI data form
- * (`fjs/types/rtti/data`): `thunk RTTI → toData → dataToJsonSchema`. The data
+ * (`fjs/rtti/data`): `thunk RTTI → toData → dataToJsonSchema`. The data
  * form is a finite graph, so recursive schemas — which the thunk graph
  * represents as self-referencing functions with no leaves — terminate:
  * every named rule is emitted exactly once under `$defs` and every graph

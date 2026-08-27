@@ -12,10 +12,10 @@ reach a private comparison through the public `cmp`.
 Resolving a `Node` through the rule set:
 
 ```js
-// fjs/types/rtti/data/module.f.mjs:331
+// fjs/rtti/data/module.f.mjs:331
 const resolve = rules => n => typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
 
-// fjs/types/rtti/ts/module.f.mjs:166-169 — the same lookup, open-coded
+// fjs/rtti/ts/module.f.mjs:166-169 — the same lookup, open-coded
 const admitsUndefined = ctx => n => {
     const u = typeof n === 'string' ? assertNotNullish(at(n)(ctx.rules)) : n
     ...
@@ -24,10 +24,10 @@ const admitsUndefined = ctx => n => {
 Testing "is this the top set":
 
 ```js
-// fjs/types/rtti/data/module.f.mjs:268
+// fjs/rtti/data/module.f.mjs:268
 const isTop = n => typeof n !== 'string' && cmpUnion(n, unknown) === 0
 
-// fjs/types/rtti/ts/module.f.mjs:197
+// fjs/rtti/ts/module.f.mjs:197
 const isTop = u => cmp([{}, u])([{}, top]) === 0
 ```
 
@@ -51,9 +51,9 @@ in `rtti/ts`:
 
 ### Tasks
 
-- [ ] Export `resolve`, `isTop`, `isNever` from `fjs/types/rtti/data/module.f.mjs`
+- [ ] Export `resolve`, `isTop`, `isNever` from `fjs/rtti/data/module.f.mjs`
       with JSDoc; add proof coverage for the exported forms.
-- [ ] Rewrite `admitsUndefined` and `isTop` in `fjs/types/rtti/ts/module.f.mjs`
+- [ ] Rewrite `admitsUndefined` and `isTop` in `fjs/rtti/ts/module.f.mjs`
       through the imports; drop the fake-`Data` `cmp` trick.
 - [ ] `npx tsc`, `fjs t` — rtti proofs pass unchanged.
 

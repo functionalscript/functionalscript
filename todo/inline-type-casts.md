@@ -152,7 +152,7 @@ syntax. They are deliberately left rather than rewritten.
 
 This table is an audit snapshot, and its counts above are derived from it, so
 rows are kept as they were recorded even when the code has since moved. The
-nine `fjs/types/rtti/validate/` rows describe a module that has been deleted —
+nine `fjs/rtti/validate/` rows describe a module that has been deleted —
 `parse` is now the only schema-form reader — so those nine sites no longer
 exist. Two more have since moved: `fjs/cas/evo/module.f.mjs:466`'s cast went
 with the flattening of `Evo.add`'s nested `Result`, and
@@ -233,28 +233,28 @@ way to refresh this file, not a partial edit.
 | `fjs/types/nominal/proof.f.mjs` | 50 | `any` | the brand is unconstructible by design, so only an override can produce a value of this type; the cast **is** the demonstration |
 | `fjs/types/patricia_trie/module.f.mjs` | 49 | `readonly [typeof lastHash, typeof storage]` | arrived on `main` after the audit — not measured here |
 | `fjs/types/range_map/module.f.mjs` | 114 | `RangeMapArray<T>` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/types/rtti/common/module.f.mjs` | 61 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/common/module.f.mjs` | 78 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/module.f.mjs` | 27 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/module.f.mjs` | 69 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/parse/module.f.mjs` | 101 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/parse/module.f.mjs` | 103 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/parse/module.f.mjs` | 105 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/parse/module.f.mjs` | 133 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/parse/module.f.mjs` | 137 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/parse/module.f.mjs` | 159 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/parse/module.f.mjs` | 159 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/parse/module.f.mjs` | 185 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/parse/proof.f.mjs` | 30 | `T` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/types/rtti/parse/proof.f.mjs` | 37 | `ValidationError` | reads an `unknown` the surrounding code has already established |
-| `fjs/types/rtti/parse/proof.f.mjs` | 316 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/types/rtti/parse/proof.f.mjs` | 316 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
-| `fjs/types/rtti/validate/module.f.mjs` | 88 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/validate/module.f.mjs` | 114 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/validate/module.f.mjs` | 120 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/validate/module.f.mjs` | 140 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/validate/module.f.mjs` | 140 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/validate/module.f.mjs` | 158 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
-| `fjs/types/rtti/validate/proof.f.mjs` | 23 | `ValidationError` | reads an `unknown` the surrounding code has already established |
-| `fjs/types/rtti/validate/proof.f.mjs` | 307 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
-| `fjs/types/rtti/validate/proof.f.mjs` | 307 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/rtti/common/module.f.mjs` | 61 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/common/module.f.mjs` | 78 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/module.f.mjs` | 27 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/module.f.mjs` | 69 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.mjs` | 101 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.mjs` | 103 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.mjs` | 105 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.mjs` | 133 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.mjs` | 137 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.mjs` | 159 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.mjs` | 159 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/module.f.mjs` | 185 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/parse/proof.f.mjs` | 30 | `T` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/rtti/parse/proof.f.mjs` | 37 | `ValidationError` | reads an `unknown` the surrounding code has already established |
+| `fjs/rtti/parse/proof.f.mjs` | 316 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/rtti/parse/proof.f.mjs` | 316 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |
+| `fjs/rtti/validate/module.f.mjs` | 88 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/module.f.mjs` | 114 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/module.f.mjs` | 120 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/module.f.mjs` | 140 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/module.f.mjs` | 140 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/module.f.mjs` | 158 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
+| `fjs/rtti/validate/proof.f.mjs` | 23 | `ValidationError` | reads an `unknown` the surrounding code has already established |
+| `fjs/rtti/validate/proof.f.mjs` | 307 | `_A` | cast overrides the inferred type — needs a type/API change, not a different cast |
+| `fjs/rtti/validate/proof.f.mjs` | 307 | `unknown` | no overlap without going through `unknown` — a deliberately wrong value, or a nominal brand |

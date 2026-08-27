@@ -11,7 +11,7 @@ canonical owners already exist under `fjs/types`:
 Association-list lookup, byte-identical modulo parameter names:
 
 ```js
-// fjs/types/rtti/data/module.f.mjs:614-619
+// fjs/rtti/data/module.f.mjs:614-619
 const assoc = (list, key) => {
     for (const [k, v] of list) {
         if (k === key) { return v }
@@ -19,7 +19,7 @@ const assoc = (list, key) => {
     return undefined
 }
 
-// fjs/types/rtti/ts/module.f.mjs:102-107
+// fjs/rtti/ts/module.f.mjs:102-107
 const idOf = (ids, name) => {
     for (const [k, v] of ids) {
         if (k === name) { return v }
@@ -31,9 +31,9 @@ const idOf = (ids, name) => {
 Order-preserving dedup, byte-identical:
 
 ```js
-// fjs/types/rtti/data/module.f.mjs:392
+// fjs/rtti/data/module.f.mjs:392
 const dedup = list => list.filter((n, i) => list.indexOf(n) === i)
-// fjs/types/rtti/ts/module.f.mjs:172
+// fjs/rtti/ts/module.f.mjs:172
 const dedup = list => list.filter((s, i) => list.indexOf(s) === i)
 ```
 
@@ -41,10 +41,10 @@ And uncurried re-spellings of `function/compare.cmp` and
 `function/operator.strictEqual`:
 
 ```js
-// fjs/types/rtti/data/module.f.mjs:74, :93 — twice in one file
+// fjs/rtti/data/module.f.mjs:74, :93 — twice in one file
 const cmpString = (a, b) => a < b ? -1 : a > b ? 1 : 0
 const cmpBigint = (a, b) => a < b ? -1 : a > b ? 1 : 0
-// fjs/types/rtti/data/module.f.mjs:334
+// fjs/rtti/data/module.f.mjs:334
 const strictEqual = (a, b) => a === b
 
 // the owners:

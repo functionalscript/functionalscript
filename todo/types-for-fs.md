@@ -83,7 +83,7 @@ const ap: A5 = { p: 5, x: 6 }
 f(ap) // compilation error.
 ```
 
-We may have a special version of TypeScript and it should have a run-time description, similar to [RTTI](../fjs/types/rtti/README.md)
+We may have a special version of TypeScript and it should have a run-time description, similar to [RTTI](../fjs/rtti/README.md)
 
 ## Benefits
 

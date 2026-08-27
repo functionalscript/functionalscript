@@ -179,7 +179,7 @@ const constExp = v => {
   establishes `=>` anyway.
 
 The proof then validates every derived expression with the schema —
-`validate(exp)` from `fjs/types/rtti/validate` over `exp` from
+`validate(exp)` from `fjs/rtti/validate` over `exp` from
 `fjs/edag/module.f.mjs` — before running it. That is the runtime half of the
 coupling: a change to an operand shape or validation rule in the schema fails
 the corpus proof. (`validate` is shape-only and not identity-aware — it

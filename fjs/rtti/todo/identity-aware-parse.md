@@ -69,11 +69,11 @@ arbitrary code execution and a `RangeError` here is not the interesting attack. 
 `edag` ever gains a wire format with back-references, cycles become reachable through
 that channel too, and this reasoning should be revisited then.
 
-## Why it matters for `../../../edag`
+## Why it matters for `../../edag`
 
 The EDAG is the one schema in this codebase where reference identity between operand
 positions *is* part of the value's meaning — see
-[`edag-stage1-discussion.md`, "The core invariant"](../../../../todo/edag-stage1-discussion.md#the-core-invariant):
+[`edag-stage1-discussion.md`, "The core invariant"](../../../todo/edag-stage1-discussion.md#the-core-invariant):
 `["[]", x, x]` and `["[]", ["{}"], ["{}"]]` are different functions specifically because
 sharing is observable, and hashing is defined as "structural identity of the graph as
 written." A reader that needs to reconstruct an EDAG from a serialized or otherwise
@@ -111,7 +111,7 @@ work for that input again:
   `$ref`-style back-references, or a JS value someone else already deduplicated) — a
   purely textual/byte serialization needs its own explicit sharing encoding
   (back-references by index, similar to `$defs`/`$ref` in
-  `../../../media/json/schema/module.f.mjs`) before there is anything to key a
+  `../../media/json/schema/module.f.mjs`) before there is anything to key a
   `WeakMap` on.
 - For `validate`, the memo only needs to record "already validated this reference, and
   it passed" — no output to reuse, since `validate` returns the input as-is. This is a
@@ -125,9 +125,9 @@ generic engine or as an edag-specific layer on top — isn't decided yet.
 
 ## Related
 
-- [`../../../edag/module.f.mjs`](../../../edag/module.f.mjs) — the schema this matters
+- [`../../edag/module.f.mjs`](../../edag/module.f.mjs) — the schema this matters
   for; references this TODO.
-- [`../../../../todo/edag-stage1-discussion.md`](../../../../todo/edag-stage1-discussion.md)
+- [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — "The core invariant" and subject 1 (sharing is semantic), subject 4 (the contrasting
   case where identity is *not* observable), and "Validation" (the public-input threat
   model this DoS angle falls under).

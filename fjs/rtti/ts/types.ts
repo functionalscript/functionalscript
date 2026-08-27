@@ -257,7 +257,7 @@ export type StructTs<T extends Struct> =
  * `Ts<>` detects the phantom key and returns `MyType` directly without recursing:
  *
  * ```ts
- * import { type Phantom } from '../../phantom/types.ts'
+ * import { type Phantom } from '../../types/phantom/types.ts'
  *
  * type MyType = { readonly self?: MyType }
  * const myThunk = () => ['const', myConst] as const

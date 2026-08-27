@@ -11,14 +11,14 @@ file; this one is where they are read together.
 
 A type in this repository is written more than once. The same shape is a JSDoc
 `@typedef`, a declaration in a sibling `types.ts`, and — where a value has to be
-checked at run time — an [RTTI](../fjs/types/rtti/README.md) schema. Nothing
+checked at run time — an [RTTI](../fjs/rtti/README.md) schema. Nothing
 keeps the three in agreement: `tsc` checks the first two against the code and
 the third against nothing, so a schema and its `@typedef` drift silently, and
 the drift shows up as a value that type-checks and fails validation, or the
 reverse.
 
 The bridge that exists runs the wrong way. `Ts<T>`
-([`fjs/types/rtti/ts/README.md`](../fjs/types/rtti/ts/README.md)) maps a schema
+([`fjs/rtti/ts/README.md`](../fjs/rtti/ts/README.md)) maps a schema
 to its TypeScript type, which makes a schema usable *from* TypeScript, and it
 pays for it: `TS2589` on recursive schemas, a `WithOut` phantom annotation to
 escape the walk, and three classes of `as any` cast that the README documents as
@@ -43,7 +43,7 @@ Five commitments make that concrete.
 
 There is **no type language to invent**. A type is an ordinary expression —
 written in the language, in a `const`, never in a comment — built from
-[`fjs/types/rtti/module.f.mjs`](../fjs/types/rtti/module.f.mjs) —
+[`fjs/rtti/module.f.mjs`](../fjs/rtti/module.f.mjs) —
 `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`,
 `option`, `never`, `rest`, `open`, plus `Const` (a primitive, tuple, or struct
 used directly as its own schema, closed). It is a value: it can be named, imported,
@@ -72,7 +72,7 @@ type grammar", which is the thing this project exists to avoid
 primitives, `array`, `record`, `or`, `option`, `never`, `rest`, `open`, and
 consts. It
 does not yet say functions
-([668](../fjs/types/rtti/todo/668-rtti-function-types.md)) or brands
+([668](../fjs/rtti/todo/668-rtti-function-types.md)) or brands
 ([134](./134-nominal-types-proposal.md)), and it will need to say more than
 that. Because a type is a *value*, each of those is a new exported function in
 a module — not a keyword, not a grammar production, not a tokenizer change, and
@@ -126,7 +126,7 @@ Anything more than a name is written as an ordinary `const` first, in the
 language, where it already belongs:
 
 ```js
-import { array, number, option, or, string } from 'functionalscript/fjs/types/rtti/module.f.mjs'
+import { array, number, option, or, string } from 'functionalscript/fjs/rtti/module.f.mjs'
 
 const key = or(number, string)
 const keys = array(key)
@@ -233,7 +233,7 @@ RTTI cannot describe a mutable value, and this is a feature rather than a
 missing one. FunctionalScript values are immutable, and the eDSL has no way to
 spell a writable member: `Ts<T>` renders every struct member, array, record,
 and tuple as `readonly`
-([`ts/types.ts`](../fjs/types/rtti/ts/types.ts)), because there is no other
+([`ts/types.ts`](../fjs/rtti/ts/types.ts)), because there is no other
 thing for it to render.
 
 That is the difference between this checker and TypeScript's, and it is not a
@@ -256,7 +256,7 @@ the program above compiles.
 
 **None of that arises here.** A schema denotes a *set of immutable values*;
 `subset` is inclusion between two such sets, approximated soundly on the canonical
-[`data`](../fjs/types/rtti/data/module.f.mjs) form, with no writer anywhere to
+[`data`](../fjs/rtti/data/module.f.mjs) form, with no writer anywhere to
 make the answer go stale. Three concrete consequences — the first two holding
 **within FunctionalScript**, for the reason the next paragraph is careful
 about:
@@ -286,7 +286,7 @@ caller. Verify-then-mutate is closed by the language, not by the reader.
 `validate` should not close it by freezing or copying: returning the value it
 was given *is* its contract — a content-addressed document's bytes are its
 identity, so a reconstruction is a different document
-([`rtti/README.md`](../fjs/types/rtti/README.md)) — and freezing the caller's
+([`rtti/README.md`](../fjs/rtti/README.md)) — and freezing the caller's
 object would be a mutation of it. The reader for a value arriving from outside
 the boundary is `parse`, which constructs a fresh value holding only what the
 schema declares; the README already assigns it that role, "the reader for a
@@ -295,7 +295,7 @@ value coming *in* — from JSON, from a protocol frame".
 **`parse` is the boundary only where the schema names every part.** It
 constructs a fresh container, but `unknown` is `() => ok` and `ok` returns the
 value it was handed
-([`parse`](../fjs/types/rtti/parse/module.f.mjs)), so a value admitted through
+([`parse`](../fjs/rtti/parse/module.f.mjs)), so a value admitted through
 an `unknown` — the whole schema, or one field of a struct — comes back as the
 caller's own object, aliases intact. `parse(unknown)(obj)` *is* `obj`. So the
 advice "use `parse` and hold the result" holds for a schema with no `unknown`
@@ -438,7 +438,7 @@ document already establishes, and `.f.mjs` modules keep their JSDoc and their
 
 An npm package ships `.d.ts` so that TypeScript consumers see types; the
 declarations are **generated from the schemas**, never authored.
-[`fjs/types/rtti/ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs) is already
+[`fjs/rtti/ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) is already
 that printer — `thunk RTTI → toData → dataToTs`, emitting canonical aliases with
 recursion handled — so this is close to plumbing plus an `fjs` command, and it
 is the stage that can land earliest. Not *only* plumbing, though, and not entirely on
@@ -468,7 +468,7 @@ rejected by `validate`. That is the exact disagreement this epic exists to
 remove, surviving inside its own deliverable. (The *tuple* kind has no such
 gap: a TypeScript tuple is exact-length, so `Ts<>` renders a closed tuple
 exactly — which is what stage 1 of
-[option-as-omission](../fjs/types/rtti/todo/option-as-omission.md) settled.)
+[option-as-omission](../fjs/rtti/todo/option-as-omission.md) settled.)
 
 Two things keep this from undermining the whole direction, and both need
 stating rather than assuming:
@@ -499,7 +499,7 @@ stating rather than assuming:
 TypeScript requires an index signature to cover the declared keys too, so the
 printer widens the index type "to the union of the rest and the declared value
 types — the closest expressible supertype"
-([`rtti/ts`](../fjs/types/rtti/ts/module.f.mjs)). `rest({ a: number }, string)`
+([`rtti/ts`](../fjs/rtti/ts/module.f.mjs)). `rest({ a: number }, string)`
 therefore emits an index of `number | string`, and a caller may pass
 `{ a: 1, b: 2 }` — a numeric extra key, which the schema rejects because its
 rest is `string`. Note that an exact-key encoding for the bare, closed form
@@ -511,11 +511,11 @@ that type" as two separate constraints.
 how often they appear. The printer renders a numeric const as
 `isFinite(c) ? String(c) : 'number'`
 ([`fjs/types/ts`](../fjs/types/ts/module.f.mjs), which
-[`rtti/ts`](../fjs/types/rtti/ts/module.f.mjs) imports), so a `NaN`,
+[`rtti/ts`](../fjs/rtti/ts/module.f.mjs) imports), so a `NaN`,
 `Infinity`, or `-Infinity` const becomes the type `number`, and `-0` becomes
 the literal `0`. Validation meanwhile uses `Object.is` **on purpose** — its doc
 comment says so, precisely to match `NaN` and to keep `+0` and `-0` distinct
-([`rtti/common`](../fjs/types/rtti/common/module.f.mjs)). So a `NaN` schema in
+([`rtti/common`](../fjs/rtti/common/module.f.mjs)). So a `NaN` schema in
 an exported input position admits any number and rejects all but one, and a
 `-0` schema admits `+0` and rejects it. TypeScript has no `NaN` literal type
 and does not distinguish `-0` from `0`, so this is inexpressible in the same
@@ -553,15 +553,15 @@ it as scoped to the object shapes TypeScript can name.
 
 | Piece | Where | State |
 | --- | --- | --- |
-| Schema constructors | [`fjs/types/rtti/module.f.mjs`](../fjs/types/rtti/module.f.mjs) | done |
-| Run-time checking | [`parse/`](../fjs/types/rtti/parse/module.f.mjs), [`validate/`](../fjs/types/rtti/validate/module.f.mjs) | done — same acceptance, differing only in what a success carries. `data`'s reader is **not** a third with the same acceptance: see [data-validate-admits-non-djs-values](../fjs/types/rtti/todo/data-validate-admits-non-djs-values.md) |
-| Canonical data form, `subset` | [`data/`](../fjs/types/rtti/data/module.f.mjs) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
-| TypeScript emission | [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on tuple openness, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
-| Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/types/rtti/ts/types.ts) | done, and transitional — see Problem |
+| Schema constructors | [`fjs/rtti/module.f.mjs`](../fjs/rtti/module.f.mjs) | done |
+| Run-time checking | [`parse/`](../fjs/rtti/parse/module.f.mjs), [`validate/`](../fjs/rtti/validate/module.f.mjs) | done — same acceptance, differing only in what a success carries. `data`'s reader is **not** a third with the same acceptance: see [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md) |
+| Canonical data form, `subset` | [`data/`](../fjs/rtti/data/module.f.mjs) | done, and **sound but deliberately incomplete** — it never answers `true` for a non-inclusion, and may answer `false` for one that holds only semantically. The primitive a checker needs, not the whole of assignability |
+| TypeScript emission | [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on tuple openness, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
+| Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/rtti/ts/types.ts) | done, and transitional — see Problem |
 | Annotation syntax | — | not started |
 | Compile-time evaluation | [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) | not started |
 | Inference | [type inference](../spec/todo/3370-type-inference.md) | not started — most of the work |
-| Function schemas | [668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md) | not started — and **nearly half** the tree's JSDoc type bodies are function types (~46% when measured in review of #1719; counts drift, so re-measure rather than cite this), so it gates a large share of stage 11 |
+| Function schemas | [668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md) | not started — and **nearly half** the tree's JSDoc type bodies are function types (~46% when measured in review of #1719; counts drift, so re-measure rather than cite this), so it gates a large share of stage 11 |
 | Generic schemas | the eDSL itself | **value layer done** — a schema-to-schema function needs no feature; only `.d.ts` / `Ts<>` rendering is missing |
 
 More than half the run-time and emission side is built. The compile-time side is
@@ -658,7 +658,7 @@ An annotation-only import is exactly that shape. So, stated honestly:
   the cases that rule rejects, and the epic owes it a resolution rather than an
   assumption — [stage 12](#tasks);
 - the resolution is anchoring, not an exemption for schema modules. That
-  `fjs/types/rtti/module.f.mjs` has no throwing top-level computation is true
+  `fjs/rtti/module.f.mjs` has no throwing top-level computation is true
   and is not a rule; a schema can be imported from anywhere.
 
 Two further qualifications. This is a property of the FunctionalScript compiler
@@ -807,7 +807,7 @@ are stated instead:
   first diagnostic.
 
 - [ ] **1. `.d.ts` generation from schemas.** An `fjs` command over
-      [`ts/module.f.mjs`](../fjs/types/rtti/ts/module.f.mjs), wired into
+      [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs), wired into
       packaging ([publishing-packages](../fjs/ci/todo/publishing-packages.md)).
       No compiler work and no language change — but **not just a command**.
       The printer's own doc comment records two divergences from `Ts<>`. They
@@ -816,8 +816,8 @@ are stated instead:
 
       - **`unknown` — the printer matches the runtime; `Ts<>` is the narrow
         one.** Both readers implement the `unknown` case as `() => ok`
-        ([`validate`](../fjs/types/rtti/validate/module.f.mjs),
-        [`parse`](../fjs/types/rtti/parse/module.f.mjs)), so the schema as
+        ([`validate`](../fjs/rtti/validate/module.f.mjs),
+        [`parse`](../fjs/rtti/parse/module.f.mjs)), so the schema as
         *executed* accepts anything, functions and symbols included. The
         printer's TypeScript `unknown` says the same. It is `Ts<>` that maps to
         the DJS-shaped `Primitive | Array | Object` and so promises less than
@@ -833,11 +833,11 @@ are stated instead:
         same exact tuple. `open(c)` is what admits a longer array, and both
         renderers emit the tail that says so. This bullet used to record a live
         divergence and no longer does; stage 1 of
-        [option-as-omission](../fjs/types/rtti/todo/option-as-omission.md)
+        [option-as-omission](../fjs/rtti/todo/option-as-omission.md)
         removed it.
 
       **A third disagreement runs the other way, and has narrowed.** `RestTs`
-      ([`ts/types.ts`](../fjs/types/rtti/ts/types.ts)) now renders a stated
+      ([`ts/types.ts`](../fjs/rtti/ts/types.ts)) now renders a stated
       rest's tuple tail, so the two agree on every rest a schema states
       directly. What is left is the *empty*-rest recognition: the printer goes
       through the data form and recognizes one semantically, while `RestTs`
@@ -857,14 +857,14 @@ are stated instead:
       stage 11's, under its rule about reproducing what was published.
 
       **The `unknown` meaning question needs an owner with a gate, not just a
-      home.** Its natural home is [`rtti`](../fjs/types/rtti/README.md) rather
+      home.** Its natural home is [`rtti`](../fjs/rtti/README.md) rather
       than this epic — but an earlier draft stopped there, and a question
       deferred without a gate is one stage 11 can walk straight past. Four
       sources disagree about what an exported `unknown` promises: the module
       and its README say DJS-compatible values; `Ts<>` excludes functions and
       symbols; the readers accept them
-      ([`validate`](../fjs/types/rtti/validate/module.f.mjs) and
-      [`parse`](../fjs/types/rtti/parse/module.f.mjs) both have
+      ([`validate`](../fjs/rtti/validate/module.f.mjs) and
+      [`parse`](../fjs/rtti/parse/module.f.mjs) both have
       `unknown: () => ok`); and the printer emits TypeScript's unrestricted
       `unknown`. Until one is chosen, an exported `unknown` has no settled
       published meaning — so **stage 11 cannot retire a declaration containing
@@ -891,7 +891,7 @@ are stated instead:
 
       **And it is not fully independent of the compiler stages.** The printer
       renders *a schema* to a type expression;
-      [`dataToTs`](../fjs/types/rtti/ts/module.f.mjs) returns aliases plus that
+      [`dataToTs`](../fjs/rtti/ts/module.f.mjs) returns aliases plus that
       expression, not `export const ks: …`. Generating a module's `.d.ts` also
       needs to know **which export has which schema**, and that association is
       exactly what an annotation supplies — which does not exist until stages
@@ -1005,7 +1005,7 @@ are stated instead:
       **And the snapshot has to survive being written down.** Reusing the
       compile-time schema at run time means embedding it in the shipped
       program, which means serializing it — and
-      [`data/README.md`](../fjs/types/rtti/data/README.md) states the corner
+      [`data/README.md`](../fjs/rtti/data/README.md) states the corner
       itself: JSON's number model "writes a `NaN` literal member as `null` and
       drops `-0`'s sign, so a schema using those two as literal members does
       not round-trip textually today and needs a serializer that preserves
@@ -1039,7 +1039,7 @@ are stated instead:
       **no `parse`**, and no
       `Data`-to-`Type` reconstruction anywhere in the tree. So a snapshot can
       stabilize a `validate` call and cannot stabilize a `parse` one:
-      [`parse`](../fjs/types/rtti/parse/module.f.mjs) takes the thunk-form
+      [`parse`](../fjs/rtti/parse/module.f.mjs) takes the thunk-form
       `Type` and walks it, re-entering the thunk, while handing it the `Data`
       instead would change its signature. That is the reader this epic leans on
       hardest — stage 13's inbound remedy is "`parse` against a schema that
@@ -1099,7 +1099,7 @@ are stated instead:
       run-time disagreement for another. Nor is the repair a one-liner: for
       `unknown` the two readers *agree*, and agree only because of the same
       fall-through, so guarding it produces the mirror-image divergence. Filed as
-      [data-validate-admits-non-djs-values](../fjs/types/rtti/todo/data-validate-admits-non-djs-values.md),
+      [data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md),
       which this stage is gated on.
 
       **It does not reach function schemas if stage 7a goes extern.** `data` is
@@ -1123,7 +1123,7 @@ are stated instead:
       pipeline uses. Stage 4's remedy only holds if every later phase reads the
       *snapshot*, so this stage reads it too — which makes it depend on the
       `data` reader divergence being fixed first
-      ([data-validate-admits-non-djs-values](../fjs/types/rtti/todo/data-validate-admits-non-djs-values.md)),
+      ([data-validate-admits-non-djs-values](../fjs/rtti/todo/data-validate-admits-non-djs-values.md)),
       since checking against the snapshot means checking with `data`'s reader.
       Requiring schema purity instead is the alternative, and it is the same
       choice stage 4 already records — decided once, for both stages.
@@ -1131,7 +1131,7 @@ are stated instead:
       **It needs the schema itself checked first, and nothing yet does that.**
       `visit` assumes its input already satisfies the static `Type` contract:
       an unrecognized tag falls through to `v.primitive0(tag)`
-      ([`rtti/common`](../fjs/types/rtti/common/module.f.mjs)), so a binding
+      ([`rtti/common`](../fjs/rtti/common/module.f.mjs)), so a binding
       whose value is `() => ['wat']` is reducible, callable, and behaves as a
       type that rejects everything — rather than producing the "that is not a
       schema" compile error stage 4 owes. An always-failing type is the worst
@@ -1160,7 +1160,7 @@ are stated instead:
       expressions first and widened afterwards. Say which; do not leave the
       order implied by the numbering.
       **A `false` from `subset` is not a type error.** It is
-      [sound and deliberately incomplete](../fjs/types/rtti/data/README.md#subset-is-sound-and-deliberately-incomplete):
+      [sound and deliberately incomplete](../fjs/rtti/data/README.md#subset-is-sound-and-deliberately-incomplete):
       it never says `true` wrongly, but it says `false` for inclusions that hold
       only semantically — `readonly [number | string] ⊆ readonly [number] |
       readonly [string]` is the documented case, along with non-syntactically
@@ -1174,7 +1174,7 @@ are stated instead:
       the direction `data/README.md` names (semantic subtyping, CDuce-style).
       Deciding that is part of the stage, not a detail under it.
 - [ ] **7. Function schemas**
-      ([668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md)),
+      ([668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md)),
       and what an annotation on a function *means*. An earlier draft posed that
       as two choices — a compile-time check that cannot be completed, or a
       wrapper validating each call — and **that is a false choice**, inherited
@@ -1245,7 +1245,7 @@ are stated instead:
       **Adding the schema form is necessary and not sufficient**, because
       everything downstream of it runs on the canonical `data` form, and that
       form is *function-free* by construction
-      ([`data/README.md`](../fjs/types/rtti/data/README.md)). Stage 6 checks
+      ([`data/README.md`](../fjs/rtti/data/README.md)). Stage 6 checks
       through `data`'s `subset`; stage 1's printer goes `toData → dataToTs`.
       668 itself contemplates an **extern** form that "may need to remain
       outside that core form" — and a schema outside it has no assignability
@@ -1488,7 +1488,7 @@ are stated instead:
         `RangeError: Maximum call stack size exceeded`;
       - `parse` flattens shared references, changing the hash of a value whose
         sharing is part of its meaning
-        ([identity-aware-parse](../fjs/types/rtti/todo/identity-aware-parse.md),
+        ([identity-aware-parse](../fjs/rtti/todo/identity-aware-parse.md),
         which already owns this);
       - `validate` costs time exponential in sharing depth, which that same
         issue classifies as a DoS vector against untrusted input. Its recorded
@@ -1658,7 +1658,7 @@ splits around inference, so the runnable order is 668's representation half
   edit.
 - [type inference](../spec/todo/3370-type-inference.md) — annotations are only
   as useful as what can be inferred without them. Stage 6.
-- [668-rtti-function-types](../fjs/types/rtti/todo/668-rtti-function-types.md) —
+- [668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md) —
   RTTI cannot describe a function today, and FunctionalScript modules are
   almost entirely functions. Stage 7, and the first real test of "growing the
   eDSL is library work".
@@ -1668,7 +1668,7 @@ splits around inference, so the runnable order is 668's representation half
 - [141](../fjs/types/todo/141.md) — the earlier, more abstract form of this idea:
   a `TypeSystem<T>` interface with `equal`/`subset`, and a parser recognizing
   `Ts<typeof t>`. `subset` shipped in
-  [`rtti/data`](../fjs/types/rtti/data/module.f.mjs); the parser half is this
+  [`rtti/data`](../fjs/rtti/data/module.f.mjs); the parser half is this
   epic.
 - [types-for-fs.md](./types-for-fs.md) — why TypeScript's own type system is not
   the target: it cannot analyze mutable types soundly, which is the argument
@@ -1735,12 +1735,12 @@ splits around inference, so the runnable order is 668's representation half
   changed by it.
 - [publishing-packages](../fjs/ci/todo/publishing-packages.md) — consumes stage
   1's generated `.d.ts`.
-- [`fjs/types/rtti/ts/README.md`](../fjs/types/rtti/ts/README.md) — not an issue,
+- [`fjs/rtti/ts/README.md`](../fjs/rtti/ts/README.md) — not an issue,
   but the record of what `Ts<T>` costs and why stage 11 exists.
 - [rtti-parse](../fjs/media/json/todo/rtti-parse.md) — reading JSON text
   straight against a schema; the run-time side continuing to grow around the
   same source of truth.
-- [identity-aware-parse](../fjs/types/rtti/todo/identity-aware-parse.md) —
+- [identity-aware-parse](../fjs/rtti/todo/identity-aware-parse.md) —
   neither reader tracks input identity, so `validate` re-walks a shared subgraph
   once per incoming edge and costs time *exponential in sharing depth* (a
   19-array value at 509ms, ~14s by depth 22). Two limits on what that means
@@ -1754,10 +1754,10 @@ splits around inference, so the runnable order is 668's representation half
   stage 5 is under. For [stage 13](#tasks) it is the filed DoS itself, because
   "validate at entry" points this reader at untrusted public input, and that
   policy is gated on the issue.
-- [checked-const-pin](../fjs/types/rtti/todo/checked-const-pin.md) — how a
+- [checked-const-pin](../fjs/rtti/todo/checked-const-pin.md) — how a
   schema bound to a `const` pins its literal; open, no design agreed. It is the
   ergonomics of commitment 2's "write it as a `const` first".
-- [excluded-string-values](../fjs/types/rtti/todo/excluded-string-values.md) —
+- [excluded-string-values](../fjs/rtti/todo/excluded-string-values.md) —
   `Type` has no negation, so a set like "any string but these" is unsayable.
   A gap in the eDSL of exactly the kind commitment 1 says gets closed there.
 - [`fjs/protocol/json_rpc`](../fjs/protocol/json_rpc/module.f.mjs) and

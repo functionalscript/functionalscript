@@ -47,7 +47,7 @@ to apply. So today the two kinds disagree about their own output in a way
 nothing in the module states, and the kind that disagrees loses data.
 
 The same follows for any format without `undefined` (CBOR, and the canonical
-byte-level forms `../../../cas` hashes): two values that are equal under RTTI
+byte-level forms `../../cas` hashes): two values that are equal under RTTI
 serialize differently, so they address differently.
 
 ## Proposal

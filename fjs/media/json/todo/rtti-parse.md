@@ -34,7 +34,7 @@ available, but it is not required to exist or be exact for every valid JSON toke
 The shared JSON structural parse keeps the complete token available until the
 domain-specific numeric policy has run.
 
-The existing `fjs/types/rtti/parse` should remain unchanged: it parses arbitrary
+The existing `fjs/rtti/parse` should remain unchanged: it parses arbitrary
 runtime values and therefore correctly requires primitive runtime types to match
 the schema. JSON-specific numeric conversion is a separate adapter concern.
 
@@ -240,20 +240,20 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
 - [`fjs/media/json/tokenizer/module.f.mjs`](../tokenizer/module.f.mjs) — JSON token
   production must preserve the numeric lexeme before any unrepresentable derived
   numeric construction.
-- [`fjs/types/rtti/parse`](../../../types/rtti/parse/module.f.mjs) — existing strict
+- [`fjs/rtti/parse`](../../../rtti/parse/module.f.mjs) — existing strict
   runtime-value parser whose structural behavior should be reused where possible,
   not changed to add JSON-specific coercion.
-- [`fjs/types/rtti/README.md`](../../../types/rtti/README.md) — the schema-form
+- [`fjs/rtti/README.md`](../../../rtti/README.md) — the schema-form
   `validate` has been deleted, which makes this parser the answer for callers
   reading JSON text against a schema rather than a convenience. Structs and
   tuples are **closed** there, so the "drop extra struct fields/tuple elements
   where the current parser does" behavior this task inherits is what `open(c)`
   now buys rather than what a bare schema gives: a bare one *errors* on an
   undeclared member instead.
-- [Open containers](../../../types/rtti/README.md#open-containers) — `open(c)`
+- [Open containers](../../../rtti/README.md#open-containers) — `open(c)`
   and `rest(c, r)`, which have shipped. A stated `rest` holds an undeclared
   member to that rest without carrying it into what `parse` builds, so this
   parser needs that case too — alongside the closed default's rejection.
-- [RTTI serializable data form](../../../types/rtti/data/README.md)
+- [RTTI serializable data form](../../../rtti/data/README.md)
   — a future data-driven RTTI parser can support the same JSON numeric conversion
   policy.

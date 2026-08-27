@@ -229,7 +229,7 @@ See [todo/blocked/js-extension-type-annotations.md](./blocked/js-extension-type-
 
 The new PL starts with type stripping: type annotations are syntax only and are erased before execution, with no built-in type checker. This keeps the core runtime simple and avoids baking in a specific type system.
 
-In the future, type checking is provided as a library — similar to the existing [RTTI module](../fjs/types/rtti/) — that users opt into by importing it:
+In the future, type checking is provided as a library — similar to the existing [RTTI module](../fjs/rtti/) — that users opt into by importing it:
 
 ```js
 import { check } from 'my-type-system'

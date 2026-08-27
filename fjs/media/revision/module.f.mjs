@@ -56,7 +56,7 @@ export const hash = string
  *
  * Self-referential through {@link lockValue}, which is a module-level
  * constant rather than a union rebuilt inside the thunk: the rtti data form
- * (`fjs/types/rtti/data`, which `toJsonSchema` routes through) closes
+ * (`fjs/rtti/data`, which `toJsonSchema` routes through) closes
  * reference cycles by *identity*, so a schema handing out a fresh union thunk
  * on every call would present an infinite graph and never terminate.
  *

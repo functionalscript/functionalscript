@@ -5,7 +5,7 @@
 
 ## Problem
 
-`fjs/types/rtti/parse/proof.f.mjs:28` hand-rolls an `unwrap` that duplicates
+`fjs/rtti/parse/proof.f.mjs:28` hand-rolls an `unwrap` that duplicates
 `unwrap` from `fjs/types/result/module.f.mjs:53` — assert `'ok'`, return the
 payload.
 
@@ -13,7 +13,7 @@ payload.
 
 This issue used to be about sharing `assertOk` / `assertError` /
 `assertErrorPath` and roughly 80% of the proof tree between
-`fjs/types/rtti/validate/proof.f.mjs` and `fjs/types/rtti/parse/proof.f.mjs`,
+`fjs/rtti/validate/proof.f.mjs` and `fjs/rtti/parse/proof.f.mjs`,
 which were copy-pasted modulo the checker name. That duplication is gone:
 `validate` was deleted and `parse` is the only schema-form reader, so there is
 one proof file and nothing to share it with.

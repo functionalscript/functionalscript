@@ -51,7 +51,7 @@ pick does not survive JSON (`[42, undefined]` → `'[42,null]'` → rejected). T
 dissolves rather than decides.
 
 TypeScript is on the other side of this already: this repo sets
-`exactOptionalPropertyTypes: true` ([`../../../../tsconfig.json`](../../../../tsconfig.json)),
+`exactOptionalPropertyTypes: true` ([`../../../tsconfig.json`](../../../tsconfig.json)),
 so `x?: string` and `x: string | undefined` are distinct there while RTTI conflates
 them and renders the hybrid `{readonly "x"?: undefined|string}`.
 
@@ -250,7 +250,7 @@ two renderers agree — today the runtime printer prints the open tail
 `readonly[1,number?]`.
 
 There is a **third** renderer over the data form:
-`../../../media/json/schema/module.f.mjs` derives `required` and `minItems` from
+`../../media/json/schema/module.f.mjs` derives `required` and `minItems` from
 `admitsUndefined`, and drops `undefined` from an optional member's schema with
 `stripUndefined`. Stage 2 splits those two uses, which today are one thing:
 
@@ -334,17 +334,17 @@ One PR, now that stage 1 has landed:
       build time; a missed doc is a working example that quietly builds the wrong
       schema for whoever copies it. Twenty sites across eight files:
       `../README.md` (3), `../ts/README.md` (2), `../data/README.md` (3),
-      `../../../protocol/mcp/README.md:71` (a copy-me
-      `greeting: option(string)`), `../../../media/revision/README.md` (5,
+      `../../protocol/mcp/README.md:71` (a copy-me
+      `greeting: option(string)`), `../../media/revision/README.md` (5,
       including the `option(true)` presence-flag idiom it recommends twice),
-      `../../../media/note/README.md` (2),
-      `../../../media/note/todo/extend-note-format.md` (2), and
-      `../../../AGENTS.md` — `:383` writes `option(...)` among the schema
+      `../../media/note/README.md` (2),
+      `../../media/note/todo/extend-note-format.md` (2), and
+      `../../AGENTS.md` — `:383` writes `option(...)` among the schema
       references, a call form it stops having, while `:405` lists `option` as a
-      bare name among `types/rtti`'s exports, so that one is a description to
+      bare name among `rtti`'s exports, so that one is a description to
       re-word rather than a spelling to fix. Two near-misses stay out: `option` in
-      `../../../bnf/todo/207.md` is `bnf`'s own combinator, and the `option(s)`
-      in `../../../cas/evo/todo/cache-staleness.md` is English, not code.
+      `../../bnf/todo/207.md` is `bnf`'s own combinator, and the `option(s)`
+      in `../../cas/evo/todo/cache-staleness.md` is English, not code.
 - [ ] The **JSDoc** sites, which that list does not cover: it is a markdown
       inventory, and a comment is no more compiled than a `.md` file is, so the
       two sweeps between them still leave these eleven untouched, in six files.
@@ -364,7 +364,7 @@ One PR, now that stage 1 has landed:
       derivation. `../validate/module.f.mjs` (`:18`, `:298`) publishes
       `b: option(string)` in its parse-vs-validate contrast and in the exported
       `validate`'s `@example` — copy-me code in the reader's own API docs.
-      `../../../media/revision/proof.f.mjs:125` names the `option(true)`
+      `../../media/revision/proof.f.mjs:125` names the `option(true)`
       presence-only idiom its README recommends. Sweep JSDoc explicitly rather
       than trusting the markdown pass: the earlier revision of this item said
       "twenty sites across eight files" and meant twenty *markdown* sites, which
@@ -576,7 +576,7 @@ One PR, now that stage 1 has landed:
       `[1, or(option, number)]` print required members while `Ts<>` and both
       readers treat them as optional — and the two-renderer pin below could not
       hold. Move them to the absent bit and update `../ts/proof.f.mjs`.
-- [ ] `../../../media/json/schema/module.f.mjs`: move `admitsUndefined` (and so
+- [ ] `../../media/json/schema/module.f.mjs`: move `admitsUndefined` (and so
       `required`/`minItems`) to the absent bit, leave `stripUndefined` on
       `undefined`, and update `./proof.f.mjs` — a third renderer over the data
       form, and the one whose output is wrong rather than merely imprecise if it
@@ -656,7 +656,7 @@ One PR, now that stage 1 has landed:
       renders required. Add a `_TsRaw`-level check (`CheckRaw<A, B> = Equal<A,
       _TsRaw<B>>`) for the raw half, since that is the only half with teeth
       here — and update the **contract that mandates the weak pair**:
-      `../../phantom/types.ts:26-38` tells every `Phantom` user to guard with
+      `../../types/phantom/types.ts:26-38` tells every `Phantom` user to guard with
       two `Check`s "or `Check3`, which pairs the two into one assert", both of
       which route through public `Ts`. A caller following that documentation
       after stage 2 silently renders a wrapped optional member required. The
@@ -706,10 +706,6 @@ One PR, now that stage 1 has landed:
 - [excluded-string-values](./excluded-string-values.md) — the other proposed `Type`
   ADT extension, and the bar it sets: a data-form mapping worked out end to end
   before code.
-- [move-rtti-out-of-types](../../../todo/move-rtti-out-of-types.md) — if that
-  lands first, every relative path in this file is re-anchored. Nothing here
-  depends on the location, so it is a mechanical re-base, not a redesign; the
-  order just needs picking rather than discovering.
 - [#1719](https://github.com/functionalscript/functionalscript/pull/1719) —
   **collides with both stages.** The epic makes RTTI the single source of truth
   for the type system and works its examples in the eDSL as it stands today —

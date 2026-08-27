@@ -4,9 +4,9 @@
  * A `proof.mjs` rather than a `proof.f.mjs`, and deliberately: the fixtures
  * here need in-place mutation — `Object.setPrototypeOf` to give an array a
  * prototype that supplies an index, `Object.assign` to put a key past the
- * index range on one — which [`../../AGENTS.md`](../../AGENTS.md) §3.1 forbids
+ * index range on one — which [`../AGENTS.md`](../AGENTS.md) §3.1 forbids
  * in authored FunctionalScript. `shouldLoad` in
- * [`../../dev/module.f.mjs`](../../dev/module.f.mjs) makes a plain
+ * [`../dev/module.f.mjs`](../dev/module.f.mjs) makes a plain
  * `proof.mjs` the opt-in home for exactly that, so the mutation stays out of
  * the `.f.mjs` proofs rather than being smuggled through them.
  *

@@ -1,7 +1,7 @@
 # RTTI serializable data form
 
 A function-free, serializable representation of RTTI schemas, modeled after
-[`fjs/bnf/data`](../../../bnf/data/). `toData` converts a thunk-form `Type`
+[`fjs/bnf/data`](../../bnf/data/). `toData` converts a thunk-form `Type`
 (from [`../module.f.mjs`](../module.f.mjs)) into this form once, lazily, when a
 consumer actually needs it.
 
@@ -128,7 +128,7 @@ design:
 
 The form is plain immutable data — no functions — so it serializes with the
 repository's data serializers. DJS
-([`fjs/djs/serializer`](../../../djs/serializer/module.f.mjs)) covers the
+([`fjs/djs/serializer`](../../djs/serializer/module.f.mjs)) covers the
 whole form, including `bigint` literal sets; plain `JSON.stringify` works
 only when no `bigint` literals are involved. One corner is shared by both:
 JSON's number model writes a `NaN` literal member as `null` and drops `-0`'s

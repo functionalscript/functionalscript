@@ -4,6 +4,25 @@ See https://en.wikipedia.org/wiki/Run-time_type_information.
 
 A type-safe schema system for describing TypeScript types at runtime and validating unknown values against them.
 
+## Why `fjs/rtti/` rather than `fjs/types/rtti/`
+
+`rtti` used to live under `fjs/types/`, but it is a peer of `djs` — `djs` the
+data model, `rtti` the types described over it — not a member of `types/`.
+Nothing under `types/` imports it; every consumer (`media`, `protocol`, `mcp`,
+`edag`, `ci`, `emergent_testing`) is a peer of `types/`, the same relationship
+every outside consumer of `types/list`, `types/result` or `types/object` has.
+It does depend on several `types/*` modules (`object`, `result`, `list`,
+`array`, `ts`, `phantom`), but that is consumption, not membership — the rest
+of `fjs/` depends on those the same way. Its own outward dependencies
+(`fjs/asserts`, `fjs/js/keywords`, `fjs/djs`) point sideways to other
+top-level directories rather than down to a foundation `types/` sits under,
+unlike the `types/*` modules that do reach outside (`bigint`, `bit_vec`,
+`number`, `prime_field`, `string` → `fjs/common/monoid`; `uint8array` →
+`fjs/text`). At 5789 lines it was also the largest thing filed under
+`types/` — bigger than every sibling there and larger than every top-level
+`fjs/` directory except `types` and `media` — while its siblings under
+`types/` are single data structures and type-level helpers.
+
 ## Modules
 
 - `module.f.mjs` — schema construction: defines `Type`, `Info`, and schema builder values
@@ -54,7 +73,7 @@ for pass/fail callers, `orVisit`, and the primitive checks. The data form's
 the two cannot drift.
 
 For reading a value straight from JSON text against a schema, see
-[`../../media/json/todo/rtti-parse.md`](../../media/json/todo/rtti-parse.md) —
+[`../media/json/todo/rtti-parse.md`](../media/json/todo/rtti-parse.md) —
 one pass, no intermediate value, and it can reject `1.00000000000000001`
 against a `bigint`, which no reader over an already-materialized value can do.
 

@@ -23,7 +23,7 @@ should not pretend it can prove all future calls are valid.
 > **Where the form lives is not settled here.** This section originally said
 > "add an **extern** RTTI form", and the sketch below is written that way. That
 > is one of two options, not a decision:
-> [rtti-type-system](../../../../todo/rtti-type-system.md) made this issue its
+> [rtti-type-system](../../../todo/rtti-type-system.md) made this issue its
 > stage 7, and the 7a tasks below ask whether an extern form can actually pay
 > for a `subset` path, a printer path, and whatever stage 4's stabilization
 > strategy requires (conditional — see the tasks below), or
@@ -76,7 +76,7 @@ trusted.
   on statically checking a definition the compiler can read — see the next
   task.
 
-Added by [rtti-type-system](../../../../todo/rtti-type-system.md), which makes
+Added by [rtti-type-system](../../../todo/rtti-type-system.md), which makes
 this issue its stage 7. Completing only the tasks above would leave that stage
 unfinished, and general inference and declaration retirement blocked with it.
 
@@ -104,7 +104,7 @@ are **7a** and run before stage 6; static checking of readable definitions is
   foreign call site.
   Where the generated declaration is wider than the schema — a closed struct,
   `rest(c, r)`, non-finite numbers and `-0`, all listed under
-  [the epic's `.d.ts` promise](../../../../todo/rtti-type-system.md) — the
+  [the epic's `.d.ts` promise](../../../todo/rtti-type-system.md) — the
   consumer can pass a value the declaration accepts and the schema rejects,
   with nothing between. That path is the epic's **stage 13** (ownership at the
   language boundary), not this issue. What stage 13 owes there splits by
@@ -138,7 +138,7 @@ are **7a** and run before stage 6; static checking of readable definitions is
 - [ ] **7a — whatever stage 4's stabilization strategy requires of a function
   schema.** Not, as an earlier draft of this task said, "a canonical
   serializable form" full stop: that presumed stage 4 would take the
-  snapshot route, and [the epic](../../../../todo/rtti-type-system.md) now
+  snapshot route, and [the epic](../../../todo/rtti-type-system.md) now
   leaves purity-versus-snapshot open — with the stronger observation that a
   snapshot reaches only the consumers it is threaded through, while purity is a
   property of the binding and holds for every use at once.
@@ -162,9 +162,9 @@ are **7a** and run before stage 6; static checking of readable definitions is
 
 ### Related
 
-- [i668-emergent-testing-proof-type](../../../emergent_testing/todo/668-emergent-testing-proof-type.md) —
+- [i668-emergent-testing-proof-type](../../emergent_testing/todo/668-emergent-testing-proof-type.md) —
   proof leaves need function-valued schemas if `Proof` is derived from RTTI.
 - [`../data`](../data/README.md) — serializable/function-free RTTI data
   form; extern function schemas may need to remain outside that core form.
-- [rtti-type-system](../../../../todo/rtti-type-system.md) — the epic; this
+- [rtti-type-system](../../../todo/rtti-type-system.md) — the epic; this
   document is its stage 7, and gates `//:` replacing `@type` on functions.

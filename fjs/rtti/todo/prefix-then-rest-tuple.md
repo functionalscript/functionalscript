@@ -25,7 +25,7 @@ motivating consumer in this codebase, so there is nothing open here to track.
 
 ## Related
 
-- [`../../../edag/module.f.mjs`](../../../edag/module.f.mjs) — `array`/`object` use the
+- [`../../edag/module.f.mjs`](../../edag/module.f.mjs) — `array`/`object` use the
   nested form.
 - [Open containers](../README.md#open-containers) — `rest(c, r)` states a
   prefix and a homogeneous tail, so the shape above is now spellable as one schema.

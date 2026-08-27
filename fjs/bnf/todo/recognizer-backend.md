@@ -190,7 +190,7 @@ host language instead. The same move recurs across the codebase:
 
 - `fjs/media/html` — markup as nested element values (`['a', { href }, 'Example']`),
   not JSX; serialized by an emitter function;
-- `fjs/types/rtti` — a type is a schema *value* from which `ts/` derives the
+- `fjs/rtti` — a type is a schema *value* from which `ts/` derives the
   TypeScript type, `validate/` a validator, and `parse/` a deserializer (the
   cas/mcp tool args already use one rtti struct for both `inputSchema` and
   `validate`);
@@ -310,7 +310,7 @@ Bigger automata are built from BNF pieces in two complementary ways:
 - [layered-parser](./layered-parser.md) — same "one BNF engine, multiple layers"
   instinct; the DFA backend is the scanner tier
 - [parser-structure](./parser-structure.md) — the AST-producing backend
-- `fjs/types/rtti` — the type-level sibling of this strategy: types as schema
+- `fjs/rtti` — the type-level sibling of this strategy: types as schema
   values, many artifacts (TS type, validator, parser) derived by function
 - `fjs/media/html` — the markup-level sibling: an embedded DSL of nested element
   values, not an external syntax (JSX)

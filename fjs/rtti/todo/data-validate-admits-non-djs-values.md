@@ -11,7 +11,7 @@ disagree about values that are neither primitives nor arrays nor plain objects.
 The thunk readers guard object positions with `isObject`, which is
 `typeof value === 'object' && !isArray(value) && value !== null`
 ([`common`](../common/module.f.mjs), via
-[`fjs/types/object`](../../object/module.f.mjs)) — so a function or a symbol
+[`fjs/types/object`](../../types/object/module.f.mjs)) — so a function or a symbol
 fails it. `data`'s `unionValidate` instead dispatches on primitives and arrays
 and lets **everything else** fall through to object validation:
 
@@ -87,7 +87,7 @@ so agreeing on acceptance is the contract, not an extra.
 `unknown` means is unsettled — the module and its README promise DJS-compatible
 values, `Ts<>` excludes functions and symbols, both thunk readers have
 `unknown: () => ok`, and the printer emits TypeScript's unrestricted `unknown`.
-[rtti-type-system](../../../../todo/rtti-type-system.md) records that
+[rtti-type-system](../../../todo/rtti-type-system.md) records that
 disagreement and gates stage 11 on resolving it. Which repair is correct here
 follows from it:
 
@@ -121,7 +121,7 @@ is an investigation, not a plan.
 ### Tasks
 
 - [ ] **First**, settle what an exported `unknown` means — the decision
-      [rtti-type-system](../../../../todo/rtti-type-system.md) gates stage 11
+      [rtti-type-system](../../../todo/rtti-type-system.md) gates stage 11
       on. The repair below depends on it.
 - [ ] Investigate the mechanism: no-kind representation versus explicit top,
       whether a narrowed `unknown` needs recursive descent, cycle handling if
@@ -145,7 +145,7 @@ is an investigation, not a plan.
 
 ### Related
 
-- [rtti-type-system](../../../../todo/rtti-type-system.md) — its **stage 4**
+- [rtti-type-system](../../../todo/rtti-type-system.md) — its **stage 4**
   proposes serializing a compile-time schema through `toData` and reusing that
   form at run time, to stop a stateful thunk from presenting different schemas
   in different phases. That remedy assumes the two readers accept the same

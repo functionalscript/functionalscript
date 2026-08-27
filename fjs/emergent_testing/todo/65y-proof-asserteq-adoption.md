@@ -34,7 +34,7 @@ Counts in the current tree (re-verified 2026-08-14):
   `fjs/types/nominal/proof.f.mjs`,
   `fjs/types/object/structurally_same/proof.f.mjs`,
   `fjs/types/range/proof.f.mjs`, `fjs/types/range_set/proof.f.mjs`,
-  `fjs/types/rtti/proof.f.mjs`, `todo/proof.f.mjs`.
+  `fjs/rtti/proof.f.mjs`, `todo/proof.f.mjs`.
 - A number of files already using `assertEq` still carry leftover
   manual `if (...) { throw ... }` sites alongside it (the 494 count
   above is not confined to the 9 holdout files) — full adoption within

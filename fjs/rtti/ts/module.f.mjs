@@ -3,7 +3,7 @@
  * See `./types.ts` for `Ts<T>` and the `*Ts` transformer types.
  *
  * The printer routes through the serializable RTTI data form
- * (`fjs/types/rtti/data`): `thunk RTTI → toData → dataToTs`. The data form
+ * (`fjs/rtti/data`): `thunk RTTI → toData → dataToTs`. The data form
  * is a finite graph, so recursive schemas — which the thunk graph represents
  * as self-referencing functions with no leaves — terminate: every named rule
  * becomes a TypeScript type-alias definition and every graph edge prints as

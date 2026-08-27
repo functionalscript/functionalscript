@@ -10,16 +10,16 @@
 consumer re-spells the trichotomy inline. Unary eliminations alone:
 
 ```js
-// fjs/types/rtti/data/module.f.mjs:852
+// fjs/rtti/data/module.f.mjs:852
 const kindRefs = f => k => k === undefined || k === true ? [] : k.flatMap(f)
 
-// fjs/types/rtti/data/module.f.mjs:956-965
+// fjs/rtti/data/module.f.mjs:956-965
 const patternsValidate = (k, item, value) => {
     if (k === undefined) { return verror('unexpected value') }
     if (k === true) { return ok(value) }
     ...
 
-// fjs/types/rtti/ts/module.f.mjs:130-133
+// fjs/rtti/ts/module.f.mjs:130-133
 const kindToTs = (k, whole, item) =>
     k === undefined ? [] :
     k === true ? [whole] :
@@ -30,7 +30,7 @@ and the same `undefined || true` guard is duplicated twice within each of two
 structurally identical union rewriters:
 
 ```js
-// fjs/types/rtti/data/module.f.mjs:493-501
+// fjs/rtti/data/module.f.mjs:493-501
 const mapChildren = f => u => ({
     ...u,
     ...(u.array === undefined || u.array === true ? {} : {
@@ -41,7 +41,7 @@ const mapChildren = f => u => ({
     }),
 })
 
-// fjs/types/rtti/data/module.f.mjs:519-527 — same skeleton, different transform
+// fjs/rtti/data/module.f.mjs:519-527 — same skeleton, different transform
 const dropSubsumedUnion = ctx => u => ({
     ...u,
     ...(u.array === undefined || u.array === true ? {} : {
@@ -97,7 +97,7 @@ at `kindFold` as the statement of the contract.
 
 ### Tasks
 
-- [ ] Add `kindFold` to `fjs/types/rtti/data/module.f.mjs`; rewrite `kindRefs`,
+- [ ] Add `kindFold` to `fjs/rtti/data/module.f.mjs`; rewrite `kindRefs`,
       `patternsValidate`, and `ts`'s `kindToTs` through it.
 - [ ] Extract `mapPatternKinds`; re-derive `mapChildren` and `dropSubsumedUnion`.
 - [ ] `npx tsc`, `fjs t` — pure refactor, rtti proofs pass unchanged.

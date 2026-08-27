@@ -26,14 +26,14 @@ flat array of steps that admitted four families of duplicates, and the
 uniqueness is structural — the wrong shapes are unspellable rather than
 rejected by a validation pass a producer has to remember to run.
 
-The shape is defined once, as an [RTTI](../types/rtti/) schema in
+The shape is defined once, as an [RTTI](../rtti/) schema in
 [module.f.mjs](module.f.mjs) — the specification of record, checkable at
 runtime with `validate(exp)` (shape only — see Caveats). [types.ts](types.ts) carries the same shape at
 the type level, pinned against the schema with `Assert<Check<...>>` so the
 two cannot drift. Every tuple in the schema is closed — none of them says
 `open`, which is what an rtti tuple needs to admit more than it declares — so
 the static tuples and the runtime ones agree exactly, an exact-length
-[TupleTs](../types/rtti/ts/types.ts) rendering over an exact-length set.
+[TupleTs](../rtti/ts/types.ts) rendering over an exact-length set.
 [proof.f.mjs](proof.f.mjs) pins what the schema accepts and rejects, node
 kind by node kind — validation behavior, not execution semantics — with
 `comma` excepted until its placeholder shape settles. Its `ownJs` and
@@ -317,7 +317,7 @@ need it.
   shared subgraph once per incoming edge (exponential in depth) and
   overflows the stack on a cycle instead of rejecting it; `parse` rebuilds
   every container, so sharing is lost —
-  [identity-aware-parse.md](../types/rtti/todo/identity-aware-parse.md).
+  [identity-aware-parse.md](../rtti/todo/identity-aware-parse.md).
   So `validate` is shape validation, not complete EDAG validation:
   identity-dependent canonicality — acyclicity, and the rule that an
   operation-node identity may be shared only within one function's scope,
@@ -343,7 +343,7 @@ need it.
   Object spread reads those properties *through* getters, unlike `own`,
   which reads the descriptor's value and never calls one.
 - `index` does not yet exclude `constructor`/`__proto__` —
-  [excluded-string-values.md](../types/rtti/todo/excluded-string-values.md).
+  [excluded-string-values.md](../rtti/todo/excluded-string-values.md).
 
 ## Design
 
