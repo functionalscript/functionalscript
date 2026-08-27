@@ -15,25 +15,34 @@ types.ts      # public + private TypeScript types
 ```
 
 Private types already use a leading `_` by convention, but their location still
-creates declaration and package noise. JSDoc private typedefs in `module.f.mjs`
-can be emitted into `module.f.d.mts`, while private declarations in `types.ts`
-are emitted into the shipped `types.d.ts`.
+creates declaration and package noise. In particular, JSDoc `@typedef`s in
+`module.f.mjs` and `proof.f.mjs` escape into generated `.d.mts` files: TypeScript
+emits them as exported type aliases even when they were intended to be private.
+Private declarations in `types.ts` likewise appear in the shipped `types.d.ts`.
 
-Moving private types to a separate TypeScript file should make the source
-boundary explicit and allow package declaration generation to omit private type
-artifacts entirely. The leading `_` convention should remain: file placement and
-name visibility are complementary signals.
+Moving all named types out of implementation/proof files and splitting public
+from private TypeScript types removes this leakage structurally instead of
+trying to strip it after declaration generation.
+
+The leading `_` convention should remain: file placement and name visibility are
+complementary signals.
 
 ### Proposal
 
-Use this directory convention where private named types are needed:
+Use this directory convention where named types are needed:
 
 ```text
-module.f.mjs  # implementation
-proof.f.mjs   # proofs
-types.ts      # public types
-private.ts    # private types
+module.f.mjs  # implementation; no @typedef
+proof.f.mjs   # proofs; no @typedef
+types.ts      # public named types
+private.ts    # private named types
 ```
+
+`module.f.mjs` and `proof.f.mjs` may use JSDoc annotations and `@import`, but
+must not declare named types with `@typedef`. Named types have exactly two homes:
+
+- `types.ts` for public types;
+- `private.ts` for implementation-only types.
 
 `private.ts` contains implementation-only TypeScript types used by either the
 module or its proofs. Every private type continues to start with `_`.
@@ -53,6 +62,10 @@ private.ts <- module.f.mjs / proof.f.mjs
 - `types.ts` must not depend on `private.ts`.
 - A public exported API must not require a `private.ts` type by name.
 
+This leaves generated declarations free to describe the public API, including
+structural types inferred from exported values/functions, without also exporting
+implementation-local typedef names simply because they were declared in JSDoc.
+
 `private.ts` is source-only. It must be type-checked, but package declaration
 emission must not generate or ship `private.d.ts`, and the package must not ship
 `private.ts` itself.
@@ -70,7 +83,9 @@ review convention.
 
 - [ ] Document `private.ts` beside the existing `types.ts`, `module.*`, and
       `proof.*` file conventions.
+- [ ] Prohibit JSDoc `@typedef` declarations in `module.f.mjs` and `proof.f.mjs`.
 - [ ] Keep the leading `_` convention for every type declared in `private.ts`.
+- [ ] Move public named types from implementation/proof JSDoc into `types.ts`.
 - [ ] Move private named types out of `types.ts`, `module.f.mjs`, and
       `proof.f.mjs` into each directory's `private.ts` where applicable.
 - [ ] Keep `private.ts` in normal TypeScript type-checking without generating a
@@ -80,10 +95,21 @@ review convention.
 - [ ] Reject shipped generated declarations that reference `private.ts` or
       `private.d.ts`.
 - [ ] Add a fixture where `module.f.mjs` and `proof.f.mjs` use `_`-prefixed types
-      from `private.ts` while the generated public declarations and packed
-      package contain no private type file.
+      from `private.ts` without declaring any `@typedef`; verify their generated
+      declarations contain no implementation-local typedef exports and the packed
+      package contains no private type file.
 - [ ] Verify a clean TypeScript consumer can use the packed public API without
       any private artifact present.
+
+### Acceptance criteria
+
+- `module.f.mjs` and `proof.f.mjs` contain no JSDoc `@typedef` declarations.
+- All public named types live in `types.ts`.
+- All private named types live in `private.ts` and keep their leading `_`.
+- Generated public declarations do not expose private named typedefs merely as a
+  consequence of declaration emission.
+- Neither `private.ts` nor `private.d.ts` is shipped.
+- No shipped `.d.ts` / `.d.mts` file references `private.ts` or `private.d.ts`.
 
 ### Related
 
