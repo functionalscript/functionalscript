@@ -219,13 +219,14 @@ if what remains is empty, render the exact tuple; otherwise render
 `...(Ts<R> | undefined)[]`. Pin `rest([42], or())` in stage 1 and
 `rest([42], option)` in stage 2.
 
-The exact rendering for an empty rest is only *fully* right once the length
-bound lands: `validate(close([42], or()))([42, , ])` is `ok` today while
+The exact rendering for an empty rest is only right *with* the length bound
+beside it: `validate(close([42], or()))([42, , ])` is `ok` today while
 `validate(close([42]))([42, , ])` is `error` — measured — which is the
-`array(or())` divergence the acceptance table above records and the stage-1
-task below fixes. The two are the same fix seen from the two sides, and neither
-is complete alone: without the bound, the exact tuple still understates
-`length` on exactly the spelling this paragraph exempts from the tail.
+`array(or())` divergence the acceptance table above records. That bound is a
+stage-1 task for this reason and not a stage-2 one, though the divergence
+predates both stages: the two are one change seen from the type side and the
+reader side, and shipping the rendering alone would understate `length` on
+exactly the spelling this paragraph exempts from the tail.
 
 #### Alternative considered: a kind-dependent default
 
@@ -601,6 +602,16 @@ Stage 1 (one PR):
       `../ts/proof.f.mjs` (11) and `../proof.f.mjs` (2) — 124 in all. (Counted by
       occurrence; a per-line count reads 39 for `../data/proof.f.mjs`, which is
       the figure to distrust.)
+- [ ] Bound length on the array kind's thunk readers when the rest admits
+      nothing, and pin `array(or())` against `new Array(1)` and
+      `rest([42], or())` against `[42, , ]`, where the thunk readers and the
+      data form disagree today. **This belongs to stage 1, not stage 2**, even
+      though the divergence predates both: stage 1 is what makes `RestTs` render
+      an empty rest as the exact tuple (see above), so shipping the rendering
+      without the bound would hand `rest([42], or())` a `readonly [42]` over a
+      value `validate` accepts at length 2 — the same unsound cast this issue
+      opens with, on a narrower spelling. The rendering and the bound are one
+      change; landing either alone is worse than landing neither.
 - [ ] Changelog: **BREAKING CHANGES:** a bare `Struct`/`Tuple` schema is closed;
       `close(c, rest)` is `rest(c, r)`, and `open(c)` is the old bare form.
 
@@ -750,9 +761,6 @@ Stage 2 (one PR, after stage 1 lands):
 - [ ] Make `isTop` position-aware: `or(option, unknown)` for a declared member,
       `unknown` for a `rest`. Keep `objectSet`'s `r === undefined` guard, and pin
       `{ a: or(option, unknown) }` (closed) as objects with at most the key `a`.
-- [ ] Bound length on the array kind's thunk readers when the rest admits
-      nothing, and pin `array(or())` against `new Array(1)`, where the thunk
-      readers and the data form disagree today.
 - [ ] Absence is decided by the **container loop, before dispatch** — it cannot
       be decided by the recursive reader, which is handed only the value read.
       `constContainerValidate`/`constContainerParse` call
@@ -864,7 +872,17 @@ Stage 2 (one PR, after stage 1 lands):
       required and defeating the split;
       `ArrayTs`/`RecordTs` `Exclude` it from their element type, so
       `Ts<array(or(option, number))>` stays `readonly number[]` — the type-level
-      counterpart of "a rest never sees it". Split the transformer to keep the
+      counterpart of "a rest never sees it" — except that `ArrayTs` emits
+      `readonly []` when the exclusion leaves `never`, since `readonly never[]`
+      is *not* the empty array: `readonly never[] = new Array<never>(1)`
+      type-checks and its `.length` is `number`, while `readonly []` rejects it
+      ("Target allows only 0 element(s)") and its `.length` is `0` — both
+      measured. `array(option)` is the empty array (see "Length still bounds a
+      closed array" above), so without the case the compile-time renderer is
+      wider than the runtime one on the schema that section exists to settle.
+      Pin `Ts<array(option)>`. `RecordTs` needs no counterpart:
+      `Record<string, never>` already admits `{}` and nothing else, because an
+      object type carries no length to disagree about. Split the transformer to keep the
       marker internal: `_TsRaw<T>` preserves it for the container mappings to
       read, and the public `Ts<T>` is `Exclude<_TsRaw<T>, Absent>`. Excluding it
       only in the reader results would leave `Ts<typeof or(option, number)>` as
