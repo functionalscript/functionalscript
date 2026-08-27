@@ -1474,37 +1474,27 @@ are stated instead:
       do not depend on the caller's cooperation. The `close` policy and 668's call-validating wrapper are the same
       decision seen from two angles, so settle them together.
 
-      **Reconstruction is the default remedy, and it has two defects today.**
-      Both bite exactly where this stage puts it — on a value arriving from
-      ordinary JavaScript, which is by definition not under the language's
-      control:
+      **`parse` is not fit for a hostile boundary today, and this stage cannot
+      be planned until someone investigates what it would take.** Three
+      measured facts, all reproducible, none of them designed here:
 
-      - **No cycle guard.** `parse` recurses without tracking visited
-        references, so a cyclic foreign graph against a recursive schema
-        overflows the stack rather than being rejected. Measured at
-        `f1ce7bfb`: with `const t = () => ['array', t]` and an array containing
-        itself, `parse(t)(a)` throws
-        `RangeError: Maximum call stack size exceeded`. A naïve deep copy has
-        the same defect. At a boundary this is worse than a wrong answer — a
-        malformed argument from outside crashes the callee, which is a denial
-        of service reachable by any caller. This stage needs cycle detection
-        with an explicit rejection, or a cycle-aware copier.
-      - **Sharing is not preserved.**
-        [identity-aware-parse](../fjs/types/rtti/todo/identity-aware-parse.md)
-        already documents it: the generic `parse` "would silently flatten every
-        DAG into a tree", changing the hash of a value whose reference sharing
-        is part of its meaning. The EDAG is that case by construction —
-        `["[]", x, x]` and `["[]", ["{}"], ["{}"]]` are different functions
-        precisely because sharing is observable. So `parse` is not a safe
-        ownership adapter for such a schema, and neither is an ordinary deep
-        copy. This stage needs an identity-preserving reconstruction path, or
-        an explicit restriction of the remedy to document-shaped values where
-        identity is irrelevant — and it should say which, because the failure
-        is silent.
+      - a cyclic foreign value overflows the stack rather than being rejected —
+        `const t = () => ['array', t]` with a self-referential array gives
+        `RangeError: Maximum call stack size exceeded`;
+      - `parse` flattens shared references, changing the hash of a value whose
+        sharing is part of its meaning
+        ([identity-aware-parse](../fjs/types/rtti/todo/identity-aware-parse.md),
+        which already owns this);
+      - `validate` costs time exponential in sharing depth — 3.9 ms at depth
+        10, 125 ms at 18 — which that same issue classifies as a DoS vector
+        against untrusted input.
 
-      Neither defect argues against reconstruction as the default; both say the
-      reconstruction this stage relies on does not exist yet in a form fit for
-      a hostile boundary.
+      A naïve deep copy shares the first two. **The scope of the fix is the
+      open question**: whether these are three defects or one missing
+      capability (input-keyed identity tracking would address all three), what
+      it costs, and whether the boundary should reconstruct at all rather than
+      reject. That belongs in an investigation with the readers in front of it,
+      not in this document.
 
       **Foreign calls into readable exports are in scope here**, and are the
       case most easily missed, because stage 7's provenance split makes their
@@ -1567,21 +1557,10 @@ are stated instead:
       the boundary explicitly untrusted and say what a FunctionalScript
       function may assume about its arguments.
 
-      **"Validate at entry" is gated on identity-aware validation**, and that
-      is a prerequisite rather than a footnote. `validate` does not track input
-      identity, so it re-walks a shared subgraph once per incoming edge and
-      costs time exponential in sharing depth — measured at `515f9175`:
-      3.9 ms at depth 10, 12.9 ms at 14, 30.1 ms at 16, 125 ms at 18, roughly
-      doubling per level, consistent with the 509 ms at 19 arrays
-      [the issue](../fjs/types/rtti/todo/identity-aware-parse.md) records.
-      Deploying that reader at this boundary means a foreign caller can hand
-      over a small, *acyclic*, perfectly well-typed argument and consume
-      unbounded CPU — the issue's own threat model, arrived at from the other
-      side. So either
-      [identity-aware-parse](../fjs/types/rtti/todo/identity-aware-parse.md)
-      lands first, or this policy is restricted to inputs without reference
-      sharing — and note the cycle guard above does not help, because this
-      input has no cycle. The second is a legitimate
+      **"Validate at entry" is gated on the reader work above**, not merely
+      informed by it: the exponential-in-sharing cost is reachable by an
+      *acyclic*, well-typed foreign argument, so a cycle guard alone does not
+      cover it. The second is a legitimate
       answer — it is roughly what the language does today — but it has to be
       *chosen*, because commitment 3's soundness argument is about what the
       language guarantees, and an unchecked foreign call is outside it. The
@@ -1760,22 +1739,14 @@ splits around inference, so the runnable order is 668's representation half
   19-array value at 509ms, ~14s by depth 22). Two limits on what that means
   here, both worth stating because it is easy to over- or under-claim:
   **`subset` is not implicated** — it is a function of two `Data` values, and
-  the issue is about the readers over runtime values. But stage 5 is **not**
-  the only exposed stage, as an earlier draft of this paragraph said:
-  [stage 13](#tasks) offers "validate at entry" as one of its two answers for
-  the unconditional half of the boundary, and a foreign caller's argument is
-  precisely the untrusted public input the issue's threat model is about. So
-  the exposure splits: at compile time it is a build-time cliff; at the
-  language boundary it is the DoS vector as filed, and gates that policy. And a *fully inline* literal has no sharing: each array
-  or object subexpression is a distinct container. The exposure is a literal
-  that names other bindings (`const a = [1]` … `[a, a]`), which does share, and
-  which the EDAG then deduplicates by identity — sharing is ordinary in
-  compiled form, as `fjs/djs/serializer`'s reference counting assumes.
-  At compile time this is not the issue's DoS threat model, which is untrusted
-  public input; it is a build-time cliff. So: **not a hard prerequisite for
-  stage 5**, but a constraint stage 5 must know it is under, and one that
-  becomes urgent the moment a checker runs `validate` over evaluated,
-  potentially shared reference graphs rather than over source literals.
+  the issue is about the readers over runtime values. **Two stages are exposed,
+  differently.** For stage 5 it is a build-time cliff: a *fully inline* literal
+  has no sharing, so the exposure is a literal that names other bindings
+  (`const a = [1]` … `[a, a]`), which the EDAG deduplicates by identity —
+  ordinary in compiled form. Not a hard prerequisite there, but a constraint
+  stage 5 is under. For [stage 13](#tasks) it is the filed DoS itself, because
+  "validate at entry" points this reader at untrusted public input, and that
+  policy is gated on the issue.
 - [checked-const-pin](../fjs/types/rtti/todo/checked-const-pin.md) — how a
   schema bound to a `const` pins its literal; open, no design agreed. It is the
   ergonomics of commitment 2's "write it as a `const` first".

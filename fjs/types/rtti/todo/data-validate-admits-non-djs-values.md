@@ -83,125 +83,58 @@ so agreeing on acceptance is the contract, not an extra.
 
 ### Proposal
 
-**This is gated on what an exported `unknown` means**, which is not settled:
-the module and its README promise DJS-compatible values, `Ts<>` excludes
-functions and symbols, both thunk readers have `unknown: () => ok`, and the
-printer emits TypeScript's unrestricted `unknown`.
+**The fix depends on a decision this issue does not own.** What an exported
+`unknown` means is unsettled — the module and its README promise DJS-compatible
+values, `Ts<>` excludes functions and symbols, both thunk readers have
+`unknown: () => ok`, and the printer emits TypeScript's unrestricted `unknown`.
 [rtti-type-system](../../../../todo/rtti-type-system.md) records that
-disagreement and gates stage 11 on resolving it. **Which repair is right here
-follows from that decision**, so this issue must not settle it by choosing a
-fix — an earlier draft of this section did exactly that, by requiring top to go
-on accepting functions and symbols.
+disagreement and gates stage 11 on resolving it. Which repair is correct here
+follows from it:
 
-**If `unknown` keeps its current reader behaviour** (top accepts every value),
-then guarding the final branch with `isObject` alone is wrong: it would make
-`data.validate(toData(unknown))(() => 1)` reject where
-`validate(unknown)(() => 1)` accepts, trading this divergence for its mirror
-image. A fix then has to keep top accepting no-kind values while stopping
-ordinary object sets from doing so, and there are two ways to get that:
+- **if `unknown` keeps accepting every value**, the fall-through cannot simply
+  be guarded, because it is what makes top accept a function at all — the guard
+  would trade this divergence for its mirror image;
+- **if `unknown` narrows to DJS-compatible**, guarding it is right, and the
+  thunk readers narrow to match.
 
-1. **Give values with no kind a representation.** Add function and symbol kinds
-   (or a single "other" kind), so the union genuinely denotes a set of values
-   rather than a set of kinds and `unknown` means all of them. `unionValidate`
-   then dispatches such a value to that kind, and the fall-through can be
-   guarded with `isObject` safely. This makes the encoding honest and is the
-   direction that also serves
-   [668](668-rtti-function-types.md), which will need functions describable
-   in some form.
-2. **Mark the canonical top explicitly**, distinct from "every kind is set", and
-   accept any value there while guarding the fall-through with `isObject`
-   elsewhere. Smaller, but it keeps an encoding in which "all kinds" silently
-   means something narrower than "all values", so the next reader of this code
-   meets the same trap.
+**Beyond that split, the design needs investigation rather than a decision
+here.** The questions that came up while measuring, none of them answered:
+whether the encoding should represent values that belong to no kind at all
+(which would make "all kinds" and "all values" the same set, and may be what
+[668](668-rtti-function-types.md) needs anyway); whether a narrowed `unknown`
+can be checked at all without recursive descent, given `object: true`
+short-circuits in `patternsValidate` and carries no members to walk; and what
+such a descent does on a cyclic input, since no reader has a visited-set today.
 
-**If `unknown` is narrowed to its documented DJS-compatible meaning**, the
-repair points the other way: guard the fall-through with `isObject` **and**
-narrow the thunk readers' `unknown` to match, so all three readers reject a
-function or symbol.
-
-**But that is not "much smaller", and an earlier draft of this section said it
-was.** DJS-compatibility is a property of the *whole value*, and a root-level
-guard only rejects a function that arrives as the root. `toData(unknown)`
-renders the object branch as `object: true`, and `patternsValidate` returns
-`ok(value)` immediately for `k === true`
-([`data/module.f.mjs`](../data/module.f.mjs)) — it never descends. So
-`{ nested: () => 1 }` would still be accepted, and narrowing only the root
-would leave the mirror-image disagreement one level down instead of removing
-it.
-
-Narrowed `unknown` therefore needs a **recursive** check, which the current
-representation cannot express: `true` is an unconstrained pattern carrying no
-structure to descend into. That means either a data representation for
-"any DJS value" that is recursive by construction, or a check that special-cases
-the top and walks members anyway. Whichever, tests must cover **nested**
-no-kind values, not only root ones.
-
-**And recursive descent needs a cycle policy, stated before it is required.**
-None of the readers tracks visited references today, so a walk that descends
-into members will revisit a cyclic object indefinitely and overflow the stack —
-the same defect the epic's stage 13 records for `parse` at the language
-boundary, arrived at here from the opposite direction. Under the *current*
-`unknown` this never arises, because the top short-circuits and never descends;
-requiring recursion is what introduces it. So this option owes an explicit
-choice — **reject a cycle** with a diagnostic, or **track identity** and treat a
-revisited reference as already-checked — plus a cyclic-input test. Note that the
-two choices are not interchangeable: identity tracking is also what
-[identity-aware-parse](identity-aware-parse.md) needs for its own reasons, so
-picking it here may pay for both.
-
-That is why the decision has to come first. Building a function/symbol kind
-under option 1 and then narrowing `unknown` later would leave a representation
-designed for values the type language had decided not to admit.
-
-Worth deciding at the same time whether a value with no kind should produce an
-*error distinct from* "unexpected value" — a function reaching a data position
-is usually a different mistake from a shape mismatch, and the boundary work in
-[rtti-type-system](../../../../todo/rtti-type-system.md) stage 13 is where such
-values arrive.
+That last one connects to [identity-aware-parse](identity-aware-parse.md),
+which needs input-keyed identity tracking for its own reasons. Whether one
+mechanism serves both is worth establishing before either is built — but that
+is an investigation, not a plan.
 
 ### Tasks
 
 - [ ] **First**, settle what an exported `unknown` means — the decision
       [rtti-type-system](../../../../todo/rtti-type-system.md) gates stage 11
-      on. Everything below depends on it.
-- [ ] If `unknown` keeps accepting every value: decide between representing
-      no-kind values and marking top explicitly, then make `unionValidate`
-      reject a no-kind value for an ordinary object set while still accepting
-      it for the canonical top.
-- [ ] If `unknown` narrows to DJS-compatible: guard the fall-through with
-      `isObject`, narrow both thunk readers' `unknown` to match, **and** make
-      the check recursive — `object: true` short-circuits in
-      `patternsValidate`, so a root-only guard still accepts
-      `{ nested: () => 1 }`. Cover nested no-kind values in the tests, not just
-      root ones.
-- [ ] If that recursive check is adopted, **decide the cycle policy first** —
-      reject, or track visited references — since no reader has a visited-set
-      today and descending without one overflows the stack on a cyclic input.
-      Add a cyclic-input test alongside the nested ones.
-- [ ] Cover functions and symbols in tests against `unknown`, `{}`,
-      `record(...)`, `or(number, {})` and `option({})`, in **both** readers, so
-      neither the divergence nor its mirror image can return.
-- [ ] Cover **required-property** schemas the intrinsics satisfy —
-      `{ length: number }` and `{ name: string }` for a function,
-      `{ description: string }` for a symbol — plus the near misses that must
-      keep rejecting (`{ a: number }`, `{ length: string }`). A test matrix
-      built only from vacuous patterns would pass over the case a real schema
-      is most likely to hit.
+      on. The repair below depends on it.
+- [ ] Investigate the mechanism: no-kind representation versus explicit top,
+      whether a narrowed `unknown` needs recursive descent, cycle handling if
+      it does, and whether identity tracking here is the same mechanism
+      [identity-aware-parse](identity-aware-parse.md) needs.
+- [ ] Whatever lands, make the three readers agree, and cover functions and
+      symbols in tests against `unknown`, `{}`, `record(...)`,
+      `or(number, {})`, `option({})`, the required-property cases the intrinsics
+      satisfy (`{ length: number }`, `{ name: string }`,
+      `{ description: string }`), their near misses (`{ a: number }`,
+      `{ length: string }`), and — if descent is adopted — nested and cyclic
+      inputs.
 - [ ] Check `toData`, `subset` and the other `data` entry points for the same
       "all kinds means all values" assumption.
-- [ ] Whatever is decided here has to hold for **`parse` too**, and `data` has
-      no `parse` and no `Data`-to-`Type` reconstruction today. If one is added
-      (see [rtti-type-system](../../../../todo/rtti-type-system.md) stage 4),
-      it must reject a no-kind value exactly where `parse` does now — otherwise
-      this divergence is simply recreated in the second reader.
-
-      Aligning *acceptance* is not sufficient for `parse`, either, because
-      `Data` does not preserve what `parse` returns: it reconstructs from the
-      first matching branch, and `toData` canonicalizes branch order away.
+- [ ] A future data-driven `parse` must reject a no-kind value exactly where
+      `parse` does. Note that aligning *acceptance* is not sufficient for
+      `parse`: `Data` canonicalizes branch order away, so
       `parse(or({ a: number }, { b: number }))({ a: 1, b: 2 })` is `{ a: 1 }`
-      while the reversed union gives `{ b: 2 }`, and the two `Data` values
-      compare `equal`. A data-driven `parse` has to decide what it returns
-      there — a design question this issue does not settle.
+      while the reversed union gives `{ b: 2 }` and the two `Data` values
+      compare `equal`.
 
 ### Related
 
