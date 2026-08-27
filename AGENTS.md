@@ -95,6 +95,14 @@ documentation — needs neither. Breaking changes are welcome when they improve
 the API — prefix the entry with `**BREAKING CHANGES:**` and update every
 importer in the same PR.
 
-Commit-message format and the PR checklist: [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
+Answer a review, don't absorb it. A reviewer who asks a **design document** (a
+`todo/` file) to spell out an implementation is told the choice belongs to the
+implementer — and that answer goes **into the design document**, not only into
+the review thread. A reviewer who asks an **implementation** for another feature
+gets a new `todo/` issue to investigate it and a link to that issue, never a
+wider diff. A comment saying the change is wrong is neither: fix it in this PR.
+
+Commit-message format, the PR checklist, and addressing review comments:
+[CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
 Changelog entry rules, breaking changes, and versioning:
 [changelog/README.md](./changelog/README.md).

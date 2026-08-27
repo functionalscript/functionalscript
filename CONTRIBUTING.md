@@ -211,6 +211,49 @@ squash, so their messages are working notes.
   the pull request in a two-parent graph. Nothing lands on `main` outside a
   pull request.
 
+### Addressing review comments
+
+Most review comments are simply right: fix the bug, take the simpler
+expression, answer the question. Two kinds are not, and both ask the pull
+request to grow rather than to improve. Push back on those — but a push-back is
+not a dismissal. Each one leaves something behind in the repository, because a
+reason that lives only in a review thread is gone the moment the pull request
+is merged.
+
+- **A design document asked for implementation detail.** A pull request whose
+  diff is a `todo/` file — or a design section of a `README.md` — settles *what*
+  is being built and *why*, not *how*. The data structures, the helper split,
+  the order of the passes, and the names inside the module belong to whoever
+  implements it; pinning them in the design either freezes a decision nobody yet
+  has the information to make, or is quietly ignored once the code exists. So
+  when a reviewer asks the design to spell out an implementation, say that the
+  choice is left to the implementer — and **write that answer into the design
+  document**, not only into the review thread. The next reader of the issue then
+  finds the question already asked and already answered instead of asking it
+  again. If the answer turns out to constrain the implementation after all — a
+  bound the rest of the document depends on, an API its other sections assume —
+  then it was design and not detail: record the constraint, and leave everything
+  it does not decide open.
+
+- **An implementation asked for another feature.** A pull request implements one
+  feature or improvement, with minimal code changes ([AGENTS.md
+  §5](./AGENTS.md#5-pull-requests-and-releases)); a reviewer's "while you're
+  here, it should also …" is a second one. Do not fold it in, and do not drop
+  it: **file a `todo/` issue to investigate the feature**, next to the code it
+  describes ([todo/README.md](./todo/README.md)), and reply with a link to it.
+  That issue is the honest answer — the request is worth considering, it has not
+  been considered yet, and the investigation is what decides whether it ships at
+  all. Adding the file to the pull request under review is fine when the file is
+  all that it adds; otherwise file it separately, so this pull request stays one
+  change.
+
+Neither case covers a comment saying the change is **wrong** — a defect, a
+broken proof, an unhandled edge case, an API a reader misreads. Those are this
+pull request's work however much they grow it, and "out of scope" is never the
+answer to them. The line is whether the comment is about what the pull request
+already claims to do, which is fixed here, or about something it never claimed,
+which is written down.
+
 ## OpenAI Codex environment
 
 Set Node.js to 22. Both `npm test` and `npm run cov` work in this environment;
