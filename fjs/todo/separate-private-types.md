@@ -73,6 +73,15 @@ supported case needs file-scope private JSDoc typedef stripping, or narrow it to
 whatever cases remain. Do not leave two live documents prescribing different
 private-type strategies.
 
+The migration also changes the repository's authored-TypeScript policy.
+[`../AGENTS.md`](../AGENTS.md) currently says that `types.ts` is the only authored
+TypeScript in `fjs/`. Once `private.ts` is introduced, update that rule so
+`types.ts` and `private.ts` are the only authored TypeScript type-module roles:
+`types.ts` owns the public type API and the few `_` helpers required to express
+it, while `private.ts` owns implementation-private file-scope types. Both remain
+type-only modules whose imports use named `import type { ... }`. Do not leave the
+implemented convention contradicting the contributor policy.
+
 ### Proposal
 
 Use this directory convention where named types or runtime metadata used for
@@ -317,6 +326,10 @@ References to packaged `meta.f.mjs` are allowed.
       workaround, and delete or narrow
       `todo/blocked/jsdoc-typedef-strip-internal.md` so the repository has one
       authoritative strategy.
+- [ ] Update `fjs/AGENTS.md` so the authored-TypeScript policy allows exactly the
+      intended type-module roles: `types.ts` for public types/public-type helpers
+      and `private.ts` for implementation-private file-scope types. Preserve the
+      rule that all imports in those files are named `import type { ... }`.
 - [ ] Prohibit file-scope JSDoc `@typedef` declarations in `module.f.mjs` and
       `proof.f.mjs`; allow function-local `@typedef` declarations everywhere.
 - [ ] Keep the leading `_` convention for every private type name, including
@@ -372,6 +385,10 @@ References to packaged `meta.f.mjs` are allowed.
 - The current `_` leak-tolerance policy is explicitly superseded when this
   migration is implemented; `fjs/fsc/README.md` and the blocked `@internal` /
   `stripInternal` TODO no longer prescribe a conflicting strategy.
+- `fjs/AGENTS.md` no longer says `types.ts` is the only authored TypeScript;
+  it documents `types.ts` and `private.ts` as the allowed authored TypeScript
+  type-module roles, with their public/private responsibilities and named
+  `import type { ... }` import rule.
 - `module.f.mjs` and `proof.f.mjs` contain no file-scope JSDoc `@typedef`.
 - Function-local JSDoc `@typedef` declarations are allowed everywhere; private
   ones keep `_` and do not escape as exported declaration aliases.
@@ -410,6 +427,8 @@ References to packaged `meta.f.mjs` are allowed.
 
 - [`../fsc/README.md`](../fsc/README.md) — current `_` leak-tolerance policy that
   this migration supersedes once implemented.
+- [`../AGENTS.md`](../AGENTS.md) — current authored-TypeScript policy that must be
+  updated when `private.ts` becomes an allowed authored type module.
 - [`../../todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md)
   — current wait-for-`@internal`/`stripInternal` strategy; delete or narrow when
   this migration lands.
