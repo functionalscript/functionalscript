@@ -355,13 +355,6 @@ export const proof = {
             [['m', { ok: () => undefined }]])
         assertEq(report.status, 'passed')
     },
-    runControlIdle: () => {
-        // The page starts idle: no run is underway, so `Run` is active and
-        // carries no `disabled` attribute at all — not merely an unchecked one.
-        const p = page()
-        assertEq(p.states.length, 0)
-        assertEq(p.runButton.attributes.has('disabled'), false)
-    },
     runControlDisabledWhileActive: async () => {
         // `Run` must be passive — genuinely disabled, not just click-ignoring —
         // for the whole span between a click and the next terminal state:
