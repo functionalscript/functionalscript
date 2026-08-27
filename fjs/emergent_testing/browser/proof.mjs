@@ -213,9 +213,8 @@ export const proof = {
         assertEq(report.status, 'infrastructure-error')
         assertEq(report.results[0]?.message, 'bad specifier')
     },
-    // Past the batch size the adapter hands the event loop back, so a long
-    // suite paints instead of freezing the page on its first frame.
-    batches: async () => {
+    // A long suite runs to completion with a yield between every launch.
+    manyLeaves: async () => {
         const proof = Object.fromEntries(
             [...new Array(60).keys()].map(i => [`t${i}`, () => undefined]))
         const report = await run(proof)
@@ -395,29 +394,52 @@ export const proof = {
         // next hangs this — the releaser sits in the second slice, which is
         // never reached — on a graph the Node runner completes.
         allStartsEveryChildBeforeAwaiting: async () => {
+            // The gate is opened either by the eleventh child — which is the
+            // property under test — or, after far more turns of the event loop
+            // than every launch can need, by the fallback below. Which one
+            // opened it is the assertion.
+            //
+            // Counting turns rather than milliseconds is deliberate: this proof
+            // runs concurrently with the rest of the suite, so a wall-clock
+            // deadline measures how loaded the machine is, not what `all` did.
+            // The fallback exists so a serializing `all` *fails* here instead of
+            // hanging the run.
+            /** @type {string | null} */
+            let openedBy = null
             /** @type {(value: unknown) => void} */
             let release = () => undefined
             /** @type {Promise<unknown>} */
             const gate = new Promise(resolve => { release = resolve })
+            // Whoever opens the gate *first* is recorded. A later opener must
+            // not overwrite it: a serializing `all` still reaches the sibling
+            // eventually, just far too late to have been what unblocked the
+            // first child.
+            /** @type {(who: string) => void} */
+            const open = who => {
+                if (openedBy === null) { openedBy = who }
+                release(0)
+            }
+            const fallback = async () => {
+                for (let turn = 0; turn < 50 && openedBy === null; turn += 1) {
+                    await new Promise(resolve => { setTimeout(resolve, 0) })
+                }
+                open('the fallback')
+            }
+            void fallback()
             const filler = sandboxEffect(() => 0)
             const waits = sandboxEffect(() => gate)
-            const releases = sandboxEffect(() => { release(1); return 0 })
+            const releases = sandboxEffect(() => { open('a later sibling'); return 0 })
             const many = [waits, ...[...new Array(9).keys()].map(() => filler), releases]
-            /** @type {'hung'} */
-            const hung = 'hung'
-            const outcome = await Promise.race([
-                commonRun(allEffect(...many)),
-                new Promise(resolve => { setTimeout(resolve, 1000, hung) }),
-            ])
-            assert(outcome !== hung, 'all serialized its slices')
-            assertEq(unwrap(/** @type {Result<readonly unknown[], never>} */ (outcome)).length, 11)
+            const results = unwrap(await commonRun(allEffect(...many)))
+            assertEq(openedBy, 'a later sibling')
+            assertEq(results.length, 11)
         },
-        // Past the batch size `all` hands the event loop back, which is the only
+        // `all` hands the event loop back between launches, which is the only
         // thing that lets a page paint mid-suite: a timer queued before the call
-        // has to run before it resolves. Without the slicing every child settles
+        // has to run before it resolves. Without the yield every child settles
         // on microtasks and no timer gets a turn — which is what this asserts,
         // since the effects below perform nothing.
-        allYieldsBetweenBatches: async () => {
+        allYieldsBetweenLaunches: async () => {
             let fired = false
             setTimeout(() => { fired = true }, 0)
             const many = [...new Array(60).keys()].map(i => pureOk(i))

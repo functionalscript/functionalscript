@@ -157,7 +157,10 @@ workers, or visual regression testing.
 - [ ] Implement `fjs browser-test` without any Playwright dependency.
 - [ ] Implement a Playwright Test adapter that dynamically resolves external
       `playwright/test` and reuses the shared controller.
-- [ ] Run the same application in Chromium, Firefox, and WebKit.
+- [ ] Run the same application in Chromium, Firefox, and WebKit. Check the
+      yield `all` uses to give the page a turn while it runs
+      (`MessageChannel`, `../../effects/browser/module.mjs`) behaves in each,
+      and whether `scheduler.yield()` is worth preferring where it exists.
 - [ ] Add the validation fixtures above; add CI only after proof bodies
       demonstrably execute inside browsers. **That gate is now met** — the
       unified runner was driven in Chromium over the generated page, 3435 proofs

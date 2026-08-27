@@ -42,50 +42,49 @@ import { toVec } from '../../types/uint8array/module.f.mjs'
  */
 
 /**
- * How many effects one `all` starts before it hands the event loop back.
+ * Hands the event loop back, so the browser gets a turn.
  *
- * **A browser needs a real task boundary to paint, and only `all` can give it
- * one.** Every operation resolves through a microtask, so a page running a
- * suite of any size would show its first frame until the last proof body had
- * finished — `all` starts every child in the same turn, and a child that yielded
- * inside its own continuation would pause only itself while its siblings ran on.
- * Slicing the children is what bounds the work between two frames.
+ * **Not `setTimeout`.** It clamps to 4 ms once nested, and a yield between every
+ * launch across a few thousand proofs is then minutes of pure clamp — measured
+ * at 58 s against 40 s on the real suite. That cost is what once made grouping
+ * the launches look necessary. A `MessageChannel` message is an ordinary task
+ * with no clamp, so the same per-launch yield costs about 3%.
  *
- * `all` promises that its effects run concurrently and that it answers each
- * one's whole `Result`. Neither says they start simultaneously, so the slicing
- * is the runner's business — the Node runner has no frame to paint and starts
- * them all at once.
- *
- * Yielding per effect would be the simpler rule and the wrong one: `setTimeout`
- * clamps to 4 ms once nested, which is minutes across a few thousand proofs.
- *
- * **This whole mechanism is on probation.** It was not added because anyone
- * found the suite slow — `fjs t` schedules nothing at all and no one has
- * complained — but because a page that renders nothing until the run finishes
- * looked wrong. That is an observation, not a problem someone has, and the
- * count has already moved from 25 to 10 with no measurement on either side.
- * `fjs/emergent_testing/todo/report-scheduling.md` asks for the batching to be
- * removed and the real suite watched before any of this is treated as a design.
+ * @type {() => Promise<void>}
  */
-const batchSize = 10
-
-/** @type {() => Promise<void>} */
-const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
+const yieldToLoop = () => new Promise(resolve => {
+    const { port1, port2 } = new MessageChannel()
+    port1.onmessage = () => { port1.close(); resolve(undefined) }
+    port2.postMessage(0)
+})
 
 /**
- * Starts `effects` in slices of {@link batchSize}, yielding to the event loop
- * between one slice's *launch* and the next, and answers every `Result` in the
- * order the effects were given.
+ * Starts every effect, handing the event loop back between one launch and the
+ * next, and answers each `Result` in the order the effects were given.
+ *
+ * **A browser needs a real task boundary to paint, and only `all` can give it
+ * one.** Every operation resolves through a microtask, and a browser cannot
+ * paint between microtasks, so without this the whole suite is a single task:
+ * measured on the real suite, the first result appears at 39.8 s of a 39.7 s
+ * run — nothing at all until the end, and no faster for it. What a launch does
+ * is exactly the work worth bounding, because a proof body runs synchronously
+ * inside `sandbox` before that handler's first `await`.
  *
  * **Every effect is started before any is awaited**, which is not a detail.
- * `all` promises its children run concurrently, and a runner that awaited each
- * slice before starting the next would break that promise rather than merely
- * delay it: a child waiting on something a later sibling produces would wait
- * for a sibling that is never started, and the run would hang with no report —
- * on a graph the Node runner completes. Yielding between launches costs
- * nothing, because what a slice does when it starts is exactly the work worth
- * bounding: a proof body runs synchronously inside `sandbox` before that
- * handler's first `await`.
+ * `all` promises its children run concurrently, and awaiting one before
+ * starting the next would break that promise rather than delay it: a child
+ * waiting on something a later sibling produces would wait for a sibling that
+ * is never started, and the run would hang with no report — on a graph the Node
+ * runner completes. `all` says its children run concurrently and that it
+ * answers every `Result`; it does not say they start in the same task, which is
+ * what leaves the scheduling to the runner. The Node runner has no frame to
+ * paint and starts them all at once.
+ *
+ * There is deliberately **no batch size**. Grouping launches was a workaround
+ * for `setTimeout`'s clamp, and a count is the wrong measure anyway — proofs
+ * differ in cost by orders of magnitude, so a group of ten fast ones wastes a
+ * boundary while a group holding one slow one stalls regardless. With an
+ * unclamped yield there is no constant left to tune.
  *
  * @template T
  * @template E
@@ -93,14 +92,12 @@ const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
  * @param {readonly Effect<CommonOp, T, E>[]} effects
  * @returns {Promise<readonly Result<T, E>[]>}
  */
-const runBatched = async (run, effects) => {
+const runYielding = async (run, effects) => {
     /** @type {readonly Promise<Result<T, E>>[]} */
     let started = []
-    let index = 0
-    while (index < effects.length) {
-        started = [...started, ...effects.slice(index, index + batchSize).map(e => run(e))]
-        index += batchSize
-        if (index < effects.length) { await macrotask() }
+    for (const effect of effects) {
+        if (started.length !== 0) { await yieldToLoop() }
+        started = [...started, run(effect)]
     }
     return Promise.all(started)
 }
@@ -117,7 +114,7 @@ const runBatched = async (run, effects) => {
  * @type {(run: CommonRun, importer?: BrowserImporter) => ToAsyncOperationMap<CommonOp>}
  */
 export const browserOperationMap = (run, importer = source => import(source)) => ({
-    all: async (...effects) => ok(await runBatched(run, effects)),
+    all: async (...effects) => ok(await runYielding(run, effects)),
     await: async p => ok(await awaitPromise(p)),
     fetch: url => io(async () => {
         const response = await globalThis.fetch(url)
