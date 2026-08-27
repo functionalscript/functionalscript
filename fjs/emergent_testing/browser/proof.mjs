@@ -116,6 +116,23 @@ export const proof = {
         assertEq(report.results[0]?.message, 'Symbol(message)')
         assertEq(report.results[0]?.stack, 'Symbol(stack)')
     },
+    errorAccessorThrows: async () => {
+        const error = new Error('hidden')
+        Object.defineProperty(error, 'message', {
+            get: () => { throw new Error('message getter failed') },
+        })
+        const report = await run({ fail: () => { throw error } })
+        assertEq(report.status, 'failed')
+        assertEq(report.results[0]?.message, 'Unknown thrown value')
+        assertEq(report.results[0]?.stack, 'Unknown thrown value')
+    },
+    revokedErrorProxy: async () => {
+        const { proxy, revoke } = Proxy.revocable(new Error('revoked'), {})
+        revoke()
+        const report = await run({ fail: () => { throw proxy } })
+        assertEq(report.status, 'failed')
+        assertEq(report.results[0]?.message, 'Unknown thrown value')
+    },
     errorWithoutStack: async () => {
         const error = new Error('no stack')
         const report = await run({ fail: () => { throw Object.assign(error, { stack: undefined }) } })
@@ -138,6 +155,16 @@ export const proof = {
         assertEq(report.totals.tests, 2)
         assertEq(report.totals.failed, 1)
         assertEq(report.results[1]?.path, '.nested().child')
+    },
+    spoofedPromiseTag: async () => {
+        const report = await run({
+            nested: () => ({
+                [Symbol.toStringTag]: 'Promise',
+                then: /** @type {(...args: (() => void)[]) => void} */ ((...args) => { args[0]?.() }),
+            }),
+        })
+        assertEq(report.totals.tests, 2)
+        assertEq(report.results[1]?.path, '.nested().then')
     },
     thenIsATestName: async () => {
         // A `then` proof entry is a test called `then`, never a thenable for
