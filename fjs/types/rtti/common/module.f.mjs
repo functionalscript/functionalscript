@@ -177,17 +177,57 @@ export const structSchemaEntries = rtti =>
 
 /**
  * The position `k` names, or `undefined` when `k` names no position at all.
+ *
  * Only the canonical spelling of a non-negative integer is an index: `'-1'`,
  * `'01'`, `'1.5'` and `' 1'` are ordinary properties of an array object,
  * however `Number` maps them. Round-tripping the number back through `String`
  * is what rejects every non-canonical spelling at once, rather than one at a
  * time.
  *
+ * And only one **below `2 ** 32 - 1`**, which is where the language draws the
+ * line rather than a bound chosen here: assigning `a['4294967295']` creates an
+ * ordinary enumerable property and leaves `a.length` alone. Reading such a key
+ * as an index put it past every `length`-bounded walk *and* past the non-index
+ * filter, so it was no member on either path and an undeclared property rode
+ * through a closed container.
+ *
  * @type {(k: string) => number | undefined}
  */
 const arrayIndex = k => {
     const i = Number(k)
-    return Number.isInteger(i) && i >= 0 && String(i) === k ? i : undefined
+    return Number.isInteger(i) && i >= 0 && i < 2 ** 32 - 1 && String(i) === k ? i : undefined
+}
+
+/**
+ * Every index below `length` at which `value` reads something, ascending.
+ *
+ * Bounded by what the value and its prototypes **carry** rather than by
+ * `length`: an index that reads a value is an own property of the array or of
+ * something on its prototype chain, so enumerating those names finds every one
+ * without materializing the range. Walking `0 … length - 1` instead turned a
+ * `new Array(2 ** 32 - 1)` — which carries one own property, `length` — into
+ * billions of iterations before any check could reject it.
+ *
+ * `in` rather than `hasOwn`, and after the `length` test: a name is a
+ * *candidate* because something on the chain declares it, and a member because
+ * the array reads it there.
+ *
+ * @type {(value: ReadonlyArray<Unknown>) => readonly number[]}
+ */
+const readIndices = value => {
+    /** @type {readonly string[]} */
+    let names = []
+    for (let o = /** @type {object | null} */ (value); o !== null; o = Object.getPrototypeOf(o)) {
+        names = [...names, ...Object.getOwnPropertyNames(o)]
+    }
+    const { length } = value
+    return names
+        .flatMap(k => {
+            const i = arrayIndex(k)
+            return i !== undefined && i < length && i in value ? [i] : []
+        })
+        .filter((i, at, a) => a.indexOf(i) === at)
+        .toSorted((a, b) => a - b)
 }
 
 /**
@@ -201,16 +241,21 @@ const arrayIndex = k => {
  * **A tuple's positions are read, not enumerated.** `length` is what says how
  * far an array reaches, and every index below it that *reads* a value is a
  * member the `rest` must answer for — including one supplied by the prototype,
- * which no own-entry walk sees. Filtering `Object.entries` alone accepted
- * `[42, , ]` carrying an inherited `1: 99` against `rest([42], string)`,
- * handing back an array whose index 1 reads a number the rendered tail types
- * as `string`. A genuinely absent index is skipped instead: a hole is no
- * member, so it meets no `rest` — the same rule the struct kind states by
- * walking own keys.
+ * which no own-entry walk sees ({@link readIndices} is the walk). Filtering
+ * `Object.entries` alone accepted `[42, , ]` carrying an inherited `1: 99`
+ * against `rest([42], string)`, handing back an array whose index 1 reads a
+ * number the rendered tail types as `string`. A genuinely absent index is
+ * skipped instead: a hole is no member, so it meets no `rest` — the same rule
+ * the struct kind states by walking own keys.
  *
  * An index at or above `length` is a different matter and is not answered
  * here: it is readable through the prototype and no walk bounded by the value
  * reaches it. See "Beyond `length`" in `../README.md`.
+ *
+ * Passing an empty `declared` asks for every member, which is what the uniform
+ * `array`/`record` readers want — so they share this walk rather than reaching
+ * for `Object.entries` and disagreeing with the data form on an inherited
+ * index.
  *
  * @type {(declared: readonly string[], value: ReadonlyArray<Unknown> | StringMap<Unknown>) => ReadonlyArray<readonly [string, Unknown]>}
  */
@@ -221,8 +266,8 @@ export const undeclaredMembers = (declared, value) => {
         return Object.entries(value).filter(([k]) => undeclared(k))
     }
     return [
-        ...[...Array(value.length).keys()]
-            .filter(i => undeclared(String(i)) && i in value)
+        ...readIndices(value)
+            .filter(i => undeclared(String(i)))
             .map(i => /** @type {const} */ ([String(i), value[i]])),
         ...Object.entries(value).filter(([k]) => arrayIndex(k) === undefined && undeclared(k)),
     ]

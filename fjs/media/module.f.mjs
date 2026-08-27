@@ -132,10 +132,7 @@ export const dialectEntry = (type, extraValidate = always) => {
     const [, container] = type()
     const { dialect } = /** @type {Struct} */ (container)
     assert(typeof dialect === 'string', 'dialectEntry: schema has no direct string `dialect` member')
-    // `parse` is erased before the call, not after it: instantiating
-    // `Parse<Rest<S, Type>>` against the constraint raises TS2589, and the
-    // reader needs the schema *value*, not its type.
-    const v = /** @type {ValidateE} */ (/** @type {any} */ (rttiParse)(type))
+    const v = /** @type {ValidateE} */ (rttiParse(type))
     return { dialect, match: matchWith(v)(extraValidate) }
 }
 

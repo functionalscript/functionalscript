@@ -98,15 +98,23 @@ import {
 } from '../common/module.f.mjs'
 import { emptyRest } from '../data/module.f.mjs'
 
-const { entries } = Object
-
 /** `validate` has nothing to collect from a successful entry — only pass/fail matters. */
 const noAccumulate = () => undefined
+
+/** A uniform container declares no member by name, so every one is undeclared. */
+/** @type {readonly string[]} */
+const noDeclared = []
 
 /**
  * Builds a validator for `array` or `record` schemas.
  * The inner item validator is instantiated lazily (only when the container is
  * non-empty) to avoid infinite recursion with recursive schemas.
+ *
+ * The members are `undeclaredMembers`', not `Object.entries`': `array(t)` is
+ * `rest([], t)`, so the two have to walk a value the same way — an own-entry
+ * walk here skipped an index the prototype supplies while the data form's
+ * reader found it, which broke the acceptance agreement the three readers are
+ * pinned on.
  *
  * `fits` bounds the array kind's length when its element set admits nothing,
  * which is what the data form says by normalizing such a `rest` away: an
@@ -130,7 +138,7 @@ const containerValidate =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            const e = entries(value)
+            const e = undeclaredMembers(noDeclared, value)
             if (e.length === 0) {
                 return fits(value, 0)
                     ? /** @type {any} */ (ok(value))

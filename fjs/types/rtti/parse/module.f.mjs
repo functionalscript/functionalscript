@@ -71,8 +71,6 @@ import {
 } from '../common/module.f.mjs'
 import { emptyRest } from '../data/module.f.mjs'
 
-const { entries } = Object
-
 /** @typedef {CommonResult<Unknown, ValidationError>} _ItemResult */
 
 /** Rebuilds a parsed container from its `[key, parsedValue]` entries. */
@@ -93,6 +91,10 @@ const emptyEntries = null
 const consEntry = (acc, k, v) =>
     ({ first: [k, v], tail: acc })
 
+/** A uniform container declares no member by name, so every one is undeclared. */
+/** @type {readonly string[]} */
+const noDeclared = []
+
 /** Restores forward order from `consEntry`'s reverse-order list, in one linear pass. */
 /** @type {(list: List<readonly [string, Unknown]>) => ReadonlyArray<readonly [string, Unknown]>} */
 const orderedEntries = list =>
@@ -104,9 +106,12 @@ const orderedEntries = list =>
  * (only when the container is non-empty) so recursive schemas don't recurse
  * forever on empty containers.
  *
+ * The members are `undeclaredMembers`', not `Object.entries`', so `array(t)`
+ * and `rest([], t)` walk a value the same way — see `containerValidate` in
+ * `../validate/module.f.mjs`, which says what an own-entry walk got wrong.
+ *
  * `fits` bounds the array kind's length when its element set admits nothing —
- * see `containerValidate` in `../validate/module.f.mjs`, the same rule on the
- * other reader.
+ * the same rule on the other reader.
  */
 const containerParse =
     /**
@@ -125,7 +130,7 @@ const containerParse =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            const e = entries(value)
+            const e = undeclaredMembers(noDeclared, value)
             if (e.length === 0) {
                 return fits(value, 0)
                     ? /** @type {any} */ (ok(rebuild([])))

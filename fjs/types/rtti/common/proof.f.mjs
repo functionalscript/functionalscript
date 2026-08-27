@@ -81,6 +81,19 @@ export const proof = {
             Object.setPrototypeOf(value, [0, 99])
             assertStructurallySame(undeclaredMembers(['0'], value), [['1', 99]])
         },
+        // `2 ** 32 - 1` is not an index: assigning it creates an ordinary
+        // enumerable property and leaves `length` alone, so it is a member by
+        // the non-index half. Reading it as an index put it past both halves.
+        beyondTheIndexRangeIsAMember: () => assertStructurallySame(
+            undeclaredMembers(['0'], Object.assign([1], { '4294967295': 2 })),
+            [['4294967295', 2]],
+        ),
+        // The walk is bounded by what the value and its prototypes carry, not
+        // by `length` — this one carries a single own property, `length`, so
+        // it answers at once. Materializing the range instead exhausted memory
+        // long before any check could reject the value.
+        lengthDoesNotBoundTheWalk: () =>
+            assertEq(undeclaredMembers([], new Array(2 ** 32 - 1)).length, 0),
     },
     // What a container schema declares, per kind. A tuple is read by length,
     // so a hole is a declared position whose schema is `undefined` — the same

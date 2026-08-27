@@ -99,6 +99,17 @@ const inheritedIndex = () => {
 }
 
 /**
+ * An array carrying `4294967295` — one past the last index the language has.
+ * Assigning it creates an ordinary enumerable property and leaves `length` at
+ * `1`, so it is an undeclared member that no `length`-bounded walk reaches; a
+ * reader treating it as an index found it on neither path and let it through a
+ * closed container.
+ *
+ * @type {() => readonly Unknown[]}
+ */
+const beyondIndexRange = () => Object.assign([1], { '4294967295': 2 })
+
+/**
  * The acceptance table. Rows cover both container kinds, the closed default
  * and a stated rest on both, the short-array rule, primitives, `or`, and
  * misses — every reader of a schema has to answer them the same way.
@@ -187,9 +198,17 @@ const rows = [
     // the `| undefined` in the rendered tail says
     [rest([number], string), [1, ,]],
     // an index read through the prototype *is* a member, and is held to the
-    // rest like any other
+    // rest like any other — on the uniform reader as well as the tuple one,
+    // which is what keeps all three readers on one walk
     [rest([number], string), inheritedIndex()],
     [rest([number], number), inheritedIndex()],
+    [array(string), inheritedIndex()],
+    [array(number), inheritedIndex()],
+    // a key past the last index the language has is an ordinary property, so
+    // it is a member by the non-index half and `length` never sees it
+    [[number], beyondIndexRange()],
+    [rest([number], string), beyondIndexRange()],
+    [rest([number], number), beyondIndexRange()],
     [rest({ a: number }, string), { a: 1, b: 'x' }],
     [rest({ a: number }, string), { a: 1, b: 2 }],
     // a stated rest with nothing to answer for: the struct kind has no length,
@@ -787,6 +806,23 @@ export const proof = {
         assertError(validate(rest([number], string))(value))
         assert(Object.is(unwrap(validate(rest([number], number))(value)), value),
             'and it is checked against the rest like any other member')
+        // `array(t)` is `rest([], t)`, so it walks the value the same way. An
+        // own-entry walk here answered `ok` while the data form's reader
+        // rejected the same value against the same schema.
+        for (const read of [v, p, d]) {
+            assertError(read(array(string))(value))
+            assertOk(read(array(number))(value))
+        }
+    },
+    // The walk is bounded by what the value and its prototypes carry rather
+    // than by `length`: a sparse array as long as the index space allows
+    // answers at once, where materializing the range exhausted memory first.
+    // The verdicts are the ordinary ones — a bare tuple is too short for it,
+    // a rest with nothing present past the prefix admits it.
+    lengthDoesNotBoundTheWalk: () => {
+        const big = new Array(2 ** 32 - 1)
+        assertError(v([option(string)])(big))
+        assertOk(v(rest([], string))(big))
     },
     arrayOptional: () => {
         const a = /** @type {const} */([number, option(string)])
