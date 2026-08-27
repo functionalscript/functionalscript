@@ -190,6 +190,13 @@ same discipline `fjs/effects` applies to a live HTTP server, which pure code
 holds as `Nominal<'server', '160855c4…', unknown>` — a handle whose identity is
 a content hash, with the real object kept by the interpreter.
 
+The repository rule now says this outright — business logic in `.f.mjs`, plain
+`.mjs` only as a thin host boundary — and by that measure `browser.mjs` is
+migration debt: roughly 200 of its 405 lines are logic wearing one host touch.
+That is recorded in
+[move the browser runner's business logic to FunctionalScript](browser-runner-functional-script.md),
+which is the same work seen from the purity side rather than the sharing side.
+
 So the remaining steps are that boundary, applied to the browser:
 
 - **step 4** puts the host-independent operations somewhere both hosts can name;
