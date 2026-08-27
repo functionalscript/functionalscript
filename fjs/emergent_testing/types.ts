@@ -58,13 +58,32 @@ export type TestStatus = 'passed' | 'failed'
  * on — the shape of an extension point, not an omission.
  */
 export type TestResult = {
-    /** The module key the leaf was discovered in, relative to the run's root. */
+    /** The module key the outcome belongs to, relative to the run's root. */
     readonly module: string
-    /** The key chain within that module's `proof` export, as `fmtPath` renders it. */
+    /**
+     * The key chain within that module's `proof` export, as `fmtPath` renders
+     * it — empty when the outcome is not a leaf's.
+     */
     readonly path: string
-    /** The identity `fmtImport` gives the leaf — the same string in every runner. */
+    /**
+     * What ran. For a leaf this is `fmtImport(module, path)`, the identity every
+     * runner names it by. A runner may also report an outcome that has no leaf —
+     * the browser reports a module that will not link, so that a report saying
+     * "0 tests" cannot be confused with a suite that is merely broken — and
+     * names it by whatever it does know, which for a module is its source.
+     *
+     * So this is "what ran", not "which leaf ran". Whether a runner should
+     * report a non-leaf outcome through this type at all, or through a separate
+     * variant with its own fields, is open — see
+     * `todo/share-browser-console-runner.md`, with the rest of the report
+     * shape.
+     */
     readonly name: string
     readonly status: TestStatus
+    /**
+     * How long it took. For a leaf, its own execution; for a non-leaf outcome,
+     * whatever the runner was measuring when it failed.
+     */
     readonly duration: number
 }
 

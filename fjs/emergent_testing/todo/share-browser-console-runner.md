@@ -270,6 +270,14 @@ are shared.
   roots agree, and once the browser suite is a gate the question of which root a
   report declares is worth settling. It belongs to the report shape, with
   `path`.
+- The report shape now has three open questions, and they want settling
+  together rather than one at a time: whether `path` survives now that `name`
+  exists; whether a report declares the root its module keys are relative to;
+  and whether a module-level failure — one that will not link, which the browser
+  reports as a `TestResult` named by its source so its totals cannot read as
+  "no tests" — belongs in a variant of its own instead. Each is small alone;
+  answering one without the others is how a report shape ends up carrying three
+  half-decisions.
 - The skeleton never asks which host it is running on. Anything host-specific is
   a part it calls; anything it cannot express through a part is a missing
   extension point, not a special case.

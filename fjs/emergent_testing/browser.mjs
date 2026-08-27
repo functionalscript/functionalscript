@@ -198,6 +198,14 @@ const runPromise = (value, fulfilled, rejected) => {
  * point: there is no leaf here, so there is no path and no `fmtImport` name to
  * build. What is known about it is its source, so its source is its name.
  *
+ * It is still a `TestResult`, and still counted, because a report whose totals
+ * disagreed with its `results` would tell an automated consumer that the suite
+ * was empty rather than that it was broken. The cost is that a consumer cannot
+ * assume every entry names a leaf — which is why {@link TestResult} says so.
+ * Whether these belong in a variant of their own is part of the report-shape
+ * decision `todo/share-browser-console-runner.md` tracks, and is deliberately
+ * not settled here.
+ *
  * @type {(source: string, duration: number, message: string, stack: string) => _BrowserTestResult}
  */
 const moduleFailure = (source, duration, message, stack) => ({
