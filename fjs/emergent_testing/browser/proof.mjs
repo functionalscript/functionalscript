@@ -336,6 +336,25 @@ export const proof = {
         assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
         assertEq(p.view.events.length, 1)
     },
+    runControlAbsentButtonIsIgnored: async () => {
+        // An embedding root with no `[data-test-run]` control is still
+        // supported: `setState` finds nothing to toggle and moves on rather
+        // than throwing.
+        /** @type {string[]} */
+        const states = []
+        /** @type {_Document} */
+        const document = {
+            defaultView: null,
+            createElement: tag => element(document, tag, [], states),
+        }
+        const root = element(document, 'main', ['data-browser-tests'], states)
+        root.replaceChildren(
+            element(document, 'p', ['data-test-summary'], states),
+            element(document, 'ol', ['data-test-results'], states))
+        const report = await startBrowserTests(/** @type {Element} */ (/** @type {unknown} */ (root)),
+            [['m', { ok: () => undefined }]])
+        assertEq(report.status, 'passed')
+    },
     runControlIdle: () => {
         // The page starts idle: no run is underway, so `Run` is active and
         // carries no `disabled` attribute at all — not merely an unchecked one.
