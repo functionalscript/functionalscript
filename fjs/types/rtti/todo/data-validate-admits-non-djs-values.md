@@ -115,11 +115,26 @@ ordinary object sets from doing so, and there are two ways to get that:
    meets the same trap.
 
 **If `unknown` is narrowed to its documented DJS-compatible meaning**, the
-repair is the opposite and much smaller: guard the fall-through with `isObject`
-**and** narrow the thunk readers' `unknown` to match, so all three readers
-reject a function or symbol everywhere, top included. No new kind is needed,
-and the encoding's "all kinds" would then genuinely mean "all values" because
-no-kind values are no longer in any schema's set.
+repair points the other way: guard the fall-through with `isObject` **and**
+narrow the thunk readers' `unknown` to match, so all three readers reject a
+function or symbol.
+
+**But that is not "much smaller", and an earlier draft of this section said it
+was.** DJS-compatibility is a property of the *whole value*, and a root-level
+guard only rejects a function that arrives as the root. `toData(unknown)`
+renders the object branch as `object: true`, and `patternsValidate` returns
+`ok(value)` immediately for `k === true`
+([`data/module.f.mjs`](../data/module.f.mjs)) — it never descends. So
+`{ nested: () => 1 }` would still be accepted, and narrowing only the root
+would leave the mirror-image disagreement one level down instead of removing
+it.
+
+Narrowed `unknown` therefore needs a **recursive** check, which the current
+representation cannot express: `true` is an unconstrained pattern carrying no
+structure to descend into. That means either a data representation for
+"any DJS value" that is recursive by construction, or a check that special-cases
+the top and walks members anyway. Whichever, tests must cover **nested**
+no-kind values, not only root ones.
 
 That is why the decision has to come first. Building a function/symbol kind
 under option 1 and then narrowing `unknown` later would leave a representation
@@ -141,8 +156,11 @@ values arrive.
       reject a no-kind value for an ordinary object set while still accepting
       it for the canonical top.
 - [ ] If `unknown` narrows to DJS-compatible: guard the fall-through with
-      `isObject` and narrow both thunk readers' `unknown` to match, so all
-      three readers agree everywhere.
+      `isObject`, narrow both thunk readers' `unknown` to match, **and** make
+      the check recursive — `object: true` short-circuits in
+      `patternsValidate`, so a root-only guard still accepts
+      `{ nested: () => 1 }`. Cover nested no-kind values in the tests, not just
+      root ones.
 - [ ] Cover functions and symbols in tests against `unknown`, `{}`,
       `record(...)`, `or(number, {})` and `option({})`, in **both** readers, so
       neither the divergence nor its mirror image can return.

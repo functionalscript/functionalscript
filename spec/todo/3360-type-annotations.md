@@ -169,6 +169,14 @@ TypeScript aliases out.
    identifier resolution, the same lookup any other reference gets. There is no
    "annotation expression" to evaluate.
 
+   **Anchoring comes first.** Once the compiler consumes an annotation, a
+   binding used *only* to name or build a schema becomes unreachable from the
+   EDAG root when the reference is erased during lowering — and the module
+   compiler rejects that, so the module does not compile. That is the epic's
+   **stage 12**, which it requires before stage 4 for exactly this reason;
+   recognizing an annotation (step 1) is unaffected. Do not start this step
+   without it.
+
    *(An earlier draft of these two steps said to hand the body to the
    expression parser and evaluate an annotation expression. That predates the
    narrowing and would have reintroduced exactly the grammar-in-comments the
@@ -197,6 +205,10 @@ TypeScript aliases out.
 
 ## Depends on
 
+- [compile-modules-to-edag](../../fjs/djs/todo/compile-modules-to-edag.md) —
+  the `,` anchoring operation for a non-resulting computation. Without it a
+  module whose only use of an import is in an annotation is **rejected**, so
+  this is a prerequisite of evaluating an annotation, not a later optimization.
 - [`fjs/fsc/todo/47.md`](../../fjs/fsc/todo/47.md) — the compiler loading and
   running modules as meta-programming, which is what compile-time evaluation of
   an annotation's named binding requires.
