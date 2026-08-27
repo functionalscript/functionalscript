@@ -42,26 +42,61 @@ const errorDetails = error => {
     return [fallback, fallback]
 }
 
-/**
- * Uses the intrinsic Promise `then` as the native-promise brand check. Unlike
- * `instanceof`, it accepts promises from another realm; unlike
- * `Object.prototype.toString`, it cannot be forged with `Symbol.toStringTag`.
- * Calling the intrinsic also avoids consulting an arbitrary object's own
- * `then` property.
- *
- * @type {(value: unknown) => boolean}
- */
-const isPromise = value => {
-    try {
-        Reflect.apply(Promise.prototype.then, value, [() => undefined, () => undefined])
-        return true
-    } catch {
-        return false
-    }
-}
-
 /** @typedef {{ readonly module: string, readonly path: string, readonly status: string, readonly duration: number, readonly message?: string, readonly stack?: string }} _BrowserTestResult */
 /** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
+
+/**
+ * Runs the intrinsic Promise `then` only for genuine promises. The first call
+ * is both the native brand check and the normal await path, so arbitrary proof
+ * objects with a `then` key are never assimilated.
+ *
+ * A genuine Promise subclass can still throw after passing the brand check if
+ * species construction fails. In that case, temporarily shadow `constructor`
+ * with the current realm's Promise and retry the same intrinsic call; the
+ * shadow is removed immediately after the handlers are attached.
+ *
+ * @type {(value: unknown, fulfilled: (value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[], rejected: (error: unknown) => readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]> | null}
+ */
+const runPromise = (value, fulfilled, rejected) => {
+    const call = () => /** @type {Promise<readonly _BrowserTestResult[]>} */ (
+        Reflect.apply(Promise.prototype.then, value, [fulfilled, rejected]))
+    try {
+        return call()
+    } catch {
+        // A genuine Promise may have passed the internal brand check and failed
+        // later while constructing the result through Symbol.species.
+    }
+    try {
+        if (Object.prototype.toString.call(value) !== '[object Promise]') { return null }
+    } catch {
+        return null
+    }
+    if (value === null || (typeof value !== 'object' && typeof value !== 'function')) { return null }
+    /** @type {PropertyDescriptor | undefined} */
+    let descriptor
+    try {
+        descriptor = Object.getOwnPropertyDescriptor(value, 'constructor')
+        Object.defineProperty(value, 'constructor', { value: Promise, configurable: true })
+    } catch {
+        return null
+    }
+    try {
+        return call()
+    } catch {
+        return null
+    } finally {
+        try {
+            if (descriptor === undefined) {
+                Reflect.deleteProperty(value, 'constructor')
+            } else {
+                Object.defineProperty(value, 'constructor', descriptor)
+            }
+        } catch {
+            // The temporary property is configurable, so ordinary objects restore
+            // cleanly. A hostile Proxy can make restoration itself observable.
+        }
+    }
+}
 
 /** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
 const runOne = (module, path, throws, fn, result) => {
@@ -101,7 +136,7 @@ const runOne = (module, path, throws, fn, result) => {
     // objects with a `then` proof property. The Node runner awaits only actual
     // promises, and browser execution must preserve that same test-tree rule.
     return Promise.resolve().then(() => [fn()]).then(
-        ([value]) => isPromise(value) ? Promise.resolve(value).then(passed, failed) : passed(value),
+        ([value]) => runPromise(value, passed, failed) ?? passed(value),
         failed
     )
 }
