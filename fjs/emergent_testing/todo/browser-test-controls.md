@@ -1,0 +1,72 @@
+## Add explicit browser test controls
+
+**Priority:** P3
+**Status:** open
+
+### Problem
+
+The generated browser-test page starts its suite as soon as the entry module
+loads and labels its only button `Run again`. That makes an expensive full run
+surprising, gives a user no idle state in which to inspect the page, and offers
+no way to stop a run that is no longer useful.
+
+The controls also do not express the runner state clearly. A run action should
+be available only while no suite is active, while cancellation should be
+available only while a suite is active.
+
+### Proposal
+
+Do not start tests when the page or entry module starts. The initial state is
+idle and waits for an explicit user or controller action.
+
+Provide two controls with opposite availability:
+
+| Runner state | `Run` | `Cancel` |
+| ------------ | ----- | -------- |
+| idle         | active | passive |
+| loading      | passive | active |
+| running      | passive | active |
+| completed    | active | passive |
+| cancelled    | active | passive |
+
+Use the label `Run`, not `Run again`; the same action starts both the first and
+every subsequent run. “Passive” means a real disabled control, including its
+accessible disabled state, rather than a click handler that silently ignores
+the action.
+
+Cancellation must be semantic, not merely visual. It should prevent unstarted
+proofs from running, ignore late module imports and proof completions from the
+cancelled run, and prevent that run from replacing a later run's progress,
+report, promise, or completion event. Work already executing in JavaScript
+cannot always be interrupted; cancellation should be cooperative at module,
+batch, and proof boundaries and document that limitation.
+
+The final cancelled result needs a serializable status distinct from `failed`
+and `infrastructure-error`. Decide whether cancellation dispatches the existing
+completion event with a cancelled report or a separate event; automated
+controllers must be able to distinguish cancellation without reading DOM text.
+
+An automated controller may call the same start API explicitly after the page
+loads, but the HTML application itself must not auto-run through its entry
+module or a default query parameter.
+
+### Tasks
+
+- [ ] Remove the entry module's automatic `start()` call.
+- [ ] Rename `Run again` to `Run`.
+- [ ] Add a `Cancel` button and implement the inverse enabled/disabled states
+      for `Run` and `Cancel`.
+- [ ] Add a per-run cancellation token or equivalent identity checked during
+      loading, between execution batches, and before every UI/global/event
+      publication.
+- [ ] Define the serializable cancelled report and completion-event behavior.
+- [ ] Prove initial idle behavior, both buttons' state transitions,
+      cancellation during loading, cancellation during proof execution, and a
+      new run after cancellation.
+
+### Related
+
+- [Browser testing](browser-testing.md) — the shared browser application and
+  report contract.
+- [Shared browser/console runner core](share-browser-console-runner.md) — future
+  separation of pure runner state from DOM controls.
