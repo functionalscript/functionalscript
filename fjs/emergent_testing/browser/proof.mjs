@@ -11,7 +11,8 @@ import { runInNewContext } from 'node:vm'
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from '../browser.mjs'
-import { fmtImport } from '../module.f.mjs'
+import { fmtImport, testResult } from '../module.f.mjs'
+import { error, ok } from '../../types/result/module.f.mjs'
 
 /** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
 /** @typedef {{ defaultView: _View | null, readonly createElement: (tag: string) => _Element }} _Document */
@@ -116,6 +117,32 @@ export const proof = {
         assertEq(report.results[0]?.name, fmtImport('proof', ['nested']))
         assertEq(report.results[1]?.name, fmtImport('proof', ['nested', null, 'child']))
         assertEq(report.results[1]?.name, 'import("proof").proof.nested().child()')
+    },
+    // The page does not build a leaf's identity, status or duration itself: it
+    // asks `testResult`, which is what the console runner asks. Comparing a
+    // real browser result against that function — rather than against a literal
+    // — is what makes the two runners' agreement a fact about shared code.
+    normalizedResultMatchesTheSharedOne: async () => {
+        const report = await run({ passes: () => undefined, fails: () => { throw 'boom' } })
+        const [first, second] = report.results
+        assertNotNullish(first)
+        assertNotNullish(second)
+        assertStructurallySame(
+            { ...first },
+            testResult('proof', ['passes'], { result: ok(undefined), duration: first.duration }))
+        assertStructurallySame(
+            { ...second, message: undefined, stack: undefined },
+            { ...testResult('proof', ['fails'], { result: error('boom'), duration: second.duration }),
+                message: undefined, stack: undefined })
+        assertEq(second.status, 'failed')
+    },
+    // The expectation is inverted through the same `invert` the console runner
+    // uses, so a proof that was supposed to throw and did is a pass in both.
+    expectedThrowStatusMatchesTheSharedOne: async () => {
+        const report = await run({ throw: { boom: () => { throw 'expected' } } })
+        assertEq(report.results[0]?.status, 'passed')
+        assertEq(report.results[0]?.status,
+            testResult('proof', ['throw', 'boom'], { result: ok('expected'), duration: 0 }).status)
     },
     // A module that cannot be enumerated has no leaf to name, and an empty
     // `path` does not distinguish it from a proof exported as a bare function.

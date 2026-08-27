@@ -15,7 +15,7 @@ import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import {
     testAll, fmtPath, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
-    defaultTest, main, register,
+    defaultTest, main, register, testResult,
 } from './module.f.mjs'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
 import { shouldLoad } from '../dev/module.f.mjs'
@@ -614,7 +614,40 @@ const defaultReporterExpectedToThrow = () => {
     assert(stdout.includes('# EXPECTED TO THROW'), stdout)
 }
 
+/**
+ * `testResult` is where every runner decides what a leaf is called and whether
+ * it passed, so these pin both.
+ *
+ * The result it takes is the one *after* the throw expectation has been
+ * applied, which is why an expected throw does not appear here: inverting is
+ * `defaultTest`'s job and `invert`'s rule, and this reads whatever that
+ * produced.
+ */
+const testResultProofs = {
+    passes: () => {
+        const t = testResult('./a.f.mjs', ['x'], { result: ok(1), duration: 0.5 })
+        assertEq(t.status, 'passed')
+        assertEq(t.duration, 0.5)
+        assertEq(t.module, './a.f.mjs')
+    },
+    fails: () => {
+        const t = testResult('./a.f.mjs', ['x'], { result: error('boom'), duration: 2 })
+        assertEq(t.status, 'failed')
+    },
+    // The identity and the key chain come from the same two functions the
+    // console runner formats its own output with, so a runner cannot spell
+    // either of them its own way by building this record itself.
+    namesTheLeaf: () => {
+        const path = ['nested', null, 'a.b']
+        const t = testResult('./a.f.mjs', path, { result: ok(undefined), duration: 0 })
+        assertEq(t.name, fmtImport('./a.f.mjs', path))
+        assertEq(t.name, 'import("./a.f.mjs").proof.nested()["a.b"]()')
+        assertEq(t.path, fmtPath(path))
+    },
+}
+
 export const proof = {
+    testResult: testResultProofs,
     throw: {
         registerBodyPanicsOnUndispatchableEffect,
     },

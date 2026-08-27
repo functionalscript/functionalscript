@@ -21,7 +21,12 @@ guard: the `collectTests` traversal enumerates a returned proof tree, and
 throwing accessor, a revoked `Proxy`, or a hostile `toString` panics through
 either, and there is no `try`/`catch` in FunctionalScript for the core to catch
 it with. `fjs t` ends with a stack trace and no summary; the browser runner
-today loses one test and carries on. What is missing from the core is
+today loses one test and carries on. Measured, with two modules in the tree and
+only the first hostile: `fjs t` exits on an uncaught `hostile` and the second
+module's passing proofs are never reported, while the browser records one failed
+result and runs the rest. That asymmetry is now noted on `TestResult` in
+`../types.ts`, because the type otherwise reads as though every runner tolerates
+a non-leaf failure. What is missing from the core is
 *attribution*: naming the leaf whose value could not be read, and continuing
 with the rest. Whichever runner ends up on top of it, a page left in `running`
 or a process that exits with no summary is the outcome an automated controller
