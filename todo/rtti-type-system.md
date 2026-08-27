@@ -930,7 +930,9 @@ are stated instead:
       settle which positions accept an annotation — `const`, parameter, return,
       export — and what the line form attaches to.
 - [ ] **3. Recognize `//:` and `/*: */` in the parser** and resolve the one
-      identifier in the body against the module's bindings. A distinct token
+      identifier in the body against the module's bindings — under the scope
+      rule stage 2 settles per [open question 2](#open-questions), since
+      module-scope-only and "anything reducible" are different lookups. A distinct token
       kind is cleaner than inspecting the body's first character; neither adds a
       grammar, and neither needs the expression parser.
 - [ ] **4. Evaluate an annotation at compile time**
@@ -1615,10 +1617,20 @@ are stated instead:
    ([namespace-import](../spec/todo/2220-namespace-import.md)) must add a named
    import just to annotate. Allowing a dotted name is the one relaxation worth
    considering; allowing it to be *general* member access is not.
-2. **Which bindings qualify.** A name resolves to a binding that has to reduce
-   to a schema value — module-level `const` and `import` only, or anything the
-   compiler can reduce? A name is not automatically compile-time known just
-   because it is a name.
+2. **Whether to relax which bindings qualify.** Commitment 2 states the
+   restriction — a module-level `const` or `import`, nothing else — and that is
+   the default this epic commits to, not an open choice; an earlier draft of
+   this question asked it as though the commitment had not been made, which
+   left the two passages giving implementers incompatible rules. What is open
+   is only whether to **widen** it later to anything the compiler can reduce.
+   A name is not automatically compile-time known just because it is a name, so
+   widening buys less than it looks like it does.
+
+   **This must be settled in stage 2, before stage 3 starts.** Stage 3 resolves
+   the identifier against the module's bindings, and the two answers are
+   different lookups: module-scope only, versus one that must handle nested
+   scopes and non-`const` bindings. Deciding it after the parser work would
+   mean redoing it.
 3. **Schemas that are themselves checked.** The value a name resolves to is an
    ordinary value in the same module system; whether it is checked against
    `Type`'s own schema, and what that costs, is unanswered.
