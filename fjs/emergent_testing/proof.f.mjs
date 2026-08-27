@@ -13,7 +13,7 @@ import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import {
-    testAll, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
+    testAll, fmtPath, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
     defaultTest, main, register,
 } from './module.f.mjs'
@@ -581,14 +581,6 @@ export const helpers = {
         assertEq(fmtPath(['users', '3', 'name']), '.users[3].name')
         assertEq(fmtPath(['x', 'hello world']), '.x["hello world"]')
         assertEq(fmtPath(['outer', null, 'inner']), '.outer().inner')
-    },
-    fmtTerm: () => {
-        assertEq(fmtTerm([]), '()')
-        assertEq(fmtTerm(['math', 'add']), '| | add')
-        assertEq(fmtTerm(['a', '0']), '| | 0')
-        assertEq(fmtTerm(['x', 'hello world']), '| | "hello world"')
-        // null marks a function-call boundary; fmtTerm filters it out
-        assertEq(fmtTerm(['outer', null, 'inner']), '| | inner')
     },
     ghEscape: () => {
         assertEq(ghEscape('a%b'), 'a%25b')

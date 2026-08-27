@@ -331,22 +331,6 @@ export const fmtImport = (file, path) =>
     `import(${JSON.stringify(file)}).proof${fmtPath(path)}()`
 
 /**
- * Renders a key chain for terminal output: `| ` per level of depth, followed
- * by the last segment formatted as a bare integer, a bare identifier, or a
- * JSON-quoted string. E.g. `['math', 'add']` → `| | add`,
- * `['a', '0']` → `| | 0`, `['x', 'hello world']` → `| | "hello world"`.
- *
- * @type {(path: Path) => string}
- */
-export const fmtTerm = path => {
-    const keys = path.flatMap(k => k !== null ? [k] : [])
-    const indent = '| '.repeat(keys.length)
-    if (keys.length === 0) { return `${indent}()` }
-    const last = keys[keys.length - 1]
-    return `${indent}${isInteger(last) || isIdentifier(last) ? last : JSON.stringify(last)}`
-}
-
-/**
  * Percent-encodes characters that GitHub workflow-command property values
  * treat as separators (`%`, `:`, `,`) plus newlines.
  * https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
