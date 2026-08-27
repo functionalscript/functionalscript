@@ -199,6 +199,24 @@ common case pays nothing: `open(c)` has `rest: unknown`, and
 `unknown | undefined` is `unknown`, so `...unknown[]` is unchanged. Only an
 explicit `rest(c, r)` widens.
 
+`| undefined` is necessary but not sufficient: a hole past the prefix can also
+be **readable through the prototype**, and then it is neither absent nor
+checked. Measured on `main` — give `[42, , ]` a prototype carrying `1: 99`
+(built on `Array.prototype`, or `isArray` rejects the value before any of this
+matters) and `validate(close([42], string))` answers `ok`, handing back the
+same array, whose index 1 reads `99`. `undeclaredEntries` filters
+`Object.entries`, which is own-enumerable-only, so the inherited index is
+never an undeclared entry and never meets the `rest`. The tail then promises
+`string | undefined` over a number. `parse` escapes it by rebuilding — it
+returns `[42]`, length 1 — so this is `validate`'s success cast alone, which is
+the same shape as the declared-member prototype hazard in stage 2 below and
+wants the same answer: decide the rest region by what the index *reads*, not by
+whether it is an own entry. Concretely, walk `prefix.length … length - 1` and
+hold every index with HasProperty to the `rest`, skipping only the genuinely
+absent ones. That keeps "a rest never sees an absent member" intact — an
+inherited index is not absent — and it is a stage-1 item because stage 1 is
+where the tail starts being rendered at all.
+
 Do **not** take the other branch — making the readers reject a hole past the
 prefix — without reopening stage 2 with it. It would buy the narrower tail, but
 it contradicts the undeclared-entry rule both stages are built on, and it is a
@@ -515,6 +533,16 @@ Stage 1 (one PR):
       past the prefix (see above; `open(c)` is unaffected, since
       `unknown | undefined` is `unknown`). Pin `rest([42], string)` against
       `[42, , ]` in `../ts/proof.f.mjs`.
+- [ ] Hold an **inherited** index past the prefix to the `rest`. Today
+      `undeclaredEntries` filters `Object.entries`, so it is skipped, and
+      measured, `validate(close([42], string))` returns `ok` on a `[42, , ]`
+      whose prototype carries `1: 99` — under the new tail that is
+      `string | undefined` over a number. Walk `prefix.length … length - 1` and
+      check every index with HasProperty, skipping the genuinely absent ones;
+      `parse` needs nothing, since it rebuilds. Pin that value against
+      `rest([42], string)` and against `rest([42], number)`, which must answer
+      error and ok. Stage 2's declared-member prototype task is the same
+      hazard one region to the left; the two should read as one rule.
 - [ ] …except when the rest **normalizes away**, where the tail is omitted and
       the exact tuple is rendered — otherwise `rest([42], or())` (stage 1) and
       `rest([42], option)` (stage 2, whose inline rest normalizes away entirely)
@@ -550,6 +578,36 @@ Stage 1 (one PR):
       `close` twice at `:301-302`. Deleting only the paragraph would leave the
       two section headings asserting the reverse of the code. This is the same
       edit as the `../parse/module.f.mjs` one below, on the other reader.
+- [ ] The rest of the **public JSDoc that states the open/closed contract**,
+      swept across the tree this time rather than named as it is found — three
+      earlier revisions of this list each missed sites, so here it is in full,
+      minus what other items already own:
+      `../types.ts:35-40` is a `## Closed containers` section in the ADT's own
+      declarations ("A `Struct` or a `Tuple` on its own is **open**"), and
+      `:168` describes `CloseTs` as "the type of `close(c)`, matching the
+      constructor's own optional parameter" — an optional parameter `rest(c, r)`
+      stops having; `../module.f.mjs:120-128` is the constructor module's doc,
+      stating the open default and demonstrating `close` three times, on the
+      module whose API this stage changes; `../ts/types.ts:112-124` says "**The
+      remaining approximation is open-ness, and it is deliberate**", and `:194`
+      and `:201` are `CloseTs`'s own — `:201` naming the unrendered rest as "a
+      gap in this rendering", which is exactly the gap `RestTs` closes above;
+      `../ts/module.f.mjs:292` describes the printer's open-tuple output and
+      `:308` shows `toTs(close(...))`; `../data/types.ts:33-36` states the
+      mapping as "A tuple schema is `{ prefix, rest: unknown }` — tuples are
+      open"; and `../data/module.f.mjs:774-780` says "Used bare, both kinds are
+      **open**" while defining the very function whose mapping this stage
+      inverts. All of these are `.ts`/`.mjs` declaration files, so the tag and
+      constructor edits touch the code beside them without a checker ever
+      looking at the sentence.
+- [ ] Three **consumer** modules justify a design decision by the open default,
+      which the call-site audit reaches only as calls: `../../../protocol/json_rpc/types.ts:23`
+      and `../../../protocol/json_rpc/module.f.mjs:57` both say "rtti structs
+      are open, so additive extension keeps the tag", and
+      `../../../media/note/module.f.mjs:9` says the same. After stage 1 the
+      premise holds only where the struct is wrapped in `open(...)` — so
+      wrapping them is not enough; the sentence has to say *why* it is wrapped,
+      or the next reader unwraps it and silently breaks forward compatibility.
 - [ ] `../parse/module.f.mjs`'s **module doc** is the longest single statement of
       the open default anywhere in the tree and stage 1 inverts all of it:
       `:8-14` opens "**Structs and tuples are open.** A value carrying more than
