@@ -255,3 +255,14 @@ A documented implementation limit ([§1](#1-simplicity-first)) is acceptable onl
 under this rule: the limit has to be enforced where it is crossed. "Handles up
 to 128 KB" is a limit when the 129th kilobyte is refused, and a latent
 corruption when it is truncated, wrapped, or quietly mis-encoded.
+
+Refusing is the **mitigation**, not the resolution. The order is: refuse now —
+a check and a `throw` is minutes of work and stops the wrong answers today —
+then file the `todo/` for handling the case properly, then fix it. Shipping the
+refusal first is what makes the real fix schedulable instead of urgent: nothing
+is being corrupted while it is designed, the issue records what has to work,
+and the implementation lands when it is ready rather than being hacked in under
+pressure. The exception is the limit that is meant to stay: a bound chosen on
+purpose is part of the API, documented where the API is documented, and needs
+no issue — but say which of the two it is, because "we refuse this for now" and
+"we refuse this by design" read identically at the call site.

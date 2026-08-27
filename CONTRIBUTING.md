@@ -304,6 +304,13 @@ all — making it fail is this pull request's work. Refuse it or assert on it
 ([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)), and defer only
 the support behind the `todo/`. Support can wait; silence cannot.
 
+The refusal is a mitigation, so the `todo/` it leaves behind is queued work and
+not a decision: mitigate fast, file the issue, then fix it. If the limit later
+turns out to be one worth keeping, that is a won't-fix — document it where the
+API is documented and delete the issue, as
+[todo/README.md](./todo/README.md) requires, rather than leaving a stale one to
+imply a fix is still coming.
+
 So the question to ask about a review comment is not "is this in scope" but
 **"where does this knowledge live once the pull request is merged?"** In the
 diff — then fix it here. In the design document, or in a new `todo/` issue —

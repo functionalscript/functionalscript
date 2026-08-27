@@ -116,7 +116,8 @@ limit, a crash in what a published module claims to support is fixed before it
 lands — and never on whether the crash is inside the feature's claimed scope.
 What may never be deferred is a **regression**, or **silence**: an unsupported
 input is refused or asserted on, never answered with a plausible wrong value
-([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)). And when the PR
+([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)). That refusal
+is a mitigation, not the end of it: refuse fast, file the `todo/`, then fix it. And when the PR
 itself cannot land, drop the code and merge what it taught — a rewritten
 `todo/`, a recorded failure — rather than abandoning both. No knowledge from a
 review may be left in the review thread alone.
