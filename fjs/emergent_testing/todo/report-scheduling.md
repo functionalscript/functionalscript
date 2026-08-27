@@ -1,63 +1,69 @@
-## Yield on elapsed time, not on a count of proofs
+## Try removing the browser runner's batching entirely
 
 **Priority:** P3
-**Status:** open
+**Status:** open — experiment first, design only if the experiment says so
 
 ### Problem
 
 The browser runner's `all` starts its children in slices of ten and yields to
 the event loop between slices
-([`fjs/effects/browser/module.mjs`](../../effects/browser/module.mjs)). Ten is a
-mitigation, not a design.
+([`fjs/effects/browser/module.mjs`](../../effects/browser/module.mjs)). **That
+batching is premature optimization and should probably not exist.**
 
-A count measures the wrong thing. Proofs differ in cost by orders of magnitude —
-most are microseconds, a few run for a second or more — so a slice of ten fast
-proofs yields almost immediately and wastes a task boundary, while a slice
-holding one slow proof stalls the page for as long as that proof runs and no
-count would have helped. The page freezes in bursts, and the reported progress
-stops with it, which is exactly when a reader most wants to see it move. The
-number was 25 and is now 10 for that reason; the next person to notice a stall
-will have the same argument for 5.
+It was not added because anyone found the suite slow. It was added in a review
+round, because without it the page renders nothing until the run finishes, and
+that *looked* wrong. Observing a behaviour is not the same as someone having a
+problem with it: nobody has reported a stall, and the number has already been
+argued down from 25 to 10 with no measurement on either side of the change —
+which is the shape of an optimization nobody can evaluate.
 
-### Preliminary design
+`fjs t` is the reference and it schedules nothing at all. It starts every leaf
+of a module at once, prints results as they land, and no one has complained. The
+browser runner sharing its semantics but not its scheduling is a difference that
+has to justify itself, and so far it has not.
 
-Yield on a **time budget** rather than a count: keep starting children while the
-slice has spent less than some milliseconds — a frame's worth, or a small
-multiple of one — and hand the loop back when it has. That bounds the *stall*,
-which is the thing a reader actually experiences, and it self-tunes: a thousand
-trivial proofs run in one slice and one slow proof yields after itself.
+### The experiment, before any design
 
-The clock read has to be cheap and monotonic; `performance.now()` is both, and
-the shared `sandbox` already measures each proof with it, so the elapsed time
-may be available without a second read.
+Remove the batching completely — `all` back to `Promise.all` over every child,
+no `macrotask`, no `batchSize` — and run the real suite in a browser. Then look:
 
-Two questions to settle with measurement rather than by argument:
+- Does the page actually stay blank until the end, or does the browser paint
+  anyway? Module loading is network-bound and dominates the first seconds, which
+  may be all the yielding a page needs.
+- If it does stay blank, for how long, and does that matter to anyone reading a
+  passing run? A suite that finishes in two seconds with no intermediate frames
+  is not a problem; one that finishes in two minutes might be.
+- Does anything except rendering depend on the yielding?
 
-- **Where the budget belongs.** In `all` alongside the slicing, or in the
-  reporting handler that renders? `all` is where the work is started, which is
-  what made the slicing correct in the first place.
-- **Whether a slow proof can yield at all.** A single proof body is synchronous
-  from the runner's point of view; nothing can interrupt it. A budget bounds how
-  many *more* are started after one, not the stall the slow one itself causes.
-  Reporting the slow proof's *start* — not only its result — may matter more
-  than any scheduling change, and is the cheaper experiment.
+Only if that produces a stall someone objects to is there a problem to solve,
+and only then is the shape of a solution worth arguing about. If it comes to
+that, the argument against a count still holds — proofs differ in cost by orders
+of magnitude, so a slice of ten fast ones wastes a boundary while a slice
+holding one slow one stalls anyway — and an elapsed-time budget bounds the thing
+a reader actually experiences. Reporting a proof's *start* as well as its result
+may serve better than any scheduling change, and is cheaper to try.
 
 ### Constraints
 
-- The Node runner has no frame to paint and must keep starting its children at
-  once; this is the browser interpreter's policy, as the slicing already is.
-- `all` must keep answering every `Result` in the order its effects were given.
+- Whatever the answer, it is the browser interpreter's policy. The Node runner
+  has no frame to paint and must keep starting its children at once.
+- `all` must keep answering every `Result` in the order its effects were given,
+  batching or not.
+- `operations.allYieldsBetweenBatches` pins the current behaviour. Removing the
+  batching means removing that proof, not weakening it.
 
 ### Tasks
 
-- [ ] Measure where the page actually stalls on the real suite, per slice, and
-      whether the cause is proof cost or rendering.
-- [ ] Replace the count with an elapsed-time budget, and prove the boundary the
-      way `operations.allYieldsBetweenBatches` proves the current one.
-- [ ] Consider reporting a proof's start as well as its result, so a stall is
-      visible rather than silent.
+- [ ] Remove the batching and the yield; run the real suite in a browser and
+      write down what actually happens.
+- [ ] Decide from that whether there is a problem at all.
+- [ ] Only then, if there is: bound the stall by elapsed time rather than by a
+      count, and prove the boundary the way the current one is proved.
 
 ### Related
 
 - [Browser testing](browser-testing.md)
 - [Explicit browser test controls](browser-test-controls.md)
+- [Share the whole runner](share-the-whole-runner.md) — the CLI runner's
+  scheduling is one more thing the two hosts do differently for no stated
+  reason.

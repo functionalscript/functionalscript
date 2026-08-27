@@ -59,11 +59,13 @@ import { toVec } from '../../types/uint8array/module.f.mjs'
  * Yielding per effect would be the simpler rule and the wrong one: `setTimeout`
  * clamps to 4 ms once nested, which is minutes across a few thousand proofs.
  *
- * A count is the wrong measure and this number is a mitigation, not a design:
- * proofs differ in cost by orders of magnitude, so a slice of ten fast ones
- * yields immediately while a slice holding one slow one stalls the page for as
- * long as that proof runs. Yielding on elapsed time instead is
- * `fjs/emergent_testing/todo/report-scheduling.md`.
+ * **This whole mechanism is on probation.** It was not added because anyone
+ * found the suite slow — `fjs t` schedules nothing at all and no one has
+ * complained — but because a page that renders nothing until the run finishes
+ * looked wrong. That is an observation, not a problem someone has, and the
+ * count has already moved from 25 to 10 with no measurement on either side.
+ * `fjs/emergent_testing/todo/report-scheduling.md` asks for the batching to be
+ * removed and the real suite watched before any of this is treated as a design.
  */
 const batchSize = 10
 
