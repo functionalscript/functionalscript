@@ -372,10 +372,13 @@ The last row is a live divergence **today**: `toData(array(or()))` and
 thunk readers accept a hole-only array for one and reject it for the other,
 because the `array` handler walks `Object.entries` and never bounds length.
 `../validate/proof.f.mjs` runs its acceptance table through all three readers but
-does not carry this row. Stage 2 reaches it through the natural spelling
-`array(option)`, so stage 2 must fix it — the array-kind readers bound length
-when the rest admits nothing. It deserves its own issue if it is fixed before
-this lands.
+does not carry this row. **Stage 1 fixes it** — the array-kind readers bound
+length when the rest admits nothing — because stage 1 is what makes `RestTs`
+render an empty rest as an exact tuple, and that rendering is only sound with
+the bound beside it. Stage 2 reaches the same defect again through the natural
+spelling `array(option)`, so it would have forced the fix in any case; it is
+stage 1 that cannot ship without it. The task is in stage 1's list below. It
+deserves its own issue if it is fixed before this lands.
 
 **Absence at a tuple position is "no such own index"** — past the end or a hole,
 one rule for both. That makes the value side symmetric with the schema side
@@ -512,13 +515,27 @@ Stage 1 (one PR):
       past the prefix (see above; `open(c)` is unaffected, since
       `unknown | undefined` is `unknown`). Pin `rest([42], string)` against
       `[42, , ]` in `../ts/proof.f.mjs`.
-- [ ] …except when the absence-stripped rest is **empty**, where the tail is
-      omitted and the exact tuple is rendered — otherwise `rest([42], or())`
-      (stage 1) and `rest([42], option)` (stage 2, whose inline rest normalizes
-      away entirely) render `readonly [42, ...undefined[]]` and admit
-      `[42, undefined]`, which both readers reject. Pin both. This shares its
-      other half with the length-bound task below: until that lands,
-      `validate(close([42], or()))([42, , ])` is `ok` while
+- [ ] …except when the rest **normalizes away**, where the tail is omitted and
+      the exact tuple is rendered — otherwise `rest([42], or())` (stage 1) and
+      `rest([42], option)` (stage 2, whose inline rest normalizes away entirely)
+      render `readonly [42, ...undefined[]]` and admit `[42, undefined]`, which
+      both readers reject. Pin both.
+      The exception keys on **the empty-rest criterion**, the same test the
+      length bound uses — *not* on "the absence-stripped rest is empty", which
+      is a different question with a different answer. A **retained** reference
+      separates them: for the absence-only cycle the exemption below keeps
+      unstripped, `toData(rest([42], X))` still carries `rest: "X"`, so the
+      readers do not bound the length and `rest([42], X)` accepts hole-only
+      arrays of any length — while stripping absence from `X` leaves nothing,
+      so the wrong test would render the exact `readonly [42]` over a length-2
+      value. Keyed on the criterion it keeps its tail and renders
+      `...undefined[]`: wider than the schema, which rejects a *present*
+      `undefined` there, but wide in the safe direction — every accepted value
+      still has the type, which is the only direction the success cast needs.
+      Pin `rest([42], X)` beside the two above; it is the row that tells the
+      two tests apart.
+      This shares its other half with the length-bound task below: until that
+      lands, `validate(close([42], or()))([42, , ])` is `ok` while
       `validate(close([42]))([42, , ])` is `error`.
 - [ ] `../README.md`: replace "Structs and tuples are open", "This is deliberate;
       please do not 'fix' it" and "Closed containers" with the closed default and
