@@ -1,7 +1,7 @@
 ## Keep private types out of public declarations
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -12,6 +12,35 @@ leak into generated `.d.ts` / `.d.mts` files and add noise to the public surface
 The requirement is a clean, self-contained public declaration/API boundary.
 `private.ts` and subordinate modules such as `meta/module.f.mjs` are **tools** for
 reaching that result, not required companion files.
+
+### Progress
+
+The rules, the policy documents, and the packaging step are in place; what
+remains is migrating the authored `.mjs` files written before them.
+
+Done:
+
+- root `AGENTS.md`, `fjs/AGENTS.md` ("Private types" under §3.2 and §3.5), and
+  `fjs/fsc/README.md` state the rule, the public declaration closure, the
+  optional `private.ts` and `meta/module.f.mjs`, and the dependency order;
+- `todo/blocked/jsdoc-typedef-strip-internal.md` is deleted — the `@internal` /
+  `stripInternal` wait is superseded, not merely narrowed — and its referrers
+  point here;
+- `prepack` ends with `node ./fjs/ci/prepack.mjs`, which deletes every generated
+  `private.d.ts` and then fails packaging if a remaining declaration has a
+  *semantic* dependency on a private module. The check reads static module
+  specifiers as tokens (`specifiers` in `fjs/website/browser-source.mjs`), so a
+  retained JSDoc `@import` comment is not mistaken for one and no emitted text is
+  rewritten;
+- `fjs/djs/tokenizer` is the first module with a `private.ts`: `_Token`,
+  `_FlatToken`, `_TokenScanState`, `_StringDecodeState` and `_DjsScanState` left
+  its declaration, which now names none of them. Validated against the packed
+  tarball — no private artifact in it, and a clean TypeScript consumer of
+  `fjs/djs/tokenizer` type-checks with `bad.ts` still failing TS2322.
+
+Remaining: the other authored `.mjs` files that still hold a file-scope
+`@typedef`, including the individually-analyzed cases below and `todo/proof.f.mjs`
+outside `fjs/`.
 
 ### Rules
 
@@ -194,30 +223,26 @@ Package validation must check semantic dependencies, not raw text:
 
 ### Repository policy
 
-When this TODO is implemented:
-
-- update root `AGENTS.md` with the repository-wide rule that authored `.mjs` files
-  may not contain file-scope JSDoc `@typedef`;
-- update `fjs/AGENTS.md` with the public-declaration-closure rule, optional
-  `private.ts`, optional subordinate metaprogramming modules such as
-  `meta/module.f.mjs`, and the dependency-order guidance;
-- update `fjs/fsc/README.md` and delete or narrow
-  `todo/blocked/jsdoc-typedef-strip-internal.md` so the repository does not keep
-  two conflicting private-type strategies.
+Done, see Progress above: root `AGENTS.md` carries the repository-wide rule,
+`fjs/AGENTS.md` the public-declaration-closure rule with the optional
+`private.ts`, the optional `meta/module.f.mjs`, and the dependency order, and
+`fjs/fsc/README.md` the private-type contract that replaced its `_`-leak-tolerance
+policy. `todo/blocked/jsdoc-typedef-strip-internal.md` is deleted, so the
+repository no longer keeps two conflicting private-type strategies.
 
 Authored TypeScript type modules (`types.ts`, and `private.ts` when present) remain
 type-only and use named `import type { ... }` imports.
 
 ### Tasks
 
-- [ ] Document the repository-wide prohibition on file-scope JSDoc `@typedef` in
+- [x] Document the repository-wide prohibition on file-scope JSDoc `@typedef` in
       authored `.mjs`; allow function-local typedefs.
 - [ ] Migrate existing violations, including authored `.mjs` outside `fjs/` such
       as `todo/proof.f.mjs`.
 - [ ] Keep `types.ts` as the public declaration closure; retain/in-line private
       helpers required by public declarations.
-- [ ] Use `private.ts` only where separating implementation-private file-scope
-      types improves the design.
+- [x] Use `private.ts` only where separating implementation-private file-scope
+      types improves the design — first one: `fjs/djs/tokenizer/private.ts`.
 - [ ] Preserve the intra-directory dependency direction shown above; move
       verification downstream when that is cleaner.
 - [ ] Move the `fjs/effects/types.ts` implementation-signature asserts into proof
@@ -230,15 +255,15 @@ type-only and use named `import type { ... }` imports.
 - [ ] Preserve leading `_` for private types and private runtime constants.
 - [ ] Treat chosen public import-path moves as breaking changes with no
       compatibility re-exports.
-- [ ] If `private.ts` is used, delete generated `private.d.ts` as the final
+- [x] If `private.ts` is used, delete generated `private.d.ts` as the final
       `prepack` step.
-- [ ] Do not text-postprocess emitted declarations; validate semantic private
+- [x] Do not text-postprocess emitted declarations; validate semantic private
       dependencies and clean-consumer type checking instead.
 - [ ] Add fixtures/examples covering: public-declaration helpers, optional
       `private.ts`, function-local proof typedefs, recursive RTTI kept in
       `module.f.mjs`, optional `meta/module.f.mjs`, retained non-semantic JSDoc
       comments, and authored `.mjs` outside `fjs/`.
-- [ ] Update root/fjs policy documentation and reconcile the old `_` leak policy.
+- [x] Update root/fjs policy documentation and reconcile the old `_` leak policy.
 
 ### Acceptance criteria
 
@@ -269,11 +294,17 @@ type-only and use named `import type { ... }` imports.
 
 ### Related
 
-- [`../fsc/README.md`](../fsc/README.md) — current `_` leak-tolerance policy.
-- [`../../AGENTS.md`](../../AGENTS.md) — root repository policy to update.
-- [`../AGENTS.md`](../AGENTS.md) — `fjs/`-specific file/dependency policy.
-- [`../../todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md)
-  — current wait-for-`@internal`/`stripInternal` strategy.
+- [`../fsc/README.md`](../fsc/README.md) — the private-type contract that
+  replaced the `_` leak-tolerance policy.
+- [`../../AGENTS.md`](../../AGENTS.md) — root repository policy; carries the
+  repository-wide no-file-scope-`@typedef` rule.
+- [`../AGENTS.md`](../AGENTS.md) — `fjs/`-specific file/dependency policy;
+  "Private types" holds the closure, `private.ts`, `meta/` and dependency order.
+- [`../ci/prepack.mjs`](../ci/prepack.mjs) — the final `prepack` step: drops
+  generated `private.d.ts` and checks the remaining declarations for a semantic
+  dependency on a private module.
+- [`../djs/tokenizer/private.ts`](../djs/tokenizer/private.ts) — the first
+  `private.ts`.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
   — upstream JSDoc typedef stripping limitation.
 - [`detect-unexported-types-referenced-by-exported-types.md`](./detect-unexported-types-referenced-by-exported-types.md)

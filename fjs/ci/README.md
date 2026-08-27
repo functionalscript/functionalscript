@@ -151,6 +151,19 @@ export type Setup = {
 `nodeExtra` receives the target OS so callers can conditionally add OS-specific steps.
 Rust steps are included automatically when `Cargo.toml` is present; no flag is needed.
 
+## Packaging
+
+`prepack.mjs` is not part of the workflow generator: it is the last step of the
+package's own `prepack`, run by `npm pack` and `npm publish` after declaration
+emit and the round-trip check. It deletes every `private.d.ts` that declaration
+emit produced from an authored `private.ts` — implementation-private types are
+checked with the rest of the program but never shipped — and then fails
+packaging if any remaining declaration still *imports* a private module. That
+check reads static module specifiers as tokens, so a JSDoc `@import` comment
+TypeScript kept in a declaration is correctly read as a comment and nothing in
+the emitted text is rewritten. The rule it enforces is "Private types" in
+[`fjs/AGENTS.md`](../AGENTS.md#private-types).
+
 ## Related
 
 - [`packed-consumer-validation.md`](./packed-consumer-validation.md) — manual

@@ -402,9 +402,12 @@ plans to remove both. Hiding a type behind `_` to make its eventual removal
 cheaper gives up a real present-day API in exchange for a discount on a breaking
 change that should simply be documented when it happens.
 
-This convention is temporary. Once TypeScript can strip `@internal` JSDoc
-typedefs correctly, replace the underscore workaround as tracked by
-[`blocked/jsdoc-typedef-strip-internal.md`](./blocked/jsdoc-typedef-strip-internal.md).
+The `_` convention itself stays; what was temporary is the leak. Rather than
+waiting for TypeScript to strip `@internal` JSDoc typedefs, authored `.mjs` no
+longer carries a file-scope `@typedef` at all — a private type a public
+declaration needs lives in `types.ts`, one nothing public reaches in an optional
+`private.ts`, and a proof's own aliases inside the proof function. See
+[`../fjs/todo/separate-private-types.md`](../fjs/todo/separate-private-types.md).
 
 #### Typedef documentation does not survive declaration emit
 
@@ -1250,11 +1253,9 @@ person can re-check rather than re-derive. Counts are as of
   — broader package-publishing plan.
 - [`../fjs/fsc/README.md`](../fjs/fsc/README.md) — authoritative FunctionalScript
   extension and migration contract.
-- [`blocked/jsdoc-typedef-strip-internal.md`](./blocked/jsdoc-typedef-strip-internal.md)
-  — replace the temporary `_` convention with `@internal` when upstream
-  declaration emit supports it.
-- [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
-  — upstream request for `stripInternal` support on JSDoc typedefs.
+- [`../fjs/todo/separate-private-types.md`](../fjs/todo/separate-private-types.md)
+  — keep private types out of public declarations, replacing the `@internal` /
+  `stripInternal` wait.
 - [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) — existing compiler
   integration and compiler-compatibility migration.
 - [`plan/roadmap.md`](./plan/roadmap.md) — project roadmap.

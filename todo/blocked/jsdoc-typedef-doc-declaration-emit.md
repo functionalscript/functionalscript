@@ -208,8 +208,9 @@ Body:
 
 - [`todo/migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md) —
   "Typedef documentation does not survive declaration emit".
-- [`jsdoc-typedef-strip-internal.md`](./jsdoc-typedef-strip-internal.md) —
-  the adjacent `@internal` + `stripInternal` gap for JSDoc typedefs.
+- [`../fjs/todo/separate-private-types.md`](../../fjs/todo/separate-private-types.md)
+  — the adjacent private-typedef leak, closed by removing file-scope typedefs
+  from authored `.mjs` rather than by `@internal` + `stripInternal`.
 - [microsoft/TypeScript#43534](https://github.com/microsoft/TypeScript/issues/43534),
   [microsoft/TypeScript#61664](https://github.com/microsoft/TypeScript/issues/61664)
   — adjacent strada behaviors.

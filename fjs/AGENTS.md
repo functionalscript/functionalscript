@@ -247,13 +247,13 @@ changes. A separately useful type-level API may live in an authored sibling
 `types.ts`; that file remains TypeScript type source and holds no runtime
 implementation.
 
-Name implementation-only JSDoc typedefs with a leading `_`
-(`/** @typedef {number} _Type */`). Declaration emit cannot strip them yet, so
-the underscore — not the emitted `.d.ts` — is what marks a name private,
-and renaming or removing a `_`-prefixed alias is not by itself a breaking
-change. The public contract still governs transitive effects. See
-[Private JSDoc typedefs](./fsc/README.md#private-jsdoc-typedefs) for the
-full rule and examples.
+Name private types and private runtime constants with a leading `_` — `_Type`,
+`_framingKeywords`. The underscore, not the emitted `.d.ts`, is what marks a
+name private: renaming or removing one is not by itself a breaking change,
+though the public contract still governs transitive effects. Where a private
+type is *written* is [Private types](#private-types) below;
+[Private types](./fsc/README.md#private-types) in `fjs/fsc/README.md` has the
+breaking-change examples.
 
 Use `@typedef` for a named type and `@template` for its type parameters. A
 constraint goes in braces before the parameter name:
@@ -354,6 +354,88 @@ emitted `.d.ts` / `.d.mts` declarations. The JSDoc spelling may differ from the
 TypeScript one, but the public type contract must not become weaker for being
 written in JavaScript. Types authored in `types.ts` use ordinary TypeScript
 syntax and declaration emit.
+
+#### Private types
+
+Authored `.mjs` files carry **no file-scope JSDoc `@typedef`** — this rule is
+repository-wide, not `fjs/`-specific, and holds for `module.f.mjs`,
+`proof.f.mjs`, descriptive companions such as `testlib.f.mjs`, and host `.mjs`
+alike. Declaration emit turns a file-scope typedef into an exported type alias,
+so writing one publishes it whether or not that was the intent. The rule holds
+for everything you write; the files that predate it are being migrated under
+[`fjs/todo/separate-private-types.md`](./todo/separate-private-types.md), so
+finding one is not a licence to add another.
+
+A typedef **inside a function** is unaffected and is the right tool for a
+compile-time proof, which often needs a lexical or downstream runtime value:
+
+```js
+const signatures = () => {
+    /** @typedef {Assert<Equal<ReturnType<typeof step<...>>, Effect<...>>>} _Step */
+    /** @typedef {Assert<Equal<ReturnType<typeof catchStep<...>>, Effect<...>>>} _CatchStep */
+}
+```
+
+Everything else moves out of the implementation, by who needs it:
+
+- `types.ts` holds the **public declaration closure**: the public types, plus
+  every private `_` helper a shipped public declaration reaches — including the
+  declaration of an exported runtime function. If `find`'s emitted declaration
+  names `_SortedArray<T>`, then `_SortedArray` belongs in `types.ts` or is
+  inlined; moving it to an unshipped module would leave the public declaration
+  incomplete. `types.ts` never depends on `private.ts`.
+- `private.ts` is an **optional** sibling for implementation-private types
+  outside that closure. Use it where separating them makes the design cleaner,
+  not mechanically for every `_` name; a module with one local alias is usually
+  clearer with it inlined. It is authored type-only TypeScript like `types.ts`,
+  reached from JavaScript through JSDoc `@import { _X } from './private.ts'`.
+
+Within one module directory, preserve the dependency direction for whichever of
+these roles exist — the arrow points from dependency to dependent:
+
+```text
+types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs
+```
+
+This is a layering guide, not a requirement that every file exists. Move
+verification downstream rather than implementation upstream: an
+`Assert<Equal<ReturnType<typeof …>, …>>` that checks `module.f.mjs` belongs in a
+proof function in `proof.f.mjs`, not in `types.ts` where it would reverse the
+arrow. Recursive RTTI whose annotation depends on the module's own public types
+stays in `module.f.mjs` for the same reason.
+
+A subordinate `meta/module.f.mjs` is the other optional tool: an ordinary
+lower-level module for declarative constants both TypeScript and the runtime
+read — RTTI/schema constants, `as const` literal data, lookup tables whose
+literal shape defines a type. `meta` is *metaprogramming*, not a file role: it
+is discovered, tested, and covered as the `module.f.mjs` it is, with no
+metadata-specific tooling rule. A constant exported from it only for
+sibling-module linkage keeps its `_`, since exportability is linkage, not API
+status:
+
+```js
+// meta/module.f.mjs
+export const _framingKeywords =
+    /** @type {const} */ (['import', 'const', 'export', 'default', 'from'])
+```
+
+Do not create either file because a `_` name or a runtime value exists. Ordinary
+implementation functions stay in `module.f.mjs`.
+
+Moving an existing public type out of an `.mjs` declaration surface, or a public
+runtime constant into `meta/module.f.mjs`, changes an import path: treat it as an
+intentional breaking change — update every importer and the changelog, and add
+no compatibility re-export.
+
+`private.ts` stays in the normal TypeScript program so source consumers are
+checked, so declaration emit produces a `private.d.ts`. That file is not
+shipped: `fjs/ci/prepack.mjs` runs as the final `prepack` step, after
+declaration emit and the round-trip check, and deletes it before the package
+file list is read. Emitted declarations are never text-postprocessed — TypeScript
+may keep the source's `/** @import { _X } from './private.ts' */` comment, which
+is a comment in a `.d.ts` and no dependency at all — so the same step checks the
+*semantic* dependency instead, failing packaging if any shipped declaration
+actually imports a private module.
 
 #### Prefer inference
 
@@ -963,10 +1045,14 @@ repository-owned dependencies follow these source rules:
 - `.f.mjs` is authored FunctionalScript implementation/proof source, and its
   relative runtime imports target `.f.mjs`;
 - `types.ts` is authored type-only TypeScript source and carries no runtime
-  implementation;
+  implementation; an optional `private.ts` beside it is the same kind of file
+  for the private types no public declaration reaches
+  ([§3.2](#private-types));
 - `.f.mjs` — and later `.f.js` — consumes `types.ts` through JSDoc `@import`,
   and TypeScript consumes it through `import type`, both always naming the real
   `types.ts` file;
+- no authored `.mjs` carries a file-scope JSDoc `@typedef`; a typedef inside a
+  function is fine;
 - a declaration-only module belongs in `types.ts` rather than acquiring an
   artificial runtime representation;
 - never add a runtime import/export or runtime value solely to represent a

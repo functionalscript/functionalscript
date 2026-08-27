@@ -73,6 +73,14 @@ Values are immutable (no in-place mutation, no `.push`/`Map#set`/index
 assignment), there is no `try`/`catch` and no regular expressions, and types are
 written in JSDoc with a sibling `types.ts` for a type-level API.
 
+**No authored `.mjs` anywhere in the repository — inside `fjs/` or not — contains
+a file-scope JSDoc `@typedef`.** Declaration emit turns one into an exported type
+alias, so a file-scope typedef publishes an implementation detail. A typedef
+written *inside a function* is fine and is how a compile-time proof states its
+claim. A type a public declaration needs goes in `types.ts`; one nothing public
+reaches goes in an optional sibling `private.ts`, whose generated declaration
+`prepack` deletes before packaging. Private names keep their leading `_`.
+
 Testing, documentation, and the full coding style: [fjs/AGENTS.md](./fjs/AGENTS.md).
 
 ## 4. Rust (`nanvm-lib/`)

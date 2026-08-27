@@ -10,7 +10,7 @@
   ],
   "description": "FunctionalScript is a purely functional subset of JavaScript",
   "scripts": {
-    "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc",
+    "prepack": "tsc --noEmit false --emitDeclarationOnly && tsc && node ./fjs/ci/prepack.mjs",
     "test": "tsc && node ./fjs/module.mjs t",
     "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100",
     "start": "node ./fjs/module.mjs",

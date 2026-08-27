@@ -170,12 +170,11 @@ must not turn `_`-prefixed declaration artifacts into supported API merely
 because TypeScript emitted them.
 
 Types intentionally moved to `types.ts` use ordinary TypeScript syntax and do
-not need the JSDoc-emission workaround merely to remain expressible. The eventual
-replacement for private JSDoc typedefs is still `@internal` plus `stripInternal`,
-blocked on
-[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
-and tracked in
-[`todo/blocked/jsdoc-typedef-strip-internal.md`](../../../todo/blocked/jsdoc-typedef-strip-internal.md).
+not need the JSDoc-emission workaround merely to remain expressible. That
+workaround is being retired outright rather than waiting for `@internal` plus
+`stripInternal`: no authored `.mjs` carries a file-scope `@typedef`, so nothing
+is left for declaration emit to leak. See
+[`fjs/todo/separate-private-types.md`](../../todo/separate-private-types.md).
 
 Package selection does not need to distinguish every authored `.mjs` by public
 API status during this transition. Incidental authored files such as
@@ -327,11 +326,10 @@ not, and the pipeline is simplified accordingly.
   two-pass `prepack`.
 - [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
   — repository-wide stage-1 implementation source migration.
-- [`todo/blocked/jsdoc-typedef-strip-internal.md`](../../../todo/blocked/jsdoc-typedef-strip-internal.md)
-  — replace the temporary `_` convention with `@internal` when declaration emit
-  supports it.
-- [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
-  — upstream blocker for stripping private JSDoc typedefs.
+- [`fjs/todo/separate-private-types.md`](../../todo/separate-private-types.md)
+  — keep private types out of public declarations; the final `prepack` step that
+  drops generated `private.d.ts` and checks the packed declarations for a
+  semantic dependency on one.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
 - [`f-js-package-support.md`](./f-js-package-support.md) — stage-2 authored
   `.f.js` package prerequisite.
