@@ -181,8 +181,17 @@ import type { metadataValue } from './meta.f.mjs'
 Do not use runtime `import { ... }`, namespace imports, or side-effect imports in
 `types.ts` or `private.ts`.
 
-`meta.f.mjs` is executable FunctionalScript source. Node and Deno coverage must
-include it under the same expectations as `module.f.mjs`.
+`meta.f.mjs` is executable FunctionalScript source. Node and Deno coverage
+filters should include it so metadata that is actually loaded is measured under
+the same coverage expectations as `module.f.mjs`. Coverage inclusion does not
+load modules by itself, and the convention does not require an otherwise-unused
+`meta.f.mjs` to be imported solely to make it appear in a coverage report.
+
+When a directory has a `meta.f.mjs`, it is recommended for the corresponding
+proof to import and exercise the metadata when that produces a meaningful runtime
+check. This is a recommendation, not a requirement: a metadata module that is
+used only through erased TypeScript `import type` references need not gain an
+artificial runtime import just for coverage.
 
 #### Breaking migration; no compatibility re-exports
 
@@ -291,7 +300,12 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
       re-exports.
 - [ ] Require every import in `types.ts` and `private.ts` to use named
       `import type { ... }`.
-- [ ] Update Node and Deno coverage filters to include `meta.f.mjs`.
+- [ ] Update Node and Deno coverage filters to include `meta.f.mjs`; when a
+      metadata module is loaded, it must be subject to the same coverage
+      thresholds as other executable FunctionalScript source.
+- [ ] Recommend importing and exercising `meta.f.mjs` from the corresponding
+      proof when that gives a meaningful runtime check; do not require artificial
+      proof imports solely to make otherwise-unused metadata appear in coverage.
 - [ ] Keep `private.ts` in normal TypeScript checking without runtime JS emit.
 - [ ] Make deletion of generated `private.d.ts` the final `prepack` step.
 - [ ] Inspect the `npm pack` artifact for private files and private declaration
@@ -307,6 +321,10 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
       - a non-FunctionalScript authored `.mjs` file whose former file-scope
         typedef is moved to the appropriate TypeScript file;
       - `meta.f.mjs` with RTTI, literal, and runtime-used constants.
+- [ ] In the fixture, runtime-load at least one metadata path to prove that the
+      Node/Deno coverage filters include loaded `meta.f.mjs`; do not use the
+      fixture to impose a requirement that every metadata module/export in the
+      repository be runtime-loaded by a proof.
 - [ ] Verify source checking, declaration emit/cleanup, Node+Deno coverage,
       packing, and clean-consumer type checking.
 
@@ -325,8 +343,9 @@ same policy must also state that file-scope JSDoc `@typedef` is prohibited in
 - `types.ts` and every packed public declaration are independent of `private.ts`.
 - Every import in `types.ts` and `private.ts` uses named `import type { ... }`.
 - Runtime constants referenced by TypeScript definitions/proofs live in
-  `meta.f.mjs`, whether RTTI or not; executable metadata is covered by Node and
-  Deno coverage.
+  `meta.f.mjs`, whether RTTI or not. Node and Deno coverage filters include
+  `meta.f.mjs`, but proofs are not required to runtime-import metadata solely for
+  coverage; importing/exercising metadata from proofs is recommended when useful.
 - Moving public types to `types.ts` and public runtime metadata to `meta.f.mjs`
   are breaking migrations: importers and changelog are updated and no
   compatibility re-exports preserve old entry points.
