@@ -117,11 +117,10 @@ and is reviewable without the next one.
       "did this leaf pass" has one answer. Describing a *thrown value* stayed
       with each host, deliberately — see below.
 - [x] **3. One `sandbox`.** Done, and it turned out to be a deletion. The
-      browser suite runs authored `.f.mjs` only and FunctionalScript has no
-      promises, so nothing the browser executes can be one: the
       `Symbol.species` machinery — `subscribe`, `speciesFails`, `runPromise` and
-      `species.proof.mjs` — defended values the browser cannot produce, against
-      fixtures that are themselves `.mjs` and never run in a browser. Replaced
+      `species.proof.mjs` — was exercised only by fixtures that are themselves
+      `.mjs` and so never run in a browser, and `await` handles every case it
+      covered that a same-realm promise can present. Replaced
       by `instanceof Promise`, which is what `fjs t` does. The measurements are
       in [imports, promises and realms](imports-promises-realms.md); the scope
       rule they rest on is in [browser testing](browser-testing.md).
@@ -181,7 +180,9 @@ constructor made the value, not what the value is — and asking it in a place
 that handles business logic is what produced ~150 lines of `Symbol.species`
 machinery, several rounds of review, two measured ways to hang the suite, and a
 reversal. The answer, in the end, was that the question should not have been
-there: the runner executes only pure FunctionalScript, which has no promises.
+there: the runner executes authored FunctionalScript, which by convention has
+no promises — a convention nothing enforces, which is itself part of the
+problem.
 
 `fjs t` mostly escapes this already, and not by being more careful. `sandbox` is
 an *operation*: the promise is awaited inside the interpreter and the pure core

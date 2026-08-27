@@ -62,9 +62,12 @@ turned out to be incapable of producing.
 Every one of those rounds was spent because host values and business logic were
 sharing a code path. The fix was not a cleverer identity check — no check
 works, since a genuine cross-realm promise passes every one of them and the
-defect is in what happens next. The fix was **separation**: the runner executes
-only pure FunctionalScript, which has no promises, so the question never arises.
-The 150 lines and the fixtures testing them were deleted together.
+defect is in what happens next. The fix was **separation**: the runner executes authored FunctionalScript, which
+by convention has no promises, so the question stops arising. The 150 lines and
+the fixtures testing them were deleted together — and the residual honesty is
+that the convention is not enforced, since module selection is by filename. A
+language whose purity is checked rather than agreed would close that last gap
+too.
 
 That is the argument for CA and for effects as one argument rather than two.
 Business logic should be pure, serializable and content-addressed, where identity

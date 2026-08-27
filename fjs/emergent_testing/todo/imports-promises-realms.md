@@ -157,8 +157,14 @@ shadow in `runPromise` are for. They are not decoration.
 
 ### Who is this for? — the question the study should have asked first
 
-**FunctionalScript has no promises and cannot produce one.** A `.f.mjs` proof is
-pure: no `async`, no `await`, nothing that constructs a `Promise`. So every
+**FunctionalScript as specified has no promises, and nothing enforces that.** A
+conforming `.f.mjs` proof is pure: no `async`, no `await`, nothing that
+constructs a `Promise`. But selection is by filename —
+`website/browser-prepare.mjs` is a bare `name.endsWith('.f.mjs')` with no
+content check — so a module that does not conform is loaded anyway. Verified: a
+`.f.mjs` returning `Promise.resolve(...)` is selected (138 of 138) and awaited
+correctly. Treat what follows as a statement about the *convention*, which is
+why proofs are scarce, not as a guarantee the toolchain provides. So every
 promise this runner has ever awaited comes from a hand-written *impure* `.mjs`
 proof. Counted:
 
@@ -178,8 +184,8 @@ with `node:vm`, an iframe or a worker. The only proofs that do are the ones
 testing the cross-realm machinery. **The defence exists to defend against its
 own fixtures**, and deleting both leaves nothing uncovered.
 
-**In the browser it is stronger than that: a promise cannot occur at all.** The
-browser suite runs authored FunctionalScript and nothing else —
+**In the browser it is stronger than that: by convention a promise does not
+occur.** The browser suite runs authored FunctionalScript and nothing else —
 `website/browser-prepare.mjs` line 16 is `name => name.endsWith('.f.mjs')`, and
 the generated manifest carries 137 modules, none of them anything else. Impure
 `.mjs` proofs are excluded by construction, and rightly so: a browser has no

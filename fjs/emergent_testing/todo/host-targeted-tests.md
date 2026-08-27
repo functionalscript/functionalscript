@@ -34,10 +34,9 @@ say why it cannot be written as `.f.mjs`. Two things a design would then have to
 face, both easy to miss:
 
 - **Targeting and describing are different questions.**
-  `emergent_testing/browser/proof.mjs` and `species.proof.mjs` *test* browser
-  code but *run* in Node, against the browser runner called as a library with a
-  DOM stand-in. A filename convention that conflates the two would mislabel
-  exactly those files.
+  `emergent_testing/browser/proof.mjs` *tests* browser code but *runs* in Node,
+  against the browser runner called as a library with a DOM stand-in. A filename
+  convention that conflates the two would mislabel exactly that file.
 - **A declaration is a claim, and claims need checking.** A test declaring
   `browser` while importing `node:fs` is a lie the preparation program has to
   catch — the dependency-graph acceptance

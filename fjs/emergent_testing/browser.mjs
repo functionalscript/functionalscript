@@ -158,11 +158,12 @@ const runOne = (module, path, throws, fn, result) => {
     // assimilate a proof tree carrying a `then` key: such a tree is a sub-tree
     // with a test called `then` in it, in both runners.
     //
-    // This runner executes authored FunctionalScript and nothing else — the
-    // suite is selected by `website/browser-prepare.mjs` on `.f.mjs` — and
-    // FunctionalScript has no promises. The only promises reaching here come
-    // from the impure proofs that drive this module from Node, and those are
-    // same-realm by construction. See `todo/imports-promises-realms.md` for the
+    // What makes this enough is the `await` above, not an assumption about the
+    // values that reach it. FunctionalScript as specified has no promises, and
+    // the browser suite selects `.f.mjs` — but that selection is by filename
+    // with no content check (`website/browser-prepare.mjs`), so a module that
+    // does not conform is still loaded and can return one. The handling here is
+    // correct either way. See `todo/imports-promises-realms.md` for the
     // machinery this replaces and the measurements behind removing it.
     /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
     const settled = async value => {

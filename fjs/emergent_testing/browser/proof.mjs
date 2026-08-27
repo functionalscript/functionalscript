@@ -211,9 +211,9 @@ export const proof = {
     // what `fjs t` does with it, and the point of this proof is that the two
     // agree. It is a known gap in both, recorded in
     // `../todo/imports-promises-realms.md`, and not one this runner may close on
-    // its own: a browser suite runs authored `.f.mjs` only, and FunctionalScript
-    // has no promises, so nothing it executes can produce this value. Only an
-    // impure proof reaching for `node:vm` can, as this one does.
+    // its own. Reaching it needs `node:vm`, an iframe or a worker, which
+    // FunctionalScript as specified cannot express — so only an impure proof
+    // can build one, as this one does.
 
     // The brand check itself runs user code: `instanceof` consults
     // `getPrototypeOf`, and a proxy can trap it. `fjs t` checks inside
