@@ -31,14 +31,20 @@ repository does not want to pay again, and the record of why is worth more than
 the code was. **The order of work is the deliverable here, not just the final
 shape.** See [DESIGN.md §4, "Follow the example"](../../../DESIGN.md).
 
-**`fjs t` is the specification, including the things it does not do.** The
-attempt shared the modules and then let the browser keep its own rules: its own
-test-name format, its own scheduling policy, its own clock. That is the failure
-mode to avoid, and it is easy to miss because it *looks* like success — one
-module, one name, two behaviours behind it. Two implementations behind two names
-are more honest than that, because nothing about the shared name signals the
-difference. Sharing code and sharing behaviour are different achievements, and
-only the second one is this issue.
+**Share the code, then keep the two in sync.** The order is: share; adjust
+where the host genuinely requires it; document every difference that remains;
+open an issue for each problem the port revealed; and solve each of those issues
+for **both** runners at once. The last step is the one that matters and the one
+under pressure to skip.
+
+Differences are fine — a browser has no stdout, a terminal has no DOM, and the
+two will use different APIs and wrappers around the same core. *Undocumented*
+differences are not. The attempt shared the modules and then let the browser
+keep its own test-name format, its own scheduling policy and its own clock, none
+of which the host forced. That is the failure mode: it *looks* like success —
+one module, one name — while two behaviours hide behind it, and two
+implementations behind two names would have been more honest, because nothing
+about the shared name signals the difference.
 
 **`fjs t` is sequential, and that is a decision to copy, not a gap to fill.**
 The attempt gave the browser a batch size — proofs launched in groups with a
@@ -69,11 +75,11 @@ both are properly issues rather than fixes inside a port:
   [Hostile thrown values and cross-realm promises](hostile-proof-values.md) and
   [Imports, promises and realms](imports-promises-realms.md).
 
-The rule that follows: **land the shared core matching `fjs t` exactly, then
-take each new problem as its own change that applies everywhere.** A difference
-between hosts is something to justify in an issue, not to introduce inside a
-port. If the port cannot preserve a behaviour, that is a finding to record
-before the port merges, not a silent divergence to explain in review.
+The rule that follows: **land the shared core with behaviour unchanged, then
+take each new problem as its own change that lands in both runners together.**
+An improvement the browser could have is an issue, not something to introduce
+inside a port. A behaviour the port cannot preserve is a finding to record
+before it merges, not a silent divergence to explain in review.
 
 **Keep the change reviewable.** The attempt was 2646 insertions and 1408
 deletions across 35 files in one PR — a move, a rewrite, a new effects layer, a
@@ -174,9 +180,13 @@ are shared.
 - Preserve the recursive proof semantics and totals of `fjs t` exactly,
   including objects with a proof property named `then`; only actual promises
   are asynchronous values.
-- Both runners must produce the same test name for the same leaf.
-- Introduce no host-specific behaviour that `fjs t` does not already have. A
-  difference the port cannot avoid is recorded as an issue before it merges.
+- Both runners must produce the same test name for the same leaf. This one is
+  not a host difference: nothing about a browser prevents it, and a divergence
+  here is the visible sign that the semantics underneath were never unified.
+- Every remaining difference between the two runners is documented where it is
+  made, and traceable to something the host forced. Host APIs and wrappers may
+  differ freely; behaviour may differ only for a written reason.
+- A fix for a problem either runner has lands in both, in the same change.
 - Browser modules must not import Node built-ins, the Node effect interpreter,
   `node:test`, or Playwright.
 - Website build-time filesystem access must be expressed by the FunctionalScript
@@ -226,6 +236,8 @@ are shared.
       test counts, and normalized failures from the same fixtures.
 - [ ] Record every behaviour the browser file has today and the shared core will
       not keep, as an issue, before the sharing change merges.
+- [ ] Close each of those issues for both runners at once, so the two stay in
+      sync rather than drifting from the day the core is shared.
 
 ### Related
 

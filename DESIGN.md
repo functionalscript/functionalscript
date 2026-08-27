@@ -108,45 +108,56 @@ on top of the weaker design.
   existing module; create a new one only if no good fit exists. This is different
   from DRY extraction: it is always appropriate.
 - **Follow the example** — when the same capability already exists elsewhere,
-  match it before improving on it. See below.
+  share it first, document what still differs, and fix what you find in every
+  context at once. See below.
 - **Avoid side effects and mutability.**
 
 ### Follow the example
 
 When a capability already exists somewhere in the repository and is being
 brought to a second context — another host, another backend, another runner —
-**the existing one is the specification.** Reproduce its behaviour first,
-including the simplifications it made and the things it does not do. Only once
-the second context matches the first is it worth asking whether either should
-change.
+**the existing one is the specification.** The order of work is:
 
-This is not the same as reusing code, and it is the part that is easy to skip
-while believing the principle is satisfied. Sharing a module and then giving the
-new context its own rules produces something that *looks* unified and is not:
-two behaviours behind one name, which is worse than two implementations behind
-two names, because nothing signals the difference.
+1. **Share the code.** Take the existing implementation as the shared core.
+2. **Adjust where the second context genuinely requires it.** Different hosts
+   have different APIs, and a wrapper or an adapter around the shared core is
+   the normal, expected shape. Two contexts may end up behaving slightly
+   differently for reasons their hosts impose.
+3. **Document every difference that remains,** at the point where it is made.
+4. **Open an issue for each problem the port revealed,** rather than fixing it
+   inside the port.
+5. **Solve each issue for every context at once,** so they stay in sync.
 
-The rule has three consequences worth stating outright.
+The cost of skipping a step is not paid where it is skipped. Steps 1–2 without
+3–5 give something that *looks* unified and is not: two behaviours behind one
+name, which is worse than two implementations behind two names, because nothing
+signals the difference.
 
-**A difference has to be justified, not merely noticed.** "The new context can
-do better here" is a reason to file an issue, not a reason to diverge inside a
-port. The example may be simple *for a reason* that is not visible from inside
-the new context — `fjs t` runs proofs one after another, and its report is
-readable, attributable and reproducible because of it.
+The parts worth stating outright:
 
-**A problem the new context reveals is everyone's problem.** If porting exposes
-that a measurement is inaccurate, that an error loses attribution, or that an
-ordering is unspecified, then it was very likely already true of the example and
-merely easier to see now. Fix it once, for both, as its own change — or record
-it as an issue. Fixing it only in the new context leaves the two out of step and
-hides the finding from the place that has had the defect longest.
+**Differences are allowed; undocumented differences are not.** The goal is not
+one identical behaviour — a browser has no stdout and a terminal has no DOM, and
+pretending otherwise invents a host that does not exist. The goal is that every
+difference is deliberate, written down, and traceable to the host that forced
+it. "This context can do better here" is not such a reason: that is an
+improvement, and improvements go through step 4.
 
-**Solve it for the shared code or not at all.** A workaround that lives in one
-host is a fork with extra steps. Either the shared layer learns the answer, or
-the issue stays open and honest.
+**Solve it for both, or for neither.** Once an issue from step 4 is picked up,
+the fix lands in every context, in the same change. A fix in one context only is
+how the two drift back apart, and it hides the finding from the place that has
+had the defect longest — which is usually the older one. This is the step that
+keeps the contexts in sync, and it is the one under time pressure to skip.
 
-The order, then, is: reuse and match the example; land that; *then* take the
-new problems one at a time, as changes that apply everywhere.
+**The example may be simple for a reason.** What looks like a gap from inside
+the new context is often a decision made in the old one. Copy it first; if it
+turns out to be wrong, it is wrong in both places and worth an issue that says
+so.
+
+**Keep the port separate from everything it inspires.** Land the sharing change
+on its own, with behaviour unchanged. Anything new — a different scheduling
+policy, a better measurement, an extra guard — is its own change afterwards.
+Combined, they cannot be reviewed: an argument about the new idea becomes an
+argument about the port.
 
 ### Exception to DRY: performance measurement
 

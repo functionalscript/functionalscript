@@ -58,6 +58,9 @@ the shared core rather than twice.
 - Whatever is emitted has to be as useful to an automated consumer as to a
   reader — a start with no matching result is precisely the signal a crashed
   run leaves behind, and a controller should be able to read it.
+- The start event lands in both runners in the same change. Their output differs
+  — a terminal line and a DOM row — but a runner that names a running test and
+  one that does not are two different tools.
 
 ### Tasks
 
