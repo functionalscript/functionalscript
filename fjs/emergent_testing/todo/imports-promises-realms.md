@@ -245,8 +245,8 @@ subscription protocol for a threat model that does not exist here.
 **If proofs ever run in iframes or workers** — which
 [browser testing](browser-testing.md) contemplates and nothing does today — a
 cross-realm promise becomes reachable for the first time. (Running impure `.mjs`
-proofs in a browser is the other way it could happen, and is
-[not planned](host-targeted-tests.md).) That is the moment to
+proofs in a browser is the other way it could happen, and
+[browser testing](browser-testing.md) records why that is not a goal.) That is the moment to
 revisit this, with a real case in hand rather than a constructed one, and the
 material is preserved above: the intrinsic `Promise.prototype.then` is both the
 brand check and the subscription, its `Reflect.apply` must sit outside a `new

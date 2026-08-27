@@ -151,8 +151,13 @@ const runOne = (module, path, throws, fn, result) => {
     // would be a different operation: it calls the value's *own* `then`, and it
     // builds its answer through `constructor[Symbol.species]`, so a promise
     // carrying either can hand back something that is not its result. `await`
-    // on a same-realm promise adopts the promise's internal state and consults
-    // neither.
+    // is diverted by neither.
+    //
+    // It is not immune to them, which is a different claim: a species that
+    // throws, or that is not a constructor, fails while promise resolution
+    // reads it, and that failure is reported against the test that produced the
+    // value — the same outcome `fjs t` gives it, and better than losing the
+    // sub-tree in silence.
     //
     // The value is wrapped in a tuple first so that resolving it cannot
     // assimilate a proof tree carrying a `then` key: such a tree is a sub-tree

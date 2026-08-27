@@ -76,9 +76,20 @@ pure — no host objects, no `node:` imports, no promises, no `async` — so a
 `.f.mjs` proof means the same thing in every runner, and the extension is a
 sufficient declaration for a static selector that never imports anything. An
 impure `.mjs` proof means whatever its host provides: `node:fs`, `node:vm`,
-`process`, `node:test`, a filesystem, a subprocess. Loading those into a page and
-expecting them to test anything is not a goal — see
-[impure `.mjs` proofs are Node-only](host-targeted-tests.md).
+`process`, `node:test`, a filesystem, a subprocess.
+
+**Impure `.mjs` proofs are therefore Node-only, by construction, and that is the
+answer rather than a gap.** Loading JavaScript written against Node into a
+browser and expecting it to test anything is a nightmare, and nobody has asked
+for it; no convention for labelling a test's host changes what `node:fs` needs.
+There is no work item here, and the rule is recorded because it looks like an
+omission if met without context. Two things a future design would have to face,
+if someone ever turns up with a concrete impure test a browser must run:
+*targeting* and *describing* are different questions — `browser/proof.mjs` tests
+browser code but runs in Node, so a filename convention would mislabel exactly
+that file — and a declaration is a claim, so a test declaring `browser` while
+importing `node:fs` is a lie the dependency-graph acceptance above has to
+catch.
 
 Two things follow that are easy to get wrong:
 
@@ -193,7 +204,5 @@ workers, or visual regression testing.
 - [`.f.mjs` proof discovery and coverage](f-mjs-test-and-coverage.md)
 - [Shared browser/console runner core](share-browser-console-runner.md)
 - [Explicit browser test controls](browser-test-controls.md)
-- [Impure `.mjs` proofs are Node-only](host-targeted-tests.md) — why the
-  `.f.mjs`-only selection rule is the answer rather than a gap
 - [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
 - [project roadmap](../../../todo/plan/roadmap.md)

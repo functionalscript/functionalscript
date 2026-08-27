@@ -260,6 +260,24 @@ export const proof = {
         assertEq(report.totals.failed, 1)
         assertEq(report.results[1]?.path, '.nested().child')
     },
+    // The other half of the species story, and the half the deleted
+    // `species.proof.mjs` used to cover: `await` is not *immune* to a custom
+    // species, only undiverted by a valid one. A species that throws fails while
+    // promise resolution reads it, and that failure is attributed to the test
+    // that produced the promise rather than swallowed — which is what `fjs t`
+    // does with the same value.
+    customSpeciesThatFailsIsReported: async () => {
+        const constructor = {}
+        Object.defineProperty(constructor, Symbol.species, {
+            get: () => { throw new Error('species') },
+        })
+        const promised = Promise.resolve({ child: () => undefined })
+        Object.defineProperty(promised, 'constructor', { value: constructor, configurable: true })
+        const report = await run({ nested: () => promised })
+        assertEq(report.totals.failed, 1)
+        assertEq(report.results[0]?.path, '.nested')
+        assertEq(report.results[0]?.message, 'species')
+    },
     // **This pins a defect, not a desired behaviour.** The name says so on
     // purpose: it appears in the suite output and in any report built from it,
     // where a reader meets the failure mode rather than an assertion that reads
