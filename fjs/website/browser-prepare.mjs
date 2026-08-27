@@ -99,17 +99,19 @@ const quoted = (line, prefix, quote) =>
 
 /**
  * A line that can carry a static module specifier: the head of an
- * `import`/`export` declaration, or the `} from '...'` tail of one whose
- * bindings span several lines. Documentation and ordinary expressions are left
- * out, so prose such as "tells `'empty'` from `'missing'`" is not mistaken for
- * an import — a JSDoc line starts with `*` and a string literal with a quote.
+ * `import`/`export` declaration — in either spacing `exportsProof` accepts —
+ * or the `} from '...'` tail of one whose bindings span several lines.
+ * Documentation and ordinary expressions are left out, so prose such as "tells
+ * `'empty'` from `'missing'`" is not mistaken for an import — a JSDoc line
+ * starts with `*` and a string literal with a quote.
  *
  * @type {(line: string) => boolean}
  */
 const declaration = line => {
     const text = line.trim()
     return text.startsWith('import ') || text.startsWith('import{')
-        || text.startsWith('export ') || text.startsWith('} from ')
+        || text.startsWith('export ') || text.startsWith('export{')
+        || text.startsWith('} from ')
 }
 
 /**

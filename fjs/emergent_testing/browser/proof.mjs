@@ -240,6 +240,19 @@ export const proof = {
         release({ proof: {} })
         assertEq((await done).status, 'passed')
     },
+    sourcesImporterThrows: async () => {
+        // An importer that throws before it returns a promise is a loader
+        // failure like any other: the page must not be left in `loading` with
+        // no report and no completion event.
+        const p = page()
+        const report = await startBrowserTestSources(p.root, ['bad.mjs'],
+            source => { throw new Error(`no loader for ${source}`) })
+        assertEq(report.status, 'infrastructure-error')
+        assertStructurallySame({ ...report.totals }, { tests: 1, passed: 0, failed: 1 })
+        assertEq(report.results[0]?.message, 'no loader for bad.mjs')
+        assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
+        assertEq(p.view.events.length, 1)
+    },
     sourcesLoadFailure: async () => {
         const p = page()
         const report = await startBrowserTestSources(p.root, ['ok.mjs', 'bad.mjs'],

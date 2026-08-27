@@ -233,8 +233,20 @@ export const startBrowserTestSources = (root, sources, importer) => {
     setState(root, 'loading')
     let loaded = 0
     const summary = root.querySelector('[data-test-summary]')
+    // The importer is supplied by the page, so obtaining the promise is itself
+    // a failure point: a synchronous throw becomes a rejection here and is
+    // reported as a loader failure, rather than escaping past a `loading` state
+    // that no report or completion event ever replaces.
+    /** @type {(source: string) => Promise<{ readonly proof?: unknown }>} */
+    const load = source => {
+        try {
+            return importer(source)
+        } catch (error) {
+            return Promise.reject(error)
+        }
+    }
     /** @type {Promise<readonly _LoadedModule[]>} */
-    const modules = Promise.all(sources.map(source => importer(source).then(
+    const modules = Promise.all(sources.map(source => load(source).then(
         module => {
             loaded += 1
             if (summary !== null) { summary.textContent = `Loading ${loaded}/${sources.length}: ${source}` }
