@@ -97,10 +97,15 @@ importer in the same PR.
 
 Answer a review, don't absorb it. A reviewer who asks a **design document** (a
 `todo/` file) to spell out an implementation is told the choice belongs to the
-implementer — and that answer goes **into the design document**, not only into
-the review thread. A reviewer who asks an **implementation** for another feature
-gets a new `todo/` issue to investigate it and a link to that issue, never a
-wider diff. A comment saying the change is wrong is neither: fix it in this PR.
+implementer, and that answer goes **into the design document**; prototype when
+the question is genuinely open, and record what the prototype uncovered rather
+than the prototype itself. A reviewer who asks an **implementation** for another
+feature gets a new `todo/` issue to investigate it and a link to that issue,
+never a wider diff. Even a known crash may be deferred the same way — a small
+step merged with the defect written down beats a PR that never converges — as
+long as the `todo/` file names what breaks and the input that breaks it. Only a
+**regression** must be fixed here. The rule under all of it: no knowledge from a
+review may be left in the review thread alone.
 
 Commit-message format, the PR checklist, and addressing review comments:
 [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).

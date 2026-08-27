@@ -214,10 +214,10 @@ squash, so their messages are working notes.
 ### Addressing review comments
 
 Most review comments are simply right: fix the bug, take the simpler
-expression, answer the question. Two kinds are not, and both ask the pull
-request to grow rather than to improve. Push back on those — but a push-back is
-not a dismissal. Each one leaves something behind in the repository, because a
-reason that lives only in a review thread is gone the moment the pull request
+expression, answer the question. The rest ask the pull request to grow rather
+than to improve, and an author may push back on those — but a push-back is
+never a dismissal. Each one leaves something behind in the repository, because
+a reason that lives only in a review thread is gone the moment the pull request
 is merged.
 
 - **A design document asked for implementation detail.** A pull request whose
@@ -235,6 +235,16 @@ is merged.
   then it was design and not detail: record the constraint, and leave everything
   it does not decide open.
 
+  Pushing back is not refusing to look. When the reviewer's question is
+  genuinely open — nobody yet knows whether the shape works — **write a
+  prototype**, and put what it *uncovered* into the design document: the gray
+  area it exposed, the constraint that turned out to be real, the approach that
+  could not be made to work. Say in the document that it came from a prototype
+  and does not bind the implementation. The prototype's job is to find the
+  unknowns, not to become the code that ships, and it will usually be thrown
+  away; a design recording "we tried X, and Y stops working" is worth more than
+  one that specifies X.
+
 - **An implementation asked for another feature.** A pull request implements one
   feature or improvement, with minimal code changes ([AGENTS.md
   §5](./AGENTS.md#5-pull-requests-and-releases)); a reviewer's "while you're
@@ -247,12 +257,28 @@ is merged.
   all that it adds; otherwise file it separately, so this pull request stays one
   change.
 
-Neither case covers a comment saying the change is **wrong** — a defect, a
-broken proof, an unhandled edge case, an API a reader misreads. Those are this
-pull request's work however much they grow it, and "out of scope" is never the
-answer to them. The line is whether the comment is about what the pull request
-already claims to do, which is fixed here, or about something it never claimed,
-which is written down.
+A comment saying the change is **wrong** is not automatically this pull
+request's work either. Even a known edge case that crashes the program may be
+deferred, and often should be: **a small step merged with the knowledge written
+down beats two hundred iterations that arrive nowhere.** A pull request that
+grows a fix for every defect a reviewer can name stops converging, and the
+knowledge that went into it is lost when it is abandoned.
+
+What makes that push-back legitimate is the same thing as in the two cases
+above — **the `todo/` issue must be filed**, and it must carry the knowledge
+rather than a shrug: what crashes, the input that triggers it, and whatever the
+reviewer or the author already knows about why. A crash recorded that precisely
+is a scoped next step someone can pick up; the same crash left in a review
+thread is a bug nobody can find again. What may not be deferred is a
+**regression** — something that worked before this pull request and does not
+after. A step forward that carries a known limitation is progress; a step that
+takes working behavior away is not, whatever is filed alongside it.
+
+So the question to ask about a review comment is not "is this in scope" but
+**"where does this knowledge live once the pull request is merged?"** In the
+diff — then fix it here. In the design document, or in a new `todo/` issue —
+then write it there, and reply with the link. Only "in the review thread" is
+the wrong answer; that is the one place it will not survive.
 
 ## OpenAI Codex environment
 
