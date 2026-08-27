@@ -49,8 +49,9 @@ anything non-trivial make sure it contains a concrete design before writing
 code — and if that design turns out not to be implementable as written, rewrite
 the issue rather than forcing the code through
 ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Deviating from a
-design is fine; deviating silently is not — and prefer changing the design in
-its own PR, ahead of the one that implements it. Write the code
+design is fine; deviating silently is not — and prefer, without requiring, that
+the design change land in its own PR ahead of the one implementing it, or that
+the description say why the two arrived together. Write the code
 plus its proof, run `npm run update` after changing source, run the check set
 above, and delete the `todo/` issue file in the same PR that fixes it.
 

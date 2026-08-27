@@ -33,10 +33,13 @@ differs is what comes next.
   is missing where two implementers working from the design would not produce
   the same observable behavior and the same API.
 
-Keep the two apart where you can: change the design in one pull request,
-implement in the next. Landed together, only the end state survives — and which
-parts were decided beforehand and which were discovered while building is
-exactly what the next reader needs and cannot recover from that diff.
+Prefer keeping the two apart: change the design in one pull request, implement
+in the next. Landed together, only the end state survives — and which parts
+were decided beforehand and which were discovered while building is exactly
+what the next reader needs and cannot recover from that diff. It is a
+preference, not a rule; a one-line correction the code makes obvious, or a
+design nobody can check until the code exists, is better landed together. Say
+in the description that it was, so the record is short rather than missing.
 
 So a reviewer asking a design for detail is asking for something legitimate:
 answer with the detail, or say the choice belongs to the implementer. Either
