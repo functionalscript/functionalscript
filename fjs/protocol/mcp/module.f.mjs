@@ -14,15 +14,15 @@
  * @module
  *
  * @import { Unknown } from '../../media/json/types.ts'
- * @import { Ts } from '../../types/rtti/ts/types.ts'
+ * @import { Ts } from '../../rtti/ts/types.ts'
  * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Response } from '../json_rpc/types.ts'
- * @import { Type } from '../../types/rtti/types.ts'
+ * @import { Type } from '../../rtti/types.ts'
  * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig, ProtocolVersions } from './types.ts'
  */
 
-import { boolean, string, open, option, array, record, or } from '../../types/rtti/module.f.mjs'
+import { boolean, string, open, option, array, record, or } from '../../rtti/module.f.mjs'
 import { pureOk, resultMapStep, resultStep, step as ioStep } from '../../effects/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import { read, write } from '../../effects/memory/module.f.mjs'
@@ -31,7 +31,7 @@ import {
     rpcError, internalError, invalidRequest, invalidParams, methodNotFound,
     errorResponseOf, successResponseOf,
 } from '../json_rpc/module.f.mjs'
-import { parse } from '../../types/rtti/parse/module.f.mjs'
+import { parse } from '../../rtti/parse/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
 import { unknown } from '../../media/json/rtti/module.f.mjs'
 

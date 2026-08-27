@@ -31,8 +31,8 @@ import { at } from '../../types/object/module.f.mjs'
  */
 const unwrapRun = ([state, r]) => [state, unwrapResult(r)]
 import { parse as parseJson } from '../../media/json/module.f.mjs'
-import { array, string as rttiString } from '../../types/rtti/module.f.mjs'
-import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
+import { array, string as rttiString } from '../../rtti/module.f.mjs'
+import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 
 const home = '/home/user'

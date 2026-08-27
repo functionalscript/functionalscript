@@ -402,8 +402,8 @@ validate({ a: 42 })                          // the same, with `<const T>`
 
 A cast there is the absence of a modifier on the callee, not a fact about the
 value — and it has to be repeated at every call, where the modifier is written
-once. `types/rtti` (`or`, `option`, `array`, `record`), `types/rtti/validate`,
-`types/rtti/parse`, `types/result` (`ok`, `error`), `protocol/mcp`'s
+once. `rtti` (`or`, `option`, `array`, `record`), `rtti/validate`,
+`rtti/parse`, `types/result` (`ok`, `error`), `protocol/mcp`'s
 `toolEntry`, and `bnf`'s `option` already carry it; a new schema- or
 literal-taking export should too.
 

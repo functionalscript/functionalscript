@@ -1094,7 +1094,7 @@ person can re-check rather than re-derive. Counts are as of
       [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
       retitled it, `serializable-data.md` left when
       [#1539](https://github.com/functionalscript/functionalscript/pull/1539)
-      implemented `fjs/types/rtti/data` and deleted it, and earlier revisions
+      implemented `fjs/rtti/data` and deleted it, and earlier revisions
       of this paragraph ran one short —
       `fjs/emergent_testing/scenarios.md`, which quotes the deleted `run.sh`
       verbatim, was in the measured set but never enumerated. Review on #1530
@@ -1151,10 +1151,10 @@ person can re-check rather than re-derive. Counts are as of
       now [`fjs/todo/formatter-for-f-js-files.md`](../fjs/todo/formatter-for-f-js-files.md),
       naming `.f.mjs` (and the stage-2 `.f.js`) as the formatter's targets.
 - [x] **Fix the one broken doc link that is not a rename artifact.**
-      `fjs/types/rtti/todo/serializable-data.md` linked to `../data/module.f.ts`
-      before `fjs/types/rtti/data/` existed. Resolved by implementing that
+      `fjs/rtti/todo/serializable-data.md` linked to `../data/module.f.ts`
+      before `fjs/rtti/data/` existed. Resolved by implementing that
       issue: the module landed as authored `.f.mjs` source
-      ([`fjs/types/rtti/data/module.f.mjs`](../fjs/types/rtti/data/module.f.mjs))
+      ([`fjs/rtti/data/module.f.mjs`](../fjs/rtti/data/module.f.mjs))
       and the issue file was deleted.
 
 ### Acceptance criteria

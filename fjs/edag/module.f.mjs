@@ -2,7 +2,7 @@
  * @module
  *
  * @import { Assert } from '../asserts/types.ts'
- * @import { Check, Check3 } from '../types/rtti/ts/types.ts'
+ * @import { Check, Check3 } from '../rtti/ts/types.ts'
  * @import {
  *  Array,
  *  Exp,
@@ -39,12 +39,12 @@ import {
     or,
     string,
     array as rttiArray,
-} from "../types/rtti/module.f.mjs";
+} from "../rtti/module.f.mjs";
 
 /**
  * Every tuple here is closed — the members it declares and nothing else, which
  * is what a bare `Tuple` says ("Structs and tuples are closed" in
- * `../types/rtti/README.md`). That is load-bearing rather than incidental: the
+ * `../rtti/README.md`). That is load-bearing rather than incidental: the
  * chain grammar below claims each JS chain has exactly one spelling, and an
  * `open` tuple would let any node carry a trailing element nothing reads,
  * splitting one function into unboundedly many graphs. So do **not** wrap any
@@ -53,7 +53,7 @@ import {
  * missing position.
  *
  * Do not call `parse(exp)` or rely on `validate(exp)` rejecting cycles
- * without reading `../types/rtti/todo/identity-aware-parse.md` first —
+ * without reading `../rtti/todo/identity-aware-parse.md` first —
  * neither is identity-aware, and that TODO covers why and what's missing.
  */
 
@@ -232,7 +232,7 @@ export const numberCast = /** @type {const} */ (['Number', exp])
  * name.
  *
  * Does not exclude `'constructor'`/`'__proto__'` — TODO, see
- * `../types/rtti/todo/excluded-string-values.md`.
+ * `../rtti/todo/excluded-string-values.md`.
  */
 export const index = or(numberCast, string, number)
 

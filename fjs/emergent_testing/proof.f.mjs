@@ -5,7 +5,7 @@
  * @import { JsModule } from '../effects/node/virtual/types.ts'
  * @import { Reporter } from './types.ts'
  * @import { All, Await, Import, Readdir, Test, TestContext } from '../effects/node/types.ts'
- * @import { Ts } from '../types/rtti/ts/types.ts'
+ * @import { Ts } from '../rtti/ts/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
@@ -20,8 +20,8 @@ import {
 import { run as mockRun } from '../effects/mock/module.f.mjs'
 import { shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
-import { array, number as rttiNumber, or, string as rttiString } from '../types/rtti/module.f.mjs'
-import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
+import { array, number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
+import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.mjs'
 
 /**

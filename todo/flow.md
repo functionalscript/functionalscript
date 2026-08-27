@@ -211,7 +211,7 @@ Planned engine work, each a separate change:
 ### Future work: RTTI and collection kinds
 
 - Replace the TypeScript-only environment with RTTI-described named inputs
-  (`fjs/types/rtti`), so a graph can be validated, serialized, and shipped
+  (`fjs/rtti`), so a graph can be validated, serialized, and shipped
   to a remote engine.
 - Add collection kinds beyond the ordered sequence: `UnorderedBag`, `Set`,
   ordered-per-key. Operations then declare the algebraic laws they need
@@ -241,7 +241,7 @@ Planned engine work, each a separate change:
 - [fjs/types/function/operator/module.f.mjs](../fjs/types/function/operator/module.f.mjs)
   — `Scan`, `StateScan`, `Fold`: the closure-form operators `Transducer`
   generalizes (its JSDoc already frames them as Mealy machines)
-- [fjs/types/rtti](../fjs/types/rtti) — runtime type descriptions for the
+- [fjs/rtti](../fjs/rtti) — runtime type descriptions for the
   future named-input schema
 - [fjs/effects](../fjs/effects) — the same deep-embedding idea for effects:
   describe now, interpret later

@@ -140,7 +140,7 @@ correctly-resolved citation as outstanding. A resolution takes one of two forms:
 ```md
 - [i167](../fjs/types/bit_vec/module.f.mjs) — the identifier as a link label,
   where a document survives to link to.
-- i143 (retired; shipped as [`fjs/types/rtti/data/`](../fjs/types/rtti/data/module.f.mjs))
+- i143 (retired; shipped as [`fjs/rtti/data/`](../fjs/rtti/data/module.f.mjs))
   — the identifier with `retired` beside it and the target named, for code.
 - the retired `i171` … resolved **won't fix**, reason in `parseTestSet`'s JSDoc.
 ```

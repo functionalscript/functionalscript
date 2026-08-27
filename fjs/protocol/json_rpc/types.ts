@@ -11,7 +11,7 @@ import type { Result } from '../../types/result/types.ts'
 import type {
     _id, request, error as errorSchema, response, successResponse, errorResponse,
 } from './module.f.mjs'
-import type { Ts } from '../../types/rtti/ts/types.ts'
+import type { Ts } from '../../rtti/ts/types.ts'
 
 export type Id = Ts<typeof _id>
 export type Request = Ts<typeof request>

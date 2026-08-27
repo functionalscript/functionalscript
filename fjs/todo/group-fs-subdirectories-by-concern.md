@@ -32,9 +32,6 @@ Create `fjs/common/` for cross-cutting reusable algorithms, starting by moving `
 
 - Tooling bucket for `bnf`, `fsc`, and possibly `js` (grammar/compiler tooling;
   the content-facing formats go to `fjs/media/`, see below).
-- Promote `types/rtti` to `fjs/rtti` — the same membership rule as item 2, applied
-  to the largest thing in `types/`. See
-  [move-rtti-out-of-types](./move-rtti-out-of-types.md).
 - Storage bucket for `cas` + `sul`; testing bucket for `asserts` + `emergent_testing`.
 
 ### 4. `fjs/media/` — content formats and media-type detection
@@ -171,6 +168,8 @@ API (no `exports` map), so every move is a breaking change. The first wave is
 - [x] Move `fjs/html/` → `fjs/media/html/` (one PR).
 - [x] `fjs/media/revision/` arrived as new code (the `vnd.fjs.revision` format) — no move needed.
 - [x] Rename `fjs/mime/` → `fjs/media/type/`.
+- [x] Promote `types/rtti` to `fjs/rtti` — the same membership rule as item 2, applied
+      to the largest thing in `types/`.
 - [ ] Later: move `fjs/djs/` → `fjs/media/djs/`.
 - [x] Update all relative imports referencing the moved modules.
 - [ ] Update `deno.json` `exports` map and run `npm run update` (no `exports` map exists in `deno.json` currently; nothing to update). **When a map is first introduced it must enumerate every `module.f.mjs` then present** — a partial map silently restricts a package that is unrestricted today. Modules proposed meanwhile are counting on this: `fjs/media/json/grammar` ([bnf-grammar-single-owner](../media/json/todo/bnf-grammar-single-owner.md)) and `fjs/effects/{all,sandbox,console,test}` ([node-module-layering](../effects/todo/node-module-layering.md)) each record that their registration lands here rather than in their own change.

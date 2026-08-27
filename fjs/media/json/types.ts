@@ -14,7 +14,7 @@
 
 import type { Entry as ObjectEntry } from '../../types/object/types.ts'
 import type { Assert } from '../../asserts/types.ts'
-import type { Ts, Check } from '../../types/rtti/ts/types.ts'
+import type { Ts, Check } from '../../rtti/ts/types.ts'
 import type { primitive, unknown } from './rtti/module.f.mjs'
 import type { List } from '../../types/list/types.ts'
 

@@ -30,7 +30,7 @@ coming.
 
 After the alphabet split settles the generic `Rule` union, add a visitor in
 `fjs/bnf/data/module.f.mjs` (the module that owns the type), mirroring the proven
-`visit` pattern in `fjs/types/rtti/common`.
+`visit` pattern in `fjs/rtti/common`.
 
 Conceptually the visitor exposes the semantic rule cases:
 
@@ -91,4 +91,4 @@ scheme. Each call site keeps its own recursion/accumulator structure.
   both backends now read from instead of re-deriving. It is still the natural
   consumer of this visitor: `emptyTagMap` walks the rule tree itself, so it is
   one of the traversals a `Rule` visitor would absorb.
-- `fjs/types/rtti/common/module.f.mjs` — existing `visit` precedent.
+- `fjs/rtti/common/module.f.mjs` — existing `visit` precedent.

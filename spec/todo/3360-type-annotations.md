@@ -1,7 +1,7 @@
 # Type Annotations
 
 ```js
-import { number, or, string } from 'functionalscript/fjs/types/rtti/module.f.mjs'
+import { number, or, string } from 'functionalscript/fjs/rtti/module.f.mjs'
 
 export const myType = or(number, string)
 
@@ -50,7 +50,7 @@ library.
 TypeScript's answer to typing is a superset of JavaScript with its own type
 grammar. JSDoc's answer is the same grammar again, only noisier. Neither is
 wanted here: a type should be an ordinary **value**, built from
-[`fjs/types/rtti`](../../fjs/types/rtti/README.md), and an annotation should be
+[`fjs/rtti`](../../fjs/rtti/README.md), and an annotation should be
 an ordinary **expression** naming one.
 
 `.d.ts` can be generated from the same schemas, and inference should carry as
@@ -88,11 +88,11 @@ More than half of this is built:
 
 | Piece | Where | State |
 | --- | --- | --- |
-| Schema constructors | `fjs/types/rtti/module.f.mjs` | `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`, `option`, `never`, plus `Const` (primitive / tuple / struct used directly as its own schema) |
-| Value checking | `fjs/types/rtti/parse/` | `parse(schema)(value)` |
-| Canonical data form | `fjs/types/rtti/data/` | `toData`, `cmp`, `equal`, **`subset`**, data-driven `validate` |
-| TypeScript emission | `fjs/types/rtti/ts/module.f.mjs` | runtime printer: `thunk RTTI → toData → dataToTs`, emitting canonical type aliases, recursion included |
-| Compile-time bridge | `Ts<T>` in `fjs/types/rtti/ts/types.ts` | maps a schema to its TypeScript type, so `npx tsc` keeps working through the transition |
+| Schema constructors | `fjs/rtti/module.f.mjs` | `boolean`, `number`, `string`, `bigint`, `unknown`, `array`, `record`, `or`, `option`, `never`, plus `Const` (primitive / tuple / struct used directly as its own schema) |
+| Value checking | `fjs/rtti/parse/` | `parse(schema)(value)` |
+| Canonical data form | `fjs/rtti/data/` | `toData`, `cmp`, `equal`, **`subset`**, data-driven `validate` |
+| TypeScript emission | `fjs/rtti/ts/module.f.mjs` | runtime printer: `thunk RTTI → toData → dataToTs`, emitting canonical type aliases, recursion included |
+| Compile-time bridge | `Ts<T>` in `fjs/rtti/ts/types.ts` | maps a schema to its TypeScript type, so `npx tsc` keeps working through the transition |
 
 Two of these matter more than they look. `data`'s **`subset`** is assignability
 as a decidable operation on the canonical form — the primitive a checker needs.
@@ -117,7 +117,7 @@ TypeScript aliases out.
    are almost entirely functions — **nearly half** the tree's JSDoc type bodies
    are function types (~46% when measured in review of #1719; counts drift, so
    re-measure rather than cite this). The schema side is tracked as
-   [`fjs/types/rtti/todo/668-rtti-function-types.md`](../../fjs/types/rtti/todo/668-rtti-function-types.md).
+   [`fjs/rtti/todo/668-rtti-function-types.md`](../../fjs/rtti/todo/668-rtti-function-types.md).
 
    > **Superseded by the epic.** An earlier draft here posed the annotation
    > question as a choice between "a compile-time check that cannot be
@@ -243,9 +243,9 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
 - [rtti-type-system](../../todo/rtti-type-system.md) — the epic this
   document is the spec-side half of: RTTI as the sole source of truth for
   compile-time and run-time verification. Stages 2–5 land here.
-- [`fjs/types/rtti/README.md`](../../fjs/types/rtti/README.md) — the schema system
+- [`fjs/rtti/README.md`](../../fjs/rtti/README.md) — the schema system
   this builds on.
-- [`fjs/types/rtti/todo/668-rtti-function-types.md`](../../fjs/types/rtti/todo/668-rtti-function-types.md) —
+- [`fjs/rtti/todo/668-rtti-function-types.md`](../../fjs/rtti/todo/668-rtti-function-types.md) —
   the schema-side half of open question 3.
 - [type inference](./3370-type-inference.md) — the other half: annotations are
   only as useful as what can be inferred without them, and open question 2 below

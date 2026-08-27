@@ -15,9 +15,9 @@
  */
 
 import type { Assert } from '../../asserts/types.ts'
-import type { Ts, Check } from '../../types/rtti/ts/types.ts'
-import type { String as RttiString } from '../../types/rtti/types.ts'
-import type { ValidationError } from '../../types/rtti/common/types.ts'
+import type { Ts, Check } from '../../rtti/ts/types.ts'
+import type { String as RttiString } from '../../rtti/types.ts'
+import type { ValidationError } from '../../rtti/common/types.ts'
 import type { lock, lockField, revisionSchema } from './module.f.mjs'
 
 /**
