@@ -180,6 +180,19 @@ export const proof = {
         assertEq(report.totals.failed, 0)
         assertEq(report.results[1]?.path, '.nested().then')
     },
+    exportedTreeThrows: async () => {
+        // The exported tree is read before any test runs, and reading it runs
+        // user code as well. The module fails; the page still gets its report.
+        const p = page()
+        const report = await startBrowserTests(p.root,
+            [['m', { get bad() { throw new Error('enumerating') } }]])
+        assertEq(report.status, 'failed')
+        assertStructurallySame({ ...report.totals }, { tests: 1, passed: 0, failed: 1 })
+        assertEq(report.results[0]?.module, 'm')
+        assertEq(report.results[0]?.message, 'enumerating')
+        assertStructurallySame([...p.states], ['running', 'failed'])
+        assertEq(p.view.events.length, 1)
+    },
     returnedTreeThrows: async () => {
         // Reading the returned tree runs user code. When it throws, the test
         // that produced the value fails and the page still reaches a terminal

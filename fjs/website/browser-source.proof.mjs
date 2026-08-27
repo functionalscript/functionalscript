@@ -24,6 +24,15 @@ export const proof = {
             exports('export function proof() {}')
             exports('export class proof {}')
         },
+        modifiers: () => {
+            // Both are zero-argument named exports the ordinary runner accepts,
+            // so the manifest has to see them too.
+            exports('export async function proof() {}')
+            exports('export function* proof() {}')
+            exports('export async function* proof() {}')
+            doesNot('export async function proofs() {}')
+            doesNot('export function* proofs() {}')
+        },
         spacing: () => {
             // Whitespace between the parts is not part of the syntax.
             exports('export\n    const\n    proof = {}')

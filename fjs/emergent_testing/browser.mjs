@@ -85,9 +85,11 @@ const subscribe = (value, fulfilled, rejected) => {
 const speciesFails = value => {
     try {
         if (value === null || value === undefined) { return false }
-        const constructor = /** @type {{ readonly constructor?: unknown }} */ (value).constructor
+        const { constructor } = /** @type {{ readonly constructor?: unknown }} */ (value)
         if (constructor === null || constructor === undefined) { return false }
-        /** @type {{ readonly [Symbol.species]?: unknown }} */ (constructor)[Symbol.species]
+        // The species itself never matters, only whether reading it completes:
+        // that is the step `then` takes before it builds its result.
+        void /** @type {{ readonly [Symbol.species]?: unknown }} */ (constructor)[Symbol.species]
         return false
     } catch {
         return true
@@ -247,11 +249,25 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             // The result stays in the report the run resolves with.
         }
     }
-    const tests = modules.flatMap(([module, proof]) =>
-        collectTests([], false, proof).map(([path, entry]) =>
-            () => runOne(module, path, entry.throws, entry.fn, announce)
-        )
-    )
+    /** @type {(module: string, error: unknown) => () => Promise<readonly _BrowserTestResult[]>} */
+    const unreadable = (module, error) => () => {
+        const [message, stack] = errorDetails(error)
+        const failure = { module, path: '', status: 'failed', duration: 0, message, stack }
+        announce(failure)
+        return Promise.resolve([failure])
+    }
+    const tests = modules.flatMap(([module, proof]) => {
+        // Reading an exported tree runs user code just as reading a returned
+        // one does. A module that cannot be enumerated is one failed module,
+        // never a run that ends without a report.
+        try {
+            return collectTests([], false, proof).map(([path, entry]) =>
+                () => runOne(module, path, entry.throws, entry.fn, announce)
+            )
+        } catch (error) {
+            return [unreadable(module, error)]
+        }
+    })
     const batchSize = 25
     /** @type {(index: number, results: readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]>} */
     const runBatch = (index, results) => {

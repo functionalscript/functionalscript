@@ -98,8 +98,18 @@ const tokens = code => [...code]
 const declarations = ['const', 'let', 'var', 'function', 'class']
 
 /**
+ * Where the declared name sits relative to its keyword. `function*` declares a
+ * generator, so the name follows the star.
+ *
+ * @type {(list: readonly string[], at: number) => number}
+ */
+const declaredName = (list, at) =>
+    list[at] === 'function' && list[at + 1] === '*' ? at + 2 : at + 1
+
+/**
  * Whether the tokens following an `export` bind the name `proof`: a
- * declaration, a namespace re-export, or a named list. A list entry exports
+ * declaration — `async` and `function*` included — a namespace re-export, or a
+ * named list. A list entry exports
  * the last name of its `as` chain, so `{ implementation as proof }` binds
  * `proof` and `{ proof as implementation }` does not. An unclosed list is
  * incomplete syntax and binds nothing.
@@ -109,7 +119,9 @@ const declarations = ['const', 'let', 'var', 'function', 'class']
 const bindsProof = (list, at) => {
     const head = list[at]
     if (head === undefined) { return false }
-    if (declarations.includes(head)) { return list[at + 1] === 'proof' }
+    // `async` modifies the declaration that follows it and binds nothing itself.
+    if (head === 'async') { return bindsProof(list, at + 1) }
+    if (declarations.includes(head)) { return list[declaredName(list, at)] === 'proof' }
     if (head === '*') { return list[at + 1] === 'as' && list[at + 2] === 'proof' }
     if (head !== '{') { return false }
     const close = list.indexOf('}', at + 1)
