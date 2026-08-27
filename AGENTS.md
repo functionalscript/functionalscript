@@ -46,14 +46,11 @@ actually touches its subject.
 
 Find or file the issue in `todo/` first, next to the code it describes; for
 anything non-trivial make sure it contains a concrete design before writing
-code. Write the code plus its proof, run `npm run update` after changing source,
-run the check set above, and delete the `todo/` issue file in the same PR that
-fixes it.
-
-If the design turns out not to be implementable the way it describes, stop:
-ask, then rewrite the issue around what you now know. Forcing the code through
-against a design you have already disproved is always wrong, however much work
-is already in it ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)).
+code — and if that design turns out not to be implementable as written, rewrite
+the issue rather than forcing the code through
+([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Write the code
+plus its proof, run `npm run update` after changing source, run the check set
+above, and delete the `todo/` issue file in the same PR that fixes it.
 
 Format, priorities, where each issue file belongs, and how GitHub-reported bugs
 become `todo/` files: [todo/README.md](./todo/README.md).

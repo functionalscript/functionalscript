@@ -21,11 +21,17 @@ document, or in a `todo/` issue. "In the review thread" is the wrong answer.
 | A defect is reported | Fix it, or defer it behind a `todo/` that names the input that breaks it |
 
 A design settles *what* and *why*; data structures, helper splits, and internal
-names are the implementer's. A pull request implements one feature, so "while
-you're here" is a second one. A rule generalized from one real case fails on the
-case the reviewer did not have in view — who runs this code, which inputs are
-real, and what the `todo/` tree holds are things the author is looking at and
-the reviewer is not.
+names are the implementer's. A reviewer calling a design **vague** claims the
+opposite, and [DESIGN.md §3](./DESIGN.md#3-design-before-implementation) backs
+them: a design that settles neither what nor why blocks implementation. The test
+is whether two implementers working from it would produce the same observable
+behavior and the same API — if they would, what is still open is theirs to
+choose; if they would not, finish the design instead of pushing back.
+
+A pull request implements one feature, so "while you're here" is a second one.
+And a rule generalized from one real case fails on the case the reviewer did not
+have in view: who runs this code, which inputs are real, and what the `todo/`
+tree holds are things the author is looking at and the reviewer is not.
 
 ## Prototypes
 
@@ -70,6 +76,6 @@ merge", change what the pull request is: drop the code and keep what it taught
 Landing three paragraphs nobody has to rediscover beats closing after a hundred
 comments with no diff.
 
-The same holds for the design that does not survive implementation. A `todo/`
-that cannot be built the way it describes is rewritten, never forced through
+The same holds for a design that does not survive implementation: rewrite the
+`todo/`, never force the code through
 ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)).
