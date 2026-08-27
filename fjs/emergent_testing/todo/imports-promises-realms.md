@@ -151,31 +151,59 @@ cannot subscribe to" become the same answer. Telling those apart is what
 `speciesFails`, the `Object.prototype.toString` re-check and the `constructor`
 shadow in `runPromise` are for. They are not decoration.
 
-### Recommendation, revised
+### Who is this for? — the question the study should have asked first
 
-**The browser's mechanism is right, and `fjs t` should adopt it.** That reverses
-the first draft of these findings, which recommended replacing it with three
-lines; the three lines would have introduced two ways to hang the suite into the
-runner that gates this repository.
+**FunctionalScript has no promises and cannot produce one.** A `.f.mjs` proof is
+pure: no `async`, no `await`, nothing that constructs a `Promise`. So every
+promise this runner has ever awaited comes from a hand-written *impure* `.mjs`
+proof. Counted:
 
-So step 3 is no longer a question of *whether* to keep the machinery, but of how
-much of it the shared `sandbox` needs:
+| | pure `.f.mjs` | impure `.mjs` |
+| --- | --- | --- |
+| proof modules | **125** | 5 |
+| leaves returning a promise (`async () =>`) | **0** | 39 |
 
-- `subscribe` — the intrinsic-`then` brand check and subscription. **Keep.** It
-  is the whole answer to cross-realm promises, own-`then` overrides and spoofs,
-  and it is about fifteen lines.
-- `speciesFails` and the re-check — distinguishing "not a promise" from "promise
-  I cannot subscribe to". **Keep**, unless the runner is content to report a
-  hostile-species promise as a silent pass, which it should not be.
-- The `constructor` shadow-and-retry — *recovering* a configurable
-  hostile-species promise so its subtree still runs. **This is the only
-  genuinely optional part**, and the only one the first draft's "one exotic row"
-  description actually applied to. Dropping it costs the `throwingSpecies`
-  proof; `pinnedThrowingSpecies` holds either way.
+All 39 live in `emergent_testing/browser/proof.mjs` (32),
+`effects/node/memory/proof.mjs` (5) and
+`emergent_testing/browser/species.proof.mjs` (2) — every one an `async` function
+written in this repository, in this repository's own realm.
 
-Adopting this in `fjs t` fixes the cross-realm exposure — a rejected cross-realm
-promise reported as a pass, and a resolved one's subtree never discovered — and
-costs `fjs t` nothing it currently has.
+That settles the realm question, and not by argument. A cross-realm promise can
+only reach the runner if one of our own impure proofs deliberately builds one
+with `node:vm`, an iframe or a worker. The only proofs that do are the ones
+testing the cross-realm machinery. **The defence exists to defend against its
+own fixtures**, and deleting both leaves nothing uncovered.
+
+The one promise-adjacent value *pure* FunctionalScript can produce is an object
+with a key named `then` — a proof called `then`. `p instanceof Promise` refuses
+it correctly, which is what `thenIsATestName` asserts and what makes the
+structural rule hold.
+
+### Recommendation, revised twice
+
+**Do it exactly as `fjs t` does: `p instanceof Promise`, await, done.** Delete
+the species machinery and `species.proof.mjs` with it.
+
+That is not a compromise on correctness. It is correct for every value the
+language can produce, and for every value any proof in this repository actually
+produces. What it gives up — cross-realm promises, `Symbol.species` recovery,
+spoof defences — are answers to questions that only a fixture has ever asked.
+
+The earlier drafts of this section were both wrong, in opposite directions and
+for the same underlying reason: neither asked who the machinery was *for*. The
+first proposed a three-line brand check and would have introduced two ways to
+hang the suite. The second, correcting that, concluded the browser's mechanism
+was right and `fjs t` should adopt it — trading 150 lines and a subtle
+subscription protocol for a threat model that does not exist here.
+
+**If proofs ever run in iframes or workers** — which
+[browser testing](browser-testing.md) contemplates and nothing does today — a
+cross-realm promise becomes reachable for the first time. That is the moment to
+revisit this, with a real case in hand rather than a constructed one, and the
+material is preserved above: the intrinsic `Promise.prototype.then` is both the
+brand check and the subscription, its `Reflect.apply` must sit outside a `new
+Promise` executor, and a throw from it must not be conflated with "not a
+promise". Reach for it then, not now.
 
 ### Constraints
 

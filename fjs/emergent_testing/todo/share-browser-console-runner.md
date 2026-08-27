@@ -123,13 +123,13 @@ and is reviewable without the next one.
       work**: the browser carries ~150 lines of `Symbol.species` machinery that
       `fjs t` has no equivalent for, so merging the two answers the cross-realm
       question in [imports, promises and realms](imports-promises-realms.md).
-      **That investigation is now done** and its answer is the opposite of what
-      was expected: the browser's mechanism is right and `fjs t` should adopt
-      it. A brand check cannot replace it — the intrinsic `then` is both the
-      check and a subscription that ignores an own `then`, and two measured
-      cases hang without it. What is left to choose is only whether the shared
-      `sandbox` keeps the `constructor` shadow-and-retry, which is the one
-      genuinely optional part. Doing it inside a port is how
+      **That investigation is now done, and it unblocks this step rather than
+      complicating it.** FunctionalScript has no promises: across 125 pure
+      `.f.mjs` proof modules there are zero leaves that return one, and all 39
+      that exist are `async` functions in five impure `.mjs` proofs — same
+      realm, our own code. The browser's cross-realm machinery defends only
+      against its own fixtures. So this step is `p instanceof Promise`, exactly
+      as `fjs t` does it, and `species.proof.mjs` goes with the machinery. Doing it inside a port is how
       the last attempt lost a defence nobody chose to lose.
 - [ ] **4. Common effects.** Move the host-independent operations (`all`,
       `await`, `fetch`, `import`, `now`, `sandbox`) out of `effects/node` into a
