@@ -29,26 +29,38 @@ const text = value => {
 
 /** @type {(error: unknown) => readonly [string, string]} */
 const errorDetails = error => {
-    if (error instanceof Error) {
-        const message = text(error.message)
-        return [message, error.stack === undefined ? message : text(error.stack)]
+    try {
+        if (error instanceof Error) {
+            const message = text(error.message)
+            return [message, error.stack === undefined ? message : text(error.stack)]
+        }
+    } catch {
+        // Error identity checks and Error fields are user-observable operations:
+        // revoked proxies and accessors can throw while the failure is inspected.
     }
-    return [text(error), text(error)]
+    const fallback = text(error)
+    return [fallback, fallback]
 }
-
-/**
- * Recognizes a native promise from any realm. `instanceof Promise` sees only
- * the runner realm's promises, so a proof returning `iframe.contentWindow
- * .Promise.resolve(...)` would be reported as passed without being awaited.
- * The brand check accepts cross-realm promises while still refusing to
- * assimilate an arbitrary object that happens to carry a `then` proof entry.
- *
- * @type {(value: unknown) => boolean}
- */
-const isPromise = value => Object.prototype.toString.call(value) === '[object Promise]'
 
 /** @typedef {{ readonly module: string, readonly path: string, readonly status: string, readonly duration: number, readonly message?: string, readonly stack?: string }} _BrowserTestResult */
 /** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
+
+/**
+ * Uses the intrinsic Promise `then` as the native-promise brand check. Unlike
+ * `instanceof`, it accepts promises from another realm; unlike
+ * `Object.prototype.toString`, it cannot be forged with `Symbol.toStringTag`.
+ * Calling the intrinsic also avoids consulting an arbitrary object's own
+ * `then` property.
+ *
+ * @type {(value: unknown, fulfilled: (value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[], rejected: (error: unknown) => readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]> | null}
+ */
+const runPromise = (value, fulfilled, rejected) => {
+    try {
+        return Promise.prototype.then.call(value, fulfilled, rejected)
+    } catch {
+        return null
+    }
+}
 
 /** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
 const runOne = (module, path, throws, fn, result) => {
@@ -88,7 +100,10 @@ const runOne = (module, path, throws, fn, result) => {
     // objects with a `then` proof property. The Node runner awaits only actual
     // promises, and browser execution must preserve that same test-tree rule.
     return Promise.resolve().then(() => [fn()]).then(
-        ([value]) => isPromise(value) ? Promise.resolve(value).then(passed, failed) : passed(value),
+        ([value]) => {
+            const promise = runPromise(value, passed, failed)
+            return promise === null ? passed(value) : promise
+        },
         failed
     )
 }
