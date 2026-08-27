@@ -17,17 +17,17 @@
  *
  * @module
  *
- * @import { Type } from './types.ts'
- * @import { ValidateE } from './common/types.ts'
- * @import { Unknown } from './ts/types.ts'
+ * @import { Type } from '../types/rtti/types.ts'
+ * @import { ValidateE } from '../types/rtti/common/types.ts'
+ * @import { Unknown } from '../types/rtti/ts/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { undeclaredMembers } from './common/module.f.mjs'
-import { toData, validate as dataValidate } from './data/module.f.mjs'
-import { array, number, rest, string } from './module.f.mjs'
-import { parse } from './parse/module.f.mjs'
-import { validate } from './validate/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
+import { undeclaredMembers } from '../types/rtti/common/module.f.mjs'
+import { toData, validate as dataValidate } from '../types/rtti/data/module.f.mjs'
+import { array, number, rest, string } from '../types/rtti/module.f.mjs'
+import { parse } from '../types/rtti/parse/module.f.mjs'
+import { validate } from '../types/rtti/validate/module.f.mjs'
 
 /** The three readers with their payload type erased, as `validate/proof.f.mjs` has them. */
 
