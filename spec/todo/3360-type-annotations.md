@@ -241,8 +241,8 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
 ## Related
 
 - [rtti-type-system](../../todo/rtti-type-system.md) — the epic this
-  document is the spec-side half of: RTTI as the sole source of truth for
-  compile-time and run-time verification. Stages 2–5 land here.
+  document supports: RTTI as the sole source of truth for compile-time and
+  run-time verification. Stages 2–5 land here.
 - [`fjs/rtti/README.md`](../../fjs/rtti/README.md) — the schema system
   this builds on.
 - [`fjs/rtti/todo/668-rtti-function-types.md`](../../fjs/rtti/todo/668-rtti-function-types.md) —
