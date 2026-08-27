@@ -193,6 +193,33 @@ export const proof = {
         assertStructurallySame([...p.states], ['running', 'failed'])
         assertEq(p.view.events.length, 1)
     },
+    speciesResultIsNotAPromise: async () => {
+        // `then` builds its result through `constructor[Symbol.species]`, and a
+        // promise can make that an ordinary object. The run has to answer with
+        // the promise it subscribed to, not with what `then` handed back, or
+        // the test ends before the promise settles and the species object
+        // itself lands in the report.
+        const species = function (/** @type {(...args: (() => void)[]) => void} */ executor) {
+            executor(() => undefined, () => undefined)
+            return { notAPromise: true }
+        }
+        const promised = new Promise(resolve =>
+            setTimeout(resolve, 1, { child: () => { throw 'boom' } }))
+        Object.defineProperty(promised, 'constructor',
+            { value: { [Symbol.species]: species }, configurable: true })
+        const report = await run({ nested: () => promised })
+        assertEq(report.totals.tests, 2)
+        assertEq(report.totals.failed, 1)
+        assertEq(report.results[1]?.path, '.nested().child')
+    },
+    reportingThrows: async () => {
+        // Announcing a result as it lands is the page's own rendering. It must
+        // not take the run down with it: the report is what the page waits for.
+        const report = await runBrowserProofs([['m', { t: () => undefined }]],
+            () => { throw new Error('render') })
+        assertEq(report.status, 'passed')
+        assertEq(report.totals.passed, 1)
+    },
     thenIsATestName: async () => {
         // A `then` proof entry is a test called `then`, never a thenable for
         // the runner to adopt.

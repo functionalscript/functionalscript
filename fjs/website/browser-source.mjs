@@ -140,20 +140,30 @@ const quoted = (line, prefix, quote) =>
     line.split(prefix + quote).slice(1).map(part => part.split(quote)[0] ?? '')
 
 /**
+ * Whether `text` opens with `word` as a whole keyword rather than as the start
+ * of a longer name, so that every spacing a declaration can be written in —
+ * `export {`, `export{`, `export*as` — is one keyword, and `exported` is not.
+ *
+ * @type {(text: string, word: string) => boolean}
+ */
+const keyword = (text, word) =>
+    text.startsWith(word) && !nameChar(text[word.length] ?? ' ')
+
+/**
  * A line that can carry a static module specifier: the head of an
- * `import`/`export` declaration — in either spacing `exportsProof` accepts —
- * or the `} from '...'` tail of one whose bindings span several lines.
- * Documentation and ordinary expressions are left out, so prose such as "tells
- * `'empty'` from `'missing'`" is not mistaken for an import — a JSDoc line
- * starts with `*` and a string literal with a quote.
+ * `import`/`export` declaration, or the `} from '...'` tail of one whose
+ * bindings span several lines. Documentation and ordinary expressions are left
+ * out, so prose such as "tells `'empty'` from `'missing'`" is not mistaken for
+ * an import — a JSDoc line starts with `*` and a string literal with a quote.
  *
  * @type {(line: string) => boolean}
  */
 const declaration = line => {
     const text = line.trim()
-    return text.startsWith('import ') || text.startsWith('import{')
-        || text.startsWith('export ') || text.startsWith('export{')
-        || text.startsWith('} from ')
+    if (keyword(text, 'import') || keyword(text, 'export')) { return true }
+    // The `} from '...'` tail of a declaration whose bindings span lines. On a
+    // blanked line the specifier is gone, so the keyword may end the line.
+    return text.startsWith('}') && keyword(text.slice(1).trim(), 'from')
 }
 
 /**
@@ -163,9 +173,20 @@ const declaration = line => {
  *
  * @type {(source: string) => readonly string[]}
  */
-export const specifiers = source => source.split('\n').filter(declaration).flatMap(line =>
-    ['\'', '"'].flatMap(quote =>
-        ['from ', 'import '].flatMap(prefix => quoted(line, prefix, quote))))
+export const specifiers = source => {
+    const lines = source.split('\n')
+    // Which lines are declarations is decided on the blanked source — an
+    // `import` line inside a block comment or an embedded code sample is not
+    // one — while the specifier is read from the source line, the only place
+    // the quoted text still exists. `codeOnly` keeps the line count, so the two
+    // agree line for line.
+    return codeOnly(source).split('\n').flatMap((code, index) =>
+        declaration(code)
+            ? ['\'', '"'].flatMap(quote =>
+                ['from ', 'import '].flatMap(prefix =>
+                    quoted(lines[index] ?? '', prefix, quote)))
+            : [])
+}
 
 /** @type {(specifier: string) => boolean} */
 export const local = specifier => specifier.startsWith('./') || specifier.startsWith('../')

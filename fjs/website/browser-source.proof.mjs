@@ -87,6 +87,23 @@ export const proof = {
                 [...specifiers('export { proof } from \'./x.mjs\'\nexport{ proof } from \'./y.mjs\'\n')],
                 ['./x.mjs', './y.mjs'])
         },
+        compactStar: () => {
+            // Every spacing the syntax allows, so a module whose dependencies
+            // are written compactly is still walked.
+            assertStructurallySame(
+                [...specifiers('export*as proof from \'node:fs\'\nimport*as dep from \'package\'\n')],
+                ['node:fs', 'package'])
+        },
+        notCode: () => {
+            // An embedded code sample is not a dependency: a proof read this
+            // way would be dropped from the suite as unlinkable.
+            assertStructurallySame(
+                [...specifiers('/*\nimport \'node:fs\'\n*/\n')],
+                [])
+            assertStructurallySame(
+                [...specifiers('const sample = `\nimport \'node:fs\'\n`\n')],
+                [])
+        },
         multiLine: () => {
             assertStructurallySame(
                 [...specifiers('import {\n    a,\n} from \'./x.mjs\'\n')],

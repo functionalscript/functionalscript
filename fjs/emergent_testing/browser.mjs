@@ -48,6 +48,31 @@ const errorDetails = error => {
 /** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
 
 /**
+ * Attaches the handlers with the intrinsic `then`, but answers with a promise
+ * of this realm instead of the one `then` returns. That result is built by
+ * `constructor[Symbol.species]`, which a promise can make an ordinary object:
+ * awaiting it would end the test before the promise it came from ever settled
+ * and put the species object itself in the report.
+ *
+ * The `then` call still throws — before either handler is attached — for a
+ * value that is not a promise or whose species construction fails, which is
+ * what `runPromise` reads.
+ *
+ * @type {(value: unknown, fulfilled: (value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[], rejected: (error: unknown) => readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]>}
+ */
+const subscribe = (value, fulfilled, rejected) => {
+    /** @type {(results: Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]) => void} */
+    let settle = () => undefined
+    /** @type {Promise<readonly _BrowserTestResult[]>} */
+    const settled = new Promise(resolve => { settle = resolve })
+    Reflect.apply(Promise.prototype.then, value, [
+        /** @type {(value: unknown) => void} */ (resolved => settle(fulfilled(resolved))),
+        /** @type {(error: unknown) => void} */ (error => settle(rejected(error))),
+    ])
+    return settled
+}
+
+/**
  * Reproduces the lookup `then` performs before it builds its result promise:
  * `constructor`, then its `Symbol.species`. A genuine promise with a hostile
  * species throws here too; an object that only claims to be a promise failed
@@ -89,8 +114,7 @@ const speciesFails = value => {
  * @type {(value: unknown, fulfilled: (value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[], rejected: (error: unknown) => readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]> | null}
  */
 const runPromise = (value, fulfilled, rejected) => {
-    const call = () => /** @type {Promise<readonly _BrowserTestResult[]>} */ (
-        Reflect.apply(Promise.prototype.then, value, [fulfilled, rejected]))
+    const call = () => subscribe(value, fulfilled, rejected)
     try {
         return call()
     } catch (error) {
@@ -212,9 +236,20 @@ const reportOf = (status, duration, results) => {
  */
 export const runBrowserProofs = (modules, result = () => undefined) => {
     const start = performance.now()
+    // Reporting each result as it lands is the page's own code. A renderer that
+    // throws must not take the run down with it: the report it fails to show is
+    // the one thing the page is still waiting for.
+    /** @type {(result: _BrowserTestResult) => void} */
+    const announce = value => {
+        try {
+            result(value)
+        } catch {
+            // The result stays in the report the run resolves with.
+        }
+    }
     const tests = modules.flatMap(([module, proof]) =>
         collectTests([], false, proof).map(([path, entry]) =>
-            () => runOne(module, path, entry.throws, entry.fn, result)
+            () => runOne(module, path, entry.throws, entry.fn, announce)
         )
     )
     const batchSize = 25
