@@ -52,7 +52,10 @@ eventual isolated browser-test application root
 └── authored or copied .f.mjs / .mjs modules
 ```
 
-`index.html` starts the runner. The website integration currently loads the
+`index.html` hosts the runner, idle until an explicit `Run` click or
+controller call starts it — see
+[Explicit browser test controls](browser-test-controls.md), which supersedes
+auto-start below. The website integration currently loads the
 generated list of proof sources with native `import()` from the repository
 working tree; this is not the isolated application root described by this
 section. The eventual application exposes HTML and JavaScript only — it does
@@ -98,10 +101,12 @@ preparation, loopback static serving, URL construction, report validation,
 timeout and infrastructure-error classification, and conversion of the report
 into a generic pass/fail result.
 
-- **HTML page**: run/re-run UI with loading, running, passed, failed, and
-  infrastructure-error states; failed test paths with messages and stacks;
-  module-loading failures distinguished from proof failures; auto-start via a
-  query parameter. The FunctionalScript website hosts the same application and
+- **HTML page**: idle, loading, running, passed, failed, and
+  infrastructure-error states, starting only on an explicit `Run` click or
+  controller call — no auto-start via a query parameter, per
+  [Explicit browser test controls](browser-test-controls.md); failed test
+  paths with messages and stacks; module-loading failures distinguished from
+  proof failures. The FunctionalScript website hosts the same application and
   report contract — no website-only implementation.
 - **`fjs browser-test`** (`build` / `serve` / `run --browser=...`): no
   Playwright dependency; starts a loopback server, opens or launches an
