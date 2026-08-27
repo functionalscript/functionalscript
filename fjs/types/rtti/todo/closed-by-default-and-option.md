@@ -523,7 +523,16 @@ Stage 1 (one PR):
 - [ ] `../README.md`: replace "Structs and tuples are open", "This is deliberate;
       please do not 'fix' it" and "Closed containers" with the closed default and
       the `open`/`rest` spelling; keep the `Ts<>` direction note above.
-      `../validate/module.f.mjs`: delete the "Do not add a length check" paragraph.
+- [ ] `../validate/module.f.mjs`'s **module doc**, all of it — not just the
+      "Do not add a length check" paragraph (`:40-45`). `:29-38` is a whole
+      `## Structs and tuples are open` section stating the rule as this
+      reader's own contract, `:47-52` is a `## Closed containers` section
+      defining `close(c)`/`close(c, rest)` as the narrowing spelling, and the
+      `@example` on the exported `validate` demonstrates the open reading at
+      `:293-295` ("open, and the extras are still there afterwards") and calls
+      `close` twice at `:301-302`. Deleting only the paragraph would leave the
+      two section headings asserting the reverse of the code. This is the same
+      edit as the `../parse/module.f.mjs` one below, on the other reader.
 - [ ] `../parse/module.f.mjs`'s **module doc** is the longest single statement of
       the open default anywhere in the tree and stage 1 inverts all of it:
       `:8-14` opens "**Structs and tuples are open.** A value carrying more than
@@ -655,6 +664,30 @@ Stage 2 (one PR, after stage 1 lands):
       re-word rather than a spelling to fix. Two near-misses stay out: `option` in
       `../../../bnf/todo/207.md` is `bnf`'s own combinator, and the `option(s)`
       in `../../../cas/evo/todo/cache-staleness.md` is English, not code.
+- [ ] The **JSDoc** sites, which that list does not cover: it is a markdown
+      inventory, and a comment is no more compiled than a `.md` file is, so the
+      two sweeps between them still leave these eleven untouched, in six files.
+      Two of them are not spellings but *statements of the semantics stage 2
+      replaces*, and matter more than the rest: `../ts/proof.f.mjs:27` says
+      "`option(t)` is `or(t, undefined)`; these are the schema types it
+      produces", which is the definition this stage retires, and
+      `../data/module.f.mjs:453` argues a design decision from
+      "`close({ a: option(number) })` a subset of `record(number)`, which admits
+      `{ a: undefined }` on the left" — the same claim that flips in
+      `../data/proof.f.mjs:620` above, so the rationale and the row have to move
+      together or the code will justify itself with a false example.
+      `../ts/module.f.mjs:280` asserts the printer's output for a schema
+      (`option(number)` prints `'undefined|number'`), which stops being true.
+      `../ts/types.ts` (`:80`, `:139`, `:162`, `:163`, `:167`) uses `option(x)`
+      as the optional-member spelling throughout the `TupleTs`/`OptionalFields`
+      derivation. `../validate/module.f.mjs` (`:18`, `:298`) publishes
+      `b: option(string)` in its parse-vs-validate contrast and in the exported
+      `validate`'s `@example` — copy-me code in the reader's own API docs.
+      `../../../media/revision/proof.f.mjs:125` names the `option(true)`
+      presence-only idiom its README recommends. Sweep JSDoc explicitly rather
+      than trusting the markdown pass: the earlier revision of this item said
+      "twenty sites across eight files" and meant twenty *markdown* sites, which
+      review caught. The markdown count stands; the scope did not.
 - [ ] Audit the members that spell optionality **directly** as `or(…, undefined)`,
       which the `option(` sweep does not reach and `checkJs` cannot flag — they
       stay syntactically valid and silently become *required*. Verified sites:
