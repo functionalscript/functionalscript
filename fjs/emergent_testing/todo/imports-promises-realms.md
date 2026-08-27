@@ -274,12 +274,20 @@ phrase "reported as a pass" suggests:
 a proof: a test that kills the runner is not a test, which is itself worth
 knowing about this failure mode.
 
-Three ways to respond, with what each costs:
+**This is a debt, not a menu.** [REVIEW.md](../../../REVIEW.md) says an
+unsupported input is refused, never answered with a plausible wrong value, and a
+cross-realm promise reported as `passed` is exactly that. So refusal is what
+this owes; the entries below are what it would cost to pay it, and the reason it
+is deferred rather than done is that the only available detector is measurably
+worse than the defect. It is deferred as a pre-existing defect — both runners
+have always behaved this way — and it is not deferrable indefinitely.
+
+Three ways to pay it, with what each costs:
 
 - **Leave it.** Both runners agree, and the value is unreachable from authored
   FunctionalScript — only an impure proof using `node:vm`, an iframe or a worker
-  can build one. This is the current state. Its price is the table above, and
-  a proof that names it.
+  can build one. This is the current state, and it is a deferral rather than an
+  answer. Its price is the table above, and a proof that names it.
 - **Subscribe with the intrinsic `then`** (the deleted machinery). Correct on
   every case. Its price is ~150 lines in the path that executes every proof
   body, plus `speciesFails` and the shadow to tell "not a promise" from "promise
@@ -291,8 +299,10 @@ Three ways to respond, with what each costs:
   this study measured at 5 of 7. Its two misses are exactly `spoofedPromiseTag`
   and `frozenPromiseTag` — so a proof tree that carries a `then` key and sets
   `Symbol.toStringTag: 'Promise'` would be failed instead of walked. That trades
-  a silent pass on an unreachable value for a false failure on a reachable one,
-  which is why it is recorded rather than done.
+  a silent pass on an unreachable value for a false failure on a reachable one.
+  A refusal that fires on valid input is not refusing loudly; it is a new wrong
+  answer with a louder voice. **This is the shape of the fix, and it needs a
+  detector that does not exist yet** — finding one is the actual open work here.
 
 Whichever is chosen, it is a change to the rule both runners share, so it lands
 in the shared `sandbox` — step 4 and after in
