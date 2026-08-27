@@ -26,7 +26,7 @@
 
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { at, definedEntries } from '../../../types/object/module.f.mjs'
-import { array, number, option, or, record, string } from '../../../types/rtti/module.f.mjs'
+import { array, number, option, or, record, string } from '../../../rtti/module.f.mjs'
 import { cmp, toData, unitBit, unknown as top, withoutUnits } from '../../../types/rtti/data/module.f.mjs'
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
 

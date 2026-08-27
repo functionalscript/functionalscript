@@ -22,7 +22,7 @@
  * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig, ProtocolVersions } from './types.ts'
  */
 
-import { boolean, string, open, option, array, record, or } from '../../types/rtti/module.f.mjs'
+import { boolean, string, open, option, array, record, or } from '../../rtti/module.f.mjs'
 import { pureOk, resultMapStep, resultStep, step as ioStep } from '../../effects/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import { read, write } from '../../effects/memory/module.f.mjs'

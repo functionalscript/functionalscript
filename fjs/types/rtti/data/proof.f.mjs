@@ -17,7 +17,7 @@ import {
     rest,
     string,
     unknown as unknownRtti,
-} from '../module.f.mjs'
+} from '../../../rtti/module.f.mjs'
 import { cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate, withoutUnits } from './module.f.mjs'
 
 /** @type {(actual: Data) => (expected: Data) => void} */

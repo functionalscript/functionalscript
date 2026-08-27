@@ -11,7 +11,7 @@
  */
 
 import { actions, images } from '../config/module.f.mjs'
-import { option, array, record, string } from '../../types/rtti/module.f.mjs'
+import { option, array, record, string } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
 
 export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])

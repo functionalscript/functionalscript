@@ -39,7 +39,7 @@ import {
     or,
     string,
     array as rttiArray,
-} from "../types/rtti/module.f.mjs";
+} from "../rtti/module.f.mjs";
 
 /**
  * Every tuple here is closed — the members it declares and nothing else, which

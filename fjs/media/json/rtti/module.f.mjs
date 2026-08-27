@@ -24,7 +24,7 @@ import {
     or,
     record,
     array as rttiArray
-} from '../../../types/rtti/module.f.mjs'
+} from '../../../rtti/module.f.mjs'
 
 /** rtti schema matching any JSON primitive: `null`, `boolean`, `number`, or `string`. */
 export const primitive = or(null, rttiBoolean, rttiNumber, rttiString)

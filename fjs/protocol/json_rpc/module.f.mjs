@@ -19,7 +19,7 @@
  */
 
 import { at } from '../../types/object/module.f.mjs'
-import { number, open, string, or, option } from '../../types/rtti/module.f.mjs'
+import { number, open, string, or, option } from '../../rtti/module.f.mjs'
 import { parse } from '../../types/rtti/parse/module.f.mjs'
 import { unknown } from '../../media/json/rtti/module.f.mjs'
 

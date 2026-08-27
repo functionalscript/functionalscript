@@ -25,7 +25,7 @@
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { undeclaredMembers } from '../types/rtti/common/module.f.mjs'
 import { toData, validate as dataValidate } from '../types/rtti/data/module.f.mjs'
-import { array, number, rest, string } from '../types/rtti/module.f.mjs'
+import { array, number, rest, string } from './module.f.mjs'
 import { parse } from '../types/rtti/parse/module.f.mjs'
 import { validate } from '../types/rtti/validate/module.f.mjs'
 

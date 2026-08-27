@@ -32,7 +32,7 @@
  * @import { Note, NoteError } from './types.ts'
  */
 
-import { array, open, option, or, string } from '../../types/rtti/module.f.mjs'
+import { array, open, option, or, string } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
 import { parse as parseJson, stringify } from '../json/module.f.mjs'
 import { okThen } from '../../types/result/module.f.mjs'

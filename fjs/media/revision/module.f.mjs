@@ -21,7 +21,7 @@
  * @import { LockField, LockFieldSchema, LockMap, LockSchema, Revision, RevisionError } from './types.ts'
  */
 
-import { array, number, open, option, string } from '../../types/rtti/module.f.mjs'
+import { array, number, open, option, string } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
 import { parse as parseJson } from '../json/module.f.mjs'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'

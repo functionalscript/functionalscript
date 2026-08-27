@@ -6,7 +6,7 @@
  */
 
 import { assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
-import { array, number, open, option, or, record, rest, string, unknown } from '../types/rtti/module.f.mjs'
+import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 
 /** @typedef {StringMap<readonly unknown[]>} _Tests */
 

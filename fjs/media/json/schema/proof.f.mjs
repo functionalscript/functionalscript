@@ -3,7 +3,7 @@
  * @import { Data } from '../../../types/rtti/data/types.ts'
  */
 
-import { boolean, number, string, bigint, never, unknown, array, open, record, or, option } from '../../../types/rtti/module.f.mjs'
+import { boolean, number, string, bigint, never, unknown, array, open, record, or, option } from '../../../rtti/module.f.mjs'
 import { stringify } from '../module.f.mjs'
 import { dataToJsonSchema, toJsonSchema, unknown as schemaUnknown } from './module.f.mjs'
 import { unitBit } from '../../../types/rtti/data/module.f.mjs'
