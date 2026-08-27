@@ -2,7 +2,7 @@
  * @import { ValidationError } from '../common/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { Ts } from '../../types/rtti/ts/types.ts'
- * @import { Parse } from '../../types/rtti/parse/types.ts'
+ * @import { Parse } from './types.ts'
  * @import { Unknown as DjsUnknown } from '../../djs/types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Phantom } from '../../types/phantom/types.ts'

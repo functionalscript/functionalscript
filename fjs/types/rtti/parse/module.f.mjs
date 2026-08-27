@@ -51,7 +51,7 @@
  * @import { List } from '../../list/types.ts'
  * @import { Container, Fits, IsContainer, SchemaEntries, ValidateE, ValidationError, Visitor } from '../../../rtti/common/types.ts'
  * @import { Unknown } from '../ts/types.ts'
- * @import { Parse } from './types.ts'
+ * @import { Parse } from '../../../rtti/parse/types.ts'
  */
 
 import { ok } from '../../result/module.f.mjs'
