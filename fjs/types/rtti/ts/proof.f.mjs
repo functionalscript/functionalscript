@@ -7,7 +7,7 @@
  */
 
 import { assertEq } from '../../../asserts/module.f.mjs'
-import { toData, unitBit } from '../data/module.f.mjs'
+import { toData, unitBit } from '../../../rtti/data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, open, record, or, option, rest, never } from '../../../rtti/module.f.mjs'
 import { dataToTs, printer } from './module.f.mjs'
 

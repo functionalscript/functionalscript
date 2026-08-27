@@ -9,7 +9,7 @@
 
 import { validate } from './module.f.mjs'
 import { parse } from '../parse/module.f.mjs'
-import { toData, validate as dataValidate } from '../data/module.f.mjs'
+import { toData, validate as dataValidate } from '../../../rtti/data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, never, open, record, rest, or, option } from '../../../rtti/module.f.mjs'
 import { unwrap } from '../../result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'

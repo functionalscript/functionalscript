@@ -22,7 +22,7 @@ import { assertNotNullish } from '../../../asserts/module.f.mjs'
 import { reservedWords, strictModeReservedWords } from '../../../js/keywords/module.f.mjs'
 import { at, definedEntries } from '../../object/module.f.mjs'
 import { primitive, union, printer as tsPrinter } from '../../ts/module.f.mjs'
-import { cmp, never as bottom, toData, unitBit, unknown as top } from '../data/module.f.mjs'
+import { cmp, never as bottom, toData, unitBit, unknown as top } from '../../../rtti/data/module.f.mjs'
 
 const nullBit = unitBit(null)
 const undefinedBit = unitBit(undefined)

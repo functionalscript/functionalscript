@@ -69,7 +69,7 @@ import {
     verror,
     visit,
 } from '../../../rtti/common/module.f.mjs'
-import { emptyRest } from '../data/module.f.mjs'
+import { emptyRest } from '../../../rtti/data/module.f.mjs'
 
 /** @typedef {CommonResult<Unknown, ValidationError>} _ItemResult */
 

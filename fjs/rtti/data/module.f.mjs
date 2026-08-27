@@ -15,17 +15,17 @@
  *
  * @module
  *
- * @import { Const, ConstObject, Type } from '../../../rtti/types.ts'
- * @import { Primitive, Unknown } from '../ts/types.ts'
- * @import { ResultE } from '../../../rtti/common/types.ts'
- * @import { StringMap } from '../../object/types.ts'
- * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../rtti/data/types.ts'
+ * @import { Const, ConstObject, Type } from '../types.ts'
+ * @import { Primitive, Unknown } from '../../types/rtti/ts/types.ts'
+ * @import { ResultE } from '../common/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
+ * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from './types.ts'
  */
 
-import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
-import { at, definedEntries, definedValues } from '../../object/module.f.mjs'
-import { ok } from '../../result/module.f.mjs'
-import { eachEntry, isArray, undeclaredMembers, verror } from '../../../rtti/common/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
+import { ok } from '../../types/result/module.f.mjs'
+import { eachEntry, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
 
 /**
  * The unit kind's enumeration: bit `1 << i` of a {@link UnionSet}'s `unit`

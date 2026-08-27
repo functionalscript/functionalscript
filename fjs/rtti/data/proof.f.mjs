@@ -18,7 +18,7 @@ import {
     string,
     unknown as unknownRtti,
 } from '../module.f.mjs'
-import { cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate, withoutUnits } from '../../types/rtti/data/module.f.mjs'
+import { cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate, withoutUnits } from './module.f.mjs'
 
 /** @type {(actual: Data) => (expected: Data) => void} */
 const assertData = actual => expected =>
