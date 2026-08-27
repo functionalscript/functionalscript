@@ -102,31 +102,19 @@ importer in the same PR.
 
 **Merge the knowledge.** Working a PR teaches something, and a small step
 merged with what was learned written down beats two hundred iterations of a PR
-that never lands. So answer a review, don't absorb it. A reviewer who asks a
-**design document** (a `todo/` file) to spell out an implementation is told the
-choice belongs to the implementer, and that answer goes **into the design
-document**; prototype when the question is genuinely open, and record what the
-prototype uncovered rather than the prototype itself. A reviewer who asks an
-**implementation** for another feature gets a `todo/` issue to investigate it
-and a link to that issue, never a wider diff — found or filed, as always, so
-review knowledge lands on the issue that already tracks the request instead of
-beside it. A reviewer who turns one case into a universal rule — always fix
-this, never ship that — is answered with the case that breaks it and with what
-the decision actually depends on; record the dependency, not the exception.
-Even a known crash may be deferred the same way, as long as the `todo/` file
-names what breaks and the input that breaks it. How far depends on who runs the
-code and whether the input is real — an unreachable limit in an internal script
-is a documented limit, a crash in what a published module claims to support is
-fixed before it lands — and never on whether the crash is inside the feature's
-claimed scope. What may never be deferred is a **regression**, or **silence**:
-an unsupported input is refused or asserted on, never answered with a plausible
-wrong value ([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)).
-That refusal is a mitigation, not the end of it: refuse fast, file the `todo/`,
-then fix it. And when the PR itself cannot land, drop the code and merge what
-it taught — a rewritten `todo/`, a recorded failure — rather than abandoning
-both. No knowledge from a review may be left in the review thread alone.
+that never lands. So answer a review, don't absorb it: a design document keeps
+its implementation choices open, an implementation answers a feature request
+with a `todo/` issue rather than a wider diff, and a rule generalized from one
+case is answered with the case that breaks it. A crash may be deferred behind a
+`todo/` that names the input that breaks it; a **regression** may not, and
+neither may **silence** — an unsupported input is refused or asserted on, never
+answered with a plausible wrong value
+([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)). No knowledge
+from a review may be left in the review thread alone.
 
-Commit-message format, the PR checklist, and addressing review comments:
+Which comments to fix, which to push back on, and what a push-back leaves
+behind: [REVIEW.md](./REVIEW.md).
+Commit-message format and the PR checklist:
 [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
 Changelog entry rules, breaking changes, and versioning:
 [changelog/README.md](./changelog/README.md).
