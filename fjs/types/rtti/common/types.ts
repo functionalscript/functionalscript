@@ -33,10 +33,12 @@ export type Visitor<R> = {
     readonly tuple: (rtti: Tuple) => R
     readonly struct: (rtti: Struct) => R
     /**
-     * A closed container: the declared members of `rtti`, plus — when `rest`
-     * is not `undefined` — any number of members belonging to it.
+     * A container with a stated rest: the declared members of `rtti`, plus any
+     * number of members belonging to `r`. The bare `tuple`/`struct` handlers
+     * are the same thing with `r` of `never`, and are kept apart because the
+     * common case pays no rest walk.
      */
-    readonly close: (rtti: ConstObject, rest: Type | undefined) => R
+    readonly rest: (rtti: ConstObject, r: Type) => R
     readonly array: (item: Type) => R
     readonly record: (item: Type) => R
     readonly or: (variants: readonly Type[]) => R
@@ -53,6 +55,15 @@ export type Visitor<R> = {
  */
 export type SchemaEntries<S extends ConstObject> =
     (rtti: S) => ReadonlyArray<readonly [string, Type]>
+
+/**
+ * Whether a container `value` reaches no further than the `declared` members
+ * of its schema. The array kind is the only one with an answer of its own:
+ * `length` says how far an array reaches whether or not anything is there, so
+ * a hole past the prefix is caught here and nowhere else. An object has no
+ * such measure, and always fits.
+ */
+export type Fits<C extends Unknown> = (value: C, declared: number) => boolean
 
 /** Type guard narrowing `Unknown` to a specific container type `C`. */
 export type IsContainer<C extends Unknown> = (value: Unknown) => value is C

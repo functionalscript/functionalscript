@@ -30,6 +30,7 @@
  * @import { Lock, LockError } from './types.ts'
  */
 
+import { open } from '../../types/rtti/module.f.mjs'
 import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
 import { parse as parseJson, stringify } from '../json/module.f.mjs'
 import { error, ok, okThen } from '../../types/result/module.f.mjs'
@@ -47,7 +48,12 @@ export const dialect = /** @type {const} */ ('vnd.fjs.lock')
 export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
 
 /**
- * rtti schema for a `lock` BLOB: the dialect tag and the map, nothing else.
+ * rtti schema for a `lock` BLOB: the dialect tag and the map.
+ *
+ * `open`, and deliberately so: a bare struct is closed, so an older reader
+ * would reject a blob a newer writer had added a field to, and the versioning
+ * rule in `../revision/README.md` — additive extension keeps the tag — needs
+ * that older reader to accept it. Do not drop the wrapper.
  *
  * `lock` is `fjs/media/revision`'s own schema, so the shared form admits
  * exactly the maps the inline form does, to the same depth, with the same
@@ -60,10 +66,10 @@ export const mediaType = /** @type {const} */ (`application/${dialect}+json`)
  * [Composition](./README.md#composition)), so following a reference always
  * terminates in one step.
  */
-export const lockSchema = /** @type {const} */ ({
+export const lockSchema = open(/** @type {const} */ ({
     dialect,
     lock,
-})
+}))
 
 /** Serializes a lock blob canonically, recursively sorting every object's property names.
  * @type {(lock: Lock) => string}

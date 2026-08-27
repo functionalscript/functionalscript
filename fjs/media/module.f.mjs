@@ -44,9 +44,9 @@
  *
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { DetectMeta } from './type/types.ts'
- * @import { Struct } from '../types/rtti/types.ts'
+ * @import { Rest, Struct, Type } from '../types/rtti/types.ts'
  * @import { Ts, Unknown } from '../types/rtti/ts/types.ts'
- * @import { Validate } from '../types/rtti/common/types.ts'
+ * @import { ValidateE } from '../types/rtti/common/types.ts'
  * @import { DialectEntry } from './types.ts'
  */
 
@@ -61,9 +61,13 @@ const always = () => true
 
 /**
  * Structural validation followed by the dialect's own refinement.
- * @template {Struct} T
- * @param {Validate<T>} v
- * @returns {(extraValidate: (_: Ts<T>) => boolean) => (u: Unknown) => boolean}
+ *
+ * Typed over the **erased** `ValidateE`: a `T extends Type` template would
+ * instantiate `Ts<Type>` here and raise TS2589. {@link dialectEntry} states
+ * the precise `extraValidate` type its callers are held to.
+ *
+ * @param {ValidateE} v
+ * @returns {(extraValidate: (_: any) => boolean) => (u: Unknown) => boolean}
  */
 const matchWith = v => extraValidate => u => {
     const [tag, value] = v(u)
@@ -103,24 +107,36 @@ const matchWith = v => extraValidate => u => {
  * not.) Registering a name that is not a valid RFC 6838 restricted-name yields
  * a malformed media type in the registrant's own results, and nowhere else.
  *
- * The constraint is `Struct` — every member must be a real rtti `Type`, which
- * is what rejects a member like `() => 42` at compile time (rtti would read it
- * as a thunk and `match` would *throw* on the first blob rather than return
- * `false`). TypeScript cannot also require a direct string `dialect` member
- * under that constraint, so that half is asserted here instead: loudly, once,
- * when the entry is constructed. A thunk-form `dialect`
+ * The container's constraint is `Struct` — every member must be a real rtti
+ * `Type`, which is what rejects a member like `() => 42` at compile time (rtti
+ * would read it as a thunk and `match` would *throw* on the first blob rather
+ * than return `false`). TypeScript cannot also require a direct string
+ * `dialect` member under that constraint, so that half is asserted here
+ * instead: loudly, once, when the entry is constructed. A thunk-form `dialect`
  * (`() => ['const', 'x']`) is a perfectly valid rtti schema, it just is not
  * registerable — write the string directly, as `revisionSchema` does.
  *
- * @template {Struct} T
- * @param {T} type
- * @param {(_: Ts<T>) => boolean} [extraValidate]
+ * The schema is a **container with a stated rest** rather than a bare struct,
+ * and every dialect in this repo states `open`. A bare struct is closed, so an
+ * older reader would reject a blob a newer writer had added a field to, which
+ * is precisely the fail-closed misread the additive-extension rule in
+ * `./revision/README.md` exists to avoid. Requiring the wrapper here is what
+ * makes that a decision a registrant states rather than one they inherit.
+ *
+ * @template {Struct} S
+ * @param {Rest<S, Type>} type
+ * @param {(_: Ts<S>) => boolean} [extraValidate]
  * @returns {DialectEntry}
  */
 export const dialectEntry = (type, extraValidate = always) => {
-    const { dialect } = type
+    const [, container] = type()
+    const { dialect } = /** @type {Struct} */ (container)
     assert(typeof dialect === 'string', 'dialectEntry: schema has no direct string `dialect` member')
-    return { dialect, match: matchWith(rttiParse(type))(extraValidate) }
+    // `parse` is erased before the call, not after it: instantiating
+    // `Parse<Rest<S, Type>>` against the constraint raises TS2589, and the
+    // reader needs the schema *value*, not its type.
+    const v = /** @type {ValidateE} */ (/** @type {any} */ (rttiParse)(type))
+    return { dialect, match: matchWith(v)(extraValidate) }
 }
 
 /**

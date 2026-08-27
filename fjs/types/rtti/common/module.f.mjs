@@ -20,8 +20,10 @@
  *   pass/fail pays no allocation per entry.
  * - `tupleSchemaEntries`/`structSchemaEntries`: what a container schema
  *   declares, per kind — the entry list its readers walk.
- * - `undeclaredEntries`: the other half of a closed container's loop — the
- *   entries a `Tuple`/`Struct` schema does not name.
+ * - `undeclaredMembers`: the other half of the loop — the members a container
+ *   schema does not name, which a bare schema rejects and a `rest` one holds
+ *   to its rest. The data form walks it too, so the two readers state one
+ *   rule.
  * - `orVisit`: the shared `or` handler — try each variant's recursive walker,
  *   return the first match.
  *
@@ -174,19 +176,57 @@ export const structSchemaEntries = rtti =>
     Object.entries(rtti)
 
 /**
- * The entries of `value` that `declared` does not name.
+ * The position `k` names, or `undefined` when `k` names no position at all.
+ * Only the canonical spelling of a non-negative integer is an index: `'-1'`,
+ * `'01'`, `'1.5'` and `' 1'` are ordinary properties of an array object,
+ * however `Number` maps them. Round-tripping the number back through `String`
+ * is what rejects every non-canonical spelling at once, rather than one at a
+ * time.
+ *
+ * @type {(k: string) => number | undefined}
+ */
+const arrayIndex = k => {
+    const i = Number(k)
+    return Number.isInteger(i) && i >= 0 && String(i) === k ? i : undefined
+}
+
+/**
+ * The members of `value` that `declared` does not name — every one the
+ * schema's `rest` has to answer for, as `[key, value]` pairs.
  *
  * `declared` is a container schema's own key list, so for a struct these are
- * the undeclared keys, and for a tuple — whose declared keys are the canonical
- * spellings of its positions — they are the positions past the prefix together
- * with every enumerable own key that is no position at all. One filter answers
- * both kinds, which is what lets a closed container be read the same way on
- * each.
+ * its undeclared own keys, and for a tuple they are the positions past the
+ * prefix together with every own key that is no position at all.
+ *
+ * **A tuple's positions are read, not enumerated.** `length` is what says how
+ * far an array reaches, and every index below it that *reads* a value is a
+ * member the `rest` must answer for — including one supplied by the prototype,
+ * which no own-entry walk sees. Filtering `Object.entries` alone accepted
+ * `[42, , ]` carrying an inherited `1: 99` against `rest([42], string)`,
+ * handing back an array whose index 1 reads a number the rendered tail types
+ * as `string`. A genuinely absent index is skipped instead: a hole is no
+ * member, so it meets no `rest` — the same rule the struct kind states by
+ * walking own keys.
+ *
+ * An index at or above `length` is a different matter and is not answered
+ * here: it is readable through the prototype and no walk bounded by the value
+ * reaches it. See "Beyond `length`" in `../README.md`.
  *
  * @type {(declared: readonly string[], value: ReadonlyArray<Unknown> | StringMap<Unknown>) => ReadonlyArray<readonly [string, Unknown]>}
  */
-export const undeclaredEntries = (declared, value) =>
-    Object.entries(value).filter(([k]) => !declared.some(d => d === k))
+export const undeclaredMembers = (declared, value) => {
+    /** @type {(k: string) => boolean} */
+    const undeclared = k => !declared.some(d => d === k)
+    if (!commonIsArray(value)) {
+        return Object.entries(value).filter(([k]) => undeclared(k))
+    }
+    return [
+        ...[...Array(value.length).keys()]
+            .filter(i => undeclared(String(i)) && i in value)
+            .map(i => /** @type {const} */ ([String(i), value[i]])),
+        ...Object.entries(value).filter(([k]) => arrayIndex(k) === undefined && undeclared(k)),
+    ]
+}
 
 /**
  * First variant in `variants` that `recurse` accepts, else `verror('no match')`.
@@ -217,7 +257,7 @@ export const orVisit =
  *
  * - `Thunk` schemas are evaluated once to read the `Info` descriptor, then
  *   routed by tag (`'const'`, `'array'`, `'record'`, `'unknown'`, `'or'`,
- *   `'close'`, or a `Tag0` primitive).
+ *   `'rest'`, or a `Tag0` primitive).
  * - `Const` schemas (primitives, tuples, structs) are routed directly to
  *   `tuple`, `struct`, or `constPrimitive`.
  */
@@ -242,13 +282,13 @@ export const visit =
                 case 'record': return v.record(value[0])
                 case 'unknown': return v.unknown()
                 case 'or': return v.or(value)
-                case 'close': {
-                    const [c, rest] = value
-                    // `close`'s container is a `ConstObject`, which is exactly
+                case 'rest': {
+                    const [c, r] = value
+                    // `rest`'s container is a `ConstObject`, which is exactly
                     // the non-null objects among the `Const`s — a `Thunk` is a
                     // function, and every other `Const` is a primitive.
                     assert(typeof c === 'object' && c !== null, c)
-                    return v.close(c, rest)
+                    return v.rest(c, r)
                 }
             }
             return v.primitive0(tag)
