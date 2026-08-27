@@ -51,7 +51,7 @@ reporting, but it must not recreate the removed per-proof Node registration path
 - [ ] Identify the right location for this documentation.
 - [ ] Document `fjs t`, Node, Deno, and Bun behavior without mentioning the removed
       Playwright wrapper as a supported runner.
-- [ ] Link to [browser-testing](browser-testing.md) for the separate in-browser execution
+- [x] Link to [browser-testing](browser-testing.md) for the separate in-browser execution
       and reporting model.
 - [ ] Ensure future Playwright documentation describes the shared browser application,
       not Node-side execution of proof callbacks.
