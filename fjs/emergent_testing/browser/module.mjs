@@ -32,26 +32,13 @@
 
 import { asyncRun } from '../../effects/module.mjs'
 import { browserOperationMap } from '../../effects/browser/module.mjs'
-import { main } from './module.f.mjs'
+import { errorDetails } from '../module.f.mjs'
+import { main, reportOf } from './module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 
 /** @typedef {Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }} _TestWindow */
 
 /** @typedef {<T, E>(effect: Effect<BrowserOp, T, E>) => Promise<Result<T, E>>} _Run */
-
-/**
- * How many results may be rendered before the runner hands the event loop back.
- *
- * Every operation resolves through a microtask, and microtasks do not let a
- * browser paint: without a real task boundary the page would show its first
- * frame again only once the whole suite had finished. Yielding per result would
- * be the simpler rule and the wrong one — `setTimeout` clamps to 4 ms once
- * nested, which is minutes across a few thousand proofs.
- */
-const batchSize = 25
-
-/** @type {() => Promise<void>} */
-const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
 
 /** @type {(root: Element) => _TestWindow | null} */
 const viewOf = root => root.ownerDocument.defaultView
@@ -149,16 +136,30 @@ export const startBrowserTestSources = (root, sources, importer = source => impo
             results = [...results, result]
             if (summary !== null) { summary.textContent = `${results.length} tests completed…` }
             if (output !== null) { output.append(renderResult(root.ownerDocument, result)) }
-            if (results.length % batchSize === 0) { await macrotask() }
             return ok(undefined)
         },
         reported: async () => ok(results),
     })
     const view = viewOf(root)
-    // The application's error channel is empty — every failure it can meet is
-    // reported — so the run's `Result` is always `ok` and `unwrap` would only
-    // add a panic path nothing can reach.
-    const report = run(main({ browser: navigatorName(root), sources })).then(([, value]) => {
+    const browser = navigatorName(root)
+    // The application's error channel is empty — every failure it can *answer*
+    // is reported — so the run's `Result` is always `ok`. A **panic** is the
+    // other thing, and it is what `never` cannot promise away: reading a proof
+    // tree runs user code, so an enumerable getter or a proxy trap throws
+    // through the shared traversal, which has no `try`/`catch` to give it. That
+    // must not be where the page stops. A rejected run with the suite left in
+    // `running` is the one outcome an automated controller cannot act on, so
+    // the panic becomes the report it could not produce — see
+    // `../todo/hostile-proof-values.md` for attributing it to the test that
+    // caused it.
+    const settled = run(main({ browser, sources })).then(
+        ([, value]) => value,
+        error => {
+            const [message, stack] = errorDetails(error)
+            return reportOf('infrastructure-error', browser, 0, [
+                { module: '', path: '', status: 'failed', duration: 0, message, stack }])
+        })
+    const report = settled.then(value => {
         renderBrowserReport(root, value)
         view?.dispatchEvent(new CustomEvent('fjs-browser-test-complete', { detail: value }))
         return value

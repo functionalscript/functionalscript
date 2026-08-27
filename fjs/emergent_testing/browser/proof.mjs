@@ -214,6 +214,21 @@ export const proof = {
         assertEq(report.totals.tests, 60)
         assertEq(report.totals.passed, 60)
     },
+    // Reading the tree a proof returns runs user code, and the shared traversal
+    // has no `try`/`catch` to give it — so a throwing getter panics *through*
+    // the run. The page must still reach a terminal state and still publish a
+    // report: a rejected run left in `running` is the one outcome an automated
+    // controller cannot act on.
+    hostileProofTree: async () => {
+        const { root, view, states } = page()
+        const report = await startBrowserTestSources(root, ['a'], async () => ({
+            proof: { hostile: () => ({ get boom() { throw new Error('trap') } }) },
+        }))
+        assertEq(report.status, 'infrastructure-error')
+        assertEq(report.results[0]?.message, 'trap')
+        assertEq(states.join(','), 'loading,running,infrastructure-error')
+        assertEq(view.events.length, 1)
+    },
     // A root whose document has no window still runs and still answers: there
     // is simply nowhere to publish the promise or dispatch the event.
     withoutView: async () => {
@@ -273,6 +288,20 @@ export const proof = {
         all: async () => {
             const results = unwrap(await all(pureOk(1), pureOk(2)))
             assertEq(results.map(unwrap).join(','), '1,2')
+        },
+        // Past the batch size `all` hands the event loop back, which is the only
+        // thing that lets a page paint mid-suite: a timer queued before the call
+        // has to run before it resolves. Without the slicing every child settles
+        // on microtasks and no timer gets a turn — which is what this asserts,
+        // since the effects below perform nothing.
+        allYieldsBetweenBatches: async () => {
+            let fired = false
+            setTimeout(() => { fired = true }, 0)
+            const many = [...new Array(60).keys()].map(i => pureOk(i))
+            const results = unwrap(await all(...many))
+            assertEq(results.length, 60)
+            assertEq(results.map(unwrap).join(','), many.map((_, i) => i).join(','))
+            assert(fired, 'all resolved without yielding to the event loop')
         },
     },
 }

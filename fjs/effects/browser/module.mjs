@@ -44,6 +44,52 @@ import { toVec } from '../../types/uint8array/module.f.mjs'
  */
 
 /**
+ * How many effects one `all` starts before it hands the event loop back.
+ *
+ * **A browser needs a real task boundary to paint, and only `all` can give it
+ * one.** Every operation resolves through a microtask, so a page running a
+ * suite of any size would show its first frame until the last proof body had
+ * finished — `all` starts every child in the same turn, and a child that yielded
+ * inside its own continuation would pause only itself while its siblings ran on.
+ * Slicing the children is what bounds the work between two frames.
+ *
+ * `all` promises that its effects run concurrently and that it answers each
+ * one's whole `Result`. Neither says they start simultaneously, so the slicing
+ * is the runner's business — the Node runner has no frame to paint and starts
+ * them all at once.
+ *
+ * Yielding per effect would be the simpler rule and the wrong one: `setTimeout`
+ * clamps to 4 ms once nested, which is minutes across a few thousand proofs.
+ */
+const batchSize = 25
+
+/** @type {() => Promise<void>} */
+const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
+
+/**
+ * Runs `effects` in slices of {@link batchSize}, yielding to the event loop
+ * between them, and answers every `Result` in the order the effects were given.
+ *
+ * @template T
+ * @template E
+ * @param {CommonRun} run
+ * @param {readonly Effect<CommonOp, T, E>[]} effects
+ * @returns {Promise<readonly Result<T, E>[]>}
+ */
+const runBatched = async (run, effects) => {
+    /** @type {readonly Result<T, E>[]} */
+    let done = []
+    let index = 0
+    while (index < effects.length) {
+        const batch = await Promise.all(effects.slice(index, index + batchSize).map(e => run(e)))
+        done = [...done, ...batch]
+        index += batchSize
+        if (index < effects.length) { await macrotask() }
+    }
+    return done
+}
+
+/**
  * Performs host IO, reporting a thrown failure as an {@link IoResult} error.
  *
  * The browser twin of the Node runner's `io`: the one place where an exception
@@ -105,7 +151,7 @@ const sandbox = async f => {
  * @type {(run: CommonRun, importer?: BrowserImporter) => ToAsyncOperationMap<CommonOp>}
  */
 export const browserOperationMap = (run, importer = source => import(source)) => ({
-    all: async (...effects) => ok(await Promise.all(effects.map(e => run(e)))),
+    all: async (...effects) => ok(await runBatched(run, effects)),
     await: async p => ok([p instanceof Promise ? await p : p]),
     fetch: url => io(async () => {
         const response = await globalThis.fetch(url)

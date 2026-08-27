@@ -12,14 +12,18 @@ before it and `fjs t` were unified; unifying adopted `fjs t`'s semantics
 deliberately, so this file is where the difference went rather than being
 silently dropped.
 
-**A thrown value that resists being read takes the run down.** `errorDetails`
-reads `message` and `stack` and calls `String`, and a revoked `Proxy`, a
-throwing accessor, or a `toString` that panics makes any of those throw. There
-is no `try`/`catch` in FunctionalScript, so the shared core cannot guard it, and
-the panic escapes the reporter — the run ends with no report at all rather than
-one failed test. `fjs t` has always had this exposure (its reporter interpolates
-the thrown value into a line); the browser runner used to defend against it in
-impure code, and no longer does.
+**A value that resists being read is not attributed to the test that produced
+it.** Two shared functions read user-supplied values without a guard: the
+`collectTests` traversal enumerates a returned proof tree, and `errorDetails`
+reads `message`/`stack` and calls `String` on a thrown value. A throwing
+accessor, a revoked `Proxy`, or a hostile `toString` panics through either, and
+there is no `try`/`catch` in FunctionalScript for the core to catch it with.
+
+The browser adapter turns that panic into an `infrastructure-error` report
+rather than leaving the page in `running`, so a run always terminates — but the
+whole run is lost where the deleted runner lost one test, and `fjs t` still ends
+with a stack trace and no summary. What is missing is *attribution*: naming the
+leaf whose value could not be read, and continuing with the rest.
 
 **A promise from another realm is not awaited.** Both `sandbox` interpreters ask
 `p instanceof Promise`, which is false for a promise built in an iframe, a
@@ -35,11 +39,13 @@ asynchronous values.
 Both belong to the *operation*, not to the shared core, which is what makes one
 fix serve every runner:
 
-- Normalization could move behind `sandbox`: the operation already runs user
-  code inside the host's `try`/`catch`, so it is the one place that can read a
-  hostile value safely and hand back a `message`/`stack` pair that is already
-  ordinary data. The shared `errorDetails` would then read a record rather than
-  an arbitrary thrown value, and stay total.
+- Reading a user value could move behind `sandbox`: the operation already runs
+  user code inside the host's `try`/`catch`, so it is the one place that can
+  enumerate a returned tree, or read a thrown value's `message`/`stack`, and
+  hand back something that is already ordinary data. The shared `errorDetails`
+  and `collectTests` would then read a record rather than an arbitrary value,
+  and stay total — which also lets the failure be reported against the leaf that
+  caused it instead of against the run.
 - The brand check needs a test that a page cannot forge and that no proof tree
   can pass by accident. Candidates: `Promise.resolve(p) === p` on the value's
   own constructor, or asking each realm the runner knows about. Whatever is
