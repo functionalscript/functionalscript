@@ -128,6 +128,13 @@ normal program behavior remain in `module.f.mjs` even if their types are reused
 incidentally; `meta.f.mjs` is for values whose primary role is type-level
 metadata.
 
+`meta.f.mjs` is executable FunctionalScript source, not a declaration-only
+companion. Coverage must therefore treat it like `module.f.mjs`: the Node and
+Deno coverage filters must include `meta.f.mjs`, and proofs must execute the
+metadata code sufficiently for the repository's existing coverage thresholds to
+apply. Moving executable values from `module.f.mjs` to `meta.f.mjs` must not make
+them disappear from coverage.
+
 Dependency rules:
 
 - `module.f.mjs` and `proof.f.mjs` may use both `types.ts` and `private.ts`
@@ -225,6 +232,10 @@ rather than retaining `private.d.ts` to make such a leak resolve.
 - [ ] Move runtime values whose primary purpose is type derivation into
       `meta.f.mjs`; include both RTTI definitions and non-RTTI constants used by
       `Ts<typeof ...>`, `typeof ...`, or equivalent type queries.
+- [ ] Update Node coverage selection to include both `module.f.mjs` and
+      `meta.f.mjs` under the existing 100% thresholds.
+- [ ] Update Deno `cov` and `cov-html` include filters to include both
+      `module.f.mjs` and `meta.f.mjs`.
 - [ ] Keep `private.ts` in normal TypeScript type-checking without generating a
       runtime JavaScript file for it.
 - [ ] Make deletion of generated `private.d.ts` files the final `prepack` step,
@@ -246,7 +257,8 @@ rather than retaining `private.d.ts` to make such a leak resolve.
 - [ ] Extend the fixture with `meta.f.mjs` containing both an RTTI value and a
       non-RTTI literal constant used to derive TypeScript types in `types.ts` or
       `private.ts`; verify the source tree and packed consumer resolve both
-      metadata dependencies correctly.
+      metadata dependencies correctly, and that executable `meta.f.mjs` code is
+      included in both Node and Deno coverage.
 - [ ] Verify a clean TypeScript consumer can install the packed tarball and use
       the public API without any private artifact present.
 
@@ -264,6 +276,8 @@ rather than retaining `private.d.ts` to make such a leak resolve.
   type-level information live in `meta.f.mjs`; this includes RTTI definitions
   and non-RTTI constants used by `Ts<typeof ...>`, `typeof ...`, and similar
   type queries.
+- Node and Deno coverage include executable `meta.f.mjs` files under the same
+  coverage expectations as `module.f.mjs`.
 - Generated public declarations do not expose private file-scope named typedefs
   merely as a consequence of declaration emission.
 - Declaration emission may create `private.d.ts`; the final `prepack` step
