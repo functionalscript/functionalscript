@@ -280,6 +280,12 @@ diff — then fix it here. In the design document, or in a new `todo/` issue —
 then write it there, and reply with the link. Only "in the review thread" is
 the wrong answer; that is the one place it will not survive.
 
+The same holds once a design leaves review and someone implements it: a `todo/`
+that cannot be implemented the way it describes is rewritten, never forced
+through ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). A
+reviewer holding the code to that design is answered with what does not work,
+not with a workaround.
+
 ## OpenAI Codex environment
 
 Set Node.js to 22. Both `npm test` and `npm run cov` work in this environment;

@@ -81,6 +81,17 @@ on top of the weaker design.
 - Before relying on an undocumented or assumed runtime behavior (environment
   variable names, API shape, framework detection), verify it with a small test or
   source check rather than assuming.
+- **When the design does not survive contact with the code, stop.** A `todo/`
+  whose design cannot be implemented the way it describes is a design to change,
+  not an obstacle to force. Say what does not work and why, ask the question —
+  of whoever wrote the issue, whoever reviewed it, or in the issue itself — and
+  rewrite its **Proposal** around what you now know. Implementing it anyway, at
+  any cost, is always the wrong answer: the workarounds it takes land in code
+  nobody can justify from the design, the design goes on claiming something
+  untrue, and the next reader inherits both without being told. The effort
+  already spent is not a reason to push through; it is what paid for knowing the
+  design is wrong. Prototyping to find out is fine — shipping against a design
+  you have already disproved is not.
 
 ## 4. Reuse, DRY, and separation of concerns
 
