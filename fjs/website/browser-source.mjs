@@ -4,70 +4,15 @@
  *
  * The manifest generator classifies modules without importing them — that is
  * the point of reading them as text — and TypeScript 7 exposes no compiler API,
- * so both questions are answered by ordinary functions here, with their own
- * proofs, rather than by patterns whose supported characters are implicit.
+ * so both questions are answered here by reading the source as tokens, with
+ * their own proofs, rather than by patterns over lines: whether a declaration
+ * fits on one line, and how it is spaced, are not part of the syntax.
  */
 
 /**
- * Blanks comments and quoted literals before looking for export declarations.
- * Export declarations cannot occur inside a string, comment, or template, so
- * this is enough to distinguish syntax from source text.
- *
- * @type {(source: string) => string}
- */
-export const codeOnly = source => {
-    let result = ''
-    let index = 0
-    while (index < source.length) {
-        const char = source[index]
-        const next = source[index + 1]
-        if (char === '/' && next === '/') {
-            index += 2
-            while (index < source.length && source[index] !== '\n') { index += 1 }
-            result += '\n'
-            index += 1
-            continue
-        }
-        if (char === '/' && next === '*') {
-            index += 2
-            while (index < source.length && !(source[index] === '*' && source[index + 1] === '/')) {
-                result += source[index] === '\n' ? '\n' : ' '
-                index += 1
-            }
-            result += '  '
-            index += 2
-            continue
-        }
-        if (char === '\'' || char === '"' || char === '`') {
-            const quote = char
-            result += ' '
-            index += 1
-            while (index < source.length) {
-                if (source[index] === '\\') {
-                    result += '  '
-                    index += 2
-                    continue
-                }
-                if (source[index] === quote) {
-                    result += ' '
-                    index += 1
-                    break
-                }
-                result += source[index] === '\n' ? '\n' : ' '
-                index += 1
-            }
-            continue
-        }
-        result += char
-        index += 1
-    }
-    return result
-}
-
-/**
- * The characters an export name is spelled with. A name outside this set —
- * a Unicode identifier, a quoted export name — reads as punctuation and so
- * never matches `proof`, which is the only name being looked for.
+ * The characters a name is spelled with. A name outside this set — a Unicode
+ * identifier, a quoted export name — reads as punctuation and so never matches
+ * `proof`, `from` or `import`, the only names looked for here.
  *
  * @type {(char: string) => boolean}
  */
@@ -80,19 +25,84 @@ const nameChar = char =>
 /** @type {(char: string) => boolean} */
 const space = char => char === ' ' || char === '\t' || char === '\n' || char === '\r'
 
+/** @typedef {{ readonly kind: 'name' | 'string' | 'punctuation', readonly text: string }} _Token */
+
 /**
- * The code as names and single-character punctuation, whitespace dropped, so
- * that spacing stops mattering: `export{ a as proof }` and
- * `export { a as proof }` both read as
- * `['export', '{', 'a', 'as', 'proof', '}']`.
- *
- * @type {(code: string) => readonly string[]}
+ * Separates tokens while they are collected. The scan is a single pass over a
+ * whole file, so tokens accumulate as text rather than into a growing array;
+ * authored source holds no U+0000 to be mistaken for the separator.
  */
-const tokens = code => [...code]
-    .map(char => nameChar(char) ? char : space(char) ? ' ' : ` ${char} `)
-    .join('')
-    .split(' ')
-    .filter(token => token !== '')
+const separator = '\u0000'
+
+/**
+ * The source as tokens: names, the text of string literals, and single
+ * characters of punctuation. A comment produces nothing, so what is written in
+ * one is never read as code. A template produces a backtick and nothing else —
+ * it can hold an entire embedded module, and it is never a module specifier.
+ *
+ * An escape inside a string becomes a space: escapes belong to prose, and a
+ * module specifier — the only string this module reads — has none.
+ *
+ * @type {(source: string) => readonly _Token[]}
+ */
+const read = source => {
+    let out = ''
+    let index = 0
+    while (index < source.length) {
+        const char = source[index] ?? ''
+        const next = source[index + 1]
+        if (char === '/' && next === '/') {
+            while (index < source.length && source[index] !== '\n') { index += 1 }
+            continue
+        }
+        if (char === '/' && next === '*') {
+            index += 2
+            while (index < source.length
+                && !(source[index] === '*' && source[index + 1] === '/')) { index += 1 }
+            index += 2
+            continue
+        }
+        if (char === '\'' || char === '"' || char === '`') {
+            index += 1
+            let text = ''
+            while (index < source.length && source[index] !== char) {
+                if (source[index] === '\\') {
+                    text += ' '
+                    index += 2
+                    continue
+                }
+                text += source[index]
+                index += 1
+            }
+            index += 1
+            out += char === '`' ? `${separator}p\`` : `${separator}s${text}`
+            continue
+        }
+        if (nameChar(char)) {
+            let text = ''
+            while (nameChar(source[index] ?? '')) {
+                text += source[index]
+                index += 1
+            }
+            out += `${separator}n${text}`
+            continue
+        }
+        if (!space(char)) { out += `${separator}p${char}` }
+        index += 1
+    }
+    return out.split(separator).slice(1).map(token => ({
+        kind: token[0] === 'n' ? 'name' : token[0] === 's' ? 'string' : 'punctuation',
+        text: token.slice(1),
+    }))
+}
+
+/**
+ * The tokens as bare words, every string literal standing in as a quote: a
+ * declaration is read by its names, and no string can pass for one.
+ *
+ * @type {(tokens: readonly _Token[]) => readonly string[]}
+ */
+const words = tokens => tokens.map(token => token.kind === 'string' ? '\'' : token.text)
 
 /** The keywords that can introduce an `export <keyword> proof` declaration. */
 const declarations = ['const', 'let', 'var', 'function', 'class']
@@ -107,12 +117,11 @@ const declaredName = (list, at) =>
     list[at] === 'function' && list[at + 1] === '*' ? at + 2 : at + 1
 
 /**
- * Whether the tokens following an `export` bind the name `proof`: a
+ * Whether the words following an `export` bind the name `proof`: a
  * declaration — `async` and `function*` included — a namespace re-export, or a
- * named list. A list entry exports
- * the last name of its `as` chain, so `{ implementation as proof }` binds
- * `proof` and `{ proof as implementation }` does not. An unclosed list is
- * incomplete syntax and binds nothing.
+ * named list. A list entry exports the last name of its `as` chain, so
+ * `{ implementation as proof }` binds `proof` and `{ proof as implementation }`
+ * does not. An unclosed list is incomplete syntax and binds nothing.
  *
  * @type {(list: readonly string[], at: number) => boolean}
  */
@@ -136,68 +145,39 @@ const bindsProof = (list, at) => {
 }
 
 /**
- * Whether `source` exports a binding named `proof`. A mention inside a comment
- * or a string is not one — the website generator embeds the page's entry module
- * as source text — so the literals are blanked before the names are read.
+ * Whether `source` exports a binding named `proof`. A mention inside a comment,
+ * a string, or a template is not one — the website generator embeds the page's
+ * entry module as source text — because none of them reaches the words below.
  *
  * @type {(source: string) => boolean}
  */
 export const exportsProof = source => {
-    const list = tokens(codeOnly(source))
-    return list.some((token, index) => token === 'export' && bindsProof(list, index + 1))
-}
-
-/** @type {(line: string, prefix: string, quote: string) => readonly string[]} */
-const quoted = (line, prefix, quote) =>
-    line.split(prefix + quote).slice(1).map(part => part.split(quote)[0] ?? '')
-
-/**
- * Whether `text` opens with `word` as a whole keyword rather than as the start
- * of a longer name, so that every spacing a declaration can be written in —
- * `export {`, `export{`, `export*as` — is one keyword, and `exported` is not.
- *
- * @type {(text: string, word: string) => boolean}
- */
-const keyword = (text, word) =>
-    text.startsWith(word) && !nameChar(text[word.length] ?? ' ')
-
-/**
- * A line that can carry a static module specifier: the head of an
- * `import`/`export` declaration, or the `} from '...'` tail of one whose
- * bindings span several lines. Documentation and ordinary expressions are left
- * out, so prose such as "tells `'empty'` from `'missing'`" is not mistaken for
- * an import — a JSDoc line starts with `*` and a string literal with a quote.
- *
- * @type {(line: string) => boolean}
- */
-const declaration = line => {
-    const text = line.trim()
-    if (keyword(text, 'import') || keyword(text, 'export')) { return true }
-    // The `} from '...'` tail of a declaration whose bindings span lines. On a
-    // blanked line the specifier is gone, so the keyword may end the line.
-    return text.startsWith('}') && keyword(text.slice(1).trim(), 'from')
+    const list = words(read(source))
+    return list.some((word, index) => word === 'export' && bindsProof(list, index + 1))
 }
 
 /**
- * Every static module specifier in `source`. Import declarations are the only
- * thing the browser links eagerly, so a dynamic `import(...)` is left out: it
- * fails inside the test that reaches it rather than while the page loads.
+ * Every static module specifier in `source`: the string literal following the
+ * `from` of a declaration, or an `import` naming its module directly.
+ *
+ * A dynamic `import(...)` is left out, and left out structurally — its string
+ * follows a `(`, not the keyword. That is the reading the manifest wants: a
+ * dynamic import fails inside the test that reaches it rather than while the
+ * page links. A `from` written in prose or inside a string is left out for the
+ * same reason: neither is a sequence of tokens.
  *
  * @type {(source: string) => readonly string[]}
  */
 export const specifiers = source => {
-    const lines = source.split('\n')
-    // Which lines are declarations is decided on the blanked source — an
-    // `import` line inside a block comment or an embedded code sample is not
-    // one — while the specifier is read from the source line, the only place
-    // the quoted text still exists. `codeOnly` keeps the line count, so the two
-    // agree line for line.
-    return codeOnly(source).split('\n').flatMap((code, index) =>
-        declaration(code)
-            ? ['\'', '"'].flatMap(quote =>
-                ['from ', 'import '].flatMap(prefix =>
-                    quoted(lines[index] ?? '', prefix, quote)))
-            : [])
+    const tokens = read(source)
+    return tokens.flatMap((token, index) => {
+        if (token.kind !== 'string') { return [] }
+        const previous = tokens[index - 1]
+        return previous?.kind === 'name'
+            && (previous.text === 'from' || previous.text === 'import')
+            ? [token.text]
+            : []
+    })
 }
 
 /** @type {(specifier: string) => boolean} */

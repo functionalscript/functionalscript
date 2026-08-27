@@ -7,7 +7,7 @@
  */
 
 import { assert, assertStructurallySame } from '../asserts/module.f.mjs'
-import { codeOnly, exportsProof, local, specifiers } from './browser-source.mjs'
+import { exportsProof, local, specifiers } from './browser-source.mjs'
 
 /** @type {(source: string) => void} */
 const exports = source => assert(exportsProof(source), source)
@@ -75,15 +75,6 @@ export const proof = {
             doesNot('export { a as proof')
         },
     },
-    codeOnly: {
-        keepsLineCount: () => {
-            // Specifiers are read per line, so blanking must not move any.
-            const source = '/* a\nb */\nimport { x } from \'./y.mjs\'\n'
-            assertStructurallySame(
-                [codeOnly(source).split('\n').length],
-                [source.split('\n').length])
-        },
-    },
     specifiers: {
         imports: () => {
             assertStructurallySame(
@@ -114,9 +105,25 @@ export const proof = {
                 [])
         },
         multiLine: () => {
+            // Line boundaries are not part of the syntax, wherever they fall.
             assertStructurallySame(
                 [...specifiers('import {\n    a,\n} from \'./x.mjs\'\n')],
                 ['./x.mjs'])
+            assertStructurallySame(
+                [...specifiers('import\n\'node:fs\'\n')],
+                ['node:fs'])
+            assertStructurallySame(
+                [...specifiers('export { a }\nfrom\n\'package\'\n')],
+                ['package'])
+        },
+        inText: () => {
+            // A `from` inside prose or a string literal is not a declaration.
+            assertStructurallySame(
+                [...specifiers('const s = "tells \'empty\' from \'missing\'"\n')],
+                [])
+            assertStructurallySame(
+                [...specifiers('// import \'node:fs\'\n')],
+                [])
         },
         prose: () => {
             // A documentation line quoting names is not an import declaration.
