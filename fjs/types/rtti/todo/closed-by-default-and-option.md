@@ -543,14 +543,45 @@ Stage 1 (one PR):
       `rest([42], string)` and against `rest([42], number)`, which must answer
       error and ok. Stage 2's declared-member prototype task is the same
       hazard one region to the left; the two should read as one rule.
+- [ ] That walk covers the indices below `length`, and an inherited index can
+      lie **above** it, where no walk bounded by the value reaches it. Measured:
+      `[42]` whose prototype carries `10: 99` has `length` 1, and
+      `validate(rest([42], string))` accepts it while `v[10]` reads `99` — but
+      so does `validate(close([42]))`, and `validate(array(number))` accepts an
+      empty array whose prototype carries `10: 'no'` while `Ts` says
+      `readonly number[]`. This is the **whole reader family**, not the tail:
+      stage 1 neither introduces it nor worsens it, and it cannot be fixed by
+      extending a walk, because a prototype may define any index and the
+      readable set is unbounded. Two honest ends: bound the readable set by
+      rejecting an array whose prototype is not `Array.prototype` at the
+      `isArray` boundary — one check, after which every index walk in this
+      family becomes complete, at the cost of rejecting array subclasses — or
+      state the incompleteness in `../README.md` beside the other accepted ones.
+      Prefer the first; it is what makes the task above, and stage 2's declared
+      -member one, true rather than nearly true. Decide it in stage 1 because
+      that is where the tail starts *claiming* an element type, and give it its
+      own issue if it grows past a boundary check.
 - [ ] …except when the rest **normalizes away**, where the tail is omitted and
       the exact tuple is rendered — otherwise `rest([42], or())` (stage 1) and
       `rest([42], option)` (stage 2, whose inline rest normalizes away entirely)
       render `readonly [42, ...undefined[]]` and admit `[42, undefined]`, which
       both readers reject. Pin both.
-      The exception keys on **the empty-rest criterion**, the same test the
-      length bound uses — *not* on "the absence-stripped rest is empty", which
-      is a different question with a different answer. A **retained** reference
+      The exception keys on **the empty-rest criterion** — *not* on "the
+      absence-stripped rest is empty", which is a different question with a
+      different answer. `RestTs` cannot *evaluate* that criterion: it is a
+      `toData` conversion plus `subset` both ways, and `types.ts` has no way to
+      invoke either. Nor is `Ts<R> extends never` a substitute — measured, for
+      the case this section explicitly requires, `Ts<[or()]>` is `readonly
+      [never]` with `.length` of `1`, not `never`. So `RestTs` implements a
+      **conservative syntactic approximation**: recognize the directly spellable
+      empty rests (`or()`, and a container with a provably empty position if the
+      spike shows that composes without TS2589), and **keep the tail whenever it
+      cannot tell**. The conservatism has a direction and it is not arbitrary —
+      a kept tail is wide but sound, by the same argument as the retained
+      reference below, while a wrongly dropped one is the unsound cast. Where
+      the two renderers then differ, the type renderer keeps a tail the data
+      printer drops; document that divergence rather than closing it, and pin
+      `rest([42], [or()])` as its example. A **retained** reference
       separates them: for the absence-only cycle the exemption below keeps
       unstripped, `toData(rest([42], X))` still carries `rest: "X"`, so the
       readers do not bound the length and `rest([42], X)` accepts hole-only
@@ -1007,10 +1038,23 @@ Stage 2 (one PR, after stage 1 lands):
       `never`, which vanishes in a union and takes the information with it; not
       `undefined`, which would make `or(undefined, number)` optional too and
       conflate the pair this stage exists to separate. Then `OptionalFields` keys
-      on `Absent extends _TsRaw<T[K]>` and renders `Exclude<_TsRaw<T[K]>, Absent>`
-      — **not** `Ts`, which excludes the marker itself and would make the test
-      false for every member, rendering `{ a: or(option, number) }`'s `a`
-      required and defeating the split;
+      on **`_AdmitsAbsence<T[K]>`, a structural predicate over the schema**, and
+      renders `Exclude<_TsRaw<T[K]>, Absent>` for the value. The test cannot be
+      a subtype query against the rendered union — neither `Absent extends Ts<…>`
+      (which excludes the marker itself, so it is false for every member) nor
+      `Absent extends _TsRaw<T[K]>`, which fails in the other direction at
+      `unknown`: `_TsRaw<typeof unknown>` is `unknown`, `Absent extends unknown`
+      is true for any `Absent`, and `unknown | Absent` is `unknown` — all three
+      measured. So the closed `{ a: unknown }`, which stage 2 *rejects* `{}` for,
+      would render `a?:`, and would be indistinguishable from
+      `{ a: or(option, unknown) }`, which the runtime printer does tell apart.
+      The marker is absorbed by the top and cannot be recovered from the union
+      it lands in; only the schema still carries the fact. `_AdmitsAbsence<T>`
+      recurses through `or` — which does no flattening, so
+      `or(or(option, number), string)` needs the recursion, the same reason the
+      runtime `admitsAbsence` is not a one-level scan. Pin `{ a: unknown }`
+      required and `{ a: or(option, unknown) }` optional with
+      `Assert<Equal<…>>`, the pair that fails under either subtype query;
       `ArrayTs`/`RecordTs` `Exclude` it from their element type, so
       `Ts<array(or(option, number))>` stays `readonly number[]` — the type-level
       counterpart of "a rest never sees it" — except that `ArrayTs` emits
