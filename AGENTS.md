@@ -107,8 +107,10 @@ document** (a `todo/` file) to spell out an implementation is told the choice
 belongs to the implementer, and that answer goes **into the design document**;
 prototype when the question is genuinely open, and record what the prototype
 uncovered rather than the prototype itself. A reviewer who asks an
-**implementation** for another feature gets a new `todo/` issue to investigate
-it and a link to that issue, never a wider diff. Even a known crash may be
+**implementation** for another feature gets a `todo/` issue to investigate it
+and a link to that issue, never a wider diff — found or filed, as always, so
+review knowledge lands on the issue that already tracks the request instead of
+beside it. Even a known crash may be
 deferred the same way, as long as the `todo/` file names what breaks and the
 input that breaks it. How far depends on who runs the code and whether the
 input is real — an unreachable limit in an internal script is a documented

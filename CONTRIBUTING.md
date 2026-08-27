@@ -257,13 +257,15 @@ moment the pull request is merged.
   feature or improvement, with minimal code changes ([AGENTS.md
   §5](./AGENTS.md#5-pull-requests-and-releases)); a reviewer's "while you're
   here, it should also …" is a second one. Do not fold it in, and do not drop
-  it: **file a `todo/` issue to investigate the feature**, next to the code it
-  describes ([todo/README.md](./todo/README.md)), and reply with a link to it.
-  That issue is the honest answer — the request is worth considering, it has not
-  been considered yet, and the investigation is what decides whether it ships at
-  all. Adding the file to the pull request under review is fine when the file is
-  all that it adds; otherwise file it separately, so this pull request stays one
-  change.
+  it: **find or file a `todo/` issue to investigate the feature**, next to the
+  code it describes ([todo/README.md](./todo/README.md)), and reply with a link
+  to it. Search first, as before any other work — the request may already be
+  tracked, in which case the answer is that issue plus whatever the review just
+  added to it, not a second record of the same thing. That issue is the honest
+  answer — the request is worth considering, it has not been considered yet, and
+  the investigation is what decides whether it ships at all. Adding a new file
+  to the pull request under review is fine when the file is all that it adds;
+  otherwise file it separately, so this pull request stays one change.
 
 A comment saying the change is **wrong** is not automatically this pull
 request's work either. Even a known edge case that crashes the program may be
@@ -297,12 +299,22 @@ it costs them when it breaks — then write that answer into the `todo/`, so the
 deferral is a judgement on record rather than an omission.
 
 Whichever end of that range you are at, a deferred limit has to be a **loud**
-one. An unsupported input that crashes is already the good case: it is visible,
-it is reproducible, and the `todo/` says when it will be handled. An
-unsupported input that returns a plausible wrong answer is not deferrable at
-all — making it fail is this pull request's work. Refuse it or assert on it
-([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)), and defer only
-the support behind the `todo/`. Support can wait; silence cannot.
+one. An unsupported input that crashes is visible, reproducible, and dated by
+the `todo/` that says when it will be handled. An unsupported input that
+returns a plausible wrong answer is not deferrable at all — making it fail is
+this pull request's work. Support can wait; silence cannot.
+
+Which kind of loud is a design question, and [DESIGN.md
+§10](./DESIGN.md#10-refuse-what-you-cannot-handle) answers it: an input a
+caller may legitimately supply and is expected to cope with — an oversized
+buffer, a malformed document — is **rejected**, as a `try*` returning
+`Nullable<T>`, and only a violated precondition is a **panic**. In code this
+pull request is adding, that is settled here: shipping a new API that panics
+where §10 calls for a rejection is a design defect, and a reviewer pointing it
+out is right. Mitigating a defect found late is the case that may be staged —
+an assert stops the wrong answers today, while turning it into a `try*` changes
+the signature and every call site — but then the `todo/` has to say that the
+rejection is what it owes, or the interim shape quietly becomes the design.
 
 The refusal is a mitigation, so the `todo/` it leaves behind is queued work and
 not a decision: mitigate fast, file the issue, then fix it. If the limit later
