@@ -367,6 +367,15 @@ does not.
 | the same, `constructor` non-configurable | reported as a failure | reported as a failure |
 | non-extensible impostor | walked as a proof tree | reported as a failure |
 | promise fulfilled with a proof tree that gains a `then` test afterwards | walked | walked |
+| the same, with the promise's `constructor` replaced | walked | **hangs** — `await` wraps it, and the wrapper's resolver assimilates the tree's `then` |
+| promise whose `constructor` is replaced and whose own `then` is overridden | walked | **hangs** |
+
+Two of those rows turn on the same mechanism and are worth stating once: `await`
+adopts a promise's internal state only when its `constructor` is the intrinsic
+`Promise`. Replace the constructor and resolution goes the long way round —
+through a `then` the value may have overridden, and through a wrapper whose
+resolver will assimilate a fulfilled proof tree that carries a `then` of its
+own. Every hang in this table traces back to that one sentence.
 
 And what each deleted piece was for, which was written down nowhere and is why
 deleting it looked free:
