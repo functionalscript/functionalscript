@@ -83,13 +83,22 @@ so agreeing on acceptance is the contract, not an extra.
 
 ### Proposal
 
-**Do not simply guard the final branch with `isObject`.** That is the obvious
-fix and it is wrong: it would make `data.validate(toData(unknown))(() => 1)`
-reject where `validate(unknown)(() => 1)` accepts, trading this divergence for
-its mirror image. Any fix has to keep top accepting values that have no kind
-while stopping ordinary object sets from doing so.
+**This is gated on what an exported `unknown` means**, which is not settled:
+the module and its README promise DJS-compatible values, `Ts<>` excludes
+functions and symbols, both thunk readers have `unknown: () => ok`, and the
+printer emits TypeScript's unrestricted `unknown`.
+[rtti-type-system](../../../../todo/rtti-type-system.md) records that
+disagreement and gates stage 11 on resolving it. **Which repair is right here
+follows from that decision**, so this issue must not settle it by choosing a
+fix — an earlier draft of this section did exactly that, by requiring top to go
+on accepting functions and symbols.
 
-Two ways to get that, and the choice is about how the top is represented:
+**If `unknown` keeps its current reader behaviour** (top accepts every value),
+then guarding the final branch with `isObject` alone is wrong: it would make
+`data.validate(toData(unknown))(() => 1)` reject where
+`validate(unknown)(() => 1)` accepts, trading this divergence for its mirror
+image. A fix then has to keep top accepting no-kind values while stopping
+ordinary object sets from doing so, and there are two ways to get that:
 
 1. **Give values with no kind a representation.** Add function and symbol kinds
    (or a single "other" kind), so the union genuinely denotes a set of values
@@ -105,6 +114,17 @@ Two ways to get that, and the choice is about how the top is represented:
    means something narrower than "all values", so the next reader of this code
    meets the same trap.
 
+**If `unknown` is narrowed to its documented DJS-compatible meaning**, the
+repair is the opposite and much smaller: guard the fall-through with `isObject`
+**and** narrow the thunk readers' `unknown` to match, so all three readers
+reject a function or symbol everywhere, top included. No new kind is needed,
+and the encoding's "all kinds" would then genuinely mean "all values" because
+no-kind values are no longer in any schema's set.
+
+That is why the decision has to come first. Building a function/symbol kind
+under option 1 and then narrowing `unknown` later would leave a representation
+designed for values the type language had decided not to admit.
+
 Worth deciding at the same time whether a value with no kind should produce an
 *error distinct from* "unexpected value" — a function reaching a data position
 is usually a different mistake from a shape mismatch, and the boundary work in
@@ -113,9 +133,16 @@ values arrive.
 
 ### Tasks
 
-- [ ] Decide between representing no-kind values and marking top explicitly.
-- [ ] Make `unionValidate` reject a no-kind value for an ordinary object set
-      while still accepting it for the canonical top.
+- [ ] **First**, settle what an exported `unknown` means — the decision
+      [rtti-type-system](../../../../todo/rtti-type-system.md) gates stage 11
+      on. Everything below depends on it.
+- [ ] If `unknown` keeps accepting every value: decide between representing
+      no-kind values and marking top explicitly, then make `unionValidate`
+      reject a no-kind value for an ordinary object set while still accepting
+      it for the canonical top.
+- [ ] If `unknown` narrows to DJS-compatible: guard the fall-through with
+      `isObject` and narrow both thunk readers' `unknown` to match, so all
+      three readers agree everywhere.
 - [ ] Cover functions and symbols in tests against `unknown`, `{}`,
       `record(...)`, `or(number, {})` and `option({})`, in **both** readers, so
       neither the divergence nor its mirror image can return.

@@ -25,7 +25,8 @@ should not pretend it can prove all future calls are valid.
 > is one of two options, not a decision:
 > [rtti-type-system](../../../../todo/rtti-type-system.md) made this issue its
 > stage 7, and the 7a tasks below ask whether an extern form can actually pay
-> for a `subset` path, a printer path, and a canonical serializable form, or
+> for a `subset` path, a printer path, and whatever stage 4's stabilization
+> strategy requires (conditional — see the tasks below), or
 > whether function contracts have to go into
 > [`data`](../data/README.md) proper. Read the API sketch below as a
 > description of the runtime *contract* — which holds either way — rather than

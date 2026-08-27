@@ -180,7 +180,9 @@ TypeScript aliases out.
 5. Resolve the function-schema **representation**
    ([668-rtti-function-types](../../fjs/types/rtti/todo/668-rtti-function-types.md)'s
    7a tasks — the schema form, its place in the canonical algebra, a printer
-   path, a canonical serializable form). This comes *before* general inference,
+   path, and whatever stage 4's stabilization strategy turns out to require of
+   a function schema; that last one is **conditional**, since under provable
+   purity nothing needs serializing). This comes *before* general inference,
    not after: inferring the representative `f(x)` right-hand side needs `f`'s
    contract and result schema, and RTTI has no function case until 7a lands.
 6. Design inference, then check general right-hand sides with `subset`.
