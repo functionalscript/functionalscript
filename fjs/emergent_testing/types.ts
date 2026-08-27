@@ -77,6 +77,15 @@ export type TestResult = {
      * variant with its own fields, is open — see
      * `todo/share-browser-console-runner.md`, with the rest of the report
      * shape.
+     *
+     * **The runners are not symmetric here, and that is a known gap rather than
+     * a design.** Only the browser reports a non-leaf outcome at all: the same
+     * `proof` export that it records as one failed result makes `fjs t` panic,
+     * taking down the whole run — including the modules that would have passed,
+     * which are then never reported either. So a consumer must not read this
+     * field's tolerance as a promise that every runner keeps going. Closing the
+     * gap is `todo/hostile-proof-values.md`, which needs an operation the
+     * shared traversal does not have.
      */
     readonly name: string
     readonly status: TestStatus
