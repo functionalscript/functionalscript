@@ -106,6 +106,13 @@ can be checked at all without recursive descent, given `object: true`
 short-circuits in `patternsValidate` and carries no members to walk; and what
 such a descent does on a cyclic input, since no reader has a visited-set today.
 
+On that last point, one measured fact worth having before the investigation
+starts: a cyclic value is not serializable as DJS either — `stringify` on a
+self-referential object throws `RangeError`, because `countRefsOp` descends
+before registering the container. So "reject cycles" may be the honest answer
+rather than a limitation, and the question is whether the readers should agree
+with the serializer or be more permissive than it.
+
 That last one connects to [identity-aware-parse](identity-aware-parse.md),
 which needs input-keyed identity tracking for its own reasons. Whether one
 mechanism serves both is worth establishing before either is built — but that
