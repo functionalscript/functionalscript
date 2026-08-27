@@ -36,6 +36,66 @@ export type TestSet = TestEntry | readonly (readonly [string, unknown])[]
  */
 export type Path = readonly (string | null)[]
 
+/** Whether a leaf passed, after the throw expectation has been applied. */
+export type TestStatus = 'passed' | 'failed'
+
+/**
+ * One leaf's outcome, normalized: what ran, whether it passed, and how long it
+ * took, with no terminal escape codes and no DOM node in it.
+ *
+ * It exists so that every runner decides those three things the same way. The
+ * console runner and the browser runner each used to derive them inline — one
+ * on its way to a printed line, the other on its way to a serializable report —
+ * and a status is exactly the kind of small decision that drifts unnoticed when
+ * it is made twice.
+ *
+ * **A thrown value is deliberately absent.** Describing one is not a decision
+ * every host can share: the browser's report must survive a wire hop, so it
+ * reads `message` and `stack` off the value, while `fjs t` prints the value
+ * itself and keeps the stack the panic would have shown. Both need the raw
+ * value to do that, and a raw value cannot live in a serializable record. So
+ * the description stays with each host and this carries the part they agree
+ * on — the shape of an extension point, not an omission.
+ */
+export type TestResult = {
+    /** The module key the outcome belongs to, relative to the run's root. */
+    readonly module: string
+    /**
+     * The key chain within that module's `proof` export, as `fmtPath` renders
+     * it — empty when the outcome is not a leaf's.
+     */
+    readonly path: string
+    /**
+     * What ran. For a leaf this is `fmtImport(module, path)`, the identity every
+     * runner names it by. A runner may also report an outcome that has no leaf —
+     * the browser reports a module that will not link, so that a report saying
+     * "0 tests" cannot be confused with a suite that is merely broken — and
+     * names it by whatever it does know, which for a module is its source.
+     *
+     * So this is "what ran", not "which leaf ran". Whether a runner should
+     * report a non-leaf outcome through this type at all, or through a separate
+     * variant with its own fields, is open — see
+     * `todo/share-browser-console-runner.md`, with the rest of the report
+     * shape.
+     *
+     * **The runners are not symmetric here, and that is a known gap rather than
+     * a design.** Only the browser reports a non-leaf outcome at all: the same
+     * `proof` export that it records as one failed result makes `fjs t` panic,
+     * taking down the whole run — including the modules that would have passed,
+     * which are then never reported either. So a consumer must not read this
+     * field's tolerance as a promise that every runner keeps going. Closing the
+     * gap is `todo/hostile-proof-values.md`, which needs an operation the
+     * shared traversal does not have.
+     */
+    readonly name: string
+    readonly status: TestStatus
+    /**
+     * How long it took. For a leaf, its own execution; for a non-leaf outcome,
+     * whatever the runner was measuring when it failed.
+     */
+    readonly duration: number
+}
+
 /**
  * Receives semantic test-run events. Each method is the runner's notification
  * of an event; the reporter decides how to render it (terminal, GitHub
