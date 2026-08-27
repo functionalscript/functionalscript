@@ -20,14 +20,23 @@ some things can only be tested against a real host — the effect interpreters,
 and this framework's own browser adapter, which runs in Node against a DOM
 stand-in. That is a deliberate, small exception, not an invitation.
 
-**Covering every edge case of plain JavaScript is explicitly not a goal.** A
-proof is FunctionalScript: no `Promise`, no `class`, no `Proxy`, no `Symbol`, no
-mutation. Values that need those to construct — a promise from another realm, an
-object impersonating one, a hostile `Symbol.species` — cannot come from a proof,
-and the runners do not defend against them. Where that costs something, it is
-measured and written down in
-[`todo/imports-promises-realms.md`](./todo/imports-promises-realms.md) rather
-than guarded against in code, and the guard is written the day an input needs it.
+**Covering every edge case of plain JavaScript is explicitly not a goal.**
+FunctionalScript has no parser or compiler yet, so "this file is
+FunctionalScript" is a convention held up by review and by the `.f.mjs` suffix,
+not a property anything checks — the browser's selector matches the suffix and a
+named `proof` export, and nothing more. The convention also has deliberate
+exceptions: this framework's own `proof.f.mjs` uses `Promise` precisely because
+it tests how promises are handled, and `Symbol.iterator` is ordinary in `.f.mjs`
+throughout the repository.
+
+So the runners handle what proofs actually produce, not everything a
+`.f.mjs`-suffixed file could contain. A promise from another realm, a value
+impersonating a promise, a hostile `Symbol.species`: none has ever come from a
+proof, none is defended against, and each is measured and recorded in
+[`todo/imports-promises-realms.md`](./todo/imports-promises-realms.md) with what
+a runner does without the defence. The guard gets written the day an input needs
+it — and the day a parser exists, this stops being a convention and the question
+changes shape.
 
 The two runners are meant to agree. Where they cannot, the difference is
 recorded with the reason.
