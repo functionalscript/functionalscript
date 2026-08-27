@@ -1,9 +1,9 @@
 /**
- * @import { Or } from '../../../rtti/types.ts'
- * @import { Data } from './types.ts'
+ * @import { Or } from '../types.ts'
+ * @import { Data } from '../../types/rtti/data/types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import {
     array,
     bigint,
@@ -17,8 +17,8 @@ import {
     rest,
     string,
     unknown as unknownRtti,
-} from '../../../rtti/module.f.mjs'
-import { cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate, withoutUnits } from './module.f.mjs'
+} from '../module.f.mjs'
+import { cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate, withoutUnits } from '../../types/rtti/data/module.f.mjs'
 
 /** @type {(actual: Data) => (expected: Data) => void} */
 const assertData = actual => expected =>
