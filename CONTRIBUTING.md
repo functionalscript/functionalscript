@@ -281,6 +281,21 @@ thread is a bug nobody can find again. What may not be deferred is a
 after. A step forward that carries a known limitation is progress; a step that
 takes working behavior away is not, whatever is filed alongside it.
 
+How far a crash may be deferred depends on **what the software is and whether
+the input is real** — not on whether the crash falls inside what the change
+claims to do. An internal script that generates our own website, found not to
+handle a file above 128 KB, is a documented limit and a `todo/`: the only
+people who can hand it a file are the people who maintain it, no such file
+exists, and the day one does is the day the issue gets picked up. [DESIGN.md
+§1](./DESIGN.md#1-simplicity-first) already treats a limit a later generic
+improvement can lift as an acceptable interim answer, and this is one. A module
+that ships in the published package is the opposite case: the input belongs to
+someone we have never met, "no such input exists" is not something we are in a
+position to know, and a crash inside what the module claims to support is fixed
+before it lands. In between, ask who runs this, what they can hand it, and what
+it costs them when it breaks — then write that answer into the `todo/`, so the
+deferral is a judgement on record rather than an omission.
+
 So the question to ask about a review comment is not "is this in scope" but
 **"where does this knowledge live once the pull request is merged?"** In the
 diff — then fix it here. In the design document, or in a new `todo/` issue —

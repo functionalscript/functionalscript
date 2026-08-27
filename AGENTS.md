@@ -110,7 +110,11 @@ uncovered rather than the prototype itself. A reviewer who asks an
 **implementation** for another feature gets a new `todo/` issue to investigate
 it and a link to that issue, never a wider diff. Even a known crash may be
 deferred the same way, as long as the `todo/` file names what breaks and the
-input that breaks it; only a **regression** must be fixed here. And when the PR
+input that breaks it. How far depends on who runs the code and whether the
+input is real — an unreachable limit in an internal script is a documented
+limit, a crash in what a published module claims to support is fixed before it
+lands — and never on whether the crash is inside the feature's claimed scope.
+Only a **regression** must always be fixed here. And when the PR
 itself cannot land, drop the code and merge what it taught — a rewritten
 `todo/`, a recorded failure — rather than abandoning both. No knowledge from a
 review may be left in the review thread alone.
