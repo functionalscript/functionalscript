@@ -54,7 +54,7 @@ import { fromVec } from '../text/utf8/module.f.mjs'
 import { detectVec } from './type/module.f.mjs'
 import { parse } from './json/module.f.mjs'
 import { assert, assertNotNullish } from '../asserts/module.f.mjs'
-import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
+import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 
 /** The default refinement: structural validation alone decides the match. */
 const always = () => true

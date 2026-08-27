@@ -22,7 +22,7 @@
  */
 
 import { array, number, open, option, string } from '../../rtti/module.f.mjs'
-import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
+import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 import { parse as parseJson } from '../json/module.f.mjs'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
 import { error, ok, okThen } from '../../types/result/module.f.mjs'

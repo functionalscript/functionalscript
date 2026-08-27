@@ -45,17 +45,17 @@
  *
  * @module
  *
- * @import { ConstObject, Info1, Tag1, Type } from '../../../rtti/types.ts'
- * @import { Result as CommonResult } from '../../result/types.ts'
- * @import { StringMap } from '../../object/types.ts'
- * @import { List } from '../../list/types.ts'
- * @import { Container, Fits, IsContainer, SchemaEntries, ValidateE, ValidationError, Visitor } from '../../../rtti/common/types.ts'
- * @import { Unknown } from '../ts/types.ts'
- * @import { Parse } from '../../../rtti/parse/types.ts'
+ * @import { ConstObject, Info1, Tag1, Type } from '../types.ts'
+ * @import { Result as CommonResult } from '../../types/result/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
+ * @import { List } from '../../types/list/types.ts'
+ * @import { Container, Fits, IsContainer, SchemaEntries, ValidateE, ValidationError, Visitor } from '../common/types.ts'
+ * @import { Unknown } from '../../types/rtti/ts/types.ts'
+ * @import { Parse } from './types.ts'
  */
 
-import { ok } from '../../result/module.f.mjs'
-import { reverse, toArray } from '../../list/module.f.mjs'
+import { ok } from '../../types/result/module.f.mjs'
+import { reverse, toArray } from '../../types/list/module.f.mjs'
 import {
     constPrimitiveValidate,
     eachEntry,
@@ -68,8 +68,8 @@ import {
     undeclaredMembers,
     verror,
     visit,
-} from '../../../rtti/common/module.f.mjs'
-import { emptyRest } from '../../../rtti/data/module.f.mjs'
+} from '../common/module.f.mjs'
+import { emptyRest } from '../data/module.f.mjs'
 
 /** @typedef {CommonResult<Unknown, ValidationError>} _ItemResult */
 

@@ -26,7 +26,7 @@ import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mj
 import { undeclaredMembers } from './common/module.f.mjs'
 import { toData, validate as dataValidate } from './data/module.f.mjs'
 import { array, number, rest, string } from './module.f.mjs'
-import { parse } from '../types/rtti/parse/module.f.mjs'
+import { parse } from './parse/module.f.mjs'
 import { validate } from '../types/rtti/validate/module.f.mjs'
 
 /** The three readers with their payload type erased, as `validate/proof.f.mjs` has them. */

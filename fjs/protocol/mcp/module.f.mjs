@@ -31,7 +31,7 @@ import {
     rpcError, internalError, invalidRequest, invalidParams, methodNotFound,
     errorResponseOf, successResponseOf,
 } from '../json_rpc/module.f.mjs'
-import { parse } from '../../types/rtti/parse/module.f.mjs'
+import { parse } from '../../rtti/parse/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
 import { unknown } from '../../media/json/rtti/module.f.mjs'
 

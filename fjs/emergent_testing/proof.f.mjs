@@ -21,7 +21,7 @@ import { run as mockRun } from '../effects/mock/module.f.mjs'
 import { shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
 import { array, number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
-import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
+import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.mjs'
 
 /**
