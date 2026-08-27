@@ -68,11 +68,13 @@ dependency-update procedure: [CONTRIBUTING.md](./CONTRIBUTING.md).
 ## 3. FunctionalScript and TypeScript (`fjs/`)
 
 Business logic under `fjs/` belongs in FunctionalScript: write it in `.f.mjs`.
-Use plain `.mjs` only for code that cannot reasonably be FunctionalScript because
-it performs effects or depends on host JavaScript behavior, such as effect
-implementations, platform adapters, runners, test harnesses, and host-specific
-proofs. Keep such `.mjs` files thin: isolate the impure or host-specific boundary
-there and move business logic into `.f.mjs`.
+Use plain `.mjs` only where code must perform effects or depend on host JavaScript
+behavior; effect implementations, platform adapters, runners, test harnesses,
+and host-specific proofs are examples, not a closed list of exceptions. Keep
+such `.mjs` files thin: isolate the impure or host-specific boundary there and
+move business logic into `.f.mjs`. Existing `.mjs` files that violate this rule
+are migration debt, not precedent: find or file a co-located `todo/` to extract
+the business logic as soon as possible.
 
 Every new `.f.mjs` module ships a co-located `proof.f.mjs` with **100% proof
 coverage** — every export called, every line executed, every branch taken.
