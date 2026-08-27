@@ -1,0 +1,106 @@
+name: Apply RTTI proof design update
+
+on:
+  push:
+    branches:
+      - docs/rtti-proof-optimization
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/rtti-proof-optimization
+      - name: Update RTTI type-system design
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('todo/rtti-type-system.md')
+          text = path.read_text()
+          marker = '#### 4. Scope: FunctionalScript files only'
+          if '#### 4. Proofs replace unchecked casts and enable specialization' in text:
+              raise SystemExit(0)
+
+          section = r'''#### 4. Proofs replace unchecked casts and enable specialization
+
+This type system is **built on top of FunctionalScript; it is not part of the
+FunctionalScript specification**. FunctionalScript itself does not know about
+types. RTTI schemas, inference, assertions, and the checker are a higher-level
+system whose programs are still FunctionalScript programs.
+
+Unlike TypeScript, the system should have no unchecked equivalent of `as`,
+`as any`, double casts, or another way to override the checker without evidence.
+A required property is established in one of two ways:
+
+1. **Static proof.** The compiler proves that the value satisfies the required
+   RTTI type or refinement.
+2. **Runtime proof.** An assertion checks the property and narrows the value on
+   the successful branch.
+
+An assertion is a check, not a cast: if it fails, evaluation cannot continue on
+the narrowed branch. This gives the system a simple invariant: every type claim
+is backed by either a compile-time proof or a runtime check.
+
+Runtime proofs are also optimization facts. An assertion is ordinary
+computation in the EDAG; if later analysis proves that it cannot fail, its
+failure branch is dead and the check can be removed. A conservative compiler
+may therefore leave more assertions at run time, while a stronger compiler can
+remove them without weakening type safety.
+
+The same proofs can justify specialization. For example, proving that an input
+to a SHA-256 implementation is a `bigint` that fits in 256 bits can replace
+generic arbitrary-precision operations with fixed-width operations and enable
+lowering to target-specific machine instructions.
+
+Matrices and tensors are the same story. Proofs may establish dimensions,
+shapes, element types, layout, alignment, bounds, sparsity, or device placement.
+Once known, generic FunctionalScript code can be transformed into fixed loops,
+vector operations, tiled matrix operations, fused kernels, or code targeting
+CPUs, GPUs, NPUs, and other accelerators.
+
+**Automatic differentiation is another transformation enabled by the same
+model.** A pure computation represented as an EDAG can be transformed into a
+new computation that calculates its derivatives. Reverse-mode automatic
+differentiation can construct the backward graph used for neural-network
+training:
+
+```text
+x -> matmul -> relu -> matmul -> loss
+                              |
+                              v
+                        differentiation
+                              |
+                              v
+                  gradients of weights and x
+```
+
+The generated gradient graph is itself subject to the same proofs and
+optimizations: known tensor shapes and element types can specialize gradient
+operations, dead intermediates can disappear, forward and backward operations
+can be fused, and the result can be lowered to GPUs or other specialized
+hardware.
+
+The broader goal is that **domain-specific semantics should be expressible as
+libraries, proofs, and program transformations rather than requiring a new
+language for every domain**. FunctionalScript remains the small semantic
+foundation; RTTI/refinement systems, tensor libraries, automatic
+differentiation, and hardware lowering live on top of it.
+
+'''
+          if marker not in text:
+              raise SystemExit(f'marker not found: {marker}')
+          path.write_text(text.replace(marker, section + marker, 1))
+      - name: Commit update
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add todo/rtti-type-system.md
+          git commit -m "docs: connect RTTI proofs to optimization"
+          git push
