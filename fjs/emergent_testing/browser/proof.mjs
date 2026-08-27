@@ -12,7 +12,7 @@ import { runInNewContext } from 'node:vm'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from '../browser.mjs'
 
-/** @typedef {{ readonly tag: string, readonly attributes: Map<string, string>, readonly ownerDocument: _Document, textContent: string, children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
+/** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
 /** @typedef {{ defaultView: _View | null, readonly createElement: (tag: string) => _Element }} _Document */
 /** @typedef {{ events: readonly CustomEvent[], readonly dispatchEvent: (event: Event) => boolean, fjsBrowserTestReport?: Promise<unknown> }} _View */
 
@@ -35,9 +35,11 @@ const element = (document, tag, attributes, states) => {
         children: [],
         setAttribute: (name, value) => {
             if (name === 'data-state') { states.push(value) }
-            self.attributes.set(name, value)
+            self.attributes = new Map([...self.attributes, [name, value]])
         },
-        removeAttribute: name => { self.attributes.delete(name) },
+        removeAttribute: name => {
+            self.attributes = new Map([...self.attributes].filter(([key]) => key !== name))
+        },
         // The runner only ever queries an attribute selector of `[name]` form.
         querySelector: selector => self.children.reduce(
             (/** @type {_Element | null} */ acc, child) =>
