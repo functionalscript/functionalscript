@@ -13,16 +13,16 @@
  *
  * @module
  *
- * @import { Printer, StructField } from '../../ts/types.ts'
- * @import { Type } from '../../../rtti/types.ts'
- * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../../../rtti/data/types.ts'
+ * @import { Printer, StructField } from '../../types/ts/types.ts'
+ * @import { Type } from '../types.ts'
+ * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../data/types.ts'
  */
 
-import { assertNotNullish } from '../../../asserts/module.f.mjs'
-import { reservedWords, strictModeReservedWords } from '../../../js/keywords/module.f.mjs'
-import { at, definedEntries } from '../../object/module.f.mjs'
-import { primitive, union, printer as tsPrinter } from '../../ts/module.f.mjs'
-import { cmp, never as bottom, toData, unitBit, unknown as top } from '../../../rtti/data/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.mjs'
+import { at, definedEntries } from '../../types/object/module.f.mjs'
+import { primitive, union, printer as tsPrinter } from '../../types/ts/module.f.mjs'
+import { cmp, never as bottom, toData, unitBit, unknown as top } from '../data/module.f.mjs'
 
 const nullBit = unitBit(null)
 const undefinedBit = unitBit(undefined)
