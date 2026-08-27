@@ -56,14 +56,17 @@ Do not create it mechanically for every `_` name.
 
 #### Dependency order
 
-Preserve the dependency direction for the roles that exist:
+Within one module directory, preserve the dependency direction for the roles that
+exist:
 
 ```text
-meta/module.f.mjs <- types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs
+types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs
 ```
 
 The arrow points from dependency to dependent. This is a layering guide, not a
-requirement that every file or edge exists.
+requirement that every file or edge exists. A subordinate module such as
+`meta/module.f.mjs` is a separate module and is therefore described separately
+below rather than appearing in this intra-directory diagram.
 
 Move verification downstream before moving implementation upstream. For example,
 `fjs/effects/types.ts` currently imports implementation functions only to assert
@@ -108,6 +111,10 @@ This is only a suggestion. Do not create `meta/` merely because a runtime value
 appears in a type proof. Ordinary implementation functions stay in
 `module.f.mjs`; recursively annotated metadata may also stay there when moving it
 would reverse the dependency direction.
+
+The parent module may depend on `meta/module.f.mjs` like any other lower-level
+module. The `meta/` module itself follows the same normal module conventions and,
+if it grows additional files, its own intra-directory dependency order.
 
 A private constant exported from `meta/module.f.mjs` for sibling-module linkage
 uses a leading `_`:
@@ -211,8 +218,8 @@ type-only and use named `import type { ... }` imports.
       helpers required by public declarations.
 - [ ] Use `private.ts` only where separating implementation-private file-scope
       types improves the design.
-- [ ] Preserve the dependency direction shown above; move verification downstream
-      when that is cleaner.
+- [ ] Preserve the intra-directory dependency direction shown above; move
+      verification downstream when that is cleaner.
 - [ ] Move the `fjs/effects/types.ts` implementation-signature asserts into proof
       functions in `fjs/effects/proof.f.mjs`.
 - [ ] Review recursive cases individually, including `fjs/media/revision` and
@@ -244,8 +251,8 @@ type-only and use named `import type { ... }` imports.
   required companion.
 - A subordinate module such as `meta/module.f.mjs`, when present, is an optional
   metaprogramming/design tool rather than a special file role or requirement.
-- The dependency direction is preserved; assertions do not create reverse edges
-  merely for convenience.
+- The intra-directory dependency direction is preserved; assertions do not create
+  reverse edges merely for convenience.
 - Private types/constants use leading `_`, even when linkage requires an export.
 - Existing `module.f.mjs` discovery and coverage rules automatically include
   `meta/module.f.mjs`; no metadata-specific coverage convention exists.
