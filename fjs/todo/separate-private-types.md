@@ -151,19 +151,40 @@ types and all `@import` users are checked. Consequently, the existing
 cannot suppress that output once another program input imports `private.ts`.
 
 Do not require TypeScript to avoid generating that intermediate file. Instead,
-make private declaration cleanup an explicit packaging step:
+make private declaration cleanup the **final step of `prepack`**. `npm pack`
+runs `prepack` itself, so an external emit/check/cleanup sequence followed by
+`npm pack` would be wrong: `npm pack` would rerun declaration emission and
+recreate the deleted `private.d.ts` before selecting package contents.
 
-1. run normal declaration emission and the existing declaration round-trip
-   type-check;
-2. delete every generated `private.d.ts` before `npm pack` selects package
-   contents;
-3. run `npm pack`;
-4. validate the actual packed artifact:
+The packaging lifecycle should therefore be:
+
+1. `prepack` runs normal declaration emission;
+2. `prepack` runs the existing declaration round-trip type-check;
+3. as the final `prepack` command, delete every generated `private.d.ts`;
+4. `npm pack` selects package contents after `prepack` completes;
+5. validate the actual packed artifact:
    - it contains neither authored `private.ts` nor generated `private.d.ts`;
    - every shipped `.d.ts` / `.d.mts` is scanned and must not contain a module
      reference to the directory's `private` type module;
-5. install the tarball in the existing clean TypeScript consumer and type-check
+6. install the tarball in the existing clean TypeScript consumer and type-check
    it as an independent semantic validation.
+
+Conceptually, the current `prepack`:
+
+```text
+tsc --noEmit false --emitDeclarationOnly && tsc
+```
+
+becomes:
+
+```text
+tsc --noEmit false --emitDeclarationOnly && tsc && <delete generated private.d.ts files>
+```
+
+The cleanup command should be implemented with repository-portable tooling; the
+exact command is part of implementation, not this source-layout convention.
+Tests should invoke `npm pack` normally so they exercise the real lifecycle,
+rather than reproducing `prepack` steps externally.
 
 The declaration scan should reject the private module rather than only one
 particular emitted spelling. For example, `./private.ts`, `./private.d.ts`, or a
@@ -206,8 +227,10 @@ rather than retaining `private.d.ts` to make such a leak resolve.
       `Ts<typeof ...>`, `typeof ...`, or equivalent type queries.
 - [ ] Keep `private.ts` in normal TypeScript type-checking without generating a
       runtime JavaScript file for it.
-- [ ] Add a post-declaration-emit packaging step that deletes generated
-      `private.d.ts` files before `npm pack`.
+- [ ] Make deletion of generated `private.d.ts` files the final `prepack` step,
+      after declaration emission and the declaration round-trip check.
+- [ ] Exercise cleanup through a normal `npm pack`; do not run cleanup externally
+      before `npm pack`, because `npm pack` reruns `prepack`.
 - [ ] Inspect the `npm pack` artifact and reject any packed `private.ts` or
       `private.d.ts` file.
 - [ ] Scan every packed `.d.ts` / `.d.mts` and reject any module reference to a
@@ -216,10 +239,10 @@ rather than retaining `private.d.ts` to make such a leak resolve.
       from `private.ts` without declaring any file-scope `@typedef`; also include
       a function-local typedef that depends on a lexical value and verify it does
       not escape into generated declarations. Verify declaration emit creates the
-      intermediate `private.d.ts`, cleanup removes it, generated public
-      declarations contain no implementation-local file-scope typedef exports,
-      and packed-artifact validation finds no private type file or declaration
-      edge.
+      intermediate `private.d.ts`, final-`prepack` cleanup removes it, generated
+      public declarations contain no implementation-local file-scope typedef
+      exports, and packed-artifact validation finds no private type file or
+      declaration edge.
 - [ ] Extend the fixture with `meta.f.mjs` containing both an RTTI value and a
       non-RTTI literal constant used to derive TypeScript types in `types.ts` or
       `private.ts`; verify the source tree and packed consumer resolve both
@@ -243,8 +266,8 @@ rather than retaining `private.d.ts` to make such a leak resolve.
   type queries.
 - Generated public declarations do not expose private file-scope named typedefs
   merely as a consequence of declaration emission.
-- Declaration emission may create `private.d.ts`, but the packaging cleanup
-  removes it before package contents are selected.
+- Declaration emission may create `private.d.ts`; the final `prepack` step
+  removes it, and `npm pack` selects contents only after that cleanup completes.
 - The packed tarball contains neither `private.ts` nor `private.d.ts`.
 - No packed `.d.ts` / `.d.mts` file depends on a directory's private type module,
   regardless of the exact emitted module-specifier suffix.
