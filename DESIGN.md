@@ -80,13 +80,19 @@ on top of the weaker design.
 - When a discrepancy is found between an issue's design and reality (a missing
   API, a wrong environment variable, an incompatible type), correct the design
   document and surface the problem rather than silently working around it.
-- Before relying on an undocumented or assumed runtime behavior (environment
-  variable names, API shape, framework detection), verify it with a small test or
-  source check rather than assuming.
 - That holds just as much once implementation is under way and the effort
   already spent is what argues for pushing on. It is not a reason to continue;
   it is what paid for knowing the design is wrong. Prototyping to find out is
   fine — shipping against a design you have already disproved is not.
+- Prefer changing a design and implementing it in **separate pull requests**.
+  Landed together, only the end state survives, and which parts were decided
+  beforehand and which were discovered while building is what a later reader
+  cannot recover. A preference, not a rule: where splitting costs more than it
+  returns — a one-line correction the code makes obvious — say in the
+  description that both are there.
+- Before relying on an undocumented or assumed runtime behavior (environment
+  variable names, API shape, framework detection), verify it with a small test or
+  source check rather than assuming.
 
 ## 4. Reuse, DRY, and separation of concerns
 
@@ -225,10 +231,10 @@ operation meets a case it cannot handle correctly — a size past the limit it
 implements, a shape the parser does not cover, a combination the design left
 out — it has to say so at the boundary. Returning something plausible and wrong
 is the one outcome that is never acceptable: it passes every test that only
-checks for the absence of a failure, it spreads through everything downstream,
-and by the time somebody notices, the wrong answer sits in a file nobody can
-tell apart from the right ones. A crash is a bug report with a stack trace;
-silent corruption is a bug that first has to be discovered.
+checks for the absence of a failure, and by the time somebody notices, the
+wrong answer sits in a file nobody can tell apart from the right ones. A crash
+is a bug report with a stack trace; silent corruption is a bug that first has
+to be discovered.
 
 There are two ways to refuse, and the choice between them is the one drawn in
 [fjs/AGENTS.md
@@ -251,11 +257,9 @@ corruption when it is truncated, wrapped, or quietly mis-encoded.
 
 Refusing is the **mitigation**, not the resolution. The order is: refuse now —
 a check and a `throw` is minutes of work and stops the wrong answers today —
-then file the `todo/` for handling the case properly, then fix it. Shipping the
-refusal first is what makes the real fix schedulable instead of urgent: nothing
-is being corrupted while it is designed, the issue records what has to work,
-and the implementation lands when it is ready rather than being hacked in under
-pressure. The exception is the limit that is meant to stay: a bound chosen on
-purpose is part of the API, documented where the API is documented, and needs
-no issue — but say which of the two it is, because "we refuse this for now" and
-"we refuse this by design" read identically at the call site.
+then file the `todo/`, then fix it. That order makes the real fix schedulable
+instead of urgent, because nothing is being corrupted while it is designed. The
+exception is the limit meant to stay: a bound chosen on purpose is part of the
+API, documented where the API is, and needs no issue. Say which of the two it
+is — "we refuse this for now" and "we refuse this by design" read identically
+at the call site.

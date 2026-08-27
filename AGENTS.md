@@ -46,14 +46,11 @@ actually touches its subject.
 
 Find or file the issue in `todo/` first, next to the code it describes; for
 anything non-trivial make sure it contains a concrete design before writing
-code — and if that design turns out not to be implementable as written, rewrite
-the issue rather than forcing the code through
-([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Deviating from a
-design is fine; deviating silently is not — and prefer, without requiring, that
-the design change land in its own PR ahead of the one implementing it, or that
-the description say why the two arrived together. Write the code
-plus its proof, run `npm run update` after changing source, run the check set
-above, and delete the `todo/` issue file in the same PR that fixes it.
+code. Deviating from that design later is fine; deviating silently is not, and
+a design that cannot be built as written is rewritten rather than forced
+through ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Write the
+code plus its proof, run `npm run update` after changing source, run the check
+set above, and delete the `todo/` issue file in the same PR that fixes it.
 
 Format, priorities, where each issue file belongs, and how GitHub-reported bugs
 become `todo/` files: [todo/README.md](./todo/README.md).
@@ -105,8 +102,8 @@ beats two hundred iterations of a PR that never lands. Answer a review, don't
 absorb it — and never only in the thread, which is the one place the answer
 will not survive. A crash may be deferred behind a `todo/` naming the input
 that breaks it; a **regression** may not, and neither may **silence** — an
-unsupported input is refused or asserted on, never answered with a plausible
-wrong value ([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)).
+unsupported input is refused, never answered with a plausible wrong value
+([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)).
 
 Which comments to fix, which to push back on, and what a push-back leaves
 behind: [REVIEW.md](./REVIEW.md).
