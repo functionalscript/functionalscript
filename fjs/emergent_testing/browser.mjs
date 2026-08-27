@@ -50,10 +50,15 @@ const errorDetails = error => {
  * is both the native brand check and the normal await path, so arbitrary proof
  * objects with a `then` key are never assimilated.
  *
- * A genuine Promise subclass can still throw after passing the brand check if
- * species construction fails. In that case, temporarily shadow `constructor`
- * with the current realm's Promise and retry the same intrinsic call; the
- * shadow is removed immediately after the handlers are attached.
+ * A genuine Promise can still throw after passing the brand check if species
+ * construction fails. In that case, temporarily shadow `constructor` with the
+ * current realm's Promise and retry the same intrinsic call; the shadow is
+ * removed immediately after the handlers are attached.
+ *
+ * A promise that pins its own `constructor` leaves nothing to shadow, so no
+ * subscription is possible at all. The species failure is then reported
+ * against the test that produced the promise — the same outcome `await` gives
+ * it in the Node runner — because a result nobody can observe is not a pass.
  *
  * @type {(value: unknown, fulfilled: (value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[], rejected: (error: unknown) => readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]> | null}
  */
@@ -62,38 +67,48 @@ const runPromise = (value, fulfilled, rejected) => {
         Reflect.apply(Promise.prototype.then, value, [fulfilled, rejected]))
     try {
         return call()
-    } catch {
-        // A genuine Promise may have passed the internal brand check and failed
-        // later while constructing the result through Symbol.species.
-    }
-    try {
-        if (Object.prototype.toString.call(value) !== '[object Promise]') { return null }
-    } catch {
-        return null
-    }
-    if (value === null || (typeof value !== 'object' && typeof value !== 'function')) { return null }
-    /** @type {PropertyDescriptor | undefined} */
-    let descriptor
-    try {
-        descriptor = Object.getOwnPropertyDescriptor(value, 'constructor')
-        Object.defineProperty(value, 'constructor', { value: Promise, configurable: true })
-    } catch {
-        return null
-    }
-    try {
-        return call()
-    } catch {
-        return null
-    } finally {
+    } catch (error) {
+        // Either `value` is not a promise and the brand check rejected it
+        // before any handler was attached, or it is a genuine promise that
+        // failed while constructing the result through Symbol.species. Only
+        // the second case is worth a retry, and `then` attaches nothing before
+        // it throws, so the retry cannot run the handlers twice.
         try {
-            if (descriptor === undefined) {
-                Reflect.deleteProperty(value, 'constructor')
-            } else {
-                Object.defineProperty(value, 'constructor', descriptor)
-            }
+            if (Object.prototype.toString.call(value) !== '[object Promise]') { return null }
         } catch {
-            // The temporary property is configurable, so ordinary objects restore
-            // cleanly. A hostile Proxy can make restoration itself observable.
+            return null
+        }
+        if (value === null || (typeof value !== 'object' && typeof value !== 'function')) { return null }
+        /** @type {PropertyDescriptor | undefined} */
+        let descriptor
+        try {
+            descriptor = Object.getOwnPropertyDescriptor(value, 'constructor')
+            Object.defineProperty(value, 'constructor', { value: Promise, configurable: true })
+        } catch {
+            // A pinned `constructor`: the promise cannot be subscribed to, so
+            // its test fails on the species error instead of passing on a
+            // value that was never awaited.
+            return Promise.resolve(rejected(error))
+        }
+        try {
+            return call()
+        } catch {
+            // The intrinsic `constructor` cannot fail the retry, so the brand
+            // check did: `value` only claims to be a promise and is walked as
+            // an ordinary proof result.
+            return null
+        } finally {
+            try {
+                if (descriptor === undefined) {
+                    Reflect.deleteProperty(value, 'constructor')
+                } else {
+                    Object.defineProperty(value, 'constructor', descriptor)
+                }
+            } catch {
+                // The temporary property is configurable, so ordinary objects
+                // restore cleanly. A hostile Proxy can make restoration itself
+                // observable.
+            }
         }
     }
 }
