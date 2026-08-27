@@ -192,6 +192,7 @@ workers, or visual regression testing.
 
 - [`.f.mjs` proof discovery and coverage](f-mjs-test-and-coverage.md)
 - [Hostile thrown values and cross-realm promises](hostile-proof-values.md)
+- [Browser timer precision](timer-precision.md)
 - [Explicit browser test controls](browser-test-controls.md)
 - [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
 - [project roadmap](../../../todo/plan/roadmap.md)

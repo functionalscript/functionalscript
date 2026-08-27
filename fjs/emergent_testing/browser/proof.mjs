@@ -435,18 +435,29 @@ export const proof = {
             assertEq(results.length, 11)
         },
         // `all` hands the event loop back between launches, which is the only
-        // thing that lets a page paint mid-suite: a timer queued before the call
+        // thing that lets a page paint mid-suite: a task queued before the call
         // has to run before it resolves. Without the yield every child settles
-        // on microtasks and no timer gets a turn — which is what this asserts,
+        // on microtasks and no task gets a turn — which is what this asserts,
         // since the effects below perform nothing.
+        //
+        // The task queued here is a `MessageChannel` message rather than a
+        // `setTimeout`, because the two are not interchangeable across engines.
+        // Bun delivers port messages until none are left before it runs a due
+        // timer, so 59 yields there leave a `setTimeout(0)` queued behind them
+        // and this proof would report a yielding `all` as a non-yielding one.
+        // Asserting on the queue `all` actually posts to states the property
+        // — that a launch ends the task, so anything already queued runs — in
+        // terms every engine agrees on.
         allYieldsBetweenLaunches: async () => {
-            let fired = false
-            setTimeout(() => { fired = true }, 0)
+            let delivered = false
+            const { port1, port2 } = new MessageChannel()
+            port1.onmessage = () => { port1.close(); delivered = true }
+            port2.postMessage(0)
             const many = [...new Array(60).keys()].map(i => pureOk(i))
             const results = unwrap(await all(...many))
             assertEq(results.length, 60)
             assertEq(results.map(unwrap).join(','), many.map((_, i) => i).join(','))
-            assert(fired, 'all resolved without yielding to the event loop')
+            assert(delivered, 'all resolved without yielding to the event loop')
         },
     },
 }
