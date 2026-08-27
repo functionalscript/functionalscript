@@ -5,10 +5,11 @@ calendar event — stored as a value of its own.
 
 The format starts deliberately minimal: the dialect tag, the text, and
 optionally the subjects the item depends on and a priority. That is not a
-placeholder shape but the extension strategy: rtti structs are open, so
-every future capability — a title, tags, dates, a status — is an **optional**
-field added under the same tag, and starting minimal is what keeps every
-extension additive (see [Extending the format](#extending-the-format)).
+placeholder shape but the extension strategy: `noteSchema` says `open` — an
+rtti struct is closed unless it does — so every future capability (a title,
+tags, dates, a status) is an **optional** field added under the same tag, and
+starting minimal is what keeps every extension additive (see
+[Extending the format](#extending-the-format)).
 
 ```ts
 import { noteSchema, dialect, mediaType, validate, decodeText, encodeText } from './module.f.mjs'

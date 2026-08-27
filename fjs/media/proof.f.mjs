@@ -8,7 +8,7 @@ import { detect, dialectEntry } from './module.f.mjs'
 import { dialect, revisionDialect } from './revision/module.f.mjs'
 import { dialect as lockDialectName, lockDialect } from './lock/module.f.mjs'
 import { dialect as noteDialectName, noteDialect } from './note/module.f.mjs'
-import { number, string } from '../types/rtti/module.f.mjs'
+import { number, open, string } from '../types/rtti/module.f.mjs'
 
 // All test strings here are ASCII, so char code === UTF-8 byte value.
 /** @type {(s: string) => Vec} */
@@ -24,10 +24,10 @@ const dialects = [revisionDialect, lockDialect, noteDialect]
 const detectRevision = detect(dialects)
 
 /** A dialect name outside `vnd.fjs.*` — registerable, and detected as itself. */
-const gadgetSchema = /** @type {const} */ ({
+const gadgetSchema = open(/** @type {const} */ ({
     dialect: 'application.gadget',
     size: number,
-})
+}))
 
 /** @type {DialectEntry} */
 const gadgetDialect = dialectEntry(gadgetSchema)
@@ -170,9 +170,9 @@ export const proof = {
         // The `dialect` member must be a direct string const. A thunk-form one
         // is a valid rtti schema but is not registerable, and `dialectEntry`
         // says so at registration rather than per blob.
-        thunkDialectMember: () => dialectEntry({ dialect: string }),
+        thunkDialectMember: () => dialectEntry(open({ dialect: string })),
 
         // A schema with no `dialect` member at all is likewise refused.
-        noDialectMember: () => dialectEntry({ text: string }),
+        noDialectMember: () => dialectEntry(open({ text: string })),
     },
 }

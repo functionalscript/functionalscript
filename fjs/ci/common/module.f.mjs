@@ -18,6 +18,12 @@ export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])
 
 export const architecture = /** @type {const} */ (['intel', 'arm'])
 
+// These three are **closed**, which is the bare form's meaning and the right
+// one here: `parseGitHubAction` reads back a workflow this repo generates, so
+// a key the schema does not name is generator drift rather than a field a
+// third party added. Reading a hand-written workflow — which carries `name`,
+// `if`, `env` and much else — would need `open`.
+
 export const stepSchema = /** @type {const} */ ({
     run: option(string),
     uses: option(string),

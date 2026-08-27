@@ -166,11 +166,12 @@ export const proof = {
         singleExpIsError: () => assertNoMatch(v([',', 'not-an-array'])),
         error: () => assertNoMatch(v([',', [{}]])),
     },
-    // Every tuple in the schema is `close`d, so a trailing element past what a
-    // node declares is rejected rather than ignored. That is what makes
-    // "exactly one spelling" literal instead of "one spelling up to trailing
-    // junk": an open tuple would let `['args', 'extra']` be a second graph for
-    // the same function, and a fourth element on a `.` node a third.
+    // Every tuple in the schema is closed — none says `open` — so a trailing
+    // element past what a node declares is rejected rather than ignored. That
+    // is what makes "exactly one spelling" literal instead of "one spelling up
+    // to trailing junk": an `open` tuple would let `['args', 'extra']` be a
+    // second graph for the same function, and a fourth element on a `.` node a
+    // third.
     closed: {
         extraTailIsError: () => {
             assertNoMatch(v(['args', 'extra']))
@@ -289,7 +290,8 @@ export const proof = {
         // Unprefixed, `['()', f, null]` would be both a `call` — call `f`
         // with `null` as its arguments — and an `optionLambda` — call the
         // chain's value with `f` as its arguments, and stop. Equal length, so
-        // `close` could not have separated them; only disjoint vocabularies
+        // closedness could not have separated them — it bounds a tuple's
+        // length and says nothing about its tag; only disjoint vocabularies
         // can, and these two assertions are that disjointness.
         tagsAreDisjoint: () => {
             assertOk(v(['()', 'f', null]))

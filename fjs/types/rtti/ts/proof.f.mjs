@@ -8,7 +8,7 @@
 
 import { assertEq } from '../../../asserts/module.f.mjs'
 import { toData, unitBit } from '../data/module.f.mjs'
-import { boolean, number, string, bigint, unknown, array, close, record, or, option, never } from '../module.f.mjs'
+import { boolean, number, string, bigint, unknown, array, open, record, or, option, rest, never } from '../module.f.mjs'
 import { dataToTs, printer } from './module.f.mjs'
 
 // ── `Ts<T>` over a tuple schema ─────────────────────────────────────────────
@@ -166,24 +166,24 @@ export const proof = {
         negInf: () => eq(-Infinity, 'number'),
         string: () => eq('hello', '"hello"'),
         bigint: () => eq(7n, '7n'),
-        // a tuple is open, and — unlike `Ts<T>`, which cannot say so
-        // generically — the printer renders the rest element that says it, so
-        // an unconstrained tuple is the whole array kind
-        emptyTuple: () => eq([], 'readonly(unknown)[]'),
-        unconstrainedTuple: () => eq([unknown], 'readonly(unknown)[]'),
-        tuple: () => eq([12, true], 'readonly[12,true,...readonly(unknown)[]]'),
+        // a bare tuple is closed, so it prints exactly — the same rendering
+        // `Ts<>` gives it, which is what makes that cast sound
+        emptyTuple: () => eq([], 'readonly[]'),
+        tuple: () => eq([12, true], 'readonly[12,true]'),
         // a position the array may end before prints optional, as the key it
         // is the array counterpart of does
         optionalTuplePosition: () => eq(
             [number, option(string)],
-            'readonly[number,(undefined|string)?,...readonly(unknown)[]]',
+            'readonly[number,(undefined|string)?]',
         ),
         allOptionalTuple: () => eq(
             [option(number)],
-            'readonly[(undefined|number)?,...readonly(unknown)[]]',
+            'readonly[(undefined|number)?]',
         ),
-        // an unconstrained struct is the whole object kind
-        emptyStruct: () => eq({}, '{readonly[k in string]?:unknown}'),
+        // a declared `unknown` key is a key the container has, so it is not
+        // dropped the way an `open` struct's is
+        emptyStruct: () => eq({}, '{}'),
+        unknownProp: () => eq({ a: unknown }, '{readonly"a"?:unknown}'),
         struct: () => eq(
             { a: number, b: string },
             '{readonly"a":number,readonly"b":string}',
@@ -212,34 +212,40 @@ export const proof = {
         thunks: () => eq(or(number, string), 'number|string'),
         mixed: () => eq(or(42, string), '42|string'),
     },
-    // The closed forms. A tuple has a spelling for "these positions and no
-    // more", so `close` prints exactly; an object type is structurally open in
-    // TypeScript, so a closed struct prints as wide as it can be printed —
-    // which is what an open one prints as too.
-    close: {
-        tuple: () => eq(close([12, true]), 'readonly[12,true]'),
-        emptyTuple: () => eq(close([]), 'readonly[]'),
-        // the position is still optional, and the array may still end before it
-        optionalPosition: () => eq(
-            close([number, option(string)]),
-            'readonly[number,(undefined|string)?]',
-        ),
-        struct: () => eq(close({ a: number }), '{readonly"a":number}'),
-        emptyStruct: () => eq(close({}), '{}'),
-        // a declared `unknown` key is not dropped once the container is closed
-        unknownProp: () => eq(close({ a: unknown }), '{readonly"a"?:unknown}'),
-        // a stated rest prints as the rest element / index signature it is
-        tupleRest: () => eq(close([number], string), 'readonly[number,...readonly(string)[]]'),
+    // The open and stated-rest forms. An object type is structurally open in
+    // TypeScript, so an `open` struct prints as wide as it can be printed;
+    // a tuple has a rest element, so this printer says exactly what the schema
+    // says — `Ts<>` renders the same tail, for the same reason.
+    open: {
+        // an unconstrained tuple, or struct, is the whole kind
+        emptyTuple: () => eq(open([]), 'readonly(unknown)[]'),
+        unconstrainedTuple: () => eq(open([unknown]), 'readonly(unknown)[]'),
+        tuple: () => eq(open([12, true]), 'readonly[12,true,...readonly(unknown)[]]'),
+        emptyStruct: () => eq(open({}), '{readonly[k in string]?:unknown}'),
+        struct: () => eq(open({ a: number }), '{readonly"a":number}'),
+        // an unconstrained key *is* dropped once the container is open
+        unknownProp: () => eq(open({ a: unknown }), '{readonly[k in string]?:unknown}'),
+        // a stated rest prints as the rest element / index signature it is.
+        // The tail admits `undefined` because a hole past the prefix is no
+        // member, so a reader skips it and the index reads `undefined`.
+        tupleRest: () => eq(rest([number], string), 'readonly[number,...readonly(undefined|string)[]]'),
         structRest: () => eq(
-            close({ a: number }, string),
+            rest({ a: number }, string),
             '{readonly"a":number}&{readonly[k in string]?:number|string}',
         ),
-        // an unconstrained rest is openness again, on both kinds
-        openAgain: () => {
-            assertEq(toTs(close([number], unknown)), toTs([number]))
-            assertEq(toTs(close({ a: number }, unknown)), toTs({ a: number }))
+        // `unknown` already admits `undefined`, so the open tail is unchanged
+        openIsAnUnconstrainedRest: () => {
+            assertEq(toTs(rest([number], unknown)), toTs(open([number])))
+            assertEq(toTs(rest({ a: number }, unknown)), toTs(open({ a: number })))
         },
-        mut: () => eqMut(close([number], string), '[number,...(string)[]]'),
+        // an empty rest is the bare form, recognized here through the data
+        // form — including the `[or()]` spelling, which `RestTs` cannot see
+        // and so renders with a (wider, still sound) tail
+        emptyRestIsTheBareForm: () => {
+            assertEq(toTs(rest([number], never)), toTs([number]))
+            assertEq(toTs(rest([number], [never])), toTs([number]))
+        },
+        mut: () => eqMut(rest([number], string), '[number,...(undefined|string)[]]'),
     },
     never: () => eq(never, 'never'),
     // an array with no admissible element is the empty array, and nothing
@@ -309,17 +315,22 @@ export const proof = {
         generatedCollision: () => {
             eqData(toData(/** @type {const} */ ([t0Named, lock])), [
                 [['T1', 'string|{readonly[k in string]?:T1}'], ['T0', 'readonly(T0)[]']],
-                'readonly[T0,{readonly[k in string]?:T1},...readonly(unknown)[]]',
+                'readonly[T0,{readonly[k in string]?:T1}]',
             ])
         },
     },
     data: {
+        // The tail admits `undefined` on top of the rest — a hole past the
+        // prefix is no member, so a reader skips it and the index reads
+        // `undefined`. A rest that already admits it is printed as it is.
         tupleWithRest: () => {
             eqData([{}, { array: [{ prefix: [{ number: true }], rest: { string: true } }] }],
-                [[], 'readonly[number,...readonly(string)[]]'])
+                [[], 'readonly[number,...readonly(undefined|string)[]]'])
+            eqData([{}, { array: [{ prefix: [{ number: true }], rest: { unit: unitBit(undefined), string: true } }] }],
+                [[], 'readonly[number,...readonly(undefined|string)[]]'])
         },
         // an exact-length pattern is the one that prints without a rest
-        // element — the closed tuple `Ts<>` renders for every tuple schema
+        // element — what a bare, closed tuple converts to
         exactLengthTuple: () => {
             eqData([{}, { array: [{ prefix: [{ number: true }, { string: true }] }] }],
                 [[], 'readonly[number,string]'])
@@ -348,7 +359,7 @@ export const proof = {
         array: () => eqMut(array(number), '(number)[]'),
         nestedArray: () => eqMut(array(array(boolean)), '((boolean)[])[]'),
         record: () => eqMut(record(string), '{[k in string]?:string}'),
-        tuple: () => eqMut([12, true], '[12,true,...(unknown)[]]'),
+        tuple: () => eqMut(open([12, true]), '[12,true,...(unknown)[]]'),
         struct: () => eqMut({ a: number, b: string }, '{"a":number,"b":string}'),
     },
     throw: {

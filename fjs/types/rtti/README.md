@@ -29,7 +29,7 @@ what a success carries:
 | | `parse` | `validate` |
 | --- | --- | --- |
 | result on success | a freshly constructed value | the value it was given |
-| undeclared member | accepted, absent from the result | accepted, still there |
+| undeclared member (where admitted) | accepted, absent from the result | accepted, still there |
 | absent optional member | present as `undefined` | still absent |
 | `Object.is(result, input)` | false for containers | true |
 
@@ -42,8 +42,8 @@ content-addressed document is the clear case: its bytes are its identity, so a
 reconstruction is a different document under a different hash, and "the payer
 did not report this figure" (absent) is not "the payer reported nothing here"
 (present, `undefined`). Answering "is this a `T`?" must not edit the thing
-being asked about. Being open, `validate` also lets a consumer check the part
-it understands without discarding the part it does not.
+being asked about. Against an `open` schema, `validate` also lets a consumer
+check the part it understands without discarding the part it does not.
 
 Neither is more fundamental than the other; `validate` is not a `parse` whose
 result is thrown away. It shares the kernel rather than the pass: `visit` for
@@ -68,38 +68,39 @@ A `Type` is one of:
   - `Struct` (`{ key: schema, ... }`) — validates each declared property
 - **`Thunk`** (`() => Info`) — a lazy schema for tag-based and recursive types
 
-### Structs and tuples are open
+### Structs and tuples are closed
 
-A value carrying more than the schema declares is accepted. `parse` then
-constructs a fresh value holding exactly what the schema declares, so the
-extras are accepted on the way in and simply absent on the way out; `validate`
-accepts the same values and returns each one as it came:
+A bare `Struct` or `Tuple` admits **the members it declares and no others**. A
+value carrying more is not one of its values, on either reader:
 
 | schema | value | `parse` | `validate` |
 | --- | --- | --- | --- |
-| `{ a: 42 }` | `{ a: 42, b: 'x' }` | `{ a: 42 }` | `{ a: 42, b: 'x' }` |
-| `[42]` | `[42, 'extra']` | `[42]` | `[42, 'extra']` |
+| `{ a: 42 }` | `{ a: 42, b: 'x' }` | error | error |
+| `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` |
+| `[42]` | `[42, 'extra']` | error | error |
 | `[number, option(string)]` | `[42]` | `[42, undefined]` | `[42]` |
 | `[42]` | `[]` | error | error |
 
-The last two rows are one rule, applied to both kinds: an absent member reads
-as `undefined`, so a member is **required exactly when its set excludes
-`undefined`**. Position 1 of `[number, option(string)]` admits `undefined`, so
-a shorter array is fine — `parse` fills the gap in what it builds, `validate`
-has nothing to fill — while `42` excludes it, so position 0 of `[42]` is
-required and `[]` fails for both. This is the same rule the data form states
-for object keys.
+A tuple answers by **length** as well as by member: a hole past the prefix is
+no member, so `[42, , ]` would slip through a member check alone while the
+array is still that long.
 
-Openness is what makes both readers forward-compatible: a schema keeps reading
-a serialization format that has grown fields.
+The last two rows are one rule, and closedness leaves it alone — it is about
+*undeclared* members, and a declared position admitting `undefined` stays
+omittable. An absent member reads as `undefined`, so a member is **required
+exactly when its set excludes `undefined`**. Position 1 of
+`[number, option(string)]` admits `undefined`, so a shorter array is fine —
+`parse` fills the gap in what it builds, `validate` has nothing to fill —
+while `42` excludes it, so position 0 of `[42]` is required and `[]` fails for
+both. This is the same rule the data form states for object keys.
 
-The data form says the same thing in its own vocabulary — a struct's
-undeclared keys are unconstrained, a tuple's `rest` is `unknown` — so
-`validate(toData(s))` accepts exactly what `parse(s)` and `validate(s)` do.
-`validate/proof.f.mjs` runs one acceptance table through all three readers.
+The data form says the same thing in its own vocabulary — a bare container's
+`rest` is `never` on both kinds — so `validate(toData(s))` accepts exactly what
+`parse(s)` and `validate(s)` do. `validate/proof.f.mjs` runs one acceptance
+table through all three readers.
 
-**A schema that wants exact members says so** — see
-[Closed containers](#closed-containers) below. Closedness is stated, never
+**A schema that admits more says so** — see [Open containers](#open-containers)
+below. What a container admits beyond what it declares is stated, never
 inferred.
 
 #### A hole is a declared position
@@ -128,7 +129,8 @@ which are no positions either. `Object.assign([number], { foo: string })`
 declares one position and nothing named `foo`: a tuple is read by index, so the
 entry reading declared `foo` and then matched it against `value[NaN]` — the
 property literally named `NaN`, which no ordinary value carries. The data form
-ignored it all along; now so do the schema-form readers.
+ignored it all along; now so do the schema-form readers. (On the *value* side
+such a key is an undeclared member like any other, so a bare schema rejects it.)
 
 "By length" is how every schema anyone can write is read; the mechanism is the
 iterator, the same one `containerUnion` walks, so the two agree by construction
@@ -140,82 +142,105 @@ schema-form readers back at odds with the data form.
 Nothing about a dense schema changes: on an array with neither holes nor extra
 own properties the two entry lists are identical.
 
-#### This is deliberate; please do not "fix" it
+#### `Ts<>` renders the closed form exactly
 
-The tempting mistake is to read `Ts<T>` and conclude tuples must be exact:
-`Ts<readonly [42]>` is the exact tuple `readonly [42]`, so a 2-element array is
-not assignable to it. That was the reasoning behind an exact-length check added
-in #1622 and removed again with the module it lived in. The restored
-`validate` has no length check either: it is open on both kinds, exactly as
-`parse` is.
+The exact-length tuple `TupleTs` (`ts/types.ts`) renders **is** the closed set,
+so the rendering and the schema denote the same values and `validate`'s success
+cast is sound. That was not true while a bare tuple was open, and it is the
+defect this default removes: `validate([42])([42, 'extra'])` used to hand back a
+two-element array whose static type said `.length` was `1`.
 
-The argument does not hold. The open mapping in `TupleTs`
-(`ts/types.ts`) is commented out because TypeScript could not handle it, not
-because open tuples were rejected on design grounds. TypeScript's
-expressiveness does not define the value model — a schema describes a set of
-values, `Ts<T>` renders that set into TypeScript as well as TypeScript allows,
-and where it cannot, `Ts<T>` is what is incomplete.
+An earlier length check, added in #1622 and reverted, was right about the
+behaviour and wrong about the reason — it read `Ts<T>` as the value model rather
+than the other way round. What has changed since is the model.
 
-Concretely: **`Struct`'s open-ness is free, `Tuple`'s is not**, and that
-asymmetry is TypeScript's, not this renderer's. An object type is
-structurally open in TypeScript by default — a wider object is assignable to
-a narrower one — so `StructTs` already renders `Struct` openly with no extra
-work. A tuple type is exact-length by default, and expressing "these
-positions, plus anything after" needs a rest element applied *generically*
-over an arbitrary schema tuple `T`; that specific derivation is what
-TypeScript can't carry through (`TupleTs`'s doc comment has the concrete
-errors). So `Ts<T>` renders `Tuple` exact-length at the top end even though
-the schema is open.
+`Struct` is the kind TypeScript cannot render exactly: an object type is
+structurally open, so `StructTs` renders a closed struct as an
+**over-approximation** — every value the schema accepts inhabits the rendered
+type (the cast stays sound), and the rendered type additionally admits values
+the schema rejects. A static type cannot certify acceptance; that direction is
+the harmless one.
 
-The *bottom* end is rendered: a trailing position whose set admits
-`undefined` prints optional, so `Ts<[number, option(string)]>` is
-`readonly[number, (string|undefined)?]` and an array may stop at the last
-required position, exactly as both readers accept. Only the trailing run —
-TypeScript forbids a required element after an optional one, so an interior
-such position stays required with `undefined` in its type, which narrows the
-spelling and not the set.
+`parse/proof.f.mjs` and `validate/proof.f.mjs` pin closedness on both kinds.
 
-`parse/proof.f.mjs` and `validate/proof.f.mjs` pin openness on both kinds.
+#### Beyond `length`
 
-### Closed containers
+A tuple's members are the indices below `length`, including ones the
+**prototype** supplies rather than the value's own entries — `undeclaredMembers`
+in `common/module.f.mjs` walks the range and holds each readable index to the
+schema, which is what keeps `rest([42], string)` from accepting an array whose
+index 1 inherits a number.
 
-`close(c)` is the counterpart: the members `c` declares and no others.
-`close(c, rest)` states the middle ground — those members, plus any number of
-members belonging to `rest`.
+An index **at or above** `length` is not answered, on any reader, and no walk
+bounded by the value reaches it: with `Array.prototype[10] = 99`,
+`validate([42])([42])` is `ok` and `v[10]` reads `99`. Neither obvious remedy
+settles it — a prototype-identity check closes only the per-value half, and
+"check the intrinsic" is a realm-wide property that can change between the check
+and the read — so this is a stated caveat rather than a rule, and it applies to
+`array`, `record` and every container schema alike. It is really a question
+about what the FunctionalScript subset assumes of its host.
+
+### Open containers
+
+`open(c)` is the counterpart: the members `c` declares, plus anything else.
+`rest(c, r)` states the middle ground — those members, plus any number of
+members belonging to `r`.
 
 | schema | admits |
 | --- | --- |
-| `[number]` | any array whose position 0 is a number |
-| `close([number])` | arrays of exactly one number |
-| `close([number], string)` | one number, then any number of strings |
-| `{ a: number }` | any object whose `a` is a number |
-| `close({ a: number })` | objects with `a` and no other key |
-| `close({ a: number }, string)` | `a`, plus any number of string-valued keys |
+| `[number]` | arrays of exactly one number |
+| `open([number])` | any array whose position 0 is a number |
+| `rest([number], string)` | one number, then any number of strings |
+| `{ a: number }` | objects with `a` and no other key |
+| `open({ a: number })` | any object whose `a` is a number |
+| `rest({ a: number }, string)` | `a`, plus any number of string-valued keys |
 
-Three things follow from stating it this way rather than inferring it.
+Openness is what makes a reader forward-compatible: a schema that says `open`
+keeps reading a serialization format that has grown fields. So a schema read
+against a wire format someone else may extend says `open`, and one describing a
+closed vocabulary — an ADT's nodes, a tool's arguments — does not. The protocol
+and media modules say `open` with the reason written beside them; `edag` says
+nothing, because its grammar claims each JS chain has exactly one spelling.
+
+Three things follow from stating openness this way rather than inferring it.
 
 **It needs no new concept underneath.** The data form's array and object sets
-are both `{ members, rest? }` already, so `close` is the schema-form spelling of
-a `rest` that form has always carried: `unknown` is openness, `never` is the
-exact-members set, and a stated `rest` is itself. `close(c, unknown)` therefore
-normalizes back to the bare `c` — the same `Node`, the same acceptance — and
-`close(c)` and `close(c, undefined)` are one spelling. A container whose
-undeclared members must be the *value* `undefined` states that rest as a wrapped
-const, `() => ['const', undefined]`.
+are both `{ members, rest? }` already, so `rest` is the schema-form spelling of
+a `rest` that form has always carried: `never` is the bare, closed container,
+`unknown` is openness, and a stated `rest` is itself. `rest(c, unknown)`
+therefore normalizes to `open(c)` — the same `Node`, the same acceptance — and
+`rest(c, never)` normalizes back to the bare `c`. A container whose undeclared
+members must be the *value* `undefined` states that rest as a wrapped const,
+`() => ['const', undefined]`.
 
-**It narrows acceptance, not construction.** `parse` builds the declared
-members and nothing else, exactly as it does for the open form; a member
-matching a `rest` is checked on the way in and absent on the way out. `rest`
-says what an undeclared member must be, not that the reader should keep it —
-the reader that keeps every member is `validate`, which returns the value it was
-given here as everywhere else.
+**Both parameters of `rest` are required.** An optional one would need a
+sentinel for "no undeclared member", and every candidate — `undefined` most of
+all — is a `Type` in its own right, so the sentinel would collide with the
+schema it spells. `never` carries no such ambiguity, and there is no overload.
 
-**`Ts<T>` renders `close(c)` exactly, and drops a `rest`.** The exact-length
-tuple `TupleTs` settles for as an approximation of the open form *is* the closed
-form, so the closed rendering is the accurate one. A `rest` has no generic
-rendering (see `TupleTs`'s two TypeScript errors) and is left out; that costs
-nothing for `parse`, whose result is the declared members either way. The
-runtime printer goes through the data form and renders both.
+**It widens acceptance, not construction.** `parse` builds the declared members
+and nothing else, exactly as it does for the bare form; a member matching a
+`rest` is checked on the way in and absent on the way out. `rest` says what an
+undeclared member must be, not that the reader should keep it — the reader that
+keeps every member is `validate`, which returns the value it was given here as
+everywhere else.
+
+**`Ts<>` renders the tail.** `RestTs` renders `rest(c, r)`'s tuple tail as
+`...(Ts<r> | undefined)[]`: a hole past the prefix is no member, so a reader
+skips it and the index reads `undefined`. An **empty** rest renders no tail —
+`rest(c, or())` is the bare `c`, one set and so one rendering. What counts as
+empty is `emptyRest`'s question in `data/module.f.mjs`, a `toData` conversion
+compared with `subset` both ways, which `types.ts` cannot invoke; `RestTs`
+recognizes the one directly spellable empty rest, `or()`, and keeps the tail
+whenever it cannot tell. A kept tail is wider than the schema but sound, which
+is the direction a success cast needs. The runtime printer goes through the data
+form and recognizes the rest semantically, so the two differ on
+`rest([42], [or()])` — the printer drops the tail there and `Ts<>` does not.
+
+An **empty rest bounds an array's length**, which is the bare form's rule
+arriving through the other spelling: `array(or())` is the empty array and not
+"any number of holes", and `rest([42], or())` rejects `[42, , ]` exactly as
+`[42]` does.
 
 ## Built-in schemas
 
@@ -232,12 +257,13 @@ unary schemas (`array`, `record`) return `Info1` (a tag + inner type tuple).
 | `unknown`   | `['unknown']`        | any DJS value                    |
 | `array(t)`  | `['array', t]`       | `readonly Ts<t>[]`               |
 | `record(t)` | `['record', t]`      | `{ readonly[K: string]: Ts<t> }` |
-| `close(c, rest?)` | `['close', c, rest]` | `c`'s members, and only members of `rest` besides |
+| `rest(c, r)` | `['rest', c, r]` | `c`'s members, and only members of `r` besides |
+| `open(c)`   | `['rest', c, unknown]` | `c`'s members, and anything else |
 
 ## Example
 
 ```ts
-import { array, record, string, number } from './module.f.mjs'
+import { array, open, record, string, number } from './module.f.mjs'
 import { parse } from './parse/module.f.mjs'
 import { validate } from './validate/module.f.mjs'
 import type { Ts } from './ts/types.ts'
@@ -250,11 +276,15 @@ const p = parse(person)
 p({ name: 'Alice', age: 30 })  // ['ok', { name: 'Alice', age: 30 }]
 p({ name: 'Alice' })           // ['error', { path: ['age'], message: 'unexpected value' }]
 
-// Open: the extra key is accepted, and absent from what `parse` builds.
-p({ name: 'Alice', age: 30, admin: true })  // ['ok', { name: 'Alice', age: 30 }]
+// Closed: the extra key is a member the schema does not name.
+p({ name: 'Alice', age: 30, admin: true })  // ['error', …]
+
+// `open` admits it, and `parse` still builds only what the schema declares.
+parse(open(person))({ name: 'Alice', age: 30, admin: true })
+// ['ok', { name: 'Alice', age: 30 }]
 
 // `validate` accepts the same values and hands back what it was given.
-const v = validate(person)
+const v = validate(open(person))
 const alice = { name: 'Alice', age: 30, admin: true }
 v(alice)      // ['ok', alice] — the same object, `admin` included
 v({ name: 'Alice' })  // ['error', { path: ['age'], message: 'unexpected value' }]

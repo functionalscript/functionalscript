@@ -20,7 +20,7 @@ It materializes the member it just decided was absent (verified at `d24983a`):
 | --- | --- | --- |
 | `[number, option(string)]` | `[42]` | `[42, undefined]` |
 | `{ a: number, b: option(string) }` | `{ a: 1 }` | `{ a: 1, b: undefined }` |
-| `close([number, option(string)])` | `[1]` | `[1, undefined]` |
+| `rest([number, option(string)], string)` | `[1]` | `[1, undefined]` |
 
 Both spellings denote the same RTTI value, and `parse` picks the one that
 spells absence as a present member. `validate` has nothing to pick — it returns
@@ -75,7 +75,7 @@ the same rule — `undefined` is absence, whatever put it there:
 
 - A member whose *input* is explicitly `undefined` (`{ a: 1, b: undefined }`)
   and a member declared with a set that is only `undefined` (`{ a: undefined }`,
-  or a `close({ a: unknown })` whose `a` is `undefined`) are dropped too.
+  or a `{ a: unknown }` whose `a` is `undefined`) are dropped too.
 - `array`/`record` share those rebuilds, so the rule reaches them unless it is
   gated per kind. Uniform is the position this issue takes — `ArrayTs` is an
   unbounded `ReadonlyArray` and `RecordTs`'s keys are already optional, so

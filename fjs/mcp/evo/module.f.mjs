@@ -57,6 +57,10 @@ import { stringify } from '../../media/json/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 
 // ── Argument schemas (declared once, used for both inputSchema and validate) ─────
+//
+// Closed, as the bare form says, for the reason `../cas/module.f.mjs` gives:
+// a tool's argument list is a vocabulary this server defines rather than a
+// format a client extends.
 
 /**
  * Arguments for `evo_list`: an optional status filter, forwarded unchanged to

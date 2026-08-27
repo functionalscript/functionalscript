@@ -2,11 +2,11 @@
  * @import { StringMap } from '../object/types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../ts/types.ts'
- * @import { Close, Or, Type1 } from './types.ts'
+ * @import { Or, Rest, Type1, Unknown } from './types.ts'
  */
 
 import { assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { array, close, number, option, or, record, string } from './module.f.mjs'
+import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 
 /** @typedef {StringMap<readonly unknown[]>} _Tests */
 
@@ -21,8 +21,8 @@ const tests = {
     function: [() => undefined]
 }
 
-// `or`, `option`, `array`, `record`, and `close` take `const` type parameters,
-// so a literal written at the call site stays a literal: `or(42, string)`
+// `or`, `option`, `array`, `record`, `rest` and `open` take `const` type
+// parameters, so a literal written at the call site stays a literal: `or(42, string)`
 // describes `42 | string`, not `number | string`. Without the modifier a caller
 // has to pin every literal with an `@type {const}` cast, and the assertions
 // below are what fail if one of the modifiers is dropped. Each is paired with
@@ -45,16 +45,16 @@ const constInference = () => {
     /** @typedef {Assert<Equal<typeof recordConst, Type1<'record', { readonly a: typeof number }>>>} _RecordConst */
     assertStructurallySame(recordConst(), ['record', { a: number }])
 
-    // `close` builds the three-element info tuple either way: an omitted rest
-    // is the `undefined` one, which is what "no undeclared member" is spelled
-    // as everywhere downstream.
-    const closeConst = close([42, string])
-    /** @typedef {Assert<Equal<typeof closeConst, Close<readonly [42, typeof string], undefined>>>} _CloseConst */
-    assertStructurallySame(closeConst(), ['close', [42, string], undefined])
+    const restConst = rest({ a: 42 }, string)
+    /** @typedef {Assert<Equal<typeof restConst, Rest<{ readonly a: 42 }, typeof string>>>} _RestConst */
+    assertStructurallySame(restConst(), ['rest', { a: 42 }, string])
 
-    const closeRestConst = close({ a: 42 }, string)
-    /** @typedef {Assert<Equal<typeof closeRestConst, Close<{ readonly a: 42 }, typeof string>>>} _CloseRestConst */
-    assertStructurallySame(closeRestConst(), ['close', { a: 42 }, string])
+    // `open` needs the modifier of its own — it is not `rest` partially
+    // applied, so dropping it there widens `[42, string]` to `Type[]` while
+    // every assertion above still passes.
+    const openConst = open([42, string])
+    /** @typedef {Assert<Equal<typeof openConst, Rest<readonly [42, typeof string], Unknown>>>} _OpenConst */
+    assertStructurallySame(openConst(), ['rest', [42, string], unknown])
 }
 
 export const proof = {
