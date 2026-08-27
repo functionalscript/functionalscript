@@ -349,10 +349,9 @@ proof's running time is the general answer and is not this issue.
 ### If a runner ever needs to accept generic input
 
 Everything below is deleted from the browser runner and unreachable from
-authored FunctionalScript, which has no `Promise`. `Symbol` is available only as
-`Symbol.iterator`, inside the `Iterable` protocol
-([`spec/todo/2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)),
-which builds none of these values.
+authored FunctionalScript, which has no `Promise`. The subset itself is the
+spec's to state, not this file's — and paraphrasing it from memory is what
+produced two wrong descriptions here already.
 It is recorded so that the day a runner must accept values it did not author —
 impure `.mjs` proofs, an iframe, a worker, a third party calling
 `runBrowserProofs` — the work is a lookup rather than a rediscovery. Each row is
