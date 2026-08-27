@@ -111,27 +111,61 @@ and is reviewable without the next one.
       function `fjs t` prints its result lines with, so the two runners spell a
       test identically. This is the smallest possible piece of the issue and
       also its most visible symptom.
-- [ ] **2. One `sandbox`.** Executing a proof body — the clock either side, the
+- [x] **2. One normalized result.** `TestResult` and `testResult` in the shared
+      module: a leaf's identity, status and duration, decided once. The throw
+      expectation is applied through the same `invert` both runners now use, so
+      "did this leaf pass" has one answer. Describing a *thrown value* stayed
+      with each host, deliberately — see below.
+- [ ] **3. One `sandbox`.** Executing a proof body — the clock either side, the
       `try`/`catch`, and the rule that only an actual `Promise` is awaited — is
       the operation both runners must agree on exactly, and the one place where
-      they currently do not. Decide the cross-realm question
-      ([imports, promises and realms](imports-promises-realms.md)) as part of
-      it, or record the decision, but do not let a port make it silently.
-- [ ] **3. Common effects.** Move the host-independent operations (`all`,
+      they currently do not. **This step is blocked on a decision, not on
+      work**: the browser carries ~150 lines of `Symbol.species` machinery that
+      `fjs t` has no equivalent for, so merging the two answers the cross-realm
+      question in [imports, promises and realms](imports-promises-realms.md) —
+      which that file marks as investigation. Settle it there first. Doing it
+      inside a port is how the last attempt lost a defence nobody chose to
+      lose.
+- [ ] **4. Common effects.** Move the host-independent operations (`all`,
       `await`, `fetch`, `import`, `now`, `sandbox`) out of `effects/node` into a
       shared module that `effects/node` re-exports unchanged, so nothing has to
       move with them.
-- [ ] **4. A browser interpreter** for exactly those operations, with no
+- [ ] **5. A browser interpreter** for exactly those operations, with no
       scheduling policy of its own.
-- [ ] **5. One reporter.** A normalized result the page and the terminal both
-      render, with no DOM and no terminal text in it.
-- [ ] **6. One skeleton.** The page's proof-tree walk is deleted and the shared
+- [ ] **6. One reporter.** The event stream — a leaf landed, a run ended —
+      that both hosts subscribe to. Step 2 gave them the *value*; this gives
+      them the seam it travels through, and it is what
+      [report a test's name before running it](report-before-running.md)
+      needs before a start event can exist.
+- [ ] **7. One skeleton.** The page's proof-tree walk is deleted and the shared
       traversal runs it.
-- [ ] **7. The layout move**, and the website preparation program.
+- [ ] **8. The layout move**, and the website preparation program.
 
-Steps 2 and 6 are the ones that change behaviour, so they are the ones to keep
+Steps 3 and 7 are the ones that change behaviour, so they are the ones to keep
 smallest. Anything a step reveals goes to an issue and is fixed for both runners
 later, never inside the step.
+
+**What step 2 revealed, recorded rather than fixed.** With the status shared,
+two differences in *describing* a failure are now visible, and both are left
+alone on purpose:
+
+- `fjs t` reports a thrown value by printing it (`String(v)`) and keeps no
+  stack; the browser reads `message` and `stack` off it, because its report has
+  to survive a wire hop. Both need the raw value, and a serializable record
+  cannot carry one — so the description is each host's part, and `TestResult`
+  says so where a reader will look.
+- For a proof marked `throw` that returns cleanly, `fjs t` reports the returned
+  *value* as the error while the browser reports the fixed string
+  `Expected the proof to throw`. The two agree on the status, which is what
+  step 2 shares; they disagree on the message, which belongs with the point
+  above.
+
+Note also that `testResult` now sits inside `fjs t`'s own reporting path, so a
+defect in it can mislabel the very failures it causes — a mutation forcing every
+status to `passed` prints `ok` on failing lines. The pass/fail counts come from
+the walk's state rather than from the reporter, so they stay honest and the
+summary still reports the failures. Worth remembering when reading output while
+changing this function.
 
 ### Preliminary design
 
@@ -277,8 +311,10 @@ are shared.
       `nameMatchesTheConsoleRunner` pins it to that function rather than to a
       spelling. Its `path` field is now redundant with `name` for every leaf and
       should go when the report shape is decided.
-- [ ] Define normalized leaf, progress, infrastructure-error, totals, and report
-      values without terminal or DOM fields.
+- [x] Define a normalized leaf value without terminal or DOM fields:
+      `TestResult`, built by `testResult`, carrying identity, status and
+      duration. Progress, infrastructure-error, totals and report values are
+      still each host's own.
 - [ ] Decide whether browser import/time/yield/publication justify
       `fjs/effects/browser/`; document the decision before adding operations.
 - [ ] Move static proof discovery and `_browser-suite.mjs` generation into

@@ -13,7 +13,7 @@
  * @import { Operation } from '../effects/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
- * @import { TestFn, TestEntry, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts'
+ * @import { TestFn, TestEntry, TestSet, Path, Reporter, TestResult, _TestState, _TestAndPath } from './types.ts'
  * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
@@ -369,9 +369,33 @@ export const ghEscape = s =>
 export const defaultTest = (file, path, { fn, throws }) =>
     mapStep(sandbox(fn), r => throws ? { ...r, result: invert(r.result) } : r)
 
-/** @type {(file: string, path: Path, color: string, label: string, duration: number) => string} */
-const fmtResultLine = (file, path, color, label, duration) =>
-    `${fmtImport(file, path)}: ${color}${label}${reset}, ${timeFormat(duration)}`
+/**
+ * Normalizes one leaf's outcome: its identity, whether it passed, and how long
+ * it took.
+ *
+ * `r` is the result *after* the throw expectation has been applied — what
+ * {@link defaultTest} answers — so `ok` means the leaf did what it was supposed
+ * to, whether that was returning or throwing. Inverting first and normalizing
+ * second is what lets one status rule serve both cases.
+ *
+ * Every runner builds its report through this, so "what is this test called"
+ * and "did it pass" are answered once rather than once per host. What a runner
+ * does with the answer — a coloured line, a row in a page, a JSON record — is
+ * its own.
+ *
+ * @type {(file: string, path: Path, r: SandboxResult<unknown>) => TestResult}
+ */
+export const testResult = (file, path, { result: [s], duration }) => ({
+    module: file,
+    path: fmtPath(path),
+    name: fmtImport(file, path),
+    status: s === 'ok' ? 'passed' : 'failed',
+    duration,
+})
+
+/** @type {(r: TestResult, color: string, label: string) => string} */
+const fmtResultLine = ({ name, duration }, color, label) =>
+    `${name}: ${color}${label}${reset}, ${timeFormat(duration)}`
 
 /**
  * The terminal/GitHub reporter used by `fjs t`. Output goes through
@@ -399,17 +423,20 @@ export const defaultReporter = options => {
     const isGitHub = options.env['GITHUB_ACTIONS'] !== undefined
     return {
         // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-        result: (file, path, { result: [s, v], duration }, throws) =>
-            s === 'ok'
-                ? csiLog(fmtResultLine(file, path, fgGreen, 'ok', duration) + (throws ? ' # EXPECTED TO THROW' : ''))
+        result: (file, path, r, throws) => {
+            const t = testResult(file, path, r)
+            const v = r.result[1]
+            return t.status === 'passed'
+                ? csiLog(fmtResultLine(t, fgGreen, 'ok') + (throws ? ' # EXPECTED TO THROW' : ''))
                 : isGitHub
-                    ? csiError(`::error file=${file},line=1,title=${ghEscape(fmtImport(file, path))}::${ghEscape(String(v))}`)
+                    ? csiError(`::error file=${file},line=1,title=${ghEscape(t.name)}::${ghEscape(String(v))}`)
                     // `step`, so the detail line is attempted only when the
                     // header line was written: two halves of one report, and
                     // half of it is worse than none.
                     : step(
-                        csiError(fmtResultLine(file, path, fgRed, 'error', duration)),
-                        () => csiError(`${fgRed}${v}${reset}`)),
+                        csiError(fmtResultLine(t, fgRed, 'error')),
+                        () => csiError(`${fgRed}${v}${reset}`))
+        },
         summary: (pass, fail, time) => {
             const fgFail = fail === 0 ? fgGreen : fgRed
             return step(

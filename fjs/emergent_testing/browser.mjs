@@ -15,10 +15,12 @@
  *
  * @module
  *
- * @import { _TestAndPath } from './types.ts'
+ * @import { TestResult, _TestAndPath } from './types.ts'
+ * @import { Result } from '../types/result/types.ts'
  */
 
-import { collectTests, fmtImport, fmtPath } from './module.f.mjs'
+import { collectTests, testResult } from './module.f.mjs'
+import { error as errorResult, invert, ok } from '../types/result/module.f.mjs'
 
 /** @type {(value: unknown) => string} */
 const text = value => {
@@ -58,23 +60,16 @@ const errorDetails = error => {
 }
 
 /**
- * `name` is the test's identity, and it is deliberately not built here: it comes
- * from `fmtImport`, the same function `fjs t` prints its result lines with, so
- * the two runners name a leaf identically —
- * `import("./a.proof.f.mjs").proof.x()` in both. A page that invented its own
- * spelling would produce reports that cannot be diffed against the console
- * runner's, which is the visible half of the two runners having drifted apart.
+ * A leaf's outcome as the page reports it: the shared {@link TestResult} —
+ * identity, status and duration, decided by `testResult` rather than here — plus
+ * the two fields only a browser report needs.
  *
- * It is a field rather than something the renderer derives, because `module`
- * and `path` cannot always be recombined into one: a module-level failure and a
- * proof exported as a bare function both carry an empty `path`, and only the
- * code that produced the result knows which it had.
+ * `message` and `stack` are the browser's own part, and stay outside the shared
+ * record for the reason `TestResult` gives: describing a thrown value needs the
+ * value, a serializable report cannot carry one, and `fjs t` describes it
+ * differently because it is writing to a terminal rather than to a wire.
  *
- * `path` stays for the consumers that already read it. It is now redundant with
- * `name` for every leaf, and belongs in the report-shape decision this issue's
- * todo tracks rather than in this change.
- *
- * @typedef {{ readonly module: string, readonly path: string, readonly name: string, readonly status: string, readonly duration: number, readonly message?: string, readonly stack?: string }} _BrowserTestResult
+ * @typedef {TestResult & { readonly message?: string, readonly stack?: string }} _BrowserTestResult
  */
 /** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
 
@@ -197,15 +192,34 @@ const runPromise = (value, fulfilled, rejected) => {
     }
 }
 
+/**
+ * A failure of a whole module — one that will not link, or whose `proof` export
+ * cannot be enumerated. It does not go through `testResult`, and that is the
+ * point: there is no leaf here, so there is no path and no `fmtImport` name to
+ * build. What is known about it is its source, so its source is its name.
+ *
+ * @type {(source: string, duration: number, message: string, stack: string) => _BrowserTestResult}
+ */
+const moduleFailure = (source, duration, message, stack) => ({
+    module: source, path: '', name: source, status: 'failed', duration, message, stack,
+})
+
 /** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
 const runOne = (module, path, throws, fn, result) => {
     const start = performance.now()
-    const name = fmtImport(module, path)
+    // The throw expectation is applied with the same `invert` the console
+    // runner's `defaultTest` uses, and the status is then read off the result by
+    // the same `testResult`. Both runners therefore answer "did this leaf pass"
+    // in one place — the rule that used to be spelled out at four sites here and
+    // once again over there.
+    /** @type {(o: Result<unknown, unknown>, duration: number) => TestResult} */
+    const leaf = (o, duration) =>
+        testResult(module, path, { result: throws ? invert(o) : o, duration })
     /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
     const passed = value => {
             const duration = performance.now() - start
             if (throws) {
-                const failure = { module, path: fmtPath(path), name, status: 'failed', duration,
+                const failure = { ...leaf(ok(value), duration),
                     message: 'Expected the proof to throw', stack: '' }
                 result(failure)
                 return [failure]
@@ -224,7 +238,7 @@ const runOne = (module, path, throws, fn, result) => {
             return Promise.all(children.map(([childPath, child]) =>
                 runOne(module, childPath, child.throws, child.fn, result)
             )).then(results => {
-                const success = { module, path: fmtPath(path), name, status: 'passed', duration }
+                const success = leaf(ok(value), duration)
                 result(success)
                 return [success, ...results.flat()]
             })
@@ -233,12 +247,12 @@ const runOne = (module, path, throws, fn, result) => {
     const failed = error => {
             const duration = performance.now() - start
             if (throws) {
-                const success = { module, path: fmtPath(path), name, status: 'passed', duration }
+                const success = leaf(errorResult(error), duration)
                 result(success)
                 return [success]
             }
             const [message, stack] = errorDetails(error)
-            const failure = { module, path: fmtPath(path), name, status: 'failed', duration, message, stack }
+            const failure = { ...leaf(errorResult(error), duration), message, stack }
             result(failure)
             return [failure]
         }
@@ -284,7 +298,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
     /** @type {(module: string, error: unknown) => () => Promise<readonly _BrowserTestResult[]>} */
     const unreadable = (module, error) => () => {
         const [message, stack] = errorDetails(error)
-        const failure = { module, path: '', name: module, status: 'failed', duration: 0, message, stack }
+        const failure = moduleFailure(module, 0, message, stack)
         announce(failure)
         return Promise.resolve([failure])
     }
@@ -391,7 +405,7 @@ export const startBrowserTestSources = (root, sources, importer) => {
             return publish(root, Promise.resolve(reportOf('infrastructure-error', duration,
                 rejected.map(({ source, error }) => {
                     const [message, stack] = errorDetails(error)
-                    return { module: source, path: '', name: source, status: 'failed', duration, message, stack }
+                    return moduleFailure(source, duration, message, stack)
                 }))))
         }
         return startBrowserTests(root, loadedModules.flatMap(module =>

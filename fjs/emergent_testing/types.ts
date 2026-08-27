@@ -36,6 +36,38 @@ export type TestSet = TestEntry | readonly (readonly [string, unknown])[]
  */
 export type Path = readonly (string | null)[]
 
+/** Whether a leaf passed, after the throw expectation has been applied. */
+export type TestStatus = 'passed' | 'failed'
+
+/**
+ * One leaf's outcome, normalized: what ran, whether it passed, and how long it
+ * took, with no terminal escape codes and no DOM node in it.
+ *
+ * It exists so that every runner decides those three things the same way. The
+ * console runner and the browser runner each used to derive them inline — one
+ * on its way to a printed line, the other on its way to a serializable report —
+ * and a status is exactly the kind of small decision that drifts unnoticed when
+ * it is made twice.
+ *
+ * **A thrown value is deliberately absent.** Describing one is not a decision
+ * every host can share: the browser's report must survive a wire hop, so it
+ * reads `message` and `stack` off the value, while `fjs t` prints the value
+ * itself and keeps the stack the panic would have shown. Both need the raw
+ * value to do that, and a raw value cannot live in a serializable record. So
+ * the description stays with each host and this carries the part they agree
+ * on — the shape of an extension point, not an omission.
+ */
+export type TestResult = {
+    /** The module key the leaf was discovered in, relative to the run's root. */
+    readonly module: string
+    /** The key chain within that module's `proof` export, as `fmtPath` renders it. */
+    readonly path: string
+    /** The identity `fmtImport` gives the leaf — the same string in every runner. */
+    readonly name: string
+    readonly status: TestStatus
+    readonly duration: number
+}
+
 /**
  * Receives semantic test-run events. Each method is the runner's notification
  * of an event; the reporter decides how to render it (terminal, GitHub
