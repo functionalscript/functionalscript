@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 import { run } from '../effects/node/module.mjs'
 import { toPosix } from '../path/module.f.mjs'
+import { exportsProof, local, specifiers } from './browser-source.mjs'
 import { main } from './module.f.mjs'
 
 const sourceRoot = new URL('../../', import.meta.url)
@@ -23,110 +24,6 @@ const files = async directory => {
         return entry.isDirectory() ? files(url) : authored(entry.name) ? [url] : []
     }))).flat()
 }
-
-/**
- * Blanks comments and quoted literals before looking for export declarations.
- * Export declarations cannot occur inside a string, comment, or template, so
- * this is enough to distinguish syntax from source text without depending on
- * the TypeScript compiler API (not exposed by TypeScript 7).
- *
- * @type {(source: string) => string}
- */
-const codeOnly = source => {
-    let result = ''
-    let index = 0
-    while (index < source.length) {
-        const char = source[index]
-        const next = source[index + 1]
-        if (char === '/' && next === '/') {
-            index += 2
-            while (index < source.length && source[index] !== '\n') { index += 1 }
-            result += '\n'
-            index += 1
-            continue
-        }
-        if (char === '/' && next === '*') {
-            index += 2
-            while (index < source.length && !(source[index] === '*' && source[index + 1] === '/')) {
-                result += source[index] === '\n' ? '\n' : ' '
-                index += 1
-            }
-            result += '  '
-            index += 2
-            continue
-        }
-        if (char === '\'' || char === '"' || char === '`') {
-            const quote = char
-            result += ' '
-            index += 1
-            while (index < source.length) {
-                if (source[index] === '\\') {
-                    result += '  '
-                    index += 2
-                    continue
-                }
-                if (source[index] === quote) {
-                    result += ' '
-                    index += 1
-                    break
-                }
-                result += source[index] === '\n' ? '\n' : ' '
-                index += 1
-            }
-            continue
-        }
-        result += char
-        index += 1
-    }
-    return result
-}
-
-/** @type {(source: string) => boolean} */
-const exportsProof = source => {
-    const code = codeOnly(source)
-    if (/\bexport\s+(?:const|let|var|function|class)\s+proof\b/.test(code)) { return true }
-    if (/\bexport\s*\*\s*as\s+proof\b/.test(code)) { return true }
-    return [...code.matchAll(/\bexport\s*\{([^}]*)\}/g)].some(match =>
-        (match[1] ?? '').split(',').some(item => {
-            const names = item.trim().split(/\s+as\s+/)
-            return (names[names.length - 1] ?? '') === 'proof'
-        }))
-}
-
-/** @type {(line: string, prefix: string, quote: string) => readonly string[]} */
-const quoted = (line, prefix, quote) =>
-    line.split(prefix + quote).slice(1).map(part => part.split(quote)[0] ?? '')
-
-/**
- * A line that can carry a static module specifier: the head of an
- * `import`/`export` declaration — in either spacing `exportsProof` accepts —
- * or the `} from '...'` tail of one whose bindings span several lines.
- * Documentation and ordinary expressions are left out, so prose such as "tells
- * `'empty'` from `'missing'`" is not mistaken for an import — a JSDoc line
- * starts with `*` and a string literal with a quote.
- *
- * @type {(line: string) => boolean}
- */
-const declaration = line => {
-    const text = line.trim()
-    return text.startsWith('import ') || text.startsWith('import{')
-        || text.startsWith('export ') || text.startsWith('export{')
-        || text.startsWith('} from ')
-}
-
-/**
- * Every static module specifier in `source`. Import declarations are the only
- * thing the browser links eagerly, so a dynamic `import(...)` is left out: it
- * fails inside the test that reaches it rather than while the page loads.
- *
- * @type {(source: string) => readonly string[]}
- */
-const specifiers = source => source.split('\n').filter(declaration).flatMap(line =>
-    ['\'', '"'].flatMap(quote =>
-        ['from ', 'import '].flatMap(prefix => quoted(line, prefix, quote))))
-
-/** @type {(specifier: string) => boolean} */
-const local = specifier => specifier.startsWith('./') || specifier.startsWith('../')
 
 /** @typedef {{ readonly blockers: readonly string[], readonly local: readonly URL[] }} _Module */
 
