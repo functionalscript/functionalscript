@@ -309,6 +309,14 @@ export const proof = {
         assertStructurallySame([...p.states], ['loading', 'running', 'passed'])
         assertEq(await p.view.fjsBrowserTestReport, report)
     },
+    sourcesLoadingSummaryIsSynchronous: () => {
+        // The summary must not keep showing idle text through loading: it is
+        // replaced the instant a run starts, before any import has had a
+        // chance to settle — even one that never does.
+        const p = page()
+        void startBrowserTestSources(p.root, ['a.mjs', 'b.mjs'], () => new Promise(() => undefined))
+        assertEq(p.summary.textContent, 'Loading 0/2')
+    },
     sourcesProgress: async () => {
         const p = page()
         /** @type {(module: { readonly proof?: unknown }) => void} */
