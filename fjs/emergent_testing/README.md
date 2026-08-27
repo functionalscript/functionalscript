@@ -83,8 +83,46 @@ Then invoke the runner:
 - `bun test`
 - `deno test --allow-read --allow-env --allow-sys`
 
+### The browser
+
+[`browser/module.mjs`](./browser/module.mjs) runs the same proofs inside a
+browser realm and answers a serializable report. The generated website hosts it;
+see [`todo/browser-testing.md`](./todo/browser-testing.md) for the automated
+runners still to come.
+
 You can also implement your own runner, as long as it follows the proof-tree
 conventions described below.
+
+## Design: one runner, several hosts
+
+`fjs t` and the browser runner are **the same runner**. Discovering
+zero-argument leaves, walking the tree a proof returns, the structural `throw`
+expectation, resolving real promises, formatting paths and counting results all
+live once, in [`module.f.mjs`](./module.f.mjs); a host supplies only two things.
+
+- **A `Reporter`.** It receives semantic events — one normalized `TestResult`
+  per leaf, and the totals — and decides how they are shown. `defaultReporter`
+  writes coloured lines (or GitHub annotations); `recordingReporter` hands each
+  result to the `report` operation, and the browser adapter renders it into the
+  page. A `TestResult` carries no terminal text and no DOM, so neither reporter
+  can smuggle presentation back into the core.
+- **An effect runner.** `sandbox` is the one operation that actually *executes*
+  a proof body, and each host implements it against its own realm — Node in
+  [`../effects/node/module.mjs`](../effects/node/module.mjs), the browser in
+  [`../effects/browser/module.mjs`](../effects/browser/module.mjs). Both
+  implement it identically, because a suite that meant different things in the
+  two would not be one suite.
+
+The two runners *used* to be two implementations of the same rules, in
+`module.f.mjs` and a standalone `browser.mjs`, and the rules had begun to drift.
+Consult that history before adding a rule to either host: it belongs in the
+core, or it is not a rule about proofs.
+
+External runners (`node --test`, `bun test`, `deno test`) are the one genuine
+exception, and `registerModule` is why: those frameworks own scheduling and
+counting, so they are handed the tree rather than driven through it. The
+differences that follow from that are documented in
+[`todo/661-test-runner-behavior.md`](./todo/661-test-runner-behavior.md).
 
 ## Design: dependency-free proofs
 
@@ -231,6 +269,12 @@ When a test case returns a value, the framework checks `value instanceof Promise
 to decide whether to await it. Only genuine `Promise` instances are awaited;
 plain *thenables* — objects with a `.then` method that are not `instanceof Promise`
 — are treated as ordinary return values and walked as sub-trees.
+
+Every runner asks the same question, in the same place — the `sandbox`
+operation — so a suite means the same thing under `fjs t` and in a browser. One
+consequence is that a promise built in *another* realm is not `instanceof
+Promise` and so is not awaited; see
+[`todo/hostile-proof-values.md`](./todo/hostile-proof-values.md).
 
 This is intentional. FunctionalScript does not allow direct `Promise`
 construction; `Promise` objects only arise as the return value of `async`

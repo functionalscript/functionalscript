@@ -13,8 +13,8 @@ import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import {
-    testAll, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
-    registerModule, parseTestSet,
+    testAll, errorDetails, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
+    registerModule, parseTestSet, testResult,
     defaultTest, main, register,
 } from './module.f.mjs'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
@@ -596,6 +596,64 @@ export const helpers = {
         assertEq(ghEscape('a,b'), 'a%2Cb')
         assertEq(ghEscape('a\r\nb'), 'a%0D%0Ab')
         assertEq(ghEscape('a%b:c,d'), 'a%25b%3Ac%2Cd')
+    },
+    errorDetails: {
+        // Read structurally rather than by `instanceof Error`, so an error from
+        // another realm still reports its own stack.
+        messageAndStack: () => {
+            const [message, stack] = errorDetails({ message: 'boom', stack: 'boom\n  at x' })
+            assertEq(message, 'boom')
+            assertEq(stack, 'boom\n  at x')
+        },
+        withoutStack: () => {
+            const [message, stack] = errorDetails({ message: 'no stack' })
+            assertEq(message, 'no stack')
+            assertEq(stack, 'no stack')
+        },
+        // A value carrying only a stack is still a failure description; the
+        // message it does not have reads as the absent value it is.
+        stackOnly: () => {
+            const [message, stack] = errorDetails({ stack: 'trace' })
+            assertEq(message, 'undefined')
+            assertEq(stack, 'trace')
+        },
+        // A thrown *function* is an object as far as this reading goes.
+        callable: () => {
+            const [message] = errorDetails(Object.assign(() => undefined, { message: 'fn' }))
+            assertEq(message, 'fn')
+        },
+        plainValue: () => {
+            const [message, stack] = errorDetails('just text')
+            assertEq(message, 'just text')
+            assertEq(stack, 'just text')
+        },
+        nullValue: () => {
+            assertEq(errorDetails(null)[0], 'null')
+        },
+    },
+    testResult: {
+        passed: () => {
+            const r = testResult('a.f.mjs', ['x'], { result: ok(1), duration: 2 }, false)
+            assertEq(r.module, 'a.f.mjs')
+            assertEq(r.path, '.x')
+            assertEq(r.status, 'passed')
+            assertEq(r.duration, 2)
+            assertEq(r.message, undefined)
+        },
+        failed: () => {
+            const r = testResult('a.f.mjs', ['x'], { result: error(new Error('bad')), duration: 0 }, false)
+            assertEq(r.status, 'failed')
+            assertEq(r.message, 'bad')
+        },
+        // `defaultTest` has already inverted a `throws` leaf, so an `error` here
+        // means it returned when it was expected to throw — named rather than
+        // described by whatever it happened to return.
+        expectedToThrow: () => {
+            const r = testResult('a.f.mjs', ['throw', 'x'], { result: error(7), duration: 0 }, true)
+            assertEq(r.status, 'failed')
+            assertEq(r.message, 'Expected the proof to throw')
+            assertEq(r.stack, '')
+        },
     },
     parseTestSet: {
         nullReturnsEmpty: () => {

@@ -48,7 +48,7 @@ three independent test frameworks.
 eventual isolated browser-test application root
 ├── index.html
 ├── _browser-test-entry.mjs
-├── fjs/emergent_testing/browser.mjs
+├── fjs/emergent_testing/browser/module.mjs
 └── authored or copied .f.mjs / .mjs modules
 ```
 
@@ -147,8 +147,9 @@ workers, or visual regression testing.
 - [ ] Create the JavaScript-only application root with a generated entry
       module covering every accepted module.
 - [x] Implement the first browser-compatible emergent-test runner and report
-      API; follow up by sharing its pure semantics with `fjs t` in
-      [share-browser-console-runner](share-browser-console-runner.md).
+      API, and share its proof semantics with `fjs t`: both runners now walk
+      proof trees through `emergent_testing/module.f.mjs` and differ only in
+      their `Reporter` and their effect interpreter.
 - [x] Implement the HTML UI and integrate it into the FunctionalScript
       website.
 - [ ] Add shared controller code for preparation, serving, report validation,
@@ -163,7 +164,7 @@ workers, or visual regression testing.
 ### Related
 
 - [`.f.mjs` proof discovery and coverage](f-mjs-test-and-coverage.md)
-- [Shared browser/console runner core](share-browser-console-runner.md)
+- [Hostile thrown values and cross-realm promises](hostile-proof-values.md)
 - [Explicit browser test controls](browser-test-controls.md)
 - [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
 - [project roadmap](../../../todo/plan/roadmap.md)

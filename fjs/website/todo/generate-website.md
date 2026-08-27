@@ -12,4 +12,4 @@
 - [x] Browser test runner and proof-result UI
 - [ ] Move browser-manifest preparation into the website `NodeProgram` through
       Node effects, as designed in
-      [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
+      [website-preparation-program](website-preparation-program.md)
