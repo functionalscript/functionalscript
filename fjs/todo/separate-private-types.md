@@ -15,16 +15,17 @@ types.ts      # public + private TypeScript types
 ```
 
 Private types already use a leading `_` by convention, but their location still
-creates declaration and package noise. In particular, JSDoc `@typedef`s in
-`module.f.mjs` and `proof.f.mjs` escape into generated `.d.mts` files: TypeScript
-emits them as exported type aliases even when they were intended to be private.
-Private declarations in `types.ts` likewise appear in the shipped `types.d.ts`.
+creates declaration and package noise. In particular, file-scope JSDoc
+`@typedef`s in `module.f.mjs` and `proof.f.mjs` escape into generated `.d.mts`
+files: TypeScript emits them as exported type aliases even when they were
+intended to be private. Private declarations in `types.ts` likewise appear in
+the shipped `types.d.ts`.
 
-Moving all named types out of implementation/proof files and splitting public
-from private TypeScript types removes the JSDoc typedef leakage structurally.
-TypeScript will still emit a declaration for an imported `private.ts`, because
-that source file is part of the declaration program; that generated private
-declaration must be removed before packaging.
+Moving file-scope named types out of implementation/proof files and splitting
+public from private TypeScript types removes the JSDoc typedef leakage
+structurally. TypeScript will still emit a declaration for an imported
+`private.ts`, because that source file is part of the declaration program; that
+generated private declaration must be removed before packaging.
 
 The leading `_` convention should remain: file placement and name visibility are
 complementary signals.
@@ -35,22 +36,54 @@ Use this directory convention where named types or runtime metadata used for
 type derivation are needed:
 
 ```text
-module.f.mjs  # implementation; no @typedef
-proof.f.mjs   # proofs; no @typedef
+module.f.mjs  # implementation; no file-scope @typedef
+proof.f.mjs   # proofs; no file-scope @typedef
 meta.f.mjs    # runtime metadata used to define/derive types
 types.ts      # public named TypeScript types
 private.ts    # private named TypeScript types
 ```
 
 `module.f.mjs` and `proof.f.mjs` may use JSDoc annotations and `@import`, but
-must not declare named types with `@typedef`. Named TypeScript types have exactly
-two homes:
+must not declare file-scope named types with `@typedef`. File-scope named
+TypeScript types have exactly two homes:
 
 - `types.ts` for public types;
 - `private.ts` for implementation-only types.
 
 `private.ts` contains implementation-only TypeScript types used by either the
-module or its proofs. Every private type continues to start with `_`.
+module or its proofs. Every private file-scope type continues to start with `_`.
+
+#### Lexically scoped typedefs
+
+Function-local JSDoc `@typedef` declarations are allowed everywhere. They are
+useful for compile-time proofs that depend on values available only in lexical
+scope and therefore cannot be moved to `private.ts` without exposing or
+restructuring implementation locals.
+
+For example:
+
+```js
+const proof = () => {
+    const value = f(42)
+    /** @typedef {Assert<Equal<typeof value, 42>>} _Value */
+}
+```
+
+Such a typedef is a local type assertion, not a file-level API declaration. Keep
+it inside the narrowest function scope that provides the values it needs; do not
+move it to `private.ts` merely to satisfy the file convention. Private local
+typedef names should keep the leading `_` convention.
+
+The distinction is therefore scope-based:
+
+```text
+file-scope public named type  -> types.ts
+file-scope private named type -> private.ts
+function-local typedef        -> allowed in place
+```
+
+Declaration validation must verify that function-local typedefs remain lexical
+and do not appear as exported aliases in generated `.d.ts` / `.d.mts` files.
 
 #### Type metadata
 
@@ -107,7 +140,8 @@ Dependency rules:
 
 This leaves generated declarations free to describe the public API, including
 structural types inferred from exported values/functions, without also exporting
-implementation-local typedef names simply because they were declared in JSDoc.
+implementation-local file-scope typedef names simply because they were declared
+in JSDoc.
 
 #### Declaration emission and packaging
 
@@ -157,11 +191,16 @@ rather than retaining `private.d.ts` to make such a leak resolve.
 
 - [ ] Document `private.ts` and `meta.f.mjs` beside the existing `types.ts`,
       `module.*`, and `proof.*` file conventions.
-- [ ] Prohibit JSDoc `@typedef` declarations in `module.f.mjs` and `proof.f.mjs`.
-- [ ] Keep the leading `_` convention for every type declared in `private.ts`.
-- [ ] Move public named types from implementation/proof JSDoc into `types.ts`.
-- [ ] Move private named types out of `types.ts`, `module.f.mjs`, and
+- [ ] Prohibit file-scope JSDoc `@typedef` declarations in `module.f.mjs` and
+      `proof.f.mjs`; allow function-local `@typedef` declarations everywhere.
+- [ ] Keep the leading `_` convention for private types, including function-local
+      private typedefs.
+- [ ] Move public file-scope named types from implementation/proof JSDoc into
+      `types.ts`.
+- [ ] Move private file-scope named types out of `types.ts`, `module.f.mjs`, and
       `proof.f.mjs` into each directory's `private.ts` where applicable.
+- [ ] Keep lexical type-proof typedefs inside the functions whose local values
+      they inspect; do not force them into `private.ts`.
 - [ ] Move runtime values whose primary purpose is type derivation into
       `meta.f.mjs`; include both RTTI definitions and non-RTTI constants used by
       `Ts<typeof ...>`, `typeof ...`, or equivalent type queries.
@@ -174,10 +213,13 @@ rather than retaining `private.d.ts` to make such a leak resolve.
 - [ ] Scan every packed `.d.ts` / `.d.mts` and reject any module reference to a
       directory's private type module, independent of the exact emitted suffix.
 - [ ] Add a fixture where `module.f.mjs` and `proof.f.mjs` use `_`-prefixed types
-      from `private.ts` without declaring any `@typedef`; verify declaration emit
-      creates the intermediate `private.d.ts`, cleanup removes it, generated
-      public declarations contain no implementation-local typedef exports, and
-      packed-artifact validation finds no private type file or declaration edge.
+      from `private.ts` without declaring any file-scope `@typedef`; also include
+      a function-local typedef that depends on a lexical value and verify it does
+      not escape into generated declarations. Verify declaration emit creates the
+      intermediate `private.d.ts`, cleanup removes it, generated public
+      declarations contain no implementation-local file-scope typedef exports,
+      and packed-artifact validation finds no private type file or declaration
+      edge.
 - [ ] Extend the fixture with `meta.f.mjs` containing both an RTTI value and a
       non-RTTI literal constant used to derive TypeScript types in `types.ts` or
       `private.ts`; verify the source tree and packed consumer resolve both
@@ -187,16 +229,20 @@ rather than retaining `private.d.ts` to make such a leak resolve.
 
 ### Acceptance criteria
 
-- `module.f.mjs` and `proof.f.mjs` contain no JSDoc `@typedef` declarations.
-- All public named TypeScript types live in `types.ts`.
-- All private named TypeScript types live in `private.ts` and keep their leading
-  `_`.
+- `module.f.mjs` and `proof.f.mjs` contain no file-scope JSDoc `@typedef`
+  declarations.
+- Function-local JSDoc `@typedef` declarations are allowed in any source file and
+  may depend on lexical values; they do not escape as exported declaration
+  aliases.
+- All public file-scope named TypeScript types live in `types.ts`.
+- All private file-scope named TypeScript types live in `private.ts` and keep
+  their leading `_`; private function-local typedefs also keep `_`.
 - Runtime values whose primary purpose is to define, describe, or derive
   type-level information live in `meta.f.mjs`; this includes RTTI definitions
   and non-RTTI constants used by `Ts<typeof ...>`, `typeof ...`, and similar
   type queries.
-- Generated public declarations do not expose private named typedefs merely as a
-  consequence of declaration emission.
+- Generated public declarations do not expose private file-scope named typedefs
+  merely as a consequence of declaration emission.
 - Declaration emission may create `private.d.ts`, but the packaging cleanup
   removes it before package contents are selected.
 - The packed tarball contains neither `private.ts` nor `private.d.ts`.
