@@ -100,17 +100,13 @@ documentation — needs neither. Breaking changes are welcome when they improve
 the API — prefix the entry with `**BREAKING CHANGES:**` and update every
 importer in the same PR.
 
-**Merge the knowledge.** Working a PR teaches something, and a small step
-merged with what was learned written down beats two hundred iterations of a PR
-that never lands. So answer a review, don't absorb it: a design document keeps
-its implementation choices open, an implementation answers a feature request
-with a `todo/` issue rather than a wider diff, and a rule generalized from one
-case is answered with the case that breaks it. A crash may be deferred behind a
-`todo/` that names the input that breaks it; a **regression** may not, and
-neither may **silence** — an unsupported input is refused or asserted on, never
-answered with a plausible wrong value
-([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)). No knowledge
-from a review may be left in the review thread alone.
+**Merge the knowledge.** A small step merged with what was learned written down
+beats two hundred iterations of a PR that never lands. Answer a review, don't
+absorb it — and never only in the thread, which is the one place the answer
+will not survive. A crash may be deferred behind a `todo/` naming the input
+that breaks it; a **regression** may not, and neither may **silence** — an
+unsupported input is refused or asserted on, never answered with a plausible
+wrong value ([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)).
 
 Which comments to fix, which to push back on, and what a push-back leaves
 behind: [REVIEW.md](./REVIEW.md).
