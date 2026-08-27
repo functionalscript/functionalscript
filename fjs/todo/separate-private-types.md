@@ -37,6 +37,42 @@ program; that generated private declaration must be removed before packaging.
 The leading `_` convention remains useful in both categories: it means the type
 name itself is private even when the helper must live beside public types.
 
+#### Relationship to the current `_` workaround
+
+[`../fsc/README.md`](../fsc/README.md) currently defines a deliberate interim
+policy for private JSDoc typedefs: until TypeScript supports stripping JSDoc
+`@typedef`s with `@internal` plus `stripInternal`, a leading `_` marks an emitted
+alias as private by contract even when declaration emit exposes it. The upstream
+blocker is
+[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407),
+and the waiting strategy is tracked in
+[`../../todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md).
+
+That policy remains authoritative **until this migration is implemented**. This
+TODO intentionally proposes replacing the wait-for-upstream workaround for
+file-scope implementation-private types with a structural boundary:
+
+- file-scope implementation-private named types move to `private.ts`;
+- file-scope JSDoc typedefs disappear from implementation/proof modules, so they
+  no longer leak merely because TypeScript emits them;
+- `private.d.ts` is treated as an intermediate package-build artifact and is
+  removed before packing;
+- function-local typedefs remain available for lexical type proofs and do not
+  need the file-level workaround.
+
+Physical separation is preferred here because it solves the declaration leak
+with tools available today, gives private named types the full TypeScript type
+language, and makes the public/private source and package boundaries explicit.
+The leading `_` remains the naming convention for private types; this proposal
+changes where file-scope private types live, not what `_` means.
+
+When this TODO is implemented, update `fjs/fsc/README.md` so it no longer presents
+leaked file-scope JSDoc typedefs as the intended steady-state convention. Also
+revisit `todo/blocked/jsdoc-typedef-strip-internal.md`: delete it if no remaining
+supported case needs file-scope private JSDoc typedef stripping, or narrow it to
+whatever cases remain. Do not leave two live documents prescribing different
+private-type strategies.
+
 ### Proposal
 
 Use this directory convention where named types or runtime metadata used for
@@ -206,41 +242,30 @@ the same coverage expectations as `module.f.mjs`.
 
 #### Breaking public API migration
 
-Moving public definitions to their dedicated files changes their published
-import paths. Treat these relocations as intentional breaking API changes rather
-than preserving the old entry points with compatibility re-exports.
+Moving a public file-scope JSDoc typedef from `module.f.mjs` or `proof.f.mjs` to
+`types.ts` changes its published type import path. Moving a public runtime
+constant from `module.f.mjs` to `meta.f.mjs` changes its published runtime import
+path. Treat **both** relocations as intentional breaking API changes; do not
+preserve the old entry points with compatibility typedefs, exports, or re-exports.
 
-For public types, if consumers previously imported a type from:
-
-```text
-./module.f.mjs
-```
-
-and the type moves to `types.ts`, its new public type entry point is:
+For types:
 
 ```text
-./types.ts
+./module.f.mjs -> ./types.ts
 ```
 
-For public runtime constants, if consumers previously imported a value from:
+For runtime metadata:
 
 ```text
-./module.f.mjs
+./module.f.mjs -> ./meta.f.mjs
 ```
 
-and the value moves to `meta.f.mjs`, its new runtime entry point is:
+The migration must update every repository importer to the new path and record
+the breaking change in the changelog. Keeping compatibility aliases or
+re-exports in `module.f.mjs` would preserve exactly the mixed responsibilities
+this convention is intended to remove.
 
-```text
-./meta.f.mjs
-```
-
-In both cases, update every repository importer to the new path and record the
-breaking change in the changelog. Do **not** leave compatibility typedefs,
-exports, or re-exports in `module.f.mjs` to preserve the old entry point. The
-point of the migration is to make the source/API boundaries explicit rather than
-carry aliases from the old layout indefinitely.
-
-#### Declaration emission and packaging
+### Declaration emission and packaging
 
 `private.ts` is source-only and remains in the normal TypeScript program so its
 types and all `@import` users are checked. Consequently, the existing
@@ -287,6 +312,11 @@ References to packaged `meta.f.mjs` are allowed.
 
 - [ ] Document `private.ts` and `meta.f.mjs` beside the existing `types.ts`,
       `module.*`, and `proof.*` conventions.
+- [ ] Reconcile the implemented convention with the current private-JSDoc policy:
+      update `fjs/fsc/README.md` to replace the leaked-file-scope-typedef
+      workaround, and delete or narrow
+      `todo/blocked/jsdoc-typedef-strip-internal.md` so the repository has one
+      authoritative strategy.
 - [ ] Prohibit file-scope JSDoc `@typedef` declarations in `module.f.mjs` and
       `proof.f.mjs`; allow function-local `@typedef` declarations everywhere.
 - [ ] Keep the leading `_` convention for every private type name, including
@@ -305,14 +335,12 @@ References to packaged `meta.f.mjs` are allowed.
 - [ ] Move runtime constants referenced by TypeScript type definitions/proofs
       into `meta.f.mjs`, including RTTI definitions, non-RTTI literal constants,
       and ordinary runtime tables whose literal/inferred types are asserted.
-- [ ] Treat moves of public runtime constants to `meta.f.mjs` as breaking API
-      changes: update every repository runtime importer to the new path and
-      record the break in the changelog.
-- [ ] Do not add compatibility exports or re-exports in `module.f.mjs` for
-      runtime constants moved to `meta.f.mjs`.
 - [ ] Move file-scope private type proofs over those constants to `private.ts`
       (or keep helpers in `types.ts` when required by a public declaration), and
       use `import type { ... }` to reference the `meta.f.mjs` values.
+- [ ] Treat moves of public runtime constants to `meta.f.mjs` as breaking API
+      changes: update every repository runtime importer and the changelog; do not
+      leave compatibility exports or re-exports in `module.f.mjs`.
 - [ ] Require every import in `types.ts` and `private.ts` to use named
       `import type { ... }`.
 - [ ] Update Node coverage selection to include both `module.f.mjs` and
@@ -341,6 +369,9 @@ References to packaged `meta.f.mjs` are allowed.
 
 ### Acceptance criteria
 
+- The current `_` leak-tolerance policy is explicitly superseded when this
+  migration is implemented; `fjs/fsc/README.md` and the blocked `@internal` /
+  `stripInternal` TODO no longer prescribe a conflicting strategy.
 - `module.f.mjs` and `proof.f.mjs` contain no file-scope JSDoc `@typedef`.
 - Function-local JSDoc `@typedef` declarations are allowed everywhere; private
   ones keep `_` and do not escape as exported declaration aliases.
@@ -349,10 +380,10 @@ References to packaged `meta.f.mjs` are allowed.
   intentional breaking API change: repository importers use the new path, the
   changelog records the break, and no compatibility typedef/re-export preserves
   the old type entry point.
-- Moving a public runtime constant from `module.f.mjs` to `meta.f.mjs` is an
-  intentional breaking API change: repository runtime importers use the new
-  path, the changelog records the break, and no compatibility export/re-export
-  preserves the old runtime entry point.
+- Moving a public runtime constant from `module.f.mjs` to `meta.f.mjs` is also an
+  intentional breaking API change: repository importers use the new path, the
+  changelog records the break, and no compatibility export/re-export preserves
+  the old runtime entry point.
 - Private `_` helpers required to express public types also remain in `types.ts`
   and are not source exports merely because they are declaration helpers.
 - Other private file-scope types live in `private.ts` and keep `_`.
@@ -377,6 +408,14 @@ References to packaged `meta.f.mjs` are allowed.
 
 ### Related
 
+- [`../fsc/README.md`](../fsc/README.md) — current `_` leak-tolerance policy that
+  this migration supersedes once implemented.
+- [`../../todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md)
+  — current wait-for-`@internal`/`stripInternal` strategy; delete or narrow when
+  this migration lands.
+- [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
+  — upstream JSDoc `@typedef` stripping limitation that motivated the current
+  workaround.
 - [`detect-unexported-types-referenced-by-exported-types.md`](./detect-unexported-types-referenced-by-exported-types.md) — detect private type names that leak through exported types.
 - [`document-file-type-naming-conventions.md`](./document-file-type-naming-conventions.md) — document the repository's source-file roles.
 - [`../../todo/migrate-typescript-to-mjs.md`](../../todo/migrate-typescript-to-mjs.md) — current JavaScript/JSDoc implementation migration and `_` private-type convention.
