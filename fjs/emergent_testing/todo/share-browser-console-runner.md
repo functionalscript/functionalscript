@@ -99,6 +99,40 @@ it: the shared semantics first, with `fjs t` unchanged in behaviour and the
 browser file only calling into it; the layout moves after; anything genuinely
 new last, on its own.
 
+### Steps
+
+**One step per pull request.** The reverted attempt did the whole issue at once
+— 2646 insertions and 1408 deletions across 35 files — and that is why its
+arguments could not be separated: a question about scheduling became a question
+about the port. Each step below stands on its own, leaves both runners working,
+and is reviewable without the next one.
+
+- [x] **1. One name function.** The page names a leaf with `fmtImport`, the
+      function `fjs t` prints its result lines with, so the two runners spell a
+      test identically. This is the smallest possible piece of the issue and
+      also its most visible symptom.
+- [ ] **2. One `sandbox`.** Executing a proof body — the clock either side, the
+      `try`/`catch`, and the rule that only an actual `Promise` is awaited — is
+      the operation both runners must agree on exactly, and the one place where
+      they currently do not. Decide the cross-realm question
+      ([imports, promises and realms](imports-promises-realms.md)) as part of
+      it, or record the decision, but do not let a port make it silently.
+- [ ] **3. Common effects.** Move the host-independent operations (`all`,
+      `await`, `fetch`, `import`, `now`, `sandbox`) out of `effects/node` into a
+      shared module that `effects/node` re-exports unchanged, so nothing has to
+      move with them.
+- [ ] **4. A browser interpreter** for exactly those operations, with no
+      scheduling policy of its own.
+- [ ] **5. One reporter.** A normalized result the page and the terminal both
+      render, with no DOM and no terminal text in it.
+- [ ] **6. One skeleton.** The page's proof-tree walk is deleted and the shared
+      traversal runs it.
+- [ ] **7. The layout move**, and the website preparation program.
+
+Steps 2 and 6 are the ones that change behaviour, so they are the ones to keep
+smallest. Anything a step reveals goes to an issue and is fixed for both runners
+later, never inside the step.
+
 ### Preliminary design
 
 Share semantics, not host mechanics. The console runner should keep using the
@@ -229,8 +263,11 @@ are shared.
       of them.
 - [ ] Make the existing `collectTests`/path behavior the single source of truth
       for console and browser execution.
-- [ ] Share the test-name format, and prove both runners name the same leaf
-      identically.
+- [x] Share the test-name format, and prove both runners name the same leaf
+      identically. The browser report carries a `name` built by `fmtImport`, and
+      `nameMatchesTheConsoleRunner` pins it to that function rather than to a
+      spelling. Its `path` field is now redundant with `name` for every leaf and
+      should go when the report shape is decided.
 - [ ] Define normalized leaf, progress, infrastructure-error, totals, and report
       values without terminal or DOM fields.
 - [ ] Decide whether browser import/time/yield/publication justify

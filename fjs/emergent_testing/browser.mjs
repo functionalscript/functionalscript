@@ -18,7 +18,7 @@
  * @import { _TestAndPath } from './types.ts'
  */
 
-import { collectTests, fmtPath } from './module.f.mjs'
+import { collectTests, fmtImport, fmtPath } from './module.f.mjs'
 
 /** @type {(value: unknown) => string} */
 const text = value => {
@@ -57,7 +57,25 @@ const errorDetails = error => {
     return [fallback, fallback]
 }
 
-/** @typedef {{ readonly module: string, readonly path: string, readonly status: string, readonly duration: number, readonly message?: string, readonly stack?: string }} _BrowserTestResult */
+/**
+ * `name` is the test's identity, and it is deliberately not built here: it comes
+ * from `fmtImport`, the same function `fjs t` prints its result lines with, so
+ * the two runners name a leaf identically —
+ * `import("./a.proof.f.mjs").proof.x()` in both. A page that invented its own
+ * spelling would produce reports that cannot be diffed against the console
+ * runner's, which is the visible half of the two runners having drifted apart.
+ *
+ * It is a field rather than something the renderer derives, because `module`
+ * and `path` cannot always be recombined into one: a module-level failure and a
+ * proof exported as a bare function both carry an empty `path`, and only the
+ * code that produced the result knows which it had.
+ *
+ * `path` stays for the consumers that already read it. It is now redundant with
+ * `name` for every leaf, and belongs in the report-shape decision this issue's
+ * todo tracks rather than in this change.
+ *
+ * @typedef {{ readonly module: string, readonly path: string, readonly name: string, readonly status: string, readonly duration: number, readonly message?: string, readonly stack?: string }} _BrowserTestResult
+ */
 /** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
 
 /**
@@ -182,11 +200,12 @@ const runPromise = (value, fulfilled, rejected) => {
 /** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
 const runOne = (module, path, throws, fn, result) => {
     const start = performance.now()
+    const name = fmtImport(module, path)
     /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
     const passed = value => {
             const duration = performance.now() - start
             if (throws) {
-                const failure = { module, path: fmtPath(path), status: 'failed', duration,
+                const failure = { module, path: fmtPath(path), name, status: 'failed', duration,
                     message: 'Expected the proof to throw', stack: '' }
                 result(failure)
                 return [failure]
@@ -205,7 +224,7 @@ const runOne = (module, path, throws, fn, result) => {
             return Promise.all(children.map(([childPath, child]) =>
                 runOne(module, childPath, child.throws, child.fn, result)
             )).then(results => {
-                const success = { module, path: fmtPath(path), status: 'passed', duration }
+                const success = { module, path: fmtPath(path), name, status: 'passed', duration }
                 result(success)
                 return [success, ...results.flat()]
             })
@@ -214,12 +233,12 @@ const runOne = (module, path, throws, fn, result) => {
     const failed = error => {
             const duration = performance.now() - start
             if (throws) {
-                const success = { module, path: fmtPath(path), status: 'passed', duration }
+                const success = { module, path: fmtPath(path), name, status: 'passed', duration }
                 result(success)
                 return [success]
             }
             const [message, stack] = errorDetails(error)
-            const failure = { module, path: fmtPath(path), status: 'failed', duration, message, stack }
+            const failure = { module, path: fmtPath(path), name, status: 'failed', duration, message, stack }
             result(failure)
             return [failure]
         }
@@ -265,7 +284,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
     /** @type {(module: string, error: unknown) => () => Promise<readonly _BrowserTestResult[]>} */
     const unreadable = (module, error) => () => {
         const [message, stack] = errorDetails(error)
-        const failure = { module, path: '', status: 'failed', duration: 0, message, stack }
+        const failure = { module, path: '', name: module, status: 'failed', duration: 0, message, stack }
         announce(failure)
         return Promise.resolve([failure])
     }
@@ -372,7 +391,7 @@ export const startBrowserTestSources = (root, sources, importer) => {
             return publish(root, Promise.resolve(reportOf('infrastructure-error', duration,
                 rejected.map(({ source, error }) => {
                     const [message, stack] = errorDetails(error)
-                    return { module: source, path: '', status: 'failed', duration, message, stack }
+                    return { module: source, path: '', name: source, status: 'failed', duration, message, stack }
                 }))))
         }
         return startBrowserTests(root, loadedModules.flatMap(module =>
@@ -431,7 +450,7 @@ const renderResult = (document, result) => {
     const item = document.createElement('li')
     item.setAttribute('data-status', result.status)
     const detail = result.status === 'failed' ? `: ${result.message}\n${result.stack}` : ''
-    item.textContent = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.module} ${result.path} (${result.duration.toFixed(1)} ms)${detail}`
+    item.textContent = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.name} (${result.duration.toFixed(1)} ms)${detail}`
     return item
 }
 
