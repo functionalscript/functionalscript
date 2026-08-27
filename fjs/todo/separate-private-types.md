@@ -82,19 +82,31 @@ make private declaration cleanup an explicit packaging step:
    type-check;
 2. delete every generated `private.d.ts` before `npm pack` selects package
    contents;
-3. verify that no declaration which remains in the package references
-   `private.ts` or `private.d.ts`.
+3. run `npm pack`;
+4. validate the actual packed artifact:
+   - it contains neither authored `private.ts` nor generated `private.d.ts`;
+   - every shipped `.d.ts` / `.d.mts` is scanned and must not contain a module
+     reference to the directory's `private` type module;
+5. install the tarball in the existing clean TypeScript consumer and type-check
+   it as an independent semantic validation.
+
+The declaration scan should reject the private module rather than only one
+particular emitted spelling. For example, `./private.ts`, `./private.d.ts`, or a
+future equivalent spelling must all be treated as the same forbidden public
+dependency. This is a structural package check over the packed file set and the
+contents of all packed declarations, not a check limited to whichever public
+entry points the clean consumer happens to import.
 
 The cleanup must operate on generated artifacts only; authored `private.ts`
 remains available for source-tree type-checking. Neither `private.ts` nor the
 intermediate generated `private.d.ts` is shipped.
 
 Generated declarations such as `module.f.d.mts` may be produced from source that
-uses `private.ts`, but no shipped declaration may reference `private.ts` or a
-`private.d.ts` artifact. If an exported declaration needs a private type, either
-that type is actually public and belongs in `types.ts`, or the public declaration
-must be expressible without exposing the private type name. The package check
-must fail rather than retaining `private.d.ts` to make such a leak resolve.
+uses `private.ts`, but no shipped declaration may depend on the private type
+module. If an exported declaration needs a private type, either that type is
+actually public and belongs in `types.ts`, or the public declaration must be
+expressible without exposing the private type name. The package check must fail
+rather than retaining `private.d.ts` to make such a leak resolve.
 
 ### Tasks
 
@@ -109,17 +121,17 @@ must fail rather than retaining `private.d.ts` to make such a leak resolve.
       runtime JavaScript file for it.
 - [ ] Add a post-declaration-emit packaging step that deletes generated
       `private.d.ts` files before `npm pack`.
-- [ ] Do not ship authored `private.ts`.
-- [ ] Reject shipped generated declarations that reference `private.ts` or
-      `private.d.ts`; do not preserve `private.d.ts` merely to satisfy such a
-      reference.
+- [ ] Inspect the `npm pack` artifact and reject any packed `private.ts` or
+      `private.d.ts` file.
+- [ ] Scan every packed `.d.ts` / `.d.mts` and reject any module reference to a
+      directory's private type module, independent of the exact emitted suffix.
 - [ ] Add a fixture where `module.f.mjs` and `proof.f.mjs` use `_`-prefixed types
       from `private.ts` without declaring any `@typedef`; verify declaration emit
       creates the intermediate `private.d.ts`, cleanup removes it, generated
       public declarations contain no implementation-local typedef exports, and
-      the packed package contains no private type file.
-- [ ] Verify a clean TypeScript consumer can use the packed public API without
-      any private artifact present.
+      packed-artifact validation finds no private type file or declaration edge.
+- [ ] Verify a clean TypeScript consumer can install the packed tarball and use
+      the public API without any private artifact present.
 
 ### Acceptance criteria
 
@@ -130,8 +142,11 @@ must fail rather than retaining `private.d.ts` to make such a leak resolve.
   consequence of declaration emission.
 - Declaration emission may create `private.d.ts`, but the packaging cleanup
   removes it before package contents are selected.
-- Neither `private.ts` nor `private.d.ts` is shipped.
-- No shipped `.d.ts` / `.d.mts` file references `private.ts` or `private.d.ts`.
+- The packed tarball contains neither `private.ts` nor `private.d.ts`.
+- No packed `.d.ts` / `.d.mts` file depends on a directory's private type module,
+  regardless of the exact emitted module-specifier suffix.
+- A clean TypeScript consumer type-checks successfully against the packed
+  tarball after all private artifacts have been removed.
 
 ### Related
 
