@@ -48,7 +48,7 @@ three independent test frameworks.
 eventual isolated browser-test application root
 ├── index.html
 ├── _browser-test-entry.mjs
-├── fjs/emergent_testing/browser/module.mjs
+├── fjs/emergent_testing/browser.mjs
 └── authored or copied .f.mjs / .mjs modules
 ```
 
@@ -147,9 +147,8 @@ workers, or visual regression testing.
 - [ ] Create the JavaScript-only application root with a generated entry
       module covering every accepted module.
 - [x] Implement the first browser-compatible emergent-test runner and report
-      API, and share its proof semantics with `fjs t`: both runners now walk
-      proof trees through `emergent_testing/module.f.mjs` and differ only in
-      their `Reporter` and their effect interpreter.
+      API; follow up by sharing its pure semantics with `fjs t` in
+      [share-browser-console-runner](share-browser-console-runner.md).
 - [x] Implement the HTML UI and integrate it into the FunctionalScript
       website.
 - [ ] Add shared controller code for preparation, serving, report validation,
@@ -157,42 +156,14 @@ workers, or visual regression testing.
 - [ ] Implement `fjs browser-test` without any Playwright dependency.
 - [ ] Implement a Playwright Test adapter that dynamically resolves external
       `playwright/test` and reuses the shared controller.
-- [ ] Run the same application in Chromium, Firefox, and WebKit. Check the
-      yield `all` uses to give the page a turn while it runs
-      (`MessageChannel`, `../../effects/browser/module.mjs`) behaves in each,
-      and whether `scheduler.yield()` is worth preferring where it exists.
+- [ ] Run the same application in Chromium, Firefox, and WebKit.
 - [ ] Add the validation fixtures above; add CI only after proof bodies
-      demonstrably execute inside browsers. **That gate is now met** — the
-      unified runner was driven in Chromium over the generated page, 3435 proofs
-      linked and executed, so what still blocks a CI job is the controller
-      below, not evidence. Nothing in `.github/workflows/` starts a browser
-      today, and `npm run website` only *generates* the suite: it exits `0` with
-      a failing proof in the manifest, so the browser suite is not a gate
-      anywhere yet.
-- [ ] Keep a module-loading failure's stack. This section requires failures to
-      retain "module path, test path, message, and stack", and a *proof* failure
-      does — but a **load** failure no longer does. Linking is an `Import`
-      effect now, and its failure is an `IoError`, which is `{ code?, message }`:
-      `toIoError` drops the stack, so the report shows `stack: ''` where the
-      deleted runner showed the loader's own frames, which are what name the
-      importing module and line for a broken graph. The fix is one additive
-      optional field, `stack?: string` on `IoErrorInfo` in
-      `../../effects/common/types.ts`, filled by `toIoError` and read by
-      `infrastructureResult`. `IoError`'s rationale for dropping it — "a stack, a
-      `cause`, and arbitrary own properties do not survive a wire hop" — is right
-      about the last two and wrong about a stack, which is a string. Note that
-      reading `.stack` is a user-observable operation on a hostile value, the
-      same exposure `toIoError` already has reading `.message`.
-- [ ] Assert a floor on the number of proofs a run discovers. Nothing does
-      today, in any runner: a `collectTests` that silently skipped most leaves
-      would keep `fjs t` at exit `0`, and a suite that loses coverage cannot
-      report that it has.
+      demonstrably execute inside browsers.
 
 ### Related
 
 - [`.f.mjs` proof discovery and coverage](f-mjs-test-and-coverage.md)
-- [Hostile thrown values and cross-realm promises](hostile-proof-values.md)
-- [Browser timer precision](timer-precision.md)
+- [Shared browser/console runner core](share-browser-console-runner.md)
 - [Explicit browser test controls](browser-test-controls.md)
 - [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
 - [project roadmap](../../../todo/plan/roadmap.md)

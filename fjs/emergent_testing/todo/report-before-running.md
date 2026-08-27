@@ -24,28 +24,28 @@ Three things follow from that, and the third is the one that matters:
   the case where a name is worth more than a result, and it is the case where
   the current design has none.
 
-`Reporter` has no event for it: `result` is called with a `SandboxResult`, so it
+No reporter has an event for it: `result` is called with a `SandboxResult`, so it
 cannot be called before there is one.
 
 ### Preliminary design
 
-Add a `start` (or `begin`) event to `Reporter`, called with the file and path
+Add a `start` (or `begin`) event to the reporter, called with the file and path
 before the leaf is sandboxed, and let each host decide what to do with it:
 
 - **`fjs t`** prints the name, then completes the line with `ok`/`error` and the
-  duration when the result lands — the standard runner shape, and the format
-  `fmtImport` already produces. Interleaving is the thing to get right: leaves
+  duration when the result lands — the standard runner shape, in the format it
+  already prints. Interleaving is the thing to get right: leaves
   run concurrently, so a half-written line cannot be left open across another
   test's output. Either the name and its outcome are one deferred line with the
   name shown live elsewhere, or output is a two-column log that names the start
   and closes it by identifier.
 - **The browser page** renders a row in a pending state and settles it in place,
   which is the same list it renders now with one more state per row.
-- **`TestResult`** may not need to change at all: a start is an event, not a
-  result. Whether `report`/`reported` grow a sibling operation or the existing
-  one gains a status is part of the design.
+- **A result type** may not need to change at all: a start is an event, not a
+  result. Whether the reporter grows a sibling operation or its existing one
+  gains a status is part of the design.
 
-The `Reporter` change is small; the interleaving question is the real one, and
+The reporter change is small; the interleaving question is the real one, and
 it is the same question in both hosts, which is an argument for settling it in
 the shared core rather than twice.
 
@@ -61,7 +61,7 @@ the shared core rather than twice.
 
 ### Tasks
 
-- [ ] Add the start event to `Reporter` and call it from `runModule` before the
+- [ ] Add the start event to the reporter and call it before the
       leaf is sandboxed.
 - [ ] Decide the terminal format for concurrent output, and prove it.
 - [ ] Render a pending row in the browser page and settle it in place.
@@ -69,7 +69,8 @@ the shared core rather than twice.
 
 ### Related
 
-- [Share the whole runner](share-the-whole-runner.md) — reporting is one of the
-  things each host still does its own way.
+- [Share the browser and console proof runners](share-browser-console-runner.md)
+  — reporting is one of the things each host still does its own way, and this
+  is the same question twice until they share a reporter.
 - [Hostile proof values](hostile-proof-values.md) — the crash case this would
   make diagnosable, where today the run ends with no summary and no name.

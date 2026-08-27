@@ -2,34 +2,25 @@
  * Test-framework helpers for running and reporting FunctionalScript tests.
  *
  * Two parallel execution paths:
- * - `runModule` / `Reporter<O>` — self-hosted Effects runner; sandboxes each
- *   leaf call individually and accumulates `TestState`. **Both** `fjs t` and
- *   the browser runner (`./browser/module.f.mjs`) go through it: proof-tree
- *   walking, the structural `throw` expectation, promise resolution, path
- *   formatting and the totals are decided here once, and each host differs only
- *   in its `Reporter` and in the runner that interprets `sandbox`.
+ * - `runModule` / `Reporter<O>` — self-hosted Effects runner used by `fjs t`;
+ *   sandboxes each leaf call individually and accumulates `TestState`.
  * - `registerModule` / `TestContext` — registers tests with an external
  *   framework (Node `--test`, Bun, Deno) at import time; the framework owns
  *   scheduling and pass/fail counting.
  *
- * `recordingReporter` is the host-independent reporter of the first path: it
- * normalizes each leaf into a `TestResult` carrying no terminal text and no DOM
- * and hands it to the `report` operation, leaving presentation to the host.
- *
  * @module
  *
  * @import { Operation } from '../effects/types.ts'
- * @import { Effect, Func, NotImplemented } from '../effects/types.ts'
+ * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
- * @import { Report, Reported, TestFn, TestEntry, TestResult, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts'
+ * @import { TestFn, TestEntry, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts'
  * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
-import { allOk, awaitIfPromise, sandbox } from '../effects/common/module.f.mjs'
-import { errorExit, errorMessage, errorSummary, exitStep, test } from '../effects/node/module.f.mjs'
+import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import {
-    catchStep, do_, history, historyStep, mapStep, pureError, pureOk, resultStep, step,
+    catchStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step,
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
@@ -330,31 +321,14 @@ export const fmtPath = path =>
     path.reduce((/** @type {string} */ acc, k) => acc + fmtKey(k), '')
 
 /**
- * A fully-qualified test identifier, from a module and an **already-rendered**
- * key chain: `import("./math.proof.f.mjs").proof.add()`.
- *
- * This is the one place the format lives, and it takes the rendered chain
- * rather than a {@link Path} so that a reporter holding a {@link TestResult} —
- * whose `path` is already a string — names a test exactly as `fjs t` does. It
- * did not, and the browser page rendered `./math.proof.f.mjs .add` while the
- * terminal rendered the call expression: one identifier in two spellings, which
- * is the drift a shared runner is supposed to make impossible.
- *
- * @type {(file: string, path: string) => string}
- */
-export const fmtCall = (file, path) =>
-    `import(${JSON.stringify(file)}).proof${path}()`
-
-/**
- * {@link fmtCall} over a {@link Path} that has not been rendered yet, e.g.
- * `import("./math.proof.f.ts").proof.add()` or
- * `import("./a.proof.f.ts").proof.users[3].name()`.
+ * Formats a fully-qualified test identifier as a JS-like expression, e.g.
+ * `import("./math.proof.f.ts").add()` or `import("./a.proof.f.ts").users[3].name()`.
  * Self-contained per line — suitable for parallel output and as a CLI filter argument.
  *
  * @type {(file: string, path: Path) => string}
  */
 export const fmtImport = (file, path) =>
-    fmtCall(file, fmtPath(path))
+    `import(${JSON.stringify(file)}).proof${fmtPath(path)}()`
 
 /**
  * Renders a key chain for terminal output: `| ` per level of depth, followed
@@ -394,82 +368,6 @@ export const ghEscape = s =>
  */
 export const defaultTest = (file, path, { fn, throws }) =>
     mapStep(sandbox(fn), r => throws ? { ...r, result: invert(r.result) } : r)
-
-/** What a `throws` leaf that returned cleanly is reported as. */
-const expectedThrow = 'Expected the proof to throw'
-
-/**
- * The message and stack to report a thrown value by.
- *
- * An `Error` thrown from another realm — an iframe, a worker — is not
- * `instanceof Error` here, and its stack is the very thing a report exists to
- * carry. What the fields say is therefore the test, not where the value was
- * made: anything carrying `message` or `stack` is read as the failure it
- * describes, and everything else by its own text.
- *
- * @type {(error: unknown) => readonly[string, string]}
- */
-export const errorDetails = error => {
-    if (error !== null && (typeof error === 'object' || typeof error === 'function')
-        && ('message' in error || 'stack' in error)) {
-        const { message, stack } = /** @type {{ readonly message?: unknown, readonly stack?: unknown }} */ (error)
-        const described = String(message)
-        return [described, stack === undefined ? described : String(stack)]
-    }
-    const fallback = String(error)
-    return [fallback, fallback]
-}
-
-/**
- * Normalizes one leaf outcome into the {@link TestResult} every reporter
- * renders from.
- *
- * `r` is what {@link Reporter.test} answered, so a `throws` leaf has already
- * been inverted by {@link defaultTest}: an `error` there means the proof
- * returned when it was expected to throw, which is why that case is named
- * rather than described by the value it returned.
- *
- * @type {(file: string, path: Path, r: SandboxResult<unknown>, throws: boolean) => TestResult}
- */
-export const testResult = (file, path, { result, duration }, throws) => {
-    const [status, value] = result
-    const common = { module: file, path: fmtPath(path), duration }
-    if (status === 'ok') { return { ...common, status: 'passed' } }
-    const [message, stack] = throws ? [expectedThrow, ''] : errorDetails(value)
-    return { ...common, status: 'failed', message, stack }
-}
-
-/** Records one normalized leaf result as it lands.
- *
- * @type {Func<Report>}
- */
-export const report = do_('report')
-
-/** Reads back every result {@link report} has recorded.
- *
- * @type {Func<Reported>}
- */
-export const reported = do_('reported')
-
-/**
- * The reporter that answers in {@link TestResult}s instead of rendering: each
- * leaf is normalized and handed to the {@link report} operation, and the run's
- * consumer reads the sequence back with {@link reported}.
- *
- * **Its `summary` writes nothing**, and that is not an omission. Pass, fail and
- * total are `results.length` and a count of the failed ones, so a summary event
- * would restate what the recorded results already say — and a consumer that
- * derives them cannot disagree with itself about how many tests ran. The
- * terminal reporter keeps its own `summary` because a line of text is genuinely
- * not derivable from the results a user has already scrolled past.
- *
- * @type {Reporter<Report | Sandbox>}
- */
-export const recordingReporter = {
-    result: (file, path, r, throws) => report(testResult(file, path, r, throws)),
-    summary: () => pureOk(undefined),
-    test: defaultTest,
-}
 
 /** @type {(file: string, path: Path, color: string, label: string, duration: number) => string} */
 const fmtResultLine = (file, path, color, label, duration) =>

@@ -24,12 +24,16 @@ opposite reading of the same property name, one layer down, and both readings
 are correct in their own layer. Nothing says so in one place.
 
 **`instanceof Promise` is realm-local.** A promise built in an iframe, a worker
-or a `node:vm` context is not `instanceof Promise` here, so it is walked as a
-proof tree and a *rejected* one is reported as a pass. The deleted browser
-runner defended against this with `Symbol.species` shadowing and an intrinsic
-`then` — about 150 lines that were, fairly, called a magic mess; they were
-removed when the runners were unified, on the grounds that `fjs t` never had
-them. The defence is gone and the exposure is not.
+or a `node:vm` context is not `instanceof Promise` here, so under `fjs t` it is
+walked as a proof tree and a *rejected* one is reported as a pass. The browser
+runner defends against this with `Symbol.species` shadowing and an intrinsic
+`then` — about 150 lines (`../browser.mjs`, `../browser/species.proof.mjs`) that
+read as a magic mess and are, today, the only place the exposure is covered. So
+the two runners answer this question differently, and
+[sharing them](share-browser-console-runner.md) forces a single answer: keep the
+machinery, replace it with something statable, or accept `fjs t`'s exposure
+knowingly. Deciding that by default, inside a port, is how the coverage gets
+lost without anyone choosing to lose it.
 
 The three are usually discussed one at a time, which is why the interaction
 keeps being rediscovered: the thing that makes a namespace dangerous (`then` is
@@ -54,15 +58,16 @@ that is the point at which cross-realm promises stop being hypothetical.
   discovery handed the runner a plain record of proofs rather than the module
   namespace, the `then` export hazard would not reach it — and the `then`-export
   ban could become a check rather than a convention.
-- **Establish what the removed 150 lines actually bought**, from the proofs that
-  covered them (`species.proof.mjs` in this PR's history), so that whatever
-  replaces them is measured against the same cases rather than against a memory.
+- **Establish what the 150 lines actually buy**, from the proofs that cover them
+  (`../browser/species.proof.mjs`), so that whatever replaces them is measured
+  against the same cases rather than against a memory — and so that removing
+  them, if that is the answer, is a decision with a list attached.
 
 ### Constraints
 
 - An object carrying a `then` proof property must stay an ordinary proof tree.
 - Whatever is added must apply to every runner. A defence in one host only is
-  what unifying the runners just finished removing.
+  the state this is trying to leave.
 
 ### Related
 

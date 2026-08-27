@@ -6,7 +6,7 @@
 
 import type { Phantom } from '../../types/phantom/types.ts'
 import type { Nominal } from '../../types/nominal/types.ts'
-import type { OpResult } from '../common/types.ts'
+import type { OpResult } from '../node/types.ts'
 
 /** Nominal brand version for memory keys. */
 export type _MemKeyHash = '3f114fa6036a8da026b827f0c3e6d901f5e81ad9a320e431ccce31451892d286'

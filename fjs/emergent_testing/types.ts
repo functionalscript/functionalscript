@@ -5,7 +5,7 @@
  */
 
 import type { Effect, Operation } from '../effects/types.ts'
-import type { IoChannel, OpResult, SandboxResult } from '../effects/common/types.ts'
+import type { IoChannel, SandboxResult } from '../effects/node/types.ts'
 
 /** A zero-argument test function whose return value may contain sub-tests. */
 export type TestFn = () => unknown
@@ -67,47 +67,6 @@ export type Reporter<O extends Operation> = {
     readonly summary: (pass: number, fail: number, time: number) => Effect<O, void, IoChannel>
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>, IoChannel>
 }
-
-/** How a leaf test ended. */
-export type TestStatus = 'passed' | 'failed'
-
-/**
- * One leaf result, normalized: which module it came from, the property chain
- * that names it, how it ended, and how long it took. A failure also carries the
- * message and stack it should be reported by.
- *
- * **It carries no terminal text and no DOM.** This is what a runner *observes*,
- * so every reporter can render it its own way — coloured lines on a TTY, a
- * `::error` annotation on GitHub, a list item in a page — and an automated
- * consumer can read it off the wire. `path` is already rendered by
- * {@link fmtPath} rather than left as a `Path`, because the chain is what a
- * reader identifies the test by and nothing downstream walks it again.
- */
-export type TestResult = {
-    readonly module: string
-    readonly path: string
-    readonly status: TestStatus
-    readonly duration: number
-    readonly message?: string
-    readonly stack?: string
-}
-
-/**
- * Records one normalized leaf result the moment it lands.
- *
- * It is an *operation* rather than a value threaded through the run because the
- * results arrive concurrently: `all` performs a module's leaves at once, so a
- * read-modify-write over shared memory would interleave and lose them. A
- * runner's handler appends in one step, and {@link Reported} reads the whole
- * sequence back once the run is over.
- */
-export type Report = readonly['report', (result: TestResult) => OpResult<void>]
-
-/** Every result {@link Report} has recorded, in the order they landed. */
-export type Reported = readonly['reported', () => OpResult<readonly TestResult[]>]
-
-/** The pair of operations a recording runner implements. */
-export type ReportOp = Report | Reported
 
 /** @internal */
 export type _TestState = {

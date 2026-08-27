@@ -10,7 +10,7 @@ import { empty, isVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, step as ioStep } from "../module.f.mjs"
-import { both, exitStep, fetch, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
+import { both, errorMessage, errorSummary, exitStep, fetch, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, toIoError, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -50,8 +50,77 @@ const assertOk = (r, expected) => {
 }
 
 export const proof = {
-    // `toIoError`, `isNotFound`, `errorMessage` and `errorSummary` are proved
-    // in `../common/proof.f.mjs`, beside the module that now defines them.
+    // The one boundary where a runner's `catch` becomes effect data: whatever
+    // was thrown is reduced to a code (when the host attached a string one)
+    // and a message.
+    toIoError: {
+        error: () => {
+            assertIoMessage(toIoError(new Error('boom')), 'boom')
+        },
+        withCode: () => {
+            const e = toIoError(Object.assign(new Error('missing'), { code: 'ENOENT' }))
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, 'ENOENT', e)
+            assertEq(e[1].message, 'missing', e)
+        },
+        // A thrown non-`Error` still normalizes: the value's string form is the
+        // message, and there is no code to carry.
+        string: () => {
+            const e = toIoError('plain')
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+            assertEq(e[1].message, 'plain', e)
+        },
+        null: () => {
+            assertIoMessage(toIoError(null), 'null')
+        },
+        // An object whose `code` is not a string is not an OS error code, so it
+        // is dropped rather than carried as one.
+        nonStringCode: () => {
+            const e = toIoError({ code: 42 })
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+        },
+        noCode: () => {
+            const e = toIoError({})
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+        },
+    },
+    isNotFound: {
+        enoent: () => {
+            assert(isNotFound(ioError({ code: 'ENOENT', message: 'no such file or directory' })))
+        },
+        otherCode: () => {
+            assert(!isNotFound(ioError({ code: 'EACCES', message: 'permission denied' })))
+        },
+        // A runner that cannot perform the operation has not looked for the
+        // path at all, so a missing handler is never "not found".
+        notImplemented: () => {
+            assert(!isNotFound(['notImplemented', 'readFile']))
+        },
+    },
+    errorMessage: {
+        io: () => {
+            assertEq(errorMessage(ioError({ message: 'disk full' })), 'disk full')
+        },
+        notImplemented: () => {
+            assertEq(errorMessage(['notImplemented', 'readFile']), 'operation not implemented: readFile')
+        },
+    },
+    errorSummary: {
+        // The distinction that matters: `errorMessage` hands back the host's
+        // words, which is where the path lives; `errorSummary` never does.
+        io: () => {
+            assertEq(errorSummary(ioError({ code: 'ENOENT', message: "no such file or directory, scandir '/home/u/.cas'" })), 'io error: ENOENT')
+        },
+        ioWithoutCode: () => {
+            assertEq(errorSummary(ioError({ message: "cannot read '/home/u/.cas'" })), 'io error')
+        },
+        notImplemented: () => {
+            assertEq(errorSummary(['notImplemented', 'readdir']), 'operation not implemented: readdir')
+        },
+    },
     exitStep: {
         // The exit-code policy a `NodeProgram` ends with: success is `0`...
         ok: () => {

@@ -66,5 +66,5 @@ module or a default query parameter.
 
 - [Browser testing](browser-testing.md) — the shared browser application and
   report contract.
-- [`emergent_testing/browser`](../browser/module.f.mjs) — the pure application
-  the controls drive; runner state is already separate from DOM presentation.
+- [Shared browser/console runner core](share-browser-console-runner.md) — future
+  separation of pure runner state from DOM controls.

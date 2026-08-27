@@ -144,41 +144,6 @@ conflated in either direction — a capability the runner merely lacks is answer
 with `NotImplemented`, never by killing the program, and a refusal to continue
 is an interruption, never dressed up as `NotImplemented`.
 
-## Where an operation lives
-
-An operation belongs to the host that alone can perform it, and to
-[`./common/`](./common/module.f.mjs) when no host owns it. `all`, `await`,
-`fetch`, `import`, `now` and `sandbox` describe what a JavaScript *realm* can do
-— hold a value, wait for a promise, measure a call, link a module — so the Node
-runner, the browser runner and the virtual runner each implement the same
-command at the same contract. `readFile`, `write`, `exec`, `createServer` and
-`test` describe what a *host* can do, and stay in [`./node/`](./node/types.ts).
-
-The line is not bookkeeping. It is what lets a program state that it needs
-nothing host-specific and then be run by either host: the browser proof runner
-(`fjs/emergent_testing/browser/module.f.mjs`) performs only `CommonOp` plus two
-operations of its own, which is why it and `fjs t` can share every line of proof
-semantics between them. `./node/` re-exports every common name, so a consumer
-that already imports one module for `readFile` keeps importing it for `sandbox`.
-
-**Part of the interpretation is common too**, and
-[`./common/module.mjs`](./common/module.mjs) holds it: `sandbox`'s
-`try`/`catch`-and-measure, `await`'s promise test, and the `io` wrapper that
-turns a thrown value into an `IoError`. None of them touches a host — a bare
-JavaScript realm has `Promise`, a clock and a `catch` — and `sandbox` in
-particular is the operation that actually *executes* a proof body, so a runner
-that spelled it its own way would make a test suite mean different things in
-different hosts. The two runners did have it byte-identical, with a comment in
-one saying it matched the other; a comment is not a mechanism.
-
-An interpreter lives beside the host it interprets — [`./node/module.mjs`](./node/module.mjs),
-[`./browser/module.mjs`](./browser/module.mjs) — and the browser one implements
-`CommonOp` and nothing else. There is no browser filesystem and no browser
-stdout, and inventing spellings for them would describe a host that does not
-exist; a page that needs an operation of its own composes its handlers on top of
-that map, which is why `browserOperationMap` takes the composed runner rather
-than closing over one of its own.
-
 ## Leaving the layer
 
 Not every consumer is ready to compose. Two named policies exist so that a site

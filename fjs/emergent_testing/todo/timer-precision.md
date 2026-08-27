@@ -5,8 +5,7 @@
 
 ### Problem
 
-`sandbox` measures every proof the same way in every host — read the clock,
-run the body, read it again:
+`sandbox` measures a proof by reading the clock either side of the body:
 
 ```js
 const before = performance.now()
@@ -34,10 +33,10 @@ built by summing thousands of such rows accumulates the rounding rather than
 cancelling it, so the sum can be off by a large multiple in either direction
 depending on which way each read rounded.
 
-Note this is not the same concern as
-[`now`'s monotonicity](../../effects/browser/module.mjs), which is already
-handled: `performance.timeOrigin + performance.now()` cannot go backwards. A
-monotonic clock can still be a coarse one, and this is about the resolution.
+Note this is not the same concern as monotonicity. `performance.now()` cannot
+go backwards, which is why it is the right clock for a duration; a wall clock
+would be worse. A monotonic clock can still be a coarse one, and this is about
+the resolution.
 
 ### Preliminary design
 
@@ -71,9 +70,10 @@ before changing the measurement.
 ### Constraints
 
 - `sandbox` is the operation that executes a proof body, and both runners must
-  agree on it exactly or a suite means different things in different hosts.
-  Any change to how it measures is a change to the shared contract, not a
-  browser-local tweak.
+  agree on it exactly or a suite means different things in different hosts. Any
+  change to how it measures is a change for both, not a browser-local tweak —
+  and it is very likely `fjs t` has a milder version of the same problem, since
+  a coarse clock is only easier to notice in a browser.
 - The clock must stay monotonic. Whatever replaces or supplements
   `performance.now()` cannot reintroduce wall-clock time.
 - A duration must not cost a second `sandbox` call or an extra scheduling
@@ -99,5 +99,6 @@ before changing the measurement.
   report contract these durations belong to.
 - [Report a test's name before running it](report-before-running.md) — the
   other thing wrong with what a row shows.
-- [Share the whole runner](share-the-whole-runner.md) — `sandbox` is shared,
-  so this is one decision, not two.
+- [Share the browser and console proof runners](share-browser-console-runner.md)
+  — `sandbox` is the operation that executes a proof body in both hosts, so its
+  measurement is one decision, not two.
