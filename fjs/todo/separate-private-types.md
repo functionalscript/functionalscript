@@ -1,4 +1,4 @@
-## Separate private types into `private.ts`
+## Keep private types out of public declarations
 
 **Priority:** P2
 **Status:** open
@@ -24,22 +24,33 @@ implementation-private names leak into generated `.d.mts` files. The existing
 leading-`_` convention marks those names private by contract, but the declarations
 still contain noise and make the source/package boundary less clear.
 
-The goal is to give every file-scope named type a deliberate home while keeping
-public declarations self-contained.
+The requirement is to keep the public declaration/API surface clean and
+self-contained. `private.ts` and `meta.f.mjs` are **optional tools** for reaching
+that result; they are not file roles that every module must introduce.
 
 ### Proposal
 
-Use this directory convention where needed:
+Use these file roles when they improve the concrete design:
 
 ```text
 module.f.mjs  # FunctionalScript implementation
 module.mjs    # host integration, when needed
 proof.f.mjs   # FunctionalScript proofs
 proof.mjs     # host proofs, when needed
-meta.f.mjs    # runtime metadata constants used to define/derive types
+meta.f.mjs    # optional runtime metadata/data extracted to support type structure
 types.ts      # public declaration closure
-private.ts    # other implementation-private file-scope types
+private.ts    # optional implementation-private file-scope TypeScript
 ```
+
+The design target is the public boundary, not the presence of particular files:
+
+- `types.ts` describes the public declaration closure;
+- use `private.ts` when moving implementation-private file-scope types out of the
+  public declaration surface makes the structure cleaner;
+- use `meta.f.mjs` when extracting runtime metadata/data lets TypeScript types or
+  proofs depend on it without reversing the dependency order;
+- do not create either file mechanically when a simpler organization already
+  keeps the public surface clean.
 
 No authored `.mjs` file anywhere in the repository may declare a **file-scope**
 JSDoc `@typedef`, regardless of directory, basename, or whether the file is
@@ -52,7 +63,7 @@ Private type and runtime constant names continue to start with `_`.
 
 #### Dependency order
 
-Keep the source dependency order:
+When these roles are present, keep the source dependency order:
 
 ```text
 meta.f.mjs <- types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs
@@ -61,21 +72,21 @@ meta.f.mjs <- types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mj
 The arrow points from a dependency to a dependent: a file may depend on files to
 its left, but moving a type proof must not introduce a reverse edge merely to
 keep the proof near the declaration it checks. The order is a layering rule, not
-a requirement that every file directly import its immediate neighbor.
+a requirement that every file or edge exists.
 
 The file-placement conventions below are defaults, not a mechanical classifier.
 Analyze concrete cases and prefer the simplest organization that preserves this
-dependency order. In particular, do not force a recursive RTTI constant into
-`meta.f.mjs` when expressing its recursion requires a named annotation from
-`types.ts`; keeping that constant downstream can be cleaner than creating a
-`meta.f.mjs -> types.ts` reverse edge.
+dependency order and the clean public boundary. In particular, do not force a
+recursive RTTI constant into `meta.f.mjs` when expressing its recursion requires
+a named annotation from `types.ts`; keeping that constant downstream can be
+cleaner than creating a `meta.f.mjs -> types.ts` reverse edge.
 
 Place assertions in the earliest layer that can legitimately see everything they
 assert without reversing this order:
 
 - invariants entirely inside the public type model belong in `types.ts`;
-- implementation-private type invariants belong in `private.ts` when they do not
-  need downstream implementation values;
+- implementation-private type invariants may use `private.ts` when that is the
+  cleanest place and they do not need downstream implementation values;
 - assertions about `module.f.mjs` implementations, including function signatures,
   belong downstream in `proof.f.mjs`, normally as function-local typedef proofs;
 - host-specific implementation assertions belong downstream in `proof.mjs`.
@@ -116,9 +127,10 @@ illustrate the intended approach:
   reversing the dependency order.
 
 These examples do not establish a special rule for every recursive type. They
-show the process: inspect the cycle, preserve the dependency direction, and move
-verification downstream when that produces a clearer structure. Narrow
-exceptions may still be needed after the concrete case has been analyzed.
+show the process: inspect the cycle, preserve the dependency direction, move
+verification downstream when useful, and introduce `private.ts` / `meta.f.mjs`
+only when they simplify the result. Narrow exceptions may still be needed after
+the concrete case has been analyzed.
 
 #### Public declaration closure
 
@@ -132,9 +144,9 @@ The default placement guide is:
 ```text
 public type                                         -> types.ts
 private `_` helper used by any public declaration   -> types.ts
-other file-scope private `_` type                   -> private.ts
+other file-scope private `_` type                   -> private.ts, when useful
 function-local typedef                              -> allowed in place
-runtime metadata constant used to define types      -> meta.f.mjs, when layering permits
+runtime metadata/data extracted for type structure  -> meta.f.mjs, when useful
 ```
 
 For example, a helper used by a public type stays in `types.ts`:
@@ -155,18 +167,19 @@ export const find: <T>(cmp: Cmp<T>) =>
 ```
 
 then `_SortedArray` is part of the public declaration closure and must remain in
-`types.ts` (or be inlined into the public declaration). Moving it to `private.ts`
-would make a shipped declaration depend on a declaration module that packaging
-removes.
+`types.ts` (or be inlined into the public declaration). Moving it to
+`private.ts` would make a shipped declaration depend on a declaration module
+that packaging removes.
 
 `types.ts` must never import `private.ts`. If moving a private helper to
 `private.ts` would create a `types.ts -> private.ts` edge or cause any generated
 public declaration to reference `private.ts`, keep or inline that helper in
 `types.ts` instead.
 
-This should keep `private.ts` uncommon in `types.ts`-heavy modules: it is for
+`private.ts` therefore should be uncommon. It is a tool for separating
 implementation-private file-scope types that are outside the public declaration
-closure, not a mechanical destination for every `_` name.
+closure; it is not a required companion and not a mechanical destination for
+every `_` name.
 
 #### Function-local typedefs
 
@@ -198,26 +211,20 @@ exported aliases in generated `.d.ts` / `.d.mts` files.
 
 #### `meta.f.mjs`
 
-`meta.f.mjs` is the preferred home for runtime metadata constants whose
-literal/inferred values are part of the type-level model when they can live there
-without reversing the dependency order. They do not need to be RTTI, and normal
-runtime code may also consume them. Typical cases are RTTI descriptors,
+`meta.f.mjs` is an optional tool for extracting runtime metadata/data when doing
+so improves the type/declaration boundary. Typical cases are RTTI descriptors,
 `as const`-style data, and lookup tables whose literal shape is used to define or
 derive TypeScript types.
 
-This is a convention, not an absolute rule. A recursive metadata constant that
-needs a named annotation from `types.ts` may remain in `module.f.mjs` rather than
-creating a reverse dependency. In such a case, move consistency assertions to a
-downstream proof function when that removes the reverse edge or file-scope typedef
-leak. The `media/revision` and `edag` examples above are the current models for
-this analysis.
+Do not create `meta.f.mjs` merely because a runtime value participates in a type
+proof. A recursive metadata constant that needs a named annotation from
+`types.ts` may remain in `module.f.mjs`; ordinary implementation functions stay
+in `module.f.mjs` even when a proof inspects their signature with `typeof`,
+`ReturnType`, or `Parameters`. Move verification downstream when that is the
+cleaner solution. The `media/revision`, `edag`, and `effects` examples above are
+the current models for this analysis.
 
-`meta.f.mjs` is **not** a destination for ordinary implementation functions just
-because a type proof inspects their signature with `typeof`, `ReturnType`, or
-`Parameters`. Such functions stay in `module.f.mjs`; place their signature proofs
-downstream according to the dependency-order rule above.
-
-Examples of metadata include RTTI values:
+When `meta.f.mjs` is useful, examples include RTTI values:
 
 ```ts
 import type { type } from './meta.f.mjs'
@@ -273,12 +280,13 @@ import type { metadataValue } from './meta.f.mjs'
 Do not use runtime `import { ... }`, namespace imports, or side-effect imports in
 `types.ts` or `private.ts`.
 
-`meta.f.mjs` is executable FunctionalScript source. Emergent testing already
-loads every `*.f.mjs` during normal test discovery, including modules without a
-`proof` export. Add `meta.f.mjs` to the Node and Deno coverage filters so the
-existing coverage thresholds apply to it. How a particular metadata module
-satisfies those thresholds is left to its developer; this convention does not
-prescribe proof imports, calls, or other coverage-specific implementation choices.
+When present, `meta.f.mjs` is executable FunctionalScript source. Emergent
+testing already loads every `*.f.mjs` during normal test discovery, including
+modules without a `proof` export. Add `meta.f.mjs` to the Node and Deno coverage
+filters so the existing coverage thresholds apply to it. How a particular
+metadata module satisfies those thresholds is left to its developer; this
+convention does not prescribe proof imports, calls, or other coverage-specific
+implementation choices.
 
 #### Breaking migration; no compatibility re-exports
 
@@ -286,7 +294,7 @@ Moving a public file-scope type from any authored `.mjs` file to `types.ts`
 changes its public type import path. Moving a public runtime constant from
 `module.f.mjs` to `meta.f.mjs` changes its runtime import path.
 
-Treat both as intentional breaking API changes:
+Treat either move as an intentional breaking API change when it occurs:
 
 ```text
 public type:     ./<source>.mjs  -> ./types.ts
@@ -298,16 +306,16 @@ points with compatibility typedefs, exports, or re-exports.
 
 #### Declaration emission and packaging
 
-`private.ts` remains in the normal TypeScript program so its declarations and all
-JSDoc `@import` users are checked. Therefore normal declaration emit may produce
-an intermediate `private.d.ts`.
+If `private.ts` is used, it remains in the normal TypeScript program so its
+declarations and all JSDoc `@import` users are checked. Normal declaration emit
+may therefore produce an intermediate `private.d.ts`.
 
-Do not try to exclude `private.ts` from the TypeScript program. Instead make
-private-declaration cleanup the final `prepack` step:
+Do not try to exclude `private.ts` from the TypeScript program. Instead, when
+such files exist, make private-declaration cleanup the final `prepack` step:
 
 1. emit declarations;
 2. run the existing declaration round-trip type-check;
-3. delete every generated `private.d.ts` as the final `prepack` command;
+3. delete generated `private.d.ts` files as the final `prepack` command;
 4. let `npm pack` select files after `prepack` completes;
 5. inspect the actual tarball;
 6. install the tarball in a clean TypeScript consumer and type-check it.
@@ -331,9 +339,10 @@ not a TypeScript import or module dependency, so it may remain after
 
 Validation of the packed artifact must prove:
 
-- neither authored `private.ts` nor generated `private.d.ts` is shipped;
+- authored `private.ts` and generated `private.d.ts` are not shipped when those
+  files are used during source checking;
 - no packed `.d.ts` / `.d.mts` has a **semantic TypeScript dependency** on a
-  directory's private type module.
+  private type module that is not shipped.
 
 A raw text search for `private.ts` / `@import` is therefore incorrect because it
 would reject harmless retained comments. If a structural scan is used, it must
@@ -358,39 +367,36 @@ The `.mjs` typedef prohibition is repository-wide, so the implementation must
 also update the root [`../../AGENTS.md`](../../AGENTS.md). The root policy should
 state that no authored `.mjs` anywhere in the repository may contain a file-scope
 JSDoc `@typedef`. `fjs/AGENTS.md` should then document the additional `fjs/`-specific
-file roles and dependency order:
+file roles and dependency order, making clear that `private.ts` and `meta.f.mjs`
+are optional tools rather than required companions.
 
-```text
-types.ts    # public declaration closure
-private.ts  # implementation-private file-scope types outside that closure
-```
-
-Both remain type-only modules and use named `import type { ... }` imports. Do not
-leave a rule that only governs `fjs/` while root-level authored `.mjs` files such
-as `todo/proof.f.mjs` remain outside the convention.
+Authored TypeScript type modules remain type-only and use named
+`import type { ... }` imports. Do not leave a rule that only governs `fjs/` while
+root-level authored `.mjs` files such as `todo/proof.f.mjs` remain outside the
+convention.
 
 ### Tasks
 
-- [ ] Document `types.ts`, `private.ts`, and `meta.f.mjs` beside the existing
-      JavaScript/FunctionalScript file conventions, including host `.mjs` and
-      descriptive companions.
+- [ ] Document `private.ts` and `meta.f.mjs` as optional tools for cleaning the
+      public declaration/API surface, not required companion files.
 - [ ] Document and preserve the dependency order
-      `meta.f.mjs <- types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`.
-- [ ] Treat the placement table as a default design guide, not a mechanical rule;
-      analyze recursive or otherwise constrained metadata case by case before
-      introducing exceptions or reverse dependencies.
+      `meta.f.mjs <- types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`
+      for the roles that are present.
+- [ ] Treat file placement as a design guide, not a mechanical rule; analyze
+      recursive or otherwise constrained cases before introducing files,
+      exceptions, or reverse dependencies.
 - [ ] Update root `AGENTS.md` to prohibit file-scope JSDoc `@typedef` in every
       authored `.mjs` file anywhere in the repository.
-- [ ] Update `fjs/AGENTS.md` to allow `types.ts` and `private.ts` as the authored
-      TypeScript type-module roles and document the public-declaration-closure and
-      dependency-order rules for `fjs/`.
+- [ ] Update `fjs/AGENTS.md` to document `types.ts`, optional `private.ts`, the
+      optional `meta.f.mjs` role, the public-declaration-closure rule, and the
+      dependency-order rule for `fjs/`.
 - [ ] Update `fjs/fsc/README.md` and delete or narrow
       `todo/blocked/jsdoc-typedef-strip-internal.md` so they no longer prescribe
       a conflicting private-JSDoc strategy.
-- [ ] Prohibit file-scope JSDoc `@typedef` in every authored `.mjs` repository-wide;
-      allow function-local `@typedef` everywhere.
+- [ ] Prohibit file-scope JSDoc `@typedef` in every authored `.mjs`
+      repository-wide; allow function-local `@typedef` everywhere.
 - [ ] Migrate existing authored `.mjs` violations outside `fjs/`, including
-      `todo/proof.f.mjs`, using the same placement rules.
+      `todo/proof.f.mjs`, using the same public-boundary and layering principles.
 - [ ] Keep the leading `_` convention for every private type and private runtime
       metadata constant name.
 - [ ] Move public file-scope named types from authored `.mjs` JSDoc into
@@ -398,9 +404,9 @@ as `todo/proof.f.mjs` remain outside the convention.
 - [ ] Keep or inline every private `_` helper required transitively by any
       shipped public declaration in `types.ts`, including helpers appearing in
       exported runtime-value/function signatures.
-- [ ] Move only other implementation-private file-scope types to `private.ts`;
-      do not create reverse dependency edges or public-declaration -> `private.ts`
-      dependencies.
+- [ ] Use `private.ts` only when separating implementation-private file-scope
+      types from the public declaration closure is the cleanest solution; do not
+      create it mechanically or create reverse/public-declaration dependencies.
 - [ ] Review type assertions that currently reverse the dependency order. Move
       implementation-signature assertions downstream into proof files where
       possible; specifically, move the `fjs/effects/types.ts` assertions over
@@ -415,45 +421,42 @@ as `todo/proof.f.mjs` remain outside the convention.
       preserve layering and move file-scope consistency asserts into proof
       functions.
 - [ ] Keep lexical type-proof typedefs inside their functions.
-- [ ] Prefer `meta.f.mjs` for runtime metadata constants used to define/derive
-      TypeScript types when that placement preserves the dependency order,
-      including RTTI values, non-RTTI literal constants, and runtime-used tables;
-      prefix private ones with `_` even when they must be exported for
-      sibling-module access. Do not move ordinary implementation functions, or
-      recursively annotated metadata that would reverse the dependency order,
-      merely because a proof inspects their type.
-- [ ] Move file-scope private proofs over metadata constants to `private.ts`,
+- [ ] Use `meta.f.mjs` only when extracting runtime metadata/data improves the
+      public/type structure while preserving dependency order; private extracted
+      constants use `_`. Do not move ordinary implementation functions or
+      recursively annotated metadata merely because a proof inspects their type.
+- [ ] Move file-scope private proofs over metadata/constants to `private.ts`,
       `types.ts`, or a downstream proof function according to the concrete
       dependency graph; do not force one placement mechanically.
 - [ ] Treat moves of public runtime constants to `meta.f.mjs` as breaking API
-      changes; update runtime importers and changelog, with no compatibility
-      re-exports.
-- [ ] Require every import in `types.ts` and `private.ts` to use named
-      `import type { ... }`.
+      changes when such moves are chosen; update runtime importers and changelog,
+      with no compatibility re-exports.
+- [ ] Require every import in authored TypeScript type modules (`types.ts` and
+      `private.ts` when present) to use named `import type { ... }`.
 - [ ] Update Node and Deno coverage filters to include `meta.f.mjs`; emergent
       testing already loads it, and the existing coverage thresholds apply.
-- [ ] Keep `private.ts` in normal TypeScript checking without runtime JS emit.
-- [ ] Make deletion of generated `private.d.ts` the final `prepack` step.
+- [ ] When `private.ts` is used, keep it in normal TypeScript checking without
+      runtime JS emit and delete generated `private.d.ts` files as the final
+      `prepack` step.
 - [ ] Do not rewrite/post-process emitted declarations to remove retained JSDoc
       `@import` comments; they are non-semantic in `.d.ts` / `.d.mts`.
-- [ ] Inspect the `npm pack` artifact for private files and **semantic** private
-      declaration dependencies, ignoring retained comments.
-- [ ] Add a fixture covering:
+- [ ] Inspect the `npm pack` artifact for unshipped private declaration
+      dependencies, ignoring retained comments.
+- [ ] Add fixtures covering both optional tools and cases that do not need them:
       - a private helper required by a public type alias;
       - a private helper required by an exported runtime value/function
         declaration (the `_SortedArray`/`find` shape);
-      - an implementation-private type in `private.ts`;
+      - an implementation-private type separated with `private.ts`;
       - a function-local typedef depending on a lexical value;
       - an implementation-function signature assertion placed downstream in a
-        proof rather than creating a `types.ts -> module.f.mjs` dependency;
+        proof rather than introducing `private.ts`/`meta.f.mjs` unnecessarily;
       - a recursive metadata case whose named type annotation keeps it in
         `module.f.mjs` while its consistency assert moves into a proof function;
       - a FunctionalScript descriptive companion such as `testlib.f.mjs` whose
-        former file-scope typedef is moved to the appropriate TypeScript file;
-      - a non-FunctionalScript authored `.mjs` file whose former file-scope
-        typedef is moved to the appropriate TypeScript file;
+        former file-scope typedef is moved to the appropriate place;
+      - a non-FunctionalScript authored `.mjs` case;
       - a root/outside-`fjs/` authored `.mjs` case;
-      - `meta.f.mjs` with RTTI, literal, runtime-used, and private `_` constants.
+      - a case where `meta.f.mjs` is useful, including a private `_` constant.
 - [ ] Include a retained JSDoc `@import ... './private.ts'` comment in an emitted
       declaration fixture and verify the clean consumer succeeds without
       `private.ts`; this proves comments do not create package dependencies.
@@ -464,14 +467,16 @@ as `todo/proof.f.mjs` remain outside the convention.
 
 ### Acceptance criteria
 
+- The public declaration/API surface is clean and self-contained; `private.ts`
+  and `meta.f.mjs` are optional tools, not required companion files.
 - The dependency order
   `meta.f.mjs <- types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`
-  is preserved; type assertions do not create reverse edges merely for
-  convenience.
-- File placement follows the dependency order and concrete design needs rather
-  than a blanket syntactic rule; recursive metadata may remain in `module.f.mjs`
-  when moving it to `meta.f.mjs` would require a `types.ts` dependency, with
-  consistency assertions moved downstream when appropriate.
+  is preserved for roles that are present; type assertions do not create reverse
+  edges merely for convenience.
+- File placement follows concrete design needs rather than a blanket syntactic
+  rule; recursive metadata may remain in `module.f.mjs` when moving it to
+  `meta.f.mjs` would require a `types.ts` dependency, with consistency assertions
+  moved downstream when appropriate.
 - No authored `.mjs` file anywhere in the repository contains a file-scope JSDoc
   `@typedef`, regardless of directory, basename, FunctionalScript marker, or role.
 - Function-local JSDoc `@typedef` is allowed everywhere; private names keep `_`
@@ -479,37 +484,42 @@ as `todo/proof.f.mjs` remain outside the convention.
 - `types.ts` is the public declaration closure: public types plus any private
   helpers required transitively to express shipped declarations of public types
   or exported runtime values/functions.
-- `private.ts` contains only implementation-private file-scope types outside the
-  public declaration closure and is expected to be used sparingly where
-  `types.ts` already describes most of a module's type surface.
-- `types.ts` and every packed public declaration are independent of `private.ts`.
+- If present, `private.ts` contains only implementation-private file-scope types
+  outside the public declaration closure. It is used only when that separation
+  improves the design.
+- `types.ts` and every packed public declaration are independent of unshipped
+  private type modules.
 - Assertions about ordinary implementation-function signatures live downstream
   of `module.f.mjs` (normally inside proof functions with function-local typedefs
   in `proof.f.mjs`) rather than forcing those functions into `meta.f.mjs` or
   importing implementation functions into `types.ts`.
-- Every import in `types.ts` and `private.ts` uses named `import type { ... }`.
-- Runtime metadata constants used to define/derive TypeScript types normally live
-  in `meta.f.mjs` when the dependency order permits it. Private constants use
-  leading `_` even when exported for sibling-module access; `_` marks them private
-  by contract. Emergent testing loads `meta.f.mjs`, Node and Deno coverage filters
-  include it, and the existing coverage thresholds apply; this convention does
-  not prescribe how developers satisfy those thresholds.
-- Moving public types to `types.ts` and public runtime metadata to `meta.f.mjs`
-  are breaking migrations: importers and changelog are updated and no
-  compatibility re-exports preserve old entry points.
-- Declaration emit may create `private.d.ts`; final-`prepack` cleanup removes it
+- Every import in authored TypeScript type modules uses named
+  `import type { ... }`.
+- When `meta.f.mjs` is used, it contains runtime metadata/data extracted because
+  that improves the type/public structure while preserving dependency order.
+  Private constants use leading `_` even when exported for sibling-module
+  access; `_` marks them private by contract. Emergent testing loads
+  `meta.f.mjs`, Node and Deno coverage filters include it, and the existing
+  coverage thresholds apply; this convention does not prescribe how developers
+  satisfy those thresholds.
+- Moving public types to `types.ts` or public runtime metadata to `meta.f.mjs`
+  are breaking migrations when those moves occur: importers and changelog are
+  updated and no compatibility re-exports preserve old entry points.
+- If declaration emit creates `private.d.ts`, final-`prepack` cleanup removes it
   before package contents are selected.
 - Emitted declarations are not text-postprocessed: retained JSDoc `@import`
   comments may mention `private.ts` and are allowed because they do not create a
   TypeScript module dependency.
-- The packed tarball contains neither `private.ts` nor `private.d.ts`, and no
-  packed declaration has a semantic dependency on the private module.
+- The packed tarball contains no unshipped private type artifacts required by
+  public declarations, and no packed declaration has a semantic dependency on
+  an unshipped private module.
 - Public declaration helpers retained in `types.ts` remain self-contained and
   resolvable from shipped declarations, including helpers used by exported
   runtime-value/function signatures.
 - Root `AGENTS.md` documents the repository-wide all-authored-`.mjs` file-scope
   typedef prohibition, while `fjs/AGENTS.md` documents the `fjs/`-specific
-  `types.ts` / `private.ts` roles, declaration-closure rule, and dependency order.
+  declaration-closure/dependency-order rules and the optional `private.ts` /
+  `meta.f.mjs` tools.
 - `fjs/fsc/README.md` and the blocked `@internal`/`stripInternal` TODO no longer
   prescribe a conflicting private-JSDoc strategy.
 - A clean TypeScript consumer type-checks successfully against the packed
