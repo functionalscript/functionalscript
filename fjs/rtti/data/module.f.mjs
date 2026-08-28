@@ -20,6 +20,7 @@
  * @import { ResultE } from '../common/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from './types.ts'
+ * @import { _Assumed, _Ctx, _Key, _Keyed, _NodeMap, _State, _Thunk } from './private.ts'
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
@@ -439,15 +440,11 @@ const objectSet = (props, rest0) => {
 // ── subset ───────────────────────────────────────────────────────────────────
 
 /** The rule sets of the two compared schemas: `[left, right]`. */
-/** @typedef {readonly [RuleSet, RuleSet]} _Ctx */
-
 /**
  * Node pairs assumed included while they are being checked — the standard
  * coinductive treatment of reference cycles, keyed by {@link _Keyed} node
  * identities.
  */
-/** @typedef {StringMap<StringMap<true>>} _Assumed */
-
 /**
  * A node with a canonical identity for the coinductive memo: `r:<name>` a
  * rule reference, `u:<name>` a rule's object read-set (its rest plus
@@ -455,8 +452,6 @@ const objectSet = (props, rest0) => {
  * identity (`undefined`) — recursion through it descends its finite tree,
  * so every cycle still crosses identified pairs and the memo closes it.
  */
-/** @typedef {readonly [Node, string | undefined]} _Keyed */
-
 /**
  * Own-property lookups only: a `RuleSet`/`props` map is a plain object, so
  * reading through the prototype chain would return `Object.prototype`
@@ -686,8 +681,6 @@ const sortedDedup = cmpItem => list => {
     return sorted.filter((x, i) => i === 0 || cmpItem(sorted[i - 1], x) !== 0)
 }
 
-/** @typedef {(n: Node) => Node} _NodeMap */
-
 /** @type {(f: _NodeMap) => (p: ArraySet) => ArraySet} */
 const mapArraySet = f => p => ({
     prefix: p.prefix.map(f),
@@ -796,29 +789,7 @@ const internData = (rules, entry) => [
 // ── toData ───────────────────────────────────────────────────────────────────
 
 /** A thunk — the only schema form that can close a reference cycle. */
-/** @typedef {Exclude<Type, Const>} _Thunk */
-
 /** A schema tracked by identity: a thunk or a const container. */
-/** @typedef {Exclude<Type, Primitive>} _Key */
-
-/**
- * The conversion state, threaded functionally:
- *
- * - `converting` — thunks whose union is being computed (the recursion stack).
- * - `names` — rule names, assigned to a thunk the moment something needs to
- *   reference it (a cycle, or a deferred merge).
- * - `done` — computed unions, memoized by identity.
- * - `deferred` — union merges `target ∪= source` that could not run eagerly
- *   because `source`'s union was not final; resolved by {@link fixpoint}.
- *
- * @typedef {{
- *  readonly converting: readonly _Thunk[]
- *  readonly names: readonly (readonly [_Thunk, string])[]
- *  readonly done: readonly (readonly [_Key, UnionSet])[]
- *  readonly deferred: readonly (readonly [_Thunk, _Thunk])[]
- * }} _State
- */
-
 /**
  * The first value associated with `key` by identity.
  *

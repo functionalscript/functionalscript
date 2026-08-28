@@ -9,6 +9,7 @@
  * @import { SortedSet } from '../types/sorted_set/types.ts'
  * @import { RangeMap, Properties, RangeMapArray, Entry } from '../types/range_map/types.ts'
  * @import { Fold } from '../types/function/operator/types.ts'
+ * @import { Grammar, _Dfa, _Rule } from './types.ts'
  */
 
 import { equal, isEmpty, fold, map, toArray, foldScan, empty as emptyList } from '../types/list/module.f.mjs'
@@ -20,12 +21,6 @@ import { range as asciiRange } from '../text/ascii/module.f.mjs'
 import { compose } from '../types/function/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
 import { cmp } from '../types/string/module.f.mjs'
-
-/** @typedef {readonly [string, ByteSet, string]} _Rule */
-
-/** @typedef {List<_Rule>} Grammar */
-
-/** @typedef {StringMap<RangeMapArray<string>>} _Dfa */
 
 
 /**

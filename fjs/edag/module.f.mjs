@@ -1,34 +1,7 @@
 /**
  * @module
  *
- * @import { Assert } from '../asserts/types.ts'
- * @import { Check, Check3 } from '../rtti/ts/types.ts'
- * @import {
- *  Array,
- *  Exp,
- *  Primitive,
- *  Property,
- *  NumberCast,
- *  Object,
- *  PropertyLambda,
- *  OptionLambda,
- *  OptionPropertyLambda,
- *  Call,
- *  Dot,
- *  OptionDot,
- *  OptionCall,
- *  Comma,
- *  Op2Id,
- *  Op2,
- *  Op1Id,
- *  Op1,
- *  Op0Id,
- *  Op0,
- *  Spread,
- *  Items,
- *  Properties,
- *  Exps,
- * } from './types.ts'
+ * @import { Exp, OptionLambda, OptionPropertyLambda } from './types.ts'
  * @import { Phantom } from '../types/phantom/types.ts'
  */
 
@@ -79,7 +52,7 @@ import {
  *  typeof op0,
  * ]}
  */
-const _exp = () => (['or',
+export const _exp = () => (['or',
     primitive,
     array,
     object,
@@ -96,8 +69,6 @@ const _exp = () => (['or',
 /** @type {Phantom<typeof _exp, Exp>} */
 export const exp = _exp
 
-/** @typedef {Assert<Check3<Exp, typeof _exp, typeof exp>>} _ExpAssert */
-
 // Primitive
 
 /**
@@ -110,13 +81,9 @@ export const exp = _exp
  */
 export const primitive = or(null, boolean, number, string, bigint)
 
-/** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
-
 // Exps
 
 export const exps = rttiArray(exp)
-
-/** @typedef {Assert<Check<Exps, typeof exps>>} _Exps */
 
 // Spread
 
@@ -131,14 +98,10 @@ export const exps = rttiArray(exp)
  */
 export const spread = /** @type {const} */ (['...', exp])
 
-/** @typedef {Assert<Check<Spread, typeof spread>>} _Spread */
-
 // Items
 
 /** An array element: a plain `exp`, or a `spread` splicing another array in. */
 export const items = or(exp, spread)
-
-/** @typedef {Assert<Check<Items, typeof items>>} _Items */
 
 // Array
 
@@ -149,8 +112,6 @@ export const items = or(exp, spread)
  * ```
  */
 export const array = /** @type {const} */ (['[]', rttiArray(items)])
-
-/** @typedef {Assert<Check<Array, typeof array>>} _Array */
 
 // Property
 
@@ -167,14 +128,10 @@ export const array = /** @type {const} */ (['[]', rttiArray(items)])
  */
 export const property = /** @type {const} */ ([':', exp, exp])
 
-/** @typedef {Assert<Check<Property, typeof property>>} _Property */
-
 // Properties
 
 /** An object entry: a plain `property`, or a `spread` splicing another object in. */
 export const properties = or(property, spread)
-
-/** @typedef {Assert<Check<Properties, typeof properties>>} _Properties */
 
 // Object — same nesting as `array` above, one position further in
 
@@ -203,8 +160,6 @@ export const properties = or(property, spread)
  */
 export const object = /** @type {const} */ (['{}', rttiArray(properties)])
 
-/** @typedef {Assert<Check<Object, typeof object>>} _Object */
-
 // Number
 
 /**
@@ -213,10 +168,6 @@ export const object = /** @type {const} */ (['{}', rttiArray(properties)])
  * ```
  */
 export const numberCast = /** @type {const} */ (['Number', exp])
-
-/**
- * @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast
- */
 
 // Index
 
@@ -299,7 +250,7 @@ export const index = or(numberCast, string, number)
  *  readonly['|.', typeof index, typeof optionPropertyLambda],
  * ]}
  */
-const _optionLambda = () => (['or',
+export const _optionLambda = () => (['or',
     null,
     /** @type {const} */ (['|()', exp, optionLambda]),
     /** @type {const} */ (['|.', index, optionPropertyLambda]),
@@ -307,10 +258,6 @@ const _optionLambda = () => (['or',
 
 /** @type {Phantom<typeof _optionLambda, OptionLambda>} */
 export const optionLambda = _optionLambda
-
-/**
- * @typedef {Assert<Check3<OptionLambda, typeof _optionLambda, typeof optionLambda>>} _OptionLambda
- */
 
 /**
  * The continuation of a property step **inside** an open region — both bits
@@ -339,7 +286,7 @@ export const optionLambda = _optionLambda
  *  readonly['|!()', typeof exp, null],
  * ]}
  */
-const _optionPropertyLambda = () => (['or',
+export const _optionPropertyLambda = () => (['or',
     null,
     /** @type {const} */ (['|()', exp, optionLambda]),
     /** @type {const} */ (['|.', index, optionPropertyLambda]),
@@ -349,10 +296,6 @@ const _optionPropertyLambda = () => (['or',
 
 /** @type {Phantom<typeof _optionPropertyLambda, OptionPropertyLambda>} */
 export const optionPropertyLambda = _optionPropertyLambda
-
-/**
- * @typedef {Assert<Check3<OptionPropertyLambda, typeof _optionPropertyLambda, typeof optionPropertyLambda>>} _OptionPropertyLambda
- */
 
 /**
  * The continuation of a `dot` — a receiver is live and no region is open.
@@ -377,10 +320,6 @@ export const propertyLambda = or(
     /** @type {const} */ (['|?.()', exp, optionLambda]),
 )
 
-/**
- * @typedef {Assert<Check<PropertyLambda, typeof propertyLambda>>} _PropertyLambda
- */
-
 // Call
 
 /**
@@ -398,8 +337,6 @@ export const propertyLambda = or(
  * while spread `f(...xs)` is `['()', f, xs]`.
  */
 export const call = /** @type {const} */ (['()', exp, exp])
-
-/** @typedef {Assert<Check<Call, typeof call>>} _Call */
 
 // Dot
 
@@ -420,8 +357,6 @@ export const call = /** @type {const} */ (['()', exp, exp])
  * it.
  */
 export const dot = /** @type {const} */ (['.', exp, index, propertyLambda])
-
-/** @typedef {Assert<Check<Dot, typeof dot>>} _Dot */
 
 // Option Dot
 
@@ -447,8 +382,6 @@ export const dot = /** @type {const} */ (['.', exp, index, propertyLambda])
  */
 export const optionDot = /** @type {const} */ (['?.', exp, index, optionPropertyLambda])
 
-/** @typedef {Assert<Check<OptionDot, typeof optionDot>>} _OptionDot */
-
 // Option Call
 
 /**
@@ -463,8 +396,6 @@ export const optionDot = /** @type {const} */ (['?.', exp, index, optionProperty
  * is nullish the arguments are not evaluated and the region short-circuits.
  */
 export const optionCall = /** @type {const} */ (['?.()', exp, exp, optionLambda])
-
-/** @typedef {Assert<Check<OptionCall, typeof optionCall>>} _OptionCall */
 
 // Comma
 
@@ -484,10 +415,6 @@ export const optionCall = /** @type {const} */ (['?.()', exp, exp, optionLambda]
  */
 export const comma = /** @type {const} */ ([',', exps])
 
-/**
- * @typedef {Assert<Check<Comma, typeof comma>>} _Comma
- */
-
 // No-Args Operations
 
 /**
@@ -500,11 +427,7 @@ export const comma = /** @type {const} */ ([',', exps])
  */
 export const op0Id = or('undefined', 'args', 'frame')
 
-/** @typedef {Assert<Check<Op0Id, typeof op0Id>>} _Op0Id */
-
 export const op0 = /** @type {const} */ ([op0Id])
-
-/** @typedef {Assert<Check<Op0, typeof op0>>} _Op0 */
 
 // Unary Operations
 
@@ -514,11 +437,7 @@ export const op0 = /** @type {const} */ ([op0Id])
  */
 export const op1Id = or('String', 'Number', 'neg', '!', '~')
 
-/** @typedef {Assert<Check<Op1Id, typeof op1Id>>} _Op1Id */
-
 export const op1 = /** @type {const} */ ([op1Id, exp])
-
-/** @typedef {Assert<Check<Op1, typeof op1>>} _Op1 */
 
 // Binary Operations
 
@@ -552,8 +471,4 @@ export const op2Id = or(
     '&&', '||', '??'
 )
 
-/** @typedef {Assert<Check<Op2Id, typeof op2Id>>} _Op2Id */
-
 export const op2 = /** @type {const} */ ([op2Id, exp, exp])
-
-/** @typedef {Assert<Check<Op2, typeof op2>>} _Op2 */

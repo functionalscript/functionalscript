@@ -167,20 +167,18 @@ export const range = ab => {
     return rangeEncode(...a)
 }
 
-/** @typedef {readonly TerminalRange[]} _RangeList */
-
 /** @type {(r: TerminalRange) => readonly [string, TerminalRange]} */
 const rangeToEntry = r =>
     ['0x' + r.toString(16), r]
 
-/** @type {(r: _RangeList) => RangeVariant} */
+/** @type {(r: readonly TerminalRange[]) => RangeVariant} */
 const toVariantRangeSet = r =>
     fromEntries(r.map(rangeToEntry))
 
-/** @type {(list: _RangeList, ab: number) => _RangeList} */
+/** @type {(list: readonly TerminalRange[], ab: number) => readonly TerminalRange[]} */
 const removeOne = (list, ab) => {
     const [a, b] = rangeDecode(ab)
-    /** @type {_RangeList} */
+    /** @type {readonly TerminalRange[]} */
     let result = []
     for (const ab0 of list) {
         const [a0, b0] = rangeDecode(ab0)
@@ -200,7 +198,7 @@ const removeOne = (list, ab) => {
 
 /** @type {(range: TerminalRange, v: RangeVariant) => RangeVariant} */
 export const remove = (range, v) => {
-    /** @type {_RangeList} */
+    /** @type {readonly TerminalRange[]} */
     let result = [range]
     for (const r of definedValues(v)) {
         result = removeOne(result, r)

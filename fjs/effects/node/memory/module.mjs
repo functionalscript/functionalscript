@@ -3,19 +3,14 @@
  *
  * @module
  *
- * @import { Effect, ToAsyncOperationMap } from '../../types.ts'
- * @import { Result } from '../../../types/result/types.ts'
- * @import { Key, MemOp } from '../../memory/types.ts'
+ * @import { Key } from '../../memory/types.ts'
+ * @import { MemoryOperationMap, MemoryRun, Uuid } from './types.ts'
  */
 
 import { randomUUID } from 'node:crypto'
 import { asyncRun } from '../../module.mjs'
 import { ok } from '../../../types/result/module.f.mjs'
 import { asBase, asNominal } from '../../memory/module.f.mjs'
-
-/** @typedef {ToAsyncOperationMap<MemOp>} MemoryOperationMap */
-
-/** @typedef {() => string} Uuid */
 
 /** @type {(id: string) => Error} */
 const missingKey = id =>
@@ -54,11 +49,6 @@ export const memoryOperationMap = (uuid = randomUUID) => {
         },
     }
 }
-
-/**
- * An {@link asyncRun} runner over {@link MemOp}: an effect in, its `Result` out.
- * @typedef {<T, E>(effect: Effect<MemOp, T, E>) => Promise<Result<T, E>>} MemoryRun
- */
 
 /**
  * Creates a runner owning a fresh memory store. Every effect passed to the

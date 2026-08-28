@@ -160,22 +160,15 @@ Update `AGENTS.md` with that runtime source-migration policy and the stable
 `types.ts` companion convention. Compiler compatibility is a later
 `.f.mjs -> .f.js` migration and is not part of this package prerequisite.
 
-JSDoc declaration emit currently exposes every top-level `@typedef` as an
-exported type alias. During the migration, implementation-only typedefs that stay
-inside `.mjs` use the repository's leading-`_` convention, for example `_Node`;
-see [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md).
-An emitted `export type _Node = ...` is therefore package-private by contract,
-not public API. Clean-consumer tests must exercise documented public types and
-must not turn `_`-prefixed declaration artifacts into supported API merely
-because TypeScript emitted them.
-
-Types intentionally moved to `types.ts` use ordinary TypeScript syntax and do
-not need the JSDoc-emission workaround merely to remain expressible. The eventual
-replacement for private JSDoc typedefs is still `@internal` plus `stripInternal`,
-blocked on
-[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
-and tracked in
-[`todo/blocked/jsdoc-typedef-strip-internal.md`](../../../todo/blocked/jsdoc-typedef-strip-internal.md).
+Authored `.mjs` files carry no file-scope JSDoc `@typedef` (root `AGENTS.md`);
+named types live in `types.ts` or an optional `private.ts`, so declaration emit
+exposes private types as `_`-prefixed names in `types.d.ts` and as generated
+`private.d.ts` files. Both are package-private by contract, not public API:
+clean-consumer tests must exercise documented public types and must not turn
+`_`-prefixed declaration artifacts into supported API merely because TypeScript
+emitted them. Deleting generated `private.d.ts` before packaging is the second
+stage of
+[`fjs/todo/separate-private-types.md`](../../todo/separate-private-types.md).
 
 Package selection does not need to distinguish every authored `.mjs` by public
 API status during this transition. Incidental authored files such as
@@ -248,9 +241,10 @@ emission, `npm pack`, and a clean consumer.
       required for portable resolution. Done in
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
       only `types.d.ts` is required; `types.js` is no longer generated.
-- [ ] Include an implementation-only `_`-prefixed JSDoc typedef in the `.mjs`
-      fixture; tolerate its current exported declaration form without treating it
-      as clean-consumer public API.
+- [ ] Include an implementation-only `_`-prefixed type (in the fixture's
+      `types.ts` or `private.ts`, per the file-scope-typedef prohibition) whose
+      name reaches the emitted declarations; tolerate that declaration form
+      without treating it as clean-consumer public API.
 - [ ] Test the allowed `.ts` -> `.mjs` runtime dependency direction in a clean
       checkout and CI-built package archive.
 - [ ] Reject authored `.mjs` runtime imports to remaining relative implementation
@@ -327,9 +321,9 @@ not, and the pipeline is simplified accordingly.
   two-pass `prepack`.
 - [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
   — repository-wide stage-1 implementation source migration.
-- [`todo/blocked/jsdoc-typedef-strip-internal.md`](../../../todo/blocked/jsdoc-typedef-strip-internal.md)
-  — replace the temporary `_` convention with `@internal` when declaration emit
-  supports it.
+- [`fjs/todo/separate-private-types.md`](../../todo/separate-private-types.md)
+  — private-type placement rules and the packaging stage that unships
+  generated private declarations.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
   — upstream blocker for stripping private JSDoc typedefs.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.

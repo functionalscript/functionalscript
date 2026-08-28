@@ -17,15 +17,6 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { vm } from './module.f.mjs'
 
-// `TagMap` exists so a dispatcher generic over `K` sees one handler
-// signature; these pin the tag -> node-tuple correlation it is built on,
-// including the tags whose node kinds are not `op1`/`op2`.
-/** @typedef {Assert<Equal<Get<'+'>, Op2>>} _PlusIsOp2 */
-/** @typedef {Assert<Equal<Get<'neg'>, Op1>>} _NegIsOp1 */
-/** @typedef {Assert<Equal<Get<'[]'>, ExpArray>>} _BracketsIsArray */
-/** @typedef {Assert<Equal<Get<'()'>, Call>>} _CallIsCall */
-/** @typedef {Assert<Equal<Get<'.'>, Dot>>} _DotIsDot */
-
 /** @type {Context} */
 const context = { frame: { x: 1 }, args: [10, 20] }
 
@@ -96,6 +87,16 @@ const methods = ['{}', [
 const constMethods = ['=>', ['[]', []], methods]
 
 export const proof = {
+    // `TagMap` exists so a dispatcher generic over `K` sees one handler
+    // signature; these pin the tag -> node-tuple correlation it is built on,
+    // including the tags whose node kinds are not `op1`/`op2`.
+    tagMap: () => {
+        /** @typedef {Assert<Equal<Get<'+'>, Op2>>} _PlusIsOp2 */
+        /** @typedef {Assert<Equal<Get<'neg'>, Op1>>} _NegIsOp1 */
+        /** @typedef {Assert<Equal<Get<'[]'>, ExpArray>>} _BracketsIsArray */
+        /** @typedef {Assert<Equal<Get<'()'>, Call>>} _CallIsCall */
+        /** @typedef {Assert<Equal<Get<'.'>, Dot>>} _DotIsDot */
+    },
     // The non-`Array` side of `vm`'s only branch: a primitive is its own
     // value, returned without ever reaching `map`.
     primitive: () => {

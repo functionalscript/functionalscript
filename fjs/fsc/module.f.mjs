@@ -6,6 +6,7 @@
  * @import { RangeMapArray, RangeMerge } from '../types/range_map/types.ts'
  * @import { List } from '../types/list/types.ts'
  * @import { Range } from '../types/range/types.ts'
+ * @import { _CreateToResult, _Result, _State, _ToResult } from './types.ts'
  */
 
 import { strictEqual } from '../types/function/operator/module.f.mjs'
@@ -17,14 +18,6 @@ import { one } from '../types/range/module.f.mjs'
 import { assertEq } from '../asserts/module.f.mjs'
 
 const fromCharCode = String.fromCharCode
-
-/** @typedef {readonly [readonly string[], _ToResult]} _Result */
-
-/** @typedef {(codePoint: number) => _Result} _ToResult */
-
-/** @template T @typedef {(state: T) => _ToResult} _CreateToResult */
-
-/** @template T @typedef {RangeMapArray<_CreateToResult<T>>} _State */
 
 /** @type {_ToResult} */
 const unexpectedSymbol = codePoint => [[`unexpected symbol ${codePoint}`], unexpectedSymbol]

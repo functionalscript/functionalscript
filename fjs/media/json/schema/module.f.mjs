@@ -31,23 +31,38 @@ import { absentBit, cmp, toData, unitBit, unknown as top, withoutUnits } from '.
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
 
 /** @type {() => readonly ['const', typeof unknownConst]} */
-const unknownThunk = () => ['const', unknownConst]
+export const _unknownThunk = () => ['const', unknownConst]
 
 /**
  * rtti schema for a JSON Schema (draft 2020-12) document.
- * @type {Phantom<typeof unknownThunk, _UnknownConst>}
+ *
+ * The `$out` half of the `Phantom` is hand-written. The `?` markers spell what
+ * `or(option, …)` says in the schema: every field may be absent, and `Ts<>`
+ * renders such a member optional with absence stripped from its type, so each
+ * field here is `?:` over the member's present part. JSON Schema objects only
+ * include the keywords they need. `$defs` is an *open* map — an absent entry
+ * types as `undefined`, so missing-reference handling cannot be skipped. The
+ * `consistency` proof checks this hand-written type against the un-annotated
+ * `_unknownThunk`, so a wrong field here is caught instead of silently trusted
+ * via the `Phantom` lie.
+ *
+ * @type {Phantom<typeof _unknownThunk, {
+ *   readonly $schema?: Ts<typeof unknownConst.$schema>
+ *   readonly $ref?: Ts<typeof unknownConst.$ref>
+ *   readonly $defs?: Ts<typeof unknownConst.$defs>
+ *   readonly type?: Ts<typeof unknownConst.type>
+ *   readonly const?: Ts<typeof unknownConst.const>
+ *   readonly not?: Ts<typeof unknownConst.not>
+ *   readonly anyOf?: Ts<typeof unknownConst.anyOf>
+ *   readonly items?: Ts<typeof unknownConst.items>
+ *   readonly prefixItems?: Ts<typeof unknownConst.prefixItems>
+ *   readonly minItems?: Ts<typeof unknownConst.minItems>
+ *   readonly properties?: Ts<typeof unknownConst.properties>
+ *   readonly required?: Ts<typeof unknownConst.required>
+ *   readonly additionalProperties?: Ts<typeof unknownConst.additionalProperties>
+ * }>}
  */
-export const unknown = unknownThunk
-
-/**
- * Checked against the un-annotated thunk, so a wrong `_UnknownConst` above
- * would be caught here instead of silently trusted via the `Phantom` lie.
- * @typedef {Assert<Check<_UnknownConst, typeof unknownThunk>>} _UnknownCheck0
- */
-/** @typedef {Assert<Check<_UnknownConst, typeof unknown>>} _UnknownCheck1 */
-
-/** A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits. */
-/** @typedef {Ts<typeof unknown>} Unknown */
+export const unknown = _unknownThunk
 
 // Every field may be **omitted** — a JSON Schema document carries only the
 // keywords it needs, and JSON has no `undefined` to hold in a present field —
@@ -68,32 +83,6 @@ const unknownConst = /** @type {const} */ ({
     required: or(option, array(string)),
     additionalProperties: or(option, unknown),
 })
-
-/**
- * Hand-written base type used as the `$out` annotation on `unknown`.
- *
- * The `?` markers spell what `or(option, …)` says in the schema: every field
- * may be absent, and `Ts<>` renders such a member optional with absence
- * stripped from its type, so each field here is `?:` over the member's
- * present part. JSON Schema objects only include the keywords they need.
- * `$defs` is an *open* map — an absent entry types as `undefined`, so
- * missing-reference handling cannot be skipped.
- * @typedef {{
- *   readonly $schema?: Ts<typeof unknownConst.$schema>
- *   readonly $ref?: Ts<typeof unknownConst.$ref>
- *   readonly $defs?: Ts<typeof unknownConst.$defs>
- *   readonly type?: Ts<typeof unknownConst.type>
- *   readonly const?: Ts<typeof unknownConst.const>
- *   readonly not?: Ts<typeof unknownConst.not>
- *   readonly anyOf?: Ts<typeof unknownConst.anyOf>
- *   readonly items?: Ts<typeof unknownConst.items>
- *   readonly prefixItems?: Ts<typeof unknownConst.prefixItems>
- *   readonly minItems?: Ts<typeof unknownConst.minItems>
- *   readonly properties?: Ts<typeof unknownConst.properties>
- *   readonly required?: Ts<typeof unknownConst.required>
- *   readonly additionalProperties?: Ts<typeof unknownConst.additionalProperties>
- * }} _UnknownConst
- */
 
 const nullBit = unitBit(null)
 const undefinedBit = unitBit(undefined)
@@ -125,14 +114,14 @@ const refEncode = name => {
  * own-property only, so a name inherited from `Object.prototype`
  * (`toString`, `constructor`, …) is still rejected.
  *
- * @type {(rules: RuleSet) => (name: string) => Unknown}
+ * @type {(rules: RuleSet) => (name: string) => Ts<typeof unknown>}
  */
 const refSchema = rules => name => {
     assert(at(name)(rules) !== null, `missing definition: ${name}`)
     return { $ref: `#/$defs/${refEncode(name)}` }
 }
 
-/** @type {(rules: RuleSet) => (n: Node) => Unknown} */
+/** @type {(rules: RuleSet) => (n: Node) => Ts<typeof unknown>} */
 const nodeSchema = rules => n =>
     typeof n === 'string' ? refSchema(rules)(n) : unionSchema(rules)(n)
 
@@ -142,20 +131,20 @@ const nodeSchema = rules => n =>
  *
  * @template T
  * @param {KindSet<T> | undefined} k
- * @param {Unknown} whole
- * @param {(v: T) => Unknown} item
- * @returns {readonly Unknown[]}
+ * @param {Ts<typeof unknown>} whole
+ * @param {(v: T) => Ts<typeof unknown>} item
+ * @returns {readonly Ts<typeof unknown>[]}
  */
 const kindSchemas = (k, whole, item) =>
     k === undefined ? [] :
     k === true ? [whole] :
     k.map(item)
 
-/** @type {(v: boolean | number | string | null) => Unknown} */
+/** @type {(v: boolean | number | string | null) => Ts<typeof unknown>} */
 const constSchema = v => ({ const: v })
 
 /** bigint consts are represented as numbers (lossy for |value| > MAX_SAFE_INTEGER) */
-/** @type {(v: bigint) => Unknown} */
+/** @type {(v: bigint) => Ts<typeof unknown>} */
 const bigintConstSchema = v => ({ const: Number(v) })
 
 /**
@@ -163,7 +152,7 @@ const bigintConstSchema = v => ({ const: Number(v) })
  * value is `undefined`, hence `{ "not": {} }` — and both boolean bits
  * together are the `boolean` type with no special-case rule.
  *
- * @type {(bits: number) => readonly Unknown[]}
+ * @type {(bits: number) => readonly Ts<typeof unknown>[]}
  */
 const unitSchemas = bits => [
     ...((bits & nullBit) === 0 ? [] : [constSchema(null)]),
@@ -197,7 +186,7 @@ const minLength = rules => prefix =>
  * `undefined`. Both are the object side's `required` /
  * {@link stripUndefined} pair, one kind over.
  *
- * @type {(rules: RuleSet) => (p: ArraySet) => Unknown}
+ * @type {(rules: RuleSet) => (p: ArraySet) => Ts<typeof unknown>}
  */
 const arraySetSchema = rules => p => {
     const minItems = minLength(rules)(p.prefix)
@@ -248,7 +237,7 @@ const stripUndefined = n =>
  * the other keys unconstrained (lenient), matching rtti's open-struct
  * validation semantics.
  *
- * @type {(rules: RuleSet) => (p: ObjectSet) => Unknown}
+ * @type {(rules: RuleSet) => (p: ObjectSet) => Ts<typeof unknown>}
  */
 const objectSetSchema = rules => p => {
     const ents = definedEntries(p.props)
@@ -273,7 +262,7 @@ const isTop = u => cmp([{}, u])([{}, top]) === 0
  * it contributes no schema member, and `or(option, unknown)` is the
  * always-true `{}` like plain `unknown`.
  *
- * @type {(rules: RuleSet) => (u: UnionSet) => Unknown}
+ * @type {(rules: RuleSet) => (u: UnionSet) => Ts<typeof unknown>}
  */
 const unionSchema = rules => u0 => {
     const u = withoutUnits(absentBit)(u0)
@@ -302,7 +291,7 @@ const unionSchema = rules => u0 => {
  * and are JSON Pointer-escaped, then percent-encoded, for the `$ref`
  * fragment. A reference naming a missing definition panics.
  *
- * @type {(data: Data) => Unknown}
+ * @type {(data: Data) => Ts<typeof unknown>}
  */
 export const dataToJsonSchema = ([rules, entry]) => {
     const ruleEntries = definedEntries(rules)
@@ -341,6 +330,6 @@ export const dataToJsonSchema = ([rules, entry]) => {
  * duplicates collapse — so structurally different but equivalent thunk
  * schemas produce the same JSON Schema.
  *
- * @type {(rtti: RttiType) => Unknown}
+ * @type {(rtti: RttiType) => Ts<typeof unknown>}
  */
 export const toJsonSchema = rtti => dataToJsonSchema(toData(rtti))
