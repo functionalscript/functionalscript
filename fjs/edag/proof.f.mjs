@@ -15,6 +15,28 @@
  * @import { Check, Check3, Unknown } from '../rtti/ts/types.ts'
  * @import { StringMap } from '../types/object/types.ts'
  * @import {
+ *  _exp,
+ *  _optionLambda,
+ *  _optionPropertyLambda,
+ *  array,
+ *  call,
+ *  comma,
+ *  dot,
+ *  exps,
+ *  items,
+ *  numberCast,
+ *  object,
+ *  op0,
+ *  op1,
+ *  op2,
+ *  optionCall,
+ *  optionDot,
+ *  primitive,
+ *  properties,
+ *  property,
+ *  spread,
+ * } from './module.f.mjs'
+ * @import {
  *  Array,
  *  Call,
  *  Comma,
@@ -45,11 +67,8 @@
 import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
-    _exp, _optionLambda, _optionPropertyLambda,
-    array, call, comma, dot, exp, exps, items, numberCast, object,
-    op0, op0Id, op1, op1Id, op2, op2Id,
-    optionCall, optionDot, optionLambda, optionPropertyLambda,
-    primitive, properties, property, propertyLambda, spread,
+    exp, op0Id, op1Id, op2Id,
+    optionLambda, optionPropertyLambda, propertyLambda,
 } from './module.f.mjs'
 
 /** @type {(r: readonly [string, unknown]) => void} */

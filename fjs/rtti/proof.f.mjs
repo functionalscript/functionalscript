@@ -3,10 +3,11 @@
  * @import { Assert } from '../asserts/types.ts'
  * @import { Equal } from '../types/ts/types.ts'
  * @import { Or, Primitive0, Rest, Tag1, Type1, Unknown } from './types.ts'
+ * @import { _primitive0List, _tag1List } from './module.f.mjs'
  */
 
 import { assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
-import { _primitive0List, _tag1List, array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
+import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 
 /** @type {StringMap<readonly unknown[]>} */
 const tests = {

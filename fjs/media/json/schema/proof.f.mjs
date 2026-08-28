@@ -1,12 +1,13 @@
 /**
  * @import { Ts, Check } from '../../../rtti/ts/types.ts'
  * @import { Assert } from '../../../asserts/types.ts'
+ * @import { _unknownThunk } from './module.f.mjs'
  * @import { Data } from '../../../rtti/data/types.ts'
  */
 
 import { boolean, number, string, bigint, never, unknown, array, open, record, or, option } from '../../../rtti/module.f.mjs'
 import { stringify } from '../module.f.mjs'
-import { _unknownThunk, dataToJsonSchema, toJsonSchema, unknown as schemaUnknown } from './module.f.mjs'
+import { dataToJsonSchema, toJsonSchema, unknown as schemaUnknown } from './module.f.mjs'
 import { unitBit } from '../../../rtti/data/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 

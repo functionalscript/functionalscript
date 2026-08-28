@@ -3,10 +3,11 @@
  * @import { Object as JsonObject } from '../json/types.ts'
  * @import { Check } from '../../rtti/ts/types.ts'
  * @import { LockField, LockMap } from './types.ts'
+ * @import { lock, lockField } from './module.f.mjs'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { dialect, lock, lockField, mediaType, isHash, validate, decodeText, encodeText } from './module.f.mjs'
+import { dialect, mediaType, isHash, validate, decodeText, encodeText } from './module.f.mjs'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
 // cbase32 symbols, cheap to write inline here.
