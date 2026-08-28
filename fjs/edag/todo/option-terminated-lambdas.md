@@ -137,7 +137,17 @@ acceptable:
    also specify the `arraySet` normalization that collapses an
    absence-admitting trailing position against an empty `rest` (one `Node`
    for `[option]` and `[]`), and carry `cmp`/`equal`/`subset`, the data
-   reader, and the printer with it. It needs its own rtti issue and lands
+   reader, and the printer with it. Not only trailing, either: under the
+   rule, a position's absence is realizable exactly when every later
+   position also admits absence — an array ending before it ends before
+   them too — so an **interior** absent bit (any position followed by one
+   whose set excludes absence) becomes unobservable. `[or(option, number),
+   3]`, the `option` JSDoc's own example, comes to denote the same set as
+   `[number, 3]` while `toData` keeps its `absentBit` and `_InteriorTs`
+   renders a stale `| undefined`; the normalization must strip every
+   unobservable interior absent bit — the same trailing-run split `TupleTs`
+   already makes — with the type-level and printer renderings following.
+   It needs its own rtti issue and lands
    **before** this migration, which then keeps the `option` spelling and
    machinery described above — and the width of that surface, against
    mechanism 1 touching none of it, is itself an argument for mechanism 1.
@@ -185,6 +195,15 @@ lambda root still carries `option` admits the absent member again.
 - [ ] `../README.md`: node and spelling tables; "Terminals state their
   `null`" inverts into "closedness by length rejects a smuggled
   continuation"; "The cost" shrinks
+- [ ] downstream designs and other repo-wide chain spellings:
+  [`../../djs/todo/compile-modules-to-edag.md`](../../djs/todo/compile-modules-to-edag.md)
+  and [`../../djs/todo/interpret-edag.md`](../../djs/todo/interpret-edag.md)
+  both prescribe `['.', object, property, null]` and `['|()', args, null]`
+  for stages not yet implemented, which would produce or expect invalid
+  EDAG after the migration; respell them,
+  [`../../../todo/blocked/bun-optional-chain-parentheses.md`](../../../todo/blocked/bun-optional-chain-parentheses.md),
+  and whatever else a sweep for chain spellings finds — released
+  `changelog/` entries stay as written, history rather than prescription
 
 ## Related
 
