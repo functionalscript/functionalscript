@@ -51,7 +51,7 @@ provides*. Proposed destinations:
 | Moves to | Contents |
 |---|---|
 | `fjs/effects/all/module.f.mjs` | `All`, `all`, `allOk`, `both`, and `allVoid`/`allReduce` when they land |
-| `fjs/effects/sandbox/module.f.mjs` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise` — the "run foreign code and observe what happened" pair |
+| `fjs/effects/sandbox/module.f.mjs` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise`, and `Catch`/`catch_` (landed after this table was written) — the "run foreign code and observe what happened" family. This row is what [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md) step 4's "shared module" resolves to: a browser gives `Sandbox` and `Catch` their second implementer; `Await` moves on this issue's layering argument alone, since it belongs to the registration path no browser runs |
 | `fjs/effects/console/module.f.mjs` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/test/module.f.mjs` | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
 | stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Forever`, `RandomInt`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
@@ -87,9 +87,11 @@ Judgement calls worth deciding explicitly rather than by accident:
   the three gained a second implementer, and DESIGN.md §4 keeps them here
   until one does. The sequential plan that replaced that attempt (see
   share-browser-console-runner) shrinks the measured set once more: a
-  sequential traversal performs no `all`, so the operations with a second
-  implementer become `sandbox` and `catch` alone, and `all` stays here with
-  the registration path.
+  sequential traversal performs no `all`, so the operations a browser gives a
+  second implementer are `sandbox` and `catch` alone. That takes `all` out of
+  *step 4's* motivation, not out of this issue's: its move to `effects/all`
+  above rests on the layering argument, and its implementers stay the Node
+  runners and the registration path.
 
   Worth recording, because the earlier expectation written here was wrong about
   two of them: "a browser proof run needs a clock and dynamic import" is true of
@@ -247,7 +249,8 @@ Judgement calls worth deciding explicitly rather than by accident:
       `allOk` is the ok-channel wrapper over `all` and belongs with it;
       [allvoid-combinator](./allvoid-combinator.md) builds on it, so leaving it
       behind would make `effects/all` import from `effects/node`.
-- [ ] Move `Sandbox` / `Await` and helpers to `fjs/effects/sandbox/module.f.mjs`.
+- [ ] Move `Sandbox` / `Await` / `Catch` and helpers to
+      `fjs/effects/sandbox/module.f.mjs`.
 - [ ] Move the console family to `fjs/effects/console/module.f.mjs`, add the
       named `Std` type there as `RequiredMap<WriteConsoles, …>`, point
       `NodeProgramOptions.std` at it, and narrow `csiWrite` to take `Std`

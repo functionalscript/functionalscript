@@ -105,13 +105,19 @@ browser could have is an issue, not something to introduce inside a port. A
 behaviour the port cannot preserve is a finding to record before it merges, not
 a silent divergence to explain in review.
 
-**Keep the change reviewable.** The first attempt was 2646 insertions and 1408
-deletions across 35 files in one PR — a move, a rewrite, a new effects layer, a
-new host interpreter and a scheduling invention at once, which is why the
-scheduling argument could not be separated from the sharing argument. Sequence
-it: the shared semantics first, with `fjs t` unchanged in behaviour and the
-browser file only calling into it; the layout moves after; anything genuinely
-new last, on its own.
+**Keep the change reviewable: one argument per PR.** The first attempt was
+2646 insertions and 1408 deletions across 35 files in one PR — a move, a
+rewrite, a new effects layer, a new host interpreter and a scheduling
+invention at once, which is why the scheduling argument could not be separated
+from the sharing argument. The sequence that keeps them separate is the one
+the plan below orders: the scheduling change first, alone, in the console
+runner where it is observable and provable without any port (step 7a); then
+the port, which changes no behaviour beyond calling the shared code (step 7b);
+the layout moves after. An earlier version of this paragraph said "shared
+semantics first, with `fjs t` unchanged in behaviour" — right about
+separation, wrong about order once the plan itself became a scheduling change:
+porting first would have moved the browser onto semantics about to change
+under it.
 
 ### The second attempt (#1759), and the plan it simplified to
 
@@ -226,11 +232,15 @@ the third is about method.
    channel carries what an operation reported; a *rejection* carries what the
    interpreter could not dispatch at all, and an unhandled one is a page stuck
    in `running` forever. Handle both into the `infrastructure-error` report.
-9. **Joins must be linear.** Pairwise immutable concatenation was Θ(N²)
-   twice — across siblings, then again down a parent/child chain, where
-   "flatten once at the end" recopies each subtree once per ancestor and is
-   the same Θ(N²) moved. A sequential fold appends one record at a time and
-   has no such trap; if records are ever joined, join a whole list at once.
+9. **Joins must be linear, and sequential does not grant that for free.**
+   Pairwise immutable concatenation was Θ(N²) twice — across siblings, then
+   again down a parent/child chain, where "flatten once at the end" recopies
+   each subtree once per ancestor and is the same Θ(N²) moved. The fix that
+   worked was a rope: joining is one node naming both sides, `toArray` walks
+   it once where the run ends. A sequential fold changes execution order, not
+   concatenation cost — an immutable `[...acc, r]` append copies the prefix
+   every iteration and is the same Θ(N²) — so the port keeps the rope, or
+   another accumulator that is demonstrably linear.
 10. **A new exported boundary that its own consumers cast past is not typed.**
     `browserRun` began as `(effect: unknown) => Promise<unknown>` with `any`
     casts at both call sites, and its `extra` was `Partial` — advertising a
@@ -713,14 +723,19 @@ are shared.
       of how the frame budget was got wrong three times before being measured,
       and why even measured-correct it could not fix the reporting burst, is
       the pitfall catalog above (items 1, 2, 4, 11, 12).
-- [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch when step 7b
-      re-lands it — the run's own failure, as opposed to any proof's. In the
-      reverted #1759 neither half of the guard (an operation reporting through
-      the error channel, or one the interpreter cannot dispatch, which
-      rejects) was reachable through the public entry point, so the guard had
-      no proof; review established by mutation that removing it stayed green.
-      Step 8's split of the page into `module.f.mjs`/`module.mjs` is the seam
-      that makes it reachable.
+- [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's
+      own failure, as opposed to any proof's — **at step 8, not step 7b.**
+      The order is forced, and worth stating so 7b is not directed to do the
+      impossible: the guard itself must land with 7b, because a page must
+      never stay in `running`, but neither half of it (an operation reporting
+      through the error channel, or one the interpreter cannot dispatch,
+      which rejects) is reachable through the public entry point — the
+      reverted #1759 proved that by mutation, removing the guard stayed
+      green. So 7b lands the guard and records it unproven, and step 8's
+      split of the page into `module.f.mjs`/`module.mjs` is the seam that
+      makes it reachable and closes this task. Widening the public API just
+      to reach the branch was considered and rejected: testing a thing by
+      deforming it.
 
 ### Related
 

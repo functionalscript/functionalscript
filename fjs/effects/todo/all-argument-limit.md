@@ -32,11 +32,12 @@ recover from it and no `catch` operation is in the path. `fjs t` panics; the bro
 reports one `infrastructure-error` because it guards the run's own failure, which is the
 guard working as intended but not an answer.
 
-This is a limit on *one module's* sibling leaves rather than on a suite: modules are
-themselves siblings, so a suite of any size passes as long as no single module holds more
-than a few tens of thousands of leaves. Nothing in this repository is close — the browser
-suite is 3,461 leaves across 138 modules — so this is a real ceiling rather than a live
-problem, and it is recorded rather than fixed for that reason.
+The ceiling applies **per fan-out**, and a run has two: one module with too many sibling
+leaves breaks the inner spread, and a run with too many *modules* breaks the outer one in
+`runModuleMap` — the independence the table above states. Nothing in this repository is
+close to either — the browser suite is 3,461 leaves across 138 modules, three orders of
+magnitude under both — so this is a real ceiling rather than a live problem, and it is
+recorded rather than fixed for that reason.
 
 The browser runner avoids it accidentally: it fans out in batches of 25 through
 `Promise.all`, so it never spreads more than 25 arguments — a protection nobody asked for
