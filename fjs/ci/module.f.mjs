@@ -25,6 +25,7 @@ import {
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.mjs'
 import { nixFlakes, nixInstall } from './nix/module.f.mjs'
+import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
 import { bunSteps } from './bun/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
 
@@ -55,6 +56,7 @@ const canonicalJobs = rust => ({
     deno: ubuntuArm(denoSteps(functionalscript)),
     bun: ubuntuArm(bunSteps(functionalscript)),
     ...nodeVersionJobs(functionalscript),
+    [packageCheckJobId]: packageCheckJob,
     'nix-flakes': nixFlakeJob,
 })
 

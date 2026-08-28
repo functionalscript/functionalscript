@@ -520,6 +520,29 @@
         }
       ]
     },
+    "package-check": {
+      "runs-on": "ubuntu-26.04-arm",
+      "needs": [
+        "node26"
+      ],
+      "steps": [
+        {
+          "uses": "actions/download-artifact@v8.0.1",
+          "with": {
+            "name": "package-tarball"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "26.7.0"
+          }
+        },
+        {
+          "run": "set -eu\nnpm init -y > /dev/null\nnpm install --no-audit --no-fund ./*.tgz\n# The compiler is the package's own pin, read out of the packed package.json:\n# with no checkout there is no lockfile, so an unpinned install would let the\n# registry change this check's verdict with no change to this repository.\nts=$(node -p \"require('./node_modules/functionalscript/package.json').devDependencies.typescript.replace(/^=/, '')\")\nnpm install --no-audit --no-fund typescript@\"$ts\"\n# Every declaration the package ships, enumerated from the installed artifact.\n# A hand-written import list cannot see a module that gains a private type\n# module later, which is the case this check exists to catch.\nfind node_modules/functionalscript \\( -name '*.d.ts' -o -name '*.d.mts' \\) > declarations.txt\n# An empty list would type-check nothing and pass, which is the one way this\n# job can look healthy while checking nothing at all.\ntest -s declarations.txt\n# skipLibCheck stays at its false default: it is what makes tsc open these\n# declarations and report a reference the tarball does not carry.\nnpx tsc --module nodenext --moduleResolution nodenext --target esnext --strict --noEmit --skipLibCheck false @declarations.txt"
+        }
+      ]
+    },
     "nix-flakes": {
       "runs-on": "ubuntu-26.04-arm",
       "steps": [

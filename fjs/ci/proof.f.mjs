@@ -7,7 +7,8 @@
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main } from './module.f.mjs'
 import { actions, functionalscript, node } from './config/module.f.mjs'
-import { major, nodeNixJobs, packageArtifact } from './node/module.f.mjs'
+import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
+import { packageCheckJobId } from './package/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
@@ -85,7 +86,7 @@ const runDefault = packageJson => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 14, 'expected 14 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
@@ -254,6 +255,41 @@ export const proof = {
             1,
             'expected exactly one job to upload the package')
     },
+    packageCheck: () => {
+        const gha = run(false)
+        const job = gha.jobs[packageCheckJobId]
+        assert(job !== undefined, 'expected the packed-package check job')
+        // The defining property. With a checkout there is a tsconfig.json up
+        // the tree, a node_modules to resolve into, and source files that can
+        // stand in for a declaration the tarball omits — the check would then
+        // pass on the repository rather than on the package.
+        assert(
+            !job.steps.some(step => step.uses?.startsWith('actions/checkout@') === true),
+            'the package check must not check out the repository')
+        // Ordered after the producer, and the producer is the job that
+        // actually uploads — asserting the edge alone would not catch it
+        // pointing at a job that never produces the artifact.
+        assertEq(job.needs?.[0], packageJobId)
+        assert(
+            gha.jobs[packageJobId]?.steps.some(
+                step => step.uses?.startsWith('actions/upload-artifact@') === true) === true,
+            'expected the needed job to be the one that uploads')
+        // Downloaded by the name the producer exports, not a second literal.
+        const download = job.steps.find(
+            step => step.uses?.startsWith('actions/download-artifact@') === true)
+        assertEq(download?.with?.name, packageArtifact)
+        // The properties that decide whether this job can fail at all. Each is
+        // load-bearing: `skipLibCheck` true silently stops the checking,
+        // enumerating from the installed package is what sees a module that
+        // gains a private type module later, and an empty file list would
+        // type-check nothing and pass.
+        assert(hasRunInJob(packageCheckJobId, '--skipLibCheck false')(gha), 'expected skipLibCheck left false')
+        assert(hasRunInJob(packageCheckJobId, 'find node_modules/functionalscript')(gha), 'expected declarations enumerated from the artifact')
+        assert(hasRunInJob(packageCheckJobId, 'test -s declarations.txt')(gha), 'expected a guard against an empty file list')
+        // The compiler is the package's own pin: with no checkout there is no
+        // lockfile, so an unpinned install lets the registry change the verdict.
+        assert(hasRunInJob(packageCheckJobId, 'devDependencies.typescript')(gha), 'expected the compiler pinned from the packed package.json')
+    },
     jobNeeds: () => {
         const steps = /** @type {const} */ ([{ run: 'echo hi' }])
         /** @type {(jobs: Unknown) => Unknown} */
@@ -283,10 +319,12 @@ export const proof = {
         assertEq(parseGitHubAction(action({
             check: { 'runs-on': 'ubuntu-latest', needs: 'pack', steps },
         }))[0], 'error')
-        // Dormant until something orders itself: the first consumer is the
-        // packed-artifact check in `fjs/ci/todo/f-mjs-package-support.md`.
-        assert(
-            definedValues(run(false).jobs).every(job => job.needs === undefined),
-            'unexpected job ordering in the generated workflow')
+        // Exactly one job orders itself: the packed-package check, which
+        // cannot start before the artifact it consumes exists. Pinning the
+        // count keeps a second ordering edge a deliberate change rather than
+        // something that appears unnoticed — ordering is where a workflow
+        // starts to have a shape that has to be reasoned about.
+        const orderedJobs = definedValues(run(false).jobs).filter(job => job.needs !== undefined)
+        assertEq(orderedJobs.length, 1, 'unexpected job ordering in the generated workflow')
     },
 }
