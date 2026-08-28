@@ -121,20 +121,33 @@ key       ::= string | '[' '"__proto__"' ']'
   Other JS whitespace (U+2028/U+2029, NBSP, FF, BOM) is rejected.
 - **No comments, no imports.** A DataJS document is closed; the compiler
   inlines resolved imports when normalizing FunctionalScript to DataJS.
-- **Strings and numbers are JSON's grammar**, plus the bigint `n` suffix.
-  `-` is not an operator: it folds into a following number, bigint, or
-  `Infinity` token only (`-NaN`, `-undefined`, a bare `-` are rejected).
+- **Strings and numbers are JSON's grammar.** Bigint is a production of its
+  own, not a suffix on the number grammar: JSON's integer part (no fraction,
+  no exponent, no leading zeros) followed by `n` — JS rejects `1.5n` and
+  `1e2n`, so "number + `n`" would over-accept. `-` is not an operator: it
+  folds into a following number, bigint, or `Infinity` token only (`-NaN`,
+  `-undefined`, a bare `-` are rejected).
 - **Keys** are JSON strings, plus the computed spelling `["__proto__"]` as the
   only way to write that one key; a bare or string `"__proto__"` key is
   rejected (JS would read it as prototype replacement).
 - **Const names** are ASCII: `[A-Za-z_$][A-Za-z0-9_$]*`, each bound once,
-  and binding `undefined`, `NaN`, or `Infinity` is rejected — JS permits
-  `const undefined = 5` and later `undefined` then means the const, which a
-  subset treating it as a literal would silently reinterpret.
-- **A JSON document is a valid DataJS value, never a DataJS document** (a
-  DataJS document is a JS module, so it cannot be a JSON document). The
-  conversion is literal: `"export default " + json + ";"` — minus the `;`,
-  `"export default " + json` — is always a valid document.
+  minus two exclusion sets. JavaScript's reserved words as they apply to a
+  binding identifier in module code (module code is strict), including
+  `import`, `export`, `let`, `yield`, `await`, and `static`, are excluded —
+  `const class = 1` is a JS syntax error, so accepting it would break the
+  subset law. Binding `undefined`, `NaN`, or `Infinity` is additionally
+  rejected — JS *permits* `const undefined = 5` and later `undefined` then
+  means the const, which a subset treating it as a literal would silently
+  reinterpret. The spec enumerates the excluded words exhaustively rather
+  than citing ECMA-262.
+- **Every JSON value is a DataJS value; no JSON document is a DataJS
+  document** (a DataJS document is a JS module, so it cannot be a JSON
+  document). The textual conversion `"export default " + json` yields a
+  valid document with one exception: a bare `"__proto__"` object key —
+  rejected by DataJS because JS reads it as prototype replacement — must be
+  rewritten to the computed spelling `["__proto__"]` during conversion.
+  Plain concatenation is exactly valid for JSON containing no `__proto__`
+  key.
 
 **Serialization.** Any conforming serializer may emit any valid document; a
 separate *normalized form* section defines one byte-deterministic canonical
