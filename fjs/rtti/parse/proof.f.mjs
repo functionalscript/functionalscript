@@ -352,6 +352,8 @@ export const proof = {
             const built = unwrap(parse([number, or(option, number), or(option, number)])([1, , ]))
             assertEq(built.length, 1, 'the trailing absent run is gone')
             assertEq(built[0], 1, 'the present prefix survives')
+            // nothing present at all rebuilds the empty array
+            assertStructurallySame(unwrap(parse([or(option, number)])([])), [])
         },
         structDropsTheKey: () => {
             const built = unwrap(parse({ a: number, b: or(option, string) })({ a: 1 }))

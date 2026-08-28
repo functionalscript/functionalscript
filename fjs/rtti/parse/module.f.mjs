@@ -86,44 +86,45 @@ const arrayRebuild = entries => entries.map(([, v]) => v)
 const recordRebuild = entries => Object.fromEntries(entries)
 
 /**
- * Rebuilds a **const** container from the declared members that were
- * present, keyed by the same HasProperty test the check dispatched on —
- * one per kind, since only the array kind has holes to preserve.
+ * The **tuple** kind's rebuild over its declared members — only the present
+ * ones reach `entries` (`recordRebuild` is the struct kind's counterpart,
+ * where dropping an absent key needs nothing more): the present members at
+ * their own indices, holes at the absent ones before them, ending at the
+ * last present position — so a trailing absent run shortens the result and
+ * an interior hole survives (materializing it as `undefined` would denote a
+ * different value, and omitting it would shift every position after it).
  *
- * @template C
- * @typedef {(value: C, entries: ReadonlyArray<readonly [string, Unknown]>) => Unknown} _RebuildDeclared
- */
-
-/**
- * The array kind's rebuild is **slice, then map**: truncate the value to the
- * last *present* declared position, then map each present index to its
- * parsed result. Mapping alone is not enough — `.map` preserves length, so a
- * trailing absent run would survive as a sparse tail and serialize back to
- * the `null`s this stage removes — and omitting absent entries from a
- * rebuilt list would shift every position after an interior hole.
- * `slice` and `.map` both skip a hole, so an interior one survives as a
- * hole; both use HasProperty, so an index the value only *inherits* is
- * materialized as an own property of the result, carrying its parsed value.
- * That divergence is bounded and pinned rather than closed: no immutable
- * builder can produce the hole against a prototype-supplied index —
- * `.map` creates the own output element whatever the callback returns, and
- * a fresh `Array(n)` inherits the index too — and the escapes
- * (`Object.assign`, index assignment) are mutation, which FunctionalScript
- * forbids. See `../host.proof.mjs`.
+ * The construction is segments — a fresh `new Array(gap)` of holes before
+ * each present member, then the member — folded with `concat` on a trusted
+ * empty array, which appends a spreadable argument element by *present*
+ * element and so keeps the holes. The input value is never consulted, and
+ * every array touched is a plain one this module made, which is the point:
+ * an earlier slice-then-map of the input let an accepted `Array` subclass
+ * override `slice` and hand `parse` a result that fails the very schema it
+ * was parsed against. An index the value only *inherits* is a present
+ * member (HasProperty is what the check dispatched on), so it sits in
+ * `entries` and is materialized as an own member of the result, carrying
+ * its parsed value — see `../host.proof.mjs`.
  *
- * @type {_RebuildDeclared<ReadonlyArray<Unknown>>}
+ * @type {_Rebuild}
  */
-const tupleRebuild = (value, entries) => {
-    if (entries.length === 0) { return [] }
-    /** @type {StringMap<Unknown>} */
-    const byIndex = Object.fromEntries(entries)
-    const end = Number(entries[entries.length - 1][0]) + 1
-    return value.slice(0, end).map((_, i) => byIndex[i])
+const tupleRebuild = entries => {
+    /** @type {readonly (readonly Unknown[])[]} */
+    let segments = []
+    let next = 0
+    for (const [k, v] of entries) {
+        const i = Number(k)
+        segments = i === next
+            ? [...segments, [v]]
+            : [...segments, new Array(i - next), [v]]
+        next = i + 1
+    }
+    return emptySegment.concat(...segments)
 }
 
-/** The struct kind drops an absent key: only the present entries are rebuilt. */
-/** @type {_RebuildDeclared<StringMap<Unknown>>} */
-const structRebuild = (_value, entries) => Object.fromEntries(entries)
+/** `tupleRebuild`'s trusted `concat` receiver — a plain array, so its species is `Array`. */
+/** @type {ReadonlyArray<Unknown>} */
+const emptySegment = []
 
 /** `eachEntry`'s accumulator seed: entries are consed on in reverse as they parse. */
 /** @type {List<readonly [string, Unknown]>} */
@@ -239,7 +240,7 @@ const constContainerParse =
      * @param {IsContainer<C>} isContainer
      * @param {SchemaEntries<S>} schemaEntries
      * @param {(value: C, k: string) => Unknown} getItem
-     * @param {_RebuildDeclared<C>} rebuild
+     * @param {_Rebuild} rebuild
      * @param {Fits<C>} fits
      * @returns {<T extends S>(rtti: T) => Parse<T>}
      */
@@ -267,7 +268,7 @@ const constContainerParse =
             )
             if (r[0] === 'error') { return r }
             return undeclaredMembers(declared, value).length === 0 && fits(value, declared.length)
-                ? /** @type {any} */ (ok(rebuild(value, orderedEntries(r[1]))))
+                ? /** @type {any} */ (ok(rebuild(orderedEntries(r[1]))))
                 : verror('unexpected value')
         }
     }
@@ -284,7 +285,7 @@ const structParse = constContainerParse(
     isObject,
     structSchemaEntries,
     (value, k) => value[k],
-    structRebuild,
+    recordRebuild,
     () => true,
 )
 
@@ -306,7 +307,7 @@ const restContainerParse =
      * @param {IsContainer<C>} isContainer
      * @param {SchemaEntries<S>} schemaEntries
      * @param {(value: C, k: string) => Unknown} getItem
-     * @param {_RebuildDeclared<C>} rebuild
+     * @param {_Rebuild} rebuild
      * @param {(rtti: S, r: Type) => Fits<C>} restFits
      * @returns {(rtti: S, r: Type) => ValidateE}
      */
@@ -337,12 +338,12 @@ const restContainerParse =
             const extra = undeclaredMembers(declared, value)
             if (extra.length === 0) {
                 return fits(value, declared.length)
-                    ? ok(rebuild(value, orderedEntries(d[1])))
+                    ? ok(rebuild(orderedEntries(d[1])))
                     : verror('unexpected value')
             }
             const restParse = /** @type {any} */ (parse(r))
             const e = eachEntry(extra, (_k, v) => restParse(v), undefined, noAccumulate)
-            return e[0] === 'error' ? e : ok(rebuild(value, orderedEntries(d[1])))
+            return e[0] === 'error' ? e : ok(rebuild(orderedEntries(d[1])))
         }
     }
 
@@ -358,7 +359,7 @@ const restStructParse = restContainerParse(
     isObject,
     structSchemaEntries,
     (value, k) => value[k],
-    structRebuild,
+    recordRebuild,
     () => () => true,
 )
 

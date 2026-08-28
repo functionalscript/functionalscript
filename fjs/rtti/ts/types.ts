@@ -69,12 +69,22 @@ type _AdmitsAbsence1<T> =
  * reason {@link _AdmitsAbsence} is, and additionally because testing
  * `[Ts<T>] extends [never]` would force the element type of a recursive
  * array schema eagerly and never terminate.
+ *
+ * A `Phantom` annotation is read **before** the thunk walk, exactly as
+ * {@link _AdmitsAbsence} and `Ts` read it: a phantom-wrapped schema is still
+ * a thunk, so descending its `or` chain would re-expand the very recursion
+ * the annotation exists to spare (TS2589). The annotation is `_TsRaw`-shaped,
+ * so its present part is what survives `Exclude<O, undefined | Absent>` —
+ * the same `Exclude` the public `Ts` applies — and "absent-only" is that
+ * part being `never`. (`undefined` there is the optional-field artifact the
+ * `Phantom` contract already excludes from annotations, not a value member.)
  */
 type _IsAbsentOnly<T> =
     unknown extends T ? false :
     false extends _IsAbsentOnly1<T> ? false : true
 
 type _IsAbsentOnly1<T> =
+    T extends { readonly [phantomKey]?: infer O } ? ([Exclude<O, undefined | Absent>] extends [never] ? true : false) :
     T extends () => infer I
         ? I extends readonly['option'] ? true
         : I extends readonly['or', ...infer A extends readonly Type[]] ? _IsAbsentOnly1<A[number]>
@@ -721,4 +731,29 @@ type _phantomPublic = Assert<Check<number, _PhantomOption>>
 type _phantomOptionalMember = Assert<Check<
     { readonly a?: number } & unknown,
     { readonly a: _PhantomOption }
+>>
+
+/**
+ * The `Phantom` short-circuit holds at every structural predicate, not only
+ * in `Ts`: a phantom-wrapped schema is still a thunk, so a predicate that
+ * walked it — {@link _IsAbsentOnly} behind {@link ArrayTs} was the one that
+ * did — re-expands a recursive union into itself and raises TS2589 where the
+ * annotation exists precisely to prevent it. Pinned with a recursive
+ * `X = or(option, number, X)` used as an array element, and with an
+ * absence-only annotation, the pair that exercises both answers of the
+ * phantom branch.
+ */
+type _PhantomRecThunk = () => readonly['or', RttiOption, RttiNumber, _PhantomRecThunk]
+type _PhantomRec = Phantom<_PhantomRecThunk, Absent | number>
+type _phantomRecursiveArray = Assert<Check<
+    readonly number[],
+    () => readonly['array', _PhantomRec]
+>>
+type _phantomRecursiveMember = Assert<Check<
+    { readonly a?: number } & unknown,
+    { readonly a: _PhantomRec }
+>>
+type _phantomAbsentOnlyArray = Assert<Check<
+    readonly[],
+    () => readonly['array', Phantom<RttiOption, Absent>]
 >>

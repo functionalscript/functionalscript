@@ -182,12 +182,29 @@ export const proof = {
             assertOk(read({ a: or(option, string) })(value))
         }
     },
+    // `parse`'s tuple rebuild never runs a method of the value: it is built
+    // from the parsed entries alone, on trusted plain arrays. An accepted
+    // `Array` subclass — or, as here, an array whose prototype supplies the
+    // methods — can override `slice`/`map`; a rebuild that called them was
+    // handed `['ok', []]` for an input holding `1`, a result that fails the
+    // very schema it was parsed against, and a throwing override escaped
+    // the `Result` API entirely.
+    hostileArrayMethodsDoNotReachTheRebuild: () => {
+        const value = [1]
+        Object.setPrototypeOf(value, Object.assign([], {
+            slice: () => [],
+            map: () => { throw 'hostile' },
+        }))
+        const r = p([number])(value)
+        assert(r[0] === 'ok', 'expected ok')
+        assertStructurallySame(/** @type {readonly unknown[]} */ (r[1]), [1])
+    },
     // …and `parse` **materializes** the inherited value as an own member of
-    // what it builds: against a prototype-supplied index no immutable builder
-    // can produce the hole — `slice` and `.map` copy by HasProperty, an
-    // `Object.hasOwn` guard inside a `.map` callback cannot stop the own
-    // output element from existing, and a fresh `Array(n)` inherits the index
-    // too — so this is a pinned, bounded divergence, unreachable from
+    // what it builds: the member is *present* — HasProperty is what the
+    // check dispatched on — so its parsed value is in the entries the
+    // rebuild is made of, and the output carries what was checked rather
+    // than a hole at an index the input answered for. A pinned, bounded
+    // divergence from the input's own/inherited split, unreachable from
     // FunctionalScript (which has neither mutation nor prototype writes).
     // `validate` is untouched: it returns the value it was given.
     parseMaterializesAnInheritedIndex: () => {
