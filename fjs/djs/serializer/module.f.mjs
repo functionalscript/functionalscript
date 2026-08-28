@@ -17,11 +17,12 @@
 import { fold } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.mjs'
-const { entries } = Object
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
 import { objectWrap, arrayWrap, colon, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
+
+const { entries } = Object
 
 export const undefinedSerialize = ['undefined']
 
