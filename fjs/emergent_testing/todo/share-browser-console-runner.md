@@ -149,7 +149,11 @@ and is reviewable without the next one.
       only means "how long the run took" for a sequential runner —
       `RunTotals` documents that.
 - [ ] **7. One skeleton.** The page's proof-tree walk is deleted and the shared
-      traversal runs it.
+      traversal runs it. The walk's `batchSize = 25` batching goes onto the
+      table with it: that is a scheduling policy of the page's own — the same
+      kind the reverted attempt was faulted for inventing, though this one
+      predates it in `browser.mjs` — and step 7 is where it gets decided
+      rather than silently inherited.
 - [ ] **8. The layout move**, and the website preparation program.
 
 Steps 3 and 7 are the ones that change behaviour, so they are the ones to keep
@@ -172,16 +176,25 @@ alone on purpose:
   step 2 shares; they disagree on the message, which belongs with the point
   above.
 
-Note also that `testResult` now sits inside `fjs t`'s own reporting path, so a
-defect in it can mislabel the very failures it causes — a mutation forcing every
-status to `passed` prints `ok` on failing lines. Since step 6, the pass/fail
-counts and the exit code read the same shared status (the walk folds each
-leaf's `TestResult` with `addResult`), so such a defect no longer leaves an
-honest summary behind either — that duplicate decision was exactly the drift
-this issue exists to remove, and what holds the line now is that `testResult`
-and `addResult` are pinned by direct proofs rather than by a second
-implementation agreeing. Worth remembering when reading output while changing
-either function.
+Note also that `testResult` and `addResult` now sit inside `fjs t`'s own
+reporting path: since step 6 the result lines, the summary counts and the exit
+code all read them, so a defect there can mislabel or miscount the very
+failures it causes — and **`fjs t` alone cannot see that**. The direct proofs
+that pin both functions are themselves reported through the functions they
+test: mutate `testResult` to answer `passed` for everything and the proof that
+asserts `failed` does fail, but its failure is relabelled `ok` on the way out —
+measured, the mutated suite prints 3480 pass, exit 0. Mutate the fold to never
+count a failure and the gate (`failed !== 0`) reads the fold it is gating —
+exit 0 again, with the total quietly short. That is not a duplicate-decision
+problem to fix with a second count (the second count is what step 6 removed);
+it is a runner auditing itself, which no arrangement of its own proofs escapes.
+What actually holds the line is the *other* execution path: `all.test.mjs`
+registers every proof with an external framework (`register`, which consults
+neither `testResult` nor `addResult` — a deliberate independence, worth
+keeping), and CI runs it under node, bun and deno. Both mutants above fail
+there — 16 and 18 failures, exit 1. So a reporter defect shows up as `fjs t`
+disagreeing with the external runners, never as every gate lying together —
+and `fjs t`'s own exit code is trustworthy only in that company.
 
 ### Why the remaining steps are worth taking
 
