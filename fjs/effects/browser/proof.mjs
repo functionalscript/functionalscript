@@ -60,6 +60,19 @@ export const proof = {
         assertEq(okValue(r[0]).result[1], 'first')
         assertEq(okValue(r[1]).result[1], 'second')
     },
+    // `match` looks a handler up by own-property descriptor, so an `extra` that
+    // declares one non-enumerable is still a valid operation map. Carrying the
+    // handlers over by spread would have dropped it and turned a dispatch this
+    // layer supports into a rejected promise.
+    nonEnumerableHandlerIsDispatched: async () => {
+        const extra = Object.defineProperty({}, 'quiet', {
+            value: async () => ok('answered'),
+            enumerable: false,
+        })
+        const r = await browserRun(/** @type {any} */ (extra))(
+            /** @type {any} */ (do_('quiet'))())
+        assertEq(okValue(r), 'answered')
+    },
     // The mirror of the panic below: a program that claims an operation this
     // runner already implements is the same class of bug as one that asks for
     // an operation it lacks. Resolving it either way would be silent — the

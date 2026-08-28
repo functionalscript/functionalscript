@@ -126,10 +126,17 @@ export const browserRun = extra => {
     // is a routine outcome: it is a program claiming an operation this runner
     // already has, which is the same class of bug as asking for one it does
     // not.
-    const claimed = Object.keys(extra).filter(k => Object.hasOwn(core, k))
+    const claimed = Object.getOwnPropertyNames(extra).filter(k => Object.hasOwn(core, k))
     if (claimed.length !== 0) {
         throw `browserRun: ${claimed.join(', ')} already implemented`
     }
-    run = asyncRun(/** @type {any} */ ({ ...core, ...extra }))
+    // The handlers are carried over by descriptor rather than by spread, so a
+    // map that declares one non-enumerable keeps it. `match` looks a handler up
+    // with `getOwnPropertyDescriptor`, so this runner now accepts exactly what
+    // the layer's dispatch already accepts — no more, and no less. An
+    // inherited handler is out of contract there and stays out of contract
+    // here.
+    run = asyncRun(/** @type {any} */ (
+        Object.defineProperties({ ...core }, Object.getOwnPropertyDescriptors(extra))))
     return run
 }
