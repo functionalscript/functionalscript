@@ -133,16 +133,26 @@ and is reviewable without the next one.
       **The vocabulary went first, and it was not speculative.** Before an
       operation can move, the types it is *declared in* have to have a home:
       `OpResult`, `IoError`, `IoErrorInfo`, `IoChannel`, `IoResult` and the
-      `ioError`/`toIoError`/`isNotFound` constructors were all in
-      `effects/node`, and none of them names a host — "the runner cannot
-      dispatch" and "the host tried and failed" are how *any* operation goes
-      wrong. That misfiling already had a victim: `effects/memory/types.ts`,
-      which has no host at all, imported `OpResult` from `../node/types.ts`.
-      So that move is separation of concerns with a consumer today
+      `ioError`/`toIoError` constructors were all in `effects/node`, and none
+      of them names a host — "the runner cannot dispatch" and "the host tried
+      and failed" are how *any* operation goes wrong. That misfiling already
+      had a victim: `effects/memory/types.ts`, which has no host at all,
+      imported `OpResult` from `../node/types.ts`. So that move is separation
+      of concerns with a consumer today
       ([DESIGN.md §4](../../../DESIGN.md)), not an extraction on the promise of
       one — which is the test the operations themselves have yet to pass, and
       why they wait for step 5. `effects/node` re-exports every moved name, so
       the several dozen modules that reach for them through it are untouched.
+
+      **`isNotFound` stayed, and it is the boundary marker for this step.** It
+      reads `ENOENT`, a POSIX filesystem code a browser never reports, so it is
+      a node predicate however much it looks like the constructors beside it.
+      Being about a *host failure* does not make a thing host-agnostic; being
+      about no host in particular does. Apply that test to each operation below
+      rather than moving the list wholesale —
+      [node-module-layering](../../effects/todo/node-module-layering.md) is
+      where those rulings live, and it already declines to move `Now` and
+      `RandomInt` for a related reason.
 - [ ] **5. A browser interpreter** for exactly those operations, with no
       scheduling policy of its own. This is also what earns step 4's *operation*
       move its second consumer: until a second host implements `now`, `sandbox`,
