@@ -238,13 +238,26 @@ const constContainerValidate =
             if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
+            // Absence is answered before **any** member is read. Reaching
+            // an illegal absence through the reading walk would first
+            // recurse into the members that come before it, and those are
+            // the operands the longer arm shares — so an `or` of two
+            // arities would walk them once per arm at every level, which is
+            // the exponential all over again on a value the short arm has
+            // to reject. Measured on a chain of `['.', exp, index]` with a
+            // leaf no arm accepts: 2.5s at depth 16 without this pass.
+            const a = eachEntry(
+                withPresence,
+                (_k, [v, present]) => present ? ok(undefined) : absentMember(v),
+                undefined,
+                acc => acc,
+            )
+            if (a[0] === 'error') { return a }
             const r = eachEntry(
                 withPresence,
                 (k, [v, present]) => {
-                    if (!present) {
-                        const a = absentMember(v)
-                        return a[0] === 'error' ? a : ok(false)
-                    }
+                    // Absence is settled above; this walk only records it.
+                    if (!present) { return ok(false) }
                     const m = /** @type {any} */ (validate(v))(getItem(value, k))
                     return m[0] === 'error' ? m : ok(true)
                 },

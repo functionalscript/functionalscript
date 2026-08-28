@@ -874,6 +874,12 @@ export const proof = {
         for (const read of [v, p]) { assertErrorPath([])(read(t)([43, 'extra'])) }
         // a member error alone still reports the member
         for (const read of [v, p]) { assertErrorPath(['0'])(read(t)([43])) }
+        // an absent required member answers before the members ahead of it
+        // are read — reaching it through the reading walk would recurse
+        // into the operands the longer arm shares, which is the exponential
+        // this order exists to avoid
+        const two = /** @type {const} */ ([number, number])
+        for (const read of [v, p]) { assertErrorPath(['1'])(read(two)(['bad'])) }
         // and a value that fits is read as before
         for (const read of [v, p, d]) { assertOk(read(t)([42])) }
     },

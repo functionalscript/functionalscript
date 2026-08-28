@@ -349,13 +349,21 @@ const constContainerParse =
             if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
+            // Absence before any read, for the reason `../validate`'s
+            // copy of this comment gives: reaching an illegal absence
+            // through the reading walk restores the exponential.
+            const a = eachEntry(
+                withPresence,
+                (_k, [t, present]) => present ? ok(undefined) : absentMember(t),
+                undefined,
+                acc => acc,
+            )
+            if (a[0] === 'error') { return a }
             const r = eachEntry(
                 withPresence,
                 (k, [t, present]) => {
-                    if (!present) {
-                        const a = absentMember(t)
-                        return a[0] === 'error' ? a : ok([])
-                    }
+                    // Absence is settled above; this walk only records it.
+                    if (!present) { return ok([]) }
                     const p = /** @type {any} */ (parse(t))(getItem(value, k))
                     return p[0] === 'error' ? p : ok([p[1]])
                 },

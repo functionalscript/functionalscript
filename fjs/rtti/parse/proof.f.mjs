@@ -459,6 +459,9 @@ export const proof = {
             structuralMismatchIsAnsweredFirst: () => {
                 assertErrorPath([])(parse([/** @type {const} */ (42)])([43, 'extra']))
                 assertErrorPath(['0'])(parse([/** @type {const} */ (42)])([43]))
+                // and an absent required member answers before the members
+                // ahead of it are read — see `../validate/proof.f.mjs`
+                assertErrorPath(['1'])(parse([number, number])(['bad']))
             },
             // Nor is a key that is no position at all.
             nonIndexKeyRejected: () =>
