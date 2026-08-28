@@ -179,6 +179,15 @@ Won't-fix issues: document the reason in the relevant `README.md`, in a code
 comment, or in another issue — then delete the issue file. Do not leave a
 status-only tombstone.
 
+Kept as the record: a resolved issue stays **only** when live documents cite it
+for something no surviving file says — a migration's staged rationale, a
+decision's alternatives. Say so in its `**Status:**` and name what cites it, so
+a reader can tell it from an open task at a glance;
+[`fjs/effects/todo/io-effect-migration.md`](../fjs/effects/todo/io-effect-migration.md)
+is the worked example. This is the narrow exception, not a way to keep finished
+work around: if the rationale can move into a `README.md` or JSDoc, move it and
+delete the file.
+
 ## Priority scale
 
 | Level | Meaning |

@@ -120,5 +120,6 @@ emits `Any::unary_plus(...)` when generating `nanvm-lib/tests/test/generated.rs`
   `unaryPlus` has no EDAG operation to derive its shape from.
 - [`numeric-operator-home.md`](./numeric-operator-home.md) — adjacent `Numeric<A>` algebra
   layout, same `any/`-vs-`numeric.rs` split this touches.
-- [`operator-test-operation-model.md`](./operator-test-operation-model.md) — the `Op`-union
-  redesign this predates; folded into `reuse-edag-operators.md`.
+- operator-test-operation-model (retired; folded into
+  [`reuse-edag-operators.md`](../../fjs/nanvm/todo/reuse-edag-operators.md)) — the
+  `Op`-union redesign this predates.
