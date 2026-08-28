@@ -25,8 +25,10 @@ relationships grew rather than being designed:
 - **`fjs/fsc`** — nearly empty: a character-classifier stub plus a dead third
   copy of the JSON grammar
   ([orphaned-json-grammar](../fjs/fsc/todo/orphaned-json-grammar.md)).
-- **`fjs/bnf`** — the grammar toolkit, still evolving (EOF encoding change,
-  pending unicode split).
+- **`fjs/bnf`** — the grammar toolkit, still evolving: a breaking
+  EOF-encoding change shipped recently
+  ([#1516](https://github.com/functionalscript/functionalscript/pull/1516)),
+  and the unicode split is still pending.
 
 Two structural problems follow:
 
@@ -213,7 +215,13 @@ throughout.
    [157](../fjs/djs/todo/157-json-djs-shared-value-machine.md) §2 with a
    ref-lookup hook, own number writer), proofs over the spec vectors.
 5. **Front-end move** — `fjs/djs/{tokenizer,parser,ast,transpiler}` →
-   `fjs/fsc/*` as a rename; separator `nl` → `';'`; reserved words added;
+   `fjs/fsc/*` as a rename. The rest of `fjs/djs` has stated destinations
+   rather than following the rename: `serializer/` is reworked into stage
+   4's `fjs/media/datajs` (it does not move to `fsc`); the value-tree types
+   in `fjs/djs/types.ts` go with it, per
+   [663](../fjs/djs/todo/663-json-djs-tree-type.md); `examples/` and the
+   top-level `module.f.mjs`/`proof.f.mjs` carrying `compile()` move with
+   the front end to `fsc`. Separator `nl` → `';'`; reserved words added;
    the DataJS numeric leaves taught to the moved front end — `NaN`,
    `Infinity`, `-Infinity`, and exact `-0` are unresolved identifiers in
    today's parser, so reserving the names alone would *reject* DataJS accept
@@ -265,7 +273,9 @@ throughout.
   proof-covered `fjs/bnf` example, not a runtime module; the
   `fjs/djs/tokenizer` pointer becomes the `fsc` tokenizer.
 - [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) — its
-  paths move `djs` → `fsc` in stage 5; its special-number round-trip
+  front-end paths move `djs` → `fsc` in stage 5, while its serializer
+  citation (`../serializer/module.f.mjs`) follows the serializer into
+  stage 4's `fjs/media/datajs`; its special-number round-trip
   requirement is satisfied by the DataJS spec rather than DJS-specific
   patches.
 - [orphaned-json-grammar](../fjs/fsc/todo/orphaned-json-grammar.md) —
