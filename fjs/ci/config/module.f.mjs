@@ -73,6 +73,8 @@ export const actions = /** @type {const} */({
     'actions/setup-node': 'v7.0.0',
     // https://github.com/marketplace/actions/cache
     'actions/cache': 'v6.1.0',
+    // https://github.com/marketplace/actions/upload-a-build-artifact
+    'actions/upload-artifact': 'v7.0.1',
     // https://github.com/marketplace/actions/setup-deno
     'denoland/setup-deno': 'v2.0.5',
     // https://github.com/marketplace/actions/setup-bun

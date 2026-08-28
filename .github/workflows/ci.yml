@@ -515,6 +515,14 @@
         },
         {
           "run": "npm pack"
+        },
+        {
+          "uses": "actions/upload-artifact@v7.0.1",
+          "with": {
+            "name": "package-tarball",
+            "path": "*.tgz",
+            "if-no-files-found": "error"
+          }
         }
       ]
     },

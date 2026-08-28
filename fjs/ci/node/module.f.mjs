@@ -12,6 +12,12 @@ import { node } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 import { nixInstall, nixVersionCheckStep } from '../nix/module.f.mjs'
 
+/**
+ * Name of the CI artifact carrying the `npm pack` tarball. The producing step
+ * is below; a consuming job downloads it by this name.
+ */
+export const packageArtifact = /** @type {const} */ ('package-tarball')
+
 /** @type {(v: string) => string} */
 export const major = v => v.split('.')[0]
 
@@ -86,6 +92,16 @@ const node26Steps = [
     test({ run: 'npx tsc' }),
     test({ run: 'npm run cov' }),
     test({ run: 'npm pack' }),
+    // Hands the tarball to a job that has no checkout, which is the only place
+    // the package can be checked as a consumer sees it. `if-no-files-found`
+    // must be `error`: the default warns and uploads nothing, so a consuming
+    // job would fail later on a missing artifact rather than here on the real
+    // cause.
+    test(uses('actions/upload-artifact', {
+        name: packageArtifact,
+        path: '*.tgz',
+        'if-no-files-found': 'error',
+    })),
 ]
 
 /** @type {(steps: readonly MetaStep[]) => Job} */
