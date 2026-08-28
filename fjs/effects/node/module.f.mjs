@@ -23,19 +23,21 @@ import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { error as resultError, ok as resultOk, unwrap } from '../../types/result/module.f.mjs'
-import { do_, pure } from '../module.f.mjs'
+import { do_, ioError, isNotFound, pure, toIoError } from '../module.f.mjs'
 import {
     mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
 
 /**
- * Builds a normalized host error. The constructor exists so the shape is
- * written once: every runner reports its failures through it, and a consumer
- * matching on `'ioError'` knows what the payload holds.
- *
- * @type {(info: IoErrorInfo) => IoError}
+ * The host-error vocabulary — `ioError`, `toIoError`, `isNotFound` — is
+ * declared in [`../module.f.mjs`](../module.f.mjs) beside the effect
+ * representation, because none of it is node's: normalizing a thrown value and
+ * telling "the runner cannot" from "the host tried and failed" are what any
+ * host's interpreter does. Re-exported here so the modules that reach for them
+ * through the node module keep working, and so an operation's declaration and
+ * its failure constructor still read as one vocabulary.
  */
-export const ioError = info => ['ioError', info]
+export { ioError, isNotFound, toIoError }
 
 /**
  * The host a {@link Listen} refuses.
@@ -82,46 +84,6 @@ export const emptyHostError = ioError({
     code: emptyHostCode,
     message: emptyHostMessage,
 })
-
-/**
- * Normalizes a **thrown** value into an {@link IoError}: the OS error code when
- * the host attached a string one, and a message that is the `Error`'s own or
- * the value's string form.
- *
- * This is the boundary where an impure runner's `catch` becomes ordinary effect
- * data. Nothing past it sees the thrown object, which is the point — a stack, a
- * `cause`, and arbitrary own properties do not survive a wire hop, and a
- * program that branched on them would be reading the host's implementation
- * rather than the operation's contract.
- *
- * @type {(e: unknown) => IoError}
- */
-export const toIoError = e => {
-    const message = e instanceof Error ? e.message : String(e)
-    if (typeof e !== 'object' || e === null || !('code' in e) || typeof e.code !== 'string') {
-        return ioError({ message })
-    }
-    return ioError({ code: e.code, message })
-}
-
-/**
- * True if `e` is a "file or directory does not exist" (`ENOENT`) error.
- *
- * Node's filesystem rejections are `Error`s carrying `code: 'ENOENT'`, which
- * {@link toIoError} keeps; the virtual interpreter reports the same code for
- * absent paths. Lets callers swallow only the missing-path case (e.g. a fresh
- * store) while propagating genuine failures (permissions, corruption) rather
- * than masking them.
- *
- * A {@link NotImplemented} is never "not found": a runner that cannot perform
- * the operation has not looked for the path at all, so the two must not
- * collapse into one benign branch — which is exactly what a bare `unknown`
- * error channel used to allow.
- *
- * @type {(e: IoChannel) => boolean}
- */
-export const isNotFound = ([tag, payload]) =>
-    tag === 'ioError' && payload.code === 'ENOENT'
 
 /**
  * `NodeOp`'s commands as data, so a runner that implements only part of them

@@ -129,8 +129,27 @@ and is reviewable without the next one.
       `await`, `fetch`, `import`, `now`, `sandbox`) out of `effects/node` into a
       shared module that `effects/node` re-exports unchanged, so nothing has to
       move with them.
+
+      **The vocabulary went first, and it was not speculative.** Before an
+      operation can move, the types it is *declared in* have to have a home:
+      `OpResult`, `IoError`, `IoErrorInfo`, `IoChannel`, `IoResult` and the
+      `ioError`/`toIoError`/`isNotFound` constructors were all in
+      `effects/node`, and none of them names a host — "the runner cannot
+      dispatch" and "the host tried and failed" are how *any* operation goes
+      wrong. That misfiling already had a victim: `effects/memory/types.ts`,
+      which has no host at all, imported `OpResult` from `../node/types.ts`.
+      So that move is separation of concerns with a consumer today
+      ([DESIGN.md §4](../../../DESIGN.md)), not an extraction on the promise of
+      one — which is the test the operations themselves have yet to pass, and
+      why they wait for step 5. `effects/node` re-exports every moved name, so
+      the several dozen modules that reach for them through it are untouched.
 - [ ] **5. A browser interpreter** for exactly those operations, with no
-      scheduling policy of its own.
+      scheduling policy of its own. This is also what earns step 4's *operation*
+      move its second consumer: until a second host implements `now`, `sandbox`,
+      `await` and `all`, moving them out of `effects/node` makes nothing shorter
+      or clearer, and DESIGN.md §4 says to extract at the second real consumer
+      rather than before it. The two are therefore one design in two commits,
+      not one step deferred.
 - [x] **6. One reporter.** The event stream — a leaf landed, a run ended —
       that both hosts subscribe to. Step 2 gave them the *value*; this gave
       them the seam it travels through. `Reporter.result` now receives the
