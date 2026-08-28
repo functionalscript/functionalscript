@@ -231,6 +231,47 @@ Package validation must check semantic dependencies, not raw text:
 - no packed declaration semantically depends on an unshipped private type module;
 - a clean TypeScript consumer installed from the tarball type-checks successfully.
 
+#### The check has to run in CI, on the packed artifact
+
+Deleting `private.d.ts` is invisible to every check the repository has. `npx tsc`
+reads the *source* `private.ts`, so it stays green whatever `prepack` removes;
+`node26` runs `npm pack` but nothing installs or type-checks the result, and the
+`npm install -g functionalscript@<version>` steps install the *published* CLI,
+not the artifact just built. Stage 2 would therefore ship a claim that nothing
+could falsify — the same "a sweep, not a check" gap the Stage 1 grep guard
+closes. Only a consumer that reads the packed declarations can catch a
+declaration left pointing at a file the package no longer carries.
+
+Three constraints decide whether such a job is real or theatre:
+
+- **`skipLibCheck` must be off in the consumer.** The repository's
+  `tsconfig.json` sets `skipLibCheck: true`; inherited, it stops TypeScript from
+  ever opening the packed `.d.mts` internals, and a dangling private reference
+  passes silently. The consumer needs its own `tsconfig.json` with
+  `skipLibCheck: false`.
+- **The consumer must import the module surfaces whose declarations referenced
+  private types**, or the broken declaration is not in its program at all.
+- **The consumer directory must be outside the repository**, so
+  `allowImportingTsExtensions`, `rewriteRelativeImportExtensions`, and the rest
+  of the repository's compiler options cannot mask a packaging bug.
+
+A tarball-contents assertion (no `private.d.ts` inside) belongs alongside it, but
+it is a cheap complement: the semantic check is the consumer, per the rule above.
+
+Prefer a separate `package` job over more `node26` steps — it needs that clean
+directory, it is independent of `node26`'s other invariants, and a named red
+check reports what broke. Either way the job is added through the CI generator
+(`fjs/ci/node/module.f.mjs`, composed in `fjs/ci/module.f.mjs`), never by editing
+`.github/workflows/ci.yml`, which `npm run ci-update` regenerates.
+
+This fixture is already scoped in
+[`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md),
+where the clean packed-consumer validation was performed **manually** in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520) and the
+committed CI fixture is the remaining work. Stage 2 completes that fixture and
+adds the private-declaration assertion to it rather than standing up a second
+package-validation path.
+
 ### Repository policy
 
 When Stage 1 is implemented:
@@ -319,6 +360,20 @@ type-only and use named `import type { ... }` imports.
       `prepack` step.
 - [ ] Do not text-postprocess emitted declarations; validate semantic private
       dependencies and clean-consumer type checking instead.
+- [ ] Add a CI job that validates the packed artifact: install the tarball into
+      a clean directory outside the repository, with its own `tsconfig.json`
+      setting `skipLibCheck: false`, and type-check a consumer that imports the
+      module surfaces whose declarations referenced private types. Add it
+      through the CI generator (`fjs/ci/node/module.f.mjs`, composed in
+      `fjs/ci/module.f.mjs`), not by editing `.github/workflows/ci.yml`. Prefer
+      a separate `package` job over more `node26` steps. Complete the fixture
+      already scoped in [`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md)
+      rather than adding a second package-validation path.
+- [ ] Assert the tarball's contents (no `private.d.ts` inside) alongside that
+      job — a cheap complement to the semantic consumer check, never its
+      replacement.
+- [ ] Prove the job can fail: with the `prepack` deletion step removed, or with
+      a private declaration reintroduced, the packaged consumer must go red.
 - [ ] Add fixtures covering packaging: retained non-semantic JSDoc `@import`
       comments in emitted declarations, absent private artifacts in the tarball,
       and a clean package consumer.
@@ -365,19 +420,29 @@ type-only and use named `import type { ... }` imports.
   comments are allowed when they are non-semantic.
 - The packed artifact has no semantic dependency on an unshipped private type
   module, and a clean TypeScript consumer type-checks successfully.
+- That consumer runs **in CI**, from the packed tarball, in a directory outside
+  the repository, under its own `tsconfig.json` with `skipLibCheck: false` — the
+  only arrangement in which a declaration pointing at a deleted `private.d.ts`
+  is an error rather than a silently skipped library file.
+- The job is demonstrably falsifiable: removing the `prepack` deletion step, or
+  reintroducing a private declaration, turns it red.
+- The CI job is generated from `fjs/ci/**`, so `npm run ci-update` reproduces
+  `.github/workflows/ci.yml` byte-identically.
 - `fjs/fsc/README.md` no longer needs tolerance for a shipped `private.d.ts`,
   since none ships, and still documents the permanent `_` contract: `_` names
   emitted into shipped declarations are not API.
 
 ### Related
 
-- [`../fsc/README.md`](../fsc/README.md) — current `_` leak-tolerance policy.
-- [`../../AGENTS.md`](../../AGENTS.md) — root repository policy to update.
+- [`../fsc/README.md`](../fsc/README.md) — the `_` contract and the remaining
+  `private.d.ts` tolerance Stage 2 retires.
+- [`../../AGENTS.md`](../../AGENTS.md) — root repository policy.
 - [`../AGENTS.md`](../AGENTS.md) — `fjs/`-specific file/dependency policy.
-- [`../../todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md)
-  — current wait-for-`@internal`/`stripInternal` strategy.
+- [`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md)
+  — the packed-consumer CI fixture Stage 2 completes.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
-  — upstream JSDoc typedef stripping limitation.
+  — upstream JSDoc typedef stripping limitation; superseded as this design's
+  strategy, since no authored `.mjs` declares a typedef to strip.
 - [`detect-unexported-types-referenced-by-exported-types.md`](./detect-unexported-types-referenced-by-exported-types.md)
   — related declaration-leak detection.
 - [`document-file-type-naming-conventions.md`](./document-file-type-naming-conventions.md)
