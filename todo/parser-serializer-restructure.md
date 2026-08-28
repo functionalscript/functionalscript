@@ -181,11 +181,15 @@ restates, so no "shortest spelling" tie such as `1e3` vs `1E3` exists,
 `ToString` never produces the uppercase form — with one stated exception,
 `-0`, which `ToString` spells `0` and canonical DataJS spells `-0`;
 bigints as full digits + `n`; fixed string escaping). The serializer's
-*input* is a programmatic value that is not frozen and may be cyclic
-(`value.self = value`); DataJS represents DAGs only, so the serializer
-detects cycles and rejects them as an error — never emitting a
-self-referencing `const _0={"self":_0};` (a TDZ failure in JS) and never
-recursing unboundedly — with rejection proofs in stage 4. Normalization
+*input* is a programmatic value that is not frozen, so it must be validated
+against the DataJS data model, and anything outside the model is rejected
+as an error rather than approximated: a leaf outside the leaf set (a
+function, a symbol, a `Date` or any other non-plain object), a sparse
+array's hole (which is not an `undefined` element), a symbol-keyed or
+accessor own property (reading a getter is an effect), and a cycle
+(`value.self = value`) — DataJS represents DAGs only, and treating a
+back-edge as sharing would emit a self-referencing `const _0={"self":_0};`,
+a TDZ failure in JS. Rejection proofs in stage 4 cover each case. Normalization
 is not a blocker for the format spec. The serializer cannot delegate numbers
 to `JSON.stringify` (it loses `-0` and non-finite values); DataJS owns its
 number writer. The canonical layout is **one line** — fully minified, with
@@ -252,10 +256,13 @@ throughout.
    top-level `module.f.mjs`/`proof.f.mjs` carrying `compile()` move with
    the front end to `fsc`. Separator `nl` → `';'`; reserved words added;
    the DataJS numeric leaves taught to the moved front end — `NaN`,
-   `Infinity`, `-Infinity`, and exact `-0` are unresolved identifiers in
+   `Infinity`, and `-Infinity` are unresolved identifiers in
    today's parser, so reserving the names alone would *reject* DataJS accept
-   vectors: tokenizer, grammar, minus-folding, and AST/evaluation support is
-   stage-5 work (the front-end half of
+   vectors: their tokenizer, grammar, minus-folding, and AST/evaluation
+   support is stage-5 work; exact `-0` already parses correctly (the
+   tokenizer pins the `-0` lexeme and `parseFloat` preserves signed zero),
+   so it needs a regression proof, not reimplementation (together the
+   front-end half of
    [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)'s
    special-number requirement), a precondition of stage 6's subset proofs;
    `fjs compile` repointed. The EDAG staging continues under the `fsc`
