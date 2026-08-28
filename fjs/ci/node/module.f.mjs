@@ -72,11 +72,17 @@ const node26Steps = [
     // (`fjs/AGENTS.md` §2). Both directions are checked: the tag drifted onto
     // 102 `types.ts`/proof files before anything looked, and a check for only
     // that half would also pass on a tree that had lost the tag everywhere.
-    // `grep -L` cannot carry the verdict in its exit status — it reports
-    // whether any file *matched*, not whether it listed one — so the second
-    // guard pipes into `grep -q .` instead.
-    test({ run: "! grep -rl @module --include='*.ts' --include='*.mjs' --exclude-dir=node_modules . | grep -qvE '(^|/)module\\.(f\\.)?mjs$'" }),
-    test({ run: "! git ls-files | grep -E '(^|/)module\\.(f\\.)?mjs$' | xargs grep -L @module | grep -q ." }),
+    //
+    // The pattern matches the tag where JSDoc puts it, not the bare string,
+    // which also appears in code *about* the rule — the assertions in
+    // `../proof.f.mjs` name these very steps. Two further traps: `grep -L`
+    // reports whether any file *matched*, not whether it listed one, so it
+    // cannot carry the verdict in its exit status and the second guard pipes
+    // into a final `grep`; and that final `grep` omits `-q` on purpose, so a
+    // failing run names the offending files in the log instead of printing
+    // nothing but a broken pipe.
+    test({ run: "! grep -rlE '^(/\\*\\*.*@module|\\s\\* *@module)' --include='*.ts' --include='*.mjs' --exclude-dir=node_modules . | grep -vE '(^|/)module\\.(f\\.)?mjs$' | grep ." }),
+    test({ run: "! git ls-files | grep -E '(^|/)module\\.(f\\.)?mjs$' | xargs grep -LE '^(/\\*\\*.*@module|\\s\\* *@module)' | grep ." }),
     test({ run: 'npx tsc' }),
     test({ run: 'npm run cov' }),
     test({ run: 'npm pack' }),
