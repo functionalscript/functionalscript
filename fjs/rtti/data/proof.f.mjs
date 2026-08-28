@@ -175,15 +175,15 @@ const recursiveSchemas = () => {
 
     /** @type {_OptNumB} */
     const optNumB = () => ['or', optNumA]
-    return { list, tree, forest, selfOr, orA, orB, outer, inner, t2, x, y, w, topOr, topArr, a2, b2, recordSelf, even, odd, mkRec, anon, closedNode, closedChildren, nestedRest, optList, absCycleA, absCycleB, optNumA, optNumB }
+    return { list, tree, forest, selfOr, orA, outer, inner, x, y, topArr, a2, recordSelf, even, odd, mkRec, anon, closedNode, nestedRest, optList, absCycleA, optNumA }
 }
 
 const {
-    list, tree, forest, selfOr, orA, orB,
-    outer, inner, t2, x, y, w,
-    topOr, topArr, a2, b2, recordSelf, even,
-    odd, mkRec, anon, closedNode, closedChildren, nestedRest,
-    optList, absCycleA, absCycleB, optNumA, optNumB,
+    list, tree, forest, selfOr, orA,
+    outer, inner, x, y, topArr,
+    a2, recordSelf, even, odd, mkRec,
+    anon, closedNode, nestedRest, optList, absCycleA,
+    optNumA,
 } = recursiveSchemas()
 
 const tupleNumber = /** @type {const} */ ([number])
