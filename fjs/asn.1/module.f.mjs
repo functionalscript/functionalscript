@@ -6,6 +6,7 @@
  *
  * @import { Unpacked, Vec } from '../types/bit_vec/types.ts'
  * @import { ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag } from './types.ts'
+ * @import { _ClassPc, _ParsedTag } from './private.ts'
  */
 
 import { bitLength, divUp8 } from '../types/bigint/module.f.mjs'
@@ -32,28 +33,9 @@ const pop8 = pop(8n)
 
 // tag
 
-/**
- * @typedef {|
- *  0b000_00000n |
- *  0b001_00000n |
- *  0b010_00000n |
- *  0b011_00000n |
- *  0b100_00000n |
- *  0b101_00000n |
- *  0b110_00000n |
- *  0b111_00000n
- * } _ClassPc
- */
-
 const classPcMask = 0b111_00000n
 
 const tagNumberMask = 0b000_11111n
-
-/**
- * Note: the tag number (the second parameter) can be arbitrarily large,
- *       so we can't just use a single byte to represent it.
- * @typedef {readonly[_ClassPc, bigint]} _ParsedTag
- */
 
 /** @type {([classPc, number]: _ParsedTag) => Vec} */
 const parsedTagEncode = ([classPc, number]) => {
@@ -140,14 +122,7 @@ export const constructedSet = 0x31n      // constructed | set
 
 //
 
-/**
- * @typedef {{
- *  readonly byteLen: bigint
- *  readonly v: Vec
- * }} _Round8
- */
-
-/** @type {(_: Unpacked) => _Round8} */
+/** @type {(_: Unpacked) => { readonly byteLen: bigint, readonly v: Vec }} */
 const round8 = ({ length, uint }) => {
     const byteLen = divUp8(length)
     return { byteLen, v: vec(byteLen << 3n)(uint) }

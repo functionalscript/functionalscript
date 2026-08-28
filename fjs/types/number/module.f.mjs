@@ -32,9 +32,7 @@ export const max = reduce(maxReduce)(null)
 /** @type {(a: number) => (b: number) => Sign} */
 export const cmp = uCmp
 
-/** @typedef {readonly [number, number]} _MaskOffset */
-
-/** @type {readonly _MaskOffset[]} */
+/** @type {readonly (readonly [number, number])[]} */
 const mo = [
     [0x5555_5555, 1],
     [0x3333_3333, 2],

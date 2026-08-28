@@ -47,13 +47,11 @@ import { next } from '../list/module.f.mjs'
 import { cmp } from '../number/module.f.mjs'
 import { bsearch } from '../function/compare/module.f.mjs'
 
-/** @template T @typedef {Nullable<Entry<T>>} _RangeState */
-
 const reduceOp =
     /**
      * @template T
      * @param {Properties<T>} p
-     * @returns {ReduceOp<Entry<T>, _RangeState<T>>}
+     * @returns {ReduceOp<Entry<T>, Nullable<Entry<T>>>}
      */
     ({ union, equal }) => state => ([aItem, aMax]) => ([bItem, bMax]) => {
         const sign = cmp(aMax)(bMax)
@@ -67,7 +65,7 @@ const tailReduce =
     /**
      * @template T
      * @param {Equal<T>} equal
-     * @returns {TailReduce<Entry<T>, _RangeState<T>>}
+     * @returns {TailReduce<Entry<T>, Nullable<Entry<T>>>}
      */
     equal => state => tail => {
         if (state === null) { return tail }

@@ -32,23 +32,6 @@ const unwrap = r => {
     return /** @type {T} */ (r[1])
 }
 
-/** A container that contains itself: `[number, node?]`. */
-/** @typedef {readonly [number, _Node?]} _Node */
-
-const _node = () => /** @type {const} */ (['const', [number, or(option, _node)]])
-
-/** @type {Phantom<typeof _node, _Node>} */
-const node = _node
-
-/** A struct whose every undeclared key holds another one of these. */
-/** @typedef {() => readonly ['rest', { readonly a: typeof number }, _Nest]} _Nest */
-
-/** @type {_Nest} */
-const _nest = () => ['rest', { a: number }, _nest]
-
-/** @type {Phantom<_Nest, { readonly a: number }>} */
-const nest = _nest
-
 /** @type {(expected: readonly string[]) => (r: readonly [string, unknown]) => void} */
 const assertErrorPath = expected =>
     r => {
@@ -532,6 +515,11 @@ export const proof = {
         // would not terminate over a recursive container — see
         // `../ts/types.ts`); it is the *value* half under test here.
         recursive: () => {
+            /** A container that contains itself: `[number, node?]`. */
+            /** @typedef {readonly [number, _Node?]} _Node */
+            const _node = () => /** @type {const} */ (['const', [number, or(option, _node)]])
+            /** @type {Phantom<typeof _node, _Node>} */
+            const node = _node
             const p = parse(node)
             assertStructurallySame(unwrap(p([1])), [1])
             assertStructurallySame(unwrap(p([1, [2]])), [1, [2]])
@@ -540,6 +528,12 @@ export const proof = {
         // A cycle through the `rest` itself: every key other than `a` holds
         // another one of these.
         recursiveRest: () => {
+            /** A struct whose every undeclared key holds another one of these. */
+            /** @typedef {() => readonly ['rest', { readonly a: typeof number }, _Nest]} _Nest */
+            /** @type {_Nest} */
+            const _nest = () => ['rest', { a: number }, _nest]
+            /** @type {Phantom<_Nest, { readonly a: number }>} */
+            const nest = _nest
             const p = parse(nest)
             assertStructurallySame(unwrap(p({ a: 1, b: { a: 2 } })), { a: 1 })
             assertError(p({ a: 1, b: { a: 'x' } }))

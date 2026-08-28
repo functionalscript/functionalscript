@@ -2,6 +2,7 @@
  * Type-level API for signing helpers built on secp256k1 and SHA-256 primitives.
  */
 
+import type { Tuple } from '../../types/array/types.ts'
 import type { Vec } from '../../types/bit_vec/types.ts'
 
 export type All = {
@@ -11,3 +12,6 @@ export type All = {
     readonly int2octets: (x: bigint) => Vec
     readonly bits2octets: (b: Vec) => Vec
 }
+
+/** An ECDSA signature: the `(r, s)` pair. */
+export type _Signature = Tuple<2, bigint>

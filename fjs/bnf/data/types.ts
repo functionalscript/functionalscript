@@ -57,3 +57,8 @@ export type RuleSet = Readonly<Record<string, Rule>>
  * variant branch.
  */
 export type EmptyTag = string | true | undefined
+
+/**
+ * The {@link EmptyTag} of every rule in a {@link RuleSet}, keyed by rule name.
+ */
+export type _EmptyTagMap = StringMap<EmptyTag>

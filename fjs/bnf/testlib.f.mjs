@@ -1,6 +1,7 @@
 /**
  * @import { Ast, AstTag } from './matcher/types.ts'
  * @import { Rule } from './types.ts'
+ * @import { _AstChild, _AstNode, _Leaf, _Parts } from './private.ts'
  */
 
 import { codePointToString } from '../text/utf16/module.f.mjs'
@@ -198,18 +199,6 @@ export const deterministic = () => {
 //
 
 /**
- * The leaf of either backend's AST: `bnf/ll1` keeps the code point alone and
- * `bnf/descent` pairs it with metadata, so a renderer that takes both is
- * generic over exactly this.
- *
- * @typedef {number | readonly [number, unknown]} _Leaf
- */
-
-/** @typedef {Ast<_Leaf>} _AstNode */
-
-/** @typedef {_AstNode | _Leaf} _AstChild */
-
-/**
  * @param {_AstChild} child
  * @returns {child is _AstNode}
  */
@@ -227,8 +216,6 @@ const codePointOf = child => typeof child === 'number' ? child : child[0]
  */
 const showTag = tag =>
     tag === undefined ? '' : tag === true ? '*' : JSON.stringify(tag)
-
-/** @typedef {{ readonly parts: readonly string[], readonly text: string }} _Parts */
 
 /**
  * Ends the run of consumed code points being accumulated, if there is one, so
@@ -260,7 +247,11 @@ const noParts = { parts: [], text: '' }
  * tags survive. Repeated items are siblings under one node, whereas the
  * right-recursive encoding puts each item one level deeper than the last.
  *
- * @type {(node: _AstNode) => string}
+ * The leaf union — a bare code point, or a code point with metadata — is
+ * `_Leaf` in `./private.ts`, written inline here so the exported declaration
+ * does not depend on the private module.
+ *
+ * @type {(node: Ast<number | readonly [number, unknown]>) => string}
  *
  * @example
  *

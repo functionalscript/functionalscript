@@ -8,9 +8,6 @@
  * keeping a copy, so the sets cannot drift apart.
  *
  * @module
- *
- * @import { Assert } from '../../asserts/types.ts'
- * @import { Equal } from '../../types/ts/types.ts'
  */
 
 /**
@@ -49,7 +46,7 @@ export const restrictedNames = /** @type {const} */ (['arguments', 'eval'])
  * JavaScript that FunctionalScript keeps as a literal keyword.
  *
  * The proof verifies this list is exactly the sorted union of the groups,
- * and `_KeywordsPinned` ties the two type-level unions together.
+ * at runtime and at the type level.
  */
 export const keywords = /** @type {const} */ ([
     'arguments', 'await', 'break', 'case', 'catch', 'class', 'const',
@@ -61,12 +58,3 @@ export const keywords = /** @type {const} */ ([
     'undefined', 'var', 'void', 'while', 'with', 'yield',
 ])
 
-/**
- * @typedef {Assert<Equal<
- *  typeof keywords[number],
- *  | typeof reservedWords[number]
- *  | typeof strictModeReservedWords[number]
- *  | typeof restrictedNames[number]
- *  | 'undefined'
- * >>} _KeywordsPinned
- */

@@ -167,17 +167,15 @@ const toJson = stringify(identity)
  */
 const detectDialect = detect([revisionDialect, lockDialect, noteDialect])
 
-/** @typedef {{
+/**
+ * Maps a media-type detector verdict to the `cas_get` wire metadata.
+ *
+ * @type {(uri: string) => (detected: { readonly length: bigint, readonly mime_type: string, readonly type: 'text' | 'base64' }) => {
  *   readonly length: number
  *   readonly mimeType: string
  *   readonly type: 'text' | 'base64'
  *   readonly uri: string
- * }} _Meta */
-
-/**
- * Maps a media-type detector verdict to the `cas_get` wire metadata.
- *
- * @type {(uri: string) => (detected: { readonly length: bigint, readonly mime_type: string, readonly type: 'text' | 'base64' }) => _Meta}
+ * }}
  */
 const toMeta = uri => ({ length, mime_type: mimeType, type }) =>
     ({ length: Number(length), mimeType, type, uri })

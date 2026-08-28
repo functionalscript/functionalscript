@@ -5,13 +5,11 @@
  * @module
  *
  * @import { RangeMap } from '../range_map/types.ts'
- * @import { ByteSet } from './types.ts'
+ * @import { ByteSet, _Byte } from './types.ts'
  */
 
 import { compose } from '../function/module.f.mjs'
 import { reverse, countdown, flat, map } from '../list/module.f.mjs'
-
-/** @typedef {number} _Byte */
 
 /** @type {(n: _Byte) => (s: ByteSet) => boolean} */
 export const has = n => s => ((s >> BigInt(n)) & 1n) === 1n

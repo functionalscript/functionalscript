@@ -7,11 +7,9 @@ import { assert, assertEq } from '../asserts/module.f.mjs'
 import { compress } from './id/module.f.mjs'
 import { encode, emptyEncodeState } from './module.f.mjs'
 
-/** @typedef {readonly [Id, Id, Id, boolean]} _Merge */
-
-/** @type {(bits: readonly bigint[]) => readonly [Id, readonly _Merge[]]} */
+/** @type {(bits: readonly bigint[]) => readonly [Id, readonly (readonly [Id, Id, Id, boolean])[]]} */
 const run = bits => {
-    /** @type {_Merge[]} */
+    /** @type {(readonly [Id, Id, Id, boolean])[]} */
     const log = []
     /** @type {Add<null>} */
     const add = (l, r, m, isSymbol) => { log.push([l, r, m, isSymbol]); return null }
