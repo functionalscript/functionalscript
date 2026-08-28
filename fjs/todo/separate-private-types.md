@@ -314,7 +314,12 @@ typed `_BigFloatWithRemainder`:
    `types.ts`;
 2. `npm pack` with the `files` negation ships **0** `private.d.ts`;
 3. installing that tarball and type-checking all 377 declarations exits `2`
-   with `TS2307` naming that line.
+   with `TS2307` naming that line;
+4. and throughout, **every in-repo gate stays green** — `npx tsc` exits `0` and
+   `npm pack` succeeds with the violation in place. That is the claim at the
+   top of this section, that the exclusion is invisible to every check the
+   repository has, demonstrated rather than argued: the artifact is already
+   broken while nothing in the repository can say so.
 
 Two things follow. The check's real target is a closure-rule violation reaching
 an exported signature — today no private type does, because every binding

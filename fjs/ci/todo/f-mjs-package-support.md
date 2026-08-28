@@ -172,8 +172,11 @@ by a `!**/private.d.ts` negation in `package.json`'s `files` — an exclusion at
 pack time, with `prepack` unchanged and the working tree left alone. An earlier
 draft of that design deleted the files instead; do not reintroduce a deletion
 step. Once it lands, `private.d.ts` is no longer among the package-private
-artifacts above — only the `_`-prefixed names in `types.d.ts` remain, and the
-leak-tolerance contract narrows to them.
+artifacts above — what remains is the `_`-prefixed names that still ship by
+design: `_` types emitted into `types.d.ts` and exported `_` constants emitted
+into `module.d.mts`. The leak-tolerance contract narrows to those, and stays
+permanent for them; see
+[`../../fsc/README.md`](../../fsc/README.md) for the contract itself.
 
 Package selection does not need to distinguish every authored `.mjs` by public
 API status during this transition. Incidental authored files such as
