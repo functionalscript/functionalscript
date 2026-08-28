@@ -185,6 +185,13 @@ holding the root **open** and resolving beneath the handle, which is
 "is a directory", since a FIFO, a device and a socket answer that too, and
 serving one of those as a root is the same mistake as serving a file.
 
+**Not `readdir(root)`**, which is the obvious alternative and needs no new
+operation. It answers a different question: a directory may be traversable
+without being listable — mode `--x` permits opening a known path under it while
+`readdir` fails `EACCES` — so a root this server can serve perfectly well would
+be refused at startup. Reading a whole directory only to discard it is the
+smaller objection.
+
 ### The size limit
 
 `readFile` yields a single `Vec`, which caps at 131,072 bytes, and
