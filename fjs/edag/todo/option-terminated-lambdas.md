@@ -157,11 +157,24 @@ an own third member; after the migration a short step's `k[2]` would read
 the prototype, and a polluted `Array.prototype[2]` could hand `skip` an
 inherited continuation where the step's own trailing `null` masks that
 index today. So `skip` joins the destructuring pattern **in the same
-change** — the amnesia task below says so. The gate's claim is therefore
-about the value's **own** members under rtti's stated reading model;
-hermetic reads for hostile hosts beyond that are rtti's tracked question
+change** — the amnesia task below says so. That is where executor-side
+host-hardening **ends** for this migration, deliberately. Under a hostile
+host every read style has its own attack — a direct index without a length
+check reads the prototype, destructuring dispatches an own overridden
+`Symbol.iterator`, which can fabricate elements — and the three lambda
+walkers destructure **today**, so an iterator-hostile step already
+misleads the current evaluator identically; the migration changes nothing
+about that class, and `skip` joining the module's one uniform pattern adds
+no sensitivity the module does not already have. Amnesia's own README
+scopes it: a tree-walking evaluator for testing the semantics,
+"deliberately **not** a VM to run FunctionalScript on" — its guarantees
+assume a DJS value on a pristine host, where every read style coincides.
+The gate's claim is therefore about the value's **own** members under
+rtti's stated reading model; hermetic reads for hostile hosts beyond that
+are rtti's tracked question
 ([`hostile-accessor-hermetic-read-path`](../../rtti/todo/hostile-accessor-hermetic-read-path.md)),
-not an EDAG-boundary duplicate.
+and hardening an executor against a hostile host is a VM concern, out of
+scope for amnesia by its own charter — not an EDAG-boundary duplicate.
 
 **The rejected alternative** — keep the `option` spelling and first land an
 rtti rule that absence in a tuple is the array ending before the position,
