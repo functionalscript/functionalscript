@@ -19,14 +19,20 @@ export const packageCheckJobId = /** @type {const} */ ('package-check')
 // inherit, no `node_modules` to resolve into, and no source file that could
 // stand in for a declaration the tarball omits — so the job can only see what
 // a real consumer sees.
-const script = /** @type {const} */ (`set -eu
+// One step per stage, so a failure names the stage that failed instead of
+// arriving as one opaque script. Shell variables do not survive between steps,
+// so the two values later stages need travel through `$GITHUB_ENV`.
+
+const installArtifact = /** @type {const} */ (`set -eu
 npm init -y > /dev/null
 npm install --no-audit --no-fund ./*.tgz
 # The artifact installs under its own package name, which is not necessarily
 # this repository's: \`fjs ci\` generates workflows for other projects too. A
 # hard-coded name would fail for them, or worse, silently check a dependency
 # that happens to share the name instead of the artifact just built.
-pkg=$(node -p "Object.keys(require('./package.json').dependencies)[0]")
+echo "pkg=$(node -p "Object.keys(require('./package.json').dependencies)[0]")" >> "$GITHUB_ENV"`)
+
+const installPinnedCompiler = /** @type {const} */ (`set -eu
 # The compiler is the package's own pin, read out of the packed package.json:
 # with no checkout there is no lockfile, so an unpinned install would let the
 # registry change this check's verdict with no change to the repository.
@@ -40,14 +46,18 @@ npm install --no-audit --no-fund "typescript@$ts"
 # change to the package.
 installed=$(node -p "require('./node_modules/typescript/package.json').version")
 exact=$(SPEC="$ts" node -p "const s = process.env.SPEC; s.startsWith('=') ? s.slice(1) : s")
-test "$installed" = "$exact"
+test "$installed" = "$exact"`)
+
+const enumerateDeclarations = /** @type {const} */ (`set -eu
 # Every declaration the package ships, enumerated from the installed artifact.
 # A hand-written import list cannot see a module that gains a private type
 # module later, which is the case this check exists to catch.
 find "node_modules/$pkg" \\( -name '*.d.ts' -o -name '*.d.mts' \\) > declarations.txt
 # An empty list would type-check nothing and pass, which is the one way this
 # job can look healthy while checking nothing at all.
-test -s declarations.txt
+test -s declarations.txt`)
+
+const typeCheck = /** @type {const} */ (`set -eu
 # skipLibCheck stays at its false default: it is what makes tsc open these
 # declarations and report a reference the tarball does not carry.
 npx tsc --module nodenext --moduleResolution nodenext --target esnext --strict --noEmit --skipLibCheck false @declarations.txt`)
@@ -66,6 +76,9 @@ export const packageCheckJob = {
     steps: [
         uses('actions/download-artifact', { name: packageArtifact }),
         uses('actions/setup-node', { 'node-version': node.default }),
-        { run: script },
+        { run: installArtifact },
+        { run: installPinnedCompiler },
+        { run: enumerateDeclarations },
+        { run: typeCheck },
     ],
 }
