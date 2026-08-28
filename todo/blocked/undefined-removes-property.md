@@ -1,4 +1,4 @@
-# Assigning `undefined` to a property removes it
+## Assigning `undefined` to a property removes it
 
 **Priority:** P3
 **Status:** blocked

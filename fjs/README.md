@@ -71,7 +71,7 @@ request path to a file under it — enough to open the pages this repository
 generates in a browser, where a `file://` URL has no origin. It binds loopback,
 so what it serves stays on the machine it runs on. Both arguments are
 positional; `port` becomes `--port`, and `--host` becomes possible at all, once
-[`fjs/cli`](cli/README.md) has named options.
+[`fjs/cli`](cli/module.f.mjs) has named options.
 
 ```
 fjs web            # serve the working directory on http://127.0.0.1:8080/

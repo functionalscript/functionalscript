@@ -1,4 +1,4 @@
-# 144. TypeScript proposal: distinguish prototype member functions from free functions.
+## 144. TypeScript proposal: distinguish prototype member functions from free functions.
 
 **Priority:** P3
 **Status:** open

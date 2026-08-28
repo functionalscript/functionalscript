@@ -1,4 +1,4 @@
-# Enforce the commit-message standard before merge
+## Enforce the commit-message standard before merge
 
 **Priority:** P3
 **Status:** open — the format is adopted, in
@@ -8,7 +8,7 @@ adoption and enforcement is deliberate trial time, so let the format run by
 hand on real PRs first: whatever it gets wrong is fixed while a fix is still a
 documentation edit rather than a linter change plus a rule migration.
 
-## Problem
+### Problem
 
 Once the standard is documented, it is still only a convention: nothing stops
 a PR with a malformed title, a malformed `Changelog:` section, or a behavior
@@ -16,7 +16,7 @@ change carrying no changelog note at all from merging. The format must be
 machine-checked before the merge button enables, or the history the changelog
 generator would read degrades one forgotten PR at a time.
 
-## Proposal
+### Proposal
 
 The format is enforced *before* merge by a **required status check**: a
 workflow on `pull_request` with types `[opened, edited, synchronize, reopened]`
@@ -63,7 +63,7 @@ message); a post-merge audit job on `push` to `main` that compares the
 landed message against the PR and fails loudly; commit-metadata rulesets
 would block it outright but require an Enterprise plan.
 
-## Tasks
+### Tasks
 
 - [ ] PR-lint workflow (title format, `Changelog:` section well-formed and
       consistent with `changelog/unreleased/<PR>.md` when either is present)
@@ -79,7 +79,7 @@ would block it outright but require an Enterprise plan.
 - [ ] Post-merge audit: on `push` to `main`, verify the landed commit
       message matches the PR title `(#NNN)` and description
 
-## Related
+### Related
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages) — the format this enforces
 - [commit-message-standard.md](./commit-message-standard.md) — the reasoning

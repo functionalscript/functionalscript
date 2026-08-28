@@ -1,4 +1,7 @@
-# Abstract Write
+## Abstract Write
+
+**Priority:** P4
+**Status:** open
 
 Functions `writeFromStream` and a part of `FileCas.write` are very similar. The main difference is that the `loop` function from `FileCas.write` also computes a hash.
 

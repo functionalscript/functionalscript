@@ -1,4 +1,4 @@
-# RTTI as the type system
+## RTTI as the type system
 
 **Priority:** P3
 **Status:** open

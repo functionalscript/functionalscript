@@ -1,4 +1,4 @@
-# 44. Follow `?` error handling pattern.
+## 44. Follow `?` error handling pattern.
 
 **Priority:** P3
 **Status:** open

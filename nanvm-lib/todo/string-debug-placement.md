@@ -1,9 +1,9 @@
-# Move `Debug for String` to `vm/string/debug.rs`
+## Move `Debug for String` to `vm/string/debug.rs`
 
 **Priority:** P5
 **Status:** open
 
-## Problem
+### Problem
 
 Bespoke `Debug` impls live in each type's own directory — `impl Debug for
 BigInt` in `nanvm-lib/src/vm/bigint/debug.rs` and `impl Debug for Function`
@@ -30,7 +30,7 @@ follow, and it is the same separation-of-concerns issue that
 `string-utf16-from-impls.md` records for the sibling UTF-16 `From` impls in
 `impls/from.rs` — that todo does not cover the Debug impl.
 
-## Proposal
+### Proposal
 
 Pure move, no abstraction change: create `nanvm-lib/src/vm/string/debug.rs`
 containing `impl<A: IVm> Debug for String<A>`, register `mod debug;` in
@@ -39,12 +39,12 @@ containing `impl<A: IVm> Debug for String<A>`, register `mod debug;` in
 types). Coordinate with `string-utf16-from-impls.md` so all string-domain
 conversion/formatting code lands in `vm/string/` in one pass.
 
-## Tasks
+### Tasks
 
 - [ ] Move the impl to `vm/string/debug.rs`; register the module.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
-## Related
+### Related
 
 - [string-utf16-from-impls.md](./string-utf16-from-impls.md) — same
   misplacement for the string `From` impls; do both together.

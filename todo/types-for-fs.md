@@ -1,4 +1,4 @@
-# Types for FunctionalScript
+## Types for FunctionalScript
 
 **Priority:** P5
 **Status:** open
@@ -20,7 +20,7 @@ const a: A5 = { p: 5 }
 f(a) // a.p === 42 // :-(
 ```
 
-## How is should work
+### How is should work
 
 ```ts
 type A = { p: number }
@@ -85,7 +85,7 @@ f(ap) // compilation error.
 
 We may have a special version of TypeScript and it should have a run-time description, similar to [RTTI](../fjs/rtti/README.md)
 
-## Benefits
+### Benefits
 
 - **Use `.js` files.** Type annotations are written in comments, so the code stays plain JavaScript and runs as-is, with no additional compilation step. This could be very attractive for projects which don't accept TypeScript because of the additional compilation step. The syntax could be similar to JSDoc:
 

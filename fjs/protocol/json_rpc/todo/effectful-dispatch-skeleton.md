@@ -1,9 +1,9 @@
-# Envelope routing skeleton shared by pure and effectful dispatch
+## Envelope routing skeleton shared by pure and effectful dispatch
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 The JSON-RPC request preamble — decode the envelope, answer a malformed one
 with `Invalid Request` (`id: null`), and split notifications
@@ -37,7 +37,7 @@ if (id === undefined) {
 and stateful — so the envelope routing, which is `json/rpc`'s concern, is
 re-derived downstream. `decodeRequest` has exactly these two consumers.
 
-## Proposal
+### Proposal
 
 Export one envelope-routing skeleton from `json/rpc`, generic in the result
 type, and rebuild `dispatch` on top of it:
@@ -67,7 +67,7 @@ i665-mcp); if that never happens, the duplication may be cheaper than the
 three-continuation indirection. Decide when a third consumer appears, or
 fold into the 66D envelope work if it touches the same lines anyway.
 
-## Tasks
+### Tasks
 
 - [ ] Evaluate the `routeRequest` shape against the 66D
       `validated`/`toolMethod` restructuring in `fjs/protocol/mcp/todo/README.md`
@@ -76,7 +76,7 @@ fold into the 66D envelope work if it touches the same lines anyway.
       on it, migrate `mcpStep`.
 - [ ] Run `npx tsc` and `fjs t`.
 
-## Related
+### Related
 
 - `errorResponseOf` / `successResponseOf` (`../module.f.mjs`) — the envelope
   *constructors*, exported from this module; this issue is the envelope

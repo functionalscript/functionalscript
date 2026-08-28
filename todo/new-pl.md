@@ -1,15 +1,15 @@
-# New PL
+## New PL
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 If we can start from scratch how would it look like.
 
-## Proposal
+### Proposal
 
-### JSON compatibility
+#### JSON compatibility
 
 JSON and its derivatives such as YAML are the most popular data formats. It has the most essential types that are used in modern information technologies:
 
@@ -32,7 +32,7 @@ And this is understandable because JSON (JavaScript Object Notation) is derived 
 
 Even if we don't always like the syntax, the semantics of these basic types make a lot of practical sense in modern computer science and software engineering, having the most popular basic types and allowing grouping by order (arrays) and mapping (objects).
 
-### Data JavaScript
+#### Data JavaScript
 
 FunctionalScript already defines a subset of JavaScript, has no side effects, and supports all JSON types. We also would like to make it serializable, which makes it a kind of ideal PL for handling data and communications, including as data for AI agents and models. Example:
 
@@ -65,7 +65,7 @@ You just need to add `export default` at the beginning of your JSON.
 
 Moving further, we will use FunctionalScript as a foundation to build our programming language. A key design constraint is that most existing FunctionalScript modules should be reusable in the new language with little or no modification. This gives us a large library from day one and means the new PL can be validated incrementally against real code.
 
-## Multiple Syntaxes
+### Multiple Syntaxes
 
 Because the canonical identity of a program is the content hash of its semantic representation (EDAG/IR), not its source text, syntax becomes a rendering preference. Multiple surface syntaxes can compile to the same semantic node and therefore share the same hash — they are literally the same program.
 
@@ -83,7 +83,7 @@ add = lambda a, b: a + b
 
 Both would produce identical content hashes. Tooling can display any module in whichever syntax the developer prefers, and cross-syntax references just work — a module written in Python syntax can import a function written in JS syntax with no friction, since the identity layer is below syntax.
 
-### Content-Addressability
+#### Content-Addressability
 
 FunctionalScript programs can be run as content-addressable, but their behavior could be different compared to running the same program on a JavaScript engine, for example:
 
@@ -115,7 +115,7 @@ Function identity is a harder problem. Two functions are semantically equal if t
 
 The catch is that normalization is not fixed forever — a smarter normalizer in a future VM version may canonicalize more aggressively, causing functions that were distinct under the old normalizer to become equal. This means function hashes are implicitly versioned by the normalizer that produced them. We likely need to encode the normalizer version in the hash (or the VM version), so that old and new hashes remain meaningful and comparable across VM generations.
 
-### Numbers
+#### Numbers
 
 Currently, the literal `2` has type `number` which is, usually, a 64-bit floating-point number (IEEE 754 double). Initially, JavaScript didn't have biginteger, but currently they are in the ECMAScript standard. Because ECMAScript can't break backward compatibility, they introduced another syntax to describe bigint literals: `2n`, but JSON doesn't support this syntax. While we can have JSON parsers and writers that read and write bigints, the syntax is not the same anymore. The deeper problem is not the `n` suffix itself, but that built-in operations which logically require integers — such as array indexing (`array[i]`) — accept `number` (float) instead of `bigint`. This creates an impedance mismatch: code must either use `number` throughout (losing precision for large integers) or use `bigint` and constantly convert at API boundaries. In a PL designed from scratch, `bigint` is the default integer type and such APIs accept it natively, so no suffix or conversion is needed:
 
@@ -149,13 +149,13 @@ This `2`/`2.0` split doesn't have to wait for a new PL. [fjs/djs/todo/json-bigin
 
 [todo/blocked/integer-as-bigint.md](./blocked/integer-as-bigint.md) tracks the ECMAScript-level version of this same idea (`123` becoming the language's own default integer type) — blocked because ECMAScript is unlikely to ever make `bigint` the primary numeric type for compatibility reasons. This section is the escape hatch: a new PL isn't bound by that compatibility constraint, so it doesn't have to wait.
 
-### UTF8 String
+#### UTF8 String
 
 Current implementation of a `string` in JavaScript is UTF-16. While we can have a proposal that ECMAScript supports a new type `utf8`, something like `u'Hello, world!'`, the default JS string will always be UTF-16. In a new PL, we don't want to have UTF-16 at all, only UTF-8.
 
 See [todo/blocked/utf8-strings.md](./blocked/utf8-strings.md) — blocked on ECMAScript ever adopting a native UTF-8 string primitive, which a new PL doesn't need to wait for.
 
-### Separation Between Arrays and Objects
+#### Separation Between Arrays and Objects
 
 An array type shouldn't be derived from an object type. It should be a separate type.
 
@@ -163,7 +163,7 @@ An array type shouldn't be derived from an object type. It should be a separate 
 assert(typeof([]) === 'array') // I wish
 ```
 
-### Always Lexicographical Order
+#### Always Lexicographical Order
 
 Properties inside objects should be sorted in lexicographical order. Currently, JS objects preserve insertion order:
 
@@ -182,7 +182,7 @@ Note: JS already sorts integer-like keys numerically before string keys, so the 
 
 See [todo/blocked/lexicographic-integer-keys.md](./blocked/lexicographic-integer-keys.md) — blocked on ECMAScript, which is unlikely to ever drop the numeric-key special-casing for compatibility reasons; a new PL adopts pure lexicographic order directly instead.
 
-### Assigning
+#### Assigning
 
 Assigning `undefined` to a property should remove the property.
 
@@ -194,7 +194,7 @@ This way we can also keep better compatibility with JSON.
 
 See [todo/blocked/undefined-removes-property.md](./blocked/undefined-removes-property.md) — blocked on ECMAScript for compatibility reasons; a new PL isn't bound by that and adopts the behavior directly.
 
-### Pipeline Operator
+#### Pipeline Operator
 
 ```js
 a |> b
@@ -202,7 +202,7 @@ a |> b
 
 See [todo/blocked/pipeline-operator.md](./blocked/pipeline-operator.md) — blocked on the TC39 pipeline operator proposal reaching Stage 4; a new PL can adopt the syntax without waiting on that.
 
-### Automatic Binding
+#### Automatic Binding
 
 ```ts
 const m = [42].at
@@ -213,19 +213,19 @@ This would break JavaScript compatibility.
 
 See [todo/blocked/automatic-method-binding.md](./blocked/automatic-method-binding.md) — blocked because ECMAScript is unlikely to ever fix this for compatibility reasons; a new PL, not being bound by that compatibility constraint, can define `this`-free method extraction directly.
 
-### `BigInt.bitLen`
+#### `BigInt.bitLen`
 
 ECMAScript proposal for `BigInt.bitLen()`
 
 See [todo/blocked/bigint-bit-len.md](./blocked/bigint-bit-len.md) — blocked on the same proposal reaching Stage 4 and shipping in Node.js LTS.
 
-### Type Annotations
+#### Type Annotations
 
 Switch back to `.js` extension if [Type Annotations](https://github.com/tc39/proposal-type-annotations) lands in ECMAScript.
 
 See [todo/blocked/js-extension-type-annotations.md](./blocked/js-extension-type-annotations.md) — the FunctionalScript-specific tracking issue for this same trigger.
 
-### Type System
+#### Type System
 
 The new PL starts with type stripping: type annotations are syntax only and are erased before execution, with no built-in type checker. This keeps the core runtime simple and avoids baking in a specific type system.
 
@@ -244,7 +244,7 @@ This has several advantages:
 - Different modules in the same program can use different type systems
 - New type systems can be published as ordinary packages without changes to the core language
 
-### Serializable EDAG
+#### Serializable EDAG
 
 JavaScript's `Function.prototype.toString()` exposes source text, but it is unreliable: all major engines produce incorrect output for closures that capture variables from an outer scope, because the returned string omits the surrounding context needed to reconstruct the function's meaning.
 
@@ -263,11 +263,11 @@ Because the EDAG is a plain data value (most likely JSON), it can be stored, tra
 
 This also enables runtime metaprogramming and macro-like code generation without resorting to `eval` or string manipulation.
 
-### Module Identity
+#### Module Identity
 
 Because content-addressability is a core goal, module identity should be hash-based rather than path-based. A module is identified by the hash of its content, not its file path. Paths become human-friendly aliases that resolve to a hash at publish time. This enables reliable deduplication, caching, and dependency pinning without a lockfile.
 
-### Last Expression is Return and Export (Compatible with JSON)
+#### Last Expression is Return and Export (Compatible with JSON)
 
 Currently, this JavaScript code doesn't export the object the way JSON would:
 
@@ -289,7 +289,7 @@ const a = f()
 
 To make FunctionalScript more compatible with the new PL, it should prohibit non `return` statements at the end of a function, or no `export` at the end of the module.
 
-### Pattern Matching
+#### Pattern Matching
 
 We adopt the syntax from the [TC39 pattern matching proposal](https://github.com/tc39/proposal-pattern-matching) (`match`/`when`), which avoids conflicting with the existing `switch` statement and covers conditional expressions cleanly:
 
@@ -303,7 +303,7 @@ const area = match (shape) {
 
 This keeps compatibility with valid JavaScript syntax and aligns with a likely future ECMAScript direction. Exhaustiveness can be checked statically when combined with type annotations (see Type Annotations section). This also composes naturally with the last-expression-as-return proposal.
 
-### Effect Syntax Sugar
+#### Effect Syntax Sugar
 
 Algebraic effects generalize `async`/`await`, exceptions, and other control-flow abstractions into a single declarative mechanism. The proposed syntax mirrors `async`/`await` but is not tied to a specific effect type:
 
@@ -316,7 +316,7 @@ const a = effect() => {
 
 `effect` marks a function that may perform effects; `perform` suspends the computation and delegates to the nearest handler, similar to how `await` delegates to the runtime scheduler. See [Effects](../fjs/effects/)
 
-### Result Syntax Sugar
+#### Result Syntax Sugar
 
 In modern software engineering, `throw` is increasingly treated as a way to signal an *unexpected, fatal* condition — a bug, a broken invariant, a crash. It unwinds the stack, is invisible in a function's signature, and is easy to forget to handle. That model is a poor fit for *expected* failures. IO errors (a missing file, a refused connection, a malformed response) are a normal part of a program's behavior and must be handled deliberately, not caught as exceptions somewhere up the stack. Encoding these errors as values — handling errors instead of throwing exceptions — makes them explicit, type-checkable, and impossible to ignore by accident.
 
@@ -367,7 +367,7 @@ Notes and open questions:
 - A combinator/method form (e.g. `result.map(...)`, `result.andThen(...)`, or a `|>` pipeline of them) covers the cases where short-circuit propagation is not what you want — transforming or recovering from the error inline.
 - `throw` remains in the language for genuinely unexpected/fatal conditions (broken invariants, unreachable branches), keeping a clear split: `Result` for expected errors, `throw` for bugs.
 
-## Tasks
+### Tasks
 
 - [ ] Decide on integer literal syntax (`2` = bigint, `2.0` = float); accept `2n` as a redundant-but-valid alternate spelling for JS/djs source compatibility
 - [ ] Specify the `TypeError` thrown on mixed `bigint`/`number` arithmetic (matching current JS behavior) and the explicit conversion functions required at the boundary

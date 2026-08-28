@@ -1,4 +1,4 @@
-# Extend the note format
+## Extend the note format
 
 **Priority:** P3
 **Status:** open

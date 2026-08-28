@@ -1,4 +1,4 @@
-# Use `@internal` for private JSDoc typedefs
+## Use `@internal` for private JSDoc typedefs
 
 **Priority:** P3
 **Status:** blocked

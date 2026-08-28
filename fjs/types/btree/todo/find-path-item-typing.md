@@ -1,4 +1,4 @@
-# `btree/find` casts every tuple it builds or indexes
+## `btree/find` casts every tuple it builds or indexes
 
 **Priority:** P3
 **Status:** open
