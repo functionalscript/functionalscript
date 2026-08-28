@@ -515,6 +515,43 @@ export const proof = {
         assert(again[0] === 'error', again)
         assertIoCode(again[1], 'EEXIST')
     },
+    // The writing half, which the reads above do not reach: one proof per
+    // remaining lookup, so a regression confined to a single operation cannot
+    // hide behind the shared helper.
+    inheritedNameInWrites: () => {
+        const payload = utf8('x')
+        // `writeFile` **creates** it: an inherited name is absent, and writing
+        // to an absent name is what this operation is for. Before the guard,
+        // `dir['toString']` was a function and the write was refused as
+        // "invalid file".
+        const [written, result] = virtual(emptyState)(writeFile('toString', payload))
+        assert(result[0] === 'ok', result)
+        assertEq(Object.keys(written.root).join(), 'toString')
+        // And what comes back is the payload, not the inherited function.
+        const [, read] = virtual(written)(readFile('toString'))
+        assert(read[0] === 'ok', read)
+        assertEq(utf8ToString(read[1]), 'x')
+        // The two positional operations refuse it, neither creating nor
+        // reading `Object.prototype`.
+        const [, bytes] = virtual(emptyState)(readBytes('toString', 0, 1))
+        assert(bytes[0] === 'error', bytes)
+        assertIoCode(bytes[1], 'ENOENT')
+        const [, put] = virtual(emptyState)(writeBytes('toString', 0, payload))
+        assert(put[0] === 'error', put)
+        assertIoCode(put[1], 'ENOENT')
+        // `rename` reads through both halves: `extractEntity` for the source,
+        // `insertEntityAt` for the destination.
+        const [, moved] = virtual(emptyState)(rename('toString', 'a.txt'))
+        assert(moved[0] === 'error', moved)
+        assertIoCode(moved[1], 'ENOENT')
+        // Renaming *onto* one is an ordinary create, not an overwrite of
+        // whatever `Object.prototype` holds there.
+        /** @type {Dir} */
+        const root = { 'a.txt': [vec8(0x41n)] }
+        const [renamed, onto] = virtual({ ...emptyState, root })(rename('a.txt', '__proto__'))
+        assert(onto[0] === 'ok', onto)
+        assertEq(Object.keys(renamed.root).join(), '__proto__')
+    },
     statOnRegularFile: () => {
         /** @type {Dir} */
         const root = { 'a.txt': [vec8(0x41n)] }
