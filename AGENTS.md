@@ -80,7 +80,10 @@ Every new `.f.mjs` module ships a co-located `proof.f.mjs` with **100% proof
 coverage** — every export called, every line executed, every branch taken.
 Values are immutable (no in-place mutation, no `.push`/`Map#set`/index
 assignment), there is no `try`/`catch` and no regular expressions, and types are
-written in JSDoc with a sibling `types.ts` for a type-level API.
+written in JSDoc with a sibling `types.ts` for a type-level API. No authored
+`.mjs` anywhere in the repository — `fjs/` or not — may contain a **file-scope**
+JSDoc `@typedef`; function-local typedefs are allowed. Named types live in
+`types.ts` (the public declaration closure) or an optional `private.ts`.
 
 Testing, documentation, and the full coding style: [fjs/AGENTS.md](./fjs/AGENTS.md).
 

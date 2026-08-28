@@ -38,6 +38,14 @@ export type _NormOp = Binary<Unpacked, Unpacked, _Norm>
 
 export type _UnpackConcat = (a: Unpacked) => (b: Unpacked) => Unpacked
 
+/** The order-specific operations a `BitOrder` is assembled from. */
+export type _Base = {
+    readonly norm: _NormOp
+    readonly uintCmp: (a: bigint) => (b: bigint) => Sign
+    readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly [bigint, bigint]
+    readonly unpackConcatUint: (a: Unpacked) => (b: Unpacked) => bigint
+}
+
 export type Reduce = OpReduce<Vec>
 
 export type PopFront<T> = (len: bigint) => (u: T) => readonly [bigint, T]

@@ -7,16 +7,14 @@ import { assert, assertEq, assertNotNullish } from '../../../asserts/module.f.mj
 import { compress, level3Id } from '../../id/module.f.mjs'
 import { emptyEncodeState, encode } from './module.f.mjs'
 
-/** @typedef {readonly (readonly [Id, Id, Id, boolean])[]} _NodeList */
-
-/** @type {(l: Id, r: Id, m: Id, isSymbol: boolean, s: _NodeList) => _NodeList} */
+/** @type {(l: Id, r: Id, m: Id, isSymbol: boolean, s: readonly (readonly [Id, Id, Id, boolean])[]) => readonly (readonly [Id, Id, Id, boolean])[]} */
 const add = (l, r, m, isSymbol, s) => [...s, [l, r, m, isSymbol]]
 const enc = encode(add)
-/** @type {EncodeState<_NodeList>} */
+/** @type {EncodeState<readonly (readonly [Id, Id, Id, boolean])[]>} */
 const initial = emptyEncodeState([])
 
 // Run a complete valid word from a clean state; throws if no output is produced.
-/** @type {(symbols: readonly Id[]) => readonly [Id, _NodeList]} */
+/** @type {(symbols: readonly Id[]) => readonly [Id, readonly (readonly [Id, Id, Id, boolean])[]]} */
 const runWord = symbols => {
     let state = initial
     for (const s of symbols) {
@@ -28,7 +26,7 @@ const runWord = symbols => {
 }
 
 // Every stored triple must satisfy m === compress(l, r).
-/** @type {(storage: _NodeList) => void} */
+/** @type {(storage: readonly (readonly [Id, Id, Id, boolean])[]) => void} */
 const verifyStorage = storage => {
     for (const [l, r, m] of storage) { assertEq(m, compress(l, r)) }
 }

@@ -35,12 +35,20 @@ now exist in two variants for no reason.
 
 ### Proposal
 
-`fjs/effects/memory` exports the sync interpreter next to the constructors:
+`fjs/effects/memory` exports the sync interpreter next to the constructors,
+with `MemoryState` in the module's `types.ts` (authored `.mjs` carries no
+file-scope `@typedef`):
+
+```ts
+// types.ts
+export type MemoryState = {
+    readonly next: number
+    readonly values: { readonly [k: string]: unknown }
+}
+```
 
 ```js
-/** @typedef {{ readonly next: number,
- *   readonly values: { readonly [k: string]: unknown } }} MemoryState */
-
+// module.f.mjs — `@import { MemoryState } from './types.ts'` in the header
 /** @type {MemoryState} */
 export const memoryInitial = { next: 0, values: {} }
 

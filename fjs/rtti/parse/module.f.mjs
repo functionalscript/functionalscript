@@ -48,11 +48,11 @@
  * @module
  *
  * @import { ConstObject, Info1, Tag1, Type } from '../types.ts'
- * @import { Result as CommonResult } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { Container, Fits, IsContainer, Presence, SchemaEntries, ValidateE, ValidationError, Visitor } from '../common/types.ts'
  * @import { Unknown } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
+ * @import { _Declared, _Entries, _Rebuild } from './private.ts'
  */
 
 import { ok } from '../../types/result/module.f.mjs'
@@ -72,19 +72,6 @@ import {
     visit,
 } from '../common/module.f.mjs'
 import { emptyRest } from '../data/module.f.mjs'
-
-/** @typedef {CommonResult<Unknown, ValidationError>} _ItemResult */
-
-/**
- * The parsed `[key, parsedValue]` pairs as {@link consEntry} and
- * {@link consDeclared} fold them: a cons list in **reverse** member order, so
- * its head is the last member parsed — for the array kinds, the highest
- * present index.
- */
-/** @typedef {null | { readonly first: readonly [string, Unknown], readonly tail: _Entries }} _Entries */
-
-/** Rebuilds a parsed container from its entries. */
-/** @typedef {(entries: _Entries) => Unknown} _Rebuild */
 
 /**
  * The rebuilds' one construction step, captured at module load.
@@ -207,8 +194,6 @@ const consEntry = (acc, k, v) =>
     ({ first: [k, v], tail: acc })
 
 /** What the declared-member fold carries: the present entries, and every member's presence bit. */
-/** @typedef {{ readonly entries: _Entries, readonly presence: Presence }} _Declared */
-
 /** {@link consDeclared}'s seed. */
 /** @type {_Declared} */
 const emptyDeclared = { entries: null, presence: null }

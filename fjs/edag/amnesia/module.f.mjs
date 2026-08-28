@@ -37,14 +37,10 @@ const o2 =
     (/**@type {(a: any, b: any) => unknown}*/o) =>
     o2lazy((a, b) => o(a, b()))
 
-/** @typedef {(c: Context, e: Op1) => unknown} _Func1 */
-
 const o1 =
     (/**@type {(a: any) => unknown}*/o) =>
-    /**@type {_Func1}*/
+    /**@type {(c: Context, e: Op1) => unknown}*/
     (c, [, a]) => o(vm(c)(a))
-
-/** @typedef {(_: Exp) => unknown} _Eval */
 
 /** Both ways of being nullish, which is what every optional step guards. */
 /** @type {(v: unknown) => boolean} */
@@ -56,7 +52,7 @@ const nullish = v => v === undefined || v === null
  * collects with `(...args)`. Passed as a single argument instead, the callee's
  * `['args']` would be `[[a, b]]`.
  *
- * @type {(f: _Eval, e: Exp) => readonly any[]}
+ * @type {(f: (_: Exp) => unknown, e: Exp) => readonly any[]}
  */
 const argsOf = (f, e) => /**@type {any}*/(f(e))
 
@@ -69,7 +65,7 @@ const argsOf = (f, e) => /**@type {any}*/(f(e))
  * method would then silently succeed on the wrapper instead of throwing:
  * `((a.at)(0))(0)` returned `Array.prototype.at`.
  *
- * @type {(f: _Eval, v: unknown, e: Exp) => unknown}
+ * @type {(f: (_: Exp) => unknown, v: unknown, e: Exp) => unknown}
  */
 const callValue = (f, v, e) => /**@type {any}*/(v)(...argsOf(f, e))
 
@@ -90,7 +86,7 @@ const callValue = (f, v, e) => /**@type {any}*/(v)(...argsOf(f, e))
  * would put every argument list ahead of the property read, and every test
  * here would still pass.
  *
- * @type {(f: _Eval, obj: any, prop: any, e: Exp) => unknown}
+ * @type {(f: (_: Exp) => unknown, obj: any, prop: any, e: Exp) => unknown}
  */
 const callProperty = (f, obj, prop, e) => obj[prop](...argsOf(f, e))
 
@@ -106,7 +102,7 @@ const callProperty = (f, obj, prop, e) => obj[prop](...argsOf(f, e))
  * every step is `[tag, operand, continuation]`, and a `|!()` is reachable
  * through `|.` steps from either — `(a?.(...b).c)(...d)` is exactly that.
  *
- * @type {(f: _Eval, k: OptionLambda | OptionPropertyLambda) => unknown}
+ * @type {(f: (_: Exp) => unknown, k: OptionLambda | OptionPropertyLambda) => unknown}
  */
 const skip = (f, k) => {
     if (k === null) { return undefined }
@@ -120,7 +116,7 @@ const skip = (f, k) => {
  * step leaves. Nothing here can short-circuit: the two productions are a call
  * that stays in the region and a property access that hands on a receiver.
  *
- * @type {(f: _Eval, v: unknown, k: OptionLambda) => unknown}
+ * @type {(f: (_: Exp) => unknown, v: unknown, k: OptionLambda) => unknown}
  */
 const optionLambda = (f, v, k) => {
     if (k === null) { return v }
@@ -141,7 +137,7 @@ const optionLambda = (f, v, k) => {
  * `obj[prop]` is read once per step, twice only where the guard has to see
  * the value before the call is made.
  *
- * @type {(f: _Eval, obj: any, prop: any, k: OptionPropertyLambda) => unknown}
+ * @type {(f: (_: Exp) => unknown, obj: any, prop: any, k: OptionPropertyLambda) => unknown}
  */
 const optionPropertyLambda = (f, obj, prop, k) => {
     if (k === null) { return obj[prop] }
@@ -164,7 +160,7 @@ const optionPropertyLambda = (f, obj, prop, k) => {
  * node's value, since `optionLambda` has no `|!()` of its own — but the walk
  * still goes through `skip`, which reaches one through a `|.`.
  *
- * @type {(f: _Eval, obj: any, prop: any, k: PropertyLambda) => unknown}
+ * @type {(f: (_: Exp) => unknown, obj: any, prop: any, k: PropertyLambda) => unknown}
  */
 const propertyLambda = (f, obj, prop, k) => {
     if (k === null) { return obj[prop] }

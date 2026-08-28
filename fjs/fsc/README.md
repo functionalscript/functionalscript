@@ -126,28 +126,28 @@ move, so a `module.f.mjs` is accompanied by a `proof.f.mjs`. Type-only APIs may
 remain in `types.ts`. Current FunctionalScript compiler support was never a
 condition for that rename.
 
-#### Private JSDoc typedefs
+#### Private types
 
-TypeScript declaration emit currently turns JSDoc `@typedef`s into exported type
-aliases, including typedefs that exist only as implementation details. This is
-tracked upstream by
-[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407).
+Authored `.mjs` files carry no file-scope JSDoc `@typedef` — anywhere in the
+repository (see the repository-wide rule in the root `AGENTS.md` and
+`fjs/AGENTS.md` §3.2). A named type migrating out of a `.f.ts` therefore lands
+in the sibling `types.ts` (when it is part of the public declaration closure),
+in an optional sibling `private.ts` (implementation-private types outside that
+closure), inline in the annotations that use it, or — for compile-time proof
+types — function-local in a proof.
 
-Until JSDoc typedefs can be stripped with `@internal` and `stripInternal`, use a
-leading `_` for implementation-only typedefs created during the migration:
-
-```js
-/** @typedef {number} _Type */
-```
-
-The underscore is an API contract, not declaration-level visibility. Generated
-`.d.ts` / `.d.mts` may still contain `export type _Type = number`, but names that
-begin with `_` are private FunctionalScript implementation details. Consumers
-must not rely on those names directly, so renaming or removing a `_`-prefixed
-alias is not a breaking change solely because TypeScript emitted it. The public
-contract still governs transitive effects: if a public type depends on `_Type`,
-changing `_Type` in a way that changes that public type's assignability is a
-breaking change and requires the normal `**BREAKING CHANGES:**` treatment.
+Private types and private runtime constants keep a leading `_`, even when
+linkage requires an export. The underscore is an API contract, not
+declaration-level visibility: generated `.d.ts` / `.d.mts` may still contain
+`export type _Type = number` (and, until the packaging stage of
+[`../todo/separate-private-types.md`](../todo/separate-private-types.md) lands,
+a generated `private.d.ts` still ships), but names that begin with `_` are
+private FunctionalScript implementation details. Consumers must not rely on
+those names directly, so renaming or removing a `_`-prefixed name is not a
+breaking change solely because TypeScript emitted it. The public contract still
+governs transitive effects: if a public type depends on `_Type`, changing
+`_Type` in a way that changes that public type's assignability is a breaking
+change and requires the normal `**BREAKING CHANGES:**` treatment.
 
 For example, suppose the generated declaration initially contains:
 
@@ -176,18 +176,18 @@ export type Public = readonly [_Internal]
 The emitted private alias is still private, but the expanded public contract of
 `Public` changed from `readonly [number]` to `readonly [string]`.
 
-Public JSDoc typedefs keep ordinary names without the `_` prefix. Which JSDoc
-typedefs are public is an API design decision, not a mechanical restatement of
-what the pre-migration `.f.ts` file happened to export: a helper that belongs to
-the module's public vocabulary may be published under an ordinary name even
-though its TypeScript alias was module-private, and a former export may become
-`_` when it only ever described an implementation detail. Types intentionally
-separated into `types.ts` use ordinary TypeScript source visibility instead of
-this JSDoc-emission workaround.
+Public types keep ordinary names without the `_` prefix. Which types are public
+is an API design decision, not a mechanical restatement of what the
+pre-migration `.f.ts` file happened to export: a helper that belongs to the
+module's public vocabulary may be published under an ordinary name even though
+its TypeScript alias was module-private, and a former export may become `_`
+when it only ever described an implementation detail.
 
-When upstream support is ready, replace this workaround with `@internal`; that
-cleanup is tracked by
-[`todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md).
+Removing shipped private declaration artifacts (`private.d.ts`) from the
+package is the second stage of
+[`../todo/separate-private-types.md`](../todo/separate-private-types.md); the
+`_` contract itself is permanent, since `_` helpers in `types.ts` and exported
+`_` constants keep shipping in emitted declarations regardless.
 
 When the last authored implementation/proof `.ts` / `.f.ts` file is gone,
 authored `types.ts` files may remain. The TypeScript runtime-emission pass is

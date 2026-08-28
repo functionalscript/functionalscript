@@ -11,18 +11,9 @@
  * } from '../../bnf/descent/types.ts'
  * @import { DataRule, Rule } from '../../bnf/types.ts'
  * @import {
- *   BigIntToken,
- *   CommentToken,
- *   EofToken,
- *   ErrorToken,
- *   IdToken,
  *   JsToken,
  *   JsTokenWithMetadata,
- *   NewLineToken,
- *   NumberToken,
- *   StringToken,
  *   TokenMetadata,
- *   WhitespaceToken,
  * } from '../../js/tokenizer/types.ts'
  * @import { CodePoint } from '../../text/utf16/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
@@ -30,6 +21,13 @@
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
  * @import { TriviaKind } from '../../js/tokenizer/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import {
+ *   _DjsScanState,
+ *   _FlatToken,
+ *   _StringDecodeState,
+ *   _Token,
+ *   _TokenScanState,
+ * } from './private.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
@@ -314,13 +312,6 @@ const metadataScan = (cp, metadata) => [[[cp, metadata]], advanceMetadata(cp)(me
 /** @type {(path: string) => (cp: readonly number[]) => readonly CodePointMeta<TokenMetadata>[]} */
 const codePointsWithMetadata = path => cp => toArray(flat(stateScan(metadataScan)({ path, line: 1, column: 1 })(cp)))
 
-// tag, the metadata of the token's first code point, and its code points.
-/** @typedef {[string, TokenMetadata, readonly number[]]} _Token */
-
-/** @typedef {string | CodePointMeta<TokenMetadata>} _FlatToken */
-
-/** @typedef {[string, TokenMetadata | null, List<number>]} _TokenScanState */
-
 /**
  * The grammar tag of a trivia code point, as the kind `mergeTrivia` speaks in;
  * `null` for every other tag.
@@ -395,12 +386,6 @@ const filterFunc = tk => {
  * value, which is what the hand-rolled ternary chain used to do.
  */
 const unwrapHexDigitValue = mapUnwrap(hexDigitValue)
-
-/** @typedef {
- *   | { readonly kind: 'normal' }
- *   | { readonly kind: 'escape' }
- *   | { readonly kind: 'unicode', readonly acc: number, readonly count: number }
- * } _StringDecodeState */
 
 /** @type {StateScan<number, _StringDecodeState, List<number>>} */
 const stringDecodeScan = (cp, state) => {
@@ -591,8 +576,6 @@ export const tokenizeJs = input => path => {
     const withMetadata = concat(flatMap(toJsTokenWithMetadata)(tokens))
     return withMetadata([{ token: { kind: 'eof' }, metadata: finalMetadata }])
 }
-
-/** @typedef {{ readonly kind: 'def' | '-' }} _DjsScanState */
 
 /** @type {(input: JsToken) => List<DjsToken>} */
 const mapDjsToken = input => {

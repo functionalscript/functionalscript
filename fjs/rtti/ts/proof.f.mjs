@@ -15,69 +15,71 @@ import { dataToTs, printer } from './module.f.mjs'
 //
 // Spelled as schema *types* rather than `typeof` a value: these are type-level
 // facts, and a value existing only to be pointed at is an unused one.
-//
-// `TupleTs` splits off the trailing run of positions admitting `undefined` and
-// renders it optional, which needs a known length. A schema array of non-fixed
-// length — what `.map()` produces — has no trailing position to split off, so
-// it keeps its element type instead, the homomorphic mapping's answer. Pinned
-// because a split that falls back to the empty tuple silently renders such a
-// schema `readonly []`, and nothing else here would have caught it.
-/** @typedef {Assert<Equal<Ts<readonly (typeof number | typeof bigint)[]>, readonly (number | bigint)[]>>} _NonFixedLength */
+const tupleTs = () => {
+    // `TupleTs` splits off the trailing run of positions admitting `undefined`
+    // and renders it optional, which needs a known length. A schema array of
+    // non-fixed length — what `.map()` produces — has no trailing position to
+    // split off, so it keeps its element type instead, the homomorphic
+    // mapping's answer. Pinned because a split that falls back to the empty
+    // tuple silently renders such a schema `readonly []`, and nothing else
+    // here would have caught it.
+    /** @typedef {Assert<Equal<Ts<readonly (typeof number | typeof bigint)[]>, readonly (number | bigint)[]>>} _NonFixedLength */
 
-// `or(option, t)` — a member that may be absent; these are the schema types
-// the spelling produces.
-/** @typedef {Or<readonly [typeof option, typeof boolean]>} _OptionBoolean */
-/** @typedef {Or<readonly [typeof option, typeof string]>} _OptionString */
+    // `or(option, t)` — a member that may be absent; these are the schema types
+    // the spelling produces.
+    /** @typedef {Or<readonly [typeof option, typeof boolean]>} _OptionBoolean */
+    /** @typedef {Or<readonly [typeof option, typeof string]>} _OptionString */
 
-// A variadic tuple is the shape the `length` guard exists for, and the only
-// one: its peel *succeeds*, binding the unknown-length prefix to `I`, so
-// without the guard the reconstruction flattens it. The others below reach the
-// fallback because their peel fails, and are held by that alone.
-//
-// Asserted as assignability rather than with `Equal<>`. `Equal<>` reports this
-// shape as unchanged whether or not the guard is in place — it cannot see the
-// difference — so an `Equal<>` pin here passes over the bug it is meant to
-// catch. What the flattening actually costs is a string admitted in the number
-// prefix, so that is what these state.
-/** @typedef {readonly [...(typeof number)[], _OptionString]} _VariadicSchema */
-/** @typedef {Assert<readonly [1, 'x', 2] extends Ts<_VariadicSchema> ? false : true>} _VariadicPrefixRejectsMixedPrefix */
-/** @typedef {Assert<readonly [1, 2, 'x'] extends Ts<_VariadicSchema> ? true : false>} _VariadicPrefixAdmitsItsOwnShape */
+    // A variadic tuple is the shape the `length` guard exists for, and the only
+    // one: its peel *succeeds*, binding the unknown-length prefix to `I`, so
+    // without the guard the reconstruction flattens it. The others below reach the
+    // fallback because their peel fails, and are held by that alone.
+    //
+    // Asserted as assignability rather than with `Equal<>`. `Equal<>` reports this
+    // shape as unchanged whether or not the guard is in place — it cannot see the
+    // difference — so an `Equal<>` pin here passes over the bug it is meant to
+    // catch. What the flattening actually costs is a string admitted in the number
+    // prefix, so that is what these state.
+    /** @typedef {readonly [...(typeof number)[], _OptionString]} _VariadicSchema */
+    /** @typedef {Assert<readonly [1, 'x', 2] extends Ts<_VariadicSchema> ? false : true>} _VariadicPrefixRejectsMixedPrefix */
+    /** @typedef {Assert<readonly [1, 2, 'x'] extends Ts<_VariadicSchema> ? true : false>} _VariadicPrefixAdmitsItsOwnShape */
 
-// A rest element after a fixed prefix is the same shape from the other side,
-// and is held for the same reason: `length` is `number`, so the mapping stands.
-//
-// This row and `_NonFixedLength` document intent rather than discriminate a
-// mechanism. The guard and the fallback both answer `M` for these two shapes,
-// so neither single mutation moves them — only removing both at once does.
-// The rows that pin one mechanism each are `_VariadicPrefixRejectsMixedPrefix`
-// (the guard), `_OptionalMember` (the fallback) and
-// `_UnionKeepsBranchCorrelation` (the distribution).
-/** @typedef {Assert<Equal<Ts<readonly [typeof number, ...(typeof string)[]]>, readonly [number, ...string[]]>>} _RestTuple */
+    // A rest element after a fixed prefix is the same shape from the other side,
+    // and is held for the same reason: `length` is `number`, so the mapping stands.
+    //
+    // This row and `_NonFixedLength` document intent rather than discriminate a
+    // mechanism. The guard and the fallback both answer `M` for these two shapes,
+    // so neither single mutation moves them — only removing both at once does.
+    // The rows that pin one mechanism each are `_VariadicPrefixRejectsMixedPrefix`
+    // (the guard), `_OptionalMember` (the fallback) and
+    // `_UnionKeepsBranchCorrelation` (the distribution).
+    /** @typedef {Assert<Equal<Ts<readonly [typeof number, ...(typeof string)[]]>, readonly [number, ...string[]]>>} _RestTuple */
 
-// A schema whose own tuple type already marks a member optional is held by the
-// *fallback* rather than the length guard: its length is `1 | 2`, not `number`,
-// so it reaches the split, where the peel needs a required last element and
-// finds none. An optional position is what this transform produces, so one the
-// caller wrote is already in the target form and the mapping stands.
-/** @typedef {Assert<Equal<Ts<readonly [typeof number, (typeof string)?]>, readonly [number, string?]>>} _OptionalMember */
+    // A schema whose own tuple type already marks a member optional is held by the
+    // *fallback* rather than the length guard: its length is `1 | 2`, not `number`,
+    // so it reaches the split, where the peel needs a required last element and
+    // finds none. An optional position is what this transform produces, so one the
+    // caller wrote is already in the target form and the mapping stands.
+    /** @typedef {Assert<Equal<Ts<readonly [typeof number, (typeof string)?]>, readonly [number, string?]>>} _OptionalMember */
 
-// A union of tuple schemas is split per member, not once across the union.
-// Splitting the union lets the two halves distribute independently and the
-// spread then pairs every prefix with every suffix, so `[number, boolean]` —
-// A's prefix with B's suffix — would pass. Assignability again: this is a
-// statement about which values the union admits.
-/** @typedef {readonly [typeof number, _OptionString]} _BranchA */
-/** @typedef {readonly [typeof string, _OptionBoolean, _OptionNumber]} _BranchB */
-/** @typedef {Or<readonly [typeof option, typeof number]>} _OptionNumber */
-/** @typedef {Assert<readonly [1, true] extends TupleTs<_BranchA | _BranchB> ? false : true>} _UnionKeepsBranchCorrelation */
-/** @typedef {Assert<readonly [1, 'x'] extends TupleTs<_BranchA | _BranchB> ? true : false>} _UnionAdmitsItsOwnBranches */
+    // A union of tuple schemas is split per member, not once across the union.
+    // Splitting the union lets the two halves distribute independently and the
+    // spread then pairs every prefix with every suffix, so `[number, boolean]` —
+    // A's prefix with B's suffix — would pass. Assignability again: this is a
+    // statement about which values the union admits.
+    /** @typedef {readonly [typeof number, _OptionString]} _BranchA */
+    /** @typedef {readonly [typeof string, _OptionBoolean, _OptionNumber]} _BranchB */
+    /** @typedef {Or<readonly [typeof option, typeof number]>} _OptionNumber */
+    /** @typedef {Assert<readonly [1, true] extends TupleTs<_BranchA | _BranchB> ? false : true>} _UnionKeepsBranchCorrelation */
+    /** @typedef {Assert<readonly [1, 'x'] extends TupleTs<_BranchA | _BranchB> ? true : false>} _UnionAdmitsItsOwnBranches */
 
-/** @typedef {Assert<Equal<Ts<readonly [typeof number, typeof bigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, boolean?, string?]>>} _OptionalTail */
+    /** @typedef {Assert<Equal<Ts<readonly [typeof number, typeof bigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, boolean?, string?]>>} _OptionalTail */
 
-// Only the *trailing* run: TypeScript forbids a required element after an
-// optional one, so an interior position that admits absence stays required,
-// with `undefined` — what reading a hole gives — in its type.
-/** @typedef {Assert<Equal<Ts<readonly [_OptionString, typeof number]>, readonly [string | undefined, number]>>} _InteriorStaysRequired */
+    // Only the *trailing* run: TypeScript forbids a required element after an
+    // optional one, so an interior position that admits absence stays required,
+    // with `undefined` — what reading a hole gives — in its type.
+    /** @typedef {Assert<Equal<Ts<readonly [_OptionString, typeof number]>, readonly [string | undefined, number]>>} _InteriorStaysRequired */
+}
 
 const toTs = printer()
 
@@ -102,43 +104,8 @@ const eqData = (data, expected) => {
     assertEq(result, exp, [result, exp])
 }
 
-/** A recursive list: `type list = readonly list[]`. */
-/** @typedef {() => readonly ['array', _List]} _List */
-/** @type {_List} */
-const list = () => ['array', list]
-
-/** Mutual recursion through a container. */
-/** @typedef {() => readonly ['or', typeof number, _Forest]} _Tree */
-/** @typedef {() => readonly ['array', _Tree]} _Forest */
-/** @type {_Tree} */
-const tree = () => ['or', number, forest]
-/** @type {_Forest} */
-const forest = () => ['array', tree]
-
-/** A cycle closing through an anonymous `or` thunk — an empty rule name. */
-/** @typedef {() => readonly ['record', () => readonly ['or', typeof string, _Lock]]} _Lock */
-/** @type {_Lock} */
-const lock = () => ['record', or(string, lock)]
-
-/** A recursive rule whose function name is the predefined type name `string`. */
-/** @typedef {() => readonly ['array', _StringNamed]} _StringNamed */
-/** @type {{ readonly string: _StringNamed }} */
-const stringNamedHolder = { string: () => ['array', stringNamedHolder.string] }
-const stringNamed = stringNamedHolder.string
-
-/** A recursive rule whose function name is `T0` — the first generated identifier. */
-/** @typedef {() => readonly ['array', _T0Named]} _T0Named */
-/** @type {{ readonly T0: _T0Named }} */
-const t0NamedHolder = { T0: () => ['array', t0NamedHolder.T0] }
-const t0Named = t0NamedHolder.T0
-
-/** A recursive rule whose function name is the reserved word `if`. */
-/** @typedef {() => readonly ['array', _IfNamed]} _IfNamed */
-/** @type {{ readonly if: _IfNamed }} */
-const ifNamedHolder = { if: () => ['array', ifNamedHolder.if] }
-const ifNamed = ifNamedHolder.if
-
 export const proof = {
+    tupleTs,
     tag0: {
         boolean: () => eq(boolean, 'boolean'),
         number: () => eq(number, 'number'),
@@ -306,17 +273,36 @@ export const proof = {
     },
     recursion: {
         selfList: () => {
+            /** A recursive list: `type list = readonly list[]`. */
+            /** @typedef {() => readonly ['array', _List]} _List */
+            /** @type {_List} */
+            const list = () => ['array', list]
             eq(list, 'list')
             eqData(toData(list), [[['list', 'readonly(list)[]']], 'list'])
         },
         mutual: () => {
+            /** Mutual recursion through a container. */
+            /** @typedef {() => readonly ['or', typeof number, _Forest]} _Tree */
+            /** @typedef {() => readonly ['array', _Tree]} _Forest */
+            /** @type {_Tree} */
+            const tree = () => ['or', number, forest]
+            /** @type {_Forest} */
+            const forest = () => ['array', tree]
             eqData(toData(tree), [[['tree', 'number|readonly(tree)[]']], 'tree'])
             eqData(toData(forest), [[['tree', 'number|readonly(tree)[]']], 'readonly(tree)[]'])
         },
         recursiveUnion: () => {
+            /** A recursive list: `type list = readonly list[]`. */
+            /** @typedef {() => readonly ['array', _List]} _List */
+            /** @type {_List} */
+            const list = () => ['array', list]
             eqData(toData(or(number, list)), [[['list', 'readonly(list)[]']], 'number|readonly(list)[]'])
         },
         mutable: () => {
+            /** A recursive list: `type list = readonly list[]`. */
+            /** @typedef {() => readonly ['array', _List]} _List */
+            /** @type {_List} */
+            const list = () => ['array', list]
             const [defs, entry] = dataToTs(true)(toData(list))
             assertEq(JSON.stringify([defs, entry]), JSON.stringify([[['list', '(list)[]']], 'list']))
         },
@@ -324,6 +310,10 @@ export const proof = {
     identifiers: {
         // the empty rule name is not an identifier — generated `T0`
         emptyName: () => {
+            /** A cycle closing through an anonymous `or` thunk — an empty rule name. */
+            /** @typedef {() => readonly ['record', () => readonly ['or', typeof string, _Lock]]} _Lock */
+            /** @type {_Lock} */
+            const lock = () => ['record', or(string, lock)]
             eqData(toData(lock), [
                 [['T0', 'string|{readonly[k in string]?:T0}']],
                 '{readonly[k in string]?:T0}',
@@ -331,10 +321,20 @@ export const proof = {
         },
         // a predefined type name cannot name an alias — generated `T0`
         predefinedName: () => {
+            /** A recursive rule whose function name is the predefined type name `string`. */
+            /** @typedef {() => readonly ['array', _StringNamed]} _StringNamed */
+            /** @type {{ readonly string: _StringNamed }} */
+            const stringNamedHolder = { string: () => ['array', stringNamedHolder.string] }
+            const stringNamed = stringNamedHolder.string
             eqData(toData(stringNamed), [[['T0', 'readonly(T0)[]']], 'T0'])
         },
         // reserved words cannot name an alias either — generated `T0`
         reservedName: () => {
+            /** A recursive rule whose function name is the reserved word `if`. */
+            /** @typedef {() => readonly ['array', _IfNamed]} _IfNamed */
+            /** @type {{ readonly if: _IfNamed }} */
+            const ifNamedHolder = { if: () => ['array', ifNamedHolder.if] }
+            const ifNamed = ifNamedHolder.if
             eqData(toData(ifNamed), [[['T0', 'readonly(T0)[]']], 'T0'])
         },
         typeOperatorName: () => {
@@ -350,6 +350,15 @@ export const proof = {
         },
         // a generated identifier skips names already kept
         generatedCollision: () => {
+            /** A recursive rule whose function name is `T0` — the first generated identifier. */
+            /** @typedef {() => readonly ['array', _T0Named]} _T0Named */
+            /** @type {{ readonly T0: _T0Named }} */
+            const t0NamedHolder = { T0: () => ['array', t0NamedHolder.T0] }
+            const t0Named = t0NamedHolder.T0
+            /** A cycle closing through an anonymous `or` thunk — an empty rule name. */
+            /** @typedef {() => readonly ['record', () => readonly ['or', typeof string, _Lock]]} _Lock */
+            /** @type {_Lock} */
+            const lock = () => ['record', or(string, lock)]
             eqData(toData(/** @type {const} */ ([t0Named, lock])), [
                 [['T1', 'string|{readonly[k in string]?:T1}'], ['T0', 'readonly(T0)[]']],
                 'readonly[T0,{readonly[k in string]?:T1}]',

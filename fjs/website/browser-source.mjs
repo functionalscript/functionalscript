@@ -25,8 +25,6 @@ const nameChar = char =>
 /** @type {(char: string) => boolean} */
 const space = char => char === ' ' || char === '\t' || char === '\n' || char === '\r'
 
-/** @typedef {{ readonly kind: 'name' | 'string' | 'punctuation', readonly text: string }} _Token */
-
 /**
  * Separates tokens while they are collected. The scan is a single pass over a
  * whole file, so tokens accumulate as text rather than into a growing array;
@@ -43,7 +41,7 @@ const separator = '\u0000'
  * An escape inside a string becomes a space: escapes belong to prose, and a
  * module specifier — the only string this module reads — has none.
  *
- * @type {(source: string) => readonly _Token[]}
+ * @type {(source: string) => readonly { readonly kind: 'name' | 'string' | 'punctuation', readonly text: string }[]}
  */
 const read = source => {
     let out = ''
@@ -100,7 +98,7 @@ const read = source => {
  * The tokens as bare words, every string literal standing in as a quote: a
  * declaration is read by its names, and no string can pass for one.
  *
- * @type {(tokens: readonly _Token[]) => readonly string[]}
+ * @type {(tokens: ReturnType<typeof read>) => readonly string[]}
  */
 const words = tokens => tokens.map(token => token.kind === 'string' ? '\'' : token.text)
 

@@ -21,10 +21,6 @@ export const backspace = '\x08'
 
 //
 
-/** @typedef {'m'} _End */
-
-/** @typedef {(code: number | string) => string} _Csi */
-
 const begin = '\x1b['
 
 /**
@@ -34,7 +30,7 @@ const begin = '\x1b['
  * @param end - The final character that indicates the type of sequence.
  * @returns A function that takes a code (number or string) and returns the complete ANSI escape sequence.
  *
- * @type {(end: _End) => _Csi}
+ * @type {(end: 'm') => (code: number | string) => string}
  */
 export const csi = end => code =>
     `${begin}${code.toString()}${end}`
@@ -43,7 +39,7 @@ export const csi = end => code =>
  * Specialization of CSI for Select Graphic Rendition (SGR) sequences.
  * https://en.wikipedia.org/wiki/ANSI_escape_code#SGR
  *
- * @type {_Csi}
+ * @type {(code: number | string) => string}
  */
 export const sgr = csi('m')
 

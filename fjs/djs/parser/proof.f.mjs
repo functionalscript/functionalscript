@@ -1,8 +1,16 @@
 /**
- * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
+ * @import { DjsToken, DjsTokenWithMetadata } from '../tokenizer/types.ts'
+ * @import { _FramingKeyword, _OrdinaryTokenName } from './types.ts'
  */
 
-import { parseFromTokens } from './module.f.mjs'
+import {
+    parseFromTokens,
+    _framingKeywords,
+    _ordinaryTokenNames,
+    _tokenKindNames,
+} from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -44,6 +52,22 @@ const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', 
 const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 } })
 
 export const proof = {
+    /**
+     * The parser alphabet in `./module.f.mjs` agrees with its type-level
+     * description in `./types.ts`. These are compile-time checks; the function
+     * body only has to exist so the typedefs have a local scope.
+     */
+    consistency: () => {
+        /** @typedef {Assert<Equal<(typeof _tokenKindNames)[number], Exclude<DjsToken['kind'], 'eof'>>>} _KindsAreComplete */
+        /** @typedef {Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>} _KeywordsAreComplete */
+        /** @typedef {Assert<Equal<(typeof _ordinaryTokenNames)[number], _OrdinaryTokenName>>} _AlphabetIsComplete */
+        // `eof` is not a member of the alphabet, so a second end marker cannot
+        // be encoded rather than merely going unused — and `encode` would
+        // reject the name outright. Checked at the type level because that is
+        // where it is decidable: `includes('eof')` does not even compile
+        // against this element type.
+        /** @typedef {Assert<Equal<Extract<_OrdinaryTokenName, 'eof'>, never>>} _EofIsNotAName */
+    },
     // The corpus that proved parity against the hand-written state machine,
     // kept as fixed expectations now that the state machine is gone.
     //

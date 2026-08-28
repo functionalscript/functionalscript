@@ -340,45 +340,41 @@ consumer all work; that is tracked in
 
 #### Preserve private type intent with `_`
 
-A non-exported TypeScript type that is translated into a JavaScript `@typedef`
-can become externally visible merely because TypeScript currently emits JSDoc
-typedefs as exported aliases. The upstream request to make `@internal` plus
-`stripInternal` work for JSDoc typedefs is
-[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407).
-
-Until that support is available, prefix implementation-only **JSDoc typedef**
-names with `_` during migration. For example:
+A named type migrating out of a `.f.ts` never becomes a **file-scope** JSDoc
+`@typedef` — authored `.mjs` files carry none, repository-wide (root
+`AGENTS.md`; design in
+[`../fjs/todo/separate-private-types.md`](../fjs/todo/separate-private-types.md)).
+It lands in the sibling `types.ts` when it is part of the public declaration
+closure, in an optional sibling `private.ts` when it is implementation-private
+and separating it reads cleaner than inlining, inline in the annotations that
+use it, or function-local in a proof when it is a compile-time proof type. For
+example:
 
 ```ts
 type Node = number
 export type Tree = readonly Node[]
 ```
 
-becomes conceptually:
+becomes, in `types.ts`:
 
-```js
-/** @typedef {number} _Node */
-/** @typedef {readonly _Node[]} Tree */
+```ts
+export type _Node = number
+export type Tree = readonly _Node[]
 ```
 
-The leading `_` is the FunctionalScript API visibility convention. It does not
-prevent declaration emission, so generated declarations may contain
-`export type _Node = number`. `_Node` is still private by contract: consumers
-must not depend on that emitted name directly, so renaming or removing `_Node`
-is not a breaking change solely because TypeScript exposed the alias.
+The leading `_` is the FunctionalScript API visibility convention, kept even
+when linkage requires an export: `_Node` is private by contract, so consumers
+must not depend on the name directly, and renaming or removing `_Node` is not a
+breaking change solely because a declaration exposed it.
 
 The public contract still governs transitive effects. In the example above,
 `Tree` is public and depends on `_Node`; changing `_Node` from `number` to
 `string` changes `Tree`'s public assignability and is therefore a breaking
 change. The underscore exempts only the private alias itself, never a change to
-the expanded public API. Public typedefs keep ordinary names without a leading
+the expanded public API. Public types keep ordinary names without a leading
 `_`.
 
-Types intentionally separated into `types.ts` use ordinary TypeScript source
-visibility and syntax and do not need the JSDoc underscore workaround merely
-because they remain TypeScript.
-
-Which JSDoc typedefs are public is an API design decision made at the migration
+Which types are public is an API design decision made at the migration
 boundary, not a mechanical copy of what the `.f.ts` happened to export. The
 `.f.ts` -> `.f.mjs` rename is already a breaking change — importers must update
 the specifier — so it is the one moment where a module's JSDoc visibility
@@ -402,11 +398,18 @@ plans to remove both. Hiding a type behind `_` to make its eventual removal
 cheaper gives up a real present-day API in exchange for a discount on a breaking
 change that should simply be documented when it happens.
 
-This convention is temporary. Once TypeScript can strip `@internal` JSDoc
-typedefs correctly, replace the underscore workaround as tracked by
-[`blocked/jsdoc-typedef-strip-internal.md`](./blocked/jsdoc-typedef-strip-internal.md).
+Unshipping generated private declaration artifacts is the packaging stage of
+[`../fjs/todo/separate-private-types.md`](../fjs/todo/separate-private-types.md);
+the `_` contract itself is permanent.
 
 #### Typedef documentation does not survive declaration emit
+
+> Since the repository-wide prohibition on file-scope `@typedef` in authored
+> `.mjs` ([`../fjs/todo/separate-private-types.md`](../fjs/todo/separate-private-types.md)),
+> named types live in `types.ts`/`private.ts`, whose documentation emits
+> through the normal TypeScript pipeline — so this loss no longer affects
+> authored code. The record below explains the behavior and why the
+> prohibition avoids it.
 
 The same upstream gap has a second, opposite-facing symptom: declaration emit
 drops the documentation written on a JSDoc `@typedef`. A TypeScript
@@ -866,12 +869,13 @@ blocking, plus the prose sweep. The remaining items are listed under
       emitted declarations measure zero `elided` repo-wide after it. (Its
       Phantom `$out` intentionally differs from `Ts<typeof unknownThunk>` in
       field optionality, so no exact `Equal` round-trip assert applies there.)
-- [ ] Decide each JSDoc typedef's visibility at the migration boundary: prefix
-      implementation-only typedefs with `_` and leave publicly useful ones
+- [ ] Decide each migrated type's visibility at the migration boundary: prefix
+      implementation-only types with `_` and leave publicly useful ones
       unprefixed, judged by what the module should offer its consumers rather
       than by what the `.f.ts` happened to export or by what a pending refactor
-      plans to delete. Types intentionally moved to `types.ts` use normal
-      TypeScript source visibility instead.
+      plans to delete. Place each per the file-scope-typedef prohibition:
+      `types.ts` for the public declaration closure, optional `private.ts`,
+      inline, or function-local in a proof.
 - [x] Apply the module-header/import convention: `@module` belongs only to
       `module.*` entry-point files, never to `proof.*` or other files; group
       module-level JavaScript `@import` tags into one leading JSDoc block —
@@ -1250,9 +1254,9 @@ person can re-check rather than re-derive. Counts are as of
   — broader package-publishing plan.
 - [`../fjs/fsc/README.md`](../fjs/fsc/README.md) — authoritative FunctionalScript
   extension and migration contract.
-- [`blocked/jsdoc-typedef-strip-internal.md`](./blocked/jsdoc-typedef-strip-internal.md)
-  — replace the temporary `_` convention with `@internal` when upstream
-  declaration emit supports it.
+- [`../fjs/todo/separate-private-types.md`](../fjs/todo/separate-private-types.md)
+  — private-type placement rules and the packaging stage that unships
+  generated private declarations.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
   — upstream request for `stripInternal` support on JSDoc typedefs.
 - [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) — existing compiler
