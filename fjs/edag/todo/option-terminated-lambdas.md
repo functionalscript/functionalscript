@@ -145,22 +145,33 @@ present value there.
 
 ### Tasks
 
-- [ ] `../module.f.mjs`: `option` for `null` in the three lambda unions;
-  terminals become closed 2-tuples; `AbsentOr` phantom annotations plus
-  `CheckRaw` asserts for `_optionLambda`/`_optionPropertyLambda`
-- [ ] `../types.ts`: the optional-element types above
-- [ ] `../amnesia/module.f.mjs`: `k === null` → `k === undefined`; signatures
-  take `… | undefined`
+The first task decides the shape of the two after it — they are spelled per
+mechanism because mixing them reintroduces the hole: an arity-split arm whose
+lambda root still carries `option` admits the absent member again.
+
+- [ ] pick the hole-rejection mechanism: **1** (arity-split unions, no
+  `option` anywhere in the chain schemas, no rtti change) or **2** (the rtti
+  past-the-end rule, filed as its own rtti issue and landed first, then the
+  `option` spelling below)
+- [ ] `../module.f.mjs` — under mechanism 2: `option` for `null` in the three
+  lambda unions; terminals become closed 2-tuples; `AbsentOr` phantom
+  annotations plus `CheckRaw` asserts for
+  `_optionLambda`/`_optionPropertyLambda`. Under mechanism 1: every lambda
+  union and continuation-carrying node splits by arity instead — no `option`
+  member in any of them, and the phantom annotations stay plain
+- [ ] `../types.ts` — under mechanism 2: the optional-element types above;
+  under mechanism 1: plain unions of exact tuples, one per arity, no
+  optional elements
+- [ ] `../amnesia/module.f.mjs` (same under either mechanism):
+  `k === null` → `k === undefined`; signatures take `… | undefined`
 - [ ] `../proof.f.mjs`, `../amnesia/proof.f.mjs`: respell (~200 trailing
-  `null`s); add rejections for present `null`, present `undefined`, and the
-  smuggled continuation on a terminal; the `unspellable` family list holds
+  `null`s); add rejections for present `null`, present `undefined`, the
+  smuggled continuation on a terminal, and the trailing holes
+  `['.', a, 'b', ,]` and `['|()', c, ,]`; the `unspellable` family list
+  holds
 - [ ] `../README.md`: node and spelling tables; "Terminals state their
   `null`" inverts into "closedness by length rejects a smuggled
   continuation"; "The cost" shrinks
-- [ ] reject trailing holes **in the same change** — mechanism 1
-  (arity-split unions) or mechanism 2 (the rtti past-the-end rule, filed and
-  landed first) above; pin `['.', a, 'b', ,]` and `['|()', c, ,]` rejecting
-  in `../proof.f.mjs`
 
 ## Related
 
