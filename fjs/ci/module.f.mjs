@@ -84,7 +84,12 @@ const compilerPin = text => {
     const dev = root.devDependencies
     if (typeof dev !== 'object' || dev === null || dev instanceof Array) { return undefined }
     const pin = dev.typescript
-    return typeof pin === 'string' ? pin : undefined
+    // Only an exact pin. A range such as `^7.0.0` lets a later registry release
+    // change this check's verdict with no change here, which is the one thing
+    // running it without a checkout is meant to prevent. Relaxing the pin drops
+    // the job from the generated workflow, which is a visible diff rather than
+    // a quiet loss of checking.
+    return typeof pin === 'string' && pin.startsWith('=') ? pin : undefined
 }
 
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */

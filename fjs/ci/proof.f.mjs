@@ -294,6 +294,8 @@ export const proof = {
             '{"devDependencies":{"typescript":1}}',     // pin not a string
             '{"name":"p"}',                             // no devDependencies
             '{"name":"p","devDependencies":{}}',        // no typescript
+            '{"devDependencies":{"typescript":"^7.0.0"}}',   // a range, not a pin
+            '{"devDependencies":{"typescript":"7.0.2"}}',    // bare, still not exact
         ])) {
             const [state, result] = virtual(makeState(false, packageJson))(ci({ nodeExtra: () => [] }))
             assertEq(exitCode(result), 0)

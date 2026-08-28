@@ -40,7 +40,7 @@ export const proof = {
         // `true` stops the checking without saying so.
         assert(scriptHas('--skipLibCheck false'), 'expected skipLibCheck left false')
         // An empty list type-checks nothing and passes.
-        assert(scriptHas('test -s declarations.txt'), 'expected a guard against an empty file list')
+        assert(scriptHas('test -s declarations'), 'expected a guard against an empty file list')
     },
     // The compiler is whatever the package pins, carried through untouched. A
     // check that runs a compiler the package did not choose is a green result
@@ -56,9 +56,10 @@ export const proof = {
     anyPackageName: () => {
         assert(scriptHas('"packed@file:$(ls *.tgz)"'), 'expected the artifact installed under the fixed alias')
         assert(scriptHas('find node_modules/packed'), 'expected declarations enumerated from that directory')
-        // `tsc` splits a response file on whitespace, so an unquoted path with a
-        // space in it fails a package that is valid.
-        assert(scriptHas(`-printf '"%p"`), 'expected response-file paths quoted')
+        // Paths reach tsc as arguments, so a space or a quote in one needs no
+        // quoting or escaping to survive.
+        assert(scriptHas('-print0'), 'expected NUL-separated paths')
+        assert(scriptHas('xargs -0'), 'expected the paths passed as arguments')
         // Every declaration form the package can ship, not just the two this
         // repository happens to emit.
         for (const ext of /** @type {const} */ (['*.d.ts', '*.d.mts', '*.d.cts'])) {
