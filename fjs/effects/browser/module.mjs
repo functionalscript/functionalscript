@@ -34,6 +34,46 @@ import { error, ok } from '../../types/result/module.f.mjs'
 import { tryCatch } from '../../types/result/module.mjs'
 
 /**
+ * How long a run may hold the thread before handing it back, in milliseconds.
+ *
+ * It is a *frame* budget rather than a count of proofs, and that difference is
+ * the whole point. A count cannot know what it costs: twenty-five trivial
+ * leaves are nothing and twenty-five heavy ones are still a freeze, which is
+ * why the number this replaces was indefensible. 8 ms is what a 60 Hz frame
+ * leaves for script, so a page that respects it gets a paint slot at the rate
+ * it can actually use one, whatever its proofs happen to cost.
+ */
+const frameBudget = 8
+
+/**
+ * Hands control back to the host's event loop and comes back in a later task.
+ *
+ * Not `setTimeout`: it clamps to 4 ms once nested, and this is called between
+ * leaves, so the clamp would add minutes to a suite of a few thousand. That
+ * clamp is what pushed an earlier attempt to `MessageChannel` and then into a
+ * failure under bun, which drains port messages before running a due timer —
+ * a problem this module does not have, because nothing but a browser runs it.
+ *
+ * `scheduler.yield` is the primitive built for exactly this and does not
+ * clamp; `MessageChannel` is the same idea by hand where it is missing.
+ *
+ * @type {() => Promise<unknown>}
+ */
+const yieldToHost = () => {
+    const { scheduler } = /** @type {{ scheduler?: { yield?: () => Promise<void> } }} */ (
+        /** @type {unknown} */ (globalThis))
+    if (scheduler?.yield !== undefined) { return scheduler.yield() }
+    return new Promise(resolve => {
+        const { port1, port2 } = new MessageChannel()
+        port1.onmessage = () => {
+            port1.close()
+            resolve(undefined)
+        }
+        port2.postMessage(undefined)
+    })
+}
+
+/**
  * Calls `f` and answers what happened — its value, or the value it threw —
  * together with how long it took.
  *
@@ -107,10 +147,63 @@ export const browserRun = extra => {
     // typed.
     /** @type {(effect: any) => Promise<any>} */
     let run
+    // When this run last gave the thread back, and the yield the leaves over
+    // budget are all waiting on. Per runner rather than per module, because the
+    // thread is one thing however many runs share it.
+    let sliceStart = performance.now()
+    /** @type {Promise<unknown> | null} */
+    let slice = null
+    /**
+     * The yield this leaf must wait for, or `null` when the slice has room.
+     *
+     * **Answering `null` rather than an already-resolved promise is the whole
+     * mechanism**, and it took a measurement to learn it. A leaf runs
+     * synchronously inside its handler, so `all`'s children start one after
+     * another as each previous leaf finishes — which is what makes "has this
+     * slice been spent?" a question with a moving answer. Await anything before
+     * the leaf, even a resolved promise, and every handler asks the question at
+     * the same instant, before any leaf has run: all of them see an empty
+     * budget, none of them yields, and the run is one task again.
+     *
+     * Waiters share one yield instead of each taking a task, and re-ask when it
+     * resolves: the first few resume into the fresh slice and run inline, and
+     * whichever one finds the budget spent again waits for the next.
+     *
+     * @type {() => Promise<unknown> | null}
+     */
+    const overBudget = () => {
+        if (performance.now() - sliceStart < frameBudget) { return null }
+        if (slice === null) {
+            slice = yieldToHost().then(() => {
+                slice = null
+                sliceStart = performance.now()
+            })
+        }
+        return slice
+    }
     const core = {
         all: async (/** @type {readonly any[]} */ ...effects) =>
             ok(await Promise.all(effects.map(run))),
-        sandbox: async (/** @type {() => unknown} */ f) => ok(await sandbox(f)),
+        // **The leaf is where a browser run yields, and it has to be.** `all`
+        // starts every child before awaiting any — a contract, not an
+        // implementation detail — so it cannot pause between them without
+        // hanging a graph whose child waits on a later sibling. That leaves the
+        // leaf: it is the one point every unit of work passes through, and it
+        // holds no sibling's answer while it waits.
+        //
+        // Without this the whole suite runs as one task. Leaves resolve through
+        // microtasks, and a microtask drain never returns to the event loop, so
+        // a page cannot paint a result, service a timer or answer a click from
+        // the first proof to the last — measured at ~53 s on this repo's own
+        // browser suite, long enough for the browser to offer to kill the page.
+        sandbox: async (/** @type {() => unknown} */ f) => {
+            let wait = overBudget()
+            while (wait !== null) {
+                await wait
+                wait = overBudget()
+            }
+            return ok(await sandbox(f))
+        },
         // No clock and no fixture convention — see `Catch` in
         // `../node/types.ts` for why this is a second operation beside
         // `sandbox` rather than a use of it. It is `tryCatch`, spelled the

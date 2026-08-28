@@ -68,8 +68,16 @@ made first-opener-wins; the yield needed `MessageChannel` rather than
 `setTimeout` only because `setTimeout` clamps to 4 ms once nested; and the
 `MessageChannel` proof then failed under bun, which drains port messages before
 running a due timer. Six rounds of review, every one of them downstream of a
-constant that was finally deleted. The end state — no batch size at all — is
-the state that copying `fjs t` would have produced on day one.
+constant that was finally deleted.
+
+**And "no batch size" is not "no yielding" — this file said so badly enough to
+mislead a later reader, which was me.** Copying `fjs t` exactly *does* freeze a
+page: without a yield the whole suite runs as one task, measured at 54.7 s on
+this repo's own browser suite, and the line above about the batching having no
+paint boundary is about a bug in that attempt rather than a finding that the
+yield did nothing. What the browser needs is a turn, on a budget it can defend
+— a frame — and what it never needed was a number of proofs. Step 5's task list
+records where that landed and what it measured.
 
 **A problem the browser reveals is not a browser problem.** Two came up, and
 both are properly issues rather than fixes inside a port:
@@ -214,10 +222,13 @@ and is reviewable without the next one.
       `Reporter` and an interpreter, and the traversal does the rest.
 
       **The batching went with it**, as this file said it should be decided
-      rather than inherited: `batchSize = 25` and its `setTimeout` yield are
-      gone, and the browser now schedules exactly as `fjs t` does. Nothing
-      asked for the batching, no measurement motivated the constant, and it was
-      the origin of six rounds of review in the reverted attempt.
+      rather than inherited: `batchSize = 25` is gone. Nothing asked for it, no
+      measurement motivated the constant, and it was the origin of six rounds of
+      review in the reverted attempt. Deleting the *yield* along with it was the
+      overshoot — a page that never gives the thread back cannot paint or answer
+      a click — so the browser interpreter gives it back on a frame budget
+      instead, which is a number about the host rather than about proofs. The
+      traversal still schedules nothing, so `fjs t` is unchanged.
 
       **What the skeleton had to grow**, rather than what the browser had to
       keep: the traversal now threads a `RunOutcome<R>` — the folded totals
@@ -513,21 +524,43 @@ are shared.
       runner's own functions rather than against a spelling.
 - [x] Record every behaviour the browser file has today and the shared core will
       not keep, as an issue, before the sharing change merges. Two: the
-      `batchSize = 25` yielding, deleted deliberately so both runners schedule
-      identically, and the unguarded read of a module's *exported* tree, which
-      stays the page's own and is tracked by
+      `batchSize = 25` yielding — whose *constant* was the mistake and whose
+      *yielding* was load-bearing, see below — and the unguarded read of a
+      module's *exported* tree, which stays the page's own and is tracked by
       [hostile-proof-values](./hostile-proof-values.md).
 - [ ] Close each of those issues for both runners at once, so the two stay in
       sync rather than drifting from the day the core is shared.
-- [ ] Decide where progress rendering belongs, if a suite ever grows large
-      enough for it to matter. Leaves resolve through microtasks, so a run
-      drains without a paint and the rows a page appends as results land only
-      become visible when it ends. The deleted `batchSize` is not the answer —
-      this file already records that its `setTimeout` yield had no paint
-      boundary where it claimed one — and the traversal is the wrong place to
-      look for one either way: what to paint, and when, is the page's own
-      concern, so a renderer that batches its DOM writes is where this lands if
-      anything does.
+- [x] Decide where a browser run gives the thread back. **The browser
+      interpreter's `sandbox`, on a frame budget** — 8 ms, what a 60 Hz frame
+      leaves for script — not a count of proofs, and not the traversal, which
+      stays free of scheduling so `fjs t` is untouched.
+
+      This was got wrong twice before it was measured, and both errors are
+      worth keeping. First, deleting `batchSize = 25` was read as deleting the
+      whole idea: the constant was indefensible — twenty-five trivial leaves
+      are nothing and twenty-five heavy ones are still a freeze — but the
+      `setTimeout` between waves was the only thing giving the page a turn.
+      Without it the whole suite is one task: leaves resolve through
+      microtasks, and a microtask drain never returns to the event loop, so
+      nothing paints and no click is answered until the run ends. Measured in
+      Chromium on this repo's own browser suite: a single **54.7 s** task, zero
+      rows painted, and the browser offering to kill the page.
+
+      Second, the fix's first shape awaited the budget *before* each leaf, and
+      changed nothing. A leaf runs synchronously inside its handler, which is
+      what makes `all`'s children start one after another as each previous leaf
+      finishes; await anything first — even a resolved promise — and every
+      handler asks whether the slice is spent at the same instant, before any
+      leaf has run. All see room, none yields. The check has to answer without
+      awaiting when there is room, which is why it answers `null` rather than a
+      settled promise.
+
+      After: longest task **98 ms** on the first run and **no task over 50 ms**
+      on the second, 3456 rows painted, wall clock 52.2 s against 52.8 s — the
+      yields cost 0.38 ms each and the budget asks for few of them. `all` was
+      not the place to put this: it must start every child before awaiting any,
+      so pausing between children hangs a graph whose child waits on a later
+      sibling, which is the deadlock the reverted attempt hit.
 - [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's own
       failure, as opposed to any proof's. It is the one branch of the page with
       no proof, and reaching either half of it (an operation reporting through

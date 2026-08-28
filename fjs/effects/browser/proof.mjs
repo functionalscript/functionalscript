@@ -60,6 +60,34 @@ export const proof = {
         assertEq(okValue(r[0]).result[1], 'first')
         assertEq(okValue(r[1]).result[1], 'second')
     },
+    // **The page must stay alive while a suite runs.** Leaves resolve through
+    // microtasks, and a microtask drain never returns to the event loop, so
+    // without a yield the whole suite is one task: no paint, no timer, no
+    // click, for as long as it takes. This posts a message before the run and
+    // asks whether it was delivered while the run was still going — under a
+    // single-task run it cannot be, because nothing else gets a turn until the
+    // run is over.
+    theThreadIsGivenBackDuringARun: async () => {
+        // Well over the frame budget, so the second leaf finds it spent.
+        const burn = () => {
+            const end = performance.now() + 25
+            while (performance.now() < end) { /* hold the thread */ }
+        }
+        let deliveredDuringRun = false
+        let finished = false
+        const { port1, port2 } = new MessageChannel()
+        port1.onmessage = () => { deliveredDuringRun = !finished }
+        port2.postMessage(undefined)
+        // Its own runner, so the slice starts here: the first leaf runs inline
+        // and the second finds the budget spent, which is the moment the thread
+        // has to come back.
+        const r = okValue(await browserRun({})(all(sandbox(burn), sandbox(burn), sandbox(burn))))
+        finished = true
+        port1.close()
+        port2.close()
+        assertEq(r.length, 3)
+        assert(deliveredDuringRun)
+    },
     // Enumerating `extra` runs user code too: a proxy may answer one set of
     // keys and then another. Reading it once means the map the runner builds is
     // the map the collision check approved — here the second reading's
