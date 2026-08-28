@@ -125,25 +125,6 @@ export const toIoError = e => {
 }
 
 /**
- * True if `e` is a "file or directory does not exist" (`ENOENT`) error.
- *
- * Node's filesystem rejections are `Error`s carrying `code: 'ENOENT'`, which
- * {@link toIoError} keeps; the virtual interpreter reports the same code for
- * absent paths. Lets callers swallow only the missing-path case (e.g. a fresh
- * store) while propagating genuine failures (permissions, corruption) rather
- * than masking them.
- *
- * A {@link NotImplemented} is never "not found": a runner that cannot perform
- * the operation has not looked for the path at all, so the two must not
- * collapse into one benign branch — which is exactly what a bare `unknown`
- * error channel used to allow.
- *
- * @type {(e: IoChannel) => boolean}
- */
-export const isNotFound = ([tag, payload]) =>
-    tag === 'ioError' && payload.code === 'ENOENT'
-
-/**
  * Lifts an already-computed {@link Result} into an effect that performs no
  * command.
  *

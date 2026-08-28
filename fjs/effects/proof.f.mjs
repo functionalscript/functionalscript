@@ -4,9 +4,9 @@
  */
 
 import {
-    catchStep, do_, foldStep, forEachStep, history, historyStep, ioError,
-    isNotFound, mapStep, match, partialMatch, pure, pureError, pureOk,
-    resultMapStep, resultStep, runPure, step, toIoError, unwrapStep,
+    catchStep, do_, foldStep, forEachStep, history, historyStep, mapStep,
+    match, partialMatch, pure, pureError, pureOk, resultMapStep, resultStep,
+    runPure, step, toIoError, unwrapStep,
 } from './module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
@@ -223,19 +223,6 @@ export const proof = {
             const e = toIoError({})
             assert(e[0] === 'ioError', e)
             assertEq(e[1].code, undefined, e)
-        },
-    },
-    isNotFound: {
-        enoent: () => {
-            assert(isNotFound(ioError({ code: 'ENOENT', message: 'no such file or directory' })))
-        },
-        otherCode: () => {
-            assert(!isNotFound(ioError({ code: 'EACCES', message: 'permission denied' })))
-        },
-        // A runner that cannot perform the operation has not looked for the
-        // path at all, so a missing handler is never "not found".
-        notImplemented: () => {
-            assert(!isNotFound(['notImplemented', 'readFile']))
         },
     },
     runPure: {

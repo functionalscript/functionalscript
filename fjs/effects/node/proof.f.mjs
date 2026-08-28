@@ -10,7 +10,7 @@ import { empty, isVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, step as ioStep } from "../module.f.mjs"
-import { both, errorMessage, errorSummary, exitStep, fetch, ioError, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
+import { both, errorMessage, errorSummary, exitStep, fetch, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
@@ -50,6 +50,19 @@ const assertOk = (r, expected) => {
 }
 
 export const proof = {
+    isNotFound: {
+        enoent: () => {
+            assert(isNotFound(ioError({ code: 'ENOENT', message: 'no such file or directory' })))
+        },
+        otherCode: () => {
+            assert(!isNotFound(ioError({ code: 'EACCES', message: 'permission denied' })))
+        },
+        // A runner that cannot perform the operation has not looked for the
+        // path at all, so a missing handler is never "not found".
+        notImplemented: () => {
+            assert(!isNotFound(['notImplemented', 'readFile']))
+        },
+    },
     errorMessage: {
         io: () => {
             assertEq(errorMessage(ioError({ message: 'disk full' })), 'disk full')
