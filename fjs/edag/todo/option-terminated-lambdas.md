@@ -107,7 +107,7 @@ are not an elision: an array has no holes"
 even *evaluates* identically to absence (reading it yields `undefined`), so
 the leak is canonicality-only. It is still a validation regression against
 today's schema, and a regression may not be deferred behind a todo
-([`AGENTS.md`](../../../AGENTS.md) §1, "Merge the knowledge"): the migration
+([`AGENTS.md`](../../../AGENTS.md) §5, "Merge the knowledge"): the migration
 does not land unless the same change keeps `validate(exp)` rejecting a
 trailing hole, pinned in the proofs.
 
@@ -166,9 +166,10 @@ walkers destructure **today**, so an iterator-hostile step already
 misleads the current evaluator identically; the migration changes nothing
 about that class, and `skip` joining the module's one uniform pattern adds
 no sensitivity the module does not already have. Amnesia's own README
-scopes it: a tree-walking evaluator for testing the semantics,
-"deliberately **not** a VM to run FunctionalScript on" — its guarantees
-assume a DJS value on a pristine host, where every read style coincides.
+scopes it — "It is not a VM for FunctionalScript, and nothing that matters
+should run on it" — and [`../README.md`](../README.md) adds the intent,
+"deliberately not a VM to run FunctionalScript on": its guarantees assume
+a DJS value on a pristine host, where every read style coincides.
 The gate's claim is therefore about the value's **own** members under
 rtti's stated reading model; hermetic reads for hostile hosts beyond that
 are rtti's tracked question
@@ -266,4 +267,6 @@ carries `option` admits the absent member — and its hole — again.
 - 7852819 / 930fa65 (#1725) — closed containers by default, then `option` as
   omission; this issue is that plan's second half applied to edag
 - [`../../rtti/todo/identity-aware-parse.md`](../../rtti/todo/identity-aware-parse.md)
-  — the Stage 2 validator the hole check could join
+  — the identity caveats `validate(exp)` keeps either way; hole rejection
+  itself is structural under arity-split, pinned in the proofs, and joins
+  nothing
