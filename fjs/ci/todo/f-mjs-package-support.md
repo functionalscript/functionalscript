@@ -250,8 +250,8 @@ emission, `npm pack`, and a clean consumer.
 - [x] Test the allowed `.ts` -> `.mjs` runtime dependency direction in a clean
       checkout and CI-built package archive. Retired, not performed: the
       direction no longer exists to test. Every authored `.ts` left is a
-      `types.ts` / `private.ts`, and all 225 of their import statements are
-      `import type` — measured on the tree after
+      `types.ts` / `private.ts`, and every one of their import statements is
+      `import type` (226 at the time of writing) — measured on the tree after
       [#1750](https://github.com/functionalscript/functionalscript/pull/1750).
       A runtime dependency out of an authored `.ts` would also need emitted
       JavaScript for it, and the decision above settled that `types.js` is not
