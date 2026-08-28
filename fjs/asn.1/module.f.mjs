@@ -6,7 +6,7 @@
  *
  * @import { Unpacked, Vec } from '../types/bit_vec/types.ts'
  * @import { ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag } from './types.ts'
- * @import { _ClassPc, _ParsedTag } from './private.ts'
+ * @import { _ClassPc, _ParsedTag, _Round8 } from './private.ts'
  */
 
 import { bitLength, divUp8 } from '../types/bigint/module.f.mjs'
@@ -122,7 +122,7 @@ export const constructedSet = 0x31n      // constructed | set
 
 //
 
-/** @type {(_: Unpacked) => { readonly byteLen: bigint, readonly v: Vec }} */
+/** @type {(_: Unpacked) => _Round8} */
 const round8 = ({ length, uint }) => {
     const byteLen = divUp8(length)
     return { byteLen, v: vec(byteLen << 3n)(uint) }
