@@ -502,6 +502,12 @@
           "run": "! grep -rnE '^(/\\*\\*.*@typedef|\\s\\* *@typedef)' --include='*.mjs' --exclude-dir=node_modules ."
         },
         {
+          "run": "! grep -rl @module --include='*.ts' --include='*.mjs' --exclude-dir=node_modules . | grep -qvE '(^|/)module\\.(f\\.)?mjs$'"
+        },
+        {
+          "run": "! git ls-files | grep -E '(^|/)module\\.(f\\.)?mjs$' | xargs grep -L @module | grep -q ."
+        },
+        {
           "run": "npx tsc"
         },
         {

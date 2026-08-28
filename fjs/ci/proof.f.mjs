@@ -108,6 +108,10 @@ export const proof = {
         assert(hasRunInJob('node26', 'npm pack')(gha), 'expected Node 26 package check')
         assert(hasRunInJob('node26', 'npm run ci-update')(gha), 'expected Node 26 workflow regeneration')
         assert(hasRunInJob('node26', 'git add -A && git diff --cached --exit-code')(gha), 'expected Node 26 generated-file drift check')
+        // Both halves of the `@module` rule, asserted separately: a guard that
+        // silently stopped being generated is the failure it exists to prevent.
+        assert(hasRunInJob('node26', 'grep -rl @module')(gha), 'expected Node 26 stray `@module` check')
+        assert(hasRunInJob('node26', 'xargs grep -L @module')(gha), 'expected Node 26 missing `@module` check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
         for (const id of /** @type {const} */ ([
             'ubuntu-intel',

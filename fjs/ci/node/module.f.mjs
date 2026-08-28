@@ -68,6 +68,15 @@ const node26Steps = [
     // `AGENTS.md`); `tsc` accepts one silently, so the prohibition needs its
     // own gate.
     test({ run: "! grep -rnE '^(/\\*\\*.*@typedef|\\s\\* *@typedef)' --include='*.mjs' --exclude-dir=node_modules ." }),
+    // `@module` belongs to a package entry point and nowhere else
+    // (`fjs/AGENTS.md` §2). Both directions are checked: the tag drifted onto
+    // 102 `types.ts`/proof files before anything looked, and a check for only
+    // that half would also pass on a tree that had lost the tag everywhere.
+    // `grep -L` cannot carry the verdict in its exit status — it reports
+    // whether any file *matched*, not whether it listed one — so the second
+    // guard pipes into `grep -q .` instead.
+    test({ run: "! grep -rl @module --include='*.ts' --include='*.mjs' --exclude-dir=node_modules . | grep -qvE '(^|/)module\\.(f\\.)?mjs$'" }),
+    test({ run: "! git ls-files | grep -E '(^|/)module\\.(f\\.)?mjs$' | xargs grep -L @module | grep -q ." }),
     test({ run: 'npx tsc' }),
     test({ run: 'npm run cov' }),
     test({ run: 'npm pack' }),
