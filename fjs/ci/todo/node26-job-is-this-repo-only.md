@@ -15,18 +15,20 @@ theirs:
 - `npm run ci-update`, then `git add -A && git diff --cached --exit-code` —
   regenerate-and-check-drift, against a script a consumer's `package.json`
   very likely does not define, so the step fails outright;
-- the file-scope JSDoc `@typedef` prohibition (root `AGENTS.md`);
-- both halves of the `@module` placement rule (`fjs/AGENTS.md` §2), added by
-  the change that filed this issue.
+- the file-scope JSDoc `@typedef` prohibition (root `AGENTS.md`).
 
-The last three encode *this repository's* conventions. A consumer who writes a
-file-scope `@typedef`, or puts `@module` on a `types.ts`, has broken no rule of
-their own, and their build fails telling them so.
+Both encode *this repository's* conventions, and the second is the clearer
+case: a consumer who writes a file-scope `@typedef` has broken no rule of their
+own, and their build fails telling them so.
 
-This is not a defect the `@module` guards introduced — `npm run ci-update` has
-the same shape and predates them. What they did was make the pattern worth
-naming: each convention added to `node26` widens the gap between what `fjs ci`
-claims to generate and what it does.
+This issue was filed alongside a pair of `@module` placement gates that would
+have been a third. They were reverted before landing — a text pattern cannot
+tell a JSDoc tag from the same characters in a string, and
+[root `AGENTS.md` §6](../../../AGENTS.md#6-external-tools) now rules the
+approach out — so the tree today carries only the two above. What the attempt
+did was make the pattern worth naming: every convention `node26` acquires
+widens the gap between what `fjs ci` claims to generate and what it does, and
+§6 makes that gap harder to widen without noticing.
 
 ### Proposal
 
