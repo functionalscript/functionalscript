@@ -54,7 +54,9 @@ provides*. Proposed destinations:
 | `fjs/effects/sandbox/module.f.mjs` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise` — the "run foreign code and observe what happened" pair |
 | `fjs/effects/console/module.f.mjs` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/test/module.f.mjs` | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
-| stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Fetch`, `Import`, `Forever`, `Now`, `RandomInt`, `IoResult`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
+| stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Forever`, `RandomInt`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
+| unsettled | `Now`, `Fetch`, `Import` — this issue and share-browser-console-runner's step 4 disagree; step 5 decides (see the judgement call below) |
+| already moved to `fjs/effects` | `OpResult`, `IoChannel`, `IoError`, `IoErrorInfo`, `IoResult`, `ioError`, `toIoError` — the vocabulary every operation is declared in; `effects/node` re-exports them (see the judgement call below) |
 
 `NodeOp` stays where it is and keeps unioning every family — it is the
 *runner's* op-set, which is legitimately "everything this host can do", and both
@@ -64,37 +66,57 @@ union that names them all does not.
 
 Judgement calls worth deciding explicitly rather than by accident:
 
-- **`Now` / `RandomInt` stay.** They are ambient host capabilities with no
-  cross-runtime abstraction to gain, and no consumer outside `fjs/cas` and the
-  interpreters. Moving them would be motion without a reader benefit.
-- **`isNotFound` stays.** It encodes Node's `ENOENT` shape specifically; that
-  *is* a Node concern.
-- **`IoResult<T>` stays too — pure consumers should stop importing it instead.**
-  An earlier draft of this issue moved it to the effects core, on the reasoning
-  that core already imports `Result` so the move costs no new dependency. That
-  reasoning picks a destination by convenience rather than by concern, and the
-  destination is wrong on its own terms: `Result<T, unknown>` is not an effect
-  constructor or combinator, so moving it would swap Node coupling for
-  core-effects coupling and leave a non-effect type in the effects core.
-  `fjs/types/result` is not the answer either — the *name* is about the host I/O
-  boundary ("the error is whatever the host threw"), and a generic types module
-  should not mint I/O vocabulary.
+- **`RandomInt` stays.** An ambient host capability with no cross-runtime
+  abstraction to gain and no consumer outside `fjs/cas` and the interpreters.
+  Moving it would be motion without a reader benefit.
+- **`Now`, `Fetch` and `Import` are unsettled, and step 5 of
+  [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
+  decides them.** This issue put all three in the "stays" row on the reader-benefit
+  argument above; that issue's step 4 lists `now`, `fetch` and `import` among the
+  operations to move. Both were written without the fact that settles it — **which
+  operations a browser interpreter actually implements** — so neither ruling is
+  authoritative and the disagreement is recorded here rather than resolved by
+  whichever file a later reader opens first.
 
-  Read the other way, `IoResult` is exactly a Node-layer contract and belongs
-  beside the operations it describes. The fix for a **pure** consumer is to
-  spell the underlying type, not to relocate the alias:
-  `fjs/media/type/module.f.mjs:45` imports `IoResult` from
-  `../../effects/node/types.ts` purely to write `IoResult<Vec>` and
-  `IoResult<DetectMeta>`; writing `Result<Vec, unknown>` from
-  `fjs/types/result` says the same thing and drops the `effects/node` import
-  **entirely**, which is a better outcome than moving where it points.
-  [fold-stream-combinator](./fold-stream-combinator.md) reached the same
-  conclusion independently for `fjs/effects/list` — its `Result`-spelled
-  signature is the right design, not the workaround that issue calls it.
+  The test to apply is the one `isNotFound` failed: not "does a browser also
+  have one of these", but "is this operation about no host in particular". By
+  that test `now` and `import` look likely to move — a browser proof run needs a
+  clock and dynamic import, so step 5 gives them a second implementer — and
+  `fetch` looks likely to stay, since nothing in the shared runner performs one
+  and DESIGN.md §4 extracts at the second *real* consumer, not the second
+  possible one. Those are expectations, not rulings: whichever way step 5 goes,
+  it updates both files in the same change.
+- **`isNotFound` stays, and this was tested.** It encodes `ENOENT`
+  specifically — a POSIX filesystem code that a host without a filesystem never
+  reports — so it *is* a Node-layer concern. A change that moved it to the core
+  along with the error vocabulary was reviewed against this line and reverted
+  on it: being about a *host failure* does not make a thing host-agnostic,
+  being about no host in particular does.
+- **`IoResult<T>` moved to the effects core, and this issue was wrong to say it
+  should not.** The reasoning here was that `Result<T, unknown>` is not an
+  effect constructor or combinator, so the core is the wrong home and pure
+  consumers should spell the underlying type instead. What that reasoning did
+  not have was a **second host**. `IoResult` is not "exactly a Node-layer
+  contract": it is the shape every host's IO operations answer in, and a
+  browser interpreter cannot declare `fetch` or `import` without it. The same
+  goes for `OpResult`, `IoChannel`, `IoError` and `IoErrorInfo`, which this
+  issue never listed — `OpResult` is `Result<T, NotImplemented>`, defined
+  purely in terms of a type the core already owns, and `effects/memory` (no
+  host at all) was importing it from `effects/node`.
 
-  This is an independent, one-site cleanup: it neither depends on nor supports
-  the moves below. Listed here because that is where the wrong answer was
-  written down; it can land on its own.
+  The "not an effect constructor or combinator" test also did not describe the
+  file it was applied to: `NotImplemented` already lives in the core and is
+  neither. What the core holds is the vocabulary an operation is *declared*
+  in, and this is that.
+
+  The one-site cleanup this bullet also proposed is still worth doing and is
+  now the task below: `fjs/media/type/module.f.mjs` imports `IoResult` only to
+  spell two signatures, and `Result<Vec, unknown>` from `fjs/types/result` says
+  the same thing without reaching into the effects package at all.
+  [fold-stream-combinator](./fold-stream-combinator.md) reached that conclusion
+  independently for `fjs/effects/list`. That a pure consumer should not name an
+  IO alias and that a *second host* needs one to exist somewhere shared are
+  both true; the old bullet collapsed them into one answer.
 - **`Test` goes to an effects module, not to `fjs/emergent_testing`.**
   `emergent_testing` looks like the natural owner — it is the only consumer of
   `test` and the module that defines what a test *is* — but putting the
@@ -177,6 +199,16 @@ Judgement calls worth deciding explicitly rather than by accident:
 - **Every move is a breaking change** to an import path. Per `AGENTS.md`, do one
   concern per PR, update every importer in the same PR, and prefix the CHANGELOG
   entry with `**BREAKING CHANGES:**`. Do not leave re-export shims behind.
+
+  **The vocabulary move is the one exception, and for a reason that does not
+  generalize.** A re-export is a shim when it keeps a *dead* coupling alive —
+  which is the case for every move in the table above, where the whole goal is
+  that `fjs/text/sgr` stops naming `effects/node` at all. It is not the case
+  for `IoChannel` and its siblings: node's own operations are declared in
+  them, so `effects/node` re-exporting what it genuinely uses keeps one
+  vocabulary readable at one import rather than preserving a coupling anyone
+  wants gone. That is why that move was additive and needed no importer churn,
+  and why the moves below still need theirs.
 - **The obsolete Playwright adapter is already gone.** This task must preserve
   only the process-side `TestContext` fields that still have consumers. It must
   not use relocation as a reason to revive the Playwright engine, context,
@@ -191,9 +223,14 @@ Judgement calls worth deciding explicitly rather than by accident:
 
 ### Tasks
 
+- [x] Move the operation vocabulary (`OpResult`, `IoChannel`, `IoError`,
+      `IoErrorInfo`, `IoResult`, `ioError`, `toIoError`) to `fjs/effects`,
+      with `effects/node` re-exporting it and `effects/memory` taking
+      `OpResult` from the core. `isNotFound` stayed — see the judgement calls.
 - [ ] Independent of the moves: replace `fjs/media/type`'s `IoResult` import
       with `Result<T, unknown>` from `fjs/types/result`, dropping its
-      `effects/node` import. `IoResult` itself does **not** move.
+      `effects` import — a pure consumer should not name an IO alias, whichever
+      module the alias lives in.
 - [ ] Move `All` / `all` / `allOk` / `both` to `fjs/effects/all/module.f.mjs`.
       `allOk` is the ok-channel wrapper over `all` and belongs with it;
       [allvoid-combinator](./allvoid-combinator.md) builds on it, so leaving it
