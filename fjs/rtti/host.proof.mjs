@@ -19,6 +19,7 @@
  *
  * @import { Type } from './types.ts'
  * @import { ValidateE } from './common/types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
  * @import { Unknown } from './ts/types.ts'
  */
 
@@ -268,54 +269,93 @@ export const proof = {
         assert(ra[0] === 'ok', 'expected ok')
         assertStructurallySame(/** @type {readonly unknown[]} */ (ra[1]), [1, 2])
     },
-    // …and when the accessor **pollutes a prototype** instead, `parse`
-    // refuses. A getter on a later member can install an earlier, already
-    // omitted declared key on `Object.prototype` (or an omitted position on
-    // `Array.prototype`), and then every fresh container *inherits* it: the
-    // member is present by the same HasProperty rule the readers dispatch
-    // on, so no plain container the rebuild could hand back denotes the
-    // value that was checked — a success here carried a payload failing the
-    // very schema it was parsed against. Refusing is `omittedStillAbsent`'s
-    // case: the omission's postcondition no longer holds.
-    parseRefusesWhatPollutionMakesUnbuildable: () => {
-        const structValue = { b: 0 }
-        Object.defineProperty(structValue, 'b', {
-            get: () => {
-                /** @type {any} */ (Object.prototype).a = 'bad'
-                return 2
-            },
+    // …and when the accessor **flips the presence** of an already decided
+    // member instead, every reader refuses — identically, which is the
+    // agreement this file's tables exist to hold. A later member's getter
+    // can install an earlier, omitted key on `Object.prototype` (or an
+    // omitted position on `Array.prototype`) — the member is then present
+    // by the same HasProperty rule the walk dispatched on — or delete a
+    // checked own key; either way the verdict was made under a presence
+    // that no longer holds: a hands-back reader would return a value that
+    // no longer denotes what was checked, and the constructing one would
+    // build from stale decisions. All three re-ask presence last
+    // (`presenceUnchanged`), after everything that reads the value.
+    presenceFlipsAreRefusedByAllReaders: () => {
+        /** @type {(pollute: () => void) => StringMap<Unknown>} */
+        const structWith = pollute => Object.defineProperty({ b: 0 }, 'b', {
+            get: () => { pollute(); return 2 },
             enumerable: true,
             configurable: true,
         })
-        const rs = p({ a: or(option, number), b: number })(structValue)
-        delete (/** @type {any} */ (Object.prototype).a)
-        assertError(rs)
-        const tupleValue = [, 0]
-        Object.defineProperty(tupleValue, 1, {
-            get: () => {
-                /** @type {any} */ (Array.prototype)[0] = 'bad'
-                return 2
-            },
+        const polluteObject = () => { /** @type {any} */ (Object.prototype).a = 'bad' }
+        const unpolluteObject = () => { delete (/** @type {any} */ (Object.prototype).a) }
+        for (const read of [v, p, d]) {
+            // absent → present, struct
+            const rs = read({ a: or(option, number), b: number })(structWith(polluteObject))
+            unpolluteObject()
+            assertError(rs)
+            // absent → present, tuple
+            const tv = [, 0]
+            Object.defineProperty(tv, 1, {
+                get: () => { /** @type {any} */ (Array.prototype)[0] = 'bad'; return 2 },
+                enumerable: true,
+                configurable: true,
+            })
+            const rt = read([or(option, number), number])(tv)
+            delete (/** @type {any} */ (Array.prototype))[0]
+            assertError(rt)
+            // absent → present behind a stated rest — the `rest` kinds
+            // decide omission the same way, so they hold the same
+            // postcondition
+            const rr = read(rest({ a: or(option, number) }, number))(structWith(polluteObject))
+            unpolluteObject()
+            assertError(rr)
+            // present → absent: a later getter deletes a checked own member
+            /** @type {any} */
+            let dv = { a: 1, b: 0 }
+            dv = Object.defineProperty(dv, 'b', {
+                get: () => { delete dv.a; return 2 },
+                enumerable: true,
+                configurable: true,
+            })
+            assertError(read({ a: number, b: number })(dv))
+        }
+    },
+    // A value with **no prototype** is the residual split, and a deliberate
+    // one: pollution cannot flip such a value's own absence — the omitted
+    // key still reads nothing anywhere on its (empty) chain — so the
+    // hands-back readers return the value, still a faithful member of the
+    // set. `parse` builds plain containers, and every plain container now
+    // *inherits* the omitted key, so nothing it could build denotes the
+    // value it checked: it refuses (`omittedStillAbsent`), per DESIGN.md
+    // §10. Each reader honest to its own contract — return what was given,
+    // or build only what the schema still accepts.
+    nullPrototypePollutionSplitsByContract: () => {
+        const schema = { a: or(option, number), b: number }
+        /** @type {() => StringMap<Unknown>} */
+        const make = () => Object.defineProperty(Object.create(null), 'b', {
+            get: () => { /** @type {any} */ (Object.prototype).a = 'bad'; return 2 },
             enumerable: true,
             configurable: true,
         })
-        const rt = p([or(option, number), number])(tupleValue)
-        delete (/** @type {any} */ (Array.prototype))[0]
-        assertError(rt)
-        // …and the `rest` kinds decide omission the same way, so they hold
-        // the same postcondition.
-        const restValue = { b: 0 }
-        Object.defineProperty(restValue, 'b', {
-            get: () => {
-                /** @type {any} */ (Object.prototype).a = 'bad'
-                return 2
-            },
-            enumerable: true,
-            configurable: true,
-        })
-        const rr = p(rest({ a: or(option, number) }, number))(restValue)
-        delete (/** @type {any} */ (Object.prototype).a)
-        assertError(rr)
+        const unpollute = () => { delete (/** @type {any} */ (Object.prototype).a) }
+        const rv = v(schema)(make())
+        unpollute()
+        assertOk(rv)
+        const rd = d(schema)(make())
+        unpollute()
+        assertOk(rd)
+        const rp = p(schema)(make())
+        unpollute()
+        assertError(rp)
+        // …and the same split one kind over, behind a stated rest.
+        const restSchema = rest({ a: or(option, number) }, number)
+        const rrv = v(restSchema)(make())
+        unpollute()
+        assertOk(rrv)
+        const rrp = p(restSchema)(make())
+        unpollute()
+        assertError(rrp)
     },
     // …and `parse` **materializes** the inherited value as an own member of
     // what it builds: the member is *present* — HasProperty is what the

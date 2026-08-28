@@ -10,8 +10,11 @@ Reading a member of a hostile value can run **arbitrary code** — an accessor
 left behind. `parse`'s *rebuilds* no longer dispatch anything overridable
 (see `defineProperty` in [`../parse/module.f.mjs`](../parse/module.f.mjs)
 and `hostileIntrinsicPatchesDoNotReachTheRebuild` in
-[`../host.proof.mjs`](../host.proof.mjs)), but the **verdict** path still
-does, in [`../common/module.f.mjs`](../common/module.f.mjs) and its callers:
+[`../host.proof.mjs`](../host.proof.mjs)), and all three readers re-ask
+each declared member's presence last (`presenceUnchanged` in
+[`../common/module.f.mjs`](../common/module.f.mjs)), but the **verdict**
+path still dispatches overridable operations, in the same module and its
+callers:
 
 - `undeclaredMembers`/`readIndices` build their member list with
   `Object.entries`, `.filter`, `.map`, `.flatMap`, `.toSorted`, `.indexOf`

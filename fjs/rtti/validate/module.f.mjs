@@ -85,11 +85,14 @@
 import { ok } from '../../types/result/module.f.mjs'
 import {
     absentMember,
+    consPresence,
     constPrimitiveValidate,
     eachEntry,
+    emptyPresence,
     isArray,
     isObject,
     orVisit,
+    presenceUnchanged,
     primitive0Validate,
     structSchemaEntries,
     tupleSchemaEntries,
@@ -184,6 +187,13 @@ const recordValidate = containerValidate(isObject, () => () => true)
  * `{ a: undefined }`. An absent member is legal exactly when its schema
  * admits absence (`admitsAbsence` in `../common/module.f.mjs`); a present
  * one is dispatched as before.
+ *
+ * The decisions are **re-asked last** (`presenceUnchanged`): a member's
+ * read can run an accessor that flips an earlier, already decided member —
+ * prototype pollution makes an omitted key present, a delete makes a
+ * checked one absent — and the value handed back would no longer denote
+ * what was checked. The three readers refuse the flip identically — see
+ * `../host.proof.mjs`.
  */
 const constContainerValidate =
     /**
@@ -207,16 +217,24 @@ const constContainerValidate =
             }
             const r = eachEntry(
                 rttiEntries,
-                (k, v) => k in value
-                    ? /** @type {any} */ (validate(v))(getItem(value, k))
-                    : absentMember(v),
-                undefined,
-                noAccumulate,
+                (k, v) => {
+                    if (!(k in value)) {
+                        const a = absentMember(v)
+                        return a[0] === 'error' ? a : ok(false)
+                    }
+                    const m = /** @type {any} */ (validate(v))(getItem(value, k))
+                    return m[0] === 'error' ? m : ok(true)
+                },
+                emptyPresence,
+                consPresence,
             )
             if (r[0] === 'error') { return r }
+            if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
+                return verror('unexpected value')
+            }
             // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
             // structurally equivalent to C — TypeScript can't narrow element types through the loop.
-            return undeclaredMembers(declared, value).length === 0 && fits(value, declared.length)
+            return presenceUnchanged(rttiEntries, r[1], value)
                 ? /** @type {any} */ (ok(value))
                 : verror('unexpected value')
         }
@@ -270,20 +288,31 @@ const restContainerValidate =
             }
             const d = eachEntry(
                 rttiEntries,
-                (k, v) => k in value
-                    ? /** @type {any} */ (validate(v))(getItem(value, k))
-                    : absentMember(v),
-                undefined,
-                noAccumulate,
+                (k, v) => {
+                    if (!(k in value)) {
+                        const a = absentMember(v)
+                        return a[0] === 'error' ? a : ok(false)
+                    }
+                    const m = /** @type {any} */ (validate(v))(getItem(value, k))
+                    return m[0] === 'error' ? m : ok(true)
+                },
+                emptyPresence,
+                consPresence,
             )
             if (d[0] === 'error') { return d }
             const extra = undeclaredMembers(declared, value)
             if (extra.length === 0) {
-                return fits(value, declared.length) ? ok(value) : verror('unexpected value')
+                if (!fits(value, declared.length)) {
+                    return verror('unexpected value')
+                }
+            } else {
+                const restValidate = /** @type {any} */ (validate(r))
+                const e = eachEntry(extra, (_k, v) => restValidate(v), undefined, noAccumulate)
+                if (e[0] === 'error') { return e }
             }
-            const restValidate = /** @type {any} */ (validate(r))
-            const e = eachEntry(extra, (_k, v) => restValidate(v), undefined, noAccumulate)
-            return e[0] === 'error' ? e : ok(value)
+            return presenceUnchanged(rttiEntries, d[1], value)
+                ? ok(value)
+                : verror('unexpected value')
         }
     }
 

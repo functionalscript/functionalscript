@@ -50,7 +50,7 @@
  * @import { ConstObject, Info1, Tag1, Type } from '../types.ts'
  * @import { Result as CommonResult } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { Container, Fits, IsContainer, SchemaEntries, ValidateE, ValidationError, Visitor } from '../common/types.ts'
+ * @import { Container, Fits, IsContainer, Presence, SchemaEntries, ValidateE, ValidationError, Visitor } from '../common/types.ts'
  * @import { Unknown } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
  */
@@ -63,6 +63,7 @@ import {
     isArray,
     isObject,
     orVisit,
+    presenceUnchanged,
     primitive0Validate,
     structSchemaEntries,
     tupleSchemaEntries,
@@ -76,7 +77,7 @@ import { emptyRest } from '../data/module.f.mjs'
 
 /**
  * The parsed `[key, parsedValue]` pairs as {@link consEntry} and
- * {@link consPresent} fold them: a cons list in **reverse** member order, so
+ * {@link consDeclared} fold them: a cons list in **reverse** member order, so
  * its head is the last member parsed — for the array kinds, the highest
  * present index.
  */
@@ -205,17 +206,27 @@ const emptyEntries = null
 const consEntry = (acc, k, v) =>
     ({ first: [k, v], tail: acc })
 
+/** What the declared-member fold carries: the present entries, and every member's presence bit. */
+/** @typedef {{ readonly entries: _Entries, readonly presence: Presence }} _Declared */
+
+/** {@link consDeclared}'s seed. */
+/** @type {_Declared} */
+const emptyDeclared = { entries: null, presence: null }
+
 /**
  * `eachEntry`'s accumulate step over *declared* members, whose item wraps a
  * present member's parsed value in a one-element list and an absent member
  * in an empty one: the present value is kept, the absent member leaves no
  * entry. The wrapping is what stands in for a sentinel — every value,
  * `undefined` included, is a legal parse result, so no value could mark
- * absence.
+ * absence. The presence bit is kept for every member either way — it is
+ * what `presenceUnchanged` re-asks after everything that reads the value.
  */
-/** @type {(acc: _Entries, k: string, vs: ReadonlyArray<Unknown>) => _Entries} */
-const consPresent = (acc, k, vs) =>
-    vs.length === 0 ? acc : ({ first: [k, vs[0]], tail: acc })
+/** @type {(acc: _Declared, k: string, vs: ReadonlyArray<Unknown>) => _Declared} */
+const consDeclared = (acc, k, vs) => ({
+    entries: vs.length === 0 ? acc.entries : { first: [k, vs[0]], tail: acc.entries },
+    presence: { first: vs.length !== 0, tail: acc.presence },
+})
 
 /** A uniform container declares no member by name, so every one is undeclared. */
 /** @type {readonly string[]} */
@@ -354,14 +365,17 @@ const constContainerParse =
                     const p = /** @type {any} */ (parse(t))(getItem(value, k))
                     return p[0] === 'error' ? p : ok([p[1]])
                 },
-                emptyEntries,
-                consPresent,
+                emptyDeclared,
+                consDeclared,
             )
             if (r[0] === 'error') { return r }
             if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
                 return verror('unexpected value')
             }
-            const built = /** @type {ReadonlyArray<Unknown> | StringMap<Unknown>} */ (rebuild(r[1]))
+            if (!presenceUnchanged(rttiEntries, r[1].presence, value)) {
+                return verror('unexpected value')
+            }
+            const built = /** @type {ReadonlyArray<Unknown> | StringMap<Unknown>} */ (rebuild(r[1].entries))
             return omittedStillAbsent(declared, built)
                 ? /** @type {any} */ (ok(built))
                 : verror('unexpected value')
@@ -426,8 +440,8 @@ const restContainerParse =
                     const p = /** @type {any} */ (parse(t))(getItem(value, k))
                     return p[0] === 'error' ? p : ok([p[1]])
                 },
-                emptyEntries,
-                consPresent,
+                emptyDeclared,
+                consDeclared,
             )
             if (d[0] === 'error') { return d }
             const extra = undeclaredMembers(declared, value)
@@ -440,7 +454,10 @@ const restContainerParse =
                 const e = eachEntry(extra, (_k, v) => restParse(v), undefined, noAccumulate)
                 if (e[0] === 'error') { return e }
             }
-            const built = /** @type {ReadonlyArray<Unknown> | StringMap<Unknown>} */ (rebuild(d[1]))
+            if (!presenceUnchanged(rttiEntries, d[1].presence, value)) {
+                return verror('unexpected value')
+            }
+            const built = /** @type {ReadonlyArray<Unknown> | StringMap<Unknown>} */ (rebuild(d[1].entries))
             return omittedStillAbsent(declared, built)
                 ? ok(built)
                 : verror('unexpected value')

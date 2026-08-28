@@ -36,7 +36,7 @@
  * @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
  * @import { Error, Result as CommonResult } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { Validate, Visitor, IsContainer, Container, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
+ * @import { Validate, Visitor, IsContainer, Container, Presence, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
@@ -142,6 +142,46 @@ export const eachEntry =
         }
         return ok(acc)
     }
+
+/** {@link consPresence}'s seed and {@link presenceUnchanged}'s empty walk. */
+/** @type {Presence} */
+export const emptyPresence = null
+
+/**
+ * `eachEntry`'s accumulate step recording each declared member's
+ * **presence** — the item's `ok` payload, `true` for a member the walk saw
+ * present — one cons per member, newest first.
+ */
+/** @type {(acc: Presence, k: string, present: boolean) => Presence} */
+export const consPresence = (acc, _k, present) =>
+    ({ first: present, tail: acc })
+
+/**
+ * Whether each declared member's presence is still what the walk saw — the
+ * postcondition every absence decision was made under. A member's read can
+ * run an accessor, and a later member's accessor can flip an *earlier*,
+ * already decided member: install the omitted key on `Object.prototype`
+ * (or an omitted position on `Array.prototype`) and the member is present
+ * by the same HasProperty rule the walk dispatched on; delete an own key
+ * and a checked member is gone. Either way the verdict is stale — a
+ * hands-back reader would return a value that no longer denotes what was
+ * checked, and a constructing one built from decisions that no longer hold
+ * — so every reader re-asks the one question last, after everything that
+ * reads the value, and refuses on any flip. `reversed` is the walk's
+ * answers newest-first and exactly one per declared member, so the
+ * comparison walks `entries` from its end in lockstep; `in` runs no
+ * accessor, so the recheck itself reads nothing of the value's.
+ *
+ * @type {(entries: ReadonlyArray<readonly [string, unknown]>, reversed: Presence, value: ReadonlyArray<Unknown> | StringMap<Unknown>) => boolean}
+ */
+export const presenceUnchanged = (entries, reversed, value) => {
+    let i = entries.length
+    for (let n = reversed; n !== null; n = n.tail) {
+        i -= 1
+        if ((entries[i][0] in value) !== n.first) { return false }
+    }
+    return true
+}
 
 /**
  * What a `Tuple` schema declares, read by **length**.

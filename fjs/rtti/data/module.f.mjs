@@ -25,7 +25,7 @@
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
-import { eachEntry, isArray, undeclaredMembers, verror } from '../common/module.f.mjs'
+import { consPresence, eachEntry, emptyPresence, isArray, presenceUnchanged, undeclaredMembers, verror } from '../common/module.f.mjs'
 
 /**
  * The unit kind's enumeration: bit `1 << i` of a {@link UnionSet}'s `unit`
@@ -1244,13 +1244,18 @@ const patternsValidate = (k, item, value) => {
 const arraySetValidate = rules => p => value => {
     const pn = p.prefix.length
     const { rest } = p
+    const prefixEntries = Object.entries(p.prefix)
     const declared = eachEntry(
-        Object.entries(p.prefix),
-        (k, n) => k in value
-            ? nodeValidate(rules)(n)(value[Number(k)])
-            : nodeAdmitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value'),
-        undefined,
-        noAccumulate,
+        prefixEntries,
+        (k, n) => {
+            if (!(k in value)) {
+                return nodeAdmitsAbsence(rules)(n) ? ok(false) : verror('unexpected value')
+            }
+            const m = nodeValidate(rules)(n)(value[Number(k)])
+            return m[0] === 'error' ? m : ok(true)
+        },
+        emptyPresence,
+        consPresence,
     )
     if (declared[0] === 'error') { return declared }
     const extra = undeclaredMembers(p.prefix.map((_, i) => String(i)), value)
@@ -1261,34 +1266,52 @@ const arraySetValidate = rules => p => value => {
         // Schema as `items: false`. A *shorter* array is another matter — the
         // declared loop above has already held every position it left unfilled
         // to a set admitting `undefined`.
-        return extra.length === 0 && value.length <= pn
-            ? ok(value)
-            : verror('unexpected value')
+        if (extra.length !== 0 || value.length > pn) {
+            return verror('unexpected value')
+        }
+    } else {
+        const r = eachEntry(extra, (_k, v) => nodeValidate(rules)(rest)(v), undefined, noAccumulate)
+        if (r[0] === 'error') { return r }
     }
-    const r = eachEntry(extra, (_k, v) => nodeValidate(rules)(rest)(v), undefined, noAccumulate)
-    return r[0] === 'error' ? r : ok(value)
+    // Re-asked last, after everything that reads the value: a member's
+    // accessor can flip an earlier, already decided position's presence —
+    // the same postcondition the schema-form readers hold, so the three
+    // readers refuse the flip identically (see `../host.proof.mjs`).
+    return presenceUnchanged(prefixEntries, declared[1], value)
+        ? ok(value)
+        : verror('unexpected value')
 }
 
 /** @type {(rules: RuleSet) => (p: ObjectSet) => (value: StringMap<Unknown>) => ResultE} */
 const objectSetValidate = rules => p => value => {
+    const propEntries = definedEntries(p.props)
     const declared = eachEntry(
-        definedEntries(p.props),
-        (k, n) => k in value
-            ? nodeValidate(rules)(n)(value[k])
-            : nodeAdmitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value'),
-        undefined,
-        noAccumulate,
+        propEntries,
+        (k, n) => {
+            if (!(k in value)) {
+                return nodeAdmitsAbsence(rules)(n) ? ok(false) : verror('unexpected value')
+            }
+            const m = nodeValidate(rules)(n)(value[k])
+            return m[0] === 'error' ? m : ok(true)
+        },
+        emptyPresence,
+        consPresence,
     )
     if (declared[0] === 'error') { return declared }
     const { rest } = p
-    if (rest === undefined) { return ok(value) }
-    const extra = eachEntry(
-        Object.entries(value).filter(([k]) => at(k)(p.props) === null),
-        (_k, v) => nodeValidate(rules)(rest)(v),
-        undefined,
-        noAccumulate,
-    )
-    return extra[0] === 'error' ? extra : ok(value)
+    if (rest !== undefined) {
+        const extra = eachEntry(
+            Object.entries(value).filter(([k]) => at(k)(p.props) === null),
+            (_k, v) => nodeValidate(rules)(rest)(v),
+            undefined,
+            noAccumulate,
+        )
+        if (extra[0] === 'error') { return extra }
+    }
+    // The same last re-ask as `arraySetValidate`'s, one kind over.
+    return presenceUnchanged(propEntries, declared[1], value)
+        ? ok(value)
+        : verror('unexpected value')
 }
 
 /** @type {(rules: RuleSet) => (u: UnionSet) => (value: Unknown) => ResultE} */
