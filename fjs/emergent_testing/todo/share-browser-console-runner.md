@@ -193,12 +193,19 @@ and is reviewable without the next one.
       and this took it. `fjs t` gained the behaviour in the process, which is
       what made that change worth landing on its own rather than inside the port.
 
-- [x] **5. A browser interpreter** for exactly those operations, with no
-      scheduling policy of its own. `fjs/effects/browser/module.mjs`:
-      `sandbox`, `catch`, `all`, plus whatever operations the application adds
-      — for the page, one `report`. `sandbox` is `effects/node`'s, copied
-      rather than redesigned, because two runners that disagreed about an
-      awaited leaf would not be one runner.
+- [x] **5. A browser interpreter** for exactly those operations.
+      `fjs/effects/browser/module.mjs`: `sandbox`, `catch`, `all`, plus
+      whatever operations the application adds — for the page, one `report`.
+      `sandbox` is `effects/node`'s, copied rather than redesigned, because two
+      runners that disagreed about an awaited leaf would not be one runner.
+
+      This step asked for an interpreter "with no scheduling policy of its
+      own", and that was half right in a way worth keeping. The *traversal* has
+      none, which is what the whole issue is about, and nothing about a batch of
+      proofs belongs here. But an interpreter for a host with a UI thread must
+      give that thread back, or the host cannot paint — so `sandbox` carries one
+      policy, a frame budget, which is a statement about the browser and not
+      about proofs. The Tasks list below records what that cost to learn.
 - [x] **6. One reporter.** The event stream — a leaf landed, a run ended —
       that both hosts subscribe to. Step 2 gave them the *value*; this gave
       them the seam it travels through. `Reporter.result` now receives the
@@ -413,6 +420,13 @@ with the one `fjs t` has.** If a page turns out to need a task boundary to
 paint, that is a separate, measured change with its own issue — and the measure
 is a boundary per unit of work, never a tuned count of proofs, because proofs
 differ in cost by orders of magnitude.
+
+That is what happened, and this paragraph turned out to be right on every
+count. The problem was reported — a page frozen for the length of a run, with
+the browser offering to kill it — the change was measured in a real browser
+before and after, and the boundary is per leaf on a frame budget rather than
+per N proofs. It lives in the interpreter, where a statement about a host
+belongs, and the traversal still schedules nothing.
 
 An executor boundary will still be necessary because the console runner uses
 the Effects sandbox while a browser catches synchronous throws and awaits
