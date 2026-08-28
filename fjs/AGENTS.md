@@ -48,17 +48,18 @@ the `proof.mjs` filename convention.
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target `.f.mjs` modules. Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
-Its leading module JSDoc block may include, for example:
+Its leading JSDoc block may include, for example:
 
 ```js
 /**
  * ...
  *
- * @module
- *
  * @import { Phantom } from '../phantom/types.ts'
  */
 ```
+
+No `@module`: a proof's documentation is not published, so the tag has nothing
+to attach it to (§2).
 
 JSDoc `@import` introduces no runtime dependency; a `types.ts` file naming the
 same path from TypeScript uses `import type` instead. A type that several modules
@@ -149,11 +150,16 @@ nothing; `proof.*` is the clear case.
 Put it in the leading block, followed by one blank line before the first
 source-level import or declaration.
 
-The tree does not obey this yet. #1756 stripped the tag from 102 files on the
-older reading, 98 of which had real prose, so their module documentation is
-currently invisible to `deno doc`. Restoring it is
+The tree does not obey this yet. #1756 stripped the tag from 102 files and
+#1750 from 16 `private.ts`, on the older reading; the prose survives in source
+and `deno doc` cannot see it. Restoring it is
 [`fjs/todo/module-tag-restore.md`](./todo/module-tag-restore.md); until that
-lands, a `types.ts` without the tag is debt rather than an example to copy.
+lands, an untagged `types.ts` or `private.ts` is debt rather than an example to
+copy.
+
+The tag is necessary, not sufficient. It decides whether `deno doc` *can* see a
+file's module documentation; whether anything is generated from that file is a
+separate question of what the documentation build is pointed at.
 
 Group all module-level `@import` tags into one leading JSDoc comment block — the
 same block as `@module` in a `module.*` file, or a standalone block at the top of
