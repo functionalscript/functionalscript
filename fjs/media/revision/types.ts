@@ -10,8 +10,6 @@
  * the schema side of the same recursion: `lock` cannot infer its own type
  * (a `const` may not reference itself in its own initializer), so it carries
  * this named annotation instead.
- *
- * @module
  */
 
 import type { Assert } from '../../asserts/types.ts'

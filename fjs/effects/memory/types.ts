@@ -1,7 +1,5 @@
 /**
  * Types for typed key-value memory effects.
- *
- * @module
  */
 
 import type { Phantom } from '../../types/phantom/types.ts'

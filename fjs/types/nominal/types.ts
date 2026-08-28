@@ -1,7 +1,5 @@
 /**
  * Types for nominal typing (branded TypeScript types).
- *
- * @module
  */
 
 /**

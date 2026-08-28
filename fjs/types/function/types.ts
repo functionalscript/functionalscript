@@ -1,7 +1,5 @@
 /**
  * Types for function composition.
- *
- * @module
  */
 
 /**

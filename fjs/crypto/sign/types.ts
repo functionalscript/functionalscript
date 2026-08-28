@@ -1,7 +1,5 @@
 /**
  * Type-level API for signing helpers built on secp256k1 and SHA-256 primitives.
- *
- * @module
  */
 
 import type { Vec } from '../../types/bit_vec/types.ts'

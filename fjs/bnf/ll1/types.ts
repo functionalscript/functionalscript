@@ -1,7 +1,5 @@
 /**
  * Types for the LL(1) dispatch/matcher backend.
- *
- * @module
  */
 
 import type { CodePoint } from '../../text/utf16/types.ts'

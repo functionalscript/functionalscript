@@ -1,7 +1,5 @@
 /**
  * Types for UTF-16 code units and Unicode code points.
- *
- * @module
  */
 
 /**

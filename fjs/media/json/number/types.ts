@@ -1,7 +1,5 @@
 /**
  * Types for the lexical view of a JSON number token.
- *
- * @module
  */
 
 /**

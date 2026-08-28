@@ -1,7 +1,5 @@
 /**
  * Types for the ordered map data structure.
- *
- * @module
  */
 
 import type { Tree } from '../btree/types/types.ts'

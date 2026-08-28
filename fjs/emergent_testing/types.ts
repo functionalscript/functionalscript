@@ -1,7 +1,5 @@
 /**
  * Types for running and reporting FunctionalScript tests.
- *
- * @module
  */
 
 import type { Effect, Operation } from '../effects/types.ts'

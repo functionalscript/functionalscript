@@ -13,8 +13,6 @@
  * iframe therefore renders into that frame, and a proof can drive the module
  * with a stand-in root.
  *
- * @module
- *
  * @import { TestResult, _TestAndPath } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
  */

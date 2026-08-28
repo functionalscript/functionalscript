@@ -1,7 +1,5 @@
 /**
  * Types for sorted immutable lists and their merge operations.
- *
- * @module
  */
 
 import type { Sign } from '../function/compare/types.ts'
