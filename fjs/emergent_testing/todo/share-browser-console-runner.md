@@ -203,9 +203,10 @@ and is reviewable without the next one.
       own", and that was half right in a way worth keeping. The *traversal* has
       none, which is what the whole issue is about, and nothing about a batch of
       proofs belongs here. But an interpreter for a host with a UI thread must
-      give that thread back, or the host cannot paint — so `sandbox` carries one
-      policy, a frame budget, which is a statement about the browser and not
-      about proofs. The Tasks list below records what that cost to learn.
+      give that thread back, or the host cannot paint — so it carries one
+      policy, a frame budget charged to every operation it dispatches, which is
+      a statement about the browser and not about proofs. The Tasks list below
+      records what that cost to learn.
 - [x] **6. One reporter.** The event stream — a leaf landed, a run ended —
       that both hosts subscribe to. Step 2 gave them the *value*; this gave
       them the seam it travels through. `Reporter.result` now receives the
@@ -424,9 +425,11 @@ differ in cost by orders of magnitude.
 That is what happened, and this paragraph turned out to be right on every
 count. The problem was reported — a page frozen for the length of a run, with
 the browser offering to kill it — the change was measured in a real browser
-before and after, and the boundary is per leaf on a frame budget rather than
-per N proofs. It lives in the interpreter, where a statement about a host
-belongs, and the traversal still schedules nothing.
+before and after, and the boundary is per unit of work on a frame budget rather
+than per N proofs — every operation the interpreter dispatches, since rendering
+a result is work on the same thread as running a proof. It lives in the
+interpreter, where a statement about a host belongs, and the traversal still
+schedules nothing.
 
 An executor boundary will still be necessary because the console runner uses
 the Effects sandbox while a browser catches synchronous throws and awaits
@@ -545,11 +548,12 @@ are shared.
 - [ ] Close each of those issues for both runners at once, so the two stay in
       sync rather than drifting from the day the core is shared.
 - [x] Decide where a browser run gives the thread back. **The browser
-      interpreter's `sandbox`, on a frame budget** — 8 ms, what a 60 Hz frame
-      leaves for script — not a count of proofs, and not the traversal, which
-      stays free of scheduling so `fjs t` is untouched.
+      interpreter, on a frame budget charged to every operation it dispatches**
+      — 8 ms, what a 60 Hz frame leaves for script — not a count of proofs, and
+      not the traversal, which stays free of scheduling so `fjs t` is
+      untouched.
 
-      This was got wrong twice before it was measured, and both errors are
+      This was got wrong three times before it was measured, and all three are
       worth keeping. First, deleting `batchSize = 25` was read as deleting the
       whole idea: the constant was indefensible — twenty-five trivial leaves
       are nothing and twenty-five heavy ones are still a freeze — but the
@@ -569,12 +573,30 @@ are shared.
       awaiting when there is room, which is why it answers `null` rather than a
       settled promise.
 
-      After: longest task **98 ms** on the first run and **no task over 50 ms**
-      on the second, 3456 rows painted, wall clock 52.2 s against 52.8 s — the
-      yields cost 0.38 ms each and the budget asks for few of them. `all` was
-      not the place to put this: it must start every child before awaiting any,
-      so pausing between children hangs a graph whose child waits on a later
-      sibling, which is the deadlock the reverted attempt hit.
+      Third — and the proof for it was wrong before the code was — only
+      `sandbox` was charged, which holds until a page is cheap to test and
+      expensive to render: a hundred trivial leaves start inside one
+      slice, and the hundred renders that follow drain with no turn given back.
+      Whatever the runner dispatches runs on the host's thread, so every
+      operation is charged now — the ones a host adds included, because that is
+      the host's own work.
+
+      The first proof for that watched for *a* turn during a run, and was inert
+      where the project runs it: under the whole suite another proof hands the
+      loop a boundary, so the check passed with the defect present. Its
+      replacement asserts by ordering instead — a macrotask cannot run until
+      every pending microtask has, so racing the dispatch against a chain of
+      microtasks says which kind of boundary it waited for, whatever else the
+      process is doing. **A proof that observes a coincidence is worse than no
+      proof**, because it is counted as cover.
+
+      After: longest task **97–104 ms**, none of the 3,461 rows waiting for the
+      end, wall clock 50.9 s against 52.8 s — the yields cost 0.38 ms each and
+      the budget asks for few of them. What is left blocking is a single proof
+      that computes without stopping, which nothing at this layer can split.
+      `all` was not the place to put this: it must start every child before
+      awaiting any, so pausing between children hangs a graph whose child waits
+      on a later sibling, which is the deadlock the reverted attempt hit.
 - [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's own
       failure, as opposed to any proof's. It is the one branch of the page with
       no proof, and reaching either half of it (an operation reporting through

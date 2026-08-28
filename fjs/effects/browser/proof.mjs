@@ -88,6 +88,31 @@ export const proof = {
         assertEq(r.length, 3)
         assert(deliveredDuringRun)
     },
+    // **Every operation is charged, not only the leaf.** A page whose proofs are
+    // trivial and whose reporting paints a row spends its time in the operation
+    // it added, so a budget that watched `sandbox` alone would let a hundred
+    // cheap leaves start in one slice and then drain a hundred paints.
+    //
+    // Asserted by ordering rather than by observing a turn: a macrotask cannot
+    // run until every pending microtask has, so racing the dispatch against a
+    // long chain of microtasks says which kind of boundary it waited for, and
+    // says it the same way however busy the process is. A proof that watched
+    // for *a* turn instead would pass whenever anything else in the suite
+    // happened to yield nearby — green with the defect present, which is worse
+    // than no proof.
+    everyOperationIsChargedToTheBudget: async () => {
+        const run = browserRun(/** @type {any} */ ({ mark: async () => ok('marked') }))
+        // Spend the slice before dispatching, so the budget is owed.
+        const end = performance.now() + 25
+        while (performance.now() < end) { /* hold the thread */ }
+        const dispatched = run(/** @type {any} */ (do_('mark'))()).then(() => 'operation')
+        const microtasks = (async () => {
+            for (let i = 0; i < 200; i += 1) { await null }
+            return 'microtasks'
+        })()
+        assertEq(await Promise.race([dispatched, microtasks]), 'microtasks')
+        assertEq(okValue(await dispatched.then(() => run(/** @type {any} */ (do_('mark'))()))), 'marked')
+    },
     // Enumerating `extra` runs user code too: a proxy may answer one set of
     // keys and then another. Reading it once means the map the runner builds is
     // the map the collision check approved — here the second reading's
