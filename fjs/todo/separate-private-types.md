@@ -455,9 +455,18 @@ type-only and use named `import type { ... }` imports.
       still in place), which resolves in-repo and dangles once packed. Make it
       a **source-level** violation — an exported binding whose signature names a
       private type — not an edit to the packed output, so the control exercises
-      emit, packing and consumption together; measured end to end above. Place
-      it in a module with **no** `private.ts` today, so it also proves the check
-      is exhaustive rather than pinned to today's surfaces.
+      emit, packing and consumption together; measured end to end above.
+      Falsifiability and exhaustiveness are separate questions and were
+      measured separately, so keep them separate here too:
+      - *Can it fail?* Any module with a `private.ts` will do; measured in
+        `fjs/types/bigfloat`.
+      - *Is it exhaustive?* The violation has to land where a hand-written
+        import list would not look — a module with **no** `private.ts` today,
+        which means temporarily giving one to a module that has none. It must
+        also not be the package fixture, since any plausible import list names
+        that. Measured with `fjs/emergent_testing`.
+      Running only the first proves the check reports a dangling reference; it
+      says nothing about whether the file set was enumerated or hard-coded.
 - [ ] Add fixtures covering packaging: retained non-semantic JSDoc `@import`
       comments in emitted declarations, absent private artifacts in the tarball,
       and a clean package consumer.
@@ -521,8 +530,10 @@ type-only and use named `import type { ... }` imports.
 - Both halves are demonstrably falsifiable, each by the input that actually
   breaks it: dropping the `files` negation reddens the contents assertion, and
   a packed declaration depending on a private module the tarball does not carry
-  — placed in a module that has no `private.ts` today — reddens the
-  declaration type-check.
+  reddens the declaration type-check.
+- Exhaustiveness is demonstrated separately from falsifiability, by a violation
+  in a module that has no `private.ts` today and is not the package fixture —
+  anywhere a fixed import list would already look proves only the latter.
 - The CI job is generated from `fjs/ci/**`, so `npm run ci-update` reproduces
   `.github/workflows/ci.yml` byte-identically.
 - `fjs/fsc/README.md` no longer needs tolerance for a shipped `private.d.ts`,

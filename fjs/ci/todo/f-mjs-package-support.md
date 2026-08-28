@@ -233,11 +233,19 @@ emission, `npm pack`, and a clean consumer.
         the rest of the tree. A fixture that exports a private-typed binding
         would permanently redden the packed-declaration check it exists to
         support.
-      - The falsifiability control is therefore a *deliberate, temporary*
-        violation applied when verifying the check can fail — export a binding
-        whose signature names the private type — not the fixture's steady
-        state. Measured to work end to end in
-        [`../../todo/separate-private-types.md`](../../todo/separate-private-types.md).
+      - Any violation is therefore *deliberate and temporary*, applied while
+        verifying the check and then reverted — never the fixture's steady
+        state. Two different controls are needed, and they must not be run in
+        the same place:
+        - **Can the check fail at all?** Export a binding whose signature names
+          the private type, here in the fixture, and confirm `TS2307`.
+        - **Is the check exhaustive?** This one must go in a module the
+          consumer would *not* name — one with no private surface today, and
+          in particular **not** this fixture. A hand-written import list would
+          name the fixture, so a violation placed here fails under a fixed list
+          too and proves nothing about enumeration. Measured end to end with
+          `fjs/emergent_testing` in
+          [`../../todo/separate-private-types.md`](../../todo/separate-private-types.md).
       Scope: the fixture exercises the
       supported, fully erased `import type` form only. The forbidden inline `import { type X }` /
       `import * as` / side-effect forms are a documented one-time measurement
