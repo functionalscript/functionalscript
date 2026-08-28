@@ -142,18 +142,16 @@ and is reviewable without the next one.
       [node-module-layering](../../effects/todo/node-module-layering.md)
       carries the same answer.
 
-      **Three of that list are unsettled, and this step does not get to assume
-      them.** `all`, `await` and `sandbox` are agreed:
-      [node-module-layering](../../effects/todo/node-module-layering.md) moves
-      them too. But that issue keeps `Now`, `Fetch` and `Import` in
-      `effects/node` on a reader-benefit argument, and this step was written
-      listing all three as moving. Neither was written knowing the fact that
-      decides it — which operations the step-5 interpreter actually implements —
-      so step 5 settles them and updates both files in the same change. The
-      expectation recorded there: `now` and `import` move (a browser proof run
-      needs a clock and dynamic import), `fetch` stays (nothing in the shared
-      runner performs one, and DESIGN.md §4 extracts at the second *real*
-      consumer).
+      **The expectation this step was written with was wrong, which is why the
+      list was measured rather than argued.** `all`, `await` and `sandbox` were
+      agreed all along. `Now`, `Fetch` and `Import` were not: this step listed
+      all three as moving, on the reasoning that a browser proof run needs a
+      clock and dynamic import. That is true of the *page* and false of the
+      *effect set* — the page reads its own clock and calls its own importer,
+      in the impure shell where host values belong, and neither reaches the
+      interpreter as an operation. Reasoning from what a host *can* do
+      predicted one answer; reading what the interpreter had to implement gave
+      another.
 
       **The vocabulary went first, and it was not speculative.** Before an
       operation can move, the types it is *declared in* have to have a home:
