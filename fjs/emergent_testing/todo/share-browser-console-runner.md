@@ -522,10 +522,12 @@ are shared.
 - [ ] Close each of those issues for both runners at once, so the two stay in
       sync rather than drifting from the day the core is shared.
 - [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's own
-      dispatch failure, as opposed to any proof's. It is the one branch of the
-      page with no proof, and reaching it needs an effect the browser
-      interpreter does not implement, which the public entry point gives no way
-      to inject.
+      failure, as opposed to any proof's. It is the one branch of the page with
+      no proof, and reaching either half of it (an operation reporting through
+      the error channel, or one the interpreter cannot dispatch at all, which
+      rejects) needs an effect the public entry point gives no way to inject.
+      `effects/browser/proof.mjs` pins the interpreter's half — a command no
+      handler claims rejects — so what is left is the page's own guard.
 
 ### Related
 

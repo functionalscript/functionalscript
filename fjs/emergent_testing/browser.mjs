@@ -215,26 +215,37 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             return ok(r)
         },
     }))
+    /**
+     * The run failed as a *runner*, not as a proof. Reporting it as the run's
+     * own failure keeps the page out of `running` forever, which is the one
+     * outcome a page must never reach.
+     *
+     * @type {(e: unknown) => BrowserTestReport}
+     */
+    const infrastructureError = e => {
+        const [message, stack] = errorDetails(e)
+        const failure = moduleFailure('', performance.now() - start, message, stack)
+        announce(failure)
+        return reportOf(performance.now() - start, [failure], 'infrastructure-error')
+    }
+    // Both ways a run can fail as a runner end here. The error channel carries
+    // what an operation reported; the rejection carries what the interpreter
+    // could not answer at all — `asyncRun` panics on a command no handler
+    // claims, so a traversal or reporter that grew an operation this page does
+    // not implement arrives as a rejected promise rather than an `error`.
+    // Neither may escape: an unhandled rejection is a page stuck in `running`
+    // with no report and no completion event.
     return run(all).then(answer => {
         /** @type {Result<readonly _BrowserTestResult[], unknown>} */
         const outcome = /** @type {any} */ (answer)
-        // A failure here is the *runner* failing, not a proof: the traversal
-        // answers `ok` for every proof outcome, so the error channel carries
-        // only a dispatch failure — an operation this interpreter does not
-        // implement. Reporting it as the run's own failure keeps the page out
-        // of `running` forever, which is the one outcome a page must never
-        // reach.
         if (outcome[0] === 'error') {
-            const [message, stack] = errorDetails(outcome[1])
-            const failure = moduleFailure('', performance.now() - start, message, stack)
-            announce(failure)
-            return reportOf(performance.now() - start, [failure], 'infrastructure-error')
+            return infrastructureError(outcome[1])
         }
         // `allOk` answers in argument order, so the records are already in the
         // order the page passed its modules in, with each module's leaves in
         // structural order inside it.
         return reportOf(performance.now() - start, outcome[1])
-    })
+    }, infrastructureError)
 }
 
 /** @type {(root: Element) => (Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }) | null} */

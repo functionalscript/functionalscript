@@ -24,7 +24,7 @@
  *
  * @module
  *
- * @import { Operation, OperationMap } from '../types.ts'
+ * @import { Operation, ToAsyncOperationMap } from '../types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
@@ -82,7 +82,15 @@ const sandbox = async f => {
  * the children interleave, which is what lets the shared traversal report in
  * structural order.
  *
- * @type {<O extends Operation>(extra: Partial<OperationMap<O, unknown>>) => (effect: unknown) => Promise<unknown>}
+ * `extra` is a **complete** map of the operations it names, not a partial one.
+ * `asyncRun` dispatches by exact match and panics on a command no handler
+ * claims, so a type that accepted holes would promise a recovery this runner
+ * does not perform — an omitted handler rejects the run's promise rather than
+ * answering `NotImplemented` through the error channel. A host that wants a
+ * hole to be an ordinary outcome builds its runner on `partialMatch`, the way
+ * `effects/mock` does.
+ *
+ * @type {<O extends Operation>(extra: ToAsyncOperationMap<O>) => (effect: unknown) => Promise<unknown>}
  */
 export const browserRun = extra => {
     /** @type {(effect: any) => Promise<any>} */
