@@ -68,13 +68,19 @@ vocabularies.
 | `['args']` | the function's arguments |
 | `['frame']` | the captured frame |
 | `['()', exp, exp]` | call with no receiver: `exp0(...exp1)` — see [Chains](#chains) |
-| `['.', exp, index, propertyLambda]` | property access `exp0[exp1]`, owning whatever its receiver is used for |
-| `['?.', exp, index, optionPropertyLambda]` | optional property access `exp0?.[exp1]`, owning the rest of its optional region |
-| `['?.()', exp, exp, optionLambda]` | optional call `exp0?.(...exp1)`, likewise |
-| `['\|()', exp, k]`, `['\|.', index, k]`, `['\|?.()', exp, k]`, `['\|!()', exp, null]` | a chain step and its continuation — only valid in the continuation operand of a node above, or of another step |
+| `['.', exp, index]`, `['.', exp, index, propertyLambda]` | property access `exp0[exp1]`, owning whatever its receiver is used for |
+| `['?.', exp, index]`, `['?.', exp, index, optionPropertyLambda]` | optional property access `exp0?.[exp1]`, owning the rest of its optional region |
+| `['?.()', exp, exp]`, `['?.()', exp, exp, optionLambda]` | optional call `exp0?.(...exp1)`, likewise |
+| `['\|()', exp, k?]`, `['\|.', index, k?]`, `['\|?.()', exp, k?]`, `['\|!()', exp]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `neg` `!` `~` |
 | `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `===` `!==` `>` `>=` `<` `<=` `+` `-` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
+
+Where a form is listed twice above, the two are the node's arities: the
+shorter one ends the chain and the longer one hands it on, and the schema is
+their union. A `k?` in the step row says the same thing one level down. That
+is the whole of how a chain ends — there is no terminator value, so `null` in
+a continuation position is simply not one of these forms.
 
 A `[]` suffix in the form column marks an operand that is an array of the
 named schema, not one of it: `['[]', items[]]` holds a whole array of
@@ -93,9 +99,12 @@ the array operand is the decided representation rather than a stand-in for a
 flat one — [`todo/edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md)
 writes the same shape.
 
-A continuation is **not** an array. It is `null` or one step holding the next
+A continuation is **not** an array. It is one step holding the next
 continuation, so a chain is a linked list whose link type changes as it goes —
-which link type is legal where is the whole of [Chains](#chains) below.
+which link type is legal where is the whole of [Chains](#chains) below. The
+list ends by **arity**: the step or node that ends it is simply the shorter
+tuple, with no continuation operand at all, which is why every kind that can
+end is a union of its two closed lengths.
 
 An `index` — the property operand of `.`, `?.`, and the `|.` step — is a
 `string`, a `number`, or `['Number', exp]`, a computed index cast to a
@@ -130,7 +139,7 @@ control flow has to be born, carried, and consumed inside one node — and the
 node's **continuation** operand is where it is carried. A continuation is a
 *lambda*: a function of the chain's current value whose argument is elided,
 which is what the name says. It is not an `exp` and cannot be lifted out as a
-shared node — `['|.', 'b', null]` means nothing on its own.
+shared node — `['|.', 'b']` means nothing on its own.
 
 ### Two bits, three lambda types
 
@@ -158,7 +167,7 @@ produces a bare value, which is why it alone has no continuation operand.
 | `['\|.', index, k]` | sets P, keeps O | property access; the input becomes the receiver |
 | `['\|()', exp, k]` | clears P, keeps O | call the current value with the current receiver |
 | `['\|?.()', exp, k]` | clears P, **sets** O | the same, `undefined` on a nullish current value — and the region it opens owns the rest of the chain |
-| `['\|!()', exp, null]` | clears P, **clears** O | the same as `\|()`, but *outside* the region: the parentheses ended it, so a short-circuit does not skip this step |
+| `['\|!()', exp]` | clears P, **clears** O | the same as `\|()`, but *outside* the region: the parentheses ended it, so a short-circuit does not skip this step |
 
 `?` adds a guard and `!` escapes one, which makes the three call steps a
 complete taxonomy of how a call can relate to the region it sits in:
@@ -190,9 +199,11 @@ and which bit says why it cannot be a node instead:
 | | `\|?.()` | O and P | O |
 | | `\|!()` | P — the region is closing anyway | *(terminal)* |
 
-`null` is every state's third exit — the chain simply ends and any live bit
-is dropped, which is also the correct spelling of a bare `(a?.b)`, since
-closing a region with nothing after it is unobservable.
+Leaving the continuation operand out is every state's third exit — the chain
+simply ends and any live bit is dropped, which is also the correct spelling of
+a bare `(a?.b)`, since closing a region with nothing after it is
+unobservable. Ending is therefore an absence, not a value: `null` is a
+primitive again, and it has no reading in a continuation position.
 
 What is *absent* carries as much as what is present. `|!()` outside a region
 is not a design decision — there is no bit to clear. The three real decisions
@@ -208,24 +219,24 @@ throws where `a?.b.c` does not.
 
 | JS | EDAG |
 |---|---|
-| `a.b` | `['.', a, 'b', null]` |
-| `a.b.c` | `['.', ['.', a, 'b', null], 'c', null]` |
-| `a.b(...c)` | `['.', a, 'b', ['\|()', c, null]]` |
-| `(0, a.b)(...c)` | `['()', ['.', a, 'b', null], c]` |
-| `a.b?.(...c)` | `['.', a, 'b', ['\|?.()', c, null]]` |
+| `a.b` | `['.', a, 'b']` |
+| `a.b.c` | `['.', ['.', a, 'b'], 'c']` |
+| `a.b(...c)` | `['.', a, 'b', ['\|()', c]]` |
+| `(0, a.b)(...c)` | `['()', ['.', a, 'b'], c]` |
+| `a.b?.(...c)` | `['.', a, 'b', ['\|?.()', c]]` |
 | `f(...c)` | `['()', f, c]` |
-| `a?.b` | `['?.', a, 'b', null]` |
-| `a?.b.c` | `['?.', a, 'b', ['\|.', 'c', null]]` |
-| `(a?.b).c` | `['.', ['?.', a, 'b', null], 'c', null]` |
-| `a?.b(...c)` | `['?.', a, 'b', ['\|()', c, null]]` |
-| `a?.b?.(...c)` | `['?.', a, 'b', ['\|?.()', c, null]]` |
-| `(a?.b)(...c)` | `['?.', a, 'b', ['\|!()', c, null]]` |
-| `(a?.b.c)(...d)` | `['?.', a, 'b', ['\|.', 'c', ['\|!()', d, null]]]` |
-| `(a?.b).c(...d)` | `['.', ['?.', a, 'b', null], 'c', ['\|()', d, null]]` |
-| `a?.b(...c).d(...e)` | `['?.', a, 'b', ['\|()', c, ['\|.', 'd', ['\|()', e, null]]]]` |
-| `a?.(...c)` | `['?.()', a, c, null]` |
-| `a?.(...c).d` | `['?.()', a, c, ['\|.', 'd', null]]` |
-| `(a?.(...c))(...d)` | `['()', ['?.()', a, c, null], d]` |
+| `a?.b` | `['?.', a, 'b']` |
+| `a?.b.c` | `['?.', a, 'b', ['\|.', 'c']]` |
+| `(a?.b).c` | `['.', ['?.', a, 'b'], 'c']` |
+| `a?.b(...c)` | `['?.', a, 'b', ['\|()', c]]` |
+| `a?.b?.(...c)` | `['?.', a, 'b', ['\|?.()', c]]` |
+| `(a?.b)(...c)` | `['?.', a, 'b', ['\|!()', c]]` |
+| `(a?.b.c)(...d)` | `['?.', a, 'b', ['\|.', 'c', ['\|!()', d]]]` |
+| `(a?.b).c(...d)` | `['.', ['?.', a, 'b'], 'c', ['\|()', d]]` |
+| `a?.b(...c).d(...e)` | `['?.', a, 'b', ['\|()', c, ['\|.', 'd', ['\|()', e]]]]` |
+| `a?.(...c)` | `['?.()', a, c]` |
+| `a?.(...c).d` | `['?.()', a, c, ['\|.', 'd']]` |
+| `(a?.(...c))(...d)` | `['()', ['?.()', a, c], d]` |
 
 The `chains` section of [proof.f.mjs](proof.f.mjs) pins the shape of every
 spelling above, `chainsJs` next to it runs them as JS on the host engine, and
@@ -247,19 +258,22 @@ section of [proof.f.mjs](proof.f.mjs) is one case per family.
 The same holds for dead prefixes: `propertyLambda` has no `|.` production, so
 plain property paths nest and `a.b.c` has exactly one spelling. "Exactly one"
 is literal rather than "up to trailing junk", because every tuple in the
-schema is closed — `['.', a, 'b', null, 'extra']` does not validate.
+schema is closed — `['.', a, 'b', k, 'extra']` does not validate.
 
 Two things the vocabulary makes disjoint deserve stating, because neither is
 cosmetic. **The `|` prefix is a correctness requirement.** Unprefixed,
-`['()', f, null]` would be simultaneously a well-formed `()` node — call `f`
-with `null` as its arguments — and a well-formed `optionLambda` — call the
-chain's value with `f` as its arguments, and stop. The two readings have the
-same length, so closedness could not have separated them — it bounds a tuple's
-length and says nothing about its tag; only disjoint vocabularies can. **Terminals state their `null`.** `propertyLambda`'s `|()`
-and `optionPropertyLambda`'s `|!()` end the chain, and they say so with an
-explicit third operand rather than by being one element shorter: a
-two-element terminal handed a real continuation would validate as the
-terminal with the rest silently dropped.
+`['()', f, k]` would read as a well-formed `()` node — call `f` with `k` as
+its arguments — and as a well-formed step — call the chain's value with `f` as
+its arguments, then continue with `k`. Closedness bounds a tuple's length and
+says nothing about its tag, so no arity separates those readings; only
+disjoint vocabularies can, and the prefix does it without anyone having to
+prove that a continuation could never also be an expression.
+**Closedness by length is what a terminal rests on.** `propertyLambda`'s
+`|()` and `optionPropertyLambda`'s `|!()` end the chain and have only the
+two-element arity, so a continuation handed to one is a third element the
+tuple does not declare, and the value is rejected rather than accepted with
+the rest silently dropped — which is exactly what the length check gives and
+what an `open` tuple would take away.
 
 ### Where the host engines disagree
 
@@ -269,7 +283,7 @@ chain, so `undefined` is called. V8 does throw; JavaScriptCore (hence
 `bun test`) carries the short-circuit through the parentheses and evaluates to
 `undefined` instead. That case is exactly the `|!()` step, so no JavaScript
 oracle can establish it on every supported runner. The EDAG follows the
-specification — `['?.', u, 'b', ['|!()', d, null]]` denotes the throwing
+specification — `['?.', u, 'b', ['|!()', d]]` denotes the throwing
 reading, and an executor must produce it whatever its host does — as
 [amnesia](amnesia/module.f.mjs) does, where
 `optionRegion.throw.closeStepOnUndefined` in
@@ -309,14 +323,17 @@ unblocks them, in
 
 ### The cost
 
-Every property access carries a continuation operand, so a plain `a.b` is
-`['.', a, 'b', null]` in every graph: more tuple elements to store and hash,
-though no ambiguity, since `propertyLambda` has no `|.` production and a
-property path keeps its unique spelling.
+A plain `a.b` is `['.', a, 'b']`, so a property access that ends its chain
+costs nothing beyond the access itself — the continuation operand is present
+only where a chain actually continues. The price is paid in the schema
+instead: every kind that can end is written twice, once per arity, so the
+shared prefix appears in both arms. There is no ambiguity, since
+`propertyLambda` has no `|.` production and a property path keeps its unique
+spelling.
 
 The deeper cost is purity, and it is unchanged from any other shape that
 spells chains out of steps. A continuation is structured now, but it is still
-not an `exp`: the `a.b` inside `['.', a, 'b', ['|?.()', c, null]]` cannot be
+not an `exp`: the `a.b` inside `['.', a, 'b', ['|?.()', c]]` cannot be
 shared, substituted, or hashed. That is the price of expressing control flow
 that no value can carry, and it is confined to exactly the positions that
 need it.

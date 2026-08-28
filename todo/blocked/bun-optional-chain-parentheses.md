@@ -48,7 +48,7 @@ runner. `chainsJs.throw` in [`fjs/edag/proof.f.mjs`](../../fjs/edag/proof.f.mjs)
 carries two commented-out cases for it, and the tagged-template one must stay
 commented rather than merely fail, because a parse error takes the whole file
 down. Nothing about the specification is in doubt, and the EDAG is unaffected:
-`['?.', u, 'b', ['|!()', c, null]]` denotes the throwing reading, and
+`['?.', u, 'b', ['|!()', c]]` denotes the throwing reading, and
 `optionRegion.throw.closeStepOnUndefined` in
 [`fjs/edag/amnesia/proof.f.mjs`](../../fjs/edag/amnesia/proof.f.mjs) pins it by
 evaluating the node, which is an oracle that works on every runner.

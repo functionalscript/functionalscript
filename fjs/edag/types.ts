@@ -73,16 +73,22 @@ export type Index = number | NumberCast | string
 // of hidden control flow it carries: a live receiver (`Property`) and an open
 // short-circuit region (`Option`). Neither bit live is a node boundary, which
 // is why the fourth combination is an `Exp` and not a fourth type.
+//
+// A chain ends by **arity**: every production that can hand the chain on is
+// written twice, once carrying its continuation and once one element shorter,
+// so ending is the absence of that operand rather than a `null` in it. The
+// tuples stay exact, which is what keeps a trailing hole unspellable.
 
 /**
  * The continuation of a `Dot`: a receiver is live, no region is open.
  *
  * Only a call can be here — a property step would waste the receiver with no
- * region to keep it in, so `a.b.c` nests `Dot`s instead.
+ * region to keep it in, so `a.b.c` nests `Dot`s instead. `|()` is terminal
+ * and so has only the shorter arity; `|?.()` opens a region and has both.
  */
 export type PropertyLambda =
-    | null
-    | readonly['|()', Exp, null]
+    | readonly['|()', Exp]
+    | readonly['|?.()', Exp]
     | readonly['|?.()', Exp, OptionLambda]
 
 /**
@@ -90,22 +96,26 @@ export type PropertyLambda =
  * region: `OptionCall`'s, and every call step that stays in its region.
  */
 export type OptionLambda =
-    | null
+    | readonly['|()', Exp]
     | readonly['|()', Exp, OptionLambda]
+    | readonly['|.', Index]
     | readonly['|.', Index, OptionPropertyLambda]
 
 /**
  * The continuation of a property step inside an open region: both bits live,
  * so this is the state with every production — the three ways a call can
  * relate to the region it sits in, plus the property step the region keeps
- * from leaving.
+ * from leaving. `|!()` closes the region and is terminal, so it alone has a
+ * single arity.
  */
 export type OptionPropertyLambda =
-    | null
+    | readonly['|()', Exp]
     | readonly['|()', Exp, OptionLambda]
+    | readonly['|.', Index]
     | readonly['|.', Index, OptionPropertyLambda]
+    | readonly['|?.()', Exp]
     | readonly['|?.()', Exp, OptionLambda]
-    | readonly['|!()', Exp, null]
+    | readonly['|!()', Exp]
 
 // call
 
@@ -113,15 +123,21 @@ export type Call = readonly['()', Exp, Exp]
 
 // dot
 
-export type Dot = readonly['.', Exp, Index, PropertyLambda]
+export type Dot =
+    | readonly['.', Exp, Index]
+    | readonly['.', Exp, Index, PropertyLambda]
 
 // optionDot
 
-export type OptionDot = readonly['?.', Exp, Index, OptionPropertyLambda]
+export type OptionDot =
+    | readonly['?.', Exp, Index]
+    | readonly['?.', Exp, Index, OptionPropertyLambda]
 
 // optionCall
 
-export type OptionCall = readonly['?.()', Exp, Exp, OptionLambda]
+export type OptionCall =
+    | readonly['?.()', Exp, Exp]
+    | readonly['?.()', Exp, Exp, OptionLambda]
 
 // Comma
 
