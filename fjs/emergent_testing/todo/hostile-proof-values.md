@@ -79,9 +79,11 @@ fixture convention, so each runner implements it truthfully:
   bargain `sandbox` already makes. Virtual proofs use benign fixtures.
 
 `walk` then reads a sub-tree through `catch` and, on the `error` branch, reports
-one failed result at that path instead of panicking — which is what restores
-`exportedTreeThrows` / `returnedTreeThrows`, and gives `fjs t` a behaviour it
-never had. `errorDetails` gets the same treatment at its one call site.
+one failed result at that path instead of panicking — which is what preserves
+the browser's `exportedTreeThrows` / `returnedTreeThrows` (`../browser/proof.mjs`)
+once the traversal is shared, and gives `fjs t` a behaviour it never had. The
+`fjs t` proof carries the same name deliberately, in `../catch.proof.mjs`: one
+behaviour, named once, proven per runner. `errorDetails` gets the same treatment at its one call site.
 
 The work is roughly: the operation and its constructor beside `sandbox`, one
 handler in each runner, the `CommandSet` entries, the `walk` change and its new
@@ -106,8 +108,11 @@ adopting a `then`, and a proof tree refusing to — which are studied together i
       is a report-shape question (what a non-leaf failure is called) rather than
       a missing operation, and it is the part of this issue still open.
 - [x] Prove an unreadable returned tree for `fjs t` — `returnedTreeThrows` in
-      `../proof.f.mjs`, which needs a runner with a real `try`, so it drives
-      `runModuleMap` through a mock rather than through the virtual runner.
+      `../catch.proof.mjs`, beside `returnedTreeIsStillWalked`. The file is
+      `.mjs` for the reason this whole issue rests on: a runner that reports a
+      throw needs a real `try` to write, so it drives `runModuleMap` through a
+      mock rather than through the virtual runner, and a mock like that cannot
+      be written in `.f.mjs`.
 - [ ] Read a thrown value through it at `errorDetails`' call site.
 
 ### Constraints
