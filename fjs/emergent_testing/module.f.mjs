@@ -25,7 +25,7 @@ import {
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
-import { concat, flat, toArray } from '../types/list/module.f.mjs'
+import { flat, toArray } from '../types/list/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
 
 /**

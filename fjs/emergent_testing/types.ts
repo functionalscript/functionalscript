@@ -238,8 +238,8 @@ export type RunOutcome<R> = {
  * The records are a `List` rather than an array because joining two arrays
  * copies both: a parent that joined its children's records would recopy every
  * descendant at every level, and the walk would cost more the deeper it went.
- * `concat` on a `List` is one node, and `toArray` walks the whole rope once,
- * at the end.
+ * Joining `List`s is a node that names them, and `toArray` walks the whole
+ * rope once, at the end.
  *
  * Each record is **boxed**, because a `List` reads a bare array or function in
  * an element position as a sub-list to splice. `R` is the host's own leaf
