@@ -243,7 +243,8 @@ Package validation must check semantic dependencies, not raw text:
 - no authored/generated private type artifact that is intended to be unshipped is
   present in the tarball;
 - no packed declaration semantically depends on an unshipped private type module;
-- a clean TypeScript consumer installed from the tarball type-checks successfully.
+- every declaration in the tarball, installed as a clean TypeScript dependency,
+  type-checks successfully.
 
 #### The check has to run in CI, on the packed artifact, without the repository
 
@@ -261,8 +262,8 @@ The shape that makes it a real check:
 
 1. a job that packs (`npm pack`) and uploads the tarball as a CI artifact;
 2. a **second job with no repository checkout** that downloads that artifact,
-   unpacks it, installs TypeScript, and type-checks a small consumer against
-   the installed package.
+   installs it (`npm install ./functionalscript-*.tgz typescript`), and
+   type-checks **every declaration the package ships**.
 
 The missing checkout is the point, and it is stronger than merely working in a
 directory outside the repository: with no repository on the runner, there is no
@@ -270,29 +271,44 @@ directory outside the repository: with no repository on the runner, there is no
 no source file that could stand in for a declaration the tarball omits. The
 check can only see what a real consumer sees.
 
-Two details decide whether that consumer can fail at all:
+Three details decide whether that job can fail at all:
 
-- **Do not set `skipLibCheck` in the consumer's `tsconfig.json`.** It defaults
-  to `false`, which is what makes TypeScript open the packed `.d.mts` internals
-  and report a dangling private reference. `tsc --init` writes
-  `"skipLibCheck": true`; if that creeps in, the job silently stops checking the
-  thing it exists for.
-- **The consumer must import the module surfaces whose declarations reference
-  private types** — today the modules carrying an `@import { _… } from
-  './private.ts'` comment — or the declaration that could dangle is never in its
-  program.
+- **Check every packed declaration, not a hand-written consumer.** The
+  temptation is a small `consumer.mts` importing the surfaces known to carry
+  private types. That check is only as current as its import list: a module
+  that gains a `private.ts` *later* is not in the program, so its dangling
+  declaration passes unseen while the job stays green. Enumerate the packed
+  `.d.ts` / `.d.mts` from the installed package and pass them all to `tsc` as
+  root files instead — the set is derived from the artifact, so it cannot go
+  stale.
+- **Do not set `skipLibCheck`.** It defaults to `false`, which is what makes
+  TypeScript open the packed declarations and report a dangling private
+  reference. `tsc --init` writes `"skipLibCheck": true`; if that creeps in, the
+  job silently stops checking the thing it exists for. (This matters even with
+  the declarations as root files: `skipLibCheck` suppresses checking of
+  declaration files however they entered the program.)
+- **Install the tarball as a dependency; do not unpack it into `node_modules`
+  by hand.** A later `npm install` prunes anything not in `package.json` and
+  removes it, which turns the whole job into a no-op on an empty file list.
 
 Because a red required check blocks the merge queue, a reintroduced dependency
 becomes the author's problem at the moment it is introduced, which is the whole
 point of preferring a check to a sweep.
 
-Measured on the tree at the time of writing: no packed declaration imports a
-private module (the `private.ts` mentions that survive emit are JSDoc `@import`
-comments, which are inert); deleting all 16 `private.d.ts` and type-checking the
-remaining declarations with `skipLibCheck: false` exits 0; and adding one real
-`import type { … } from './private.js'` to a packed declaration turns that check
-red with `TS2307`. The exclusion is therefore safe today, and the check is
-falsifiable.
+Measured on the tree at the time of writing, with the tarball installed into a
+scratch consumer and the 16 `private.d.ts` removed from it:
+
+- the remaining 377 declarations type-check with `skipLibCheck: false` — exit
+  `0`, so the exclusion is safe today (the `private.ts` mentions that survive
+  emit are JSDoc `@import` comments, which are inert);
+- appending a real `import type { … } from './private.js'` to one packed
+  declaration turns that exit `2` with `TS2307`, so the check is falsifiable;
+- and the gap the first bullet describes is not hypothetical: with that
+  injection placed in `fjs/emergent_testing` — a module with no `private.ts`
+  today, standing in for a future one — a consumer importing all 16 of today's
+  private-carrying surfaces still exits `0`, while the exhaustive form exits
+  `2`. A fixed import list would have shipped a check that cannot see the case
+  it exists to catch.
 
 The job is added through the CI generator (`fjs/ci/**`, composed in
 `fjs/ci/module.f.mjs`), never by editing `.github/workflows/ci.yml`, which
@@ -395,28 +411,33 @@ type-only and use named `import type { ... }` imports.
 - [ ] Do not text-postprocess emitted declarations; validate semantic private
       dependencies and clean-consumer type checking instead.
 - [ ] Upload the `npm pack` tarball as a CI artifact, and add a **second job
-      with no repository checkout** that downloads it, unpacks it, installs
-      TypeScript, and type-checks a consumer importing the module surfaces whose
-      declarations reference private types. Leave `skipLibCheck` unset in that
-      consumer's `tsconfig.json` — it defaults to `false`, which is what makes
-      the check able to fail. Add both through the CI generator (`fjs/ci/**`,
-      composed in `fjs/ci/module.f.mjs`), not by editing
+      with no repository checkout** that downloads it, installs it as a real
+      dependency (`npm install ./functionalscript-*.tgz typescript` — hand-
+      unpacking into `node_modules` is pruned by the next `npm install`), and
+      type-checks **every declaration the package ships**, enumerated from the
+      installed artifact rather than from a hand-written import list: a module
+      that gains a `private.ts` later would never enter a fixed consumer's
+      program. Leave `skipLibCheck` unset — it defaults to `false`, which is
+      what makes the check able to fail. Add both through the CI generator
+      (`fjs/ci/**`, composed in `fjs/ci/module.f.mjs`), not by editing
       `.github/workflows/ci.yml`. Complete the fixture already scoped in
       [`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md)
       rather than adding a second package-validation path.
-- [ ] Make the consumer job a required check, so a reintroduced private
-      dependency blocks the merge queue rather than landing.
+- [ ] Make that job a required check, so a reintroduced private dependency
+      blocks the merge queue rather than landing.
 - [ ] Assert the tarball's contents (no `private.d.ts` inside) alongside that
-      job — a cheap complement to the semantic consumer check, never its
+      job — a cheap complement to the semantic declaration check, never its
       replacement.
 - [ ] Prove each half can fail, with its own negative control — they fail on
       opposite inputs, so one control cannot stand for both. Dropping the
       `files` negation leaves `private.d.ts` *in* the tarball, where every
       reference to it resolves: that reddens the contents assertion and leaves
-      the consumer green. The consumer's control is the reverse — a packed
+      the type-check green. The type-check's control is the reverse — a packed
       declaration that references a private module the tarball does not carry
       (a shipped declaration made to depend on `private.ts`, with the negation
-      still in place), which resolves in-repo and dangles once packed.
+      still in place), which resolves in-repo and dangles once packed. Place
+      that control in a module with **no** `private.ts` today, so it also
+      proves the check is exhaustive rather than pinned to today's surfaces.
 - [ ] Add fixtures covering packaging: retained non-semantic JSDoc `@import`
       comments in emitted declarations, absent private artifacts in the tarball,
       and a clean package consumer.
@@ -462,17 +483,21 @@ type-only and use named `import type { ... }` imports.
 - Emitted declarations are not text-postprocessed; retained JSDoc `@import`
   comments are allowed when they are non-semantic.
 - The packed artifact has no semantic dependency on an unshipped private type
-  module, and a clean TypeScript consumer type-checks successfully.
-- That consumer runs **in CI**, from the packed tarball handed over as an
+  module, and every declaration it ships type-checks successfully.
+- That check runs **in CI**, from the packed tarball handed over as an
   artifact, in a job with **no repository checkout** and with `skipLibCheck`
   left at its `false` default — the only arrangement in which a declaration
   pointing at an omitted `private.d.ts` is an error rather than a silently
   skipped library file or a resolution into the source tree.
-- The consumer job is a required check, so the failure blocks the merge queue.
+- Its file set is derived from the installed artifact, so a module that gains a
+  `private.ts` after the job is written is checked without the job being
+  edited.
+- That job is a required check, so the failure blocks the merge queue.
 - Both halves are demonstrably falsifiable, each by the input that actually
   breaks it: dropping the `files` negation reddens the contents assertion, and
   a packed declaration depending on a private module the tarball does not carry
-  reddens the consumer type-check.
+  — placed in a module that has no `private.ts` today — reddens the
+  declaration type-check.
 - The CI job is generated from `fjs/ci/**`, so `npm run ci-update` reproduces
   `.github/workflows/ci.yml` byte-identically.
 - `fjs/fsc/README.md` no longer needs tolerance for a shipped `private.d.ts`,

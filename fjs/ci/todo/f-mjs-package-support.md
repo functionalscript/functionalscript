@@ -247,11 +247,25 @@ emission, `npm pack`, and a clean consumer.
       `types.ts` or `private.ts`, per the file-scope-typedef prohibition) whose
       name reaches the emitted declarations; tolerate that declaration form
       without treating it as clean-consumer public API.
-- [ ] Test the allowed `.ts` -> `.mjs` runtime dependency direction in a clean
-      checkout and CI-built package archive.
-- [ ] Reject authored `.mjs` runtime imports to remaining relative implementation
-      `.ts` / `.f.ts`; type-only imports to intentional `types.ts` companions are
-      allowed.
+- [x] Test the allowed `.ts` -> `.mjs` runtime dependency direction in a clean
+      checkout and CI-built package archive. Retired, not performed: the
+      direction no longer exists to test. Every authored `.ts` left is a
+      `types.ts` / `private.ts`, and all 225 of their import statements are
+      `import type` — measured on the tree after
+      [#1750](https://github.com/functionalscript/functionalscript/pull/1750).
+      A runtime dependency out of an authored `.ts` would also need emitted
+      JavaScript for it, and the decision above settled that `types.js` is not
+      part of the package layout, so the form is doubly excluded. Writing a
+      fixture for it would manufacture a source shape the repository forbids.
+- [ ] Reject authored `.mjs` runtime imports to any relative authored `.ts` —
+      the rule outlived the migration and got *wider*, not narrower. It once
+      guarded against importing implementation `.ts` / `.f.ts`; with those
+      retired, the remaining authored `.ts` are exactly the type-level
+      `types.ts` / `private.ts` companions, for which no JavaScript is emitted,
+      so a runtime import would resolve in the source tree and dangle in the
+      package. Type-only imports (`import type`, JSDoc `@import`) stay allowed
+      and are the only permitted form. Currently zero authored `.mjs` violate
+      this, so the fixture pins a property that already holds.
 - [x] Type-check and run a clean packed-package consumer under TypeScript, Node,
       Deno, and Bun using the `types.ts`-backed API. Measured manually in
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
@@ -285,9 +299,11 @@ emission, `npm pack`, and a clean consumer.
 - `_`-prefixed JSDoc typedefs are treated as private API even if declaration
   emission currently writes them as exported aliases; clean-consumer tests do
   not depend on those names.
-- Remaining implementation `.ts` may import migrated `.mjs`; migrated `.mjs`
-  cannot runtime-import remaining implementation `.ts` / `.f.ts` or generated
-  `.js`.
+- Authored `.mjs` cannot runtime-import any relative authored `.ts` or generated
+  `.js`; type-only imports of `types.ts` / `private.ts` companions are the only
+  permitted form. (The converse allowance — implementation `.ts` importing
+  migrated `.mjs` — lapsed with the migration: no authored implementation `.ts`
+  remains to exercise it.)
 - A clean consumer can import the CI-built `.mjs` runtime and type-check its
   `types.ts`-backed public API.
 - `.f.mjs` carries no current-compiler compatibility promise during stage 1.
