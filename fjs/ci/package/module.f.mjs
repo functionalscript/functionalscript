@@ -20,7 +20,32 @@ export const packageCheckJobId = /** @type {const} */ ('package-check')
 // directory name. Nothing here self-references; revisit if that changes.
 const alias = /** @type {const} */ ('packed')
 
-const declarations = /** @type {const} */ ('declarations')
+/**
+ * The whole check, as a file `tsc` reads for itself.
+ *
+ * `include` does the enumeration, so no shell walks the tree and no path is
+ * ever serialised: a space or a quote in a directory name is a JSON string
+ * here and a filename to `tsc`, with nothing in between to get it wrong. An
+ * empty match is `TS18003`, which names the pattern that found nothing —
+ * "checked nothing and passed" is the failure this job most needs to be
+ * legible about.
+ *
+ * `exclude` is emptied because the default excludes `node_modules`, which is
+ * the only place the artifact exists. `skipLibCheck` is stated rather than
+ * left at its default: it is the one option whose flip would stop `tsc`
+ * opening these declarations at all, and the job would still pass.
+ */
+const tsconfig = /** @type {const} */ ({
+    include: [`node_modules/${alias}/**/*`],
+    exclude: [],
+    compilerOptions: {
+        module: 'nodenext',
+        target: 'esnext',
+        strict: true,
+        noEmit: true,
+        skipLibCheck: false,
+    },
+})
 
 /**
  * One command per step, so a failure names what failed rather than arriving as
@@ -35,17 +60,12 @@ const declarations = /** @type {const} */ ('declarations')
  */
 const commands = pin => [
     'npm init -y > /dev/null',
-    `npm install "${alias}@file:$(ls *.tgz)"`,
+    // `echo` is the shell's own builtin expanding its own glob; `ls` would be
+    // a second process to learn what the shell already knew.
+    `npm install "${alias}@file:$(echo *.tgz)"`,
     `npm install "typescript@${pin}"`,
-    // `-print0` rather than a text list: the paths reach `tsc` as arguments, so
-    // a space or a quote in one survives without quoting or escaping.
-    `find node_modules/${alias} \\( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \\) -print0 > ${declarations}`,
-    // An empty list would type-check nothing and pass. `tsc` does exit non-zero
-    // on no arguments, but by printing usage, which says nothing about why.
-    `test -s ${declarations}`,
-    // skipLibCheck stays at its false default: it is what makes tsc open these
-    // declarations and report a reference the tarball does not carry.
-    `xargs -0 npx tsc --module nodenext --moduleResolution nodenext --target esnext --strict --noEmit --skipLibCheck false < ${declarations}`,
+    `echo '${JSON.stringify(tsconfig)}' > tsconfig.json`,
+    'npx tsc',
 ]
 
 /**

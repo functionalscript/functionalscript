@@ -542,19 +542,16 @@
           "run": "npm init -y > /dev/null"
         },
         {
-          "run": "npm install \"packed@file:$(ls *.tgz)\""
+          "run": "npm install \"packed@file:$(echo *.tgz)\""
         },
         {
           "run": "npm install \"typescript@=7.0.2\""
         },
         {
-          "run": "find node_modules/packed \\( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \\) -print0 > declarations"
+          "run": "echo '{\"include\":[\"node_modules/packed/**/*\"],\"exclude\":[],\"compilerOptions\":{\"module\":\"nodenext\",\"target\":\"esnext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":false}}' > tsconfig.json"
         },
         {
-          "run": "test -s declarations"
-        },
-        {
-          "run": "xargs -0 npx tsc --module nodenext --moduleResolution nodenext --target esnext --strict --noEmit --skipLibCheck false < declarations"
+          "run": "npx tsc"
         }
       ]
     },

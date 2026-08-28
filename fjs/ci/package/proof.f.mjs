@@ -34,13 +34,11 @@ export const proof = {
             step => step.uses?.startsWith('actions/download-artifact@') === true)
         assertEq(download?.with?.name, packageArtifact)
     },
-    // Each of these is what makes the job able to fail at all, and each has a
-    // silent failure mode rather than a loud one.
+    // The one option with a silent failure mode: `true` stops tsc opening the
+    // declarations at all, and the job still passes. Stated rather than left at
+    // its default so a change to it is a change to this file.
     canFail: () => {
-        // `true` stops the checking without saying so.
-        assert(scriptHas('--skipLibCheck false'), 'expected skipLibCheck left false')
-        // An empty list type-checks nothing and passes.
-        assert(scriptHas('test -s declarations'), 'expected a guard against an empty file list')
+        assert(scriptHas('"skipLibCheck":false'), 'expected skipLibCheck left false')
     },
     // The compiler is whatever the package pins, carried through untouched. A
     // check that runs a compiler the package did not choose is a green result
@@ -54,19 +52,18 @@ export const proof = {
     // instead would fail for them — or worse, silently check a dependency that
     // happens to share the name instead of the artifact just built.
     anyPackageName: () => {
-        assert(scriptHas('"packed@file:$(ls *.tgz)"'), 'expected the artifact installed under the fixed alias')
-        assert(scriptHas('find node_modules/packed'), 'expected declarations enumerated from that directory')
-        // Paths reach tsc as arguments, so a space or a quote in one needs no
-        // quoting or escaping to survive.
-        assert(scriptHas('-print0'), 'expected NUL-separated paths')
-        assert(scriptHas('xargs -0'), 'expected the paths passed as arguments')
-        // Every declaration form the package can ship, not just the two this
-        // repository happens to emit.
-        for (const ext of /** @type {const} */ (['*.d.ts', '*.d.mts', '*.d.cts'])) {
-            assert(scriptHas(`-name '${ext}'`), `expected ${ext} enumerated`)
-        }
+        assert(scriptHas('"packed@file:$(echo *.tgz)"'), 'expected the artifact installed under the fixed alias')
         assert(
             !scriptHas('node_modules/functionalscript'),
             'the package check must not hard-code this repository\'s package name')
+    },
+    // `tsc` enumerates what it checks, from a config file it reads itself. No
+    // path passes through the shell, so a space or a quote in a directory name
+    // has nothing to survive; an empty match is TS18003 rather than a pass.
+    tscEnumerates: () => {
+        assert(scriptHas('"include":["node_modules/packed/**/*"]'), 'expected the artifact tree enumerated by tsc')
+        // The default excludes node_modules, which is the only place the
+        // artifact exists.
+        assert(scriptHas('"exclude":[]'), 'expected node_modules not excluded')
     },
 }

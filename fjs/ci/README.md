@@ -134,9 +134,15 @@ package has been installed. Custom projects that need different runtime setup st
 should use `fjs run <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
-The built-in command does not read `package.json` to customize generated steps.
-The FunctionalScript package version used by generated Node, Deno, and Bun smoke
-tests is pinned in `config/module.f.mjs`, not read from `package.json`.
+The built-in command reads `package.json` for one thing: `devDependencies.typescript`.
+An exact version there — `=7.0.2`, not `^7.0.0` — generates the `package-check`
+job and is the compiler that job installs, because a job with no checkout has no
+lockfile to resolve a range against. Anything else, including no entry at all,
+generates no `package-check` job.
+
+Nothing else in `package.json` reaches the generated steps. The FunctionalScript
+package version used by generated Node, Deno, and Bun smoke tests is pinned in
+`config/module.f.mjs`, not read from `package.json`.
 
 ## Customisation
 
