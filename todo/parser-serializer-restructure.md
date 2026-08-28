@@ -180,7 +180,13 @@ ECMAScript's `ToString(Number)` — a fully deterministic algorithm the spec
 restates, so no "shortest spelling" tie such as `1e3` vs `1E3` exists,
 `ToString` never produces the uppercase form — with one stated exception,
 `-0`, which `ToString` spells `0` and canonical DataJS spells `-0`;
-bigints as full digits + `n`; fixed string escaping). The serializer's
+bigints as full digits + `n`; canonical string escaping is exactly
+ECMAScript's `QuoteJSONString` — what `JSON.stringify` emits for a string:
+the minimal escapes `\"` `\\` `\b` `\t` `\n` `\f` `\r`, other control
+characters as `\u00`·two lowercase hex digits, unpaired surrogates as
+lowercase `\uXXXX`, everything else literal and `/` never escaped — again a
+deterministic algorithm the spec restates rather than a "minimal escaping"
+adjective). The serializer's
 *input* is a programmatic value that is not frozen, so it must be validated
 against the DataJS data model, and anything outside the model is rejected
 as an error rather than approximated: a leaf outside the leaf set (a
