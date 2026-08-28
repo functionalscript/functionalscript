@@ -223,7 +223,7 @@ export const proof = {
         assert(job.steps.length > 0, 'expected steps')
     },
     jobNeeds: () => {
-        const steps = [{ run: 'echo hi' }]
+        const steps = /** @type {const} */ ([{ run: 'echo hi' }])
         /** @type {(jobs: Unknown) => Unknown} */
         const action = jobs => ({
             name: 'test',
