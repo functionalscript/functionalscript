@@ -545,7 +545,7 @@
           "run": "npm install \"typescript@=7.0.2\""
         },
         {
-          "run": "find node_modules/packed \\( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \\) > declarations.txt\ntest -s declarations.txt"
+          "run": "find node_modules/packed \\( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \\) -printf '\"%p\"\\n' > declarations.txt\ntest -s declarations.txt"
         },
         {
           "run": "npx tsc --module nodenext --moduleResolution nodenext --target esnext --strict --noEmit --skipLibCheck false @declarations.txt"

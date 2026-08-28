@@ -41,8 +41,10 @@ const installCompiler = /** @type {const} */ (`npm install "typescript@${typescr
 // Every declaration the package ships, enumerated from the installed artifact:
 // a hand-written import list cannot see a module that gains a private type
 // module later, which is the case this check exists to catch. An empty list
-// would type-check nothing and pass.
-const enumerateDeclarations = /** @type {const} */ (`find node_modules/${alias} \\( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \\) > declarations.txt
+// would type-check nothing and pass. Each path is quoted because `tsc` splits
+// a response file on whitespace, so a directory with a space in its name would
+// otherwise fail a package that is perfectly valid.
+const enumerateDeclarations = /** @type {const} */ (`find node_modules/${alias} \\( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \\) -printf '"%p"\\n' > declarations.txt
 test -s declarations.txt`)
 
 // skipLibCheck stays at its false default: it is what makes tsc open these

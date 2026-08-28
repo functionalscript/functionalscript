@@ -51,6 +51,9 @@ export const proof = {
         // More than one archive leaves it ambiguous which package is under test.
         assert(scriptHas('test "$(ls *.tgz | wc -l)" -eq 1'), 'expected exactly one archive required')
         assert(scriptHas('find node_modules/packed'), 'expected declarations enumerated from that directory')
+        // `tsc` splits a response file on whitespace, so an unquoted path with a
+        // space in it fails a package that is valid.
+        assert(scriptHas(`-printf '"%p"`), 'expected response-file paths quoted')
         // Every declaration form the package can ship, not just the two this
         // repository happens to emit — `fjs ci` generates for projects whose
         // `files` may include CommonJS declarations.
