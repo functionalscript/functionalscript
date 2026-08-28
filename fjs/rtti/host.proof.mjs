@@ -210,6 +210,54 @@ export const proof = {
             assertError(rv)
         }
     },
+    // Each declared member's presence is probed once and then *used*, and an
+    // absent member's schema is consulted once — so neither a value that
+    // answers `HasProperty` differently the second time nor a schema thunk
+    // that counts its evaluations can move the verdict. Both are values only
+    // the host can build, and both were accepted by an earlier revision of
+    // the reader that asked each question twice.
+    decisionsAreMadeOnceAndReused: () => {
+        // a `has` trap that swaps the member on its second probe
+        const hasSwapsOnTheSecondProbe = () => {
+            /** @type {Unknown[]} */
+            const target = ['bad']
+            let n = 0
+            return new Proxy(target, {
+                has: (o, k) => {
+                    if (k === '0') {
+                        n += 1
+                        if (n === 2) { o[0] = 1 }
+                    }
+                    return Reflect.has(o, k)
+                },
+            })
+        }
+        for (const read of [v, p, d]) {
+            assertError(read([number])(hasSwapsOnTheSecondProbe()))
+        }
+        // a schema thunk that counts its evaluations, beside a member whose
+        // getter answers by that count: one extra evaluation would hand the
+        // walk a different member than the one the schema was decided for
+        const phased = () => {
+            let phase = 0
+            /** @type {Type} */
+            const optional = () => {
+                phase += 1
+                return /** @type {any} */ (['or', option, number])
+            }
+            const value = Object.defineProperty(new Array(2), '1', {
+                get: () => phase === 2 ? 1 : 'bad',
+                enumerable: true,
+                configurable: true,
+            })
+            return /** @type {readonly [Type, readonly Unknown[]]} */ (
+                [[optional, number], value])
+        }
+        for (const read of [v, p, d]) {
+            const [t, value] = phased()
+            assertError(read(t)(value))
+        }
+    },
     // …and what they agree on, which is what the changelog entry claims.
     inheritedIndexMeetsTheRest: () => {
         const value = inheritedIndex()

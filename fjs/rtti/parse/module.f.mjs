@@ -58,10 +58,8 @@
 import { ok } from '../../types/result/module.f.mjs'
 import {
     absentMember,
-    consPresence,
     constPrimitiveValidate,
     eachEntry,
-    emptyPresence,
     isArray,
     isObject,
     orVisit,
@@ -342,29 +340,18 @@ const constContainerParse =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            // Presence first, then the bound, then the reads — see the
-            // comment on the same shape in `../validate/module.f.mjs`. The
-            // length read lands after the decisions it could otherwise
-            // steer, and bounding before the reads is what lets an `or` of
-            // two arities settle an arm without recursing.
-            const presence = eachEntry(
-                rttiEntries,
-                (k, t) => {
-                    if (k in value) { return ok(true) }
-                    const a = absentMember(t)
-                    return a[0] === 'error' ? a : ok(false)
-                },
-                emptyPresence,
-                consPresence,
-            )
-            if (presence[0] === 'error') { return presence }
+            // Probe presence once, bound, then read — each decision made
+            // once and then used, never re-derived. See the comment on the
+            // same shape in `../validate/module.f.mjs`.
+            const withPresence = rttiEntries.map(([k, t]) =>
+                /** @type {readonly[string, readonly[typeof t, boolean]]} */ ([k, [t, k in value]]))
             if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
             const r = eachEntry(
-                rttiEntries,
-                (k, t) => {
-                    if (!(k in value)) {
+                withPresence,
+                (k, [t, present]) => {
+                    if (!present) {
                         const a = absentMember(t)
                         return a[0] === 'error' ? a : ok([])
                     }
@@ -378,11 +365,9 @@ const constContainerParse =
             if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
                 return verror('unexpected value')
             }
-            // Both the pre-bound presence and the walk's own, as in
-            // `../validate/module.f.mjs` — each catches a flip the other
-            // does not.
-            if (!presenceUnchanged(rttiEntries, presence[1], value)
-                || !presenceUnchanged(rttiEntries, r[1].presence, value)) {
+            // The walk recorded the decisions it was given, so this one
+            // comparison is against the pre-bound snapshot.
+            if (!presenceUnchanged(rttiEntries, r[1].presence, value)) {
                 return verror('unexpected value')
             }
             const built = /** @type {ReadonlyArray<Unknown> | StringMap<Unknown>} */ (rebuild(r[1].entries))

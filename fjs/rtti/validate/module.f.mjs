@@ -215,42 +215,38 @@ const constContainerValidate =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            // Decide every declared member's **presence** first, then bound
-            // the container, and only then read the members. Presence is a
-            // `HasProperty` probe and recurses into nothing, so this pass is
-            // cheap; what it buys is that the length read happens after the
-            // decisions it could otherwise steer, and `presenceUnchanged`
-            // below still re-asks them against the final state — so a
-            // `length` getter that mutates a declared member is caught
-            // rather than obeyed, and the three readers keep agreeing.
+            // Probe every declared member's **presence** first, bound the
+            // container next, and read the members last — each member's
+            // decision made once and then *used*, never re-derived.
+            //
+            // Deciding before the bound is what keeps the length read from
+            // steering a decision, and probing once is what keeps the walk
+            // from asking a question the value could answer differently the
+            // second time: the walk consumes `present` rather than testing
+            // `k in value` again, and an absent member's schema is consulted
+            // once, so a stateful thunk sees one evaluation as it did before.
+            // The counts match the pre-change reader — one probe per member
+            // here, one in `presenceUnchanged` below — so nothing new is
+            // dispatched at the value except the bound itself.
             //
             // Bounding before the reads is load-bearing for an `or` of two
             // arities, the shape a schema uses to say a trailing operand may
             // be left out (`fjs/edag`'s chain nodes). Without it each arm
-            // walks the shared operands before failing on length, so
-            // validating a nested chain costs 2^depth; with it the arm is
-            // settled before any recursion — by the bound for the value that
-            // is too long, and by the absent last member for the one that is
-            // too short. `parse` does the same, which is what keeps the two
-            // readers reporting the same error.
-            const presence = eachEntry(
-                rttiEntries,
-                (k, v) => {
-                    if (k in value) { return ok(true) }
-                    const a = absentMember(v)
-                    return a[0] === 'error' ? a : ok(false)
-                },
-                emptyPresence,
-                consPresence,
-            )
-            if (presence[0] === 'error') { return presence }
+            // walks the shared operands before failing, so validating a
+            // nested chain costs 2^depth; with it each arm is settled before
+            // any recursion — by the bound where the value is too long, and
+            // by the absent last member where it is too short. `parse` does
+            // the same, which is what keeps the two readers reporting the
+            // same error.
+            const withPresence = rttiEntries.map(([k, v]) =>
+                /** @type {readonly[string, readonly[typeof v, boolean]]} */ ([k, [v, k in value]]))
             if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
             const r = eachEntry(
-                rttiEntries,
-                (k, v) => {
-                    if (!(k in value)) {
+                withPresence,
+                (k, [v, present]) => {
+                    if (!present) {
                         const a = absentMember(v)
                         return a[0] === 'error' ? a : ok(false)
                     }
@@ -266,14 +262,10 @@ const constContainerValidate =
             }
             // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
             // structurally equivalent to C — TypeScript can't narrow element types through the loop.
-            // Against **both** snapshots: the one decided before the bound
-            // was read, and the walk's own. A `length` getter that deletes a
-            // declared member is caught by the first, and one that deletes it
-            // on its first read and restores it on its second — leaving the
-            // walk to skip a member the value ends up carrying unvalidated —
-            // is caught by the second. Either alone leaves the other open.
-            return presenceUnchanged(rttiEntries, presence[1], value)
-                && presenceUnchanged(rttiEntries, r[1], value)
+            // One comparison suffices: the walk recorded the decisions it
+            // was given, so `r[1]` *is* the pre-bound snapshot, and a member
+            // lost or restored across the reads shows up as a flip here.
+            return presenceUnchanged(rttiEntries, r[1], value)
                 ? /** @type {any} */ (ok(value))
                 : verror('unexpected value')
         }
