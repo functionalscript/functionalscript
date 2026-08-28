@@ -154,7 +154,11 @@ key       ::= string | '[' '"__proto__"' ']'
 **Serialization.** Any conforming serializer may emit any valid document; a
 separate *normalized form* section defines one byte-deterministic canonical
 serializer (const names `_0`, `_1`, … in first-emission order; a const emitted
-iff its value is referenced more than once; shortest round-trip number
+iff its value is an object or array referenced more than once **by reference
+identity** — primitives are always emitted inline and never hoisted, since
+primitive sharing is unobservable and a value-equality ref counter would
+face the `0`/`-0` and `NaN` merging ambiguity that the `Object.is`
+round-trip guarantee forbids; shortest round-trip number
 spelling; bigints as full digits + `n`; fixed string escaping). Normalization
 is not a blocker for the format spec. The serializer cannot delegate numbers
 to `JSON.stringify` (it loses `-0` and non-finite values); DataJS owns its
@@ -210,17 +214,28 @@ throughout.
    ref-lookup hook, own number writer), proofs over the spec vectors.
 5. **Front-end move** — `fjs/djs/{tokenizer,parser,ast,transpiler}` →
    `fjs/fsc/*` as a rename; separator `nl` → `';'`; reserved words added;
-   `fjs compile` repointed. The EDAG staging
-   ([compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md))
-   continues under the `fsc` name.
+   the DataJS numeric leaves taught to the moved front end — `NaN`,
+   `Infinity`, `-Infinity`, and exact `-0` are unresolved identifiers in
+   today's parser, so reserving the names alone would *reject* DataJS accept
+   vectors: tokenizer, grammar, minus-folding, and AST/evaluation support is
+   stage-5 work (the front-end half of
+   [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)'s
+   special-number requirement), a precondition of stage 6's subset proofs;
+   `fjs compile` repointed. The EDAG staging continues under the `fsc`
+   name. This stage changes accepted public `.f.js` syntax (statement
+   termination, newly reserved names), so its own PR carries the
+   `**BREAKING CHANGES:**` changelog treatment for that behavior — it is
+   not deferred to stage 7.
 6. **Compiler output** — the normalizer: data-only FunctionalScript (imports
    resolved and inlined) to normalized DataJS or JSON, with the subset-law
    proofs above.
 7. **Cleanup** — retire `fjs/js/tokenizer` when its last consumer is gone
    (`fjs/js/string_escape` and `fjs/js/keywords` remain as shared,
-   JS-spec-frozen tables); one clean-break release with the standard
-   `**BREAKING CHANGES:**` changelog treatment for the removed `fjs/djs/*`
-   paths and changed serializer output — no compatibility shims.
+   JS-spec-frozen tables); the clean-break release with `**BREAKING
+   CHANGES:**` changelog treatment for the removed `fjs/djs/*` paths and
+   changed serializer output — no compatibility shims. (Each earlier stage
+   that changes public behavior, stage 5 in particular, carries its own
+   breaking-change entry in its own PR, per the changelog convention.)
 
 ### Tasks
 
