@@ -174,8 +174,17 @@ finishes first and is `_0`, `parent` is `_1`; primitives are always emitted
 inline and never hoisted, since
 primitive sharing is unobservable and a value-equality ref counter would
 face the `0`/`-0` and `NaN` merging ambiguity that the `Object.is`
-round-trip guarantee forbids; shortest round-trip number
-spelling; bigints as full digits + `n`; fixed string escaping). Normalization
+round-trip guarantee forbids; the canonical number spelling is exactly
+ECMAScript's `ToString(Number)` — a fully deterministic algorithm the spec
+restates, so no "shortest spelling" tie such as `1e3` vs `1E3` exists,
+`ToString` never produces the uppercase form — with one stated exception,
+`-0`, which `ToString` spells `0` and canonical DataJS spells `-0`;
+bigints as full digits + `n`; fixed string escaping). The serializer's
+*input* is a programmatic value that is not frozen and may be cyclic
+(`value.self = value`); DataJS represents DAGs only, so the serializer
+detects cycles and rejects them as an error — never emitting a
+self-referencing `const _0={"self":_0};` (a TDZ failure in JS) and never
+recursing unboundedly — with rejection proofs in stage 4. Normalization
 is not a blocker for the format spec. The serializer cannot delegate numbers
 to `JSON.stringify` (it loses `-0` and non-finite values); DataJS owns its
 number writer. The canonical layout is **one line** — fully minified, with
