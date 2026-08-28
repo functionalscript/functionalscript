@@ -399,9 +399,12 @@ and is reviewable without the next one.
       the raw `SandboxResult` still travels next to the `TestResult`, because
       describing a *thrown value* is each host's part (step 2's finding); and
       the browser report's own `duration` stays wall-clock rather than the
-      fold's summed durations, because its leaves run concurrently and the sum
-      only means "how long the run took" for a sequential runner —
-      `RunTotals` documents that.
+      fold's summed durations. When this landed the reason was concurrency;
+      under the sequential plan the two draw closer but stay distinct — wall
+      clock also carries what is *between* the leaves: the per-report yields,
+      module loading, everything the run does that no leaf owns. Step 7b
+      updates this reasoning where it is published, in `RunTotals`'s JSDoc
+      (`types.ts`), which today still explains the gap by concurrency.
 - [ ] **7. One sequential skeleton.** Two PRs, in this order.
 
       **7a. Make the shared traversal sequential**, in `module.f.mjs` alone.
@@ -420,6 +423,10 @@ and is reviewable without the next one.
       expectation, walking return values and counting: it supplies a
       `Reporter` whose `result` hands the record to its `report` operation,
       and a `report` handler that appends the row and awaits one macrotask.
+      Update `RunTotals`'s JSDoc in `types.ts` here too: it explains
+      wall-clock-vs-summed-duration by leaves running concurrently, and under
+      this step the gap is the run's own overhead — per-report yields, module
+      loading — not concurrency (step 6's note carries the same correction).
       What the reverted #1759 validated and this PR re-lands: the traversal
       threads a `RunOutcome<R>` — folded totals plus each host's leaf records
       in the walk's order (`fjs t` answers `void` and collects nothing); the
