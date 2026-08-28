@@ -24,7 +24,8 @@
  *
  * @module
  *
- * @import { Operation, ToAsyncOperationMap } from '../types.ts'
+ * @import { Effect, Operation, ToAsyncOperationMap } from '../types.ts'
+ * @import { All, Catch, Sandbox } from '../node/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
@@ -90,9 +91,19 @@ const sandbox = async f => {
  * hole to be an ordinary outcome builds its runner on `partialMatch`, the way
  * `effects/mock` does.
  *
- * @type {<O extends Operation>(extra: ToAsyncOperationMap<O>) => (effect: unknown) => Promise<unknown>}
+ * The runner it answers keeps the effect's own types: a caller reads the
+ * `Result` it resolves with rather than casting one out of `unknown`. The
+ * operations are the three below plus `extra`'s, which is what makes an effect
+ * this runner cannot dispatch a type error rather than a rejected promise.
+ *
+ * @template {Operation} O
+ * @param {ToAsyncOperationMap<O>} extra
+ * @returns {<T, E>(effect: Effect<O | All | Catch | Sandbox, T, E>) => Promise<Result<T, E>>}
  */
 export const browserRun = extra => {
+    // `all` interprets its children with the runner being defined, so the loop
+    // is tied through a self-reference and the map cannot be typed on the way
+    // in. The cast stops at this line: what the function answers is typed.
     /** @type {(effect: any) => Promise<any>} */
     const run = asyncRun(/** @type {any} */ ({
         all: async (/** @type {readonly any[]} */ ...effects) =>

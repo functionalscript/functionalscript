@@ -14,8 +14,8 @@
  * with a stand-in root.
  *
  * @import { BrowserTestReport, Reporter, TestResult, _BrowserImporter, _BrowserReport, _BrowserTestResult, _TestAndPath } from './types.ts'
- * @import { Effect, Func, IoChannel } from '../effects/types.ts'
- * @import { All, Catch, Sandbox, SandboxResult } from '../effects/node/types.ts'
+ * @import { Effect, Func, ToAsyncOperationMap } from '../effects/types.ts'
+ * @import { All, Catch, IoChannel, Sandbox, SandboxResult } from '../effects/node/types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
 
@@ -207,14 +207,16 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
         // lands, in the position the module was passed in, exactly like a leaf.
         : mapStep(report(e[1]), r => /** @type {readonly _BrowserTestResult[]} */ ([r]))
     const all = mapStep(allOk(...prepared.map(runOne)), lists => lists.flat())
-    const run = browserRun(/** @type {any} */ ({
+    /** @type {ToAsyncOperationMap<_BrowserReport>} */
+    const page = {
         // The page's end of the `report` operation: render as it lands, and
         // answer the record back so the traversal can keep it in order.
-        report: async (/** @type {_BrowserTestResult} */ r) => {
+        report: async r => {
             announce(r)
             return ok(r)
         },
-    }))
+    }
+    const run = browserRun(page)
     /**
      * The run failed as a *runner*, not as a proof. Reporting it as the run's
      * own failure keeps the page out of `running` forever, which is the one
@@ -235,9 +237,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
     // not implement arrives as a rejected promise rather than an `error`.
     // Neither may escape: an unhandled rejection is a page stuck in `running`
     // with no report and no completion event.
-    return run(all).then(answer => {
-        /** @type {Result<readonly _BrowserTestResult[], unknown>} */
-        const outcome = /** @type {any} */ (answer)
+    return run(all).then(outcome => {
         if (outcome[0] === 'error') {
             return infrastructureError(outcome[1])
         }

@@ -3,6 +3,8 @@
  *
  * It is a `.mjs` because the interpreter is: these run its real `try`/`catch`,
  * its real clock and its real `Promise.all`, which is the whole of what it is.
+ *
+ * @import { Result } from '../../types/result/types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
@@ -10,39 +12,49 @@ import { browserRun } from './module.mjs'
 import { all, catch_, sandbox } from '../node/module.f.mjs'
 import { do_ } from '../module.f.mjs'
 
-/** @type {(effect: unknown) => Promise<any>} */
-const run = browserRun(/** @type {any} */ ({}))
+// No `extra`: these proofs exercise the three operations the interpreter has
+// of its own.
+const run = browserRun({})
+
+/**
+ * The value a run answered, or the run's own failure as a panic — the runner
+ * answers `ok` for every one of these, so an `error` here is the proof
+ * failing.
+ *
+ * @type {<T, E>(r: Result<T, E>) => T}
+ */
+const okValue = r => {
+    if (r[0] !== 'ok') { throw r[1] }
+    return r[1]
+}
 
 export const proof = {
     // A leaf that throws is an answer, not a failure of the run — the same
     // bargain `effects/node`'s `sandbox` makes.
     sandboxReportsAThrow: async () => {
-        const r = await run(sandbox(() => { throw 'boom' }))
-        assertEq(r[0], 'ok')
-        assertEq(r[1].result[0], 'error')
-        assertEq(r[1].result[1], 'boom')
-        assert(r[1].duration >= 0)
+        const { result, duration } = okValue(await run(sandbox(() => { throw 'boom' })))
+        assertEq(result[0], 'error')
+        assertEq(result[1], 'boom')
+        assert(duration >= 0)
     },
     // An asynchronous leaf is timed by what it did, not by how quickly it
     // handed back a promise.
     sandboxAwaitsAPromise: async () => {
-        const r = await run(sandbox(() => Promise.resolve(1)))
-        assertEq(r[1].result[1], 1)
+        assertEq(okValue(await run(sandbox(() => Promise.resolve(1)))).result[1], 1)
     },
     catchAnswersTheThrownValue: async () => {
-        const r = await run(catch_(() => { throw 'thrown' }))
-        assertEq(r[0], 'ok')
-        assertEq(r[1][0], 'error')
-        assertEq(r[1][1], 'thrown')
+        const r = okValue(await run(catch_(() => { throw 'thrown' })))
+        assertEq(r[0], 'error')
+        assertEq(r[1], 'thrown')
     },
     // `all` answers in argument order however its children interleave, which is
     // what lets the shared traversal report in structural order.
     allAnswersInArgumentOrder: async () => {
         const slow = sandbox(() => new Promise(resolve => setTimeout(() => resolve('first'), 10)))
         const fast = sandbox(() => 'second')
-        const r = await run(all(slow, fast))
-        assertEq(r[1][0][1].result[1], 'first')
-        assertEq(r[1][1][1].result[1], 'second')
+        const r = okValue(await run(all(slow, fast)))
+        assertEq(okValue(r[0]).result[1], 'first')
+        assertEq(okValue(r[1]).result[1], 'second')
     },
     // A command no handler claims is a panic, not a `NotImplemented` answer:
     // this runner dispatches by exact match, which is why `browserRun` asks for
