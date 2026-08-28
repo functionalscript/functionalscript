@@ -1,5 +1,7 @@
 /**
  * Implementation-private types for the `toData` conversion.
+ *
+ * @module
  */
 
 import type { Rule as FRule } from '../types.ts'

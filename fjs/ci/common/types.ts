@@ -1,6 +1,8 @@
 /**
  * Type-level API for shared CI types: GitHub Actions step/job RTTI schemas,
  * the `MetaStep` representation used by tool-specific modules.
+ *
+ * @module
  */
 
 import type { Ts } from '../../rtti/ts/types.ts'

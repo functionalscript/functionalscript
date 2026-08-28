@@ -1,5 +1,7 @@
 /**
  * Types for the shared bit-codec factory.
+ *
+ * @module
  */
 
 import type { Vec } from '../types/bit_vec/types.ts'

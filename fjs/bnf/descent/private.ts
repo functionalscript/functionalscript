@@ -1,5 +1,7 @@
 /**
  * Implementation-private types for the recursive descent matcher backend.
+ *
+ * @module
  */
 
 import type { TerminalRange } from '../types.ts'
