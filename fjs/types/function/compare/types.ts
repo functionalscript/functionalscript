@@ -1,7 +1,5 @@
 /**
  * Comparison function types.
- *
- * @module
  */
 
 export type Sign = -1 | 0 | 1

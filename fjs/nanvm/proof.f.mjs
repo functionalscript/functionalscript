@@ -7,8 +7,6 @@
  * it. This module contains no test cases of its own beyond the `jsOnly`
  * section at the end — adding a case means editing the data.
  *
- * @module
- *
  * @import { Case, EqCase, Op, Struct, Value } from './types.ts'
  */
 

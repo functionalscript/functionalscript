@@ -131,9 +131,9 @@ all four aliases off the generic tree and nothing else.
   leaf-parameterized `Tree<P>` with the optional object index signature, which
   `json.Unknown` and the extended value domain both instantiate. This task is
   now about sharing that shape with `djs` rather than introducing it.
-- [157](./157.md) — shares JSON/DJS parser value machinery; complementary to
+- [157](./157-json-djs-shared-value-machine.md) — shares JSON/DJS parser value machinery; complementary to
   sharing the recursive value type.
-- [197](./197.md) — extracts traversal over the same `Unknown` shape.
+- [197](./197-djs-unknown-shape-walker.md) — extracts traversal over the same `Unknown` shape.
 - `fjs/media/json/types.ts` — current JSON recursive type aliases.
 - `fjs/djs/types.ts` — current DJS recursive type aliases.
 - `fjs/media/json/serializer/module.f.mjs` — its `treeSerialize` walks

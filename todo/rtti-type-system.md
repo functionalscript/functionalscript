@@ -1,4 +1,4 @@
-# RTTI as the type system
+## RTTI as the type system
 
 **Priority:** P3
 **Status:** open
@@ -638,7 +638,7 @@ it as scoped to the object shapes TypeScript can name.
 | TypeScript emission | [`ts/module.f.mjs`](../fjs/rtti/ts/module.f.mjs) | done as a printer — but it and `Ts<>` disagree on `unknown` and on tuple openness, by its own doc comment, so it is not yet a faithful `.d.ts` generator |
 | Compile-time bridge | `Ts<T>` in [`ts/types.ts`](../fjs/rtti/ts/types.ts) | done, and transitional — see Problem |
 | Annotation convention | — | not started |
-| Compile-time evaluation | [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) | not started |
+| Compile-time evaluation | [`fjs/fsc/todo/047-fsc-meta-programming.md`](../fjs/fsc/todo/047-fsc-meta-programming.md) | not started |
 | Inference | [type inference](../spec/todo/3370-type-inference.md) | not started — most of the work |
 | Function schemas | [668-rtti-function-types](../fjs/rtti/todo/668-rtti-function-types.md) | not started — and **nearly half** the tree's JSDoc type bodies are function types (~46% when measured in review of #1719; counts drift, so re-measure rather than cite this), so it gates a large share of stage 11 |
 | Generic schemas | the eDSL itself | **value layer done** — a schema-to-schema function needs no feature; only `.d.ts` / `Ts<>` rendering is missing |
@@ -862,7 +862,7 @@ are stated instead:
 - **1's renderer half** can start today; its declaration-emission half needs a
   schema for every export, so it waits for stage 6 or an explicit manifest.
 - **3 onward** are gated on the compiler; **4 onward** additionally on
-  compile-time evaluation ([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)).
+  compile-time evaluation ([`fjs/fsc/todo/047-fsc-meta-programming.md`](../fjs/fsc/todo/047-fsc-meta-programming.md)).
 - **7 splits, and the halves sit on either side of 6.** 7 as one unit is a
   cycle: 6's general form needs a function case in RTTI, while 7's
   definition-checking needs the body's *inferred* result, which is 6. The seam
@@ -1020,7 +1020,7 @@ are stated instead:
       cleaner than inspecting the body's first character; neither adds a
       grammar, and neither needs the expression parser.
 - [ ] **4. Evaluate an annotation at compile time**
-      ([`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md)) — the binding the name
+      ([`fjs/fsc/todo/047-fsc-meta-programming.md`](../fjs/fsc/todo/047-fsc-meta-programming.md)) — the binding the name
       resolves to must be reducible to a schema value, and the error when it is
       not is a compile error.
 
@@ -1033,7 +1033,7 @@ are stated instead:
       anything; may throw, which must become a diagnostic rather than a
       compiler crash; and may be effectful, in which case it runs with whatever
       privileges the compiler has.
-      [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) does not state a policy
+      [`fjs/fsc/todo/047-fsc-meta-programming.md`](../fjs/fsc/todo/047-fsc-meta-programming.md) does not state a policy
       today. So this stage needs the same answer stage 10 does — static schema
       metadata consultable without evaluating, or an explicit
       sandboxed-and-bounded evaluation policy — and it is the same question a
@@ -1743,7 +1743,7 @@ splits around inference, so the runnable order is 668's representation half
 
 **Design background:**
 
-- [141](../fjs/types/todo/141.md) — the earlier, more abstract form of this idea:
+- [141](../fjs/types/todo/141-universal-rtti-type-system.md) — the earlier, more abstract form of this idea:
   a `TypeSystem<T>` interface with `equal`/`subset`, and a parser recognizing
   `Ts<typeof t>`. `subset` shipped in
   [`rtti/data`](../fjs/rtti/data/module.f.mjs); the parser half is this
@@ -1776,7 +1776,7 @@ splits around inference, so the runnable order is 668's representation half
 
 **Depends on:**
 
-- [`fjs/fsc/todo/47.md`](../fjs/fsc/todo/47.md) — the compiler loading and
+- [`fjs/fsc/todo/047-fsc-meta-programming.md`](../fjs/fsc/todo/047-fsc-meta-programming.md) — the compiler loading and
   running modules as meta-programming, which is what compile-time evaluation of
   an annotation *is*. **Stage 4 onward** needs it — stage 3 is comment
   recognition plus resolving one identifier against the module's bindings, which

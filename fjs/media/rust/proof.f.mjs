@@ -1,7 +1,5 @@
 /**
  * Proofs for Rust source literals.
- *
- * @module
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'

@@ -1,9 +1,9 @@
-# Walk a container schema by own indices, or keep walking it by iteration
+## Walk a container schema by own indices, or keep walking it by iteration
 
 **Priority:** P4
 **Status:** open — a decision about the canonical data form, not a patch to one reader
 
-## Problem
+### Problem
 
 Every reader of a container schema walks it by **iteration**:
 [`../common/module.f.mjs`](../common/module.f.mjs)'s `tupleSchemaEntries` with
@@ -44,7 +44,7 @@ FunctionalScript can express neither schema — it has no symbols and no mutatio
 neither can be pinned by a `.f.mjs` proof. That is also the reason the current
 behaviour is documented rather than guarded.
 
-## Proposal
+### Proposal
 
 Undecided; the two options are not a ladder.
 
@@ -75,7 +75,7 @@ the second is bounded by its length — while spellings that differ only in how
 they say "nothing there" answer alike on the same values. Neither decision is a
 prerequisite for the other.
 
-## Tasks
+### Tasks
 
 - [ ] Decide between iteration and own indices for a container schema walk.
 - [ ] If own indices win, change `tupleSchemaEntries` and `containerUnion`
@@ -83,7 +83,7 @@ prerequisite for the other.
 - [ ] Re-word "A hole is a declared position" in `../README.md` to match
       whichever is chosen.
 
-## Related
+### Related
 
 - [`../common/module.f.mjs`](../common/module.f.mjs) — `tupleSchemaEntries`,
   whose doc comment records why iteration is the current choice.

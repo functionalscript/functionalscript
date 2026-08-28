@@ -48,7 +48,7 @@ export const setupTool =
 - Five real call sites today, all shipping.
 - It is the textbook `AGENTS.md` case: identical shape, only data (action
   descriptor, version key/value) varies.
-- It is **complementary to, not a duplicate of, [i170](./170.md)**.
+- It is **complementary to, not a duplicate of, [i170](./170-ci-tool-step-builder.md)**.
   That issue extracts the *step sequence* `toolSteps(setup, cmds)` and
   deliberately takes the install step as a pre-built input
   (`ci/bun`'s per-OS `installOnWindowsArm` is why). This issue is the missing
@@ -70,7 +70,7 @@ export const setupTool =
 
 ### Related
 
-- [i170](./170.md) — the `toolSteps` step-sequence builder; this factory feeds
+- [i170](./170-ci-tool-step-builder.md) — the `toolSteps` step-sequence builder; this factory feeds
   it. This entry used to read `i170/i171`, but the retired `i171` is not a CI
   issue: it was `tf: stop relying on JS function names to detect throw tests`,
   resolved **won't fix** with the reason recorded in `parseTestSet`'s JSDoc in
@@ -79,7 +79,7 @@ export const setupTool =
   [66h-ci-npm-global-install](./66h-ci-npm-global-install.md) and
   [66a-ci-cargo-step-factory](./66a-ci-cargo-step-factory.md) already have it.
 - `i136` (retired; shipped as [`fjs/ci/config/module.f.mjs`](../config/module.f.mjs)),
-  [i138](./138.md) — tool-version lock file; the pinned versions threaded into
+  [i138](./138-lock-file-update-script.md) — tool-version lock file; the pinned versions threaded into
   `setupTool` are exactly the values that module exports. Making the lock
   loadable as JSON instead is
   [replace-npm-check-updates-with-an-internal-script](./replace-npm-check-updates-with-an-internal-script.md).

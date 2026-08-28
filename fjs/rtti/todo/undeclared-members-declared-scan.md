@@ -1,9 +1,9 @@
-# `undeclaredMembers` scans `declared` linearly per member
+## `undeclaredMembers` scans `declared` linearly per member
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 `undeclaredMembers` in [`../common/module.f.mjs`](../common/module.f.mjs)
 answers "is `k` declared?" with `declared.some(d => d === k)` — a linear scan
@@ -21,7 +21,7 @@ route undeclared members through this one walk (which is the point of the
 shared rule; see the function's own doc) — but only the *array* kind at
 scale: a struct's `declared` list is its key list, rarely large.
 
-## Tasks
+### Tasks
 
 - [ ] Answer membership in O(1): build the membership test once from
       `declared` (`new Set(declared)` is the §3.1-sanctioned construction)

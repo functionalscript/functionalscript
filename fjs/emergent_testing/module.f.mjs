@@ -11,14 +11,15 @@
  * @module
  *
  * @import { Operation } from '../effects/types.ts'
+ * @import { Result } from '../types/result/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
  * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunTotals, TestResult, _TestAndPath } from './types.ts'
- * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
+ * @import { All, Await, Catch, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
-import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
+import { allOk, awaitIfPromise, catch_, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import {
     catchStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step,
 } from '../effects/module.f.mjs'
@@ -48,6 +49,14 @@ export const addResult = (totals, r) => ({
     failed: totals.failed + (r.status === 'failed' ? 1 : 0),
     duration: totals.duration + r.duration,
 })
+
+/**
+ * The empty entry list, named so the three places that mean "this leaf has no
+ * sub-tree" share one value rather than three literals.
+ *
+ * @type {readonly _TestAndPath[]}
+ */
+const emptyEntries = []
 
 /** @type {(a: number) => string} */
 const timeFormat = a => {
@@ -176,17 +185,47 @@ const mergeTotals = (a, b) =>
 /**
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(k: string, v: unknown) => (ts: RunTotals) => Effect<O | All, RunTotals, IoChannel>}
+ * @returns {(k: string, v: unknown) => (ts: RunTotals) => Effect<O | All | Catch, RunTotals, IoChannel>}
  */
 const runModule = ({ result, test }) => (k, v) => ts => {
-    /** @type {(entry: _TestAndPath) => Effect<O | All, RunTotals, IoChannel>} */
+    /** @type {(entry: _TestAndPath) => Effect<O | All | Catch, RunTotals, IoChannel>} */
     const one = ([testPath, set]) => {
         // The leaf's shared record is built here, next to the sandbox result it
         // is read from, so the leaf-landed event carries the value already
         // decided — a reporter renders `t`, it does not derive its own.
-        const evaluated = mapStep(
-            test(k, testPath, set),
-            sr => /** @type {const} */ ([testResult(k, testPath, sr), sr]))
+        //
+        // **Reading the returned sub-tree is guarded, because reading it runs
+        // user code.** `collectTests` enumerates what the leaf returned, so an
+        // enumerable getter or a proxy trap in that value throws *here* — and
+        // that is a failure of the leaf which produced it, not of the run.
+        // Unguarded it unwinds the whole traversal, taking with it the results
+        // of every module that had already passed. The read happens before the
+        // leaf is reported, so its failure is part of what gets reported rather
+        // than a correction issued after the fact.
+        const evaluated = step(test(k, testPath, set), sr => {
+            const t = testResult(k, testPath, sr)
+            if (t.status !== 'passed' || set.throws) {
+                return pureOk(/** @type {const} */ ([t, sr, emptyEntries]))
+            }
+            // null marks the call boundary, so paths render as
+            // `outer().inner`; `throws` resets to false inside a return value.
+            const read = /** @type {Effect<Catch, Result<readonly _TestAndPath[], unknown>, NotImplemented>} */ (
+                catch_(() => collectTests([...testPath, null], false, sr.result[1])))
+            return mapStep(
+                read,
+                r => r[0] === 'ok'
+                    ? /** @type {const} */ ([t, sr, r[1]])
+                    // The leaf answers for a tree nothing can read. Its own
+                    // duration is kept — that is what running it took — while
+                    // the result handed to the reporter carries the reading
+                    // failure, so a host that describes a thrown value
+                    // describes this one.
+                    : /** @type {const} */ ([
+                        { ...t, status: 'failed' },
+                        { ...sr, result: r },
+                        emptyEntries,
+                    ]))
+        })
         // Both are still needed after they have been reported, so the reporting
         // call is captured rather than nested inside its own step.
         const reported = historyStep(
@@ -194,24 +233,25 @@ const runModule = ({ result, test }) => (k, v) => ts => {
             ([t, sr]) => result(t, sr, set.throws))
         return step(
             reported,
-            ([, [t, sr]]) => {
+            ([, [t, sr, children]]) => {
                 const total = addResult(zeroTotals, t)
-                if (t.status !== 'passed' || set.throws) {
+                if (children.length === 0) {
                     return pureOk(total)
                 }
-                // Walk return-value sub-tree; null marks the call boundary so
-                // paths render as e.g. `outer().inner`. throws resets to false.
                 return mapStep(
-                    walk([...testPath, null], false, sr.result[1]),
+                    walkEntries(children),
                     sub => mergeTotals(total, sub))
             })
     }
-    /** @type {(path: Path, throws: boolean, v: unknown) => Effect<O | All, RunTotals, IoChannel>} */
-    const walk = (path, throws, v) => {
-        const effects = collectTests(path, throws, v).map(one)
-        return mapStep(allOk(...effects), states => states.reduce(mergeTotals, zeroTotals))
-    }
-    return mapStep(walk([], false, v), delta => mergeTotals(ts, delta))
+    /** @type {(entries: readonly _TestAndPath[]) => Effect<O | All | Catch, RunTotals, IoChannel>} */
+    const walkEntries = entries =>
+        mapStep(allOk(...entries.map(one)), states => states.reduce(mergeTotals, zeroTotals))
+    // The *module's* own export is read unguarded, and that asymmetry is
+    // deliberate rather than an oversight: there is no leaf to attribute it to,
+    // so an unreadable `proof` export is whatever loaded the module's problem.
+    // `fjs t` panics on one; the browser page catches it and reports one failed
+    // module. See `todo/hostile-proof-values.md`.
+    return mapStep(walkEntries(collectTests([], false, v)), delta => mergeTotals(ts, delta))
 }
 
 /** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
@@ -226,7 +266,7 @@ const proofEntries = moduleMap =>
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(moduleMap: ModuleMap) => Effect<O | All, number, IoChannel>}
+ * @returns {(moduleMap: ModuleMap) => Effect<O | All | Catch, number, IoChannel>}
  */
 export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
@@ -279,7 +319,7 @@ const exitCodeStep = e =>
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {Program<O | All | LoadModuleOperations | Write>}
+ * @returns {Program<O | All | Catch | LoadModuleOperations | Write>}
  */
 export const testAll = reporter => options =>
     exitCodeStep(step(loadModuleMap(options.env), runModuleMap(reporter)))

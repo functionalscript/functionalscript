@@ -79,9 +79,11 @@ fixture convention, so each runner implements it truthfully:
   bargain `sandbox` already makes. Virtual proofs use benign fixtures.
 
 `walk` then reads a sub-tree through `catch` and, on the `error` branch, reports
-one failed result at that path instead of panicking — which is what restores
-`exportedTreeThrows` / `returnedTreeThrows`, and gives `fjs t` a behaviour it
-never had. `errorDetails` gets the same treatment at its one call site.
+one failed result at that path instead of panicking — which is what preserves
+the browser's `exportedTreeThrows` / `returnedTreeThrows` (`../browser/proof.mjs`)
+once the traversal is shared, and gives `fjs t` a behaviour it never had. The
+`fjs t` proof carries the same name deliberately, in `../catch.proof.mjs`: one
+behaviour, named once, proven per runner. `errorDetails` gets the same treatment at its one call site.
 
 The work is roughly: the operation and its constructor beside `sandbox`, one
 handler in each runner, the `CommandSet` entries, the `walk` change and its new
@@ -94,13 +96,23 @@ adopting a `then`, and a proof tree refusing to — which are studied together i
 
 ### Tasks
 
-- [ ] Add the `catch` operation, its constructor, and a handler in each of the
-      Node, browser and virtual runners.
-- [ ] Read sub-trees through it in `walk`, reporting an unreadable tree as one
-      failed result at its path rather than a panic.
-- [ ] Prove an unreadable exported tree and an unreadable returned tree, for
-      `fjs t` as well as the browser — the browser has versions of these today
-      and `fjs t` has none.
+- [x] Add the `catch` operation, its constructor, and a handler in the Node and
+      virtual runners. The browser handler waits for the browser interpreter,
+      which is where a browser runner will first dispatch one.
+- [x] Read the *returned* sub-tree through it in `walk`, reporting an unreadable
+      tree as that leaf's failure rather than a panic.
+- [ ] The **exported** tree is still read unguarded, and deliberately: there is
+      no leaf to attribute it to, so an unreadable `proof` export belongs to
+      whatever loaded the module. `fjs t` still panics on one; the browser page
+      still catches it and reports one failed module. Closing *that* asymmetry
+      is a report-shape question (what a non-leaf failure is called) rather than
+      a missing operation, and it is the part of this issue still open.
+- [x] Prove an unreadable returned tree for `fjs t` — `returnedTreeThrows` in
+      `../catch.proof.mjs`, beside `returnedTreeIsStillWalked`. The file is
+      `.mjs` for the reason this whole issue rests on: a runner that reports a
+      throw needs a real `try` to write, so it drives `runModuleMap` through a
+      mock rather than through the virtual runner, and a mock like that cannot
+      be written in `.f.mjs`.
 - [ ] Read a thrown value through it at `errorDetails`' call site.
 
 ### Constraints

@@ -1,7 +1,5 @@
 /**
  * Types for the streaming Patricia trie.
- *
- * @module
  */
 
 /**

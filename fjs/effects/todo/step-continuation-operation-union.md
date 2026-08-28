@@ -1,4 +1,4 @@
-# `step` continuations widen their operation union with a cast
+## `step` continuations widen their operation union with a cast
 
 **Priority:** P3
 **Status:** open

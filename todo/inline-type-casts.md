@@ -1,4 +1,4 @@
-# Audit: inline `/** @type {T} */ (v)` casts
+## Audit: inline `/** @type {T} */ (v)` casts
 
 **Priority:** P2
 **Status:** implemented — 273 of 357 removed or converted; 84 remain, each with a reason below

@@ -1,8 +1,6 @@
 /**
  * Proofs for generated CI flakes.
  *
- * @module
- *
  * @import { NixJob } from './types.ts'
  */
 

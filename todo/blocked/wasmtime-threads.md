@@ -1,4 +1,4 @@
-# Restore Wasmtime coverage for multi-threaded WASM
+## Restore Wasmtime coverage for multi-threaded WASM
 
 **Priority:** P3
 **Status:** blocked

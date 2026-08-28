@@ -1,4 +1,4 @@
-# A token built from a `string` kind needs a cast to become a `JsToken`
+## A token built from a `string` kind needs a cast to become a `JsToken`
 
 **Priority:** P3
 **Status:** open

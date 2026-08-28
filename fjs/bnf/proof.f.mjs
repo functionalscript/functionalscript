@@ -1,6 +1,4 @@
 /**
- * @module
- *
  * @import { Rule } from './types.ts'
  */
 

@@ -29,10 +29,10 @@ treats `as` as a last resort; four copies of one is worse than none).
 `statOp` and `writeBytesOp` omit the JsModule throw, so the copies have
 already drifted slightly.
 
-This is distinct from
-[name-entity-kind-discrimination-once](./name-entity-kind-discrimination-once.md):
-that issue extracts low-level *type predicates* (`isBinFile`/`isJsModule`/
-`isDir`); even after it lands, each site still repeats this mid-level
+This is distinct from name-entity-kind-discrimination-once (retired; shipped
+as `isBinFile`, `isJsModule`, and `isDir` in
+[`../module.f.mjs`](../module.f.mjs)): that issue extracted low-level *type
+predicates*; even with them landed, each site still repeats this mid-level
 guard-and-select block.
 
 ### Proposal
@@ -71,7 +71,8 @@ casts disappear with it.
 
 ### Related
 
-- [name-entity-kind-discrimination-once](./name-entity-kind-discrimination-once.md)
-  — lower-level predicates; composes with this.
+- name-entity-kind-discrimination-once (retired; shipped as `isBinFile`,
+  `isJsModule`, and `isDir` in [`../module.f.mjs`](../module.f.mjs)) —
+  lower-level predicates; composes with this.
 - [dir-spine-descend](./dir-spine-descend.md) — the leaf functions there
   would call this resolver.

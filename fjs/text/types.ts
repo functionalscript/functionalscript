@@ -1,7 +1,5 @@
 /**
  * Types for indented text blocks and UTF-8 bit vectors.
- *
- * @module
  */
 
 import type { Vec } from '../types/bit_vec/types.ts'

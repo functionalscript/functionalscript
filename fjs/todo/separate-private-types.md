@@ -216,8 +216,11 @@ Do not try to exclude `private.ts` from *checking*. Exclude the generated
 "files": ["**/*.js", "**/*.d.ts", "**/*.mjs", "**/*.d.mts", "!**/private.d.ts"]
 ```
 
-Measured with `npm pack --dry-run --json`: 675 packed files become 659, and the
-16 that disappear are exactly the 16 emitted `private.d.ts`.
+Measured with `npm pack --dry-run --json`: the packed file count drops by
+exactly 16, and the 16 that disappear are exactly the 16 emitted
+`private.d.ts` — nothing else moves. The totals were 677 → 661 when last
+re-measured; they drift as modules are added, so the invariant is the claim,
+not the absolute figures.
 
 Prefer this to a deletion step in `prepack`. It needs no script, no directory
 walk, and no proof for a path predicate; `prepack` keeps doing exactly what it
@@ -288,9 +291,10 @@ point of preferring a check to a sweep.
 Measured on the tree at the time of writing, with the tarball installed into a
 scratch consumer and the 16 `private.d.ts` removed from it:
 
-- the remaining 377 declarations type-check with `skipLibCheck: false` — exit
-  `0`, so the exclusion is safe today (the `private.ts` mentions that survive
-  emit are JSDoc `@import` comments, which are inert);
+- every remaining declaration type-checks with `skipLibCheck: false` — exit
+  `0` (378 of them when last re-measured), so the exclusion is safe today: the
+  `private.ts` mentions that survive emit are JSDoc `@import` comments, which
+  are inert;
 - appending a real `import type { … } from './private.js'` to one packed
   declaration turns that exit `2` with `TS2307`, so the check is falsifiable;
 - and the gap the first of those describes is not hypothetical: with that
@@ -313,7 +317,7 @@ typed `_BigFloatWithRemainder`:
    and the specifier keeps its `.ts` extension, as declaration emit does for
    `types.ts`;
 2. `npm pack` with the `files` negation ships **0** `private.d.ts`;
-3. installing that tarball and type-checking all 377 declarations exits `2`
+3. installing that tarball and type-checking every packed declaration exits `2`
    with `TS2307` naming that line;
 4. and throughout, **every in-repo gate stays green** — `npx tsc` exits `0` and
    `npm pack` succeeds with the violation in place. That is the claim at the
@@ -353,9 +357,9 @@ When Stage 1 is implemented:
 - rewrite the "Private JSDoc typedefs" section of `fjs/fsc/README.md`: authors
   no longer create file-scope `_` typedefs; keep the leak-tolerance contract
   for emitted `_` names and shipped `private.d.ts` until Stage 2;
-- delete or narrow `todo/blocked/jsdoc-typedef-strip-internal.md`: this design
-  supersedes waiting for `@internal`/`stripInternal`, so the repository does not
-  keep two conflicting private-type strategies;
+- **done** — `jsdoc-typedef-strip-internal` was deleted with Stage 1: this
+  design supersedes waiting for `@internal`/`stripInternal`, so the repository
+  does not keep two conflicting private-type strategies;
 - sweep the remaining Markdown documents repo-wide — `todo/` issues, plans,
   and READMEs — for text that prescribes adding a file-scope JSDoc `@typedef`
   to an authored `.mjs` or defers private types to `@internal`/`stripInternal`,
@@ -557,6 +561,8 @@ type-only and use named `import type { ... }` imports.
 - [`../ci/todo/ci-integration-tests.md`](../ci/todo/ci-integration-tests.md)
   — owns the `npm pack` artifact hand-off and the CI generator's job-ordering
   edge that job rests on.
+- jsdoc-typedef-strip-internal (retired; deleted with Stage 1, which supersedes
+  it) — the former wait-for-`@internal`/`stripInternal` strategy.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
   — upstream JSDoc typedef stripping limitation; superseded as this design's
   strategy, since no authored `.mjs` declares a typedef to strip.

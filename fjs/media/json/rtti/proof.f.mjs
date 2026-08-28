@@ -1,8 +1,6 @@
 /**
  * Proof for the JSON rtti schemas.
  *
- * @module
- *
  * @import { ValidateE } from '../../../rtti/common/types.ts'
  * @import { Unknown } from '../../../rtti/ts/types.ts'
  */

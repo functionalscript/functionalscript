@@ -1,15 +1,15 @@
-# Exclude specific string values from a schema
+## Exclude specific string values from a schema
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 rtti's `Type` ADT has no negation. `Const`, `Tag0`/`Tag1`, and `Or` are all *positive*
 — they state what a value must match, never what it must not be. There is no way to
 write "any string except these" as a schema.
 
-## Why it matters for `../../edag`
+### Why it matters for `../../edag`
 
 `index`'s `string` branch (`../../edag/module.f.mjs`) is meant to admit any property
 name *except* `'__proto__'` and `'constructor'` — see "the current decision is to
@@ -31,12 +31,12 @@ Which of these is worth it depends on whether any other schema in the codebase t
 out to need the same "all but a few" shape; if `edag` stays the only caller, the
 layered check is probably simpler than growing the `Type` ADT for one consumer.
 
-## Related
+### Related
 
 - [`../../edag/module.f.mjs`](../../edag/module.f.mjs) — `index`'s doc comment
   notes the gap and points here.
 - [`../../../spec/todo/2330-property-accessor.md`](../../../spec/todo/2330-property-accessor.md)
   — the prohibited-name list this would enforce.
-- [Closed containers](../README.md#closed-containers) — the other extension to the
+- [Structs and tuples are closed](../README.md#structs-and-tuples-are-closed) — the other extension to the
   `Type` ADT (exact/closed containers), for comparison: it shipped because its
   data-form mapping was worked out end to end first; this one has no mapping yet.

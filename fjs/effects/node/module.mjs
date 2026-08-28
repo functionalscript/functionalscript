@@ -494,6 +494,9 @@ const runNodeEffect = asyncRun({
     forever: () => new Promise(() => {}),
     now: async () => ok(now()),
     sandbox: async f => ok(await sandbox(f)),
+    // A pure thunk over a value the program already has: no clock, no fixture
+    // convention, just "did it throw". See `Catch` in ./types.ts.
+    catch: async f => ok(tryCatch(f)),
     await: async p => ok(await awaitPromise(p)),
     write: async (stream, data) => ok(await writeAll(streams[stream], fromVec(data))),
     read: async () => ok(await readStdinByte()),

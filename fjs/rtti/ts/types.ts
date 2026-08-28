@@ -6,8 +6,6 @@
  *
  * The runtime `toTs` function (`printer` in `./module.f.mjs`) mirrors `Ts<T>` at value
  * level, returning a TypeScript type expression string for a given RTTI schema.
- *
- * @module
  */
 
 import type { And, Equal } from '../../types/ts/types.ts'

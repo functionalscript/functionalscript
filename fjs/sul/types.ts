@@ -1,7 +1,5 @@
 /**
  * Type-level API for the full SUL streaming encoder.
- *
- * @module
  */
 
 import type { InternalState } from '../types/patricia_trie/types.ts'

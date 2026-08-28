@@ -1,7 +1,5 @@
 /**
  * Types for B-tree lookup results and paths.
- *
- * @module
  */
 
 import type { Index } from '../../array/types.ts'

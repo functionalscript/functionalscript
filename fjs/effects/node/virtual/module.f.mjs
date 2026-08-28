@@ -684,6 +684,11 @@ const map = {
     // See: issues/156-tf-virtual-tests.md
     sandbox: f => state => [state, ok(/** @type {SandboxResult<unknown>} */ (f()))],
     await: p => state => [state, ok([p])],
+    // A pure runner cannot catch, so this reports what the thunk returned and a
+    // throw still panics — the same bargain `sandbox` above already makes.
+    // Virtual proofs use benign fixtures; the hostile ones belong to a runner
+    // that has a real `try`. See `Catch` in `../types.ts`.
+    catch: f => state => [state, ok(ok(f()))],
     write: (stream, data) => state => {
         const s = utf8ToString(data)
         return [{ ...state, [stream]: `${state[stream]}${s}` }, okVoid]

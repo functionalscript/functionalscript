@@ -1,4 +1,4 @@
-# Additional strictness flags for `tsconfig.json`
+## Additional strictness flags for `tsconfig.json`
 
 **Priority:** P2
 **Status:** wip

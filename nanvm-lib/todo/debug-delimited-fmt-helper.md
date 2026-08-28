@@ -63,5 +63,5 @@ decide with the code in front of you.
 
 ### Related
 
-- [159](./159.md) — lists `ContainerFmt` as an "already-correct abstraction
+- [159](./159-collapse-per-type-wrapper-traits.md) — lists `ContainerFmt` as an "already-correct abstraction
   to leave alone"; this issue is about the two impls that fail to consume it.

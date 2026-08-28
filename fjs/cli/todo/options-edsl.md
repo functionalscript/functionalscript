@@ -68,8 +68,9 @@ Design first, then migrate. The design should settle:
 
 - [positional-arity-check](./positional-arity-check.md) — subsumed by
   declared positional parameters.
-- [dispatch-help-rendering](./dispatch-help-rendering.md) — the help
-  rendering that declared options must plug into.
+- dispatch-help-rendering (retired; shipped as `renderHelp` in
+  [`../module.f.mjs`](../module.f.mjs)) — the help rendering that declared
+  options must plug into.
 - `fjs/todo/66g-fjs-run-commands.md` — the `Commands` reshaping to
   coordinate with.
 - [fjs/cas 66g-cas-get-verify-option](../../cas/todo/66g-cas-get-verify-option.md)

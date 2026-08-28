@@ -1,6 +1,4 @@
 /**
- * @module
- *
  * @import { Ast, AstTag } from './matcher/types.ts'
  * @import { Rule } from './types.ts'
  * @import { _AstChild, _AstNode, _Leaf, _Parts } from './private.ts'

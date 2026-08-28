@@ -79,7 +79,7 @@ still leaves layers 1–2 duplicated but is a one-line change per file.
 
 ### Related
 
-- [159](./159.md) — wrapper-trait boilerplate cluster; its Notes flag the
+- [159](./159-collapse-per-type-wrapper-traits.md) — wrapper-trait boilerplate cluster; its Notes flag the
   `string_coercion.rs` copy. Update that note when this lands.
 - [65y-nanvm-conversion-macros.md](./65y-nanvm-conversion-macros.md) —
   adjacent conversion boilerplate; different site.

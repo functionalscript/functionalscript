@@ -1,9 +1,9 @@
-# Canonical `stringifySorted` export
+## Canonical `stringifySorted` export
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 The composition `stringify(sort)` — serialize JSON with object keys sorted,
 the repo's canonical order-independent serialization — is re-derived and
@@ -35,7 +35,7 @@ single discoverable definition. Readers meeting `jsonStr` in one proof and
 a future change to the canonical form (e.g. a different key ordering) has
 no single point of definition.
 
-## Proposal
+### Proposal
 
 Export the composition once from `fjs/media/json/module.f.mjs`, which already
 imports from `fjs/types/object` (so the `sort` dependency adds nothing new):
@@ -52,7 +52,7 @@ inside. Hoisting the composition to module scope at each consumer also
 aligns with the `AGENTS.md` rule on binding call-invariant partial
 applications once.
 
-## Tasks
+### Tasks
 
 - [ ] Add `stringifySorted` to `fjs/media/json/module.f.mjs` with proof
       coverage in `fjs/media/json/proof.f.mjs` (which itself calls
@@ -61,7 +61,7 @@ applications once.
       `fjs/djs/module.f.mjs`), then the proof files.
 - [ ] Run `npx tsc` and `fjs t`.
 
-## Related
+### Related
 
 - `fjs/media/json/serializer/module.f.mjs` — `colon` is exported there and
   shared with the djs serializer; that deduplication was separate from this
