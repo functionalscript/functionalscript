@@ -25,6 +25,21 @@ Open questions:
 
 - [ ] Define the scenario interface (`export const main: NodeProgram` or similar).
 - [ ] Implement the artifact publish step in the CI generator (run `npm pack`, upload as a GitHub Actions artifact).
+- [ ] Teach the CI generator to express job ordering, so a consuming job cannot
+      start before the artifact is uploaded. `jobSchema` in
+      `fjs/ci/common/module.f.mjs` is deliberately **closed** and names only
+      `runs-on` and `steps`, and it is the same schema `parseGitHubAction`
+      reads the generated workflow back through (`fjs/ci/proof.f.mjs`), so a
+      bare `needs:` key would fail that round-trip rather than merely being
+      unmodelled. Add `needs: or(option, array(string))` — the optional-field
+      idiom already used in `stepSchema` — which widens `Job` in
+      `fjs/ci/common/types.ts`, and cover the new field in the proof. Without
+      it the two stages race and the consumer fails at `download-artifact`:
+      red for the wrong reason, which is the one failure mode that trains
+      people to re-run a check instead of reading it. This blocks the stage
+      split below and the packed-declaration check in
+      [`../../todo/separate-private-types.md`](../../todo/separate-private-types.md)
+      alike, so it is owned here rather than by either consumer.
 - [ ] Implement scenario job generation: download artifact, install, run `main`.
 - [ ] Port existing demo/smoke-test steps (`fjs t`, `deno run … t`, `bunx … t`) to the scenario model.
 - [ ] Document the scenario authoring convention.
