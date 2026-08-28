@@ -175,48 +175,64 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             // The result stays in the report the run resolves with.
         }
     }
-    // Reading a module's exported tree runs user code, and the shared traversal
-    // deliberately does not guard that one: there is no leaf to attribute it
-    // to, so `fjs t` panics and the page does this instead. A module that
-    // cannot be enumerated is one failed module, never a run that ends without
-    // a report. See `todo/hostile-proof-values.md`.
-    //
-    // The export is read **once**, here, and the leaves go on to `runEntries`:
-    // enumerating is not idempotent, so a preliminary read that only checked
-    // whether the tree can be enumerated would run every getter in it a second
-    // time — and a getter that succeeds once and throws next would escape as a
-    // synchronous throw, leaving the page in `running` with no report at all.
-    /** @type {readonly (readonly ['ok', string, readonly _TestAndPath[]] | readonly ['failed', _BrowserTestResult])[]} */
-    const prepared = modules.map(([module, proof]) => {
-        try {
-            return /** @type {const} */ (['ok', module, collectTests([], false, proof)])
-        } catch (error) {
-            const [message, stack] = errorDetails(error)
-            return /** @type {const} */ (['failed', moduleFailure(module, 0, message, stack)])
+    /**
+     * Everything that runs user code, held until the caller has this run's
+     * promise.
+     *
+     * A leaf executes synchronously inside its handler — that is what staggers
+     * the traversal's siblings — so without this the first slice of proofs
+     * would run while `runBrowserProofs` was still building what it returns,
+     * before `startBrowserTests` had published the promise as
+     * `fjsBrowserTestReport`. A proof that reads the run it belongs to would
+     * see the previous run's, or nothing. Enumerating an export is user code
+     * too, so it waits here as well.
+     *
+     * @type {() => Promise<Result<readonly _BrowserTestResult[], IoChannel>>}
+     */
+    const started = () => {
+        // Reading a module's exported tree runs user code, and the shared traversal
+        // deliberately does not guard that one: there is no leaf to attribute it
+        // to, so `fjs t` panics and the page does this instead. A module that
+        // cannot be enumerated is one failed module, never a run that ends without
+        // a report. See `todo/hostile-proof-values.md`.
+        //
+        // The export is read **once**, here, and the leaves go on to `runEntries`:
+        // enumerating is not idempotent, so a preliminary read that only checked
+        // whether the tree can be enumerated would run every getter in it a second
+        // time — and a getter that succeeds once and throws next would escape as a
+        // synchronous throw, leaving the page in `running` with no report at all.
+        /** @type {readonly (readonly ['ok', string, readonly _TestAndPath[]] | readonly ['failed', _BrowserTestResult])[]} */
+        const prepared = modules.map(([module, proof]) => {
+            try {
+                return /** @type {const} */ (['ok', module, collectTests([], false, proof)])
+            } catch (error) {
+                const [message, stack] = errorDetails(error)
+                return /** @type {const} */ (['failed', moduleFailure(module, 0, message, stack)])
+            }
+        })
+        // The page's modules are a *list*, and nothing stops it naming the same
+        // module twice: two entries with one label are two runs, in the order they
+        // were passed, so they are run as a list rather than folded into a map
+        // keyed by name.
+        /** @type {(e: (typeof prepared)[number]) => Effect<Sandbox | Catch | All | _BrowserReport, readonly _BrowserTestResult[], IoChannel>} */
+        const runOne = e => e[0] === 'ok'
+            ? mapStep(runEntries(browserReporter)(e[1], e[2]), o => o.results)
+            // A module failure has no leaf to be reported by, so it is handed to
+            // the same `report` operation directly: the page renders it as it
+            // lands, in the position the module was passed in, exactly like a leaf.
+            : mapStep(report(e[1]), r => /** @type {readonly _BrowserTestResult[]} */ ([r]))
+        const all = mapStep(allOk(...prepared.map(runOne)), lists => lists.flat())
+        /** @type {ToAsyncOperationMap<_BrowserReport>} */
+        const page = {
+            // The page's end of the `report` operation: render as it lands, and
+            // answer the record back so the traversal can keep it in order.
+            report: async r => {
+                announce(r)
+                return ok(r)
+            },
         }
-    })
-    // The page's modules are a *list*, and nothing stops it naming the same
-    // module twice: two entries with one label are two runs, in the order they
-    // were passed, so they are run as a list rather than folded into a map
-    // keyed by name.
-    /** @type {(e: (typeof prepared)[number]) => Effect<Sandbox | Catch | All | _BrowserReport, readonly _BrowserTestResult[], IoChannel>} */
-    const runOne = e => e[0] === 'ok'
-        ? mapStep(runEntries(browserReporter)(e[1], e[2]), o => o.results)
-        // A module failure has no leaf to be reported by, so it is handed to
-        // the same `report` operation directly: the page renders it as it
-        // lands, in the position the module was passed in, exactly like a leaf.
-        : mapStep(report(e[1]), r => /** @type {readonly _BrowserTestResult[]} */ ([r]))
-    const all = mapStep(allOk(...prepared.map(runOne)), lists => lists.flat())
-    /** @type {ToAsyncOperationMap<_BrowserReport>} */
-    const page = {
-        // The page's end of the `report` operation: render as it lands, and
-        // answer the record back so the traversal can keep it in order.
-        report: async r => {
-            announce(r)
-            return ok(r)
-        },
+        return browserRun(page)(all)
     }
-    const run = browserRun(page)
     /**
      * The run failed as a *runner*, not as a proof. Reporting it as the run's
      * own failure keeps the page out of `running` forever, which is the one
@@ -237,7 +253,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
     // not implement arrives as a rejected promise rather than an `error`.
     // Neither may escape: an unhandled rejection is a page stuck in `running`
     // with no report and no completion event.
-    return run(all).then(outcome => {
+    return Promise.resolve().then(started).then(outcome => {
         if (outcome[0] === 'error') {
             return infrastructureError(outcome[1])
         }

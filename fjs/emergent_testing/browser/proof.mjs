@@ -364,6 +364,20 @@ export const proof = {
             report.results.map(r => r.path),
             ['.a', '.a().b', '.a().b().c', '.a().b().c().d'])
     },
+    // A leaf runs synchronously inside its handler, so a run that started while
+    // its own promise was still being built would execute proofs before the
+    // page had published it. A proof that asks for the run it belongs to gets
+    // this run's promise, never the last one's.
+    aProofSeesItsOwnRunPublished: async () => {
+        const p = page()
+        /** @type {unknown} */
+        let seen = 'never ran'
+        const report = await startBrowserTests(p.root,
+            [['m', { t: () => { seen = p.view.fjsBrowserTestReport } }]])
+        assertEq(report.totals.passed, 1)
+        assertEq(seen, p.view.fjsBrowserTestReport)
+        assert(seen instanceof Promise)
+    },
     exportedTreeIsReadOnce: async () => {
         // The export is enumerated exactly once. A getter that succeeds on the
         // first read and throws on the next is not a module failure here — but
