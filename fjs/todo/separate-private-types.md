@@ -33,9 +33,13 @@ depend on `private.ts`, so no shipped public declaration semantically depends
 on a `private.d.ts` — the shipped file is declaration noise only, the same
 leak the existing `_` tolerance policy
 ([`../fsc/README.md`](../fsc/README.md)) already covers, consolidated into one
-file per module. Deleting it in Stage 2 is therefore not a breaking change,
-and the `_` leak-tolerance policy stays in force until Stage 2 removes the
-last leak.
+file per module. Deleting it in Stage 2 is therefore not a breaking change.
+
+Only the leak-tolerance **contract** survives Stage 1: consumers must not
+depend on emitted `_` names or on a shipped `private.d.ts`, so removing them
+later is not breaking. The **prescription** to create file-scope `_` typedefs
+and the wait-for-`@internal`/`stripInternal` strategy contradict Stage 1 and
+are rewritten as part of it.
 
 A Stage 1 PR checks off the Stage 1 tasks and leaves this file in place; the
 Stage 2 PR deletes it.
@@ -229,15 +233,18 @@ When Stage 1 is implemented:
   may not contain file-scope JSDoc `@typedef`;
 - update `fjs/AGENTS.md` with the public-declaration-closure rule, optional
   `private.ts`, optional subordinate metaprogramming modules such as
-  `meta/module.f.mjs`, and the dependency-order guidance.
+  `meta/module.f.mjs`, and the dependency-order guidance;
+- rewrite the "Private JSDoc typedefs" section of `fjs/fsc/README.md`: authors
+  no longer create file-scope `_` typedefs; keep the leak-tolerance contract
+  for emitted `_` names and shipped `private.d.ts` until Stage 2;
+- delete or narrow `todo/blocked/jsdoc-typedef-strip-internal.md`: this design
+  supersedes waiting for `@internal`/`stripInternal`, so the repository does not
+  keep two conflicting private-type strategies.
 
 When Stage 2 is implemented:
 
-- update `fjs/fsc/README.md` and delete or narrow
-  `todo/blocked/jsdoc-typedef-strip-internal.md` so the repository does not keep
-  two conflicting private-type strategies. Both documents describe the `_`
-  leak-tolerance policy, which remains factually correct until Stage 2 unships
-  the last private declaration.
+- remove the remaining leak-tolerance language for shipped private declarations
+  from `fjs/fsc/README.md`, since no private declaration ships any more.
 
 Authored TypeScript type modules (`types.ts`, and `private.ts` when present) remain
 type-only and use named `import type { ... }` imports.
@@ -270,7 +277,9 @@ type-only and use named `import type { ... }` imports.
       `private.ts`, function-local proof typedefs, recursive RTTI kept in
       `module.f.mjs`, optional `meta/module.f.mjs`, and authored `.mjs` outside
       `fjs/`.
-- [ ] Update root and `fjs/` `AGENTS.md` policy documentation.
+- [ ] Update root and `fjs/` `AGENTS.md` policy documentation; rewrite the
+      `fjs/fsc/README.md` typedef prescription and delete or narrow the blocked
+      `@internal` TODO.
 
 #### Stage 2 — packaging cleanup
 
@@ -281,8 +290,8 @@ type-only and use named `import type { ... }` imports.
 - [ ] Add fixtures covering packaging: retained non-semantic JSDoc `@import`
       comments in emitted declarations, absent private artifacts in the tarball,
       and a clean package consumer.
-- [ ] Update `fjs/fsc/README.md` and reconcile the old `_` leak policy and the
-      blocked `@internal` TODO.
+- [ ] Remove the remaining `_`/`private.d.ts` leak-tolerance language from
+      `fjs/fsc/README.md` once packaging is clean.
 
 ### Acceptance criteria
 
@@ -307,6 +316,11 @@ type-only and use named `import type { ... }` imports.
 - Chosen public import-path moves are breaking migrations with importers/changelog
   updated and no compatibility re-exports.
 - Root `AGENTS.md` and `fjs/AGENTS.md` document the Stage 1 rules.
+- No repository document prescribes creating file-scope JSDoc typedefs or
+  waiting for `@internal`/`stripInternal`: the `fjs/fsc/README.md` typedef
+  section is rewritten and the blocked `@internal` TODO is deleted or narrowed,
+  while the leak-tolerance contract for emitted `_` names and shipped
+  `private.d.ts` remains documented until Stage 2.
 
 #### Stage 2 — packaging cleanup
 
@@ -318,8 +332,8 @@ type-only and use named `import type { ... }` imports.
   comments are allowed when they are non-semantic.
 - The packed artifact has no semantic dependency on an unshipped private type
   module, and a clean TypeScript consumer type-checks successfully.
-- `fjs/fsc/README.md` and the blocked `@internal` TODO no longer prescribe
-  conflicting rules.
+- `fjs/fsc/README.md` no longer documents leak tolerance for shipped private
+  declarations, since none ship.
 
 ### Related
 
