@@ -9,13 +9,13 @@ file; this one is where they are read together.
 
 ### Problem
 
-A type in this repository is written more than once. The same shape is a JSDoc
-`@typedef`, a declaration in a sibling `types.ts`, and — where a value has to be
-checked at run time — an [RTTI](../fjs/rtti/README.md) schema. Nothing
-keeps the three in agreement: `tsc` checks the first two against the code and
-the third against nothing, so a schema and its `@typedef` drift silently, and
-the drift shows up as a value that type-checks and fails validation, or the
-reverse.
+A type in this repository is written more than once. The same shape is a
+declaration in a sibling `types.ts` (or `private.ts`), the JSDoc annotations
+that name it, and — where a value has to be checked at run time — an
+[RTTI](../fjs/rtti/README.md) schema. Nothing keeps them in agreement: `tsc`
+checks the declaration against the code and the schema against nothing, so a
+schema and its declared type drift silently, and the drift shows up as a value
+that type-checks and fails validation, or the reverse.
 
 The bridge that exists runs the wrong way. `Ts<T>`
 ([`fjs/rtti/ts/README.md`](../fjs/rtti/ts/README.md)) maps a schema

@@ -14,89 +14,100 @@ import { renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserT
 import { fmtImport, testResult } from '../module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 
-/** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
-/** @typedef {{ defaultView: _View | null, readonly createElement: (tag: string) => _Element }} _Document */
-/** @typedef {{ events: readonly CustomEvent[], readonly dispatchEvent: (event: Event) => boolean, fjsBrowserTestReport?: Promise<unknown> }} _View */
-
-/** @type {(node: _Element, name: string) => _Element | null} */
-const find = (node, name) =>
-    node.attributes.has(name)
-        ? node
-        : node.children.reduce(
-            (/** @type {_Element | null} */ acc, child) => acc ?? find(child, name),
-            null)
-
-/** @type {(document: _Document, tag: string, attributes: readonly string[], states: string[]) => _Element} */
-const element = (document, tag, attributes, states) => {
-    /** @type {_Element} */
-    const self = {
-        tag,
-        attributes: new Map(attributes.map(name => [name, ''])),
-        ownerDocument: document,
-        textContent: '',
-        children: [],
-        setAttribute: (name, value) => {
-            if (name === 'data-state') { states.push(value) }
-            self.attributes = new Map([...self.attributes, [name, value]])
-        },
-        removeAttribute: name => {
-            self.attributes = new Map([...self.attributes].filter(([key]) => key !== name))
-        },
-        // The runner only ever queries an attribute selector of `[name]` form.
-        querySelector: selector => self.children.reduce(
-            (/** @type {_Element | null} */ acc, child) =>
-                acc ?? find(child, selector.slice(1, -1)),
-            null),
-        replaceChildren: (...nodes) => { self.children = nodes },
-        append: node => { self.children = [...self.children, node] },
-    }
-    return self
-}
-
 /**
- * Builds what the generated page gives the runner: a root carrying the summary
- * paragraph and the result list. `states` records every `data-state` written,
- * so a proof can check the whole progression and not just its last step.
- *
- * @type {(withView?: boolean) => { readonly root: Element, readonly summary: _Element, readonly results: _Element, readonly runButton: _Element, readonly view: _View, readonly states: readonly string[] }}
+ * Builds the DOM stand-in the proofs drive the runner with. A single factory
+ * rather than file-scope helpers so the mutually recursive
+ * element/document/view types can stay function-local.
  */
-const page = (withView = true) => {
-    /** @type {string[]} */
-    const states = []
-    /** @type {_Document} */
-    const document = {
-        defaultView: null,
-        createElement: tag => element(document, tag, [], states),
+const dom = () => {
+    /** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
+    /** @typedef {{ defaultView: _View | null, readonly createElement: (tag: string) => _Element }} _Document */
+    /** @typedef {{ events: readonly CustomEvent[], readonly dispatchEvent: (event: Event) => boolean, fjsBrowserTestReport?: Promise<unknown> }} _View */
+
+    /** @type {(node: _Element, name: string) => _Element | null} */
+    const find = (node, name) =>
+        node.attributes.has(name)
+            ? node
+            : node.children.reduce(
+                (/** @type {_Element | null} */ acc, child) => acc ?? find(child, name),
+                null)
+
+    /** @type {(document: _Document, tag: string, attributes: readonly string[], states: string[]) => _Element} */
+    const element = (document, tag, attributes, states) => {
+        /** @type {_Element} */
+        const self = {
+            tag,
+            attributes: new Map(attributes.map(name => [name, ''])),
+            ownerDocument: document,
+            textContent: '',
+            children: [],
+            setAttribute: (name, value) => {
+                if (name === 'data-state') { states.push(value) }
+                self.attributes = new Map([...self.attributes, [name, value]])
+            },
+            removeAttribute: name => {
+                self.attributes = new Map([...self.attributes].filter(([key]) => key !== name))
+            },
+            // The runner only ever queries an attribute selector of `[name]` form.
+            querySelector: selector => self.children.reduce(
+                (/** @type {_Element | null} */ acc, child) =>
+                    acc ?? find(child, selector.slice(1, -1)),
+                null),
+            replaceChildren: (...nodes) => { self.children = nodes },
+            append: node => { self.children = [...self.children, node] },
+        }
+        return self
     }
-    /** @type {_View} */
-    const view = {
-        events: [],
-        dispatchEvent: event => {
-            view.events = [...view.events, /** @type {CustomEvent} */ (event)]
-            return true
-        },
+
+    /**
+     * Builds what the generated page gives the runner: a root carrying the summary
+     * paragraph and the result list. `states` records every `data-state` written,
+     * so a proof can check the whole progression and not just its last step.
+     *
+     * @type {(withView?: boolean) => { readonly root: Element, readonly summary: _Element, readonly results: _Element, readonly runButton: _Element, readonly view: _View, readonly states: readonly string[] }}
+     */
+    const page = (withView = true) => {
+        /** @type {string[]} */
+        const states = []
+        /** @type {_Document} */
+        const document = {
+            defaultView: null,
+            createElement: tag => element(document, tag, [], states),
+        }
+        /** @type {_View} */
+        const view = {
+            events: [],
+            dispatchEvent: event => {
+                view.events = [...view.events, /** @type {CustomEvent} */ (event)]
+                return true
+            },
+        }
+        if (withView) { document.defaultView = view }
+        const root = element(document, 'main', ['data-browser-tests'], states)
+        root.replaceChildren(
+            element(document, 'p', ['data-test-summary'], states),
+            element(document, 'button', ['data-test-run'], states),
+            element(document, 'ol', ['data-test-results'], states))
+        return {
+            root: /** @type {Element} */ (/** @type {unknown} */ (root)),
+            summary: assertNotNullish(root.querySelector('[data-test-summary]')),
+            results: assertNotNullish(root.querySelector('[data-test-results]')),
+            runButton: assertNotNullish(root.querySelector('[data-test-run]')),
+            view,
+            states,
+        }
     }
-    if (withView) { document.defaultView = view }
-    const root = element(document, 'main', ['data-browser-tests'], states)
-    root.replaceChildren(
-        element(document, 'p', ['data-test-summary'], states),
-        element(document, 'button', ['data-test-run'], states),
-        element(document, 'ol', ['data-test-results'], states))
-    return {
-        root: /** @type {Element} */ (/** @type {unknown} */ (root)),
-        summary: assertNotNullish(root.querySelector('[data-test-summary]')),
-        results: assertNotNullish(root.querySelector('[data-test-results]')),
-        runButton: assertNotNullish(root.querySelector('[data-test-run]')),
-        view,
-        states,
-    }
+
+    /** @type {(element: _Element) => readonly (string | undefined)[]} */
+    const statuses = element => element.children.map(child => child.attributes.get('data-status'))
+
+    return { element, page, statuses }
 }
+
+const { element, page, statuses } = dom()
 
 /** @type {(proof: unknown) => ReturnType<typeof runBrowserProofs>} */
 const run = proof => runBrowserProofs([['proof', proof]])
-
-/** @type {(element: _Element) => readonly (string | undefined)[]} */
-const statuses = element => element.children.map(child => child.attributes.get('data-status'))
 
 export const proof = {
     namedThrow: async () => {
@@ -466,7 +477,7 @@ export const proof = {
         // than throwing.
         /** @type {string[]} */
         const states = []
-        /** @type {_Document} */
+        /** @type {Parameters<typeof element>[0]} */
         const document = {
             defaultView: null,
             createElement: tag => element(document, tag, [], states),

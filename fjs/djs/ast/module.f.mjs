@@ -4,26 +4,14 @@
  * @module
  *
  * @import { Array, Unknown } from '../types.ts'
- * @import { List } from '../../types/list/types.ts'
- * @import { Entry } from '../../types/ordered_map/types.ts'
  * @import { AstConst, AstBody } from './types.ts'
+ * @import { _FoldObjectState, _RunState } from './private.ts'
  */
 
 import { concat, fold, last, map, take, toArray } from '../../types/list/module.f.mjs'
 import { fromEntries } from '../../types/object/module.f.mjs'
 
 const { entries } = Object
-
-/** @typedef {{
- *   readonly body: AstBody
- *   readonly args: Array
- *   readonly consts: List<Unknown>
- * }} _RunState */
-
-/** @typedef {{
- *   readonly runState: _RunState,
- *   readonly entries: List<Entry<Unknown>>
- * }} _FoldObjectState */
 
 /** @type {(ast: AstConst) => (state: _RunState) => _RunState} */
 const foldOp = ast => state => {

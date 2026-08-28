@@ -15,8 +15,6 @@ import { emptyPipelineState, pipelineStep } from './level/literal/module.f.mjs'
 import { encode as hashEncode } from './level/hash/module.f.mjs'
 import { level3Id } from './id/module.f.mjs'
 
-/** @typedef {InternalState<Id>} _HashState */
-
 /** @type {<S>(storage: S) => EncodeState<S>} */
 export const emptyEncodeState = storage =>
     [emptyPipelineState, storage, []]
@@ -30,14 +28,14 @@ export const encode =
     add => {
         const step = hashEncode(add)
 
-        /** @typedef {readonly [Id | undefined, S, readonly _HashState[]]} _CascadeResult */
+        /** @typedef {readonly [Id | undefined, S, readonly InternalState<Id>[]]} _CascadeResult */
 
         // Recursive rather than a `for(;;)` loop: every exit is one of the two
         // `return`s below, so a bare `for(;;)` picks up a phantom "loop falls
         // through" branch that V8's coverage instrumentation can never mark
         // taken — there is no third way out to take it. Recursion has no such
         // branch to begin with.
-        /** @type {(id: Id, storage: S, stacks: readonly _HashState[], index: number) => _CascadeResult} */
+        /** @type {(id: Id, storage: S, stacks: readonly InternalState<Id>[], index: number) => _CascadeResult} */
         const cascadeFrom = (id, storage, stacks, index) => {
             if (index >= stacks.length) {
                 const [, [newStorage, newStack]] = step(id, [storage, []])
@@ -50,7 +48,7 @@ export const encode =
                 : cascadeFrom(out, newStorage, newStacks, index + 1)
         }
 
-        /** @type {(id0: Id, storage0: S, stacks0: readonly _HashState[]) => _CascadeResult} */
+        /** @type {(id0: Id, storage0: S, stacks0: readonly InternalState<Id>[]) => _CascadeResult} */
         const cascade = (id0, storage0, stacks0) => cascadeFrom(id0, storage0, stacks0, 0)
 
         /** @type {(bit: bigint, state: EncodeState<S>) => readonly [Id | undefined, EncodeState<S>]} */

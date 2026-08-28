@@ -13,15 +13,10 @@ import { find } from '../find/module.f.mjs'
 import { fold } from '../../list/module.f.mjs'
 import { assert } from '../../../asserts/module.f.mjs'
 
-/**
- * @template T
- * @typedef {Branch1<T> | Branch3<T>} _Branch1To3
- */
-
-/** @type {<T>(b: Branch5<T> | Branch7<T>) => _Branch1To3<T>} */
+/** @type {<T>(b: Branch5<T> | Branch7<T>) => Branch1<T> | Branch3<T>} */
 const b57 = b => b.length === 5 ? [b] : [[b[0], b[1], b[2]], b[3], [b[4], b[5], b[6]]]
 
-/** @type {<T>(i: PathItem<T>) => (a: _Branch1To3<T>) => _Branch1To3<T>} */
+/** @type {<T>(i: PathItem<T>) => (a: Branch1<T> | Branch3<T>) => Branch1<T> | Branch3<T>} */
 const reduceOp = ([i, x]) => a => {
     switch (i) {
         case 0: {
@@ -57,7 +52,7 @@ const nodeSet = c => g => node => {
     //   readonly[1|3, Branch5<T>]
     /** @type {First<T>} */
     const [i, x] = first
-    /** @type {() => _Branch1To3<T>} */
+    /** @type {() => Branch1<T> | Branch3<T>} */
     const f = () => {
         switch (i) {
             case 0: {

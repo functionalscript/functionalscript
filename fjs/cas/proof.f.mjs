@@ -22,8 +22,6 @@ import { assert, assertEq, assertNotNullish } from '../asserts/module.f.mjs'
 
 const testDir = './test-cas-cli'
 
-/** @typedef {FileCasOperation | WriteFile | ReadFile | Mkdir} _TestOp */
-
 // Names the command a `FileCasOperation` effect stops at, so a proof can assert
 // on it and resume the continuation without reading the `Do` layout. The map
 // has to list every operation the CAS can perform — that is what makes it total,
@@ -152,7 +150,7 @@ const createBigFileContent = () => {
 // and the virtual filesystem cannot remove a *non-empty* directory, so that
 // `rm` had been failing on every run without anything noticing. There is also
 // nothing to clean: each run interprets against a fresh `emptyState`.
-/** @type {() => Effect<_TestOp, void, IoChannel>} */
+/** @type {() => Effect<FileCasOperation | WriteFile | ReadFile | Mkdir, void, IoChannel>} */
 const testAddBigFile = () => {
     const bigFilePath = `${testDir}/big-file.bin`
     const cas = fileCas(sha256)(testDir)
@@ -170,7 +168,7 @@ const testAddBigFile = () => {
 }
 
 // Test adding and retrieving a big file
-/** @type {() => Effect<_TestOp, void, IoChannel>} */
+/** @type {() => Effect<FileCasOperation | WriteFile | ReadFile | Mkdir, void, IoChannel>} */
 const testAddAndGetBigFile = () => {
     const bigContent = createBigFileContent()
     const bigFilePath = `${testDir}/big-file.bin`

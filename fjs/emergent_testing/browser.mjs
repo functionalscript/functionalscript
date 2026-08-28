@@ -15,7 +15,7 @@
  *
  * @module
  *
- * @import { TestResult, _TestAndPath } from './types.ts'
+ * @import { BrowserTestReport, TestResult, _BrowserImporter, _BrowserTestResult, _TestAndPath } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
 
@@ -58,21 +58,6 @@ const errorDetails = error => {
     const fallback = text(error)
     return [fallback, fallback]
 }
-
-/**
- * A leaf's outcome as the page reports it: the shared {@link TestResult} —
- * identity, status and duration, decided by `testResult` rather than here — plus
- * the two fields only a browser report needs.
- *
- * `message` and `stack` are the browser's own part, and stay outside the shared
- * record for the reason `TestResult` gives: describing a thrown value needs the
- * value, a serializable report cannot carry one, and `fjs t` describes it
- * differently because it is writing to a terminal rather than to a wire.
- *
- * @typedef {TestResult & { readonly message?: string, readonly stack?: string }} _BrowserTestResult
- */
-
-/** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
 
 /**
  * A failure of a whole module — one that will not link, or whose `proof` export
@@ -278,11 +263,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
     return completed.then(results => reportOf(performance.now() - start, results))
 }
 
-/** @typedef {(source: string) => Promise<{ readonly proof?: unknown }>} _BrowserImporter */
-/** @typedef {{ readonly status: 'loaded', readonly source: string, readonly proof: unknown } | { readonly status: 'error', readonly source: string, readonly error: unknown }} _LoadedModule */
-/** @typedef {Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }} _TestWindow */
-
-/** @type {(root: Element) => _TestWindow | null} */
+/** @type {(root: Element) => (Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }) | null} */
 const viewOf = root => root.ownerDocument.defaultView
 
 /**
@@ -310,6 +291,7 @@ const publish = (root, report) => {
  * @type {(root: Element, sources: readonly string[], importer: _BrowserImporter) => Promise<BrowserTestReport>}
  */
 export const startBrowserTestSources = (root, sources, importer) => {
+    /** @typedef {{ readonly status: 'loaded', readonly source: string, readonly proof: unknown } | { readonly status: 'error', readonly source: string, readonly error: unknown }} _LoadedModule */
     const start = performance.now()
     setState(root, 'loading')
     let loaded = 0
