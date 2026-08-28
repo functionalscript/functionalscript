@@ -256,6 +256,10 @@ carries `option` admits the absent member — and its hole — again.
   [`../../../todo/blocked/bun-optional-chain-parentheses.md`](../../../todo/blocked/bun-optional-chain-parentheses.md),
   and whatever else a sweep for chain spellings finds — released
   `changelog/` entries stay as written, history rather than prescription
+- [ ] `changelog/unreleased/<PR>.md`, prefixed `**BREAKING CHANGES:**`, with
+  the matching `Changelog:` section in the PR description ([`AGENTS.md`](../../../AGENTS.md)
+  §5): previously valid graphs and the exported types stop accepting the
+  `null`-terminated shape, and every importer is updated in the same PR
 
 ## Related
 
