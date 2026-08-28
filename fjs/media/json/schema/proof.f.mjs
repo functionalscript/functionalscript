@@ -8,7 +8,7 @@
 import { boolean, number, string, bigint, never, unknown, array, open, record, or, option } from '../../../rtti/module.f.mjs'
 import { stringify } from '../module.f.mjs'
 import { dataToJsonSchema, toJsonSchema, unknown as schemaUnknown } from './module.f.mjs'
-import { unitBit } from '../../../rtti/data/module.f.mjs'
+import { absentBit, unitBit } from '../../../rtti/data/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
 /** @type {(v: Ts<typeof schemaUnknown>) => string} */
@@ -78,13 +78,13 @@ export const proof = {
             minItems: 2,
             items: false,
         }),
-        withOptional: eq(/** @type {const} */ ([number, option(string)]), {
+        withOptional: eq(/** @type {const} */ ([number, or(option, string)]), {
             type: 'array',
             prefixItems: [{ type: 'number' }, { type: 'string' }],
             minItems: 1,
             items: false,
         }),
-        allOptional: eq(/** @type {const} */ ([option(number)]), {
+        allOptional: eq(/** @type {const} */ ([or(option, number)]), {
             type: 'array',
             prefixItems: [{ type: 'number' }],
             items: false,
@@ -105,13 +105,13 @@ export const proof = {
             required: ['x', 'y'],
             additionalProperties: { not: {} },
         }),
-        withOptional: eq(/** @type {const} */ ({ x: number, y: option(string) }), {
+        withOptional: eq(/** @type {const} */ ({ x: number, y: or(option, string) }), {
             type: 'object',
             properties: { x: { type: 'number' }, y: { type: 'string' } },
             required: ['x'],
             additionalProperties: { not: {} },
         }),
-        allOptional: eq(/** @type {const} */ ({ x: option(number) }), {
+        allOptional: eq(/** @type {const} */ ({ x: or(option, number) }), {
             type: 'object',
             properties: { x: { type: 'number' } },
             additionalProperties: { not: {} },
@@ -128,9 +128,18 @@ export const proof = {
             properties: { x: { type: 'number' }, y: { type: 'string' } },
             required: ['x', 'y'],
         }),
-        orOptional: eq(/** @type {const} */ ({ x: or(string, number, undefined) }), {
+        orOptional: eq(/** @type {const} */ ({ x: or(option, string, number) }), {
             type: 'object',
             properties: { x: { anyOf: [{ type: 'number' }, { type: 'string' }] } },
+            additionalProperties: { not: {} },
+        }),
+        // a present `undefined` no longer spells optionality: the key is
+        // required, and `stripUndefined` under-approximates its schema —
+        // JSON has no way to write the `undefined` case
+        orPresentUndefined: eq(/** @type {const} */ ({ x: or(string, undefined) }), {
+            type: 'object',
+            properties: { x: { type: 'string' } },
+            required: ['x'],
             additionalProperties: { not: {} },
         }),
         withConst: eq(/** @type {const} */ ({ x: null, y: string }), {
@@ -140,12 +149,12 @@ export const proof = {
             additionalProperties: { not: {} },
         }),
         optionalOfEveryKind: eq(/** @type {const} */ ({
-            a: option(number),
-            b: option(string),
-            c: option(bigint),
-            d: option(array(number)),
-            e: option(record(string)),
-            f: or(null, undefined),
+            a: or(option, number),
+            b: or(option, string),
+            c: or(option, bigint),
+            d: or(option, array(number)),
+            e: or(option, record(string)),
+            f: or(option, null),
         }), {
             type: 'object',
             properties: {
@@ -171,7 +180,7 @@ export const proof = {
         orWithConst: eq(or(null, string, 42), {
             anyOf: [{ const: null }, { const: 42 }, { type: 'string' }],
         }),
-        structWithOr: eq(/** @type {const} */ ({ id: or(string, number), name: option(string) }), {
+        structWithOr: eq(/** @type {const} */ ({ id: or(string, number), name: or(option, string) }), {
             type: 'object',
             properties: {
                 id: { anyOf: [{ type: 'number' }, { type: 'string' }] },
@@ -288,7 +297,7 @@ export const proof = {
             /** @typedef {() => readonly ['array', _List]} _List */
             /** @type {_List} */
             const list = () => ['array', list]
-            eq(/** @type {const} */ ({ p: option(list) }), {
+            eq(/** @type {const} */ ({ p: or(option, list) }), {
                 type: 'object',
                 properties: { p: { type: 'array', items: listRef } },
                 additionalProperties: { not: {} },
@@ -296,8 +305,10 @@ export const proof = {
             })()
         },
         revisionLock: () => {
-            /** The recursive revision lock schema. Its cycle closes through the
-             * anonymous `or` thunk, which becomes the (empty-string-named) rule. */
+            /**
+             * The recursive revision lock schema. Its cycle closes through the
+             * anonymous `or` thunk, which becomes the (empty-string-named) rule.
+             */
             /** @typedef {() => readonly ['record', () => readonly ['or', typeof string, _Lock]]} _Lock */
             /** @type {_Lock} */
             const lock = () => ['record', or(string, lock)]
@@ -341,7 +352,7 @@ export const proof = {
         }]
         /** @type {Data} */
         const optionalByReference = [
-            { r: { unit: unitBit(null) | unitBit(undefined), number: true } },
+            { r: { unit: unitBit(null) | absentBit, number: true } },
             { object: [{ props: { p: 'r' } }] },
         ]
         return {
@@ -358,12 +369,14 @@ export const proof = {
                 required: ['a'],
                 additionalProperties: { type: 'string' },
             }),
-            // a referenced definition admitting `undefined` makes the key
-            // optional; the reference itself is kept as the property schema
+            // a referenced definition admitting absence makes the key
+            // optional; the reference itself is kept as the property schema,
+            // and the absent bit is masked from the definition — absence is
+            // spelled by the key's omission from `required`, not by a member
             optionalByReference: eqData(optionalByReference, {
                 type: 'object',
                 properties: { p: { $ref: '#/$defs/r' } },
-                $defs: { r: { anyOf: [{ const: null }, { not: {} }, { type: 'number' }] } },
+                $defs: { r: { anyOf: [{ const: null }, { type: 'number' }] } },
             }),
         }
     })(),

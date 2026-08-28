@@ -5,14 +5,14 @@
  * @module
  *
  * @import { Includes } from '../types/array/types.ts'
- * @import { Tag0, _Type0, Bigint, Unknown, Tag1, _MakeType1, _MakeOpen, _MakeRest, Or, Type } from './types.ts'
+ * @import { Tag0, _Type0, Bigint, Unknown, Option, Tag1, _MakeType1, _MakeOpen, _MakeRest, Or, Type } from './types.ts'
  */
 
 import { includes } from '../types/array/module.f.mjs'
 
 export const _primitive0List = /** @type {const} */ (['bigint', 'boolean', 'number', 'string'])
 
-export const tag0List = /** @type {const} */ ([..._primitive0List, 'unknown'])
+export const tag0List = /** @type {const} */ ([..._primitive0List, 'unknown', 'option'])
 
 const type0 =
     /**
@@ -90,14 +90,27 @@ export const or = (...types) =>
     () => ['or', ...types]
 
 /**
- * Constructs a schema that validates a value matching `T` or `undefined`.
+ * Schema denoting **absence** — the member that is not there. A nullary
+ * schema like {@link boolean} or {@link unknown}: it takes no argument and
+ * wraps nothing; a member that may be omitted says so by union.
  *
- * @template {Type} const T
- * @param {T} t
- * @returns {Or<readonly [T, undefined]>}
+ * ```js
+ * { a: or(option, number) }             // `a` may be absent, or a number
+ * { a: or(number, undefined) }          // `a` must be present, may hold `undefined`
+ * { a: or(option, number, undefined) }  // absent, a number, or a present `undefined`
+ * [or(option, number), 3]               // position 0 may be a hole
+ * ```
+ *
+ * Absence is not a spelling of the value `undefined`: `{}` and
+ * `{ a: undefined }` are two distinct values, and only a set admitting
+ * absence accepts the first. It is observable only at a container position —
+ * no caller can hand a reader an argument that is not there, so a top-level
+ * schema admitting absence accepts exactly what the rest of its union
+ * accepts — and a container's `rest` never sees it, a hole being no member.
+ *
+ * @type {Option}
  */
-export const option = t =>
-    or(t, undefined)
+export const option = type0('option')
 
 /**
  * Schema that never matches any value — the empty union, corresponding to TypeScript's `never`.

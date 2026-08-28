@@ -21,7 +21,7 @@
  * @import { LockField, LockFieldSchema, LockMap, LockSchema, Revision, RevisionError } from './types.ts'
  */
 
-import { array, number, open, option, string } from '../../rtti/module.f.mjs'
+import { array, number, open, option, or, string } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 import { parse as parseJson } from '../json/module.f.mjs'
 import { cBase32ToVec } from '../../basen/cbase32/module.f.mjs'
@@ -126,8 +126,8 @@ export const revisionSchema = open(/** @type {const} */ ({
     parents: array(hash),
     snapshot: hash,
     generation: number,
-    archived: option(true),
-    lock: option(lockField),
+    archived: or(option, true),
+    lock: or(option, lockField),
 }))
 
 /** Serializes a revision canonically, recursively sorting every object's property names.

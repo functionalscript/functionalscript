@@ -19,7 +19,7 @@
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { collectTests, testResult } from './module.f.mjs'
+import { addResult, collectTests, testResult, zeroTotals } from './module.f.mjs'
 import { error as errorResult, invert, ok } from '../types/result/module.f.mjs'
 
 /** @type {(value: unknown) => string} */
@@ -185,13 +185,24 @@ const runOne = (module, path, throws, fn, result) => {
     return Promise.resolve().then(() => [fn()]).then(([value]) => settled(value), failed)
 }
 
-/** @type {(status: string, duration: number, results: readonly _BrowserTestResult[]) => BrowserTestReport} */
-const reportOf = (status, duration, results) => {
-    const failed = results.filter(result => result.status === 'failed').length
+/**
+ * The run-ended event, as the page reports it. The counts — and with them the
+ * run's own pass/fail status — come from folding the results with the same
+ * `addResult` that decides `fjs t`'s summary and exit code, so "did the run
+ * pass" has one answer across the runners. `duration` stays the page's own
+ * wall clock: leaves run concurrently here, so the fold's summed duration is
+ * not how long the run took (see `RunTotals`).
+ *
+ * `status` overrides the folded decision when the run never got to its leaves
+ * — module loading failed — which no leaf result can express.
+ *
+ * @type {(duration: number, results: readonly _BrowserTestResult[], status?: string) => BrowserTestReport} */
+const reportOf = (duration, results, status = undefined) => {
+    const { passed, failed } = results.reduce(addResult, zeroTotals)
     return {
-        status,
+        status: status ?? (failed !== 0 ? 'failed' : 'passed'),
         browser: navigator.userAgent,
-        totals: { tests: results.length, passed: results.length - failed, failed },
+        totals: { tests: results.length, passed, failed },
         duration,
         results,
     }
@@ -199,6 +210,11 @@ const reportOf = (status, duration, results) => {
 
 /**
  * Runs named proof exports and returns the serializable browser report.
+ *
+ * `result` is the page's subscription to the leaf-landed event — the same
+ * event `fjs t`'s `Reporter.result` carries, a shared `TestResult` plus the
+ * browser's own `message`/`stack` part — and the resolved report is its
+ * run-ended event, with totals folded by the shared `addResult`.
  *
  * @type {(modules: readonly (readonly [string, unknown])[], result?: (result: _BrowserTestResult) => void) => Promise<BrowserTestReport>}
  */
@@ -244,11 +260,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
         ).then(next => runBatch(index + batchSize, next))
     }
     const completed = runBatch(0, [])
-    return completed.then(results => reportOf(
-        results.some(result => result.status === 'failed') ? 'failed' : 'passed',
-        performance.now() - start,
-        results,
-    ))
+    return completed.then(results => reportOf(performance.now() - start, results))
 }
 
 /** @type {(root: Element) => (Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }) | null} */
@@ -319,11 +331,12 @@ export const startBrowserTestSources = (root, sources, importer) => {
             // that disagreed with `results` would tell an automated consumer
             // the suite was empty rather than broken.
             const duration = performance.now() - start
-            return publish(root, Promise.resolve(reportOf('infrastructure-error', duration,
+            return publish(root, Promise.resolve(reportOf(duration,
                 rejected.map(({ source, error }) => {
                     const [message, stack] = errorDetails(error)
                     return moduleFailure(source, duration, message, stack)
-                }))))
+                }),
+                'infrastructure-error')))
         }
         return startBrowserTests(root, loadedModules.flatMap(module =>
             module.status === 'loaded'

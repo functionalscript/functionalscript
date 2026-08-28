@@ -66,10 +66,12 @@ between "merge" and "intersect".
 This is borderline against the `AGENTS.md` "readability over DRY for short, clear
 functions" guidance — the originals are three lines each and already readable,
 and the `select` callback adds an indirection a reader must follow. It is the
-same caliber as [i66A-emergent-add-result](../../emergent_testing/todo/66a-emergent-add-result.md) (two
-near-identical updaters differing in one slot), filed at the same low priority:
+"two near-identical updaters differing in one slot" caliber, filed low for it:
 worth doing if the file is being touched anyway, or as a prerequisite if a third
 sign-driven merge reducer is added (e.g. set difference), but not on its own.
+(`emergent_testing` had the same shape in its `addPass`/`addFail` pair until a
+runner change dissolved the pair into one fold rather than parameterizing it —
+which is also a way this kind of issue resolves.)
 
 ### Tasks
 
@@ -81,5 +83,3 @@ sign-driven merge reducer is added (e.g. set difference), but not on its own.
 
 - i180-sorted-set-intersect-symmetry —
   adjacent sorted-collection merge/intersect cleanup.
-- [i66A-emergent-add-result](../../emergent_testing/todo/66a-emergent-add-result.md) — the same
-  "two updaters differing in one slot" pattern, filed at the same priority.

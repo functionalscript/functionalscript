@@ -458,6 +458,9 @@ const buildRevision = input => parents => {
     if (parentSubjectsResult[0] === 'error') { return parentSubjectsResult }
     const snapshotResult = resolveSnapshot(input)(subject)(parents)
     if (snapshotResult[0] === 'error') { return snapshotResult }
+    // `archived` and `lock` are omittable members of the revision schema, and
+    // an absent member is *absent* — spelling either as a present `undefined`
+    // would build a value the schema rejects.
     /** @type {Revision} */
     const revision = {
         dialect,
@@ -465,8 +468,8 @@ const buildRevision = input => parents => {
         parents: input.parents,
         snapshot: snapshotResult[1],
         generation: computeGeneration(parents),
-        archived: input.archived,
-        lock: input.lock,
+        ...(input.archived === undefined ? {} : { archived: input.archived }),
+        ...(input.lock === undefined ? {} : { lock: input.lock }),
     }
     const referencesResult = checkReferences(revision)
     if (referencesResult[0] === 'error') { return referencesResult }
@@ -474,7 +477,7 @@ const buildRevision = input => parents => {
         ...revision,
         parents: revision.parents.map(canonicalHash),
         snapshot: canonicalHash(revision.snapshot),
-        lock: revision.lock === undefined ? undefined : canonicalLockField(revision.lock),
+        ...(revision.lock === undefined ? {} : { lock: canonicalLockField(revision.lock) }),
     })
 }
 

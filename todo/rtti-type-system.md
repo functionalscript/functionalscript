@@ -9,13 +9,13 @@ file; this one is where they are read together.
 
 ### Problem
 
-A type in this repository is written more than once. The same shape is a JSDoc
-`@typedef`, a declaration in a sibling `types.ts`, and — where a value has to be
-checked at run time — an [RTTI](../fjs/rtti/README.md) schema. Nothing
-keeps the three in agreement: `tsc` checks the first two against the code and
-the third against nothing, so a schema and its `@typedef` drift silently, and
-the drift shows up as a value that type-checks and fails validation, or the
-reverse.
+A type in this repository is written more than once. The same shape is a
+declaration in a sibling `types.ts` (or `private.ts`), the JSDoc annotations
+that name it, and — where a value has to be checked at run time — an
+[RTTI](../fjs/rtti/README.md) schema. Nothing keeps them in agreement: `tsc`
+checks the declaration against the code and the schema against nothing, so a
+schema and its declared type drift silently, and the drift shows up as a value
+that type-checks and fails validation, or the reverse.
 
 The bridge that exists runs the wrong way. `Ts<T>`
 ([`fjs/rtti/ts/README.md`](../fjs/rtti/ts/README.md)) maps a schema
@@ -139,7 +139,7 @@ import { array, number, option, or, string } from 'functionalscript/fjs/rtti/mod
 
 const key = or(number, string)
 const keys = array(key)
-const maybeKey = option(key)
+const maybeKey = or(option, key)
 
 //: key
 export const a = 'hello'
@@ -547,7 +547,7 @@ rejected by `validate`. That is the exact disagreement this epic exists to
 remove, surviving inside its own deliverable. (The *tuple* kind has no such
 gap: a TypeScript tuple is exact-length, so `Ts<>` renders a closed tuple
 exactly — which is what stage 1 of
-[option-as-omission](../fjs/rtti/todo/option-as-omission.md) settled.)
+`option` as omission settled; both stages have landed.)
 
 Two things keep this from undermining the whole direction, and both need
 stating rather than assuming:
@@ -911,9 +911,8 @@ are stated instead:
         the model rather than an approximation of it, and the printer prints the
         same exact tuple. `open(c)` is what admits a longer array, and both
         renderers emit the tail that says so. This bullet used to record a live
-        divergence and no longer does; stage 1 of
-        [option-as-omission](../fjs/rtti/todo/option-as-omission.md)
-        removed it.
+        divergence and no longer does; stage 1 of `option` as omission
+        (landed, both stages) removed it.
 
       **A third disagreement runs the other way, and has narrowed.** `RestTs`
       ([`ts/types.ts`](../fjs/rtti/ts/types.ts)) now renders a stated

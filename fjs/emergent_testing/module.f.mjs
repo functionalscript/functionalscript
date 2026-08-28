@@ -3,7 +3,7 @@
  *
  * Two parallel execution paths:
  * - `runModule` / `Reporter<O>` — self-hosted Effects runner used by `fjs t`;
- *   sandboxes each leaf call individually and accumulates `TestState`.
+ *   sandboxes each leaf call individually and accumulates `RunTotals`.
  * - `registerModule` / `TestContext` — registers tests with an external
  *   framework (Node `--test`, Bun, Deno) at import time; the framework owns
  *   scheduling and pass/fail counting.
@@ -13,7 +13,7 @@
  * @import { Operation } from '../effects/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
- * @import { TestFn, TestEntry, TestSet, Path, Reporter, TestResult, _TestState, _TestAndPath } from './types.ts'
+ * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunTotals, TestResult, _TestAndPath } from './types.ts'
  * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
@@ -26,13 +26,28 @@ import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
 
-/** @type {(delta: number) => (ts: _TestState) => _TestState} */
-const addPass = delta => ts =>
-    ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
+/**
+ * The empty {@link RunTotals}: what a run's totals are before any leaf lands.
+ *
+ * @type {RunTotals}
+ */
+export const zeroTotals = { passed: 0, failed: 0, duration: 0 }
 
-/** @type {(delta: number) => (ts: _TestState) => _TestState} */
-const addFail = delta => ts =>
-    ({ ...ts, time: ts.time + delta, fail: ts.fail + 1 })
+/**
+ * Folds one leaf-landed event into a run's totals.
+ *
+ * This is where "did the run pass" is decided, for every runner: the counts
+ * come from each result's shared `status`, so the summary line, the exit code
+ * and the browser report's totals all read the same fold of the same events
+ * rather than each counting their own way.
+ *
+ * @type {(totals: RunTotals, r: TestResult) => RunTotals}
+ */
+export const addResult = (totals, r) => ({
+    passed: totals.passed + (r.status === 'passed' ? 1 : 0),
+    failed: totals.failed + (r.status === 'failed' ? 1 : 0),
+    duration: totals.duration + r.duration,
+})
 
 /** @type {(a: number) => string} */
 const timeFormat = a => {
@@ -154,49 +169,49 @@ export const registerModule = (ctx, k, v, star) => {
     return mapStep(allOk(...tests.map(e => registerOne(ctx, e))), () => undefined)
 }
 
-/** @type {(a: _TestState, b: _TestState) => _TestState} */
-const mergeState = (a, b) =>
-    ({ time: a.time + b.time, pass: a.pass + b.pass, fail: a.fail + b.fail })
-
-/** @type {_TestState} */
-const zero = { time: 0, pass: 0, fail: 0 }
+/** @type {(a: RunTotals, b: RunTotals) => RunTotals} */
+const mergeTotals = (a, b) =>
+    ({ passed: a.passed + b.passed, failed: a.failed + b.failed, duration: a.duration + b.duration })
 
 /**
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(k: string, v: unknown) => (ts: _TestState) => Effect<O | All, _TestState, IoChannel>}
+ * @returns {(k: string, v: unknown) => (ts: RunTotals) => Effect<O | All, RunTotals, IoChannel>}
  */
 const runModule = ({ result, test }) => (k, v) => ts => {
-    /** @type {(entry: _TestAndPath) => Effect<O | All, _TestState, IoChannel>} */
+    /** @type {(entry: _TestAndPath) => Effect<O | All, RunTotals, IoChannel>} */
     const one = ([testPath, set]) => {
-        // The sandbox result is still needed after it has been reported, so the
-        // reporting call is captured rather than nested inside its own step.
+        // The leaf's shared record is built here, next to the sandbox result it
+        // is read from, so the leaf-landed event carries the value already
+        // decided — a reporter renders `t`, it does not derive its own.
+        const evaluated = mapStep(
+            test(k, testPath, set),
+            sr => /** @type {const} */ ([testResult(k, testPath, sr), sr]))
+        // Both are still needed after they have been reported, so the reporting
+        // call is captured rather than nested inside its own step.
         const reported = historyStep(
-            history(test(k, testPath, set)),
-            sr => result(k, testPath, sr, set.throws))
+            history(evaluated),
+            ([t, sr]) => result(t, sr, set.throws))
         return step(
             reported,
-            ([, sr]) => {
-                const { result: [s, r], duration } = sr
-                if (s !== 'ok') {
-                    return pureOk(addFail(duration)(zero))
-                }
-                if (set.throws) {
-                    return pureOk(addPass(duration)(zero))
+            ([, [t, sr]]) => {
+                const total = addResult(zeroTotals, t)
+                if (t.status !== 'passed' || set.throws) {
+                    return pureOk(total)
                 }
                 // Walk return-value sub-tree; null marks the call boundary so
                 // paths render as e.g. `outer().inner`. throws resets to false.
                 return mapStep(
-                    walk([...testPath, null], false, r),
-                    sub => mergeState(addPass(duration)(zero), sub))
+                    walk([...testPath, null], false, sr.result[1]),
+                    sub => mergeTotals(total, sub))
             })
     }
-    /** @type {(path: Path, throws: boolean, v: unknown) => Effect<O | All, _TestState, IoChannel>} */
+    /** @type {(path: Path, throws: boolean, v: unknown) => Effect<O | All, RunTotals, IoChannel>} */
     const walk = (path, throws, v) => {
         const effects = collectTests(path, throws, v).map(one)
-        return mapStep(allOk(...effects), states => states.reduce(mergeState, zero))
+        return mapStep(allOk(...effects), states => states.reduce(mergeTotals, zeroTotals))
     }
-    return mapStep(walk([], false, v), delta => mergeState(ts, delta))
+    return mapStep(walk([], false, v), delta => mergeTotals(ts, delta))
 }
 
 /** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
@@ -217,15 +232,15 @@ export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
     const modules = proofEntries(moduleMap)
     const total = mapStep(
-        allOk(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero))),
-        m => m.reduce(mergeState, zero))
+        allOk(...modules.map(([k, v]) => runModule(reporter)(k, v)(zeroTotals))),
+        m => m.reduce(mergeTotals, zeroTotals))
     // The totals are still needed after the summary has been printed, so they
     // are carried forward in a history rather than closed over by a nested
     // continuation.
     const reported = historyStep(
         history(total),
-        ts => summary(ts.pass, ts.fail, ts.time))
-    return mapStep(reported, ([, ts]) => ts.fail !== 0 ? 1 : 0)
+        summary)
+    return mapStep(reported, ([, ts]) => ts.failed !== 0 ? 1 : 0)
 }
 
 /**
@@ -423,13 +438,12 @@ export const defaultReporter = options => {
     const isGitHub = options.env['GITHUB_ACTIONS'] !== undefined
     return {
         // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-        result: (file, path, r, throws) => {
-            const t = testResult(file, path, r)
+        result: (t, r, throws) => {
             const v = r.result[1]
             return t.status === 'passed'
                 ? csiLog(fmtResultLine(t, fgGreen, 'ok') + (throws ? ' # EXPECTED TO THROW' : ''))
                 : isGitHub
-                    ? csiError(`::error file=${file},line=1,title=${ghEscape(t.name)}::${ghEscape(String(v))}`)
+                    ? csiError(`::error file=${t.module},line=1,title=${ghEscape(t.name)}::${ghEscape(String(v))}`)
                     // `step`, so the detail line is attempted only when the
                     // header line was written: two halves of one report, and
                     // half of it is worse than none.
@@ -437,11 +451,11 @@ export const defaultReporter = options => {
                         csiError(fmtResultLine(t, fgRed, 'error')),
                         () => csiError(`${fgRed}${v}${reset}`))
         },
-        summary: (pass, fail, time) => {
-            const fgFail = fail === 0 ? fgGreen : fgRed
+        summary: ({ passed, failed, duration }) => {
+            const fgFail = failed === 0 ? fgGreen : fgRed
             return step(
-                csiLog(`${bold}Number of tests: pass: ${fgGreen}${pass}${reset}${bold}, fail: ${fgFail}${fail}${reset}${bold}, total: ${pass + fail}${reset}`),
-                () => csiLog(`${bold}Time: ${timeFormat(time)}${reset}`))
+                csiLog(`${bold}Number of tests: pass: ${fgGreen}${passed}${reset}${bold}, fail: ${fgFail}${failed}${reset}${bold}, total: ${passed + failed}${reset}`),
+                () => csiLog(`${bold}Time: ${timeFormat(duration)}${reset}`))
         },
         test: defaultTest,
     }

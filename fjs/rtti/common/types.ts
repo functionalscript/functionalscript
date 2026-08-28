@@ -45,6 +45,15 @@ export type Visitor<R> = {
     readonly constPrimitive: (p: Primitive) => R
     readonly primitive0: (tag: Primitive0) => R
     readonly unknown: () => R
+    /**
+     * The nullary `option` schema — absence. A reader's handler *rejects*
+     * normally: absence is decided by the container loop before dispatch
+     * (see `admitsAbsence` in `./module.f.mjs`), so a value that reaches a
+     * recursive reader is present by construction, and under `or(option, t)`
+     * the `option` branch has to return an ordinary error for `t` to be
+     * tried.
+     */
+    readonly option: () => R
 }
 
 /**
@@ -75,6 +84,14 @@ export type Container<K extends Tag1> = K extends 'array'
 
 /** `Result` with the payload type erased; avoids instantiating `Ts<Type>`. */
 export type ResultE = CommonResult<Unknown, ValidationError>
+
+/**
+ * The presence bits a declared-member walk saw — one boolean per declared
+ * member, consed newest-first by `consPresence` in `module.f.mjs`, so the
+ * list is the walk's answers in reverse declared order. `presenceUnchanged`
+ * is the consumer.
+ */
+export type Presence = null | { readonly first: boolean, readonly tail: Presence }
 
 /** A `Validate`-shaped function with the payload type erased. */
 export type ValidateE = (value: Unknown) => ResultE

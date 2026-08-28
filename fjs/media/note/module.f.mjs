@@ -101,8 +101,8 @@ export const priorities = /** @type {const} */ (['P1', 'P2', 'P3', 'P4', 'P5'])
 export const noteSchema = open(/** @type {const} */ ({
     dialect,
     text: string,
-    dependencies: option(array(string)),
-    priority: option(or(...priorities)),
+    dependencies: or(option, array(string)),
+    priority: or(option, ...priorities),
 }))
 
 /** Serializes a note canonically, sorting every object's property names.

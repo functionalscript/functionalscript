@@ -15,8 +15,8 @@
  * object it passed in — same reference, same members, same serialization:
  *
  * ```js
- * const schema = { a: number, b: option(string) }
- * parse(schema)({ a: 1, extra: 'x' })     // ['ok', { a: 1, b: undefined }]
+ * const schema = open({ a: number, b: or(option, string) })
+ * parse(schema)({ a: 1, extra: 'x' })     // ['ok', { a: 1 }]
  * validate(schema)({ a: 1, extra: 'x' })  // ['ok', { a: 1, extra: 'x' }]
  * ```
  *
@@ -36,9 +36,9 @@
  * the member check alone.
  *
  * Closedness is about *undeclared* members and leaves the required/optional
- * rule alone: an absent member reads as `undefined`, so a member is required
- * exactly when its set excludes `undefined`, and a schema whose trailing
- * position admits it still accepts a shorter array. A tuple schema declares by
+ * rule alone: a member is required exactly when its set excludes **absence**
+ * — the `option` bit of its union — so a schema whose trailing position says
+ * `or(option, t)` still accepts a shorter array. A tuple schema declares by
  * length, so a hole in the *schema* is a position whose schema is `undefined`
  * — see "A hole is a declared position" in `../README.md`.
  *
@@ -84,11 +84,15 @@
 
 import { ok } from '../../types/result/module.f.mjs'
 import {
+    absentMember,
+    consPresence,
     constPrimitiveValidate,
     eachEntry,
+    emptyPresence,
     isArray,
     isObject,
     orVisit,
+    presenceUnchanged,
     primitive0Validate,
     structSchemaEntries,
     tupleSchemaEntries,
@@ -173,6 +177,23 @@ const recordValidate = containerValidate(isObject, () => () => true)
  * a member on both, but an array is also *as long as it is*: a hole past the
  * prefix is no member and would slip through the member check alone, so the
  * array kind answers with its length as well.
+ *
+ * A declared member is **absent** when its key or index is neither an own
+ * property nor an inherited one — HasProperty, since `getItem` reads through
+ * the prototype, so a member the prototype supplies is still held to what
+ * the schema says a present value is. Absence is decided here, before
+ * dispatch: the recursive reader is handed only the value read, and an
+ * absent key reads `undefined`, so it cannot tell `{}` from
+ * `{ a: undefined }`. An absent member is legal exactly when its schema
+ * admits absence (`admitsAbsence` in `../common/module.f.mjs`); a present
+ * one is dispatched as before.
+ *
+ * The decisions are **re-asked last** (`presenceUnchanged`): a member's
+ * read can run an accessor that flips an earlier, already decided member —
+ * prototype pollution makes an omitted key present, a delete makes a
+ * checked one absent — and the value handed back would no longer denote
+ * what was checked. The three readers refuse the flip identically — see
+ * `../host.proof.mjs`.
  */
 const constContainerValidate =
     /**
@@ -196,14 +217,24 @@ const constContainerValidate =
             }
             const r = eachEntry(
                 rttiEntries,
-                (k, v) => /** @type {any} */ (validate(v))(getItem(value, k)),
-                undefined,
-                noAccumulate,
+                (k, v) => {
+                    if (!(k in value)) {
+                        const a = absentMember(v)
+                        return a[0] === 'error' ? a : ok(false)
+                    }
+                    const m = /** @type {any} */ (validate(v))(getItem(value, k))
+                    return m[0] === 'error' ? m : ok(true)
+                },
+                emptyPresence,
+                consPresence,
             )
             if (r[0] === 'error') { return r }
+            if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
+                return verror('unexpected value')
+            }
             // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
             // structurally equivalent to C — TypeScript can't narrow element types through the loop.
-            return undeclaredMembers(declared, value).length === 0 && fits(value, declared.length)
+            return presenceUnchanged(rttiEntries, r[1], value)
                 ? /** @type {any} */ (ok(value))
                 : verror('unexpected value')
         }
@@ -257,18 +288,31 @@ const restContainerValidate =
             }
             const d = eachEntry(
                 rttiEntries,
-                (k, v) => /** @type {any} */ (validate(v))(getItem(value, k)),
-                undefined,
-                noAccumulate,
+                (k, v) => {
+                    if (!(k in value)) {
+                        const a = absentMember(v)
+                        return a[0] === 'error' ? a : ok(false)
+                    }
+                    const m = /** @type {any} */ (validate(v))(getItem(value, k))
+                    return m[0] === 'error' ? m : ok(true)
+                },
+                emptyPresence,
+                consPresence,
             )
             if (d[0] === 'error') { return d }
             const extra = undeclaredMembers(declared, value)
             if (extra.length === 0) {
-                return fits(value, declared.length) ? ok(value) : verror('unexpected value')
+                if (!fits(value, declared.length)) {
+                    return verror('unexpected value')
+                }
+            } else {
+                const restValidate = /** @type {any} */ (validate(r))
+                const e = eachEntry(extra, (_k, v) => restValidate(v), undefined, noAccumulate)
+                if (e[0] === 'error') { return e }
             }
-            const restValidate = /** @type {any} */ (validate(r))
-            const e = eachEntry(extra, (_k, v) => restValidate(v), undefined, noAccumulate)
-            return e[0] === 'error' ? e : ok(value)
+            return presenceUnchanged(rttiEntries, d[1], value)
+                ? ok(value)
+                : verror('unexpected value')
         }
     }
 
@@ -311,6 +355,11 @@ const validateVisitor = /** @type {any} */ ({
     constPrimitive: constPrimitiveValidate,
     primitive0: primitive0Validate,
     unknown: () => ok,
+    // Absence is decided by the container loop before dispatch, so a value
+    // that reaches this handler is present — and no present value is absent.
+    // An ordinary error is what lets `orVisit` try the other members of
+    // `or(option, t)`.
+    option: () => () => verror('unexpected value'),
 })
 
 /**
@@ -338,7 +387,7 @@ const validateVisitor = /** @type {any} */ ({
  * validate({ a: number })({ a: 1, b: 2 })  // ['error', …]
  *
  * // an absent optional member stays absent
- * validate({ a: number, b: option(string) })({ a: 1 })  // ['ok', { a: 1 }]
+ * validate({ a: number, b: or(option, string) })({ a: 1 })  // ['ok', { a: 1 }]
  *
  * // a stated rest says what the undeclared members may be; `open` says anything
  * validate(rest({ a: number }, number))({ a: 1, b: 2 })  // ['ok', { a: 1, b: 2 }]

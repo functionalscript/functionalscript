@@ -23,7 +23,7 @@ import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { reservedWords, strictModeReservedWords } from '../../js/keywords/module.f.mjs'
 import { at, definedEntries } from '../../types/object/module.f.mjs'
 import { primitive, union, printer as tsPrinter } from '../../types/ts/module.f.mjs'
-import { cmp, never as bottom, toData, unitBit, unknown as top } from '../data/module.f.mjs'
+import { absentBit, cmp, never as bottom, toData, unitBit, unknown as top, withoutUnits } from '../data/module.f.mjs'
 
 const nullBit = unitBit(null)
 const undefinedBit = unitBit(undefined)
@@ -141,10 +141,14 @@ const unitToTs = bits => [
  * `readonly[A,...readonly(R|undefined)[]]`.
  *
  * A position the array may simply end before prints optional — the trailing
- * run whose sets admit `undefined`, which is exactly what the array may stop
+ * run whose sets admit **absence**, which is exactly what the array may stop
  * at, arrays being contiguous. It mirrors the optional key `objectSetToTs`
- * prints, and keeps the union rather than stripping `undefined` from it, as
- * that one does.
+ * prints, with the absent bit stripped from what it prints (`unionToTs`
+ * masks it), so `[1, or(option, number)]` prints `readonly[1,(number)?]` —
+ * exact under `exactOptionalPropertyTypes`. An *interior* position admitting
+ * absence prints `undefined | T` instead ({@link interiorToTs}): TypeScript
+ * forbids a required element after an optional one, and `undefined` is what
+ * reading a hole gives.
  *
  * The **tail** admits `undefined` on top of what the `rest` states, because a
  * hole past the prefix is no member: the readers check each present member
@@ -163,11 +167,9 @@ const unitToTs = bits => [
  * @type {(ctx: _Ctx) => (p: ArraySet) => string}
  */
 const arraySetToTs = ctx => p => {
-    const required = p.prefix.findLastIndex(n => !admitsUndefined(ctx)(n)) + 1
-    const items = p.prefix.map((n, i) => {
-        const ts = nodeToTs(ctx)(n)
-        return i < required ? ts : `(${ts})?`
-    })
+    const required = p.prefix.findLastIndex(n => !admitsAbsence(ctx)(n)) + 1
+    const items = p.prefix.map((n, i) =>
+        i < required ? interiorToTs(ctx)(n) : `(${nodeToTs(ctx)(n)})?`)
     const { rest } = p
     if (rest === undefined) { return ctx.ts.tuple(items) }
     const restTs = nodeToTs(ctx)(rest)
@@ -188,12 +190,43 @@ const resolveNode = ctx => n =>
     typeof n === 'string' ? assertNotNullish(at(n)(ctx.rules)) : n
 
 /**
- * Whether the node's value set admits `undefined` — its unit bit.
+ * Whether the node's value set admits `undefined` — its unit bit. Still the
+ * tail's question (`rest([42], string)` accepts `[42, , ]`, and index 1
+ * reads `undefined`); optionality of a declared member is
+ * {@link admitsAbsence}'s.
  *
  * @type {(ctx: _Ctx) => (n: Node) => boolean}
  */
 const admitsUndefined = ctx => n =>
     ((resolveNode(ctx)(n).unit ?? 0) & undefinedBit) !== 0
+
+/**
+ * Whether the node's set admits **absence** — its absent bit, read through a
+ * reference if needed. What decides a declared member's optionality.
+ *
+ * @type {(ctx: _Ctx) => (n: Node) => boolean}
+ */
+const admitsAbsence = ctx => n =>
+    ((resolveNode(ctx)(n).unit ?? 0) & absentBit) !== 0
+
+/**
+ * An **interior** tuple position: one that admits absence prints
+ * `undefined | T` — TypeScript forbids an optional element before a required
+ * one, and `undefined` is what reading a hole gives — and any other prints
+ * as it is. An inline node converts by bit, so the `undefined` merges into
+ * the union's canonical order; a reference prints its identifier with
+ * `undefined` unioned in front.
+ *
+ * @type {(ctx: _Ctx) => (n: Node) => string}
+ */
+const interiorToTs = ctx => n => {
+    const bits = resolveNode(ctx)(n).unit ?? 0
+    if ((bits & absentBit) === 0) { return nodeToTs(ctx)(n) }
+    if (typeof n === 'string') {
+        return union([primitive(undefined), nodeToTs(ctx)(n)])
+    }
+    return unionToTs(ctx)({ ...n, unit: (bits & ~absentBit) | undefinedBit })
+}
 
 /**
  * Whether the node's value set is empty.
@@ -206,9 +239,11 @@ const isNever = ctx => n => cmp([{}, resolveNode(ctx)(n)])([{}, bottom]) === 0
 const dedup = list => list.filter((s, i) => list.indexOf(s) === i)
 
 /**
- * A struct prints its fields — a key whose value set admits `undefined` may
- * also be absent, so it prints optional, mirroring `Ts<>` — and a record
- * prints its value type. A props-with-rest set combines them with an
+ * A struct prints its fields — a key whose value set admits **absence**
+ * prints optional, with the absent bit stripped from what it prints
+ * (`unionToTs` masks it), mirroring `Ts<>`: `or(option, number)` is
+ * `readonly a?: number`, and `or(number, undefined)` is the required
+ * `readonly a: undefined|number` — and a record prints its value type. A props-with-rest set combines them with an
  * intersection; TypeScript requires an index signature to cover the
  * declared keys too, so the index type widens to the union of the rest and
  * the declared value types — the closest expressible supertype.
@@ -225,7 +260,7 @@ const objectSetToTs = ctx => p => {
     /** @type {readonly StructField[]} */
     const fields = definedEntries(p.props).map(([k, v]) => {
         const ts = nodeToTs(ctx)(v)
-        return admitsUndefined(ctx)(v) ? [k, ts, true] : [k, ts]
+        return admitsAbsence(ctx)(v) ? [k, ts, true] : [k, ts]
     })
     const { rest } = p
     if (rest === undefined || isNever(ctx)(rest)) { return ctx.ts.struct(fields) }
@@ -236,8 +271,19 @@ const objectSetToTs = ctx => p => {
 /** @type {(u: UnionSet) => boolean} */
 const isTop = u => cmp([{}, u])([{}, top]) === 0
 
-/** @type {(ctx: _Ctx) => (u: UnionSet) => string} */
-const unionToTs = ctx => u => {
+/**
+ * The absent bit is **masked** before printing: absence is not a value, so
+ * it contributes no union member — `or(option, number)` prints `number`,
+ * `option` alone prints `never`, and `or(option, unknown)` prints `unknown`
+ * — which is the public `Ts<>` of the same node. Where the bit changes what
+ * a position *prints*, the position asks first: an optional key or trailing
+ * position strips it by printing through this, and an interior tuple
+ * position converts it to `undefined` (`interiorToTs`).
+ *
+ * @type {(ctx: _Ctx) => (u: UnionSet) => string}
+ */
+const unionToTs = ctx => u0 => {
+    const u = withoutUnits(absentBit)(u0)
     if (isTop(u)) { return 'unknown' }
     return union([
         ...unitToTs(u.unit ?? 0),
@@ -288,9 +334,12 @@ export const dataToTs = mut => ([rules, entry]) => {
  *
  * Mirrors the compile-time `Ts<T>` mapped type at runtime, in the data
  * form's canonical order — union members follow its kind order (e.g.
- * `option(number)` prints `'undefined|number'`) and structurally different
- * but equivalent schemas print identically (`or(true, false)` prints
- * `'boolean'`). Pass `true` to emit mutable (non-`readonly`) types.
+ * `or(number, undefined)` prints `'undefined|number'`) and structurally
+ * different but equivalent schemas print identically (`or(true, false)`
+ * prints `'boolean'`). Absence is not a value, so `or(option, number)`
+ * prints `'number'` — the public `Ts<>` of the same schema; where it lands
+ * on a declared member, the member prints optional instead. Pass `true` to
+ * emit mutable (non-`readonly`) types.
  *
  * A recursive schema prints as the identifier of its definition — use
  * {@link dataToTs} to also obtain the `type <identifier> = <expression>`

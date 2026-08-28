@@ -165,12 +165,13 @@ export const proof = {
                 assertStructurallySame(unwrap(parse(open([42]))([42, 'extra'])), [42])
                 assertStructurallySame(unwrap(parse(open([42]))([42, 1, 2, 3])), [42])
             },
-            // An absent member reads as `undefined`, so a position is required
-            // exactly when its set excludes `undefined` — the same rule the
-            // data form states for object keys, applied to arrays.
-            shortArrayFillsAnOptionalPosition: () => {
-                const r = parse([number, option(string)])([42])
-                assertStructurallySame(unwrap(r), [42, undefined])
+            // A position is required exactly when its set excludes absence —
+            // the same rule the data form states for object keys, applied to
+            // arrays — and an absent trailing position stays absent: `parse`
+            // shortens the result rather than materializing `undefined`.
+            shortArrayLeavesAnOptionalPositionOut: () => {
+                const r = parse([number, or(option, string)])([42])
+                assertStructurallySame(unwrap(r), [42])
             },
             error: () => {
                 assertError(parse([42])([99]))
@@ -299,15 +300,85 @@ export const proof = {
         },
     },
     option: {
+        // At the entry position nothing can be absent — see the same block in
+        // `../validate/proof.f.mjs`.
         ok: () => {
-            const t = option(number)
+            const t = or(option, number)
             assertOk(parse(t)(42))
-            assertOk(parse(t)(undefined))
+            assertOk(parse(or(option, number, undefined))(undefined))
         },
         error: () => {
-            const t = option(number)
+            const t = or(option, number)
+            assertError(parse(t)(undefined))
             assertError(parse(t)(null))
             assertError(parse(t)('42'))
+            assertError(parse(option)(undefined))
+        },
+    },
+    // What `parse` builds around an absent member, asserted on the value
+    // rather than on acceptance alone: an interior absent position stays a
+    // hole — materializing `undefined` would denote a different value, and
+    // omitting it would shift everything after it — and a trailing absent
+    // run shortens the result. This is the JSON round-trip defect of the old
+    // design dissolved: no `undefined` is materialized, so nothing turns
+    // into `null` on the wire.
+    absentPositions: {
+        interiorHoleSurvives: () => {
+            /** @type {ReadonlyArray<unknown>} */
+            const built = unwrap(parse([or(option, number), 3])([, 3]))
+            assertEq(built.length, 2, 'the hole keeps its position')
+            assert(!Object.hasOwn(built, 0), 'no own index 0')
+            assertEq(built[1], 3, 'and `3` stays at index 1')
+        },
+        trailingRunShortens: () => {
+            /** @type {ReadonlyArray<unknown>} */
+            const built = unwrap(parse([number, or(option, number), or(option, number)])([1, , ]))
+            assertEq(built.length, 1, 'the trailing absent run is gone')
+            assertEq(built[0], 1, 'the present prefix survives')
+            // nothing present at all rebuilds the empty array
+            assertStructurallySame(unwrap(parse([or(option, number)])([])), [])
+        },
+        structDropsTheKey: () => {
+            const built = unwrap(parse({ a: number, b: or(option, string) })({ a: 1 }))
+            assert(!('b' in built), 'an absent key is not materialized')
+        },
+        // An odd segment count: hole, present, present — three segments, two
+        // pairwise join rounds, the tail segment carried once unpaired.
+        oddSegments: () => {
+            /** @type {ReadonlyArray<unknown>} */
+            const built = unwrap(parse([or(option, number), number, number])([, 2, 4]))
+            assertEq(built.length, 3, 'the hole keeps its position')
+            assert(!Object.hasOwn(built, 0), 'no own index 0')
+            assertEq(built[1], 2, '`2` stays at index 1')
+            assertEq(built[2], 4, 'and `4` at index 2')
+        },
+        // The join at scale: alternating present and absent positions, so
+        // thousands of segments go through a dozen halving rounds. The two
+        // hazards this construction replaced — re-spreading the accumulated
+        // segments per entry (quadratic) and one spread `concat` call over
+        // all of them (the engine's argument limit, a throw past the
+        // `Result` API) — are structurally gone: no call in the rebuild
+        // takes a variable argument list at all. Correctness of every hole
+        // and every member is what is asserted.
+        largeSparse: () => {
+            const pairs = 2048
+            const omittable = or(option, number)
+            const schema = Array.from(
+                { length: 2 * pairs },
+                (_, i) => i % 2 === 0 ? number : omittable)
+            // `[7, hole]` chunks: a sparse value FunctionalScript can build
+            // without mutation, holes at every odd index
+            /** @type {ReadonlyArray<number>} */
+            const chunk = [7].concat(new Array(1))
+            /** @type {ReadonlyArray<number>} */
+            const none = []
+            const value = none.concat(...Array.from({ length: pairs }, () => chunk))
+            /** @type {ReadonlyArray<unknown>} */
+            const built = unwrap(parse(schema)(value))
+            assertEq(built.length, 2 * pairs - 1, 'ends at the last present position')
+            assert(Array.from({ length: pairs }, (_, i) => i).every(i =>
+                built[2 * i] === 7 && !Object.hasOwn(built, 2 * i + 1)),
+                'every present member survives and every interior hole stays a hole')
         },
     },
     path: {
@@ -382,11 +453,11 @@ export const proof = {
             // Nor is a key that is no position at all.
             nonIndexKeyRejected: () =>
                 assertError(parse([number])(Object.assign([1], { foo: 2 }))),
-            // The rule for a missing member is unchanged: an absent position
-            // reads as `undefined`.
+            // A missing member is absent: required where its set excludes
+            // absence, omitted from what is built where it does not.
             shortArray: () => {
                 assertError(parse([number])([]))
-                assertStructurallySame(unwrap(parse([number, option(string)])([1])), [1, undefined])
+                assertStructurallySame(unwrap(parse([number, or(option, string)])([1])), [1])
             },
             empty: () => {
                 assertStructurallySame(unwrap(parse([])([])), [])
@@ -445,13 +516,13 @@ export const proof = {
         // `../ts/types.ts`); it is the *value* half under test here.
         recursive: () => {
             /** A container that contains itself: `[number, node?]`. */
-            /** @typedef {readonly [number, _Node | undefined]} _Node */
-            const _node = () => /** @type {const} */ (['const', [number, option(_node)]])
+            /** @typedef {readonly [number, _Node?]} _Node */
+            const _node = () => /** @type {const} */ (['const', [number, or(option, _node)]])
             /** @type {Phantom<typeof _node, _Node>} */
             const node = _node
             const p = parse(node)
-            assertStructurallySame(unwrap(p([1])), [1, undefined])
-            assertStructurallySame(unwrap(p([1, [2]])), [1, [2, undefined]])
+            assertStructurallySame(unwrap(p([1])), [1])
+            assertStructurallySame(unwrap(p([1, [2]])), [1, [2]])
             assertError(p([1, [2], 3]))
         },
         // A cycle through the `rest` itself: every key other than `a` holds
@@ -470,7 +541,7 @@ export const proof = {
         },
     },
     arrayOptional: () => {
-        const a = /** @type {const} */([number, option(string)])
+        const a = /** @type {const} */([number, or(option, string)])
         const v = parse(a)
         assertOk(v([5]))
         assertError(v(["n"]))

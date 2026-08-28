@@ -135,12 +135,30 @@ export type BrowserTestReport = {
 export type _BrowserImporter = (source: string) => Promise<{ readonly proof?: unknown }>
 
 /**
+ * A run's outcome, folded from its leaf results: how many passed, how many
+ * failed, and how long they took together.
+ *
+ * It is built one `TestResult` at a time with `addResult`, starting from
+ * `zeroTotals`, so a stream of leaf-landed events and a finished totals record
+ * are the same information at two moments — which is what lets both runners
+ * answer "did the run pass" (`failed !== 0`) from the same fold.
+ *
+ * `duration` is the *sum* of the folded results' durations. For `fjs t`, which
+ * runs leaves sequentially, that is also the run's time and is what its
+ * `Time:` line prints. The browser runs leaves concurrently, so the sum stops
+ * meaning "how long the run took" there; its wire report keeps its own
+ * wall-clock `duration` and takes only the counts from the fold.
+ */
+export type RunTotals = {
+    readonly passed: number
+    readonly failed: number
+    readonly duration: number
+}
+
+/**
  * Receives semantic test-run events. Each method is the runner's notification
  * of an event; the reporter decides how to render it (terminal, GitHub
- * annotations, JSON, node `--test`, etc.). `path` is the chain of object keys
- * leading to the current location; `null` marks a function-call boundary, e.g.
- * `['outer', null, 'inner']` means `outer` was invoked and its return value
- * contained `inner`.
+ * annotations, JSON, node `--test`, etc.).
  *
  * **Every method is fallible**, because reporting is IO and IO can fail: a
  * write to a closed pipe, a runner that cannot dispatch `write` at all. The
@@ -161,16 +179,18 @@ export type _BrowserImporter = (source: string) => Promise<{ readonly proof?: un
  * through unchanged.
  */
 export type Reporter<O extends Operation> = {
-    readonly result: (file: string, path: Path, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void, IoChannel>
-    readonly summary: (pass: number, fail: number, time: number) => Effect<O, void, IoChannel>
+    /**
+     * A leaf landed. The first argument is the shared {@link TestResult} — the
+     * runner builds it with `testResult` before notifying, so a reporter
+     * receives the leaf's identity and status rather than deriving its own.
+     * The raw `SandboxResult` and the throw expectation travel with it because
+     * describing a *thrown value* is each host's part (see {@link TestResult}),
+     * and the description needs the value.
+     */
+    readonly result: (t: TestResult, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void, IoChannel>
+    /** The run ended, with the totals folded from every leaf that landed. */
+    readonly summary: (totals: RunTotals) => Effect<O, void, IoChannel>
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>, IoChannel>
-}
-
-/** @internal */
-export type _TestState = {
-    readonly time: number,
-    readonly pass: number,
-    readonly fail: number,
 }
 
 /** @internal */

@@ -27,7 +27,7 @@
 import { assert, assertNotNullish } from '../../../asserts/module.f.mjs'
 import { at, definedEntries } from '../../../types/object/module.f.mjs'
 import { array, number, option, or, record, string } from '../../../rtti/module.f.mjs'
-import { cmp, toData, unitBit, unknown as top, withoutUnits } from '../../../rtti/data/module.f.mjs'
+import { absentBit, cmp, toData, unitBit, unknown as top, withoutUnits } from '../../../rtti/data/module.f.mjs'
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
 
 /** @type {() => readonly ['const', typeof unknownConst]} */
@@ -36,13 +36,11 @@ export const _unknownThunk = () => ['const', unknownConst]
 /**
  * rtti schema for a JSON Schema (draft 2020-12) document.
  *
- * The `$out` half of the `Phantom` is hand-written. The `?` markers are
- * required even though `Ts<>` already includes `undefined` in each field type.
- * Without `?`, the document type would require all 13 fields to be present in
- * every object literal returned by `toJsonSchema`, because TypeScript
- * distinguishes "field absent" (`?`) from "field present but undefined"
- * (`T | undefined`). JSON Schema objects only include the fields they need, so
- * all fields must be optional. `$defs` is an *open* map — an absent entry
+ * The `$out` half of the `Phantom` is hand-written. The `?` markers spell what
+ * `or(option, …)` says in the schema: every field may be absent, and `Ts<>`
+ * renders such a member optional with absence stripped from its type, so each
+ * field here is `?:` over the member's present part. JSON Schema objects only
+ * include the keywords they need. `$defs` is an *open* map — an absent entry
  * types as `undefined`, so missing-reference handling cannot be skipped. The
  * `consistency` proof checks this hand-written type against the un-annotated
  * `_unknownThunk`, so a wrong field here is caught instead of silently trusted
@@ -66,20 +64,24 @@ export const _unknownThunk = () => ['const', unknownConst]
  */
 export const unknown = _unknownThunk
 
+// Every field may be **omitted** — a JSON Schema document carries only the
+// keywords it needs, and JSON has no `undefined` to hold in a present field —
+// so the two enumerated keywords spell their optionality as `or(option, …)`
+// like the rest, not as a member `undefined`.
 const unknownConst = /** @type {const} */ ({
-    $schema: option(string),
-    $ref: option(string),
-    $defs: option(record(unknown)),
-    type: or('boolean', 'number', 'string', 'integer', 'array', 'object', undefined),
-    const: option(jsonUnknown),
-    not: option(unknown),
-    anyOf: option(array(unknown)),
-    items: or(unknown, false, undefined),
-    prefixItems: option(array(unknown)),
-    minItems: option(number),
-    properties: option(record(unknown)),
-    required: option(array(string)),
-    additionalProperties: option(unknown),
+    $schema: or(option, string),
+    $ref: or(option, string),
+    $defs: or(option, record(unknown)),
+    type: or(option, 'boolean', 'number', 'string', 'integer', 'array', 'object'),
+    const: or(option, jsonUnknown),
+    not: or(option, unknown),
+    anyOf: or(option, array(unknown)),
+    items: or(option, unknown, false),
+    prefixItems: or(option, array(unknown)),
+    minItems: or(option, number),
+    properties: or(option, record(unknown)),
+    required: or(option, array(string)),
+    additionalProperties: or(option, unknown),
 })
 
 const nullBit = unitBit(null)
@@ -163,24 +165,25 @@ const unitSchemas = bits => [
 
 /**
  * The length below which the array would leave a declared position that
- * excludes `undefined` unfilled: one past the last such position, and zero
- * when every position admits absence. The array counterpart of the `required`
- * key list — an absent element reads as `undefined` just as an absent key
- * does — and, arrays being contiguous, one number says it for every position.
+ * excludes **absence** unfilled: one past the last such position, and zero
+ * when every position admits absence. The array counterpart of the
+ * `required` key list — and, arrays being contiguous, one number says it for
+ * every position.
  *
  * @type {(rules: RuleSet) => (prefix: readonly Node[]) => number}
  */
 const minLength = rules => prefix =>
-    prefix.findLastIndex(n => !admitsUndefined(rules)(n)) + 1
+    prefix.findLastIndex(n => !admitsAbsence(rules)(n)) + 1
 
 /**
  * A set of arrays: `prefixItems` for the declared positions, `items` for what
  * may follow — `false` when nothing may, which is what makes the exact-length
  * pattern exact. `prefixItems` alone constrains only elements that exist
  * (draft 2020-12 implies no minimum length), so the required length is
- * `minItems`, and a position past it — one the array may simply end before —
- * has `undefined` stripped from its schema, absence being expressed by
- * `minItems` already. Both are the object side's `required` /
+ * `minItems` — one past the last position excluding absence — and a position
+ * past it has `undefined` stripped from its schema, JSON spelling an
+ * unfilled position as `null`-less truncation rather than a written
+ * `undefined`. Both are the object side's `required` /
  * {@link stripUndefined} pair, one kind over.
  *
  * @type {(rules: RuleSet) => (p: ArraySet) => Ts<typeof unknown>}
@@ -198,20 +201,28 @@ const arraySetSchema = rules => p => {
     }
 }
 
-/** Whether the node's value set admits `undefined` — its unit bit, read
- * through a reference if needed.
+/**
+ * Whether the node's set admits **absence** — its absent bit, read through a
+ * reference if needed. What drives `required` and `minItems`: absence is
+ * what lets a key or position be left out, so this is a different question
+ * from {@link stripUndefined}'s.
+ *
  * @type {(rules: RuleSet) => (n: Node) => boolean}
  */
-const admitsUndefined = rules => n => {
+const admitsAbsence = rules => n => {
     const u = typeof n === 'string' ? assertNotNullish(at(n)(rules)) : n
-    return ((u.unit ?? 0) & undefinedBit) !== 0
+    return ((u.unit ?? 0) & absentBit) !== 0
 }
 
 /**
- * The node with `undefined` removed — for an optional property's schema,
- * where absence is already expressed by the key not being `required`. A
- * reference is kept as-is: its definition is shared, and the extra
- * `{ "not": {} }` member it may carry matches no JSON value anyway.
+ * The node with `undefined` removed — asking what JSON can **carry**, so it
+ * stays keyed on the `undefined` bit while `required`/`minItems` moved to
+ * the absent one. A key of `or(number, undefined)` is required and renders
+ * as `number`: JSON has no way to write the `undefined` case, so the
+ * rendering under-approximates — the same corner this module already
+ * documents for `NaN` and `-0`. A reference is kept as-is: its definition is
+ * shared, and the extra `{ "not": {} }` member it may carry matches no JSON
+ * value anyway.
  *
  * @type {(n: Node) => Node}
  */
@@ -220,16 +231,17 @@ const stripUndefined = n =>
 
 /**
  * A set of objects: `properties` for the declared keys — a key admitting
- * `undefined` is optional and has `undefined` stripped from its schema,
- * every other key is `required` — and `additionalProperties` for the rest.
- * No `rest` leaves the other keys unconstrained (lenient), matching rtti's
- * open-struct validation semantics.
+ * **absence** is left out of `required`, every key has `undefined` stripped
+ * from its printed schema ({@link stripUndefined}, JSON carrying no
+ * `undefined`) — and `additionalProperties` for the rest. No `rest` leaves
+ * the other keys unconstrained (lenient), matching rtti's open-struct
+ * validation semantics.
  *
  * @type {(rules: RuleSet) => (p: ObjectSet) => Ts<typeof unknown>}
  */
 const objectSetSchema = rules => p => {
     const ents = definedEntries(p.props)
-    const required = ents.filter(([, n]) => !admitsUndefined(rules)(n)).map(([k]) => k)
+    const required = ents.filter(([, n]) => !admitsAbsence(rules)(n)).map(([k]) => k)
     return {
         type: 'object',
         ...(ents.length === 0 ? {} : {
@@ -244,8 +256,16 @@ const objectSetSchema = rules => p => {
 /** @type {(u: UnionSet) => boolean} */
 const isTop = u => cmp([{}, u])([{}, top]) === 0
 
-/** @type {(rules: RuleSet) => (u: UnionSet) => Ts<typeof unknown>} */
-const unionSchema = rules => u => {
+/**
+ * The absent bit is masked before rendering: absence is not a JSON value —
+ * it is spelled by a key's omission from `required`, or by `minItems` — so
+ * it contributes no schema member, and `or(option, unknown)` is the
+ * always-true `{}` like plain `unknown`.
+ *
+ * @type {(rules: RuleSet) => (u: UnionSet) => Ts<typeof unknown>}
+ */
+const unionSchema = rules => u0 => {
+    const u = withoutUnits(absentBit)(u0)
     if (isTop(u)) { return {} }
     const members = [
         ...unitSchemas(u.unit ?? 0),
