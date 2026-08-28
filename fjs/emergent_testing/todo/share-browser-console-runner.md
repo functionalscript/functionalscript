@@ -131,11 +131,23 @@ and is reviewable without the next one.
       move with them.
 - [ ] **5. A browser interpreter** for exactly those operations, with no
       scheduling policy of its own.
-- [ ] **6. One reporter.** The event stream — a leaf landed, a run ended —
-      that both hosts subscribe to. Step 2 gave them the *value*; this gives
-      them the seam it travels through, and it is what
+- [x] **6. One reporter.** The event stream — a leaf landed, a run ended —
+      that both hosts subscribe to. Step 2 gave them the *value*; this gave
+      them the seam it travels through. `Reporter.result` now receives the
+      shared `TestResult` built by the runner instead of raw material every
+      reporter normalized for itself, and the run-ended event is `RunTotals`,
+      folded from the leaf results by one `addResult` — the summary line, the
+      exit code and the browser report's counts and pass/fail status all read
+      that same fold. This is what
       [report a test's name before running it](report-before-running.md)
-      needs before a start event can exist.
+      needed before a start event could exist: adding one is now a third event
+      kind on an existing stream. What stayed each host's own, deliberately:
+      the raw `SandboxResult` still travels next to the `TestResult`, because
+      describing a *thrown value* is each host's part (step 2's finding); and
+      the browser report's own `duration` stays wall-clock rather than the
+      fold's summed durations, because its leaves run concurrently and the sum
+      only means "how long the run took" for a sequential runner —
+      `RunTotals` documents that.
 - [ ] **7. One skeleton.** The page's proof-tree walk is deleted and the shared
       traversal runs it.
 - [ ] **8. The layout move**, and the website preparation program.
@@ -162,10 +174,14 @@ alone on purpose:
 
 Note also that `testResult` now sits inside `fjs t`'s own reporting path, so a
 defect in it can mislabel the very failures it causes — a mutation forcing every
-status to `passed` prints `ok` on failing lines. The pass/fail counts come from
-the walk's state rather than from the reporter, so they stay honest and the
-summary still reports the failures. Worth remembering when reading output while
-changing this function.
+status to `passed` prints `ok` on failing lines. Since step 6, the pass/fail
+counts and the exit code read the same shared status (the walk folds each
+leaf's `TestResult` with `addResult`), so such a defect no longer leaves an
+honest summary behind either — that duplicate decision was exactly the drift
+this issue exists to remove, and what holds the line now is that `testResult`
+and `addResult` are pinned by direct proofs rather than by a second
+implementation agreeing. Worth remembering when reading output while changing
+either function.
 
 ### Why the remaining steps are worth taking
 
