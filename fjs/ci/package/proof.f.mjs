@@ -1,5 +1,6 @@
 import { packageCheckJob, packageCheckJobId } from './module.f.mjs'
 import { packageArtifact, packageJobId } from '../node/module.f.mjs'
+import { typescript } from '../config/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
 /** @type {(fragment: string) => boolean} */
@@ -35,9 +36,10 @@ export const proof = {
         assert(scriptHas('--skipLibCheck false'), 'expected skipLibCheck left false')
         // An empty list type-checks nothing and passes.
         assert(scriptHas('test -s declarations.txt'), 'expected a guard against an empty file list')
-        // A range is not a resolved version, so an installed compiler that does
-        // not match the pin means the registry, not the package, decided.
-        assert(scriptHas('test "$installed" = "$exact"'), 'expected the installed compiler matched against the pin')
+        // With no checkout there is no lockfile, so the compiler comes from the
+        // repository's pin. An unpinned install would let the registry change
+        // this check's verdict with no change here.
+        assert(scriptHas(`"typescript@${typescript}"`), 'expected the pinned compiler')
     },
     // `fjs ci` generates workflows for other projects, so the artifact's own
     // package name is whatever that project publishes. Installing under a fixed
@@ -46,7 +48,15 @@ export const proof = {
     // happens to share the name instead of the artifact just built.
     anyPackageName: () => {
         assert(scriptHas('"packed@file:$(ls *.tgz)"'), 'expected the artifact installed under the fixed alias')
+        // More than one archive leaves it ambiguous which package is under test.
+        assert(scriptHas('test "$(ls *.tgz | wc -l)" -eq 1'), 'expected exactly one archive required')
         assert(scriptHas('find node_modules/packed'), 'expected declarations enumerated from that directory')
+        // Every declaration form the package can ship, not just the two this
+        // repository happens to emit — `fjs ci` generates for projects whose
+        // `files` may include CommonJS declarations.
+        for (const ext of /** @type {const} */ (['*.d.ts', '*.d.mts', '*.d.cts'])) {
+            assert(scriptHas(`-name '${ext}'`), `expected ${ext} enumerated`)
+        }
         assert(
             !scriptHas('node_modules/functionalscript'),
             'the package check must not hard-code this repository\'s package name')

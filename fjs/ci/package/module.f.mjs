@@ -7,7 +7,7 @@
  * @import { Job } from '../common/types.ts'
  */
 
-import { images, node } from '../config/module.f.mjs'
+import { images, node, typescript } from '../config/module.f.mjs'
 import { uses } from '../common/module.f.mjs'
 import { packageArtifact, packageJobId } from '../node/module.f.mjs'
 
@@ -31,39 +31,23 @@ export const packageCheckJobId = /** @type {const} */ ('package-check')
 // Nothing here self-references; revisit this if that changes.
 const alias = /** @type {const} */ ('packed')
 
-const installArtifact = /** @type {const} */ (`set -eu
-npm init -y > /dev/null
-npm install --no-audit --no-fund "${alias}@file:$(ls *.tgz)"`)
+const installArtifact = /** @type {const} */ (`npm init -y > /dev/null
+# One archive, or which package is under test is ambiguous.
+test "$(ls *.tgz | wc -l)" -eq 1
+npm install "${alias}@file:$(ls *.tgz)"`)
 
-const installPinnedCompiler = /** @type {const} */ (`set -eu
-# The compiler is the package's own pin, read out of the packed package.json:
-# with no checkout there is no lockfile, so an unpinned install would let the
-# registry change this check's verdict with no change to the repository.
-ts=$(node -p "require('./node_modules/${alias}/package.json').devDependencies?.typescript ?? ''")
-# Refuse rather than fall back to a floating compiler.
-test -n "$ts"
-npm install --no-audit --no-fund "typescript@$ts"
-# A dependency specification is not a resolved version: \`^7.0.0\` installs
-# whatever the registry publishes next. Compare what was installed against the
-# literal pin and refuse when they differ, so the verdict cannot move without a
-# change to the package.
-installed=$(node -p "require('./node_modules/typescript/package.json').version")
-exact=$(SPEC="$ts" node -p "const s = process.env.SPEC; s.startsWith('=') ? s.slice(1) : s")
-test "$installed" = "$exact"`)
+const installCompiler = /** @type {const} */ (`npm install "typescript@${typescript}"`)
 
-const enumerateDeclarations = /** @type {const} */ (`set -eu
-# Every declaration the package ships, enumerated from the installed artifact.
-# A hand-written import list cannot see a module that gains a private type
-# module later, which is the case this check exists to catch.
-find node_modules/${alias} \\( -name '*.d.ts' -o -name '*.d.mts' \\) > declarations.txt
-# An empty list would type-check nothing and pass, which is the one way this
-# job can look healthy while checking nothing at all.
+// Every declaration the package ships, enumerated from the installed artifact:
+// a hand-written import list cannot see a module that gains a private type
+// module later, which is the case this check exists to catch. An empty list
+// would type-check nothing and pass.
+const enumerateDeclarations = /** @type {const} */ (`find node_modules/${alias} \\( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \\) > declarations.txt
 test -s declarations.txt`)
 
-const typeCheck = /** @type {const} */ (`set -eu
-# skipLibCheck stays at its false default: it is what makes tsc open these
-# declarations and report a reference the tarball does not carry.
-npx tsc --module nodenext --moduleResolution nodenext --target esnext --strict --noEmit --skipLibCheck false @declarations.txt`)
+// skipLibCheck stays at its false default: it is what makes tsc open these
+// declarations and report a reference the tarball does not carry.
+const typeCheck = /** @type {const} */ (`npx tsc --module nodenext --moduleResolution nodenext --target esnext --strict --noEmit --skipLibCheck false @declarations.txt`)
 
 /**
  * Downloads the packed tarball, installs it as a real dependency, and
@@ -80,7 +64,7 @@ export const packageCheckJob = {
         uses('actions/download-artifact', { name: packageArtifact }),
         uses('actions/setup-node', { 'node-version': node.default }),
         { run: installArtifact },
-        { run: installPinnedCompiler },
+        { run: installCompiler },
         { run: enumerateDeclarations },
         { run: typeCheck },
     ],

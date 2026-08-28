@@ -33,6 +33,13 @@ export const bun = '1.4.0'
 // https://deno.com/
 export const deno = '2.9.6'
 
+// The compiler the packed-package check installs. Kept here with the other tool
+// pins rather than read out of the artifact at run time: with no checkout that
+// job has no lockfile, so the version has to come from somewhere version
+// controlled or the registry decides the check's verdict.
+// https://www.npmjs.com/package/typescript
+export const typescript = '=7.0.2'
+
 // The Node versions the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. Every runtime
 // uses these: `setup-node` on the GitHub-hosted runners and the generated
