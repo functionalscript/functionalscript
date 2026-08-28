@@ -25,13 +25,13 @@ export const images = /** @type {const} */({
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = /** @type {const} */ '0.46.1'
+export const functionalscript = /** @type {const} */ '0.47.0'
 
 // https://bun.sh/
 export const bun = '1.4.0'
 
 // https://deno.com/
-export const deno = '2.9.5'
+export const deno = '2.9.6'
 
 // The Node versions the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. Every runtime
@@ -53,7 +53,7 @@ export const node = /** @type {const} */({
 // https://channels.nixos.org/nixos-26.05/git-revision
 export const nixpkgs = /** @type {const} */({
     ref: 'nixos-26.05',
-    commit: 'f4f698677b11021a8f84f452e23ae9ef2427bec3',
+    commit: '062346a6d85bc4b49dfaa61c986e9c5be21217d1',
 })
 
 // https://github.com/bytecodealliance/wasmtime/releases

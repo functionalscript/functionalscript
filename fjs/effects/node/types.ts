@@ -182,8 +182,8 @@ export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, I
 // stat
 
 /**
- * File metadata returned by `stat`: the size in bytes, and whether the entry is
- * a *regular* file.
+ * File metadata returned by `stat`: the size in bytes, and which of the two
+ * entry kinds a caller can act on it is.
  *
  * `isFile` is not a convenience. Reading a FIFO, a device or a socket is not
  * reading a file: `open` on a FIFO with no writer blocks until one appears, so a
@@ -191,10 +191,18 @@ export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, I
  * long as it waits. Size cannot stand in for the check — a FIFO stats as zero
  * bytes and passes every bound. It is the same question `Dirent` answers for a
  * directory listing, asked about one path.
+ *
+ * `isDirectory` is not its negation, which is the whole reason it is a second
+ * flag rather than a derived one: a FIFO, a device, a socket and the virtual
+ * runner's `JsModule` are all `isFile: false` without being directories, so a
+ * caller that needs "a name it can descend through" — `fjs/web` validating its
+ * served root — cannot ask `!isFile` for it. Both flags are false for such an
+ * entry, and that is the answer, not a gap.
  */
 export type FileStat = {
     readonly size: number
     readonly isFile: boolean
+    readonly isDirectory: boolean
 }
 
 export type Stat = readonly['stat', (path: string) => IoResult<FileStat>]

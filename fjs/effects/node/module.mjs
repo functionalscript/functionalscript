@@ -389,7 +389,7 @@ const runNodeEffect = asyncRun({
     }),
     stat: path => io(async () => {
         const s = await stat(path)
-        return { size: s.size, isFile: s.isFile() }
+        return { size: s.size, isFile: s.isFile(), isDirectory: s.isDirectory() }
     }),
     import: path => io(() => asyncImport(path)),
     exec: (command, stdin) => new Promise(resolve => {

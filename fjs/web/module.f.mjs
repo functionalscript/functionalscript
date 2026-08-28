@@ -14,7 +14,7 @@
  * | case                                          | status |
  * |-----------------------------------------------|--------|
  * | file found                                     | `200`  |
- * | `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path | `404` |
+ * | `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path, or one descending through a file | `404` |
  * | any other method                               | `405` with `Allow` |
  * | a `Host` this server does not answer for       | `403`  |
  * | a path that escapes `root`, or an undecodable URL | `400`  |
@@ -31,17 +31,17 @@
  * @module
  *
  * @import { Effect } from '../effects/types.ts'
- * @import { FileStat, IoChannel, Program, ReadFile, ServerResponse } from '../effects/node/types.ts'
+ * @import { FileStat, IoChannel, Program, ReadFile, ServerResponse, Stat } from '../effects/node/types.ts'
  * @import { Nullable } from '../types/nullable/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { Refusal, Resolve, Respond, WebOp } from './types.ts'
  */
 
-import { pureError, pureOk, resultMapStep, step } from '../effects/module.f.mjs'
+import { pureError, pureOk, resultMapStep, resultStep, step } from '../effects/module.f.mjs'
 import {
-    createServer, errorExit, errorSummary, exitStep, forever, isNotFound, listen, log, readFile,
-    stat,
+    createServer, errorExit, errorMessage, errorSummary, exitStep, forever, isNotFound, listen, log,
+    readFile, stat,
 } from '../effects/node/module.f.mjs'
 import { detectPath } from '../media/type/module.f.mjs'
 import { escapes, join, parse } from '../path/module.f.mjs'
@@ -485,6 +485,64 @@ const fileResponse = path => r => {
 }
 
 /**
+ * What a POSIX host reports for a path that descends through a name which is
+ * not a directory — `GET /README.md/`, whose `index.html` is under a regular
+ * file. Windows reports `ENOENT` for the same request, so this is the one
+ * request whose status differed by host.
+ *
+ * @type {string}
+ */
+const notDirectory = 'ENOTDIR'
+
+/**
+ * Whether `s` describes a directory this server can serve from. A `stat` that
+ * failed describes nothing, and `isFile === false` is not the question:
+ * a FIFO, a device and a socket answer that too.
+ *
+ * @type {(s: Result<FileStat, IoChannel>) => boolean}
+ */
+const isServableRoot = s => s[0] === 'ok' && s[1].isDirectory
+
+/**
+ * The response frame for whatever reading `path` produced — {@link fileResponse}
+ * for every case but one, and that one is why this is an effect rather than a
+ * function.
+ *
+ * **`ENOTDIR` is `404`.** A path that descends through a regular file names
+ * nothing, which is client-caused in exactly the way a missing name is, so it
+ * belongs with the `404` answers rather than in the channel reserved for the
+ * host failing at something it should have managed. It is also a disclosure
+ * while it is a `500`: `/README.md/` and `/nope.md/` answer differently, which
+ * is precisely the enumeration the identical `404`s elsewhere are written to
+ * deny.
+ *
+ * **Unless the root itself is the non-directory**, which is why the answer
+ * cannot be read off the error alone. `fjs web README.md` makes *every* request
+ * stat a path descending through a file, and answering `404` to all of them
+ * would tell a visitor the file is missing and the operator nothing at all.
+ * {@link main} refuses such a root at startup, but a root replaced while the
+ * server runs would otherwise turn one operator mistake into a lie told to
+ * every visitor for the life of the process — so the root is re-checked here,
+ * and only a root that is still a directory earns the `404`.
+ *
+ * The re-check costs a `stat` on the `ENOTDIR` path and nothing on any other,
+ * and what it leaves is the request-local race
+ * [stat-then-read](./todo/stat-then-read.md) already describes: a wrong status
+ * in a vanishing window rather than a wrong status forever.
+ *
+ * @type {(root: string) => (path: string) => (r: Result<Vec, IoChannel | _TooLarge | _NotRegular>) => Effect<Stat, ServerResponse, never>}
+ */
+const answer = root => path => r => {
+    const hostAnswer = fileResponse(path)(r)
+    /** @type {Effect<Stat, ServerResponse, never>} */
+    const framed = r[0] === 'error' && r[1][0] === 'ioError' && r[1][1].code === notDirectory
+        ? resultMapStep(stat(served(root)), s =>
+            ok(isServableRoot(s) ? plainText(404)('not found') : hostAnswer))
+        : pureOk(hostAnswer)
+    return framed
+}
+
+/**
  * Answers one request: resolve, read, and frame the result.
  *
  * The host is checked first, against the loopback names this server answers for
@@ -517,7 +575,10 @@ export const respond = root => ({ method, url, headers }) => {
     }
     const path = resolved[1]
     const bytes = step(stat(path), readBounded(path))
-    return resultMapStep(bytes, r => ok(fileResponse(path)(r)))
+    // `resultStep`, not `resultMapStep`: framing the result is pure for every
+    // case but `ENOTDIR`, which asks the file system one more question — see
+    // {@link answer}.
+    return resultStep(bytes, answer(root)(path))
 }
 
 // ── The program ───────────────────────────────────────────────────────────────
@@ -543,6 +604,18 @@ const loopback = '127.0.0.1'
  * option yet; `port` becomes `--port` once one exists, and `--host` is what
  * would let a caller bind anything but loopback.
  *
+ * **The root is checked before the socket is.** A root that is not a directory
+ * — a mistyped name, or `fjs web README.md` — is a command-line mistake, and it
+ * is reported like the port's: on `stderr`, with exit code `1`, at the moment it
+ * was made rather than on some visitor's request. Without it the mistake is
+ * silent until then, and differently silent per host: a POSIX `stat` under such
+ * a root fails `ENOTDIR` and answered `500` to everything, while Windows reports
+ * `ENOENT` and answered `404` to everything.
+ *
+ * It stats {@link served}`(root)`, never the argument as written: `fjs web ''`
+ * is a supported invocation naming the working directory, and `stat('')` fails
+ * `ENOENT` on every host.
+ *
  * The chain ends in `forever`, so the program only stops when the process does.
  * A runner that cannot block forever answers `notImplemented` there, which is
  * how the whole program remains runnable — and observable — under the virtual
@@ -559,9 +632,24 @@ export const main = ({ args }) => {
     if (!Number.isInteger(port) || port < 1 || port > maxPort) {
         return errorExit(`invalid port "${portArgument}"`)
     }
+    const base = served(root)
     const server = createServer(respond(root))
     const listening = step(server, s => listen(s, port, loopback))
-    const announced = step(listening, () => log(`serving ${served(root)} on http://${loopback}:${port}/`))
+    const announced = step(listening, () => log(`serving ${base} on http://${loopback}:${port}/`))
     const ended = step(announced, forever)
-    return exitStep(ended)
+    return resultStep(stat(base), s => {
+        // Bound rather than returned inline, for the reason `exitStep` binds
+        // its own: the branches are two different `Effect`s and `step` would
+        // infer neither from the union.
+        //
+        // `errorMessage`, not `errorSummary`: this line is for the operator who
+        // typed the argument, and the host's own words name what it could not
+        // stat. A client is the one that is not entitled to that.
+        const reason = s[0] === 'error' ? errorMessage(s[1]) : 'not a directory'
+        /** @type {Effect<WebOp, 0, number>} */
+        const program = isServableRoot(s)
+            ? exitStep(ended)
+            : errorExit(`invalid root "${base}": ${reason}`)
+        return program
+    })
 }
