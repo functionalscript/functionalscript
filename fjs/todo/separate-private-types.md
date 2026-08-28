@@ -246,15 +246,18 @@ When Stage 1 is implemented:
 - delete or narrow `todo/blocked/jsdoc-typedef-strip-internal.md`: this design
   supersedes waiting for `@internal`/`stripInternal`, so the repository does not
   keep two conflicting private-type strategies;
-- reconcile `todo/migrate-typescript-to-mjs.md`: its "Preserve private type
-  intent with `_`" section and its typedef-visibility migration task prescribe
-  file-scope `_` typedefs and defer to `stripInternal`; rewrite them to target
-  the Stage 1 destinations — `types.ts`, optional `private.ts`, function-local
-  typedefs;
-- reconcile `fjs/ci/todo/f-mjs-package-support.md`: its declaration-emission
-  narrative repeats the same prescription, and its fixture task requires an
-  implementation-only file-scope `_` typedef in `.mjs`; retarget both to the
-  Stage 1 forms.
+- sweep the remaining Markdown documents repo-wide — `todo/` issues, plans,
+  and READMEs — for text that prescribes adding a file-scope JSDoc `@typedef`
+  to an authored `.mjs` or defers private types to `@internal`/`stripInternal`,
+  and retarget each to the Stage 1 forms: `types.ts`, optional `private.ts`,
+  function-local typedefs. The sweep is defined by the search, not by a list;
+  instances known at the time of writing are
+  `todo/migrate-typescript-to-mjs.md` ("Preserve private type intent with `_`"
+  and the typedef-visibility migration task),
+  `fjs/ci/todo/f-mjs-package-support.md` (its declaration-emission narrative
+  and its `_`-typedef fixture task), and
+  `fjs/effects/memory/todo/sync-interpreter-owner.md` (its proposed
+  `MemoryState` file-scope typedef belongs in `types.ts`).
 
 When Stage 2 is implemented:
 
@@ -297,9 +300,8 @@ type-only and use named `import type { ... }` imports.
       `fjs/`.
 - [ ] Update root and `fjs/` `AGENTS.md` policy documentation; rewrite the
       `fjs/fsc/README.md` typedef prescription; delete or narrow the blocked
-      `@internal` TODO; reconcile the typedef prescriptions in
-      `todo/migrate-typescript-to-mjs.md` and
-      `fjs/ci/todo/f-mjs-package-support.md`.
+      `@internal` TODO; sweep all remaining Markdown documents for file-scope
+      typedef prescriptions and retarget each to the Stage 1 forms.
 
 #### Stage 2 — packaging cleanup
 
@@ -338,12 +340,10 @@ type-only and use named `import type { ... }` imports.
   updated and no compatibility re-exports.
 - Root `AGENTS.md` and `fjs/AGENTS.md` document the Stage 1 rules.
 - No repository document prescribes creating file-scope JSDoc typedefs or
-  waiting for `@internal`/`stripInternal`: the `fjs/fsc/README.md` typedef
-  section, the `todo/migrate-typescript-to-mjs.md` migration prescriptions, and
-  the `fjs/ci/todo/f-mjs-package-support.md` narrative and fixture task are
-  rewritten, and the blocked `@internal` TODO is deleted or narrowed, while the
-  permanent `_` contract stays documented and the shipped `private.d.ts`
-  tolerance stays documented until Stage 2.
+  waiting for `@internal`/`stripInternal` — verified by a repo-wide search,
+  not by checking an enumerated list. The permanent `_` contract stays
+  documented, and the shipped `private.d.ts` tolerance stays documented until
+  Stage 2.
 
 #### Stage 2 — packaging cleanup
 
