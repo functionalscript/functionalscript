@@ -7,7 +7,7 @@
  * @import { Job } from '../common/types.ts'
  */
 
-import { images, node, typescript } from '../config/module.f.mjs'
+import { images, node } from '../config/module.f.mjs'
 import { uses } from '../common/module.f.mjs'
 import { packageArtifact, packageJobId } from '../node/module.f.mjs'
 
@@ -31,19 +31,28 @@ export const packageCheckJobId = /** @type {const} */ ('package-check')
 // Nothing here self-references; revisit this if that changes.
 const alias = /** @type {const} */ ('packed')
 
+// Installed under a fixed alias so every later step names the package
+// literally. Two archives would make npm's spec malformed and fail loudly, so
+// nothing here guards a count.
 const installArtifact = /** @type {const} */ (`npm init -y > /dev/null
-# One archive, or which package is under test is ambiguous.
-test "$(ls *.tgz | wc -l)" -eq 1
 npm install "${alias}@file:$(ls *.tgz)"`)
 
-const installCompiler = /** @type {const} */ (`npm install "typescript@${typescript}"`)
+/**
+ * The compiler is whatever the project pins, passed through untouched. With no
+ * checkout there is no lockfile, so a version chosen here instead would let the
+ * registry — or a constant that drifted from `package.json` — decide the
+ * verdict.
+ *
+ * @type {(pin: string) => string}
+ */
+const installCompiler = pin => `npm install "typescript@${pin}"`
 
 // Every declaration the package ships, enumerated from the installed artifact:
 // a hand-written import list cannot see a module that gains a private type
 // module later, which is the case this check exists to catch. An empty list
-// would type-check nothing and pass. Each path is quoted because `tsc` splits
-// a response file on whitespace, so a directory with a space in its name would
-// otherwise fail a package that is perfectly valid.
+// would type-check nothing and pass. Each path is quoted because `tsc` splits a
+// response file on whitespace, so a directory with a space in its name would
+// otherwise fail a package that is valid.
 const enumerateDeclarations = /** @type {const} */ (`find node_modules/${alias} \\( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' \\) -printf '"%p"\\n' > declarations.txt
 test -s declarations.txt`)
 
@@ -53,11 +62,11 @@ const typeCheck = /** @type {const} */ (`npx tsc --module nodenext --moduleResol
 
 /**
  * Downloads the packed tarball, installs it as a real dependency, and
- * type-checks every declaration it ships.
+ * type-checks every declaration it ships with the compiler the package pins.
  *
- * @type {Job}
+ * @type {(pin: string) => Job}
  */
-export const packageCheckJob = {
+export const packageCheckJob = pin => ({
     'runs-on': images.ubuntu.arm,
     // Without this the two jobs race and the download fails before the check
     // has run — red for a reason unrelated to what it tests.
@@ -66,8 +75,8 @@ export const packageCheckJob = {
         uses('actions/download-artifact', { name: packageArtifact }),
         uses('actions/setup-node', { 'node-version': node.default }),
         { run: installArtifact },
-        { run: installCompiler },
+        { run: installCompiler(pin) },
         { run: enumerateDeclarations },
         { run: typeCheck },
     ],
-}
+})

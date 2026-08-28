@@ -539,7 +539,7 @@
           }
         },
         {
-          "run": "npm init -y > /dev/null\n# One archive, or which package is under test is ambiguous.\ntest \"$(ls *.tgz | wc -l)\" -eq 1\nnpm install \"packed@file:$(ls *.tgz)\""
+          "run": "npm init -y > /dev/null\nnpm install \"packed@file:$(ls *.tgz)\""
         },
         {
           "run": "npm install \"typescript@=7.0.2\""

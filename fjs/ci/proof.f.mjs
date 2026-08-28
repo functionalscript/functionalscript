@@ -69,9 +69,16 @@ const workflow = state => {
 const flake = (state, id) =>
     text(path(state.root, ['nix', 'generated', id]), 'flake.nix')
 
+// The packed-package check is generated only when the project pins a compiler,
+// so the shared fixture supplies one. A pin no configuration holds, so an
+// assertion that finds it found the value that came from here.
+const runPin = /** @type {const} */ ('=9.9.9-run')
+
+const runPackageJson = `{"name":"other-package","devDependencies":{"typescript":"${runPin}"}}`
+
 /** @type {(rust: boolean, nodeExtra?: (o: Os) => readonly MetaStep[]) => GitHubAction} */
 const run = (rust, nodeExtra = () => []) => {
-    const [state, result] = virtual(makeState(rust, undefined))(ci({ nodeExtra }))
+    const [state, result] = virtual(makeState(rust, runPackageJson))(ci({ nodeExtra }))
     assertEq(exitCode(result), 0)
     return workflow(state)
 }
@@ -269,6 +276,29 @@ export const proof = {
             gha.jobs[packageJobId]?.steps.some(
                 step => step.uses?.startsWith('actions/upload-artifact@') === true) === true,
             'expected the needed job to be the one that uploads')
+        // The compiler comes from the project's own package.json, not from a
+        // constant here that could disagree with it silently.
+        assert(
+            job.steps.some(step => step.run?.includes(`"typescript@${runPin}"`) === true),
+            'expected the compiler pin read from package.json')
+    },
+    // Without a pin the check cannot be run deterministically, so it is not
+    // generated at all rather than run against a compiler nobody chose.
+    packageCheckNeedsAPin: () => {
+        for (const packageJson of /** @type {const} */ ([
+            undefined,                                  // no package.json at all
+            'not json',                                 // unparseable
+            '"a string"',                               // not an object
+            '{"devDependencies":"x"}',                  // devDependencies not an object
+            '{"devDependencies":[]}',                   // nor an array
+            '{"devDependencies":{"typescript":1}}',     // pin not a string
+            '{"name":"p"}',                             // no devDependencies
+            '{"name":"p","devDependencies":{}}',        // no typescript
+        ])) {
+            const [state, result] = virtual(makeState(false, packageJson))(ci({ nodeExtra: () => [] }))
+            assertEq(exitCode(result), 0)
+            assertEq(workflow(state).jobs[packageCheckJobId], undefined)
+        }
     },
     jobNeeds: () => {
         const steps = /** @type {const} */ ([{ run: 'echo hi' }])
