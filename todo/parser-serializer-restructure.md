@@ -243,10 +243,18 @@ throughout.
    in `fjs/media/json/tokenizer` with a scanner of JSON's own lexical
    grammar, exporting the string and number scanners for reuse.
    Accepted-input proofs unchanged; error-shape proofs rewritten once.
-4. **`fjs/media/datajs`** — parser (JSON's container machine via its policy
-   seam, plus an identifier policy) and serializer (the shared walker of
+4. **`fjs/media/datajs`** — parser and serializer, proofs over the spec
+   vectors. The parser reuses JSON's container machine, and today's seam is
+   **not wide enough for that**: `NumberPolicy` receives number tokens only,
+   `JsonToken` has no identifier/bigint/`=` tokens, and the object states
+   accept string keys only. Generalizing the seam is therefore explicit
+   stage-4 prerequisite work on `fjs/media/json/parser`: extend the token
+   vocabulary the machine can be fed, add the leaf/identifier policy hook
+   (JSON's instantiation: error) and the key-form hook (JSON's: string keys
+   only), and pin JSON's accepted language and behavior unchanged by proofs
+   across the API change. The serializer is the shared walker of
    [157](../fjs/djs/todo/157-json-djs-shared-value-machine.md) §2 with a
-   ref-lookup hook, own number writer), proofs over the spec vectors.
+   ref-lookup hook and DataJS's own number writer.
 5. **Front-end move** — `fjs/djs/{tokenizer,parser,ast,transpiler}` →
    `fjs/fsc/*` as a rename. The rest of `fjs/djs` has stated destinations
    rather than following the rename: `serializer/` is reworked into stage
@@ -312,8 +320,11 @@ throughout.
 
 - [157-json-djs-shared-value-machine](../fjs/djs/todo/157-json-djs-shared-value-machine.md)
   — §2's shared-walker extraction becomes stage 4 work; §3's minus-rewriter
-  question is settled by stage 3 (the folding lives in JSON's own tokenizer
-  and DataJS reuses it). Rebase the issue on this plan or fold it in.
+  question is settled by stages 3–4: the folding is a parameterized helper
+  whose strict JSON instantiation folds `-` before a number token only
+  (JSON's acceptance unchanged), while DataJS's instantiation adds its own
+  cases (`-Infinity`, negative bigint) — the extra sign forms never enter
+  the JSON tokenizer. Rebase the issue on this plan or fold it in.
 - [663-json-djs-tree-type](../fjs/djs/todo/663-json-djs-tree-type.md) — the
   shared `Tree<P>` instantiation targets `fjs/media/datajs`; rename paths.
 - [bnf-grammar-single-owner](../fjs/media/json/todo/bnf-grammar-single-owner.md)
