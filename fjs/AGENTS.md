@@ -141,11 +141,19 @@ without it gets no `module_doc` at all — the block is dropped, not demoted.
 Verified against the pinned Deno (`fjs/ci/config/module.f.mjs`), for `.mjs` and
 `.ts` alike; the tag need not be in the first block, only in some block.
 
-**So the tag goes wherever a file has module-level documentation to publish** —
-`module.f.mjs`, `types.ts`, `private.ts` — and a `module.*` file always has some.
-A file whose leading block only holds `@import` tags has nothing to attach and
-wants no `@module`. Where a file's documentation is never published, the tag buys
-nothing; `proof.*` is the clear case.
+**So the tag goes wherever a file has module-level documentation a reader is
+meant to get from `deno doc`** — `module.f.mjs`, `types.ts`, `private.ts` — and a
+`module.*` file always has some. A file whose leading block only holds `@import`
+tags has nothing to attach and wants no `@module`. Where a file's documentation
+reaches no reader, the tag buys nothing; `proof.*` is the clear case.
+
+Which reader differs by file kind, and the tag does not decide it.
+`module.f.mjs` and `types.ts` are public API surface. `private.ts` is not: it
+holds implementation-private types outside the public declaration closure, and
+[`todo/separate-private-types.md`](./todo/separate-private-types.md) plans to
+drop its generated declarations from the package altogether. Its prose is for
+contributors reading the sources, so the tag belongs there — but a public
+documentation build must not be pointed at it.
 
 Put it in the leading block, followed by one blank line before the first
 source-level import or declaration.
