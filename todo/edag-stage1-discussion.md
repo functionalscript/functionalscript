@@ -94,14 +94,14 @@ the EDAG's sharing structure and DJS's graph structure are the same thing.
 
 ```js
 // const f = (...a) => { const x = a[0]; return [x, x] }
-const x = [".", ["args"], 0, null]
+const x = [".", ["args"], 0]
 export default ["[]", x, x]          // the body is one node; x is interior
 
 // (...a) => { const check = a[0].length; return a[1] } — with comma (later)
 const a = ["args"]
 export default [",",
-    [".", [".", a, 0, null], "length", null],  // assert: value unused
-    [".", a, 1, null],              // the result: last, as in JS (a, b) → b
+    [".", [".", a, 0], "length"],  // assert: value unused
+    [".", a, 1],              // the result: last, as in JS (a, b) → b
 ]
 ```
 
@@ -220,12 +220,12 @@ schema is free to change independently of both.
 |`["[]", [...node]]`|`[…]`|1|array constructor; the elements are one operand, an array of nodes — not spread across the tuple|
 |`["{}", [...entry]]`|`{ … }`|1|ordered object constructor; the entries are one operand, an array — initial entry form is `[":", key, value]` (subject 4)|
 |`["args"]`|—|1|the arguments array (subject 2)|
-|`[".", object, property, k]`|`o.p`, `o[p]`, `o.p(...args)`|1|property access, owning whatever its receiver is used for; `k` is `null` for a plain read; `property` is restricted (see below)|
+|`[".", object, property]`, `[".", object, property, k]`|`o.p`, `o[p]`, `o.p(...args)`|1|property access, owning whatever its receiver is used for; a plain read leaves `k` out and is the shorter tuple; `property` is restricted (see below)|
 |`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is one node yielding an array (subject 6)|
-|`["?.", object, property, k]`|`o?.p`, and the rest of its optional region|later|optional property access; same `property` restriction|
-|`["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|optional call|
-|`["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the step a method call's `.` node carries, so Stage 2 needs it|
-|`["\|.", property, k]`, `["\|?.()", args, k]`, `["\|!()", args, null]`|one chain step|later|the remaining steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
+|`["?.", object, property]`, `["?.", object, property, k]`|`o?.p`, and the rest of its optional region|later|optional property access; same `property` restriction|
+|`["?.()", callee, args]`, `["?.()", callee, args, k]`|`f?.(...args)`, and the rest of its optional region|later|optional call|
+|`["\|()", args]`, `["\|()", args, k]`|one chain step, `(...args)`|2|not an `exp` node — only valid as the continuation `k` of a chain node or another step (subject 6); this is the step a method call's `.` node carries, so Stage 2 needs it|
+|`["\|.", property, k?]`, `["\|?.()", args, k?]`, `["\|!()", args]`|one chain step|later|the remaining steps: a property access inside an optional region, a guarded call, and the call a group puts outside the region|
 |`["own", object, key]`|`Object.getOwnPropertyDescriptor(o, k)?.value`|later|own property by a computed **string**; no prototype chain|
 |`["Number", node]`|`Number(x)`|later|numeric coercion that accepts bigints, unlike unary `+`|
 |`["String", node]`|`String(x)`|later|string coercion|
@@ -256,7 +256,7 @@ operator symbols below. This is [DESIGN.md §8](../DESIGN.md) again: the host
 language already spells these, so the EDAG reuses the spelling instead of
 inventing a vocabulary to be memorized and translated. A chain step is the
 same spelling behind a `"|"`, which marks it as a step rather than a node —
-and the prefix is load-bearing, not decorative: without it `["()", f, null]`
+and the prefix is load-bearing, not decorative: without it `["()", f, k]`
 would read equally as a call node and as a chain step. `"|."` is the `.b` of
 a chain, `"|?.()"` its `?.(…)`, and `"|!()"` the call a group puts outside an
 optional region.
@@ -362,8 +362,8 @@ All operators are post-stage-1: stage 1 has no operators at all.
 copied into a frame when the function object is created — the scheme
 [function-frame](../spec/todo/3111-function-frame.md) chooses — and
 `["frame"]` is that array. It needs no accessor of its own: a slot is
-ordinary indexing, `[".", ["frame"], 0, null]`, exactly as an argument is
-`[".", ["args"], 0, null]` (subject 2).
+ordinary indexing, `[".", ["frame"], 0]`, exactly as an argument is
+`[".", ["args"], 0]` (subject 2).
 
 Frame construction mirrors a call: `["=>", frame, body]`, where
 `frame` is one node evaluating to an array — built in the *enclosing*
@@ -376,7 +376,7 @@ one for creating a closure.
 // inside f, building b — f puts its own ["self"] into b's frame:
 ["=>", ["[]", ["self"]], /* b's body */ …]
 // inside b, calling f — slot 0 of b's frame:
-["()", [".", ["frame"], 0, null], ["[]", [".", ["args"], 0, null]]]
+["()", [".", ["frame"], 0], ["[]", [".", ["args"], 0]]]
 ```
 
 Consequences:
@@ -723,15 +723,15 @@ arguments passed to the function.**
   `.length` and `toString(f)` fidelity (subject 7).
 - The rejected `["arg", i]` (single-argument access, no reified array)
   cannot express rest parameters (`(...xs) => xs`) or forwarding;
-  `["arg", i]` is expressible as `[".", ["args"], i, null]` while the reverse
+  `["arg", i]` is expressible as `[".", ["args"], i]` while the reverse
   is not.
 
 Examples — named parameters are positions in the arguments array; the
 compiler erases names:
 
 ```js
-const f = (...a) => a[5]   // [".", ["args"], 5, null]
-const g = (a) => a[5]      // [".", [".", ["args"], 0, null], 5, null]
+const f = (...a) => a[5]   // [".", ["args"], 5]
+const g = (a) => a[5]      // [".", [".", ["args"], 0], 5]
 ```
 
 #### 3. Lazy operators and the branch extension path
@@ -908,7 +908,7 @@ the FJS compiler would never emit. To validate:
   unrepresentable ([Operations](#operations)). `"Number"` never returns a
   string, so it can never rebuild a prohibited name at run time — unlike
   `"+"`, which concatenates at its binary arity
-  (`[".", o, ["+", "constr", "uctor"], null]` would reach `Object`) and does
+  (`[".", o, ["+", "constr", "uctor"]]` would reach `Object`) and does
   not exist at all at unary arity (above). The prohibited-name list comes
   from
   [property-accessor](../spec/todo/2330-property-accessor.md), and
@@ -969,7 +969,7 @@ independently (`(a?.b).c` throws where `a?.b.c` is `undefined`). The
 settled vocabulary keeps every `exp` evaluating to an ordinary value and
 carries both kinds of control flow in a **continuation** operand: a linked
 chain of steps that only `"."`, `"?."`, and `"?.()"` interpret. `a.b(...c)`
-is then `[".", a, "b", ["|()", c, null]]`, and the vocabulary also spells
+is then `[".", a, "b", ["|()", c]]`, and the vocabulary also spells
 chains no property-plus-call tag could, such as `(a?.b.c)(...d)`.
 
 An intermediate revision made that operand a flat *array* of steps held by
@@ -991,8 +991,8 @@ an optimization:
 
 |EDAG|2330|key|
 |---|----|---|
-|`[".", o, p, null]`|`at`, plus `instance_property` for the implemented names 2330 lists — 2330 routes every other name to `own_property`|string constant (permitted), or a number|
-|`[".", o, p, ["\|()", args, null]]`|`instance_method_call` + `at_call`|same|
+|`[".", o, p]`|`at`, plus `instance_property` for the implemented names 2330 lists — 2330 routes every other name to `own_property`|string constant (permitted), or a number|
+|`[".", o, p, ["\|()", args]]`|`instance_method_call` + `at_call`|same|
 |`["own", o, k]`|`own_property`|any computed string; own properties only|
 
 `"."` merges 2330's static-name and numeric-index commands because the
@@ -1247,7 +1247,7 @@ name the function did not compute itself:
 
 **Largely answered by `["frame"]`** ([Operations](#operations)): free
 values are captured into the frame when the closure is created, and read
-back as `[".", ["frame"], i, null]`. `["self"]` covers self-reference, which
+back as `[".", ["frame"], i]`. `["self"]` covers self-reference, which
 no frame can seed at the top level. What remains open:
 
 - **which values go into a frame, and in what order** — the compiler
