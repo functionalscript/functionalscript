@@ -23,6 +23,16 @@ callers:
   check or a `rest` sees. The tuple length bound catches the simplest
   variant, but a `rest` kind can be steered into accepting a value whose
   undeclared members were never held to the rest.
+- `constContainerValidate`/`constContainerParse` bound the container by
+  `length` **before** reading its members, which is what lets an `or` of two
+  arities decide an arm without recursing (`fjs/edag`'s chain nodes). A
+  `length` getter that mutates therefore fires before the presence decisions
+  rather than after: an array proxy over `['bad']` whose first
+  `get('length')` deletes index 0 is accepted by both readers against
+  `[or(option, number)]`, where the data form — reading the value its own way
+  — still rejects it. Measured; the two thunk readers agree with each other
+  throughout, so what a fix has to restore is their agreement with the data
+  form.
 - `visit` and `absenceIn` destructure the schema thunk's descriptor
   (`const [tag, ...operands] = rtti()`), which dispatches
   `Array.prototype[Symbol.iterator]` — patched, the accessor chooses the

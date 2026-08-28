@@ -229,6 +229,16 @@ const constContainerValidate =
             // nested chain costs 2^depth; with it the arm is decided before
             // any recursion. `parse` gates identically, which is what keeps
             // the two readers reporting the same error.
+            //
+            // The read is an added observable operation, and under a hostile
+            // accessor that is not neutral: a `length` getter that mutates a
+            // declared member now fires *before* the members are read, where
+            // it used to fire after, so it can steer the verdict the readers
+            // then reach. That is the class
+            // `../todo/hostile-accessor-hermetic-read-path.md` tracks, and
+            // this gate adds one instance of it — see the bullet there. For
+            // every value whose `length` read is side-effect-free — every DJS
+            // value, and every ordinary array — acceptance is untouched.
             if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
