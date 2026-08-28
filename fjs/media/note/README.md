@@ -23,8 +23,8 @@ export const priorities = ['P1', 'P2', 'P3', 'P4', 'P5'] as const
 export const noteSchema = {
     dialect: 'vnd.fjs.note',
     text: string,
-    dependencies: option(array(string)),
-    priority: option(or(...priorities)),
+    dependencies: or(option, array(string)),
+    priority: or(option, ...priorities),
 } as const
 ```
 

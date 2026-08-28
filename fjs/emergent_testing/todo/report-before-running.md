@@ -24,8 +24,11 @@ Three things follow from that, and the third is the one that matters:
   the case where a name is worth more than a result, and it is the case where
   the current design has none.
 
-No reporter has an event for it: `result` is called with a `SandboxResult`, so it
-cannot be called before there is one.
+No reporter has an event for it: `result` is called with a finished
+`TestResult` and the `SandboxResult` it was read from, so it cannot be called
+before there is one. The seam it would travel through does exist now — both
+runners report through the same leaf-landed and run-ended events — so adding a
+start event is adding a third event kind, not building the stream first.
 
 ### Preliminary design
 

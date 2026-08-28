@@ -1,5 +1,5 @@
 /**
- * @import { Or } from '../types.ts'
+ * @import { Option, Or } from '../types.ts'
  * @import { Data } from './types.ts'
  */
 
@@ -18,7 +18,7 @@ import {
     string,
     unknown as unknownRtti,
 } from '../module.f.mjs'
-import { cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate, withoutUnits } from './module.f.mjs'
+import { absentBit, cmp, equal, never, subset, toData, unitBit, unitList, unknown, validate, withoutUnits } from './module.f.mjs'
 
 /** @type {(actual: Data) => (expected: Data) => void} */
 const assertData = actual => expected =>
@@ -94,12 +94,12 @@ const b2 = () => ['array', b2]
 const recordSelf = () => ['record', recordSelf]
 
 /** Mutual recursion through object *properties* rather than containers. */
-/** @typedef {() => readonly ['const', { readonly value: typeof number, readonly next: Or<readonly [_Odd, undefined]> }]} _Even */
-/** @typedef {() => readonly ['const', { readonly value: typeof number, readonly next: Or<readonly [_Even, undefined]> }]} _Odd */
+/** @typedef {() => readonly ['const', { readonly value: typeof number, readonly next: Or<readonly [Option, _Odd]> }]} _Even */
+/** @typedef {() => readonly ['const', { readonly value: typeof number, readonly next: Or<readonly [Option, _Even]> }]} _Odd */
 /** @type {_Even} */
-const even = () => ['const', { value: number, next: option(odd) }]
+const even = () => ['const', { value: number, next: or(option, odd) }]
 /** @type {_Odd} */
-const odd = () => ['const', { value: number, next: option(even) }]
+const odd = () => ['const', { value: number, next: or(option, even) }]
 
 /** @typedef {() => readonly ['array', _Rec]} _Rec */
 /** Every call returns a fresh recursive thunk whose function name is `f`. */
@@ -128,6 +128,45 @@ const closedChildren = () => ['array', closedNode]
 /** @typedef {() => readonly ['rest', { readonly a: typeof number }, _NestedRest]} _NestedRest */
 /** @type {_NestedRest} */
 const nestedRest = () => ['rest', { a: number }, nestedRest]
+
+/**
+ * A recursive rule that admits absence, with a non-empty present part —
+ * the referenced-rest exemption's ordinary case.
+ *
+ * @typedef {() => readonly ['or', typeof option, () => readonly ['array', _OptList]]} _OptList
+ */
+
+/** @type {_OptList} */
+const optList = () => ['or', option, array(optList)]
+
+/**
+ * An absence-only cycle: the pure `or` cycle dissolves to the absent bit
+ * alone, so the rule's present part is empty — the case that shows masking
+ * a referenced rest would be unsound.
+ *
+ * @typedef {() => readonly ['or', typeof option, _AbsCycleB]} _AbsCycleA
+ * @typedef {() => readonly ['or', _AbsCycleA]} _AbsCycleB
+ */
+
+/** @type {_AbsCycleA} */
+const absCycleA = () => ['or', option, absCycleB]
+
+/** @type {_AbsCycleB} */
+const absCycleB = () => ['or', absCycleA]
+
+/**
+ * A pure `or` cycle normalizing to `or(option, number)` — a *referenced*
+ * node whose stripped set equals a rest it trails.
+ *
+ * @typedef {() => readonly ['or', typeof option, typeof number, _OptNumB]} _OptNumA
+ * @typedef {() => readonly ['or', _OptNumA]} _OptNumB
+ */
+
+/** @type {_OptNumA} */
+const optNumA = () => ['or', option, number, optNumB]
+
+/** @type {_OptNumB} */
+const optNumB = () => ['or', optNumA]
 
 const tupleNumber = /** @type {const} */ ([number])
 const tupleString = /** @type {const} */ ([string])
@@ -207,18 +246,26 @@ export const proof = {
             // the `unknown` one, which the two kinds spell differently: a
             // `rest: unknown` past a tuple's prefix, and no `rest` at all on a
             // struct. An open tuple declaring nothing is therefore every array
-            // — and so is one whose every position restates that `rest`, which
-            // is trimmed away so that one set keeps one spelling
+            // — and so is one whose every position restates that `rest` as the
+            // declared-member top `or(option, unknown)`, which is trimmed away
+            // so that one set keeps one spelling. A position declared plain
+            // `unknown` is *not* that top — it must be present — so it stays.
             assertData(toData(open(emptyTuple)))([{}, { array: true }])
-            assertData(toData(open(/** @type {const} */ ([unknownRtti]))))([{}, { array: true }])
-            assertData(toData(open(/** @type {const} */ ([unknownRtti, unknownRtti]))))([{}, { array: true }])
-            assertData(toData(open(/** @type {const} */ ([number, unknownRtti]))))(toData(open(tupleNumber)))
+            assertData(toData(open(/** @type {const} */ ([or(option, unknownRtti)]))))([{}, { array: true }])
+            assertData(toData(open(/** @type {const} */ ([or(option, unknownRtti), or(option, unknownRtti)]))))([{}, { array: true }])
+            assertData(toData(open(/** @type {const} */ ([unknownRtti]))))(
+                [{}, { array: [{ prefix: [unknown], rest: unknown }] }])
+            assertData(toData(open(/** @type {const} */ ([number, or(option, unknownRtti)]))))(toData(open(tupleNumber)))
             assertData(toData(open(/** @type {const} */ ([number, 42]))))(
                 [{}, { array: [{ prefix: [{ number: true }, { number: [42] }], rest: unknown }] }])
             assertData(toData(open({})))([{}, { object: true }])
             assertData(toData(open({ b: string, a: number })))(
                 [{}, { object: [{ props: { a: { number: true }, b: { string: true } } }] }])
-            assertData(toData(open({ a: unknownRtti })))([{}, { object: true }])
+            // a key declared `unknown` must be *present*, so it survives even
+            // under `open` — the droppable declared top is `or(option, unknown)`
+            assertData(toData(open({ a: unknownRtti })))(
+                [{}, { object: [{ props: { a: unknown } }] }])
+            assertData(toData(open({ a: or(option, unknownRtti) })))([{}, { object: true }])
             assertData(toData(/** @type {const} */ ([neverRtti])))([{}, never])
             assertData(toData({ a: neverRtti }))([{}, never])
         },
@@ -247,10 +294,15 @@ export const proof = {
             // a `never` member empties the whole pattern, whatever the rest
             assertData(toData(/** @type {const} */ ([neverRtti])))([{}, never])
             assertData(toData({ a: neverRtti }))([{}, never])
-            // an unconstrained key is dropped only once the rest is gone: with
-            // one present, "anything at `a`" says strictly more than leaving
-            // `a` out, which `open({ a: unknown })` alone does not
-            assertData(toData(open({ a: unknownRtti })))([{}, { object: true }])
+            // an unconstrained key — "anything, or nothing", the declared-member
+            // top `or(option, unknown)` — is dropped only once the rest is gone:
+            // with one present, "anything at `a`" says strictly more than
+            // leaving `a` out, which `open({ a: or(option, unknown) })` alone
+            // does not. Plain `unknown` at a key is not that top: it requires
+            // presence, so it is never dropped.
+            assertData(toData(open({ a: or(option, unknownRtti) })))([{}, { object: true }])
+            assertData(toData({ a: or(option, unknownRtti) }))(
+                [{}, { object: [{ props: { a: { ...unknown, unit: unitBit(null) | unitBit(undefined) | unitBit(false) | unitBit(true) | absentBit } }, rest: never }] }])
             assertData(toData({ a: unknownRtti }))(
                 [{}, { object: [{ props: { a: unknown }, rest: never }] }])
             // the same container bare and opened are two sets, so the
@@ -308,11 +360,75 @@ export const proof = {
             assertData(toData(or(0, -0)))([{}, { number: [-0, 0] }])
             assertData(toData(or('b', 'a')))([{}, { string: ['a', 'b'] }])
             assertData(toData(or(2n, 1n)))([{}, { bigint: [1n, 2n] }])
-            assertData(toData(option(string)))([{}, { unit: unitBit(undefined), string: true }])
+            // absence is the fifth unit bit, merged like any other — and the
+            // explicit `thunkUnion` case is what keeps `toData(option)` from
+            // falling into the empty-operand `or` arm and reading as `never`
+            assertData(toData(option))([{}, { unit: absentBit }])
+            assertData(toData(or(option, string)))([{}, { unit: absentBit, string: true }])
+            assertData(toData(or(option, number)))([{}, { unit: absentBit, number: true }])
+            assertData(toData(or(option, string, undefined)))(
+                [{}, { unit: unitBit(undefined) | absentBit, string: true }])
+            assert(!equal(toData(or(option, number)))(toData(number)))
             assertData(toData(or(unknownRtti, number)))([{}, unknown])
             assertData(toData(or(number, or(string, boolean))))(
                 [{}, { unit: unitBit(false) | unitBit(true), number: true, string: true }])
             assertData(toData(or(1, or(1, 2))))([{}, { number: [1, 2] }])
+        },
+        // The normalizations the absent bit changes, pinned so each
+        // degenerate spelling's normal form stays deliberate.
+        absence: {
+            // a rest never sees an absent member, so an inline rest is
+            // stripped of the bit — on both kinds, and at the top-level
+            // spelling too
+            restIsStripped: () => {
+                assertData(toData(array(or(option, number))))(toData(array(number)))
+                assertData(toData(record(or(option, number))))(toData(record(number)))
+                assertData(toData(rest([number], or(option, string))))(
+                    toData(rest([number], string)))
+                assertData(toData(rest({ a: number }, or(option, string))))(
+                    toData(rest({ a: number }, string)))
+                // …while a declared *position* keeps its bit: absence is
+                // observable there
+                assertData(toData(open([or(option, number)])))(
+                    [{}, { array: [{ prefix: [{ unit: absentBit, number: true }], rest: unknown }] }])
+            },
+            // `array(option)` has an empty element set once the bit is
+            // stripped, and a `never` rest is the exact-length set of its
+            // (empty) prefix: the empty array
+            arrayOfOptionIsTheEmptyArray: () => {
+                assertData(toData(array(option)))(toData(/** @type {const} */ ([])))
+                assertEq(validate(toData(array(option)))([])[0], 'ok')
+                assertEq(validate(toData(array(option)))(new Array(1))[0], 'error')
+            },
+            // the redesigned trim: a trailing declared position that admits
+            // absence and whose stripped set restates the rest is dropped —
+            // `rest([or(option, number)], number)` and `array(number)` denote
+            // one set of arrays, so they get one `Node`
+            trailingPositionRestatingTheRest: () => {
+                assertData(toData(rest([or(option, number)], number)))(toData(array(number)))
+                assertData(toData(rest([number, or(option, number)], number)))(
+                    toData(rest([number], number)))
+                // without the bit the position is "one or more", not restating
+                assert(!equal(toData(rest([number], number)))(toData(array(number))))
+                // and a stripped set differing from the rest is kept
+                assert(!equal(toData(rest([or(option, string)], number)))(toData(array(number))))
+            },
+            // `[option]` is not `[]`: its sole position strips to `never`
+            // like its (empty) rest, and the trim never reaches an empty
+            // rest — the two differ on `new Array(1)`, a length the first
+            // admits and the second bounds out
+            absentOnlyPositionIsNotDropped: () => {
+                assert(!equal(toData(/** @type {const} */ ([option])))(
+                    toData(/** @type {const} */ ([]))))
+                const v1 = validate(toData(/** @type {const} */ ([option])))
+                assertEq(v1(new Array(1))[0], 'ok')
+                assertEq(v1([])[0], 'ok')
+                assertEq(v1([1])[0], 'error')
+                assertEq(v1([undefined])[0], 'error')
+                const v0 = validate(toData(/** @type {const} */ ([])))
+                assertEq(v0([])[0], 'ok')
+                assertEq(v0(new Array(1))[0], 'error')
+            },
         },
         orCanonicalIdentity: () => {
             assertData(toData(or(number, string)))(toData(or(string, number)))
@@ -575,6 +691,80 @@ export const proof = {
             const oneNumberThenStrings = [{}, { array: [{ prefix: [{ number: true }], rest: { string: true } }] }]
             assert(!subset(oneOrMoreNumbers)(oneNumberThenStrings))
         },
+        // A **referenced** rest is left unstripped — the same rule may sit at
+        // a declared position, where the bit is live — and `subset` resolves
+        // it rather than masking the bit. The cost is one-way inclusion: the
+        // stripped form bounds nothing new where the present part is
+        // non-empty, and bounds the *length* where it is empty, so `equal`
+        // answers "different spelling" — the structural incompleteness
+        // `./README.md` records beside rule names.
+        referencedRest: () => {
+            // the exemption itself: the rest stays a reference, bit intact
+            assertData(toData(rest([number], optList)))([
+                { optList: { unit: absentBit, array: [{ prefix: [], rest: 'optList' }] } },
+                { array: [{ prefix: [{ number: true }], rest: 'optList' }] },
+            ])
+            // the stripped fixpoint is a *different rule*, not a bit-mask:
+            // one-way inclusion, resolved coinductively
+            /** @type {Data} */
+            const stripped = [
+                { optList0: { array: [{ prefix: [], rest: 'optList0' }] } },
+                { array: [{ prefix: [{ number: true }], rest: 'optList0' }] },
+            ]
+            assert(subset(stripped)(toData(rest([number], optList))))
+            assert(!subset(toData(rest([number], optList)))(stripped))
+            // the absence-only cycle is where masking would be unsound: the
+            // syntactic form keeps a rest and admits any hole-only array,
+            // while the stripped form is `never` and bounds the length — two
+            // sets, not one set spelled twice
+            const holey = toData(rest([number], absCycleA))
+            assertData(holey)([
+                { absCycleA: { unit: absentBit } },
+                { array: [{ prefix: [{ number: true }], rest: 'absCycleA' }] },
+            ])
+            assertEq(validate(holey)([1, , , ])[0], 'ok')
+            assertEq(validate(holey)([1, 2])[0], 'error')
+            assertEq(validate(toData(tupleNumber))([1, , , ])[0], 'error')
+            assert(subset(toData(tupleNumber))(holey))
+            assert(!subset(holey)(toData(tupleNumber)))
+            // a referenced **trailing position** is exempt by the same rule:
+            // `optNumA` normalizes to `or(option, number)`, whose stripped
+            // set restates the rest — an inline spelling trims — but neither
+            // `trimPrefix` nor `arraySet` takes a rule set to resolve the
+            // reference with, so it stays untrimmed, structurally distinct
+            // from `array(number)`, and still read the same way
+            const referencedTrailing = toData(rest([optNumA], number))
+            assertData(referencedTrailing)([
+                { optNumA: { unit: absentBit, number: true } },
+                { array: [{ prefix: ['optNumA'], rest: { number: true } }] },
+            ])
+            assert(!equal(referencedTrailing)(toData(array(number))))
+            // the readers still agree on what both spellings accept
+            assertEq(validate(referencedTrailing)([])[0], 'ok')
+            assertEq(validate(referencedTrailing)([1, 2])[0], 'ok')
+            assertEq(validate(referencedTrailing)(['x'])[0], 'error')
+        },
+        // A declared position asks the object kind's two questions: the
+        // absence-stripped sets compared, and absence implied. This pair is
+        // what tells the two halves apart — the left's only values are
+        // `new Array(1)` and `[number]`, which `array(number)` admits (a hole
+        // is no entry) and the closed `[number]` does not (position 0 is
+        // required there).
+        arrayAbsence: () => {
+            assert(subset(toData(/** @type {const} */ ([or(option, number)])))(toData(array(number))))
+            assert(!subset(toData(/** @type {const} */ ([or(option, number)])))(toData(tupleNumber)))
+            // absence implied by a hole past the right's prefix…
+            assert(subset(toData(/** @type {const} */ ([number, or(option, number)])))(
+                toData(rest([number], number))))
+            // …or by the right position's own bit
+            assert(subset(toData(/** @type {const} */ ([or(option, 42)])))(
+                toData(/** @type {const} */ ([or(option, number)]))))
+            // and never invented: a stripped-equal pair still fails when the
+            // right requires presence
+            assert(!subset(toData(open([or(option, number)])))(toData(open(tupleNumber))))
+            // the reverse inclusion is the ordinary pointwise one
+            assert(subset(toData(tupleNumber))(toData(/** @type {const} */ ([or(option, number)]))))
+        },
         // The closed default makes a `rest`-less array pattern and an object
         // pattern with an empty `rest` the *ordinary* output of the thunk
         // form, where hand-written data used to be the only way to reach
@@ -603,31 +793,33 @@ export const proof = {
             assert(subset(toData(closedNode))(toData(closedNode)))
         },
         // A key present holding `undefined` and a key absent are two different
-        // objects, and the two sides of a pattern read them differently: a
-        // declared key constrains the value *read* at it, so absence passes
-        // when its set holds `undefined`; an undeclared key is checked as an
-        // *entry*, so a present `undefined` must belong to `rest` itself.
-        //
-        // One "read set" of `rest ∪ undefined` folded the two together, which
-        // stayed sound only while a struct's `rest` was `unknown` and failed
-        // the trailing rest check. A bare struct now supplies `never` there,
-        // so the fold is reachable from every schema and answered `true` for a
-        // non-inclusion.
+        // objects, told apart by two different bits: `unitBit(undefined)` is a
+        // value the key may hold, `absentBit` is leave-it-out. The per-key
+        // check asks two questions — the **absence-stripped** present sets
+        // compared, and absence implied — and neither implies the other.
         presenceIsNotAbsence: () => {
-            const p = toData({ a: option(number) })
+            // `{ a: or(option, number) }` denotes `{}` and `{ a: number }`,
+            // both of which `record(number)` admits, so the inclusion holds —
+            // it is the *stripped* present set that is compared. The old
+            // `option(number)` spelling admitted `{ a: undefined }` and was
+            // rightly excluded; that spelling is now `or(option, number,
+            // undefined)`, and still is.
+            const p = toData({ a: or(option, number) })
             const q = toData(record(number))
-            assert(!subset(p)(q))
-            // the witness, and the acceptance that makes it one
-            assertEq(validate(p)({ a: undefined })[0], 'ok')
+            assert(subset(p)(q))
+            assertEq(validate(p)({ a: undefined })[0], 'error')
             assertEq(validate(q)({ a: undefined })[0], 'error')
+            assert(!subset(toData({ a: or(option, number, undefined) }))(q))
+            assertEq(validate(toData({ a: or(option, number, undefined) }))({ a: undefined })[0], 'ok')
             // both halves of the per-key check are load-bearing, and neither
             // implies the other: this pair agrees on every present value and
             // differs only on whether the key may be missing
             assert(!subset(toData(record(number)))(toData(rest({ a: number }, number))))
             assertEq(validate(toData(record(number)))({})[0], 'ok')
             assertEq(validate(toData(rest({ a: number }, number)))({})[0], 'error')
-            // and the open-struct spelling, which was sound before, still is
-            assert(!subset(toData({ a: option(number) }))(toData(record(number))))
+            // present-undefined alone also breaks the inclusion — the absent
+            // bit is not what carries it
+            assert(!subset(toData({ a: or(number, undefined) }))(toData(record(number))))
         },
         objects: () => {
             assert(subset(toData(open({ a: number })))(toData(open({}))))
@@ -638,7 +830,7 @@ export const proof = {
             assert(!subset(toData(record(or(number, string))))(toData(record(number))))
             // a record's keys may be absent, a required key excludes that
             assert(!subset(toData(record(number)))(toData(open({ a: number }))))
-            assert(subset(toData(record(number)))(toData(open({ a: option(number) }))))
+            assert(subset(toData(record(number)))(toData(open({ a: or(option, number) }))))
             // an open struct leaves undeclared keys unconstrained, a record
             // does not — while a closed one names them all, so it is included
             assert(!subset(toData(open({ a: number })))(toData(record(number))))
@@ -726,7 +918,7 @@ export const proof = {
             assertEq(
                 JSON.stringify(vt([1])),
                 '["error",{"path":["1"],"message":"unexpected value"}]')
-            const vo = validate(toData(open(/** @type {const} */ ([number, option(string)]))))
+            const vo = validate(toData(open(/** @type {const} */ ([number, or(option, string)]))))
             assertEq(vo([1])[0], 'ok')
             assertEq(vo([1, 'a'])[0], 'ok')
             assertEq(vo([])[0], 'error')
@@ -769,7 +961,7 @@ export const proof = {
                 '["error",{"path":[],"message":"no match"}]')
         },
         objects: () => {
-            const v = validate(toData(open({ a: number, b: option(string) })))
+            const v = validate(toData(open({ a: number, b: or(option, string) })))
             assertEq(v({ a: 1 })[0], 'ok')
             assertEq(v({ a: 1, b: 's' })[0], 'ok')
             assertEq(v({ a: 1, extra: true })[0], 'ok')
