@@ -39,15 +39,14 @@ export const proof = {
         // not match the pin means the registry, not the package, decided.
         assert(scriptHas('test "$installed" = "$exact"'), 'expected the installed compiler matched against the pin')
     },
-    // `fjs ci` generates workflows for other projects, so the artifact's
-    // package name is whatever that project publishes. A hard-coded name would
-    // fail for them — or worse, silently check a dependency that happens to
-    // share the name instead of the artifact just built.
+    // `fjs ci` generates workflows for other projects, so the artifact's own
+    // package name is whatever that project publishes. Installing under a fixed
+    // alias keeps every later step literal; hard-coding this repository's name
+    // instead would fail for them — or worse, silently check a dependency that
+    // happens to share the name instead of the artifact just built.
     anyPackageName: () => {
-        assert(
-            scriptHas("Object.keys(require('./package.json').dependencies)[0]"),
-            'expected the package directory derived from the artifact')
-        assert(scriptHas('find "node_modules/$pkg"'), 'expected declarations enumerated from that directory')
+        assert(scriptHas('"packed@file:$(ls *.tgz)"'), 'expected the artifact installed under the fixed alias')
+        assert(scriptHas('find node_modules/packed'), 'expected declarations enumerated from that directory')
         assert(
             !scriptHas('node_modules/functionalscript'),
             'the package check must not hard-code this repository\'s package name')

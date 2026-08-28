@@ -20,23 +20,26 @@ export const packageCheckJobId = /** @type {const} */ ('package-check')
 // stand in for a declaration the tarball omits — so the job can only see what
 // a real consumer sees.
 // One step per stage, so a failure names the stage that failed instead of
-// arriving as one opaque script. Shell variables do not survive between steps,
-// so the two values later stages need travel through `$GITHUB_ENV`.
+// arriving as one opaque script.
+
+// A fixed alias, so every later step names the package literally. The
+// artifact's own name would otherwise have to be derived and carried between
+// steps, and `fjs ci` generates workflows for projects whose package is not
+// this one. The narrow case an alias gives up: a package that imports itself by
+// name — legal once `exports` is declared — does not resolve under a different
+// directory name, so such a package would fail a check a real consumer passes.
+// Nothing here self-references; revisit this if that changes.
+const alias = /** @type {const} */ ('packed')
 
 const installArtifact = /** @type {const} */ (`set -eu
 npm init -y > /dev/null
-npm install --no-audit --no-fund ./*.tgz
-# The artifact installs under its own package name, which is not necessarily
-# this repository's: \`fjs ci\` generates workflows for other projects too. A
-# hard-coded name would fail for them, or worse, silently check a dependency
-# that happens to share the name instead of the artifact just built.
-echo "pkg=$(node -p "Object.keys(require('./package.json').dependencies)[0]")" >> "$GITHUB_ENV"`)
+npm install --no-audit --no-fund "${alias}@file:$(ls *.tgz)"`)
 
 const installPinnedCompiler = /** @type {const} */ (`set -eu
 # The compiler is the package's own pin, read out of the packed package.json:
 # with no checkout there is no lockfile, so an unpinned install would let the
 # registry change this check's verdict with no change to the repository.
-ts=$(PKG="$pkg" node -p "require('./node_modules/' + process.env.PKG + '/package.json').devDependencies?.typescript ?? ''")
+ts=$(node -p "require('./node_modules/${alias}/package.json').devDependencies?.typescript ?? ''")
 # Refuse rather than fall back to a floating compiler.
 test -n "$ts"
 npm install --no-audit --no-fund "typescript@$ts"
@@ -52,7 +55,7 @@ const enumerateDeclarations = /** @type {const} */ (`set -eu
 # Every declaration the package ships, enumerated from the installed artifact.
 # A hand-written import list cannot see a module that gains a private type
 # module later, which is the case this check exists to catch.
-find "node_modules/$pkg" \\( -name '*.d.ts' -o -name '*.d.mts' \\) > declarations.txt
+find node_modules/${alias} \\( -name '*.d.ts' -o -name '*.d.mts' \\) > declarations.txt
 # An empty list would type-check nothing and pass, which is the one way this
 # job can look healthy while checking nothing at all.
 test -s declarations.txt`)
