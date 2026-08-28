@@ -116,16 +116,15 @@ and is reviewable without the next one.
       expectation is applied through the same `invert` both runners now use, so
       "did this leaf pass" has one answer. Describing a *thrown value* stayed
       with each host, deliberately — see below.
-- [ ] **3. One `sandbox`.** Executing a proof body — the clock either side, the
-      `try`/`catch`, and the rule that only an actual `Promise` is awaited — is
-      the operation both runners must agree on exactly, and the one place where
-      they currently do not. **This step is blocked on a decision, not on
-      work**: the browser carries ~150 lines of `Symbol.species` machinery that
-      `fjs t` has no equivalent for, so merging the two answers the cross-realm
-      question in [imports, promises and realms](imports-promises-realms.md) —
-      which that file marks as investigation. Settle it there first. Doing it
-      inside a port is how the last attempt lost a defence nobody chose to
-      lose.
+- [x] **3. One `sandbox`.** Done, and it turned out to be a deletion. The
+      `Symbol.species` machinery — `subscribe`, `speciesFails`, `runPromise` and
+      `species.proof.mjs` — was exercised only by fixtures that are themselves
+      `.mjs` and so never run in a browser, and `await` handles every case it
+      covered that a same-realm promise can present. Replaced
+      by `instanceof Promise`, which is what `fjs t` does. The measurements are
+      in [imports, promises and realms](imports-promises-realms.md); the scope
+      rule they rest on is in [browser testing](browser-testing.md).
+
 - [ ] **4. Common effects.** Move the host-independent operations (`all`,
       `await`, `fetch`, `import`, `now`, `sandbox`) out of `effects/node` into a
       shared module that `effects/node` re-exports unchanged, so nothing has to
@@ -142,7 +141,8 @@ and is reviewable without the next one.
 - [ ] **8. The layout move**, and the website preparation program.
 
 Steps 3 and 7 are the ones that change behaviour, so they are the ones to keep
-smallest. Anything a step reveals goes to an issue and is fixed for both runners
+smallest. Step 3 changed less than expected: with the scope written down, it was
+a removal. Anything a step reveals goes to an issue and is fixed for both runners
 later, never inside the step.
 
 **What step 2 revealed, recorded rather than fixed.** With the status shared,
@@ -166,6 +166,53 @@ status to `passed` prints `ok` on failing lines. The pass/fail counts come from
 the walk's state rather than from the reporter, so they stay honest and the
 summary still reports the failures. Worth remembering when reading output while
 changing this function.
+
+### Why the remaining steps are worth taking
+
+Steps 4 through 7 look like tidying — move some operations, add an interpreter,
+share a reporter, delete a traversal. They are not. They draw a boundary the
+browser runner does not have, and the promise episode is what its absence costs.
+
+`browser.mjs` is impure `.mjs`, so a live host promise and a proof tree travel
+the same code path, and the code has to ask *which of these is a promise?* That
+is an identity-by-origin question — `instanceof` asks which copy of the
+constructor made the value, not what the value is — and asking it in a place
+that handles business logic is what produced ~150 lines of `Symbol.species`
+machinery, several rounds of review, two measured ways to hang the suite, and a
+reversal. The answer, in the end, was that the question should not have been
+there: the runner executes authored FunctionalScript, which by convention has
+no promises — a convention nothing enforces, which is itself part of the
+problem.
+
+`fjs t` mostly escapes this already, and not by being more careful. `sandbox` is
+an *operation*: the promise is awaited inside the interpreter and the pure core
+receives a `SandboxResult`. The host value never reaches the logic. That is the
+same discipline `fjs/effects` applies to a live HTTP server, which pure code
+holds as `Nominal<'server', '160855c4…', unknown>` — a handle whose identity is
+a content hash, with the real object kept by the interpreter.
+
+The repository rule now says this outright — business logic in `.f.mjs`, plain
+`.mjs` only as a thin host boundary — and by that measure `browser.mjs` is
+migration debt: roughly 200 of its 405 lines are logic wearing one host touch.
+That is recorded in
+[move the browser runner's business logic to FunctionalScript](browser-runner-functional-script.md),
+which is the same work seen from the purity side rather than the sharing side.
+
+So the remaining steps are that boundary, applied to the browser:
+
+- **step 4** puts the host-independent operations somewhere both hosts can name;
+- **step 5** gives the browser an interpreter, which is where its host values
+  belong;
+- **steps 6 and 7** move reporting and traversal into the pure core, which is
+  where host values must never be.
+
+When they are done, `instanceof Promise` lives in exactly one interpreter, as
+glue, and no shared code asks the question. The three lines in `browser.mjs`
+today are in the right *place* only because the boundary has not been drawn
+there yet — they are temporary in a way the rest of the shared core is not.
+See [`todo/plan/capl.md`](../../../todo/plan/capl.md), which argues the general
+form: logic pure, serializable and content-addressed; host values behind
+handles.
 
 ### Preliminary design
 

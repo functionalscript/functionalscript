@@ -206,17 +206,105 @@ export const proof = {
         assertEq(report.status, 'failed')
         assertEq(report.results[0]?.message, 'Expected the proof to throw')
     },
-    crossRealmPromise: async () => {
-        // A promise built in another realm is not `instanceof Promise`. The
-        // runner has to await it anyway and walk the tree it resolves to,
-        // otherwise a rejected cross-realm promise is reported as a pass.
-        const other = runInNewContext('({ resolve: value => Promise.resolve(value) })')
+    // A promise built in another realm is not `instanceof Promise`, so it is
+    // walked as an ordinary proof tree rather than awaited — which is exactly
+    // what `fjs t` does with it, and the point of this proof is that the two
+    // agree. It is a known gap in both, recorded in
+    // `../todo/imports-promises-realms.md`, and not one this runner may close on
+    // its own. Reaching it needs `node:vm`, an iframe or a worker, which
+    // FunctionalScript as specified cannot express — so only an impure proof
+    // can build one, as this one does.
+
+    // The brand check itself runs user code: `instanceof` consults
+    // `getPrototypeOf`, and a proxy can trap it. `fjs t` checks inside
+    // `sandbox`'s `try`/`catch` and reports the value as its test's failure;
+    // the page must do the same, because a run that rejects leaves it in
+    // `running` with no report and no completion event — the one outcome an
+    // automated controller cannot act on.
+    hostileBrandCheckIsReported: async () => {
         const report = await run({
-            nested: () => other.resolve({ child: () => { throw 'boom' } }),
+            nested: () => new Proxy({}, { getPrototypeOf: () => { throw 'trap' } }),
         })
+        assertEq(report.status, 'failed')
+        assertEq(report.results[0]?.path, '.nested')
+        assertEq(report.results[0]?.message, 'trap')
+    },
+    // `await`, not `value.then(...)`: `.then` calls the value's own `then` and
+    // builds its answer through `constructor[Symbol.species]`, so a promise
+    // carrying either can hand back something that is not its result. `await`
+    // adopts a same-realm promise's internal state instead. These pin that the
+    // runner settles the way `fjs t` settles.
+    awaitIgnoresAnOwnThenOverride: async () => {
+        const promised = Promise.resolve({ child: () => undefined })
+        // A no-op override: anything that calls it instead of awaiting gets
+        // `undefined` and loses the subtree.
+        Object.defineProperty(promised, 'then', { value: () => undefined })
+        const report = await run({ nested: () => promised })
+        assertEq(report.totals.tests, 2)
+        assertEq(report.results[1]?.path, '.nested().child')
+    },
+    awaitIgnoresACustomSpecies: async () => {
+        // `then` builds its answer through `constructor[Symbol.species]`, and
+        // this one returns an ordinary object, so `.then` would hand back a
+        // non-promise before the proof had settled.
+        const species = function (/** @type {(...args: (() => void)[]) => void} */ executor) {
+            executor(() => undefined, () => undefined)
+            return { notAPromise: true }
+        }
+        const promised = new Promise(resolve =>
+            setTimeout(resolve, 1, { child: () => { throw 'boom' } }))
+        Object.defineProperty(promised, 'constructor',
+            { value: { [Symbol.species]: species }, configurable: true })
+        const report = await run({ nested: () => promised })
         assertEq(report.totals.tests, 2)
         assertEq(report.totals.failed, 1)
         assertEq(report.results[1]?.path, '.nested().child')
+    },
+    // The other half of the species story, and the half the deleted
+    // `species.proof.mjs` used to cover: `await` is not *immune* to a custom
+    // species, only undiverted by a valid one. A species that throws fails while
+    // promise resolution reads it, and that failure is attributed to the test
+    // that produced the promise rather than swallowed — which is what `fjs t`
+    // does with the same value.
+    customSpeciesThatFailsIsReported: async () => {
+        const constructor = {}
+        Object.defineProperty(constructor, Symbol.species, {
+            get: () => { throw new Error('species') },
+        })
+        const promised = Promise.resolve({ child: () => undefined })
+        Object.defineProperty(promised, 'constructor', { value: constructor, configurable: true })
+        const report = await run({ nested: () => promised })
+        assertEq(report.totals.failed, 1)
+        assertEq(report.results[0]?.path, '.nested')
+        assertEq(report.results[0]?.message, 'species')
+    },
+    // **This pins a defect, not a desired behaviour.** The name says so on
+    // purpose: it appears in the suite output and in any report built from it,
+    // where a reader meets the failure mode rather than an assertion that reads
+    // like an endorsement.
+    //
+    // A rejected cross-realm promise is reported as a **pass**, and a resolved
+    // one's subtree disappears — a promise has no enumerable keys, so the tests
+    // inside it are never counted. `fjs t` does exactly the same, which is why
+    // it is not fixed here: it is a property of the shared rule, and one runner
+    // fixing it alone is the divergence this work exists to remove. See
+    // `../todo/imports-promises-realms.md`, which carries the options and what
+    // each costs.
+    crossRealmPromiseSilentlyPasses: async () => {
+        const other = runInNewContext('({ resolve: v => Promise.resolve(v) })')
+        const resolved = await run({
+            nested: () => other.resolve({ child: () => { throw 'boom' } }),
+        })
+        // One test where there are two: the `child` inside the promise is never
+        // discovered.
+        assertEq(resolved.totals.tests, 1)
+        assertEq(resolved.totals.failed, 0)
+        assertEq(resolved.results[0]?.path, '.nested')
+        // A *rejected* cross-realm promise is the sharper symptom and cannot be
+        // proven here: never awaited, its rejection goes unhandled, and Node's
+        // default takes the process down before the report is even read. That
+        // is measured in `../todo/imports-promises-realms.md` rather than
+        // asserted, because a proof that kills the runner is not a proof.
     },
     spoofedPromiseTag: async () => {
         const report = await run({
@@ -268,25 +356,7 @@ export const proof = {
         assertStructurallySame([...p.states], ['running', 'failed'])
         assertEq(p.view.events.length, 1)
     },
-    speciesResultIsNotAPromise: async () => {
-        // `then` builds its result through `constructor[Symbol.species]`, and a
-        // promise can make that an ordinary object. The run has to answer with
-        // the promise it subscribed to, not with what `then` handed back, or
-        // the test ends before the promise settles and the species object
-        // itself lands in the report.
-        const species = function (/** @type {(...args: (() => void)[]) => void} */ executor) {
-            executor(() => undefined, () => undefined)
-            return { notAPromise: true }
-        }
-        const promised = new Promise(resolve =>
-            setTimeout(resolve, 1, { child: () => { throw 'boom' } }))
-        Object.defineProperty(promised, 'constructor',
-            { value: { [Symbol.species]: species }, configurable: true })
-        const report = await run({ nested: () => promised })
-        assertEq(report.totals.tests, 2)
-        assertEq(report.totals.failed, 1)
-        assertEq(report.results[1]?.path, '.nested().child')
-    },
+
     reportingThrows: async () => {
         // Announcing a result as it lands is the page's own rendering. It must
         // not take the run down with it: the report is what the page waits for.
