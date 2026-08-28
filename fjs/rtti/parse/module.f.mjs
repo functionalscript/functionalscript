@@ -221,6 +221,32 @@ const consPresent = (acc, k, vs) =>
 /** @type {readonly string[]} */
 const noDeclared = []
 
+/** The declared-member kinds' postcondition check's one lookup, captured at module load. */
+const { hasOwn } = Object
+
+/**
+ * Whether every declared member the rebuild **omitted** is still absent from
+ * `built` — the postcondition the omission was decided on. The accessor a
+ * member read can run may install the omitted key on `Object.prototype` (or
+ * an omitted position on `Array.prototype`), and then every fresh container
+ * *inherits* it: the member is present by the same HasProperty rule the
+ * readers dispatch on, so what was built no longer denotes the value that
+ * was checked — no plain container can, which is `verror`'s case, not a
+ * different construction's (see `../host.proof.mjs`). An omitted member
+ * reads `k in built` false; a present one is the rebuild's own; only an
+ * inherited declared key is the environment having changed underneath the
+ * parse. Both operations are internal — `in` runs no accessor — so the
+ * check itself dispatches nothing overridable.
+ *
+ * @type {(declared: readonly string[], built: ReadonlyArray<Unknown> | StringMap<Unknown>) => boolean}
+ */
+const omittedStillAbsent = (declared, built) => {
+    for (let i = 0; i < declared.length; i += 1) {
+        if (declared[i] in built && !hasOwn(built, declared[i])) { return false }
+    }
+    return true
+}
+
 /**
  * Builds a parser for `array` or `record` schemas: rebuilds a fresh container
  * from each item's parsed result. The inner item parser is instantiated lazily
@@ -332,8 +358,12 @@ const constContainerParse =
                 consPresent,
             )
             if (r[0] === 'error') { return r }
-            return undeclaredMembers(declared, value).length === 0 && fits(value, declared.length)
-                ? /** @type {any} */ (ok(rebuild(r[1])))
+            if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
+                return verror('unexpected value')
+            }
+            const built = /** @type {ReadonlyArray<Unknown> | StringMap<Unknown>} */ (rebuild(r[1]))
+            return omittedStillAbsent(declared, built)
+                ? /** @type {any} */ (ok(built))
                 : verror('unexpected value')
         }
     }
@@ -402,13 +432,18 @@ const restContainerParse =
             if (d[0] === 'error') { return d }
             const extra = undeclaredMembers(declared, value)
             if (extra.length === 0) {
-                return fits(value, declared.length)
-                    ? ok(rebuild(d[1]))
-                    : verror('unexpected value')
+                if (!fits(value, declared.length)) {
+                    return verror('unexpected value')
+                }
+            } else {
+                const restParse = /** @type {any} */ (parse(r))
+                const e = eachEntry(extra, (_k, v) => restParse(v), undefined, noAccumulate)
+                if (e[0] === 'error') { return e }
             }
-            const restParse = /** @type {any} */ (parse(r))
-            const e = eachEntry(extra, (_k, v) => restParse(v), undefined, noAccumulate)
-            return e[0] === 'error' ? e : ok(rebuild(d[1]))
+            const built = /** @type {ReadonlyArray<Unknown> | StringMap<Unknown>} */ (rebuild(d[1]))
+            return omittedStillAbsent(declared, built)
+                ? ok(built)
+                : verror('unexpected value')
         }
     }
 

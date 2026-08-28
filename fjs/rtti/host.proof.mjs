@@ -268,6 +268,55 @@ export const proof = {
         assert(ra[0] === 'ok', 'expected ok')
         assertStructurallySame(/** @type {readonly unknown[]} */ (ra[1]), [1, 2])
     },
+    // …and when the accessor **pollutes a prototype** instead, `parse`
+    // refuses. A getter on a later member can install an earlier, already
+    // omitted declared key on `Object.prototype` (or an omitted position on
+    // `Array.prototype`), and then every fresh container *inherits* it: the
+    // member is present by the same HasProperty rule the readers dispatch
+    // on, so no plain container the rebuild could hand back denotes the
+    // value that was checked — a success here carried a payload failing the
+    // very schema it was parsed against. Refusing is `omittedStillAbsent`'s
+    // case: the omission's postcondition no longer holds.
+    parseRefusesWhatPollutionMakesUnbuildable: () => {
+        const structValue = { b: 0 }
+        Object.defineProperty(structValue, 'b', {
+            get: () => {
+                /** @type {any} */ (Object.prototype).a = 'bad'
+                return 2
+            },
+            enumerable: true,
+            configurable: true,
+        })
+        const rs = p({ a: or(option, number), b: number })(structValue)
+        delete (/** @type {any} */ (Object.prototype).a)
+        assertError(rs)
+        const tupleValue = [, 0]
+        Object.defineProperty(tupleValue, 1, {
+            get: () => {
+                /** @type {any} */ (Array.prototype)[0] = 'bad'
+                return 2
+            },
+            enumerable: true,
+            configurable: true,
+        })
+        const rt = p([or(option, number), number])(tupleValue)
+        delete (/** @type {any} */ (Array.prototype))[0]
+        assertError(rt)
+        // …and the `rest` kinds decide omission the same way, so they hold
+        // the same postcondition.
+        const restValue = { b: 0 }
+        Object.defineProperty(restValue, 'b', {
+            get: () => {
+                /** @type {any} */ (Object.prototype).a = 'bad'
+                return 2
+            },
+            enumerable: true,
+            configurable: true,
+        })
+        const rr = p(rest({ a: or(option, number) }, number))(restValue)
+        delete (/** @type {any} */ (Object.prototype).a)
+        assertError(rr)
+    },
     // …and `parse` **materializes** the inherited value as an own member of
     // what it builds: the member is *present* — HasProperty is what the
     // check dispatched on — so its parsed value is in the entries the
