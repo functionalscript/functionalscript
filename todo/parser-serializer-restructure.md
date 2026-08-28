@@ -131,11 +131,13 @@ key       ::= string | '[' '"__proto__"' ']'
   only way to write that one key; a bare or string `"__proto__"` key is
   rejected (JS would read it as prototype replacement).
 - **Const names** are ASCII: `[A-Za-z_$][A-Za-z0-9_$]*`, each bound once,
-  minus two exclusion sets. JavaScript's reserved words as they apply to a
-  binding identifier in module code (module code is strict), including
-  `import`, `export`, `let`, `yield`, `await`, and `static`, are excluded —
-  `const class = 1` is a JS syntax error, so accepting it would break the
-  subset law. Binding `undefined`, `NaN`, or `Infinity` is additionally
+  minus two exclusion sets. Every name JavaScript rejects as a binding
+  identifier in module code (module code is strict) is excluded: the
+  reserved words, including `import`, `export`, `let`, `yield`, `await`,
+  and `static`, and the strict-mode-only bindings `eval` and `arguments` —
+  `const class = 1` and `const eval = 1` are JS syntax errors there, so
+  accepting either would break the subset law. Binding `undefined`, `NaN`,
+  or `Infinity` is additionally
   rejected — JS *permits* `const undefined = 5` and later `undefined` then
   means the const, which a subset treating it as a literal would silently
   reinterpret. The spec enumerates the excluded words exhaustively rather
