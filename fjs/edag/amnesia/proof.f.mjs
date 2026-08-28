@@ -313,8 +313,8 @@ export const proof = {
         },
         // The receiver is what a property step leaves behind, and it is
         // real rather than bookkeeping: `[42].at(0)` is `42` only because
-        // `at` is called *on* the array. A `.` node with a `null`
-        // continuation computes the same function value and drops it
+        // `at` is called *on* the array. A `.` node with no continuation
+        // operand computes the same function value and drops it
         // (`throw.detachedReceiver`) — the pair `chainsJs.receiver` makes in
         // JavaScript, made here by the nodes.
         receiver: () => {
@@ -367,8 +367,8 @@ export const proof = {
     // call. Every case here has a counterpart under `chain` that throws for
     // exactly that reason.
     optionDot: () => {
-        // a?.b — the node's own step, which is the whole node when the
-        // continuation is `null`. Reading `a` and skipping the step would
+        // a?.b — the node's own step, which is the whole node at the
+        // shorter arity. Reading `a` and skipping the step would
         // evaluate to `a` itself, so these pin the index is applied.
         eq(['?.', ['{}', [[':', 'a', 7]]], 'a'], 7)
         // A closure is a value like any other — compared by `typeof`, since
