@@ -236,7 +236,15 @@ throughout.
    not deferred to stage 7.
 6. **Compiler output** — the normalizer: data-only FunctionalScript (imports
    resolved and inlined) to normalized DataJS or JSON, with the subset-law
-   proofs above.
+   proofs above. DataJS output is total; JSON output is permitted only when
+   every leaf has a JSON spelling and no graph sharing is lost — a value
+   containing `undefined`, `NaN`, `±Infinity`, or a shared node is
+   **rejected as an error**, never silently substituted or dropped,
+   matching the validation policy of
+   [json-bigint-serialization](../fjs/djs/todo/json-bigint-serialization.md)
+   (`bigint` itself is representable: it serializes as its full digits).
+   Rejection proofs cover each unrepresentable leaf and the shared-node
+   case.
 7. **Cleanup** — retire `fjs/js/tokenizer` when its last consumer is gone
    (`fjs/js/string_escape` and `fjs/js/keywords` remain as shared,
    JS-spec-frozen tables); the clean-break release with `**BREAKING
