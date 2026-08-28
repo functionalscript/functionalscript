@@ -519,6 +519,15 @@ are shared.
       [hostile-proof-values](./hostile-proof-values.md).
 - [ ] Close each of those issues for both runners at once, so the two stay in
       sync rather than drifting from the day the core is shared.
+- [ ] Decide where progress rendering belongs, if a suite ever grows large
+      enough for it to matter. Leaves resolve through microtasks, so a run
+      drains without a paint and the rows a page appends as results land only
+      become visible when it ends. The deleted `batchSize` is not the answer —
+      this file already records that its `setTimeout` yield had no paint
+      boundary where it claimed one — and the traversal is the wrong place to
+      look for one either way: what to paint, and when, is the page's own
+      concern, so a renderer that batches its DOM writes is where this lands if
+      anything does.
 - [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's own
       failure, as opposed to any proof's. It is the one branch of the page with
       no proof, and reaching either half of it (an operation reporting through
