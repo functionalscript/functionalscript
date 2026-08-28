@@ -257,45 +257,18 @@ export const proof = {
     },
     packageCheck: () => {
         const gha = run(false)
+        // The job's own shape is proved next to the module, in
+        // `fjs/ci/package/proof.f.mjs`. What only the assembled workflow can
+        // show is that it is wired in, and that the job it waits for is really
+        // the one that produces the artifact — an edge pointing at a job that
+        // never uploads would satisfy the ordering and still never run.
         const job = gha.jobs[packageCheckJobId]
         assert(job !== undefined, 'expected the packed-package check job')
-        // The defining property. With a checkout there is a tsconfig.json up
-        // the tree, a node_modules to resolve into, and source files that can
-        // stand in for a declaration the tarball omits — the check would then
-        // pass on the repository rather than on the package.
-        assert(
-            !job.steps.some(step => step.uses?.startsWith('actions/checkout@') === true),
-            'the package check must not check out the repository')
-        // Ordered after the producer, and the producer is the job that
-        // actually uploads — asserting the edge alone would not catch it
-        // pointing at a job that never produces the artifact.
         assertEq(job.needs?.[0], packageJobId)
         assert(
             gha.jobs[packageJobId]?.steps.some(
                 step => step.uses?.startsWith('actions/upload-artifact@') === true) === true,
             'expected the needed job to be the one that uploads')
-        // Downloaded by the name the producer exports, not a second literal.
-        const download = job.steps.find(
-            step => step.uses?.startsWith('actions/download-artifact@') === true)
-        assertEq(download?.with?.name, packageArtifact)
-        // The properties that decide whether this job can fail at all. Each is
-        // load-bearing: `skipLibCheck` true silently stops the checking,
-        // enumerating from the installed package is what sees a module that
-        // gains a private type module later, and an empty file list would
-        // type-check nothing and pass.
-        assert(hasRunInJob(packageCheckJobId, '--skipLibCheck false')(gha), 'expected skipLibCheck left false')
-        assert(hasRunInJob(packageCheckJobId, 'find "node_modules/$pkg"')(gha), 'expected declarations enumerated from the artifact')
-        assert(hasRunInJob(packageCheckJobId, 'test -s declarations.txt')(gha), 'expected a guard against an empty file list')
-        // The compiler is the package's own pin: with no checkout there is no
-        // lockfile, so an unpinned install lets the registry change the verdict.
-        assert(hasRunInJob(packageCheckJobId, 'devDependencies?.typescript')(gha), 'expected the compiler pinned from the packed package.json')
-        // `fjs ci` generates workflows for other projects, so the artifact's
-        // package name is whatever that project publishes. A hard-coded name
-        // would fail for them — or worse, silently check a dependency that
-        // happens to share the name instead of the artifact just built, which
-        // is a plausible wrong answer rather than a refusal.
-        assert(hasRunInJob(packageCheckJobId, "Object.keys(require('./package.json').dependencies)[0]")(gha), 'expected the package directory derived from the artifact')
-        assert(!hasRunInJob(packageCheckJobId, 'node_modules/functionalscript')(gha), 'the package check must not hard-code this repository\'s package name')
     },
     jobNeeds: () => {
         const steps = /** @type {const} */ ([{ run: 'echo hi' }])

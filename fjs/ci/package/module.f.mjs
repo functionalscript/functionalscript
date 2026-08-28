@@ -2,6 +2,8 @@
  * The packed-package check: a job that consumes the `npm pack` artifact the
  * way an outside consumer would.
  *
+ * @module
+ *
  * @import { Job } from '../common/types.ts'
  */
 
@@ -32,6 +34,13 @@ ts=$(PKG="$pkg" node -p "require('./node_modules/' + process.env.PKG + '/package
 # Refuse rather than fall back to a floating compiler.
 test -n "$ts"
 npm install --no-audit --no-fund "typescript@$ts"
+# A dependency specification is not a resolved version: \`^7.0.0\` installs
+# whatever the registry publishes next. Compare what was installed against the
+# literal pin and refuse when they differ, so the verdict cannot move without a
+# change to the package.
+installed=$(node -p "require('./node_modules/typescript/package.json').version")
+exact=$(SPEC="$ts" node -p "const s = process.env.SPEC; s.startsWith('=') ? s.slice(1) : s")
+test "$installed" = "$exact"
 # Every declaration the package ships, enumerated from the installed artifact.
 # A hand-written import list cannot see a module that gains a private type
 # module later, which is the case this check exists to catch.
