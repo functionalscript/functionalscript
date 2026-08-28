@@ -60,6 +60,28 @@ export const proof = {
         assertEq(okValue(r[0]).result[1], 'first')
         assertEq(okValue(r[1]).result[1], 'second')
     },
+    // Enumerating `extra` runs user code too: a proxy may answer one set of
+    // keys and then another. Reading it once means the map the runner builds is
+    // the map the collision check approved — here the second reading's
+    // `sandbox` is never seen at all, so the core handler stands rather than
+    // being replaced behind the check's back.
+    twoFacedExtraCannotReplaceACoreHandler: async () => {
+        let reads = 0
+        const extra = new Proxy({}, {
+            ownKeys: () => {
+                reads += 1
+                return reads === 1 ? [] : ['sandbox']
+            },
+            getOwnPropertyDescriptor: () => ({
+                value: async () => ok('replaced'),
+                configurable: true,
+                enumerable: true,
+            }),
+        })
+        const r = okValue(await browserRun(/** @type {any} */ (extra))(sandbox(() => 42)))
+        assertEq(reads, 1)
+        assertEq(okValue(r.result), 42)
+    },
     // `match` looks a handler up by own-property descriptor, so an `extra` that
     // declares one non-enumerable is still a valid operation map. Carrying the
     // handlers over by spread would have dropped it and turned a dispatch this

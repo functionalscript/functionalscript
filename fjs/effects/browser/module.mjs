@@ -126,17 +126,22 @@ export const browserRun = extra => {
     // is a routine outcome: it is a program claiming an operation this runner
     // already has, which is the same class of bug as asking for one it does
     // not.
-    const claimed = Object.getOwnPropertyNames(extra).filter(k => Object.hasOwn(core, k))
+    // `extra` is read **once**, and the check and the map are built from that
+    // one reading. Enumerating is a user-observable operation — a proxy decides
+    // what it answers, and may answer differently the second time — so a check
+    // that read it again could approve a map the runner does not build, which
+    // is the same mistake the page made about proof exports.
+    //
+    // The handlers are carried over by descriptor rather than by spread, so a
+    // map that declares one non-enumerable keeps it. `match` looks a handler up
+    // with `getOwnPropertyDescriptor`, so this runner accepts exactly what the
+    // layer's dispatch already accepts — no more, and no less. An inherited
+    // handler is out of contract there and stays out of contract here.
+    const handlers = Object.getOwnPropertyDescriptors(extra)
+    const claimed = Object.keys(handlers).filter(k => Object.hasOwn(core, k))
     if (claimed.length !== 0) {
         throw `browserRun: ${claimed.join(', ')} already implemented`
     }
-    // The handlers are carried over by descriptor rather than by spread, so a
-    // map that declares one non-enumerable keeps it. `match` looks a handler up
-    // with `getOwnPropertyDescriptor`, so this runner now accepts exactly what
-    // the layer's dispatch already accepts — no more, and no less. An
-    // inherited handler is out of contract there and stays out of contract
-    // here.
-    run = asyncRun(/** @type {any} */ (
-        Object.defineProperties({ ...core }, Object.getOwnPropertyDescriptors(extra))))
+    run = asyncRun(/** @type {any} */ (Object.defineProperties({ ...core }, handlers)))
     return run
 }
