@@ -164,8 +164,12 @@ round-trip guarantee forbids; shortest round-trip number
 spelling; bigints as full digits + `n`; fixed string escaping). Normalization
 is not a blocker for the format spec. The serializer cannot delegate numbers
 to `JSON.stringify` (it loses `-0` and non-finite values); DataJS owns its
-number writer. Whether the canonical layout is fully minified or one statement
-per line is decided in the spec stage.
+number writer. The canonical layout is **one line** — fully minified, with
+whitespace only where two word-tokens meet — so normalization has zero
+layout freedom, which is what byte-determinism (and any future content
+addressing) needs. Tooling *defaults* to a human-readable layout (one
+statement per line, indented containers), which is simply one of the many
+valid non-normalized spellings; normalized output is requested explicitly.
 
 **Extensions.** Recognized: `.data.js`, `.data.mjs`, `.d.js`, `.d.mjs`.
 Emitted and canonical: `.data.js` (`.data.mjs` where unambiguous ESM
@@ -202,7 +206,8 @@ throughout.
 1. **Spec** — `spec/datajs/`: format spec (grammar as BNF text, data model,
    rationale) plus the normalization section, and the conformance test
    vectors (accept, reject, round-trip) that every later stage runs against.
-   Decides the two deferred details: canonical layout, media type.
+   Decides the one remaining deferred detail: the media type. (The
+   canonical layout is decided: one line — see **Serialization** above.)
 2. **Dead code** — delete `fjs/fsc/bnf.f.mjs` and `fjs/fsc/json.f.mjs`, or
    convert the salvageable parts into proof-covered `fjs/bnf/**` examples.
    Resolves [orphaned-json-grammar](../fjs/fsc/todo/orphaned-json-grammar.md).
