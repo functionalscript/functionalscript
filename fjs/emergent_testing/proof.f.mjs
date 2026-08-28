@@ -352,8 +352,18 @@ export const reporterWriteFailure = () => {
  * ) => (s: _RegisterMockState) => readonly [_RegisterMockState, OpResult<void>]} _RegisterTestOp
  */
 
-/** @type {TestContext} */
-const registerNoopCtx = { test: (_n, _o, _f) => Promise.resolve() }
+/**
+ * A `TestContext` that is never invoked. Every mock runner below intercepts the
+ * `test` *effect* and reads the context as data, so `test` here exists only to
+ * satisfy the type — and it panics rather than answering, so an accidental call
+ * fails loudly instead of resolving quietly. A throw is also what lets a pure
+ * module satisfy `TestFn` at all: the body's type is `never`, which is
+ * assignable to the `Promise<void>` the signature demands, with no `Promise`
+ * constructed and no cast.
+ *
+ * @type {TestContext}
+ */
+const registerNoopCtx = { test: (_n, _o, _f) => { throw 'registerNoopCtx is data, not a runner' } }
 
 /**
  * Builds a synchronous mock runner for `registerModule`'s `Test`/`All`/`Await`
@@ -427,7 +437,10 @@ const registerBodyPanicsOnUndispatchableEffect = () => {
         // The runner has no `await`, which is what the body's channel carries.
         await: _p => s => [s, error(['notImplemented', 'await'])],
     }))
-    const proof = /** @type {const} */ ({ a: () => Promise.resolve(undefined) })
+    // The leaf's value never needs to be a promise: `registerOne` routes every
+    // leaf through the `await` effect unconditionally, and this runner's
+    // handler ignores the payload and answers `notImplemented` regardless.
+    const proof = /** @type {const} */ ({ a: () => undefined })
     runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
 }
 
