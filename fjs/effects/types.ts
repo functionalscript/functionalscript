@@ -148,8 +148,8 @@ export type IoResult<T> = Result<T, IoChannel>
  * **`E` defaults to {@link NotImplemented}**, the one error every operation can
  * answer with, so the common case is written `Effect<Sandbox, T>`. An
  * operation's own failures extend the channel — `Effect<ReadFile, Vec,
- * IoChannel>`, that alias being the node standard of
- * `NotImplemented | IoError`.
+ * IoChannel>`, that alias being the standard {@link IoChannel} of
+ * `NotImplemented | IoError` that any host's IO answers in.
  *
  * **`Effect<O, T, never>` is a claim, not an absence.** It says this code
  * absorbs its own failures *here* — an MCP handler turning one into a JSON-RPC
