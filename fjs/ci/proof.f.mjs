@@ -1,6 +1,7 @@
 /**
  * @import { MetaStep, Os, GitHubAction } from './common/types.ts'
  * @import { Dir, State } from '../effects/node/virtual/types.ts'
+ * @import { Unknown } from '../djs/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
@@ -220,5 +221,40 @@ export const proof = {
         const job = ubuntu([test({ run: 'echo hi' })])
         assert(job['runs-on'] !== undefined, 'expected runs-on')
         assert(job.steps.length > 0, 'expected steps')
+    },
+    jobNeeds: () => {
+        const steps = [{ run: 'echo hi' }]
+        /** @type {(jobs: Unknown) => Unknown} */
+        const action = jobs => ({
+            name: 'test',
+            on: {},
+            permissions: { contents: 'read' },
+            jobs,
+        })
+        // Modelled, so a job that waits for another survives the round-trip.
+        // Without this a consuming job could only reach the workflow by being
+        // emitted past the schema, which `parseGitHubAction` would then reject.
+        const ordered = unwrap(parseGitHubAction(action({
+            pack: { 'runs-on': 'ubuntu-latest', steps },
+            check: { 'runs-on': 'ubuntu-latest', needs: ['pack'], steps },
+        })))
+        assertEq(ordered.jobs.check?.needs?.[0], 'pack')
+        assertEq(ordered.jobs.check?.needs?.length, 1)
+        // Optional: the independent jobs, which is all of them today, still parse.
+        assertEq(unwrap(parseGitHubAction(action({
+            pack: { 'runs-on': 'ubuntu-latest', steps },
+        }))).jobs.pack?.needs, undefined)
+        // Constrained, not merely accepted. GitHub also allows a bare scalar
+        // (`needs: pack`); this generator emits the list form only, so the
+        // scalar is drift rather than an alternative spelling — the same reason
+        // these schemas are closed.
+        assertEq(parseGitHubAction(action({
+            check: { 'runs-on': 'ubuntu-latest', needs: 'pack', steps },
+        }))[0], 'error')
+        // Dormant until something orders itself: the first consumer is the
+        // packed-artifact check in `fjs/ci/todo/f-mjs-package-support.md`.
+        assert(
+            definedValues(run(false).jobs).every(job => job.needs === undefined),
+            'unexpected job ordering in the generated workflow')
     },
 }
