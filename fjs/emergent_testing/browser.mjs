@@ -71,126 +71,8 @@ const errorDetails = error => {
  *
  * @typedef {TestResult & { readonly message?: string, readonly stack?: string }} _BrowserTestResult
  */
+
 /** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
-
-/**
- * Attaches the handlers with the intrinsic `then`, but answers with a promise
- * of this realm instead of the one `then` returns. That result is built by
- * `constructor[Symbol.species]`, which a promise can make an ordinary object:
- * awaiting it would end the test before the promise it came from ever settled
- * and put the species object itself in the report.
- *
- * The `then` call still throws — before either handler is attached — for a
- * value that is not a promise or whose species construction fails, which is
- * what `runPromise` reads.
- *
- * @type {(value: unknown, fulfilled: (value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[], rejected: (error: unknown) => readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]>}
- */
-const subscribe = (value, fulfilled, rejected) => {
-    /** @type {(results: Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]) => void} */
-    let settle = () => undefined
-    /** @type {Promise<readonly _BrowserTestResult[]>} */
-    const settled = new Promise(resolve => { settle = resolve })
-    Reflect.apply(Promise.prototype.then, value, [
-        /** @type {(value: unknown) => void} */ (resolved => settle(fulfilled(resolved))),
-        /** @type {(error: unknown) => void} */ (error => settle(rejected(error))),
-    ])
-    return settled
-}
-
-/**
- * Reproduces the lookup `then` performs before it builds its result promise:
- * `constructor`, then its `Symbol.species`. A genuine promise with a hostile
- * species throws here too; an object that only claims to be a promise failed
- * the brand check first and reads its `constructor` cleanly. That is what
- * separates a promise nothing can subscribe to from an ordinary proof tree,
- * once shadowing `constructor` has turned out to be impossible.
- *
- * @type {(value: unknown) => boolean}
- */
-const speciesFails = value => {
-    try {
-        if (value === null || value === undefined) { return false }
-        const { constructor } = /** @type {{ readonly constructor?: unknown }} */ (value)
-        if (constructor === null || constructor === undefined) { return false }
-        // The species itself never matters, only whether reading it completes:
-        // that is the step `then` takes before it builds its result.
-        void /** @type {{ readonly [Symbol.species]?: unknown }} */ (constructor)[Symbol.species]
-        return false
-    } catch {
-        return true
-    }
-}
-
-/**
- * Runs the intrinsic Promise `then` only for genuine promises. The first call
- * is both the native brand check and the normal await path, so arbitrary proof
- * objects with a `then` key are never assimilated.
- *
- * A genuine Promise can still throw after passing the brand check if species
- * construction fails. In that case, temporarily shadow `constructor` with the
- * current realm's Promise and retry the same intrinsic call; the shadow is
- * removed immediately after the handlers are attached.
- *
- * A promise that pins its own `constructor`, or is frozen, leaves nothing to
- * shadow, so no subscription is possible at all. The species failure is then
- * reported against the test that produced the promise — the same outcome
- * `await` gives it in the Node runner — because a result nobody can observe is
- * not a pass. A non-extensible object that merely claims to be a promise
- * reaches the same dead end and is still walked as the proof tree it is.
- *
- * @type {(value: unknown, fulfilled: (value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[], rejected: (error: unknown) => readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]> | null}
- */
-const runPromise = (value, fulfilled, rejected) => {
-    const call = () => subscribe(value, fulfilled, rejected)
-    try {
-        return call()
-    } catch (error) {
-        // Either `value` is not a promise and the brand check rejected it
-        // before any handler was attached, or it is a genuine promise that
-        // failed while constructing the result through Symbol.species. Only
-        // the second case is worth a retry, and `then` attaches nothing before
-        // it throws, so the retry cannot run the handlers twice.
-        try {
-            if (Object.prototype.toString.call(value) !== '[object Promise]') { return null }
-        } catch {
-            return null
-        }
-        if (value === null || (typeof value !== 'object' && typeof value !== 'function')) { return null }
-        /** @type {PropertyDescriptor | undefined} */
-        let descriptor
-        try {
-            descriptor = Object.getOwnPropertyDescriptor(value, 'constructor')
-            Object.defineProperty(value, 'constructor', { value: Promise, configurable: true })
-        } catch {
-            // Nothing to shadow, so the value is whatever its own lookup says:
-            // a promise that cannot be subscribed to fails on the species error
-            // rather than passing on a result that was never awaited, and a
-            // frozen spoof is an ordinary proof tree.
-            return speciesFails(value) ? Promise.resolve(rejected(error)) : null
-        }
-        try {
-            return call()
-        } catch {
-            // The intrinsic `constructor` cannot fail the retry, so the brand
-            // check did: `value` only claims to be a promise and is walked as
-            // an ordinary proof result.
-            return null
-        } finally {
-            try {
-                if (descriptor === undefined) {
-                    Reflect.deleteProperty(value, 'constructor')
-                } else {
-                    Object.defineProperty(value, 'constructor', descriptor)
-                }
-            } catch {
-                // The temporary property is configurable, so ordinary objects
-                // restore cleanly. A hostile Proxy can make restoration itself
-                // observable.
-            }
-        }
-    }
-}
 
 /**
  * A failure of a whole module — one that will not link, or whose `proof` export
@@ -264,13 +146,58 @@ const runOne = (module, path, throws, fn, result) => {
             result(failure)
             return [failure]
         }
-    // Wrap the raw return so Promise resolution does not assimilate arbitrary
-    // objects with a `then` proof property. The Node runner awaits only actual
-    // promises, and browser execution must preserve that same test-tree rule.
-    return Promise.resolve().then(() => [fn()]).then(
-        ([value]) => runPromise(value, passed, failed) ?? passed(value),
-        failed
-    )
+    // `instanceof Promise`, then `await` — the whole of `fjs t`'s promise
+    // handling, spelled the same way here.
+    //
+    // It is deliberately not more than that. A promise can replace its own
+    // `then`, present a `constructor` that is not the intrinsic `Promise`, or
+    // carry a `Symbol.species` that fails, and each of those defeats `await` in
+    // a different way. Defending against them takes about 150 lines, none of
+    // which authored FunctionalScript can reach: it has no `Promise`, no
+    // `class`, no `Proxy` and no `Symbol`. `todo/imports-promises-realms.md`
+    // records each case, what the deleted machinery did about it, and what a
+    // runner does without it — to be implemented when an input that needs it
+    // actually exists.
+    //
+    // The value is wrapped in a tuple first so that resolving it cannot
+    // assimilate a proof tree carrying a `then` key: such a tree is a sub-tree
+    // with a test called `then` in it, in both runners.
+    //
+    // What makes this enough is the `await` above, not an assumption about the
+    // values that reach it. FunctionalScript as specified has no promises, and
+    // the browser suite selects `.f.mjs` — but that selection is by filename
+    // with no content check (`website/browser-prepare.mjs`), so a module that
+    // does not conform is still loaded and can return one. The handling here is
+    // correct either way. See `todo/imports-promises-realms.md` for the
+    // machinery this replaces and the measurements behind removing it.
+    /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
+    const settled = async value => {
+        // Even the brand check runs user code: `instanceof` consults
+        // `getPrototypeOf`, which a proxy can trap and a revoked one always
+        // throws from. `fjs t` performs this check inside `sandbox`'s
+        // `try`/`catch`, so it reports such a value as its test's failure; this
+        // handler has no enclosing `try`, so without one here the whole run
+        // rejects and the page never leaves `running`.
+        let isPromise = false
+        try {
+            isPromise = value instanceof Promise
+        } catch (error) {
+            return failed(error)
+        }
+        if (!isPromise) { return passed(value) }
+        /** @type {readonly [unknown]} */
+        let resolved
+        // Only the `await` is guarded. A throw from `passed` is the traversal's
+        // own and has its own handling; catching it here would report a broken
+        // proof tree as a rejected promise.
+        try {
+            resolved = [await value]
+        } catch (error) {
+            return failed(error)
+        }
+        return passed(resolved[0])
+    }
+    return Promise.resolve().then(() => [fn()]).then(([value]) => settled(value), failed)
 }
 
 /** @type {(status: string, duration: number, results: readonly _BrowserTestResult[]) => BrowserTestReport} */
