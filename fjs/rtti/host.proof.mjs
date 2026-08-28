@@ -25,7 +25,7 @@
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { undeclaredMembers } from './common/module.f.mjs'
 import { toData, validate as dataValidate } from './data/module.f.mjs'
-import { array, number, rest, string } from './module.f.mjs'
+import { array, number, option, or, rest, string } from './module.f.mjs'
 import { parse } from './parse/module.f.mjs'
 import { validate } from './validate/module.f.mjs'
 
@@ -166,5 +166,41 @@ export const proof = {
             assertError(read(rest([number], string))(value))
             assertOk(read(rest([number], number))(value))
         }
+    },
+    // A declared member absent by own-key but supplied by the **prototype** is
+    // present to the readers — HasProperty, the same test `getItem`'s read
+    // answers to — so the inherited value must satisfy the member's present
+    // part: `or(option, t)`'s `option` branch rejects any present value, so
+    // dispatching the read value *is* the present-part check. Without it,
+    // `validate` would hand back an object whose `.a` reads `'bad'` while the
+    // rendered type promises `number` — the own-key rule alone would have
+    // introduced that unsoundness, not inherited it.
+    inheritedDeclaredMemberMeetsThePresentPart: () => {
+        const value = Object.create({ a: 'bad' })
+        for (const read of [v, p, d]) {
+            assertError(read({ a: or(option, number) })(value))
+            assertOk(read({ a: or(option, string) })(value))
+        }
+    },
+    // …and `parse` **materializes** the inherited value as an own member of
+    // what it builds: against a prototype-supplied index no immutable builder
+    // can produce the hole — `slice` and `.map` copy by HasProperty, an
+    // `Object.hasOwn` guard inside a `.map` callback cannot stop the own
+    // output element from existing, and a fresh `Array(n)` inherits the index
+    // too — so this is a pinned, bounded divergence, unreachable from
+    // FunctionalScript (which has neither mutation nor prototype writes).
+    // `validate` is untouched: it returns the value it was given.
+    parseMaterializesAnInheritedIndex: () => {
+        const value = inheritedIndex()
+        const schema = /** @type {const} */ ([number, or(option, number)])
+        const r = p(schema)(value)
+        assert(r[0] === 'ok', 'expected ok')
+        const built = /** @type {ReadonlyArray<Unknown>} */ (r[1])
+        assert(Object.hasOwn(built, 1), 'the inherited index is an own member of the result')
+        assertEq(built[1], 99, 'carrying its parsed value')
+        const rv = v(schema)(value)
+        assert(rv[0] === 'ok', 'expected ok')
+        assert(Object.is(rv[1], value), '`validate` hands back the value it was given')
+        assert(!Object.hasOwn(/** @type {object} */ (rv[1]), 1), 'holes and all')
     },
 }

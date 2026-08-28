@@ -37,6 +37,21 @@ export type { phantomKey }
  * type _Check = Assert<Check3<MyType, typeof rawThunk, typeof thunk>>
  * ```
  *
+ * For an rtti schema the annotation is **`_TsRaw`-shaped**: when the wrapped
+ * schema's *root* admits absence — `or(option, …)` — `T` must carry the
+ * `Absent` marker (`Absent | MyType`), or a member the wrapped schema is
+ * used at silently renders required. The pair above cannot catch the
+ * omission, both halves comparing through the public `Ts<>`, which strips
+ * `Absent` from both sides — so such a schema **requires** the raw assert
+ * beside them, with `CheckRaw` and `Absent` from `fjs/rtti/ts/types.ts`:
+ *
+ * ```ts
+ * type _CheckRaw = Assert<CheckRaw<Absent | MyType, typeof rawThunk>>
+ * ```
+ *
+ * A schema whose root excludes absence needs nothing new — `_TsRaw` and
+ * `Ts` agree everywhere below a root `or` chain.
+ *
  * One phantom per recursive cycle is enough: `fjs/edag` wraps only `exp`,
  * the union every node kind recurses through, and the node schemas
  * themselves stay un-phantomed, each pinned with a plain `Check`.

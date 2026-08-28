@@ -286,6 +286,51 @@ export const undeclaredMembers = (declared, value) => {
 }
 
 /**
+ * Whether `rtti` admits **absence** with `visited` already ruled out — the
+ * recursive half of {@link admitsAbsence}, carrying the thunks on the current
+ * path so a recursive union such as `X = or(X, option)` terminates.
+ *
+ * @type {(visited: readonly Type[], rtti: Type) => boolean}
+ */
+const absenceIn = (visited, rtti) => {
+    if (typeof rtti !== 'function') { return false }
+    if (visited.some(v => v === rtti)) { return false }
+    const [tag, ...operands] = rtti()
+    if (tag === 'option') { return true }
+    if (tag !== 'or') { return false }
+    return operands.some(op => absenceIn([...visited, rtti], op))
+}
+
+/**
+ * Whether the schema admits **absence** — whether `option` is reachable
+ * through its unions, so a container may leave the member out entirely.
+ *
+ * This is the container loop's question, asked *before* dispatch: a
+ * recursive reader is handed only the value read, and an absent key reads
+ * `undefined`, so absence cannot be decided downstream of the read. The
+ * predicate traverses nested `or` nodes — the schema-form `or` does no
+ * flattening, so `or(or(option, number), string)` has no `option` among its
+ * direct members while admitting absence — descends the thunks they hold,
+ * stops at any other tag, and carries the visited thunks to terminate on a
+ * recursive `X = or(X, option)`. The data form needs no such traversal:
+ * `toData` has already flattened, so its readers test one unit bit.
+ *
+ * @type {(rtti: Type) => boolean}
+ */
+export const admitsAbsence = rtti => absenceIn([], rtti)
+
+/**
+ * The shared answer for a declared member that is not there — no own or
+ * inherited key at its position: the member is legal exactly when its schema
+ * admits absence. The `ok` payload is unused by pass/fail callers and is not
+ * a value read from the container, absence being the whole point.
+ *
+ * @type {(rtti: Type) => ResultE}
+ */
+export const absentMember = rtti =>
+    admitsAbsence(rtti) ? ok(undefined) : verror('unexpected value')
+
+/**
  * First variant in `variants` that `recurse` accepts, else `verror('no match')`.
  *
  * Shared `or` handler: try each variant against the value and return the
@@ -338,6 +383,7 @@ export const visit =
                 case 'array': return v.array(value[0])
                 case 'record': return v.record(value[0])
                 case 'unknown': return v.unknown()
+                case 'option': return v.option()
                 case 'or': return v.or(value)
                 case 'rest': {
                     const [c, r] = value

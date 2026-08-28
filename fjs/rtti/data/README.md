@@ -36,7 +36,7 @@ are kind-wise:
 
 | kind     | representation                          | notes                                        |
 | -------- | --------------------------------------- | -------------------------------------------- |
-| `unit`   | bitset over `null, undefined, false, true` | `or(true, false)` is the two boolean bits — "boolean" needs no special rule |
+| `unit`   | bitset over `null, undefined, false, true`, plus the `absentBit` | `or(true, false)` is the two boolean bits — "boolean" needs no special rule; bit `16` is **absence**, rtti's `option`, which is no DJS value and so no `unitList` member |
 | `number` | `true` (all) or sorted literals         | SameValue semantics: `-0 ≠ 0`, `NaN` allowed |
 | `string` | `true` or sorted literals               |                                              |
 | `bigint` | `true` or sorted literals               |                                              |
@@ -46,8 +46,9 @@ are kind-wise:
 **Arrays and tuples share one kind** because their value sets overlap: a tuple
 is an array whose leading positions carry distinct element types. The shared
 pattern is a tuple-with-rest: a `prefix` entry constrains the value *read* at
-that position — reading past the array's end yields `undefined`, so a position
-is required exactly when its set excludes `undefined` — and `rest` constrains
+that position and whether one must be there — a position past the array's end,
+or a hole, is **absent**, so a position is required exactly when its set
+excludes the `absentBit` — and `rest` constrains
 every position after the prefix, admitting nothing there when it is absent. A
 bare tuple schema is `{ prefix }` alone — the exact-length set — an `open` one
 is `{ prefix, rest: unknown }`, and a uniform array is `{ prefix: [], rest }`.
@@ -57,10 +58,10 @@ which the coverage collapse uses to drop `open([number, number])` from
 `{ a, b }` from `or(open({ a, b }), open({ a }))`.
 
 **Records and structs share one kind** for the same reason, and by the same
-rule one kind over: a `props` entry constrains the value *read* at that key —
-reading an absent key yields `undefined`, so a key is required exactly when
-its set excludes `undefined`, and `option(t)` props are optional with no extra
-mechanism. `rest` constrains the values at the remaining *present* keys; an
+rule one kind over: a `props` entry constrains the value *read* at that key
+and whether one must be there — a key is required exactly when its set
+excludes the `absentBit`, so `or(option, t)` props are optional with no extra
+mechanism and `{}` is told apart from `{ a: undefined }`. `rest` constrains the values at the remaining *present* keys; an
 `open` struct leaves them unconstrained (no `rest`), matching TypeScript's
 structural typing, and a bare, closed one says `rest: never`.
 
@@ -94,9 +95,11 @@ disambiguated with a counter on collision.
 - array/object patterns are sorted, deduplicated, and *coverage-collapsed*:
   a pattern included in a sibling pattern is dropped;
 - degenerate patterns are simplified: an empty position empties the pattern,
-  an identity `rest`/prop disappears, a trailing position restating a `rest`
-  that admits absence is dropped, and a pattern constraining nothing is its
-  whole kind — `array(unknown)`, `[]` and `[unknown]` are one `Node`;
+  an identity `rest`/prop disappears, an inline `rest` is stripped of the
+  `absentBit` (a rest never sees an absent member), a trailing position that
+  admits absence and restates the `rest` is dropped, and a pattern
+  constraining nothing is its whole kind — `array(unknown)`, `open([])` and
+  `open([or(option, unknown)])` are one `Node`;
 - pure `or` cycles dissolve (`X = number | X` is `number` — the least
   fixpoint), rules are pruned to the reachable set and sorted, and an entry
   rule nothing else references is inlined;
@@ -162,7 +165,7 @@ now.
 A bare `Tuple` schema is **closed** on all three readers, and says so here as
 `{ prefix }` with no `rest`: nothing past the prefix, so the array is at most
 `prefix.length` long — and at least as long as its last position excluding
-`undefined` (see
+absence (see
 [Structs and tuples are closed](../README.md#structs-and-tuples-are-closed)).
 `open(c)` is the thunk-form schema that widens it, converting to a `rest` of
 `unknown`, and `rest(c, R)` to that `R`; a `rest` of `never` normalizes back to
@@ -173,8 +176,8 @@ no `rest` at all on this kind, so `rest(c, never)` and the bare `c` are one
 parse([42])([42, 'extra'])                       // ['error', …]
 parse(open([42]))([42, 'extra'])                 // ['ok', [42]]
 validate(toData(open([42])))([42, 'extra'])      // ['ok', [42, 'extra']]
-parse([number, option(string)])([42])            // ['ok', [42, undefined]]
-validate(toData([number, option(string)]))([42]) // ['ok', [42]]
+parse([number, or(option, string)])([42])            // ['ok', [42]]
+validate(toData([number, or(option, string)]))([42]) // ['ok', [42]]
 ```
 
 `../validate/proof.f.mjs` runs one acceptance table through all three readers,
@@ -191,9 +194,24 @@ the `rest` is gone, since an undeclared key may be absent or else must belong to
 present, `{ props: { a: unknown }, rest: never }` (objects with at most the key
 `a`) and `{ props: {}, rest: never }` (the empty object) are two different sets.
 
-Note the asymmetry that phrasing preserves: a *declared* key constrains the
-value **read** at it, so an absent one reads `undefined` and is admitted when
-the declared set holds `undefined`. An *undeclared* key is checked as an
-**entry**, so a present `b: undefined` must satisfy `rest` itself rather than
-being excused by its absence — `{ props: { a: number }, rest: string }` rejects
-`{ a: 1, b: undefined }` and accepts `{ a: 1 }`.
+Note the symmetry stage 2 of `option`-as-omission completed: a *declared*
+key is admitted absent exactly when its set carries the `absentBit`, and a
+present `undefined` there must be a member of the set as a value. An
+*undeclared* key is checked as an **entry**, so a present `b: undefined` must
+satisfy `rest` itself — `{ props: { a: number }, rest: string }` rejects
+`{ a: 1, b: undefined }` and accepts `{ a: 1 }` — and a missing one is no
+entry at all. Absence is describable on both sides.
+
+Two more structural incompletenesses join the rule-name one above, both from
+the referenced-`rest` exemption: an inline `rest` is stripped of the
+`absentBit` while a **referenced** one is left alone (the same rule may be
+used at a declared position, where the bit is live, and for a recursive rule
+the stripped form is a different fixpoint, not a bit-mask — materializing it
+would be the bisimulation-grade work this form avoids), and the same
+exemption covers a referenced **trailing position** that restates its rest.
+Such a pair denotes one set spelled two ways where the reference's present
+part is non-empty — mutual `subset`s, structurally distinct — and two
+genuinely different sets where it is empty: an absence-only referenced rest
+admits any hole-only array, while its stripped form bounds the length. That
+last case is why `subset` **resolves** a referenced rest rather than masking
+its bit: a mask would answer `true` for that non-inclusion.

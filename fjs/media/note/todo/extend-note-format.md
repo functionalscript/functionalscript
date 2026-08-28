@@ -21,10 +21,10 @@ the field forces a new dialect) and the
 
 Candidates, roughly in order of usefulness:
 
-- `title: option(string)` — a short summary line (issues, events). Decide
+- `title: or(option, string)` — a short summary line (issues, events). Decide
   whether an absent title and `''` collapse into one meaning, or whether the
   field should reject `''` the way `lock` blobs treat emptiness.
-- `tags: option(array(string))` — free-form labels. Absent and `[]` are two
+- `tags: or(option, array(string))` — free-form labels. Absent and `[]` are two
   spellings of "no tags"; decide which one canonical writers emit, or make
   the field's presence require a non-empty array.
 - Event fields — `start` / `end` times. Needs a time representation decision

@@ -21,8 +21,8 @@ export const revisionSchema = {
     parents: array(hash),
     snapshot: hash,
     generation: number,
-    archived: option(true),
-    lock: option(lockField),
+    archived: or(option, true),
+    lock: or(option, lockField),
 } as const
 
 export const lock = () => ['record', lockValue] as const
@@ -174,7 +174,7 @@ absent value is a constant default.** `snapshot` and `generation` are required
 because their absence would force inference (a resolution algorithm and an
 ancestry walk, respectively). `archived` is the documented boundary of the
 rule and stays **optional**: its absence is the constant `false`, derivable
-from nothing, so the `option(true)` presence-flag idiom is exactly right —
+from nothing, so the `or(option, true)` presence-flag idiom is exactly right —
 forcing `archived: false` onto every blob would be pure noise.
 
 Inference has not disappeared; it moved to the write boundary. The `evo_add`
@@ -354,8 +354,8 @@ section of [fjs/cas/evo/README.md](../../cas/evo/README.md).
 
 `archived` marks a mutable object as no longer worked on (e.g. a finished
 task); its blobs can be deleted from a local CAS after a backup. It follows
-the existing `option(true)` idiom (a presence-only flag) rather than
-`option(boolean)`.
+the existing `or(option, true)` idiom (a presence-only flag) rather than
+`or(option, boolean)`.
 
 ## Out of scope (this module)
 

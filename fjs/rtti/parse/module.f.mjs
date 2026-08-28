@@ -15,10 +15,12 @@
  *   always returned even if the inner type is a primitive.
  *
  * Closedness is about *undeclared* members, and leaves the required/optional
- * rule alone: a member is required exactly when its set excludes `undefined` —
- * an absent member reads as `undefined`, on both kinds — so a shorter array
- * whose trailing position admits `undefined` is accepted and the gap is
- * filled.
+ * rule alone: a member is required exactly when its set excludes **absence**
+ * — the `option` bit of its union — so a shorter array whose trailing
+ * position says `or(option, t)` is accepted. An absent member is omitted
+ * from what is built, never materialized as `undefined`: the struct kind
+ * drops the key, the array kind keeps a hole a hole and shortens a trailing
+ * absent run.
  *
  * A tuple schema declares by length, so a hole in the *schema* is a declared
  * position whose schema is `undefined` — see "A hole is a declared position"
@@ -57,6 +59,7 @@
 import { ok } from '../../types/result/module.f.mjs'
 import { reverse, toArray } from '../../types/list/module.f.mjs'
 import {
+    absentMember,
     constPrimitiveValidate,
     eachEntry,
     isArray,
@@ -82,6 +85,46 @@ const arrayRebuild = entries => entries.map(([, v]) => v)
 /** @type {_Rebuild} */
 const recordRebuild = entries => Object.fromEntries(entries)
 
+/**
+ * Rebuilds a **const** container from the declared members that were
+ * present, keyed by the same HasProperty test the check dispatched on —
+ * one per kind, since only the array kind has holes to preserve.
+ *
+ * @template C
+ * @typedef {(value: C, entries: ReadonlyArray<readonly [string, Unknown]>) => Unknown} _RebuildDeclared
+ */
+
+/**
+ * The array kind's rebuild is **slice, then map**: truncate the value to the
+ * last *present* declared position, then map each present index to its
+ * parsed result. Mapping alone is not enough — `.map` preserves length, so a
+ * trailing absent run would survive as a sparse tail and serialize back to
+ * the `null`s this stage removes — and omitting absent entries from a
+ * rebuilt list would shift every position after an interior hole.
+ * `slice` and `.map` both skip a hole, so an interior one survives as a
+ * hole; both use HasProperty, so an index the value only *inherits* is
+ * materialized as an own property of the result, carrying its parsed value.
+ * That divergence is bounded and pinned rather than closed: no immutable
+ * builder can produce the hole against a prototype-supplied index —
+ * `.map` creates the own output element whatever the callback returns, and
+ * a fresh `Array(n)` inherits the index too — and the escapes
+ * (`Object.assign`, index assignment) are mutation, which FunctionalScript
+ * forbids. See `../host.proof.mjs`.
+ *
+ * @type {_RebuildDeclared<ReadonlyArray<Unknown>>}
+ */
+const tupleRebuild = (value, entries) => {
+    if (entries.length === 0) { return [] }
+    /** @type {StringMap<Unknown>} */
+    const byIndex = Object.fromEntries(entries)
+    const end = Number(entries[entries.length - 1][0]) + 1
+    return value.slice(0, end).map((_, i) => byIndex[i])
+}
+
+/** The struct kind drops an absent key: only the present entries are rebuilt. */
+/** @type {_RebuildDeclared<StringMap<Unknown>>} */
+const structRebuild = (_value, entries) => Object.fromEntries(entries)
+
 /** `eachEntry`'s accumulator seed: entries are consed on in reverse as they parse. */
 /** @type {List<readonly [string, Unknown]>} */
 const emptyEntries = null
@@ -90,6 +133,18 @@ const emptyEntries = null
 /** @type {(acc: List<readonly [string, Unknown]>, k: string, v: Unknown) => List<readonly [string, Unknown]>} */
 const consEntry = (acc, k, v) =>
     ({ first: [k, v], tail: acc })
+
+/**
+ * `eachEntry`'s accumulate step over *declared* members, whose item wraps a
+ * present member's parsed value in a one-element list and an absent member
+ * in an empty one: the present value is kept, the absent member leaves no
+ * entry. The wrapping is what stands in for a sentinel — every value,
+ * `undefined` included, is a legal parse result, so no value could mark
+ * absence.
+ */
+/** @type {(acc: List<readonly [string, Unknown]>, k: string, vs: ReadonlyArray<Unknown>) => List<readonly [string, Unknown]>} */
+const consPresent = (acc, k, vs) =>
+    vs.length === 0 ? acc : ({ first: [k, vs[0]], tail: acc })
 
 /** A uniform container declares no member by name, so every one is undeclared. */
 /** @type {readonly string[]} */
@@ -166,6 +221,16 @@ const noAccumulate = () => undefined
  * a member on both, but an array is also *as long as it is*: a hole past the
  * prefix is no member and would slip through the member check alone, so the
  * array kind answers with its length as well.
+ *
+ * A declared member is **absent** when its key or index is neither an own
+ * property nor an inherited one — the same HasProperty test
+ * `../validate/module.f.mjs` dispatches on — and absence is decided here,
+ * before dispatch, since the recursive reader is handed only the value read.
+ * An absent member is legal exactly when its schema admits absence, and is
+ * **omitted** from what is built rather than materialized as `undefined`:
+ * the struct kind drops the key, and the array kind preserves indices —
+ * a trailing absent run shortens the result, an interior one stays a hole
+ * (see `tupleRebuild`).
  */
 const constContainerParse =
     /**
@@ -174,7 +239,7 @@ const constContainerParse =
      * @param {IsContainer<C>} isContainer
      * @param {SchemaEntries<S>} schemaEntries
      * @param {(value: C, k: string) => Unknown} getItem
-     * @param {_Rebuild} rebuild
+     * @param {_RebuildDeclared<C>} rebuild
      * @param {Fits<C>} fits
      * @returns {<T extends S>(rtti: T) => Parse<T>}
      */
@@ -189,13 +254,20 @@ const constContainerParse =
             }
             const r = eachEntry(
                 rttiEntries,
-                (k, t) => (/** @type {any} */ (parse(t))(getItem(value, k))),
+                (k, t) => {
+                    if (!(k in value)) {
+                        const a = absentMember(t)
+                        return a[0] === 'error' ? a : ok([])
+                    }
+                    const p = /** @type {any} */ (parse(t))(getItem(value, k))
+                    return p[0] === 'error' ? p : ok([p[1]])
+                },
                 emptyEntries,
-                consEntry,
+                consPresent,
             )
             if (r[0] === 'error') { return r }
             return undeclaredMembers(declared, value).length === 0 && fits(value, declared.length)
-                ? /** @type {any} */ (ok(rebuild(orderedEntries(r[1]))))
+                ? /** @type {any} */ (ok(rebuild(value, orderedEntries(r[1]))))
                 : verror('unexpected value')
         }
     }
@@ -204,7 +276,7 @@ const tupleParse = constContainerParse(
     isArray,
     tupleSchemaEntries,
     (value, k) => value[Number(k)],
-    arrayRebuild,
+    tupleRebuild,
     (value, declared) => value.length <= declared,
 )
 
@@ -212,7 +284,7 @@ const structParse = constContainerParse(
     isObject,
     structSchemaEntries,
     (value, k) => value[k],
-    recordRebuild,
+    structRebuild,
     () => true,
 )
 
@@ -234,7 +306,7 @@ const restContainerParse =
      * @param {IsContainer<C>} isContainer
      * @param {SchemaEntries<S>} schemaEntries
      * @param {(value: C, k: string) => Unknown} getItem
-     * @param {_Rebuild} rebuild
+     * @param {_RebuildDeclared<C>} rebuild
      * @param {(rtti: S, r: Type) => Fits<C>} restFits
      * @returns {(rtti: S, r: Type) => ValidateE}
      */
@@ -250,20 +322,27 @@ const restContainerParse =
             }
             const d = eachEntry(
                 rttiEntries,
-                (k, t) => (/** @type {any} */ (parse(t))(getItem(value, k))),
+                (k, t) => {
+                    if (!(k in value)) {
+                        const a = absentMember(t)
+                        return a[0] === 'error' ? a : ok([])
+                    }
+                    const p = /** @type {any} */ (parse(t))(getItem(value, k))
+                    return p[0] === 'error' ? p : ok([p[1]])
+                },
                 emptyEntries,
-                consEntry,
+                consPresent,
             )
             if (d[0] === 'error') { return d }
             const extra = undeclaredMembers(declared, value)
             if (extra.length === 0) {
                 return fits(value, declared.length)
-                    ? ok(rebuild(orderedEntries(d[1])))
+                    ? ok(rebuild(value, orderedEntries(d[1])))
                     : verror('unexpected value')
             }
             const restParse = /** @type {any} */ (parse(r))
             const e = eachEntry(extra, (_k, v) => restParse(v), undefined, noAccumulate)
-            return e[0] === 'error' ? e : ok(rebuild(orderedEntries(d[1])))
+            return e[0] === 'error' ? e : ok(rebuild(value, orderedEntries(d[1])))
         }
     }
 
@@ -271,7 +350,7 @@ const restTupleParse = restContainerParse(
     isArray,
     tupleSchemaEntries,
     (value, k) => value[Number(k)],
-    arrayRebuild,
+    tupleRebuild,
     (rtti, r) => (value, declared) => value.length <= declared || !emptyRest(rtti, r),
 )
 
@@ -279,7 +358,7 @@ const restStructParse = restContainerParse(
     isObject,
     structSchemaEntries,
     (value, k) => value[k],
-    recordRebuild,
+    structRebuild,
     () => () => true,
 )
 
@@ -338,6 +417,11 @@ const parseVisitor = /** @type {any} */ ({
     constPrimitive: constPrimitiveValidate,
     primitive0: primitive0Validate,
     unknown: () => ok,
+    // Absence is decided by the container loop before dispatch, so a value
+    // that reaches this handler is present — and no present value is absent.
+    // An ordinary error is what lets `orVisit` try the other members of
+    // `or(option, t)`.
+    option: () => () => verror('unexpected value'),
 })
 
 /** @type {<const T extends Type>(rtti: T) => Parse<T>} */

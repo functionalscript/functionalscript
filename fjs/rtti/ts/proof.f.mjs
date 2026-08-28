@@ -7,7 +7,7 @@
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import { toData, unitBit } from '../data/module.f.mjs'
+import { absentBit, toData, unitBit } from '../data/module.f.mjs'
 import { boolean, number, string, bigint, unknown, array, open, record, or, option, rest, never } from '../module.f.mjs'
 import { dataToTs, printer } from './module.f.mjs'
 
@@ -24,9 +24,10 @@ import { dataToTs, printer } from './module.f.mjs'
 // schema `readonly []`, and nothing else here would have caught it.
 /** @typedef {Assert<Equal<Ts<readonly (typeof number | typeof bigint)[]>, readonly (number | bigint)[]>>} _NonFixedLength */
 
-// `option(t)` is `or(t, undefined)`; these are the schema types it produces.
-/** @typedef {Or<readonly [typeof boolean, undefined]>} _OptionBoolean */
-/** @typedef {Or<readonly [typeof string, undefined]>} _OptionString */
+// `or(option, t)` — a member that may be absent; these are the schema types
+// the spelling produces.
+/** @typedef {Or<readonly [typeof option, typeof boolean]>} _OptionBoolean */
+/** @typedef {Or<readonly [typeof option, typeof string]>} _OptionString */
 
 // A variadic tuple is the shape the `length` guard exists for, and the only
 // one: its peel *succeeds*, binding the unknown-length prefix to `I`, so
@@ -67,14 +68,15 @@ import { dataToTs, printer } from './module.f.mjs'
 // statement about which values the union admits.
 /** @typedef {readonly [typeof number, _OptionString]} _BranchA */
 /** @typedef {readonly [typeof string, _OptionBoolean, _OptionNumber]} _BranchB */
-/** @typedef {Or<readonly [typeof number, undefined]>} _OptionNumber */
+/** @typedef {Or<readonly [typeof option, typeof number]>} _OptionNumber */
 /** @typedef {Assert<readonly [1, true] extends TupleTs<_BranchA | _BranchB> ? false : true>} _UnionKeepsBranchCorrelation */
 /** @typedef {Assert<readonly [1, 'x'] extends TupleTs<_BranchA | _BranchB> ? true : false>} _UnionAdmitsItsOwnBranches */
 
-/** @typedef {Assert<Equal<Ts<readonly [typeof number, typeof bigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, (boolean | undefined)?, (string | undefined)?]>>} _OptionalTail */
+/** @typedef {Assert<Equal<Ts<readonly [typeof number, typeof bigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, boolean?, string?]>>} _OptionalTail */
 
 // Only the *trailing* run: TypeScript forbids a required element after an
-// optional one, so an interior position that admits `undefined` stays required.
+// optional one, so an interior position that admits absence stays required,
+// with `undefined` — what reading a hole gives — in its type.
 /** @typedef {Assert<Equal<Ts<readonly [_OptionString, typeof number]>, readonly [string | undefined, number]>>} _InteriorStaysRequired */
 
 const toTs = printer()
@@ -170,20 +172,36 @@ export const proof = {
         // `Ts<>` gives it, which is what makes that cast sound
         emptyTuple: () => eq([], 'readonly[]'),
         tuple: () => eq([12, true], 'readonly[12,true]'),
-        // a position the array may end before prints optional, as the key it
-        // is the array counterpart of does
+        // a position the array may end before prints optional, with the
+        // absent bit stripped from what it prints — exact under
+        // `exactOptionalPropertyTypes`, as the key it is the array
+        // counterpart of is
         optionalTuplePosition: () => eq(
-            [number, option(string)],
-            'readonly[number,(undefined|string)?]',
+            [number, or(option, string)],
+            'readonly[number,(string)?]',
         ),
         allOptionalTuple: () => eq(
-            [option(number)],
-            'readonly[(undefined|number)?]',
+            [or(option, number)],
+            'readonly[(number)?]',
         ),
-        // a declared `unknown` key is a key the container has, so it is not
-        // dropped the way an `open` struct's is
+        // an interior position admitting absence prints `undefined|T` — what
+        // reading a hole gives, and the only spelling TypeScript allows
+        // before a required element — while a present-`undefined` member
+        // needs no conversion
+        interiorOption: () => eq(
+            [or(option, string), number],
+            'readonly[undefined|string,number]',
+        ),
+        interiorUndefined: () => eq(
+            [or(string, undefined), number],
+            'readonly[undefined|string,number]',
+        ),
+        // a declared `unknown` key is a key the container has — and one that
+        // must be *present*, `unknown` excluding absence — so it prints
+        // required; "anything, or nothing" is `or(option, unknown)`
         emptyStruct: () => eq({}, '{}'),
-        unknownProp: () => eq({ a: unknown }, '{readonly"a"?:unknown}'),
+        unknownProp: () => eq({ a: unknown }, '{readonly"a":unknown}'),
+        unknownOrAbsentProp: () => eq({ a: or(option, unknown) }, '{readonly"a"?:unknown}'),
         struct: () => eq(
             { a: number, b: string },
             '{readonly"a":number,readonly"b":string}',
@@ -217,14 +235,26 @@ export const proof = {
     // a tuple has a rest element, so this printer says exactly what the schema
     // says — `Ts<>` renders the same tail, for the same reason.
     open: {
-        // an unconstrained tuple, or struct, is the whole kind
+        // an unconstrained tuple, or struct, is the whole kind — a position
+        // is unconstrained when it may hold anything *or nothing*, while a
+        // plain `unknown` position requires presence and stays
         emptyTuple: () => eq(open([]), 'readonly(unknown)[]'),
-        unconstrainedTuple: () => eq(open([unknown]), 'readonly(unknown)[]'),
+        unconstrainedTuple: () => eq(open([or(option, unknown)]), 'readonly(unknown)[]'),
+        requiredUnknownTuple: () => eq(
+            open([unknown]),
+            'readonly[unknown,...readonly(unknown)[]]',
+        ),
         tuple: () => eq(open([12, true]), 'readonly[12,true,...readonly(unknown)[]]'),
         emptyStruct: () => eq(open({}), '{readonly[k in string]?:unknown}'),
         struct: () => eq(open({ a: number }), '{readonly"a":number}'),
-        // an unconstrained key *is* dropped once the container is open
-        unknownProp: () => eq(open({ a: unknown }), '{readonly[k in string]?:unknown}'),
+        // the declared-member top — anything, or nothing — *is* dropped once
+        // the container is open, while a plain `unknown` key requires
+        // presence and survives
+        unknownProp: () => eq(open({ a: unknown }), '{readonly"a":unknown}'),
+        unknownOrAbsentProp: () => eq(
+            open({ a: or(option, unknown) }),
+            '{readonly[k in string]?:unknown}',
+        ),
         // a stated rest prints as the rest element / index signature it is.
         // The tail admits `undefined` because a hole past the prefix is no
         // member, so a reader skips it and the index reads `undefined`.
@@ -251,8 +281,13 @@ export const proof = {
     // an array with no admissible element is the empty array, and nothing
     // past a prefix is what prints as an exact-length tuple
     arrayOfNever: () => eq(array(never), 'readonly[]'),
-    // union members follow the canonical kind order, `undefined` first
-    option: () => eq(option(number), 'undefined|number'),
+    // absence is not a value, so at the entry it prints as the rest of the
+    // union — the public `Ts<>` of the same schema — and alone as `never`
+    option: () => {
+        eq(or(option, number), 'number')
+        eq(option, 'never')
+        eq(or(option, unknown), 'unknown')
+    },
     normalization: {
         booleanFromConsts: () => eq(or(true, false), 'boolean'),
         literalAbsorbed: () => eq(or(42, number), 'number'),
@@ -261,11 +296,13 @@ export const proof = {
         canonicalIdentity: () => {
             assertEq(toTs(or(string, number)), toTs(or(number, string)))
         },
-        // a key admitting `undefined` may be absent — it prints optional
-        optionalProp: () => eq({ x: option(string) }, '{readonly"x"?:undefined|string}'),
+        // a key admitting absence prints optional with the bit stripped; one
+        // admitting a present `undefined` prints required with it in the type
+        optionalProp: () => eq({ x: or(option, string) }, '{readonly"x"?:string}'),
+        presentUndefinedProp: () => eq({ x: or(string, undefined) }, '{readonly"x":undefined|string}'),
         mixedProps: () => eq(
-            { a: number, b: option(number) },
-            '{readonly"a":number,readonly"b"?:undefined|number}'),
+            { a: number, b: or(option, number) },
+            '{readonly"a":number,readonly"b"?:number}'),
     },
     recursion: {
         selfList: () => {
@@ -344,11 +381,29 @@ export const proof = {
                 [[], '{readonly"a":string}&{readonly[k in string]?:string}'])
         },
         optionalByReference: () => {
+            // the absent bit read through a reference decides optionality,
+            // and is masked from the rule's own definition
+            eqData([{ r: { unit: unitBit(null) | absentBit, number: true } },
+                { object: [{ props: { p: 'r' } }] }],
+                [[['r', 'null|number']], '{readonly"p"?:r}'])
+            // `undefined` as a value no longer makes a key optional
             eqData([{ r: { unit: unitBit(null) | unitBit(undefined), number: true } },
                 { object: [{ props: { p: 'r' } }] }],
-                [[['r', 'null|undefined|number']], '{readonly"p"?:r}'])
+                [[['r', 'null|undefined|number']], '{readonly"p":r}'])
             eqData([{ r: { number: true } }, { object: [{ props: { p: 'r' } }] }],
                 [[['r', 'number']], '{readonly"p":r}'])
+        },
+        interiorOptionByReference: () => {
+            // an interior reference carrying the bit prints its identifier
+            // with `undefined` unioned in front — the alias cannot be
+            // rewritten, so the hole's reading rides beside it
+            eqData([{ r: { unit: absentBit, number: true } },
+                { array: [{ prefix: ['r', { number: true }] }] }],
+                [[['r', 'number']], 'readonly[undefined|r,number]'])
+            // and a trailing reference with the bit prints optional
+            eqData([{ r: { unit: absentBit, number: true } },
+                { array: [{ prefix: [{ number: true }, 'r'] }] }],
+                [[['r', 'number']], 'readonly[number,(r)?]'])
         },
         wholeKinds: () => {
             eqData([{}, { array: true, object: true }],

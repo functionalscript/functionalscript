@@ -11,7 +11,7 @@ available is a cast:
 ```js
 export const casAddArgs = /** @type {const} */ ({
     content: string,
-    type: or('text', 'base64', undefined)
+    type: or(option, 'text', 'base64')
 })
 ```
 
@@ -33,7 +33,7 @@ A `const` type parameter would do both jobs at once:
  */
 export const type = t => t
 
-export const casAddArgs = type({ content: string, type: or('text', 'base64', undefined) })
+export const casAddArgs = type({ content: string, type: or(option, 'text', 'base64') })
 ```
 
 `type` pins exactly as `as const` does — that is what the modifier means — and

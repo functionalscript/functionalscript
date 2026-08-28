@@ -30,11 +30,18 @@ import { eachEntry, isArray, undeclaredMembers, verror } from '../common/module.
 /**
  * The unit kind's enumeration: bit `1 << i` of a {@link UnionSet}'s `unit`
  * bitset stands for `unitList[i]`.
+ *
+ * {@link absentBit} is the one `unit` bit with no `unitList` entry: absence
+ * is not a DJS value, so it has nothing to enumerate here — see the bit's
+ * own doc, and `UnionSet` in `./types.ts` for the serialized contract.
  */
 export const unitList = /** @type {const} */ (['null', 'undefined', 'false', 'true'])
 
 /**
  * The `unit` bit of one unit value.
+ *
+ * Value-keyed, so it cannot answer for {@link absentBit}: the absent bit has
+ * no JS value to key on — absence is the member that is not there.
  *
  * @type {(v: null | undefined | boolean) => number}
  */
@@ -42,6 +49,18 @@ export const unitBit = v =>
     v === null ? 1 :
     v === undefined ? 2 :
     v ? 8 : 4
+
+/**
+ * The fifth `unit` bit: **absence**, rtti's nullary `option`. Not a member
+ * of {@link unitList}, because it is not a DJS value — no value reads as
+ * absent; a *container position* is absent by having no own or inherited
+ * key. The set algebra does not care: union, `subset`, `cmp`, `equal` and
+ * the coverage collapse are bitwise over the unit kind, so the bit rides
+ * along. What does care is normalization — a `rest` never sees absence, so
+ * an inline rest is stripped of the bit ({@link arraySet}/{@link objectSet})
+ * — and the readers, which test it where a declared member is missing.
+ */
+export const absentBit = 16
 
 const allUnits = unitBit(null) | unitBit(undefined) | unitBit(false) | unitBit(true)
 
@@ -287,49 +306,92 @@ const isNever = n => typeof n !== 'string' && cmpUnion(n, never) === 0
 const isTop = n => typeof n !== 'string' && cmpUnion(n, unknown) === 0
 
 /**
- * The prefix with its redundant tail removed: a last position stating exactly
- * the `rest` says nothing the `rest` does not already say, *provided* the
- * `rest` admits `undefined`.
+ * The **declared-member** top: any value, or nothing — `or(option, unknown)`.
+ * A declared position is where absence is observable, so its top carries the
+ * absent bit; a `rest`'s top is plain {@link unknown}, a rest never seeing
+ * an absent member.
+ *
+ * @type {UnionSet}
+ */
+const declaredTop = { ...unknown, unit: allUnits | absentBit }
+
+/** @type {(n: Node) => boolean} */
+const isDeclaredTop = n => typeof n !== 'string' && cmpUnion(n, declaredTop) === 0
+
+/**
+ * The node with the absent bit stripped — what a `rest` position normalizes
+ * an **inline** union to, absence being unobservable there: a declared
+ * member is checked as the value read at its position, but a `rest` is
+ * checked against each *present* member, so the bit in a rest constrains
+ * nothing. A **referenced** rest is left alone: the same rule may be used at
+ * a declared position, where the bit is live, so clearing it globally would
+ * delete optionality elsewhere — and the stripped form of a recursive rule
+ * is a different fixpoint, not a bit-mask (see `./README.md`).
+ *
+ * @type {(n: Node) => Node}
+ */
+const stripAbsent = n =>
+    typeof n === 'string' ? n : withoutUnits(absentBit)(n)
+
+/**
+ * The prefix with its redundant tail removed: a trailing declared position
+ * that **admits absence** and whose absence-stripped set states exactly the
+ * `rest` says nothing the `rest` does not already say.
  *
  * Every array carrying a value at that position is read against the same set
- * either way, so the two spellings can only differ on the arrays with nothing
- * there — one that ends before it, and one holding a hole at it. Both read
- * `undefined`, which the `rest` alone imposes nothing on, so dropping the
- * position widens the set unless the `rest` admits `undefined` too. That is
- * why `{ prefix: [number], rest: number }` keeps its position and stays "one
- * or more numbers": `[]` and `[ , 1]` belong to `{ prefix: [], rest: number }`
- * and not to it.
+ * either way, so the two spellings can only differ on the arrays with
+ * nothing there — one that ends before it, and one holding a hole at it.
+ * Both are the position *absent*, which the position must admit for either
+ * to belong; past the prefix a hole is no member, so the `rest` admits both
+ * for free. That is why `{ prefix: [number], rest: number }` keeps its
+ * position and stays "one or more numbers": `[]` and `[ , 1]` belong to
+ * `{ prefix: [], rest: number }` and not to it.
  *
- * This is what keeps one set to one spelling: the open tuples `[]` and
- * `[unknown]` are both every array and have to produce one `Node`.
+ * This is what keeps one set to one spelling: `rest([or(option, number)],
+ * number)` and `array(number)` are both "arrays of numbers, any of which may
+ * be a hole" and have to produce one `Node`.
  *
- * A referenced `rest` is left alone — reading its unit bits would need the
- * rule set, and the form already declines to see through a reference (see
- * `./README.md`).
+ * Two exemptions. A **referenced** trailing position is left alone — reading
+ * its unit bits would need the rule set, and the form already declines to
+ * see through a reference (see `./README.md`). And the trim never sees an
+ * **empty** `rest` — {@link arraySet} returns the exact-length pattern
+ * before trimming — which is what keeps `[option]` (its sole position
+ * stripping to `never`, like the `rest`) distinct from `[]`: the two differ
+ * on `new Array(1)`, a length the first admits and the second bounds out.
  *
  * @type {(prefix: readonly Node[], rest: Node) => readonly Node[]}
  */
-const trimPrefix = (prefix, rest) =>
-    typeof rest === 'string' || ((rest.unit ?? 0) & unitBit(undefined)) === 0
-        ? prefix
-        : prefix.slice(0, prefix.findLastIndex(n => cmpNode(n, rest) !== 0) + 1)
+const trimPrefix = (prefix, rest) => {
+    if (typeof rest === 'string') { return prefix }
+    /** @type {(n: Node) => boolean} */
+    const redundant = n =>
+        typeof n !== 'string'
+        && ((n.unit ?? 0) & absentBit) !== 0
+        && cmpUnion(withoutUnits(absentBit)(n), rest) === 0
+    return prefix.slice(0, prefix.findLastIndex(n => !redundant(n)) + 1)
+}
 
 /**
  * Canonical array-kind singleton. A syntactically empty position makes the
- * whole pattern empty (a position past the array's end reads as `undefined`,
- * which the empty set excludes, so no length escapes it); an empty `rest`
- * admits nothing past the prefix, which is what no `rest` already says; a
- * prefix restating its `rest` is {@link trimPrefix}'d away; an unconstrained
- * `rest` with nothing left before it is every array.
+ * whole pattern empty (nothing may be there and it may not be absent, so no
+ * array has such a position — and none is short enough to escape it, a
+ * missing index being absence); an inline `rest` is stripped of the absent
+ * bit ({@link stripAbsent} — a rest never sees an absent member); an empty
+ * `rest` admits nothing past the prefix, which is what no `rest` already
+ * says; a prefix restating its `rest` is {@link trimPrefix}'d away; an
+ * unconstrained `rest` with nothing left before it is every array.
  *
  * Every array set is stated with a `rest` — `never` for a bare tuple,
  * `unknown` for an `open` one, the element set for a uniform array — so this
  * takes one rather than an optional one; the absent `rest` is what it
- * normalizes an empty one *to*.
+ * normalizes an empty one *to*. `array(option)` is therefore the empty
+ * array: its element set strips to `never`, and a `never` rest is the
+ * exact-length pattern of its (empty) prefix.
  *
  * @type {(prefix: readonly Node[], rest: Node) => UnionSet}
  */
-const arraySet = (prefix, rest) => {
+const arraySet = (prefix, rest0) => {
+    const rest = stripAbsent(rest0)
     if (prefix.some(isNever)) { return never }
     if (isNever(rest)) { return { array: [{ prefix }] } }
     const p = trimPrefix(prefix, rest)
@@ -337,24 +399,36 @@ const arraySet = (prefix, rest) => {
 }
 
 /**
- * Canonical object-kind singleton. An unconstrained `rest` is the same set as
- * no `rest`; an unconstrained key is then dropped too; a syntactically empty
- * key set makes the whole pattern empty; with nothing left, the pattern is
- * every object.
+ * Canonical object-kind singleton. An inline `rest` is stripped of the
+ * absent bit ({@link stripAbsent}); an unconstrained `rest` is the same set
+ * as no `rest`; an unconstrained key is then dropped too; a syntactically
+ * empty key set makes the whole pattern empty; with nothing left, the
+ * pattern is every object.
  *
  * A key is dropped only once the `rest` is gone, and that order is the whole
  * rule: an undeclared key may be absent, or must belong to `rest`, which
  * leaves it unconstrained exactly when there is no `rest` — so with one
  * present a key saying "anything" says strictly more than leaving it out.
  * A bare struct's empty `rest` is where the two part company —
- * `{ props: { a: unknown }, rest: never }` admits `{ a: 1 }` and
+ * `{ props: { a: or(option, unknown) }, rest: never }` admits `{ a: 1 }` and
  * `{ props: {}, rest: never }` admits only `{}`.
  *
- * @type {(props: readonly (readonly [string, Node])[], rest: Node | undefined) => UnionSet}
+ * "Unconstrained", for a declared key, is {@link isDeclaredTop} — anything
+ * *or nothing*, `or(option, unknown)` — not the plain top: a key declared
+ * `unknown` must be present, which an undeclared key need not be, so
+ * dropping it would widen the set.
+ *
+ * Like {@link arraySet}, every object set is stated with a `rest` — `never`
+ * for a bare struct, `unknown` for an `open` one, the value set for a
+ * uniform record — and the absent `rest` is what an unconstrained one
+ * normalizes *to*.
+ *
+ * @type {(props: readonly (readonly [string, Node])[], rest: Node) => UnionSet}
  */
-const objectSet = (props, rest) => {
-    const r = rest !== undefined && isTop(rest) ? undefined : rest
-    const constrained = r === undefined ? props.filter(([, v]) => !isTop(v)) : props
+const objectSet = (props, rest0) => {
+    const rest = stripAbsent(rest0)
+    const r = isTop(rest) ? undefined : rest
+    const constrained = r === undefined ? props.filter(([, v]) => !isDeclaredTop(v)) : props
     if (constrained.some(([, v]) => isNever(v))) { return never }
     if (constrained.length === 0 && r === undefined) { return { object: true } }
     /** @type {StringMap<Node>} */
@@ -411,14 +485,34 @@ const kindSubset = le => (a, b) => {
 }
 
 /**
+ * Whether the node's set carries the absent bit, read through a reference
+ * (own-property only).
+ *
+ * @type {(rules: RuleSet) => (n: Node) => boolean}
+ */
+const nodeAdmitsAbsence = rules => n =>
+    ((resolve(rules)(n).unit ?? 0) & absentBit) !== 0
+
+/**
  * Only the *longest* array each side admits is tested here — `pn` without a
  * `rest`, unbounded with one. The shortest needs no test of its own: a
- * position `q` insists on (one whose set excludes `undefined`) is a position
- * `p` insists on too as soon as the pointwise check below passes, since
- * otherwise `undefined` would be a member of `p.prefix[i]` and not of
- * `q.prefix[i]`. Sound, and incomplete in the way `subset` is elsewhere: a
- * `p` shorter than `q` is answered `false` even when every position past its
- * end is one `q` admits as absent.
+ * position `q` insists on (one whose set excludes absence) is a position `p`
+ * insists on too as soon as the per-position check below passes, which is
+ * exactly what its absence-implication half states. Sound, and incomplete in
+ * the way `subset` is elsewhere: a `p` shorter than `q` is answered `false`
+ * even when every position past its end is one `q` admits as absent.
+ *
+ * A declared position asks the two questions the object kind asks of a key
+ * ({@link objectSetSubset}): what `p` may hold there must be something `q`
+ * holds there — the **absence-stripped** sets compared, absence not being a
+ * value — and `p` may leave the position out only where `q` lets it, which
+ * `q` does past its prefix (a hole there is no entry, so any `rest` admits
+ * it) or where its own position carries the bit. A left position that is a
+ * *reference* is compared unstripped — masking a reference is unsound, see
+ * `./README.md` — so such a pair is answered `false` unless the right
+ * carries the bit at that position: the accepted structural incompleteness.
+ * `p`'s own `rest` needs neither question, a rest carrying no absent bit
+ * after normalization.
  *
  * @type {(ctx: _Ctx) => (assumed: _Assumed) => (p: ArraySet, q: ArraySet) => boolean}
  */
@@ -432,7 +526,13 @@ const arraySetSubset = ctx => assumed => (p, q) => {
     if (!lengthOk) { return false }
     /** @type {(i: number) => Node} */
     const qAt = i => i < qn ? q.prefix[i] : assertNotNullish(q.rest)
-    return p.prefix.every((el, i) => le(el, qAt(i)))
+    /** @type {(i: number) => boolean} */
+    const qAdmitsAbsenceAt = i => i >= qn || nodeAdmitsAbsence(ctx[1])(q.prefix[i])
+    return p.prefix.every((el, i) =>
+            le(stripAbsent(el), qAt(i))
+            && (typeof el === 'string'
+                || ((el.unit ?? 0) & absentBit) === 0
+                || qAdmitsAbsenceAt(i)))
         && (p.rest === undefined || le(p.rest, assertNotNullish(q.rest)))
 }
 
@@ -441,40 +541,41 @@ const keyed = n => [n, typeof n === 'string' ? `r:${n}` : undefined]
 
 /**
  * The set of values the pattern admits at key `k` when the key is **present**:
- * the declared set, else the `rest`, else anything.
+ * the declared set with its absent bit stripped, else the `rest`, else
+ * anything.
  *
- * Presence is the whole point of splitting this from {@link objectMayOmit}. An
- * absent key and a key present holding `undefined` are not the same object, and
- * the two sides of a pattern read them differently: a *declared* key constrains
- * the value read at it, so absence reads `undefined` and passes when the set
- * holds it, whereas an *undeclared* key is checked as an entry, so a present
- * `undefined` must belong to `rest` itself (see {@link objectSetValidate}).
- * Folding the two into one "read set" of `rest ∪ undefined` made
- * `{ a: option(number) }` a subset of `record(number)`, which admits
- * `{ a: undefined }` on the left and rejects it on the right.
+ * Presence is the whole point of splitting this from {@link objectMayOmit}:
+ * this answers "what may be *present* at this key", that one answers whether
+ * the key may be missing, and {@link objectSetSubset} asks both. Absence is
+ * not a value, so a declared set's absent bit does not belong here — left
+ * unstripped, the closed `{ a: or(option, number) }` tested
+ * `(Absent | number) ⊆ number` against `record(number)` and answered `false`
+ * though its only values are `{}` and `{ a: number }`, both of which
+ * `record(number)` admits. A declared *reference* is kept unstripped —
+ * masking a reference is unsound (see `./README.md`) — the same structural
+ * incompleteness a referenced rest accepts.
  *
  * @type {(pattern: ObjectSet) => (k: string) => _Keyed}
  */
 const objectPresentSet = pattern => k => {
     const n = at(k)(pattern.props)
-    if (n !== null) { return keyed(n) }
+    if (n !== null) { return keyed(stripAbsent(n)) }
     const { rest } = pattern
     return rest === undefined ? [unknown, 't'] : keyed(rest)
 }
 
 /**
  * Whether the pattern admits an object carrying no `k` at all: an undeclared
- * key may always be missing, and a declared one exactly when its set holds
- * `undefined`, since an absent property reads as `undefined`.
+ * key may always be missing, and a declared one exactly when its set carries
+ * the **absent bit**.
  *
- * This is the half of the old read-set that the `∪ undefined` stood for, now
- * asked as its own question — a local unit-bit test, so it needs no memo.
+ * The other half of the split — a local unit-bit test, so it needs no memo.
  *
  * @type {(rules: RuleSet) => (pattern: ObjectSet) => (k: string) => boolean}
  */
 const objectMayOmit = rules => pattern => k => {
     const n = at(k)(pattern.props)
-    return n === null || ((resolve(rules)(n).unit ?? 0) & unitBit(undefined)) !== 0
+    return n === null || nodeAdmitsAbsence(rules)(n)
 }
 
 /** @type {(list: readonly string[]) => readonly string[]} */
@@ -900,6 +1001,11 @@ const thunkUnion = (state, t) => {
         case 'string': { return [state, { string: true }] }
         case 'bigint': { return [state, { bigint: true }] }
         case 'unknown': { return [state, unknown] }
+        // An explicit case: the `default` arm below is `orUnion`, and a
+        // nullary tag has an empty operand list, so without it
+        // `toData(option)` would be the empty union — `never` — and
+        // `toData(or(option, t))` would silently lose the bit.
+        case 'option': { return [state, { unit: absentBit }] }
         case 'array': {
             const [state1, item] = nodeOf(state)(rest[0])
             return [state1, arraySet([], item)]
@@ -1117,12 +1223,16 @@ const patternsValidate = (k, item, value) => {
 }
 
 /**
- * The declared positions are checked by reading the value at each — a
- * position past the end reads as `undefined`, so a position is required
- * exactly when its set excludes `undefined`, and no minimum length is tested
- * for. What is left over is tested against `rest`, or, with no `rest`, must
- * not be there at all. Same shape as {@link objectSetValidate}, one kind
- * over.
+ * The declared positions are checked with absence decided **before**
+ * dispatch — an index that is neither an own property nor an inherited one
+ * is a missing member, legal exactly when its set carries the absent bit;
+ * a present one is checked as the value read. No minimum length is tested
+ * for: a too-short array is caught by the absence test at the first
+ * position that excludes it. What is left over is tested against `rest`,
+ * or, with no `rest`, must not be there at all. Same shape as
+ * {@link objectSetValidate}, one kind over — and the same before-dispatch
+ * test the schema-form readers make, so the three readers agree on `{}`
+ * versus `{ a: undefined }` and on sparse tuples.
  *
  * `undeclaredMembers` is what the schema-form readers walk too, so "what is
  * left over" is one rule rather than two that happen to coincide — including
@@ -1136,7 +1246,9 @@ const arraySetValidate = rules => p => value => {
     const { rest } = p
     const declared = eachEntry(
         Object.entries(p.prefix),
-        (k, n) => nodeValidate(rules)(n)(value[Number(k)]),
+        (k, n) => k in value
+            ? nodeValidate(rules)(n)(value[Number(k)])
+            : nodeAdmitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value'),
         undefined,
         noAccumulate,
     )
@@ -1161,7 +1273,9 @@ const arraySetValidate = rules => p => value => {
 const objectSetValidate = rules => p => value => {
     const declared = eachEntry(
         definedEntries(p.props),
-        (k, n) => nodeValidate(rules)(n)(value[k]),
+        (k, n) => k in value
+            ? nodeValidate(rules)(n)(value[k])
+            : nodeAdmitsAbsence(rules)(n) ? ok(undefined) : verror('unexpected value'),
         undefined,
         noAccumulate,
     )

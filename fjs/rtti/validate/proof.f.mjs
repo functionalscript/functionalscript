@@ -128,9 +128,16 @@ const rows = [
     [{ a: /** @type {const} */ (42) }, { a: 42, b: 'x' }],
     [{ a: /** @type {const} */ (42) }, { a: 42 }],
     // a key declared `unknown` is a member the schema has, so the canonical
-    // form must not drop it the way an `open` struct's is dropped
+    // form must not drop it the way an `open` struct's is dropped — and one
+    // that must be *present*, `unknown` excluding absence
     [{ a: unknown }, { a: 1 }],
     [{ a: unknown }, { a: 1, b: 2 }],
+    [{ a: unknown }, {}],
+    // the declared-member top — anything, or nothing — is still closed over
+    // its undeclared keys
+    [{ a: or(option, unknown) }, {}],
+    [{ a: or(option, unknown) }, { a: 1 }],
+    [{ a: or(option, unknown) }, { a: 1, b: 2 }],
     // and the same rows under `open`, which is the form that admits them
     [open([/** @type {const} */ (42)]), [42, 'extra']],
     [open({ a: /** @type {const} */ (42) }), { a: 42, b: 'x' }],
@@ -138,16 +145,16 @@ const rows = [
     [open({}), { a: 1 }],
     // closedness is about *undeclared* members and leaves the short-array rule
     // alone
-    [[number, option(string)], [42]],
+    [[number, or(option, string)], [42]],
     // the rule is per position, not "the last one": every trailing position
     // whose set admits `undefined` may be absent, so an array may stop at the
     // last required one
-    [[number, bigint, option(string), option(null)], [2, 4n]],
-    [[number, bigint, option(string), option(null)], [2, 4n, 'x']],
-    [[number, bigint, option(string), option(null)], [2, 4n, 'x', null]],
-    [[number, bigint, option(string), option(null)], [2]],
-    [[number, bigint, option(string), option(null)], [2, 4n, 5]],
-    [{ a: number, b: option(string) }, { a: 1 }],
+    [[number, bigint, or(option, string), or(option, null)], [2, 4n]],
+    [[number, bigint, or(option, string), or(option, null)], [2, 4n, 'x']],
+    [[number, bigint, or(option, string), or(option, null)], [2, 4n, 'x', null]],
+    [[number, bigint, or(option, string), or(option, null)], [2]],
+    [[number, bigint, or(option, string), or(option, null)], [2, 4n, 5]],
+    [{ a: number, b: or(option, string) }, { a: 1 }],
     [{ a: number }, { a: 'one' }],
     // a hole in a tuple schema is a declared position whose schema is
     // `undefined`, so the schema's length is what it declares — the reading
@@ -195,8 +202,8 @@ const rows = [
     [rest([selfList0], [selfList1, never]), [undefined, ,]],
     [or(number, string), true],
     [or(number, string), 'hello'],
-    [option(number), undefined],
-    [option(number), null],
+    [or(option, number), undefined],
+    [or(option, number), null],
     [{ user: { name: string, age: number } }, { user: { name: 'A', age: 'old' } }],
 ]
 
@@ -210,15 +217,15 @@ export const proof = {
     // different document. `validate` answers the same question about the
     // value it was handed and hands it back.
     verbatim: {
-        // An absent optional member stays absent. `'b' in out` is the
-        // assertion, not `out.b === undefined`: `parse` satisfies the latter.
+        // An absent optional member stays absent — on both readers, absence
+        // being a member of the set rather than a spelling of `undefined`:
+        // `parse` omits it from what it builds instead of materializing it.
         absentOptionalStaysAbsent: () => {
-            const schema = { a: number, b: option(string) }
+            const schema = { a: number, b: or(option, string) }
             const input = { a: 1 }
             const out = unwrap(validate(schema)(input))
             assert(!('b' in out), 'an absent optional member must stay absent')
-            // The contrast that motivates the module.
-            assert('b' in unwrap(parse(schema)(input)), 'parse materializes it')
+            assert(!('b' in unwrap(parse(schema)(input))), 'parse omits it too')
         },
         // An undeclared member survives — where the schema admits one at all.
         // `parse` accepts the same values and does not carry the member into
@@ -301,7 +308,7 @@ export const proof = {
     // identically. The one case where opening does change the answer is at the
     // end.
     optionalPositions: () => {
-        const t = /** @type {const} */ ([number, bigint, option(string), option(null)])
+        const t = /** @type {const} */ ([number, bigint, or(option, string), or(option, null)])
         /** @type {(rtti: Type) => (check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
         const every = rtti =>
             check =>
@@ -314,16 +321,17 @@ export const proof = {
             accepted([2, 4n])                  // stops at the last required position
             accepted([2, 4n, 'x'])             // the first optional present
             accepted([2, 4n, 'x', null])       // both present
-            // Omission is independent, not just truncation: an absent member
-            // reads as `undefined` wherever it sits, so position 2 may be
-            // missing while position 3 is present. A hole and an explicit
-            // `undefined` are the same value, so both spellings are accepted.
+            // Omission is independent, not just truncation: a member is
+            // absent wherever its index is missing, so position 2 may be
+            // missing while position 3 is present.
             accepted([2, 4n, , null])          //< a hole at position 2
-            accepted([2, 4n, undefined, null]) //< the same value, spelled densely
-            rejected([2])                      // `bigint` excludes `undefined`
+            // A present `undefined` is a value, not a spelling of absence:
+            // `or(option, string)` admits the hole above and rejects this.
+            rejected([2, 4n, undefined, null])
+            rejected([2])                      // `bigint` excludes absence
             rejected([2, 4n, 5])               // an optional that is present is still checked
-            // The mirror of the two rows above: `bigint` excludes `undefined`,
-            // so omitting position 1 fails however much of the rest is present.
+            // The mirror of the rows above: `bigint` excludes absence, so
+            // omitting position 1 fails however much of the rest is present.
             rejected([2, , 'x', null])         //< a hole at position 1
         }
         // What opening does change: an element past the declared positions is
@@ -345,7 +353,7 @@ export const proof = {
     // positional, not a shift — `[, 5]` holds `5` at position 1 and is
     // accepted, while `[5]` holds it at position 0 and is not.
     interiorOptionBeforeRequired: () => {
-        const t = /** @type {const} */ ([option(string), number])
+        const t = /** @type {const} */ ([or(option, string), number])
         /** @type {(rtti: Type) => (check: (r: readonly [string, unknown]) => void) => (value: Unknown) => void} */
         const every = rtti =>
             check =>
@@ -357,7 +365,9 @@ export const proof = {
         // the shapes the trailing-option cases there already put through it.
         for (const rtti of [t, open(t)]) {
             every(rtti)(assertOk)([, 5])          //< a hole at position 0
-            every(rtti)(assertOk)([undefined, 5]) //< the same value, spelled densely
+            // `[undefined, 5]` is a *different value*: present-`undefined` at
+            // position 0, which `or(option, string)` rejects.
+            every(rtti)(assertError)([undefined, 5])
             every(rtti)(assertOk)(['x', 5])
             every(rtti)(assertError)([5])         //< `number` at position 1 is required
         }
@@ -520,7 +530,7 @@ export const proof = {
             // filled in, so the array keeps its length.
             shortArrayKeepsItsLength: () => {
                 const short = [42]
-                const out = unwrap(validate([number, option(string)])(short))
+                const out = unwrap(validate([number, or(option, string)])(short))
                 assert(Object.is(out, short), 'expected the original array')
                 assertEq(short.length, 1, 'no gap is filled')
             },
@@ -627,16 +637,75 @@ export const proof = {
         },
     },
     option: {
+        // At the entry position nothing can be absent, so `or(option, t)`
+        // accepts exactly what `t` accepts — a present `undefined` included
+        // in the rejects, unless the union carries it as a value.
         ok: () => {
-            const t = option(number)
+            const t = or(option, number)
             assertOk(validate(t)(42))
-            assertOk(validate(t)(undefined))
+            assertOk(validate(or(option, number, undefined))(undefined))
         },
         error: () => {
-            const t = option(number)
+            const t = or(option, number)
+            assertError(validate(t)(undefined))
             assertError(validate(t)(null))
             assertError(validate(t)('42'))
+            // and `option` alone accepts nothing at all
+            assertError(validate(option)(undefined))
+            assertError(validate(option)(42))
         },
+    },
+    // Absence became describable: `{}` and `{ a: undefined }` are two
+    // distinct values, and every pair of the three spellings separates them
+    // as stage 2 states — `or(option, t)` admits omission only,
+    // `or(t, undefined)` a present `undefined` only, and the union of all
+    // three admits both.
+    absenceIsNotUndefined: () => {
+        for (const read of [v, p, d]) {
+            const omittable = read({ a: or(option, number) })
+            assertOk(omittable({}))
+            assertOk(omittable({ a: 1 }))
+            assertError(omittable({ a: undefined }))
+            const present = read({ a: or(number, undefined) })
+            assertError(present({}))
+            assertOk(present({ a: undefined }))
+            const both = read({ a: or(option, number, undefined) })
+            assertOk(both({}))
+            assertOk(both({ a: undefined }))
+        }
+    },
+    // A negative field: `{ a: option }` is "objects with no `a`" — a set the
+    // old design could not express at a declared key.
+    negativeField: () => {
+        for (const read of [v, p, d]) {
+            const noA = read(open({ a: option }))
+            assertOk(noA({}))
+            assertOk(noA({ b: 1 }))
+            assertError(noA({ a: 1 }))
+            assertError(noA({ a: undefined }))
+        }
+    },
+    // `admitsAbsence` traverses nested unions — the schema-form `or` does no
+    // flattening, so `or(or(option, number), string)` has no `option` among
+    // its direct members — and carries a visited set, so a recursive union
+    // that reaches itself before `option` still terminates.
+    admitsAbsenceTraversal: () => {
+        for (const read of [v, p]) {
+            const nested = read({ a: or(or(option, number), string) })
+            assertOk(nested({}))
+            assertOk(nested({ a: 1 }))
+            assertOk(nested({ a: 'x' }))
+            assertError(nested({ a: true }))
+        }
+        // The visited set is what terminates this: the cycle reaches itself
+        // before it reaches `option`. Only the absent path is asked — a pure
+        // `or` cycle never terminates on a *present* value in the thunk
+        // readers, the standing limitation `../data/proof.f.mjs` records.
+        /** @typedef {() => readonly ['or', _Cycle, typeof option]} _Cycle */
+        /** @type {_Cycle} */
+        const cycle = () => ['or', cycle, option]
+        assertOk(v({ a: cycle })({}))
+        assertOk(p({ a: cycle })({}))
     },
     path: {
         rootMismatch: () => assertErrorPath([])(validate(number)('not a number')),
@@ -701,7 +770,7 @@ export const proof = {
         // An absent optional member still stays absent — a container's rest
         // says nothing about a member it declares.
         absentOptionalStaysAbsent: () => {
-            const out = unwrap(validate({ a: number, b: option(string) })({ a: 1 }))
+            const out = unwrap(validate({ a: number, b: or(option, string) })({ a: 1 }))
             assert(!('b' in out), 'an absent optional member must stay absent')
         },
         path: () => {
@@ -767,11 +836,11 @@ export const proof = {
     // a rest with nothing present past the prefix admits it.
     lengthDoesNotBoundTheWalk: () => {
         const big = new Array(2 ** 32 - 1)
-        assertError(v([option(string)])(big))
+        assertError(v([or(option, string)])(big))
         assertOk(v(rest([], string))(big))
     },
     arrayOptional: () => {
-        const a = /** @type {const} */([number, option(string)])
+        const a = /** @type {const} */([number, or(option, string)])
         const v = validate(a)
         assertOk(v([5]))
         assertError(v(["n"]))

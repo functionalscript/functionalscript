@@ -16,9 +16,11 @@
  *
  * ## Nullary schemas (no type parameter)
  *
- * `boolean`, `number`, `string`, `bigint`, `unknown` are pre-built `Thunk` values
- * that describe primitive types. Each is a `_Type0<Tag0>` — a thunk returning a
- * single-element tag tuple.
+ * `boolean`, `number`, `string`, `bigint`, `unknown`, `option` are pre-built
+ * `Thunk` values. Each is a `_Type0<Tag0>` — a thunk returning a
+ * single-element tag tuple. All but `option` describe sets of values;
+ * `option` denotes **absence**, so `or(option, t)` is a member that may be
+ * omitted.
  *
  * ## Unary schemas (one type parameter)
  *
@@ -92,6 +94,7 @@ export type Type =
         | readonly['number']
         | readonly['string']
         | readonly['unknown']
+        | readonly['option']
         // Info1<Tag1, Type>
         | readonly['array', Type]
         | readonly['record', Type]
@@ -131,6 +134,14 @@ export type Bigint = _Type0<'bigint'>
 
 /** Schema type for any DJS value (`Primitive | UnknownRecord | UnknownArray`). */
 export type Unknown = _Type0<'unknown'>
+
+/**
+ * Schema type for `option` — the nullary schema denoting **absence**, the
+ * member that is not there. A member that may be omitted is a union with it:
+ * `or(option, t)`. `unknown` excludes it — absence is not a DJS value — so
+ * the top of a declared member is `or(option, unknown)`.
+ */
+export type Option = _Type0<'option'>
 
 /** Tags for unary (one-parameter) type schemas. */
 export type Tag1 = 'array' | 'record'
