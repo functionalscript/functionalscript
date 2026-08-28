@@ -132,12 +132,28 @@ normally the part of the contract that matters.
 ## 2. Documentation
 
 Use JSDoc for module documentation in both JavaScript and TypeScript source.
-The `@module` tag belongs only to a package's entry-point file — `module.f.mjs` /
-`module.mjs` — not to `proof.f.mjs`, `types.ts`, or any other file. A `module.*`
-file starts with one module JSDoc block carrying `@module`, followed by one blank
-line before the first source-level import or declaration. A `proof.*` or other
-non-`module.*` file has no `@module` tag and no required leading documentation
-block; one is still needed if the file has `@import` tags to hold, per below.
+
+**`@module` is what makes a leading block *be* module documentation.** It is not
+a marker of entry-point-ness. `deno doc` reads the tag and nothing else: a file
+whose leading block carries it gets that prose as its `module_doc`, and a file
+without it gets no `module_doc` at all — the block is dropped, not demoted.
+Verified against the pinned Deno (`fjs/ci/config/module.f.mjs`), for `.mjs` and
+`.ts` alike; the tag need not be in the first block, only in some block.
+
+**So the tag goes wherever a file has module-level documentation to publish** —
+`module.f.mjs`, `types.ts`, `private.ts` — and a `module.*` file always has some.
+A file whose leading block only holds `@import` tags has nothing to attach and
+wants no `@module`. Where a file's documentation is never published, the tag buys
+nothing; `proof.*` is the clear case.
+
+Put it in the leading block, followed by one blank line before the first
+source-level import or declaration.
+
+The tree does not obey this yet. #1756 stripped the tag from 102 files on the
+older reading, 98 of which had real prose, so their module documentation is
+currently invisible to `deno doc`. Restoring it is
+[`fjs/todo/module-tag-restore.md`](./todo/module-tag-restore.md); until that
+lands, a `types.ts` without the tag is debt rather than an example to copy.
 
 Group all module-level `@import` tags into one leading JSDoc comment block — the
 same block as `@module` in a `module.*` file, or a standalone block at the top of
