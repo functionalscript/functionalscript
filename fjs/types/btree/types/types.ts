@@ -1,7 +1,5 @@
 /**
  * Shared type definitions for persistent B-tree modules.
- *
- * @module
  */
 
 import type { Tuple } from '../../array/types.ts'

@@ -1,9 +1,9 @@
-# The readers' verdict path dispatches overridable operations after a read
+## The readers' verdict path dispatches overridable operations after a read
 
 **Priority:** P2
 **Status:** open
 
-## Problem
+### Problem
 
 Reading a member of a hostile value can run **arbitrary code** — an accessor
 — and everything a reader does after that read trusts whatever the accessor
@@ -39,7 +39,7 @@ accessor has already run arbitrary code in the host, so this hardening is
 about the readers' own answers staying theirs, not about containing the
 host.
 
-## Tasks
+### Tasks
 
 - [ ] Extend the discipline the rebuilds and `eachEntry` state to the
       post-read functions of `common/module.f.mjs`: capture the intrinsics

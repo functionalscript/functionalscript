@@ -1,4 +1,4 @@
-# Check the JavaScript side as strictly as the Rust side
+## Check the JavaScript side as strictly as the Rust side
 
 **Priority:** P2
 **Status:** open

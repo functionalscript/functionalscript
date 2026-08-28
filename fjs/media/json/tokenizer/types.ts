@@ -1,7 +1,5 @@
 /**
  * Types for the JSON tokenizer.
- *
- * @module
  */
 
 import type { StringToken, NumberToken, ErrorToken, EofToken, JsTokenWithMetadata } from '../../../js/tokenizer/types.ts'

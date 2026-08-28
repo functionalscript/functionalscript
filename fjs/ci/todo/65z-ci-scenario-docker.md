@@ -104,4 +104,4 @@ Any later implementation must:
 - [65Z-ci-nix](65z-ci-nix.md) — declarative per-job Nix architecture.
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — direct Nix
   implementation and prerequisite.
-- [i096](96.md) — CI caching.
+- [i096](096-ci-caching.md) — CI caching.

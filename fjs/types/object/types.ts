@@ -2,8 +2,6 @@
  * Types for plain-object helpers: the `OptionalMap`/`RequiredMap`/`StringMap`
  * record shapes and `Entry<T>`, and the `OneKey`/`SingleProperty`/`NotUnion`
  * utility types.
- *
- * @module
  */
 
 /** A record over the keys of `K`, each value possibly missing at runtime. */

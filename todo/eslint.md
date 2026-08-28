@@ -1,4 +1,4 @@
-# ESLint for rules `tsc` cannot express
+## ESLint for rules `tsc` cannot express
 
 **Priority:** P2
 **Status:** open

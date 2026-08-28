@@ -1,4 +1,4 @@
-# `Pr` erases a generic operation's type parameter
+## `Pr` erases a generic operation's type parameter
 
 **Priority:** P3
 **Status:** open

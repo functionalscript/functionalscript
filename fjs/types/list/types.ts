@@ -1,7 +1,5 @@
 /**
  * Types for the immutable list data structure.
- *
- * @module
  */
 
 import type { Nullable } from '../nullable/types.ts'

@@ -1,7 +1,5 @@
 /**
  * Types for representing operations that can succeed or fail.
- *
- * @module
  */
 
 /**

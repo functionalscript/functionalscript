@@ -1,8 +1,6 @@
 /**
  * DJS's own value model: `Primitive`, `Unknown`, `Object`, and `Array`,
  * layered on top of JSON's `Primitive` with `bigint` and `undefined` added.
- *
- * @module
  */
 
 import type {

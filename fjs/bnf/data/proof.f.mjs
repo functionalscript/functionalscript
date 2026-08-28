@@ -1,6 +1,4 @@
 /**
- * @module
- *
  * @import { RuleSet } from './types.ts'
  */
 

@@ -1,7 +1,5 @@
 /**
  * Proofs for the generated-Rust writer.
- *
- * @module
  */
 
 import { exitCode } from '../../effects/node/module.f.mjs'

@@ -1,8 +1,6 @@
 /**
  * Node.js interpreter proofs for memory effects.
  *
- * @module
- *
  * @import { Key } from '../../memory/types.ts'
  * @import { Uuid } from './types.ts'
  */

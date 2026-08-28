@@ -82,5 +82,5 @@ tokenizer's dummy-path workaround.
 - `fjs/js/tokenizer/module.f.mjs` — the fused operator `tokenizeWithPositionOp`
   (:697-707), public entry `tokenize` (:712), and the two halves the dispatch
   still calls, `tokenizeCharCodeOp` (:647) and `tokenizeEofOp` (:667)
-- [i157](../../djs/todo/157.md) — JSON/DJS value-layer sharing; the dummy-path
+- [i157](../../djs/todo/157-json-djs-shared-value-machine.md) — JSON/DJS value-layer sharing; the dummy-path
   workaround in `json/tokenizer` is downstream of this coupling

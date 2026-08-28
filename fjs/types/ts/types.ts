@@ -1,8 +1,6 @@
 /**
  * Types for the TypeScript source emitter: the `Equal` compile-time predicate
  * and the `Printer` interface.
- *
- * @module
  */
 
 import type { Assert } from '../../asserts/types.ts'

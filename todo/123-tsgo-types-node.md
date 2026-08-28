@@ -1,4 +1,4 @@
-# 123. `tsgo` asks for `"types": ["node"]` in tsconfig.
+## 123. `tsgo` asks for `"types": ["node"]` in tsconfig.
 
 **Priority:** P3
 **Status:** open

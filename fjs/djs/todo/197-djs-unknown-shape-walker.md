@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [i157](./157.md)
+**Blocked by:** [i157](./157-json-djs-shared-value-machine.md)
 
 ### Problem
 
@@ -28,7 +28,7 @@ recursion or terminal handling):
 | 5 | `fjs/djs/serializer/module.f.mjs:163` — `countRefsOp` | Count references for the ref table. |
 | 6 | `fjs/djs/ast/module.f.mjs:41` — `toDjs` | Evaluate `AstConst` → `Unknown` (over `AstConst`, a parallel shape with `'aref'`/`'cref'`/`'array'` tuples). |
 
-[i157 §2](./157.md) covers (1)–(3) by factoring the
+[i157 §2](./157-json-djs-shared-value-machine.md) covers (1)–(3) by factoring the
 serializer walker. This issue extends that coverage to **(4)** and
 **(5)** in the same serializer file, and observes that **(6)** is the
 same shape walk under a different name and could share machinery if the
@@ -176,7 +176,7 @@ sharing the four common leaves through a base visitor.
 
 ### Related
 
-- [i157 §2](./157.md) — the serializer walker
+- [i157 §2](./157-json-djs-shared-value-machine.md) — the serializer walker
   factoring. This issue is its natural follow-up: same idea, two
   additional call sites.
 - i172 (retired; shipped as [`fjs/rtti/validate/`](../../rtti/validate/module.f.mjs)

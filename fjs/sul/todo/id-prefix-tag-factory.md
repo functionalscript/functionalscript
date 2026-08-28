@@ -57,5 +57,5 @@ so, since it is what makes `isRaw` false for hash ids.
 
 ### Related
 
-- [186](./186.md), [66m-sul-literal-level-reuse](./66m-sul-literal-level-reuse.md) —
+- [186](./186-sul-id-reuse-sha2-fromv8.md), [66m-sul-literal-level-reuse](./66m-sul-literal-level-reuse.md) —
   neighboring sul reuse work; this one is local to `sul/id` and independent.

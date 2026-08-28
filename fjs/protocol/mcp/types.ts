@@ -2,8 +2,6 @@
  * Type-level API for `fjs/protocol/mcp/module.f.mjs`: the MCP message
  * schemas' derived types, plus the `McpHandlers`/`ToolEntry`/`Handle`/
  * session-state shapes `mcpStep` is built from.
- *
- * @module
  */
 
 import type { Ts } from '../../rtti/ts/types.ts'

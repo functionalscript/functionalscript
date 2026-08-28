@@ -43,4 +43,4 @@
 
 - [GitHub issue #407](https://github.com/functionalscript/functionalscript/issues/407)
   — the original report.
-- [46](./46.md) — the LR(1) parser that produces this AST.
+- [46](./046-lr1-parser.md) — the LR(1) parser that produces this AST.

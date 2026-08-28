@@ -1,6 +1,4 @@
 /**
- * @module
- *
  * @import { CodePoint } from '../../text/utf16/types.ts'
  * @import { RuleSet } from '../data/types.ts'
  * @import { DescentMatch, CodePointMeta, DescentMatchResult } from './types.ts'
