@@ -31,12 +31,9 @@ import {
     isSupplementaryPlane,
 } from '../code_point/module.f.mjs'
 
-/**
- * Optional Utf16State - represents the state of utf16 decoding operation or null.
- * - number is used an unsigned integer.
- *
- * @typedef {number | null} _Utf16State
- */
+// The `number | null` state threaded through the decoder below is the UTF-16
+// decoding state: a pending high surrogate as an unsigned integer, or `null`
+// when no code unit is pending.
 
 /**
  * The BMP / surrogate / supplementary-plane predicates used below live in
@@ -180,7 +177,7 @@ const u16 = i => Number.isInteger(i) && isInU16Range(i)
  * const [decodedCodePoints, newState] = utf16ByteToCodePointOp(word, state);
  * ```
  *
- * @type {StateScan<U16, _Utf16State, List<CodePoint>>}
+ * @type {StateScan<U16, number | null, List<CodePoint>>}
  */
 const utf16ByteToCodePointOp = (word, state) => {
     if (!u16(word)) {
@@ -223,7 +220,7 @@ const utf16StateToError = state => state | errorMask
  * to flag the invalid sequence. The flush itself is `eofFlush` from
  * `code_point`, shared with UTF-8.
  *
- * @type {(state: _Utf16State) => readonly[List<CodePoint>, _Utf16State]}
+ * @type {(state: number | null) => readonly[List<CodePoint>, number | null]}
  */
 const utf16EofToCodePointOp = eofFlush(utf16StateToError)
 

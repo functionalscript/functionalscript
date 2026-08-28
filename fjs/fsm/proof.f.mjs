@@ -1,5 +1,5 @@
 /**
- * @import { Grammar } from './module.f.mjs'
+ * @import { Grammar } from './types.ts'
  * @import { ByteSet } from '../types/byte_set/types.ts'
  */
 

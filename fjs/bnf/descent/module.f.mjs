@@ -29,8 +29,9 @@
  * @import { Rule as DataRule, RuleSet, Sequence } from '../data/types.ts'
  * @import { Rule as FRule } from '../types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Ast, AstResult, AstSequence, AstTag, Cursor } from '../matcher/types.ts'
+ * @import { Ast, AstSequence, AstTag, Cursor } from '../matcher/types.ts'
  * @import { CodePointMeta, DescentFailure, DescentMatch, DescentMatchResult, DescentMatchRule } from './types.ts'
+ * @import { _Failure, _Result } from './private.ts'
  */
 
 import { rangeDecode } from '../module.f.mjs'
@@ -39,27 +40,6 @@ import { concat, toArray } from '../../types/list/module.f.mjs'
 import { definedEntries } from '../../types/object/module.f.mjs'
 import { emptyTagMap, isRepeat, toData } from '../data/module.f.mjs'
 import { leafAt, mrFail, mrSuccess, physicalIdx, symbolAt } from '../matcher/module.f.mjs'
-
-/**
- * The furthest-failure record while matching, positioned by the complete
- * {@link Cursor}. {@link DescentFailure} is its public, physically-positioned
- * form.
- *
- * @typedef {{
- *     readonly pos: Cursor
- *     readonly expected: readonly TerminalRange[]
- * }} _Failure
- */
-
-/**
- * The machine's own result: a {@link DescentMatchResult} positioned by the
- * complete cursor, and with no failure record — that one is tracked per match
- * rather than per frame. This backend always has a position, so it needs no
- * `null` case.
- *
- * @template T
- * @typedef {AstResult<CodePointMeta<T>, Cursor>} _Result
- */
 
 /**
  * A leaf here is a code point with its metadata, so its symbol is the first

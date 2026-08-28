@@ -274,31 +274,41 @@ type-only and use named `import type { ... }` imports.
 
 #### Stage 1 — source restructuring
 
-- [ ] Document the repository-wide prohibition on file-scope JSDoc `@typedef` in
+- [x] Document the repository-wide prohibition on file-scope JSDoc `@typedef` in
       authored `.mjs`; allow function-local typedefs.
-- [ ] Migrate existing violations, including authored `.mjs` outside `fjs/` such
+- [x] Migrate existing violations, including authored `.mjs` outside `fjs/` such
       as `todo/proof.f.mjs`.
-- [ ] Keep `types.ts` as the public declaration closure; retain/in-line private
+- [x] Keep `types.ts` as the public declaration closure; retain/in-line private
       helpers required by public declarations.
-- [ ] Use `private.ts` only where separating implementation-private file-scope
+- [x] Use `private.ts` only where separating implementation-private file-scope
       types improves the design.
-- [ ] Preserve the intra-directory dependency direction shown above; move
+- [x] Preserve the intra-directory dependency direction shown above; move
       verification downstream when that is cleaner.
-- [ ] Move the `fjs/effects/types.ts` implementation-signature asserts into proof
+- [x] Move the `fjs/effects/types.ts` implementation-signature asserts into proof
       functions in `fjs/effects/proof.f.mjs`.
-- [ ] Review recursive cases individually, including `fjs/media/revision` and
+- [x] Review recursive cases individually, including `fjs/media/revision` and
       `fjs/edag`; keep recursive RTTI in `module.f.mjs` when required by layering
       and move consistency asserts into proof functions.
-- [ ] Where useful, split declarative compile-time/runtime constants into a normal
-      subordinate module such as `meta/module.f.mjs`; do not require it.
-- [ ] Preserve leading `_` for private types and private runtime constants.
-- [ ] Treat chosen public import-path moves as breaking changes with no
+- [x] Where useful, split declarative compile-time/runtime constants into a normal
+      subordinate module such as `meta/module.f.mjs`; do not require it. The
+      migration warranted none: every recursive metaprogramming constant
+      (`fjs/edag`, `fjs/media/json/schema`) reads best staying in its
+      `module.f.mjs`; the option stays documented in `fjs/AGENTS.md` §3.2.
+- [x] Preserve leading `_` for private types and private runtime constants.
+- [x] Treat chosen public import-path moves as breaking changes with no
       compatibility re-exports.
-- [ ] Add fixtures/examples covering: public-declaration helpers, optional
+- [x] Add fixtures/examples covering: public-declaration helpers, optional
       `private.ts`, function-local proof typedefs, recursive RTTI kept in
       `module.f.mjs`, optional `meta/module.f.mjs`, and authored `.mjs` outside
-      `fjs/`.
-- [ ] Update root and `fjs/` `AGENTS.md` policy documentation; rewrite the
+      `fjs/`. Live modules serve as the examples, cited from `fjs/AGENTS.md`
+      §3.2: `fjs/types/byte_set/types.ts` (`_Byte` public-closure helper),
+      `fjs/common/monoid/private.ts` and `fjs/rtti/data/private.ts`
+      (`private.ts`), `fjs/edag/proof.f.mjs` and `fjs/effects/proof.f.mjs`
+      (function-local proof typedefs), `fjs/edag/module.f.mjs` and
+      `fjs/media/json/schema/module.f.mjs` (recursive RTTI kept in place),
+      `todo/proof.f.mjs` (authored `.mjs` outside `fjs/`); `meta/module.f.mjs`
+      remains a documented option with no current instance.
+- [x] Update root and `fjs/` `AGENTS.md` policy documentation; rewrite the
       `fjs/fsc/README.md` typedef prescription; delete or narrow the blocked
       `@internal` TODO; sweep all remaining Markdown documents for file-scope
       typedef prescriptions and retarget each to the Stage 1 forms.

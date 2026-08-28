@@ -22,8 +22,6 @@ import { quotationMark, ampersand, lessThanSign, greaterThanSign } from '../../t
 
 const { fromCharCode } = String
 
-/** @typedef {StringMap<string>} _Attributes */
-
 /**
  * Void Elements
  *
@@ -91,10 +89,10 @@ const rawMap = n => concat(mr(n)).replaceAll('</', '<\\/')
 const attribute = ([name, value]) =>
     flat([[' ', name, '="'], escape(value), ['"']])
 
-/** @type {(a: _Attributes) => List<string>} */
+/** @type {(a: StringMap<string>) => List<string>} */
 const attributes = a => flatMap(attribute)(definedEntries(a))
 
-/** @type {(e: Element) => readonly [string, _Attributes, readonly Node[]]} */
+/** @type {(e: Element) => readonly [string, StringMap<string>, readonly Node[]]} */
 const parseElement = e => {
     const [tag, item1, ...list] = e
     return item1 === undefined ?

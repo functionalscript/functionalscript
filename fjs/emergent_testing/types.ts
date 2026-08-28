@@ -97,6 +97,44 @@ export type TestResult = {
 }
 
 /**
+ * A leaf's outcome as the browser page reports it: the shared
+ * {@link TestResult} — identity, status and duration, decided by `testResult`
+ * rather than by the browser runner — plus the two fields only a browser
+ * report needs.
+ *
+ * `message` and `stack` are the browser's own part, and stay outside the shared
+ * record for the reason `TestResult` gives: describing a thrown value needs the
+ * value, a serializable report cannot carry one, and `fjs t` describes it
+ * differently because it is writing to a terminal rather than to a wire.
+ *
+ * @internal
+ */
+export type _BrowserTestResult = TestResult & {
+    readonly message?: string
+    readonly stack?: string
+}
+
+/** The serializable report a browser test run resolves with. */
+export type BrowserTestReport = {
+    readonly status: string
+    readonly browser: string
+    readonly totals: {
+        readonly tests: number
+        readonly passed: number
+        readonly failed: number
+    }
+    readonly duration: number
+    readonly results: readonly _BrowserTestResult[]
+}
+
+/**
+ * Loads one proof module by its source path for the browser runner.
+ *
+ * @internal
+ */
+export type _BrowserImporter = (source: string) => Promise<{ readonly proof?: unknown }>
+
+/**
  * A run's outcome, folded from its leaf results: how many passed, how many
  * failed, and how long they took together.
  *

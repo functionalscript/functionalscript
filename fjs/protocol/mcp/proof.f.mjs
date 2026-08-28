@@ -31,15 +31,13 @@ import {
 
 // ── Memory mock ────────────────────────────────────────────────────────────────
 
-/** @typedef {{
+/** @type {{
  *   readonly next: number
  *   readonly values: { readonly [key: string]: unknown }
- * }} _MemoryState */
-
-/** @type {_MemoryState} */
+ * }} */
 const initial = { next: 0, values: {} }
 
-/** @type {MemOperationMap<MemOp, _MemoryState>} */
+/** @type {MemOperationMap<MemOp, typeof initial>} */
 const mock = {
     memCreate: value => state => {
         const id = `k${state.next}`
@@ -70,8 +68,7 @@ const configNoTools = { ...config, capabilities: {} }
 /** @type {McpConfig} */
 const configTwoVersions = { ...config, protocolVersions: ['2025-06-18', '2024-11-05'] }
 
-/** @typedef {never} _Op */
-/** @type {McpHandlers<_Op>} */
+/** @type {McpHandlers<never>} */
 const handlers = {
     // Echoes a received cursor as `nextCursor` so tests can observe pagination params.
     toolsList: (/** @type {ToolsListParams} */ p) =>
@@ -81,8 +78,6 @@ const handlers = {
     toolsCall: (/** @type {ToolsCallParams} */ _p) =>
         pureOk({ content: [{ type: 'text', text: 'hello' }] }),
 }
-
-/** @typedef {readonly [unknown, McpSessionState]} _StepResult */
 
 // Run a memory effect against the mock and unwrap what it answered. The
 // channel stays generic because nothing here interprets it: a proof has nobody
@@ -99,7 +94,7 @@ const asMemEffect = e => /** @type {Effect<MemOp, any, any>} */ (e)
 // Pairs the last step's response with the session state read back afterwards.
 // The response is still needed after the read, so it is carried forward in a
 // history rather than closed over by a nested continuation.
-/** @type {(key: Key<McpSessionState>) => (e: Effect<Operation, unknown, never>) => Effect<Operation, _StepResult, NotImplemented>} */
+/** @type {(key: Key<McpSessionState>) => (e: Effect<Operation, unknown, never>) => Effect<Operation, readonly [unknown, McpSessionState], NotImplemented>} */
 const withState = key => e => {
     const read0 = historyStep(history(e), () => read(key))
     // A history holds `ok` values, so `resp` is the response itself rather
@@ -109,14 +104,14 @@ const withState = key => e => {
 }
 
 // Run one step from uninitializedState, return [response, newState].
-/** @type {(cfg: McpConfig) => (msg: Unknown) => _StepResult} */
+/** @type {(cfg: McpConfig) => (msg: Unknown) => readonly [unknown, McpSessionState]} */
 const step1 = cfg => msg =>
     runMem(asMemEffect(step(
         create(uninitializedState),
         key => withState(key)(mcpStep(cfg)(handlers)(key)(msg)))))
 
 // Run initialize then a second step, return [response, newState] of the second.
-/** @type {(cfg: McpConfig) => (msg1: Unknown) => (msg2: Unknown) => _StepResult} */
+/** @type {(cfg: McpConfig) => (msg1: Unknown) => (msg2: Unknown) => readonly [unknown, McpSessionState]} */
 const step2 = cfg => msg1 => msg2 =>
     runMem(asMemEffect(step(
         create(uninitializedState),
@@ -127,7 +122,7 @@ const step2 = cfg => msg1 => msg2 =>
         })))
 
 // Run initialize, notifications/initialized, then a third step; return [response, newState] of the third.
-/** @type {(cfg: McpConfig) => (msg1: Unknown) => (msg2: Unknown) => (msg3: Unknown) => _StepResult} */
+/** @type {(cfg: McpConfig) => (msg1: Unknown) => (msg2: Unknown) => (msg3: Unknown) => readonly [unknown, McpSessionState]} */
 const step3 = cfg => msg1 => msg2 => msg3 =>
     runMem(asMemEffect(step(
         create(uninitializedState),
@@ -249,15 +244,15 @@ const initMsg = initMsgFor('2024-11-05')
 const initNotif = { jsonrpc: '2.0', method: 'notifications/initialized' }
 
 /** A memory handler that answers as a runner with no such operation. */
-const memNotImplemented = () => (/** @type {_MemoryState} */ state) =>
+const memNotImplemented = () => (/** @type {typeof initial} */ state) =>
     /** @type {const} */ ([state, error(['notImplemented', 'memRead'])])
 
 // Runs one step against a memory mock with `overrides` applied, from a session
 // slot created before them so the slot itself always exists.
-/** @type {(overrides: Partial<MemOperationMap<MemOp, _MemoryState>>) => (msg: Unknown) => unknown} */
+/** @type {(overrides: Partial<MemOperationMap<MemOp, typeof initial>>) => (msg: Unknown) => unknown} */
 const failingStep = overrides => msg => {
     const [state, key] = run(mock)(initial)(create(uninitializedState))
-    const runner = run(/** @type {MemOperationMap<MemOp, _MemoryState>} */ ({ ...mock, ...overrides }))
+    const runner = run(/** @type {MemOperationMap<MemOp, typeof initial>} */ ({ ...mock, ...overrides }))
     // A `Handle` answers `Effect<…, Response | null, never>`, so the payload
     // the runner hands back is the `ok` around the response and the unwrap is
     // total — the failures these tests inject are the ones `mcpStep` itself

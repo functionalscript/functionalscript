@@ -7,15 +7,13 @@
 import { at } from './module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
-/** @typedef {Assert<Equal<StringMap<bigint>, { readonly [k in string]?: bigint }>>} _StringMapIsOptional */
-
-/** @typedef {Assert<Equal<OptionalMap<'a'|'b', bigint>, { readonly a?: bigint; readonly b?: bigint }>>} _OptionalIsPartial */
-
-/** @typedef {Assert<Equal<RequiredMap<'a'|'b', bigint>, { readonly a: bigint; readonly b: bigint }>>} _RequiredIsRequired */
-
-/** @typedef {Assert<Equal<RequiredMap<string, bigint>, never>>} _RequiredOverAnyStringIsNever */
-
 export const proof = {
+    maps: () => {
+        /** @typedef {Assert<Equal<StringMap<bigint>, { readonly [k in string]?: bigint }>>} _StringMapIsOptional */
+        /** @typedef {Assert<Equal<OptionalMap<'a'|'b', bigint>, { readonly a?: bigint; readonly b?: bigint }>>} _OptionalIsPartial */
+        /** @typedef {Assert<Equal<RequiredMap<'a'|'b', bigint>, { readonly a: bigint; readonly b: bigint }>>} _RequiredIsRequired */
+        /** @typedef {Assert<Equal<RequiredMap<string, bigint>, never>>} _RequiredOverAnyStringIsNever */
+    },
     ctor: () => {
         const a = {}
         const value = at('constructor')(a)
