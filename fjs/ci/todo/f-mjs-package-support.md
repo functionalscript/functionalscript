@@ -274,6 +274,33 @@ emission, `npm pack`, and a clean consumer.
       CI fixture is the remaining fixture work above.
 - [ ] Verify the CI-built archive contains exactly the generated/runtime/type
       artifacts needed for the `types.ts` convention during stage 1.
+- [ ] Run the clean packed-package consumer **in CI**, in a job with no
+      repository checkout, consuming the tarball handed over as an artifact by
+      [`ci-integration-tests.md`](ci-integration-tests.md) (which also owns the
+      job-ordering edge that keeps it from racing the upload). The missing
+      checkout is the point and is stronger than merely working outside the
+      repository: with no repository on the runner there is no `tsconfig.json`
+      up the tree to inherit, no `node_modules` to resolve into, and no source
+      file that could stand in for a declaration the tarball omits. Four
+      details decide whether such a job can fail at all, each learned by
+      measurement rather than reasoning:
+      - **Type-check every packed declaration**, enumerated from the installed
+        artifact — not a hand-written consumer importing today's known
+        surfaces, whose import list goes stale the moment a module changes.
+      - **Leave `skipLibCheck` at its `false` default.** `tsc --init` writes
+        `true`; that silently turns the job into a no-op. It applies to
+        declaration files however they enter the program, root files included.
+      - **Install the tarball as a real dependency**, never by unpacking into
+        `node_modules` by hand — a later `npm install` prunes what is not in
+        `package.json`, leaving the check passing on an empty file list.
+      - **Pin the compiler** to the repository's exact `typescript` version.
+        With no checkout there is no lockfile, so a bare `npm install
+        typescript` lets the registry change the verdict with no repository
+        change. The version is readable without a checkout: `npm pack` keeps
+        `devDependencies` in the packed `package.json`.
+      The private-declaration assertion this job carries for
+      [`../../todo/separate-private-types.md`](../../todo/separate-private-types.md)
+      is a condition on it, specified there; the job itself belongs here.
 - [x] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
 - [x] Decide, based on the fixture, whether the second TypeScript runtime-emission
       pass can ever be removed while authored `types.ts` files remain, or whether

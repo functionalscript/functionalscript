@@ -272,37 +272,14 @@ directory outside the repository: with no repository on the runner, there is no
 no source file that could stand in for a declaration the tarball omits. The
 check can only see what a real consumer sees.
 
-Three details decide whether that job can fail at all:
-
-- **Check every packed declaration, not a hand-written consumer.** The
-  temptation is a small `consumer.mts` importing the surfaces known to carry
-  private types. That check is only as current as its import list: a module
-  that gains a `private.ts` *later* is not in the program, so its dangling
-  declaration passes unseen while the job stays green. Enumerate the packed
-  `.d.ts` / `.d.mts` from the installed package and pass them all to `tsc` as
-  root files instead — the set is derived from the artifact, so it cannot go
-  stale.
-- **Do not set `skipLibCheck`.** It defaults to `false`, which is what makes
-  TypeScript open the packed declarations and report a dangling private
-  reference. `tsc --init` writes `"skipLibCheck": true`; if that creeps in, the
-  job silently stops checking the thing it exists for. (This matters even with
-  the declarations as root files: `skipLibCheck` suppresses checking of
-  declaration files however they entered the program.)
-- **Install the tarball as a dependency; do not unpack it into `node_modules`
-  by hand.** A later `npm install` prunes anything not in `package.json` and
-  removes it, which turns the whole job into a no-op on an empty file list.
-- **Pin the compiler.** With no checkout there is no lockfile, so a bare
-  `npm install typescript` resolves whatever the registry publishes that day:
-  the required check could turn red — or quietly change module-resolution
-  behaviour — with no change to this repository, the same "red for the wrong
-  reason" failure that trains people to re-run a check instead of reading it.
-  Install the repository's exact version, which the job can read without a
-  checkout because `npm pack` keeps `devDependencies` in the packed
-  `package.json`: `node_modules/functionalscript/package.json` carries
-  `"typescript": "=7.0.2"` in the tarball measured here. That deliberately
-  trades consumer-compiler *coverage* for determinism — if a future compiler
-  is worth checking against, add it as a second explicitly pinned version
-  rather than letting the first one float.
+Four details decide whether that job can fail at all — enumerate every packed
+declaration rather than trusting a hand-written import list; leave
+`skipLibCheck` at its `false` default; install the tarball as a real dependency;
+and pin the compiler. They are conditions on a job this design does not own, so
+they are recorded as tasks in
+[`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md)
+with the reasoning for each. The first is the one this design turns on, and the
+measurement below is why.
 
 Because a red required check blocks the merge queue, a reintroduced dependency
 becomes the author's problem at the moment it is introduced, which is the whole
@@ -316,7 +293,7 @@ scratch consumer and the 16 `private.d.ts` removed from it:
   emit are JSDoc `@import` comments, which are inert);
 - appending a real `import type { … } from './private.js'` to one packed
   declaration turns that exit `2` with `TS2307`, so the check is falsifiable;
-- and the gap the first bullet describes is not hypothetical: with that
+- and the gap the first of those describes is not hypothetical: with that
   injection placed in `fjs/emergent_testing` — a module with no `private.ts`
   today, standing in for a future one — a consumer importing all 16 of today's
   private-carrying surfaces still exits `0`, while the exhaustive form exits
@@ -423,33 +400,22 @@ type-only and use named `import type { ... }` imports.
       negation in `package.json`'s `files`; leave `prepack` unchanged.
 - [ ] Do not text-postprocess emitted declarations; validate semantic private
       dependencies and clean-consumer type checking instead.
-- [ ] Upload the `npm pack` tarball as a CI artifact, and add a **second job
-      with no repository checkout** that downloads it, installs it as a real
-      dependency — the tarball plus the exact `typescript` version read from
-      the tarball's own `package.json`, never a floating install, which would
-      let the registry redden a required check with no repository change;
-      hand-unpacking into `node_modules` is pruned by the next `npm install` —
-      and
-      type-checks **every declaration the package ships**, enumerated from the
-      installed artifact rather than from a hand-written import list: a module
-      that gains a `private.ts` later would never enter a fixed consumer's
-      program. Leave `skipLibCheck` unset — it defaults to `false`, which is
-      what makes the check able to fail. Add both through the CI generator
-      (`fjs/ci/**`, composed in `fjs/ci/module.f.mjs`), not by editing
-      `.github/workflows/ci.yml`. Complete the fixture already scoped in
-      [`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md)
-      rather than adding a second package-validation path.
-- [ ] Give the second job an explicit `needs` edge on the pack job. Without it
-      GitHub Actions starts the two in parallel and `download-artifact` fails
-      before the check has run — a red required check for the wrong reason.
-      This is a prerequisite, not a detail: `jobSchema` in
-      `fjs/ci/common/module.f.mjs` is **closed** and names only `runs-on` and
-      `steps`, and it is the same schema `parseGitHubAction` reads the
-      generated workflow back through, so emitting a bare `needs:` key would
-      fail that round-trip in `fjs/ci/proof.f.mjs`. Extend the schema
-      (`needs: or(option, array(string))`, matching the existing optional-field
-      idiom in `stepSchema`), which widens `Job` in `fjs/ci/common/types.ts`,
-      and cover the new field in the proof.
+- [ ] Depend on the checkout-less packed-artifact type-check job rather than
+      specifying it here: the job belongs to
+      [`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md),
+      and the artifact hand-off and job-ordering edge it rests on belong to
+      [`../ci/todo/ci-integration-tests.md`](../ci/todo/ci-integration-tests.md).
+      What this design requires *of* that job, and what it must not lose:
+      - it type-checks **every** packed declaration, enumerated from the
+        installed artifact — a fixed import list cannot see a module that gains
+        a `private.ts` after the job is written, which is exactly the case this
+        stage exists to catch;
+      - it runs with no repository checkout, so nothing in the source tree can
+        stand in for an omitted `private.d.ts`;
+      - `skipLibCheck` stays `false`, or the check silently stops checking.
+      Adding a second package-validation path instead of completing that
+      fixture would put the private-types assertion somewhere the packaging
+      work does not own.
 - [ ] Make that job a required check, so a reintroduced private dependency
       blocks the merge queue rather than landing.
 - [ ] Assert the tarball's contents (no `private.d.ts` inside) alongside that
@@ -521,9 +487,9 @@ type-only and use named `import type { ... }` imports.
   edited, and its compiler is the repository's exact pinned `typescript`, read
   from the packed `package.json`, so the check cannot change verdict without a
   change to this repository.
-- That job `needs` the pack job, so it never races the upload, and the closed
-  `jobSchema` / `Job` / proof in `fjs/ci/common` are extended to express it
-  rather than the key being emitted past the schema.
+- That job never races the artifact upload — the ordering edge and the CI
+  generator's ability to express it are owned by
+  [`../ci/todo/ci-integration-tests.md`](../ci/todo/ci-integration-tests.md).
 - That job is a required check, so the failure blocks the merge queue.
 - Both halves are demonstrably falsifiable, each by the input that actually
   breaks it: dropping the `files` negation reddens the contents assertion, and
@@ -543,7 +509,11 @@ type-only and use named `import type { ... }` imports.
 - [`../../AGENTS.md`](../../AGENTS.md) — root repository policy.
 - [`../AGENTS.md`](../AGENTS.md) — `fjs/`-specific file/dependency policy.
 - [`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md)
-  — the packed-consumer CI fixture Stage 2 completes.
+  — the packed-consumer CI fixture Stage 2 completes; it owns the
+  checkout-less type-check job this design depends on.
+- [`../ci/todo/ci-integration-tests.md`](../ci/todo/ci-integration-tests.md)
+  — owns the `npm pack` artifact hand-off and the CI generator's job-ordering
+  edge that job rests on.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
   — upstream JSDoc typedef stripping limitation; superseded as this design's
   strategy, since no authored `.mjs` declares a typedef to strip.
