@@ -5,7 +5,7 @@ import { assert, assertEq } from '../../asserts/module.f.mjs'
 // A pin no configuration anywhere holds, so an assertion that finds it can only
 // have found the value passed in. Importing the generator's own constant would
 // compare it with itself and hold for any value.
-const pin = /** @type {const} */ ('=1.2.3-proof')
+const pin = /** @type {const} */ ('=1.2.3')
 
 const job = packageCheckJob(pin)
 

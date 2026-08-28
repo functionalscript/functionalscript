@@ -72,7 +72,7 @@ const flake = (state, id) =>
 // The packed-package check is generated only when the project pins a compiler,
 // so the shared fixture supplies one. A pin no configuration holds, so an
 // assertion that finds it found the value that came from here.
-const runPin = /** @type {const} */ ('=9.9.9-run')
+const runPin = /** @type {const} */ ('=9.9.9')
 
 const runPackageJson = `{"name":"other-package","devDependencies":{"typescript":"${runPin}"}}`
 
@@ -296,6 +296,13 @@ export const proof = {
             '{"name":"p","devDependencies":{}}',        // no typescript
             '{"devDependencies":{"typescript":"^7.0.0"}}',   // a range, not a pin
             '{"devDependencies":{"typescript":"7.0.2"}}',    // bare, still not exact
+            '{"devDependencies":{"typescript":"=7.x"}}',     // `=` prefixing a range
+            '{"devDependencies":{"typescript":"=7.0"}}',     // two segments is a range
+            '{"devDependencies":{"typescript":"=7.0.2.1"}}', // four is not a version
+            '{"devDependencies":{"typescript":"=7.0.2 || 8.x"}}', // a union
+            '{"devDependencies":{"typescript":"=7.0.beta"}}',// a non-numeric segment
+            '{"devDependencies":{"typescript":"=7..2"}}',    // an empty segment
+            '{"devDependencies":{"typescript":"="}}',        // nothing after the sign
         ])) {
             const [state, result] = virtual(makeState(false, packageJson))(ci({ nodeExtra: () => [] }))
             assertEq(exitCode(result), 0)

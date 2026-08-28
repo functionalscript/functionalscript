@@ -63,6 +63,30 @@ const canonicalJobs = (rust, pin) => ({
     'nix-flakes': nixFlakeJob,
 })
 
+/** @type {(s: string) => boolean} */
+const digits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
+
+/**
+ * `=MAJOR.MINOR.PATCH` and nothing else.
+ *
+ * Anything npm reads as a *range* — `^7.0.0`, `=7.x`, `=7.0`, `=7.0.2 || 8.x` —
+ * lets a later registry release change this check's verdict with no change
+ * here, which is the one thing running it without a checkout is meant to
+ * prevent. A leading `=` is not enough on its own: it can prefix a range. So
+ * the whole value is validated rather than its first character.
+ *
+ * A prerelease pin is rejected too. That is stricter than npm needs, and the
+ * cost of being wrong is the job disappearing from `ci.yml` — a visible diff in
+ * review — rather than a check that silently stops meaning anything.
+ *
+ * @type {(pin: string) => boolean}
+ */
+const exact = pin => {
+    if (!pin.startsWith('=')) { return false }
+    const parts = pin.slice(1).split('.')
+    return parts.length === 3 && parts.every(digits)
+}
+
 /**
  * The compiler the packed-package check installs, read out of the project's own
  * `package.json` rather than restated anywhere. A second copy could disagree
@@ -84,12 +108,7 @@ const compilerPin = text => {
     const dev = root.devDependencies
     if (typeof dev !== 'object' || dev === null || dev instanceof Array) { return undefined }
     const pin = dev.typescript
-    // Only an exact pin. A range such as `^7.0.0` lets a later registry release
-    // change this check's verdict with no change here, which is the one thing
-    // running it without a checkout is meant to prevent. Relaxing the pin drops
-    // the job from the generated workflow, which is a visible diff rather than
-    // a quiet loss of checking.
-    return typeof pin === 'string' && pin.startsWith('=') ? pin : undefined
+    return typeof pin === 'string' && exact(pin) ? pin : undefined
 }
 
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
