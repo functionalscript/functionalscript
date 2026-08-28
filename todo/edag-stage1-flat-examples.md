@@ -11,8 +11,9 @@ structural constructors in the nested form its normative parts now use —
 [`fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs) and the form column in
 [`fjs/edag/README.md`](../fjs/edag/README.md) — but roughly a dozen of its
 worked examples still spell the operands flat, as `["[]", x, x]`. The empty
-object appears throughout as the one-element `["{}"]`, which the schema
-writes `["{}", []]`.
+object appears in six of them as the one-element `["{}"]`, which the schema
+writes `["{}", []]` — but a seventh `["{}"]` is not an empty object at all
+(class 4 below), so that rewrite is not a blanket one.
 
 The normative places were corrected in
 [#1756](https://github.com/functionalscript/functionalscript/pull/1756) after
@@ -31,10 +32,11 @@ than the P2 the original finding carried.
 
 ### Proposal
 
-Three classes, and only the first is mechanical.
+Four classes, and only the first is mechanical.
 
 **1. Re-notate — examples describing today's shape.** Rewrite these to the
-nested form, including `["{}"]` → `["{}", []]`:
+nested form; the `["{}"]` occurrences here are genuine empty objects and
+become `["{}", []]`:
 
 |Section|What it shows|
 |-|-|
@@ -70,12 +72,23 @@ spelling is what the quoted proposal said:
 constructor*, and *6. Command vocabulary* say nothing about operand grouping
 and are not claims about shape.
 
+**4. Re-spell, don't re-notate — the generic node shorthand.** *Validation*
+writes "every element of a `["{}"]` node's entry array must be a recognized
+entry form". That `["{}"]` names *an object-constructor node*, not an empty
+one, so rewriting it to `["{}", []]` with the class-1 examples contradicts the
+sentence: an empty entry array has no elements to check. It is also the one
+occurrence #1756 introduced rather than inherited. The shorthand only became
+ambiguous once `["{}", []]` acquired a meaning, so give it a nonempty
+placeholder — `["{}", entries]` — rather than the empty form or a bare tag.
+
 Sections are named rather than line numbers cited, per
 [tokenizer-line-citations](../fjs/js/todo/tokenizer-line-citations.md).
 
 ### Tasks
 
-- [ ] Re-notate the class-1 examples, including every `["{}"]` → `["{}", []]`.
+- [ ] Re-notate the class-1 examples, including the six `["{}"]` that really
+      are empty objects → `["{}", []]`. Not the seventh: see class 4.
+- [ ] Re-spell the class-4 shorthand as `["{}", entries]`.
 - [ ] Decide each of the three class-2 passages: leave, annotate, or rewrite.
 - [ ] Re-read the document for flat forms this inventory missed — it was built
       by grepping `["[]"` and `["{}"`, which does not catch a constructor
