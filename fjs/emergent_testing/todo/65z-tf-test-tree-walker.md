@@ -23,25 +23,23 @@ const registerOne = (ctx: TestContext, [path, { fn, throws }]: TestAndPath) =>
             return all(...sub.map(e => registerOne(t, e))).step(() => pure(undefined))
         }))
 
-// runModule (./fjs/emergent_testing/module.f.mjs:167)
-const one = ([testPath, set]: TestAndPath): Effect<O | All, TestState> =>
+// runModule (./fjs/emergent_testing/module.f.mjs)
+const one = ([testPath, set]: TestAndPath): Effect<O | All, RunTotals> =>
     test(k, testPath, set)
     .step(sr => {
-        const { result: [s, r], duration } = sr
-        return result(k, testPath, sr)
-        .step((): Effect<O | All, TestState> => {
-            if (s === 'ok') {
-                if (set.throws) { return pure(addPass(duration)(zero)) }
-                return walk([...testPath, null], false, r)
-                .step(sub => pure(mergeState(addPass(duration)(zero), sub)))
-            }
-            return pure(addFail(duration)(zero))
+        const t = testResult(k, testPath, sr)
+        return result(t, sr, set.throws)
+        .step((): Effect<O | All, RunTotals> => {
+            const total = addResult(zeroTotals, t)
+            if (t.status !== 'passed' || set.throws) { return pure(total) }
+            return walk([...testPath, null], false, sr.result[1])
+            .step(sub => pure(mergeTotals(total, sub)))
         })
     })
-const walk = (path: Path, throws: boolean, v: unknown): Effect<O | All, TestState> => {
+const walk = (path: Path, throws: boolean, v: unknown): Effect<O | All, RunTotals> => {
     const effects = collectTests(path, throws, v).map(one)
     return all(...effects)
-    .step(states => pure(states.reduce(mergeState, zero)))
+    .step(states => pure(states.reduce(mergeTotals, zeroTotals)))
 }
 ```
 
@@ -93,7 +91,7 @@ export const walkTests = <O extends Operation, S>(w: Walker<O | All, S>) => {
 }
 ```
 
-`runModule` instantiates `S = TestState`, threads `Sandbox`/`Reporter` effects
+`runModule` instantiates `S = RunTotals`, threads `Sandbox`/`Reporter` effects
 in `onLeaf`, and returns the sub-tree value on success-without-`throws`.
 
 `registerModule` instantiates `S = void` for surviving process adapters, registers through
@@ -136,8 +134,8 @@ shares the semantics rather than the obsolete Playwright registration path.
   `onLeaf` may need to return a "child context" alongside the accumulator. This may
   complicate the signature enough that the abstraction stops feeling like a win; a small
   spike will tell.
-- `runModule` measures per-leaf `duration` from `SandboxResult` and folds it
-  into `TestState`; `registerModule` doesn't care. The walker must not
+- `runModule` builds each leaf's `TestResult` and folds it into `RunTotals`
+  with `addResult`; `registerModule` doesn't care. The walker must not
   pretend to own this — it stays inside `onLeaf`.
 - Browser execution has no `TestContext` and must not import the Node effect runner. Share
   browser-compatible code only when it keeps the page independent from Node and

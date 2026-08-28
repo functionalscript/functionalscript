@@ -19,13 +19,14 @@
  *
  * @import { Type } from './types.ts'
  * @import { ValidateE } from './common/types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
  * @import { Unknown } from './ts/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { undeclaredMembers } from './common/module.f.mjs'
 import { toData, validate as dataValidate } from './data/module.f.mjs'
-import { array, number, rest, string } from './module.f.mjs'
+import { array, number, option, or, rest, string } from './module.f.mjs'
 import { parse } from './parse/module.f.mjs'
 import { validate } from './validate/module.f.mjs'
 
@@ -166,5 +167,215 @@ export const proof = {
             assertError(read(rest([number], string))(value))
             assertOk(read(rest([number], number))(value))
         }
+    },
+    // A declared member absent by own-key but supplied by the **prototype** is
+    // present to the readers — HasProperty, the same test `getItem`'s read
+    // answers to — so the inherited value must satisfy the member's present
+    // part: `or(option, t)`'s `option` branch rejects any present value, so
+    // dispatching the read value *is* the present-part check. Without it,
+    // `validate` would hand back an object whose `.a` reads `'bad'` while the
+    // rendered type promises `number` — the own-key rule alone would have
+    // introduced that unsoundness, not inherited it.
+    inheritedDeclaredMemberMeetsThePresentPart: () => {
+        const value = Object.create({ a: 'bad' })
+        for (const read of [v, p, d]) {
+            assertError(read({ a: or(option, number) })(value))
+            assertOk(read({ a: or(option, string) })(value))
+        }
+    },
+    // `parse`'s tuple rebuild never runs a method of the value: it is built
+    // from the parsed entries alone, on trusted plain arrays. An accepted
+    // `Array` subclass — or, as here, an array whose prototype supplies the
+    // methods — can override `slice`/`map`; a rebuild that called them was
+    // handed `['ok', []]` for an input holding `1`, a result that fails the
+    // very schema it was parsed against, and a throwing override escaped
+    // the `Result` API entirely.
+    hostileArrayMethodsDoNotReachTheRebuild: () => {
+        const value = [1]
+        Object.setPrototypeOf(value, Object.assign([], {
+            slice: () => [],
+            map: () => { throw 'hostile' },
+        }))
+        const r = p([number])(value)
+        assert(r[0] === 'ok', 'expected ok')
+        assertStructurallySame(/** @type {readonly unknown[]} */ (r[1]), [1])
+    },
+    // …and never dispatches an overridable operation at all. Reading a
+    // member can run arbitrary code — an accessor — and the rebuild runs
+    // after every read, so a getter that patches `Array.prototype.concat`
+    // (or `map`, `flatMap`, `slice`, `Object.fromEntries`) has patched it
+    // before any rebuild executes: a rebuild dispatching one of them was
+    // handed `['ok', []]` for `[1, 2]` against `[number, number]`. The
+    // fixed rebuilds construct with `defineProperty` captured at module
+    // load and walk their own cons list by property reads, so none of
+    // these patches reaches what `parse` builds. (The *verdict* path still
+    // dispatches overridable operations after a read — that exposure is
+    // `todo/hostile-accessor-hermetic-read-path.md`, and this fixture
+    // patches only what corrupts no verdict here.)
+    hostileIntrinsicPatchesDoNotReachTheRebuild: () => {
+        const captured = {
+            concat: Array.prototype.concat,
+            flatMap: Array.prototype.flatMap,
+            map: Array.prototype.map,
+            slice: Array.prototype.slice,
+            fromEntries: Object.fromEntries,
+        }
+        const patch = () => {
+            Array.prototype.concat = () => []
+            Array.prototype.flatMap = () => []
+            Array.prototype.map = () => []
+            Array.prototype.slice = () => []
+            Object.fromEntries = () => ({})
+        }
+        const restore = () => {
+            Array.prototype.concat = captured.concat
+            Array.prototype.flatMap = captured.flatMap
+            Array.prototype.map = captured.map
+            Array.prototype.slice = captured.slice
+            Object.fromEntries = captured.fromEntries
+        }
+        /** @type {(v: Unknown) => () => Unknown} */
+        const patchingGetter = v => () => { patch(); return v }
+        // The original repro: an index-0 getter that patches and returns `1`.
+        const tupleValue = [0, 2]
+        Object.defineProperty(tupleValue, 0, {
+            get: patchingGetter(1),
+            enumerable: true,
+            configurable: true,
+        })
+        const rt = p([number, number])(tupleValue)
+        restore()
+        assert(rt[0] === 'ok', 'expected ok')
+        assertStructurallySame(/** @type {readonly unknown[]} */ (rt[1]), [1, 2])
+        // The struct kind's `fromEntries` and the uniform array kind's
+        // `map` were the same seam.
+        const structValue = Object.defineProperty({ b: 2 }, 'a', {
+            get: patchingGetter(1),
+            enumerable: true,
+            configurable: true,
+        })
+        const rs = p({ a: number, b: number })(structValue)
+        restore()
+        assert(rs[0] === 'ok', 'expected ok')
+        assertStructurallySame(rs[1], { a: 1, b: 2 })
+        const arrayValue = [0, 2]
+        Object.defineProperty(arrayValue, 0, {
+            get: patchingGetter(1),
+            enumerable: true,
+            configurable: true,
+        })
+        const ra = p(array(number))(arrayValue)
+        restore()
+        assert(ra[0] === 'ok', 'expected ok')
+        assertStructurallySame(/** @type {readonly unknown[]} */ (ra[1]), [1, 2])
+    },
+    // …and when the accessor **flips the presence** of an already decided
+    // member instead, every reader refuses — identically, which is the
+    // agreement this file's tables exist to hold. A later member's getter
+    // can install an earlier, omitted key on `Object.prototype` (or an
+    // omitted position on `Array.prototype`) — the member is then present
+    // by the same HasProperty rule the walk dispatched on — or delete a
+    // checked own key; either way the verdict was made under a presence
+    // that no longer holds: a hands-back reader would return a value that
+    // no longer denotes what was checked, and the constructing one would
+    // build from stale decisions. All three re-ask presence last
+    // (`presenceUnchanged`), after everything that reads the value.
+    presenceFlipsAreRefusedByAllReaders: () => {
+        /** @type {(pollute: () => void) => StringMap<Unknown>} */
+        const structWith = pollute => Object.defineProperty({ b: 0 }, 'b', {
+            get: () => { pollute(); return 2 },
+            enumerable: true,
+            configurable: true,
+        })
+        const polluteObject = () => { /** @type {any} */ (Object.prototype).a = 'bad' }
+        const unpolluteObject = () => { delete (/** @type {any} */ (Object.prototype).a) }
+        for (const read of [v, p, d]) {
+            // absent → present, struct
+            const rs = read({ a: or(option, number), b: number })(structWith(polluteObject))
+            unpolluteObject()
+            assertError(rs)
+            // absent → present, tuple
+            const tv = [, 0]
+            Object.defineProperty(tv, 1, {
+                get: () => { /** @type {any} */ (Array.prototype)[0] = 'bad'; return 2 },
+                enumerable: true,
+                configurable: true,
+            })
+            const rt = read([or(option, number), number])(tv)
+            delete (/** @type {any} */ (Array.prototype))[0]
+            assertError(rt)
+            // absent → present behind a stated rest — the `rest` kinds
+            // decide omission the same way, so they hold the same
+            // postcondition
+            const rr = read(rest({ a: or(option, number) }, number))(structWith(polluteObject))
+            unpolluteObject()
+            assertError(rr)
+            // present → absent: a later getter deletes a checked own member
+            /** @type {any} */
+            let dv = { a: 1, b: 0 }
+            dv = Object.defineProperty(dv, 'b', {
+                get: () => { delete dv.a; return 2 },
+                enumerable: true,
+                configurable: true,
+            })
+            assertError(read({ a: number, b: number })(dv))
+        }
+    },
+    // A value with **no prototype** is the residual split, and a deliberate
+    // one: pollution cannot flip such a value's own absence — the omitted
+    // key still reads nothing anywhere on its (empty) chain — so the
+    // hands-back readers return the value, still a faithful member of the
+    // set. `parse` builds plain containers, and every plain container now
+    // *inherits* the omitted key, so nothing it could build denotes the
+    // value it checked: it refuses (`omittedStillAbsent`), per DESIGN.md
+    // §10. Each reader honest to its own contract — return what was given,
+    // or build only what the schema still accepts.
+    nullPrototypePollutionSplitsByContract: () => {
+        const schema = { a: or(option, number), b: number }
+        /** @type {() => StringMap<Unknown>} */
+        const make = () => Object.defineProperty(Object.create(null), 'b', {
+            get: () => { /** @type {any} */ (Object.prototype).a = 'bad'; return 2 },
+            enumerable: true,
+            configurable: true,
+        })
+        const unpollute = () => { delete (/** @type {any} */ (Object.prototype).a) }
+        const rv = v(schema)(make())
+        unpollute()
+        assertOk(rv)
+        const rd = d(schema)(make())
+        unpollute()
+        assertOk(rd)
+        const rp = p(schema)(make())
+        unpollute()
+        assertError(rp)
+        // …and the same split one kind over, behind a stated rest.
+        const restSchema = rest({ a: or(option, number) }, number)
+        const rrv = v(restSchema)(make())
+        unpollute()
+        assertOk(rrv)
+        const rrp = p(restSchema)(make())
+        unpollute()
+        assertError(rrp)
+    },
+    // …and `parse` **materializes** the inherited value as an own member of
+    // what it builds: the member is *present* — HasProperty is what the
+    // check dispatched on — so its parsed value is in the entries the
+    // rebuild is made of, and the output carries what was checked rather
+    // than a hole at an index the input answered for. A pinned, bounded
+    // divergence from the input's own/inherited split, unreachable from
+    // FunctionalScript (which has neither mutation nor prototype writes).
+    // `validate` is untouched: it returns the value it was given.
+    parseMaterializesAnInheritedIndex: () => {
+        const value = inheritedIndex()
+        const schema = /** @type {const} */ ([number, or(option, number)])
+        const r = p(schema)(value)
+        assert(r[0] === 'ok', 'expected ok')
+        const built = /** @type {ReadonlyArray<Unknown>} */ (r[1])
+        assert(Object.hasOwn(built, 1), 'the inherited index is an own member of the result')
+        assertEq(built[1], 99, 'carrying its parsed value')
+        const rv = v(schema)(value)
+        assert(rv[0] === 'ok', 'expected ok')
+        assert(Object.is(rv[1], value), '`validate` hands back the value it was given')
+        assert(!Object.hasOwn(/** @type {object} */ (rv[1]), 1), 'holes and all')
     },
 }

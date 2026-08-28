@@ -97,7 +97,7 @@ value carrying more is not one of its values, on either reader:
 | `{ a: 42 }` | `{ a: 42, b: 'x' }` | error | error |
 | `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` | `{ a: 42 }` |
 | `[42]` | `[42, 'extra']` | error | error |
-| `[number, option(string)]` | `[42]` | `[42, undefined]` | `[42]` |
+| `[number, or(option, string)]` | `[42]` | `[42]` | `[42]` |
 | `[42]` | `[]` | error | error |
 
 A tuple answers by **length** as well as by member: a hole past the prefix is
@@ -105,13 +105,17 @@ no member, so `[42, , ]` would slip through a member check alone while the
 array is still that long.
 
 The last two rows are one rule, and closedness leaves it alone — it is about
-*undeclared* members, and a declared position admitting `undefined` stays
-omittable. An absent member reads as `undefined`, so a member is **required
-exactly when its set excludes `undefined`**. Position 1 of
-`[number, option(string)]` admits `undefined`, so a shorter array is fine —
-`parse` fills the gap in what it builds, `validate` has nothing to fill —
-while `42` excludes it, so position 0 of `[42]` is required and `[]` fails for
-both. This is the same rule the data form states for object keys.
+*undeclared* members, and a declared position admitting **absence** stays
+omittable. A member is absent when its key or index is neither an own
+property nor an inherited one, and it is **required exactly when its set
+excludes absence** — the `option` member of its union. Position 1 of
+`[number, or(option, string)]` admits absence, so a shorter array is fine —
+and neither reader materializes anything: `parse` builds `[42]`, omitting the
+absent member — while `42` excludes it, so position 0 of `[42]` is required
+and `[]` fails for both. Absence is not a spelling of `undefined`: `{}` and
+`{ a: undefined }` are two distinct values, `or(option, t)` admits the first
+and `or(t, undefined)` the second. This is the same rule the data form
+states for object keys, as the `absentBit` of a member's unit bitset.
 
 The data form says the same thing in its own vocabulary — a bare container's
 `rest` is `never` on both kinds — so `validate(toData(s))` accepts exactly what
@@ -274,6 +278,7 @@ unary schemas (`array`, `record`) return `Info1` (a tag + inner type tuple).
 | `string`    | `['string']`         | any `string`                     |
 | `bigint`    | `['bigint']`         | any `bigint`                     |
 | `unknown`   | `['unknown']`        | any DJS value                    |
+| `option`    | `['option']`         | nothing — **absence**: `or(option, t)` is a member that may be left out |
 | `array(t)`  | `['array', t]`       | `readonly Ts<t>[]`               |
 | `record(t)` | `['record', t]`      | `{ readonly[K: string]: Ts<t> }` |
 | `rest(c, r)` | `['rest', c, r]` | `c`'s members, and only members of `r` besides |

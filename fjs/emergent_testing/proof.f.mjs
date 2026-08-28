@@ -15,12 +15,12 @@ import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import {
     testAll, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
-    defaultTest, main, register, testResult,
+    addResult, defaultTest, main, register, testResult, zeroTotals,
 } from './module.f.mjs'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
 import { shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
-import { array, number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
+import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.mjs'
 
@@ -35,7 +35,7 @@ import { error, ok, unwrap } from '../types/result/module.f.mjs'
  * JSON representation to round-trip through anyway.
  */
 const event = or(
-    /** @type {const} */ (['result', rttiString, array(or(rttiString, null))]),
+    /** @type {const} */ (['result', rttiString, rttiString]),
     /** @type {const} */ (['summary', rttiNumber, rttiNumber, rttiNumber]),
 )
 
@@ -55,8 +55,12 @@ const parseEvents = stdout =>
 
 /** @type {() => _TestReporter} */
 const makeReporter = () => ({
-    result: (file, path, _r, _throws) => writeEvent(['result', file, [...path]]),
-    summary: (pass, fail, time) => writeEvent(['summary', pass, fail, time]),
+    // The leaf-landed event arrives with the shared `TestResult` already
+    // built, so what this writes — and what the proofs below assert on — is
+    // the record's own `module` and formatted `path`, not a spelling of the
+    // mock's own.
+    result: (t, _r, _throws) => writeEvent(['result', t.module, t.path]),
+    summary: ({ passed, failed, duration }) => writeEvent(['summary', passed, failed, duration]),
     test: defaultTest,
 })
 
@@ -98,8 +102,8 @@ export const flat = () => {
     })
     assertEq(exit, 0)
     const [e0, e1, e2] = events
-    assert(e0[0] === 'result' && e0[2][0] === 'a')
-    assert(e1[0] === 'result' && e1[2][0] === 'b')
+    assert(e0[0] === 'result' && e0[2] === '.a')
+    assert(e1[0] === 'result' && e1[2] === '.b')
     assert(e2[0] === 'summary')
     const [, pass, fail] = e2
     assertEq(pass, 2)
@@ -113,8 +117,8 @@ export const nested = () => {
     })
     assertEq(exit, 0)
     const [e0, e1, e2] = events
-    assert(e0[0] === 'result' && e0[2][1] === 'add')
-    assert(e1[0] === 'result' && e1[2][1] === 'sub')
+    assert(e0[0] === 'result' && e0[2] === '.math.add')
+    assert(e1[0] === 'result' && e1[2] === '.math.sub')
     assert(e2[0] === 'summary')
     const [, pass, fail] = e2
     assertEq(pass, 2)
@@ -128,7 +132,7 @@ export const throwKey = () => {
     })
     assertEq(exit, 0)
     const [e0, e1] = events
-    assert(e0[0] === 'result' && e0[2][0] === 'throw' && e0[2][1] === 'a')
+    assert(e0[0] === 'result' && e0[2] === '.throw.a')
     assert(e1[0] === 'summary')
     const [, pass, fail] = e1
     assertEq(pass, 1)
@@ -180,8 +184,8 @@ export const returnValueSubTree = () => {
     const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 2)
     const [p0, p1] = passEvents
-    assertEq(p0[2][0], 'outer')
-    assertEq(p1[2][2], 'inner')
+    assertEq(p0[2], '.outer')
+    assertEq(p1[2], '.outer().inner')
 }
 
 // integer-indexed array keys appear as numeric path segments
@@ -192,8 +196,8 @@ export const arrayKeys = () => {
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 2)
-    assertEq(passEvents[0][2][1], '0')
-    assertEq(passEvents[1][2][1], '1')
+    assertEq(passEvents[0][2], '.arr[0]')
+    assertEq(passEvents[1][2], '.arr[1]')
 }
 
 // non-proof files are skipped: plain `.ts` is not loaded; `.f.ts` without
@@ -235,7 +239,7 @@ export const throwByFunctionName = () => {
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 1)
-    assertEq(passEvents[0][2][0], 'here')
+    assertEq(passEvents[0][2], '.here')
 }
 
 // only the `proof` export is used; other module properties are ignored
@@ -246,8 +250,8 @@ export const namedExports = () => {
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 2) // `other` is ignored
-    assertEq(passEvents[0][2][0], 'a')
-    assertEq(passEvents[1][2][0], 'b')
+    assertEq(passEvents[0][2], '.a')
+    assertEq(passEvents[1][2], '.b')
 }
 
 // the default (non-GitHub) reporter formats module/pass/summary lines on stdout
@@ -667,8 +671,31 @@ const testResultProofs = {
     },
 }
 
+/**
+ * `addResult` is where every runner turns a stream of leaf results into the
+ * run's totals — the summary line, the exit code and the browser report's
+ * counts all read this fold — so the fold itself is pinned here, not only its
+ * end-to-end effects.
+ */
+const runTotalsProofs = {
+    startsEmpty: () => {
+        assertEq(zeroTotals.passed, 0)
+        assertEq(zeroTotals.failed, 0)
+        assertEq(zeroTotals.duration, 0)
+    },
+    countsByTheSharedStatus: () => {
+        const pass = testResult('./a.f.mjs', ['x'], { result: ok(1), duration: 0.5 })
+        const fail = testResult('./a.f.mjs', ['y'], { result: error('boom'), duration: 2 })
+        const totals = [pass, fail, pass].reduce(addResult, zeroTotals)
+        assertEq(totals.passed, 2)
+        assertEq(totals.failed, 1)
+        assertEq(totals.duration, 3)
+    },
+}
+
 export const proof = {
     testResult: testResultProofs,
+    runTotals: runTotalsProofs,
     throw: {
         registerBodyPanicsOnUndispatchableEffect,
     },

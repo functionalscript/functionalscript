@@ -36,7 +36,7 @@ Against `f = (a, b) => 1`:
 | `{}` | error | **ok** | `object` |
 | `record(number)` | error | **ok** | `object` |
 | `or(number, {})` | error | **ok** | `number,object` |
-| `option({})` | error | **ok** | `unit,object` |
+| `or(option, {}, undefined)` | error | **ok** | `unit,object` |
 | `{ length: number }` | error | **ok** | `object` |
 | `{ name: string }` | error | **ok** | `object` |
 | `{ length: number, name: string }` | error | **ok** | `object` |
@@ -129,7 +129,7 @@ is an investigation, not a plan.
       [identity-aware-parse](identity-aware-parse.md) needs.
 - [ ] Whatever lands, make the three readers agree, and cover functions and
       symbols in tests against `unknown`, `{}`, `record(...)`,
-      `or(number, {})`, `option({})`, the required-property cases the intrinsics
+      `or(number, {})`, `or(option, {}, undefined)`, the required-property cases the intrinsics
       satisfy (`{ length: number }`, `{ name: string }`,
       `{ description: string }`), their near misses (`{ a: number }`,
       `{ length: string }`), and — if descent is adopted — nested and cyclic

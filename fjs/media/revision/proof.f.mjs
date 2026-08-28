@@ -122,7 +122,7 @@ export const proof = {
             assertEq(t, 'error')
         },
 
-        // `archived` follows the presence-only `option(true)` idiom.
+        // `archived` follows the presence-only `or(option, true)` idiom.
         archivedAccepted: () => {
             const [t] = validate(revisionOf({ archived: true }))
             assertEq(t, 'ok')

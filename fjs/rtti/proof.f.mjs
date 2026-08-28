@@ -2,7 +2,7 @@
  * @import { StringMap } from '../types/object/types.ts'
  * @import { Assert } from '../asserts/types.ts'
  * @import { Equal } from '../types/ts/types.ts'
- * @import { Or, Rest, Type1, Unknown } from './types.ts'
+ * @import { Option, Or, Rest, Type1, Unknown } from './types.ts'
  */
 
 import { assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
@@ -21,8 +21,8 @@ const tests = {
     function: [() => undefined]
 }
 
-// `or`, `option`, `array`, `record`, `rest` and `open` take `const` type
-// parameters, so a literal written at the call site stays a literal: `or(42, string)`
+// `or`, `array`, `record`, `rest` and `open` take `const` type parameters, so
+// a literal written at the call site stays a literal: `or(42, string)`
 // describes `42 | string`, not `number | string`. Without the modifier a caller
 // has to pin every literal with an `@type {const}` cast, and the assertions
 // below are what fail if one of the modifiers is dropped. Each is paired with
@@ -33,9 +33,13 @@ const constInference = () => {
     /** @typedef {Assert<Equal<typeof orConst, Or<readonly [42, typeof string]>>>} _OrConst */
     assertStructurallySame(orConst(), ['or', 42, string])
 
-    const optionConst = option([42, string])
-    /** @typedef {Assert<Equal<typeof optionConst, Or<readonly [readonly [42, typeof string], undefined]>>>} _OptionConst */
-    assertStructurallySame(optionConst(), ['or', [42, string], undefined])
+    // `option` is nullary — absence itself, not a wrapper — so the spelling
+    // under test is the union that carries it.
+    const optionUnion = or(option, [42, string])
+    /** @typedef {Assert<Equal<typeof option, Option>>} _OptionNullary */
+    /** @typedef {Assert<Equal<typeof optionUnion, Or<readonly [Option, readonly [42, typeof string]]>>>} _OptionUnion */
+    assertStructurallySame(option(), ['option'])
+    assertStructurallySame(optionUnion(), ['or', option, [42, string]])
 
     const arrayConst = array('hello')
     /** @typedef {Assert<Equal<typeof arrayConst, Type1<'array', 'hello'>>>} _ArrayConst */

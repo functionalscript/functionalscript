@@ -23,9 +23,11 @@ export type KindSet<T> = true | readonly T[]
  * A set of arrays: a tuple with an optional rest.
  *
  * - `prefix` constrains, per leading position, the value *read* at that
- *   position — a position past the array's end reads as `undefined`, so a
- *   position is required exactly when its set excludes `undefined`. This is
- *   the array half of the rule {@link ObjectSet} states for keys.
+ *   position — and whether there needs to be one: a position past the
+ *   array's end, or a hole, is **absent**, and a position is required
+ *   exactly when its set excludes absence (the `absentBit` of its `unit`
+ *   bitset). This is the array half of the rule {@link ObjectSet} states
+ *   for keys.
  * - `rest` present: the value at every position past the prefix belongs to
  *   `rest`.
  * - `rest` absent: there is nothing past the prefix.
@@ -46,10 +48,12 @@ export type ArraySet = {
 /**
  * A set of objects: per-key value sets with an optional rest.
  *
- * - `props` constrains, per declared key, the value *read* at that key — an
- *   absent property reads as `undefined`, so a key is required exactly when
- *   its set excludes `undefined`. Keys are canonically sorted, and a key
- *   whose set is the whole value domain is omitted.
+ * - `props` constrains, per declared key, the value *read* at that key — and
+ *   whether there needs to be one: a key is required exactly when its set
+ *   excludes **absence** (the `absentBit` of its `unit` bitset), so `{}` and
+ *   `{ a: undefined }` are told apart. Keys are canonically sorted, and a
+ *   key whose set is the whole *declared-member* domain — any value, or
+ *   nothing — is omitted.
  * - `rest` present: the value at every other *present* key belongs to `rest`.
  * - `rest` absent: other keys are unconstrained.
  *
@@ -67,10 +71,15 @@ export type ObjectSet = {
  * with every component at its maximum (see `unknown` in `./module.f.mjs`)
  * is `unknown`.
  *
- * `unit` is a bitset over the four singleton values; bit `1 << i` stands for
- * `unitList[i]` from `./module.f.mjs` (`['null', 'undefined', 'false',
- * 'true']`), so `or(true, false)` collapses to the two boolean bits with no
- * special-case rule.
+ * `unit` is a bitset over the four singleton values plus **absence**; bit
+ * `1 << i` for `i < 4` stands for `unitList[i]` from `./module.f.mjs`
+ * (`['null', 'undefined', 'false', 'true']`), so `or(true, false)` collapses
+ * to the two boolean bits with no special-case rule. Bit `16` is
+ * `absentBit`, rtti's nullary `option`: the member that is not there. It
+ * maps to no `unitList` entry because absence is not a DJS value — nothing
+ * reads as absent; a container *position* is absent by having no own or
+ * inherited key — so a consumer decoding stored data must treat bit `16` as
+ * the may-be-omitted marker of a declared member, not as a fifth value.
  */
 export type UnionSet = {
     readonly unit?: number
