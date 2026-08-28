@@ -251,7 +251,7 @@ Also introduce call operations into EDAG:
 
 ```js
 ['()', object, args]                       // f(...args)
-['.', object, property, ['|()', args, null]]   // o.p(...args)
+['.', object, property, ['|()', args]]     // o.p(...args)
 ```
 
 There are two call spellings and the receiver is what tells them apart. `()` is the
@@ -260,10 +260,10 @@ call is instead the **property-access node owning its call** — the `'|()'` ste
 `.` node's continuation is what carries the `this` binding, which no `()` node can.
 See "Chains" in [`../../edag/README.md`](../../edag/README.md). Stage 2 needs neither
 optional node (`?.`, `?.()`) nor any of the other three steps, since optional chaining
-is not in its source subset; a plain property read is `['.', object, property, null]`.
+is not in its source subset; a plain property read is `['.', object, property]`.
 
 The property operand of a `.` node carrying a `'|()'` step follows **the same canonical
-safety restriction as `.`** with a `null` continuation.
+safety restriction as `.`** with no continuation.
 In this stage that means a permitted string constant or number constant; prohibited
 names, runtime-computed strings, and other unsupported property expressions are
 rejected. This is the EDAG form of the method-call distinction and safety rules already
@@ -289,14 +289,14 @@ The staged work builds on the basic structural forms already being defined for E
   the current DJS parser produces;
 - array constructors: `['[]', [...node]]`;
 - the argument array: `['args']`;
-- Stage 1 property access: `['.', object, property, null]`, with the restricted
-  property operands described above — the `null` is the continuation operand, saying
-  the receiver this access produced is dropped;
+- Stage 1 property access: `['.', object, property]`, with the restricted
+  property operands described above — the absent fourth operand is the continuation,
+  and leaving it out says the receiver this access produced is dropped;
 - Stage 2 non-capturing functions: `['=>', null, body]` (`frame` is a general `exp` in
   the schema; `null` is what *this task's* parser and interpreter are scoped to, not a
   schema-level restriction);
 - Stage 2 calls: `['()', callee, args]` for an ordinary call, and
-  `['.', object, property, ['|()', args, null]]` for a method call, with the property
+  `['.', object, property, ['|()', args]]` for a method call, with the property
   operand using the same restriction as `.`;
 - semantic sharing by node identity, serialized with DJS `const` references when
   needed.
@@ -479,11 +479,11 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Validate that a nested function body is a disjoint EDAG scope: operation nodes
       must not be shared across a function boundary, while sharing within the body is
       preserved.
-- [x] `['()', callee, args]` and the `['|()', args, null]` step a `.` node carries for
+- [x] `['()', callee, args]` and the `['|()', args]` step a `.` node carries for
       a method call are in the EDAG validation/type schema (`fjs/edag/`), shape only —
       the property-operand restriction below is this stage's own work.
 - [ ] Convert the corresponding parser call expressions to the EDAG call forms — `()`
-      for an ordinary call, a `.` node with a `['|()', args, null]` continuation for a
+      for an ordinary call, a `.` node with a `['|()', args]` continuation for a
       method call; reject prohibited or runtime-computed string properties in that
       node rather than bypassing the property-access safety rule.
 - [ ] Add proofs for non-capturing nested functions and ordinary/method calls in the
