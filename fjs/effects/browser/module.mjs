@@ -30,6 +30,7 @@
 
 import { asyncRun } from '../module.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
+import { tryCatch } from '../../types/result/module.mjs'
 
 /**
  * Calls `f` and answers what happened — its value, or the value it threw —
@@ -91,14 +92,11 @@ export const browserRun = extra => {
         sandbox: async (/** @type {() => unknown} */ f) => ok(await sandbox(f)),
         // No clock and no fixture convention — see `Catch` in
         // `../node/types.ts` for why this is a second operation beside
-        // `sandbox` rather than a use of it.
-        catch: async (/** @type {() => unknown} */ f) => {
-            try {
-                return ok(ok(f()))
-            } catch (e) {
-                return ok(error(e))
-            }
-        },
+        // `sandbox` rather than a use of it. It is `tryCatch`, spelled the
+        // same way `effects/node` spells it: that helper carries no host
+        // dependency, so there is nothing here for a browser to do
+        // differently.
+        catch: async (/** @type {() => unknown} */ f) => ok(tryCatch(f)),
         ...extra,
     }))
     return run

@@ -465,13 +465,19 @@ are shared.
 
 ### Tasks
 
-- [ ] Inventory duplicated semantics in `emergent_testing/module.f.mjs` and
-      `emergent_testing/browser.mjs`, and define the smallest shared API.
-- [ ] Name the skeleton's parts explicitly — execute a leaf, report a result,
+- [x] Inventory duplicated semantics in `emergent_testing/module.f.mjs` and
+      `emergent_testing/browser.mjs`, and define the smallest shared API. The
+      shared API is `Reporter<O, R>` and the `RunOutcome<R>` the traversal
+      answers with; the page supplies the parts and nothing else.
+- [x] Name the skeleton's parts explicitly — execute a leaf, report a result,
       link a module — and check that nothing host-specific is left outside one
-      of them.
-- [ ] Make the existing `collectTests`/path behavior the single source of truth
-      for console and browser execution.
+      of them. `test`, `result` and `summary` are the parts; linking a module
+      stays outside the skeleton, which is why `runEntries` exists beside
+      `runModuleMap`.
+- [x] Make the existing `collectTests`/path behavior the single source of truth
+      for console and browser execution. The page's own walk is deleted; it
+      calls `collectTests` once, under its own guard, and hands the leaves to
+      `runEntries`.
 - [x] Share the test-name format, and prove both runners name the same leaf
       identically. The browser report carries a `name` built by `fmtImport`, and
       `nameMatchesTheConsoleRunner` pins it to that function rather than to a
@@ -481,8 +487,12 @@ are shared.
       `TestResult`, built by `testResult`, carrying identity, status and
       duration. Progress, infrastructure-error, totals and report values are
       still each host's own.
-- [ ] Decide whether browser import/time/yield/publication justify
+- [x] Decide whether browser import/time/yield/publication justify
       `fjs/effects/browser/`; document the decision before adding operations.
+      They do not: the interpreter implements `sandbox`, `catch` and `all` and
+      nothing else — import, time and publication are the page's, in its
+      impure shell. Recorded in that module and in
+      `effects/todo/node-module-layering.md`.
 - [ ] Move static proof discovery and `_browser-suite.mjs` generation into
       `fjs/website/module.f.mjs`; extend `fjs/effects/node/` only for a concrete
       missing capability and prove the real and virtual interpretations.
@@ -497,12 +507,25 @@ are shared.
       interpretation, DOM rendering, and browser publication.
 - [ ] Update the generated website entry and browser-test application imports
       to the new module paths.
-- [ ] Prove both runners produce equivalent paths, throw outcomes, recursive
-      test counts, and normalized failures from the same fixtures.
-- [ ] Record every behaviour the browser file has today and the shared core will
-      not keep, as an issue, before the sharing change merges.
+- [x] Prove both runners produce equivalent paths, throw outcomes, recursive
+      test counts, and normalized failures from the same fixtures. They now
+      share the code that decides all four, and `nameMatchesTheConsoleRunner`,
+      `expectedThrowStatusMatchesTheSharedOne` and
+      `normalizedResultMatchesTheSharedOne` assert against the console
+      runner's own functions rather than against a spelling.
+- [x] Record every behaviour the browser file has today and the shared core will
+      not keep, as an issue, before the sharing change merges. Two: the
+      `batchSize = 25` yielding, deleted deliberately so both runners schedule
+      identically, and the unguarded read of a module's *exported* tree, which
+      stays the page's own and is tracked by
+      [hostile-proof-values](./hostile-proof-values.md).
 - [ ] Close each of those issues for both runners at once, so the two stay in
       sync rather than drifting from the day the core is shared.
+- [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's own
+      dispatch failure, as opposed to any proof's. It is the one branch of the
+      page with no proof, and reaching it needs an effect the browser
+      interpreter does not implement, which the public entry point gives no way
+      to inject.
 
 ### Related
 
