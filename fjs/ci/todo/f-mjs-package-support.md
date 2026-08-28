@@ -166,9 +166,14 @@ exposes private types as `_`-prefixed names in `types.d.ts` and as generated
 `private.d.ts` files. Both are package-private by contract, not public API:
 clean-consumer tests must exercise documented public types and must not turn
 `_`-prefixed declaration artifacts into supported API merely because TypeScript
-emitted them. Deleting generated `private.d.ts` before packaging is the second
-stage of
-[`fjs/todo/separate-private-types.md`](../../todo/separate-private-types.md).
+emitted them. Unshipping generated `private.d.ts` is the second stage of
+[`fjs/todo/separate-private-types.md`](../../todo/separate-private-types.md),
+by a `!**/private.d.ts` negation in `package.json`'s `files` — an exclusion at
+pack time, with `prepack` unchanged and the working tree left alone. An earlier
+draft of that design deleted the files instead; do not reintroduce a deletion
+step. Once it lands, `private.d.ts` is no longer among the package-private
+artifacts above — only the `_`-prefixed names in `types.d.ts` remain, and the
+leak-tolerance contract narrows to them.
 
 Package selection does not need to distinguish every authored `.mjs` by public
 API status during this transition. Incidental authored files such as
@@ -370,7 +375,8 @@ not, and the pipeline is simplified accordingly.
   — private-type placement rules and the packaging stage that unships
   generated private declarations.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
-  — upstream blocker for stripping private JSDoc typedefs.
+  — upstream JSDoc typedef stripping limitation; no longer a blocker here, since
+  no authored `.mjs` declares a file-scope typedef to strip.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
 - [`f-js-package-support.md`](./f-js-package-support.md) — stage-2 authored
   `.f.js` package prerequisite.
