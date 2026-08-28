@@ -15,7 +15,7 @@ meaning. Two of its sections, `ownJs` and `chainsJs`, have to run **JavaScript**
 to pin the behavior the nodes are built around, because until this module
 existed nothing could run an EDAG. Its own [`proof.f.mjs`](./proof.f.mjs) is
 what that gap was waiting for: `['+', 2, 3]` is `5` and
-`['&&', false, ['.', null, 'x', null]]` short-circuits are now claims a test
+`['&&', false, ['.', null, 'x']]` short-circuits are now claims a test
 makes by evaluating the node, not by evaluating the JavaScript it was modeled
 on.
 
@@ -54,8 +54,8 @@ preserve identity, and what each is for, are in
 `.` is `a[b]`, so the entire JavaScript prototype chain is reachable:
 
 ```js
-vm(context)(['.', ['=>', ['[]', []], 1], 'constructor', null])   // Function
-vm(context)(['.', ['{}', []], '__proto__', null])       // resolves
+vm(context)(['.', ['=>', ['[]', []], 1], 'constructor'])   // Function
+vm(context)(['.', ['{}', []], '__proto__'])       // resolves
 ```
 
 [`spec/todo/2360-built-in.md`](../../../spec/todo/2360-built-in.md) lists both
