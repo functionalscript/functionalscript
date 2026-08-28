@@ -183,22 +183,19 @@ const mergeTotals = (a, b) =>
     ({ passed: a.passed + b.passed, failed: a.failed + b.failed, duration: a.duration + b.duration })
 
 /**
- * The empty {@link RunOutcome}.
+ * Joins a list of outcomes, keeping the leaf records in the order the walk
+ * produced them — which is what makes a host's report ordered by structure
+ * rather than by which leaf settled first.
  *
- * @type {RunOutcome<never>}
- */
-const zeroOutcome = { totals: zeroTotals, results: [] }
-
-/**
- * Joins two outcomes, keeping the leaf records in the order the walk produced
- * them — which is what makes a host's report ordered by structure rather than
- * by which leaf settled first.
+ * The whole list is joined at once rather than pairwise: folding with a
+ * concatenation copies every record accumulated so far on each step, so a flat
+ * module of N leaves would cost N² copies. `flatMap` walks the records once.
  *
- * @type {<R>(a: RunOutcome<R>, b: RunOutcome<R>) => RunOutcome<R>}
+ * @type {<R>(a: readonly RunOutcome<R>[]) => RunOutcome<R>}
  */
-const mergeOutcome = (a, b) => ({
-    totals: mergeTotals(a.totals, b.totals),
-    results: [...a.results, ...b.results],
+const joinOutcomes = a => ({
+    totals: a.reduce((t, o) => mergeTotals(t, o.totals), zeroTotals),
+    results: a.flatMap(o => o.results),
 })
 
 /**
@@ -271,14 +268,14 @@ export const runEntries = ({ result, test }) => (k, entries) => {
                 // children its return value produced.
                 return mapStep(
                     walkEntries(children),
-                    sub => mergeOutcome(self, sub))
+                    sub => joinOutcomes([self, sub]))
             })
     }
     /** @type {(entries: readonly _TestAndPath[]) => Effect<O | All | Catch, RunOutcome<R>, IoChannel>} */
     const walkEntries = entries =>
         // `allOk` answers in argument order however the effects interleave, so
         // siblings stay in declaration order even though they run concurrently.
-        mapStep(allOk(...entries.map(one)), states => states.reduce(mergeOutcome, zeroOutcome))
+        mapStep(allOk(...entries.map(one)), joinOutcomes)
     return walkEntries(entries)
 }
 
@@ -310,9 +307,12 @@ const proofEntries = moduleMap =>
         .flatMap(([k, v]) => v.proof !== undefined ? [/** @type {const} */ ([k, v.proof])] : [])
 
 /**
- * Runs all test modules in `moduleMap` whose names pass `isTest`, accumulates
- * pass/fail/time via `reporter`, and returns an exit code (0 = all passed,
- * 1 = at least one failure).
+ * Runs all test modules in `moduleMap` whose names pass `isTest`, reporting
+ * each leaf through `reporter` and its totals through `reporter.summary`.
+ *
+ * The answer is the run's {@link RunOutcome}: the folded totals, and every
+ * leaf record the reporter answered with, in structural order. A caller that
+ * wants the run's exit code asks {@link exitCodeOf} for it.
  *
  * @template {Operation} O
  * @template R
@@ -324,7 +324,7 @@ export const runModuleMap = reporter => moduleMap => {
     const modules = proofEntries(moduleMap)
     const total = mapStep(
         allOk(...modules.map(([k, v]) => runModule(reporter)(k, v))),
-        m => m.reduce(mergeOutcome, zeroOutcome))
+        joinOutcomes)
     // The outcome is still needed after the summary has been printed, so it is
     // carried forward in a history rather than closed over by a nested
     // continuation.
