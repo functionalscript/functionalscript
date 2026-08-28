@@ -112,18 +112,19 @@ other implementations may.
 ```text
 module    ::= const* export
 const     ::= 'const' id '=' value ';'
-export    ::= 'export' 'default' value        (no trailing ';')
+export    ::= 'export' 'default' value ';'
 value     ::= primitive | id | array | object
 key       ::= string | '[' '"__proto__"' ']'
 ```
 
-- **`;` terminates every `const`;** no `;` after `export default`, no empty
+- **`;` terminates every statement, `export default` included** — one
+  uniform rule, no per-statement exception; no empty
   statements. Rationale, each sufficient alone: no line-terminator taxonomy in
   the spec (a lone CR *is* a JS `LineTerminator` — trivia no implementer
   should need); one canonical spelling per document; the separator is a
   visible character, so byte-different files that render identically cannot
   differ in meaning; and a document minifies to one line —
-  `const a=[];export default[a,a]` — enabling DataJS inside JSON strings,
+  `const a=[];export default[a,a];` — enabling DataJS inside JSON strings,
   line-delimited streaming, and one-line test fixtures. Whitespace is needed
   only between adjacent word-tokens (`const a`, `export default x`).
 - **Whitespace is JSON's** — space, tab, LF, CR — insignificant everywhere.
@@ -153,7 +154,7 @@ key       ::= string | '[' '"__proto__"' ']'
   than citing ECMA-262.
 - **Every JSON value is a DataJS value; no JSON document is a DataJS
   document** (a DataJS document is a JS module, so it cannot be a JSON
-  document). The textual conversion `"export default " + json` yields a
+  document). The textual conversion `"export default " + json + ";"` yields a
   valid document with one exception: a bare `"__proto__"` object key —
   rejected by DataJS because JS reads it as prototype replacement — must be
   rewritten to the computed spelling `["__proto__"]` during conversion.
