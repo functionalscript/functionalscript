@@ -93,6 +93,28 @@ const beyondIndexRange = () => Object.assign([1], { '4294967295': 2 })
  *
  * @type {() => readonly Unknown[]}
  */
+/**
+ * The same, but the member comes **back** on the second `length` read — the
+ * variant that defeats a pre-read snapshot alone: the walk skips a member the
+ * value ends up carrying, so the value is accepted with a member no reader
+ * ever validated unless the walk's own presence is enforced too.
+ *
+ * @type {() => readonly Unknown[]}
+ */
+const lengthGetterRestoresAMember = () => {
+    const target = ['bad']
+    let n = 0
+    return new Proxy(target, {
+        get: (o, k, r) => {
+            if (k === 'length') {
+                n += 1
+                if (n === 1) { delete o[0] } else if (n === 2) { o[0] = 'bad' }
+            }
+            return Reflect.get(o, k, r)
+        },
+    })
+}
+
 const lengthGetterDeletesAMember = () => {
     const target = ['bad']
     let fired = false
@@ -172,12 +194,17 @@ export const proof = {
     // read and re-asked against the final state, so the deletion is caught on
     // every reader instead of steering one of them into an accept.
     lengthGetterCannotSteerTheVerdict: () => {
-        /** @type {readonly Type[]} */
-        const schemas = [[or(option, number)], [number]]
-        for (const t of schemas) {
-            const rv = v(t)(lengthGetterDeletesAMember())
-            assertEq(rv[0], p(t)(lengthGetterDeletesAMember())[0], 'validate and parse must agree')
-            assertEq(rv[0], d(t)(lengthGetterDeletesAMember())[0], 'the data form must agree too')
+        /** @type {readonly (readonly [Type, () => readonly Unknown[]])[]} */
+        const rows = [
+            [[or(option, number)], lengthGetterDeletesAMember],
+            [[number], lengthGetterDeletesAMember],
+            [[or(option, number)], lengthGetterRestoresAMember],
+            [[number], lengthGetterRestoresAMember],
+        ]
+        for (const [t, mk] of rows) {
+            const rv = v(t)(mk())
+            assertEq(rv[0], p(t)(mk())[0], 'validate and parse must agree')
+            assertEq(rv[0], d(t)(mk())[0], 'the data form must agree too')
             // and what they agree on: the member the schema declared was
             // there when it was decided, so losing it is a rejection
             assertError(rv)

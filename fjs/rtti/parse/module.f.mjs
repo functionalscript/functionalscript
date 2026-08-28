@@ -378,8 +378,11 @@ const constContainerParse =
             if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
                 return verror('unexpected value')
             }
-            // The pre-bound presence, as in `../validate/module.f.mjs`.
-            if (!presenceUnchanged(rttiEntries, presence[1], value)) {
+            // Both the pre-bound presence and the walk's own, as in
+            // `../validate/module.f.mjs` — each catches a flip the other
+            // does not.
+            if (!presenceUnchanged(rttiEntries, presence[1], value)
+                || !presenceUnchanged(rttiEntries, r[1].presence, value)) {
                 return verror('unexpected value')
             }
             const built = /** @type {ReadonlyArray<Unknown> | StringMap<Unknown>} */ (rebuild(r[1].entries))

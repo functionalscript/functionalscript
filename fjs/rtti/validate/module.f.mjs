@@ -266,10 +266,14 @@ const constContainerValidate =
             }
             // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
             // structurally equivalent to C — TypeScript can't narrow element types through the loop.
-            // Against the presence decided *before* the bound was read, not
-            // the walk's own: that is what makes a mutating `length` getter a
-            // rejection rather than a steer.
+            // Against **both** snapshots: the one decided before the bound
+            // was read, and the walk's own. A `length` getter that deletes a
+            // declared member is caught by the first, and one that deletes it
+            // on its first read and restores it on its second — leaving the
+            // walk to skip a member the value ends up carrying unvalidated —
+            // is caught by the second. Either alone leaves the other open.
             return presenceUnchanged(rttiEntries, presence[1], value)
+                && presenceUnchanged(rttiEntries, r[1], value)
                 ? /** @type {any} */ (ok(value))
                 : verror('unexpected value')
         }
