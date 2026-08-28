@@ -215,29 +215,24 @@ const constContainerValidate =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            // Probe every declared member's **presence** first, bound the
-            // container next, and read the members last — each member's
-            // decision made once and then *used*, never re-derived.
+            // Decide each declared member's presence, bound the container,
+            // then read the members — in that order, and each decision made
+            // once and then used rather than re-derived.
             //
-            // Deciding before the bound is what keeps the length read from
-            // steering a decision, and probing once is what keeps the walk
-            // from asking a question the value could answer differently the
-            // second time: the walk consumes `present` rather than testing
-            // `k in value` again, and an absent member's schema is consulted
-            // once, so a stateful thunk sees one evaluation as it did before.
-            // The counts match the pre-change reader — one probe per member
-            // here, one in `presenceUnchanged` below — so nothing new is
-            // dispatched at the value except the bound itself.
+            // The order is what makes an `or` of two arities linear instead
+            // of 2^depth, which is the shape a schema uses to say a trailing
+            // operand may be left out (`fjs/edag`'s chain nodes). Both steps
+            // earn their place, in opposite directions: the bound settles the
+            // arm whose value is too long, and the presence pass settles the
+            // one whose value is too short, by reaching its absent last
+            // member before any recursion. `parse` does the same, which is
+            // what keeps the two readers reporting the same error.
             //
-            // Bounding before the reads is load-bearing for an `or` of two
-            // arities, the shape a schema uses to say a trailing operand may
-            // be left out (`fjs/edag`'s chain nodes). Without it each arm
-            // walks the shared operands before failing, so validating a
-            // nested chain costs 2^depth; with it each arm is settled before
-            // any recursion — by the bound where the value is too long, and
-            // by the absent last member where it is too short. `parse` does
-            // the same, which is what keeps the two readers reporting the
-            // same error.
+            // Reading `length` before the members assumes reading it has no
+            // effect — true of every DJS value, and the assumption the
+            // readers are written under. What that gives up for a value built
+            // by arbitrary JavaScript is stated in "What the readers assume
+            // of a value" in `../README.md`.
             const withPresence = rttiEntries.map(([k, v]) =>
                 /** @type {readonly[string, readonly[typeof v, boolean]]} */ ([k, [v, k in value]]))
             if (!fits(value, declared.length)) {
@@ -262,9 +257,8 @@ const constContainerValidate =
             }
             // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
             // structurally equivalent to C — TypeScript can't narrow element types through the loop.
-            // One comparison suffices: the walk recorded the decisions it
-            // was given, so `r[1]` *is* the pre-bound snapshot, and a member
-            // lost or restored across the reads shows up as a flip here.
+            // The walk recorded the decisions it was given, so this asks
+            // the pre-bound snapshot against the final state.
             return presenceUnchanged(rttiEntries, r[1], value)
                 ? /** @type {any} */ (ok(value))
                 : verror('unexpected value')

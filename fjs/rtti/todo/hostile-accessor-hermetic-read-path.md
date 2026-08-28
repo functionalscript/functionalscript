@@ -39,6 +39,13 @@ accessor has already run arbitrary code in the host, so this hardening is
 about the readers' own answers staying theirs, not about containing the
 host.
 
+Note that the readers do not currently claim otherwise: "What the readers
+assume of a value" in [`../README.md`](../README.md) states the DJS
+assumption and names the one ordering that gives it up by design — a closed
+container is bounded by `length` before its members are read, so a `length`
+getter decides what they are. This issue is the work of *narrowing* that,
+should it ever be wanted; nothing depends on it today.
+
 ### Tasks
 
 - [ ] Extend the discipline the rebuilds and `eachEntry` state to the

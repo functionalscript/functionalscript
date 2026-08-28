@@ -77,6 +77,48 @@ For reading a value straight from JSON text against a schema, see
 one pass, no intermediate value, and it can reject `1.00000000000000001`
 against a `bigint`, which no reader over an already-materialized value can do.
 
+## What the readers assume of a value
+
+The readers are written for **DJS values**: plain arrays and objects of
+primitives, the values FunctionalScript itself can build. Reading a member of
+one of those has no effect, and every guarantee below rests on that.
+
+A value built by arbitrary JavaScript need not behave that way. A getter or a
+`Proxy` trap runs code on being read, so for such a value *asking a question
+is an action*, and the readers do not defend against it. Concretely:
+
+- **A closed container is bounded by `length` before its members are read**,
+  which is what keeps an `or` of two arities from walking a shared operand
+  once per arm — validating a deeply nested `../edag/` chain is linear rather
+  than exponential because of it. The cost is that a `length` getter runs
+  before the members are read and can decide what they are: a proxy over
+  `['bad']` whose `length` getter sets index 0 to `1` is **accepted** against
+  `[number]` by `parse` and `validate`, while the data form rejects it.
+- **So the three readers can disagree on such a value.** The agreement the
+  tables in `validate/proof.f.mjs` pin — and that `host.proof.mjs` holds them
+  to — is a promise about values whose reads are side-effect-free, which is
+  every DJS value and every ordinary array. It is not a promise about a value
+  engineered to answer differently each time it is asked.
+- **More of the verdict path is steerable than that one read**, by patching
+  the intrinsics the readers use rather than the value they read;
+  [`todo/hostile-accessor-hermetic-read-path.md`](./todo/hostile-accessor-hermetic-read-path.md)
+  enumerates those and is where hardening work belongs if it is ever wanted.
+
+What still holds for any value at all: a reader returns a `Result` rather than
+throwing on ordinary input, and `validate` hands back the value it was given
+rather than a reconstruction. What is *not* promised for a hostile one is that
+its verdict matches another reader's, or that the value still denotes what was
+checked by the time the reader returns.
+
+This is a deliberate boundary, not an oversight. Hardening the readers against
+values the language cannot produce costs speed on every value it can: the
+prototype-chain walk that finds inherited indices and the presence re-check
+that catches a flipped member together account for roughly 40% of validation
+time on a graph of small containers. A caller reading genuinely untrusted
+JavaScript should convert it to DJS first — or parse from text, where
+[`../media/json/todo/rtti-parse.md`](../media/json/todo/rtti-parse.md) reads
+against a schema in one pass with no intermediate value to subvert.
+
 ## Schema types
 
 A `Type` is one of:

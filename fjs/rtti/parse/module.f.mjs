@@ -340,9 +340,10 @@ const constContainerParse =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            // Probe presence once, bound, then read — each decision made
-            // once and then used, never re-derived. See the comment on the
-            // same shape in `../validate/module.f.mjs`.
+            // Presence, then the bound, then the reads — each decision
+            // made once and then used. See the comment on the same shape in
+            // `../validate/module.f.mjs`, including what reading `length`
+            // first assumes of the value.
             const withPresence = rttiEntries.map(([k, t]) =>
                 /** @type {readonly[string, readonly[typeof t, boolean]]} */ ([k, [t, k in value]]))
             if (!fits(value, declared.length)) {
@@ -365,8 +366,8 @@ const constContainerParse =
             if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
                 return verror('unexpected value')
             }
-            // The walk recorded the decisions it was given, so this one
-            // comparison is against the pre-bound snapshot.
+            // The walk recorded the decisions it was given, so this asks
+            // the pre-bound snapshot against the final state.
             if (!presenceUnchanged(rttiEntries, r[1].presence, value)) {
                 return verror('unexpected value')
             }
