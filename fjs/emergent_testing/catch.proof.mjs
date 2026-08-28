@@ -8,8 +8,6 @@
  * `ok(ok(f()))` for exactly that reason, so it cannot demonstrate the behaviour
  * — only a host runner can, and a host runner belongs in a host file.
  *
- * @module
- *
  * @import { RunInstance } from '../effects/mock/types.ts'
  * @import { All, Catch, Sandbox, Write } from '../effects/node/types.ts'
  * @import { Reporter } from './types.ts'
