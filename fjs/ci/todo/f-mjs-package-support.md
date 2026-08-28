@@ -219,10 +219,26 @@ emission, `npm pack`, and a clean consumer.
       outputs.
 - [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
       output tracking or cleanup for artifacts from previous revisions.
-- [ ] Add a package fixture in the current source model — `module.f.mjs` with an
-      authored `types.ts` and, for the private-declaration check, a sibling
-      `private.ts` (authored implementation and proof `.f.ts` are retired, so
-      the fixture must not reintroduce them). Scope: the fixture exercises the
+- [ ] Add a package fixture in the current source model — `module.f.mjs` with a
+      co-located `proof.f.mjs`, an authored `types.ts` and, for the
+      private-declaration check, a sibling `private.ts` (authored
+      implementation and proof `.f.ts` are retired, so the fixture must not
+      reintroduce them). The proof is not optional paperwork: `fjs/AGENTS.md`
+      §1.2 requires 100% proof coverage for every authored `.f.mjs`, so a
+      fixture without one fails `npm run cov` and lands the repository in
+      violation of its own rule — while demonstrating package support.
+      Two constraints follow from what the fixture is *for*:
+      - It must be a **conforming** module: its private type stays out of every
+        exported signature, matching the public-declaration-closure rule and
+        the rest of the tree. A fixture that exports a private-typed binding
+        would permanently redden the packed-declaration check it exists to
+        support.
+      - The falsifiability control is therefore a *deliberate, temporary*
+        violation applied when verifying the check can fail — export a binding
+        whose signature names the private type — not the fixture's steady
+        state. Measured to work end to end in
+        [`../../todo/separate-private-types.md`](../../todo/separate-private-types.md).
+      Scope: the fixture exercises the
       supported, fully erased `import type` form only. The forbidden inline `import { type X }` /
       `import * as` / side-effect forms are a documented one-time measurement
       ([`packed-consumer-validation.md`](../packed-consumer-validation.md),
