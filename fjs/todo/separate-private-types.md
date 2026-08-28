@@ -13,7 +13,34 @@ The requirement is a clean, self-contained public declaration/API boundary.
 `private.ts` and subordinate modules such as `meta/module.f.mjs` are **tools** for
 reaching that result, not required companion files.
 
-### Rules
+### Staging
+
+The work lands in two stages that are shippable independently:
+
+1. **Stage 1 — source restructuring.** Everything below except
+   [Declaration emission and packaging](#declaration-emission-and-packaging):
+   the file-scope typedef prohibition, the public declaration closure in
+   `types.ts`, optional `private.ts` and `meta/module.f.mjs`, the dependency
+   order, breaking migrations, and the matching policy documentation.
+2. **Stage 2 — packaging cleanup.** The
+   [Declaration emission and packaging](#declaration-emission-and-packaging)
+   rules: delete generated `private.d.ts` as the final `prepack` step and
+   validate the packed artifact semantically.
+
+Stage 1 is complete on its own. While Stage 2 has not landed, generated
+`private.d.ts` files ship in the package. That is safe: `types.ts` must not
+depend on `private.ts`, so no shipped public declaration semantically depends
+on a `private.d.ts` — the shipped file is declaration noise only, the same
+leak the existing `_` tolerance policy
+([`../fsc/README.md`](../fsc/README.md)) already covers, consolidated into one
+file per module. Deleting it in Stage 2 is therefore not a breaking change,
+and the `_` leak-tolerance policy stays in force until Stage 2 removes the
+last leak.
+
+A Stage 1 PR checks off the Stage 1 tasks and leaves this file in place; the
+Stage 2 PR deletes it.
+
+### Rules (Stage 1)
 
 #### No file-scope typedefs in authored `.mjs`
 
@@ -166,6 +193,8 @@ linkage exposes them.
 
 ### Declaration emission and packaging
 
+This section is Stage 2. It may land after Stage 1 as a separate change.
+
 If `private.ts` is used, keep it in the normal TypeScript program so source users
 are checked. Declaration emit may therefore create an intermediate
 `private.d.ts`.
@@ -194,21 +223,28 @@ Package validation must check semantic dependencies, not raw text:
 
 ### Repository policy
 
-When this TODO is implemented:
+When Stage 1 is implemented:
 
 - update root `AGENTS.md` with the repository-wide rule that authored `.mjs` files
   may not contain file-scope JSDoc `@typedef`;
 - update `fjs/AGENTS.md` with the public-declaration-closure rule, optional
   `private.ts`, optional subordinate metaprogramming modules such as
-  `meta/module.f.mjs`, and the dependency-order guidance;
+  `meta/module.f.mjs`, and the dependency-order guidance.
+
+When Stage 2 is implemented:
+
 - update `fjs/fsc/README.md` and delete or narrow
   `todo/blocked/jsdoc-typedef-strip-internal.md` so the repository does not keep
-  two conflicting private-type strategies.
+  two conflicting private-type strategies. Both documents describe the `_`
+  leak-tolerance policy, which remains factually correct until Stage 2 unships
+  the last private declaration.
 
 Authored TypeScript type modules (`types.ts`, and `private.ts` when present) remain
 type-only and use named `import type { ... }` imports.
 
 ### Tasks
+
+#### Stage 1 — source restructuring
 
 - [ ] Document the repository-wide prohibition on file-scope JSDoc `@typedef` in
       authored `.mjs`; allow function-local typedefs.
@@ -230,23 +266,35 @@ type-only and use named `import type { ... }` imports.
 - [ ] Preserve leading `_` for private types and private runtime constants.
 - [ ] Treat chosen public import-path moves as breaking changes with no
       compatibility re-exports.
+- [ ] Add fixtures/examples covering: public-declaration helpers, optional
+      `private.ts`, function-local proof typedefs, recursive RTTI kept in
+      `module.f.mjs`, optional `meta/module.f.mjs`, and authored `.mjs` outside
+      `fjs/`.
+- [ ] Update root and `fjs/` `AGENTS.md` policy documentation.
+
+#### Stage 2 — packaging cleanup
+
 - [ ] If `private.ts` is used, delete generated `private.d.ts` as the final
       `prepack` step.
 - [ ] Do not text-postprocess emitted declarations; validate semantic private
       dependencies and clean-consumer type checking instead.
-- [ ] Add fixtures/examples covering: public-declaration helpers, optional
-      `private.ts`, function-local proof typedefs, recursive RTTI kept in
-      `module.f.mjs`, optional `meta/module.f.mjs`, retained non-semantic JSDoc
-      comments, and authored `.mjs` outside `fjs/`.
-- [ ] Update root/fjs policy documentation and reconcile the old `_` leak policy.
+- [ ] Add fixtures covering packaging: retained non-semantic JSDoc `@import`
+      comments in emitted declarations, absent private artifacts in the tarball,
+      and a clean package consumer.
+- [ ] Update `fjs/fsc/README.md` and reconcile the old `_` leak policy and the
+      blocked `@internal` TODO.
 
 ### Acceptance criteria
 
-- The public declaration/API surface is clean and self-contained.
+#### Stage 1 — source restructuring
+
+- The public declaration surface is self-contained; no public declaration
+  semantically depends on `private.ts`. Generated `private.d.ts` files may
+  still ship until Stage 2 — the leak is consolidated, not yet removed.
 - No authored `.mjs` anywhere in the repository contains a file-scope JSDoc
   `@typedef`; function-local typedefs are allowed.
-- `types.ts` contains the public declaration closure and does not depend on an
-  unshipped private type module.
+- `types.ts` contains the public declaration closure and does not depend on
+  `private.ts`.
 - `private.ts`, when present, is an optional implementation tool rather than a
   required companion.
 - A subordinate module such as `meta/module.f.mjs`, when present, is an optional
@@ -258,14 +306,20 @@ type-only and use named `import type { ... }` imports.
   `meta/module.f.mjs`; no metadata-specific coverage convention exists.
 - Chosen public import-path moves are breaking migrations with importers/changelog
   updated and no compatibility re-exports.
+- Root `AGENTS.md` and `fjs/AGENTS.md` document the Stage 1 rules.
+
+#### Stage 2 — packaging cleanup
+
+- The public declaration/API surface is clean: no private type artifact that is
+  intended to be unshipped is present in the tarball.
 - If declaration emit creates `private.d.ts`, final-`prepack` cleanup removes it
   before packaging.
 - Emitted declarations are not text-postprocessed; retained JSDoc `@import`
   comments are allowed when they are non-semantic.
 - The packed artifact has no semantic dependency on an unshipped private type
   module, and a clean TypeScript consumer type-checks successfully.
-- Root `AGENTS.md`, `fjs/AGENTS.md`, `fjs/fsc/README.md`, and the blocked
-  `@internal` TODO no longer prescribe conflicting rules.
+- `fjs/fsc/README.md` and the blocked `@internal` TODO no longer prescribe
+  conflicting rules.
 
 ### Related
 
