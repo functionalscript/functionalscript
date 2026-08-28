@@ -4,7 +4,7 @@
  * @import { NodeProgramOptions, OpResult, Sandbox, Write } from '../effects/node/types.ts'
  * @import { JsModule } from '../effects/node/virtual/types.ts'
  * @import { Reporter } from './types.ts'
- * @import { All, Await, Import, Readdir, Test, TestContext } from '../effects/node/types.ts'
+ * @import { All, Await, Catch, Import, Readdir, Test, TestContext } from '../effects/node/types.ts'
  * @import { Ts } from '../rtti/ts/types.ts'
  */
 
@@ -309,7 +309,7 @@ export const githubReporterOutput = () => {
 // the failure on, so the exit code rather than a message is what is observable:
 // a run that cannot say anything at all still says it failed.
 export const reporterWriteFailure = () => {
-    /** @typedef {All | Import | Readdir | Sandbox | Write} _FailOps */
+    /** @typedef {All | Catch | Import | Readdir | Sandbox | Write} _FailOps */
     /** @type {RunInstance<_FailOps, undefined>} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_FailOps, undefined>>[0]} */ ({
@@ -327,6 +327,10 @@ export const reporterWriteFailure = () => {
         },
         sandbox: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) =>
             [s, ok({ result: ok(f()), duration: 0 })],
+        // Benign, like the virtual runner's: this proof is about a reporter
+        // that cannot write, and its fixture's tree reads cleanly.
+        catch: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) =>
+            [s, ok(ok(f()))],
         write: (_stream, _data) => s => [s, error(['notImplemented', 'write'])],
     }))
     const [, code] = runner(undefined)(

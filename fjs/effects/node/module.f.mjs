@@ -14,7 +14,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
+ * @import { All, Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -127,7 +127,7 @@ export const isNotFound = ([tag, payload]) =>
  * @type {CommandSet<NodeOp>}
  */
 const nodeCommandSet = {
-    access: null, all: null, await: null, createExclusive: null,
+    access: null, all: null, await: null, catch: null, createExclusive: null,
     createServer: null, exec: null, fetch: null, forever: null,
     import: null, listen: null, memCreate: null, memRead: null,
     memWrite: null, mkdir: null, now: null, randomInt: null,
@@ -451,6 +451,16 @@ export const sandbox = do_('sandbox')
 
 /** @type {Func<Await>} */
 const awaitPromise = do_('await')
+
+// catch
+
+/**
+ * Runs a pure thunk, answering `ok(v)` for what it returned and `error(e)` for
+ * what it threw. See {@link Catch} for why this is not `sandbox`.
+ *
+ * @type {Func<Catch>}
+ */
+export const catch_ = do_('catch')
 
 /** @type {(p: unknown) => Effect<Await, unknown, NotImplemented>} */
 export const awaitIfPromise = p =>

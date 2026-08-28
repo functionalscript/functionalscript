@@ -166,6 +166,15 @@ and is reviewable without the next one.
       [node-module-layering](../../effects/todo/node-module-layering.md) is
       where those rulings live, and it already declines to move `Now` and
       `RandomInt` for a related reason.
+      **The `catch` operation landed first, because step 7 cannot be written
+      without it.** The shared walk enumerates what a leaf returned, which runs
+      user code; the browser catches that today and the shared walk did not, so
+      sharing the traversal would have *lost* a behaviour. `sandbox` could not
+      hold the guard — the virtual runner's is a fixture pass-through — so
+      [hostile proof values](hostile-proof-values.md) named a second operation
+      and this took it. `fjs t` gained the behaviour in the process, which is
+      what made that change worth landing on its own rather than inside the port.
+
 - [ ] **5. A browser interpreter** for exactly those operations, with no
       scheduling policy of its own. This is also what earns step 4's *operation*
       move its second consumer: until a second host implements `sandbox`,
