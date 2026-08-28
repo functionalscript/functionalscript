@@ -15,8 +15,8 @@
  *
  * @import { DataRule, Rule as FRule, Sequence as FSequence } from '../types.ts'
  * @import { StringSet } from '../../types/string_set/types.ts'
- * @import { _EmptyTagMap, _FRuleMap, _NewRule } from './private.ts'
- * @import { EmptyTag, Repeat, Rule, RuleSet, Sequence, Variant } from './types.ts'
+ * @import { EmptyTag, Repeat, Rule, RuleSet, Sequence, Variant, _EmptyTagMap } from './types.ts'
+ * @import { _FRuleMap, _NewRule } from './private.ts'
  */
 
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'

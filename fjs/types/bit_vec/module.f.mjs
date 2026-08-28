@@ -27,7 +27,7 @@
  * @import { Absorbing } from '../../common/monoid/types.ts'
  * @import { Sign } from '../function/compare/types.ts'
  * @import { Nullable } from '../nullable/types.ts'
- * @import { BitOrder, PopFront, Reduce, Unpacked, Vec, _NormOp, _UnpackConcat, } from './types.ts'
+ * @import { BitOrder, PopFront, Reduce, Unpacked, Vec, _Base, _NormOp, _UnpackConcat, } from './types.ts'
  */
 
 import { bitLength, divUp, mask, maxLength, xor } from '../bigint/module.f.mjs'
@@ -169,15 +169,6 @@ const op = norm => op => ap => bp => {
     const { a, b } = norm(au)(bu)(len)
     return vec(len)(op(a)(b))
 }
-
-/**
- * @typedef {{
- *  readonly norm: _NormOp
- *  readonly uintCmp: (a: bigint) => (b: bigint) => Sign
- *  readonly unpackSplit: (len: bigint) => (u: Unpacked) => readonly[bigint, bigint]
- *  readonly unpackConcatUint: (a: Unpacked) => (b: Unpacked) => bigint
- * }} _Base
- */
 
 const unpackEmpty = /** @type {const} */{ length: 0n, uint: 0n }
 

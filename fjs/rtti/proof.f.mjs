@@ -2,15 +2,14 @@
  * @import { StringMap } from '../types/object/types.ts'
  * @import { Assert } from '../asserts/types.ts'
  * @import { Equal } from '../types/ts/types.ts'
- * @import { Option, Or, Rest, Type1, Unknown } from './types.ts'
+ * @import { Option, Or, Primitive0, Rest, Tag1, Type1, Unknown } from './types.ts'
+ * @import { _primitive0List, _tag1List } from './module.f.mjs'
  */
 
 import { assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { array, number, open, option, or, record, rest, string, unknown } from './module.f.mjs'
 
-/** @typedef {StringMap<readonly unknown[]>} _Tests */
-
-/** @type {_Tests} */
+/** @type {StringMap<readonly unknown[]>} */
 const tests = {
     undefined: [undefined],
     boolean: [true, false],
@@ -62,6 +61,11 @@ const constInference = () => {
 }
 
 export const proof = {
+    /** The literal tag lists match the type-level unions in `./types.ts`. */
+    pinnedLists: () => {
+        /** @typedef {Assert<Equal<Primitive0, typeof _primitive0List[number]>>} _Primitive0Pinned */
+        /** @typedef {Assert<Equal<Tag1, typeof _tag1List[number]>>} _Tag1Pinned */
+    },
     constInference,
     typeof: Object.fromEntries(Object.entries(tests).map(([k, a]) => [k, assertNotNullish(a).map(v => () => {
         if (typeof v !== k) { throw `typeof ${v} !== ${k}` }

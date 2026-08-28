@@ -8,7 +8,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Curve } from '../secp/types.ts'
  * @import { Sha2 } from '../sha2/types.ts'
- * @import { All } from './types.ts'
+ * @import { All, _Signature } from './types.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
@@ -132,8 +132,6 @@ export const computeK =
             }
         }
     }
-
-/** @typedef {Tuple<2, bigint>} _Signature */
 
 /**
  * Signs a message bit vector and returns an ECDSA `(r, s)` signature pair.

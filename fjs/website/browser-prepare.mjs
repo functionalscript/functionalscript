@@ -25,8 +25,6 @@ const files = async directory => {
     }))).flat()
 }
 
-/** @typedef {{ readonly blockers: readonly string[], readonly local: readonly URL[] }} _Module */
-
 /**
  * Reads the modules reachable from `frontier` one level at a time, recording
  * for each the bare and `node:` specifiers that would keep a browser from
@@ -39,7 +37,10 @@ const files = async directory => {
  * that were never its own. A genuinely missing relative import cannot survive
  * anyway, since the proof suite loads every one of these modules in Node.
  *
- * @type {(frontier: readonly URL[], graph: ReadonlyMap<string, _Module>) => Promise<ReadonlyMap<string, _Module>>}
+ * @type {(
+ *   frontier: readonly URL[],
+ *   graph: ReadonlyMap<string, { readonly blockers: readonly string[], readonly local: readonly URL[] }>,
+ * ) => Promise<ReadonlyMap<string, { readonly blockers: readonly string[], readonly local: readonly URL[] }>>}
  */
 const readGraph = async (frontier, graph) => {
     const next = frontier.filter(url => !graph.has(url.href))
@@ -60,7 +61,7 @@ const readGraph = async (frontier, graph) => {
  * The blockers reachable from `root`, deduplicated. Empty means the whole
  * dependency graph is plain relative ES modules, which a browser can link.
  *
- * @type {(graph: ReadonlyMap<string, _Module>, root: URL) => readonly string[]}
+ * @type {(graph: Awaited<ReturnType<typeof readGraph>>, root: URL) => readonly string[]}
  */
 const blockersOf = (graph, root) => {
     /** @type {(frontier: readonly string[], visited: ReadonlySet<string>) => ReadonlySet<string>} */

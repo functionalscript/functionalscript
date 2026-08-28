@@ -7,14 +7,12 @@ import { eachEntry, structSchemaEntries, tupleSchemaEntries, undeclaredMembers }
 import { error, ok } from '../../types/result/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
-/** @typedef {ReadonlyArray<readonly [string, number]>} _Entries */
-
 /** @type {(k: string, v: number) => Result<number, ValidationError>} */
 const item = (k, v) =>
     v < 0 ? error({ path: [], message: `negative at ${k}` }) : ok(v * 2)
 
 /** Mirrors `parse`'s accumulate step, kept simple (a small test list, not a `List`). */
-/** @type {(acc: _Entries, k: string, v: number) => _Entries} */
+/** @type {(acc: ReadonlyArray<readonly [string, number]>, k: string, v: number) => ReadonlyArray<readonly [string, number]>} */
 const collect = (acc, k, v) => [...acc, [k, v]]
 
 export const proof = {

@@ -13,9 +13,9 @@
  * @module
  *
  * @import { Effect } from '../types.ts'
- * @import { IoResult, Server as EffectServer, Headers, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
+ * @import { IoResult, Server as EffectServer, Module, NodeOp, RequestListener as Erl, NodeProgram, NodeProgramOptions, WriteConsoles, TestContext, TestFn, } from './types.ts'
+ * @import { _Readable, _RequestListener, _Server, _ServerResponse } from './private.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { StringMap } from '../../types/object/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
@@ -40,40 +40,6 @@ import { asyncTryCatch, tryCatch } from '../../types/result/module.mjs'
 import { fromVec, listToVec, toVec } from '../../types/uint8array/module.f.mjs'
 import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
 
-/** The one thing this runner does with the socket a `connect` event hands it.
- *
- * @typedef {{ readonly end: (data: string) => void }} _Socket
- */
-
-/**
- * @typedef {{
- *   readonly listen: (port: number, host: string) => void,
- *   readonly once: (event: string, f: (e: unknown) => void) => void,
- *   on(event: string, f: (req: unknown, socket: _Socket) => void): void,
- *   readonly removeListener: (event: string, f: (e: unknown) => void) => void,
- * }} _Server
- */
-
-/** @typedef {AsyncIterable<Uint8Array>} _Readable */
-
-/**
- * @typedef {_Readable & {
- *   readonly method: string,
- *   readonly url: string,
- *   readonly headers: Headers,
- * }} _IncomingMessage
- */
-
-/**
- * @typedef {{
- *   readonly writeHead: (status: number, headers: StringMap<string>) => _ServerResponse,
- *   readonly end: (body: Uint8Array) => void,
- *   readonly headersSent: boolean,
- * }} _ServerResponse
- */
-
-/** @typedef {(req: _IncomingMessage, res: _ServerResponse) => Promise<void>} _RequestListener */
-
 /**
  * Narrowed structural view of `node:http`'s `createServer`. The official types
  * declare `method`/`url` optional and header values as
@@ -82,8 +48,6 @@ import { maxLengthBytes } from '../../types/bit_vec/module.f.mjs'
  * @type {(listener: _RequestListener) => _Server}
  */
 const createServer = http.createServer
-
-/** @typedef {<T, E>(effect: Effect<NodeOp, T, E>) => Promise<Result<T, E>>} _EffectToPromise */
 
 /**
  * Performs host IO, reporting a thrown failure as an {@link IoResult} error.
@@ -355,7 +319,7 @@ const randomMax = Number(1n << 32n)
 
 const { randomInt } = crypto
 
-/** @type {_EffectToPromise} */
+/** @type {<T, E>(effect: Effect<NodeOp, T, E>) => Promise<Result<T, E>>} */
 const runNodeEffect = asyncRun({
     ...memoryOperationMap(),
     all: async (...effects) => ok(await Promise.all(effects.map(runNodeEffect))),
@@ -553,9 +517,7 @@ const inlineTest = async (name, { expectFailure }, fn) => {
 /** @type {TestContext} */
 const inlineContext = { test: inlineTest }
 
-/** @typedef {(name: string, fn: () => Promise<void>) => Promise<void>} _FrameworkRegister */
-
-/** @type {(register: _FrameworkRegister) => TestContext} */
+/** @type {(register: (name: string, fn: () => Promise<void>) => Promise<void>) => TestContext} */
 const wrapInlineTest = register => ({
     test: (name, opts, fn) => register(name, () => inlineTest(name, opts, fn))
 })

@@ -28,25 +28,17 @@ const { concat, front } = msb
 // across every `base(...)` config (32-bit and 64-bit SHA-2 variants).
 const chunkListMsb = chunkList(msb)
 
-/** @typedef {Tuple<3, bigint>} _V3 */
-
-/** @typedef {Tuple<4, bigint>} _V4 */
-
-/**
- * @typedef {{
- *   readonly logBitLen: bigint,
- *   readonly k: readonly V16[],
- *   readonly bs0: _V3,
- *   readonly bs1: _V3,
- *   readonly ss0: _V3,
- *   readonly ss1: _V3,
- * }} _BaseInit
- */
-
 /** @type {Vec} */
 const lastOne = vec(1n)(1n)
 
-/** @type {(init: _BaseInit) => Base} */
+/** @type {(init: {
+ *   readonly logBitLen: bigint,
+ *   readonly k: readonly V16[],
+ *   readonly bs0: Tuple<3, bigint>,
+ *   readonly bs1: Tuple<3, bigint>,
+ *   readonly ss0: Tuple<3, bigint>,
+ *   readonly ss1: Tuple<3, bigint>,
+ * }) => Base} */
 const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
 
     const bitLength = 1n << logBitLen
@@ -57,7 +49,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
         return n => n >> d | n << r
     }
 
-    /** @type {(third: Reduce) => (..._: _V3) => (x: bigint) => bigint} */
+    /** @type {(third: Reduce) => (..._: Tuple<3, bigint>) => (x: bigint) => bigint} */
     const sigma = third => (a, b, c) => {
         const ra = rotr(a)
         const rb = rotr(b)
@@ -85,7 +77,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
 
     const m = mask(bitLength)
 
-    /** @type {(..._: _V4) => bigint} */
+    /** @type {(..._: Tuple<4, bigint>) => bigint} */
     const wi = (a0, a1, a2, a3) =>
         (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) & m
 

@@ -1,6 +1,10 @@
-import type { AstResult, Cursor } from "../matcher/types.ts"
-import type { TerminalRange } from "../types.ts"
-import type { CodePointMeta } from "./types.ts"
+/**
+ * Implementation-private types for the recursive descent matcher backend.
+ */
+
+import type { TerminalRange } from '../types.ts'
+import type { AstResult, Cursor } from '../matcher/types.ts'
+import type { CodePointMeta, DescentFailure } from './types.ts'
 
 /**
  * The furthest-failure record while matching, positioned by the complete
@@ -13,9 +17,9 @@ export type _Failure = {
 }
 
 /**
- * The machine's own result: a {@link DescentMatchResult} positioned by the
- * complete cursor, and with no failure record — that one is tracked per match
- * rather than per frame. This backend always has a position, so it needs no
- * `null` case.
+ * The machine's own result: a `DescentMatchResult` positioned by the complete
+ * cursor, and with no failure record — that one is tracked per match rather
+ * than per frame. This backend always has a position, so it needs no `null`
+ * case.
  */
 export type _Result<T> = AstResult<CodePointMeta<T>, Cursor>

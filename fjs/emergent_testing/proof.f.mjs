@@ -39,21 +39,17 @@ const event = or(
     /** @type {const} */ (['summary', rttiNumber, rttiNumber, rttiNumber]),
 )
 
-/** @typedef {Ts<typeof event>} _Event */
-
 const parseEvent = rttiParse(event)
 
-/** @typedef {Reporter<Sandbox | Write>} _TestReporter */
-
-/** @type {(e: _Event) => Effect<Write, void, NotImplemented>} */
+/** @type {(e: Ts<typeof event>) => Effect<Write, void, NotImplemented>} */
 const writeEvent = e => log(JSON.stringify(e))
 
-/** @type {(stdout: string) => readonly _Event[]} */
+/** @type {(stdout: string) => readonly Ts<typeof event>[]} */
 const parseEvents = stdout =>
     stdout === '' ? [] : stdout.trimEnd().split('\n')
         .map(line => unwrap(parseEvent(unwrap(parseJson(line)))))
 
-/** @type {() => _TestReporter} */
+/** @type {() => Reporter<Sandbox | Write>} */
 const makeReporter = () => ({
     // The leaf-landed event arrives with the shared `TestResult` already
     // built, so what this writes — and what the proofs below assert on — is
@@ -77,7 +73,7 @@ const fail0 = () => ({ result: /** @type {const} */ (['error', 'oops']), duratio
 /** @type {() => unknown} */
 const ok1 = () => ({ result: /** @type {const} */ (['ok', undefined]), duration: 1 })
 
-/** @type {(dir: Record<string, JsModule>, initCwd?: string) => readonly [readonly _Event[], number]} */
+/** @type {(dir: Record<string, JsModule>, initCwd?: string) => readonly [readonly Ts<typeof event>[], number]} */
 const run = (dir, initCwd = '.') => {
     const reporter = makeReporter()
     const state = { ...emptyState, root: dir }
@@ -305,8 +301,6 @@ export const githubReporterOutput = () => {
     )
 }
 
-/** @typedef {All | Import | Readdir | Sandbox | Write} _FailOps */
-
 // A reporter that cannot write neither panics nor reports success. The failed
 // `result` line short-circuits its own test, leaves `allOk` as the first error,
 // skips the summary, and reaches the program tail — which answers exit `1`.
@@ -315,6 +309,7 @@ export const githubReporterOutput = () => {
 // the failure on, so the exit code rather than a message is what is observable:
 // a run that cannot say anything at all still says it failed.
 export const reporterWriteFailure = () => {
+    /** @typedef {All | Import | Readdir | Sandbox | Write} _FailOps */
     /** @type {RunInstance<_FailOps, undefined>} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_FailOps, undefined>>[0]} */ ({
@@ -339,23 +334,6 @@ export const reporterWriteFailure = () => {
     assertEq(exitCode(code), 1)
 }
 
-/** @typedef {readonly string[]} _RegisterMockState */
-
-/** @typedef {Test | All | Await} _RegisterMockOps */
-
-/** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
-
-/**
- * The `test` op body for a `registerModule` mock; `runner` is threaded in explicitly (rather than closed over) so it can recurse into sub-effects returned by `fn`.
- * @typedef {(
- *     runner: _RegisterRunner,
- *     ctx: TestContext,
- *     name: string,
- *     expectFailure: boolean,
- *     fn: (t: TestContext) => Effect<_RegisterMockOps, void, never>,
- * ) => (s: _RegisterMockState) => readonly [_RegisterMockState, OpResult<void>]} _RegisterTestOp
- */
-
 /**
  * A `TestContext` that is never invoked. Every mock runner below intercepts the
  * `test` *effect* and reads the context as data, so `test` here exists only to
@@ -373,9 +351,23 @@ const registerNoopCtx = { test: (_n, _o, _f) => { throw 'registerNoopCtx is data
  * Builds a synchronous mock runner for `registerModule`'s `Test`/`All`/`Await`
  * effect operations. Only the `test` op varies between call sites (whether it
  * invokes the registered callback), so `all`/`await` are shared here.
+ *
+ * `testOp` is the `test` op body for a `registerModule` mock; `runner` is
+ * threaded in explicitly (rather than closed over) so it can recurse into
+ * sub-effects returned by `fn`.
  */
-/** @type {(testOp: _RegisterTestOp) => _RegisterRunner} */
+/** @type {(testOp: (
+ *     runner: RunInstance<Test | All | Await, readonly string[]>,
+ *     ctx: TestContext,
+ *     name: string,
+ *     expectFailure: boolean,
+ *     fn: (t: TestContext) => Effect<Test | All | Await, void, never>,
+ * ) => (s: readonly string[]) => readonly [readonly string[], OpResult<void>]
+ * ) => RunInstance<Test | All | Await, readonly string[]>} */
 const makeRegisterRunner = testOp => {
+    /** @typedef {readonly string[]} _RegisterMockState */
+    /** @typedef {Test | All | Await} _RegisterMockOps */
+    /** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
     /** @type {_RegisterRunner} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
@@ -424,6 +416,9 @@ export const registerSuffixes = () => {
 // which is why `registerOne` ends in a `catchStep` that throws rather than in
 // a channel nobody reads.
 const registerBodyPanicsOnUndispatchableEffect = () => {
+    /** @typedef {readonly string[]} _RegisterMockState */
+    /** @typedef {Test | All | Await} _RegisterMockOps */
+    /** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
     /** @type {_RegisterRunner} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
@@ -500,6 +495,7 @@ export const registerEmptyModuleMap = () => {
 // so a swapped `engine` ternary or a deleted `inlineTestContext` branch
 // changes what's observed here, not just whether the line ran.
 export const registerSelectsContextAndStar = () => {
+    /** @typedef {Test | All | Await} _RegisterMockOps */
     /** @type {TestContext} */
     const nodeCtx = { test: todo }
     /** @type {TestContext} */

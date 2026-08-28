@@ -1,5 +1,7 @@
 /**
- * @import { Unknown } from './module.f.mjs'
+ * @import { Ts, Check } from '../../../rtti/ts/types.ts'
+ * @import { Assert } from '../../../asserts/types.ts'
+ * @import { _unknownThunk } from './module.f.mjs'
  * @import { Data } from '../../../rtti/data/types.ts'
  */
 
@@ -9,57 +11,42 @@ import { dataToJsonSchema, toJsonSchema, unknown as schemaUnknown } from './modu
 import { absentBit, unitBit } from '../../../rtti/data/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
-/** @type {(v: Unknown) => string} */
+/** @type {(v: Ts<typeof schemaUnknown>) => string} */
 const serialize = v => stringify(e => e)(v)
 
-/** @type {(rtti: Parameters<typeof toJsonSchema>[0], expected: Unknown) => () => void} */
+/** @type {(rtti: Parameters<typeof toJsonSchema>[0], expected: Ts<typeof schemaUnknown>) => () => void} */
 const eq = (rtti, expected) => () => {
     const result = serialize(toJsonSchema(rtti))
     const exp = serialize(expected)
     assertEq(result, exp, [result, exp])
 }
 
-/** @type {(data: Data, expected: Unknown) => () => void} */
+/** @type {(data: Data, expected: Ts<typeof schemaUnknown>) => () => void} */
 const eqData = (data, expected) => () => {
     const result = serialize(dataToJsonSchema(data))
     const exp = serialize(expected)
     assertEq(result, exp, [result, exp])
 }
 
-/** A recursive list: `type _List = readonly _List[]`. */
-/** @typedef {() => readonly ['array', _List]} _List */
-/** @type {_List} */
-const list = () => ['array', list]
-
-/** Mutual recursion through a container. */
-/** @typedef {() => readonly ['or', typeof number, _Forest]} _Tree */
-/** @typedef {() => readonly ['array', _Tree]} _Forest */
-/** @type {_Tree} */
-const tree = () => ['or', number, forest]
-/** @type {_Forest} */
-const forest = () => ['array', tree]
-
-/** The recursive revision lock schema. Its cycle closes through the
- * anonymous `or` thunk, which becomes the (empty-string-named) rule. */
-/** @typedef {() => readonly ['record', () => readonly ['or', typeof string, _Lock]]} _Lock */
-/** @type {_Lock} */
-const lock = () => ['record', or(string, lock)]
-
-/** Self-recursive record. */
-/** @typedef {() => readonly ['record', _Rec]} _Rec */
-/** @type {_Rec} */
-const rec = () => ['record', rec]
-
 const listRef = /** @type {const} */ ({ $ref: '#/$defs/list' })
 const treeRef = /** @type {const} */ ({ $ref: '#/$defs/tree' })
 
-/** @type {Unknown} */
+/** @type {Ts<typeof schemaUnknown>} */
 const listDef = { type: 'array', items: listRef }
 
-/** @type {Unknown} */
+/** @type {Ts<typeof schemaUnknown>} */
 const treeDef = { anyOf: [{ type: 'number' }, { type: 'array', items: treeRef }] }
 
 export const proof = {
+    /**
+     * The hand-written `$out` on `unknown` matches the real thunk — checked
+     * against the un-annotated `_unknownThunk`, so a wrong field there is
+     * caught instead of silently trusted via the `Phantom` lie.
+     */
+    consistency: () => {
+        /** @typedef {Assert<Check<Ts<typeof schemaUnknown>, typeof _unknownThunk>>} _UnknownCheck0 */
+        /** @typedef {Assert<Check<Ts<typeof schemaUnknown>, typeof schemaUnknown>>} _UnknownCheck1 */
+    },
     tag0: {
         boolean: eq(boolean, { type: 'boolean' }),
         number: eq(number, { type: 'number' }),
@@ -258,39 +245,90 @@ export const proof = {
         },
     },
     recursion: {
-        selfList: eq(list, { ...listRef, $defs: { list: listDef } }),
-        mutualEntry: eq(tree, { ...treeRef, $defs: { tree: treeDef } }),
-        mutualInline: eq(forest, { type: 'array', items: treeRef, $defs: { tree: treeDef } }),
-        recursiveUnion: eq(or(number, list), {
-            anyOf: [{ type: 'number' }, { type: 'array', items: listRef }],
-            $defs: { list: listDef },
-        }),
-        recursiveRecord: eq(rec, {
-            $ref: '#/$defs/rec',
-            $defs: { rec: { type: 'object', additionalProperties: { $ref: '#/$defs/rec' } } },
-        }),
-        optionalRecursiveProperty: eq(/** @type {const} */ ({ p: or(option, list) }), {
-            type: 'object',
-            properties: { p: { type: 'array', items: listRef } },
-            additionalProperties: { not: {} },
-            $defs: { list: listDef },
-        }),
-        revisionLock: eq(lock, {
-            type: 'object',
-            additionalProperties: { $ref: '#/$defs/' },
-            $defs: {
-                '': {
-                    anyOf: [
-                        { type: 'string' },
-                        { type: 'object', additionalProperties: { $ref: '#/$defs/' } },
-                    ],
+        selfList: () => {
+            /** A recursive list: `type _List = readonly _List[]`. */
+            /** @typedef {() => readonly ['array', _List]} _List */
+            /** @type {_List} */
+            const list = () => ['array', list]
+            eq(list, { ...listRef, $defs: { list: listDef } })()
+        },
+        mutualEntry: () => {
+            /** Mutual recursion through a container. */
+            /** @typedef {() => readonly ['or', typeof number, _Forest]} _Tree */
+            /** @typedef {() => readonly ['array', _Tree]} _Forest */
+            /** @type {_Tree} */
+            const tree = () => ['or', number, forest]
+            /** @type {_Forest} */
+            const forest = () => ['array', tree]
+            eq(tree, { ...treeRef, $defs: { tree: treeDef } })()
+        },
+        mutualInline: () => {
+            /** Mutual recursion through a container. */
+            /** @typedef {() => readonly ['or', typeof number, _Forest]} _Tree */
+            /** @typedef {() => readonly ['array', _Tree]} _Forest */
+            /** @type {_Tree} */
+            const tree = () => ['or', number, forest]
+            /** @type {_Forest} */
+            const forest = () => ['array', tree]
+            eq(forest, { type: 'array', items: treeRef, $defs: { tree: treeDef } })()
+        },
+        recursiveUnion: () => {
+            /** A recursive list: `type _List = readonly _List[]`. */
+            /** @typedef {() => readonly ['array', _List]} _List */
+            /** @type {_List} */
+            const list = () => ['array', list]
+            eq(or(number, list), {
+                anyOf: [{ type: 'number' }, { type: 'array', items: listRef }],
+                $defs: { list: listDef },
+            })()
+        },
+        recursiveRecord: () => {
+            /** Self-recursive record. */
+            /** @typedef {() => readonly ['record', _Rec]} _Rec */
+            /** @type {_Rec} */
+            const rec = () => ['record', rec]
+            eq(rec, {
+                $ref: '#/$defs/rec',
+                $defs: { rec: { type: 'object', additionalProperties: { $ref: '#/$defs/rec' } } },
+            })()
+        },
+        optionalRecursiveProperty: () => {
+            /** A recursive list: `type _List = readonly _List[]`. */
+            /** @typedef {() => readonly ['array', _List]} _List */
+            /** @type {_List} */
+            const list = () => ['array', list]
+            eq(/** @type {const} */ ({ p: or(option, list) }), {
+                type: 'object',
+                properties: { p: { type: 'array', items: listRef } },
+                additionalProperties: { not: {} },
+                $defs: { list: listDef },
+            })()
+        },
+        revisionLock: () => {
+            /**
+             * The recursive revision lock schema. Its cycle closes through the
+             * anonymous `or` thunk, which becomes the (empty-string-named) rule.
+             */
+            /** @typedef {() => readonly ['record', () => readonly ['or', typeof string, _Lock]]} _Lock */
+            /** @type {_Lock} */
+            const lock = () => ['record', or(string, lock)]
+            eq(lock, {
+                type: 'object',
+                additionalProperties: { $ref: '#/$defs/' },
+                $defs: {
+                    '': {
+                        anyOf: [
+                            { type: 'string' },
+                            { type: 'object', additionalProperties: { $ref: '#/$defs/' } },
+                        ],
+                    },
                 },
-            },
-        }),
+            })()
+        },
         sharedNonRecursive: () => {
             // a shared, non-recursive definition is inlined at each use — no `$defs`
             const person = /** @type {const} */ ({ name: string })
-            /** @type {Unknown} */
+            /** @type {Ts<typeof schemaUnknown>} */
             const personSchema = {
                 type: 'object',
                 properties: { name: { type: 'string' } },

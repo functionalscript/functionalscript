@@ -10,6 +10,8 @@
  * @import { Unknown, Object, _MapEntries } from '../types.ts'
  * @import { Fold } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
+ * @import { _RefCounter, _Refs } from './types.ts'
+ * @import { _KeySerialize, _RefLookup } from './private.ts'
  */
 
 import { fold } from '../../types/list/module.f.mjs'
@@ -24,10 +26,6 @@ const { entries } = Object
 
 export const undefinedSerialize = ['undefined']
 
-/** @typedef {readonly [number, number]} _RefCounter */
-
-/** @typedef {ReadonlyMap<Unknown, _RefCounter>} _Refs */
-
 /**
  * Returns the value's `RefCounter` only if it is *shared* (referenced more
  * than once) — otherwise `undefined`. Names the single predicate that drives
@@ -40,13 +38,12 @@ const sharedRef = refs => v => {
     return rc !== undefined && rc[1] > 1 ? rc : undefined
 }
 
-/** @typedef {{
- *   readonly added: ReadonlySet<Unknown>
- *   readonly consts: List<Unknown>
- * }} _GetConstsState */
-
 /** @type {(refs: _Refs) => (djs: Unknown) => List<Unknown>} */
 const getConstants = refs => {
+    /** @typedef {{
+     *   readonly added: ReadonlySet<Unknown>
+     *   readonly consts: List<Unknown>
+     * }} _GetConstsState */
     const shared = sharedRef(refs)
     /** @type {Fold<Unknown, _GetConstsState>} */
     const checkSelf = djs => state => {
@@ -83,23 +80,8 @@ const getConstants = refs => {
 /** @type {(kv: readonly [string, Unknown]) => Unknown} */
 const entryValue = kv => kv[1]
 
-/**
- * A pre-hook consulted before each value's default serialization.
- * Returning a non-null list short-circuits the default path; this is how
- * `serializeWithConst` substitutes repeated values with `c<N>` references.
- * @typedef {(value: Unknown) => List<string> | null} _RefLookup
- */
-
 /** @type {_RefLookup} */
 const noRef = () => null
-
-/**
- * How one output format spells a property key. The two formats disagree about
- * exactly one key, `__proto__`, so the spelling is a parameter of
- * `buildSerialize` rather than a property of the shared JSON helper.
- *
- * @typedef {(key: string) => List<string>} _KeySerialize
- */
 
 const protoKey = '__proto__'
 

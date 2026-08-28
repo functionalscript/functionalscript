@@ -5,8 +5,8 @@
  * @module
  *
  * @import { Unpacked, Vec } from '../types/bit_vec/types.ts'
- * @import { _ParsedTag, _Round8 } from './private.ts'
  * @import { ObjectIdentifier, Raw, Record, Sequence, SupportedRecord, _Tag } from './types.ts'
+ * @import { _ClassPc, _ParsedTag, _Round8 } from './private.ts'
  */
 
 import { bitLength, divUp8 } from '../types/bigint/module.f.mjs'

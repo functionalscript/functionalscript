@@ -25,13 +25,13 @@
  *
  * @module
  *
- * @import { _Failure, _Result } from './private.ts'
  * @import { TerminalRange } from '../types.ts'
  * @import { Rule as DataRule, RuleSet, Sequence } from '../data/types.ts'
  * @import { Rule as FRule } from '../types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Ast, AstSequence, AstTag, Cursor } from '../matcher/types.ts'
  * @import { CodePointMeta, DescentFailure, DescentMatch, DescentMatchResult, DescentMatchRule } from './types.ts'
+ * @import { _Failure, _Result } from './private.ts'
  */
 
 import { rangeDecode } from '../module.f.mjs'
