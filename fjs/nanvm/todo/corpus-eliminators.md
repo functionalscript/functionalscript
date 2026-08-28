@@ -60,5 +60,5 @@ get one owner each.
   across the same three files and keeps the `Swapped` disambiguation; if it
   lands first, `orders`/`isThrows` should be extracted as part of that rewrite
   rather than separately — its step 3 tasks carry this extraction explicitly.
-- `nanvm-lib/todo/operator-test-operation-model.md` — the earlier corpus
-  rewrite this section previously pointed at; superseded by the above.
+- operator-test-operation-model (retired; superseded by the above) — the
+  earlier corpus rewrite this section previously pointed at.

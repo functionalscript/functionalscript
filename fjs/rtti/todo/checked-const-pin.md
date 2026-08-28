@@ -1,9 +1,9 @@
-# A checked pin for schema `const`s
+## A checked pin for schema `const`s
 
 **Priority:** P3
 **Status:** open — needs a decision, no design agreed
 
-## Problem
+### Problem
 
 A schema bound to a `const` has to pin its literal, and the only spelling
 available is a cast:
@@ -42,7 +42,7 @@ See "Prefer a `const` type parameter to a cast at the call site" in
 [`fjs/AGENTS.md`](../../AGENTS.md) for the rule this would extend from
 arguments to declarations.
 
-## Why it is not obviously right
+### Why it is not obviously right
 
 - **It invents a runtime function to carry a type-level fact.** The identity
   call survives into the emitted JavaScript. `fjs/AGENTS.md` says never to
@@ -60,7 +60,7 @@ arguments to declarations.
   schemas with literal members and on exported schemas whose only consumer is
   generic.
 
-## Tasks
+### Tasks
 
 - [ ] Decide whether a runtime identity function is acceptable for this, or
       whether the declaration pin stays a cast.
@@ -71,7 +71,7 @@ arguments to declarations.
 - [ ] Convert in batches, diffing declaration emit per batch, per the method in
       [`../../../todo/inline-type-casts.md`](../../../todo/inline-type-casts.md).
 
-## Related
+### Related
 
 - [`../../../todo/inline-type-casts.md`](../../../todo/inline-type-casts.md)
   — the audit of inline casts, which excluded `@type {const}` wholesale.

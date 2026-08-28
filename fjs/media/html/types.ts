@@ -1,7 +1,5 @@
 /**
  * Type-level API for HTML serialization.
- *
- * @module
  */
 
 import type { StringMap } from '../../types/object/types.ts'

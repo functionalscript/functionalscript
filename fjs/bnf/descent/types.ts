@@ -5,8 +5,6 @@
  * `Ast<CodePointMeta<T>>` from [`../matcher`](../matcher). What is declared
  * here is what belongs to *this* backend — the metadata-carrying leaf, the
  * diagnostics a backtracking matcher can report, and its public result.
- *
- * @module
  */
 
 import type { CodePoint } from '../../text/utf16/types.ts'

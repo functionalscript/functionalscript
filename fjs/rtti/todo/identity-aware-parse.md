@@ -1,10 +1,10 @@
-# Identity-aware `parse` and `validate`
+## Identity-aware `parse` and `validate`
 
 **Priority:** P3 (correctness for `parse`) / P2 (`validate`'s CPU blowup is a DoS vector
 on a public input boundary, not just a fidelity gap)
 **Status:** open
 
-## Problem
+### Problem
 
 Neither `parse` nor `validate` track input identity — no notion of "I already
 handled this exact reference elsewhere." For `parse`, that loses information silently
@@ -29,7 +29,7 @@ input the "public `Function` constructor input" threat model
 (`todo/edag-stage1-discussion.md`, "Validation") exists to guard against — a caller
 does not need a *large* value to burn CPU, just a deeply *shared* one.
 
-### `parse`'s identity loss
+#### `parse`'s identity loss
 
 `parse` always constructs a fresh container per schema position it visits — it has no
 notion of "I already built this for the same input reference elsewhere, reuse that."
@@ -54,7 +54,7 @@ data's meaning — two structurally equal values are just two equal values, and 
 fresh containers is what makes `parse` a safe reader of untrusted, possibly-aliased
 input in the first place (see `../README.md`, "The two schema-form readers").
 
-### `validate`'s cycle-unsafety
+#### `validate`'s cycle-unsafety
 
 A genuinely cyclic value (an array that is its own ancestor) makes `validate(exp)`
 recurse until `RangeError`, instead of returning a validation error.
@@ -69,7 +69,7 @@ arbitrary code execution and a `RangeError` here is not the interesting attack. 
 `edag` ever gains a wire format with back-references, cycles become reachable through
 that channel too, and this reasoning should be revisited then.
 
-## Why it matters for `../../edag`
+### Why it matters for `../../edag`
 
 The EDAG is the one schema in this codebase where reference identity between operand
 positions *is* part of the value's meaning — see
@@ -99,7 +99,7 @@ message — the `parse` gap) or runs `validate` against a graph shaped by an unt
 possibly adversarial caller instead of a proof's small fixtures (the `validate` gap,
 already live today, cost-wise, for *any* caller of `validate(exp)` on a real graph).
 
-## Possible direction (not decided)
+### Possible direction (not decided)
 
 Both need memoization keyed off the **input** reference, not the schema position — a
 `WeakMap`/`WeakSet` populated as the reader walks a container, checked before doing the
@@ -123,7 +123,7 @@ work for that input again:
 Which of these `edag` will actually need — and whether `validate`'s fix lives in the
 generic engine or as an edag-specific layer on top — isn't decided yet.
 
-## Related
+### Related
 
 - [`../../edag/module.f.mjs`](../../edag/module.f.mjs) — the schema this matters
   for; references this TODO.

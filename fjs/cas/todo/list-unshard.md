@@ -1,9 +1,9 @@
-# `fileCas.list` re-implements the inverse of `toPath`
+## `fileCas.list` re-implements the inverse of `toPath`
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 The shard layout's forward direction is owned by `toPath`
 (`fjs/cas/module.f.mjs:59-64`): a cBase32 key string splits `2 / 2 / rest`
@@ -27,7 +27,7 @@ different shard depth) would silently produce wrong keys in `list` — the
 same one-layout-two-owners hazard that `shard-dir-helper.md` records for the
 forward direction in `publish`.
 
-## Proposal
+### Proposal
 
 Give the layout a single owner in both directions. Alongside the `shard`
 helper proposed in `shard-dir-helper.md` (forward: key → `{dir, name}`), add
@@ -45,7 +45,7 @@ prefix and separators inline. The only call site touched is `fileCas.list`.
 Together with `shard-dir-helper.md`, the `2/2/rest` rule then exists exactly
 once, with `toPath`/`unshard` as its two views.
 
-## Tasks
+### Tasks
 
 - [ ] Extract the path→key derivation from `fileCas.list` into a named
       inverse helper co-located with `toPath` (and `shard`, if
@@ -53,7 +53,7 @@ once, with `toPath`/`unshard` as its two views.
 - [ ] Keep the ENOENT-is-empty-store behavior of `list` unchanged.
 - [ ] Run `npx tsc` and `fjs t`; CAS proofs pass unchanged.
 
-## Related
+### Related
 
 - `fjs/cas/todo/shard-dir-helper.md` — the forward half of the same layout
   concern; these two issues are complementary and should cross-reference.

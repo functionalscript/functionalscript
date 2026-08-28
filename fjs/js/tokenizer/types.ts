@@ -1,7 +1,5 @@
 /**
  * Types for the JavaScript tokenizer.
- *
- * @module
  */
 
 import type { RangeMapArray } from '../../types/range_map/types.ts'

@@ -1,4 +1,4 @@
-# UTF-8 strings instead of UTF-16
+## UTF-8 strings instead of UTF-16
 
 **Priority:** P3
 **Status:** blocked

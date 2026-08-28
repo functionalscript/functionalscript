@@ -1,7 +1,5 @@
 /**
  * Types for magic-byte MIME type detection.
- *
- * @module
  */
 
 import type { Nullable } from '../../types/nullable/types.ts'

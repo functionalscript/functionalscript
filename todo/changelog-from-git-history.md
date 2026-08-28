@@ -1,9 +1,9 @@
-# Investigate generating the changelog from Git history
+## Investigate generating the changelog from Git history
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 Even as per-PR files ([changelog/README.md](../changelog/README.md)),
 changelog entries are authored by hand while the same information — commits,
@@ -20,7 +20,7 @@ history is immutable, so a badly worded source could never be fixed — while a
 committed entry can be fixed by a cleanup PR. The `**BREAKING CHANGES:**`
 marker also drives version bumps, and that signal must stay reviewed.
 
-## Proposal
+### Proposal
 
 Evaluate at least these designs before removing `changelog/`:
 
@@ -42,7 +42,7 @@ Decide on criteria: determinism of the published pages, where review happens,
 how a published mistake gets fixed, and where the breaking-change signal for
 versioning comes from.
 
-## Related
+### Related
 
 - [commit-message-standard.md](./commit-message-standard.md) — the commit
   message format that must be in force before the history this would read

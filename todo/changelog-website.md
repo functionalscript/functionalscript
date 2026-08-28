@@ -1,15 +1,15 @@
-# Publish the changelog on the website
+## Publish the changelog on the website
 
 **Priority:** P4
 **Status:** open
 
-## Problem
+### Problem
 
 The release history lives only in the repository. Users of the package should
 be able to read it on the FunctionalScript website as an index of releases and
 a page per release.
 
-## Proposal
+### Proposal
 
 Extend the website generator (`fjs/website`) to read the `changelog/`
 directory and emit an index page plus one page per release. The repository
@@ -30,7 +30,7 @@ small self-hosted parser for the entry subset (paragraphs, list items, inline
 code, bold, links — all the current entries use), or reconsider the entry
 format. The BNF machinery is a natural fit for the parser.
 
-## Tasks
+### Tasks
 
 - [ ] Parser for the changelog Markdown subset
 - [ ] Read both release forms: `<version>.md` files and `<version>/`
@@ -38,7 +38,7 @@ format. The BNF machinery is a natural fit for the parser.
 - [ ] Release index page and per-release pages in `fjs/website`
 - [ ] Link the changelog from the landing page
 
-## Related
+### Related
 
 - [changelog/README.md](../changelog/README.md) — defines the structure and the
   Markdown subset this consumes

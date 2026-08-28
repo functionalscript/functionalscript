@@ -1,8 +1,6 @@
 /**
  * Types for the virtual Node-effect operations used by filesystem and
  * process tests.
- *
- * @module
  */
 
 import type { Vec } from '../../../types/bit_vec/types.ts'

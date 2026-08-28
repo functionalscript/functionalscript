@@ -63,7 +63,7 @@ Then:
 
 ### Related
 
-- [190](../../todo/190.md) — the code-unit/code-point ↔ string *value*
+- [190](../../todo/190-text-code-unit-string-boundary.md) — the code-unit/code-point ↔ string *value*
   boundary; this issue is the *type* boundary, complementary.
 - `fjs/text/utf8/todo/error-tag-layout-constants.md` — names the error-tag
   bit layout; the new type's JSDoc should link there.

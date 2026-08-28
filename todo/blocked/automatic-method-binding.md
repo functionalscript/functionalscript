@@ -1,4 +1,4 @@
-# Automatic method binding
+## Automatic method binding
 
 **Priority:** P3
 **Status:** blocked

@@ -15,8 +15,6 @@
  * are cases where reading a member by *entry* and reading it by *index*
  * disagree — which is what these readers had wrong.
  *
- * @module
- *
  * @import { Type } from './types.ts'
  * @import { ValidateE } from './common/types.ts'
  * @import { StringMap } from '../types/object/types.ts'

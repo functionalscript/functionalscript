@@ -82,6 +82,17 @@ named schema, not one of it: `['[]', items[]]` holds a whole array of
 prose and load-bearing in the schema — a single element where the array
 belongs still validates plenty of values, just the wrong ones.
 
+**Why an array operand rather than a variadic tail.** `['[]', [a, b]]`
+rather than `['[]', a, b]`, and the same one position further in for
+`['{}', …]`. An rtti `Tuple` pins one schema per position, so "this literal
+tag, then any number of further positions, all matching this one schema" is
+not spellable inline in a bigger `Const` tuple; `array`/`record` say exactly
+that, but only as their own single operand. Growing the `Type` ADT to admit
+a fixed prefix followed by a homogeneous rest has no other consumer here, so
+the array operand is the decided representation rather than a stand-in for a
+flat one — [`todo/edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md)
+writes the same shape.
+
 A continuation is **not** an array. It is `null` or one step holding the next
 continuation, so a chain is a linked list whose link type changes as it goes —
 which link type is legal where is the whole of [Chains](#chains) below.

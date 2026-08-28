@@ -80,6 +80,6 @@ Open design questions to settle before implementing:
 - `fjs/emergent_testing/module.f.mjs` — `main`, `collectTests`, `testAll`.
 - `fjs/dev/module.f.mjs` — `loadModuleMap` / `allFiles`; the predicate hook
   this needs.
-- [211](./211.md) — reporter modes; a filtered run's summary is a reporter
+- [211](./211-reporter-modes.md) — reporter modes; a filtered run's summary is a reporter
   concern.
 - [browser-testing](./browser-testing.md) — shared browser application and outer runners.

@@ -1,9 +1,9 @@
-# Flow: dataflow graphs with deferred input binding
+## Flow: dataflow graphs with deferred input binding
 
 **Priority:** P3
 **Status:** open
 
-## Problem
+### Problem
 
 We want to describe computations on sequences as an immutable graph whose
 external inputs and outputs are bound *later*, by an engine:
@@ -28,13 +28,13 @@ trees, fs2 pipes, Clojure transducers. The collection-kind side (ordered
 sequence vs unordered bag vs set, and which operations each kind admits)
 is the Boom hierarchy; see the *Future work* section.
 
-## Proposal
+### Proposal
 
 Start minimal: one input kind — an ordered sequence bound to
 `fjs/types/list` — and a naive in-process engine. No RTTI yet: input types
 are checked by TypeScript.
 
-### Module
+#### Module
 
 `fjs/flow/module.f.mjs` defines `Flow<E, O>`: a node of the graph, describing
 a sequence of `O` computed from an environment of type `E`. A `Flow` is
@@ -52,7 +52,7 @@ const { result } = transduce(sum)(lengths)
 run({ text: ['hello', 'world'] })(result) // [10]
 ```
 
-### The universal operator: `Transducer`
+#### The universal operator: `Transducer`
 
 One operator shape covers every stage; an engine interprets nothing else:
 
@@ -136,7 +136,7 @@ Clojure's 0-arity `init` cannot do this); `Step` and its
 variants match Haskell's `machines` (`Yield`/`Stop`); `next` is Rx's
 `onNext`; `A` is Akka's materialized value.
 
-### Graph operations
+#### Graph operations
 
 Two primitives:
 
@@ -169,7 +169,7 @@ library-level derivations:
 - stateful decoders/parsers (`utf8Decode`, tokenizers): buffer in `S`,
   flush in `end`, report `A = Result`
 
-### Failure convention
+#### Failure convention
 
 There is no error channel, so a failing stage *ends its output sequence
 early* — and downstream cannot distinguish "input ended" from "input
@@ -184,7 +184,7 @@ must surface failure in one of two ways:
    the stages that matter — making "who checks what" visible in the graph
    instead of implicit in the engine.
 
-### Engines
+#### Engines
 
 `run` in the same module is the first, naive engine: it binds the graph
 directly to `fjs/types/list` and recomputes shared nodes. Flow variant
@@ -208,7 +208,7 @@ Planned engine work, each a separate change:
 - Longer term: incremental, streaming (chunked), and distributed engines;
   output binding (multiple named outputs per graph).
 
-### Future work: RTTI and collection kinds
+#### Future work: RTTI and collection kinds
 
 - Replace the TypeScript-only environment with RTTI-described named inputs
   (`fjs/rtti`), so a graph can be validated, serialized, and shipped
@@ -220,7 +220,7 @@ Planned engine work, each a separate change:
   commutative operation, etc. (Boom hierarchy). Engines may exploit
   declared laws (tree reduction, out-of-order merge, retry safety).
 
-## Tasks
+### Tasks
 
 - [ ] `fjs/flow/module.f.mjs` — `Flow<E, O>`, `Transducer`/`Step`/`Terminal`,
   primitives `input` and `transduce`, derived operations, naive `run`
@@ -234,7 +234,7 @@ Planned engine work, each a separate change:
 - [ ] RTTI-typed named inputs
 - [ ] unordered collection kinds with law-constrained operations
 
-## Related
+### Related
 
 - [fjs/types/list/module.f.mjs](../fjs/types/list/module.f.mjs) — the sequence
   type the naive engine binds to

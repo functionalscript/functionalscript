@@ -1,4 +1,4 @@
-# Integer literal `123` is a `bigint`
+## Integer literal `123` is a `bigint`
 
 **Priority:** P3
 **Status:** blocked

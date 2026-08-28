@@ -1,4 +1,4 @@
-# 134. A proposal for nominal types in TypeScript.
+## 134. A proposal for nominal types in TypeScript.
 
 **Priority:** P3
 **Status:** open

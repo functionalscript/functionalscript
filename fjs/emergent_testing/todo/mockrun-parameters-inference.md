@@ -1,4 +1,4 @@
-# `mockRun`'s operation map needs `Parameters<typeof mockRun<…>>` to type-check
+## `mockRun`'s operation map needs `Parameters<typeof mockRun<…>>` to type-check
 
 **Priority:** P4
 **Status:** open

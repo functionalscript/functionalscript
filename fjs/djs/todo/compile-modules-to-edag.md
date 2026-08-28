@@ -24,7 +24,7 @@ required by EDAG. Object parsing accumulates properties in an `OrderedMap` with
 `setReplace` and eventually produces a plain `AstObject`; duplicate keys are therefore
 collapsed and integer-like keys can lose their written order before EDAG conversion.
 This task must preserve object entries as an ordered sequence in the parser/AST until
-they are converted to `['{}', ...entry]`.
+they are converted to `['{}', [...entry]]`.
 
 ### Proposal
 
@@ -284,10 +284,10 @@ The staged work builds on the basic structural forms already being defined for E
 - primitive constants directly: `null`, boolean, number, string, `bigint`
   (`undefined` is `['undefined']`, not a bare constant — see
   `edag-stage1-discussion.md`'s "Structural operations" table);
-- object constructors: `['{}', ...entry]`, where the initial entry form is
+- object constructors: `['{}', [...entry]]`, where the initial entry form is
   `[':', key, value]` and **`key` is a string constant** in this task, matching what
   the current DJS parser produces;
-- array constructors: `['[]', ...node]`;
+- array constructors: `['[]', [...node]]`;
 - the argument array: `['args']`;
 - Stage 1 property access: `['.', object, property, null]`, with the restricted
   property operands described above — the `null` is the continuation operand, saying
@@ -358,7 +358,7 @@ The current DJS serializer reuses JSON serialization primitives, so ordinary
 `JSON.stringify(number)` cannot be the DJS fallback for these values: it serializes
 non-finite values as `null` and loses the sign of `-0`. Add DJS-specific handling so
 the chosen `.f.js` spellings parse back to the exact values. If common parser/serializer
-machinery is extracted, coordinate with [`157.md`](./157.md), which already owns the
+machinery is extracted, coordinate with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md), which already owns the
 JSON/DJS structural deduplication; codec policy remains separate.
 
 The exact tests must distinguish the edge cases semantically:
@@ -510,7 +510,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Add DJS-specific number serialization that the DJS parser round-trips to exactly
       `Infinity`, `-Infinity`, `NaN`, and `-0`; do not change the standard JSON codec's
       policy as a side effect of this task.
-- [ ] Coordinate any shared parser/serializer extraction with [`157.md`](./157.md)
+- [ ] Coordinate any shared parser/serializer extraction with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md)
       instead of adding another duplicate JSON/DJS walker or numeric-policy layer.
 - [ ] Serialize the final EDAG to `.f.js` through the EDAG-producing artifact path;
       allow JSON output only when it preserves the EDAG completely.
@@ -554,7 +554,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`../../media/json/todo/number-edge-cases.md`](../../media/json/todo/number-edge-cases.md)
   — existing owner of the standard FunctionalScript JSON policy for `-0`, `NaN`, and
   infinities.
-- [`157.md`](./157.md) — existing JSON/DJS parser/serializer deduplication task.
+- [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md) — existing JSON/DJS parser/serializer deduplication task.
 - [`../ast/types.ts`](../ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
   and plain-object representation to replace.
 - [`../ast/module.f.mjs`](../ast/module.f.mjs) — current sequential AST evaluator.

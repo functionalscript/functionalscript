@@ -1,7 +1,5 @@
 /**
  * Types for indexing modules and loading FunctionalScript files.
- *
- * @module
  */
 
 import type { StringMap } from '../types/object/types.ts'

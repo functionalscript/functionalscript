@@ -243,9 +243,9 @@ When Stage 1 is implemented:
 - rewrite the "Private JSDoc typedefs" section of `fjs/fsc/README.md`: authors
   no longer create file-scope `_` typedefs; keep the leak-tolerance contract
   for emitted `_` names and shipped `private.d.ts` until Stage 2;
-- delete or narrow `todo/blocked/jsdoc-typedef-strip-internal.md`: this design
-  supersedes waiting for `@internal`/`stripInternal`, so the repository does not
-  keep two conflicting private-type strategies;
+- **done** — `jsdoc-typedef-strip-internal` was deleted with Stage 1: this
+  design supersedes waiting for `@internal`/`stripInternal`, so the repository
+  does not keep two conflicting private-type strategies;
 - sweep the remaining Markdown documents repo-wide — `todo/` issues, plans,
   and READMEs — for text that prescribes adding a file-scope JSDoc `@typedef`
   to an authored `.mjs` or defers private types to `@internal`/`stripInternal`,
@@ -374,8 +374,8 @@ type-only and use named `import type { ... }` imports.
 - [`../fsc/README.md`](../fsc/README.md) — current `_` leak-tolerance policy.
 - [`../../AGENTS.md`](../../AGENTS.md) — root repository policy to update.
 - [`../AGENTS.md`](../AGENTS.md) — `fjs/`-specific file/dependency policy.
-- [`../../todo/blocked/jsdoc-typedef-strip-internal.md`](../../todo/blocked/jsdoc-typedef-strip-internal.md)
-  — current wait-for-`@internal`/`stripInternal` strategy.
+- jsdoc-typedef-strip-internal (retired; deleted with Stage 1, which supersedes
+  it) — the former wait-for-`@internal`/`stripInternal` strategy.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
   — upstream JSDoc typedef stripping limitation.
 - [`detect-unexported-types-referenced-by-exported-types.md`](./detect-unexported-types-referenced-by-exported-types.md)

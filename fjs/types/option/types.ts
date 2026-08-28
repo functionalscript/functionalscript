@@ -1,7 +1,5 @@
 /**
  * Optional tuple-based value representation.
- *
- * @module
  */
 
 /**

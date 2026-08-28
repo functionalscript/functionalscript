@@ -147,7 +147,7 @@ it's by far the most common and the lowest-judgement case.
 - `fjs/sul/id/module.f.mjs:19`, `fjs/sul/id/proof.f.mjs:1`,
   `fjs/sul/proof.f.mjs:1`, `fjs/sul/level/hash/proof.f.mjs:1` — the four
   existing consumers, demonstrating the desired call-site shape.
-- [i194](./194.md), `i65X-async-test-functions` (retired, and since shipped) —
+- [i194](./194-test-effects-design.md), `i65X-async-test-functions` (retired, and since shipped) —
   parallel work on the test framework's effect surface. The helper
   story above is intentionally smaller and orthogonal; it does not
   touch the `Reporter`/`TestEntry`/`testAll` path. Both halves of the async

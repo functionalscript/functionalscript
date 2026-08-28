@@ -1,4 +1,4 @@
-# Standard for commit messages merged into `main`
+## Standard for commit messages merged into `main`
 
 **Priority:** P2
 **Status:** wip — the format is adopted, in
@@ -8,7 +8,7 @@ section, squash-only. Release tagging was rejected, see below.
 behind it, and only the repository settings remain undone — they need a
 maintainer with admin rights and cannot land in a PR.
 
-## Problem
+### Problem
 
 [changelog-from-git-history.md](./changelog-from-git-history.md) investigates
 deriving the changelog from Git history. Whatever that investigation decides,
@@ -24,9 +24,9 @@ concatenation of the branch's intermediate commit messages: unreviewed noise
 Releases are not tagged (`git tag` is empty), so release boundaries exist only
 as version-bump commit titles.
 
-## Proposal
+### Proposal
 
-### One squash commit per PR — no other merge method
+#### One squash commit per PR — no other merge method
 
 - **Squash and merge only.** Disable "Create a merge commit" and "Rebase and
   merge" in the repository settings. A rebase merge replays the branch's
@@ -50,7 +50,7 @@ as version-bump commit titles.
   one PR, in merge order — the "correct order, nothing missed" property comes
   from this rule alone.
 
-### Title: the PR title, in the changelog-entry style
+#### Title: the PR title, in the changelog-entry style
 
 The squash title is the PR title, so this is a PR-title standard, checkable
 before merge:
@@ -67,7 +67,7 @@ before merge:
   practice — 38 of the last 200 titles exceed it today.
 - A release PR's title is the bare version: `0.45.0`.
 
-### Body: the PR description, carrying the changelog entry
+#### Body: the PR description, carrying the changelog entry
 
 Set the repository's default squash message to **"Pull request title and
 description"**, so the body is reviewed prose instead of the intermediate
@@ -107,7 +107,7 @@ Changelog:
   section remains; if it loses, the section cost was a few reviewed lines per
   PR.
 
-### Tag releases — rejected
+#### Tag releases — rejected
 
 This section proposed tagging each release commit `vX.Y.Z`, so that "entries
 in this release" is a range between two tags rather than a parse of
@@ -122,7 +122,7 @@ the bare version, or from the changelog directories themselves. Recorded in
 [changelog/README.md](../changelog/README.md#breaking-changes-and-versioning) so the
 question is not reopened by the next reader.
 
-## Tasks
+### Tasks
 
 - [ ] Repository settings: squash-only, default squash message "Pull request
       title and description", branch protection (PRs required, linear
@@ -136,7 +136,7 @@ Machine-checking the format before merge is a separate, later step:
 [commit-message-enforcement.md](./commit-message-enforcement.md), unblocked
 by the AGENTS.md adoption above.
 
-## Related
+### Related
 
 - [commit-message-enforcement.md](./commit-message-enforcement.md) — the
   pre-merge check that turns this convention into a rule; starts after the

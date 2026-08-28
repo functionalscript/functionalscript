@@ -104,9 +104,9 @@ factory.
 
 ### Related
 
-- [i170-ci-tool-steps](./170.md) — the sibling DRY cleanup for the
+- [i170-ci-tool-steps](./170-ci-tool-step-builder.md) — the sibling DRY cleanup for the
   Node version-job builders in `fjs/ci/node`. Same root cause (per-variant step
   builders that differ only in command flags), different module; the two are
   independent and could land separately.
-- [i175-ci-setup-tool](./175.md), [i170-ci-tool-steps](./170.md)
+- [i175-ci-setup-tool](./175-ci-setup-tool-factory.md), [i170-ci-tool-steps](./170-ci-tool-step-builder.md)
   — other `fjs/ci` step-builder refactors.

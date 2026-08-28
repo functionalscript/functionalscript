@@ -127,7 +127,7 @@ Before implementing this TODO after the blocking split:
   principle, already applied: `operatorTags` derives from the grammar's
   `operator` keys, and `wsChars`/`nlChars` feed both the grammar rules and every
   downstream trivia-tag check.
-- [157](../../../djs/todo/157.md) — shares JSON/DJS value machinery; orthogonal to
+- [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — shares JSON/DJS value machinery; orthogonal to
   ownership of the lexical BNF grammar.
 - [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
   — media-directory ownership convention followed by this placement.

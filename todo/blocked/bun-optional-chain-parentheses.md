@@ -1,4 +1,4 @@
-# Parentheses do not end an optional chain in bun
+## Parentheses do not end an optional chain in bun
 
 **Priority:** P3
 **Status:** blocked

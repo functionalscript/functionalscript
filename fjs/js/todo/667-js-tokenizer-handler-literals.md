@@ -127,9 +127,9 @@ table pairs each with itself, so all eight simple escapes are one
 
 ### Related
 
-- [i157](../../djs/todo/157.md) — shares the value layer above the
+- [i157](../../djs/todo/157-json-djs-shared-value-machine.md) — shares the value layer above the
   tokenizer; this issue is purely internal to the JS lexer and independent.
 - [i666-js-tokenizer-position-layer](./666-js-tokenizer-position-layer.md) —
   a separate concern (position/metadata), orthogonal to these handler literals.
-- [i174-range-map-lexer](./174.md) — the `rangeFunc`/`create`
+- [i174-range-map-lexer](./174-shared-range-map-lexer.md) — the `rangeFunc`/`create`
   dispatch machinery these handlers plug into.

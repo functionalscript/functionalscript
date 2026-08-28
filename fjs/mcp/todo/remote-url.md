@@ -1,6 +1,7 @@
-# Remote MCP Server URLs
+## Remote MCP Server URLs
 
-- **Status:** open
+**Priority:** P3
+**Status:** open
 
 A remote URL server should be provided with URL translation function instead of returning a URL from `FileCas`.
 
