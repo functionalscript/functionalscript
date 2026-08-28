@@ -7,8 +7,10 @@
 > `fjs t` it also runs a few impure `.mjs` proofs; and covering every edge case
 > of plain JavaScript is not a goal. See
 > [the README](../README.md#scope) — everything below is read under that rule.
-> A `.f.mjs` that breaks it is a defect, not an exception: see
-> [promises in `proof.f.mjs`](promises-in-proof-f-mjs.md).
+> A `.f.mjs` that breaks it is a defect, not an exception — the one known case,
+> two `Promise.resolve` fixtures in `../proof.f.mjs`, is fixed: neither promise
+> was ever consumed, since the mocks intercept the effects and read the context
+> as data.
 
 ### Problem
 
