@@ -110,7 +110,7 @@ option on the test effect used by the surviving process-based adapters:
   zero-arg function is still a leaf; generators are not expanded (they are
   leaves that never run).
 - **`runModule`** — when `entry.skip`, do not call `test`; report a skipped
-  result and increment the `skip` counter in `TestState` (no `pass`/`fail`
+  result and increment the `skip` counter in `RunTotals` (no `passed`/`failed`
   change, no return-value walk).
 - **`registerModule`** — register skipped leaves with a `skip` flag instead of
   a test body; no subtest registration, no ` ...` star suffix.
@@ -150,7 +150,7 @@ Playwright execution obtains skip results from the shared browser application.
 - [ ] Add `skip` to `TestEntry`; inherit it in `parseTestSet` / `collectTests`
       like `throws`.
 - [ ] Short-circuit skipped leaves in `runModule` (no execution, no walk) and
-      count them in a new `TestState.skip`.
+      count them in a new `RunTotals.skip` (folded in `addResult`).
 - [ ] Extend the test-effect options with `skip`; map it to Node, Deno, and Bun
       without adding or restoring a Playwright branch in the Node effect runner.
 - [ ] Implement equivalent skip collection and reporting in the shared
