@@ -131,7 +131,7 @@ standard JSON numeric policy remains separate in
 - [`fjs/djs/todo/compile-modules-to-edag.md`](../fjs/djs/todo/compile-modules-to-edag.md)
   — concrete parser/module rollout for Stage 1 and Stage 2; it consumes the
   canonical definitions from `fjs/edag/`.
-- [`fjs/djs/todo/157.md`](../fjs/djs/todo/157.md) — existing JSON/DJS
+- [`fjs/djs/todo/157-json-djs-shared-value-machine.md`](../fjs/djs/todo/157-json-djs-shared-value-machine.md) — existing JSON/DJS
   parser/serializer structural deduplication work.
 - [`fjs/media/json/todo/number-edge-cases.md`](../fjs/media/json/todo/number-edge-cases.md)
   — existing owner of standard JSON numeric edge-case policy.

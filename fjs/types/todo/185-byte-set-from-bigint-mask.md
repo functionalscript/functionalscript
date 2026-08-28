@@ -53,7 +53,7 @@ the degenerate mask — but the clear win is `range`.
 - DRY: `bigint.mask` gains a genuine second consumer (it is currently used inside
   `bigint` and `bit_vec`); the bit-mask *arithmetic* belongs in `bigint`, not
   inlined in a byte-set codec.
-- Separation of concerns in the spirit of [i178](../../basen/cbase32/todo/178.md) (move bit
+- Separation of concerns in the spirit of [i178](../../basen/cbase32/todo/178-cbase32-padding-into-bit-vec.md) (move bit
   arithmetic to its natural home) — but a distinct pair (`byte_set` → `bigint`
   rather than `cbase32` → `bit_vec`).
 
@@ -71,7 +71,7 @@ the degenerate mask — but the clear win is `range`.
 
 ### Related
 
-- [i178](../../basen/cbase32/todo/178.md) — same "bit arithmetic belongs in its numeric/bit module"
+- [i178](../../basen/cbase32/todo/178-cbase32-padding-into-bit-vec.md) — same "bit arithmetic belongs in its numeric/bit module"
   theme.
 - [i167](../bit_vec/module.f.mjs) — `bit_vec` re-binding flagged similarly;
   shipped as the shared `msb.listToVec`.

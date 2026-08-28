@@ -70,5 +70,5 @@ registered.
 - [65Y-nanvm-conversion-macros](./65y-nanvm-conversion-macros.md) — targets
   the `From<X> for Unpacked` / `TryFrom` copies themselves; complementary,
   and both reduce the per-variant registration count.
-- [159](./159.md) — the wrapper-trait boilerplate; same spirit at the
+- [159](./159-collapse-per-type-wrapper-traits.md) — the wrapper-trait boilerplate; same spirit at the
   container layer.

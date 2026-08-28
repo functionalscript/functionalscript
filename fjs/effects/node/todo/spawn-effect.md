@@ -243,7 +243,7 @@ Open for review before code:
       child has replied, which must NOT read as EOF.
 - [ ] **Give every hang-regression case its own deadline**, one that kills the
       child and fails the case. The self-hosted runner has no hard timeout
-      (`../../../emergent_testing/todo/206.md:43-55`), so a returning
+      (`../../../emergent_testing/todo/206-workers-as-a-sandbox.md:43-55`), so a returning
       regression would hang `fjs test` rather than redden it — a guard against
       hanging that hangs is worth less than no guard, because it stops the
       whole suite instead of one case.

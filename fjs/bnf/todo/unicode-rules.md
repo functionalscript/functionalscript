@@ -80,7 +80,7 @@ This split changes the public design assumptions used by older open TODOs:
   is blocked by this task. Its implementation must import Unicode-specific
   construction from `fjs/bnf/unicode/module.f.mjs` and lower text literals to
   generic rules before they reach core BNF.
-- [`fjs/bnf/todo/207.md`](./207.md) is blocked by this task. Its planned
+- [`fjs/bnf/todo/207-bnf-semantic-actions.md`](./207-bnf-semantic-actions.md) is blocked by this task. Its planned
   split/revision must remove `string` as a generic rule kind. Unicode text helpers
   are constructors of ordinary generic rules rather than a distinct generic rule
   kind.
@@ -141,7 +141,7 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Update/block `fjs/media/json/todo/bnf-grammar-single-owner.md` so its JSON
       grammar design imports Unicode helpers from `fjs/bnf/unicode/module.f.mjs`
       and does not depend on raw string rules in core BNF.
-- [ ] Keep `fjs/bnf/todo/207.md` blocked until it is rebased/split so `string` is
+- [ ] Keep `fjs/bnf/todo/207-bnf-semantic-actions.md` blocked until it is rebased/split so `string` is
       no longer described as a generic rule kind; Unicode text constructors lower
       to ordinary generic rules before semantic evaluation.
 - [ ] Check `isRepeat` in `fjs/bnf/data/module.f.mjs` still holds after the
@@ -179,7 +179,7 @@ new module boundary and final rule discriminants before implementation starts.
   another non-Unicode alphabet consumed by the generic BNF core.
 - [JSON BNF grammar owner](../../media/json/todo/bnf-grammar-single-owner.md) —
   blocked on this split and must target `bnf/unicode` for text terminals.
-- [BNF semantic actions](./207.md) — blocked on this split; its rule model must
+- [BNF semantic actions](./207-bnf-semantic-actions.md) — blocked on this split; its rule model must
   remove generic `string` before implementation.
 - [`../data/README.md`](../data/README.md#the-repeat-rule) — unaffected by this
   split; the shipped `Repeat` encoding is a data-layer string, not a functional

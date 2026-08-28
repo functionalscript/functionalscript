@@ -74,7 +74,7 @@ No behavior change: the same child lists flow into the same folds.
 
 - `fjs/djs/serializer/module.f.mjs:66-73`, `:149-175`, `:80-82` (`entryValue`).
 - [66e](./66e-parser-container-stack-bookkeeping.md) — the same container-kind merge on the parser side.
-- [197](./197.md) — the eventual cross-function `Visitor` factory would
-  supersede this, but it is deferred (blocked by [157](./157.md)); this
+- [197](./197-djs-unknown-shape-walker.md) — the eventual cross-function `Visitor` factory would
+  supersede this, but it is deferred (blocked by [157](./157-json-djs-shared-value-machine.md)); this
   two-line helper is independently landable now and shrinks what 197 will
   later absorb.

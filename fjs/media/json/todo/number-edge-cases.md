@@ -110,5 +110,5 @@ or adding a separate compatible API, is deliberately deferred to P5.
   primitive serialization implementation to replace/self-host.
 - [`fjs/djs/todo/compile-modules-to-edag.md`](../../../djs/todo/compile-modules-to-edag.md)
   — owns DJS `.f.js` round-tripping of special number values needed by EDAG artifacts.
-- [`fjs/djs/todo/157.md`](../../../djs/todo/157.md) — shared JSON/DJS parser and
+- [`fjs/djs/todo/157-json-djs-shared-value-machine.md`](../../../djs/todo/157-json-djs-shared-value-machine.md) — shared JSON/DJS parser and
   serializer extraction; coordinate reusable machinery without merging codec policy.

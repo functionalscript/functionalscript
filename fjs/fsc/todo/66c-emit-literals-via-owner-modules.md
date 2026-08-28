@@ -11,7 +11,7 @@ rendering is a small, well-defined concern, and the codebase already has a
 natural owner for each kind. But two emitters re-spell the primitive inline
 instead of calling the owner, so the same one-liner exists in several places.
 
-This is the same shape as [i190-text-char-code-boundary](../../text/todo/190.md)
+This is the same shape as [i190-text-char-code-boundary](../../text/todo/190-text-code-unit-string-boundary.md)
 ("own the single code-unit ↔ string boundary; N modules reach into the
 `String` built-in directly"), applied to literal rendering.
 
@@ -142,7 +142,7 @@ but isn't exposed in a reusable (bare-string) form.
 
 ### Related
 
-- [i190-text-char-code-boundary](../../text/todo/190.md) — same
+- [i190-text-char-code-boundary](../../text/todo/190-text-code-unit-string-boundary.md) — same
   "own the single boundary; stop reaching into the built-in" pattern for the
   char-code ↔ string conversion.
 - [i176-json-file-effects](../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
