@@ -10,6 +10,7 @@
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { browserRun } from './module.mjs'
 import { all, catch_, sandbox } from '../node/module.f.mjs'
+import { ok } from '../../types/result/module.f.mjs'
 import { do_ } from '../module.f.mjs'
 
 // No `extra`: these proofs exercise the three operations the interpreter has
@@ -58,6 +59,20 @@ export const proof = {
         const r = okValue(await run(all(slow, fast)))
         assertEq(okValue(r[0]).result[1], 'first')
         assertEq(okValue(r[1]).result[1], 'second')
+    },
+    // The mirror of the panic below: a program that claims an operation this
+    // runner already implements is the same class of bug as one that asks for
+    // an operation it lacks. Resolving it either way would be silent — the
+    // answer's type would be a lie, or the caller's handler would be dropped.
+    collidingOperationIsRejected: async () => {
+        let message
+        // Side effect: `try`/`catch` is not allowed in FunctionalScript.
+        try {
+            browserRun(/** @type {any} */ ({ sandbox: async () => ok('replaced') }))
+        } catch (e) {
+            message = e
+        }
+        assertEq(message, 'browserRun: sandbox already implemented')
     },
     // A command no handler claims is a panic, not a `NotImplemented` answer:
     // this runner dispatches by exact match, which is why `browserRun` asks for

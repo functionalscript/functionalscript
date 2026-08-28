@@ -103,9 +103,11 @@ const sandbox = async f => {
 export const browserRun = extra => {
     // `all` interprets its children with the runner being defined, so the loop
     // is tied through a self-reference and the map cannot be typed on the way
-    // in. The cast stops at this line: what the function answers is typed.
+    // in. The cast stops at the `asyncRun` call: what the function answers is
+    // typed.
     /** @type {(effect: any) => Promise<any>} */
-    const run = asyncRun(/** @type {any} */ ({
+    let run
+    const core = {
         all: async (/** @type {readonly any[]} */ ...effects) =>
             ok(await Promise.all(effects.map(run))),
         sandbox: async (/** @type {() => unknown} */ f) => ok(await sandbox(f)),
@@ -116,7 +118,18 @@ export const browserRun = extra => {
         // dependency, so there is nothing here for a browser to do
         // differently.
         catch: async (/** @type {() => unknown} */ f) => ok(tryCatch(f)),
-        ...extra,
-    }))
+    }
+    // A collision panics rather than being resolved in either direction. The
+    // runner's answer is typed by these three operations, so an `extra` that
+    // replaced one would make the type a lie — and silently letting the core
+    // win instead would discard a handler the caller wrote on purpose. Neither
+    // is a routine outcome: it is a program claiming an operation this runner
+    // already has, which is the same class of bug as asking for one it does
+    // not.
+    const claimed = Object.keys(extra).filter(k => Object.hasOwn(core, k))
+    if (claimed.length !== 0) {
+        throw `browserRun: ${claimed.join(', ')} already implemented`
+    }
+    run = asyncRun(/** @type {any} */ ({ ...core, ...extra }))
     return run
 }
