@@ -199,6 +199,75 @@ export const proof = {
         assert(r[0] === 'ok', 'expected ok')
         assertStructurallySame(/** @type {readonly unknown[]} */ (r[1]), [1])
     },
+    // …and never dispatches an overridable operation at all. Reading a
+    // member can run arbitrary code — an accessor — and the rebuild runs
+    // after every read, so a getter that patches `Array.prototype.concat`
+    // (or `map`, `flatMap`, `slice`, `Object.fromEntries`) has patched it
+    // before any rebuild executes: a rebuild dispatching one of them was
+    // handed `['ok', []]` for `[1, 2]` against `[number, number]`. The
+    // fixed rebuilds construct with `defineProperty` captured at module
+    // load and walk their own cons list by property reads, so none of
+    // these patches reaches what `parse` builds. (The *verdict* path still
+    // dispatches overridable operations after a read — that exposure is
+    // `todo/hostile-accessor-hermetic-read-path.md`, and this fixture
+    // patches only what corrupts no verdict here.)
+    hostileIntrinsicPatchesDoNotReachTheRebuild: () => {
+        const captured = {
+            concat: Array.prototype.concat,
+            flatMap: Array.prototype.flatMap,
+            map: Array.prototype.map,
+            slice: Array.prototype.slice,
+            fromEntries: Object.fromEntries,
+        }
+        const patch = () => {
+            Array.prototype.concat = () => []
+            Array.prototype.flatMap = () => []
+            Array.prototype.map = () => []
+            Array.prototype.slice = () => []
+            Object.fromEntries = () => ({})
+        }
+        const restore = () => {
+            Array.prototype.concat = captured.concat
+            Array.prototype.flatMap = captured.flatMap
+            Array.prototype.map = captured.map
+            Array.prototype.slice = captured.slice
+            Object.fromEntries = captured.fromEntries
+        }
+        /** @type {(v: Unknown) => () => Unknown} */
+        const patchingGetter = v => () => { patch(); return v }
+        // The original repro: an index-0 getter that patches and returns `1`.
+        const tupleValue = [0, 2]
+        Object.defineProperty(tupleValue, 0, {
+            get: patchingGetter(1),
+            enumerable: true,
+            configurable: true,
+        })
+        const rt = p([number, number])(tupleValue)
+        restore()
+        assert(rt[0] === 'ok', 'expected ok')
+        assertStructurallySame(/** @type {readonly unknown[]} */ (rt[1]), [1, 2])
+        // The struct kind's `fromEntries` and the uniform array kind's
+        // `map` were the same seam.
+        const structValue = Object.defineProperty({ b: 2 }, 'a', {
+            get: patchingGetter(1),
+            enumerable: true,
+            configurable: true,
+        })
+        const rs = p({ a: number, b: number })(structValue)
+        restore()
+        assert(rs[0] === 'ok', 'expected ok')
+        assertStructurallySame(rs[1], { a: 1, b: 2 })
+        const arrayValue = [0, 2]
+        Object.defineProperty(arrayValue, 0, {
+            get: patchingGetter(1),
+            enumerable: true,
+            configurable: true,
+        })
+        const ra = p(array(number))(arrayValue)
+        restore()
+        assert(ra[0] === 'ok', 'expected ok')
+        assertStructurallySame(/** @type {readonly unknown[]} */ (ra[1]), [1, 2])
+    },
     // …and `parse` **materializes** the inherited value as an own member of
     // what it builds: the member is *present* — HasProperty is what the
     // check dispatched on — so its parsed value is in the entries the

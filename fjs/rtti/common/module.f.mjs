@@ -106,10 +106,18 @@ export const isObject =
  * final accumulator.
  *
  * Used by `parse`'s container builders (array/record/tuple/struct), which
- * need the rebuilt `[key, value]` pairs, so they fold them into a `List` (see
- * the call site) and convert to an array once at the end. A caller whose
- * whole question is "did every entry succeed?" passes `undefined`/`acc => acc`
+ * need the rebuilt `[key, value]` pairs, so they fold them onto a cons list
+ * (see the call site) their rebuilds walk directly. A caller whose whole
+ * question is "did every entry succeed?" passes `undefined`/`acc => acc`
  * instead and pays no allocation per entry.
+ *
+ * The walk is by index rather than `for..of`: `item` reads the value, and a
+ * read can run an accessor that replaces `Array.prototype`'s iterator —
+ * which `for..of` and destructuring dispatch on every step, so a later
+ * step's `[k, v]` was the accessor's to choose. Index and `length` reads
+ * consult nothing overridable on these plain entry arrays — the same rule
+ * `parse`'s rebuilds state in full (see `defineProperty` in
+ * `../parse/module.f.mjs`).
  */
 export const eachEntry =
     /**
@@ -124,12 +132,13 @@ export const eachEntry =
      */
     (entries, item, init, accumulate) => {
         let acc = init
-        for (const [k, v] of entries) {
-            const r = item(k, v)
+        for (let i = 0; i < entries.length; i += 1) {
+            const e = entries[i]
+            const r = item(e[0], e[1])
             if (r[0] === 'error') {
-                return prependPath(k, r)
+                return prependPath(e[0], r)
             }
-            acc = accumulate(acc, k, r[1])
+            acc = accumulate(acc, e[0], r[1])
         }
         return ok(acc)
     }

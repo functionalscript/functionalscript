@@ -50,14 +50,12 @@
  * @import { ConstObject, Info1, Tag1, Type } from '../types.ts'
  * @import { Result as CommonResult } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { List } from '../../types/list/types.ts'
  * @import { Container, Fits, IsContainer, SchemaEntries, ValidateE, ValidationError, Visitor } from '../common/types.ts'
  * @import { Unknown } from '../ts/types.ts'
  * @import { Parse } from './types.ts'
  */
 
 import { ok } from '../../types/result/module.f.mjs'
-import { reverse, toArray } from '../../types/list/module.f.mjs'
 import {
     absentMember,
     constPrimitiveValidate,
@@ -76,81 +74,134 @@ import { emptyRest } from '../data/module.f.mjs'
 
 /** @typedef {CommonResult<Unknown, ValidationError>} _ItemResult */
 
-/** Rebuilds a parsed container from its `[key, parsedValue]` entries. */
-/** @typedef {(entries: ReadonlyArray<readonly [string, Unknown]>) => Unknown} _Rebuild */
+/**
+ * The parsed `[key, parsedValue]` pairs as {@link consEntry} and
+ * {@link consPresent} fold them: a cons list in **reverse** member order, so
+ * its head is the last member parsed — for the array kinds, the highest
+ * present index.
+ */
+/** @typedef {null | { readonly first: readonly [string, Unknown], readonly tail: _Entries }} _Entries */
 
-/** @type {_Rebuild} */
-const arrayRebuild = entries => entries.map(([, v]) => v)
-
-/** @type {_Rebuild} */
-const recordRebuild = entries => Object.fromEntries(entries)
+/** Rebuilds a parsed container from its entries. */
+/** @typedef {(entries: _Entries) => Unknown} _Rebuild */
 
 /**
- * One pairwise round of {@link tupleRebuild}'s join: adjacent segments are
- * `concat`enated — always one argument, so no call ever spreads the segment
- * list — halving the count while copying every element once. `concat`
- * appends a spreadable operand element by *present* element, which is what
- * keeps the holes; each receiver is a trusted plain array, so its species
- * is `Array`.
+ * The rebuilds' one construction step, captured at module load.
  *
- * @type {(segments: ReadonlyArray<ReadonlyArray<Unknown>>) => ReadonlyArray<ReadonlyArray<Unknown>>}
+ * Reading a member of the value can run **arbitrary code** — an accessor —
+ * and the rebuild runs after every read, so by then that code may have
+ * replaced anything the language reaches by dynamic lookup: an
+ * `Array.prototype` method (`concat`, `map`, `flatMap`), the array
+ * iterator every `for..of` and destructuring dispatches,
+ * `Object.fromEntries`, the `Array` binding `new Array` resolves, or the
+ * `constructor`/`@@species` lookup inside every array method — even a
+ * *captured* `concat` builds its result through the receiver's species. A
+ * rebuild dispatching any of those was steered into `['ok', …]` values
+ * failing the very schema they were parsed against — see
+ * `../host.proof.mjs`.
+ *
+ * `defineProperty` on a fresh container consults none of that: it creates
+ * an own data property directly, the array exotic length update included.
+ * So the rebuilds walk the entry cons list — plain literals this module
+ * built — by property reads alone, place members with this one captured
+ * operation, and perform no other dynamic lookup at all (`+k` is the
+ * index read, `Number` being a patchable global).
  */
-const joinSegmentsRound = segments => segments.flatMap((s, i) =>
-    i % 2 !== 0 ? []
-    : i + 1 < segments.length ? [s.concat(segments[i + 1])]
-    : [s])
+const { defineProperty } = Object
+
+/** The one `Array` the rebuilds construct with, captured at module load. */
+const PlainArray = Array
+
+/** The descriptor a literal would create: an enumerable own data property. */
+/** @type {(value: Unknown) => PropertyDescriptor} */
+const enumerableValue = value =>
+    ({ value, writable: true, enumerable: true, configurable: true })
+
+/** Restores member order from the reverse-order entries, in one linear pass. */
+/** @type {(entries: _Entries) => _Entries} */
+const reverseEntries = entries => {
+    /** @type {_Entries} */
+    let r = null
+    for (let n = entries; n !== null; n = n.tail) {
+        r = { first: n.first, tail: r }
+    }
+    return r
+}
+
+/**
+ * The uniform **array** kind's rebuild: the parsed elements, dense, in
+ * member order — placed back to front, since the entries arrive reversed.
+ */
+/** @type {_Rebuild} */
+const arrayRebuild = entries => {
+    let length = 0
+    for (let n = entries; n !== null; n = n.tail) { length += 1 }
+    const result = new PlainArray(length)
+    let i = length
+    for (let n = entries; n !== null; n = n.tail) {
+        i -= 1
+        defineProperty(result, i, enumerableValue(n.first[1]))
+    }
+    return result
+}
+
+/**
+ * The **record** and **struct** kinds' rebuild: the parsed members as a fresh
+ * plain object, in member order — an absent declared member left no entry,
+ * so dropping its key needs nothing more. A key is *defined*, never
+ * assigned: assignment dispatches setters up the chain (`'__proto__'`
+ * among them), which is the same dynamic surface the rebuilds exist to
+ * avoid.
+ */
+/** @type {_Rebuild} */
+const recordRebuild = entries => {
+    const result = {}
+    for (let n = reverseEntries(entries); n !== null; n = n.tail) {
+        defineProperty(result, n.first[0], enumerableValue(n.first[1]))
+    }
+    return result
+}
 
 /**
  * The **tuple** kind's rebuild over its declared members — only the present
- * ones reach `entries` (`recordRebuild` is the struct kind's counterpart,
- * where dropping an absent key needs nothing more): the present members at
- * their own indices, holes at the absent ones before them, ending at the
- * last present position — so a trailing absent run shortens the result and
- * an interior hole survives (materializing it as `undefined` would denote a
- * different value, and omitting it would shift every position after it).
+ * ones reach `entries`: each at its own index, holes at the absent ones
+ * before them, ending at the last present position — so a trailing absent
+ * run shortens the result and an interior hole survives (materializing it
+ * as `undefined` would denote a different value, and omitting it would
+ * shift every position after it). The reversed entries' head *is* the last
+ * present position, so the length is known before the walk, and an index
+ * never defined stays a hole of `new PlainArray`'s making.
  *
- * The construction is segments — a fresh `new Array(gap)` of holes before
- * each present member, then the member — collected on an O(1)-prepend list
- * and joined pairwise ({@link joinSegmentsRound}), so the whole rebuild is
- * one linear pass plus a logarithmic number of halving rounds: re-spreading
- * the accumulated segments per entry was quadratic, and one
- * `concat(...segments)` call overflowed the engine's argument limit on a
- * large enough prefix, throwing past the `Result` API.
- *
- * The input value is never consulted, and every array touched is a plain
- * one this module made, which is the point: an earlier slice-then-map of
- * the input let an accepted `Array` subclass override `slice` and hand
- * `parse` a result that fails the very schema it was parsed against. An
- * index the value only *inherits* is a present member (HasProperty is what
- * the check dispatched on), so it sits in `entries` and is materialized as
- * an own member of the result, carrying its parsed value — see
+ * The input value is never consulted, and nothing overridable is
+ * dispatched — see {@link defineProperty} above for why both matter: an
+ * accepted value supplied first a `slice` of its own and then, through an
+ * accessor, a patched `Array.prototype.concat`, and each steered a rebuild
+ * into a result that fails the schema it was parsed against. An index the
+ * value only *inherits* is a present member (HasProperty is what the check
+ * dispatched on), so it sits in `entries` and is materialized as an own
+ * member of the result, carrying its parsed value — see
  * `../host.proof.mjs`.
  *
  * @type {_Rebuild}
  */
 const tupleRebuild = entries => {
-    /** @type {List<ReadonlyArray<Unknown>>} */
-    let reversed = null
-    let next = 0
-    for (const [k, v] of entries) {
-        const i = Number(k)
-        if (i > next) { reversed = { first: new Array(i - next), tail: reversed } }
-        reversed = { first: [v], tail: reversed }
-        next = i + 1
+    if (entries === null) { return [] }
+    const result = new PlainArray(+entries.first[0] + 1)
+    /** @type {_Entries} */
+    let n = entries
+    while (n !== null) {
+        defineProperty(result, n.first[0], enumerableValue(n.first[1]))
+        n = n.tail
     }
-    let segments = toArray(reverse(reversed))
-    while (segments.length > 1) {
-        segments = joinSegmentsRound(segments)
-    }
-    return segments.length === 0 ? [] : segments[0]
+    return result
 }
 
 /** `eachEntry`'s accumulator seed: entries are consed on in reverse as they parse. */
-/** @type {List<readonly [string, Unknown]>} */
+/** @type {_Entries} */
 const emptyEntries = null
 
 /** `eachEntry`'s accumulate step: an O(1) prepend, unlike rebuilding an array on every entry. */
-/** @type {(acc: List<readonly [string, Unknown]>, k: string, v: Unknown) => List<readonly [string, Unknown]>} */
+/** @type {(acc: _Entries, k: string, v: Unknown) => _Entries} */
 const consEntry = (acc, k, v) =>
     ({ first: [k, v], tail: acc })
 
@@ -162,18 +213,13 @@ const consEntry = (acc, k, v) =>
  * `undefined` included, is a legal parse result, so no value could mark
  * absence.
  */
-/** @type {(acc: List<readonly [string, Unknown]>, k: string, vs: ReadonlyArray<Unknown>) => List<readonly [string, Unknown]>} */
+/** @type {(acc: _Entries, k: string, vs: ReadonlyArray<Unknown>) => _Entries} */
 const consPresent = (acc, k, vs) =>
     vs.length === 0 ? acc : ({ first: [k, vs[0]], tail: acc })
 
 /** A uniform container declares no member by name, so every one is undeclared. */
 /** @type {readonly string[]} */
 const noDeclared = []
-
-/** Restores forward order from `consEntry`'s reverse-order list, in one linear pass. */
-/** @type {(list: List<readonly [string, Unknown]>) => ReadonlyArray<readonly [string, Unknown]>} */
-const orderedEntries = list =>
-    toArray(reverse(list))
 
 /**
  * Builds a parser for `array` or `record` schemas: rebuilds a fresh container
@@ -208,12 +254,12 @@ const containerParse =
             const e = undeclaredMembers(noDeclared, value)
             if (e.length === 0) {
                 return fits(value, 0)
-                    ? /** @type {any} */ (ok(rebuild([])))
+                    ? /** @type {any} */ (ok(rebuild(null)))
                     : verror('unexpected value')
             }
             const itemParse = /** @type {any} */ (parse(item))
             const r = eachEntry(e, (_k, v) => itemParse(v), emptyEntries, consEntry)
-            return r[0] === 'error' ? r : /** @type {any} */ (ok(rebuild(orderedEntries(r[1]))))
+            return r[0] === 'error' ? r : /** @type {any} */ (ok(rebuild(r[1])))
         }
     }
 
@@ -287,7 +333,7 @@ const constContainerParse =
             )
             if (r[0] === 'error') { return r }
             return undeclaredMembers(declared, value).length === 0 && fits(value, declared.length)
-                ? /** @type {any} */ (ok(rebuild(orderedEntries(r[1]))))
+                ? /** @type {any} */ (ok(rebuild(r[1])))
                 : verror('unexpected value')
         }
     }
@@ -357,12 +403,12 @@ const restContainerParse =
             const extra = undeclaredMembers(declared, value)
             if (extra.length === 0) {
                 return fits(value, declared.length)
-                    ? ok(rebuild(orderedEntries(d[1])))
+                    ? ok(rebuild(d[1]))
                     : verror('unexpected value')
             }
             const restParse = /** @type {any} */ (parse(r))
             const e = eachEntry(extra, (_k, v) => restParse(v), undefined, noAccumulate)
-            return e[0] === 'error' ? e : ok(rebuild(orderedEntries(d[1])))
+            return e[0] === 'error' ? e : ok(rebuild(d[1]))
         }
     }
 
