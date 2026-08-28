@@ -126,11 +126,61 @@ and is reviewable without the next one.
       rule they rest on is in [browser testing](browser-testing.md).
 
 - [ ] **4. Common effects.** Move the host-independent operations (`all`,
-      `await`, `fetch`, `import`, `now`, `sandbox`) out of `effects/node` into a
-      shared module that `effects/node` re-exports unchanged, so nothing has to
-      move with them.
+      `await`, `sandbox`, and whichever of `now`, `fetch` and `import` survive
+      the test below) out of `effects/node` into a shared module that
+      `effects/node` re-exports unchanged, so nothing has to move with them.
+
+      **Three of that list are unsettled, and this step does not get to assume
+      them.** `all`, `await` and `sandbox` are agreed:
+      [node-module-layering](../../effects/todo/node-module-layering.md) moves
+      them too. But that issue keeps `Now`, `Fetch` and `Import` in
+      `effects/node` on a reader-benefit argument, and this step was written
+      listing all three as moving. Neither was written knowing the fact that
+      decides it — which operations the step-5 interpreter actually implements —
+      so step 5 settles them and updates both files in the same change. The
+      expectation recorded there: `now` and `import` move (a browser proof run
+      needs a clock and dynamic import), `fetch` stays (nothing in the shared
+      runner performs one, and DESIGN.md §4 extracts at the second *real*
+      consumer).
+
+      **The vocabulary went first, and it was not speculative.** Before an
+      operation can move, the types it is *declared in* have to have a home:
+      `OpResult`, `IoError`, `IoErrorInfo`, `IoChannel`, `IoResult` and the
+      `ioError`/`toIoError` constructors were all in `effects/node`, and none
+      of them names a host — "the runner cannot dispatch" and "the host tried
+      and failed" are how *any* operation goes wrong. That misfiling already
+      had a victim: `effects/memory/types.ts`, which has no host at all,
+      imported `OpResult` from `../node/types.ts`. So that move is separation
+      of concerns with a consumer today
+      ([DESIGN.md §4](../../../DESIGN.md)), not an extraction on the promise of
+      one — which is the test the operations themselves have yet to pass, and
+      why they wait for step 5. `effects/node` re-exports every moved name, so
+      the several dozen modules that reach for them through it are untouched.
+
+      **`isNotFound` stayed, and it is the boundary marker for this step.** It
+      reads `ENOENT`, a POSIX filesystem code a browser never reports, so it is
+      a node predicate however much it looks like the constructors beside it.
+      Being about a *host failure* does not make a thing host-agnostic; being
+      about no host in particular does. Apply that test to each operation below
+      rather than moving the list wholesale —
+      [node-module-layering](../../effects/todo/node-module-layering.md) is
+      where those rulings live, and it already declines to move `Now` and
+      `RandomInt` for a related reason.
 - [ ] **5. A browser interpreter** for exactly those operations, with no
-      scheduling policy of its own.
+      scheduling policy of its own. This is also what earns step 4's *operation*
+      move its second consumer: until a second host implements `sandbox`,
+      `await` and `all`, moving them out of `effects/node` makes nothing shorter
+      or clearer, and DESIGN.md §4 says to extract at the second real consumer
+      rather than before it. The two are therefore one design in two commits,
+      not one step deferred.
+
+      **Its operation set is also the ruling** on `now`, `fetch` and `import`,
+      which step 4 and
+      [node-module-layering](../../effects/todo/node-module-layering.md)
+      currently disagree about. What this interpreter implements is what has a
+      second consumer; what it does not implement stays in `effects/node` until
+      something needs it. Write the answer into both files in this step's own
+      change, so neither is left asserting what the other denies.
 - [x] **6. One reporter.** The event stream — a leaf landed, a run ended —
       that both hosts subscribe to. Step 2 gave them the *value*; this gave
       them the seam it travels through. `Reporter.result` now receives the

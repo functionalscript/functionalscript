@@ -303,11 +303,22 @@ from `Result<T, unknown>` — for one that performs host IO
 (`Result<T, NotImplemented | IoError>`).
 
 `IoError` is `readonly['ioError', { code?, message }]`, a tagged tuple beside
-`NotImplemented` so the shared channel stays discriminable, in
-`fjs/effects/node/types.ts` beside the operations it belongs to. `toIoError`
+`NotImplemented` so the shared channel stays discriminable. `toIoError`
 normalizes a thrown host value at the one boundary where an impure runner
 catches; the virtual runner reports the same shape, so a proof against the
 virtual filesystem stays evidence about the real one.
+
+**Both, and the two aliases above, have since moved to `fjs/effects/types.ts`.**
+This migration put them in `fjs/effects/node/types.ts`, "beside the operations
+they belong to", which was true while node's were the only operations there
+were. What overturned it is a second host: `effects/memory` — no host at
+all — was importing `OpResult` from the node module, and a browser
+interpreter could not declare an operation without doing the same. `effects/node`
+re-exports all of them, so nothing this record describes about their *shape* or
+their use has changed. `isNotFound` stayed behind, being about `ENOENT`
+specifically. See
+[node-module-layering](./node-module-layering.md), which owns that question
+now.
 
 **`Write` and `Read` stayed `OpResult`.** They are host IO and could fail
 (`EPIPE`), but this stage's rule for a currently-infallible handler is to wrap

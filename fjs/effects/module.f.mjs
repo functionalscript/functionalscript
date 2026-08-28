@@ -82,13 +82,47 @@
  * @import { Fold } from '../types/function/operator/types.ts'
  * @import { Option } from '../types/option/types.ts'
  * @import { Result } from '../types/result/types.ts'
- * @import { Commands, Effect, ErrOf, Func, MatchResult, NotImplemented, OkOf, Operation, OperationMap, PartialOperationMap } from './types.ts'
+ * @import { Commands, Effect, ErrOf, Func, IoChannel, IoError, IoErrorInfo, MatchResult, NotImplemented, OkOf, Operation, OperationMap, PartialOperationMap } from './types.ts'
  */
 
 import { assert } from '../asserts/module.f.mjs'
 import { fold } from '../types/list/module.f.mjs'
 import { error, mapOk, ok } from '../types/result/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
+
+/**
+ * Builds a normalized host error. The constructor exists so the shape is
+ * written once: every runner reports its failures through it, and a consumer
+ * matching on `'ioError'` knows what the payload holds.
+ *
+ * @type {(info: IoErrorInfo) => IoError}
+ */
+export const ioError = info => ['ioError', info]
+
+/**
+ * Normalizes a **thrown** value into an {@link IoError}: the OS error code when
+ * the host attached a string one, and a message that is the `Error`'s own or
+ * the value's string form.
+ *
+ * This is the boundary where an impure runner's `catch` becomes ordinary effect
+ * data. Nothing past it sees the thrown object, which is the point — a stack, a
+ * `cause`, and arbitrary own properties do not survive a wire hop, and a
+ * program that branched on them would be reading the host's implementation
+ * rather than the operation's contract.
+ *
+ * The `code` convention is node's in origin and not node's in reach: a browser
+ * `DOMException` carries a string `name` and not a `code`, so it normalizes
+ * through the message branch — correctly, since there is no OS code to report.
+ *
+ * @type {(e: unknown) => IoError}
+ */
+export const toIoError = e => {
+    const message = e instanceof Error ? e.message : String(e)
+    if (typeof e !== 'object' || e === null || !('code' in e) || typeof e.code !== 'string') {
+        return ioError({ message })
+    }
+    return ioError({ code: e.code, message })
+}
 
 /**
  * Lifts an already-computed {@link Result} into an effect that performs no
