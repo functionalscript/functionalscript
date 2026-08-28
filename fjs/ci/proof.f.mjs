@@ -284,11 +284,18 @@ export const proof = {
         // gains a private type module later, and an empty file list would
         // type-check nothing and pass.
         assert(hasRunInJob(packageCheckJobId, '--skipLibCheck false')(gha), 'expected skipLibCheck left false')
-        assert(hasRunInJob(packageCheckJobId, 'find node_modules/functionalscript')(gha), 'expected declarations enumerated from the artifact')
+        assert(hasRunInJob(packageCheckJobId, 'find "node_modules/$pkg"')(gha), 'expected declarations enumerated from the artifact')
         assert(hasRunInJob(packageCheckJobId, 'test -s declarations.txt')(gha), 'expected a guard against an empty file list')
         // The compiler is the package's own pin: with no checkout there is no
         // lockfile, so an unpinned install lets the registry change the verdict.
-        assert(hasRunInJob(packageCheckJobId, 'devDependencies.typescript')(gha), 'expected the compiler pinned from the packed package.json')
+        assert(hasRunInJob(packageCheckJobId, 'devDependencies?.typescript')(gha), 'expected the compiler pinned from the packed package.json')
+        // `fjs ci` generates workflows for other projects, so the artifact's
+        // package name is whatever that project publishes. A hard-coded name
+        // would fail for them — or worse, silently check a dependency that
+        // happens to share the name instead of the artifact just built, which
+        // is a plausible wrong answer rather than a refusal.
+        assert(hasRunInJob(packageCheckJobId, "Object.keys(require('./package.json').dependencies)[0]")(gha), 'expected the package directory derived from the artifact')
+        assert(!hasRunInJob(packageCheckJobId, 'node_modules/functionalscript')(gha), 'the package check must not hard-code this repository\'s package name')
     },
     jobNeeds: () => {
         const steps = /** @type {const} */ ([{ run: 'echo hi' }])

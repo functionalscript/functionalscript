@@ -20,15 +20,22 @@ export const packageCheckJobId = /** @type {const} */ ('package-check')
 const script = /** @type {const} */ (`set -eu
 npm init -y > /dev/null
 npm install --no-audit --no-fund ./*.tgz
+# The artifact installs under its own package name, which is not necessarily
+# this repository's: \`fjs ci\` generates workflows for other projects too. A
+# hard-coded name would fail for them, or worse, silently check a dependency
+# that happens to share the name instead of the artifact just built.
+pkg=$(node -p "Object.keys(require('./package.json').dependencies)[0]")
 # The compiler is the package's own pin, read out of the packed package.json:
 # with no checkout there is no lockfile, so an unpinned install would let the
-# registry change this check's verdict with no change to this repository.
-ts=$(node -p "require('./node_modules/functionalscript/package.json').devDependencies.typescript.replace(/^=/, '')")
-npm install --no-audit --no-fund typescript@"$ts"
+# registry change this check's verdict with no change to the repository.
+ts=$(PKG="$pkg" node -p "require('./node_modules/' + process.env.PKG + '/package.json').devDependencies?.typescript ?? ''")
+# Refuse rather than fall back to a floating compiler.
+test -n "$ts"
+npm install --no-audit --no-fund "typescript@$ts"
 # Every declaration the package ships, enumerated from the installed artifact.
 # A hand-written import list cannot see a module that gains a private type
 # module later, which is the case this check exists to catch.
-find node_modules/functionalscript \\( -name '*.d.ts' -o -name '*.d.mts' \\) > declarations.txt
+find "node_modules/$pkg" \\( -name '*.d.ts' -o -name '*.d.mts' \\) > declarations.txt
 # An empty list would type-check nothing and pass, which is the one way this
 # job can look healthy while checking nothing at all.
 test -s declarations.txt
