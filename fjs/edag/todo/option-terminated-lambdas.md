@@ -82,12 +82,19 @@ row above a genuine type error:
   above. `propertyLambda` is not phantom-wrapped, so it needs no wrapper:
   `_AdmitsAbsence` walks its `or` directly.
 
+Both findings above verify the `option` spelling — the alternative the hole
+question below ends up rejecting. They stay as the record of what was
+established; the chosen arity-split spelling needs none of that machinery,
+its hand-written types being plain unions of exact tuples, the pattern the
+schema already uses today.
+
 ### What is gained
 
 - `null` in a graph means one thing again: the primitive value.
 - Every plain property access and every chain end drops one element — fewer
   elements to store and hash.
-- "The chain ends" is spelled as absence, which is what `option` is for.
+- "The chain ends" is spelled by the operand not being there — a shorter
+  closed tuple.
 
 ### Trailing holes must be rejected in the same change
 
@@ -102,63 +109,58 @@ the leak is canonicality-only. It is still a validation regression against
 today's schema, and a regression may not be deferred behind a todo
 ([`AGENTS.md`](../../../AGENTS.md) §1, "Merge the knowledge"): the migration
 does not land unless the same change keeps `validate(exp)` rejecting a
-trailing hole, pinned in the proofs. Two mechanisms qualify, either is
-acceptable:
+trailing hole, pinned in the proofs.
 
-1. **Arity-split unions, no `option` at all** (verified against the real
-   `validate`, no rtti change needed). Each node or step whose continuation
-   may end is a union of its two closed arities —
-   `or(['.', exp, index], ['.', exp, index, propertyLambda])`, and likewise
-   per step — so absence is spelled by the shorter tuple and a hole matches
-   neither arm: the 3-arity arm rejects length 4, the 4-arity arm has no
-   `option` and rejects the absent member. `['.', a, 'b', ,]` and
-   `['|()', c, ,]` both reject; every acceptance row in the table above is
-   unchanged. Costs: each such kind doubles its union arms, the shared prefix
-   is written twice, and the `AbsentOr`/`CheckRaw` machinery drops out
-   (hand-written types are plain unions of exact tuples, no optional
-   elements).
-2. **An rtti rule first: absence in a tuple is the array ending before the
-   position, never a hole** — the const- and rest-tuple validators' absent
-   branch additionally requires the index to lie at or past `value.length`.
-   One condition, and it aligns the readers' array domain with DJS, which has
-   no sparse arrays — the same direction as
-   [`data-validate-admits-non-djs-values`](../../rtti/todo/data-validate-admits-non-djs-values.md).
-   But it reverses documented rtti behavior (`option`'s "position 0 may be a
-   hole"; `_InteriorTs` rendering interior absence as "what reading a hole
-   gives") across all three readers and the printer — and it reaches the
-   data form's canonical algebra: once a hole is no member, `[option]` and
-   `[]` denote one array set, while `toData` deliberately keeps them
-   distinct today — `trimPrefix` in
-   [`../../rtti/data/module.f.mjs`](../../rtti/data/module.f.mjs) exempts
-   the empty `rest` exactly because the two "differ on `new Array(1)`".
-   Updating only the validators' absent branches would leave the data form
-   with two spellings of one set and its `validate`/`equal`/`subset`
-   disagreeing with the schema readers, so the prerequisite rtti issue must
-   also specify the `arraySet` normalization that collapses an
-   absence-admitting trailing position against an empty `rest` (one `Node`
-   for `[option]` and `[]`), and carry `cmp`/`equal`/`subset`, the data
-   reader, and the printer with it. Not only trailing, either: under the
-   rule, a position's absence is realizable exactly when every later
-   position also admits absence — an array ending before it ends before
-   them too — so an **interior** absent bit (any position followed by one
-   whose set excludes absence) becomes unobservable. `[or(option, number),
-   3]`, the `option` JSDoc's own example, comes to denote the same set as
-   `[number, 3]` while `toData` keeps its `absentBit` and `_InteriorTs`
-   renders a stale `| undefined`; the normalization must strip every
-   unobservable interior absent bit — the same trailing-run split `TupleTs`
-   already makes — with the type-level and printer renderings following.
-   It needs its own rtti issue and lands
-   **before** this migration, which then keeps the `option` spelling and
-   machinery described above — and the width of that surface, against
-   mechanism 1 touching none of it, is itself an argument for mechanism 1.
+**The chosen mechanism is arity-split unions, no `option` at all** (verified
+against the real `validate`, no rtti change needed). Each node or step whose
+continuation may end is a union of its two closed arities —
+`or(['.', exp, index], ['.', exp, index, propertyLambda])`, and likewise per
+step — so absence is spelled by the shorter tuple and a hole matches neither
+arm: the 3-arity arm rejects length 4, the 4-arity arm has no `option` and
+rejects the absent member. `['.', a, 'b', ,]` and `['|()', c, ,]` both
+reject; every acceptance row in the table above is unchanged. Costs: each
+such kind doubles its union arms, the shared prefix is written twice, and
+the `AbsentOr`/`CheckRaw` machinery drops out — hand-written types are plain
+unions of exact tuples, no optional elements.
+
+**The rejected alternative** — keep the `option` spelling and first land an
+rtti rule that absence in a tuple is the array ending before the position,
+never a hole (the validators' absent branch requiring the index at or past
+`value.length`) — was weighed across three review rounds of
+[#1755](https://github.com/functionalscript/functionalscript/pull/1755) and
+rejected because its prerequisite grows into an open-ended redesign of
+rtti's canonical algebra, not one condition. The rule aligns the readers'
+array domain with DJS (no sparse arrays — the direction of
+[`data-validate-admits-non-djs-values`](../../rtti/todo/data-validate-admits-non-djs-values.md)),
+but it cascades: it reverses documented reader and printer behavior
+(`option`'s "position 0 may be a hole"; `_InteriorTs`'s "what reading a hole
+gives"); it collapses `[option]` into `[]` — one set once `new Array(1)` is
+excluded — while `trimPrefix` in
+[`../../rtti/data/module.f.mjs`](../../rtti/data/module.f.mjs) deliberately
+keeps their canonical `Node`s distinct, so `arraySet` must renormalize and
+`cmp`/`equal`/`subset`, the data reader, and the printer must follow; it
+makes every **interior** absent bit unobservable (absence at a position is
+realizable only when every later position also admits it, so
+`[or(option, number), 3]` comes to denote `[number, 3]` while `toData` keeps
+the `absentBit`), so those bits must be stripped, the trailing-run split
+`TupleTs` already makes; and even that strip has no local answer for a
+**referenced** node — the data form declines to see through a reference
+(`trimPrefix` leaves referenced positions alone), and a rule like
+`r = or(option, [r])` may sit at one position where its root absence is
+unobservable and another where it is not, so stripping the rule itself
+changes the fixpoint, and the design would need contextual specialization or
+a stated canonicality exception. All of that as a prerequisite for a
+migration that does not need it; anyone wanting the past-the-end rule on its
+own merits files it as an rtti issue.
 
 ## Proposal
 
-Replace the `null` member of all three lambda schemas with `option`, drop the
-terminals' third operand, and let the continuation positions of `dot`,
-`optionDot`, `optionCall` and the steps end by absence — spelled with
-`option` under mechanism 2 above, or as arity-split unions under mechanism 1
-(same accepted values either way). Code changes are small; the bulk is
+Drop the `null` member of all three lambda unions and the terminals' third
+operand, and let the continuation positions of `dot`, `optionDot`,
+`optionCall` and the steps end by the operand's absence — spelled as
+arity-split unions, per the chosen mechanism above: each node or step whose
+continuation may end becomes a union of its two closed arities, with no
+`option` anywhere in the chain schemas. Code changes are small; the bulk is
 mechanical respelling of proofs and prose.
 
 [amnesia](../amnesia/module.f.mjs) barely changes: its four `k === null`
@@ -168,25 +170,16 @@ present value there.
 
 ### Tasks
 
-The first task decides the shape of the two after it — they are spelled per
-mechanism because mixing them reintroduces the hole: an arity-split arm whose
-lambda root still carries `option` admits the absent member again.
+The schemas must not mix the spellings: an arity-split arm whose lambda root
+carries `option` admits the absent member — and its hole — again.
 
-- [ ] pick the hole-rejection mechanism: **1** (arity-split unions, no
-  `option` anywhere in the chain schemas, no rtti change) or **2** (the rtti
-  past-the-end rule, filed as its own rtti issue and landed first, then the
-  `option` spelling below)
-- [ ] `../module.f.mjs` — under mechanism 2: `option` for `null` in the three
-  lambda unions; terminals become closed 2-tuples; `AbsentOr` phantom
-  annotations plus `CheckRaw` asserts for
-  `_optionLambda`/`_optionPropertyLambda`. Under mechanism 1: every lambda
-  union and continuation-carrying node splits by arity instead — no `option`
-  member in any of them, and the phantom annotations stay plain
-- [ ] `../types.ts` — under mechanism 2: the optional-element types above;
-  under mechanism 1: plain unions of exact tuples, one per arity, no
+- [ ] `../module.f.mjs`: every lambda union and continuation-carrying node
+  splits by arity — no `option` member in any of them, terminals are the
+  shorter arm, phantom annotations stay plain
+- [ ] `../types.ts`: plain unions of exact tuples, one per arity, no
   optional elements
-- [ ] `../amnesia/module.f.mjs` (same under either mechanism):
-  `k === null` → `k === undefined`; signatures take `… | undefined`
+- [ ] `../amnesia/module.f.mjs`: `k === null` → `k === undefined`;
+  signatures take `… | undefined`
 - [ ] `../proof.f.mjs`, `../amnesia/proof.f.mjs`: respell (~200 trailing
   `null`s); add rejections for present `null`, present `undefined`, the
   smuggled continuation on a terminal, and the trailing holes
