@@ -37,16 +37,19 @@ export type { phantomKey }
  * type _Check = Assert<Check3<MyType, typeof rawThunk, typeof thunk>>
  * ```
  *
- * For an rtti schema the annotation is **`_TsRaw`-shaped**: when the wrapped
- * schema's *root* admits absence — `or(option, …)` — `T` must carry the
- * `Absent` marker (`Absent | MyType`), or a member the wrapped schema is
- * used at silently renders required. The pair above cannot catch the
- * omission, both halves comparing through the public `Ts<>`, which strips
- * `Absent` from both sides — so such a schema **requires** the raw assert
- * beside them, with `CheckRaw` and `Absent` from `fjs/rtti/ts/types.ts`:
+ * For an rtti schema: when the wrapped schema's *root* admits absence —
+ * `or(option, …)` — `T` must carry the flag in the `AbsentOr` wrapper
+ * (`AbsentOr<MyType>`), or a member the wrapped schema is used at silently
+ * renders required. A wrapper rather than an `Absent | MyType` union,
+ * because a union member drowns when `MyType` renders as the top —
+ * `Absent | unknown` *is* `unknown` — taking the optionality with it. The
+ * pair above cannot catch the omission, both halves comparing through the
+ * public `Ts<>`, which strips absence from both sides — so such a schema
+ * **requires** the raw assert beside them, with `CheckRaw` and `AbsentOr`
+ * from `fjs/rtti/ts/types.ts`:
  *
  * ```ts
- * type _CheckRaw = Assert<CheckRaw<Absent | MyType, typeof rawThunk>>
+ * type _CheckRaw = Assert<CheckRaw<AbsentOr<MyType>, typeof rawThunk>>
  * ```
  *
  * A schema whose root excludes absence needs nothing new — `_TsRaw` and

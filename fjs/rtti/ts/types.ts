@@ -25,17 +25,35 @@ declare const absentKey: unique symbol
  * `undefined` (which would make `or(undefined, number)` optional too and
  * conflate the very pair `option` exists to separate).
  *
- * It appears only in {@link _TsRaw} results and in a `Phantom` annotation's
- * raw shape; the public {@link Ts} strips it, and every container position
- * lowers it for itself — a struct key or trailing tuple position renders
- * optional, an interior tuple position renders `undefined` (what reading a
- * hole gives), an array or record element excludes it. One caveat is
- * inherent: the top absorbs it — `Absent` is assignable to `unknown`, and to
- * the `Object` arm of {@link Unknown} — so no subtype query over a rendered
- * type can recover it. Whether a member may be absent is therefore asked of
- * the *schema*, by {@link _AdmitsAbsence}, never of the rendered union.
+ * It appears only in {@link _TsRaw} results; the public {@link Ts} strips
+ * it, and every container position lowers it for itself — a struct key or
+ * trailing tuple position renders optional, an interior tuple position
+ * renders `undefined` (what reading a hole gives), an array or record
+ * element excludes it. One caveat is inherent: the top absorbs it —
+ * `Absent` is assignable to `unknown`, and `Absent | unknown` *is*
+ * `unknown` — so neither a subtype query over a rendered type nor a union
+ * member can carry absence past a top-rendering present part. Whether a
+ * member may be absent is therefore asked of the *schema*, by
+ * {@link _AdmitsAbsence}, never of the rendered union — and a `Phantom`
+ * annotation carries it in {@link AbsentOr}'s wrapper, never as a union
+ * member.
  */
 export type Absent = { readonly [absentKey]: typeof absentKey }
+
+/**
+ * A `Phantom` annotation's spelling for a schema whose **root admits
+ * absence**: `AbsentOr<MyType>` wraps the present part instead of unioning
+ * {@link Absent} into it, because a union member drowns in a top-rendering
+ * present part — `Absent | unknown` is `unknown`, and `or(option, {})`
+ * renders its present part as `unknown` (see {@link StructTs}) — while the
+ * branded wrapper survives any present type. This is the same shape the
+ * runtime keeps: the data form's absent bit rides *beside* the union, never
+ * in it. {@link _AdmitsAbsence}, {@link _IsAbsentOnly}, {@link Ts} and
+ * {@link _TsRaw} all read the wrapper first; {@link CheckRaw} pins its
+ * presence against the schema. An absent-only root — `option` itself —
+ * annotates as `AbsentOr<never>`.
+ */
+export type AbsentOr<T> = { readonly [absentKey]: T }
 
 /**
  * Whether the schema type admits **absence** — the type-level counterpart of
@@ -43,19 +61,24 @@ export type Absent = { readonly [absentKey]: typeof absentKey }
  * {@link StructTs} and {@link TupleTs} decide optionality with. Structural
  * over the schema: it recurses through `or` — which does no flattening, so
  * `or(or(option, number), string)` needs the recursion — and reads a
- * `Phantom` annotation's raw shape for its `Absent` member. It is *not* a
+ * `Phantom` annotation for its {@link AbsentOr} wrapper. It is *not* a
  * subtype query against the rendered type: neither `Absent extends Ts<…>`
  * (false for every member — `Ts` strips the marker) nor
  * `Absent extends _TsRaw<…>` (true at `unknown`, whose top absorbs the
  * marker) can answer it — `{ a: unknown }`, which rejects `{}`, would render
  * indistinguishably from `{ a: or(option, unknown) }`, which accepts it.
+ * Nor is it a union-membership query over the annotation:
+ * `Extract<O, Absent>` read absence out of `Absent | number`, but
+ * `Absent | unknown` has already collapsed to `unknown` — the marker
+ * drowned with nothing to extract, and the member rendered required. The
+ * wrapper is what survives a top-rendering present part.
  */
 export type _AdmitsAbsence<T> =
     unknown extends T ? false :
     true extends _AdmitsAbsence1<T> ? true : false
 
 type _AdmitsAbsence1<T> =
-    T extends { readonly [phantomKey]?: infer O } ? ([Extract<O, Absent>] extends [never] ? false : true) :
+    T extends { readonly [phantomKey]?: infer O } ? ([O] extends [{ readonly [absentKey]: unknown }] ? true : false) :
     T extends () => infer I
         ? I extends readonly['option'] ? true
         : I extends readonly['or', ...infer A extends readonly Type[]] ? _AdmitsAbsence1<A[number]>
@@ -73,18 +96,20 @@ type _AdmitsAbsence1<T> =
  * A `Phantom` annotation is read **before** the thunk walk, exactly as
  * {@link _AdmitsAbsence} and `Ts` read it: a phantom-wrapped schema is still
  * a thunk, so descending its `or` chain would re-expand the very recursion
- * the annotation exists to spare (TS2589). The annotation is `_TsRaw`-shaped,
- * so its present part is what survives `Exclude<O, undefined | Absent>` —
- * the same `Exclude` the public `Ts` applies — and "absent-only" is that
- * part being `never`. (`undefined` there is the optional-field artifact the
- * `Phantom` contract already excludes from annotations, not a value member.)
+ * the annotation exists to spare (TS2589). An absence-admitting root
+ * annotates as {@link AbsentOr}`<Present>`, so "absent-only" is a wrapper
+ * whose present part is `never` — `AbsentOr<never>` — and an unwrapped
+ * annotation admits no absence at all. (`undefined` is stripped as the
+ * optional-field artifact the `Phantom` contract already excludes from
+ * annotations, not as a value member.)
  */
 type _IsAbsentOnly<T> =
     unknown extends T ? false :
     false extends _IsAbsentOnly1<T> ? false : true
 
 type _IsAbsentOnly1<T> =
-    T extends { readonly [phantomKey]?: infer O } ? ([Exclude<O, undefined | Absent>] extends [never] ? true : false) :
+    T extends { readonly [phantomKey]?: infer O }
+        ? ([O] extends [{ readonly [absentKey]: infer P }] ? ([Exclude<P, undefined>] extends [never] ? true : false) : false) :
     T extends () => infer I
         ? I extends readonly['option'] ? true
         : I extends readonly['or', ...infer A extends readonly Type[]] ? _IsAbsentOnly1<A[number]>
@@ -389,16 +414,19 @@ export type StructTs<T extends Struct> =
  * type _Check = Assert<Check3<MyType, typeof myThunk, typeof my>>
  * ```
  *
- * **A schema whose root admits absence needs one more assert.** The
- * annotation is {@link _TsRaw}-shaped, so when the wrapped schema's root is
- * `or(option, …)` it must carry the {@link Absent} marker —
- * `Phantom<typeof myThunk, Absent | MyType>` — or the member it is used at
- * renders required. The pair above cannot catch the omission: both compare
- * through the public `Ts`, which strips `Absent` from both sides. Pin the
- * raw half with {@link CheckRaw}:
+ * **A schema whose root admits absence needs one more assert.** When the
+ * wrapped schema's root is `or(option, …)` the annotation must carry the
+ * flag in {@link AbsentOr}'s wrapper —
+ * `Phantom<typeof myThunk, AbsentOr<MyType>>` — or the member it is used at
+ * renders required. The wrapper, not a union: `Absent | MyType` drowns when
+ * `MyType` renders as the top (`Absent | unknown` *is* `unknown`), and the
+ * marker takes the optionality with it. The pair above cannot catch the
+ * omission either way: both compare through the public `Ts`, which strips
+ * absence from both sides. Pin the flag and the present part together with
+ * {@link CheckRaw}:
  *
  * ```ts
- * type _CheckRaw = Assert<CheckRaw<Absent | MyType, typeof myThunk>>
+ * type _CheckRaw = Assert<CheckRaw<AbsentOr<MyType>, typeof myThunk>>
  * ```
  *
  * See `fjs/edag/module.f.mjs` (`_exp`/`exp`) for this in practice. Note also
@@ -426,9 +454,11 @@ export type Ts<T extends Type> =
     unknown extends T ? Unknown :
     // Phantom output: if the schema carries a phantomKey annotation (via WithOut), return
     // it directly — one indexed-access, no structural walk, no TS2589 for recursive
-    // schemas. The annotation is `_TsRaw`-shaped, so the `Absent` marker is stripped
-    // here alongside the optional-field `undefined` artifact.
-    T extends { readonly [phantomKey]?: infer O } ? Exclude<O, undefined | Absent> :
+    // schemas. An absence-admitting root annotates as `AbsentOr<Present>`, so the
+    // wrapper is unwrapped here; either way the optional-field `undefined`
+    // artifact is stripped.
+    T extends { readonly [phantomKey]?: infer O }
+        ? ([O] extends [{ readonly [absentKey]: infer P }] ? Exclude<P, undefined> : Exclude<O, undefined>) :
     T extends () => infer I ? (
         I extends readonly['const', infer C] ? ConstTs<C> :
         // Info0
@@ -457,16 +487,19 @@ export type Ts<T extends Type> =
  * The {@link Absent}-preserving counterpart of {@link Ts}, differing only at
  * the **root** of a schema — the one place absence has no container position
  * to lower it into: `_TsRaw<typeof or(option, number)>` is `Absent | number`
- * where the public `Ts` is `number`. It walks `or` chains and reads a
- * `Phantom` annotation verbatim (minus the optional-field `undefined`
- * artifact), and delegates every other form to `Ts` — container positions
- * lower the marker for themselves, so below the root the two agree. Its two
- * consumers are a `Phantom` annotation's shape and {@link CheckRaw}, which
- * pins one.
+ * where the public `Ts` is `number`. It walks `or` chains and unwraps a
+ * `Phantom` annotation's {@link AbsentOr} back into that union shape (minus
+ * the optional-field `undefined` artifact), and delegates every other form
+ * to `Ts` — container positions lower the marker for themselves, so below
+ * the root the two agree. Note the union shape *collapses at the top*
+ * (`Absent | unknown` is `unknown`), which is exactly why an annotation
+ * spells absence as the wrapper and why {@link CheckRaw} pins the flag
+ * separately rather than through this union.
  */
 export type _TsRaw<T extends Type> =
     unknown extends T ? Unknown :
-    T extends { readonly [phantomKey]?: infer O } ? Exclude<O, undefined> :
+    T extends { readonly [phantomKey]?: infer O }
+        ? ([O] extends [{ readonly [absentKey]: infer P }] ? Absent | Exclude<P, undefined> : Exclude<O, undefined>) :
     T extends () => infer I ? (
         I extends readonly['option'] ? Absent :
         I extends readonly['or', ...infer A extends readonly Type[]] ? _TsRaw<A[number]> :
@@ -493,18 +526,28 @@ export type Check<A, B extends Type> = Equal<A, Ts<B>>
 export type Check3<T, R0 extends Type, R1 extends Type> = And<Equal<T, Ts<R0>>, Equal<T, Ts<R1>>>
 
 /**
- * The **raw** counterpart of {@link Check}: pins `A` against
- * {@link _TsRaw}`<B>`, the {@link Absent}-preserving shape. This is the
- * assert with teeth for a `Phantom` annotation on a schema whose root admits
- * absence: {@link Check} and {@link Check3} compare through the public
- * {@link Ts}, which strips `Absent` from *both* sides, so they pass even
- * when the annotation forgot the marker — and the wrapped member then
- * renders required. Spell the annotation `Absent | …` and add
- * `Assert<CheckRaw<Absent | …, typeof rawThunk>>` beside the usual pair; a
- * schema whose root excludes absence needs nothing new, `_TsRaw` and `Ts`
- * agreeing there.
+ * The **raw** counterpart of {@link Check}: pins a `Phantom` annotation `A`
+ * against the schema `B` in both halves — the **flag** ({@link AbsentOr}'s
+ * wrapper is present on `A` exactly when `B`'s root admits absence,
+ * structurally) and the **present part** (`A`'s, against `_TsRaw<B>` with
+ * the marker stripped). This is the assert with teeth for a schema whose
+ * root admits absence: {@link Check} and {@link Check3} compare through the
+ * public {@link Ts}, which strips absence from *both* sides, so they pass
+ * even when the annotation forgot the wrapper — and the wrapped member then
+ * renders required. The flag half is deliberately not a comparison through
+ * `_TsRaw`'s union, where `Absent | unknown` has already collapsed and a
+ * missing marker passed: spell the annotation `AbsentOr<…>` and add
+ * `Assert<CheckRaw<AbsentOr<…>, typeof rawThunk>>` beside the usual pair; a
+ * schema whose root excludes absence needs nothing new — its annotation is
+ * unwrapped, and this then agrees with {@link Check} on the raw thunk.
  */
-export type CheckRaw<A, B extends Type> = Equal<A, _TsRaw<B>>
+export type CheckRaw<A, B extends Type> = And<
+    Equal<[A] extends [{ readonly [absentKey]: unknown }] ? true : false, _AdmitsAbsence<B>>,
+    Equal<
+        [A] extends [{ readonly [absentKey]: infer P }] ? P : A,
+        Exclude<_TsRaw<B>, Absent>
+    >
+>
 
 // Fast-path: Ts<any> resolves to Unknown without TS2589 overflow.
 type _any = Assert<Check<Unknown, any>>
@@ -696,7 +739,7 @@ type _restEmptyIndirect = Assert<Check<
  */
 type _optionAlone = Assert<Check<never, RttiOption>>
 type _optionUnion = Assert<Check<number, Or<readonly[RttiOption, RttiNumber]>>>
-type _optionUnionRaw = Assert<CheckRaw<Absent | number, Or<readonly[RttiOption, RttiNumber]>>>
+type _optionUnionRaw = Assert<CheckRaw<AbsentOr<number>, Or<readonly[RttiOption, RttiNumber]>>>
 
 /**
  * The type-level counterpart of "a rest never sees it": an array or record
@@ -718,19 +761,39 @@ type _nestedOptionKey = Assert<Check<
 >>
 
 /**
- * A `Phantom` annotation is {@link _TsRaw}-shaped: wrapping a schema whose
- * root admits absence, it carries {@link Absent}, which
- * {@link _AdmitsAbsence} reads from the annotation and the container
- * position lowers — the wrapped member renders optional. {@link CheckRaw}
- * is the assert with teeth for the annotation itself: the {@link Check}
- * pair passes with or without the marker, both halves stripping it.
+ * A `Phantom` annotation on a schema whose root admits absence carries the
+ * flag in {@link AbsentOr}'s wrapper, which {@link _AdmitsAbsence} reads
+ * from the annotation and the container position lowers — the wrapped
+ * member renders optional. {@link CheckRaw} is the assert with teeth for
+ * the annotation itself: the {@link Check} pair passes with or without the
+ * wrapper, both halves stripping absence.
  */
-type _PhantomOption = Phantom<Or<readonly[RttiOption, RttiNumber]>, Absent | number>
-type _phantomRaw = Assert<CheckRaw<Absent | number, Or<readonly[RttiOption, RttiNumber]>>>
+type _PhantomOption = Phantom<Or<readonly[RttiOption, RttiNumber]>, AbsentOr<number>>
+type _phantomRaw = Assert<CheckRaw<AbsentOr<number>, Or<readonly[RttiOption, RttiNumber]>>>
 type _phantomPublic = Assert<Check<number, _PhantomOption>>
 type _phantomOptionalMember = Assert<Check<
     { readonly a?: number } & unknown,
     { readonly a: _PhantomOption }
+>>
+
+/**
+ * The wrapper's reason to exist: a present part that renders as the **top**
+ * absorbs a union member — `Absent | Ts<{}>` is `unknown`, {@link StructTs}
+ * rendering the empty struct as its `unknown` intersection identity — so a
+ * union-carried marker drowned, the member rendered required, and the
+ * union-shaped `CheckRaw` passed anyway, `_TsRaw` collapsing identically on
+ * both sides. The wrapper survives the collapse, and the flag half of
+ * {@link CheckRaw} fails the unwrapped spelling even at the top.
+ */
+type _PhantomTopOption = Phantom<Or<readonly[RttiOption, {}]>, AbsentOr<unknown>>
+type _phantomTopRaw = Assert<CheckRaw<AbsentOr<unknown>, Or<readonly[RttiOption, {}]>>>
+type _phantomTopMember = Assert<Check<
+    { readonly a?: unknown } & unknown,
+    { readonly a: _PhantomTopOption }
+>>
+type _phantomTopUnwrappedFails = Assert<Equal<
+    CheckRaw<unknown, Or<readonly[RttiOption, {}]>>,
+    false
 >>
 
 /**
@@ -744,7 +807,7 @@ type _phantomOptionalMember = Assert<Check<
  * phantom branch.
  */
 type _PhantomRecThunk = () => readonly['or', RttiOption, RttiNumber, _PhantomRecThunk]
-type _PhantomRec = Phantom<_PhantomRecThunk, Absent | number>
+type _PhantomRec = Phantom<_PhantomRecThunk, AbsentOr<number>>
 type _phantomRecursiveArray = Assert<Check<
     readonly number[],
     () => readonly['array', _PhantomRec]
@@ -755,5 +818,5 @@ type _phantomRecursiveMember = Assert<Check<
 >>
 type _phantomAbsentOnlyArray = Assert<Check<
     readonly[],
-    () => readonly['array', Phantom<RttiOption, Absent>]
+    () => readonly['array', Phantom<RttiOption, AbsentOr<never>>]
 >>
