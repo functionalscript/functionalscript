@@ -110,14 +110,6 @@ export const items = or(exp, spread)
  * [exp0, exp1]
  * [exp0, ...exp1]
  * ```
- *
- * The variadic part is nested one position deep — `['[]', [elem, elem, …]]`
- * — where the spec's structural-operations table writes it flat,
- * `['[]', ...elements]`. That is the decided representation, not a
- * workaround: an rtti `Tuple` pins one schema per position, so a fixed
- * prefix followed by a homogeneous rest cannot be spread inline into a
- * bigger `Const` tuple, and growing the `Type` ADT to spell it flat has no
- * other consumer in this repository. `object` nests for the same reason.
  */
 export const array = /** @type {const} */ (['[]', rttiArray(items)])
 
@@ -166,9 +158,6 @@ export const properties = or(property, spread)
  * spellings assign a prototype instead and lose the property. See "the
  * `__proto__` key" in `../../spec/README.md`.
  */
-// The entries nest one position deep, `['{}', [entry, entry, …]]`, rather
-// than the spec's flat `['{}', ...entries]` — see `array` above for why that
-// is the decided representation.
 export const object = /** @type {const} */ (['{}', rttiArray(properties)])
 
 // Number

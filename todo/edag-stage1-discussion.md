@@ -236,14 +236,10 @@ schema is free to change independently of both.
 uses `[":", key, value]` entries.
 
 Both structural constructors take their variadic part as **one operand
-holding an array**, rather than spreading it across the tuple. An rtti
-`Tuple` pins one schema per position, so "this literal tag, then any number
-of further positions, all matching this one schema" is not spellable inline;
-growing the `Type` ADT to allow it has no other consumer here. The nesting is
-the decided representation rather than a stand-in for a flat one — see
-`array` in [`../fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs), and
-[`../fjs/edag/README.md`](../fjs/edag/README.md), whose form column writes
-the same shape as `['[]', items[]]`. The entry list preserves the source
+holding an array**, rather than spreading it across the tuple — the shape
+[`../fjs/edag/README.md`](../fjs/edag/README.md) writes as `['[]', items[]]`,
+and where "Why an array operand rather than a variadic tail" gives the
+reason. The entry list preserves the source
 property sequence. The key position is a node, and validation admits any
 node there — a computed key like `{ ["sss" + 3]: x }` is valid JS and a
 validly-shaped EDAG, even though today's compiler only lowers the trivial
