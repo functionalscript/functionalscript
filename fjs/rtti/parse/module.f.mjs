@@ -58,8 +58,10 @@
 import { ok } from '../../types/result/module.f.mjs'
 import {
     absentMember,
+    consPresence,
     constPrimitiveValidate,
     eachEntry,
+    emptyPresence,
     isArray,
     isObject,
     orVisit,
@@ -340,30 +342,22 @@ const constContainerParse =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            // Bound the container before reading any member: a value the
-            // schema cannot fit is rejected whatever its members hold, so
-            // walking them first only decides *which* error to report. The
-            // same check is re-asked below, after the reads, so a value that
-            // changes under them is still caught — this only ever rejects
-            // earlier, never accepts more.
-            //
-            // It is load-bearing for an `or` of two arities, the shape a
-            // schema uses to say a trailing operand may be left out
-            // (`fjs/edag`'s chain nodes). Without it each arm walks the
-            // shared operands before failing on length, so validating a
-            // nested chain costs 2^depth; with it the arm is decided before
-            // any recursion. `parse` gates identically, which is what keeps
-            // the two readers reporting the same error.
-            //
-            // The read is an added observable operation, and under a hostile
-            // accessor that is not neutral: a `length` getter that mutates a
-            // declared member now fires *before* the members are read, where
-            // it used to fire after, so it can steer the verdict the readers
-            // then reach. That is the class
-            // `../todo/hostile-accessor-hermetic-read-path.md` tracks, and
-            // this gate adds one instance of it — see the bullet there. For
-            // every value whose `length` read is side-effect-free — every DJS
-            // value, and every ordinary array — acceptance is untouched.
+            // Presence first, then the bound, then the reads — see the
+            // comment on the same shape in `../validate/module.f.mjs`. The
+            // length read lands after the decisions it could otherwise
+            // steer, and bounding before the reads is what lets an `or` of
+            // two arities settle an arm without recursing.
+            const presence = eachEntry(
+                rttiEntries,
+                (k, t) => {
+                    if (k in value) { return ok(true) }
+                    const a = absentMember(t)
+                    return a[0] === 'error' ? a : ok(false)
+                },
+                emptyPresence,
+                consPresence,
+            )
+            if (presence[0] === 'error') { return presence }
             if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
@@ -384,7 +378,8 @@ const constContainerParse =
             if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
                 return verror('unexpected value')
             }
-            if (!presenceUnchanged(rttiEntries, r[1].presence, value)) {
+            // The pre-bound presence, as in `../validate/module.f.mjs`.
+            if (!presenceUnchanged(rttiEntries, presence[1], value)) {
                 return verror('unexpected value')
             }
             const built = /** @type {ReadonlyArray<Unknown> | StringMap<Unknown>} */ (rebuild(r[1].entries))

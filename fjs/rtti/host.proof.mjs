@@ -85,6 +85,29 @@ const shadowedIndex = () => {
  */
 const beyondIndexRange = () => Object.assign([1], { '4294967295': 2 })
 
+/**
+ * An array whose **first** `length` read deletes a declared member, which is
+ * the shape that catches a reader bounding a container before it has decided
+ * what its members are. `Array.isArray` sees through the proxy, so all three
+ * readers take their array path.
+ *
+ * @type {() => readonly Unknown[]}
+ */
+const lengthGetterDeletesAMember = () => {
+    const target = ['bad']
+    let fired = false
+    return new Proxy(target, {
+        get: (o, k, r) => {
+            if (k === 'length' && !fired) {
+                fired = true
+                delete o[0]
+            }
+            return Reflect.get(o, k, r)
+        },
+    })
+}
+
+
 export const proof = {
     // `undeclaredMembers` decides a container's members by what an index
     // *reads*, so both of these are members — one that an own-entry walk
@@ -139,6 +162,25 @@ export const proof = {
             const rv = v(t)(value)
             assertEq(rv[0], p(t)(value)[0], 'validate and parse must agree')
             assertEq(rv[0], d(t)(value)[0], 'the data form must agree too')
+        }
+    },
+    // A `length` getter that deletes a declared member. The readers bound a
+    // container by its length, so this getter fires inside their walk — and
+    // each reader needs its **own** instance, because the mutation is
+    // one-shot: share it and the first reader absorbs it, leaving the others
+    // a value that is merely short. Presence is decided before the bound is
+    // read and re-asked against the final state, so the deletion is caught on
+    // every reader instead of steering one of them into an accept.
+    lengthGetterCannotSteerTheVerdict: () => {
+        /** @type {readonly Type[]} */
+        const schemas = [[or(option, number)], [number]]
+        for (const t of schemas) {
+            const rv = v(t)(lengthGetterDeletesAMember())
+            assertEq(rv[0], p(t)(lengthGetterDeletesAMember())[0], 'validate and parse must agree')
+            assertEq(rv[0], d(t)(lengthGetterDeletesAMember())[0], 'the data form must agree too')
+            // and what they agree on: the member the schema declared was
+            // there when it was decided, so losing it is a rejection
+            assertError(rv)
         }
     },
     // …and what they agree on, which is what the changelog entry claims.

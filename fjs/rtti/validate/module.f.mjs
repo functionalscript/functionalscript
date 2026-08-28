@@ -215,30 +215,35 @@ const constContainerValidate =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            // Bound the container before reading any member: a value the
-            // schema cannot fit is rejected whatever its members hold, so
-            // walking them first only decides *which* error to report. The
-            // same check is re-asked below, after the reads, so a value that
-            // changes under them is still caught — this only ever rejects
-            // earlier, never accepts more.
+            // Decide every declared member's **presence** first, then bound
+            // the container, and only then read the members. Presence is a
+            // `HasProperty` probe and recurses into nothing, so this pass is
+            // cheap; what it buys is that the length read happens after the
+            // decisions it could otherwise steer, and `presenceUnchanged`
+            // below still re-asks them against the final state — so a
+            // `length` getter that mutates a declared member is caught
+            // rather than obeyed, and the three readers keep agreeing.
             //
-            // It is load-bearing for an `or` of two arities, the shape a
-            // schema uses to say a trailing operand may be left out
-            // (`fjs/edag`'s chain nodes). Without it each arm walks the
-            // shared operands before failing on length, so validating a
-            // nested chain costs 2^depth; with it the arm is decided before
-            // any recursion. `parse` gates identically, which is what keeps
-            // the two readers reporting the same error.
-            //
-            // The read is an added observable operation, and under a hostile
-            // accessor that is not neutral: a `length` getter that mutates a
-            // declared member now fires *before* the members are read, where
-            // it used to fire after, so it can steer the verdict the readers
-            // then reach. That is the class
-            // `../todo/hostile-accessor-hermetic-read-path.md` tracks, and
-            // this gate adds one instance of it — see the bullet there. For
-            // every value whose `length` read is side-effect-free — every DJS
-            // value, and every ordinary array — acceptance is untouched.
+            // Bounding before the reads is load-bearing for an `or` of two
+            // arities, the shape a schema uses to say a trailing operand may
+            // be left out (`fjs/edag`'s chain nodes). Without it each arm
+            // walks the shared operands before failing on length, so
+            // validating a nested chain costs 2^depth; with it the arm is
+            // settled before any recursion — by the bound for the value that
+            // is too long, and by the absent last member for the one that is
+            // too short. `parse` does the same, which is what keeps the two
+            // readers reporting the same error.
+            const presence = eachEntry(
+                rttiEntries,
+                (k, v) => {
+                    if (k in value) { return ok(true) }
+                    const a = absentMember(v)
+                    return a[0] === 'error' ? a : ok(false)
+                },
+                emptyPresence,
+                consPresence,
+            )
+            if (presence[0] === 'error') { return presence }
             if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
@@ -261,7 +266,10 @@ const constContainerValidate =
             }
             // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
             // structurally equivalent to C — TypeScript can't narrow element types through the loop.
-            return presenceUnchanged(rttiEntries, r[1], value)
+            // Against the presence decided *before* the bound was read, not
+            // the walk's own: that is what makes a mutating `length` getter a
+            // rejection rather than a steer.
+            return presenceUnchanged(rttiEntries, presence[1], value)
                 ? /** @type {any} */ (ok(value))
                 : verror('unexpected value')
         }

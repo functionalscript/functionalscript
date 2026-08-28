@@ -450,6 +450,16 @@ export const proof = {
             },
             // A hole past the prefix is no member, so length is what catches it.
             holePastThePrefixRejected: () => assertError(parse([number])([1, ,])),
+            // The container is bounded before its members are read, so a
+            // value that is both too long and wrong at a member is answered
+            // by its shape. `validate` reports the same path — the two gate
+            // alike, which is what `../validate/proof.f.mjs`'s
+            // `sameAcceptanceAsParse` holds them to — and this pins it on
+            // `parse`'s own side.
+            structuralMismatchIsAnsweredFirst: () => {
+                assertErrorPath([])(parse([/** @type {const} */ (42)])([43, 'extra']))
+                assertErrorPath(['0'])(parse([/** @type {const} */ (42)])([43]))
+            },
             // Nor is a key that is no position at all.
             nonIndexKeyRejected: () =>
                 assertError(parse([number])(Object.assign([1], { foo: 2 }))),
