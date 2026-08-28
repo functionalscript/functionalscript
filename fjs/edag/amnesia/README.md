@@ -21,6 +21,26 @@ on.
 
 ## Why it is not a VM
 
+### It trusts its host
+
+Every node and step is read by **destructuring** (`const [o, e, cont] = k`),
+which is what lets a chain end by arity: the array iterator stops at `length`,
+so an absent continuation reads as `undefined` rather than as whatever a
+prototype supplies at that index — an indexed `k[2]` would read the prototype,
+which is why none appears.
+
+That choice is not a hardening claim, and no read style would be one. Under a
+hostile host each has its own hole: an unchecked index reads through the
+prototype, and destructuring dispatches an own `Symbol.iterator`, which can
+yield a step past the length `validate` bounded. Neither is peculiar to
+ending by arity — the walkers destructured before it too — and closing them
+means a hermetic read path, which is
+[rtti's tracked question](../../rtti/todo/hostile-accessor-hermetic-read-path.md)
+for the readers and a VM's problem for an executor. This evaluator's
+guarantees assume what the language itself can build: a DJS value on a
+pristine host, where every read style coincides. That is one more reason it
+is not a VM, and nothing that matters should run on it.
+
 ### It forgets — hence the name
 
 The model memoizes every node by identity within one invocation, so a shared

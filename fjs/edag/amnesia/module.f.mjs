@@ -106,7 +106,10 @@ const callProperty = (f, obj, prop, e) => obj[prop](...argsOf(f, e))
  * index: destructuring goes through the array iterator, which stops at
  * `length`, so a short step's absent continuation reads as `undefined` and
  * never as whatever a prototype supplies at that index. An indexed `k[2]`
- * would, which is why none appears here.
+ * would, which is why none appears here. This is not a hardening claim —
+ * under a hostile host an own `Symbol.iterator` can yield past `length` just
+ * as an unchecked index reads the prototype; see "It trusts its host" in
+ * `./README.md`.
  *
  * @type {(f: (_: Exp) => unknown, k: OptionLambda | OptionPropertyLambda | undefined) => unknown}
  */
