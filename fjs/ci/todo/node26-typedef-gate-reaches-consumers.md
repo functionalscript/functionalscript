@@ -1,4 +1,4 @@
-## node26-typedef-gate-reaches-consumers. `fjs ci` ships one convention consumers never agreed to
+## node26-typedef-gate-reaches-consumers. `fjs ci` ships our `@typedef` rule
 
 **Priority:** P5
 **Status:** open
