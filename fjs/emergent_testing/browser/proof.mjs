@@ -354,6 +354,30 @@ export const proof = {
         assertStructurallySame([...p.states], ['running', 'failed'])
         assertEq(p.view.events.length, 1)
     },
+    // **Reporting is work on the page's thread too.** A hundred trivial leaves
+    // fit inside one slice, so a budget that watched only the leaf would let
+    // them all start and then drain a hundred renders with no turn given back.
+    // The message queued before the run is the page's stand-in for a paint: it
+    // has to arrive while the run is still going.
+    reportingIsChargedToTheBudget: async () => {
+        const proof = Object.fromEntries(
+            Array.from({ length: 100 }, (_, index) => [`t${index}`, () => undefined]))
+        let deliveredDuringRun = false
+        let finished = false
+        const { port1, port2 } = new MessageChannel()
+        port1.onmessage = () => { deliveredDuringRun = !finished }
+        port2.postMessage(undefined)
+        const report = await runBrowserProofs([['m', proof]], () => {
+            // A renderer that costs something, as appending a row does.
+            const end = performance.now() + 1
+            while (performance.now() < end) { /* paint the row */ }
+        })
+        finished = true
+        port1.close()
+        port2.close()
+        assertEq(report.totals.passed, 100)
+        assert(deliveredDuringRun)
+    },
     // A parent precedes the children its return value produced, however deep
     // the chain goes — the records are joined as a rope and walked out once,
     // so nesting must not reorder them the way a per-level rebuild could.

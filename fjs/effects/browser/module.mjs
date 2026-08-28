@@ -181,29 +181,45 @@ export const browserRun = extra => {
         }
         return slice
     }
+    /**
+     * Charges a handler's work to the budget: it waits when the slice is spent,
+     * and does not otherwise.
+     *
+     * **Every operation is wrapped, not only `sandbox`.** Whatever a runner
+     * dispatches runs on the host's one thread, so the leaf is not the only
+     * thing that can hold it: a page whose proofs are trivial and whose
+     * reporting paints a row spends its time in `report`, and a budget that
+     * only watched the leaf would let a hundred cheap leaves start inside one
+     * slice and then drain a hundred paints with no turn given back. The
+     * operation a host adds is the host's own work, and this is the point that
+     * knows it.
+     *
+     * @type {<A extends readonly unknown[], R>(handler: (...a: A) => Promise<R>) => (...a: A) => Promise<R>}
+     */
+    const budgeted = handler => async (...payload) => {
+        let wait = overBudget()
+        while (wait !== null) {
+            await wait
+            wait = overBudget()
+        }
+        return handler(...payload)
+    }
     const core = {
         all: async (/** @type {readonly any[]} */ ...effects) =>
             ok(await Promise.all(effects.map(run))),
-        // **The leaf is where a browser run yields, and it has to be.** `all`
-        // starts every child before awaiting any — a contract, not an
-        // implementation detail — so it cannot pause between them without
-        // hanging a graph whose child waits on a later sibling. That leaves the
-        // leaf: it is the one point every unit of work passes through, and it
-        // holds no sibling's answer while it waits.
+        // **Where the yield cannot be.** `all` starts every child before
+        // awaiting any — a contract, not an implementation detail — so it
+        // cannot pause *between* children without hanging a graph whose child
+        // waits on a later sibling. The budget is charged as each operation is
+        // dispatched instead, which holds no sibling's answer while it waits.
         //
-        // Without this the whole suite runs as one task. Leaves resolve through
-        // microtasks, and a microtask drain never returns to the event loop, so
-        // a page cannot paint a result, service a timer or answer a click from
-        // the first proof to the last — measured at ~53 s on this repo's own
-        // browser suite, long enough for the browser to offer to kill the page.
-        sandbox: async (/** @type {() => unknown} */ f) => {
-            let wait = overBudget()
-            while (wait !== null) {
-                await wait
-                wait = overBudget()
-            }
-            return ok(await sandbox(f))
-        },
+        // Without any of this the whole suite runs as one task. Everything
+        // resolves through microtasks, and a microtask drain never returns to
+        // the event loop, so a page cannot paint a result, service a timer or
+        // answer a click from the first proof to the last — measured at ~53 s
+        // on this repo's own browser suite, long enough for the browser to
+        // offer to kill the page.
+        sandbox: async (/** @type {() => unknown} */ f) => ok(await sandbox(f)),
         // No clock and no fixture convention — see `Catch` in
         // `../node/types.ts` for why this is a second operation beside
         // `sandbox` rather than a use of it. It is `tryCatch`, spelled the
@@ -235,6 +251,11 @@ export const browserRun = extra => {
     if (claimed.length !== 0) {
         throw `browserRun: ${claimed.join(', ')} already implemented`
     }
-    run = asyncRun(/** @type {any} */ (Object.defineProperties({ ...core }, handlers)))
+    const merged = Object.defineProperties({ ...core }, handlers)
+    run = asyncRun(/** @type {any} */ (Object.fromEntries(
+        Object.getOwnPropertyNames(merged).map(k => [
+            k,
+            budgeted(/** @type {any} */ (/** @type {any} */ (merged)[k])),
+        ]))))
     return run
 }
