@@ -39,6 +39,7 @@ actually touches its subject.
 3. [FunctionalScript and TypeScript (`fjs/`)](#3-functionalscript-and-typescript-fjs)
 4. [Rust (`nanvm-lib/`)](#4-rust-nanvm-lib)
 5. [Pull requests and releases](#5-pull-requests-and-releases)
+6. [External tools](#6-external-tools)
 
 ---
 
@@ -123,3 +124,26 @@ Commit-message format and the PR checklist:
 [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
 Changelog entry rules, breaking changes, and versioning:
 [changelog/README.md](./changelog/README.md).
+
+## 6. External tools
+
+**Do not call an external tool from our code — a CI step, a script, a
+generator — without approval first.** `grep`, `sed`, `awk` and their kin
+included.
+
+Text matching is not analysis. A pattern over source text cannot tell a JSDoc
+tag from the same characters inside a string or a comment, so a check built on
+one returns confident answers it has no basis for. A `grep` guard for `@module`
+placement flagged the very file whose assertions named the guard, and its
+companion could not have seen a missing tag in any file that mentioned the tag
+anywhere — a check that cannot fail is indistinguishable from one that passes.
+Where a rule needs real analysis, the answer is an established tool that parses
+what it checks — ESLint for JavaScript, Clippy for Rust — proposed and approved
+before it is added, never a pattern that approximates one.
+
+**Leaving the check undone is the better trade against that complexity.** A
+rule no available tool can express stays written down and unenforced. That is
+honest, and cheaper than machinery whose failures are silent.
+
+Keep simple tasks simple; a script earns its place only where the task genuinely
+is not. Instances predating this rule are not precedent for new ones.
