@@ -24,8 +24,8 @@ The work lands in two stages that are shippable independently:
    order, breaking migrations, and the matching policy documentation.
 2. **Stage 2 — packaging cleanup.** The
    [Declaration emission and packaging](#declaration-emission-and-packaging)
-   rules: delete generated `private.d.ts` as the final `prepack` step and
-   validate the packed artifact semantically.
+   rules: exclude generated `private.d.ts` from the package and validate the
+   packed artifact semantically.
 
 Stage 1 is complete on its own. While Stage 2 has not landed, generated
 `private.d.ts` files ship in the package. That is safe: `types.ts` must not
@@ -209,9 +209,23 @@ If `private.ts` is used, keep it in the normal TypeScript program so source user
 are checked. Declaration emit may therefore create an intermediate
 `private.d.ts`.
 
-Do not try to exclude `private.ts` from checking. Instead delete generated
-`private.d.ts` files as the final `prepack` step, after declaration emit and the
-existing declaration round-trip check, before package contents are selected.
+Do not try to exclude `private.ts` from *checking*. Exclude the generated
+`private.d.ts` from *packing* instead, by a negation in `package.json`'s `files`:
+
+```json
+"files": ["**/*.js", "**/*.d.ts", "**/*.mjs", "**/*.d.mts", "!**/private.d.ts"]
+```
+
+Measured with `npm pack --dry-run --json`: 675 packed files become 659, and the
+16 that disappear are exactly the 16 emitted `private.d.ts`.
+
+Prefer this to a deletion step in `prepack`. It needs no script, no directory
+walk, and no proof for a path predicate; `prepack` keeps doing exactly what it
+does now (emit declarations, then re-check with them present); and it leaves the
+working tree alone, so a contributor who runs `npm pack` does not silently lose
+the declarations a following `npx tsc` expects. It also states the intent where
+the rest of the package contents are declared, rather than in a build step that
+has to be read to be discovered.
 
 Do **not** rewrite/post-process emitted declaration text. TypeScript may retain a
 source comment such as:
@@ -231,38 +245,58 @@ Package validation must check semantic dependencies, not raw text:
 - no packed declaration semantically depends on an unshipped private type module;
 - a clean TypeScript consumer installed from the tarball type-checks successfully.
 
-#### The check has to run in CI, on the packed artifact
+#### The check has to run in CI, on the packed artifact, without the repository
 
-Deleting `private.d.ts` is invisible to every check the repository has. `npx tsc`
-reads the *source* `private.ts`, so it stays green whatever `prepack` removes;
-`node26` runs `npm pack` but nothing installs or type-checks the result, and the
-`npm install -g functionalscript@<version>` steps install the *published* CLI,
-not the artifact just built. Stage 2 would therefore ship a claim that nothing
-could falsify — the same "a sweep, not a check" gap the Stage 1 grep guard
-closes. Only a consumer that reads the packed declarations can catch a
-declaration left pointing at a file the package no longer carries.
+Excluding `private.d.ts` from the package is invisible to every check the
+repository has. `npx tsc` reads the *source* `private.ts`, so it stays green
+whatever the tarball omits; `node26` runs `npm pack` but nothing installs or
+type-checks the result, and the `npm install -g functionalscript@<version>`
+steps install the *published* CLI, not the artifact just built. Stage 2 would
+therefore ship a claim that nothing could falsify — the same "a sweep, not a
+check" gap the Stage 1 grep guard closes. Only a consumer that reads the packed
+declarations can catch a declaration left pointing at a file the package no
+longer carries.
 
-Three constraints decide whether such a job is real or theatre:
+The shape that makes it a real check:
 
-- **`skipLibCheck` must be off in the consumer.** The repository's
-  `tsconfig.json` sets `skipLibCheck: true`; inherited, it stops TypeScript from
-  ever opening the packed `.d.mts` internals, and a dangling private reference
-  passes silently. The consumer needs its own `tsconfig.json` with
-  `skipLibCheck: false`.
-- **The consumer must import the module surfaces whose declarations referenced
-  private types**, or the broken declaration is not in its program at all.
-- **The consumer directory must be outside the repository**, so
-  `allowImportingTsExtensions`, `rewriteRelativeImportExtensions`, and the rest
-  of the repository's compiler options cannot mask a packaging bug.
+1. a job that packs (`npm pack`) and uploads the tarball as a CI artifact;
+2. a **second job with no repository checkout** that downloads that artifact,
+   unpacks it, installs TypeScript, and type-checks a small consumer against
+   the installed package.
 
-A tarball-contents assertion (no `private.d.ts` inside) belongs alongside it, but
-it is a cheap complement: the semantic check is the consumer, per the rule above.
+The missing checkout is the point, and it is stronger than merely working in a
+directory outside the repository: with no repository on the runner, there is no
+`tsconfig.json` up the tree to inherit, no `node_modules` to resolve into, and
+no source file that could stand in for a declaration the tarball omits. The
+check can only see what a real consumer sees.
 
-Prefer a separate `package` job over more `node26` steps — it needs that clean
-directory, it is independent of `node26`'s other invariants, and a named red
-check reports what broke. Either way the job is added through the CI generator
-(`fjs/ci/node/module.f.mjs`, composed in `fjs/ci/module.f.mjs`), never by editing
-`.github/workflows/ci.yml`, which `npm run ci-update` regenerates.
+Two details decide whether that consumer can fail at all:
+
+- **Do not set `skipLibCheck` in the consumer's `tsconfig.json`.** It defaults
+  to `false`, which is what makes TypeScript open the packed `.d.mts` internals
+  and report a dangling private reference. `tsc --init` writes
+  `"skipLibCheck": true`; if that creeps in, the job silently stops checking the
+  thing it exists for.
+- **The consumer must import the module surfaces whose declarations reference
+  private types** — today the modules carrying an `@import { _… } from
+  './private.ts'` comment — or the declaration that could dangle is never in its
+  program.
+
+Because a red required check blocks the merge queue, a reintroduced dependency
+becomes the author's problem at the moment it is introduced, which is the whole
+point of preferring a check to a sweep.
+
+Measured on the tree at the time of writing: no packed declaration imports a
+private module (the `private.ts` mentions that survive emit are JSDoc `@import`
+comments, which are inert); deleting all 16 `private.d.ts` and type-checking the
+remaining declarations with `skipLibCheck: false` exits 0; and adding one real
+`import type { … } from './private.js'` to a packed declaration turns that check
+red with `TS2307`. The exclusion is therefore safe today, and the check is
+falsifiable.
+
+The job is added through the CI generator (`fjs/ci/**`, composed in
+`fjs/ci/module.f.mjs`), never by editing `.github/workflows/ci.yml`, which
+`npm run ci-update` regenerates.
 
 This fixture is already scoped in
 [`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md),
@@ -356,30 +390,33 @@ type-only and use named `import type { ... }` imports.
 
 #### Stage 2 — packaging cleanup
 
-- [ ] If `private.ts` is used, delete generated `private.d.ts` as the final
-      `prepack` step.
+- [ ] Exclude generated `private.d.ts` from the package with a `!**/private.d.ts`
+      negation in `package.json`'s `files`; leave `prepack` unchanged.
 - [ ] Do not text-postprocess emitted declarations; validate semantic private
       dependencies and clean-consumer type checking instead.
-- [ ] Add a CI job that validates the packed artifact: install the tarball into
-      a clean directory outside the repository, with its own `tsconfig.json`
-      setting `skipLibCheck: false`, and type-check a consumer that imports the
-      module surfaces whose declarations referenced private types. Add it
-      through the CI generator (`fjs/ci/node/module.f.mjs`, composed in
-      `fjs/ci/module.f.mjs`), not by editing `.github/workflows/ci.yml`. Prefer
-      a separate `package` job over more `node26` steps. Complete the fixture
-      already scoped in [`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md)
+- [ ] Upload the `npm pack` tarball as a CI artifact, and add a **second job
+      with no repository checkout** that downloads it, unpacks it, installs
+      TypeScript, and type-checks a consumer importing the module surfaces whose
+      declarations reference private types. Leave `skipLibCheck` unset in that
+      consumer's `tsconfig.json` — it defaults to `false`, which is what makes
+      the check able to fail. Add both through the CI generator (`fjs/ci/**`,
+      composed in `fjs/ci/module.f.mjs`), not by editing
+      `.github/workflows/ci.yml`. Complete the fixture already scoped in
+      [`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md)
       rather than adding a second package-validation path.
+- [ ] Make the consumer job a required check, so a reintroduced private
+      dependency blocks the merge queue rather than landing.
 - [ ] Assert the tarball's contents (no `private.d.ts` inside) alongside that
       job — a cheap complement to the semantic consumer check, never its
       replacement.
 - [ ] Prove each half can fail, with its own negative control — they fail on
-      opposite inputs, so one control cannot stand for both. Removing the
-      `prepack` deletion step leaves `private.d.ts` *in* the tarball, where
-      every reference to it resolves: that reddens the contents assertion and
-      leaves the consumer green. The consumer's control is the reverse — a
-      packed declaration that references a private module the tarball does not
-      carry (a shipped declaration made to depend on `private.ts`, with the
-      deletion still running), which resolves in-repo and dangles once packed.
+      opposite inputs, so one control cannot stand for both. Dropping the
+      `files` negation leaves `private.d.ts` *in* the tarball, where every
+      reference to it resolves: that reddens the contents assertion and leaves
+      the consumer green. The consumer's control is the reverse — a packed
+      declaration that references a private module the tarball does not carry
+      (a shipped declaration made to depend on `private.ts`, with the negation
+      still in place), which resolves in-repo and dangles once packed.
 - [ ] Add fixtures covering packaging: retained non-semantic JSDoc `@import`
       comments in emitted declarations, absent private artifacts in the tarball,
       and a clean package consumer.
@@ -420,20 +457,22 @@ type-only and use named `import type { ... }` imports.
 
 - The public declaration/API surface is clean: no private type artifact that is
   intended to be unshipped is present in the tarball.
-- If declaration emit creates `private.d.ts`, final-`prepack` cleanup removes it
-  before packaging.
+- Generated `private.d.ts` files are excluded from the package by
+  `package.json`'s `files`, with `prepack` unchanged.
 - Emitted declarations are not text-postprocessed; retained JSDoc `@import`
   comments are allowed when they are non-semantic.
 - The packed artifact has no semantic dependency on an unshipped private type
   module, and a clean TypeScript consumer type-checks successfully.
-- That consumer runs **in CI**, from the packed tarball, in a directory outside
-  the repository, under its own `tsconfig.json` with `skipLibCheck: false` — the
-  only arrangement in which a declaration pointing at a deleted `private.d.ts`
-  is an error rather than a silently skipped library file.
+- That consumer runs **in CI**, from the packed tarball handed over as an
+  artifact, in a job with **no repository checkout** and with `skipLibCheck`
+  left at its `false` default — the only arrangement in which a declaration
+  pointing at an omitted `private.d.ts` is an error rather than a silently
+  skipped library file or a resolution into the source tree.
+- The consumer job is a required check, so the failure blocks the merge queue.
 - Both halves are demonstrably falsifiable, each by the input that actually
-  breaks it: removing the `prepack` deletion step reddens the contents
-  assertion, and a packed declaration depending on a private module the
-  tarball does not carry reddens the consumer type-check.
+  breaks it: dropping the `files` negation reddens the contents assertion, and
+  a packed declaration depending on a private module the tarball does not carry
+  reddens the consumer type-check.
 - The CI job is generated from `fjs/ci/**`, so `npm run ci-update` reproduces
   `.github/workflows/ci.yml` byte-identically.
 - `fjs/fsc/README.md` no longer needs tolerance for a shipped `private.d.ts`,
