@@ -354,6 +354,16 @@ export const proof = {
         assertStructurallySame([...p.states], ['running', 'failed'])
         assertEq(p.view.events.length, 1)
     },
+    // A parent precedes the children its return value produced, however deep
+    // the chain goes — the records are joined as a rope and walked out once,
+    // so nesting must not reorder them the way a per-level rebuild could.
+    deepChainKeepsStructuralOrder: async () => {
+        const report = await run({ a: () => ({ b: () => ({ c: () => ({ d: () => undefined }) }) }) })
+        assertEq(report.totals.tests, 4)
+        assertStructurallySame(
+            report.results.map(r => r.path),
+            ['.a', '.a().b', '.a().b().c', '.a().b().c().d'])
+    },
     exportedTreeIsReadOnce: async () => {
         // The export is enumerated exactly once. A getter that succeeds on the
         // first read and throws on the next is not a module failure here — but

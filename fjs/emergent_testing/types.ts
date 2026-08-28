@@ -3,6 +3,7 @@
  */
 
 import type { Effect, Operation } from '../effects/types.ts'
+import type { List } from '../types/list/types.ts'
 import type { IoChannel, OpResult, SandboxResult } from '../effects/node/types.ts'
 
 /** A zero-argument test function whose return value may contain sub-tests. */
@@ -229,6 +230,27 @@ export type Reporter<O extends Operation, R = void> = {
 export type RunOutcome<R> = {
     readonly totals: RunTotals
     readonly results: readonly R[]
+}
+
+/**
+ * What the walk itself accumulates, before the run answers a {@link RunOutcome}.
+ *
+ * The records are a `List` rather than an array because joining two arrays
+ * copies both: a parent that joined its children's records would recopy every
+ * descendant at every level, and the walk would cost more the deeper it went.
+ * `concat` on a `List` is one node, and `toArray` walks the whole rope once,
+ * at the end.
+ *
+ * Each record is **boxed**, because a `List` reads a bare array or function in
+ * an element position as a sub-list to splice. `R` is the host's own leaf
+ * record and this module has no business restricting what it may be, so it
+ * never puts one in that position.
+ *
+ * @internal
+ */
+export type _RunAcc<R> = {
+    readonly totals: RunTotals
+    readonly results: List<{ readonly value: R }>
 }
 
 /** @internal */

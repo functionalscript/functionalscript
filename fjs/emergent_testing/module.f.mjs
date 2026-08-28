@@ -14,7 +14,7 @@
  * @import { Result } from '../types/result/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
- * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunOutcome, RunTotals, TestResult, _TestAndPath } from './types.ts'
+ * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunOutcome, RunTotals, TestResult, _RunAcc, _TestAndPath } from './types.ts'
  * @import { All, Await, Catch, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
@@ -25,6 +25,7 @@ import {
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
+import { concat, flat, toArray } from '../types/list/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
 
 /**
@@ -183,20 +184,30 @@ const mergeTotals = (a, b) =>
     ({ passed: a.passed + b.passed, failed: a.failed + b.failed, duration: a.duration + b.duration })
 
 /**
- * Joins a list of outcomes, keeping the leaf records in the order the walk
+ * Joins what a walk accumulated, keeping the leaf records in the order it
  * produced them — which is what makes a host's report ordered by structure
  * rather than by which leaf settled first.
  *
- * The whole list is joined at once rather than pairwise: folding with a
- * concatenation copies every record accumulated so far on each step, so a flat
- * module of N leaves would cost N² copies. `flatMap` walks the records once.
+ * Nothing is copied here. Both places a walk joins — siblings fanned out, and a
+ * parent in front of the children its return value produced — hand the records
+ * on as `List` nodes, so a wide module and a deep one both cost one node per
+ * join instead of a copy of everything joined so far. See {@link _RunAcc}.
  *
- * @type {<R>(a: readonly RunOutcome<R>[]) => RunOutcome<R>}
+ * @type {<R>(a: readonly _RunAcc<R>[]) => _RunAcc<R>}
  */
-const joinOutcomes = a => ({
+const joinAcc = a => ({
     totals: a.reduce((t, o) => mergeTotals(t, o.totals), zeroTotals),
-    results: a.flatMap(o => o.results),
+    results: flat(a.map(o => o.results)),
 })
+
+/**
+ * The array of leaf records a host is answered with, walked out of the rope
+ * once. Done where a run ends rather than inside the walk, so no level pays
+ * for the levels below it.
+ *
+ * @type {<R>(a: _RunAcc<R>) => RunOutcome<R>}
+ */
+const outcomeOf = a => ({ totals: a.totals, results: toArray(a.results).map(b => b.value) })
 
 /**
  * Runs already-collected leaves under the module name `k`.
@@ -213,7 +224,7 @@ const joinOutcomes = a => ({
  * @returns {(k: string, entries: readonly _TestAndPath[]) => Effect<O | All | Catch, RunOutcome<R>, IoChannel>}
  */
 export const runEntries = ({ result, test }) => (k, entries) => {
-    /** @type {(entry: _TestAndPath) => Effect<O | All | Catch, RunOutcome<R>, IoChannel>} */
+    /** @type {(entry: _TestAndPath) => Effect<O | All | Catch, _RunAcc<R>, IoChannel>} */
     const one = ([testPath, set]) => {
         // The leaf's shared record is built here, next to the sandbox result it
         // is read from, so the leaf-landed event carries the value already
@@ -259,8 +270,8 @@ export const runEntries = ({ result, test }) => (k, entries) => {
         return step(
             reported,
             ([r, [t, , children]]) => {
-                /** @type {RunOutcome<R>} */
-                const self = { totals: addResult(zeroTotals, t), results: [r] }
+                /** @type {_RunAcc<R>} */
+                const self = { totals: addResult(zeroTotals, t), results: [{ value: r }] }
                 if (children.length === 0) {
                     return pureOk(self)
                 }
@@ -268,15 +279,15 @@ export const runEntries = ({ result, test }) => (k, entries) => {
                 // children its return value produced.
                 return mapStep(
                     walkEntries(children),
-                    sub => joinOutcomes([self, sub]))
+                    sub => joinAcc([self, sub]))
             })
     }
-    /** @type {(entries: readonly _TestAndPath[]) => Effect<O | All | Catch, RunOutcome<R>, IoChannel>} */
+    /** @type {(entries: readonly _TestAndPath[]) => Effect<O | All | Catch, _RunAcc<R>, IoChannel>} */
     const walkEntries = entries =>
         // `allOk` answers in argument order however the effects interleave, so
         // siblings stay in declaration order even though they run concurrently.
-        mapStep(allOk(...entries.map(one)), joinOutcomes)
-    return walkEntries(entries)
+        mapStep(allOk(...entries.map(one)), joinAcc)
+    return mapStep(walkEntries(entries), outcomeOf)
 }
 
 /**
@@ -322,9 +333,14 @@ const proofEntries = moduleMap =>
 export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
     const modules = proofEntries(moduleMap)
+    // Each module has already walked out its own records, so joining the
+    // modules copies each record once and nothing more.
     const total = mapStep(
         allOk(...modules.map(([k, v]) => runModule(reporter)(k, v))),
-        joinOutcomes)
+        m => ({
+            totals: m.reduce((t, o) => mergeTotals(t, o.totals), zeroTotals),
+            results: m.flatMap(o => o.results),
+        }))
     // The outcome is still needed after the summary has been printed, so it is
     // carried forward in a history rather than closed over by a nested
     // continuation.
