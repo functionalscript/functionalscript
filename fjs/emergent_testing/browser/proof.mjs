@@ -354,6 +354,36 @@ export const proof = {
         assertStructurallySame([...p.states], ['running', 'failed'])
         assertEq(p.view.events.length, 1)
     },
+    exportedTreeIsReadOnce: async () => {
+        // The export is enumerated exactly once. A getter that succeeds on the
+        // first read and throws on the next is not a module failure here — but
+        // it is proof that nothing reads the tree twice, and a second read
+        // would escape as a synchronous throw, leaving the page in `running`.
+        let reads = 0
+        const proof = {
+            get t() {
+                reads += 1
+                if (reads > 1) { throw new Error('second read') }
+                return () => undefined
+            },
+        }
+        const report = await runBrowserProofs([['m', proof]])
+        assertEq(reads, 1)
+        assertEq(report.status, 'passed')
+        assertEq(report.totals.passed, 1)
+    },
+    // The page's modules are a list, not a map: nothing stops it naming the
+    // same module twice, and both entries are their own run.
+    repeatedModuleLabelsBothRun: async () => {
+        const report = await runBrowserProofs([
+            ['m', { first: () => undefined }],
+            ['m', { second: () => undefined }],
+        ])
+        assertEq(report.totals.tests, 2)
+        assertStructurallySame(
+            report.results.map(r => r.path),
+            ['.first', '.second'])
+    },
     returnedTreeThrows: async () => {
         // Reading the returned tree runs user code. When it throws, the test
         // that produced the value fails and the page still reaches a terminal

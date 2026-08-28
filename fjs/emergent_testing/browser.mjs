@@ -13,15 +13,16 @@
  * iframe therefore renders into that frame, and a proof can drive the module
  * with a stand-in root.
  *
- * @import { BrowserTestReport, Reporter, TestResult, _BrowserImporter, _BrowserReport, _BrowserTestResult } from './types.ts'
- * @import { Func } from '../effects/types.ts'
- * @import { Sandbox, SandboxResult } from '../effects/node/types.ts'
+ * @import { BrowserTestReport, Reporter, TestResult, _BrowserImporter, _BrowserReport, _BrowserTestResult, _TestAndPath } from './types.ts'
+ * @import { Effect, Func, IoChannel } from '../effects/types.ts'
+ * @import { All, Catch, Sandbox, SandboxResult } from '../effects/node/types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { addResult, collectTests, defaultTest, runModuleMap, zeroTotals } from './module.f.mjs'
+import { addResult, collectTests, defaultTest, runEntries, zeroTotals } from './module.f.mjs'
 import { browserRun } from '../effects/browser/module.mjs'
-import { do_, pureOk } from '../effects/module.f.mjs'
+import { allOk } from '../effects/node/module.f.mjs'
+import { do_, mapStep, pureOk } from '../effects/module.f.mjs'
 import { ok } from '../types/result/module.f.mjs'
 
 /** @type {(value: unknown) => string} */
@@ -179,19 +180,33 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
     // to, so `fjs t` panics and the page does this instead. A module that
     // cannot be enumerated is one failed module, never a run that ends without
     // a report. See `todo/hostile-proof-values.md`.
-    /** @type {readonly (readonly [string, unknown] | _BrowserTestResult)[]} */
+    //
+    // The export is read **once**, here, and the leaves go on to `runEntries`:
+    // enumerating is not idempotent, so a preliminary read that only checked
+    // whether the tree can be enumerated would run every getter in it a second
+    // time — and a getter that succeeds once and throws next would escape as a
+    // synchronous throw, leaving the page in `running` with no report at all.
+    /** @type {readonly (readonly ['ok', string, readonly _TestAndPath[]] | readonly ['failed', _BrowserTestResult])[]} */
     const prepared = modules.map(([module, proof]) => {
         try {
-            collectTests([], false, proof)
-            return /** @type {const} */ ([module, proof])
+            return /** @type {const} */ (['ok', module, collectTests([], false, proof)])
         } catch (error) {
             const [message, stack] = errorDetails(error)
-            return moduleFailure(module, 0, message, stack)
+            return /** @type {const} */ (['failed', moduleFailure(module, 0, message, stack)])
         }
     })
-    /** @type {Record<string, { readonly proof: unknown }>} */
-    const moduleMap = Object.fromEntries(prepared.flatMap(
-        e => e instanceof Array ? [[e[0], { proof: e[1] }]] : []))
+    // The page's modules are a *list*, and nothing stops it naming the same
+    // module twice: two entries with one label are two runs, in the order they
+    // were passed, so they are run as a list rather than folded into a map
+    // keyed by name.
+    /** @type {(e: (typeof prepared)[number]) => Effect<Sandbox | Catch | All | _BrowserReport, readonly _BrowserTestResult[], IoChannel>} */
+    const runOne = e => e[0] === 'ok'
+        ? mapStep(runEntries(browserReporter)(e[1], e[2]), o => o.results)
+        // A module failure has no leaf to be reported by, so it is handed to
+        // the same `report` operation directly: the page renders it as it
+        // lands, in the position the module was passed in, exactly like a leaf.
+        : mapStep(report(e[1]), r => /** @type {readonly _BrowserTestResult[]} */ ([r]))
+    const all = mapStep(allOk(...prepared.map(runOne)), lists => lists.flat())
     const run = browserRun(/** @type {any} */ ({
         // The page's end of the `report` operation: render as it lands, and
         // answer the record back so the traversal can keep it in order.
@@ -200,8 +215,8 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             return ok(r)
         },
     }))
-    return run(runModuleMap(browserReporter)(moduleMap)).then(answer => {
-        /** @type {Result<{ readonly results: readonly _BrowserTestResult[] }, unknown>} */
+    return run(all).then(answer => {
+        /** @type {Result<readonly _BrowserTestResult[], unknown>} */
         const outcome = /** @type {any} */ (answer)
         // A failure here is the *runner* failing, not a proof: the traversal
         // answers `ok` for every proof outcome, so the error channel carries
@@ -215,22 +230,10 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             announce(failure)
             return reportOf(performance.now() - start, [failure], 'infrastructure-error')
         }
-        // Each module's leaf records, back in the order the page was given its
-        // modules: a module that failed to enumerate contributes its own
-        // failure at the position it was passed in, and a readable one
-        // contributes what the traversal produced for it.
-        const byModule = new Map()
-        for (const r of outcome[1].results) {
-            const list = byModule.get(r.module)
-            if (list === undefined) { byModule.set(r.module, [r]) } else { list.push(r) }
-        }
-        const results = prepared.flatMap(e =>
-            e instanceof Array ? byModule.get(e[0]) ?? [] : [e])
-        // A module failure never reaches `report`, so it is announced here.
-        for (const e of prepared) {
-            if (!(e instanceof Array)) { announce(e) }
-        }
-        return reportOf(performance.now() - start, results)
+        // `allOk` answers in argument order, so the records are already in the
+        // order the page passed its modules in, with each module's leaves in
+        // structural order inside it.
+        return reportOf(performance.now() - start, outcome[1])
     })
 }
 

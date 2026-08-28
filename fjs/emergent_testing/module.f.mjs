@@ -202,12 +202,20 @@ const mergeOutcome = (a, b) => ({
 })
 
 /**
+ * Runs already-collected leaves under the module name `k`.
+ *
+ * This is the seam for a host that enumerates its own modules: the browser
+ * page reads each export inside its own `try`, because a module that will not
+ * enumerate is one failed module there rather than a dead run, and because its
+ * modules arrive as a *list* that may name the same module twice — neither of
+ * which a `ModuleMap` keyed by module name can express.
+ *
  * @template {Operation} O
  * @template R
  * @param {Reporter<O, R>} reporter
- * @returns {(k: string, v: unknown) => Effect<O | All | Catch, RunOutcome<R>, IoChannel>}
+ * @returns {(k: string, entries: readonly _TestAndPath[]) => Effect<O | All | Catch, RunOutcome<R>, IoChannel>}
  */
-const runModule = ({ result, test }) => (k, v) => {
+export const runEntries = ({ result, test }) => (k, entries) => {
     /** @type {(entry: _TestAndPath) => Effect<O | All | Catch, RunOutcome<R>, IoChannel>} */
     const one = ([testPath, set]) => {
         // The leaf's shared record is built here, next to the sandbox result it
@@ -271,13 +279,30 @@ const runModule = ({ result, test }) => (k, v) => {
         // `allOk` answers in argument order however the effects interleave, so
         // siblings stay in declaration order even though they run concurrently.
         mapStep(allOk(...entries.map(one)), states => states.reduce(mergeOutcome, zeroOutcome))
-    // The *module's* own export is read unguarded, and that asymmetry is
-    // deliberate rather than an oversight: there is no leaf to attribute it to,
-    // so an unreadable `proof` export is whatever loaded the module's problem.
-    // `fjs t` panics on one; the browser page catches it and reports one failed
-    // module. See `todo/hostile-proof-values.md`.
-    return walkEntries(collectTests([], false, v))
+    return walkEntries(entries)
 }
+
+/**
+ * Runs everything reachable from one module's `proof` export.
+ *
+ * The export is enumerated here, and **unguarded** — that asymmetry is
+ * deliberate rather than an oversight: there is no leaf to attribute the
+ * failure to, so an unreadable `proof` export is whatever loaded the module's
+ * problem. `fjs t` panics on one; the browser page catches it and reports one
+ * failed module. See `todo/hostile-proof-values.md`.
+ *
+ * A caller that has already collected the leaves — because it enumerates under
+ * its own guard, or because its modules are a list that may name the same
+ * module twice — calls {@link runEntries} directly instead. Enumerating is not
+ * idempotent: a getter in the export runs again on every read.
+ *
+ * @template {Operation} O
+ * @template R
+ * @param {Reporter<O, R>} reporter
+ * @returns {(k: string, v: unknown) => Effect<O | All | Catch, RunOutcome<R>, IoChannel>}
+ */
+const runModule = reporter => (k, v) =>
+    runEntries(reporter)(k, collectTests([], false, v))
 
 /** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
 const proofEntries = moduleMap =>
