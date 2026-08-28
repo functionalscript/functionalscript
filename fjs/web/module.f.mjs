@@ -530,7 +530,7 @@ const isServableRoot = s => s[0] === 'ok' && s[1].isDirectory
  * [stat-then-read](./todo/stat-then-read.md) already describes: a wrong status
  * in a vanishing window rather than a wrong status forever.
  *
- * @type {(root: string) => (path: string) => (r: Result<Vec, IoChannel | _TooLarge | _NotRegular>) => Effect<Stat, ServerResponse, never>}
+ * @type {(root: string) => (path: string) => (r: Result<Vec, IoChannel | readonly['tooLarge', number] | readonly['notRegular']>) => Effect<Stat, ServerResponse, never>}
  */
 const answer = root => path => r => {
     const hostAnswer = fileResponse(path)(r)
