@@ -143,15 +143,23 @@ region every bare tuple in the repository already has — while today's
 schema accepts the same length-3 value the moment `Array.prototype[3]` is
 its own `null`. Neither spelling is pollution-proof, neither ever was, and
 under a pristine prototype — the only host DJS admits — both reject every
-hole and every spelling has exactly one length. The executor is already
-safe on the unanswered region: [amnesia](../amnesia/module.f.mjs) reads
-nodes by **destructuring**, and the array iterator stops at `length`, so a
-prototype-supplied index past the end is never read — measured: with
+hole and every spelling has exactly one length. On the executor the
+unanswered region is covered by the read pattern:
+[amnesia](../amnesia/module.f.mjs)'s three lambda walkers **destructure**
+(`const [o, e, cont] = k`), and destructuring goes through the array
+iterator, which stops at `length`, so a prototype-supplied index past a
+short tuple's end is never read — measured: with
 `Array.prototype[3] = 'junk'`, the destructured fourth slot of a length-3
 node is `undefined` and the chain ends, while a direct `node[3]` would
-read `'junk'`. The gate's claim is therefore about the value's **own**
-members under rtti's stated reading model; hermetic reads for hostile
-hosts are rtti's tracked question
+read `'junk'`. The one walker that does **not** is `skip`, which reads
+`k[0]`/`k[1]`/`k[2]` directly — safe today only because every step carries
+an own third member; after the migration a short step's `k[2]` would read
+the prototype, and a polluted `Array.prototype[2]` could hand `skip` an
+inherited continuation where the step's own trailing `null` masks that
+index today. So `skip` joins the destructuring pattern **in the same
+change** — the amnesia task below says so. The gate's claim is therefore
+about the value's **own** members under rtti's stated reading model;
+hermetic reads for hostile hosts beyond that are rtti's tracked question
 ([`hostile-accessor-hermetic-read-path`](../../rtti/todo/hostile-accessor-hermetic-read-path.md)),
 not an EDAG-boundary duplicate.
 
@@ -211,10 +219,12 @@ carries `option` admits the absent member — and its hole — again.
 - [ ] `../types.ts`: plain unions of exact tuples, one per arity, no
   optional elements
 - [ ] `../amnesia/module.f.mjs`: `k === null` → `k === undefined`;
-  signatures take `… | undefined`; keep the destructuring reads — the
-  iterator stops at `length`, so a prototype-supplied index past a short
-  node's end is never read (see the gate boundary above) — and never
-  switch a continuation read to direct indexing
+  signatures take `… | undefined`; keep the walkers' destructuring reads —
+  the iterator stops at `length`, so a prototype-supplied index past a
+  short node's end is never read (see the gate boundary above) — never
+  switch a continuation read to direct indexing, and rewrite `skip`'s
+  direct `k[0]`/`k[1]`/`k[2]` to destructure like the other three walkers,
+  since a short step's `k[2]` would otherwise read the prototype
 - [ ] `../proof.f.mjs`, `../amnesia/proof.f.mjs`: respell (~200 trailing
   `null`s); add rejections for present `null`, present `undefined`, the
   smuggled continuation on a terminal, and the trailing holes
