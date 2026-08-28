@@ -14,7 +14,6 @@ ceiling. Every site in the repository today:
 | `emergent_testing/module.f.mjs` `walkEntries` | one module's sibling leaves |
 | `emergent_testing/module.f.mjs` `runModuleMap` | the modules of a run |
 | `emergent_testing/module.f.mjs` `registerModule` ×2, `registerModuleMap` | the same two, for the framework-registration path |
-| `emergent_testing/browser.mjs` `runBrowserProofs` | the page's module list |
 | `dev/module.f.mjs` ×2 | files to load, and their imports |
 
 They fail independently: a suite of a hundred thousand *modules* breaks the outer spread
@@ -39,12 +38,16 @@ than a few tens of thousands of leaves. Nothing in this repository is close — 
 suite is 3,461 leaves across 138 modules — so this is a real ceiling rather than a live
 problem, and it is recorded rather than fixed for that reason.
 
-The browser runner used to avoid it accidentally: it fanned out in batches of 25, so it
-never spread more than 25 arguments. That batching is gone
-([share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)),
-deliberately and for good reasons, and with it went a protection nobody had asked for or
-noticed. Both runners now share the ceiling, which is at least honest: one traversal, one
-limit, one place to fix it.
+The browser runner avoids it accidentally: it fans out in batches of 25 through
+`Promise.all`, so it never spreads more than 25 arguments — a protection nobody asked for
+or noticed, one of three unnamed jobs that constant turned out to do (see the pitfall
+catalog in
+[share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)).
+The reverted functionalscript#1759 routed the page through the shared traversal and so
+briefly gave both runners the same ceiling; the sequential plan that replaced it removes
+the traversal's fan-outs entirely, which retires the `walkEntries` and `runModuleMap` rows
+above. What remains then is the registration path and `dev` — still the operation's
+problem, at fewer sites.
 
 ### Proposal
 

@@ -23,7 +23,9 @@ entry much larger than it needs to be.
 
 ### How to do this — read before designing
 
-An attempt at this issue was written, reviewed, approved and then reverted. It
+A first attempt at this issue was written, reviewed, approved and then
+reverted (a second, #1759, followed and is recorded in its own section below).
+It
 worked: one shared `runModuleMap`, a `Reporter` per host, an `effects/common`
 layer, a browser interpreter, 100% coverage, green CI, a real Chromium run of
 3435 proofs. It was reverted anyway, because *how* it got there is a cost this
@@ -47,7 +49,7 @@ supplies, rather than a special case.
 
 Differences between the parts are fine and expected: a DOM row and a terminal
 line are two implementations of the same named part, and the skeleton above them
-cannot tell which it has. *Undocumented* differences are not. The attempt shared
+cannot tell which it has. *Undocumented* differences are not. The first attempt shared
 the modules and then let the browser keep its own test-name format, its own
 scheduling policy and its own clock — none of which its host forced, and none of
 which belonged in a part. That is the failure mode: it *looks* like success —
@@ -55,8 +57,11 @@ one module, one name — while two behaviours hide behind it, and two
 implementations behind two names would have been more honest, because nothing
 about the shared name signals the difference.
 
-**`fjs t` is sequential, and that is a decision to copy, not a gap to fill.**
-The attempt gave the browser a batch size — proofs launched in groups with a
+**`fjs t` was sequential when that attempt forked from it, and that was a
+decision to copy, not a gap to fill.** (Today's `fjs t` fans out through
+`all`; the sequential plan below returns it to this paragraph's state, which
+is the state everything here argues for.) The first attempt gave the browser a batch
+size — proofs launched in groups with a
 yield between groups. Nobody had asked for it, no measurement motivated the
 constant, and it was premature optimization in the strict sense: it made the
 runner different from the example in order to solve a problem no one had
@@ -71,13 +76,14 @@ running a due timer. Six rounds of review, every one of them downstream of a
 constant that was finally deleted.
 
 **And "no batch size" is not "no yielding" — this file said so badly enough to
-mislead a later reader, which was me.** Copying `fjs t` exactly *does* freeze a
-page: without a yield the whole suite runs as one task, measured at 54.7 s on
-this repo's own browser suite, and the line above about the batching having no
-paint boundary is about a bug in that attempt rather than a finding that the
-yield did nothing. What the browser needs is a turn, on a budget it can defend
-— a frame — and what it never needed was a number of proofs. Step 5's task list
-records where that landed and what it measured.
+mislead a later reader, which was me.** Copying today's concurrent `fjs t`
+exactly *does* freeze a page: without a yield the whole suite runs as one
+task, measured at 54.7 s on this repo's own browser suite, and the line above
+about the batching having no paint boundary is about a bug in that attempt
+rather than a finding that the yield did nothing. What the browser needs is a
+turn per unit of work, and what it never needed was a number of proofs. The
+second attempt's record below carries where that ended: with a *sequential*
+run, the turn is one macrotask per report, in the page's own handler.
 
 **A problem the browser reveals is not a browser problem.** Two came up, and
 both are properly issues rather than fixes inside a port:
@@ -99,7 +105,7 @@ browser could have is an issue, not something to introduce inside a port. A
 behaviour the port cannot preserve is a finding to record before it merges, not
 a silent divergence to explain in review.
 
-**Keep the change reviewable.** The attempt was 2646 insertions and 1408
+**Keep the change reviewable.** The first attempt was 2646 insertions and 1408
 deletions across 35 files in one PR — a move, a rewrite, a new effects layer, a
 new host interpreter and a scheduling invention at once, which is why the
 scheduling argument could not be separated from the sharing argument. Sequence
@@ -107,9 +113,160 @@ it: the shared semantics first, with `fjs t` unchanged in behaviour and the
 browser file only calling into it; the layout moves after; anything genuinely
 new last, on its own.
 
+### The second attempt (#1759), and the plan it simplified to
+
+A second attempt was also written, reviewed — twenty-one review threads, two
+independent approvals — and reverted with every gate green: `tsc`, 3,547
+proofs, 100% coverage, a real Chromium run. It shared the traversal exactly as
+the steps below asked: one `runModuleMap`, a `Reporter<O, R>` answering each
+host's own leaf record, a browser interpreter for `sandbox`, `catch` and
+`all`. The owner reverted it for a reason the first attempt's record already
+contains but did not say loudly enough: **the concurrency was the complexity.**
+Every hard problem the review fought traces to the traversal fanning out with
+`all`, and the machinery each fix added — a frame budget, a guessed 8 ms
+constant, `scheduler.yield`/`MessageChannel` selection — is infrastructure a
+test runner shouldn't need. The requirement, stated by the owner: a simple,
+sequential run, no optimization, a clear message after each test, exactly as
+the CLI works. Speed is explicitly not a goal.
+
+#### The plan: sequential
+
+Run one leaf's **whole chain** — test, report, children — to completion before
+the next leaf starts. That is the entire design. Its consequences:
+
+- **The reporting burst is impossible by construction.** Each leaf's report is
+  awaited before the next leaf runs; the interleaving is the control flow, not
+  a property to enforce or prove around.
+- **The page yields in its own `report` handler**: append the row, await one
+  macrotask, answer. That is the browser's spelling of what the CLI's `write`
+  already is — print the line, let the terminal show it, run the next test. It
+  is page code in the impure shell, so no scheduling policy touches shared
+  code, and there is no constant to guess. (`setTimeout(0)`'s nested 4 ms
+  clamp costs ~4 ms per test; speed is not a goal, and bun never runs page
+  code, so the clamp forces nothing.)
+- **No frame budget, no yield primitive selection, no batch size.** The longest
+  blocking task is the longest single proof, with zero tuning.
+- **The traversal never fans out**, so the variadic-`all` argument ceiling
+  ([all-argument-limit](../../effects/todo/all-argument-limit.md)) leaves the
+  traversal entirely, and the browser interpreter needs only `sandbox` and
+  `catch`.
+- **`fjs t`'s output becomes honest**: lines print after each test in
+  structural order, and per-leaf durations stop being inflated by concurrent
+  wall time — today a browser-suite leaf reports ~20 s because ~130 others
+  share its clock.
+- **The cost**: wall clock becomes the sum of awaits instead of the max, and a
+  proof that secretly depends on a sibling running concurrently deadlocks.
+  Both are accepted; the second is a timing dependency being flushed out.
+  `all` and `both` remain as *operations* for programs that want concurrency —
+  only the traversal stops using them.
+
+Sequence it as two PRs: **first the sequential traversal in `module.f.mjs`
+alone** — console-observable, `fjs t` prints each line as its test finishes,
+the full suite run under it is what finds any concurrency-dependent proof, and
+the scheduling change is breaking and gets its own changelog entry — **then the
+browser port**, which at that point adds no scheduling of any kind.
+
+#### The pitfall catalog
+
+Every problem the second attempt met, its cause, and the solution that worked.
+The first group is dissolved by the sequential plan; the second group applies
+to **any** implementation and the next implementer must not rediscover them;
+the third is about method.
+
+**Dissolved by sequential:**
+
+1. **The single-task freeze.** Leaves resolve through microtasks, and a
+   microtask drain never returns to the event loop, so the whole suite ran as
+   one task — measured in Chromium: **54.7 s**, zero paints, the browser
+   offering to kill the page. #1759's fix was a frame budget in the
+   interpreter, which worked (longest task 97–104 ms) and is exactly the
+   machinery the sequential plan deletes: one macrotask per report gives a
+   task per test with no budget at all.
+2. **The reporting burst.** Under `all`, every child starts before any is
+   awaited, so each leaf's `report` — a *continuation*, a microtask — queues
+   behind the entire suite's execution. Measured: first row in the DOM at
+   **44.3 s of a 50 s run**, 90% of 3,461 rows within ~30 ms of each other.
+   No budget can fix this — the ordering is the traversal's, and disabling the
+   budget left the burst unchanged. `fjs t` has it by construction too.
+3. **The variadic `all` ceiling.** Every fan-out is a spread, a spread is a
+   call, and a call has an argument limit: 50,000 siblings build, 100,000
+   throw `RangeError` **while building the effect**, before any interpreter
+   can catch it. Sequential removes every traversal site;
+   [all-argument-limit](../../effects/todo/all-argument-limit.md) keeps the
+   rest.
+4. **`batchSize = 25` was doing three unnamed jobs**: its `setTimeout` between
+   waves was the page's only macrotask boundary; awaiting each batch bounded
+   how far reporting lagged execution; and 25-at-a-time stayed under the
+   argument ceiling. Nobody chose it for any of them. The lesson is not that
+   the constant was right — it was indefensible — but that **before deleting
+   unmotivated code, enumerate what it does, not what it was for.**
+
+**These survive into any implementation:**
+
+5. **Enumerating is user code; read once.** A getter runs on every read. A
+   preflight `collectTests` that only *checked* the tree ran every getter a
+   second time, and one that succeeded then threw escaped as a synchronous
+   throw — page stuck in `running`, no report, no completion event. The same
+   bug recurred one layer down in the same PR: a collision check enumerated
+   the interpreter's `extra` map and the construction enumerated it again, so
+   a proxy could hide a key from the check and reveal it to the build. The
+   rule both times: **read a user value once, and derive everything from that
+   one reading.**
+6. **The page's modules are a list, not a map.** Routing them through a
+   record-shaped `ModuleMap` let `Object.fromEntries` keep only the last of
+   two same-labelled modules and report it twice. Two entries with one label
+   are two runs, in the order passed.
+7. **A run must not start before its promise is published.** A leaf executes
+   synchronously inside its handler, so without a deferral the first proofs
+   run while `runBrowserProofs` is still building what it returns — a proof
+   reading `fjsBrowserTestReport` sees the previous run's promise. Defer
+   everything that runs user code (enumeration included) behind one
+   `Promise.resolve().then(...)`.
+8. **Both ways a run fails as a runner must end in a report.** The error
+   channel carries what an operation reported; a *rejection* carries what the
+   interpreter could not dispatch at all, and an unhandled one is a page stuck
+   in `running` forever. Handle both into the `infrastructure-error` report.
+9. **Joins must be linear.** Pairwise immutable concatenation was Θ(N²)
+   twice — across siblings, then again down a parent/child chain, where
+   "flatten once at the end" recopies each subtree once per ancestor and is
+   the same Θ(N²) moved. A sequential fold appends one record at a time and
+   has no such trap; if records are ever joined, join a whole list at once.
+10. **A new exported boundary that its own consumers cast past is not typed.**
+    `browserRun` began as `(effect: unknown) => Promise<unknown>` with `any`
+    casts at both call sites, and its `extra` was `Partial` — advertising a
+    recovery the dispatcher does not perform (it panics on an unclaimed
+    command, by design). Make it generic over the effect and its `Result`,
+    take a complete map, panic on a handler that claims a core operation
+    (silently letting either side win makes the type or the caller a liar),
+    and carry handlers by property *descriptor* — `match` looks handlers up
+    with `getOwnPropertyDescriptor`, so a spread-merge silently drops a
+    non-enumerable handler the layer's dispatch would have accepted.
+
+**Method:**
+
+11. **A proof that observes a coincidence is worse than no proof, because it
+    is counted as cover.** A proof that the budget yielded watched for *a*
+    macrotask turn during a run; under the full suite a neighbouring proof
+    supplies one anyway, so it stayed green with the defect present — sound in
+    isolation, inert where the project runs it. Assert by *ordering* (a
+    macrotask cannot run until every pending microtask has) or by structure,
+    never by observing that the loop turned. And mutation-check under the full
+    `npm test`, which is the only run that counts — the inert proof passed its
+    own isolated mutation check.
+12. **Measure what the user sees, not a proxy for it.** "392 frames served and
+    194 progress updates" was reported as "rows painting as they land"; the
+    frames were real and dominated by the loading phase, and row count over
+    time — the thing a person watches — was never sampled. It read 0 until the
+    end. Sample the artifact itself.
+13. **When a decision changes, grep the markdown for the old one.** Seven
+    review findings on one branch were the same shape: the new answer written
+    down with the superseded instruction left standing beside it, handing a
+    future implementer two designs. This file is long precisely so it can be
+    wrong in one place; keep it saying one thing.
+
 ### Steps
 
-**One step per pull request.** The reverted attempt did the whole issue at once
+**One step per pull request.** The first attempt did the whole issue at once
 — 2646 insertions and 1408 deletions across 35 files — and that is why its
 arguments could not be separated: a question about scheduling became a question
 about the port. Each step below stands on its own, leaves both runners working,
@@ -133,21 +290,22 @@ and is reviewable without the next one.
       in [imports, promises and realms](imports-promises-realms.md); the scope
       rule they rest on is in [browser testing](browser-testing.md).
 
-- [ ] **4. Common effects.** Move `all`, `sandbox` and `catch` out of
-      `effects/node` into a shared module that `effects/node` re-exports
-      unchanged, so nothing has to move with them.
+- [ ] **4. Common effects.** Move `sandbox` and `catch` out of `effects/node`
+      into a shared module that `effects/node` re-exports unchanged, so
+      nothing has to move with them.
 
-      **The list is now settled, by measurement rather than by argument.**
-      Step 5's interpreter implements exactly those three, so exactly those
-      three have a second implementer. `await` does not: it belongs to the
-      *registration* path that external frameworks drive, which no browser
-      runs. `import` does not: a page loads modules through its own importer.
-      `now` does not: a browser run measures its own wall clock rather than
-      dispatching an operation for it. `fetch` does not: nothing in the shared
-      runner performs one. Those four stay in `effects/node` until something
-      gives them a second implementer, which is the same rule that let this
-      list shrink rather than a different one applied to them.
-      [node-module-layering](../../effects/todo/node-module-layering.md)
+      **The list was settled by measurement, then shrank again by design.**
+      The reverted #1759 interpreter implemented exactly `sandbox`, `catch`
+      and `all`, so exactly those three had a second implementer. Under the
+      sequential plan the traversal performs no `all`, so the set with two
+      implementers is **`sandbox` and `catch`**; `all` stays in `effects/node`
+      with the registration path. `await` never qualified: it belongs to that
+      registration path, which no browser runs. `import`, `now` and `fetch`
+      never qualified either: a page loads modules through its own importer
+      and reads its own wall clock, in the impure shell where host values
+      belong. Everything without a second implementer stays in `effects/node`
+      until something gives it one — the same rule that shrank this list
+      twice. [node-module-layering](../../effects/todo/node-module-layering.md)
       carries the same answer.
 
       **The expectation this step was written with was wrong, which is why the
@@ -193,20 +351,22 @@ and is reviewable without the next one.
       and this took it. `fjs t` gained the behaviour in the process, which is
       what made that change worth landing on its own rather than inside the port.
 
-- [x] **5. A browser interpreter** for exactly those operations.
-      `fjs/effects/browser/module.mjs`: `sandbox`, `catch`, `all`, plus
-      whatever operations the application adds — for the page, one `report`.
-      `sandbox` is `effects/node`'s, copied rather than redesigned, because two
-      runners that disagreed about an awaited leaf would not be one runner.
+- [ ] **5. A browser interpreter** for `sandbox` and `catch`, plus whatever
+      operations the application adds — for the page, one `report`. Nothing
+      else: a sequential traversal performs no `all`. `sandbox` is
+      `effects/node`'s, copied rather than redesigned, because two runners
+      that disagreed about an awaited leaf would not be one runner; `catch`
+      dispatches to `types/result`'s `tryCatch`, the same helper
+      `effects/node` uses.
 
-      This step asked for an interpreter "with no scheduling policy of its
-      own", and that was half right in a way worth keeping. The *traversal* has
-      none, which is what the whole issue is about, and nothing about a batch of
-      proofs belongs here. But an interpreter for a host with a UI thread must
-      give that thread back, or the host cannot paint — so it carries one
-      policy, a frame budget charged to every operation it dispatches, which is
-      a statement about the browser and not about proofs. The Tasks list below
-      records what that cost to learn.
+      **No scheduling policy of its own — and this time that holds without a
+      footnote.** The reverted #1759 interpreter had to carry a frame budget
+      because the concurrent traversal ran as one microtask drain (catalog
+      item 1). Sequentially, the page's own `report` handler yields, and the
+      interpreter's handlers are dumb. Its contract still wants the reverted
+      attempt's proofs re-landed: a complete non-`Partial` map, a panic on a
+      colliding or unclaimed command, handlers carried by descriptor, the map
+      read once (catalog items 5, 8, 10).
 - [x] **6. One reporter.** The event stream — a leaf landed, a run ended —
       that both hosts subscribe to. Step 2 gave them the *value*; this gave
       them the seam it travels through. `Reporter.result` now receives the
@@ -224,34 +384,38 @@ and is reviewable without the next one.
       fold's summed durations, because its leaves run concurrently and the sum
       only means "how long the run took" for a sequential runner —
       `RunTotals` documents that.
-- [x] **7. One skeleton.** The page's proof-tree walk is deleted and the shared
-      traversal runs it. `browser.mjs` no longer discovers leaves, applies the
-      throw expectation, walks return values or counts anything: it supplies a
-      `Reporter` and an interpreter, and the traversal does the rest.
+- [ ] **7. One sequential skeleton.** Two PRs, in this order.
 
-      **The batching went with it**, as this file said it should be decided
-      rather than inherited: `batchSize = 25` is gone. Nothing asked for it, no
-      measurement motivated the constant, and it was the origin of six rounds of
-      review in the reverted attempt. Deleting the *yield* along with it was the
-      overshoot — a page that never gives the thread back cannot paint or answer
-      a click — so the browser interpreter gives it back on a frame budget
-      instead, which is a number about the host rather than about proofs. The
-      traversal still schedules nothing, so `fjs t` is unchanged.
+      **7a. Make the shared traversal sequential**, in `module.f.mjs` alone.
+      Replace the `all` fan-outs with a sequential fold: one leaf's whole
+      chain — test, report, children — awaited before the next leaf starts,
+      for siblings and for modules alike. Console-observable and
+      console-provable: `fjs t` prints each line as its test finishes, in
+      structural order, and per-leaf durations become the leaf's own time.
+      Breaking (scheduling semantics), so it carries its own changelog entry.
+      Run the full suite under it *in this PR* — a proof that depends on a
+      sibling running concurrently deadlocks here, where it is cheap to find,
+      not in the browser port.
 
-      **What the skeleton had to grow**, rather than what the browser had to
-      keep: the traversal now threads a `RunOutcome<R>` — the folded totals
-      plus each host's own leaf records, in the walk's order. The browser needs
-      its report's `results` ordered by structure, and taking them in
-      completion order would have pinned the scheduler's behaviour instead of
-      the suite's. `fjs t` answers `void` there and collects nothing, which is
-      the extension point doing its job.
+      **7b. The page runs the shared traversal** through the step-5
+      interpreter. `browser.mjs` stops discovering leaves, applying the throw
+      expectation, walking return values and counting: it supplies a
+      `Reporter` whose `result` hands the record to its `report` operation,
+      and a `report` handler that appends the row and awaits one macrotask.
+      What the reverted #1759 validated and this PR re-lands: the traversal
+      threads a `RunOutcome<R>` — folded totals plus each host's leaf records
+      in the walk's order (`fjs t` answers `void` and collects nothing); the
+      page's modules stay a *list* entered at a seam for already-collected
+      leaves, because labels may repeat and an export is enumerated exactly
+      once, under the page's own guard (catalog items 5, 6); the run starts
+      only after its promise is published (item 7); and both runner-failure
+      routes end in the `infrastructure-error` report (item 8).
 
-      **What stayed the page's own, with the reason:** reading a *module's*
+      **What stays the page's own, with the reason:** reading a *module's*
       exported tree. The shared walk guards a returned tree through `catch`
       (see [hostile proof values](hostile-proof-values.md)) but deliberately
       not the exported one, because there is no leaf to attribute that failure
       to. `fjs t` panics; the page catches it and reports one failed module.
-      That asymmetry predates this step and survives it.
 
 - [ ] **8. The layout move**, and the website preparation program.
 
@@ -412,24 +576,15 @@ an effect adds an operation for every DOM detail without improving the shared
 API. Add `fjs/effects/browser/` only after the required operation set is clear;
 do not create a mirror of `effects/node` merely for directory symmetry.
 
-A shared `all` that starts every child before awaiting any is worth stating as a
-contract rather than leaving to each interpreter: a child may wait on something
-a later sibling produces, so an interpreter that awaits one child before
-starting the next hangs a graph the other host completes. Beyond that, **the
-browser gets no scheduling policy of its own until someone reports a problem
-with the one `fjs t` has.** If a page turns out to need a task boundary to
-paint, that is a separate, measured change with its own issue — and the measure
-is a boundary per unit of work, never a tuned count of proofs, because proofs
-differ in cost by orders of magnitude.
-
-That is what happened, and this paragraph turned out to be right on every
-count. The problem was reported — a page frozen for the length of a run, with
-the browser offering to kill it — the change was measured in a real browser
-before and after, and the boundary is per unit of work on a frame budget rather
-than per N proofs — every operation the interpreter dispatches, since rendering
-a result is work on the same thread as running a proof. It lives in the
-interpreter, where a statement about a host belongs, and the traversal still
-schedules nothing.
+**The traversal is sequential, and that is the scheduling policy — the whole
+of it.** The second attempt proved the alternative: a concurrent traversal
+needed a frame budget to stay responsive and still delivered its log as one
+burst, because no scheduling layer can reorder a continuation ahead of work
+already queued (catalog items 1–2). Sequentially, the only scheduling decision
+left is the page's one macrotask per report, in the page's own handler. `all`
+keeps its start-every-child-before-awaiting-any contract for the programs that
+still use it — the registration path, and any program that wants concurrency —
+but the traversal is no longer one of them.
 
 An executor boundary will still be necessary because the console runner uses
 the Effects sandbox while a browser catches synchronous throws and awaits
@@ -494,16 +649,19 @@ are shared.
 - [x] Inventory duplicated semantics in `emergent_testing/module.f.mjs` and
       `emergent_testing/browser.mjs`, and define the smallest shared API. The
       shared API is `Reporter<O, R>` and the `RunOutcome<R>` the traversal
-      answers with; the page supplies the parts and nothing else.
+      answers with; the page supplies the parts and nothing else. Implemented
+      and review-validated in the reverted #1759; the design survives as the
+      plan and re-lands with step 7.
 - [x] Name the skeleton's parts explicitly — execute a leaf, report a result,
       link a module — and check that nothing host-specific is left outside one
       of them. `test`, `result` and `summary` are the parts; linking a module
-      stays outside the skeleton, which is why `runEntries` exists beside
-      `runModuleMap`.
-- [x] Make the existing `collectTests`/path behavior the single source of truth
-      for console and browser execution. The page's own walk is deleted; it
-      calls `collectTests` once, under its own guard, and hands the leaves to
-      `runEntries`.
+      stays outside the skeleton, which is why the reverted #1759 gave
+      `runModuleMap` a sibling entry point taking already-collected leaves,
+      and step 7b does again.
+- [ ] Make the existing `collectTests`/path behavior the single source of truth
+      for console and browser execution. Done in the reverted #1759 — the
+      page's walk was deleted, `collectTests` called once under the page's own
+      guard — and re-lands with step 7b.
 - [x] Share the test-name format, and prove both runners name the same leaf
       identically. The browser report carries a `name` built by `fmtImport`, and
       `nameMatchesTheConsoleRunner` pins it to that function rather than to a
@@ -515,10 +673,11 @@ are shared.
       still each host's own.
 - [x] Decide whether browser import/time/yield/publication justify
       `fjs/effects/browser/`; document the decision before adding operations.
-      They do not: the interpreter implements `sandbox`, `catch` and `all` and
-      nothing else — import, time and publication are the page's, in its
-      impure shell. Recorded in that module and in
-      `effects/todo/node-module-layering.md`.
+      They do not: the reverted #1759 interpreter needed `sandbox`, `catch`
+      and `all` and nothing else, and the sequential plan drops `all` too —
+      import, time, yield and publication are all the page's, in its impure
+      shell. Recorded in
+      [node-module-layering](../../effects/todo/node-module-layering.md).
 - [ ] Move static proof discovery and `_browser-suite.mjs` generation into
       `fjs/website/module.f.mjs`; extend `fjs/effects/node/` only for a concrete
       missing capability and prove the real and virtual interpretations.
@@ -533,12 +692,13 @@ are shared.
       interpretation, DOM rendering, and browser publication.
 - [ ] Update the generated website entry and browser-test application imports
       to the new module paths.
-- [x] Prove both runners produce equivalent paths, throw outcomes, recursive
-      test counts, and normalized failures from the same fixtures. They now
-      share the code that decides all four, and `nameMatchesTheConsoleRunner`,
+- [ ] Prove both runners produce equivalent paths, throw outcomes, recursive
+      test counts, and normalized failures from the same fixtures. The
+      existing `nameMatchesTheConsoleRunner`,
       `expectedThrowStatusMatchesTheSharedOne` and
-      `normalizedResultMatchesTheSharedOne` assert against the console
-      runner's own functions rather than against a spelling.
+      `normalizedResultMatchesTheSharedOne` already assert against the console
+      runner's own functions; step 7b makes the four properties shared code
+      rather than agreeing implementations.
 - [x] Record every behaviour the browser file has today and the shared core will
       not keep, as an issue, before the sharing change merges. Two: the
       `batchSize = 25` yielding — whose *constant* was the mistake and whose
@@ -547,63 +707,20 @@ are shared.
       [hostile-proof-values](./hostile-proof-values.md).
 - [ ] Close each of those issues for both runners at once, so the two stay in
       sync rather than drifting from the day the core is shared.
-- [x] Decide where a browser run gives the thread back. **The browser
-      interpreter, on a frame budget charged to every operation it dispatches**
-      — 8 ms, what a 60 Hz frame leaves for script — not a count of proofs, and
-      not the traversal, which stays free of scheduling so `fjs t` is
-      untouched.
-
-      This was got wrong three times before it was measured, and all three are
-      worth keeping. First, deleting `batchSize = 25` was read as deleting the
-      whole idea: the constant was indefensible — twenty-five trivial leaves
-      are nothing and twenty-five heavy ones are still a freeze — but the
-      `setTimeout` between waves was the only thing giving the page a turn.
-      Without it the whole suite is one task: leaves resolve through
-      microtasks, and a microtask drain never returns to the event loop, so
-      nothing paints and no click is answered until the run ends. Measured in
-      Chromium on this repo's own browser suite: a single **54.7 s** task, zero
-      rows painted, and the browser offering to kill the page.
-
-      Second, the fix's first shape awaited the budget *before* each leaf, and
-      changed nothing. A leaf runs synchronously inside its handler, which is
-      what makes `all`'s children start one after another as each previous leaf
-      finishes; await anything first — even a resolved promise — and every
-      handler asks whether the slice is spent at the same instant, before any
-      leaf has run. All see room, none yields. The check has to answer without
-      awaiting when there is room, which is why it answers `null` rather than a
-      settled promise.
-
-      Third — and the proof for it was wrong before the code was — only
-      `sandbox` was charged, which holds until a page is cheap to test and
-      expensive to render: a hundred trivial leaves start inside one
-      slice, and the hundred renders that follow drain with no turn given back.
-      Whatever the runner dispatches runs on the host's thread, so every
-      operation is charged now — the ones a host adds included, because that is
-      the host's own work.
-
-      The first proof for that watched for *a* turn during a run, and was inert
-      where the project runs it: under the whole suite another proof hands the
-      loop a boundary, so the check passed with the defect present. Its
-      replacement asserts by ordering instead — a macrotask cannot run until
-      every pending microtask has, so racing the dispatch against a chain of
-      microtasks says which kind of boundary it waited for, whatever else the
-      process is doing. **A proof that observes a coincidence is worse than no
-      proof**, because it is counted as cover.
-
-      After: longest task **97–104 ms**, none of the 3,461 rows waiting for the
-      end, wall clock 50.9 s against 52.8 s — the yields cost 0.38 ms each and
-      the budget asks for few of them. What is left blocking is a single proof
-      that computes without stopping, which nothing at this layer can split.
-      `all` was not the place to put this: it must start every child before
-      awaiting any, so pausing between children hangs a graph whose child waits
-      on a later sibling, which is the deadlock the reverted attempt hit.
-- [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's own
-      failure, as opposed to any proof's. It is the one branch of the page with
-      no proof, and reaching either half of it (an operation reporting through
-      the error channel, or one the interpreter cannot dispatch at all, which
-      rejects) needs an effect the public entry point gives no way to inject.
-      `effects/browser/proof.mjs` pins the interpreter's half — a command no
-      handler claims rejects — so what is left is the page's own guard.
+- [x] Decide where a browser run gives the thread back. **One macrotask per
+      report, in the page's own `report` handler** — the sequential plan's
+      answer, superseding the reverted #1759's frame budget. The full story
+      of how the frame budget was got wrong three times before being measured,
+      and why even measured-correct it could not fix the reporting burst, is
+      the pitfall catalog above (items 1, 2, 4, 11, 12).
+- [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch when step 7b
+      re-lands it — the run's own failure, as opposed to any proof's. In the
+      reverted #1759 neither half of the guard (an operation reporting through
+      the error channel, or one the interpreter cannot dispatch, which
+      rejects) was reachable through the public entry point, so the guard had
+      no proof; review established by mutation that removing it stayed green.
+      Step 8's split of the page into `module.f.mjs`/`module.mjs` is the seam
+      that makes it reachable.
 
 ### Related
 

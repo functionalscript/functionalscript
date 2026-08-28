@@ -78,13 +78,18 @@ Judgement calls worth deciding explicitly rather than by accident:
   interpreter actually implements — so both recorded the disagreement and left
   it to step 5.
 
-  Step 5's answer is `sandbox`, `catch` and `all`, and nothing else.
-  `fjs/effects/browser/module.mjs` implements those three because the shared
-  proof traversal performs those three; a page loads its modules through its
-  own importer rather than an `import` operation, measures its own wall clock
-  rather than dispatching `now`, and performs no `fetch` at all. So none of the
-  three gained a second implementer, and DESIGN.md §4 keeps them here until one
-  does.
+  Step 5's answer was `sandbox`, `catch` and `all`, and nothing else: the
+  browser interpreter built (and later reverted, with its record) in
+  functionalscript#1759 implemented those three because the shared proof
+  traversal performed those three. A page loads its modules through its own
+  importer rather than an `import` operation, measures its own wall clock
+  rather than dispatching `now`, and performs no `fetch` at all. So none of
+  the three gained a second implementer, and DESIGN.md §4 keeps them here
+  until one does. The sequential plan that replaced that attempt (see
+  share-browser-console-runner) shrinks the measured set once more: a
+  sequential traversal performs no `all`, so the operations with a second
+  implementer become `sandbox` and `catch` alone, and `all` stays here with
+  the registration path.
 
   Worth recording, because the earlier expectation written here was wrong about
   two of them: "a browser proof run needs a clock and dynamic import" is true of

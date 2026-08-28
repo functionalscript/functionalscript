@@ -2,8 +2,8 @@
  * Test-framework helpers for running and reporting FunctionalScript tests.
  *
  * Two parallel execution paths:
- * - `runModule` / `Reporter<O, R>` — self-hosted Effects runner used by `fjs t`;
- *   sandboxes each leaf call individually and accumulates a `RunOutcome`.
+ * - `runModule` / `Reporter<O>` — self-hosted Effects runner used by `fjs t`;
+ *   sandboxes each leaf call individually and accumulates `RunTotals`.
  * - `registerModule` / `TestContext` — registers tests with an external
  *   framework (Node `--test`, Bun, Deno) at import time; the framework owns
  *   scheduling and pass/fail counting.
@@ -14,7 +14,7 @@
  * @import { Result } from '../types/result/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
- * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunOutcome, RunTotals, TestResult, _RunAcc, _TestAndPath } from './types.ts'
+ * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunTotals, TestResult, _TestAndPath } from './types.ts'
  * @import { All, Await, Catch, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
@@ -25,7 +25,6 @@ import {
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
-import { flat, toArray } from '../types/list/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
 
 /**
@@ -184,47 +183,12 @@ const mergeTotals = (a, b) =>
     ({ passed: a.passed + b.passed, failed: a.failed + b.failed, duration: a.duration + b.duration })
 
 /**
- * Joins what a walk accumulated, keeping the leaf records in the order it
- * produced them — which is what makes a host's report ordered by structure
- * rather than by which leaf settled first.
- *
- * Nothing is copied here. Both places a walk joins — siblings fanned out, and a
- * parent in front of the children its return value produced — hand the records
- * on as `List` nodes, so a wide module and a deep one both cost one node per
- * join instead of a copy of everything joined so far. See {@link _RunAcc}.
- *
- * @type {<R>(a: readonly _RunAcc<R>[]) => _RunAcc<R>}
- */
-const joinAcc = a => ({
-    totals: a.reduce((t, o) => mergeTotals(t, o.totals), zeroTotals),
-    results: flat(a.map(o => o.results)),
-})
-
-/**
- * The array of leaf records a host is answered with, walked out of the rope
- * once. Done where a run ends rather than inside the walk, so no level pays
- * for the levels below it.
- *
- * @type {<R>(a: _RunAcc<R>) => RunOutcome<R>}
- */
-const outcomeOf = a => ({ totals: a.totals, results: toArray(a.results).map(b => b.value) })
-
-/**
- * Runs already-collected leaves under the module name `k`.
- *
- * This is the seam for a host that enumerates its own modules: the browser
- * page reads each export inside its own `try`, because a module that will not
- * enumerate is one failed module there rather than a dead run, and because its
- * modules arrive as a *list* that may name the same module twice — neither of
- * which a `ModuleMap` keyed by module name can express.
- *
  * @template {Operation} O
- * @template R
- * @param {Reporter<O, R>} reporter
- * @returns {(k: string, entries: readonly _TestAndPath[]) => Effect<O | All | Catch, RunOutcome<R>, IoChannel>}
+ * @param {Reporter<O>} reporter
+ * @returns {(k: string, v: unknown) => (ts: RunTotals) => Effect<O | All | Catch, RunTotals, IoChannel>}
  */
-export const runEntries = ({ result, test }) => (k, entries) => {
-    /** @type {(entry: _TestAndPath) => Effect<O | All | Catch, _RunAcc<R>, IoChannel>} */
+const runModule = ({ result, test }) => (k, v) => ts => {
+    /** @type {(entry: _TestAndPath) => Effect<O | All | Catch, RunTotals, IoChannel>} */
     const one = ([testPath, set]) => {
         // The leaf's shared record is built here, next to the sandbox result it
         // is read from, so the leaf-landed event carries the value already
@@ -269,48 +233,26 @@ export const runEntries = ({ result, test }) => (k, entries) => {
             ([t, sr]) => result(t, sr, set.throws))
         return step(
             reported,
-            ([r, [t, , children]]) => {
-                /** @type {_RunAcc<R>} */
-                const self = { totals: addResult(zeroTotals, t), results: [{ value: r }] }
+            ([, [t, sr, children]]) => {
+                const total = addResult(zeroTotals, t)
                 if (children.length === 0) {
-                    return pureOk(self)
+                    return pureOk(total)
                 }
-                // The leaf's own record goes first, so a parent precedes the
-                // children its return value produced.
                 return mapStep(
                     walkEntries(children),
-                    sub => joinAcc([self, sub]))
+                    sub => mergeTotals(total, sub))
             })
     }
-    /** @type {(entries: readonly _TestAndPath[]) => Effect<O | All | Catch, _RunAcc<R>, IoChannel>} */
+    /** @type {(entries: readonly _TestAndPath[]) => Effect<O | All | Catch, RunTotals, IoChannel>} */
     const walkEntries = entries =>
-        // `allOk` answers in argument order however the effects interleave, so
-        // siblings stay in declaration order even though they run concurrently.
-        mapStep(allOk(...entries.map(one)), joinAcc)
-    return mapStep(walkEntries(entries), outcomeOf)
+        mapStep(allOk(...entries.map(one)), states => states.reduce(mergeTotals, zeroTotals))
+    // The *module's* own export is read unguarded, and that asymmetry is
+    // deliberate rather than an oversight: there is no leaf to attribute it to,
+    // so an unreadable `proof` export is whatever loaded the module's problem.
+    // `fjs t` panics on one; the browser page catches it and reports one failed
+    // module. See `todo/hostile-proof-values.md`.
+    return mapStep(walkEntries(collectTests([], false, v)), delta => mergeTotals(ts, delta))
 }
-
-/**
- * Runs everything reachable from one module's `proof` export.
- *
- * The export is enumerated here, and **unguarded** — that asymmetry is
- * deliberate rather than an oversight: there is no leaf to attribute the
- * failure to, so an unreadable `proof` export is whatever loaded the module's
- * problem. `fjs t` panics on one; the browser page catches it and reports one
- * failed module. See `todo/hostile-proof-values.md`.
- *
- * A caller that has already collected the leaves — because it enumerates under
- * its own guard, or because its modules are a list that may name the same
- * module twice — calls {@link runEntries} directly instead. Enumerating is not
- * idempotent: a getter in the export runs again on every read.
- *
- * @template {Operation} O
- * @template R
- * @param {Reporter<O, R>} reporter
- * @returns {(k: string, v: unknown) => Effect<O | All | Catch, RunOutcome<R>, IoChannel>}
- */
-const runModule = reporter => (k, v) =>
-    runEntries(reporter)(k, collectTests([], false, v))
 
 /** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
 const proofEntries = moduleMap =>
@@ -318,44 +260,28 @@ const proofEntries = moduleMap =>
         .flatMap(([k, v]) => v.proof !== undefined ? [/** @type {const} */ ([k, v.proof])] : [])
 
 /**
- * Runs all test modules in `moduleMap` whose names pass `isTest`, reporting
- * each leaf through `reporter` and its totals through `reporter.summary`.
- *
- * The answer is the run's {@link RunOutcome}: the folded totals, and every
- * leaf record the reporter answered with, in structural order. A caller that
- * wants the run's exit code asks {@link exitCodeOf} for it.
+ * Runs all test modules in `moduleMap` whose names pass `isTest`, accumulates
+ * pass/fail/time via `reporter`, and returns an exit code (0 = all passed,
+ * 1 = at least one failure).
  *
  * @template {Operation} O
- * @template R
- * @param {Reporter<O, R>} reporter
- * @returns {(moduleMap: ModuleMap) => Effect<O | All | Catch, RunOutcome<R>, IoChannel>}
+ * @param {Reporter<O>} reporter
+ * @returns {(moduleMap: ModuleMap) => Effect<O | All | Catch, number, IoChannel>}
  */
 export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
     const modules = proofEntries(moduleMap)
-    // Each module has already walked out its own records, so joining the
-    // modules copies each record once and nothing more.
     const total = mapStep(
-        allOk(...modules.map(([k, v]) => runModule(reporter)(k, v))),
-        m => ({
-            totals: m.reduce((t, o) => mergeTotals(t, o.totals), zeroTotals),
-            results: m.flatMap(o => o.results),
-        }))
-    // The outcome is still needed after the summary has been printed, so it is
-    // carried forward in a history rather than closed over by a nested
+        allOk(...modules.map(([k, v]) => runModule(reporter)(k, v)(zeroTotals))),
+        m => m.reduce(mergeTotals, zeroTotals))
+    // The totals are still needed after the summary has been printed, so they
+    // are carried forward in a history rather than closed over by a nested
     // continuation.
     const reported = historyStep(
         history(total),
-        o => summary(o.totals))
-    return mapStep(reported, ([, o]) => o)
+        summary)
+    return mapStep(reported, ([, ts]) => ts.failed !== 0 ? 1 : 0)
 }
-
-/**
- * The exit code a run's outcome means: `1` when any leaf failed.
- *
- * @type {(o: RunOutcome<unknown>) => number}
- */
-export const exitCodeOf = o => o.totals.failed !== 0 ? 1 : 0
 
 /**
  * Ends a run with the exit code it computed, reporting a channel failure on
@@ -392,14 +318,11 @@ const exitCodeStep = e =>
  * reason on `stderr` instead of unwinding as a panic.
  *
  * @template {Operation} O
- * @template R
- * @param {Reporter<O, R>} reporter
+ * @param {Reporter<O>} reporter
  * @returns {Program<O | All | Catch | LoadModuleOperations | Write>}
  */
 export const testAll = reporter => options =>
-    exitCodeStep(mapStep(
-        step(loadModuleMap(options.env), runModuleMap(reporter)),
-        exitCodeOf))
+    exitCodeStep(step(loadModuleMap(options.env), runModuleMap(reporter)))
 
 /**
  * Registers all modules in `moduleMap` that export a `proof` property with
@@ -520,7 +443,7 @@ const fmtResultLine = ({ name, duration }, color, label) =>
  * annotations instead of colored lines. Exported as a factory so the
  * GitHub format path can be exercised directly from tests.
  *
- * @type {(options: NodeProgramOptions) => Reporter<Write | Sandbox, void>}
+ * @type {(options: NodeProgramOptions) => Reporter<Write | Sandbox>}
  */
 export const defaultReporter = options => {
     const write = csiWrite(options)
