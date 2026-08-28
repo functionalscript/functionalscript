@@ -316,8 +316,11 @@ and is reviewable without the next one.
       The reverted #1759 interpreter implemented exactly `sandbox`, `catch`
       and `all`, so exactly those three had a second implementer. Under the
       sequential plan the traversal performs no `all`, so the set with two
-      implementers is **`sandbox` and `catch`**; `all` stays in `effects/node`
-      with the registration path. `await` never qualified: it belongs to that
+      implementers — and this step's whole scope — is **`sandbox` and
+      `catch`**. `all` is not this step's to move at all: its home is
+      [node-module-layering](../../effects/todo/node-module-layering.md)'s
+      question, which moves it to `effects/all` on the layering argument, with
+      the Node runners and the registration path as its implementers. `await` never qualified: it belongs to that
       registration path, which no browser runs. `import`, `now` and `fetch`
       never qualified either: a page loads modules through its own importer
       and reads its own wall clock, in the impure shell where host values
@@ -402,9 +405,11 @@ and is reviewable without the next one.
       fold's summed durations. When this landed the reason was concurrency;
       under the sequential plan the two draw closer but stay distinct — wall
       clock also carries what is *between* the leaves: the per-report yields,
-      module loading, everything the run does that no leaf owns. Step 7b
-      updates this reasoning where it is published, in `RunTotals`'s JSDoc
-      (`types.ts`), which today still explains the gap by concurrency.
+      enumeration, joining, everything the run does that no leaf owns. (Not
+      module loading: the page's timer starts after its imports settle, and
+      keeps doing so.) Step 7b updates this reasoning where it is published,
+      in `RunTotals`'s JSDoc (`types.ts`), which today still explains the gap
+      by concurrency.
 - [ ] **7. One sequential skeleton.** Two PRs, in this order.
 
       **7a. Make the shared traversal sequential**, in `module.f.mjs` alone.
@@ -425,8 +430,10 @@ and is reviewable without the next one.
       and a `report` handler that appends the row and awaits one macrotask.
       Update `RunTotals`'s JSDoc in `types.ts` here too: it explains
       wall-clock-vs-summed-duration by leaves running concurrently, and under
-      this step the gap is the run's own overhead — per-report yields, module
-      loading — not concurrency (step 6's note carries the same correction).
+      this step the gap is what the run does *between* leaves — per-report
+      yields, enumeration, joining — not concurrency. Module loading is not
+      part of it: the page's timer starts after its imports have settled, and
+      stays there (step 6's note carries the same correction).
       What the reverted #1759 validated and this PR re-lands: the traversal
       threads a `RunOutcome<R>` — folded totals plus each host's leaf records
       in the walk's order (`fjs t` answers `void` and collects nothing); the
