@@ -1,6 +1,6 @@
-## node26-job-is-this-repo-only. `fjs ci` ships one convention consumers never agreed to
+## node26-typedef-gate-reaches-consumers. `fjs ci` ships one convention consumers never agreed to
 
-**Priority:** P3
+**Priority:** P5
 **Status:** open
 
 ### Problem
@@ -27,6 +27,10 @@ it, and no `Setup` field turns it off. A project that follows the documented
 setup exactly — defines both scripts, writes ordinary JSDoc — gets a red
 `node26` for breaking a rule that is not theirs, and the failure names a
 convention they have never read.
+
+P5: a reviewer notices this kind of thing, and no project outside this
+repository is known to run `fjs ci` at all — see the question under the
+options. Raise it the day one turns up.
 
 That narrowness is the finding. Because the rest of the job does work for a
 consumer who follows the documentation, a convention gate added to it is not
