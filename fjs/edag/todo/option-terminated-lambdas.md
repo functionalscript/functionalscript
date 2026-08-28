@@ -89,29 +89,54 @@ row above a genuine type error:
   elements to store and hash.
 - "The chain ends" is spelled as absence, which is what `option` is for.
 
-### The one widening: trailing holes
+### Trailing holes must be rejected in the same change
 
 `option` admits a hole as absence, so the sparse `['.', a, 'b', ,]` — length
 4, index 3 a hole — **also validates** (verified), a second spelling with a
 second hash for the same function, where today's required-`null` schema
-rejects every hole. Contained, but real:
+rejects every hole. FunctionalScript cannot produce it — "Two adjacent commas
+are not an elision: an array has no holes"
+([`../../../spec/README.md`](../../../spec/README.md), Arrays) — and a hole
+even *evaluates* identically to absence (reading it yields `undefined`), so
+the leak is canonicality-only. It is still a validation regression against
+today's schema, and a regression may not be deferred behind a todo
+([`AGENTS.md`](../../../AGENTS.md) §1, "Merge the knowledge"): the migration
+does not land unless the same change keeps `validate(exp)` rejecting a
+trailing hole, pinned in the proofs. Two mechanisms qualify, either is
+acceptable:
 
-- FunctionalScript cannot produce it: "Two adjacent commas are not an elision:
-  an array has no holes" ([`../../../spec/README.md`](../../../spec/README.md),
-  Arrays). Only a host-JS producer can spell it.
-- A hole even *evaluates* identically to absence (reading it yields
-  `undefined`), so the leak is canonicality-only, the same class as the
-  identity-dependent rules `validate` already leaves to the Stage 2 validator
-  (see Caveats in [`../README.md`](../README.md)). "No holes" joins that list —
-  or rtti grows a no-holes rule for validated containers, defensible on its
-  own since a DJS value is never sparse.
+1. **Arity-split unions, no `option` at all** (verified against the real
+   `validate`, no rtti change needed). Each node or step whose continuation
+   may end is a union of its two closed arities —
+   `or(['.', exp, index], ['.', exp, index, propertyLambda])`, and likewise
+   per step — so absence is spelled by the shorter tuple and a hole matches
+   neither arm: the 3-arity arm rejects length 4, the 4-arity arm has no
+   `option` and rejects the absent member. `['.', a, 'b', ,]` and
+   `['|()', c, ,]` both reject; every acceptance row in the table above is
+   unchanged. Costs: each such kind doubles its union arms, the shared prefix
+   is written twice, and the `AbsentOr`/`CheckRaw` machinery drops out
+   (hand-written types are plain unions of exact tuples, no optional
+   elements).
+2. **An rtti rule first: absence in a tuple is the array ending before the
+   position, never a hole** — the const- and rest-tuple validators' absent
+   branch additionally requires the index to lie at or past `value.length`.
+   One condition, and it aligns the readers' array domain with DJS, which has
+   no sparse arrays — the same direction as
+   [`data-validate-admits-non-djs-values`](../../rtti/todo/data-validate-admits-non-djs-values.md).
+   But it reverses documented rtti behavior (`option`'s "position 0 may be a
+   hole"; `_InteriorTs` rendering interior absence as "what reading a hole
+   gives") across all three readers and the printer, so it needs its own rtti
+   issue and lands **before** this migration, which then keeps the `option`
+   spelling and machinery described above.
 
 ## Proposal
 
 Replace the `null` member of all three lambda schemas with `option`, drop the
 terminals' third operand, and let the continuation positions of `dot`,
-`optionDot`, `optionCall` and the steps end by absence. Code changes are
-small; the bulk is mechanical respelling of proofs and prose.
+`optionDot`, `optionCall` and the steps end by absence — spelled with
+`option` under mechanism 2 above, or as arity-split unions under mechanism 1
+(same accepted values either way). Code changes are small; the bulk is
+mechanical respelling of proofs and prose.
 
 [amnesia](../amnesia/module.f.mjs) barely changes: its four `k === null`
 checks become `k === undefined`, since reading the continuation position of a
@@ -131,9 +156,11 @@ present value there.
   smuggled continuation on a terminal; the `unspellable` family list holds
 - [ ] `../README.md`: node and spelling tables; "Terminals state their
   `null`" inverts into "closedness by length rejects a smuggled
-  continuation"; "The cost" shrinks; Caveats gains the trailing-hole note
-- [ ] decide where hole rejection lives: an edag caveat deferred to the
-  Stage 2 validator, or a no-holes rule in rtti
+  continuation"; "The cost" shrinks
+- [ ] reject trailing holes **in the same change** — mechanism 1
+  (arity-split unions) or mechanism 2 (the rtti past-the-end rule, filed and
+  landed first) above; pin `['.', a, 'b', ,]` and `['|()', c, ,]` rejecting
+  in `../proof.f.mjs`
 
 ## Related
 
