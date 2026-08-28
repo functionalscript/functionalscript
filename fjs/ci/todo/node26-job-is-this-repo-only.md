@@ -1,4 +1,4 @@
-## node26-job-is-this-repo-only. `fjs ci` ships this repository's own gates
+## node26-job-is-this-repo-only. `fjs ci` ships one convention consumers never agreed to
 
 **Priority:** P3
 **Status:** open
@@ -9,34 +9,41 @@
 ([`fjs/README.md`](../../README.md)), and `ci(setup)` lets a caller vary only
 `nodeExtra`, which reaches the per-OS platform jobs. The canonical Node jobs
 come from `nodeVersionJobs` unconditionally, so every consumer's generated
-`ci.yml` also gets the `node26` job — and that job is this repository's, not
-theirs:
+`ci.yml` also gets the `node26` job.
 
-- `npm run ci-update`, then `git add -A && git diff --cached --exit-code` —
-  regenerate-and-check-drift, against a script a consumer's `package.json`
-  very likely does not define, so the step fails outright;
-- the file-scope JSDoc `@typedef` prohibition (root `AGENTS.md`).
+Most of that job is a documented contract and works as intended.
+[`../README.md`](../README.md) states which commands a consuming
+`package.json` must provide — `cov` and `ci-update` — shows the typical
+definitions, and explains that a project chains its own generators into
+`ci-update` so the drift check covers them for free. This repository's own
+`ci-update` spells itself `node ./fjs/module.mjs ci && …` only to avoid
+depending on the package bin before the package is installed, which that README
+says outright. So `npm run ci-update` and its drift check are an extension
+point, not a private gate.
 
-Both encode *this repository's* conventions, and the second is the clearer
-case: a consumer who writes a file-scope `@typedef` has broken no rule of their
-own, and their build fails telling them so.
+**One step is not covered by that contract: the file-scope JSDoc `@typedef`
+prohibition.** It comes from root `AGENTS.md`, nothing asks a consumer to adopt
+it, and no `Setup` field turns it off. A project that follows the documented
+setup exactly — defines both scripts, writes ordinary JSDoc — gets a red
+`node26` for breaking a rule that is not theirs, and the failure names a
+convention they have never read.
 
-This issue was filed alongside a pair of `@module` placement gates that would
-have been a third. They were reverted before landing — a text pattern cannot
-tell a JSDoc tag from the same characters in a string, and
-[root `AGENTS.md` §6](../../../AGENTS.md#6-external-tools) now rules the
-approach out — so the tree today carries only the two above. What the attempt
-did was make the pattern worth naming: every convention `node26` acquires
-widens the gap between what `fjs ci` claims to generate and what it does, and
-§6 makes that gap harder to widen without noticing.
+That narrowness is the finding. Because the rest of the job does work for a
+consumer who follows the documentation, a convention gate added to it is not
+lost in an already-broken job: it is the one thing standing between them and a
+green build. A pair of `@module` gates was very nearly added here for that
+reason and reverted first — [root `AGENTS.md`
+§6](../../../AGENTS.md#6-external-tools) now rules that approach out — but §6
+governs *how* such a check is built, not whether `node26` is where it belongs.
 
 ### Proposal
 
 No design agreed; the choice is what `fjs ci` is *for*.
 
 - **Split the job.** `nodeVersionJobs` yields the portable per-version jobs;
-  this repository's gates move to a `nodeExtra`-style hook it passes itself.
-  A consumer gets Node 22/24/26 running their tests and nothing else.
+  this repository's convention gates move to a `nodeExtra`-style hook it passes
+  itself. A consumer keeps the documented `cov`/`ci-update` contract and gets
+  none of our conventions.
 - **Or narrow the claim.** Keep the job as it is and say in `fjs/README.md` and
   [`../README.md`](../README.md) that `fjs ci` generates *this* repository's
   workflow, and that other projects should use `fjs run <custom-ci-module>` —
