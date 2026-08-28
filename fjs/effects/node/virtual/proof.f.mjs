@@ -428,6 +428,9 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(stat('docs'))
         assert(result[0] === 'ok', result)
         assertEq(result[1].isFile, false)
+        // And says *what* it is, which `!isFile` cannot: a `JsModule` below
+        // answers false to both.
+        assertEq(result[1].isDirectory, true)
     },
     statOnEmptyPath: () => {
         // An empty path is not the root, though `parse` collapses both to no
@@ -439,6 +442,7 @@ export const proof = {
         const [, root] = virtual(emptyState)(stat('.'))
         assert(root[0] === 'ok', root)
         assertEq(root[1].isFile, false)
+        assertEq(root[1].isDirectory, true)
     },
     statOnJsModule: () => {
         // A `JsModule` entry is this file system's non-regular name: it exists
@@ -450,7 +454,44 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(stat('a.f.ts'))
         assert(result[0] === 'ok', result)
         assertEq(result[1].isFile, false)
+        // Neither a file nor a directory. That is why `isDirectory` is its own
+        // flag: a caller asking `!isFile` for "may I descend into it" would
+        // descend into a FIFO.
+        assertEq(result[1].isDirectory, false)
         assertEq(result[1].size, 0)
+    },
+    statOnRegularFile: () => {
+        /** @type {Dir} */
+        const root = { 'a.txt': [vec8(0x41n)] }
+        const [, result] = virtual({ ...emptyState, root })(stat('a.txt'))
+        assert(result[0] === 'ok', result)
+        assertEq(result[1].isFile, true)
+        assertEq(result[1].isDirectory, false)
+        assertEq(result[1].size, 1)
+    },
+    statThroughNonDirectory: () => {
+        // A path that descends through a name which is not a directory is
+        // `ENOTDIR` — the name exists and has nothing under it — where a path
+        // whose *first* missing segment is simply absent stays `ENOENT`. A POSIX
+        // host draws the same line, and a caller that maps one of the two to its
+        // own answer cannot be proven against a runner that reports both alike.
+        /** @type {Dir} */
+        const root = { 'a.txt': [vec8(0x41n)], 'm.f.ts': () => ({}), docs: {} }
+        /** @type {(path: string) => string | undefined} */
+        const code = path => {
+            const [, result] = virtual({ ...emptyState, root })(stat(path))
+            assert(result[0] === 'error', result)
+            assert(result[1][0] === 'ioError', result[1])
+            return result[1][1].code
+        }
+        assertEq(code('a.txt/index.html'), 'ENOTDIR')
+        // Any depth below it, and a `JsModule` is no more descendable.
+        assertEq(code('a.txt/x/y'), 'ENOTDIR')
+        assertEq(code('m.f.ts/index.html'), 'ENOTDIR')
+        // Absent names stay `ENOENT`, whether the missing segment is the last
+        // one or the one being descended through.
+        assertEq(code('nope.txt/index.html'), 'ENOENT')
+        assertEq(code('docs/nope.html'), 'ENOENT')
     },
     largeFileReadBytes: () => {
         // A file stored as two 128 KiB chunks is larger than maxLengthBytes.

@@ -98,7 +98,7 @@ relative. That is also why the path is built with `join` rather than `concat`.
 | case | status |
 |---|---|
 | file found | `200` with its bytes |
-| `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path | `404` |
+| `GET`/`HEAD` on a missing, dot-prefixed, or non-regular path, or one descending through a file | `404` |
 | any other method | `405`, with `Allow: GET, HEAD` |
 | a `Host` this server does not answer for | `403` |
 | a path that escapes `root`, or an undecodable URL | `400` |
@@ -139,6 +139,58 @@ blocks until one appears, so the read would never return and would hold a
 thread-pool slot while it waited. A served tree with one FIFO in it and a handful
 of requests would stall every other response. Size cannot stand in for the check:
 a FIFO stats as zero bytes and passes every bound.
+
+### A path that descends through a file
+
+`/README.md/` asks for `README.md/index.html`, and a POSIX host answers that
+`stat` with `ENOTDIR`: the name before the slash exists and has nothing under
+it. That is client-caused in the way a missing name is — every served tree has
+thousands of regular files, so any client can ask — so it is a `404`, the same
+answer `/nope.md/` gets.
+
+While it was a `500` the two answered differently, which made a trailing slash a
+way to ask *"is there a regular file at this name?"* — the enumeration the
+identical `404`s elsewhere exist to deny. It was also platform-dependent:
+Windows reports `ENOENT` for the same request and answered `404` already, so one
+request had two statuses depending on the host it ran on.
+
+**Only `ENOTDIR`.** A directory whose mode denies traversal (`EACCES`) and a
+symlink cycle (`ELOOP`) reach the same directory-form shape on POSIX and stay at
+`500`: both are entries an operator placed, and a `500` saying the host could not
+read what it was pointed at is not obviously the wrong answer for them. `EISDIR`
+needs no rule — `stat` succeeds on a directory, `isFile` is false, and it is
+already `404`.
+
+**And only while the root is a directory.** `fjs web README.md` would make every
+request stat a path descending through a file, and mapping that to `404` would
+tell every visitor the site is missing and the operator nothing at all. So the
+root is checked twice over: `main` refuses a root that is not a directory before
+it binds anything — reported on `stderr` with exit code `1`, like a bad port —
+and the `ENOTDIR` mapping re-stats the root before answering, so a root
+*replaced* while the server runs goes back to `500`. The re-check costs a `stat`
+on the `ENOTDIR` path and nothing on any other, and what it leaves is the
+request-local window [stat-then-read](./todo/stat-then-read.md) already
+describes, rather than a wrong status for the life of the process.
+
+A root that is *deleted* rather than replaced is not covered: every later `stat`
+fails `ENOENT`, which is the ordinary `404` path, and validating the root before
+accepting an `ENOENT` too would put a second `stat` on the most common answer a
+static server gives to improve a diagnostic. `404` is not false in either case —
+with the root gone or a file, nothing under it exists — so what the asymmetry
+costs is diagnostic reach, not correctness. The version that answers both is
+holding the root **open** and resolving beneath the handle, which is
+[stat-then-read](./todo/stat-then-read.md)'s effect.
+
+`FileStat` grew `isDirectory` for the startup check: `isFile === false` is not
+"is a directory", since a FIFO, a device and a socket answer that too, and
+serving one of those as a root is the same mistake as serving a file.
+
+**Not `readdir(root)`**, which is the obvious alternative and needs no new
+operation. It answers a different question: a directory may be traversable
+without being listable — mode `--x` permits opening a known path under it while
+`readdir` fails `EACCES` — so a root this server can serve perfectly well would
+be refused at startup. Reading a whole directory only to discard it is the
+smaller objection.
 
 ### The size limit
 

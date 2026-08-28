@@ -51,11 +51,11 @@ export const implementation = open(/** @type {const} */ ({
 
 // ── Capabilities ───────────────────────────────────────────────────────────────
 
-const toolsCapability = open(/** @type {const} */ ({ listChanged: option(boolean) }))
+const toolsCapability = open(/** @type {const} */ ({ listChanged: or(option, boolean) }))
 
 /** Server capabilities advertised in the `initialize` response. */
 export const serverCapabilities = open(/** @type {const} */ ({
-    tools: option(toolsCapability),
+    tools: or(option, toolsCapability),
 }))
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ export const initializeResult = open(/** @type {const} */ ({
     protocolVersion: string,
     capabilities: serverCapabilities,
     serverInfo: implementation,
-    instructions: option(string),
+    instructions: or(option, string),
 }))
 
 // ── Content ────────────────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ export const textContent = open(/** @type {const} */ ({ type: 'text', text: stri
  */
 export const blobResource = open(/** @type {const} */ ({
     uri: string,
-    mimeType: option(string),
+    mimeType: or(option, string),
     blob: string,
 }))
 
@@ -114,7 +114,7 @@ export const contentItem = or(textContent, embeddedResource)
  */
 export const tool = open(/** @type {const} */ ({
     name: string,
-    description: option(string),
+    description: or(option, string),
     inputSchema: unknown,
 }))
 
@@ -123,22 +123,22 @@ export const tool = open(/** @type {const} */ ({
  * from a previous `ToolsListResult.nextCursor`.
  */
 export const toolsListParams = open(/** @type {const} */ ({
-    cursor: option(string),
+    cursor: or(option, string),
 }))
 
 export const toolsListResult = open(/** @type {const} */ ({
     tools: array(tool),
-    nextCursor: option(string),
+    nextCursor: or(option, string),
 }))
 
 export const toolsCallParams = open(/** @type {const} */ ({
     name: string,
-    arguments: option(record(unknown)),
+    arguments: or(option, record(unknown)),
 }))
 
 export const toolsCallResult = open(/** @type {const} */ ({
     content: array(contentItem),
-    isError: option(boolean),
+    isError: or(option, boolean),
 }))
 
 // ── Dispatch ───────────────────────────────────────────────────────────────────
@@ -260,8 +260,11 @@ export const fromRegistry = registry => ({
 export const notInitialized = rpcError(-32002)('Server not initialized')
 
 // Params for methods that take no arguments (`ping`, `notifications/initialized`):
-// absent, or an object (which may carry `_meta`).
-const _noParams = option(record(unknown))
+// absent, or an object (which may carry `_meta`). Checked against the *read*
+// `message.params`, a top-level value — absence has already become the read
+// `undefined` by then, so the union carries `undefined` the value, not
+// `option`: at the entry position nothing can be absent.
+const _noParams = or(record(unknown), undefined)
 
 /** Initial session state — always start here. */
 /** @type {McpSessionState} */

@@ -36,7 +36,7 @@
  * @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
  * @import { Error, Result as CommonResult } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { Validate, Visitor, IsContainer, Container, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
+ * @import { Validate, Visitor, IsContainer, Container, Presence, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
@@ -106,10 +106,18 @@ export const isObject =
  * final accumulator.
  *
  * Used by `parse`'s container builders (array/record/tuple/struct), which
- * need the rebuilt `[key, value]` pairs, so they fold them into a `List` (see
- * the call site) and convert to an array once at the end. A caller whose
- * whole question is "did every entry succeed?" passes `undefined`/`acc => acc`
+ * need the rebuilt `[key, value]` pairs, so they fold them onto a cons list
+ * (see the call site) their rebuilds walk directly. A caller whose whole
+ * question is "did every entry succeed?" passes `undefined`/`acc => acc`
  * instead and pays no allocation per entry.
+ *
+ * The walk is by index rather than `for..of`: `item` reads the value, and a
+ * read can run an accessor that replaces `Array.prototype`'s iterator —
+ * which `for..of` and destructuring dispatch on every step, so a later
+ * step's `[k, v]` was the accessor's to choose. Index and `length` reads
+ * consult nothing overridable on these plain entry arrays — the same rule
+ * `parse`'s rebuilds state in full (see `defineProperty` in
+ * `../parse/module.f.mjs`).
  */
 export const eachEntry =
     /**
@@ -124,15 +132,56 @@ export const eachEntry =
      */
     (entries, item, init, accumulate) => {
         let acc = init
-        for (const [k, v] of entries) {
-            const r = item(k, v)
+        for (let i = 0; i < entries.length; i += 1) {
+            const e = entries[i]
+            const r = item(e[0], e[1])
             if (r[0] === 'error') {
-                return prependPath(k, r)
+                return prependPath(e[0], r)
             }
-            acc = accumulate(acc, k, r[1])
+            acc = accumulate(acc, e[0], r[1])
         }
         return ok(acc)
     }
+
+/** {@link consPresence}'s seed and {@link presenceUnchanged}'s empty walk. */
+/** @type {Presence} */
+export const emptyPresence = null
+
+/**
+ * `eachEntry`'s accumulate step recording each declared member's
+ * **presence** — the item's `ok` payload, `true` for a member the walk saw
+ * present — one cons per member, newest first.
+ */
+/** @type {(acc: Presence, k: string, present: boolean) => Presence} */
+export const consPresence = (acc, _k, present) =>
+    ({ first: present, tail: acc })
+
+/**
+ * Whether each declared member's presence is still what the walk saw — the
+ * postcondition every absence decision was made under. A member's read can
+ * run an accessor, and a later member's accessor can flip an *earlier*,
+ * already decided member: install the omitted key on `Object.prototype`
+ * (or an omitted position on `Array.prototype`) and the member is present
+ * by the same HasProperty rule the walk dispatched on; delete an own key
+ * and a checked member is gone. Either way the verdict is stale — a
+ * hands-back reader would return a value that no longer denotes what was
+ * checked, and a constructing one built from decisions that no longer hold
+ * — so every reader re-asks the one question last, after everything that
+ * reads the value, and refuses on any flip. `reversed` is the walk's
+ * answers newest-first and exactly one per declared member, so the
+ * comparison walks `entries` from its end in lockstep; `in` runs no
+ * accessor, so the recheck itself reads nothing of the value's.
+ *
+ * @type {(entries: ReadonlyArray<readonly [string, unknown]>, reversed: Presence, value: ReadonlyArray<Unknown> | StringMap<Unknown>) => boolean}
+ */
+export const presenceUnchanged = (entries, reversed, value) => {
+    let i = entries.length
+    for (let n = reversed; n !== null; n = n.tail) {
+        i -= 1
+        if ((entries[i][0] in value) !== n.first) { return false }
+    }
+    return true
+}
 
 /**
  * What a `Tuple` schema declares, read by **length**.
@@ -286,6 +335,51 @@ export const undeclaredMembers = (declared, value) => {
 }
 
 /**
+ * Whether `rtti` admits **absence** with `visited` already ruled out — the
+ * recursive half of {@link admitsAbsence}, carrying the thunks on the current
+ * path so a recursive union such as `X = or(X, option)` terminates.
+ *
+ * @type {(visited: readonly Type[], rtti: Type) => boolean}
+ */
+const absenceIn = (visited, rtti) => {
+    if (typeof rtti !== 'function') { return false }
+    if (visited.some(v => v === rtti)) { return false }
+    const [tag, ...operands] = rtti()
+    if (tag === 'option') { return true }
+    if (tag !== 'or') { return false }
+    return operands.some(op => absenceIn([...visited, rtti], op))
+}
+
+/**
+ * Whether the schema admits **absence** — whether `option` is reachable
+ * through its unions, so a container may leave the member out entirely.
+ *
+ * This is the container loop's question, asked *before* dispatch: a
+ * recursive reader is handed only the value read, and an absent key reads
+ * `undefined`, so absence cannot be decided downstream of the read. The
+ * predicate traverses nested `or` nodes — the schema-form `or` does no
+ * flattening, so `or(or(option, number), string)` has no `option` among its
+ * direct members while admitting absence — descends the thunks they hold,
+ * stops at any other tag, and carries the visited thunks to terminate on a
+ * recursive `X = or(X, option)`. The data form needs no such traversal:
+ * `toData` has already flattened, so its readers test one unit bit.
+ *
+ * @type {(rtti: Type) => boolean}
+ */
+export const admitsAbsence = rtti => absenceIn([], rtti)
+
+/**
+ * The shared answer for a declared member that is not there — no own or
+ * inherited key at its position: the member is legal exactly when its schema
+ * admits absence. The `ok` payload is unused by pass/fail callers and is not
+ * a value read from the container, absence being the whole point.
+ *
+ * @type {(rtti: Type) => ResultE}
+ */
+export const absentMember = rtti =>
+    admitsAbsence(rtti) ? ok(undefined) : verror('unexpected value')
+
+/**
  * First variant in `variants` that `recurse` accepts, else `verror('no match')`.
  *
  * Shared `or` handler: try each variant against the value and return the
@@ -338,6 +432,7 @@ export const visit =
                 case 'array': return v.array(value[0])
                 case 'record': return v.record(value[0])
                 case 'unknown': return v.unknown()
+                case 'option': return v.option()
                 case 'or': return v.or(value)
                 case 'rest': {
                     const [c, r] = value

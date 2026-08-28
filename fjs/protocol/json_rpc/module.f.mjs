@@ -42,15 +42,15 @@ export const _id = or(string, number, null)
 export const request = open(/** @type {const} */ ({
     jsonrpc,
     method: string,
-    params: option(unknown),
-    id: option(_id),
+    params: or(option, unknown),
+    id: or(option, _id),
 }))
 
 /** The JSON-RPC error object — `open`, for the reason {@link request} gives. */
 export const error = open(/** @type {const} */ ({
     code: number,
     message: string,
-    data: option(unknown),
+    data: or(option, unknown),
 }))
 
 export const successResponse = open(/** @type {const} */ ({ jsonrpc, result: unknown, id: _id }))

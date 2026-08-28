@@ -186,12 +186,13 @@ docs, mirroring the existing `throws` plumbing:
   instead of a bare `throws` boolean) so `defaultReporter` can annotate a passing
   leaf with `# TODO` when `todo` is set, otherwise keep `# EXPECTED TO THROW`.
   The GitHub/error path is unchanged.
-- **`TestState` / summary (`fjs t` only)** — add a `todo` counter to `TestState`,
-  incremented for every `todo` leaf in `runModule` (independently of whether it
-  passed or failed; its pass/fail still increments `pass`/`fail` as usual).
-  Extend `Reporter.summary` to receive the `todo` count and have `defaultReporter`
-  print it (`pass / fail / todo`). The `register` path is unchanged — no
-  cross-test tally there.
+- **`RunTotals` / summary (`fjs t` only)** — add a `todo` counter to
+  `RunTotals`, folded in `addResult` for every `todo` leaf (independently of
+  whether it passed or failed; its pass/fail still increments
+  `passed`/`failed` as usual). `Reporter.summary` already receives the whole
+  record, so no signature change — `defaultReporter` just prints the new field
+  (`pass / fail / todo`). The `register` path is unchanged — no cross-test
+  tally there.
 - **No `fn.name === 'todo'` check** — `todo` is structural-key-only, matching the
   guidance around the legacy `fn.name === 'throw'` path.
 
@@ -228,7 +229,7 @@ out from under `throw`) as part of landing this change.
       skipping + star suffix to `leafOnly` (`runModule`, `registerModule`).
 - [ ] Update `Reporter.result` to receive the entry flags and annotate passing
       `todo` leaves with `# TODO`.
-- [ ] Add a `todo` counter to `TestState`/`Reporter.summary` and print
+- [ ] Add a `todo` counter to `RunTotals` (folded in `addResult`) and print
       `pass / fail / todo` in `defaultReporter` (`fjs t` only; `register`
       unchanged).
 - [ ] Migrate `fjs/emergent_testing/example.f.mjs` off `throw: { todo }`.

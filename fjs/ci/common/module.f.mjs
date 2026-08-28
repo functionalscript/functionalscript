@@ -11,7 +11,7 @@
  */
 
 import { actions, images } from '../config/module.f.mjs'
-import { option, array, record, string } from '../../rtti/module.f.mjs'
+import { array, option, or, record, string } from '../../rtti/module.f.mjs'
 import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 
 export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])
@@ -25,9 +25,9 @@ export const architecture = /** @type {const} */ (['intel', 'arm'])
 // `if`, `env` and much else — would need `open`.
 
 export const stepSchema = /** @type {const} */ ({
-    run: option(string),
-    uses: option(string),
-    with: option(record(string))
+    run: or(option, string),
+    uses: or(option, string),
+    with: or(option, record(string))
 })
 
 export const jobSchema = /** @type {const} */ ({
@@ -40,8 +40,8 @@ export const jobsSchema = record(jobSchema)
 export const gitHubActionSchema = /** @type {const} */ ({
     name: string,
     on: {
-        pull_request: option({}),
-        merge_group: option({})
+        pull_request: or(option, {}),
+        merge_group: or(option, {})
     },
     permissions: record(string),
     jobs: jobsSchema
