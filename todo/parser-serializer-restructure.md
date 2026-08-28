@@ -92,8 +92,15 @@ package publishes; the spec does not need it.
 
 **Data model.** A DAG of values. Leaves are JSON's primitives plus `bigint`,
 `undefined`, `NaN`, `Infinity`, `-Infinity`, `-0`. Number round-trips satisfy
-`Object.is`. Object entries follow JS duplicate-key semantics exactly: value
-from the last occurrence, position from the first. Sharing is semantic — two
+`Object.is`. Object entries follow JS object semantics exactly, and the spec
+restates both halves rather than citing ECMA-262. Duplicate keys: value from
+the last occurrence, position from the first. Observable key order is JS's
+own-property ordering: keys that are array indices (canonical numeric
+strings, `0` ≤ n < 2^32−1) come first in ascending numeric order, then all
+other keys in first-occurrence order — `{"2":0,"1":0}` observably orders
+`"1"` before `"2"` in every JS engine, and a non-JS implementation must
+reorder the same way. Normalized output emits keys in that observable
+order. Sharing is semantic — two
 references to one `const` denote the same node, and references may only point
 at *earlier* consts, so a document is acyclic by construction and parseable in
 one pass. The reference parser returns live JS values and does not freeze them
