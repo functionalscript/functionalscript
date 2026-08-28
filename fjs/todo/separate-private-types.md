@@ -261,9 +261,10 @@ longer carries.
 The shape that makes it a real check:
 
 1. a job that packs (`npm pack`) and uploads the tarball as a CI artifact;
-2. a **second job with no repository checkout** that downloads that artifact,
-   installs it (`npm install ./functionalscript-*.tgz typescript`), and
-   type-checks **every declaration the package ships**.
+2. a **second job with no repository checkout**, ordered after the first by an
+   explicit `needs`, that downloads that artifact, installs it
+   (`npm install ./functionalscript-*.tgz typescript`), and type-checks
+   **every declaration the package ships**.
 
 The missing checkout is the point, and it is stronger than merely working in a
 directory outside the repository: with no repository on the runner, there is no
@@ -423,6 +424,17 @@ type-only and use named `import type { ... }` imports.
       `.github/workflows/ci.yml`. Complete the fixture already scoped in
       [`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md)
       rather than adding a second package-validation path.
+- [ ] Give the second job an explicit `needs` edge on the pack job. Without it
+      GitHub Actions starts the two in parallel and `download-artifact` fails
+      before the check has run — a red required check for the wrong reason.
+      This is a prerequisite, not a detail: `jobSchema` in
+      `fjs/ci/common/module.f.mjs` is **closed** and names only `runs-on` and
+      `steps`, and it is the same schema `parseGitHubAction` reads the
+      generated workflow back through, so emitting a bare `needs:` key would
+      fail that round-trip in `fjs/ci/proof.f.mjs`. Extend the schema
+      (`needs: or(option, array(string))`, matching the existing optional-field
+      idiom in `stepSchema`), which widens `Job` in `fjs/ci/common/types.ts`,
+      and cover the new field in the proof.
 - [ ] Make that job a required check, so a reintroduced private dependency
       blocks the merge queue rather than landing.
 - [ ] Assert the tarball's contents (no `private.d.ts` inside) alongside that
@@ -492,6 +504,9 @@ type-only and use named `import type { ... }` imports.
 - Its file set is derived from the installed artifact, so a module that gains a
   `private.ts` after the job is written is checked without the job being
   edited.
+- That job `needs` the pack job, so it never races the upload, and the closed
+  `jobSchema` / `Job` / proof in `fjs/ci/common` are extended to express it
+  rather than the key being emitted past the schema.
 - That job is a required check, so the failure blocks the merge queue.
 - Both halves are demonstrably falsifiable, each by the input that actually
   breaks it: dropping the `files` negation reddens the contents assertion, and
