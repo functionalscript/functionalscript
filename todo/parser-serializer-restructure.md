@@ -162,9 +162,16 @@ key       ::= string | '[' '"__proto__"' ']'
 
 **Serialization.** Any conforming serializer may emit any valid document; a
 separate *normalized form* section defines one byte-deterministic canonical
-serializer (const names `_0`, `_1`, … in first-emission order; a const emitted
+serializer (a const emitted
 iff its value is an object or array referenced more than once **by reference
-identity** — primitives are always emitted inline and never hoisted, since
+identity**; consts are emitted in **post-order of one depth-first traversal**
+of the root value — arrays in element order, objects in observable key
+order, each shared node descended into only on first encounter — with names
+`_0`, `_1`, … assigned in emission order, so a shared node's dependencies
+are always declared before it and "who is `_0`" has exactly one answer:
+for `root = [parent, parent, child]` with `child` inside `parent`, `child`
+finishes first and is `_0`, `parent` is `_1`; primitives are always emitted
+inline and never hoisted, since
 primitive sharing is unobservable and a value-equality ref counter would
 face the `0`/`-0` and `NaN` merging ambiguity that the `Object.is`
 round-trip guarantee forbids; shortest round-trip number
@@ -250,11 +257,15 @@ throughout.
    resolved and inlined) to normalized DataJS or JSON, with the subset-law
    proofs above. DataJS output is total; JSON output is permitted only when
    every leaf has a JSON spelling and no graph sharing is lost — a value
-   containing `undefined`, `NaN`, `±Infinity`, or a shared node is
-   **rejected as an error**, never silently substituted or dropped,
+   containing `undefined`, `NaN`, `±Infinity`, `bigint`, or a shared node
+   is **rejected as an error**, never silently substituted or dropped,
    matching the validation policy of
-   [json-bigint-serialization](../fjs/djs/todo/json-bigint-serialization.md)
-   (`bigint` itself is representable: it serializes as its full digits).
+   [json-bigint-serialization](../fjs/djs/todo/json-bigint-serialization.md).
+   `bigint` is rejected even though its digits are spellable in JSON: the
+   text `1` read back by the standard `.json` reader is the *number* `1`,
+   so emitting `1n` as `1` would silently change the value's type — the
+   extended codec's bigint output remains available only as a caller's
+   explicit, so-labeled choice, never the normalizer's `.json` default.
    Rejection proofs cover each unrepresentable leaf and the shared-node
    case.
 7. **Cleanup** — retire `fjs/js/tokenizer` when its last consumer is gone
