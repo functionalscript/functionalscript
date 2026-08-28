@@ -50,9 +50,9 @@ reuse the first call's `[1]`. Sharing of a body node remains memoized within eac
 individual invocation.
 
 As the compiler lands the staged operators, the direct interpreter should support the
-same EDAG forms: Stage 1 adds `.` property access with a `null` continuation; Stage 2
+same EDAG forms: Stage 1 adds `.` property access with no continuation; Stage 2
 adds non-capturing `=>`, the ordinary call `['()', callee, args]`, and the method call
-— a `.` node whose continuation is `['|()', args, null]`, which is what carries the
+— a `.` node whose continuation is `['|()', args]`, which is what carries the
 `this` binding.
 
 Stage 2 deliberately has **no frame support** — a restriction on *this interpreter*, not
@@ -96,9 +96,9 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Validate the final EDAG before interpretation.
 - [ ] Interpret EDAG operations directly; do not generate JavaScript from EDAG and run
       it through the host JavaScript engine.
-- [ ] Support Stage 1 `['.', object, property, null]` property access.
+- [ ] Support Stage 1 `['.', object, property]` property access.
 - [ ] Support Stage 2 `['=>', null, body]`, `['()', callee, args]` for an ordinary
-      call, and `['.', object, property, ['|()', args, null]]` for a method call —
+      call, and `['.', object, property, ['|()', args]]` for a method call —
       the step is what supplies the `this` binding — when those operators land.
 - [ ] Do **not** implement `['frame']` or non-empty closure frames in Stage 2.
 - [ ] Memoize results by EDAG node identity within one evaluation context so shared
