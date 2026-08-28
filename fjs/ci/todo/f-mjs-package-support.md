@@ -214,9 +214,11 @@ emission, `npm pack`, and a clean consumer.
       outputs.
 - [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
       output tracking or cleanup for artifacts from previous revisions.
-- [ ] Add a mixed `module.f.ts` / `module.f.mjs` plus authored `types.ts` package
-      fixture. Scope: the fixture exercises the supported, fully erased
-      `import type` form only. The forbidden inline `import { type X }` /
+- [ ] Add a package fixture in the current source model — `module.f.mjs` with an
+      authored `types.ts` and, for the private-declaration check, a sibling
+      `private.ts` (authored implementation and proof `.f.ts` are retired, so
+      the fixture must not reintroduce them). Scope: the fixture exercises the
+      supported, fully erased `import type` form only. The forbidden inline `import { type X }` /
       `import * as` / side-effect forms are a documented one-time measurement
       ([`packed-consumer-validation.md`](../packed-consumer-validation.md),
       "`types.js` is not a real module") — their behavior belongs to consumer
