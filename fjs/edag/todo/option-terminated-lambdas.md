@@ -123,6 +123,25 @@ such kind doubles its union arms, the shared prefix is written twice, and
 the `AbsentOr`/`CheckRaw` machinery drops out — hand-written types are plain
 unions of exact tuples, no optional elements.
 
+One boundary of the gate, measured: a **prototype-supplied member behind an
+own hole** is read in both spellings alike. The tuple readers decide
+presence by HasProperty and read through the prototype — deliberately, so
+an inherited index is still held to the schema (`constContainerValidate` in
+[`../../rtti/validate/module.f.mjs`](../../rtti/validate/module.f.mjs);
+"Beyond `length`" in [`../../rtti/README.md`](../../rtti/README.md)) — so a
+polluted `Array.prototype` can back `['.', a, 'b', ,]`'s hole with a
+schema-valid continuation under either schema, and only its own vocabulary
+decides which: index 3 supplying `['|()', c, null]` validates under
+**today's** schema and rejects under the split one, `['|()', c]` exactly
+the reverse. Neither spelling is hole-proof against a hostile prototype,
+neither ever was, and under a pristine prototype both reject every hole.
+The gate's claim is therefore about the value's **own** members under
+rtti's stated reading model; what the readers assume of a hostile host is
+rtti's question, tracked in
+[`hostile-accessor-hermetic-read-path`](../../rtti/todo/hostile-accessor-hermetic-read-path.md)
+and the "Beyond `length`" caveat — not something an EDAG-boundary own-index
+check should duplicate.
+
 **The rejected alternative** — keep the `option` spelling and first land an
 rtti rule that absence in a tuple is the array ending before the position,
 never a hole (the validators' absent branch requiring the index at or past
