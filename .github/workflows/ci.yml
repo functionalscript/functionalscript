@@ -499,7 +499,7 @@
           "run": "git add -A && git diff --cached --exit-code"
         },
         {
-          "run": "! grep -rnE '^(/\\*\\*.*@typedef| \\* *@typedef)' --include='*.mjs' --exclude-dir=node_modules ."
+          "run": "! grep -rnE '^(/\\*\\*.*@typedef|\\s\\* *@typedef)' --include='*.mjs' --exclude-dir=node_modules ."
         },
         {
           "run": "npx tsc"

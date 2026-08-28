@@ -67,7 +67,7 @@ const node26Steps = [
     // No authored `.mjs` may contain a file-scope JSDoc `@typedef` (root
     // `AGENTS.md`); `tsc` accepts one silently, so the prohibition needs its
     // own gate.
-    test({ run: "! grep -rnE '^(/\\*\\*.*@typedef| \\* *@typedef)' --include='*.mjs' --exclude-dir=node_modules ." }),
+    test({ run: "! grep -rnE '^(/\\*\\*.*@typedef|\\s\\* *@typedef)' --include='*.mjs' --exclude-dir=node_modules ." }),
     test({ run: 'npx tsc' }),
     test({ run: 'npm run cov' }),
     test({ run: 'npm pack' }),
