@@ -125,9 +125,22 @@ acceptable:
    [`data-validate-admits-non-djs-values`](../../rtti/todo/data-validate-admits-non-djs-values.md).
    But it reverses documented rtti behavior (`option`'s "position 0 may be a
    hole"; `_InteriorTs` rendering interior absence as "what reading a hole
-   gives") across all three readers and the printer, so it needs its own rtti
-   issue and lands **before** this migration, which then keeps the `option`
-   spelling and machinery described above.
+   gives") across all three readers and the printer — and it reaches the
+   data form's canonical algebra: once a hole is no member, `[option]` and
+   `[]` denote one array set, while `toData` deliberately keeps them
+   distinct today — `trimPrefix` in
+   [`../../rtti/data/module.f.mjs`](../../rtti/data/module.f.mjs) exempts
+   the empty `rest` exactly because the two "differ on `new Array(1)`".
+   Updating only the validators' absent branches would leave the data form
+   with two spellings of one set and its `validate`/`equal`/`subset`
+   disagreeing with the schema readers, so the prerequisite rtti issue must
+   also specify the `arraySet` normalization that collapses an
+   absence-admitting trailing position against an empty `rest` (one `Node`
+   for `[option]` and `[]`), and carry `cmp`/`equal`/`subset`, the data
+   reader, and the printer with it. It needs its own rtti issue and lands
+   **before** this migration, which then keeps the `option` spelling and
+   machinery described above — and the width of that surface, against
+   mechanism 1 touching none of it, is itself an argument for mechanism 1.
 
 ## Proposal
 
