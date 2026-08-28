@@ -86,6 +86,21 @@ const arrayRebuild = entries => entries.map(([, v]) => v)
 const recordRebuild = entries => Object.fromEntries(entries)
 
 /**
+ * One pairwise round of {@link tupleRebuild}'s join: adjacent segments are
+ * `concat`enated — always one argument, so no call ever spreads the segment
+ * list — halving the count while copying every element once. `concat`
+ * appends a spreadable operand element by *present* element, which is what
+ * keeps the holes; each receiver is a trusted plain array, so its species
+ * is `Array`.
+ *
+ * @type {(segments: ReadonlyArray<ReadonlyArray<Unknown>>) => ReadonlyArray<ReadonlyArray<Unknown>>}
+ */
+const joinSegmentsRound = segments => segments.flatMap((s, i) =>
+    i % 2 !== 0 ? []
+    : i + 1 < segments.length ? [s.concat(segments[i + 1])]
+    : [s])
+
+/**
  * The **tuple** kind's rebuild over its declared members — only the present
  * ones reach `entries` (`recordRebuild` is the struct kind's counterpart,
  * where dropping an absent key needs nothing more): the present members at
@@ -95,36 +110,40 @@ const recordRebuild = entries => Object.fromEntries(entries)
  * different value, and omitting it would shift every position after it).
  *
  * The construction is segments — a fresh `new Array(gap)` of holes before
- * each present member, then the member — folded with `concat` on a trusted
- * empty array, which appends a spreadable argument element by *present*
- * element and so keeps the holes. The input value is never consulted, and
- * every array touched is a plain one this module made, which is the point:
- * an earlier slice-then-map of the input let an accepted `Array` subclass
- * override `slice` and hand `parse` a result that fails the very schema it
- * was parsed against. An index the value only *inherits* is a present
- * member (HasProperty is what the check dispatched on), so it sits in
- * `entries` and is materialized as an own member of the result, carrying
- * its parsed value — see `../host.proof.mjs`.
+ * each present member, then the member — collected on an O(1)-prepend list
+ * and joined pairwise ({@link joinSegmentsRound}), so the whole rebuild is
+ * one linear pass plus a logarithmic number of halving rounds: re-spreading
+ * the accumulated segments per entry was quadratic, and one
+ * `concat(...segments)` call overflowed the engine's argument limit on a
+ * large enough prefix, throwing past the `Result` API.
+ *
+ * The input value is never consulted, and every array touched is a plain
+ * one this module made, which is the point: an earlier slice-then-map of
+ * the input let an accepted `Array` subclass override `slice` and hand
+ * `parse` a result that fails the very schema it was parsed against. An
+ * index the value only *inherits* is a present member (HasProperty is what
+ * the check dispatched on), so it sits in `entries` and is materialized as
+ * an own member of the result, carrying its parsed value — see
+ * `../host.proof.mjs`.
  *
  * @type {_Rebuild}
  */
 const tupleRebuild = entries => {
-    /** @type {readonly (readonly Unknown[])[]} */
-    let segments = []
+    /** @type {List<ReadonlyArray<Unknown>>} */
+    let reversed = null
     let next = 0
     for (const [k, v] of entries) {
         const i = Number(k)
-        segments = i === next
-            ? [...segments, [v]]
-            : [...segments, new Array(i - next), [v]]
+        if (i > next) { reversed = { first: new Array(i - next), tail: reversed } }
+        reversed = { first: [v], tail: reversed }
         next = i + 1
     }
-    return emptySegment.concat(...segments)
+    let segments = toArray(reverse(reversed))
+    while (segments.length > 1) {
+        segments = joinSegmentsRound(segments)
+    }
+    return segments.length === 0 ? [] : segments[0]
 }
-
-/** `tupleRebuild`'s trusted `concat` receiver — a plain array, so its species is `Array`. */
-/** @type {ReadonlyArray<Unknown>} */
-const emptySegment = []
 
 /** `eachEntry`'s accumulator seed: entries are consed on in reverse as they parse. */
 /** @type {List<readonly [string, Unknown]>} */
