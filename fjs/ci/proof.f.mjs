@@ -239,6 +239,10 @@ export const proof = {
         // Producer and consumer share the exported name rather than repeating
         // a string literal that can drift apart.
         assertEq(upload?.name, packageArtifact)
+        // The glob has to match what `npm pack` writes. `if-no-files-found`
+        // catches a glob that matches *nothing*; a glob matching the *wrong*
+        // files would upload them quietly, so pin it.
+        assertEq(upload?.path, '*.tgz')
         // The action's default is to warn and upload nothing, which would make
         // a packing failure look like a consumer bug.
         assertEq(upload?.['if-no-files-found'], 'error')
