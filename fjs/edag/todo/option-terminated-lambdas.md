@@ -123,24 +123,37 @@ such kind doubles its union arms, the shared prefix is written twice, and
 the `AbsentOr`/`CheckRaw` machinery drops out — hand-written types are plain
 unions of exact tuples, no optional elements.
 
-One boundary of the gate, measured: a **prototype-supplied member behind an
-own hole** is read in both spellings alike. The tuple readers decide
-presence by HasProperty and read through the prototype — deliberately, so
-an inherited index is still held to the schema (`constContainerValidate` in
-[`../../rtti/validate/module.f.mjs`](../../rtti/validate/module.f.mjs);
-"Beyond `length`" in [`../../rtti/README.md`](../../rtti/README.md)) — so a
-polluted `Array.prototype` can back `['.', a, 'b', ,]`'s hole with a
-schema-valid continuation under either schema, and only its own vocabulary
-decides which: index 3 supplying `['|()', c, null]` validates under
-**today's** schema and rejects under the split one, `['|()', c]` exactly
-the reverse. Neither spelling is hole-proof against a hostile prototype,
-neither ever was, and under a pristine prototype both reject every hole.
-The gate's claim is therefore about the value's **own** members under
-rtti's stated reading model; what the readers assume of a hostile host is
-rtti's question, tracked in
-[`hostile-accessor-hermetic-read-path`](../../rtti/todo/hostile-accessor-hermetic-read-path.md)
-and the "Beyond `length`" caveat — not something an EDAG-boundary own-index
-check should duplicate.
+One boundary of the gate, measured both below and past `length`: a
+**prototype-supplied index** is rtti's host question, not this migration's,
+and the answers are symmetric between the spellings. The tuple readers
+decide presence by HasProperty and read a below-`length` index through the
+prototype, held to the schema (`constContainerValidate` in
+[`../../rtti/validate/module.f.mjs`](../../rtti/validate/module.f.mjs)),
+and never answer an index at or past `length` — both stated, with the
+`Array.prototype[10] = 99` example, in "Beyond `length`" in
+[`../../rtti/README.md`](../../rtti/README.md), as a caveat that "applies
+to `array`, `record` and every container schema alike". So a polluted
+`Array.prototype` reaches both spellings, and only each one's own
+vocabulary decides which values flip: behind `['.', a, 'b', ,]`'s own
+length-4 hole, an inherited `['|()', c, null]` validates under **today's**
+schema and rejects under the split one, an inherited `['|()', c]` exactly
+the reverse; past the end, the split 3-arity arm accepts a length-3
+`['.', a, 'b']` whatever `Array.prototype[3]` holds — the unanswered
+region every bare tuple in the repository already has — while today's
+schema accepts the same length-3 value the moment `Array.prototype[3]` is
+its own `null`. Neither spelling is pollution-proof, neither ever was, and
+under a pristine prototype — the only host DJS admits — both reject every
+hole and every spelling has exactly one length. The executor is already
+safe on the unanswered region: [amnesia](../amnesia/module.f.mjs) reads
+nodes by **destructuring**, and the array iterator stops at `length`, so a
+prototype-supplied index past the end is never read — measured: with
+`Array.prototype[3] = 'junk'`, the destructured fourth slot of a length-3
+node is `undefined` and the chain ends, while a direct `node[3]` would
+read `'junk'`. The gate's claim is therefore about the value's **own**
+members under rtti's stated reading model; hermetic reads for hostile
+hosts are rtti's tracked question
+([`hostile-accessor-hermetic-read-path`](../../rtti/todo/hostile-accessor-hermetic-read-path.md)),
+not an EDAG-boundary duplicate.
 
 **The rejected alternative** — keep the `option` spelling and first land an
 rtti rule that absence in a tuple is the array ending before the position,
@@ -198,7 +211,10 @@ carries `option` admits the absent member — and its hole — again.
 - [ ] `../types.ts`: plain unions of exact tuples, one per arity, no
   optional elements
 - [ ] `../amnesia/module.f.mjs`: `k === null` → `k === undefined`;
-  signatures take `… | undefined`
+  signatures take `… | undefined`; keep the destructuring reads — the
+  iterator stops at `length`, so a prototype-supplied index past a short
+  node's end is never read (see the gate boundary above) — and never
+  switch a continuation read to direct indexing
 - [ ] `../proof.f.mjs`, `../amnesia/proof.f.mjs`: respell (~200 trailing
   `null`s); add rejections for present `null`, present `undefined`, the
   smuggled continuation on a terminal, and the trailing holes
