@@ -372,8 +372,14 @@ type-only and use named `import type { ... }` imports.
 - [ ] Assert the tarball's contents (no `private.d.ts` inside) alongside that
       job — a cheap complement to the semantic consumer check, never its
       replacement.
-- [ ] Prove the job can fail: with the `prepack` deletion step removed, or with
-      a private declaration reintroduced, the packaged consumer must go red.
+- [ ] Prove each half can fail, with its own negative control — they fail on
+      opposite inputs, so one control cannot stand for both. Removing the
+      `prepack` deletion step leaves `private.d.ts` *in* the tarball, where
+      every reference to it resolves: that reddens the contents assertion and
+      leaves the consumer green. The consumer's control is the reverse — a
+      packed declaration that references a private module the tarball does not
+      carry (a shipped declaration made to depend on `private.ts`, with the
+      deletion still running), which resolves in-repo and dangles once packed.
 - [ ] Add fixtures covering packaging: retained non-semantic JSDoc `@import`
       comments in emitted declarations, absent private artifacts in the tarball,
       and a clean package consumer.
@@ -424,8 +430,10 @@ type-only and use named `import type { ... }` imports.
   the repository, under its own `tsconfig.json` with `skipLibCheck: false` — the
   only arrangement in which a declaration pointing at a deleted `private.d.ts`
   is an error rather than a silently skipped library file.
-- The job is demonstrably falsifiable: removing the `prepack` deletion step, or
-  reintroducing a private declaration, turns it red.
+- Both halves are demonstrably falsifiable, each by the input that actually
+  breaks it: removing the `prepack` deletion step reddens the contents
+  assertion, and a packed declaration depending on a private module the
+  tarball does not carry reddens the consumer type-check.
 - The CI job is generated from `fjs/ci/**`, so `npm run ci-update` reproduces
   `.github/workflows/ci.yml` byte-identically.
 - `fjs/fsc/README.md` no longer needs tolerance for a shipped `private.d.ts`,
