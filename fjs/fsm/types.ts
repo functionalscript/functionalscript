@@ -1,7 +1,5 @@
 /**
  * Types for the finite-state-machine grammar and its compiled DFA.
- *
- * @module
  */
 
 import type { List } from '../types/list/types.ts'

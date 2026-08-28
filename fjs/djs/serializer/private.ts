@@ -1,7 +1,5 @@
 /**
  * Implementation-private types for the DJS serializer.
- *
- * @module
  */
 
 import type { List } from '../../types/list/types.ts'

@@ -1,7 +1,5 @@
 /**
  * Implementation-private types for the RTTI-to-TypeScript printer.
- *
- * @module
  */
 
 import type { Printer } from '../../types/ts/types.ts'

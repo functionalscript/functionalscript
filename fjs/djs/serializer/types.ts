@@ -1,8 +1,6 @@
 /**
  * Type-level API for `fjs/djs/serializer/module.f.mjs`: the reference-count
  * map `countRefs` produces and `stringify` hoists `const`s from.
- *
- * @module
  */
 
 import type { Unknown } from '../types.ts'

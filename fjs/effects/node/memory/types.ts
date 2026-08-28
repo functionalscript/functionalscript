@@ -1,7 +1,5 @@
 /**
  * Types for the Node.js memory-effect interpreter.
- *
- * @module
  */
 
 import type { Effect, ToAsyncOperationMap } from '../../types.ts'

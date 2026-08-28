@@ -1,7 +1,5 @@
 /**
  * Implementation-private types for the DJS parser.
- *
- * @module
  */
 
 import type { CodePointMeta } from '../../bnf/descent/types.ts'

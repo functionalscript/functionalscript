@@ -1,7 +1,5 @@
 /**
  * Types for the FunctionalScript compile-workflow state machine.
- *
- * @module
  */
 
 import type { RangeMapArray } from '../types/range_map/types.ts'

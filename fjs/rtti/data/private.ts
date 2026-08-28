@@ -1,7 +1,5 @@
 /**
  * Implementation-private types for the RTTI data conversion.
- *
- * @module
  */
 
 import type { StringMap } from '../../types/object/types.ts'

@@ -1,7 +1,5 @@
 /**
  * Implementation-private types for ASN.1 tag encoding.
- *
- * @module
  */
 
 /** The top three bits of a tag's first byte: class and constructed flag. */

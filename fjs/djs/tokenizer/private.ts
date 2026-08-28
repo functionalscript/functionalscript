@@ -1,7 +1,5 @@
 /**
  * Implementation-private types for the DJS tokenizer.
- *
- * @module
  */
 
 import type { CodePointMeta } from '../../bnf/descent/types.ts'
