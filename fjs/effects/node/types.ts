@@ -8,66 +8,21 @@ import type { MemOp } from '../memory/types.ts'
 import type { Nominal } from '../../types/nominal/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
-import type { Effect, NotImplemented, Operation, ToAsyncOperationMap } from '../types.ts'
+import type {
+    Effect, IoChannel, IoError, IoErrorInfo, IoResult, NotImplemented, OpResult,
+    Operation, ToAsyncOperationMap,
+} from '../types.ts'
 import type { List } from '../list/types.ts'
 
 /**
- * A host failure, normalized: whatever the runtime threw reduced to a
- * serializable record. `code` is the OS error code when the host supplied one
- * (`'ENOENT'`, `'EEXIST'`), absent otherwise.
- *
- * It is a tagged tuple for the same reason {@link NotImplemented} is — the two
- * share an error channel, and the tag is what tells them apart. That
- * distinction is the whole reason this type exists: with a bare `unknown`
- * error, `NotImplemented | unknown` collapses to `unknown` and a program can no
- * longer tell "this runner cannot do it" from "the host tried and failed".
- *
- * Normalizing also keeps the channel serializable. A thrown `Error` carries a
- * stack, a `cause`, and arbitrary own properties; none of it survives a wire
- * hop, and a runner in another process could not reproduce it.
+ * The vocabulary every operation is declared in — how a runner reports that it
+ * cannot dispatch, and how a host reports that it tried and failed — now lives
+ * in [`../types.ts`](../types.ts), beside {@link NotImplemented}, because none
+ * of it is node's. It is re-exported here so that the several dozen modules
+ * naming these through the node module keep doing so, and so a signature can go
+ * on reading as one vocabulary rather than two.
  */
-export type IoError = readonly['ioError', IoErrorInfo]
-
-export type IoErrorInfo = {
-    readonly code?: string
-    readonly message: string
-}
-
-/**
- * The result of an operation with no failures of its own: it either produces
- * its value or reports that the runner does not implement it.
- *
- * Every operation's return type is a `Result`, including the ones that cannot
- * fail on their own terms — an operation left on a raw contract would be a hole
- * in the error channel, and a runner may omit a handler for any of them.
- */
-export type OpResult<T> = Result<T, NotImplemented>
-
-/**
- * The error channel of anything that performs host IO: a normalized host
- * failure, or the report that the runner does not implement the operation.
- *
- * It is one name rather than a union spelled at each site, and that is a
- * migration property rather than brevity. An effect that does no IO *yet* is
- * one added `readFile` away from doing some, and if each signature names its
- * own errors, that one change walks up every enclosing signature — the failure
- * mode that sank `throws` clauses elsewhere, where engineers eventually
- * declared everything throwing rather than maintain the cascade. Declaring the
- * standard channel once is that concession made deliberately: an IO-touching
- * effect says it fails *the way node IO fails*, and gaining a new way to do so
- * changes nothing above it.
- *
- * It is not a licence to widen. An operation with failures of its own extends
- * the channel (`IoChannel | ParseError`), and a computation whose errors are
- * genuinely narrower should say so — this is the default for IO, not a ceiling.
- */
-export type IoChannel = NotImplemented | IoError
-
-/**
- * The result of an operation that performs host IO: its value, a normalized
- * host failure, or the missing-handler report.
- */
-export type IoResult<T> = Result<T, IoChannel>
+export type { IoChannel, IoError, IoErrorInfo, IoResult, OpResult }
 
 // all
 

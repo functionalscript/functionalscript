@@ -1,14 +1,14 @@
 /**
  * @import { Assert } from '../asserts/types.ts'
- * @import { Effect, Func, NotImplemented, Operation } from './types.ts'
+ * @import { Effect, Func, IoChannel, NotImplemented, Operation } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Equal } from '../types/ts/types.ts'
  */
 
 import {
-    catchStep, do_, foldStep, forEachStep, history, historyStep, mapStep, match,
-    partialMatch, pure, pureError, pureOk, resultMapStep, resultStep, runPure, step,
-    unwrapStep,
+    catchStep, do_, foldStep, forEachStep, history, historyStep, mapStep,
+    match, partialMatch, pure, pureError, pureOk, resultMapStep, resultStep,
+    runPure, step, toIoError, unwrapStep,
 } from './module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
@@ -172,7 +172,56 @@ const checked = v => {
  */
 const show = e => `${e}`
 
+/**
+ * Asserts that a channel error is a host failure carrying `message`. Every
+ * runner reports through the same normalized `IoError`, so a proof names the
+ * message rather than the shape.
+ *
+ * @type {(e: IoChannel, message: string) => void}
+ */
+const assertIoMessage = (e, message) => {
+    assert(e[0] === 'ioError', e)
+    assertEq(e[1].message, message)
+}
+
 export const proof = {
+    // The one boundary where a runner's `catch` becomes effect data: whatever
+    // was thrown is reduced to a code (when the host attached a string one)
+    // and a message.
+    toIoError: {
+        error: () => {
+            assertIoMessage(toIoError(new Error('boom')), 'boom')
+        },
+        withCode: () => {
+            const e = toIoError(Object.assign(new Error('missing'), { code: 'ENOENT' }))
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, 'ENOENT', e)
+            assertEq(e[1].message, 'missing', e)
+        },
+        // A thrown non-`Error` still normalizes: the value's string form is the
+        // message, and there is no code to carry.
+        string: () => {
+            const e = toIoError('plain')
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+            assertEq(e[1].message, 'plain', e)
+        },
+        null: () => {
+            assertIoMessage(toIoError(null), 'null')
+        },
+        // An object whose `code` is not a string is not an OS error code, so it
+        // is dropped rather than carried as one.
+        nonStringCode: () => {
+            const e = toIoError({ code: 42 })
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+        },
+        noCode: () => {
+            const e = toIoError({})
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+        },
+    },
     /**
      * Every combinator's signature, pinned at a concrete instantiation. These
      * verify `./module.f.mjs`, so they live here rather than in `./types.ts`;
