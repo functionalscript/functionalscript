@@ -34,11 +34,19 @@ the code was. **The order of work is the deliverable here, not just the final
 shape.** See [DESIGN.md §4, "Follow the example"](../../../DESIGN.md).
 
 **One skeleton, with named parts.** The thing to share is the *runner itself*:
-the order in which modules are linked, leaves discovered, bodies executed,
-throws inverted, results counted and the run concluded. Both hosts run that same
-skeleton. Everything host-specific is a **part** the skeleton calls at a place it
-names — where the leaf body is executed, where a result is reported, where a
-module is linked — and a part is where a browser is allowed to be a browser.
+the order in which leaves are discovered, bodies executed, throws inverted,
+results counted and the run concluded. Both hosts run that same skeleton.
+Everything host-specific is a **part** the skeleton calls at a place it names —
+where the leaf body is executed, where a result is reported — and a part is
+where a browser is allowed to be a browser. This paragraph originally listed
+"where a module is linked" among the parts, and building it settled the
+boundary the other way: **linking happens before the skeleton, in host code,
+and the skeleton accepts linked modules** — `fjs t` loads through its module
+map, the page through its own importer with its own loading UI, and neither
+shape fits a part the other host could supply. The tasks below record the
+consequence: the runner exposes an entry point for a host that enumerates its
+own modules, and enumerating a module's export is that host's own guarded
+read.
 
 That gives exactly two ways to accommodate a host, both additive: change *that
 host's part*, or *improve the skeleton so every host benefits*. There is no
