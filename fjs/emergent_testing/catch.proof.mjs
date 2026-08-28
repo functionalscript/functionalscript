@@ -23,8 +23,6 @@ import { defaultTest, runModuleMap } from './module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { utf8ToString } from '../text/module.f.mjs'
 
-/** @typedef {All | Catch | Sandbox | Write} _Ops */
-
 /**
  * Runs `proof` through the shared traversal on a runner whose `sandbox` and
  * `catch` are real, and answers everything the reporter wrote.
@@ -42,9 +40,9 @@ const runWith = proof => {
         summary: ({ passed, failed }) => log(`summary:${passed}:${failed}`),
         test: defaultTest,
     }
-    /** @type {RunInstance<_Ops, string>} */
+    /** @type {RunInstance<All | Catch | Sandbox | Write, string>} */
     let runner
-    runner = mockRun(/** @type {Parameters<typeof mockRun<_Ops, string>>[0]} */ ({
+    runner = mockRun(/** @type {Parameters<typeof mockRun<All | Catch | Sandbox | Write, string>>[0]} */ ({
         all: (...effects) => s => {
             const [st, rs] = effects.reduce(
                 ([st1, rs1], e) => {
