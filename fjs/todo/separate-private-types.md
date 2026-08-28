@@ -262,9 +262,9 @@ The shape that makes it a real check:
 
 1. a job that packs (`npm pack`) and uploads the tarball as a CI artifact;
 2. a **second job with no repository checkout**, ordered after the first by an
-   explicit `needs`, that downloads that artifact, installs it
-   (`npm install ./functionalscript-*.tgz typescript`), and type-checks
-   **every declaration the package ships**.
+   explicit `needs`, that downloads that artifact, installs it — the tarball
+   plus the exact `typescript` version read from the tarball's own
+   `package.json` — and type-checks **every declaration the package ships**.
 
 The missing checkout is the point, and it is stronger than merely working in a
 directory outside the repository: with no repository on the runner, there is no
@@ -291,6 +291,18 @@ Three details decide whether that job can fail at all:
 - **Install the tarball as a dependency; do not unpack it into `node_modules`
   by hand.** A later `npm install` prunes anything not in `package.json` and
   removes it, which turns the whole job into a no-op on an empty file list.
+- **Pin the compiler.** With no checkout there is no lockfile, so a bare
+  `npm install typescript` resolves whatever the registry publishes that day:
+  the required check could turn red — or quietly change module-resolution
+  behaviour — with no change to this repository, the same "red for the wrong
+  reason" failure that trains people to re-run a check instead of reading it.
+  Install the repository's exact version, which the job can read without a
+  checkout because `npm pack` keeps `devDependencies` in the packed
+  `package.json`: `node_modules/functionalscript/package.json` carries
+  `"typescript": "=7.0.2"` in the tarball measured here. That deliberately
+  trades consumer-compiler *coverage* for determinism — if a future compiler
+  is worth checking against, add it as a second explicitly pinned version
+  rather than letting the first one float.
 
 Because a red required check blocks the merge queue, a reintroduced dependency
 becomes the author's problem at the moment it is introduced, which is the whole
@@ -413,8 +425,11 @@ type-only and use named `import type { ... }` imports.
       dependencies and clean-consumer type checking instead.
 - [ ] Upload the `npm pack` tarball as a CI artifact, and add a **second job
       with no repository checkout** that downloads it, installs it as a real
-      dependency (`npm install ./functionalscript-*.tgz typescript` — hand-
-      unpacking into `node_modules` is pruned by the next `npm install`), and
+      dependency — the tarball plus the exact `typescript` version read from
+      the tarball's own `package.json`, never a floating install, which would
+      let the registry redden a required check with no repository change;
+      hand-unpacking into `node_modules` is pruned by the next `npm install` —
+      and
       type-checks **every declaration the package ships**, enumerated from the
       installed artifact rather than from a hand-written import list: a module
       that gains a `private.ts` later would never enter a fixed consumer's
@@ -503,7 +518,9 @@ type-only and use named `import type { ... }` imports.
   skipped library file or a resolution into the source tree.
 - Its file set is derived from the installed artifact, so a module that gains a
   `private.ts` after the job is written is checked without the job being
-  edited.
+  edited, and its compiler is the repository's exact pinned `typescript`, read
+  from the packed `package.json`, so the check cannot change verdict without a
+  change to this repository.
 - That job `needs` the pack job, so it never races the upload, and the closed
   `jobSchema` / `Job` / proof in `fjs/ci/common` are extended to express it
   rather than the key being emitted past the schema.
