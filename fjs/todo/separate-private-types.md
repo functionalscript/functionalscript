@@ -300,6 +300,30 @@ scratch consumer and the 16 `private.d.ts` removed from it:
   `2`. A fixed import list would have shipped a check that cannot see the case
   it exists to catch.
 
+Those three inject the failure into an already-packed declaration, which shows
+the check can fail but not that this repository's own workflow could *produce*
+the artifact that fails it. It can, and the whole design was then run end to
+end against it. The organic control is a source-level violation of the
+public-declaration-closure rule — exporting a binding whose signature names a
+private type, here `export const divide` in `fjs/types/bigfloat/module.f.mjs`,
+typed `_BigFloatWithRemainder`:
+
+1. ordinary `prepack` emits a **real** `import type { _BigFloatWithRemainder }
+   from './private.ts'` into `module.f.d.mts` — not the inlined structural type,
+   and the specifier keeps its `.ts` extension, as declaration emit does for
+   `types.ts`;
+2. `npm pack` with the `files` negation ships **0** `private.d.ts`;
+3. installing that tarball and type-checking all 377 declarations exits `2`
+   with `TS2307` naming that line.
+
+Two things follow. The check's real target is a closure-rule violation reaching
+an exported signature — today no private type does, because every binding
+annotated with one is module-private, which is why the tree measures clean. And
+the control to write into the fixture is this source-level one, not an edit to
+the packed output: it exercises emit, packing and consumption together, so it
+also fails if a future TypeScript starts inlining the reference and the design's
+premise quietly stops holding.
+
 The job is added through the CI generator (`fjs/ci/**`, composed in
 `fjs/ci/module.f.mjs`), never by editing `.github/workflows/ci.yml`, which
 `npm run ci-update` regenerates.
@@ -428,9 +452,12 @@ type-only and use named `import type { ... }` imports.
       the type-check green. The type-check's control is the reverse — a packed
       declaration that references a private module the tarball does not carry
       (a shipped declaration made to depend on `private.ts`, with the negation
-      still in place), which resolves in-repo and dangles once packed. Place
-      that control in a module with **no** `private.ts` today, so it also
-      proves the check is exhaustive rather than pinned to today's surfaces.
+      still in place), which resolves in-repo and dangles once packed. Make it
+      a **source-level** violation — an exported binding whose signature names a
+      private type — not an edit to the packed output, so the control exercises
+      emit, packing and consumption together; measured end to end above. Place
+      it in a module with **no** `private.ts` today, so it also proves the check
+      is exhaustive rather than pinned to today's surfaces.
 - [ ] Add fixtures covering packaging: retained non-semantic JSDoc `@import`
       comments in emitted declarations, absent private artifacts in the tarball,
       and a clean package consumer.
