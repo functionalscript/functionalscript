@@ -148,7 +148,7 @@ const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<Vec>]} */
 const readFile = readOperation((dir, path) => {
     if (path.length !== 1) { return enoent }
-    const file = dir[path[0]]
+    const file = entryOf(dir, path[0])
     if (file === undefined) { return enoent }
     if (isJsModule(file)) { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
     // `operation`'s wrapper descends into every plain-object (`Dir`) entry
@@ -172,7 +172,7 @@ const readFile = readOperation((dir, path) => {
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<Module>]} */
 const import_ = readOperation((dir, path) => {
     if (path.length !== 1) { return fail('no such file') }
-    const entry = dir[path[0]]
+    const entry = entryOf(dir, path[0])
     if (entry === undefined || !isJsModule(entry)) { return fail(`'${path[0]}' is not a JsModule`) }
     return ok(entry())
 })
@@ -183,7 +183,7 @@ const writeFileError = fail('invalid file')
 const writeFileOp = payload => (dir, path) => {
     if (path.length !== 1) { return [dir, writeFileError] }
     const [name] = path
-    const file = dir[name]
+    const file = entryOf(dir, name)
     if (file !== undefined && !isBinFile(file)) { return [dir, writeFileError] }
     dir = { ...dir, [name]: [payload] }
     return [dir, okVoid]
@@ -220,14 +220,14 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
 const access = readOperation((dir, path) => {
     if (path.length === 0) { return okVoid }
     if (path.length !== 1) { return enoent }
-    return dir[path[0]] !== undefined ? okVoid : enoent
+    return entryOf(dir, path[0]) !== undefined ? okVoid : enoent
 })
 
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const rmOp = (dir, path) => {
     if (path.length !== 1) { return [dir, fail('invalid path')] }
     const [name] = path
-    const entry = dir[name]
+    const entry = entryOf(dir, name)
     if (entry === undefined) { return [dir, fail('no such file')] }
     // No "is a directory" guard here: `operation`'s wrapper descends into
     // every plain-object (`Dir`) entry before this op ever runs, so `entry`
@@ -246,13 +246,13 @@ const extractEntity = (dir, path) => {
     if (path.length === 0) { return [dir, fail('cannot extract root')] }
     if (path.length === 1) {
         const [name] = path
-        const entry = dir[name]
+        const entry = entryOf(dir, name)
         if (entry === undefined) { return [dir, enoent] }
         const { [name]: _, ...rest } = dir
         return [rest, ok(entry)]
     }
     const [first, ...rest] = path
-    const sub = dir[first]
+    const sub = entryOf(dir, first)
     if (sub === undefined || !isDir(sub)) { return [dir, enoent] }
     const [newSub, result] = extractEntity(sub, rest)
     if (result[0] === 'error') { return [dir, result] }
@@ -270,7 +270,7 @@ const insertEntityAt = (dir, path, entity) => {
     assert(path.length > 0, 'cannot insert at root')
     if (path.length === 1) {
         const [name] = path
-        const existing = dir[name]
+        const existing = entryOf(dir, name)
         if (existing !== undefined) {
             const entityIsDir = isDir(entity)
             const existingIsDir = isDir(existing)
@@ -291,7 +291,7 @@ const insertEntityAt = (dir, path, entity) => {
         return [{ ...dir, [name]: entity }, okVoid]
     }
     const [first, ...rest] = path
-    const sub = dir[first]
+    const sub = entryOf(dir, first)
     if (sub === undefined) { return [dir, enoent] }
     if (!isDir(sub)) { return [dir, fail('not a directory')] }
     const [newSub, result] = insertEntityAt(sub, rest, entity)
@@ -319,7 +319,7 @@ const rename = (src, dst) => state => {
 /** @type {(path: string, offset: number, size: number) => (state: State) => readonly [State, IoResult<Vec>]} */
 const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
     if (p.length !== 1) { return enoent }
-    const file = dir[p[0]]
+    const file = entryOf(dir, p[0])
     if (file === undefined) { return enoent }
     if (isJsModule(file)) { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
     // `operation`'s wrapper descends into every plain-object (`Dir`) entry
@@ -379,7 +379,7 @@ const createExclusiveOp = (dir, path) => {
     if (path.length !== 1) { return [dir, invalidPath] }
     const [name] = path
     // O_EXCL: fail if the name is already taken; otherwise create an empty file.
-    if (dir[name] !== undefined) { return [dir, eexist] }
+    if (entryOf(dir, name) !== undefined) { return [dir, eexist] }
     return [{ ...dir, [name]: [] }, okVoid]
 }
 
@@ -395,7 +395,7 @@ const createExclusive = operation(createExclusiveOp)
 const writeBytesRawOp = (offset, data) => (dir, p) => {
     if (p.length !== 1) { return [dir, enoent] }
     const [name] = p
-    const file = dir[name]
+    const file = entryOf(dir, name)
     if (file === undefined) { return [dir, enoent] }              // writeBytes never creates
     if (!isBinFile(file)) { return [dir, fail(`'${name}' is not a file`)] }
     if (!Number.isInteger(offset) || offset < 0) { return [dir, fail(`Offset ${offset} is invalid`)] }

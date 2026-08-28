@@ -485,6 +485,36 @@ export const proof = {
         absent('__proto__')
         absent('__proto__/x')
     },
+    // Every operation asks the same question, so every operation answers the
+    // same way. Stopping at `stat` is what made `__proto__` worse rather than
+    // better: with the descent refusing it and the leaf still reading it,
+    // `readFile` reached its is-a-file assertion and *threw* — out of the
+    // effect's channel, where no FunctionalScript program can answer it — and
+    // `rm` reported success for a name that was never there.
+    inheritedNameInEveryOperation: () => {
+        /** @type {<T>(e: Effect<NodeOp, T, IoChannel>) => IoChannel} */
+        const failure = e => {
+            const [, result] = virtual(emptyState)(e)
+            assert(result[0] === 'error', result)
+            return result[1]
+        }
+        for (const name of ['__proto__', 'toString']) {
+            assertIoCode(failure(stat(name)), 'ENOENT')
+            assertIoCode(failure(readFile(name)), 'ENOENT')
+            assertIoCode(failure(access(name)), 'ENOENT')
+            // `rm` words a missing entry its own way, and says it here too.
+            assertIoMessage(failure(rm(name)), 'no such file')
+            // A name that is not a `JsModule`, because it is not an entry.
+            assertIoMessage(failure(import_(name)), `'${name}' is not a JsModule`)
+        }
+        // And an own name still works, so the guard refuses names rather than
+        // lookups: `createExclusive` claims one, and the second try is `EEXIST`.
+        const [claimed] = virtual(emptyState)(createExclusive('__proto__'))
+        assertEq(Object.keys(claimed.root).join(), '__proto__')
+        const [, again] = virtual(claimed)(createExclusive('__proto__'))
+        assert(again[0] === 'error', again)
+        assertIoCode(again[1], 'EEXIST')
+    },
     statOnRegularFile: () => {
         /** @type {Dir} */
         const root = { 'a.txt': [vec8(0x41n)] }
