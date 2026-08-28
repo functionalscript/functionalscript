@@ -125,16 +125,6 @@ const percentDecode = s => {
     return utf8String([...utf8Bytes(literal), ...escaped.flatMap(escapeBytes)])
 }
 
-/**
- * A request target, split into the two parts that decide the answer.
- *
- * `authority` is the host the *target* names, which only an absolute-form target
- * carries; `null` says the target named none, and the `Host` header is then the
- * only thing that does.
- *
- * @typedef {{ readonly authority: Nullable<string>, readonly path: string }} _Target
- */
-
 /** What separates a scheme from the authority that follows it.
  *
  * @type {string}
@@ -178,7 +168,7 @@ const portMark = ':'
  * The fragment is stripped although a client keeps it to itself; a `respond`
  * called directly might still be given one, and it costs one `split`.
  *
- * @type {(target: string) => Nullable<_Target>}
+ * @type {(target: string) => Nullable<{ readonly authority: Nullable<string>, readonly path: string }>}
  */
 const parseTarget = target => {
     const [beforeFragment] = target.split('#')
@@ -291,20 +281,16 @@ export const resolve = root => url => {
  * A file too large to answer with. `readFile` yields a single `Vec`, so this is
  * a limit of the effect rather than a policy: see the README.
  *
- * @typedef {readonly['tooLarge', number]} _TooLarge
+ * @type {(size: number) => readonly['tooLarge', number]}
  */
-
-/** @type {(size: number) => _TooLarge} */
 const tooLarge = size => ['tooLarge', size]
 
 /**
  * An entry that is not a regular file — a FIFO, a device, a socket. It exists,
  * so this is not a missing path, and it is not something this server will read.
  *
- * @typedef {readonly['notRegular']} _NotRegular
+ * @type {readonly['notRegular']}
  */
-
-/** @type {_NotRegular} */
 const notRegular = ['notRegular']
 
 /**
@@ -468,7 +454,7 @@ const methodNotAllowed = () => {
  * stall every other response. Size cannot stand in for that check, because a
  * FIFO stats as zero bytes and passes every bound.
  *
- * @type {(path: string) => (s: FileStat) => Effect<ReadFile, Vec, IoChannel | _TooLarge | _NotRegular>}
+ * @type {(path: string) => (s: FileStat) => Effect<ReadFile, Vec, IoChannel | readonly['tooLarge', number] | readonly['notRegular']>}
  */
 const readBounded = path => ({ size, isFile }) => {
     if (!isFile) { return pureError(notRegular) }
@@ -480,7 +466,7 @@ const readBounded = path => ({ size, isFile }) => {
  * error channel ends: every failure becomes a status code, which is what lets
  * a `RequestListener` declare `never`.
  *
- * @type {(path: string) => (r: Result<Vec, IoChannel | _TooLarge | _NotRegular>) => ServerResponse}
+ * @type {(path: string) => (r: Result<Vec, IoChannel | readonly['tooLarge', number] | readonly['notRegular']>) => ServerResponse}
  */
 const fileResponse = path => r => {
     if (r[0] === 'ok') { return response(200)(detectPath(path))(r[1]) }

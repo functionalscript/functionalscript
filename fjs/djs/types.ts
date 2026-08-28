@@ -12,6 +12,7 @@ import type {
 } from '../media/json/types.ts'
 import type { Assert } from '../asserts/types.ts'
 import type { Equal } from '../types/ts/types.ts'
+import type { ReadFile, Write, WriteFile } from '../effects/node/types.ts'
 
 export type Object = { readonly[k in string]?: Unknown }
 
@@ -35,3 +36,6 @@ type _Unknown = Assert<Equal<Unknown, Tree<Primitive>>>
  * extended JSON instantiate, at DJS's leaf set.
  */
 export type _MapEntries = TreeMapEntries<Primitive>
+
+/** The effect operations `compile` performs: file I/O and error output. */
+export type _CompileOp = ReadFile | WriteFile | Write

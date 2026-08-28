@@ -31,23 +31,40 @@ import { cmp, toData, unitBit, unknown as top, withoutUnits } from '../../../rtt
 import { unknown as jsonUnknown } from '../rtti/module.f.mjs'
 
 /** @type {() => readonly ['const', typeof unknownConst]} */
-const unknownThunk = () => ['const', unknownConst]
+export const _unknownThunk = () => ['const', unknownConst]
 
 /**
  * rtti schema for a JSON Schema (draft 2020-12) document.
- * @type {Phantom<typeof unknownThunk, _UnknownConst>}
+ *
+ * The `$out` half of the `Phantom` is hand-written. The `?` markers are
+ * required even though `Ts<>` already includes `undefined` in each field type.
+ * Without `?`, the document type would require all 13 fields to be present in
+ * every object literal returned by `toJsonSchema`, because TypeScript
+ * distinguishes "field absent" (`?`) from "field present but undefined"
+ * (`T | undefined`). JSON Schema objects only include the fields they need, so
+ * all fields must be optional. `$defs` is an *open* map — an absent entry
+ * types as `undefined`, so missing-reference handling cannot be skipped. The
+ * `consistency` proof checks this hand-written type against the un-annotated
+ * `_unknownThunk`, so a wrong field here is caught instead of silently trusted
+ * via the `Phantom` lie.
+ *
+ * @type {Phantom<typeof _unknownThunk, {
+ *   readonly $schema?: Ts<typeof unknownConst.$schema>
+ *   readonly $ref?: Ts<typeof unknownConst.$ref>
+ *   readonly $defs?: Ts<typeof unknownConst.$defs>
+ *   readonly type?: Ts<typeof unknownConst.type>
+ *   readonly const?: Ts<typeof unknownConst.const>
+ *   readonly not?: Ts<typeof unknownConst.not>
+ *   readonly anyOf?: Ts<typeof unknownConst.anyOf>
+ *   readonly items?: Ts<typeof unknownConst.items>
+ *   readonly prefixItems?: Ts<typeof unknownConst.prefixItems>
+ *   readonly minItems?: Ts<typeof unknownConst.minItems>
+ *   readonly properties?: Ts<typeof unknownConst.properties>
+ *   readonly required?: Ts<typeof unknownConst.required>
+ *   readonly additionalProperties?: Ts<typeof unknownConst.additionalProperties>
+ * }>}
  */
-export const unknown = unknownThunk
-
-/**
- * Checked against the un-annotated thunk, so a wrong `_UnknownConst` above
- * would be caught here instead of silently trusted via the `Phantom` lie.
- * @typedef {Assert<Check<_UnknownConst, typeof unknownThunk>>} _UnknownCheck0
- */
-/** @typedef {Assert<Check<_UnknownConst, typeof unknown>>} _UnknownCheck1 */
-
-/** A JSON Schema (draft 2020-12) document — the subset of keywords that `toJsonSchema` emits. */
-/** @typedef {Ts<typeof unknown>} Unknown */
+export const unknown = _unknownThunk
 
 const unknownConst = /** @type {const} */ ({
     $schema: option(string),
@@ -64,34 +81,6 @@ const unknownConst = /** @type {const} */ ({
     required: option(array(string)),
     additionalProperties: option(unknown),
 })
-
-/**
- * Hand-written base type used as the `$out` annotation on `unknown`.
- *
- * The `?` markers are required even though `Ts<>` already includes `undefined`
- * in each field type. Without `?`, `Unknown = _UnknownConst` would require all
- * 12 fields to be present in every object literal returned by `toJsonSchema`,
- * because TypeScript distinguishes "field absent" (`?`) from "field present but
- * undefined" (`T | undefined`). JSON Schema objects only include the fields
- * they need, so all fields must be optional. `$defs` is an *open* map — an
- * absent entry types as `undefined`, so missing-reference handling cannot be
- * skipped.
- * @typedef {{
- *   readonly $schema?: Ts<typeof unknownConst.$schema>
- *   readonly $ref?: Ts<typeof unknownConst.$ref>
- *   readonly $defs?: Ts<typeof unknownConst.$defs>
- *   readonly type?: Ts<typeof unknownConst.type>
- *   readonly const?: Ts<typeof unknownConst.const>
- *   readonly not?: Ts<typeof unknownConst.not>
- *   readonly anyOf?: Ts<typeof unknownConst.anyOf>
- *   readonly items?: Ts<typeof unknownConst.items>
- *   readonly prefixItems?: Ts<typeof unknownConst.prefixItems>
- *   readonly minItems?: Ts<typeof unknownConst.minItems>
- *   readonly properties?: Ts<typeof unknownConst.properties>
- *   readonly required?: Ts<typeof unknownConst.required>
- *   readonly additionalProperties?: Ts<typeof unknownConst.additionalProperties>
- * }} _UnknownConst
- */
 
 const nullBit = unitBit(null)
 const undefinedBit = unitBit(undefined)
@@ -123,14 +112,14 @@ const refEncode = name => {
  * own-property only, so a name inherited from `Object.prototype`
  * (`toString`, `constructor`, …) is still rejected.
  *
- * @type {(rules: RuleSet) => (name: string) => Unknown}
+ * @type {(rules: RuleSet) => (name: string) => Ts<typeof unknown>}
  */
 const refSchema = rules => name => {
     assert(at(name)(rules) !== null, `missing definition: ${name}`)
     return { $ref: `#/$defs/${refEncode(name)}` }
 }
 
-/** @type {(rules: RuleSet) => (n: Node) => Unknown} */
+/** @type {(rules: RuleSet) => (n: Node) => Ts<typeof unknown>} */
 const nodeSchema = rules => n =>
     typeof n === 'string' ? refSchema(rules)(n) : unionSchema(rules)(n)
 
@@ -140,20 +129,20 @@ const nodeSchema = rules => n =>
  *
  * @template T
  * @param {KindSet<T> | undefined} k
- * @param {Unknown} whole
- * @param {(v: T) => Unknown} item
- * @returns {readonly Unknown[]}
+ * @param {Ts<typeof unknown>} whole
+ * @param {(v: T) => Ts<typeof unknown>} item
+ * @returns {readonly Ts<typeof unknown>[]}
  */
 const kindSchemas = (k, whole, item) =>
     k === undefined ? [] :
     k === true ? [whole] :
     k.map(item)
 
-/** @type {(v: boolean | number | string | null) => Unknown} */
+/** @type {(v: boolean | number | string | null) => Ts<typeof unknown>} */
 const constSchema = v => ({ const: v })
 
 /** bigint consts are represented as numbers (lossy for |value| > MAX_SAFE_INTEGER) */
-/** @type {(v: bigint) => Unknown} */
+/** @type {(v: bigint) => Ts<typeof unknown>} */
 const bigintConstSchema = v => ({ const: Number(v) })
 
 /**
@@ -161,7 +150,7 @@ const bigintConstSchema = v => ({ const: Number(v) })
  * value is `undefined`, hence `{ "not": {} }` — and both boolean bits
  * together are the `boolean` type with no special-case rule.
  *
- * @type {(bits: number) => readonly Unknown[]}
+ * @type {(bits: number) => readonly Ts<typeof unknown>[]}
  */
 const unitSchemas = bits => [
     ...((bits & nullBit) === 0 ? [] : [constSchema(null)]),
@@ -194,7 +183,7 @@ const minLength = rules => prefix =>
  * `minItems` already. Both are the object side's `required` /
  * {@link stripUndefined} pair, one kind over.
  *
- * @type {(rules: RuleSet) => (p: ArraySet) => Unknown}
+ * @type {(rules: RuleSet) => (p: ArraySet) => Ts<typeof unknown>}
  */
 const arraySetSchema = rules => p => {
     const minItems = minLength(rules)(p.prefix)
@@ -236,7 +225,7 @@ const stripUndefined = n =>
  * No `rest` leaves the other keys unconstrained (lenient), matching rtti's
  * open-struct validation semantics.
  *
- * @type {(rules: RuleSet) => (p: ObjectSet) => Unknown}
+ * @type {(rules: RuleSet) => (p: ObjectSet) => Ts<typeof unknown>}
  */
 const objectSetSchema = rules => p => {
     const ents = definedEntries(p.props)
@@ -255,7 +244,7 @@ const objectSetSchema = rules => p => {
 /** @type {(u: UnionSet) => boolean} */
 const isTop = u => cmp([{}, u])([{}, top]) === 0
 
-/** @type {(rules: RuleSet) => (u: UnionSet) => Unknown} */
+/** @type {(rules: RuleSet) => (u: UnionSet) => Ts<typeof unknown>} */
 const unionSchema = rules => u => {
     if (isTop(u)) { return {} }
     const members = [
@@ -282,7 +271,7 @@ const unionSchema = rules => u => {
  * and are JSON Pointer-escaped, then percent-encoded, for the `$ref`
  * fragment. A reference naming a missing definition panics.
  *
- * @type {(data: Data) => Unknown}
+ * @type {(data: Data) => Ts<typeof unknown>}
  */
 export const dataToJsonSchema = ([rules, entry]) => {
     const ruleEntries = definedEntries(rules)
@@ -321,6 +310,6 @@ export const dataToJsonSchema = ([rules, entry]) => {
  * duplicates collapse — so structurally different but equivalent thunk
  * schemas produce the same JSON Schema.
  *
- * @type {(rtti: RttiType) => Unknown}
+ * @type {(rtti: RttiType) => Ts<typeof unknown>}
  */
 export const toJsonSchema = rtti => dataToJsonSchema(toData(rtti))

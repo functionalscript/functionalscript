@@ -10,16 +10,46 @@
  * which `comma` is now the sole route to; it pins the operand array's
  * element schema, and claims nothing about what a `,` means.
  *
+ * @import { Assert } from '../asserts/types.ts'
  * @import { ValidationError } from '../rtti/common/types.ts'
- * @import { Unknown } from '../rtti/ts/types.ts'
+ * @import { Check, Check3, Unknown } from '../rtti/ts/types.ts'
  * @import { StringMap } from '../types/object/types.ts'
+ * @import {
+ *  Array,
+ *  Call,
+ *  Comma,
+ *  Dot,
+ *  Exp,
+ *  Exps,
+ *  Items,
+ *  NumberCast,
+ *  Object,
+ *  Op0,
+ *  Op0Id,
+ *  Op1,
+ *  Op1Id,
+ *  Op2,
+ *  Op2Id,
+ *  OptionCall,
+ *  OptionDot,
+ *  OptionLambda,
+ *  OptionPropertyLambda,
+ *  Primitive,
+ *  Properties,
+ *  Property,
+ *  PropertyLambda,
+ *  Spread,
+ * } from './types.ts'
  */
 
 import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
-    exp, op0Id, op1Id, op2Id,
-    optionLambda, optionPropertyLambda, propertyLambda,
+    _exp, _optionLambda, _optionPropertyLambda,
+    array, call, comma, dot, exp, exps, items, numberCast, object,
+    op0, op0Id, op1, op1Id, op2, op2Id,
+    optionCall, optionDot, optionLambda, optionPropertyLambda,
+    primitive, properties, property, propertyLambda, spread,
 } from './module.f.mjs'
 
 /** @type {(r: readonly [string, unknown]) => void} */
@@ -99,6 +129,37 @@ const op2Ids = /** @type {const} */ ([
 const desugarOptionalAt = o => o !== null && o !== undefined ? o.at : undefined
 
 export const proof = {
+    /**
+     * Each RTTI constant in `./module.f.mjs` matches its declared type in
+     * `./types.ts`. These are compile-time checks; the function body only has
+     * to exist so the typedefs have a local scope.
+     */
+    consistency: () => {
+        /** @typedef {Assert<Check3<Exp, typeof _exp, typeof exp>>} _ExpAssert */
+        /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
+        /** @typedef {Assert<Check<Exps, typeof exps>>} _Exps */
+        /** @typedef {Assert<Check<Spread, typeof spread>>} _Spread */
+        /** @typedef {Assert<Check<Items, typeof items>>} _Items */
+        /** @typedef {Assert<Check<Array, typeof array>>} _Array */
+        /** @typedef {Assert<Check<Property, typeof property>>} _Property */
+        /** @typedef {Assert<Check<Properties, typeof properties>>} _Properties */
+        /** @typedef {Assert<Check<Object, typeof object>>} _Object */
+        /** @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast */
+        /** @typedef {Assert<Check3<OptionLambda, typeof _optionLambda, typeof optionLambda>>} _OptionLambda */
+        /** @typedef {Assert<Check3<OptionPropertyLambda, typeof _optionPropertyLambda, typeof optionPropertyLambda>>} _OptionPropertyLambda */
+        /** @typedef {Assert<Check<PropertyLambda, typeof propertyLambda>>} _PropertyLambda */
+        /** @typedef {Assert<Check<Call, typeof call>>} _Call */
+        /** @typedef {Assert<Check<Dot, typeof dot>>} _Dot */
+        /** @typedef {Assert<Check<OptionDot, typeof optionDot>>} _OptionDot */
+        /** @typedef {Assert<Check<OptionCall, typeof optionCall>>} _OptionCall */
+        /** @typedef {Assert<Check<Comma, typeof comma>>} _Comma */
+        /** @typedef {Assert<Check<Op0Id, typeof op0Id>>} _Op0Id */
+        /** @typedef {Assert<Check<Op0, typeof op0>>} _Op0 */
+        /** @typedef {Assert<Check<Op1Id, typeof op1Id>>} _Op1Id */
+        /** @typedef {Assert<Check<Op1, typeof op1>>} _Op1 */
+        /** @typedef {Assert<Check<Op2Id, typeof op2Id>>} _Op2Id */
+        /** @typedef {Assert<Check<Op2, typeof op2>>} _Op2 */
+    },
     primitive: {
         ok: () => {
             assertOk(v(null))

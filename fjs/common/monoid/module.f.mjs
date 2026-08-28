@@ -9,6 +9,7 @@
  * @import { Fold, Reduce } from '../../types/function/operator/types.ts'
  * @import { Accumulator, List } from  '../../types/list/types.ts'
  * @import { Absorbing, Monoid } from './types.ts'
+ * @import { _Run, _Stack } from './private.ts'
  */
 
 import { fold as listFold, tryFold } from '../../types/list/module.f.mjs'
@@ -58,26 +59,6 @@ export const repeat = ({ identity, operation }) => n => a => {
         ai = operation(ai)(ai)
     }
 }
-
-/**
- * A run of `size` already-combined elements. Runs live on a stack whose top is
- * the most recent — and smallest — run, so `rest` holds everything to the left
- * of `value`.
- *
- * @template T
- * @typedef {{
- *  readonly size: number
- *  readonly value: T
- *  readonly rest: _Stack<T>
- * }} _Run
- */
-
-/**
- * A stack of runs, `null` when empty.
- *
- * @template T
- * @typedef {_Run<T> | null} _Stack
- */
 
 /**
  * Pushes a run of `size` combined elements onto the stack, merging while the

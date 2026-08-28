@@ -56,13 +56,7 @@ export const symbolAt = symbolOf => (input, pos) =>
  */
 export const physicalIdx = length => pos => Math.min(pos, length)
 
-/**
- * @template L
- * @template P
- * @typedef {(tag: AstTag, sequence: AstSequence<L>, pos: P) => AstResult<L, P>} _Mr
- */
-
-/** @type {<L, P>(success: boolean) => _Mr<L, P>} */
+/** @type {<L, P>(success: boolean) => (tag: AstTag, sequence: AstSequence<L>, pos: P) => AstResult<L, P>} */
 const mr = success => (tag, sequence, pos) => ({ ast: { tag, sequence }, success, pos })
 
 /**

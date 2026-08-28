@@ -1,10 +1,12 @@
 /**
+ * @import { Assert } from '../../asserts/types.ts'
  * @import { Object as JsonObject } from '../json/types.ts'
- * @import { LockMap } from './types.ts'
+ * @import { Check } from '../../rtti/ts/types.ts'
+ * @import { LockField, LockMap } from './types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { dialect, mediaType, isHash, validate, decodeText, encodeText } from './module.f.mjs'
+import { dialect, lock, lockField, mediaType, isHash, validate, decodeText, encodeText } from './module.f.mjs'
 
 // Valid cbase32 hashes (round-tripped in fjs/basen/cbase32/proof.f.mjs): single
 // cbase32 symbols, cheap to write inline here.
@@ -34,6 +36,15 @@ const revisionOf = extra => ({
 })
 
 export const proof = {
+    /**
+     * The hand-written `LockMap`/`LockField` in `./types.ts` are pinned
+     * against the module's rtti schemas, so the two recursions cannot drift
+     * apart.
+     */
+    consistency: () => {
+        /** @typedef {Assert<Check<LockMap, typeof lock>>} _LockMap */
+        /** @typedef {Assert<Check<LockField, typeof lockField>>} _LockField */
+    },
     dialectAndMediaType: () => {
         assertEq(dialect, 'vnd.fjs.revision')
         assertEq(mediaType, 'application/vnd.fjs.revision+json')

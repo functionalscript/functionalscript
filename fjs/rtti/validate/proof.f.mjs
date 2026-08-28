@@ -41,164 +41,167 @@ const p = t => /** @type {any} */ (parse(t))
 const d = t => dataValidate(toData(t))
 
 /**
- * A rest that is its own container, so nothing about it is inline: the
- * conversion keeps `rest: "recursiveRest"` rather than recognizing that no
- * finite array inhabits it, and every reader accepts a hole past the prefix
- * accordingly. It is one of the two rests {@link emptyRests} must *not*
- * recognize.
- *
- * @typedef {() => readonly ['rest', readonly [_RecursiveRest], typeof never]} _RecursiveRest
- */
-
-/** @type {_RecursiveRest} */
-const recursiveRest = () => ['rest', [recursiveRest], never]
-
-/**
- * The other one: a pure `or` cycle. `toData(orCycleA)` **is** `never`, yet as a
- * rest it converts to a reference and stays, so a test on the rest's own
- * canonical data would answer the opposite of the criterion.
- *
- * @typedef {() => readonly ['or', _OrCycleB]} _OrCycleA
- * @typedef {() => readonly ['or', _OrCycleA]} _OrCycleB
- */
-
-/** @type {_OrCycleA} */
-const orCycleA = () => ['or', orCycleB]
-
-/** @type {_OrCycleB} */
-const orCycleB = () => ['or', orCycleA]
-
-/**
- * Two separately constructed copies of one recursive rule. Converting a rest
- * reserves its rule name first, so the container's copy is named `r0` where
- * converting the container alone names it `r` — which is what rules `equal`
- * out as the comparison behind {@link emptyRests}.
- *
- * @typedef {() => readonly ['or', undefined, () => readonly ['array', _SelfList]]} _SelfList
- */
-
-/** @type {_SelfList} */
-const selfList0 = () => ['or', undefined, array(selfList0)]
-
-/** @type {_SelfList} */
-const selfList1 = () => ['or', undefined, array(selfList1)]
-
-/**
  * The acceptance table. Rows cover both container kinds, the closed default
  * and a stated rest on both, the short-array rule, primitives, `or`, and
- * misses — every reader of a schema has to answer them the same way.
+ * misses — every reader of a schema has to answer them the same way. Built by
+ * a thunk so the recursive schemas it needs can carry function-local typedefs.
  *
- * @type {readonly (readonly [Type, Unknown])[]}
+ * @type {() => readonly (readonly [Type, Unknown])[]}
  */
-const rows = [
-    [number, 42],
-    [number, '42'],
-    [string, 42],
-    [boolean, false],
-    [bigint, 7n],
-    [unknown, { a: [1, 'x'] }],
-    [/** @type {const} */ (42), 42],
-    [/** @type {const} */ (42), 43],
-    [array(number), [1, 2, 3]],
-    [array(number), [1, 'two']],
-    [array(number), {}],
-    // an enumerable non-index key is an entry every reader walks, so it is
-    // held to the element type like any other — and a key is an index only in
-    // the canonical spelling, whatever `Number` makes of it
-    [array(number), Object.assign([1], { foo: 2 })],
-    [array(number), Object.assign([1], { foo: 'x' })],
-    [array(number), Object.assign([1], { '-1': 'x' })],
-    [array(number), Object.assign([1], { '01': 'x' })],
-    // an empty element set is the empty array, not "any number of holes": the
-    // data form normalizes such a rest away, which leaves the exact-length
-    // pattern, and the thunk readers bound the length to match
-    [array(or()), []],
-    [array(or()), new Array(1)],
-    [array(number), [, ,]],
-    [record(number), { a: 1 }],
-    [record(number), { a: 'one' }],
-    [record(number), []],
-    // the closed default, on both kinds
-    [[/** @type {const} */ (42)], [42, 'extra']],
-    [[/** @type {const} */ (42)], [42]],
-    [[/** @type {const} */ (42)], [42, undefined]],
-    [[/** @type {const} */ (42)], [42, ,]],
-    [[/** @type {const} */ (42)], Object.assign([42], { foo: 1 })],
-    [[/** @type {const} */ (42)], []],
-    [{ a: /** @type {const} */ (42) }, { a: 42, b: 'x' }],
-    [{ a: /** @type {const} */ (42) }, { a: 42 }],
-    // a key declared `unknown` is a member the schema has, so the canonical
-    // form must not drop it the way an `open` struct's is dropped
-    [{ a: unknown }, { a: 1 }],
-    [{ a: unknown }, { a: 1, b: 2 }],
-    // and the same rows under `open`, which is the form that admits them
-    [open([/** @type {const} */ (42)]), [42, 'extra']],
-    [open({ a: /** @type {const} */ (42) }), { a: 42, b: 'x' }],
-    [open([]), [1]],
-    [open({}), { a: 1 }],
-    // closedness is about *undeclared* members and leaves the short-array rule
-    // alone
-    [[number, option(string)], [42]],
-    // the rule is per position, not "the last one": every trailing position
-    // whose set admits `undefined` may be absent, so an array may stop at the
-    // last required one
-    [[number, bigint, option(string), option(null)], [2, 4n]],
-    [[number, bigint, option(string), option(null)], [2, 4n, 'x']],
-    [[number, bigint, option(string), option(null)], [2, 4n, 'x', null]],
-    [[number, bigint, option(string), option(null)], [2]],
-    [[number, bigint, option(string), option(null)], [2, 4n, 5]],
-    [{ a: number, b: option(string) }, { a: 1 }],
-    [{ a: number }, { a: 'one' }],
-    // a hole in a tuple schema is a declared position whose schema is
-    // `undefined`, so the schema's length is what it declares — the reading
-    // the data form has always had, and the one `Object.entries` lost
-    [new Array(1), [1, 2, 3]],
-    [new Array(1), new Array(1)],
-    [new Array(1), [undefined]],
-    [new Array(1), [1]],
-    [new Array(1), []],
-    [[, number], [9, 5]],
-    [[, number], [undefined, 5]],
-    // and a non-index enumerable own property is no position at all: a tuple
-    // schema is read by index, so `foo` declares nothing — which leaves a
-    // value's own `foo` an undeclared member like any other
-    [Object.assign([number], { foo: string }), [1]],
-    [Object.assign([number], { foo: string }), Object.assign([1], { foo: 'x' })],
-    [open(Object.assign([number], { foo: string })), Object.assign([1], { foo: 'x' })],
-    // a stated rest: what an undeclared member must be
-    [rest([number], string), [1, 'x', 'y']],
-    [rest([number], string), [1, 2]],
-    // a hole past the prefix is no member, so it meets no rest — which is what
-    // the `| undefined` in the rendered tail says
-    [rest([number], string), [1, ,]],
-    // An index the prototype supplies, and a key past the index range, are
-    // members too — both need in-place mutation to build, so their rows run
-    // through the same three readers in `../host.proof.mjs`.
-    [rest({ a: number }, string), { a: 1, b: 'x' }],
-    [rest({ a: number }, string), { a: 1, b: 2 }],
-    // a stated rest with nothing to answer for: the struct kind has no length,
-    // so it fits whatever the rest is
-    [rest({ a: number }, string), { a: 1 }],
-    // an unconstrained rest is `open`
-    [rest([number], unknown), [1, 'x']],
-    [rest({ a: number }, unknown), { a: 1, b: 'x' }],
-    // an empty one is the bare form, so the length is bounded again
-    [rest([number], never), [1, ,]],
-    [rest([number], or()), [1, ,]],
-    [rest([number], [or()]), [1, ,]],
-    [rest([number], [or()]), [1, 2]],
-    // …and a rest the conversion keeps is not empty, however few values it
-    // has: these two are the pair that tells the criterion from an emptiness
-    // analysis
-    [rest([number], recursiveRest), [1, ,]],
-    [rest([number], orCycleA), [1, ,]],
-    [rest([selfList0], [selfList1, never]), [undefined, ,]],
-    [or(number, string), true],
-    [or(number, string), 'hello'],
-    [option(number), undefined],
-    [option(number), null],
-    [{ user: { name: string, age: number } }, { user: { name: 'A', age: 'old' } }],
-]
+const rows = () => {
+    /**
+     * A rest that is its own container, so nothing about it is inline: the
+     * conversion keeps `rest: "recursiveRest"` rather than recognizing that no
+     * finite array inhabits it, and every reader accepts a hole past the prefix
+     * accordingly. It is one of the two rests {@link emptyRests} must *not*
+     * recognize.
+     *
+     * @typedef {() => readonly ['rest', readonly [_RecursiveRest], typeof never]} _RecursiveRest
+     */
+
+    /** @type {_RecursiveRest} */
+    const recursiveRest = () => ['rest', [recursiveRest], never]
+
+    /**
+     * The other one: a pure `or` cycle. `toData(orCycleA)` **is** `never`, yet as a
+     * rest it converts to a reference and stays, so a test on the rest's own
+     * canonical data would answer the opposite of the criterion.
+     *
+     * @typedef {() => readonly ['or', _OrCycleB]} _OrCycleA
+     * @typedef {() => readonly ['or', _OrCycleA]} _OrCycleB
+     */
+
+    /** @type {_OrCycleA} */
+    const orCycleA = () => ['or', orCycleB]
+
+    /** @type {_OrCycleB} */
+    const orCycleB = () => ['or', orCycleA]
+
+    /**
+     * Two separately constructed copies of one recursive rule. Converting a rest
+     * reserves its rule name first, so the container's copy is named `r0` where
+     * converting the container alone names it `r` — which is what rules `equal`
+     * out as the comparison behind {@link emptyRests}.
+     *
+     * @typedef {() => readonly ['or', undefined, () => readonly ['array', _SelfList]]} _SelfList
+     */
+
+    /** @type {_SelfList} */
+    const selfList0 = () => ['or', undefined, array(selfList0)]
+
+    /** @type {_SelfList} */
+    const selfList1 = () => ['or', undefined, array(selfList1)]
+
+    return [
+        [number, 42],
+        [number, '42'],
+        [string, 42],
+        [boolean, false],
+        [bigint, 7n],
+        [unknown, { a: [1, 'x'] }],
+        [/** @type {const} */ (42), 42],
+        [/** @type {const} */ (42), 43],
+        [array(number), [1, 2, 3]],
+        [array(number), [1, 'two']],
+        [array(number), {}],
+        // an enumerable non-index key is an entry every reader walks, so it is
+        // held to the element type like any other — and a key is an index only in
+        // the canonical spelling, whatever `Number` makes of it
+        [array(number), Object.assign([1], { foo: 2 })],
+        [array(number), Object.assign([1], { foo: 'x' })],
+        [array(number), Object.assign([1], { '-1': 'x' })],
+        [array(number), Object.assign([1], { '01': 'x' })],
+        // an empty element set is the empty array, not "any number of holes": the
+        // data form normalizes such a rest away, which leaves the exact-length
+        // pattern, and the thunk readers bound the length to match
+        [array(or()), []],
+        [array(or()), new Array(1)],
+        [array(number), [, ,]],
+        [record(number), { a: 1 }],
+        [record(number), { a: 'one' }],
+        [record(number), []],
+        // the closed default, on both kinds
+        [[/** @type {const} */ (42)], [42, 'extra']],
+        [[/** @type {const} */ (42)], [42]],
+        [[/** @type {const} */ (42)], [42, undefined]],
+        [[/** @type {const} */ (42)], [42, ,]],
+        [[/** @type {const} */ (42)], Object.assign([42], { foo: 1 })],
+        [[/** @type {const} */ (42)], []],
+        [{ a: /** @type {const} */ (42) }, { a: 42, b: 'x' }],
+        [{ a: /** @type {const} */ (42) }, { a: 42 }],
+        // a key declared `unknown` is a member the schema has, so the canonical
+        // form must not drop it the way an `open` struct's is dropped
+        [{ a: unknown }, { a: 1 }],
+        [{ a: unknown }, { a: 1, b: 2 }],
+        // and the same rows under `open`, which is the form that admits them
+        [open([/** @type {const} */ (42)]), [42, 'extra']],
+        [open({ a: /** @type {const} */ (42) }), { a: 42, b: 'x' }],
+        [open([]), [1]],
+        [open({}), { a: 1 }],
+        // closedness is about *undeclared* members and leaves the short-array rule
+        // alone
+        [[number, option(string)], [42]],
+        // the rule is per position, not "the last one": every trailing position
+        // whose set admits `undefined` may be absent, so an array may stop at the
+        // last required one
+        [[number, bigint, option(string), option(null)], [2, 4n]],
+        [[number, bigint, option(string), option(null)], [2, 4n, 'x']],
+        [[number, bigint, option(string), option(null)], [2, 4n, 'x', null]],
+        [[number, bigint, option(string), option(null)], [2]],
+        [[number, bigint, option(string), option(null)], [2, 4n, 5]],
+        [{ a: number, b: option(string) }, { a: 1 }],
+        [{ a: number }, { a: 'one' }],
+        // a hole in a tuple schema is a declared position whose schema is
+        // `undefined`, so the schema's length is what it declares — the reading
+        // the data form has always had, and the one `Object.entries` lost
+        [new Array(1), [1, 2, 3]],
+        [new Array(1), new Array(1)],
+        [new Array(1), [undefined]],
+        [new Array(1), [1]],
+        [new Array(1), []],
+        [[, number], [9, 5]],
+        [[, number], [undefined, 5]],
+        // and a non-index enumerable own property is no position at all: a tuple
+        // schema is read by index, so `foo` declares nothing — which leaves a
+        // value's own `foo` an undeclared member like any other
+        [Object.assign([number], { foo: string }), [1]],
+        [Object.assign([number], { foo: string }), Object.assign([1], { foo: 'x' })],
+        [open(Object.assign([number], { foo: string })), Object.assign([1], { foo: 'x' })],
+        // a stated rest: what an undeclared member must be
+        [rest([number], string), [1, 'x', 'y']],
+        [rest([number], string), [1, 2]],
+        // a hole past the prefix is no member, so it meets no rest — which is what
+        // the `| undefined` in the rendered tail says
+        [rest([number], string), [1, ,]],
+        // An index the prototype supplies, and a key past the index range, are
+        // members too — both need in-place mutation to build, so their rows run
+        // through the same three readers in `../host.proof.mjs`.
+        [rest({ a: number }, string), { a: 1, b: 'x' }],
+        [rest({ a: number }, string), { a: 1, b: 2 }],
+        // a stated rest with nothing to answer for: the struct kind has no length,
+        // so it fits whatever the rest is
+        [rest({ a: number }, string), { a: 1 }],
+        // an unconstrained rest is `open`
+        [rest([number], unknown), [1, 'x']],
+        [rest({ a: number }, unknown), { a: 1, b: 'x' }],
+        // an empty one is the bare form, so the length is bounded again
+        [rest([number], never), [1, ,]],
+        [rest([number], or()), [1, ,]],
+        [rest([number], [or()]), [1, ,]],
+        [rest([number], [or()]), [1, 2]],
+        // …and a rest the conversion keeps is not empty, however few values it
+        // has: these two are the pair that tells the criterion from an emptiness
+        // analysis
+        [rest([number], recursiveRest), [1, ,]],
+        [rest([number], orCycleA), [1, ,]],
+        [rest([selfList0], [selfList1, never]), [undefined, ,]],
+        [or(number, string), true],
+        [or(number, string), 'hello'],
+        [option(number), undefined],
+        [option(number), null],
+        [{ user: { name: string, age: number } }, { user: { name: 'A', age: 'old' } }],
+    ]
+}
 
 export const proof = {
     // ── the three properties this module exists for ──────────────────────────
@@ -259,7 +262,7 @@ export const proof = {
     // Acceptance is `parse`'s, exactly: the two readers differ in what a
     // success carries and in nothing else.
     sameAcceptanceAsParse: () => {
-        for (const [t, value] of rows) {
+        for (const [t, value] of rows()) {
             const rv = v(t)(value)
             const rp = p(t)(value)
             assertEq(rv[0], rp[0], 'validate and parse must agree on acceptance')
@@ -279,7 +282,7 @@ export const proof = {
     // it reports a miss as its own kind-wise failure rather than repeating
     // `or`'s `no match`.
     sameAcceptanceInTheDataForm: () => {
-        for (const [t, value] of rows) {
+        for (const [t, value] of rows()) {
             assertEq(d(t)(value)[0], p(t)(value)[0], 'the data form must accept what `parse` accepts')
         }
     },
@@ -725,6 +728,17 @@ export const proof = {
     // `never`'s identity passes the converse.
     emptyRests: {
         dropped: () => {
+            /**
+             * Two separately constructed copies of one recursive rule — the
+             * pair behind the name-collision comparison; see the acceptance
+             * table's own copy for the full story.
+             *
+             * @typedef {() => readonly ['or', undefined, () => readonly ['array', _SelfList]]} _SelfList
+             */
+            /** @type {_SelfList} */
+            const selfList0 = () => ['or', undefined, array(selfList0)]
+            /** @type {_SelfList} */
+            const selfList1 = () => ['or', undefined, array(selfList1)]
             for (const r of [never, or(), [or()]]) {
                 assertError(validate(rest([number], r))([42, ,]))
             }
@@ -734,6 +748,24 @@ export const proof = {
             assertError(v(rest([selfList0], [selfList1, never]))([undefined, ,]))
         },
         kept: () => {
+            /**
+             * A rest that is its own container, so nothing about it is
+             * inline; the acceptance table's copy carries the full story.
+             *
+             * @typedef {() => readonly ['rest', readonly [_RecursiveRest], typeof never]} _RecursiveRest
+             */
+            /** @type {_RecursiveRest} */
+            const recursiveRest = () => ['rest', [recursiveRest], never]
+            /**
+             * The other one: a pure `or` cycle.
+             *
+             * @typedef {() => readonly ['or', _OrCycleB]} _OrCycleA
+             * @typedef {() => readonly ['or', _OrCycleA]} _OrCycleB
+             */
+            /** @type {_OrCycleA} */
+            const orCycleA = () => ['or', orCycleB]
+            /** @type {_OrCycleB} */
+            const orCycleB = () => ['or', orCycleA]
             // A rest the conversion keeps is not empty however few values it
             // has: `recursiveRest` catches an emptiness analysis that reaches
             // container cycles, `orCycleA` one that tests the rest's own

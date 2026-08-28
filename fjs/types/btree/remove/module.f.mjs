@@ -7,25 +7,13 @@
  * @import { Compare } from '../../function/compare/types.ts'
  * @import { Path, PathItem } from '../find/types.ts'
  * @import { Tuple } from '../../array/types.ts'
+ * @import { _Branch, _Leaf01, _Merge, _RemovePath } from './private.ts'
  */
 
 import { collapseRoot } from '../types/module.f.mjs'
 import { find } from '../find/module.f.mjs'
 import { fold, concat, next } from '../../list/module.f.mjs'
 import { map } from '../../nullable/module.f.mjs'
-
-/**
- * @template T
- * @typedef {null | Leaf1<T>} _Leaf01
- */
-
-/**
- * @template T
- * @typedef {{
- *   readonly first: _Leaf01<T>,
- *   readonly tail: Path<T>
- * }} _RemovePath
- */
 
 /** @type {<T>(tail: Path<T>) => (n: TNode<T>) => readonly[T, _RemovePath<T>]} */
 const path = tail => n => {
@@ -36,11 +24,6 @@ const path = tail => n => {
         case 5: { return path({ first: [0, n], tail })(n[0]) }
     }
 }
-
-/**
- * @template T
- * @typedef {Branch1<T> | Branch3<T> | Branch5<T>} _Branch
- */
 
 /** @type {<T>(a: _Branch<T>) => (n: Branch3<T>) => Branch1<T> | Branch3<T>} */
 const reduceValue0 = a => n => {
@@ -95,12 +78,6 @@ const initValue1 = a => n => {
         }
     } else { return [n0, v1, a] }
 }
-
-/**
- * @template A
- * @template T
- * @typedef {(a: A) => (n: Branch3<T>) => Branch1<T> | Branch3<T>} _Merge
- */
 
 /** @type {<A, T>(ms: Tuple<2, _Merge<A, T>>) => (item: PathItem<T>) => (a: A) => _Branch<T>} */
 const reduceX = ms => ([i, n]) => a => {

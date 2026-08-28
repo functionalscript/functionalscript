@@ -46,7 +46,6 @@
  * @module
  *
  * @import { ConstObject, Info1, Tag1, Type } from '../types.ts'
- * @import { Result as CommonResult } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { Container, Fits, IsContainer, SchemaEntries, ValidateE, ValidationError, Visitor } from '../common/types.ts'
@@ -71,15 +70,11 @@ import {
 } from '../common/module.f.mjs'
 import { emptyRest } from '../data/module.f.mjs'
 
-/** @typedef {CommonResult<Unknown, ValidationError>} _ItemResult */
-
 /** Rebuilds a parsed container from its `[key, parsedValue]` entries. */
-/** @typedef {(entries: ReadonlyArray<readonly [string, Unknown]>) => Unknown} _Rebuild */
-
-/** @type {_Rebuild} */
+/** @type {(entries: ReadonlyArray<readonly [string, Unknown]>) => Unknown} */
 const arrayRebuild = entries => entries.map(([, v]) => v)
 
-/** @type {_Rebuild} */
+/** @type {(entries: ReadonlyArray<readonly [string, Unknown]>) => Unknown} */
 const recordRebuild = entries => Object.fromEntries(entries)
 
 /** `eachEntry`'s accumulator seed: entries are consed on in reverse as they parse. */
@@ -117,7 +112,7 @@ const containerParse =
     /**
      * @template {Tag1} K
      * @param {IsContainer<Container<K>>} isContainer
-     * @param {_Rebuild} rebuild
+     * @param {(entries: ReadonlyArray<readonly [string, Unknown]>) => Unknown} rebuild
      * @param {(item: Type) => Fits<Container<K>>} restFits
      * @returns {<I extends Type>(item: I) => Parse<Info1<K, I>>}
      */
@@ -174,7 +169,7 @@ const constContainerParse =
      * @param {IsContainer<C>} isContainer
      * @param {SchemaEntries<S>} schemaEntries
      * @param {(value: C, k: string) => Unknown} getItem
-     * @param {_Rebuild} rebuild
+     * @param {(entries: ReadonlyArray<readonly [string, Unknown]>) => Unknown} rebuild
      * @param {Fits<C>} fits
      * @returns {<T extends S>(rtti: T) => Parse<T>}
      */
@@ -234,7 +229,7 @@ const restContainerParse =
      * @param {IsContainer<C>} isContainer
      * @param {SchemaEntries<S>} schemaEntries
      * @param {(value: C, k: string) => Unknown} getItem
-     * @param {_Rebuild} rebuild
+     * @param {(entries: ReadonlyArray<readonly [string, Unknown]>) => Unknown} rebuild
      * @param {(rtti: S, r: Type) => Fits<C>} restFits
      * @returns {(rtti: S, r: Type) => ValidateE}
      */

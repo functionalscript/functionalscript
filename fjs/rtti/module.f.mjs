@@ -5,18 +5,14 @@
  * @module
  *
  * @import { Includes } from '../types/array/types.ts'
- * @import { Assert } from '../asserts/types.ts'
- * @import { Equal } from '../types/ts/types.ts'
- * @import { Tag0, Primitive0, _Type0, Bigint, Unknown, Tag1, _MakeType1, _MakeOpen, _MakeRest, Or, Type } from './types.ts'
+ * @import { Tag0, _Type0, Bigint, Unknown, Tag1, _MakeType1, _MakeOpen, _MakeRest, Or, Type } from './types.ts'
  */
 
 import { includes } from '../types/array/module.f.mjs'
 
-const primitive0List = /** @type {const} */ (['bigint', 'boolean', 'number', 'string'])
+export const _primitive0List = /** @type {const} */ (['bigint', 'boolean', 'number', 'string'])
 
-/** @typedef {Assert<Equal<Primitive0, typeof primitive0List[number]>>} _Primitive0Pinned */
-
-export const tag0List = /** @type {const} */ ([...primitive0List, 'unknown'])
+export const tag0List = /** @type {const} */ ([..._primitive0List, 'unknown'])
 
 const type0 =
     /**
@@ -53,12 +49,10 @@ export const bigint = type0('bigint')
  */
 export const unknown = type0('unknown')
 
-const tag1List = /** @type {const} */ (['array', 'record'])
+export const _tag1List = /** @type {const} */ (['array', 'record'])
 
-/** @typedef {Assert<Equal<Tag1, typeof tag1List[number]>>} _Tag1Pinned */
-
-/** @type {Includes<string, typeof tag1List>} */
-export const isTag1 = includes(tag1List)
+/** @type {Includes<string, typeof _tag1List>} */
+export const isTag1 = includes(_tag1List)
 
 const type1 =
     /**

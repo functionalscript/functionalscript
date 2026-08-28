@@ -247,15 +247,42 @@ changes. A separately useful type-level API may live in an authored sibling
 `types.ts`; that file remains TypeScript type source and holds no runtime
 implementation.
 
-Name implementation-only JSDoc typedefs with a leading `_`
-(`/** @typedef {number} _Type */`). Declaration emit cannot strip them yet, so
-the underscore — not the emitted `.d.ts` — is what marks a name private,
-and renaming or removing a `_`-prefixed alias is not by itself a breaking
-change. The public contract still governs transitive effects. See
-[Private JSDoc typedefs](./fsc/README.md#private-jsdoc-typedefs) for the
-full rule and examples.
+No authored `.mjs` may contain a **file-scope** JSDoc `@typedef` — anywhere in
+the repository, whatever the directory or basename. Function-local typedefs are
+allowed, and are the normal home for compile-time proof types (see the
+`consistency` and `signatures` entries in `fjs/edag/proof.f.mjs` and
+`fjs/effects/proof.f.mjs`). A named file-scope type goes to one of:
 
-Use `@typedef` for a named type and `@template` for its type parameters. A
+- the sibling `types.ts` when it is part of the **public declaration closure** —
+  public types, plus any private `_` helper a shipped public declaration
+  reaches transitively (e.g. `_Byte` in `fjs/types/byte_set/types.ts`) — or the
+  type is inlined into the annotation instead;
+- an optional sibling `private.ts` for implementation-private types outside the
+  public closure, when separating them reads cleaner than inlining (e.g.
+  `fjs/common/monoid/private.ts`, `fjs/rtti/data/private.ts`); do not create it
+  mechanically for every `_` name;
+- nowhere: a short type used once or twice is simply inlined.
+
+Name private types and private runtime constants with a leading `_`, even when
+module linkage requires an export: exportability is linkage, not API status, so
+renaming or removing a `_`-prefixed name is not by itself a breaking change.
+The public contract still governs transitive effects. See
+[Private types](./fsc/README.md#private-types) for the full rule.
+
+The intra-directory dependency direction is
+`types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`
+(dependency to dependent; a layering guide, not a requirement that every file
+exists). `types.ts` must not depend on `private.ts`, and verification moves
+downstream: an assertion that checks the implementation belongs in a proof
+function, not in `types.ts`. Recursive RTTI whose annotation needs a named
+public type may stay in `module.f.mjs` (e.g. `exp` in `fjs/edag/module.f.mjs`),
+and declarative compile-time/runtime constants shared between TypeScript and
+runtime code may be split into a normal subordinate metaprogramming module such
+as `meta/module.f.mjs` when that helps — it is an ordinary module, discovered
+and covered like any other `module.f.mjs`, never a requirement.
+
+Use `@typedef` (function-local in `.mjs`, or `export type` in `types.ts` /
+`private.ts`) for a named type and `@template` for its type parameters. A
 constraint goes in braces before the parameter name:
 
 ```js
@@ -535,10 +562,10 @@ that context on its own: `ToAsyncOperationMap<O>` is a mapped type keyed on
 back out of the argument. Left to argument inference `O` falls back to its
 `Operation` constraint — payloads and outputs `never` — which no real map is
 assignable to, and the call site reaches for exactly the cast this section warns
-about. **Annotate the result instead**: pin the runner's own type
-(`/** @type {_EffectToPromise} */`, `/** @type {MemoryRun} */`) and `O` is
-inferred from the return type, giving the call a real `O` to check its argument
-against. Both Node runners are written that way —
+about. **Annotate the result instead**: pin the runner's own type — an inline
+generic annotation, or a `types.ts` name such as `/** @type {MemoryRun} */` —
+and `O` is inferred from the return type, giving the call a real `O` to check
+its argument against. Both Node runners are written that way —
 `fjs/effects/node/module.mjs`'s `runNodeEffect` and
 `fjs/effects/node/memory/module.mjs`'s `memoryRun`.
 

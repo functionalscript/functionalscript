@@ -16,6 +16,7 @@
  * @import { Printer, StructField } from '../../types/ts/types.ts'
  * @import { Type } from '../types.ts'
  * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../data/types.ts'
+ * @import { _Ctx } from './private.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
@@ -89,14 +90,6 @@ const identifiers = rules => {
     }
     return result
 }
-
-/**
- * @typedef {{
- *  readonly ts: Printer
- *  readonly ids: readonly (readonly [string, string])[]
- *  readonly rules: RuleSet
- * }} _Ctx
- */
 
 /** @type {(ids: readonly (readonly [string, string])[], name: string) => string | undefined} */
 const idOf = (ids, name) => {
