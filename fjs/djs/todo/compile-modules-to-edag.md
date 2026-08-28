@@ -24,7 +24,7 @@ required by EDAG. Object parsing accumulates properties in an `OrderedMap` with
 `setReplace` and eventually produces a plain `AstObject`; duplicate keys are therefore
 collapsed and integer-like keys can lose their written order before EDAG conversion.
 This task must preserve object entries as an ordered sequence in the parser/AST until
-they are converted to `['{}', ...entry]`.
+they are converted to `['{}', [...entry]]`.
 
 ### Proposal
 
@@ -284,10 +284,10 @@ The staged work builds on the basic structural forms already being defined for E
 - primitive constants directly: `null`, boolean, number, string, `bigint`
   (`undefined` is `['undefined']`, not a bare constant — see
   `edag-stage1-discussion.md`'s "Structural operations" table);
-- object constructors: `['{}', ...entry]`, where the initial entry form is
+- object constructors: `['{}', [...entry]]`, where the initial entry form is
   `[':', key, value]` and **`key` is a string constant** in this task, matching what
   the current DJS parser produces;
-- array constructors: `['[]', ...node]`;
+- array constructors: `['[]', [...node]]`;
 - the argument array: `['args']`;
 - Stage 1 property access: `['.', object, property, null]`, with the restricted
   property operands described above — the `null` is the continuation operand, saying

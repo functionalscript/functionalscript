@@ -217,8 +217,8 @@ schema is free to change independently of both.
 |----|--|-----|-----|
 |`2.5`, `"a"`, `true`, `null`, `34n`|itself|1|constant — any non-object, non-array value|
 |`["undefined"]`|`undefined`|1|the value `undefined`, as its own node — a bare `undefined` would be indistinguishable from a missing tuple position (a position past a node's arity reads as `undefined` too), so it is not a bare constant like the row above|
-|`["[]", ...node]`|`[…]`|1|array constructor|
-|`["{}", ...entry]`|`{ … }`|1|ordered object constructor; initial entry form is `[":", key, value]` (subject 4)|
+|`["[]", [...node]]`|`[…]`|1|array constructor; the elements are one operand, an array of nodes — not spread across the tuple|
+|`["{}", [...entry]]`|`{ … }`|1|ordered object constructor; the entries are one operand, an array — initial entry form is `[":", key, value]` (subject 4)|
 |`["args"]`|—|1|the arguments array (subject 2)|
 |`[".", object, property, k]`|`o.p`, `o[p]`, `o.p(...args)`|1|property access, owning whatever its receiver is used for; `k` is `null` for a plain read; `property` is restricted (see below)|
 |`["()", callee, args]`|`f(...args)`|2|call with no receiver; `args` is one node yielding an array (subject 6)|
@@ -232,8 +232,18 @@ schema is free to change independently of both.
 |`[",", ...node, node]`|`(a, b)`|later|membership without order (subject 8)|
 |`["=>", frame, body]`|`(…) => …`|2|function; `frame` is a general `exp` in the schema — Stage 2's own compiler/interpreter scope is narrower and only emits/accepts a placeholder for it, captured frames come later|
 
-`["{}", ...entry]` is an ordered object-construction operation. Stage 1
-uses `[":", key, value]` entries. The entry list preserves the source
+`["{}", [...entry]]` is an ordered object-construction operation. Stage 1
+uses `[":", key, value]` entries.
+
+Both structural constructors take their variadic part as **one operand
+holding an array**, rather than spreading it across the tuple. An rtti
+`Tuple` pins one schema per position, so "this literal tag, then any number
+of further positions, all matching this one schema" is not spellable inline;
+growing the `Type` ADT to allow it has no other consumer here. The nesting is
+the decided representation rather than a stand-in for a flat one — see
+`array` in [`../fjs/edag/module.f.mjs`](../fjs/edag/module.f.mjs), and
+[`../fjs/edag/README.md`](../fjs/edag/README.md), whose form column writes
+the same shape as `['[]', items[]]`. The entry list preserves the source
 property sequence. The key position is a node, and validation admits any
 node there — a computed key like `{ ["sss" + 3]: x }` is valid JS and a
 validly-shaped EDAG, even though today's compiler only lowers the trivial
@@ -763,7 +773,7 @@ open:
 
 **Status:** decided (revised)
 
-**Resolution: an object constructor is `["{}", ...entries]`, and the
+**Resolution: an object constructor is `["{}", [...entries]]`, and the
 entry sequence is semantic.** Stage 1 uses one entry form,
 `[":", key, value]`. Both the key and value positions are ordinary EDAG
 nodes — `{ ["sss" + 3]: x }` is valid JS, the key is a computed expression
@@ -772,6 +782,10 @@ handed to the `Function` constructor can contain any key node, and "the FJS
 compiler would never emit that" is not an admissible reason to narrow what
 validation accepts (subject 1). Entry forms belong to the object constructor
 rather than to the general expression vocabulary.
+
+*Revised: the entries are one operand, an array, not spread across the
+tuple* — the schema cannot express the flat spelling and the nested form is
+what shipped; see the note under the structural-operations table.
 
 *Revised: validation does not restrict the key to a string constant.* An
 earlier draft of this resolution stated "current validation nevertheless
@@ -787,7 +801,7 @@ perfectly well-formed EDAGs.
 
 History: this subject previously represented an object constructor as a
 plain EDAG object and rejected duplicate keys during validation. The revised
-representation uses the tagged `["{}", ...entries]` operation, reserves plain
+representation uses the tagged `["{}", [...entries]]` operation, reserves plain
 objects for future use, and keeps duplicate entries so construction can follow
 JavaScript overwrite semantics and later support computed keys.
 
@@ -883,8 +897,8 @@ the FJS compiler would never emit. To validate:
   from another operand of the same `","` is redundant (well-formedness,
   subject 8);
 - unknown command tags: validation error;
-- object constructors: every `["{}", ...]` operand must be a recognized
-  entry form; `[":", key, value]` admits any node in `key`, not just a
+- object constructors: every element of a `["{}"]` node's entry array must be
+  a recognized entry form; `[":", key, value]` admits any node in `key`, not just a
   string constant (subject 4). Duplicate property keys/entries are valid and are
   applied in order (subject 4). Entry descriptor containers are structural
   and never independently evaluated, so their identity is not checked —
