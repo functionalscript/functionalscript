@@ -5,7 +5,7 @@
  */
 
 import type { Effect, Operation } from '../effects/types.ts'
-import type { IoChannel, SandboxResult } from '../effects/node/types.ts'
+import type { IoChannel, OpResult, SandboxResult } from '../effects/node/types.ts'
 
 /** A zero-argument test function whose return value may contain sub-tests. */
 export type TestFn = () => unknown
@@ -128,6 +128,21 @@ export type BrowserTestReport = {
 }
 
 /**
+ * The browser page's own reporting operation: the shared traversal hands it one
+ * leaf record, and the page's interpreter renders it and answers it back.
+ *
+ * It is an operation rather than a callback because the traversal is pure —
+ * rendering a row is a side effect, and the effect system is where those go.
+ * One operation for the whole event is enough: making each DOM detail its own
+ * operation would grow the browser's op-set without making the shared API any
+ * better.
+ *
+ * @internal
+ */
+export type _BrowserReport =
+    readonly['report', (r: _BrowserTestResult) => OpResult<_BrowserTestResult>]
+
+/**
  * Loads one proof module by its source path for the browser runner.
  *
  * @internal
@@ -178,7 +193,7 @@ export type RunTotals = {
  * tail that reports it — free of a parameter every caller would have to thread
  * through unchanged.
  */
-export type Reporter<O extends Operation> = {
+export type Reporter<O extends Operation, R = void> = {
     /**
      * A leaf landed. The first argument is the shared {@link TestResult} — the
      * runner builds it with `testResult` before notifying, so a reporter
@@ -186,11 +201,36 @@ export type Reporter<O extends Operation> = {
      * The raw `SandboxResult` and the throw expectation travel with it because
      * describing a *thrown value* is each host's part (see {@link TestResult}),
      * and the description needs the value.
+     *
+     * **It answers `R`, the host's own record of the leaf**, and the traversal
+     * keeps those in {@link RunOutcome}. That is how a host gets its results in
+     * *structural* order — a parent before the children its return value
+     * produced, siblings in declaration order — rather than in the order they
+     * happened to finish. The distinction is not academic: leaves run
+     * concurrently, so completion order belongs to the scheduler, and a report
+     * built from it would be pinning an engine's behaviour rather than the
+     * suite's.
+     *
+     * `fjs t` answers `void`, having already written its line by the time it
+     * returns; the browser answers the record its wire report is built from.
      */
-    readonly result: (t: TestResult, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void, IoChannel>
+    readonly result: (t: TestResult, r: SandboxResult<unknown>, throws: boolean) => Effect<O, R, IoChannel>
     /** The run ended, with the totals folded from every leaf that landed. */
     readonly summary: (totals: RunTotals) => Effect<O, void, IoChannel>
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>, IoChannel>
+}
+
+/**
+ * What a run produced: its folded {@link RunTotals}, and every leaf record the
+ * reporter answered, in the traversal's own order.
+ *
+ * The two are not redundant. The totals are a fold and cannot be rebuilt from a
+ * list a host chose to leave empty (`fjs t` collects `void`), and the list is
+ * ordered by the walk rather than by when each leaf settled.
+ */
+export type RunOutcome<R> = {
+    readonly totals: RunTotals
+    readonly results: readonly R[]
 }
 
 /** @internal */

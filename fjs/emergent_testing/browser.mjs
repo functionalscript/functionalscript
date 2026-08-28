@@ -15,12 +15,16 @@
  *
  * @module
  *
- * @import { BrowserTestReport, TestResult, _BrowserImporter, _BrowserTestResult, _TestAndPath } from './types.ts'
+ * @import { BrowserTestReport, Reporter, TestResult, _BrowserImporter, _BrowserReport, _BrowserTestResult } from './types.ts'
+ * @import { Func } from '../effects/types.ts'
+ * @import { Sandbox, SandboxResult } from '../effects/node/types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
 
-import { addResult, collectTests, testResult, zeroTotals } from './module.f.mjs'
-import { error as errorResult, invert, ok } from '../types/result/module.f.mjs'
+import { addResult, collectTests, defaultTest, runModuleMap, zeroTotals } from './module.f.mjs'
+import { browserRun } from '../effects/browser/module.mjs'
+import { do_, pureOk } from '../effects/module.f.mjs'
+import { ok } from '../types/result/module.f.mjs'
 
 /** @type {(value: unknown) => string} */
 const text = value => {
@@ -79,110 +83,51 @@ const moduleFailure = (source, duration, message, stack) => ({
     module: source, path: '', name: source, status: 'failed', duration, message, stack,
 })
 
-/** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
-const runOne = (module, path, throws, fn, result) => {
-    const start = performance.now()
-    // The throw expectation is applied with the same `invert` the console
-    // runner's `defaultTest` uses, and the status is then read off the result by
-    // the same `testResult`. Both runners therefore answer "did this leaf pass"
-    // in one place — the rule that used to be spelled out at four sites here and
-    // once again over there.
-    /** @type {(o: Result<unknown, unknown>, duration: number) => TestResult} */
-    const leaf = (o, duration) =>
-        testResult(module, path, { result: throws ? invert(o) : o, duration })
-    /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
-    const passed = value => {
-            const duration = performance.now() - start
-            if (throws) {
-                const failure = { ...leaf(ok(value), duration),
-                    message: 'Expected the proof to throw', stack: '' }
-                result(failure)
-                return [failure]
-            }
-            // Reading the returned tree runs user code: an enumerable getter
-            // or a proxy trap can throw. That is a failure of the test that
-            // produced the value, never of the run — a rejected run leaves the
-            // page in `running` with no report and no completion event.
-            /** @type {readonly _TestAndPath[]} */
-            let children
-            try {
-                children = collectTests([...path, null], false, value)
-            } catch (error) {
-                return failed(error)
-            }
-            return Promise.all(children.map(([childPath, child]) =>
-                runOne(module, childPath, child.throws, child.fn, result)
-            )).then(results => {
-                const success = leaf(ok(value), duration)
-                result(success)
-                return [success, ...results.flat()]
-            })
-        }
-    /** @type {(error: unknown) => readonly _BrowserTestResult[]} */
-    const failed = error => {
-            const duration = performance.now() - start
-            if (throws) {
-                const success = leaf(errorResult(error), duration)
-                result(success)
-                return [success]
-            }
-            const [message, stack] = errorDetails(error)
-            const failure = { ...leaf(errorResult(error), duration), message, stack }
-            result(failure)
-            return [failure]
-        }
-    // `instanceof Promise`, then `await` — the whole of `fjs t`'s promise
-    // handling, spelled the same way here.
-    //
-    // It is deliberately not more than that. A promise can replace its own
-    // `then`, present a `constructor` that is not the intrinsic `Promise`, or
-    // carry a `Symbol.species` that fails, and each of those defeats `await` in
-    // a different way. Defending against them takes about 150 lines, none of
-    // which authored FunctionalScript can reach: it has no `Promise`, no
-    // `class`, no `Proxy` and no `Symbol`. `todo/imports-promises-realms.md`
-    // records each case, what the deleted machinery did about it, and what a
-    // runner does without it — to be implemented when an input that needs it
-    // actually exists.
-    //
-    // The value is wrapped in a tuple first so that resolving it cannot
-    // assimilate a proof tree carrying a `then` key: such a tree is a sub-tree
-    // with a test called `then` in it, in both runners.
-    //
-    // What makes this enough is the `await` above, not an assumption about the
-    // values that reach it. FunctionalScript as specified has no promises, and
-    // the browser suite selects `.f.mjs` — but that selection is by filename
-    // with no content check (`website/browser-prepare.mjs`), so a module that
-    // does not conform is still loaded and can return one. The handling here is
-    // correct either way. See `todo/imports-promises-realms.md` for the
-    // machinery this replaces and the measurements behind removing it.
-    /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
-    const settled = async value => {
-        // Even the brand check runs user code: `instanceof` consults
-        // `getPrototypeOf`, which a proxy can trap and a revoked one always
-        // throws from. `fjs t` performs this check inside `sandbox`'s
-        // `try`/`catch`, so it reports such a value as its test's failure; this
-        // handler has no enclosing `try`, so without one here the whole run
-        // rejects and the page never leaves `running`.
-        let isPromise = false
-        try {
-            isPromise = value instanceof Promise
-        } catch (error) {
-            return failed(error)
-        }
-        if (!isPromise) { return passed(value) }
-        /** @type {readonly [unknown]} */
-        let resolved
-        // Only the `await` is guarded. A throw from `passed` is the traversal's
-        // own and has its own handling; catching it here would report a broken
-        // proof tree as a rejected promise.
-        try {
-            resolved = [await value]
-        } catch (error) {
-            return failed(error)
-        }
-        return passed(resolved[0])
+/**
+ * The `report` operation's constructor: hand one leaf record to the page.
+ *
+ * @type {Func<_BrowserReport>}
+ */
+const report = do_('report')
+
+/**
+ * The page's leaf record, built from what the shared traversal decided.
+ *
+ * `t` arrives already decided — identity, status and duration all come from
+ * `testResult` inside the traversal — so the only thing left here is the part
+ * `TestResult` deliberately leaves to each host: how to *describe* a failure.
+ * A passing leaf needs no description; a failing one is described from the
+ * value, except for the one case a value cannot describe, where a proof marked
+ * `throw` returned instead of throwing and the failure is the absence of a
+ * throw rather than anything thrown.
+ *
+ * @type {(t: TestResult, r: SandboxResult<unknown>, throws: boolean) => _BrowserTestResult}
+ */
+const browserResult = (t, r, throws) => {
+    if (t.status === 'passed') { return t }
+    if (throws) {
+        return { ...t, message: 'Expected the proof to throw', stack: '' }
     }
-    return Promise.resolve().then(() => [fn()]).then(([value]) => settled(value), failed)
+    const [message, stack] = errorDetails(r.result[1])
+    return { ...t, message, stack }
+}
+
+/**
+ * The page's half of the shared runner.
+ *
+ * `test` is `defaultTest` — the same sandboxing and the same `invert` `fjs t`
+ * uses — so "did this leaf pass" is not decided here at all. `result` builds
+ * the page's record and hands it to the `report` operation, whose value the
+ * traversal keeps in structural order. `summary` has nothing to do: the page
+ * renders its report from the outcome it is handed, rather than from an event
+ * telling it the run ended.
+ *
+ * @type {Reporter<Sandbox | _BrowserReport, _BrowserTestResult>}
+ */
+const browserReporter = {
+    test: defaultTest,
+    result: (t, r, throws) => report(browserResult(t, r, throws)),
+    summary: () => pureOk(undefined),
 }
 
 /**
@@ -231,36 +176,64 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             // The result stays in the report the run resolves with.
         }
     }
-    /** @type {(module: string, error: unknown) => () => Promise<readonly _BrowserTestResult[]>} */
-    const unreadable = (module, error) => () => {
-        const [message, stack] = errorDetails(error)
-        const failure = moduleFailure(module, 0, message, stack)
-        announce(failure)
-        return Promise.resolve([failure])
-    }
-    const tests = modules.flatMap(([module, proof]) => {
-        // Reading an exported tree runs user code just as reading a returned
-        // one does. A module that cannot be enumerated is one failed module,
-        // never a run that ends without a report.
+    // Reading a module's exported tree runs user code, and the shared traversal
+    // deliberately does not guard that one: there is no leaf to attribute it
+    // to, so `fjs t` panics and the page does this instead. A module that
+    // cannot be enumerated is one failed module, never a run that ends without
+    // a report. See `todo/hostile-proof-values.md`.
+    /** @type {readonly (readonly [string, unknown] | _BrowserTestResult)[]} */
+    const prepared = modules.map(([module, proof]) => {
         try {
-            return collectTests([], false, proof).map(([path, entry]) =>
-                () => runOne(module, path, entry.throws, entry.fn, announce)
-            )
+            collectTests([], false, proof)
+            return /** @type {const} */ ([module, proof])
         } catch (error) {
-            return [unreadable(module, error)]
+            const [message, stack] = errorDetails(error)
+            return moduleFailure(module, 0, message, stack)
         }
     })
-    const batchSize = 25
-    /** @type {(index: number, results: readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]>} */
-    const runBatch = (index, results) => {
-        const batch = tests.slice(index, index + batchSize)
-        if (batch.length === 0) { return Promise.resolve(results) }
-        return Promise.all(batch.map(test => test())).then(next =>
-            new Promise(resolve => setTimeout(resolve, 0, [...results, ...next.flat()]))
-        ).then(next => runBatch(index + batchSize, next))
-    }
-    const completed = runBatch(0, [])
-    return completed.then(results => reportOf(performance.now() - start, results))
+    /** @type {Record<string, { readonly proof: unknown }>} */
+    const moduleMap = Object.fromEntries(prepared.flatMap(
+        e => e instanceof Array ? [[e[0], { proof: e[1] }]] : []))
+    const run = browserRun(/** @type {any} */ ({
+        // The page's end of the `report` operation: render as it lands, and
+        // answer the record back so the traversal can keep it in order.
+        report: async (/** @type {_BrowserTestResult} */ r) => {
+            announce(r)
+            return ok(r)
+        },
+    }))
+    return run(runModuleMap(browserReporter)(moduleMap)).then(answer => {
+        /** @type {Result<{ readonly results: readonly _BrowserTestResult[] }, unknown>} */
+        const outcome = /** @type {any} */ (answer)
+        // A failure here is the *runner* failing, not a proof: the traversal
+        // answers `ok` for every proof outcome, so the error channel carries
+        // only a dispatch failure — an operation this interpreter does not
+        // implement. Reporting it as the run's own failure keeps the page out
+        // of `running` forever, which is the one outcome a page must never
+        // reach.
+        if (outcome[0] === 'error') {
+            const [message, stack] = errorDetails(outcome[1])
+            const failure = moduleFailure('', performance.now() - start, message, stack)
+            announce(failure)
+            return reportOf(performance.now() - start, [failure], 'infrastructure-error')
+        }
+        // Each module's leaf records, back in the order the page was given its
+        // modules: a module that failed to enumerate contributes its own
+        // failure at the position it was passed in, and a readable one
+        // contributes what the traversal produced for it.
+        const byModule = new Map()
+        for (const r of outcome[1].results) {
+            const list = byModule.get(r.module)
+            if (list === undefined) { byModule.set(r.module, [r]) } else { list.push(r) }
+        }
+        const results = prepared.flatMap(e =>
+            e instanceof Array ? byModule.get(e[0]) ?? [] : [e])
+        // A module failure never reaches `report`, so it is announced here.
+        for (const e of prepared) {
+            if (!(e instanceof Array)) { announce(e) }
+        }
+        return reportOf(performance.now() - start, results)
+    })
 }
 
 /** @type {(root: Element) => (Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }) | null} */

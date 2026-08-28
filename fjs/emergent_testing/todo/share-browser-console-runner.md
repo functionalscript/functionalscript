@@ -125,10 +125,22 @@ and is reviewable without the next one.
       in [imports, promises and realms](imports-promises-realms.md); the scope
       rule they rest on is in [browser testing](browser-testing.md).
 
-- [ ] **4. Common effects.** Move the host-independent operations (`all`,
-      `await`, `sandbox`, and whichever of `now`, `fetch` and `import` survive
-      the test below) out of `effects/node` into a shared module that
-      `effects/node` re-exports unchanged, so nothing has to move with them.
+- [ ] **4. Common effects.** Move `all`, `sandbox` and `catch` out of
+      `effects/node` into a shared module that `effects/node` re-exports
+      unchanged, so nothing has to move with them.
+
+      **The list is now settled, by measurement rather than by argument.**
+      Step 5's interpreter implements exactly those three, so exactly those
+      three have a second implementer. `await` does not: it belongs to the
+      *registration* path that external frameworks drive, which no browser
+      runs. `import` does not: a page loads modules through its own importer.
+      `now` does not: a browser run measures its own wall clock rather than
+      dispatching an operation for it. `fetch` does not: nothing in the shared
+      runner performs one. Those four stay in `effects/node` until something
+      gives them a second implementer, which is the same rule that let this
+      list shrink rather than a different one applied to them.
+      [node-module-layering](../../effects/todo/node-module-layering.md)
+      carries the same answer.
 
       **Three of that list are unsettled, and this step does not get to assume
       them.** `all`, `await` and `sandbox` are agreed:
@@ -175,21 +187,12 @@ and is reviewable without the next one.
       and this took it. `fjs t` gained the behaviour in the process, which is
       what made that change worth landing on its own rather than inside the port.
 
-- [ ] **5. A browser interpreter** for exactly those operations, with no
-      scheduling policy of its own. This is also what earns step 4's *operation*
-      move its second consumer: until a second host implements `sandbox`,
-      `await` and `all`, moving them out of `effects/node` makes nothing shorter
-      or clearer, and DESIGN.md §4 says to extract at the second real consumer
-      rather than before it. The two are therefore one design in two commits,
-      not one step deferred.
-
-      **Its operation set is also the ruling** on `now`, `fetch` and `import`,
-      which step 4 and
-      [node-module-layering](../../effects/todo/node-module-layering.md)
-      currently disagree about. What this interpreter implements is what has a
-      second consumer; what it does not implement stays in `effects/node` until
-      something needs it. Write the answer into both files in this step's own
-      change, so neither is left asserting what the other denies.
+- [x] **5. A browser interpreter** for exactly those operations, with no
+      scheduling policy of its own. `fjs/effects/browser/module.mjs`:
+      `sandbox`, `catch`, `all`, plus whatever operations the application adds
+      — for the page, one `report`. `sandbox` is `effects/node`'s, copied
+      rather than redesigned, because two runners that disagreed about an
+      awaited leaf would not be one runner.
 - [x] **6. One reporter.** The event stream — a leaf landed, a run ended —
       that both hosts subscribe to. Step 2 gave them the *value*; this gave
       them the seam it travels through. `Reporter.result` now receives the
@@ -207,12 +210,32 @@ and is reviewable without the next one.
       fold's summed durations, because its leaves run concurrently and the sum
       only means "how long the run took" for a sequential runner —
       `RunTotals` documents that.
-- [ ] **7. One skeleton.** The page's proof-tree walk is deleted and the shared
-      traversal runs it. The walk's `batchSize = 25` batching goes onto the
-      table with it: that is a scheduling policy of the page's own — the same
-      kind the reverted attempt was faulted for inventing, though this one
-      predates it in `browser.mjs` — and step 7 is where it gets decided
-      rather than silently inherited.
+- [x] **7. One skeleton.** The page's proof-tree walk is deleted and the shared
+      traversal runs it. `browser.mjs` no longer discovers leaves, applies the
+      throw expectation, walks return values or counts anything: it supplies a
+      `Reporter` and an interpreter, and the traversal does the rest.
+
+      **The batching went with it**, as this file said it should be decided
+      rather than inherited: `batchSize = 25` and its `setTimeout` yield are
+      gone, and the browser now schedules exactly as `fjs t` does. Nothing
+      asked for the batching, no measurement motivated the constant, and it was
+      the origin of six rounds of review in the reverted attempt.
+
+      **What the skeleton had to grow**, rather than what the browser had to
+      keep: the traversal now threads a `RunOutcome<R>` — the folded totals
+      plus each host's own leaf records, in the walk's order. The browser needs
+      its report's `results` ordered by structure, and taking them in
+      completion order would have pinned the scheduler's behaviour instead of
+      the suite's. `fjs t` answers `void` there and collects nothing, which is
+      the extension point doing its job.
+
+      **What stayed the page's own, with the reason:** reading a *module's*
+      exported tree. The shared walk guards a returned tree through `catch`
+      (see [hostile proof values](hostile-proof-values.md)) but deliberately
+      not the exported one, because there is no leaf to attribute that failure
+      to. `fjs t` panics; the page catches it and reports one failed module.
+      That asymmetry predates this step and survives it.
+
 - [ ] **8. The layout move**, and the website preparation program.
 
 Steps 3 and 7 are the ones that change behaviour, so they are the ones to keep

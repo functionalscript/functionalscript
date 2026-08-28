@@ -55,7 +55,7 @@ provides*. Proposed destinations:
 | `fjs/effects/console/module.f.mjs` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/test/module.f.mjs` | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
 | stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Forever`, `RandomInt`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
-| unsettled | `Now`, `Fetch`, `Import` — this issue and share-browser-console-runner's step 4 disagree; step 5 decides (see the judgement call below) |
+| stays, now settled | `Now`, `Fetch`, `Import` — the browser interpreter implements none of them, so none has a second implementer (see the judgement call below) |
 | already moved to `fjs/effects` | `OpResult`, `IoChannel`, `IoError`, `IoErrorInfo`, `IoResult`, `ioError`, `toIoError` — the vocabulary every operation is declared in; `effects/node` re-exports them (see the judgement call below) |
 
 `NodeOp` stays where it is and keeps unioning every family — it is the
@@ -69,23 +69,30 @@ Judgement calls worth deciding explicitly rather than by accident:
 - **`RandomInt` stays.** An ambient host capability with no cross-runtime
   abstraction to gain and no consumer outside `fjs/cas` and the interpreters.
   Moving it would be motion without a reader benefit.
-- **`Now`, `Fetch` and `Import` are unsettled, and step 5 of
+- **`Now`, `Fetch` and `Import` stay, and this was settled by building the
+  browser interpreter rather than by arguing.** This issue and
   [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
-  decides them.** This issue put all three in the "stays" row on the reader-benefit
-  argument above; that issue's step 4 lists `now`, `fetch` and `import` among the
-  operations to move. Both were written without the fact that settles it — **which
-  operations a browser interpreter actually implements** — so neither ruling is
-  authoritative and the disagreement is recorded here rather than resolved by
-  whichever file a later reader opens first.
+  step 4 disagreed: this file put all three in "stays" on the reader-benefit
+  argument, that one listed them among the operations to move. Neither was
+  written knowing the fact that decides it — which operations a browser
+  interpreter actually implements — so both recorded the disagreement and left
+  it to step 5.
 
-  The test to apply is the one `isNotFound` failed: not "does a browser also
-  have one of these", but "is this operation about no host in particular". By
-  that test `now` and `import` look likely to move — a browser proof run needs a
-  clock and dynamic import, so step 5 gives them a second implementer — and
-  `fetch` looks likely to stay, since nothing in the shared runner performs one
-  and DESIGN.md §4 extracts at the second *real* consumer, not the second
-  possible one. Those are expectations, not rulings: whichever way step 5 goes,
-  it updates both files in the same change.
+  Step 5's answer is `sandbox`, `catch` and `all`, and nothing else.
+  `fjs/effects/browser/module.mjs` implements those three because the shared
+  proof traversal performs those three; a page loads its modules through its
+  own importer rather than an `import` operation, measures its own wall clock
+  rather than dispatching `now`, and performs no `fetch` at all. So none of the
+  three gained a second implementer, and DESIGN.md §4 keeps them here until one
+  does.
+
+  Worth recording, because the earlier expectation written here was wrong about
+  two of them: "a browser proof run needs a clock and dynamic import" is true of
+  the *page* and false of the *effect set* — the page does both directly, in the
+  impure shell where host values belong, which is exactly the boundary this
+  whole exercise is drawing. Reasoning from what a host can do predicted the
+  wrong answer; reading what the interpreter had to implement gave the right
+  one.
 - **`isNotFound` stays, and this was tested.** It encodes `ENOENT`
   specifically — a POSIX filesystem code that a host without a filesystem never
   reports — so it *is* a Node-layer concern. A change that moved it to the core
