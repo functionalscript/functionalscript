@@ -17,15 +17,18 @@ import { do_ } from '../module.f.mjs'
 const run = browserRun({})
 
 /**
- * The value a run answered, or the run's own failure as a panic — the runner
- * answers `ok` for every one of these, so an `error` here is the proof
- * failing.
+ * The value a run answered. The runner answers `ok` for every one of these, so
+ * an `error` here is the proof failing — asserted through the shared helper,
+ * whose own branches are covered, rather than through a local `if`.
  *
- * @type {<T, E>(r: Result<T, E>) => T}
+ * @template T
+ * @template E
+ * @param {Result<T, E>} r
+ * @returns {T}
  */
 const okValue = r => {
-    if (r[0] !== 'ok') { throw r[1] }
-    return r[1]
+    assertEq(r[0], 'ok', r)
+    return /** @type {T} */ (r[1])
 }
 
 export const proof = {
