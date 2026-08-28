@@ -215,6 +215,23 @@ const constContainerValidate =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
+            // Bound the container before reading any member: a value the
+            // schema cannot fit is rejected whatever its members hold, so
+            // walking them first only decides *which* error to report. The
+            // same check is re-asked below, after the reads, so a value that
+            // changes under them is still caught — this only ever rejects
+            // earlier, never accepts more.
+            //
+            // It is load-bearing for an `or` of two arities, the shape a
+            // schema uses to say a trailing operand may be left out
+            // (`fjs/edag`'s chain nodes). Without it each arm walks the
+            // shared operands before failing on length, so validating a
+            // nested chain costs 2^depth; with it the arm is decided before
+            // any recursion. `parse` gates identically, which is what keeps
+            // the two readers reporting the same error.
+            if (!fits(value, declared.length)) {
+                return verror('unexpected value')
+            }
             const r = eachEntry(
                 rttiEntries,
                 (k, v) => {

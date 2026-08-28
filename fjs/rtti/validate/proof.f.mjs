@@ -861,6 +861,22 @@ export const proof = {
             assertOk(read([/** @type {const} */ (42)])([42]))
         }
     },
+    // A value the schema cannot fit is answered by its **shape**, before any
+    // member is read: both readers report the container-level error rather
+    // than the first bad member, and they report it identically. That
+    // precedence is what lets a container be bounded before recursing, which
+    // an `or` of two arities needs — see the comment on the gate in
+    // `./module.f.mjs`. Acceptance is untouched: the same check is re-asked
+    // after the reads, so the gate only ever rejects earlier.
+    structuralMismatchIsAnsweredFirst: () => {
+        const t = /** @type {const} */ ([42])
+        // too long *and* wrong at index 0 — the length is what answers
+        for (const read of [v, p]) { assertErrorPath([])(read(t)([43, 'extra'])) }
+        // a member error alone still reports the member
+        for (const read of [v, p]) { assertErrorPath(['0'])(read(t)([43])) }
+        // and a value that fits is read as before
+        for (const read of [v, p, d]) { assertOk(read(t)([42])) }
+    },
     // The walk is bounded by what the value and its prototypes carry rather
     // than by `length`: a sparse array as long as the index space allows
     // answers at once, where materializing the range exhausted memory first.
