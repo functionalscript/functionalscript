@@ -94,13 +94,20 @@ adopting a `then`, and a proof tree refusing to — which are studied together i
 
 ### Tasks
 
-- [ ] Add the `catch` operation, its constructor, and a handler in each of the
-      Node, browser and virtual runners.
-- [ ] Read sub-trees through it in `walk`, reporting an unreadable tree as one
-      failed result at its path rather than a panic.
-- [ ] Prove an unreadable exported tree and an unreadable returned tree, for
-      `fjs t` as well as the browser — the browser has versions of these today
-      and `fjs t` has none.
+- [x] Add the `catch` operation, its constructor, and a handler in the Node and
+      virtual runners. The browser handler waits for the browser interpreter,
+      which is where a browser runner will first dispatch one.
+- [x] Read the *returned* sub-tree through it in `walk`, reporting an unreadable
+      tree as that leaf's failure rather than a panic.
+- [ ] The **exported** tree is still read unguarded, and deliberately: there is
+      no leaf to attribute it to, so an unreadable `proof` export belongs to
+      whatever loaded the module. `fjs t` still panics on one; the browser page
+      still catches it and reports one failed module. Closing *that* asymmetry
+      is a report-shape question (what a non-leaf failure is called) rather than
+      a missing operation, and it is the part of this issue still open.
+- [x] Prove an unreadable returned tree for `fjs t` — `returnedTreeThrows` in
+      `../proof.f.mjs`, which needs a runner with a real `try`, so it drives
+      `runModuleMap` through a mock rather than through the virtual runner.
 - [ ] Read a thrown value through it at `errorDetails`' call site.
 
 ### Constraints

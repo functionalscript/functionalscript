@@ -296,6 +296,29 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxRes
  */
 export type Await = readonly['await', (p: unknown) => OpResult<readonly[unknown]>]
 
+// catch
+
+/**
+ * Runs a pure thunk and answers what it did: its value, or the value it threw.
+ *
+ * It sits beside {@link Sandbox} and is deliberately *not* it. `sandbox` carries
+ * a clock and, in the virtual runner, a fixture convention — its handler is a
+ * pass-through whose thunk is expected to answer a {@link SandboxResult}
+ * directly, because `../virtual` is `.f.mjs` and FunctionalScript has no
+ * `try`/`catch` to implement a real one with. Routing a tree walk through
+ * `sandbox` would hand that handler a thunk answering something else entirely.
+ *
+ * This one carries neither, so every runner implements it truthfully: the real
+ * Node runner and a browser interpreter with `tryCatch`, and the virtual runner
+ * with `ok(ok(f()))` — a pure runner still cannot catch, so a hostile fixture
+ * still panics there, which is the same bargain `sandbox` already makes.
+ *
+ * It exists because reading a *user* value is an operation, not pure logic: the
+ * proof traversal enumerates values a test returned, and an enumerable getter or
+ * a proxy trap in one of them is a failure of that test rather than of the run.
+ */
+export type Catch = readonly['catch', <T>(f: () => T) => OpResult<Result<T, unknown>>]
+
 // Test registration
 
 /**
@@ -336,6 +359,7 @@ export type NodeOp =
     | Access
     | All
     | Await
+    | Catch
     | Fetch
     | Fs
     | Http

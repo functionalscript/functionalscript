@@ -4,8 +4,9 @@
  * @import { NodeProgramOptions, OpResult, Sandbox, Write } from '../effects/node/types.ts'
  * @import { JsModule } from '../effects/node/virtual/types.ts'
  * @import { Reporter } from './types.ts'
- * @import { All, Await, Import, Readdir, Test, TestContext } from '../effects/node/types.ts'
+ * @import { All, Await, Catch, Import, Readdir, Test, TestContext } from '../effects/node/types.ts'
  * @import { Ts } from '../rtti/ts/types.ts'
+ * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
@@ -14,12 +15,13 @@ import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import {
     testAll, fmtPath, fmtImport, ghEscape, isInteger, isIdentifier,
-    registerModule, parseTestSet,
+    registerModule, parseTestSet, runModuleMap,
     addResult, defaultTest, main, register, testResult, zeroTotals,
 } from './module.f.mjs'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
 import { shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
+import { utf8ToString } from '../text/module.f.mjs'
 import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.mjs'
@@ -309,7 +311,7 @@ export const githubReporterOutput = () => {
 // the failure on, so the exit code rather than a message is what is observable:
 // a run that cannot say anything at all still says it failed.
 export const reporterWriteFailure = () => {
-    /** @typedef {All | Import | Readdir | Sandbox | Write} _FailOps */
+    /** @typedef {All | Catch | Import | Readdir | Sandbox | Write} _FailOps */
     /** @type {RunInstance<_FailOps, undefined>} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_FailOps, undefined>>[0]} */ ({
@@ -327,6 +329,10 @@ export const reporterWriteFailure = () => {
         },
         sandbox: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) =>
             [s, ok({ result: ok(f()), duration: 0 })],
+        // Benign, like the virtual runner's: this proof is about a reporter
+        // that cannot write, and its fixture's tree reads cleanly.
+        catch: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) =>
+            [s, ok(ok(f()))],
         write: (_stream, _data) => s => [s, error(['notImplemented', 'write'])],
     }))
     const [, code] = runner(undefined)(
@@ -616,6 +622,70 @@ export const helpers = {
     },
 }
 
+// A leaf whose returned tree cannot be enumerated is that leaf's failure, not
+// the run's. Before the `catch` operation existed the throw escaped the
+// traversal and took the whole run down — including the modules that had
+// already passed and would never be reported. The real runner is used rather
+// than the virtual one on purpose: the virtual `catch` cannot catch (it is
+// `.f.mjs`), so only a runner with a real `try` can show this.
+const returnedTreeThrows = () => {
+    /** @type {Reporter<Sandbox | Write>} */
+    const reporter = {
+        result: (t, _r, _throws) => log(`${t.path}:${t.status}`),
+        summary: ({ passed, failed }) => log(`summary:${passed}:${failed}`),
+        test: defaultTest,
+    }
+    const hostile = {
+        good: () => 1,
+        // Enumerating the returned value runs this getter.
+        bad: () => ({ get boom() { throw new Error('trap') } }),
+    }
+    /** @type {string[]} */
+    const lines = []
+    /** @type {RunInstance<All | Catch | Sandbox | Write, undefined>} */
+    let runner
+    runner = mockRun(/** @type {Parameters<typeof mockRun<All | Catch | Sandbox | Write, undefined>>[0]} */ ({
+        all: (...effects) => s => {
+            const [st, rs] = effects.reduce(
+                ([st1, rs1], e) => {
+                    const [ns, r] = runner(st1)(e)
+                    return [ns, [...rs1, r]]
+                },
+                /** @type {readonly [undefined, readonly unknown[]]} */([s, []]),
+            )
+            return [st, ok(rs)]
+        },
+        // The two handlers this proof turns on: a real sandbox and a real
+        // catch, which is what a `.mjs` runner can offer and `.f.mjs` cannot.
+        sandbox: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) => {
+            try {
+                return [s, ok({ result: ok(f()), duration: 0 })]
+            } catch (e) {
+                return [s, ok({ result: error(e), duration: 0 })]
+            }
+        },
+        catch: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) => {
+            try {
+                return [s, ok(ok(f()))]
+            } catch (e) {
+                return [s, ok(error(e))]
+            }
+        },
+        write: (_stream, /** @type {Vec} */ data) => s => {
+            lines.push(utf8ToString(data))
+            return [s, ok(undefined)]
+        },
+    }))
+    runner(undefined)(runModuleMap(reporter)({ './h.proof.f.mjs': { proof: hostile } }))
+    const text = lines.join('')
+    // The hostile leaf is reported as failed, by its own path...
+    assert(text.includes('.bad:failed'), text)
+    // ...and the leaf beside it still ran and was still reported, which is the
+    // whole point: one bad value no longer costs the rest of the suite.
+    assert(text.includes('.good:passed'), text)
+    assert(text.includes('summary:1:1'), text)
+}
+
 // a passing throw-test emits '# EXPECTED TO THROW' in its output line
 const defaultReporterExpectedToThrow = () => {
     // fail0 returns a SandboxResult indicating an error; in a throw context
@@ -709,5 +779,6 @@ export const proof = {
     registerEmptyModuleMap,
     registerSelectsContextAndStar,
     defaultReporterExpectedToThrow,
+    returnedTreeThrows,
     helpers
 }
