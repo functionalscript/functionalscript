@@ -515,6 +515,27 @@ export const proof = {
         assert(again[0] === 'error', again)
         assertIoCode(again[1], 'EEXIST')
     },
+    // An entry genuinely named `__proto__` is not what the guard refuses, and
+    // a fixture writes one with a **computed key** — the spelling that makes an
+    // own property. `{ '__proto__': e }` sets the prototype instead, which is
+    // why FunctionalScript's own parser refuses that form (`protoKey` in
+    // `../../../djs/parser/proof.f.mjs`); it was never a working fixture here
+    // either, since `readdir` walks own entries and would have listed the
+    // directory as empty.
+    protoKeyFixture: () => {
+        /** @type {Dir} */
+        const root = { ['__proto__']: [utf8('hi')] }
+        const [, s] = virtual({ ...emptyState, root })(stat('__proto__'))
+        assert(s[0] === 'ok', s)
+        assertEq(s[1].isFile, true)
+        const [, f] = virtual({ ...emptyState, root })(readFile('__proto__'))
+        assert(f[0] === 'ok', f)
+        assertEq(utf8ToString(f[1]), 'hi')
+        // And the listing agrees, which is the half the refused spelling lost.
+        const [, d] = virtual({ ...emptyState, root })(readdir('.', {}))
+        assert(d[0] === 'ok', d)
+        assertEq(d[1].map(e => e.name).join(), '__proto__')
+    },
     // The writing half, which the reads above do not reach: one proof per
     // remaining lookup, so a regression confined to a single operation cannot
     // hide behind the shared helper.

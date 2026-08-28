@@ -72,6 +72,16 @@ const { hasOwn } = Object
  * An own name holding `undefined` is absent too — `Dir`'s values are optional,
  * and every operation here already reads `undefined` as "no entry".
  *
+ * **A fixture spells `__proto__` with a computed key**, `{ ['__proto__']: e }`,
+ * which is an own property. The plain and quoted forms — `{ __proto__: e }`,
+ * `{ '__proto__': e }` — set the *prototype* instead, so there is no entry for
+ * this to find. That is not a rule invented here: FunctionalScript's own parser
+ * refuses both spellings with `__proto__ requires the computed key form`
+ * (`../../../djs/parser/`), for this exact reason. The refused spelling was
+ * never a working fixture anyway — `readdir` walks `Object.entries`, which is
+ * own-only, so such a directory listed as empty while `stat` claimed the entry
+ * existed. Now every operation agrees it is absent.
+ *
  * @type {(dir: Dir, name: string) => _Entity | undefined}
  */
 const entryOf = (dir, name) => hasOwn(dir, name) ? dir[name] : undefined
