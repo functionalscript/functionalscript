@@ -6,9 +6,20 @@
 ### Problem
 
 `All` is declared variadic — `readonly['all', <T, E>(...effects: Effect<never, T, E>[]) => …]` — so
-every fan-out reaches it as a spread. `allOk(...entries.map(one))` in
-`emergent_testing/module.f.mjs` is one, `allOk(...modules.map(…))` beside it is another,
-and both are how a run of any size is built.
+every fan-out reaches it as a spread, and each one is a separate instance of the same
+ceiling. Every site in the repository today:
+
+| site | what it fans out |
+|-|-|
+| `emergent_testing/module.f.mjs` `walkEntries` | one module's sibling leaves |
+| `emergent_testing/module.f.mjs` `runModuleMap` | the modules of a run |
+| `emergent_testing/module.f.mjs` `registerModule` ×2, `registerModuleMap` | the same two, for the framework-registration path |
+| `emergent_testing/browser.mjs` `runBrowserProofs` | the page's module list |
+| `dev/module.f.mjs` ×2 | files to load, and their imports |
+
+They fail independently: a suite of a hundred thousand *modules* breaks the outer spread
+however few leaves each holds, and one module of a hundred thousand leaves breaks the inner
+one however few modules there are. A fix has to be the operation's, not a site's.
 
 A spread is a call, and a call has an argument limit. Measured on node 22:
 
@@ -66,7 +77,8 @@ list-shaped operation is worth having in the same change.
 ### Tasks
 
 - [ ] Decide the list-shaped `All` signature and whether a variadic wrapper stays.
-- [ ] Move every interpreter and fixture to it in one change.
+- [ ] Move every interpreter and fixture to it in one change, and every spread site in the
+      table above with them.
 - [ ] Prove a fan-out above the current ceiling — the number itself is engine-specific, so
       the proof asserts that a large fan-out completes rather than asserting the ceiling.
 
