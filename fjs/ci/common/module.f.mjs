@@ -30,8 +30,14 @@ export const stepSchema = /** @type {const} */ ({
     with: or(option, record(string))
 })
 
+// `needs` is how one job waits for another: a job that consumes an artifact
+// cannot start before the job that uploads it. It is optional because most jobs
+// are independent, and it is named here rather than emitted past the schema —
+// `parseGitHubAction` reads back the workflow this repository generates, so an
+// unmodelled key would fail that round-trip in `fjs/ci/proof.f.mjs`.
 export const jobSchema = /** @type {const} */ ({
     'runs-on': string,
+    needs: or(option, array(string)),
     steps: array(stepSchema)
 })
 

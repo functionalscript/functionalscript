@@ -1,12 +1,13 @@
 /**
  * @import { MetaStep, Os, GitHubAction } from './common/types.ts'
  * @import { Dir, State } from '../effects/node/virtual/types.ts'
+ * @import { Unknown } from '../djs/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main } from './module.f.mjs'
-import { functionalscript, node } from './config/module.f.mjs'
-import { nodeNixJobs } from './node/module.f.mjs'
+import { actions, functionalscript, node } from './config/module.f.mjs'
+import { major, nodeNixJobs, packageArtifact } from './node/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
@@ -220,5 +221,72 @@ export const proof = {
         const job = ubuntu([test({ run: 'echo hi' })])
         assert(job['runs-on'] !== undefined, 'expected runs-on')
         assert(job.steps.length > 0, 'expected steps')
+    },
+    packageArtifact: () => {
+        const gha = run(false)
+        const job = gha.jobs[`node${major(node.default)}`]
+        assert(job !== undefined, 'expected the canonical Node job')
+        const packIndex = job.steps.findIndex(step => step.run === 'npm pack')
+        const uploadIndex = job.steps.findIndex(
+            step => step.uses === `actions/upload-artifact@${actions['actions/upload-artifact']}`)
+        assert(packIndex !== -1, 'expected npm pack')
+        assert(uploadIndex !== -1, 'expected the artifact upload')
+        // Uploading before packing would ship an empty artifact, and the
+        // failure would then surface in the consuming job rather than here,
+        // where the cause is.
+        assert(uploadIndex > packIndex, 'expected the upload to follow npm pack')
+        const upload = job.steps[uploadIndex]?.with
+        // Producer and consumer share the exported name rather than repeating
+        // a string literal that can drift apart.
+        assertEq(upload?.name, packageArtifact)
+        // The glob has to match what `npm pack` writes. `if-no-files-found`
+        // catches a glob that matches *nothing*; a glob matching the *wrong*
+        // files would upload them quietly, so pin it.
+        assertEq(upload?.path, '*.tgz')
+        // The action's default is to warn and upload nothing, which would make
+        // a packing failure look like a consumer bug.
+        assertEq(upload?.['if-no-files-found'], 'error')
+        // One producer: a second upload under the same name is a race, not
+        // redundancy.
+        assertEq(
+            definedValues(gha.jobs).filter(j =>
+                j.steps.some(step => step.uses?.startsWith('actions/upload-artifact@') === true)).length,
+            1,
+            'expected exactly one job to upload the package')
+    },
+    jobNeeds: () => {
+        const steps = /** @type {const} */ ([{ run: 'echo hi' }])
+        /** @type {(jobs: Unknown) => Unknown} */
+        const action = jobs => ({
+            name: 'test',
+            on: {},
+            permissions: { contents: 'read' },
+            jobs,
+        })
+        // Modelled, so a job that waits for another survives the round-trip.
+        // Without this a consuming job could only reach the workflow by being
+        // emitted past the schema, which `parseGitHubAction` would then reject.
+        const ordered = unwrap(parseGitHubAction(action({
+            pack: { 'runs-on': 'ubuntu-latest', steps },
+            check: { 'runs-on': 'ubuntu-latest', needs: ['pack'], steps },
+        })))
+        assertEq(ordered.jobs.check?.needs?.[0], 'pack')
+        assertEq(ordered.jobs.check?.needs?.length, 1)
+        // Optional: the independent jobs, which is all of them today, still parse.
+        assertEq(unwrap(parseGitHubAction(action({
+            pack: { 'runs-on': 'ubuntu-latest', steps },
+        }))).jobs.pack?.needs, undefined)
+        // Constrained, not merely accepted. GitHub also allows a bare scalar
+        // (`needs: pack`); this generator emits the list form only, so the
+        // scalar is drift rather than an alternative spelling — the same reason
+        // these schemas are closed.
+        assertEq(parseGitHubAction(action({
+            check: { 'runs-on': 'ubuntu-latest', needs: 'pack', steps },
+        }))[0], 'error')
+        // Dormant until something orders itself: the first consumer is the
+        // packed-artifact check in `fjs/ci/todo/f-mjs-package-support.md`.
+        assert(
+            definedValues(run(false).jobs).every(job => job.needs === undefined),
+            'unexpected job ordering in the generated workflow')
     },
 }
