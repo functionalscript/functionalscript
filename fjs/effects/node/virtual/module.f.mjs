@@ -121,6 +121,10 @@ const mkdir = recursive => operation(mkdirOp(recursive))
 /** Absent-path error mirroring Node's `ENOENT`, so `isNotFound` recognizes it. */
 const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directory' }))
 
+/** What a POSIX host answers for a path that descends through a name which is
+ * not a directory — see {@link statPath}, its only source here. */
+const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
+
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<Vec>]} */
 const readFile = readOperation((dir, path) => {
     if (path.length !== 1) { return enoent }
@@ -326,11 +330,19 @@ const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
     return ok(result)
 })(path)
 
-/** What `stat` answers for a name that exists and is not a regular file.
+/** What `stat` answers for a name that exists and is neither a regular file nor
+ * a directory — this file system's `JsModule`, standing in for a host's FIFO,
+ * device or socket.
  *
  * @type {IoResult<FileStat>}
  */
-const notRegular = ok({ size: 0, isFile: false })
+const notRegular = ok({ size: 0, isFile: false, isDirectory: false })
+
+/** What `stat` answers for a directory.
+ *
+ * @type {IoResult<FileStat>}
+ */
+const directory = ok({ size: 0, isFile: false, isDirectory: true })
 
 /** Total byte size of a chunk-list file (each chunk is byte-aligned).
  *
@@ -383,23 +395,35 @@ const writeBytesOp = (path, offset, data) => operation(writeBytesRawOp(offset, d
  * file, and a caller's guard against reading one can only be exercised here if
  * this runner does the same.
  *
- * Two entries answer `isFile: false`. A `JsModule` is this file system's stand-in
- * for a name that exists and is not a file at all. A **directory** arrives as an
+ * Two entries answer `isFile: false`, and they are *not* the same answer. A
+ * `JsModule` is this file system's stand-in for a name that exists and is not a
+ * file at all, so both flags are false for it. A **directory** arrives as an
  * empty remaining path, because `operation` has already descended into it — the
- * one way to reach `statOp` with nothing left to look up — and that is what it
- * means, root included.
+ * one way to reach `statOp` with nothing left to look up — and answers
+ * `isDirectory: true`, root included.
+ *
+ * **A path that descends through a non-directory is `ENOTDIR`, not `ENOENT`.**
+ * `operation` stops descending at the first entry that is not a `Dir`, so more
+ * than one segment left over means the name before them exists and has nothing
+ * under it — which is what a POSIX host says with `ENOTDIR` where it says
+ * `ENOENT` for a name that is simply absent. Answering `ENOENT` for both made
+ * `stat('README.md/index.html')` indistinguishable from `stat('nope/index.html')`
+ * here while a host distinguishes them, so a caller's `ENOTDIR` branch could not
+ * be reached — let alone proven — against this runner. (Windows reports `ENOENT`
+ * for it, so this models POSIX; a caller that treats the two alike is right on
+ * both.)
  *
  * @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]}
  */
 const statPath = readOperation((dir, path) => {
-    if (path.length === 0) { return notRegular }
-    if (path.length !== 1) { return enoent }
+    if (path.length === 0) { return directory }
     const file = dir[path[0]]
     if (file === undefined) { return enoent }
+    if (path.length !== 1) { return enotdir }
     // `isBinFile` rather than a local `Array.isArray`: which entity kind a name
     // holds is asked in one place now (#1697), and `stat` is one of its askers.
     if (!isBinFile(file)) { return notRegular }
-    return ok({ size: fileSizeBytes(file), isFile: true })
+    return ok({ size: fileSizeBytes(file), isFile: true, isDirectory: false })
 })
 
 /**

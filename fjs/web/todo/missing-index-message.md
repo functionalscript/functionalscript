@@ -24,19 +24,22 @@ The same sentence covers every other refusal:
 | `/no-such-dir/` | `404 not found` |
 | `/fjs/web/nope.md` | `404 not found` |
 | `/.git/` | `404 not found` |
-| `/README.md/` — a trailing slash onto a regular file | `500 io error: ENOTDIR` on POSIX, `404 not found` on Windows |
+| `/README.md/` — a trailing slash onto a regular file | `404 not found` |
 
-Byte-identical, the first five. That is not an oversight for `/.git/`: refusing
+Byte-identical, all six. That is not an oversight for `/.git/`: refusing
 a dot-prefixed path as *absent* is what keeps its existence undisclosed, per
 `resolve`'s note and "Deliberately absent" in [`../README.md`](../README.md).
 So the fix is not "say more when a file is missing" — it is to say more about
 **what was asked for** without saying more about what is on disk.
 
-The last row is the exception, and it sits in exactly the shape this issue
-triggers on: a directory-form request whose status already tells an existing
-regular file from nothing. It is filed separately as
-[notdir-status](./notdir-status.md), because the message is not what is wrong
-with it.
+The last row was the exception until `ENOTDIR` became a `404` — it answered
+`500 io error: ENOTDIR` on POSIX and `404 not found` on Windows, so a directory-
+form request's status told an existing regular file from nothing. That shipped
+as `answer` in [`../module.f.mjs`](../module.f.mjs), with the reasoning under
+"A path that descends through a file" in [`../README.md`](../README.md). Two
+directory-form requests still disclose on POSIX and are scoped out there
+deliberately: a mode-`000` directory (`EACCES`) and a symlink cycle (`ELOOP`)
+stay at `500`.
 
 ### Proposal
 
@@ -175,10 +178,10 @@ re-encoded on the way out — so that choice stays open on its own merits.
       `proof.f.mjs` already does, since that path has no HTTP parser in front
       of it.
 - [ ] Prove that `/fjs/` and `/no-such-dir/` still answer identically — and
-      `/README.md/` with them, which needs
-      [notdir-status](./notdir-status.md) first. Without it the proof passes
-      while the directory-form shape still leaks. It will pass anyway for
-      `/locked/` and `/loop1/`, which that issue scopes out on purpose, so
+      `/README.md/` with them, which `answer`'s `ENOTDIR` mapping in
+      [`../module.f.mjs`](../module.f.mjs) now makes true (`throughFile` in
+      [`../proof.f.mjs`](../proof.f.mjs) pins that pair). It will pass anyway
+      for `/locked/` and `/loop1/`, which that change scopes out on purpose, so
       state what the proof covers rather than letting it read as "no
       directory-form request discloses".
 - [ ] Update the response table in `module.f.mjs` and the prose in
@@ -188,10 +191,10 @@ re-encoded on the way out — so that choice stays open on its own merits.
 
 - [`fjs/web`](../README.md) — "Deliberately absent", where the missing
   directory listing and the `/docs` vs `/docs/` split are settled.
-- [notdir-status](./notdir-status.md) — a directory-form request whose status
-  already discloses, which this issue's proof depends on. Not the only one: it
-  scopes itself to `ENOTDIR` and leaves `EACCES` and `ELOOP` at `500`
-  deliberately, so directory-form requests still do not answer uniformly on a
-  POSIX host.
+- [`../README.md`](../README.md), "A path that descends through a file" — the
+  directory-form request whose status used to disclose, and which this issue's
+  proof depended on. Fixed for `ENOTDIR` only: `EACCES` and `ELOOP` stay at
+  `500` deliberately, so directory-form requests still do not answer uniformly
+  on a POSIX host.
 - [`fjs/website`](../../website/) — writes the `index.html` whose absence this
   is about.

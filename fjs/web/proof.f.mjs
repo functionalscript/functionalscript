@@ -315,6 +315,41 @@ export const proof = {
             assertEq(r.status, 404)
             assertEq(body(r), 'not found\n')
         },
+        // A path that descends through a regular file names nothing, so it is
+        // answered exactly like a path that descends through nothing. While it
+        // was a `500` the pair answered differently, which made a trailing
+        // slash a way to ask "is there a file at this name?" — the enumeration
+        // every other identical `404` here exists to deny.
+        //
+        // Proven through the virtual file system rather than the host's: the
+        // status differed by platform (POSIX `ENOTDIR`, Windows `ENOENT`), so a
+        // proof reading the real `stat` would cover this branch on one host and
+        // not the other.
+        throughFile: () => {
+            const throughRegular = answerSite('GET', '/main.css/')
+            const throughNothing = answerSite('GET', '/nope.md/')
+            assertEq(throughRegular.status, throughNothing.status)
+            assertEq(body(throughRegular), body(throughNothing))
+            assertEq(throughRegular.status, 404)
+            assertEq(body(throughRegular), 'not found\n')
+            // At any depth, and for an entry that is not a regular file either.
+            assertEq(answerSite('GET', '/main.css/a/b.txt').status, 404)
+            assertEq(answer({ 'pipe.txt': () => ({}) })('GET', '/pipe.txt/x').status, 404)
+            // It says nothing about the other directory-form failures: a
+            // permission-denied or looping entry is one an operator placed, and
+            // stays a `500` (see `./todo/`).
+        },
+        // …but only while the root is still a directory. Replace it with a file
+        // and every request descends through one, so the `404` above would
+        // report the operator's mistake as the client's — permanently, and to
+        // everyone. `main` refuses such a root at startup; this is what keeps
+        // the answer true if it is replaced afterwards.
+        rootNotDirectory: () => {
+            const r = unwrap(virtual({ ...emptyState, root: site })(
+                respond('main.css')(request('GET', '/')))[1])
+            assertEq(r.status, 500)
+            assertEq(body(r), 'io error: ENOTDIR\n')
+        },
         // A host failure that is not a missing path is not a 404. A runner that
         // cannot `stat` at all is the sharpest case: nothing looked for the
         // file, so answering "not found" would be a claim nobody checked.
@@ -374,6 +409,42 @@ export const proof = {
             assertEq(s.listening.map(b => b.address).join(), '127.0.0.1:9090')
             assertEq(s.stdout, 'serving site on http://127.0.0.1:9090/\n')
             assertEq(s.responses[0].status, 200)
+        },
+        // A root that is not a directory is the same kind of mistake as a port
+        // that is not a port, and is reported the same way — at the moment it
+        // was made, rather than as a status code some visitor gets later. Both
+        // failures reach `errorExit`: `stat` refusing the name at all, and a
+        // name that exists and is not a directory.
+        badRoot: () => {
+            /** A site with one entry that is neither a file nor a directory.
+             *
+             * @type {Dir}
+             */
+            const root = { ...site, 'pipe.txt': () => ({}) }
+            /** @type {(argument: string, reason: string) => void} */
+            const rejects = (argument, reason) => {
+                const options = { ...defaultNodeProgramOptions, args: [argument] }
+                const [s, result] = virtual({ ...emptyState, root })(main(options))
+                assertEq(exitCode(result), 1)
+                assertEq(s.stderr, `invalid root "${argument}": ${reason}\n`)
+                // Nothing was bound, and nothing announced: the root is checked
+                // before the socket exists.
+                assertEq(s.listening.length, 0)
+                assertEq(s.stdout, '')
+            }
+            // `fjs web README.md` — a regular file is not a root, though every
+            // path under it would have looked merely missing.
+            rejects('main.css', 'not a directory')
+            // A name that is not there at all. The operator's own words are
+            // forwarded here, unlike in a response, where the host's message
+            // would publish the server's filesystem layout.
+            rejects('nope', 'no such file or directory')
+            // An entry that is neither: this file system's `JsModule` stands in
+            // for a FIFO, a device or a socket, none of which can be served —
+            // and none of which an `isFile` test alone tells from a directory,
+            // which is why `FileStat` grew `isDirectory` rather than this
+            // asking `!isFile`.
+            rejects('pipe.txt', 'not a directory')
         },
         // A port that is not a port is a command-line mistake, not a defect:
         // reported on `stderr` with exit code 1, like every other `fjs` command.
