@@ -460,6 +460,31 @@ export const proof = {
         assertEq(result[1].isDirectory, false)
         assertEq(result[1].size, 0)
     },
+    statOnInheritedName: () => {
+        // A `Dir` is a plain object, so `dir[name]` finds `Object.prototype`'s
+        // names too — and this file system would have read them as entries:
+        // `toString` is a function, which is its `JsModule`, and `__proto__` is
+        // an object, which is a directory. A host has none of these names, so
+        // every one of them is absent here.
+        //
+        // Reachable from an *empty* root, which is what makes it worth pinning:
+        // no fixture has to contain anything for a caller to ask.
+        /** @type {(path: string) => void} */
+        const absent = path => {
+            const [, result] = virtual(emptyState)(stat(path))
+            assert(result[0] === 'error', [path, result])
+            assertIoCode(result[1], 'ENOENT')
+        }
+        absent('toString')
+        absent('constructor')
+        // Not `ENOTDIR`: that answer claims the name before the slash exists,
+        // which is the reading an inherited name must not earn.
+        absent('toString/x')
+        // `__proto__` is the one that reads as a *directory* — `operation`
+        // would descend into `Object.prototype` and stat it as the root.
+        absent('__proto__')
+        absent('__proto__/x')
+    },
     statOnRegularFile: () => {
         /** @type {Dir} */
         const root = { 'a.txt': [vec8(0x41n)] }

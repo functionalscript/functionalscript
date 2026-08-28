@@ -56,6 +56,26 @@ const isJsModule = entity => typeof entity === 'function'
  */
 const isDir = entity => !isBinFile(entity) && !isJsModule(entity)
 
+const { hasOwn } = Object
+
+/**
+ * The entry `dir` holds at `name`, or `undefined` if it holds none.
+ *
+ * **Own names only.** A `Dir` is a plain object, so `dir[name]` also finds
+ * whatever `Object.prototype` holds: `dir['toString']` is a function — which
+ * this file system reads as a `JsModule` — and `dir['__proto__']` is an object,
+ * which it reads as a directory. A host has no such names, so an empty root
+ * that answers for `toString` or descends into `__proto__` models nothing, and
+ * a caller's absent-path branch could be reached by a name that is not absent
+ * here while being absent everywhere else.
+ *
+ * An own name holding `undefined` is absent too — `Dir`'s values are optional,
+ * and every operation here already reads `undefined` as "no entry".
+ *
+ * @type {(dir: Dir, name: string) => _Entity | undefined}
+ */
+const entryOf = (dir, name) => hasOwn(dir, name) ? dir[name] : undefined
+
 /**
  * @template T
  * @param {(dir: Dir, path: readonly string[]) => readonly [Dir, T]} op
@@ -68,7 +88,7 @@ const operation = op => {
             return op(dir, path)
         }
         const [first, ...rest] = path
-        const subDir = dir[first]
+        const subDir = entryOf(dir, first)
         if (subDir === undefined || !isDir(subDir)) {
             return op(dir, path)
         }
@@ -417,7 +437,11 @@ const writeBytesOp = (path, offset, data) => operation(writeBytesRawOp(offset, d
  */
 const statPath = readOperation((dir, path) => {
     if (path.length === 0) { return directory }
-    const file = dir[path[0]]
+    // `entryOf`, not `dir[path[0]]`: an inherited name is not an entry, and
+    // reading one as though it were would answer `ENOTDIR` — "the name before
+    // this one exists" — for `toString/x` under an empty root, where a host
+    // says `ENOENT`.
+    const file = entryOf(dir, path[0])
     if (file === undefined) { return enoent }
     if (path.length !== 1) { return enotdir }
     // `isBinFile` rather than a local `Array.isArray`: which entity kind a name
