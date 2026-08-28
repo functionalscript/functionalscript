@@ -245,7 +245,16 @@ When Stage 1 is implemented:
   for emitted `_` names and shipped `private.d.ts` until Stage 2;
 - delete or narrow `todo/blocked/jsdoc-typedef-strip-internal.md`: this design
   supersedes waiting for `@internal`/`stripInternal`, so the repository does not
-  keep two conflicting private-type strategies.
+  keep two conflicting private-type strategies;
+- reconcile `todo/migrate-typescript-to-mjs.md`: its "Preserve private type
+  intent with `_`" section and its typedef-visibility migration task prescribe
+  file-scope `_` typedefs and defer to `stripInternal`; rewrite them to target
+  the Stage 1 destinations — `types.ts`, optional `private.ts`, function-local
+  typedefs;
+- reconcile `fjs/ci/todo/f-mjs-package-support.md`: its declaration-emission
+  narrative repeats the same prescription, and its fixture task requires an
+  implementation-only file-scope `_` typedef in `.mjs`; retarget both to the
+  Stage 1 forms.
 
 When Stage 2 is implemented:
 
@@ -287,8 +296,10 @@ type-only and use named `import type { ... }` imports.
       `module.f.mjs`, optional `meta/module.f.mjs`, and authored `.mjs` outside
       `fjs/`.
 - [ ] Update root and `fjs/` `AGENTS.md` policy documentation; rewrite the
-      `fjs/fsc/README.md` typedef prescription and delete or narrow the blocked
-      `@internal` TODO.
+      `fjs/fsc/README.md` typedef prescription; delete or narrow the blocked
+      `@internal` TODO; reconcile the typedef prescriptions in
+      `todo/migrate-typescript-to-mjs.md` and
+      `fjs/ci/todo/f-mjs-package-support.md`.
 
 #### Stage 2 — packaging cleanup
 
@@ -328,9 +339,11 @@ type-only and use named `import type { ... }` imports.
 - Root `AGENTS.md` and `fjs/AGENTS.md` document the Stage 1 rules.
 - No repository document prescribes creating file-scope JSDoc typedefs or
   waiting for `@internal`/`stripInternal`: the `fjs/fsc/README.md` typedef
-  section is rewritten and the blocked `@internal` TODO is deleted or narrowed,
-  while the permanent `_` contract stays documented and the shipped
-  `private.d.ts` tolerance stays documented until Stage 2.
+  section, the `todo/migrate-typescript-to-mjs.md` migration prescriptions, and
+  the `fjs/ci/todo/f-mjs-package-support.md` narrative and fixture task are
+  rewritten, and the blocked `@internal` TODO is deleted or narrowed, while the
+  permanent `_` contract stays documented and the shipped `private.d.ts`
+  tolerance stays documented until Stage 2.
 
 #### Stage 2 — packaging cleanup
 
