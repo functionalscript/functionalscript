@@ -93,6 +93,20 @@ const beyondIndexRange = () => Object.assign([1], { '4294967295': 2 })
  *
  * @type {() => readonly Unknown[]}
  */
+const lengthGetterDeletesAMember = () => {
+    const target = ['bad']
+    let fired = false
+    return new Proxy(target, {
+        get: (o, k, r) => {
+            if (k === 'length' && !fired) {
+                fired = true
+                delete o[0]
+            }
+            return Reflect.get(o, k, r)
+        },
+    })
+}
+
 /**
  * The same, but the member comes **back** on the second `length` read — the
  * variant that defeats a pre-read snapshot alone: the walk skips a member the
@@ -109,20 +123,6 @@ const lengthGetterRestoresAMember = () => {
             if (k === 'length') {
                 n += 1
                 if (n === 1) { delete o[0] } else if (n === 2) { o[0] = 'bad' }
-            }
-            return Reflect.get(o, k, r)
-        },
-    })
-}
-
-const lengthGetterDeletesAMember = () => {
-    const target = ['bad']
-    let fired = false
-    return new Proxy(target, {
-        get: (o, k, r) => {
-            if (k === 'length' && !fired) {
-                fired = true
-                delete o[0]
             }
             return Reflect.get(o, k, r)
         },
