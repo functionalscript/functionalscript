@@ -40,6 +40,12 @@ too-long name starts failing — and belongs in its own pull request.
 
 ### Related
 
-- [`fjs/web`](../README.md) — the response table, where `500` currently covers it.
+- [`fjs/web`](../README.md) — the response table, where `500` currently covers it,
+  and "A path that descends through a file", where the same shape was already
+  answered for `ENOTDIR`: the virtual file system grew the error first, then
+  `answer` in [`../module.f.mjs`](../module.f.mjs) mapped it. This one is the
+  simpler half of that — no disclosure to close and no platform split — so it
+  follows the same two steps and needs no root re-check, since a too-long name
+  says nothing about the root.
 - `fjs/effects/node/virtual/module.f.mjs` — the file system that would grow the
   limit.
