@@ -16,7 +16,7 @@ import { assert, assertEq } from '../asserts/module.f.mjs'
 import { pureOk, step } from '../effects/module.f.mjs'
 import { create } from '../effects/memory/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
-import { number as rttiNumber, option, string as rttiString } from '../rtti/module.f.mjs'
+import { number as rttiNumber, option, or, string as rttiString } from '../rtti/module.f.mjs'
 import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { msb, u8ListToVec, vec8, repeat, length, maxLengthBytes } from '../types/bit_vec/module.f.mjs'
 import { vecToCBase32 } from '../basen/cbase32/module.f.mjs'
@@ -46,8 +46,8 @@ const casGetResult = /** @type {const} */ ({
     mimeType: rttiString,
     type: rttiString,
     uri: rttiString,
-    text: option(rttiString),
-    blob: option(rttiString),
+    text: or(option, rttiString),
+    blob: or(option, rttiString),
 })
 
 const parseCasGetResult = rttiParse(casGetResult)

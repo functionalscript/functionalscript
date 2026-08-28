@@ -68,8 +68,8 @@ export const unknown: WithOut<typeof unknownThunk, UnknownConst> = unknownThunk
 // unknownConst is defined after `unknown` so it can reference `unknown` recursively.
 // The thunk defers evaluation, breaking the circular reference at runtime.
 const unknownConst = {
-    not: option(unknown),
-    anyOf: option(array(unknown)),
+    not: or(option, unknown),
+    anyOf: or(option, array(unknown)),
     // ...
 } as const
 

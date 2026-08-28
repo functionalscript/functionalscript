@@ -380,7 +380,7 @@ FunctionalScript data is immutable, but stock `tsc` widens literals by default
 and tuple-dependent typing (`Ts<>` over an rtti schema, tagged-tuple
 discriminants in the effect system). The rule scopes to literals because a const
 assertion is only legal on a literal or enum member (TS1355) — calls,
-conditionals, and references (`or(...)`, `option(...)`, a bare `string`) already
+conditionals, and references (`or(...)`, a bare `string` or `option`) already
 carry precise, non-widening types and are exempt. The mistake is invisible at
 runtime (the value is correct; only the type widens), which is exactly why it
 must be a style rule.
@@ -402,7 +402,8 @@ validate({ a: 42 })                          // the same, with `<const T>`
 
 A cast there is the absence of a modifier on the callee, not a fact about the
 value — and it has to be repeated at every call, where the modifier is written
-once. `rtti` (`or`, `option`, `array`, `record`), `rtti/validate`,
+once. `rtti` (`or`, `array`, `record` — `option` is nullary and takes
+nothing), `rtti/validate`,
 `rtti/parse`, `types/result` (`ok`, `error`), `protocol/mcp`'s
 `toolEntry`, and `bnf`'s `option` already carry it; a new schema- or
 literal-taking export should too.

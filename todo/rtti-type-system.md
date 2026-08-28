@@ -139,7 +139,7 @@ import { array, number, option, or, string } from 'functionalscript/fjs/rtti/mod
 
 const key = or(number, string)
 const keys = array(key)
-const maybeKey = option(key)
+const maybeKey = or(option, key)
 
 //: key
 export const a = 'hello'
@@ -547,7 +547,7 @@ rejected by `validate`. That is the exact disagreement this epic exists to
 remove, surviving inside its own deliverable. (The *tuple* kind has no such
 gap: a TypeScript tuple is exact-length, so `Ts<>` renders a closed tuple
 exactly — which is what stage 1 of
-[option-as-omission](../fjs/rtti/todo/option-as-omission.md) settled.)
+`option` as omission settled; both stages have landed.)
 
 Two things keep this from undermining the whole direction, and both need
 stating rather than assuming:
@@ -911,9 +911,8 @@ are stated instead:
         the model rather than an approximation of it, and the printer prints the
         same exact tuple. `open(c)` is what admits a longer array, and both
         renderers emit the tail that says so. This bullet used to record a live
-        divergence and no longer does; stage 1 of
-        [option-as-omission](../fjs/rtti/todo/option-as-omission.md)
-        removed it.
+        divergence and no longer does; stage 1 of `option` as omission
+        (landed, both stages) removed it.
 
       **A third disagreement runs the other way, and has narrowed.** `RestTs`
       ([`ts/types.ts`](../fjs/rtti/ts/types.ts)) now renders a stated
