@@ -261,9 +261,10 @@ export const proof = {
                 ])
         }
     },
-    // Every Node job asserts the runtime it is about to use, read from its own
-    // flake. Nothing else ties the versions `fjs/ci/config/module.f.mjs` records
-    // to what a job really runs.
+    // Every canonical Node job asserts the runtime it is about to use, read from
+    // its own flake. The platform matrix installs Node and is deliberately not
+    // checked. Nothing else ties the versions `fjs/ci/config/module.f.mjs`
+    // records to what a job really runs.
     nodeVersionChecks: () => {
         const gha = run(false)
         for (const [version, command] of /** @type {const} */ ([
