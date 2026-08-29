@@ -724,12 +724,29 @@ The six parts:
   escaped spelling decodes to `$a`, a perfectly good `id`, and the vector is
   about the spelling and nothing else — as the non-ASCII one is about `é` and
   not about a missing `$`, which is why both carry the leading `$` the grammar
-  requires —
-  which is also why **both** occurrences are escaped. Escaping only the
-  declaration, as the review that found this proposed, leaves `export default
-  a;` referring to a name DataJS never saw declared, and an implementation with
-  no spelling check at all refuses it for the unbound reference — a second
-  ground, and the rule below forbids exactly that; a
+  requires.
+
+  The escaped case is **three** vectors, not one, because `id` occurs
+  in two grammar positions and a reader can check them separately:
+
+  - `const $a=1;export default \u0024a` — the **reference** escaped alone,
+    catching a reader that validates declarations and lets references through.
+    Clean on the one-reason rule: `\u0024a` decodes to `$a`, which *is* bound,
+    so the escape is the only ground.
+  - `const \u0024a=1;export default $a` — the **declaration** escaped alone,
+    catching the mirror reader. A conforming implementation refuses the escape;
+    one that accepts it binds `$a` and accepts the document, which is the catch.
+  - `const \u0024a=1;export default \u0024a` — both, which was the only
+    spelling here before and is still worth keeping for the residual reader the
+    second vector cannot catch: one that accepts the escaped declaration but
+    keys its bindings on raw text, so it refuses `export default $a` as
+    *unbound* and passes that vector for the wrong reason. Earlier text argued
+    from that hazard that both occurrences must be escaped; the hazard is real
+    and the conclusion was too strong — it makes this the third vector, not the
+    only one.
+
+  All three are valid JavaScript resolving to the same binding and denoting
+  `1` — measured, not assumed. Then a
   computed key that is **not** the one permitted spelling — `{["x"]:1}` and
   `{["\u005f_proto__"]:1}`, since `["__proto__"]` is the only computed form
   the grammar admits — `1.5n`,
