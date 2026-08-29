@@ -93,25 +93,24 @@ Every other character JavaScript treats as whitespace or a line terminator is
 byte order mark, wherever they appear outside a string literal. Accepting them
 would import a taxonomy no implementer of a data format should have to know.
 
-Whitespace is *required* exactly where leaving it out would merge two tokens
-into one: between `const` and a name, between `export` and `default`, and
-between `default` and any value beginning with an identifier character — a
-name, `true`, `false`, `null`, `undefined`, `NaN`, `Infinity`, a number, or a
-bigint. `export default1;` is not this format minus a space; it is a
-JavaScript syntax error, because `default1` lexes as a single identifier.
+Whitespace is **required after `const`, after `export`, and after `default`**.
+Three positions, with no condition attached to any of them, and optional
+everywhere else.
 
-`$` is an identifier character, so a name buys no exemption: `export default$0;`
-merges into `default$0` exactly as `export default1;` merges, and needs the
-space just the same.
+Two of the three were never a choice. A `const` name begins with `$`, and
+`export` is always followed by `default`, so `const$0` and `exportdefault` lex
+as one identifier in every document that could hold them — the space was
+forced by the grammar before any rule asked for it. The third is the choice
+this format makes: `export default1;` and `export default$0;` are JavaScript
+syntax errors, `default1` and `default$0` each being a single identifier, while
+`export default[1];` would lex perfectly well, since `[` cannot merge with
+anything. DataJS requires the space anyway, so that neither a reader nor a
+writer ever consults the next character to find out. The
+[rationale](#rationale) gives what that buys.
 
-Whether this rule should instead be positional — whitespace required after
-`const`, `export` and `default` and nowhere else, so that no tokenizer has to
-reason about merging — is open, and tracked in
-[`todo/whitespace-after-keywords.md`](./todo/whitespace-after-keywords.md).
-
-Everywhere else whitespace is optional, so every document has a one-line
-spelling: `export default-1;`, `export default[1];` and `export default"a";`
-all need no space.
+So the one-line spelling of a document is `const $0=[];export default [$0,$0];`,
+and `export default [1];`, `export default -1;` and `export default "a";` all
+carry the space.
 
 A document is UTF-8. It has no BOM.
 
@@ -405,11 +404,11 @@ Normalized form is one specific serializer, chosen so that a value has
 need not produce it — but an implementation that claims to produce normalized
 DataJS must produce these bytes.
 
-**Layout.** One line. A single space appears exactly where the tokens would
-otherwise merge, as defined under [Whitespace](#whitespace) — after `const`,
-between `export` and `default`, and after `default` when the value begins with
-an identifier character. Nowhere else: no indentation, and no trailing
-newline.
+**Layout.** One line. A single space after `const`, after `export` and after
+`default` — the three the [Whitespace](#whitespace) rule requires — and nowhere
+else: no indentation, and no trailing newline. Normalized form inherits that
+rule's freedom from conditions; there is no value whose first character changes
+the layout.
 
 **Which values become consts.** A value is hoisted into a `const` if and only
 if it is an object or an array whose **incoming reference occurrences** number
@@ -505,6 +504,13 @@ with one exception: a key **decoding to** `__proto__` must be rewritten to
 covers escaped spellings such as `"\u005f_proto__"`, which JSON and DataJS
 both read as the same key. For JSON containing no such key, plain
 concatenation is exactly a valid DataJS document.
+
+The space in that literal is the one the [whitespace](#whitespace) rule
+requires. It is the space anyone would have written anyway, and under the
+earlier merging-based rule it would have been necessary for `1` and `true` and
+superfluous for `[1,2]` and `{"a":1}` — one more reason to make it
+unconditional: the obvious conversion is now the correct one for every JSON
+document rather than for most of them.
 
 The reverse direction is partial, and both of its conditions are about the
 graph the document *denotes* — the values reachable from `export default`,
@@ -615,6 +621,32 @@ to template literals, which this format has no syntax for. The one context that
 is not free is a `String.prototype.replace` replacement pattern, where `$1`
 names a capture group; a document pasted into one as the replacement text is
 rewritten. Every other embedding, a JSON string included, is unaffected.
+
+**Why require a space after `default` when `export default[1];` would lex?**
+Because the conditional form of the rule is the expensive part, not the byte it
+saves. "Whitespace wherever two tokens would otherwise merge" is correct, but
+it is a statement about lexing: an implementer has to work out which adjacent
+tokens can merge, and a tokenizer has to scan a maximal run of identifier
+characters and classify it only afterwards. A tokenizer that instead ends a
+word as soon as it has matched a keyword would read `export default$0;` as
+three tokens and accept it — a document JavaScript rejects, since `default$0`
+is one identifier to it. That is a subset-law break, not a worse error message.
+
+Mandatory whitespace turns the question into a position. `const`, `export` and
+`default` may be lexed as a keyword followed by at least one whitespace
+character, which needs no lookahead and no state, and every other word may end
+wherever it ends: a wrong split anywhere else — `null$13` read as `null` `$13`,
+or `null0` as `null` `0` — yields two adjacent value tokens, and the grammar
+has no production for those, so the document is rejected either way. Walking
+the grammar for pairs where the left token can end with an identifier character
+and the right can begin with one turns up `const`·name, `export`·`default` and
+`default`·value and nothing else; every other adjacency has a punctuator, a
+string or a `-` between.
+
+The cost is one byte, in one place, in the documents whose exported value
+begins with `[`, `{`, `"` or `-`. The other two spaces were unavoidable
+already, so nothing else grows — and normalized form loses a conditional in
+exchange.
 
 **Why only these two extensions?** Both are things JSON cannot express at
 all, rather than conveniences. Sharing is a class of value JSON has no syntax

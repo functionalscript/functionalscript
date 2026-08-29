@@ -123,11 +123,25 @@ key       ::= string | '[' '"__proto__"' ']'
   should need); one canonical spelling per document; the separator is a
   visible character, so byte-different files that render identically cannot
   differ in meaning; and a document minifies to one line —
-  `const a=[];export default[a,a];` — enabling DataJS inside JSON strings,
-  line-delimited streaming, and one-line test fixtures. Whitespace is needed
-  only between adjacent word-tokens (`const a`, `export default x`).
+  `const $0=[];export default [$0,$0];` — enabling DataJS inside JSON strings,
+  line-delimited streaming, and one-line test fixtures. Whitespace is required
+  at three positions and optional everywhere else, per the next bullet.
 - **Whitespace is JSON's** — space, tab, LF, CR — insignificant everywhere.
   Other JS whitespace (U+2028/U+2029, NBSP, FF, BOM) is rejected.
+- **Whitespace is required after `const`, `export` and `default`**, with no
+  condition, and optional everywhere else. Two of the three were forced
+  already — a name begins with `$` and `export` is always followed by
+  `default`, so `const$0` and `exportdefault` are each one identifier — and the
+  third is the choice: `export default[1];` would lex, but requiring the space
+  regardless is what makes the rule positional. The payoff is stage 4's:
+  `const`, `export` and `default` can be lexed as a keyword plus at least one
+  whitespace character, with no lookahead and no "was this token preceded by
+  whitespace" bit, and no maximal munch anywhere. A word may otherwise end
+  wherever it ends, because a wrong split elsewhere (`null$13` → `null` `$13`)
+  produces two adjacent value tokens, which no production accepts. The
+  merge-capable adjacencies are exactly `const`·name, `export`·`default` and
+  `default`·value; every other pair has a punctuator, a string or a `-`
+  between.
 - **No comments, no imports.** A DataJS document is closed; the compiler
   inlines resolved imports when normalizing FunctionalScript to DataJS.
 - **Strings and numbers are JSON's grammar.** Bigint is a production of its
@@ -229,6 +243,15 @@ combined marker would encode a redundant fact.
   `$`-leading names making the collision unreachable.
 - The moved parser's separator rule changes from newline to `';'` (the moved
   tokenizer's operator vocabulary gains `;`).
+- **Whether FunctionalScript takes DataJS's positional whitespace rule is a
+  stage-5 decision, and DataJS does not depend on the answer.** DataJS requires
+  *more* whitespace than a merging-based rule would, so every DataJS document
+  satisfies either, and the subset law holds whichever FunctionalScript picks.
+  The question is worth asking there on its own merits: FunctionalScript has
+  more keyword-adjacent-to-name sites (`import`, `from`, `as`, and whatever the
+  expression grammar grows), and its identifiers do not start with `$`, so the
+  cases DataJS gets for free — `truex` being a lexical error rather than
+  `true` followed by a valid name — do not carry over.
 - Subset laws are proof obligations, not prose: every DataJS *accept* vector
   parses in FunctionalScript to the same value graph; the normalizer closes
   the loop (`parse_datajs(normalize(m))` equals the evaluation of any
@@ -251,11 +274,7 @@ throughout.
    one detail left to reconcile in that todo. The
    conformance vectors are the remaining half, tracked in
    [`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md);
-   stages 3, 4 and 6 consume them. One rule is still open:
-   [`spec/datajs/todo/whitespace-after-keywords.md`](../spec/datajs/todo/whitespace-after-keywords.md)
-   asks whether requiring whitespace after `const`, `export` and `default`
-   lets stage 4's tokenizer drop maximal munch, and whether stage 5's
-   FunctionalScript front end can take the same rule.
+   stages 3, 4 and 6 consume them.
 2. **Dead code — done.** `fjs/fsc/bnf.f.mjs` and `fjs/fsc/json.f.mjs` are
    deleted rather than salvaged: both were dead (no importer) and unproven,
    the JSON half duplicated `deterministic` in `fjs/bnf/testlib.f.mjs` rule

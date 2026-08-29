@@ -32,9 +32,15 @@ A machine-readable corpus with three parts:
   `"\u005f_proto__"` (the rule is on the decoded value), `1.5n`,
   `1e2n`, `01n`, `-NaN`, `-undefined`, a bare `-`, a forward or unbound
   reference, a rebound name, a name without the leading `$` (`const a=1;`,
-  `const class=1;`, `const undefined=1;`), `export default$0;` — where the
-  name merges into the single identifier `default$0` — single quotes, `\x` and
-  `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string.
+  `const class=1;`, `const undefined=1;`), each of the three required spaces
+  left out — `const$0=1;`, `exportdefault $0;`, `export default$0;` and
+  `export default1;` — single quotes, `\x` and
+  `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string. Pair the
+  whitespace cases with accepted documents whose value cannot merge —
+  `export default [1];`, `export default -1;`, `export default "a";` — since
+  those are the ones a merging-based reader would wrongly accept without the
+  space, and with the harmless splits `null$13`, `null0` and `truex`, rejected
+  by the grammar rather than by the tokenizer.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
   than approximate: a function, symbol or `Date` leaf, a sparse-array hole, a
   symbol-keyed, accessor or non-enumerable own property, an array carrying an
@@ -51,10 +57,11 @@ A machine-readable corpus with three parts:
   number thresholds explicitly — `1e20`, `1e21`, `1e-6`, `1e-7`,
   `5e-324`, `1.7976931348623157e308` — since that is where a host's own
   formatter diverges, and pin `root=[p,p]` with `p=[c]` so the hoisting count
-  is occurrences rather than paths. Include a normalized root that is a bare
-  number and a bare bigint, so `export default 1;` cannot regress to
-  `export default1;` — which JavaScript rejects, `default1` being one
-  identifier.
+  is occurrences rather than paths. Pin the space after `default` for a root of
+  every shape — a bare number, a bigint, a name, an array, an object, a string
+  — since it is unconditional now: `export default 1;` must not regress to
+  `export default1;`, which JavaScript rejects, and `export default [1];` must
+  not regress to the `export default[1];` that JavaScript happens to accept.
 
 The corpus is data, not code, so it can be read by an implementation in any
 language. Store it as DataJS once `fjs/media/datajs` can read it; until then
