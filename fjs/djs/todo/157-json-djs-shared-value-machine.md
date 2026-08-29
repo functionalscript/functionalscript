@@ -41,43 +41,111 @@ numeric leaves rather than collapsing them to JavaScript `number` eagerly, so
 extended, standard-compatibility, and RTTI policies can read the same token tree.
 That belongs to whichever JSON work needs it, not to a JSON/DJS extraction.
 
-### 2. Recursive serializer walker (three copies)
+### 2. Recursive serializer walker (two copies, down from three)
 
-The same recursive `typeof`-dispatch walker is written three times:
+The same recursive `typeof`-dispatch walker was written three times. Two of the
+three have since been folded, from opposite ends, so the count below is what is
+left rather than what this section was filed against:
 
-- `fjs/media/json/module.f.mjs:49` (`serialize`)
-- `fjs/djs/serializer/module.f.mjs:79` (`serializeWithoutConst`)
-- `fjs/djs/serializer/module.f.mjs:117` (`serializeWithConst`)
+- `fjs/media/json/serializer/module.f.mjs` — `treeSerialize(leafSerialize)(sort)`,
+  now a factory. `fjs/media/json`'s `serialize` and the extended codec are two
+  applications of it, not two copies.
+- `fjs/djs/serializer/module.f.mjs` — `buildSerialize`, which absorbed both DJS
+  walkers (sub-task 2b below).
 
-Each defines the identical closure cluster: `propertySerialize`
-(`flat([stringSerialize(k), colon, f(v)])`), `mapPropertySerialize`,
-`objectSerialize = fn(entries).map(sort).map(mapPropertySerialize).map(objectWrap).result`,
-the recursive `f` switching on `typeof`, and
-`arraySerialize = compose(map(f))(arrayWrap)`. The serializer already imports
-its primitives (`stringSerialize`, `objectWrap`, `arrayWrap`, …) from
-`fjs/media/json/serializer/module.f.mjs`, so the leaves are shared; only the walker was
-copied.
+So the remaining duplication is one walker per family, and the extraction point
+already exists and is exported: `treeSerialize`. The question is no longer "where
+should a shared walker live" but "is one walker with the seams DJS needs better
+than two" — which **the delta is four seams** below sets out, and does not
+presume.
 
-The deltas:
+Both still define the same closure cluster — `propertySerialize`,
+`mapPropertySerialize`, `objectSerialize`, the recursive `f`, and
+`arraySerialize = compose(map(f))(arrayWrap)` — and both already import their
+*leaves* (`objectWrap`, `arrayWrap`, `colon`, `stringSerialize`, …) from
+`fjs/media/json/serializer/module.f.mjs`. Only the walker was copied.
 
-- JSON's `f` handles `boolean | number | string | null | Array | Object`;
-  DJS adds `bigint` and `undefined`.
-- `serializeWithConst` is `serializeWithoutConst` plus a ref-counter
-  short-circuit prepended to `f`.
+**Sub-task 2b (done):** the two DJS functions collapsed into one
+`buildSerialize(keySerialize)(refLookup)(sort)` factory in
+`fjs/djs/serializer/module.f.mjs` — `serializeWithoutConst` supplies
+`jsonKeySerialize` and no ref lookup, `serializeWithConst` supplies
+`jsKeySerialize` and a closure substituting `c<N>` references. What remains of
+this section is sharing one walker between that factory and JSON's
+`treeSerialize`.
 
-**Sub-task 2b (clearest, smallest, done):** the two DJS functions now collapse
-into one `buildSerialize(refLookup)(sort)` factory in
-`fjs/djs/serializer/module.f.mjs` taking an optional ref-lookup callback —
-`serializeWithoutConst = buildSerialize(noRef)`, and `serializeWithConst`
-supplies a ref-lookup closure that substitutes `c<N>` references. What
-remains of this section is extracting a shared walker between JSON's
-`serialize` (`fjs/media/json/module.f.mjs:52`) and DJS's `buildSerialize`.
-
-A `serializeValue` factory (in `json/serializer`) parameterized by the extra
-`typeof` cases and an optional pre-`f` hook covers all three call sites.
+What that costs is set out under **the delta is four seams** below. Note the
+shape of `buildSerialize` above: it already takes the key seam and the
+pre-recursion seam as parameters, which is the same shape a shared walker would
+need — this section is about whether the two can be one function, not about
+discovering what varies.
 
 This serializer sub-task is independent of the exact-number parser dependency
 above and may land separately.
+
+**Not blocked on [663](./663-json-djs-tree-type.md).** `fjs/djs/types.ts` already
+carries `Assert<Equal<Unknown, Tree<Primitive>>>`, so DJS's value type *is* the
+shape `treeSerialize` is typed over — 663 changes how that shape is spelled and
+where it lives, not whether the two agree. The walker can be shared before 663
+lands.
+
+**The delta is four seams, not one.** `leafSerialize` cannot absorb the others,
+and for the first of them the dispatch order is why:
+
+```js
+// json/serializer — the leaf seam runs last, and only for non-containers
+const f = value => {
+    if (value instanceof Array) { return arraySerialize(value) }
+    if (isObject(value)) { return objectSerialize(value) }
+    return leafSerialize(value)
+}
+
+// djs/serializer — the ref lookup runs first, before any dispatch
+const f = value => {
+    const ref = refLookup(value)
+    if (ref !== null) { return ref }
+    switch (typeof value) { /* ... */ }
+}
+```
+
+A shared *array or object* carrying a `cref` would be dispatched as a container
+before a leaf seam ever saw it, and the reference would be lost. So the sharing
+needs:
+
+1. **a leaf seam** — DJS adds `bigint` and `undefined`;
+2. **a pre-recursion seam** — `refLookup`, running before container dispatch, so
+   a shared container can short-circuit to `c<N>`;
+3. **a key seam** — `keySerialize`. JSON emits every key as a string; DJS emits
+   `__proto__` in computed form, because `{"__proto__": v}` is a prototype
+   assignment in JavaScript and would not read back the value it was given.
+   Round-tripping depends on it, so it is not a style difference the shared
+   walker can hardcode away.
+4. **an entry-enumeration seam** — `treeSerialize` reads an object through
+   `definedEntries`, which drops a property whose value is `undefined` before
+   any other seam runs; `buildSerialize` reads it through `entries`, which keeps
+   it. DJS emits that property today:
+
+   ```
+   {a: 1, b: undefined}  ->  {"a":1,"b":undefined}
+   ```
+
+   so reusing the JSON walker unchanged would silently discard `b`. This one is
+   data loss rather than formatting, which makes it the seam most worth checking
+   an implementation against.
+
+The fourth is not an oversight in `treeSerialize`; the two families disagree
+about what an `undefined` property *means*. `undefined` is a DJS `Primitive`, so
+`{a: undefined}` is a value with a property; JSON has no such leaf, so a
+`Tree<P>` property that reads `undefined` is an absent one. Note the interaction
+with [663](./663-json-djs-tree-type.md): the optional index signature it argues
+is *required* for soundness — `{ readonly [k in string]?: Unknown<P> }` — is
+exactly what makes "present and `undefined`" indistinguishable from "absent" at
+the type level, so only the runtime enumerator can tell them apart. Any shared
+walker has to take that choice as a parameter rather than inherit JSON's.
+
+Whether one walker with four seams is better than two walkers is the question
+this sub-task actually has to answer. Three of them — key, pre-recursion,
+entry enumeration — are already parameters of `buildSerialize` or forced by it,
+so the shared walker would carry most of DJS's shape either way.
 
 ### 3. Tokenizer minus-rewriter
 
