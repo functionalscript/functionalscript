@@ -450,6 +450,24 @@ export const proof = {
             },
             // A hole past the prefix is no member, so length is what catches it.
             holePastThePrefixRejected: () => assertError(parse([number])([1, ,])),
+            // The container is bounded before its members are read, so a
+            // value that is both too long and wrong at a member is answered
+            // by its shape. `validate` reports the same path — the two gate
+            // alike, which is what `../validate/proof.f.mjs`'s
+            // `sameAcceptanceAsParse` holds them to — and this pins it on
+            // `parse`'s own side.
+            structuralMismatchIsAnsweredFirst: () => {
+                assertErrorPath([])(parse([/** @type {const} */ (42)])([43, 'extra']))
+                assertErrorPath(['0'])(parse([/** @type {const} */ (42)])([43]))
+                // and an absent required member answers before the members
+                // ahead of it are read — see `../validate/proof.f.mjs`
+                assertErrorPath(['1'])(parse([number, number])(['bad']))
+                // an undeclared key likewise, which is the struct kind's
+                // half of the rule — see `../validate/proof.f.mjs`
+                assertErrorPath([])(parse({ a: number })({ a: 'bad', b: 1 }))
+                // and between the two, the absent member wins
+                assertErrorPath(['a'])(parse({ a: number })({ b: 1 }))
+            },
             // Nor is a key that is no position at all.
             nonIndexKeyRejected: () =>
                 assertError(parse([number])(Object.assign([1], { foo: 2 }))),
