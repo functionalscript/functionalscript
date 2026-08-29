@@ -708,7 +708,10 @@ The six parts:
   row, and a **second file's** consumer left feeding code points to a
   recognizer whose signature had changed under it — then the `\u00XX` branch,
   where `\u001f` alone pinned the lowercase rule for `f` and for no other
-  letter. The sweep for the lead-partition shape had
+  letter — and then the first vector in this file that would have **failed a
+  conforming implementation** rather than passing a broken one: a
+  serializer-accept case asserting a surrogate pair's units not be escaped,
+  where that role asks only for a document denoting the input. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -914,13 +917,20 @@ The six parts:
     runs none of those vectors. Each asserts the emitted document denotes the
     input's exact code-unit sequence, which is what separates a correct escape
     from a serializer that drops the character;
-  - a string holding what a writer leaves **unescaped**, which the escape
-    classes above do not reach: an ordinary non-ASCII BMP character and a
-    **surrogate pair**. A serializer with an ASCII path and a lone-surrogate
-    escape path passes everything above while refusing every U+0080–U+FFFF
-    character, or while mishandling a pair — and the pair is the one case whose
-    two code units must *not* be escaped individually, which is the opposite of
-    what the four lone-surrogate vectors ask for. **Paths, not endpoints**: the
+  - a string holding an ordinary **non-ASCII BMP character** and a
+    **surrogate pair**, the two paths the escape classes above do not reach. A
+    serializer with an ASCII path and a lone-surrogate escape path passes
+    everything above while refusing every U+0080–U+FFFF character, or while
+    mishandling a pair — splitting it, replacement-encoding it, or emitting one
+    unit — each of which changes what the document denotes. **What it may not
+    assert is a spelling.** An earlier draft required the pair's units *not* be
+    escaped individually; review showed that rejects `"\ud83d\ude00"`, which
+    is a valid document denoting those same two units, so the vector would have
+    failed a conforming serializer. §Conformance asks this role for "a valid
+    document denoting the input graph" and nothing more, so both spellings pass
+    here — the raw character or both units escaped, there being no third, since
+    a lone low surrogate raw is not encodable — and the raw form is pinned
+    where spellings are pinned, under `normalize`. **Paths, not endpoints**: the
     width boundaries belong to `normalize` because emitting U+07FF in three
     bytes still yields a valid document denoting the same string, so no
     serializer-accept vector can see it, while a missing branch changes the
@@ -1408,8 +1418,15 @@ needs nothing beyond an engine.
       Check its **placement** too: a malformed byte sequence goes inside a
       quoted string and a serializer-reject offender goes below the root, and
       in both directions the placement is what makes the vector able to fail.
-      Then ask what the **broken** implementation produces, not only what a
-      correct one does: if its output trips a *different* rule of the format —
+      Then check the vector against a **conforming** implementation, not only
+      against a broken one: a vector that asserts more than its role requires
+      fails the very implementations it exists to confirm, which is worse than
+      one that cannot fail. The roles ask for different things — a reader for
+      the graph, a serializer for *any* valid document denoting it, a
+      normalized serializer for exact bytes — so a spelling asserted anywhere
+      but the last is a defect. One had reached the serializer set before
+      review caught it. Then ask what the **broken** implementation produces,
+      not only what a correct one does: if its output trips a *different* rule of the format —
       an overlong that decodes to a control character, a legacy width whose
       value exceeds U+10FFFF — the document is refused for that rule and the
       vector passes while proving nothing.
