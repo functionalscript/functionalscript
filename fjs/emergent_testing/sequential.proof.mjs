@@ -150,9 +150,14 @@ const modulesDoNotOverlap = async () => {
  * A leaf's returned tree is walked before the next sibling starts — the third
  * thing the fold orders, after the call and the report.
  *
- * The parent is reported before the child it produced runs, which is the
- * structural order every report already uses; a fanned-out traversal reports
- * the parent after its children have landed.
+ * The parent being reported before the child it produced runs is *not* what
+ * this guards: `one` awaits the parent's report before entering
+ * `walkEntries(children)`, so that holds however the siblings are scheduled.
+ * What the fold adds is that the child's whole chain finishes before the next
+ * sibling starts. Restore `walkEntries`' fan-out and the observed order is
+ * `start start end end report:.outer start report:.after end
+ * report:.outer().inner summary` — `.after` runs inside the child's chain and
+ * is reported before it.
  */
 const childrenRunBeforeTheNextSibling = async () => {
     const events = await eventsOf({
