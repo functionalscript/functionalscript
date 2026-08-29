@@ -6,6 +6,8 @@
  * `undefined`, `false`, `true`), numbers, strings, bigints, arrays and
  * objects — so that union, equality and subset reduce to kind-wise set
  * operations. See `./README.md` for the design rationale.
+ *
+ * @module
  */
 
 import type { StringMap } from '../../types/object/types.ts'

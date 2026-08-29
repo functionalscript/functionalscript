@@ -1,5 +1,7 @@
 /**
  * Types for UTF-8 byte-level encoding and decoding.
+ *
+ * @module
  */
 
 import type { Tuple } from '../../types/array/types.ts'

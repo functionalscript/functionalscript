@@ -1,5 +1,7 @@
 /**
  * Types for the DJS transpiler.
+ *
+ * @module
  */
 
 import type { Unknown } from '../types.ts'

@@ -1,5 +1,7 @@
 /**
  * Types for Bitcoin-style proof-of-work verification.
+ *
+ * @module
  */
 
 import type { Vec } from '../../types/bit_vec/types.ts'

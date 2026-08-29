@@ -1,5 +1,7 @@
 /**
  * Types for the core effect system.
+ *
+ * @module
  */
 
 import type { Ok, Error, Result } from '../types/result/types.ts'

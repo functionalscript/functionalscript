@@ -1,5 +1,7 @@
 /**
  * Implementation-private types for the AST renderer in `./testlib.f.mjs`.
+ *
+ * @module
  */
 
 import type { Ast } from './matcher/types.ts'

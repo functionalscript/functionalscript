@@ -1,5 +1,7 @@
 /**
  * Types for bit vectors normalized on the most-significant bit.
+ *
+ * @module
  */
 
 import type { Sign } from '../function/compare/types.ts'

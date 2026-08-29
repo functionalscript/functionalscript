@@ -1,6 +1,8 @@
 /**
  * Type-level API for `fjs/media/module.f.mjs`: the `DialectEntry` registry
  * shape `detect` and `dialectEntry` share with every registered dialect.
+ *
+ * @module
  */
 
 import type { Unknown } from '../rtti/ts/types.ts'

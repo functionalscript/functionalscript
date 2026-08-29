@@ -1,6 +1,8 @@
 /**
  * Type-level API for the layer every BNF matcher backend shares: the position
  * it matches at, the AST it builds, and the result that pairs them.
+ *
+ * @module
  */
 
 /**

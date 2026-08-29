@@ -1,5 +1,7 @@
 /**
  * Types for content-addressable storage utilities.
+ *
+ * @module
  */
 
 import type { Vec } from '../types/bit_vec/types.ts'

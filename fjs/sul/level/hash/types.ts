@@ -1,5 +1,7 @@
 /**
  * Type-level API for hash-level SUL encoding.
+ *
+ * @module
  */
 
 import type { State } from '../../../types/patricia_trie/types.ts'

@@ -1,5 +1,7 @@
 /**
  * Types for short Weierstrass elliptic-curve arithmetic over a prime field.
+ *
+ * @module
  */
 
 import type { Fold, Reduce } from '../../types/function/operator/types.ts'

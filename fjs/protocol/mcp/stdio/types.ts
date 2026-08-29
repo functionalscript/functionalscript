@@ -1,5 +1,7 @@
 /**
  * Types for the stdio transport of JSON-RPC / MCP servers.
+ *
+ * @module
  */
 
 import type { Unknown } from '../../../media/json/types.ts'
