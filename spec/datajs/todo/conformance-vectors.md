@@ -252,9 +252,9 @@ needs nothing beyond an engine.
 - [ ] Choose the corpus's location. The encoding is settled above: JSON,
       permanently, per the bootstrapping constraint.
 - [ ] Write the accept, reject, **serializer accept**, serializer reject,
-      **graph equivalence** and normalize sets covering the cases listed. The serializer-accept set is
-      the one an implementation passes by being too strict, so it is the one
-      most easily left for later and least safe to.
+      **graph equivalence** and normalize sets covering the cases listed. The
+      serializer-accept set is the one an implementation passes by being too
+      strict, so it is the one most easily left for later and least safe to.
 - [ ] Add the **JavaScript** whole-set subset-law check. The FunctionalScript
       one is stage 6's, once stage 5 has taught the front end `;` and the
       special numbers — see above.

@@ -18,9 +18,11 @@ Read in this order; each line says what to do and why it comes when it does.
    It has the grammar, the error rule and the two invariants that decide
    whether a difference is expected, an illustrative table of error shapes that
    change, the seam DataJS will reuse, the edits owed to two other issues, and
-   the task list. The table is coverage, not an enumeration — that design is
-   explicit that no finite sweep is exhaustive, and the rules plus the
-   invariants are what an implementation is held to. Implementable without reading anything else here.
+   the task list. That table is illustrative and known incomplete, and even the
+   generated sweeps are coverage rather than an enumeration — the design is
+   explicit that no finite sweep is exhaustive, so the rules plus the
+   invariants are what an implementation is held to. Implementable without
+   reading anything else here.
    *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
    scanner unchanged and its number core extended, so JSON has to own those
    scanners before DataJS can borrow them.
