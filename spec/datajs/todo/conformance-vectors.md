@@ -70,9 +70,19 @@ reader's public byte-accepting path — which stage 4 owes:
   Two classes are not ranges and keep their own vectors. A **truncated
   sequence** (`C2` at end of input) has no vector at all — see the exemption
   below. A valid lead followed by a **non-continuation** byte needs one per
-  position rather than per endpoint — `C2 41`, `E2 82 41`, `F0 9F 98 41` —
-  since a decoder can validate the first continuation and neglect the later
-  ones. It and the truncated case are distinct failures despite looking alike:
+  position **in every width that has that position** — the whole matrix, not a
+  diagonal of it:
+
+  | width | position 1 | position 2 | position 3 |
+  | - | - | - | - |
+  | two bytes | `C2 41` | — | — |
+  | three bytes | `E2 41 80` | `E2 82 41` | — |
+  | four bytes | `F0 41 80 80` | `F0 9F 41 80` | `F0 9F 98 41` |
+
+  An earlier draft had one cell per width — `C2 41`, `E2 82 41`, `F0 9F 98 41`
+  — which is one diagonal, and a decoder with separate per-width branches
+  passes a diagonal while failing every cell it misses. All six measured
+  invalid. It and the truncated case are distinct failures despite looking alike:
   Python's decoder names them differently, "unexpected end of data" against
   "invalid continuation byte". Review
   supplied three of these seven after the first draft sampled three, which is
@@ -271,8 +281,12 @@ The six parts:
   before a raw newline, which JavaScript reads as `"ab"` in
   `export default "a\<LF>b";`. Then the **raw control characters** a string
   may not contain — U+0000, U+0009 and U+001F, pinning both ends of the
-  below-U+0020 range and one ordinary member — each valid inside a JavaScript
-  string literal and none inside a DataJS one. Then the characters JavaScript
+  below-U+0020 range and one ordinary member, plus raw **LF** and **CR**. The
+  first three are valid inside a JavaScript string literal and none inside a
+  DataJS one; LF and CR are invalid in both, which classifies them as
+  grammar-only tests rather than excusing their absence, since a standalone
+  reader can accept a raw LF as string content while rejecting the other three
+  correctly. Then the characters JavaScript
   treats as whitespace or a line terminator and DataJS does not, of which there
   are **21**, not the six the spec enumerates: U+000B, U+000C, U+2028, U+2029,
   U+FEFF, and the fifteen `Space_Separator` characters other than U+0020 —
@@ -324,7 +338,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Twenty-two consecutive review
+  vector is the only instrument that sees it. Twenty-three consecutive review
   rounds each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -356,7 +370,10 @@ The six parts:
   overlong classes per width, the two accepts flanking the surrogate hole, and
   the lone surrogate and key order in the writing direction — then the upper
   edge of every invalid range, which turned the error classes into a table of
-  endpoints for the same reason the valid widths became one. Every time the list had been written from memory rather
+  endpoints for the same reason the valid widths became one — then the
+  non-continuation matrix, which had been covered along one diagonal, and raw
+  LF and CR, which one paragraph excluded on the reasoning another used to
+  keep four sibling vectors. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -472,8 +489,13 @@ The six parts:
   **Two things are not on this list, and saying so keeps a later round from
   adding vectors that cannot fail.** JavaScript rejects `1.5n`, `1e2n` and
   `01n`; a strict module rejects the legacy octal escapes `\101` and `\8`; and
-  a raw LF or CR inside a string literal is a JavaScript SyntaxError too, so
-  the raw-control vectors above stop at U+001F and skip those two. Two of the
+  and a raw LF or CR inside a string literal is a JavaScript SyntaxError too.
+  None of that is grounds for *omitting* a vector, only for classifying it: a
+  standalone reader can accept a raw LF as string content while rejecting NUL,
+  TAB and U+001F correctly, so the vector still fails something. An earlier
+  draft drew the opposite conclusion for LF and CR alone — skipping them while
+  keeping the bigint and octal cases on identical reasoning, four lines apart —
+  and they are reject vectors now like the rest. Two of the
   three **required-separator** vectors are the same: `export default1;` and
   `exportdefault 1;` are SyntaxErrors, since `default1` and `exportdefault`
   each lex as one identifier — the spec says as much about the first. They stay
