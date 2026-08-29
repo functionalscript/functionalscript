@@ -412,7 +412,9 @@ positive exponent carries `+`; there is no uppercase `E` spelling, and no
 "shortest form" tie left to break.
 
 **Bigints** are their full decimal digits followed by `n`, never exponent
-notation — which would read back as a number.
+notation — which would read back as a number. A negative bigint carries `-`;
+zero is `0n` and never `-0n`, which the grammar accepts as an input spelling
+of the same value and normalized form must therefore not emit.
 
 **Strings** are spelled by ECMAScript's `QuoteJSONString`, the algorithm
 `JSON.stringify` uses for a string: the escapes `\"` `\\` `\b` `\t` `\n` `\f`
@@ -454,8 +456,13 @@ no `__proto__` key, plain concatenation is exactly a valid DataJS document.
 
 The reverse direction is partial. A DataJS document converts to JSON only when
 it uses no leaf JSON lacks (`undefined`, `NaN`, the infinities, bigint) and no
-value is shared — JSON cannot express the sharing, and emitting the value twice
-denotes a different graph.
+**object or array** is reachable more than once — JSON cannot express that
+sharing, and writing the node twice denotes a different graph.
+
+A shared *primitive* is not an obstacle. `const x=1;export default [x,x];`
+converts to `[1,1]`: primitives have no reference identity, so the two
+occurrences were never distinguishable from two copies, exactly as
+[normalized form](#normalized-form) says when it declines to hoist them.
 
 ## Relationship to FunctionalScript and JavaScript
 
