@@ -514,14 +514,22 @@ side is a **judgement, not a law** — reproducing the set costs nothing, and
 gratuitously turning well-formed numbers into errors is churn a port should not
 introduce.
 
-Worth recording, since two earlier drafts got this wrong in opposite
-directions: **no row in the table loses a token today's tokenizer emits.**
-`-.123` was once said to, and it does not — under the three-case rule the `-` is
-an incomplete stop, so the `.` is re-dispatched and `number 123` survives, with
-only the two error messages changing. Then a draft that made `-` a recovery
-boundary lost `number 1` in `00-"/1`, which is why that change was reverted. The
-design changes error *shapes* and destroys nothing today's tokenizer emits. It
-does not go the other way either: `00-2`'s `-2` is lost today and stays lost,
+Worth recording, since three drafts got this wrong in three different ways:
+**no row loses a token that belongs to the input *after* the malformed
+literal.** The claim has to be scoped that way, because inside a malformed
+literal this design deliberately removes a token — the fabricated `string` after
+`"\x"` is the defect it exists to fix, and `-00`'s two errors become one. Those
+are the change, not collateral damage. What may never happen is a well-formed
+token *beyond* the bad literal going missing because recovery ran further than
+it does today.
+
+The three drafts: `-.123` was said to lose `number 123`, and does not — the `-`
+is an incomplete stop, so the `.` is re-dispatched. Then a `-` recovery boundary
+lost `number 1` in `00-"/1`. Then a re-dispatched `+` lost the `]` in `12+"]`.
+Both were reverted, and both were found by review rather than by the rule, which
+is why the scoped claim is stated here rather than assumed.
+
+It does not go the other way either: `00-2`'s `-2` is lost today and stays lost,
 because recovering it costs more than it returns.
 
 Narrowing the set to JSON's own delimiters is defensible, and is a separate,
