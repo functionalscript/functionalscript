@@ -53,13 +53,16 @@ reader's public byte-accepting path — which stage 4 owes:
   | class | lowest | highest |
   | - | - | - |
   | invalid lead byte, low | `C0` | `C1` |
-  | invalid lead byte, high | `F5` | `FF` |
+  | invalid lead byte, high, as a lone byte | `F5` | `FF` |
+  | four-byte lead past U+10FFFF | `F5 80 80 80` (U+140000) | `F7 BF BF BF` (U+1FFFFF) |
   | stray continuation byte | `80` | `BF` |
   | overlong, two bytes | `C0 A0` (U+0020) | `C1 BF` (U+007F) |
   | overlong, three bytes | `E0 80 A0` (U+0020) | `E0 9F BF` (U+07FF) |
   | overlong, four bytes | `F0 80 80 A0` (U+0020) | `F0 8F BF BF` (U+FFFF) |
-  | obsolete five-byte form | `F8 80 80 80 A0` (U+0020) | — |
-  | obsolete six-byte form | `FC 80 80 80 80 A0` (U+0020) | — |
+  | obsolete five-byte form | `F8 88 80 80 80` (U+200000) | `FB BF BF BF BF` (U+3FFFFFF) |
+  | obsolete six-byte form | `FC 84 80 80 80 80` (U+4000000) | `FD BF BF BF BF BF` (U+7FFFFFFF) |
+  | five-byte form overlong into range | `F8 80 80 80 A0` (U+0020) | — |
+  | six-byte form overlong into range | `FC 80 80 80 80 A0` (U+0020) | — |
   | encoded surrogate | `ED A0 80` (U+D800) | `ED BF BF` (U+DFFF) |
   | above U+10FFFF | `F4 90 80 80` | `F4 BF BF BF` |
 
@@ -88,19 +91,44 @@ reader's public byte-accepting path — which stage 4 owes:
   pass no matter what. Nor does the space between tokens help — a decoder
   yielding U+0000 there is refused for not being permitted whitespace.
 
-  **The obsolete widths are testable only where they are also overlong**, and
-  the table says so with an em dash rather than pretending to an upper end.
-  The legacy five-byte form's smallest in-range value is U+200000 and the
-  six-byte form's is U+4000000, both above U+10FFFF, so any such sequence a
-  document could carry is overlong by construction — measured, along with the
-  fact that `F9`–`FB` and `FD` cannot encode an in-range value at all, whatever
-  their payload. So `F8 80 80 80 A0` and `FC 80 80 80 80 A0` catch a decoder
-  that keeps a legacy width branch **and** omits the overlong check, and
-  nothing catches one that keeps the branch and checks overlongs, because such
-  a decoder accepts no five- or six-byte sequence this format can express.
-  Review proposed `F8 88 80 80 80`, whose legacy value is U+200000: every
-  implementation refuses that for being above U+10FFFF, so it would have been
-  another vector unable to fail.
+  **A lead byte past `F4` needs a complete sequence, and needs it twice**, for
+  two axes that a first pass here confused and a second had to separate.
+
+  The first axis is the **lead range** a decoder's table admits, and it is the
+  `C0` finding again one row up: inside a quoted string the lone `F5` is
+  really `F5 22`, which a decoder treating `F5` as a four-byte lead rejects for
+  the missing continuation — refusing the vector without ever deciding that
+  `F5` is not a lead. So the complete sequences, both ends of every lead run
+  the width scheme distinguishes: `F5`–`F7` at four bytes, `F8`–`FB` at five,
+  `FC`–`FD` at six. `FE` and `FF` are leads in no scheme at all, so they keep
+  only the lone-byte form.
+
+  The second axis is **what the decoder does with the value it computes**, and
+  it splits into two implementations that no single vector catches:
+
+  - **No range check.** The complete sequences above all compute values past
+    U+10FFFF — measured, U+140000 through U+7FFFFFFF — so a decoder that
+    accepts the lead and never range-checks builds some string from them and
+    accepts the document. These vectors catch that.
+  - **Range check, no overlong check.** That decoder refuses everything above,
+    so only a sequence whose value lands *in* range reaches it. `F8` and `FC`
+    are the only obsolete leads that can encode one — measured: `F9`–`FB` start
+    at U+1000000 and `FD` at U+40000000, so no payload brings them back — and
+    every value they can reach is overlong by construction, the five-byte form
+    beginning at U+200000 and the six-byte at U+4000000 when written minimally.
+    Hence `F8 80 80 80 A0` and `FC 80 80 80 80 A0`, both U+0020.
+
+  A decoder keeping a legacy branch with *both* checks is the one case nothing
+  here catches, and nothing can: it accepts no five- or six-byte sequence this
+  format can express, so no input distinguishes it from a correct one.
+
+  **The previous round got this wrong in the direction this document keeps
+  getting things wrong.** It shipped only the overlong forms, on the argument
+  that `F8 88 80 80 80` "every implementation refuses for being above
+  U+10FFFF". Every *range-checking* implementation does. The sentence claimed a
+  universal from a property most implementations have, which is the same
+  overreach recorded three times above, and it cost the vector that catches the
+  commoner of the two defects.
 
   Two classes are not ranges and keep their own vectors. A **truncated
   sequence** (`C2` at end of input) has no vector at all — see the exemption
@@ -590,8 +618,10 @@ The six parts:
   through arrays, and the host variations named on objects alone — then the
   two-byte overlong, dismissed on an argument that ran backwards, which on
   sweeping turned out to have made the low end of **every** overlong row a
-  vector that cannot fail, and the obsolete five- and six-byte widths, which
-  are reachable only where they are also overlong. The sweep for the lead-partition shape had
+  vector that cannot fail — then the same backwards argument one row up, at
+  `F5`–`F7`, which the round that fixed `C0` did not sweep to, along with the
+  claim in that same round that a sequence past U+10FFFF is refused by every
+  implementation when it is refused by every *range-checking* one. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the

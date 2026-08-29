@@ -33,16 +33,27 @@ consumer.
 
 ### Proposal
 
-Add a streaming JSON **recognizer** to `fjs/media/json`: a per-code-point fold that
-accepts/rejects a document using only a bounded bracket stack, buffering
+Add a streaming JSON **recognizer** to `fjs/media/json`: a per-**code-unit** fold
+that accepts/rejects a document using only a bounded bracket stack, buffering
 neither values nor token payloads.
 
 ```ts
 export type JsonRecognizerState = ...     // scanner sub-state × parser control × depth stack
 export const recognizerInit: JsonRecognizerState
-export const recognizerStep = (s: JsonRecognizerState, cp: number): JsonRecognizerState
+export const recognizerStep = (s: JsonRecognizerState, u: U16): JsonRecognizerState
 export const recognizerAccepts = (s: JsonRecognizerState): boolean   // complete valid document at EOF?
 ```
+
+**A code unit, not a code point**, and the reason is the seam this design
+reuses. [self-contained-tokenizer](./self-contained-tokenizer.md) types the
+scanners as `Scan<S>` over `U16 | null`, so a caller holding one value for a
+raw astral character such as U+1F600 has nothing it can pass: the scalar is two
+units, and expanding it is the caller's job under either spelling. Taking
+`U16` here makes the reuse literal rather than requiring an adapter that
+re-splits what the caller just joined, and it matches what JSON strings are —
+code-unit sequences, which is why a lone surrogate is a string this format can
+carry. Review caught the two designs disagreeing at that seam; the earlier
+`cp: number` predates the scanner's type.
 
 **One grammar → one state machine → two builders.** The architecture is not
 "two implementations kept equivalent by tests": there is a single grammar
@@ -115,7 +126,9 @@ property, scoped to make it actually hold:
       machine and one grammar — no parallel copy of the transitions survives.
 - [ ] Implement `recognizerInit` / `recognizerStep` / `recognizerAccepts` with an
       O(depth) bracket stack and an **optional** max-depth cap (default: none);
-      enforce RFC 8259 string-control strictness at scan time.
+      enforce RFC 8259 string-control strictness at scan time. `recognizerStep`
+      takes a **`U16`**, matching the scanners it reuses — a code point would
+      not be passable to them.
 - [ ] Proof (cap disabled): `recognizerAccepts` agrees with `parse` `ok`/`error`
       across the existing parser test corpus; add large-single-token cases (huge
       string, long number) asserting bounded auxiliary space (no payload buffer).
