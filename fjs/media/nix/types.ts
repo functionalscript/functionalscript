@@ -1,5 +1,7 @@
 /**
  * Type-level API for the Nix expression eDSL.
+ *
+ * @module
  */
 
 type _Identifier = string

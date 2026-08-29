@@ -1,5 +1,7 @@
 /**
  * Implementation-private types for the big-float module.
+ *
+ * @module
  */
 
 import type { BigFloat } from './types.ts'

@@ -1,5 +1,7 @@
 /**
  * Types for the serializable BNF intermediate representation (IR).
+ *
+ * @module
  */
 
 import type { StringMap } from '../../types/object/types.ts'

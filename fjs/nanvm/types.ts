@@ -5,6 +5,8 @@
  * behaviour: [`proof.f.mjs`](./proof.f.mjs) runs it against a standard
  * JavaScript engine, and [`rust/module.f.mjs`](./rust/module.f.mjs) prints it
  * as the Rust tests in [`test/generated.rs`](./test/generated.rs).
+ *
+ * @module
  */
 
 /**

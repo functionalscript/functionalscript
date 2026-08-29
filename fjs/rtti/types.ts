@@ -44,6 +44,8 @@
  * ## Converting to TypeScript types
  *
  * See `./ts/module.f.ts` for `Ts<T>` and the `*Ts` transformer types.
+ *
+ * @module
  */
 
 import type { Assert } from '../asserts/types.ts'

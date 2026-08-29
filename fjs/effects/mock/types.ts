@@ -1,5 +1,7 @@
 /**
  * Types for mock effect runtimes.
+ *
+ * @module
  */
 
 import type { Result } from "../../types/result/types.ts"
