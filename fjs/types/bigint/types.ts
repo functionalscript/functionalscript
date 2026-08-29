@@ -1,5 +1,7 @@
 /**
  * Operator types specialized to `bigint`.
+ *
+ * @module
  */
 
 import type {

@@ -2,6 +2,8 @@
  * Type-level API for `fjs/djs/parser/module.f.mjs`: the `ParseError` shape
  * `parseFromTokens` reports, the `_ValueToken` subset `tokenToValue` accepts,
  * and the parser layer's token alphabet.
+ *
+ * @module
  */
 
 import type { TokenMetadata } from '../../js/tokenizer/types.ts'

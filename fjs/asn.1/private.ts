@@ -1,5 +1,7 @@
 /**
  * Implementation-private types for ASN.1 tag encoding.
+ *
+ * @module
  */
 
 import type { Vec } from '../types/bit_vec/types.ts'

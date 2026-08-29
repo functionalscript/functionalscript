@@ -1,5 +1,7 @@
 /**
  * Common higher-order operator type aliases.
+ *
+ * @module
  */
 
 export type Binary<A, B, R> = (a: A) => (b: B) => R

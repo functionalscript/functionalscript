@@ -2,6 +2,8 @@
  * Type-level API for `fjs/protocol/json_rpc/module.f.mjs`: `Id`, `Request`,
  * `RpcError`, and `Response`, derived from the module's own rtti schemas,
  * plus the `Handler` / `Handlers` shapes a dispatcher is built from.
+ *
+ * @module
  */
 
 import type { Unknown } from '../../media/json/types.ts'

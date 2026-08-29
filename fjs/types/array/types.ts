@@ -1,5 +1,7 @@
 /**
  * Types for JavaScript immutable arrays.
+ *
+ * @module
  */
 
 import type { Assert } from '../../asserts/types.ts'
