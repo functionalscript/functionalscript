@@ -147,8 +147,21 @@ document can carry. So the corpus does not store values. It stores a
   | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an accessor property that **records its own invocation** and then returns `value` |
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | a property under a fresh unique symbol |
 
-  Modifiers **apply in the order the nodes appear**, so a node carrying several
-  is unambiguous. A cycle needs no recipe: it is a `ref` to an ancestor.
+  **A modifier node denotes its target, modified** — the same object `on`
+  denotes, not a copy. Three consequences, and they are stated because review
+  found two consumers could reasonably read this differently:
+
+  - **Identity is the target's.** A `ref` to the modifier and a `ref` to its
+    target yield the same object, so a vector cannot describe the target
+    *before* the modification. That is deliberate: the node table is a heap,
+    not a history.
+  - **Only nodes reachable from `root` are built**, modifiers included. The
+    table is data, not a program, so an unreachable row is inert and cannot
+    reach into the graph by side effect.
+  - **Reachable modifiers apply in table order**, so a target carrying several
+    is unambiguous.
+
+  A cycle needs no recipe: it is a `ref` to an ancestor.
 
   Two of these carry an obligation the recipe alone does not express, and both
   came from review:
@@ -201,8 +214,8 @@ needs nothing beyond an engine.
       with holes occupying positions, the object pair form **with unique keys
       in observable order**, and the eight `host` recipes — four leaves, four
       modifiers, each modifier naming the node it applies to — with their
-      application order, `builtin`'s closed `kind` list, and `getter`'s
-      invocation record. It is the part two
+      application order, what a modifier node denotes, `builtin`'s closed `kind`
+      list, and `getter`'s invocation record. It is the part two
       consumers can silently disagree about, so it lands first and gets its own
       round-trip proof — encode a graph, decode it, and assert the sharing
       survives.
