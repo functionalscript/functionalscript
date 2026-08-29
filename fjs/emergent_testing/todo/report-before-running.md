@@ -47,8 +47,15 @@ before the leaf is sandboxed, and let each host decide what to do with it:
   that; in the common case the result still directly follows its own start,
   and the repeated name is what keeps the pair legible when something
   intervenes.
-- **The browser page** renders a row in a pending state and settles it in place,
-  which is the same list it renders now with one more state per row.
+- **The browser page** renders a row in a pending state and settles it in
+  place — the same list it renders now with one more state per row — **and
+  its start handler awaits one macrotask after rendering the pending row**,
+  exactly as its `report` handler does after a result. Appending a DOM node
+  does not paint it: without the yield, a proof that runs synchronously for
+  seconds would run and settle the row before the first paint, and the
+  running test this issue exists to show would never be visible. The yield
+  sits before the sandboxed clock reads, so the reported duration is
+  untouched (the constraint below).
 - **A result type** may not need to change at all: a start is an event, not a
   result. Whether the reporter grows a sibling operation or its existing one
   gains a status is part of the design.
@@ -64,7 +71,9 @@ still the argument for settling it in the shared core rather than twice.
 ### Constraints
 
 - A start event must not cost a `sandbox` call or a clock read of its own: the
-  duration reported is still the sandboxed one.
+  duration reported is still the sandboxed one. The browser start handler's
+  macrotask yield (above) is compatible: it lands before the sandbox's
+  adjacent clock reads, so it delays the start, not the measurement.
 - The runner's scheduling is not this issue's to change, in either direction.
   When this was written that meant "concurrency stays"; the sequential plan in
   [share-browser-console-runner](share-browser-console-runner.md) has since
@@ -91,7 +100,10 @@ still the argument for settling it in the shared core rather than twice.
       legible — but a leaf's *own* output can still land between its start
       and its result, so the proof includes a proof that writes to the
       terminal mid-test and shows both records intact around it.
-- [ ] Render a pending row in the browser page and settle it in place.
+- [ ] Render a pending row in the browser page, await one macrotask in the
+      start handler, and settle the row in place — and prove the pending row
+      is observable before the proof body starts (a proof whose body reads
+      the DOM, or blocks long enough that an unpainted row would be caught).
 - [ ] Prove that a run killed mid-test leaves the running test's name behind.
 
 ### Related
