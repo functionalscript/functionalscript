@@ -15,9 +15,12 @@ Read in this order; each line says what to do and why it comes when it does.
 1. **Next: stage 3, the JSON self-contained tokenizer.** Design is written and
    reviewed:
    [`fjs/media/json/todo/self-contained-tokenizer.md`](../fjs/media/json/todo/self-contained-tokenizer.md).
-   It has the grammar, the error rule, the exact table of error shapes that
+   It has the grammar, the error rule and the two invariants that decide
+   whether a difference is expected, an illustrative table of error shapes that
    change, the seam DataJS will reuse, the edits owed to two other issues, and
-   the task list. Implementable without reading anything else here.
+   the task list. The table is coverage, not an enumeration — that design is
+   explicit that no finite sweep is exhaustive, and the rules plus the
+   invariants are what an implementation is held to. Implementable without reading anything else here.
    *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
    scanner unchanged and its number core extended, so JSON has to own those
    scanners before DataJS can borrow them.
