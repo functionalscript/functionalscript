@@ -17,9 +17,12 @@ require the default `fjs/media/json` API to mimic native `JSON.parse` /
 
 It also does **not** own DJS `.f.js` spellings. DJS is a JavaScript-syntax
 superset and can represent values that standard JSON cannot. The DJS requirement
-to round-trip `-0`, `NaN`, `Infinity`, and `-Infinity` is tracked by
-[`non-finite-number-round-trip.md`](../../../djs/todo/non-finite-number-round-trip.md),
-extracted from `compile-modules-to-edag.md`, which needs it.
+to round-trip `-0`, `NaN`, `Infinity`, and `-Infinity` is specified by
+[`spec/datajs/README.md`](../../../../spec/datajs/README.md) and implemented by
+stage 4 of
+[`parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md);
+[`compile-modules-to-edag.md`](../../../djs/todo/compile-modules-to-edag.md)
+needs it.
 That work must not silently redefine the standard JSON codec's policy here.
 
 The extended codec's decisions are settled and shipped (below). What remains

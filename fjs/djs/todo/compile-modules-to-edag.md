@@ -370,10 +370,34 @@ The exact tests must distinguish the edge cases semantically:
 
 This parser/serializer support is required independently of module-to-EDAG conversion,
 because `.f.js` is the general representation used to persist EDAG and unresolved
-artifacts — which is why it is now its own issue,
-[`non-finite-number-round-trip.md`](./non-finite-number-round-trip.md). That issue
-owns the spellings, the reserved-versus-shadowed question they raise, and the
-round-trip proofs; this one keeps the requirement and depends on it.
+artifacts.
+
+**Where the work lands.** Not in `fjs/djs`. The spellings and their grammar are
+settled in [`spec/datajs/README.md`](../../../spec/datajs/README.md) — `NaN`,
+`Infinity` and `-Infinity` are *words*, `infinity ::= '-'? 'Infinity'` carries the
+sign the way `number` and `bigint` already do, and the three names are excluded
+from bindings — and
+[`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md)
+assigns implementing that spec to **stage 4, under `fjs/media/datajs`**, with the
+reserved-word half following in stage 5 once the front end moves. Patching
+`fjs/djs` for these four values would be reworked by that migration, so the tasks
+below are the requirement, not an instruction to implement them here.
+
+Measured against the current implementation, so the gap is on record rather than
+rediscovered:
+
+| value | parser | serializer |
+|---|---|---|
+| `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `0` |
+| `NaN` | `const not found` | emits `null` |
+| `Infinity` | `const not found` | emits `null` |
+| `-Infinity` | `unexpected token` | emits `null` |
+
+`-0` is serializer-only, which is easy to miss because `String(-0)` is `"0"` and
+only `Object.is` separates them. The other three arrive as `id` tokens, so the
+grammar reads them as references and name resolution rejects them; `-Infinity`
+fails earlier still, since there is no `-` in the `DjsToken` set at all and it
+tokenizes to `error id(Infinity) eof`.
 
 ### Existing compile API boundary
 
