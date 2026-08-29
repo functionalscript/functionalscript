@@ -74,6 +74,15 @@ A machine-readable corpus with six parts:
   passed while the implementation was wrong. A vector with a second ground for
   refusal tests whichever ground the implementation happens to reach first,
   which is not the one it was written for.
+
+  The rule reaches the leaves too, which review found by applying it: an
+  ordinary function has own non-enumerable `name` and `length`, and a
+  non-arrow adds `prototype`, `caller` and `arguments` — so a serializer that
+  never learned to reject functions can refuse one through its
+  non-enumerable-property check. An arrow function's `name` and `length` are
+  configurable, so deleting them leaves a callable with **no own properties**
+  at all, and refusing it requires recognizing a function. `symbol` needs no
+  such care: it has none to begin with.
 - **serializer accept** — programmatic inputs a serializer must **not** refuse,
   each with the **graph its output must denote**. Not the exact document:
   whitespace, layout, const names and the hoisting of singly-reached values are
@@ -172,7 +181,7 @@ document can carry. So the corpus does not store values. It stores a
 
   | recipe | builds |
   | - | - |
-  | `{"host": "fn"}` | a function value |
+  | `{"host": "fn"}` | a function value with **no own properties** — an arrow function with `name` and `length` deleted, per the one-reason rule below |
   | `{"host": "symbol"}` | a fresh unique symbol, as a *value* |
   | `{"host": "builtin", "kind": <kind>[, "ms": <integer>]}` | a non-plain built-in object: `date` (with `ms`), `map`, `regexp` or `boxedNumber` |
   | `{"host": "hole"}` | an array hole — legal **only** as an `arr` element |
