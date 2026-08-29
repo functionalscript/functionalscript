@@ -300,11 +300,26 @@ follows the input instead:
 | `0n`, `123n` | `invalid token` | one `invalid number` |
 | `[-123n]` | `[`, error, error, `]` | `[`, one `invalid number`, `]` |
 | `12"a"` | error, string `"a"` | unchanged — `"` ends without accepting |
+| `00-2` | one error — `-2` is **swallowed** | `invalid number`, number `-2` |
+| `00-` | one error | two `invalid number` |
 
 An unterminated string stays one error; its message changes from
 `" are missing` to `invalid string`.
 
-Every change in that table is an error becoming a *differently shaped* error.
+The last two rows are a recovery class of their own, and the current behavior
+there is worse than noisy — it is lossy. Today a malformed number swallows a
+following `-` and everything after it: `00-2` reports one error and the
+well-formed number `-2` never reaches the caller at all. And it does this
+inconsistently, which is the tell that it is an accident rather than a policy —
+`0.-2` and `12.-2`, malformed in a different way, *do* emit the `-2`. Making
+`-` a terminator makes the three uniform and stops discarding a real token.
+
+This is the same defect class as the fabricated string, running the other
+direction: one invents a token the input never contained, the other discards one
+it did.
+
+Every other change in that table is an error becoming a *differently shaped*
+error.
 **No input moves between erroring and not erroring, in either direction** — that
 is the invariant worth checking the implementation against, and it is stronger
 than "accepted documents are unchanged", because the tokenizer is public API and
@@ -487,7 +502,14 @@ implementation PR — the premise only actually changes when the code does.
       `unescaped character`, `invalid token` for `0n`) sees different tokens,
       and a consumer relying on a *value* token after a malformed literal stops
       receiving one. Valid JSON is unaffected, and the entry should say so.
-- [ ] `npm run update`, then `npx tsc` and `fjs test`. The update step is not
+- [ ] Prove the minus-boundary recovery class explicitly — `00-2` yields
+      `invalid number` then the number `-2`, and `00-` yields two errors. These
+      are the cases where today's tokenizer silently drops a well-formed token,
+      so they are the ones most worth pinning.
+- [ ] `npm run update`, then `npx tsc`, `fjs test`, `cargo clippy` and
+      `cargo fmt -- --check`. The check set lists the last two unconditionally —
+      only `cargo test` is scoped to having touched Rust — and they are quick
+      no-ops for a change that touches none. The update step is not
       optional bookkeeping here: it regenerates CI workflows and lockfiles, and
       this stage adds no dependency, but it does change the module's exports
       and types, and the generated declaration output moves with them.
