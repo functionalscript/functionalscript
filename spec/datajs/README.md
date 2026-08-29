@@ -34,6 +34,21 @@ The format is meant to be implementable from this document in an afternoon,
 and then to stop changing. Everything not needed to write a value graph
 belongs to [FunctionalScript](../README.md), not here.
 
+**DataJS is a format for machines — and one JavaScript imports directly.** A
+program writes it and a program reads it; a person reads one mainly when
+something has gone wrong. But "for machines" here does not mean opaque or
+foreign: a document *is* a JavaScript module, so any engine loads one with
+`import` and no parser, no library and no build step, while a reader in any
+other language has this specification instead. That is what the shape buys, and
+it is why the shape is JavaScript rather than something invented.
+
+What it costs is the concessions a human-facing format would make, and they are
+simply absent: no comments, no trailing commas, no trailing `;`, no identifier
+keys, and one normalized byte sequence per value. Where readability and a
+single unambiguous spelling pull against each other, the spelling wins. None of
+those is an oversight, and none is worth reopening to make a document nicer to
+look at.
+
 ## Status
 
 **This document specifies a target, not the current implementation.** The
@@ -485,10 +500,12 @@ escaped.
 duplicates already collapsed — a normalized document never contains a
 duplicate key.
 
-Tooling should *default* to a readable layout — one statement per line,
-indented containers — which is simply one of the many valid non-normalized
-spellings. Normalized output is something a caller asks for, typically to hash
-or compare documents.
+Tooling should *default* to normalized output. A readable layout — one
+statement per line, indented containers — is one of the many valid
+non-normalized spellings and worth offering for the moments a person does read
+a document, but it is the option rather than the default: this is a format
+machines write and read, and hashing, comparing and round-tripping documents is
+what the default should serve.
 
 ## Relationship to JSON
 
