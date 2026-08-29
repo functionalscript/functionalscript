@@ -34,20 +34,27 @@ The format is meant to be implementable from this document in an afternoon,
 and then to stop changing. Everything not needed to write a value graph
 belongs to [FunctionalScript](../README.md), not here.
 
-**DataJS is a format for machines — and one JavaScript imports directly.** A
-program writes it and a program reads it; a person reads one mainly when
-something has gone wrong. But "for machines" here does not mean opaque or
-foreign: a document *is* a JavaScript module, so any engine loads one with
-`import` and no parser, no library and no build step, while a reader in any
-other language has this specification instead. That is what the shape buys, and
-it is why the shape is JavaScript rather than something invented.
+**What the format optimizes is the implementer's job** — writing a parser and a
+serializer that are correct — and not compactness, and not readability. Every
+rule here is chosen to remove a decision: ASCII identifiers so no
+implementation needs Unicode tables, a mandatory `$` so none carries a
+reserved-word list, `;` rather than a line terminator so none learns which
+invisible characters end a statement, whitespace pinned at three positions so
+none reasons about token merging, one spelling of `__proto__`, and a restated
+algorithm wherever hosts disagree. The conveniences that are missing —
+comments, trailing commas, a trailing `;`, identifier keys — are missing for
+that reason, each being one more thing to implement and to agree on, and not
+because a document ought to be unpleasant to read.
 
-What it costs is the concessions a human-facing format would make, and they are
-simply absent: no comments, no trailing commas, no trailing `;`, no identifier
-keys, and one normalized byte sequence per value. Where readability and a
-single unambiguous spelling pull against each other, the spelling wins. None of
-those is an oversight, and none is worth reopening to make a document nicer to
-look at.
+In JavaScript the job is already done: a document *is* a module, so an engine
+loads one with `import` — no parser, no library, no build step. Every other
+language gets this specification, which is the afternoon above.
+
+Layout is where nothing is at stake, and the format spends nothing on it.
+Whitespace between tokens costs neither side anything — a reader skips it, a
+writer picks what it likes — so tooling is free to default to a layout people
+can read. [Normalized form](#normalized-form) is there for when a caller needs
+exactly one byte sequence.
 
 ## Status
 
@@ -500,12 +507,11 @@ escaped.
 duplicates already collapsed — a normalized document never contains a
 duplicate key.
 
-Tooling should *default* to normalized output. A readable layout — one
-statement per line, indented containers — is one of the many valid
-non-normalized spellings and worth offering for the moments a person does read
-a document, but it is the option rather than the default: this is a format
-machines write and read, and hashing, comparing and round-tripping documents is
-what the default should serve.
+Tooling should *default* to a readable layout — one statement per line,
+indented containers — which is simply one of the many valid non-normalized
+spellings, and which costs an implementation nothing, since a reader has to
+accept every spelling regardless. Normalized output is something a caller asks
+for, typically to hash or compare documents.
 
 ## Relationship to JSON
 
