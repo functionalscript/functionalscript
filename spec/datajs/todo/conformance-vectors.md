@@ -73,12 +73,24 @@ Two properties worth proving directly rather than case by case: every
 **accept** document is accepted by a JavaScript engine with the same result.
 Those are the subset laws, and they can run over the whole accept set.
 
+**They land at different times, and this corpus only owes the second.** The
+FunctionalScript check cannot run when this corpus lands: today's front end has
+no `NaN`, `Infinity` or `-Infinity`, and its statement separator is a newline
+rather than `;` — both are stage 5's work
+([parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)).
+Running it earlier would fail on almost every accept vector, for reasons that
+are not the corpus's fault. So the FunctionalScript subset law is **stage 6's
+task**, over this corpus, and this file only requires the JavaScript one, which
+needs nothing beyond an engine.
+
 ### Tasks
 
 - [ ] Choose the corpus's own encoding and location, per the bootstrapping
       constraint above.
 - [ ] Write the accept, reject and normalize sets covering the cases listed.
-- [ ] Add the two whole-set subset-law checks.
+- [ ] Add the **JavaScript** whole-set subset-law check. The FunctionalScript
+      one is stage 6's, once stage 5 has taught the front end `;` and the
+      special numbers — see above.
 - [ ] Point stages 4 and 6 at the corpus as their proof source. Not stage 3 —
       see above.
 - [ ] `npx tsc`, `fjs test`.

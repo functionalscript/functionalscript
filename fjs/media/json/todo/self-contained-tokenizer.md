@@ -227,14 +227,19 @@ Five rules replace the inherited behavior:
    test never fires mid-lexeme: the `-` in `1e-5` is an exponent sign, because
    after `e` the grammar wants one.
 
-   Requiring a terminator is why `0abc` reports `invalid number` rather than
-   the number `0` followed by a stray word. RFC 8259 does not demand it — `0`
-   is a complete `number` and the *parser* would reject what follows — but in a
+   Requiring a terminator is why `0abc` reports `invalid number` for the `0`
+   rather than accepting it as a number. RFC 8259 does not demand that — `0` is
+   a complete `number` and the *parser* would reject what follows — but in a
    valid document a number is always terminated, so requiring it rejects
    nothing valid and says something far more useful about input that is wrong.
    The `"` case is the same judgement applied consistently: a number abutting a
-   string is as malformed as a number abutting a word, and it would be hard to
-   defend rejecting `0abc` while accepting `12"a"`.
+   string is as malformed as a number abutting a word.
+
+   It does **not** collapse the whole run into one token. `0abc` is `invalid
+   number` and then `invalid token`, because the `a` is re-dispatched and the
+   word rule takes it — two errors, exactly as today. Only a number malformed
+   *before it completes*, like `00abc`, enters recovery and consumes the rest
+   into a single error.
 
    `-` has to be in the terminator set, and the proofs are what say so:
    `tokenize('10-0')` asserts the two number tokens `10` and `-0`. Without `-`
@@ -284,8 +289,9 @@ Five rules replace the inherited behavior:
 
    The rule meshes with rule 2 in both directions: `-` is not a word character,
    so `null-1` is `null` then the number `-1`; and a digit starts a number
-   rather than a word, so `0abc` is one `invalid number` and `tru3` is one
-   `invalid token`.
+   rather than a word, so `tru3` is one `invalid token` while `0abc` is an
+   `invalid number` followed by one — the digit sends it to the number scanner
+   first, which rejects the `0` and re-dispatches the `a`.
 
 5. **The message names the lexeme that failed** — `invalid number`,
    `invalid string`, `invalid token` for a word run that is not `true`,
