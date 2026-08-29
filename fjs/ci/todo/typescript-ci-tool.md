@@ -26,10 +26,10 @@ Local development must continue to support `tsc`, `npm test`, and `npm pack`: ou
 - [ ] Provision that TypeScript version in the canonical CI job that runs `tsc` (currently Node 26).
 - [ ] Provision the pinned TypeScript in the npm publishing workflow so `prepack` uses the intended compiler during `npm publish`.
 - [ ] Run `tsc` from `PATH` instead of relying on `npx tsc` / `node_modules/.bin/tsc`.
-- [ ] Remove `typescript` from the root `package.json` `devDependencies` and update `package-lock.json`.
+- [ ] Remove `typescript` from the root `package.json` `devDependencies`, then run `npm run update` so `package-lock.json`, `deno.lock`, `bun.lock`, and generated CI files are all regenerated consistently.
 - [ ] Keep `@types/node` as a devDependency.
 - [ ] Update repository-owned developer/check documentation, including `CONTRIBUTING.md`, `AGENTS.md`, `fjs/AGENTS.md`, and `fjs/ci/README.md`: list TypeScript as a developer tool where appropriate, document installing the pinned version globally for local development, and replace required `npx tsc` instructions with `tsc`.
 - [ ] Update the Docker and OpenAI Codex development setup so their documented `npm test` / `tsc` checks have the pinned TypeScript on `PATH` without relying on the root devDependency.
-- [ ] Verify Node 22, Node 24, Deno, and Bun no longer install TypeScript unnecessarily.
+- [ ] Verify Node 22, Node 24, Deno, and Bun no longer install TypeScript unnecessarily and their frozen-lock installs still succeed.
 - [ ] Verify `package-check` remains generated and validates the packed declarations with the CI-configured compiler pin.
 - [ ] Verify `tsc`, `npm test`, `npm pack`, and the npm publish path work in every environment that is documented or responsible for those checks.
