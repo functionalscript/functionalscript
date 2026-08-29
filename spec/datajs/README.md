@@ -736,21 +736,57 @@ JavaScript global or literal can become one, whatever it is called. Nothing a
 future edition does can reopen this.
 
 The **reserved-word** collision — the loud one, where JavaScript rejects the
-binding and the document is not JavaScript at all — rests on ECMA-262 never
-reserving a word that contains a `$`. That is an argument rather than a
-theorem, and the argument is: every reserved word, strict-mode future reserved
-word and contextual keyword in the language today is ASCII letters only,
-measured; a new one containing `$` would invalidate existing valid programs,
-since `$`-leading identifiers are legal and widespread; and when TC39 has
-needed a new marker it has taken a character that was *not* already valid in an
-identifier — `#` for private names — precisely to avoid that collision. The
-pattern points away from `$`, but no rule forbids it.
+binding and the document is not JavaScript at all — is not closed by this
+grammar, because ECMA-262 decides it. It is worth being exact about what would
+have to happen, since "a future keyword" is broader than the actual risk. **Two
+things would both have to be true.** ECMA-262 would have to choose a spelling
+containing `$` for a new keyword, *and* make that keyword **reserved** rather
+than contextual. Either alone is harmless: a contextual keyword does not remove
+a name from the set of legal bindings, and a reserved word spelled in letters
+cannot collide with a name that starts with `$`.
 
-The residual risk is therefore bounded and loud. If it ever happened, a
-document using the affected name would stop parsing as JavaScript — a syntax
-error at load, not a value silently read as something else — and normalized
-form, which spells its names `$` followed by digits, is the least plausible
-shape for a keyword. The exposure is to hand-chosen names only.
+Both are contrary to how the language has actually grown.
+
+- **Contextual is the normal shape of an addition.** Measured over sixteen
+  contextual keywords including the recent and proposed ones — `using`,
+  `accessor`, `satisfies`, `match`, `defer`, `source` — fourteen are still
+  legal `const` names today. Additions of this kind cannot break a DataJS
+  document at all, whatever they are spelled with.
+- **The reserved list is essentially closed.** Its thirty-eight words, and the
+  eight strict-mode future reserved words beside them, have been fixed since
+  ES1–ES6; the language grows by adding contextual keywords and punctuation,
+  not by taking identifiers away from programs that already use them.
+- **`$` is carved out for user names by the grammar itself.**
+  `IdentifierStartChar` lists `$` and `_` explicitly, alongside `UnicodeIDStart`
+  — the specification says in its own grammar that these two are for
+  identifiers. Reserving a `$` word would invalidate existing valid programs,
+  since `$`-leading identifiers are legal and widespread.
+- **New markers come from outside the identifier grammar.** When TC39 needed a
+  sigil for private names it took `#`, which was not a valid identifier
+  character — measured, `const #x=1` is rejected while `const $x=1` and
+  `const _x=1` are accepted. That choice is the pattern, and it points away
+  from `$`.
+
+No rule forbids it, so the format also reduces what a collision would cost.
+
+- **Normalized form spells its names `$` followed by digits** — `$0`, `$1`, …
+  Machine-produced documents, which is what exists in bulk, therefore use a
+  shape no keyword plausibly takes. The exposure is to hand-chosen names only.
+- **The failure would be loud.** A document using the affected name stops
+  parsing as JavaScript: a syntax error at load, never a value silently read as
+  something else. The silent class is the one closed permanently above.
+- **Recovery is mechanical, and the format already ships it.** Re-normalizing a
+  document renames every `const` to `$0`, `$1`, …, so the fix for a colliding
+  name is running the normalizer rather than editing documents by hand.
+- **The conformance corpus pins `$class` and `$undefined` as ordinary names**,
+  so an implementation that quietly reintroduces an exclusion list fails
+  conformance. The mitigation cannot decay into the thing it replaced.
+
+If ECMA-262 ever did move toward `$`, one further step is available and is a
+one-line change: narrow `id` to `$` followed by digits, which removes
+word-shaped names from the format entirely and makes the question moot. It is
+not taken now, because a hand-written document is easier to read with names
+like `$config` than with `$7`.
 
 **Which character carries the prefix is a separate question from whether there
 is one**, and only the second is forced. `_` has the same property that the

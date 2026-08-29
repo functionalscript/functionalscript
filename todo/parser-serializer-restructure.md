@@ -249,11 +249,20 @@ key       ::= string | '[' '"__proto__"' ']'
   same guarantee, which the spec's rationale now separates: the *value-word*
   collision is closed permanently by DataJS's own grammar, since the words it
   reads as values are the nine its productions name and that list does not grow
-  when ECMA-262 does; the *reserved-word* collision rests on ECMA-262 never
-  reserving a word containing `$`, which is an argument from compatibility
-  rather than a theorem, and whose failure would be a loud one. Today, measured
-  over sixty reserved, strict-mode-future, contextual and value words, none
-  contains a `$`. A name JS rejects
+  when ECMA-262 does; the *reserved-word* collision is ECMA-262's to decide, and
+  would need **two** things at once — a new keyword spelled with a `$` **and**
+  made reserved rather than contextual. Measured: none of the sixty reserved,
+  strict-mode-future, contextual and value words contains a `$`; fourteen of
+  sixteen contextual keywords, including `using`, `accessor`, `satisfies` and
+  `match`, are still legal `const` names, so additions of that shape cannot
+  break a document at all; and `#x` is rejected as a binding where `$x` and
+  `_x` are accepted, which is why TC39 reaches outside the identifier grammar
+  for new markers. What the format does to reduce the cost if it happened
+  anyway — normalized names are `$` plus digits, the failure is a syntax error
+  rather than a silent misread, re-normalizing renames every const
+  mechanically, and the corpus pins `$class`/`$undefined` so no implementation
+  drifts back to an exclusion list — is in the spec's rationale, along with the
+  one-line grammar narrowing available if ECMA-262 ever moves toward `$`. A name JS rejects
   as a binding identifier in module code (module code is strict) would break
   the subset law outright — `const class = 1` and `const eval = 1` are syntax
   errors there — and a name JS *permits* but DataJS reads as a value is worse
