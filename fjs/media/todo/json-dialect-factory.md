@@ -90,17 +90,28 @@ So the signature is parameterized by the schema and by the refinement's error
 type, with `E = never` for a dialect that has no refinement:
 
 ```ts
+import type { Unknown as JsonUnknown } from './json/types.ts'
+
 export type JsonDialect<S, D extends string, E> = {
     readonly dialect: D
     readonly mediaType: `application/${D}+json`
     readonly encodeText: (value: Ts<S>) => string
-    readonly validate: (value: Unknown) => Result<Ts<S>, ValidationError | E>
+    readonly validate: (value: JsonUnknown) => Result<Ts<S>, ValidationError | E>
     readonly decodeText: (text: string) => Result<Ts<S>, ValidationError | E | string>
     readonly entry: DialectEntry
 }
 ```
 
-and `dialectMediaType` is typed `<D extends string>(dialect: D) =>
+The alias is load-bearing, not style. `../types.ts:8` already binds the bare
+name `Unknown` to rtti's — the encoding-neutral one admitting `bigint` and
+`undefined` — and its own JSDoc at `:14-15` draws exactly this contrast for
+`DialectEntry.match`. But the three `validate` exports take
+`fjs/media/json`'s JSON-only `Unknown` (`../revision/module.f.mjs:17`,
+`../note/module.f.mjs:28`), so writing the bare name in this file would
+silently widen their parameter type and break the identical-declarations
+requirement below. Import the JSON one under an explicit alias.
+
+`dialectMediaType` is typed `<D extends string>(dialect: D) =>
 \`application/${D}+json\`` so the derivation preserves the literal rather
 than erasing it.
 
