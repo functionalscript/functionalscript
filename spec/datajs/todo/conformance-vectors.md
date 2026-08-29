@@ -70,19 +70,41 @@ reader's public byte-accepting path — which stage 4 owes:
   Two classes are not ranges and keep their own vectors. A **truncated
   sequence** (`C2` at end of input) has no vector at all — see the exemption
   below. A valid lead followed by a **non-continuation** byte needs one per
-  position **in every width that has that position** — the whole matrix, not a
-  diagonal of it:
+  position **in every width that has that position**, and the intruding byte
+  has two sub-classes, so each cell holds two vectors — the whole matrix, not a
+  diagonal of it and not one half of each cell:
 
   | width | position 1 | position 2 | position 3 |
   | - | - | - | - |
-  | two bytes | `C2 41` | — | — |
-  | three bytes | `E2 41 80` | `E2 82 41` | — |
-  | four bytes | `F0 41 80 80` | `F0 9F 41 80` | `F0 9F 98 41` |
+  | two bytes | `C2 41` / `C2 C2` | — | — |
+  | three bytes | `E2 41 80` / `E2 C2 80` | `E2 82 41` / `E2 82 C2` | — |
+  | four bytes | `F0 41 80 80` / `F0 C2 80 80` | `F0 9F 41 80` / `F0 9F C2 80` | `F0 9F 98 41` / `F0 9F 98 C2` |
 
-  An earlier draft had one cell per width — `C2 41`, `E2 82 41`, `F0 9F 98 41`
-  — which is one diagonal, and a decoder with separate per-width branches
-  passes a diagonal while failing every cell it misses. All six measured
-  invalid. It and the truncated case are distinct failures despite looking alike:
+  A byte is a continuation exactly when it is `10xxxxxx`, so a
+  non-continuation is either **high bit clear** (`00`–`7F`, the `41` column) or
+  **high bit set but not a continuation** (`C0`–`FF`, the `C2` column). A
+  decoder testing `b >= 0x80` where it means `0x80 <= b <= 0xBF` rejects every
+  `41` cell and accepts every `C2` one — half of every cell in this matrix
+  passing while the check it tests is wrong. Review found that after the first
+  draft filled all six positions with `41` alone.
+
+  The high-bit intruder must be a **valid lead byte**, which is why it is `C2`
+  and not `C0` or `FF`: those are invalid leads outright, measured, so a vector
+  using one has the invalid-lead class as a second ground for refusal and stops
+  testing the position it was written for. Any valid lead does equally well —
+  `C2` and `F4` differ nowhere under the one comparison that separates this
+  sub-class from the other — so one representative per cell is enough. The
+  ASCII intruder is constrained from the other direction: `00`–`1F` is a raw
+  control character and `22` and `5C` end or escape the string that carries the
+  vector, each a second ground for refusal, so the column sits in the printable
+  remainder and `41` is that. An
+  earlier draft had one cell per width — `C2 41`, `E2 82 41`, `F0 9F 98 41` —
+  which is one diagonal, and a decoder with separate per-width branches
+  passes a diagonal while failing every cell it misses. All twelve measured
+  invalid, each for "invalid continuation byte" rather than any other reason.
+
+  The non-continuation class and the truncated case are distinct failures
+  despite looking alike:
   Python's decoder names them differently, "unexpected end of data" against
   "invalid continuation byte". Review
   supplied three of these seven after the first draft sampled three, which is
@@ -449,9 +471,11 @@ The six parts:
   rounds earlier, the normalize numbers were six positive finite thresholds
   and nothing else, and post-order naming rested on two shared siblings, which
   pre-order names the same way — then the walker boundary the cycle set had
-  just called a binary axis, `obj→arr→obj` passing every homogeneous cell, and
-  an exact-bytes vector written the round before that **spelled its object keys
-  bare**, requiring a document the grammar rejects. Every time the list had been written from memory rather
+  just called a binary axis, `obj→arr→obj` passing every homogeneous cell, an
+  exact-bytes vector written the round before that **spelled its object keys
+  bare**, requiring a document the grammar rejects, and every cell of the
+  non-continuation matrix using an ASCII intruder, so that half of the class —
+  a high-bit byte that is not a continuation — had no vector anywhere. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
