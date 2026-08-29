@@ -69,19 +69,53 @@ that `fjs/AGENTS.md` says must not get weaker for being written in
 JavaScript. The signature in `../types.ts` therefore carries the dialect as
 a type parameter and derives the media type as a template literal:
 
+The same applies to the rest of the kit: `encodeText`, `validate`, and
+`decodeText` have per-dialect types today — `(Revision) => string`,
+`(Unknown) => Result<Revision, RevisionError>` — and an inferred factory
+would erase those to a common supertype. Two facts make a precise signature
+straightforward rather than a guess:
+
+- **The value type needs no parameter.** `Revision`, `Lock`, and `Note` are
+  each already `Ts<typeof theSchema>` (`../revision/types.ts:52` and its
+  siblings), so the factory derives the value from the schema parameter with
+  the same `Ts<>` the modules use.
+- **The error union turns on the refinement alone.** `note`, which has no
+  `checkReferences`, types `validate` as `Result<Note, ValidationError>`;
+  `revision` and `lock`, which have one, add the `string` it raises. All
+  three `decodeText`s carry `string` regardless, because a JSON parse failure
+  is a string error — which is exactly what `NoteError`'s "or a JSON parse
+  error message" records.
+
+So the signature is parameterized by the schema and by the refinement's error
+type, with `E = never` for a dialect that has no refinement:
+
 ```ts
-export type JsonDialect<D extends string> = {
+export type JsonDialect<S, D extends string, E> = {
     readonly dialect: D
     readonly mediaType: `application/${D}+json`
-    // …encodeText, validate, decodeText, entry
+    readonly encodeText: (value: Ts<S>) => string
+    readonly validate: (value: Unknown) => Result<Ts<S>, ValidationError | E>
+    readonly decodeText: (text: string) => Result<Ts<S>, ValidationError | E | string>
+    readonly entry: DialectEntry
 }
 ```
 
-with `dialectMediaType` typed `<D extends string>(dialect: D) =>
+and `dialectMediaType` is typed `<D extends string>(dialect: D) =>
 \`application/${D}+json\`` so the derivation preserves the literal rather
-than erasing it. Check the emitted `.d.mts`, not just that `tsc` passes:
-`revision.mediaType` must still read `'application/vnd.fjs.revision+json'`,
-not `string`.
+than erasing it.
+
+Treat that shape as the starting point, not a specification: it is written
+from the three modules as they stand, and the implementation typechecks it
+against them. Where `D` comes from is the one open question — reading it off
+the schema keeps the call sites free of a redundant argument, but if `Ts<>`
+does not surface the `dialect` member as a literal, passing it explicitly is
+the fallback and costs nothing.
+
+The check that settles all of it is the emitted `.d.mts`, not that `tsc`
+passes: `revision.mediaType` must still read
+`'application/vnd.fjs.revision+json'` rather than `string`, and
+`revision.validate` must still read `Result<Revision, RevisionError>` rather
+than a widened union.
 
 Each dialect module then states its schema and (for `revision`/`lock`) its
 `checkReferences`, re-exporting the derived kit — the module's JSDoc keeps
@@ -112,9 +146,12 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
 - [ ] Add `jsonDialect` and the shared `dialectMediaType` to
       `module.f.mjs`; have both `detect` and the factory derive through it.
       `DialectEntry` keeps its `{ dialect, match }` shape unchanged.
-- [ ] Type the factory over the dialect literal (`JsonDialect<D>` above) and
-      confirm in the emitted `.d.mts` that each module's `dialect` and
-      `mediaType` keep their literal types rather than widening to `string`.
+- [ ] Type the factory as `JsonDialect<S, D, E>` above — value via `Ts<S>`,
+      error union widened by the refinement only — and confirm in the emitted
+      `.d.mts` that **every** export keeps its current type: the two literals,
+      and `encodeText`/`validate`/`decodeText` for each of the three
+      dialects. `note`'s `validate` stays `Result<Note, ValidationError>`
+      with no `string`, which is the case that catches an over-wide `E`.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
       copies and the two `isValid…` adapters.
 - [ ] `npx tsc`, `fjs t`; the media and mcp proofs pass unchanged.
