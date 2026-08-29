@@ -370,7 +370,10 @@ The exact tests must distinguish the edge cases semantically:
 
 This parser/serializer support is required independently of module-to-EDAG conversion,
 because `.f.js` is the general representation used to persist EDAG and unresolved
-artifacts.
+artifacts — which is why it is now its own issue,
+[`non-finite-number-round-trip.md`](./non-finite-number-round-trip.md). That issue
+owns the spellings, the reserved-versus-shadowed question they raise, and the
+round-trip proofs; this one keeps the requirement and depends on it.
 
 ### Existing compile API boundary
 
