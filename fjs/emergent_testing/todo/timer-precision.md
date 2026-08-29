@@ -53,12 +53,17 @@ before changing the measurement.
   report is serializable and consumed by controllers, so a `resolution` field
   would let a consumer decide what is significant instead of guessing.
 - **Accumulate over a group.** The idea raised when this was filed: time a
-  batch of leaves with one pair of reads and divide, so the clamp is amortized
+  group of leaves with one pair of reads and divide, so the clamp is amortized
   across many proofs instead of applied to each. This is speculation — it
-  trades a per-test number for an average, it cannot attribute a slow proof,
-  and it interacts with concurrency, since `all` interleaves launches and a
-  group's wall time would then include siblings' work. Worth prototyping,
-  not worth assuming.
+  trades a per-test number for an average and cannot attribute a slow proof.
+  When this was filed the objection was concurrency: `all` interleaved
+  launches, so a group's wall time included siblings' work. The sequential
+  plan in [share-browser-console-runner](share-browser-console-runner.md)
+  retires that objection — one leaf's whole chain finishes before the next
+  starts — but replaces it with a smaller one: a group's span now also
+  carries the between-leaves overhead (the per-report yield, enumeration),
+  so the divided average still is not the leaves' own time. Worth
+  prototyping under the sequential traversal, not worth assuming.
 - **Cross-origin isolation.** Serving the eventual application root with
   `COOP: same-origin` and `COEP: require-corp` buys Chromium's 5 µs clock and
   is a header change in the shared controller, not a design change. It does
@@ -88,8 +93,11 @@ before changing the measurement.
       and WebKit from inside the runner, and record the figures here.
 - [ ] Decide whether the report carries the resolution, and whether a row
       below it renders a duration at all.
-- [ ] Prototype accumulated timing over a group of leaves and check what it
-      costs in attribution and what concurrency does to it.
+- [ ] Prototype accumulated timing over a group of leaves under the
+      sequential traversal, and check what it costs in attribution and how
+      much between-leaves overhead (report yields, enumeration) lands inside
+      the group's span — the concurrency half of this question is gone with
+      the sequential plan.
 - [ ] Check whether cross-origin isolation is worth the headers in the shared
       controller.
 
