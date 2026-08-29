@@ -74,9 +74,10 @@ consumed.
 
 Every runtime uses the same Node versions. `config/module.f.mjs` records the versions
 the pinned Nixpkgs snapshot provides — not the latest nodejs.org release, which the
-snapshot usually trails — and those feed both the flakes' package attributes and
-`setup-node` on the platform matrix. Bumping a Node version therefore means moving
-the Nixpkgs commit first and copying the versions it offers.
+snapshot usually trails — and those feed the flakes' package attributes as well as
+the `setup-node` steps left in the platform matrix and `package-check`. Bumping a
+Node version therefore means moving the Nixpkgs commit first and copying the
+versions it offers.
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical Node job asserts, as its first command, that

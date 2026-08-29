@@ -78,9 +78,8 @@ const runPin = /** @type {const} */ ('=9.9.9')
 const runPackageJson = `{"name":"other-package","devDependencies":{"typescript":"${runPin}"}}`
 
 /**
- * The version the configuration records for a Node job, by job id — the value
- * `setup-node` installs where a job still uses it, and the one its generated
- * flake's package attribute has to agree with.
+ * The version the configuration records for a Node job, by job id — the one its
+ * generated flake's package attribute has to agree with.
  *
  * @type {(id: string) => string}
  */
@@ -262,9 +261,9 @@ export const proof = {
                 ])
         }
     },
-    // Every Ubuntu Node job asserts the runtime it is about to use, whether
-    // `setup-node` installed it or its flake provides it. Nothing else ties the
-    // versions `fjs/ci/config/module.f.mjs` records to what a job really runs.
+    // Every Node job asserts the runtime it is about to use, read from its own
+    // flake. Nothing else ties the versions `fjs/ci/config/module.f.mjs` records
+    // to what a job really runs.
     nodeVersionChecks: () => {
         const gha = run(false)
         for (const [version, command] of /** @type {const} */ ([

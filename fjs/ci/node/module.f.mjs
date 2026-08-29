@@ -60,8 +60,10 @@ const fjsGlobalInstall = version =>
  * green result about something nobody asked for.
  *
  * Every Node job runs this, and none needs a `setup-node` spelling any more.
- * The platform matrix installs Node too and gets no check: its Windows jobs run
- * `run` steps under PowerShell, where this POSIX command would not survive.
+ * The other jobs that install Node get no check: the platform matrix, whose
+ * Windows jobs run `run` steps under PowerShell where this POSIX command would
+ * not survive, and `package-check`, which has no checkout to enter a flake
+ * from.
  *
  * @type {(version: string) => MetaStep}
  */
@@ -102,14 +104,12 @@ const suiteNixSteps = version => [
  * `npm run ci-update` and the drift check it feeds run **last**, after every
  * other command. The check compares the working tree against what the generator
  * produces, so putting it at the end makes it the last word: any file an earlier
- * step wrote is in the comparison. Nothing those steps leave behind is tracked —
- * `npm pack`'s tarball and the declarations its `prepack` emits are ignored, as
- * is the `flake.lock` Nix writes beside a flake it enters — so the check sees
- * generator output and nothing else.
+ * step wrote is in the comparison. Nothing those steps leave behind is tracked:
+ * `npm pack`'s tarball and the declarations its `prepack` emits are ignored, and
+ * `--no-write-lock-file` means Nix leaves nothing at all.
  *
- * The drift check itself is not a Nix command. `git` is the runner's tool, as it
- * is for a `setup-node` job, and a step names the flake only when it needs
- * something the flake pins.
+ * The drift check itself is not a Nix command. `git` is the runner's tool, and a
+ * step names the flake only when it needs something the flake pins.
  *
  * @type {readonly MetaStep[]}
  */

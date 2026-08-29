@@ -15,7 +15,8 @@ the accepted snapshot.
 pinned Nix installer, its runtime check, and one `nix develop --command` step
 per command — the same commands on the runtime the pinned snapshot provides
 instead of the one `setup-node` installs. No canonical Node job installs a
-runtime any more; `setup-node` survives only in the platform matrix.
+runtime any more; `setup-node` is left to the platform matrix and to
+`package-check`, which installs `node.default` to type-check the packed tarball.
 
 Node 22 and Node 24 run the suite and nothing else, and differ only in the
 version they name, so one builder emits both.
