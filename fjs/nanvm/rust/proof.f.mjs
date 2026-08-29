@@ -108,9 +108,16 @@ export const proof = {
      * Rust parses `a * b * c` to the left and binds a method call tighter
      * than `*`, so without them the printed statement would be a different
      * program from the node — `1e308 * (1e-308 * 1e-308)` underflows to zero
-     * where the flattened reading does not. The corpus cannot reach this,
-     * since a case is one operation over lowered values, but `nodeExpr` is
-     * exported and the lazy-operator groups will nest.
+     * where the flattened reading does not.
+     *
+     * Grouping is all this claims. The printed text is not yet *compilable*
+     * Rust for a nested operation: every `nanvm-lib` operator returns
+     * `Result<Any<A>, Any<A>>`, which `check` takes at the top of a statement,
+     * so an inner operation hands the outer one a `Result` where it needs an
+     * `Any`. Propagating that is the nested-emission strategy owed by
+     * [corpus-as-conformance-vectors](../todo/corpus-as-conformance-vectors.md),
+     * and nothing needs it yet: a corpus case is one operation over lowered
+     * values, so `generated.rs` nests nothing.
      *
      * `neg` parenthesizes in its own template, so a composed operand there is
      * doubly wrapped — redundant, and correct either way.

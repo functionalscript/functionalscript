@@ -29,6 +29,39 @@ is nothing to hand them to.
 already in `op2Id`, with laziness that is positional rather than nodal, so
 they need no new node kind — only cases.
 
+### A nested operation does not yet print as compilable Rust
+
+Both lazy-operator halves nest — `['&&', a, ['throw', e]]` is an operation as
+another's operand — and the printer cannot emit that yet, which makes this the
+first thing the work below runs into.
+
+Every `nanvm-lib` operator returns `Result<Any<A>, Any<A>>`:
+
+```rust
+impl<A: IVm> Mul for Any<A> {
+    type Output = Result<Any<A>, Any<A>>;
+```
+
+`check` takes that `Result` at the top of a statement, which is why every flat
+case compiles. An operation nested as an operand hands the outer one a
+`Result` where it needs an `Any`, so `['*', 1, ['*', 2, 3]]` prints as
+`(1f64).to_any() * ((2f64).to_any() * (3f64).to_any())` and fails to compile
+with E0308.
+
+Grouping is already right — an operation nested as an operand is
+parenthesized, so the printed text is the tree the node is, and
+`nestedOperation` in [`../rust/proof.f.mjs`](../rust/proof.f.mjs) pins that.
+What is missing is propagation. Nothing reaches it today: a corpus case is one
+operation over lowered values, so `generated.rs` nests nothing and `cargo
+test` has never had the chance to fail.
+
+Deciding the shape is part of this issue rather than a detail of it, because
+it sets what every emitted statement looks like. `?` inside a closure, an
+`and_then` chain, or a harness helper that takes the operands already
+unwrapped are the obvious candidates; whichever is chosen, the flat statements
+should keep their present shape, since `generated.rs` staying byte-stable
+across a change like this is what makes the change reviewable.
+
 ### Proposal
 
 **The lazy operators.** Add `Group2`s for `&&`, `||`, and `??` pinning their
@@ -55,6 +88,8 @@ identity-memoization contract the corpus already relies on.
 
 ### Tasks
 
+- [ ] Decide and implement how a nested operation propagates its `Result` in
+      the printed Rust, keeping the flat statements as they are.
 - [ ] Add `&&`, `||`, and `??` groups with their value results, each case
       carrying a `rust` reason until `nanvm-lib` implements the operator.
 - [ ] Add non-establishment cases once `['throw', exp]` is in the schema.
