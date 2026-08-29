@@ -58,7 +58,8 @@ A machine-readable corpus with six parts:
   `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
   than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
-  and at least one that is not — `Map`, `RegExp`, a boxed primitive), a
+  and at least one that is not — **`Map` or a boxed number**, not `RegExp`; see
+  below), a
   sparse-array hole, a symbol-keyed, accessor or non-enumerable own property,
   an array carrying an own property beyond its elements and `length` (`a=[1];
   a.meta=2`), and a cycle. Each is a case where the obvious implementation
@@ -251,6 +252,24 @@ document can carry. So the corpus does not store values. It stores a
     failure the serializer-reject set exists to catch. The `kind` list is
     closed like everything else here, and `map`, `regexp` and `boxedNumber`
     are in it precisely because they are *not* `Date`.
+
+    **The non-`Date` case must have no own properties**, or it can be refused
+    for the wrong reason. Measured:
+
+    ```text
+    Map        no own properties
+    Date       no own properties
+    Number(1)  no own properties
+    RegExp     lastIndex, own and non-enumerable
+    ```
+
+    A serializer refuses a `RegExp` the moment it sees a non-enumerable own
+    property — a rule it needs anyway — without ever asking whether the object
+    is plain, and then still writes an empty `Map` as `{}`. So `regexp` stays
+    in the `kind` list but cannot be the case that discharges the requirement;
+    `map` or `boxedNumber` must be. Review found this, and it is the same shape
+    as the enumerable-`getter` finding: a vector refused by a cheaper rule
+    never exercises the one under test.
 
   The list being closed is what makes it useful — a vector needing a recipe not
   in it extends the schema and both consumers, deliberately, rather than each
