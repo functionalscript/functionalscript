@@ -297,18 +297,32 @@ export const defaultReporterOutputLargeDuration = () => {
     )
 }
 
-// a failure on the non-GitHub reporter writes to stderr, not stdout: the
-// pass/fail line as the leaf lands, and the value it failed with afterwards
+/**
+ * A failure is written to `stdout`, in among the tests it happened between:
+ * the pass/fail line as the leaf lands, and the value it failed with
+ * afterwards.
+ *
+ * `stderr` stays empty, and the assertion on it is the point rather than
+ * incidental thoroughness. The two streams are not ordered against each other,
+ * so a report split across them cannot be read back as a sequence — where a
+ * failure sat among the tests around it is exactly what a reader is asking.
+ * `stderr` is left for a runner crash, which is the tail's to write once there
+ * is no longer a run to correlate anything with.
+ */
 export const defaultReporterFailOutput = () => {
-    const [, stderr, exit] = runMain({
+    const [stdout, stderr, exit] = runMain({
         'a.proof.f.ts': () => ({ proof: { bad: fail0 } }),
     })
     assertEq(exit, 1)
+    assertEq(stderr, '')
     assertEq(
-        stderr,
-        'import("./a.proof.f.ts").proof.bad(): error, 0.0000 ms\n'
+        stdout,
+        'import("./a.proof.f.ts").proof.bad(): running\n'
+        + 'import("./a.proof.f.ts").proof.bad(): error, 0.0000 ms\n'
         + 'import("./a.proof.f.ts").proof.bad()\n'
-        + 'oops\n',
+        + 'oops\n'
+        + 'Number of tests: pass: 0, fail: 1, total: 1\n'
+        + 'Time: 0.0000 ms\n',
     )
 }
 
@@ -327,39 +341,49 @@ export const defaultReporterFailOutput = () => {
  * run is what makes the two failures non-adjacent.
  */
 export const defaultReporterFailuresAtEnd = () => {
-    const [, stderr, exit] = runMain({
+    const [stdout, , exit] = runMain({
         'a.proof.f.ts': () => ({
             proof: { one: failWith('first'), two: ok0, three: failWith('second') },
         }),
     })
     assertEq(exit, 1)
     assertEq(
-        stderr,
-        'import("./a.proof.f.ts").proof.one(): error, 0.0000 ms\n'
+        stdout,
+        'import("./a.proof.f.ts").proof.one(): running\n'
+        + 'import("./a.proof.f.ts").proof.one(): error, 0.0000 ms\n'
+        + 'import("./a.proof.f.ts").proof.two(): running\n'
+        + 'import("./a.proof.f.ts").proof.two(): ok, 0.0000 ms\n'
+        + 'import("./a.proof.f.ts").proof.three(): running\n'
         + 'import("./a.proof.f.ts").proof.three(): error, 0.0000 ms\n'
         + 'import("./a.proof.f.ts").proof.one()\n'
         + 'first\n'
         + 'import("./a.proof.f.ts").proof.three()\n'
-        + 'second\n',
+        + 'second\n'
+        + 'Number of tests: pass: 1, fail: 2, total: 3\n'
+        + 'Time: 0.0000 ms\n',
     )
 }
 
 // Failures are collected across modules, in the order the modules ran — the
 // walk threads one state through all of them rather than one per module.
 export const defaultReporterFailuresAcrossModules = () => {
-    const [, stderr, exit] = runMain({
+    const [stdout, , exit] = runMain({
         'a.proof.f.ts': () => ({ proof: { x: failWith('from-a') } }),
         'b.proof.f.ts': () => ({ proof: { y: failWith('from-b') } }),
     })
     assertEq(exit, 1)
     assertEq(
-        stderr,
-        'import("./a.proof.f.ts").proof.x(): error, 0.0000 ms\n'
+        stdout,
+        'import("./a.proof.f.ts").proof.x(): running\n'
+        + 'import("./a.proof.f.ts").proof.x(): error, 0.0000 ms\n'
+        + 'import("./b.proof.f.ts").proof.y(): running\n'
         + 'import("./b.proof.f.ts").proof.y(): error, 0.0000 ms\n'
         + 'import("./a.proof.f.ts").proof.x()\n'
         + 'from-a\n'
         + 'import("./b.proof.f.ts").proof.y()\n'
-        + 'from-b\n',
+        + 'from-b\n'
+        + 'Number of tests: pass: 0, fail: 2, total: 2\n'
+        + 'Time: 0.0000 ms\n',
     )
 }
 
@@ -367,11 +391,11 @@ export const defaultReporterFailuresAcrossModules = () => {
 // nothing to the report — the expectation is applied before a failure is
 // collected, not after.
 export const defaultReporterExpectedThrowNotReported = () => {
-    const [, stderr, exit] = runMain({
+    const [stdout, , exit] = runMain({
         'a.proof.f.ts': () => ({ proof: { throw: { x: fail0 } } }),
     })
     assertEq(exit, 0)
-    assertEq(stderr, '')
+    assert(!stdout.includes('oops'), stdout)
 }
 
 /**
@@ -451,18 +475,94 @@ export const startSurvivesARunThatDies = () => {
     )
 }
 
+/**
+ * A run that dies does not take the failures it had already collected with it.
+ *
+ * Deferring the details created this hazard and the fix is the reason
+ * `RunState` carries `aborted` rather than throwing it: the walk used to
+ * short-circuit, `summary` was never reached, and every collected failure died
+ * with it — so a run that died after a test had failed printed that test's
+ * name and never its error. Losing diagnostics exactly when something went
+ * wrong is the opposite of what deferring them is for.
+ *
+ * `bad` fails normally; `later` cannot be dispatched at all. The whole stream
+ * is asserted, so it pins all three halves of the answer: `oops` survives, the
+ * summary's *counts* do not appear — a `pass/fail/total` line for a walk that
+ * stopped early would read as a finished run — and the crash itself is the
+ * one thing on `stderr`, written by the tail once there is no run left to
+ * correlate it with.
+ */
+export const failuresSurviveARunThatDies = () => {
+    const opts = options('.')
+    const reporter = defaultReporter(opts)
+    /** @type {typeof reporter} */
+    const dying = {
+        ...reporter,
+        test: (file, path, entry) =>
+            path[path.length - 1] === 'later'
+                ? pureError(/** @type {const} */ (['ioError', { message: 'runner gave up' }]))
+                : reporter.test(file, path, entry),
+    }
+    const root = { 'a.proof.f.ts': () => ({ proof: { bad: fail0, later: ok0 } }) }
+    const [finalState, code] = virtual({ ...emptyState, root })(testAll(dying)(opts))
+    assertEq(exitCode(code), 1)
+    assertEq(
+        finalState.stdout,
+        'import("./a.proof.f.ts").proof.bad(): running\n'
+        + 'import("./a.proof.f.ts").proof.bad(): error, 0.0000 ms\n'
+        + 'import("./a.proof.f.ts").proof.later(): running\n'
+        + 'import("./a.proof.f.ts").proof.bad()\n'
+        + 'oops\n',
+    )
+    assertEq(finalState.stderr, 'runner gave up\n')
+}
+
+/**
+ * Nothing runs after a run has been abandoned — not the leaves that remain,
+ * and not the modules.
+ *
+ * Carrying the failure in the state rather than throwing it is what makes this
+ * a thing to state: the walk keeps going structurally, and only the skip in
+ * `one` and in the module fold stops it doing any work. `b` is never announced,
+ * which is the observable form of "its `proof` export was never even
+ * enumerated" — enumerating one runs user code, and a run that has given up
+ * has no business running any more of it.
+ */
+export const nothingRunsAfterARunIsAbandoned = () => {
+    const opts = options('.')
+    const reporter = defaultReporter(opts)
+    /** @type {typeof reporter} */
+    const dying = {
+        ...reporter,
+        test: (file, path, entry) =>
+            path[path.length - 1] === 'stop'
+                ? pureError(/** @type {const} */ (['ioError', { message: 'runner gave up' }]))
+                : reporter.test(file, path, entry),
+    }
+    const root = {
+        'a.proof.f.ts': () => ({ proof: { stop: ok0, after: ok0 } }),
+        'b.proof.f.ts': () => ({ proof: { never: ok0 } }),
+    }
+    const [finalState, code] = virtual({ ...emptyState, root })(testAll(dying)(opts))
+    assertEq(exitCode(code), 1)
+    assertEq(finalState.stdout, 'import("./a.proof.f.ts").proof.stop(): running\n')
+}
+
 // the GitHub reporter emits an `::error` annotation with a percent-encoded
 // title (the JSON path) and message, in the same deferred position
 export const githubReporterOutput = () => {
-    const [, stderr, exit] = runMain({
+    const [stdout, stderr, exit] = runMain({
         's.proof.f.ts': () => ({ proof: { 'a:b,c%d': fail0 } }),
     }, true)
     assertEq(exit, 1)
-    assertEq(
-        stderr,
-        'import("./s.proof.f.ts").proof["a:b,c%d"](): error, 0.0000 ms\n'
-        + '::error file=./s.proof.f.ts,line=1,title=import("./s.proof.f.ts").proof["a%3Ab%2Cc%25d"]()::oops\n',
-    )
+    // The annotation goes to `stdout` with everything else: a workflow log
+    // collects both streams, so nothing is gained by splitting them and the
+    // ordering against the surrounding records is lost.
+    assertEq(stderr, '')
+    assert(
+        stdout.includes(
+            '::error file=./s.proof.f.ts,line=1,title=import("./s.proof.f.ts").proof["a%3Ab%2Cc%25d"]()::oops\n'),
+        stdout)
 }
 
 // A reporter that cannot write neither panics nor reports success. The failed
@@ -875,6 +975,8 @@ export const proof = {
     defaultReporterExpectedThrowNotReported,
     defaultReporterOutputDuringATest,
     startSurvivesARunThatDies,
+    failuresSurviveARunThatDies,
+    nothingRunsAfterARunIsAbandoned,
     githubReporterOutput,
     reporterWriteFailure,
     registerSuffixes,

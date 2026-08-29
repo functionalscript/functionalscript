@@ -205,6 +205,22 @@ export type TestFailure = {
 export type RunState = {
     readonly totals: RunTotals
     readonly failures: List<TestFailure>
+    /**
+     * The channel failure that ended the run early, or `null` for a run that
+     * reached its end.
+     *
+     * **It is carried here rather than thrown**, and that is the whole reason
+     * this field exists. A failing `start`, `test` or `result` used to
+     * short-circuit the walk, which took the collected failures with it: a run
+     * that died after one test had already failed printed that test's name and
+     * never its error, because `summary` — the only thing that describes them
+     * — was never reached. Diagnostics being lost precisely when something went
+     * wrong is backwards, so the failure travels *in* the fold: the walk stops
+     * (every remaining leaf and module is skipped, so no further proof export
+     * is even enumerated), the summary still runs, and the run ends with this
+     * error afterwards.
+     */
+    readonly aborted: IoChannel | null
 }
 
 /**

@@ -92,12 +92,16 @@ still the argument for settling it in the shared core rather than twice.
 
 ### What landed for `fjs t`
 
-functionalscript#1790. `Reporter` grew a `start` event carrying a `TestId` —
+functionalscript#1790, alongside the deferral of the failure details that used
+to interrupt the log (that issue's own file is gone with its fix, per the
+workflow). `Reporter` grew a `start` event carrying a `TestId` —
 the identity half of `TestResult`, split out so the two events that name a leaf
 name it the same way — called inside the leaf's own chain ahead of `test`, so a
 reporter that cannot announce a leaf ends the run rather than running one it
 failed to announce. `fjs t` writes `name: running`, then the existing result
-line; two complete records, per the terminal format above.
+line; two complete records, per the terminal format above. Both go to `stdout`,
+with everything else a run says — see [reporter modes](211-reporter-modes.md) —
+which is what makes them readable as a pair.
 
 The browser half is **not** done and was deliberately left out of that change:
 the page still renders a row only once a leaf has settled, and the pending row
@@ -140,11 +144,10 @@ call. The browser's cost is not the event, it is the yield and proving it.
 
 ### Related
 
-- [Report `fjs t` failures at the end](failure-report-at-end.md) — the other
-  half of the same output: it landed the deferral, so a leaf already writes one
-  self-contained pass/fail line and nothing else. The start record this issue
-  adds is the line that pairs with it, and the two-lines-per-leaf format above
-  is what that pairing looks like.
+- [Reporter modes](211-reporter-modes.md) — where the rule that every record
+  goes to `stdout` is written down. It is what makes the pair of records above
+  a *pair*: with failures on `stderr`, a failing leaf's two lines landed on two
+  streams that are not ordered against each other.
 - [Share the browser and console proof runners](share-browser-console-runner.md)
   — reporting is one of the things each host still does its own way, and this
   is the same question twice until they share a reporter.

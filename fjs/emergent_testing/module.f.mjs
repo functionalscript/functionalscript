@@ -25,7 +25,7 @@
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, catch_, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import {
-    catchStep, foldStep, forEachStep, history, historyStep, mapStep, pureError, pureOk,
+    catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
     resultStep, step,
     walkStep,
 } from '../effects/module.f.mjs'
@@ -62,7 +62,7 @@ export const addResult = (totals, r) => ({
  *
  * @type {RunState}
  */
-export const zeroState = { totals: zeroTotals, failures: null }
+export const zeroState = { totals: zeroTotals, failures: null, aborted: null }
 
 /**
  * Folds one leaf-landed event into a run's state: the counts through
@@ -81,6 +81,7 @@ export const zeroState = { totals: zeroTotals, failures: null }
  * @type {(state: RunState, t: TestResult, r: SandboxResult<unknown>) => RunState}
  */
 export const addLeaf = (state, t, r) => ({
+    ...state,
     totals: addResult(state.totals, t),
     failures: t.status === 'failed'
         ? concat(state.failures)([{ t, error: r.result[1] }])
@@ -227,6 +228,13 @@ const runModule = ({ result, start, test }) => (k, v) => state => {
      *         Effect<O | Catch, readonly[RunState, readonly _TestAndPath[]], IoChannel>}
      */
     const one = ([testPath, set]) => acc => {
+        // Nothing runs after the run has been abandoned. The walk cannot simply
+        // stop — the state it collected has to reach the summary, which is why
+        // the failure is carried in `acc` rather than thrown — so every
+        // remaining leaf answers the state unchanged instead. `collectTests` is
+        // not reached either, so no further proof export is enumerated: the run
+        // is over, and enumerating one runs user code.
+        if (acc.aborted !== null) { return pureOk(/** @type {const} */ ([acc, emptyEntries])) }
         // The leaf is named once, for both of the events that name it: the
         // announcement below and the record built from its result.
         const id = testId(k, testPath)
@@ -285,9 +293,18 @@ const runModule = ({ result, start, test }) => (k, v) => state => {
         // ancestor, so a leaf returning a deep enough chain of children died
         // with `RangeError` where the fan-out this replaced had not; see
         // `../effects/module.f.mjs`'s `walkStep`.
-        return mapStep(
-            reported,
-            ([, [t, sr, children]]) => /** @type {const} */ ([addLeaf(acc, t, sr), children]))
+        // A reporting or dispatch failure ends the run, but as a *value*: the
+        // walk carries it to the summary, which describes what the run had
+        // already collected before the channel gave out. Propagating it here
+        // instead discarded exactly the diagnostics a dying run is worth
+        // having.
+        return resultStep(
+            mapStep(
+                reported,
+                ([, [t, sr, children]]) => /** @type {const} */ ([addLeaf(acc, t, sr), children])),
+            r => r[0] === 'ok'
+                ? pure(r)
+                : pureOk(/** @type {const} */ ([{ ...acc, aborted: r[1] }, emptyEntries])))
     }
     /**
      * Siblings in order, one whole chain at a time.
@@ -357,14 +374,24 @@ export const runModuleMap = reporter => moduleMap => {
     const total = foldStep(
         pureOk(modules),
         zeroState,
-        ([k, v]) => state => runModule(reporter)(k, v)(state))
+        // Skipped rather than stopped, for the reason `one` gives: an
+        // abandoned run still has to reach its summary.
+        ([k, v]) => state =>
+            state.aborted !== null ? pureOk(state) : runModule(reporter)(k, v)(state))
     // The state is still needed after the summary has been printed, so it is
     // carried forward in a history rather than closed over by a nested
     // continuation.
     const reported = historyStep(
         history(total),
         summary)
-    return mapStep(reported, ([, { totals }]) => totals.failed !== 0 ? 1 : 0)
+    // A run that was abandoned ends with the failure that abandoned it, not
+    // with an exit code computed from counts that stopped early — the tail
+    // reports it and exits `1`. The summary has already run by then, so the
+    // failures it collected are described either way.
+    return step(
+        reported,
+        ([, { totals, aborted }]) =>
+            aborted !== null ? pureError(aborted) : pureOk(totals.failed !== 0 ? 1 : 0))
 }
 
 /**
@@ -559,8 +586,15 @@ export const defaultReporter = options => {
         const x = write(w)
         return s => x(s + '\n')
     }
+    // **Every record a run produces goes to `stdout`, failures included.** The
+    // two streams are not ordered against each other, so splitting the report
+    // across them means a reader — or a consumer collecting the log — cannot
+    // tell where a failure's detail belongs among the tests that surround it,
+    // which is the one thing the ordering of these records is for. `stderr` is
+    // left for a runner *crash*: the tail's channel-failure message, written by
+    // `errorExit` after the run is over, where nothing remains to correlate it
+    // with.
     const csiLog = line('stdout')
-    const csiError = line('stderr')
     const isGitHub = options.env['GITHUB_ACTIONS'] !== undefined
     // What a failure *was* is written once the run has ended, not where it
     // happened: an error's detail — a message, a whole stack — is as many lines
@@ -573,13 +607,13 @@ export const defaultReporter = options => {
     /** @type {(f: TestFailure) => Effect<Write, void, NotImplemented>} */
     const detail = ({ t, error }) =>
         isGitHub
-            ? csiError(`::error file=${t.module},line=1,title=${ghEscape(t.name)}::${ghEscape(String(error))}`)
+            ? csiLog(`::error file=${t.module},line=1,title=${ghEscape(t.name)}::${ghEscape(String(error))}`)
             // `step`, so the value is attempted only when the line naming the
             // test it belongs to was written: two halves of one report, and
             // half of it is worse than none.
             : step(
-                csiError(`${fgRed}${t.name}${reset}`),
-                () => csiError(`${fgRed}${error}${reset}`))
+                csiLog(`${fgRed}${t.name}${reset}`),
+                () => csiLog(`${fgRed}${error}${reset}`))
     return {
         // Two self-contained records per leaf, not one line completed in place.
         // No *other* leaf runs between a start and its own result under the
@@ -592,16 +626,21 @@ export const defaultReporter = options => {
         result: (t, _r, throws) =>
             t.status === 'passed'
                 ? csiLog(fmtResultLine(t, fgGreen, 'ok') + (throws ? ' # EXPECTED TO THROW' : ''))
-                : csiError(fmtResultLine(t, fgRed, 'error')),
+                : csiLog(fmtResultLine(t, fgRed, 'error')),
         // The details come before the counts, so the numbers a reader is
         // looking for are still the last thing on the screen.
-        summary: ({ totals: { passed, failed, duration }, failures }) => {
+        // A run that was abandoned gets its failures described and no counts:
+        // a `pass/fail/total` line for a walk that stopped early reads as a
+        // finished run and is not one. What ended it is the tail's to report.
+        summary: ({ totals: { passed, failed, duration }, failures, aborted }) => {
             const fgFail = failed === 0 ? fgGreen : fgRed
             return step(
                 forEachStep(pureOk(failures), detail),
-                () => step(
-                    csiLog(`${bold}Number of tests: pass: ${fgGreen}${passed}${reset}${bold}, fail: ${fgFail}${failed}${reset}${bold}, total: ${passed + failed}${reset}`),
-                    () => csiLog(`${bold}Time: ${timeFormat(duration)}${reset}`)))
+                () => aborted !== null
+                    ? pureOk(undefined)
+                    : step(
+                        csiLog(`${bold}Number of tests: pass: ${fgGreen}${passed}${reset}${bold}, fail: ${fgFail}${failed}${reset}${bold}, total: ${passed + failed}${reset}`),
+                        () => csiLog(`${bold}Time: ${timeFormat(duration)}${reset}`)))
         },
         test: defaultTest,
     }
