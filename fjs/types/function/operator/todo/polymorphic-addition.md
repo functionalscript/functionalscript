@@ -50,16 +50,17 @@ export const addition = a => b => a + b
 `number`, `bigint`, and `string` re-export it (the last as the operation
 inside `concat`), and the two `sum` folds keep their per-domain identity
 literals — the identity genuinely differs, so `sum` stays per-domain; only
-the operation stops being re-defined. Delete the three TODO comments as part
-of the change. Whether `xor` and friends follow is a separate decision; this
-issue is only the additive operation the comments already agree on.
+the operation stops being re-defined. Delete the two addition TODOs as part
+of the change — `../module.f.mjs:43-47` and `../../../bigint/module.f.mjs:29`.
+`bigint`'s `xor` TODO (`:253`) stays: `xor` is a different operation with a
+different domain, and consolidating it is its own decision.
 
 ### Tasks
 
 - [ ] Add the polymorphic `addition` (and its `types.ts` support) here;
       re-export from `number`, `bigint`, and `string`.
-- [ ] Remove the three in-code TODOs; leave `xor`'s or convert it to its own
-      issue.
+- [ ] Remove the two addition TODOs (`../module.f.mjs:43-47`,
+      `../../../bigint/module.f.mjs:29`); leave `xor`'s alone.
 - [ ] `npx tsc`, `fjs t`.
 
 ### Related

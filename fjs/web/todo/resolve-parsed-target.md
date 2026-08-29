@@ -35,24 +35,40 @@ call sites rather than a stated one, and the string is walked twice for it.
 
 ### Proposal
 
-Parse once in `respond` and hand `resolve` the parsed target rather than the
-raw string — `resolve(root)(target)` taking the
-`Nullable<{ authority, path }>` (keeping the `null` → `400` answer inside
-`resolve`, so the refusal text stays owned where it is), or taking the
-`path` with `respond` owning the `null` case explicitly next to the host
-fallback it already handles. Either way `parseTarget` gets one caller, the
-double walk disappears, and the host-check-before-interpretation order
-becomes visible in one function instead of spanning two.
+Split the resolver in two, keeping the published signature:
 
-`resolve` is exported API; per `DESIGN.md`, changing its signature for the
-better API is the right call. Its proofs currently feed it raw strings and
-would feed it targets (or keep a thin string-accepting wrapper for the
-proof table, if the rows read better that way).
+```js
+/** The routing decision over an already-parsed target. Private. */
+const resolveTarget = root => target => { … }   // `served(root)`, then the body from `decoded` on
+
+/** @type {Resolve} */
+export const resolve = root => url => {
+    const target = parseTarget(url)
+    return target === null ? refuse(400)('malformed request URL') : resolveTarget(root)(target)
+}
+```
+
+`respond` then parses once and calls `resolveTarget` with the target it
+already holds. `resolve` keeps the `Resolve` contract exactly as
+`../types.ts:24-31` publishes it — a URL string in, malformed-URL rejection
+owned here — which matters because `parseTarget` is private, so an external
+caller has no other way to reach the canonical parser. The wrapper is the
+public API, not proof scaffolding.
+
+What this buys is one walk per request instead of two, and one place where
+the `null` target is interpreted per caller: `resolve` answers `400`,
+`respond` falls back to the `Host` header before the host check. Those two
+readings stay different on purpose — the host check must precede
+interpreting the target — but each becomes local to the function that makes
+it rather than an agreement spanning two call sites.
 
 ### Tasks
 
-- [ ] Change `resolve` to consume a parsed target; parse once in `respond`.
-- [ ] `npx tsc`, `fjs t`; the request/refusal proof rows pass unchanged.
+- [ ] Extract the private `resolveTarget`; keep `resolve` as the public
+      URL-accepting wrapper; call `resolveTarget` from `respond` with the
+      target it already parsed.
+- [ ] `npx tsc`, `fjs t`; the request/refusal proof rows pass unchanged —
+      `resolve`'s signature does not change, so its proofs need no edit.
 
 ### Related
 
