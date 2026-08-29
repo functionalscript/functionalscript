@@ -372,6 +372,8 @@ because host formatters disagree on exactly these cases: JavaScript writes
 `1e20` as `100000000000000000000` where Python writes `1e+20`.
 
 - `NaN` is `NaN`; the infinities are `Infinity` and `-Infinity`.
+- Positive zero is `0`. It is spelled directly, before the digit selection
+  below, which requires `s ≥ 1` and so has no answer for it.
 - A negative number is `-` followed by the spelling of its magnitude. `-0` is
   the one departure from `ToString`, which spells it `0`; normalized DataJS
   spells it `-0`.
