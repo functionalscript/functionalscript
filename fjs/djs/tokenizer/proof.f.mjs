@@ -855,7 +855,7 @@ export const proof = {
         () => {
             // position points at the poisoning trailing char ('0'), not the start of input
             const result = toArray(tokenizeJs(stringToList('00'))('a.js'))
-            assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid token"},"metadata":{"path":"a.js","line":1,"column":2}}]')
+            assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid number"},"metadata":{"path":"a.js","line":1,"column":2}}]')
         },
     ],
     // Where an error token is reported. The `tokenizer` group above checks that
@@ -899,9 +899,20 @@ export const proof = {
             assertEq(errorAt('"a\nb"'), '1:1')
         },
         () => {
-            // an unterminated block comment is the exception: its content is
-            // consumed, so the report lands at the end of input
-            assertEq(errorAt('/* c'), '1:5')
+            // an unterminated block comment is anchored at its `/*`, like an
+            // unterminated string is at its quote — it used to report the end of
+            // input, which made the two constructs disagree
+            assertEq(errorAt('/* c'), '1:1')
+        },
+        () => {
+            // the *second* comment is the unclosed one, so it is the one blamed
+            assertEq(errorAt('/* ok */ /* bad'), '1:10')
+        },
+        () => {
+            // a malformed number keeps its own convention: the offending
+            // character, not the token start, because that is what the reader
+            // has to change
+            assertEq(errorAt('123abc'), '1:4')
         },
     ],
     // DJS-level: keyword remapping and '-'-folding on top of tokenizeJs. Doesn't re-test
@@ -954,7 +965,7 @@ export const proof = {
         () => {
             // grammar-level tokenizer error position flows through the DJS wrapper unchanged
             const result = toArray(tokenize(stringToList('00'))(''))
-            assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid token"}}]')
+            assertEq(stringify(result), '[{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"error","message":"invalid number"}}]')
         },
     ],
     // Regression coverage for large inputs: both a file with many short tokens and a
