@@ -118,10 +118,9 @@ evaluated for real, by the job that uses it.
 ### Expected package scripts
 
 The generated platform jobs run `npm ci`, install the pinned FunctionalScript
-package globally, and run `fjs test`; the `deno` job runs its own equivalent. Those
-seven are where the published CLI is exercised — no canonical Node job does, and
-`bun` stopped. Every canonical job runs on Ubuntu ARM, all but `bun` through a
-flake:
+package globally, and run `fjs test`. Those six are now the only place the
+published CLI is exercised: no canonical Node job does, and `deno` and `bun` both
+stopped. Every canonical job runs on Ubuntu ARM, all but `bun` through a flake:
 
 - Node 22 runs `npm ci` and `node --test` through its generated flake.
 - Node 24 runs the same pair through its own flake — one builder emits both
@@ -130,18 +129,17 @@ flake:
   through its flake the same way, then `git add -A && git diff --cached --exit-code`
   as a plain step — `git` is the runner's tool, and a step names the flake only when
   it needs something the flake pins.
-- `deno` installs the pinned package, runs the smoke test, then `deno install
-  --frozen` and `deno task cov`.
+- `deno` runs `deno install --frozen` and `deno task cov` through its flake.
 - `bun` runs `bun install --frozen-lockfile` and `bun test --coverage`, on a
-  `setup-bun` runtime. It installs no published package: that check subjects a
-  release rather than this commit, and
-  [`todo/built-package-checks.md`](./todo/built-package-checks.md) owns moving it
-  to the package job family.
+  `setup-bun` runtime.
 
-Deno's global install enters the flake like every other command, so it is no longer
-an `install`-typed step: those run before `actions/checkout`, and there is no flake
-on disk to enter until the repository is. It only warms a cache for the `deno run`
-after it, which names the same version itself.
+Neither installs a published package any more. That check subjects a release rather
+than this commit, so it belongs to the package job family, which already downloads
+the `npm pack` artifact;
+[`todo/built-package-checks.md`](./todo/built-package-checks.md) owns the move.
+Deno's `--minimum-dependency-age=0` went with its install: the flag existed to let a
+registry install take a package younger than Deno's 24-hour default, and no registry
+install is left.
 
 The commands that must be provided by `package.json` for generated CI are `cov`
 and `ci-update`. A typical FunctionalScript project can define them like this:
@@ -203,7 +201,7 @@ lockfile to resolve a range against. Anything else, including no entry at all,
 generates no `package-check` job.
 
 Nothing else in `package.json` reaches the generated steps. The FunctionalScript
-package version used by generated Node, Deno, and Bun smoke tests is pinned in
+package version used by the platform matrix's smoke test is pinned in
 `config/module.f.mjs`, not read from `package.json`.
 
 ## Customisation

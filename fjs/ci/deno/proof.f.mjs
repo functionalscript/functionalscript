@@ -2,51 +2,44 @@ import { denoJobId, denoNixJob, denoSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { deno } from '../config/module.f.mjs'
 import { nixDevelop, nixSystem } from '../nix/module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
-/** @type {(version: string) => readonly string[]} */
-const runs = version =>
-    toSteps(denoSteps(version))
-        .flatMap(s => s.run !== undefined ? [s.run] : [])
-
-/** @type {(version: string) => readonly string[]} */
-const coverageRuns = version =>
-    runs(version).filter(run => run.includes('cov'))
+const runs = toSteps(denoSteps).flatMap(s => s.run !== undefined ? [s.run] : [])
 
 export const proof = {
+    // The whole job, in order: the version check, then this repository's
+    // dependencies and its suite, each entering the flake. Nothing installs or
+    // runs a published `functionalscript` — that check moved to the package job
+    // family, which can look at the tarball this commit builds instead of a
+    // release that shipped weeks ago.
+    steps: () => assertStructurallySame(runs, [
+        `test "$(${nixDevelop(denoJobId, `deno eval 'console.log(Deno.version.deno)'`)})" = ${deno}`,
+        nixDevelop(denoJobId, 'deno install --frozen'),
+        nixDevelop(denoJobId, 'deno task cov'),
+    ]),
     // A regression guard: the job must delegate coverage to `deno.json`'s `cov`
     // task. Inlining the command here instead would give the coverage filter a
     // second owner that can silently drift from `deno.json`.
     coverageStep: () => {
-        const found = coverageRuns('0.0.0')
+        const found = runs.filter(run => run.includes('cov'))
         assertEq(found.length, 1)
         const [run] = found
         assertEq(run, nixDevelop(denoJobId, 'deno task cov'))
     },
-    installsPinnedVersion: () => {
-        const found = runs('1.2.3').filter(run => run.includes('npm:functionalscript@'))
-        assertEq(found.length, 2)
-        assert(found.every(r => r.includes('npm:functionalscript@1.2.3')))
-    },
-    // Every command the job runs needs Deno, so every one of them enters the
-    // flake — including the global install, which is why it is no longer an
-    // `install`-typed step ahead of the checkout that puts the flake on disk.
-    everyCommandEntersTheFlake: () => {
-        const [check, ...rest] = runs('1.2.3')
-        assertEq(
-            check,
-            `test "$(${nixDevelop(denoJobId, `deno eval 'console.log(Deno.version.deno)'`)})" = ${deno}`)
-        for (const run of rest) {
-            assert(
-                run.startsWith(`nix develop --no-write-lock-file ./nix/${denoJobId} --command `),
-                run)
-        }
+    noPublishedPackage: () => {
+        assert(
+            !runs.some(run => run.includes('functionalscript@')),
+            'unexpected published-package step')
+        // The flag existed only to let a registry install take a package
+        // younger than Deno's 24-hour default. No registry install is left.
+        assert(
+            !runs.some(run => run.includes('--minimum-dependency-age')),
+            'unexpected dependency-age flag with no registry install')
     },
     // No `setup-deno` survives: the runtime comes from the flake, and the only
     // action the job installs is Nix itself.
     installsNixOnly: () => {
-        const used = toSteps(denoSteps('1.2.3'))
-            .flatMap(s => s.uses !== undefined ? [s.uses] : [])
+        const used = toSteps(denoSteps).flatMap(s => s.uses !== undefined ? [s.uses] : [])
         assert(!used.some(u => u.startsWith('denoland/setup-deno@')), 'unexpected setup-deno')
         assert(used.some(u => u.startsWith('cachix/install-nix-action@')), 'expected the Nix installer')
     },

@@ -7,11 +7,11 @@
 
 The abstraction was justified by its own count: "Three real consumers (bun, deno,
 node), all shipping — past the 'second real consumer' bar." Two of those three are
-gone, for different reasons. `deno` moved to a generated Nix flake, so it begins with
+gone. `deno` moved to a generated Nix flake, so it begins with
 `cachix/install-nix-action` and a version check and every command after that is a
 `nix develop --command` step. `bun` kept its setup action — its migration is blocked,
-see [bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md) — but lost the global
-install and the smoke test it fed, so what is left is two commands about this
+see [bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md). Both also lost the
+global install and the smoke test it fed, so each is now two commands about this
 repository. The skeleton this issue extracted,
 `[install(setup action), install(global fjs), …test commands]`, describes neither.
 
@@ -24,8 +24,9 @@ removed.
 `platformNodeSteps` still has the original shape, and is the last thing that does. One
 consumer is below this issue's own bar, and
 [built-package-checks](built-package-checks.md) proposes reworking it anyway. Reopen
-this only if a runtime lands that reintroduces the pattern — including `bun`, if its
-migration ever restores a global install, which it should not.
+this only if a runtime lands that reintroduces the pattern — which neither `bun`'s
+pending migration nor anything in
+[built-package-checks](built-package-checks.md) should.
 
 The sibling factory [i175](./175-ci-setup-tool-factory.md) is unaffected and stays
 open: `setupTool` constructs a pinned-version install step, and four call sites for

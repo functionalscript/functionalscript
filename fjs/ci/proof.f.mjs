@@ -179,22 +179,22 @@ export const proof = {
         functionalscriptPackage: () => {
             const gha = runDefault('{"name":"functionalscript"}')
             assert(hasRun('fjs test')(gha), 'expected fjs self-test')
-            assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} test`)(gha), 'expected deno self-test')
         },
         otherPackage: () => {
             const gha = runDefault('{"name":"other-package"}')
-            assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} test`)(gha), 'expected canonical deno self-test')
+            // The platform matrix is the only family left running a published
+            // CLI; `deno` and `bun` stopped, and no canonical Node job ever did.
+            assert(hasRun('fjs test')(gha), 'expected canonical platform self-test')
         },
         configuredPackageVersion: () => {
             const gha = runDefault('{"name":"other-package","version":"1.2.3"}')
             assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version platform install')
-            assert(hasRun(`deno install -g -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript}`)(gha), 'expected configured-version deno install cache')
             assert(hasRun('deno install --frozen')(gha), 'expected deno lock install')
-            assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} test`)(gha), 'expected configured-version deno install')
             assert(hasRun('deno task cov')(gha), 'expected deno coverage task')
             assert(hasRun('bun install --frozen-lockfile')(gha), 'expected bun lock install')
-            // The `bun` job no longer installs the published package at all,
-            // so no `bunx functionalscript@<version>` is expected here.
+            // Neither runtime job installs the published package any more, so
+            // the configured version reaches only the platform matrix.
+            assert(!hasRun('npm:functionalscript@')(gha), 'unexpected published-package step in deno')
             assert(!hasRun('bunx functionalscript@')(gha), 'unexpected published-package step in bun')
         },
         missingPackageJson: () => {
@@ -297,8 +297,7 @@ export const proof = {
         }
     },
     // Deno, step for step. It lost its setup action, and every command it runs
-    // enters its own flake — the global install included, which is why that
-    // step no longer sits ahead of the checkout.
+    // enters its own flake.
     migratedDenoJob: () => {
         const gha = run(false)
         const job = gha.jobs.deno
@@ -313,12 +312,8 @@ export const proof = {
             job.steps
                 .flatMap(step => step.run === undefined ? [] : [step.run])
                 .slice(1),
-            [
-                `deno install -g -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript}`,
-                `deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} test`,
-                'deno install --frozen',
-                'deno task cov',
-            ].map(command => nixDevelop('deno', command)))
+            ['deno install --frozen', 'deno task cov']
+                .map(command => nixDevelop('deno', command)))
     },
     // Bun is the one canonical job left on a setup action, and the one with no
     // flake — `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` says why. It also no

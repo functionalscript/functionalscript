@@ -59,7 +59,7 @@ export const nixJobs = [...nodeNixJobs, denoNixJob]
 /** @type {(rust: boolean, pin: string | undefined) => Jobs} */
 const canonicalJobs = (rust, pin) => ({
     ...(rust ? { wasm: ubuntuArm(rustWasmSteps) } : {}),
-    deno: ubuntuArm(denoSteps(functionalscript)),
+    deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
     ...nodeVersionJobs(),
     ...(pin === undefined ? {} : { [packageCheckJobId]: packageCheckJob(pin) }),

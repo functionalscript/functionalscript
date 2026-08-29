@@ -392,12 +392,6 @@
           "run": "test \"$(nix develop --no-write-lock-file ./nix/deno --command deno eval 'console.log(Deno.version.deno)')\" = 2.8.3"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/deno --command deno install -g -A --minimum-dependency-age=0 npm:functionalscript@0.47.0"
-        },
-        {
-          "run": "nix develop --no-write-lock-file ./nix/deno --command deno run -A --minimum-dependency-age=0 npm:functionalscript@0.47.0 test"
-        },
-        {
           "run": "nix develop --no-write-lock-file ./nix/deno --command deno install --frozen"
         },
         {

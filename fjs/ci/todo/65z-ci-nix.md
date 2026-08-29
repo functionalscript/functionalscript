@@ -19,6 +19,11 @@ records that action version; its `deno` pin now names what the snapshot provides
 `fjs/ci/module.f.mjs` composes the flakes of two families rather than aliasing the Node
 list.
 
+Separately from Nix, `deno` and `bun` both stopped installing and running a published
+`functionalscript`; the platform matrix is the only family that still does. That is
+[built-package-checks](built-package-checks.md)'s subject, not this issue's, but it is
+why those two jobs are shorter than the migration alone would leave them.
+
 Deno brought one thing the Node jobs did not: `pkgs.deno` carries no version, so the
 proof that ties `nodejs_24` to the configured Node has no counterpart for it. Its CI
 version check is the whole tie, which is why that check is worth more there than it is
