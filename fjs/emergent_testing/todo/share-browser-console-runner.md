@@ -189,7 +189,14 @@ Sequence it as two PRs: **first the sequential traversal in `module.f.mjs`
 alone** — console-observable, `fjs t` prints each line as its test finishes,
 the full suite run under it is what finds any concurrency-dependent proof, and
 the scheduling change is breaking and gets its own changelog entry — **then the
-browser port**, which at that point adds no scheduling of any kind.
+browser port**, which invents no scheduling of its own: the sequential order
+arrives with the shared traversal the page now calls (a page-behaviour change,
+named as such in step 7b and the reviewability paragraph above), the page's
+`report` handler yields one macrotask as page code, and the browser
+interpreter contains no scheduling at all. This order — the idea first, in the
+context that can prove it, then a port that carries no idea of its own — is
+the sequencing [DESIGN.md](../../../DESIGN.md) describes for a change that is
+the plan's premise rather than the port's discovery.
 
 #### The pitfall catalog
 

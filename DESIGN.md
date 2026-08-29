@@ -173,11 +173,21 @@ the new context is often a decision made in the old one. Copy it first; if it
 turns out to be wrong, it is wrong in both places and worth an issue that says
 so.
 
-**Keep the port separate from everything it inspires.** Land the sharing change
-on its own, with behaviour unchanged. Anything new — a different scheduling
-policy, a better measurement, an extra guard — is its own change afterwards.
-Combined, they cannot be reviewed: an argument about the new idea becomes an
-argument about the port.
+**Keep the port separate from everything it inspires.** Anything new — a
+different scheduling policy, a better measurement, an extra guard — is its own
+change, never part of the port. Combined, they cannot be reviewed: an argument
+about the new idea becomes an argument about the port. What the rule forbids is
+the combination, not a fixed order. The common order is port first, behaviour
+unchanged, because the port is usually what reveals the idea. When the idea is
+the *premise* — decided before any port, and provable in the existing context
+on its own — the same separation runs the other way: land the idea first, in
+the context that can prove it, then the port, which then carries no idea of its
+own beyond what the shared code already does. (An earlier version of this rule
+said "with behaviour unchanged... afterwards", prescribing the order; the
+sequential-runner plan in
+[share-browser-console-runner](fjs/emergent_testing/todo/share-browser-console-runner.md)
+is the case that showed the order is the consequence, not the rule — porting
+first would have moved a context onto semantics about to change under it.)
 
 ### Exception to DRY: performance measurement
 
