@@ -226,7 +226,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Eleven consecutive review rounds
+  vector is the only instrument that sees it. Twelve consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -236,7 +236,8 @@ The six parts:
   rule, then the accept sides of the byte form and the lone surrogate, then
   the simple escapes and the fraction and exponent — the last two of which
   finally produced a derivation for the accept set rather than another pair of
-  vectors. Every time the list had been written from memory rather
+  vectors — then the normalizer's escaping branches and JavaScript's own
+  expression forms. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -291,6 +292,17 @@ The six parts:
     rejections that no sentence in the spec states — the production states
     them. A source that is a grammar rather than a sentence is easy to skip
     precisely because there is nothing to transcribe.
+
+    The largest of these is **`value`**, a closed list of alternatives, so
+    every other JavaScript *expression* form is a rejection — and, like the
+    escape whitelist, its complement is open-ended, so the vectors go by class:
+    a parenthesized expression `(1)`, an operator expression `1+1`, a member
+    access `[1][0]`, a call `String(1)`, and `void 0`. Each is valid JavaScript
+    denoting a value DataJS can express perfectly well — `1`, `2`, `1`, `"1"`,
+    `undefined` — measured, which is what makes them dangerous: a reader that
+    *evaluates* the module gets a permitted value back and has no reason to
+    object. `-(-1)` belongs here too, and pins the spec's own point that `-` is
+    not an operator but part of the token that follows it.
 
   **And check both directions.** The corpus has a reader half and a serializer
   half, and a rule can be covered in one while absent in the other — which has
@@ -372,13 +384,22 @@ The six parts:
 - **normalize** — an input document and the exact bytes normalized form must
   produce: const hoisting by reference identity, post-order `_0`, `_1`, …
   naming, `ToString(Number)` spelling with the `-0` exception,
-  `QuoteJSONString` escaping — including a **lone surrogate**, which must come
-  back as `\ud800` in lowercase hex rather than a replacement character, and a
+  `QuoteJSONString` escaping — **every branch of it**, because a noncanonical
+  spelling is still a *valid* document, so only exact bytes tell them apart:
+  the seven simple escapes `\"` `\\` `\b` `\t` `\n` `\f` `\r`, any of which
+  a normalizer may instead emit as `\u00XX`; any other code point below
+  U+0020 as `\u00` plus two **lowercase** hex digits, so U+001F pins
+  `\u001f` and not `\u001F`; a **lone surrogate**, which must come back as
+  `\ud800` rather than a replacement character; the **never-escaped `/`**,
+  which a normalizer borrowing a JSON writer that escapes it gets wrong; and a
   **BMP** and an **astral** character, which `QuoteJSONString` leaves *raw*, so
   their vectors pin the UTF-8 bytes (`c3 a9` for `é`, `f0 9f 98 80` for U+1F600).
-  Without them every pinned byte sequence in this set is ASCII and a serializer
-  emitting Latin-1, or CESU-8's `ed a0 bd ed b8 80` for that astral character,
-  passes a set whose whole promise is exact bytes —
+  Without those last two every pinned byte sequence in this set is ASCII and a
+  serializer emitting Latin-1, or CESU-8's `ed a0 bd ed b8 80` for that astral
+  character, passes a set whose whole promise is exact bytes. Normalized output
+  has **seven** simple escapes where the accept grammar admits **nine**: `\/`
+  and `\uXXXX` are input spellings a reader must take and a normalizer must
+  never emit, so the two lists differ on purpose and neither checks the other —
   observable key order, one-line layout. Pin the `__proto__` key's exact bytes,
   `{["__proto__"]:1}`: a normalizer reusing an ordinary key writer emits
   `{"__proto__":1}`, which is not DataJS at all and which JavaScript reads as
