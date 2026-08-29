@@ -25,19 +25,26 @@ A machine-readable corpus with three parts:
   Cases: every leaf (`-0`, `NaN`, `±Infinity`, bigint, `undefined`), the
   `["__proto__"]` key, duplicate keys (last value, first position), array-index
   key ordering, one-line and readable spellings of the same value, empty
-  containers, deep nesting, and shared nodes reached by several paths.
+  containers, deep nesting, and shared nodes reached by several paths. Include
+  `export default 1` — a whole document with no `;` in it — and pair the accept
+  set with a check that each document imports as an ES module in a real engine,
+  since the absence of the final `;` is what makes that a claim about ASI's
+  end-of-input rule rather than about DataJS alone.
 - **reject** — document text plus what is wrong with it. Cases: a missing or
-  non-final `export default`, a missing `;`, `;;`, a trailing comma, a comment,
+  non-final `export default`, a missing `;` between statements, a **trailing**
+  `;` (`export default 1;`, the spelling every pre-decision example used, and
+  the one an implementer is most likely to accept out of habit), `;;`, a
+  leading `;`, a trailing comma, a comment,
   an `import`, an identifier key, a bare or string `"__proto__"` key and its escaped spelling
   `"\u005f_proto__"` (the rule is on the decoded value), `1.5n`,
   `1e2n`, `01n`, `-NaN`, `-undefined`, a bare `-`, a forward or unbound
   reference, a rebound name, a name without the leading `$` (`const a=1;`,
   `const class=1;`, `const undefined=1;`), each of the three required spaces
-  left out — `const$0=1;`, `exportdefault $0;`, `export default$0;` and
-  `export default1;` — single quotes, `\x` and
+  left out — `const$0=1;export default $0`, `exportdefault $0`,
+  `export default$0` and `export default1` — single quotes, `\x` and
   `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string. Pair the
   whitespace cases with accepted documents whose value cannot merge —
-  `export default [1];`, `export default -1;`, `export default "a";` — since
+  `export default [1]`, `export default -1`, `export default "a"` — since
   those are the ones a merging-based reader would wrongly accept without the
   space, and with the harmless splits `null$13`, `null0` and `truex`, rejected
   by the grammar rather than by the tokenizer.
@@ -49,7 +56,7 @@ A machine-readable corpus with three parts:
   document denoting something else.
 - **graph equivalence** — an input graph and the documents that do and do not
   denote it, so a serializer cannot pass by emitting merely *valid* output:
-  `[a,a]` with one shared `a` is not `export default [[],[]];`.
+  `[a,a]` with one shared `a` is not `export default [[],[]]`.
 - **normalize** — an input document and the exact bytes normalized form must
   produce: const hoisting by reference identity, post-order `$0`, `$1`, …
   naming, `ToString(Number)` spelling with the `-0` exception,
@@ -59,9 +66,9 @@ A machine-readable corpus with three parts:
   formatter diverges, and pin `root=[p,p]` with `p=[c]` so the hoisting count
   is occurrences rather than paths. Pin the space after `default` for a root of
   every shape — a bare number, a bigint, a name, an array, an object, a string
-  — since it is unconditional now: `export default 1;` must not regress to
-  `export default1;`, which JavaScript rejects, and `export default [1];` must
-  not regress to the `export default[1];` that JavaScript happens to accept.
+  — since it is unconditional now: `export default 1` must not regress to
+  `export default1`, which JavaScript rejects, and `export default [1]` must
+  not regress to the `export default[1]` that JavaScript happens to accept.
   Pin the signed pairs alongside their unsigned ones — `1` and `-1`, `1n` and
   `-1n`, `Infinity` and `-Infinity` — since those are where a serializer that
   kept the old conditional rule would put the space on one and not the other,

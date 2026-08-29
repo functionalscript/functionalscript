@@ -111,28 +111,38 @@ other implementations may.
 ```text
 module    ::= const* export
 const     ::= 'const' id '=' value ';'
-export    ::= 'export' 'default' value ';'
+export    ::= 'export' 'default' value
 value     ::= primitive | id | array | object
 key       ::= string | '[' '"__proto__"' ']'
 ```
 
-- **`;` terminates every statement, `export default` included** — one
-  uniform rule, no per-statement exception; no empty
-  statements. Rationale, each sufficient alone: no line-terminator taxonomy in
-  the spec (a lone CR *is* a JS `LineTerminator` — trivia no implementer
-  should need); one canonical spelling per document; the separator is a
-  visible character, so byte-different files that render identically cannot
-  differ in meaning; and a document minifies to one line —
-  `const $0=[];export default [$0,$0];` — enabling DataJS inside JSON strings,
+- **`;` separates statements and never trails one**; no empty statements.
+  Rationale for `;` over a newline, each sufficient alone: no line-terminator
+  taxonomy in the spec (a lone CR *is* a JS `LineTerminator` — trivia no
+  implementer should need); one canonical spelling per document; the separator
+  is a visible character, so byte-different files that render identically
+  cannot differ in meaning; and a document minifies to one line —
+  `const $0=[];export default [$0,$0]` — enabling DataJS inside JSON strings,
   line-delimited streaming, and one-line test fixtures. Whitespace is required
   at three positions and optional everywhere else, per the next bullet.
+- **No `;` after `export default`** — it would be the trailing separator JSON
+  forbids for commas, and one shape should not need two rules. `export
+  default 1;` is rejected; the smallest document, `export default 1`, holds no
+  `;` at all, and the JSON conversion becomes the prefix `"export default " +
+  json` with nothing appended. This does lean on ASI, which requiring `;` was
+  partly meant to avoid — but only on the end-of-input rule, which is a fact
+  about where the file ends, not about which invisible character sits at a line
+  break. The line-terminator taxonomy lives in the *other* ASI rule and is
+  still excluded. Verified against Node: `export default {"a":1}` and
+  `const $0=[1,2];export default {"a":$0,"b":$0}` both import, with no trailing
+  newline.
 - **Whitespace is JSON's** — space, tab, LF, CR — insignificant everywhere.
   Other JS whitespace (U+2028/U+2029, NBSP, FF, BOM) is rejected.
 - **Whitespace is required after `const`, `export` and `default`**, with no
   condition, and optional everywhere else. Two of the three were forced
   already — a name begins with `$` and `export` is always followed by
   `default`, so `const$0` and `exportdefault` are each one identifier — and the
-  third is the choice: `export default[1];` would lex, but requiring the space
+  third is the choice: `export default[1]` would lex, but requiring the space
   regardless is what makes the rule positional. Note what did *not* decide it:
   the conditional rule is implementable without maximal munch (require
   whitespace before an identifier, word, or unsigned number/bigint whenever the
