@@ -137,11 +137,28 @@ reader's public byte-accepting path — which stage 4 owes:
   has two sub-classes, so each cell holds two vectors — the whole matrix, not a
   diagonal of it and not one half of each cell:
 
-  | width | position 1 | position 2 | position 3 |
+  | lead | position 1 | position 2 | position 3 |
   | - | - | - | - |
-  | two bytes | `C2 41` / `C2 C2` | — | — |
-  | three bytes | `E2 41 80` / `E2 C2 80` | `E2 82 41` / `E2 82 C2` | — |
-  | four bytes | `F0 41 80 80` / `F0 C2 80 80` | `F0 9F 41 80` / `F0 9F C2 80` | `F0 9F 98 41` / `F0 9F 98 C2` |
+  | `C2`, for `c2`–`df` | `C2 41` / `C2 C2` | — | — |
+  | `E0` | `E0 41 80` / `E0 C2 80` | `E0 A0 41` / `E0 A0 C2` | — |
+  | `E2`, for `e1`–`ec` | `E2 41 80` / `E2 C2 80` | `E2 82 41` / `E2 82 C2` | — |
+  | `ED` | `ED 41 80` / `ED C2 80` | `ED 80 41` / `ED 80 C2` | — |
+  | `EE`, for `ee`–`ef` | `EE 41 80` / `EE C2 80` | `EE 80 41` / `EE 80 C2` | — |
+  | `F0` | `F0 41 98 80` / `F0 C2 98 80` | `F0 9F 41 80` / `F0 9F C2 80` | `F0 9F 98 41` / `F0 9F 98 C2` |
+  | `F1`, for `f1`–`f3` | `F1 41 80 80` / `F1 C2 80 80` | `F1 80 41 80` / `F1 80 C2 80` | `F1 80 80 41` / `F1 80 80 C2` |
+  | `F4` | `F4 41 80 80` / `F4 C2 80 80` | `F4 80 41 80` / `F4 80 C2 80` | `F4 80 80 41` / `F4 80 80 C2` |
+
+  **Rows are the accept table's eight parts, not the three widths.** A
+  constrained lead has its own handler, so it has its own way to be wrong: a
+  decoder that validates `E2`'s continuations correctly and writes `ED`'s
+  second-byte check as `b <= 0x9f` accepts `ED 41 80` as an ordinary scalar —
+  `0x41` passes that test — while still rejecting every encoded-surrogate
+  vector. Review found it, and the fix is the same reindexing the *accept*
+  table needed two rounds earlier: the width was never the thing a decoder
+  branches on. Keeping one indexed by parts and the other by widths was the
+  correction landing in one artifact and not its twin, which is this file's
+  most repeated failure and its first appearance between two tables in the same
+  section.
 
   A byte is a continuation exactly when it is `10xxxxxx`, so a
   non-continuation is either **high bit clear** (`00`–`7F`, the `41` column) or
@@ -676,7 +693,11 @@ The six parts:
   the escape classes had just been added and looked like coverage; **every
   string vector's key twin**, since `key` is the same production in a second
   position; and post-order naming on the two mixed parent-child kinds, where
-  the demonstration actually lives. The sweep for the lead-partition shape had
+  the demonstration actually lives — then the non-continuation matrix, still
+  indexed by width two rounds after the accept table was reindexed by lead
+  partition, so `E0`, `ED` and `F4`'s own handlers had no cell; and the
+  serializer's leaf list, where naming a type let `true` and two positives
+  stand for the boolean, number and bigint branches. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -844,7 +865,14 @@ The six parts:
   every recipe here while rejecting every `bigint`, `undefined`, `NaN` or
   infinity passed the whole set. The leaves are JSON's four plus the five
   JavaScript adds — `undefined`, a bigint, `NaN`, `Infinity`, `-Infinity` —
-  with `-0` beside them, and the containers are an empty and a non-empty
+  with `-0` beside them — and **naming a leaf type is not naming a vector**:
+  "a boolean" instantiates as `true`, "a number" as a positive finite one and
+  "a bigint" as a positive one, so a serializer refusing `false`, `-1.5` or
+  `-109n` passes a set that lists all three. Both booleans, then, and an
+  ordinary negative beside the number and the bigint. `-0` and `-Infinity` do
+  not discharge that — they are the branches a serializer special-cases, which
+  is the trap `normalize` fell into two rounds ago, and its exact negative
+  vectors belong to a role this one never runs. The containers are an empty and a non-empty
   array and object, nesting, and a node reached twice — in each of the three
   sharing shapes `graph equivalence` names below, since the walker a repeat is
   met in is what decides whether it is hoisted. That last one is not
