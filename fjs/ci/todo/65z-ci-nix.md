@@ -194,6 +194,20 @@ A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7), so the 
 is not bundled into a `bash -c` script: the step is what CI reports on, and a bundle
 names the wrapper rather than the command that failed.
 
+A step enters the shell only when it needs a tool the flake pins. `git` and `grep` are
+the runner's, as they are for a `setup-node` job today, so the Node 26 drift check and
+the typedef gate stay plain steps:
+
+```sh
+nix develop ./nix/node26 --command npm run ci-update
+git add -A && git diff --cached --exit-code
+```
+
+They read a workspace the previous step wrote, which is the same workspace either way.
+This is also why no flake needs to declare `git`, and why it never matters whether
+`nix develop` leaves the runner's `PATH` in place or replaces it with the shell's: only
+commands that must run on the pinned toolchain go through it.
+
 Re-entering the shell per step costs nothing the bundle was buying. `nix develop` runs
 the shell's `shellHook` on every entry, so a job-local environment is re-established for
 each step rather than exported across them, and what such a hook puts on disk — the

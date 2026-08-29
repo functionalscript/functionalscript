@@ -202,6 +202,17 @@ develop` runs the `shellHook` on every entry, and what a hook puts on disk persi
 across steps regardless — while each step names the flake, so none can fall back to the
 runner's preinstalled Node.
 
+A step names the flake only when it needs a tool the flake pins. Node 26's sequence is
+the case that shows the difference: `npm run ci-update`, `npx tsc`, `npm run cov` and
+`npm pack` run on the pinned Node, while `git add -A && git diff --cached --exit-code`
+and the typedef `grep` gate are the runner's tools and stay plain steps, exactly as they
+are under `setup-node`. They read the workspace the Nix steps wrote, which is the same
+workspace either way.
+
+So no flake declares `git`, and it never matters whether `nix develop` leaves the
+runner's `PATH` in place or replaces it with the shell's — a question no job has had to
+answer, since Node 24 runs only `npm` and `node`, both from its own shell.
+
 Preserve the current command sequences and order:
 
 ```text
