@@ -387,11 +387,26 @@ space TAB LF CR  ! % & ( ) * , - / : < = > ? [ ] ^ { | } ~   and end of input
 
 That set is `rangeSetTerminalForNumber` plus `-`: JavaScript's operator
 characters, with no JSON principle behind it — none of `!`, `%`, `(` can appear
-in a valid JSON document. It is nonetheless **reproduced exactly**, because
-invariant 2 pins it from both sides: accepting fewer characters turns `12/1`'s
-`number 12` into an error, and accepting more stops `12"a"` erroring at all.
+in a valid JSON document.
 
-Narrowing it to JSON's own delimiters is defensible, and is a separate,
+It is **reproduced exactly**, and it is worth being precise about why, because
+an earlier draft justified it with a rule this design does not actually hold.
+That draft said dropping `/` would destroy `12/1`'s well-formed `number 12`,
+"the defect class this design exists to remove". But `12/1` errors today and
+errors either way, so **neither invariant forbids it** — and the table already
+accepts `-.123` losing its `number 123`, which is the same kind of loss. A
+principle applied to one row and not the other is not a principle.
+
+The honest reason is narrower. Invariant 2 pins one side: accepting *more*
+characters would stop `12"a"` erroring at all, which is forbidden. The other
+side is a **judgement, not a law** — reproducing the set costs nothing, and
+gratuitously turning well-formed numbers into errors is churn a port should not
+introduce. Where the design does lose a token (`-.123`), it is because
+reproducing that behavior would mean reproducing the `'-'` state, a JavaScript
+artifact this stage removes; the loss is recorded in the table and permitted by
+the invariants rather than justified by a rule.
+
+Narrowing the set to JSON's own delimiters is defensible, and is a separate,
 deliberate change with its own proofs — not something to slip into a port.
 
 #### Where a number lexeme ends
@@ -528,10 +543,9 @@ table is also the port. Nothing is left to be discovered by staring at a diff.
 
 ### Edits owed to existing issues
 
-Two open issues are written against the dependency this stage removes, and
-both would otherwise send someone to build something stage 3 deletes. Each
-gets a note now, while this is in flight, and its substantive rewrite in the
-implementation PR — the premise only actually changes when the code does.
+Two open issues are written against the dependency this stage removes, and both
+would otherwise send someone to build something stage 3 deletes. **666 is
+already rewritten, in this PR; only `streaming-recognizer` is still owed.**
 
 - [666-js-tokenizer-position-layer](../../../js/todo/666-js-tokenizer-position-layer.md)
   — proposes exporting a raw, metadata-free `tokenizeRaw` entry point from
@@ -539,15 +553,19 @@ implementation PR — the premise only actually changes when the code does.
   consume it". JSON is that export's **only** proposed consumer, and no other
   exists: DJS imports two helpers and drives its own tokenizer. So after stage
   3 the export would be dead public API, against the issue's own
-  defer-until-a-second-consumer rule. Both the export and the JSON task are
-  struck through; what survives is the internal `tokenizeOp` re-extraction,
-  which needs no consumer to justify it.
+  defer-until-a-second-consumer rule. **Done in this PR**, and more firmly than
+  an earlier draft of this paragraph claimed: the export and the JSON task are
+  *deleted* from the proposal and the task list, not struck through, and the
+  file records "removed, not deferred". What survives there is the internal
+  `tokenizeOp` re-extraction, which needs no consumer to justify it.
 - [streaming-recognizer](./streaming-recognizer.md) — requires the recognizer
   to reuse "the tokenizer's *transition structure*" and to inherit the
   raw-control-in-string rejection from `fjs/js`'s `parseStringStateOp`. Its
   design survives intact and improves: the scanner it factors over a no-op
   builder becomes JSON's own string and number scanning, so "one grammar, two
-  builders" stops meaning "one *JavaScript* grammar". Repoint the citations.
+  builders" stops meaning "one *JavaScript* grammar". A pointer note is in place;
+  the citations are repointed in the implementation PR, where the premise
+  actually becomes true.
 
 ### Tasks
 
