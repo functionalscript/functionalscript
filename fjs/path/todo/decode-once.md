@@ -19,12 +19,13 @@ split off the root — and the rootedness rule is re-stated beside it:
 ```
 
 `split(toPosix(p))` appears five times, and "a path is rooted exactly when
-its root is non-empty" (`r !== ''`) three times (`:101`, `:140`, with
-`escapes` at `:160` passing a deliberate `false` — the one documented
-exception, since an escape check treats even a rooted path's `..` as
-escaping). The module's own docs leave root detection open (UNC
-`server/share`, drive-relative `C:foo`), so a change there currently has to
-be threaded through each entry point rather than through one decode.
+its root is non-empty" (`r !== ''`) at three sites: `:101`, `:140`, and
+`:184`. `escapes` (`:160`) is not a fourth — it passes a literal `false`,
+deliberately declining the test, because an escape check treats even a
+rooted path's `..` as escaping. The module's own docs leave root detection
+open (UNC `server/share`, drive-relative `C:foo`), so a change there
+currently has to be threaded through each entry point rather than through
+one decode.
 
 ### Proposal
 
@@ -51,9 +52,10 @@ has to cover all three or the "one owner" claim is not true:
 `rejoin` matters most among them — `normalize` and `concat` reach the folding
 rule only by delegating to it, so leaving its own `r !== ''` would let every
 entry point be rewritten while the duplication survives in the function they
-all call. But `concat`'s test is a *fourth* use of the same predicate for a
-different decision (does an absolute `b` replace `a`), reachable through
-neither `parts` nor `segmentsOf`, so it needs `isRooted` directly.
+all call. `concat`'s test is the one that needs `isRooted` **directly**: the
+other two reach the predicate through `segmentsOf`, but `concat` asks it for
+a different decision — does an absolute `b` replace `a` — and so is
+reachable through neither `parts` nor `segmentsOf`.
 
 That table is the whole set: the only other `!== ''` in the module is
 `base !== ''` at `:212`, which tests a served-prefix argument rather than a

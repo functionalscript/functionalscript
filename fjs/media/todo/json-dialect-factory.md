@@ -133,7 +133,25 @@ newer writer extended, which is the fail-closed misread the additive-
 extension rule exists to prevent. Every dialect states `open`, and the type
 should require it.
 
-**The value, though, is `Ts<S>` — not `Ts<Rest<S, Type>>`.** The two are the
+**The schema's value has to be JSON-representable, and the type does not say
+so.** `S extends Struct` admits a schema whose members include rtti `bigint`,
+but `encodeText` is `stringify(sort)` over the standard JSON serializer,
+whose `primitiveSerialize` sends anything that is not a boolean, number, or
+string to `nullSerialize` (`../json/module.f.mjs:59-66`) — so a `bigint`
+member would encode as `null`, silently, and `decodeText` would then reject
+what `encodeText` produced. The three dialects here are all JSON-valued, so
+nothing is wrong today; the gap is that a fourth could be added without the
+type objecting.
+
+Decide this when implementing rather than guessing at the type now: either
+constrain the accepted schema so `ValueOf<S>` is assignable to
+`JsonUnknown` — which is the honest statement of what the factory can encode
+— or leave `Struct` and record the precondition in the factory's JSDoc with
+a proof that a non-JSON member is refused rather than silently nulled. The
+first is better if it can be expressed without tangling inference; the
+second is acceptable and is what the modules effectively rely on today.
+
+**The value is `Ts<S>` — not `Ts<Rest<S, Type>>`.** The two are the
 same type here: `RestTs<C, R>` is `C extends Tuple ? TupleRestTs<C, R> :
 ConstTs<C>` (`../../rtti/ts/types.ts:353-354`), so for a non-tuple container
 the rest is *discarded*, and `Ts` of a bare struct falls through to
@@ -246,6 +264,10 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
       `encodeText`/`validate`/`decodeText` for each of the three dialects.
       `note`'s `validate` stays `Result<Note, ValidationError>` with no
       `string`, which is the case that catches an over-wide `E`.
+- [ ] Settle JSON-representability: either constrain the schema so
+      `ValueOf<S>` is assignable to `JsonUnknown`, or keep `Struct` and
+      state the precondition in the factory's JSDoc. Either way a non-JSON
+      member must be refused rather than encoded as `null`.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
       copies and the two `isValid…` adapters. Keep every published name —
       `revisionDialect`/`lockDialect`/`noteDialect` aliasing the kit's
