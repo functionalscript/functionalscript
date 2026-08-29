@@ -98,8 +98,10 @@ therefore first evaluated when its job migrates, which today means Node 22's.
 ### Expected package scripts
 
 The generated platform jobs run `npm ci`, install the pinned FunctionalScript
-package globally, and run `fjs test` — the only jobs that exercise the published
-CLI. Canonical Node jobs run on Ubuntu ARM and are split by Node version:
+package globally, and run `fjs test`; the `deno` and `bun` jobs run their own
+equivalents. Those eight are where the published CLI is exercised — no canonical
+Node job does. Canonical Node jobs run on Ubuntu ARM and are split by Node
+version:
 
 - Node 22 runs `npm ci` and `node --test` on the runtime `setup-node` installs.
 - Node 24 runs `npm ci` and `node --test` through its generated flake, one

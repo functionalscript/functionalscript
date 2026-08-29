@@ -280,22 +280,11 @@ export const proof = {
             const id = `node${major(version)}`
             const runs = (gha.jobs[id]?.steps ?? [])
                 .flatMap(step => step.run === undefined ? [] : [step.run])
-            // The job's first real command — `npm ci` included, because it runs
-            // lifecycle hooks from the project and its dependencies, which is
-            // code executing on the runtime the check has not confirmed yet.
-            //
-            // The one thing allowed to precede it installs the published CLI,
-            // and only because it is an install-phase step that runs before the
-            // checkout this check may need: a migrated job's check enters the
-            // flake, and the flake is a file in the repository. Moving that
-            // install is `built-package-checks.md`'s business, not this
-            // ordering's.
-            /** @type {(run: string) => boolean} */
-            const globalInstall = run => run.startsWith('npm install -g ')
-            assertEq(
-                runs.filter(run => !globalInstall(run))[0],
-                `test "$(${command})" = v${version}`,
-                id)
+            // The job's first command, with nothing exempted. `npm ci` in
+            // particular runs lifecycle hooks from the project and its
+            // dependencies — code executing on a runtime the check has not
+            // confirmed yet — so it comes after, not before.
+            assertEq(runs[0], `test "$(${command})" = v${version}`, id)
         }
     },
     ubuntu: () => {

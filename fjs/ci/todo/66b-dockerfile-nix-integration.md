@@ -36,10 +36,12 @@ that cares.
 
 That check is the one thing about a generated flake that only CI can establish:
 `nix develop` has to resolve the pin, build the shell, and put a Node on
-`PATH`. What can be established without Nix is checked in `fjs/ci/proof.f.mjs`,
-off the generator's output — each job's flake carries the accepted commit, the
-job's `devShells.<system>.default`, and the `nodejs_<major>` matching the
-version `fjs/ci/config/module.f.mjs` records for that job.
+`PATH`. What can be established without Nix is checked off the generator's
+output, by two proofs: `fjs/ci/proof.f.mjs` requires the written file to equal
+the generator's text for that job and the job's package attribute to be the
+`nodejs_<major>` matching the version `fjs/ci/config/module.f.mjs` records for
+it, while `fjs/ci/nix/proof.f.mjs` pins that text character for character —
+the accepted commit and the job's `devShells.<system>.default` included.
 
 The flakes carry no `assert` of their own: a flake pinning an exact commit
 already determines its package versions, so an in-flake assertion would restate
