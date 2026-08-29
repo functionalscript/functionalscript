@@ -8,6 +8,7 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main } from './module.f.mjs'
 import { actions, functionalscript, nixpkgs, node } from './config/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
+import { flakeText } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
@@ -204,27 +205,22 @@ export const proof = {
     nixFlakes: () => {
         const [state, result] = virtual(makeState(false, undefined))(main())
         assertEq(exitCode(result), 0)
-        const { commit } = nixpkgs
-        for (const { id, packages, system } of nodeNixJobs) {
-            const text = flake(state, id)
-            const [nodePackage] = packages
+        for (const job of nodeNixJobs) {
+            const [nodePackage] = job.packages
             // The package attribute the job declares, tied to the version the
-            // configuration records for it: `node24` gets `pkgs.nodejs_24`, so
-            // a job renamed or repointed without its package following is a
-            // failure here rather than a shell running the wrong Node.
-            assertEq(nodePackage, `nodejs_${major(configuredVersion(id))}`)
-            assert(
-                text.includes(`pkgs.${nodePackage}`),
-                `expected ${nodePackage} in the ${id} flake`)
-            // The pin is what decides the version that package resolves to, so
-            // every flake has to carry the accepted commit, and the shell has
-            // to be the one the job's `nix develop` asks for by path.
-            assert(
-                text.includes(`github:NixOS/nixpkgs/${commit}`),
-                `expected the pinned commit in the ${id} flake`)
-            assert(
-                text.includes(`devShells.${system}.default`),
-                `expected the default ${system} shell in the ${id} flake`)
+            // configuration records for it: `node24` gets `nodejs_24`, so a job
+            // renamed or repointed without its package following is a failure
+            // here rather than a shell running the wrong Node. This is the
+            // job's own data, not text scanned out of a file.
+            assertEq(nodePackage, `nodejs_${major(configuredVersion(job.id))}`)
+            // The pipeline wrote that job's flake, whole, at the path a
+            // `nix develop` step names. Equality rather than a substring
+            // search: a `pkgs.nodejs_24` occurring in a comment or an unrelated
+            // binding would satisfy `includes` while the shell declared
+            // something else. What the text itself must say — the pinned
+            // commit, the shell, the packages — is pinned character for
+            // character by `nix/proof.f.mjs`.
+            assertEq(flake(state, job.id), flakeText(job))
         }
     },
     // The jobs running through their generated flake, step for step. Node 22 is
@@ -273,16 +269,20 @@ export const proof = {
             const id = `node${major(version)}`
             const runs = (gha.jobs[id]?.steps ?? [])
                 .flatMap(step => step.run === undefined ? [] : [step.run])
-            // The job's first real command, so nothing whose result the check
-            // would invalidate has run yet. Only preparation may precede it:
-            // installing dependencies and the published CLI produces no result
-            // to report, and a migrated job runs its `npm ci` through the very
-            // flake under test.
+            // The job's first real command — `npm ci` included, because it runs
+            // lifecycle hooks from the project and its dependencies, which is
+            // code executing on the runtime the check has not confirmed yet.
+            //
+            // The one thing allowed to precede it installs the published CLI,
+            // and only because it is an install-phase step that runs before the
+            // checkout this check may need: a migrated job's check enters the
+            // flake, and the flake is a file in the repository. Moving that
+            // install is `built-package-checks.md`'s business, not this
+            // ordering's.
             /** @type {(run: string) => boolean} */
-            const preparation = run =>
-                run === 'npm ci' || run.startsWith('npm install -g ')
+            const globalInstall = run => run.startsWith('npm install -g ')
             assertEq(
-                runs.filter(run => !preparation(run))[0],
+                runs.filter(run => !globalInstall(run))[0],
                 `test "$(${command})" = v${version}`,
                 id)
         }

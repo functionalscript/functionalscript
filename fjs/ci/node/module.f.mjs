@@ -80,10 +80,23 @@ export const platformNodeSteps = version => [
     test({ run: 'fjs test' }),
 ]
 
-/** @type {(version: string) => readonly MetaStep[]} */
+/**
+ * The last job still installing its runtime with `setup-node`. Its version check
+ * comes before `npm ci` rather than after: `npm ci` runs `preinstall`/`install`/
+ * `postinstall` hooks from the project and its dependencies, so a runner handed
+ * a different patch release would execute that code on the wrong Node and could
+ * fail there instead of on the diagnostic written for it.
+ *
+ * That is why this job does not reuse `nodeInstall`. The platform matrix does,
+ * and gets no check — its Windows jobs run `run` steps under PowerShell, where
+ * this POSIX spelling would not survive.
+ *
+ * @type {(version: string) => readonly MetaStep[]}
+ */
 const node22Steps = version => [
-    ...nodeInstall(node.node22),
+    install(installNode(node.node22)),
     nodeVersionStep('node --version', node.node22),
+    test({ run: 'npm ci' }),
     fjsGlobalInstall(version),
     test({ run: 'fjs test' }),
     test({ run: 'node --test' }),

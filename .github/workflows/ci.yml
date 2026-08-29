@@ -447,10 +447,10 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "npm ci"
+          "run": "test \"$(node --version)\" = v22.23.2"
         },
         {
-          "run": "test \"$(node --version)\" = v22.23.2"
+          "run": "npm ci"
         },
         {
           "run": "fjs test"
