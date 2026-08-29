@@ -55,7 +55,11 @@ operator that carries a limit alongside the accumulator would have to re-read
 it on every code unit, and because `recognizerAccepts` then needs nothing new —
 an over-cap document is already rejected in the state it returns.
 `recognizerInit` stays as the uncapped default so the common case costs no
-argument.
+argument. The checklist and the value-free-parsing bullet below kept describing
+the cap as an unnamed knob for two commits after the export appeared — the same
+stale-cross-reference shape this PR has now recorded fourteen times, here in its
+prose-against-its-own-checklist form, and inside the one file whose export list
+is the thing being lagged.
 
 **A code unit, not a code point**, and it is `(state, unit)` rather than a
 `Fold` — see the note at the end of this section before wiring it into one.
@@ -111,9 +115,10 @@ worse one — "one grammar, two builders" stops meaning one *JavaScript* grammar
 - **Value-free parsing.** Drive `fjs/media/json/parser`'s per-token control machine
   (`foldOp` — `fjs/media/json/parser/module.f.mjs:205-224`) with a no-op value builder,
   keeping only `status` + a bracket stack. Space is **O(nesting depth)** — already
-  strictly better than `parse`'s O(n) value. An **optional** max-depth cap
-  (default: none) lets a consumer that needs a DoS guard bound the stack and
-  reject deeper input. The cap is opt-in precisely because it is the one behavior
+  strictly better than `parse`'s O(n) value. An **optional** max-depth cap lets a
+  consumer that needs a DoS guard bound the stack and reject deeper input; it
+  enters through `recognizerInitCapped`, with `recognizerInit` the uncapped
+  default. The cap is opt-in precisely because it is the one behavior
   where the recognizer would otherwise have to diverge from `parse` (see below);
   leaving it off keeps them equivalent.
 
@@ -149,17 +154,18 @@ property, scoped to make it actually hold:
 - [ ] Refactor `parse` to run on the shared, builder-parameterized machine (the
       value-building instantiation), so parser and recognizer use one state
       machine and one grammar — no parallel copy of the transitions survives.
-- [ ] Implement `recognizerInit` / `recognizerStep` / `recognizerAccepts` with an
-      O(depth) bracket stack and an **optional** max-depth cap (default: none);
-      enforce RFC 8259 string-control strictness at scan time. `recognizerStep`
-      takes a **`U16`**, matching the scanners it reuses — a code point would
-      not be passable to them.
+- [ ] Implement `recognizerInit` / `recognizerInitCapped` / `recognizerStep` /
+      `recognizerAccepts` with an O(depth) bracket stack. The max-depth cap is
+      **optional** and enters through `recognizerInitCapped`; `recognizerInit` is
+      the uncapped default. Enforce RFC 8259 string-control strictness at scan
+      time. `recognizerStep` takes a **`U16`**, matching the scanners it reuses —
+      a code point would not be passable to them.
 - [ ] Proof (cap disabled): `recognizerAccepts` agrees with `parse` `ok`/`error`
       across the existing parser test corpus; add large-single-token cases (huge
       string, long number) asserting bounded auxiliary space (no payload buffer).
-- [ ] Proof (cap enabled): a valid document nesting deeper than a configured cap
-      is rejected by `recognizerAccepts` — the DoS guard, scoped out of the
-      equivalence above.
+- [ ] Proof (cap enabled): a valid document nesting deeper than a cap set with
+      `recognizerInitCapped` is rejected by `recognizerAccepts` — the DoS guard,
+      scoped out of the equivalence above.
 - [ ] `npx tsc` clean; `fjs t` green.
 
 ### Related

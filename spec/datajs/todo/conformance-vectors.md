@@ -812,7 +812,11 @@ The six parts:
   bullets away, the fourth time a rule has gone unapplied to the commit that
   states it — then the encoder's one-byte row, given its upper end and not its
   lower, and the detector still initialising with the uncapped `recognizerInit`
-  one commit after the capped initializer was added for it. The sweep for the lead-partition shape had
+  one commit after the capped initializer was added for it — then, found by
+  sweeping that last one rather than reported, the recognizer's *own* checklist
+  and value-free-parsing bullet, still describing the cap as an unnamed knob two
+  commits after `recognizerInitCapped` was exported, in the file that exports
+  it. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
