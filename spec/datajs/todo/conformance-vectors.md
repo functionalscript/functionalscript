@@ -17,9 +17,10 @@ parser and serializer implement *the spec* rather than each other, and stage 6
 must prove the DataJS ⊂ FunctionalScript ⊂ JavaScript subset laws.
 
 Stage 3 is **not** a consumer, though an earlier draft of this file said it was.
-Stage 3 is JSON's tokenizer, and what it must prove — that JSON's accepted
-language is unchanged — is a property of JSON, established by JSON's own
-accepted-input proofs and by the two invariants
+Stage 3 is JSON's tokenizer, and what it must prove — that its accepted set
+stays JSON's, but for the one enumerated `n`-deletion defect its invariants
+name — is a property of JSON, established by JSON's own
+accepted-input proofs and by those two invariants
 [self-contained-tokenizer](../../../fjs/media/json/todo/self-contained-tokenizer.md)
 states, with its character sweeps as coverage rather than proof: that design is
 explicit that no finite sweep is exhaustive. A DataJS corpus has nothing to say

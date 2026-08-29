@@ -48,7 +48,7 @@ already rejected:
 …with **one exception**, which review found and which the rest of this design
 had to be corrected around.
 
-#### `<digits> n <digits>` is accepted today, as a number, with no error
+#### An `n` inside a number is deleted today, and the number is accepted
 
 Measured through the public `tokenize`:
 
@@ -63,8 +63,10 @@ Measured through the public `tokenize`:
 
 `bigintToToken` (`fjs/js/tokenizer/module.f.mjs:439`) keeps the number state
 with the `n` **dropped from the accumulated value**, so following digits append
-to it. The boundary is sharp: `1n`, `1n0`, `1n00`, `0n0` all error, while `1n1`,
-`1n01`, `1n10`, `12n12` and `-1n1` do not.
+to it. What decides the boundary is what those digits do to `numberKind`: a `0`
+leaves it at `bigint`, which is why `1n0`, `1n00` and `0n0` still error, while
+a digit `1`-`9` reverts it to `int` and the lexeme is accepted — `1n1`, `1n01`,
+`1n10`, `12n12` and `-1n1`. A bare `1n` errors because nothing reverts it.
 
 This is the design's own defect class in its worst form. `"\x"` at least emits
 an error beside its fabricated string; this emits **a value token for text the
@@ -74,8 +76,9 @@ precisely what [DESIGN.md §10](../../../../DESIGN.md#10-refuse-what-you-cannot-
 forbids.
 
 The class is **larger than one `n`, and does not have a tidy shape.** A search
-over all strings of length ≤ 5 that contain `n` finds 62 error-free inputs,
-including `1n1n1` → `number(111)`, `0n01` → `number(001)`, `-1n1` →
+over all strings of length ≤ 5 that contain `n`, drawn from the alphabet
+`0 1 . e - n`, finds 62 error-free inputs — the count is of that alphabet, not
+of every character — including `1n1n1` → `number(111)`, `0n01` → `number(001)`, `-1n1` →
 `number(-11)` and `1n1.0` → `number(11.0)`. But `1n0`, `1n00` and `0n0` *do*
 error, so it is not simply "`n` between digits" either — the boundary is drawn
 by the JavaScript tokenizer's own state machine, not by anything expressible in
@@ -874,8 +877,9 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
 - [ ] Commit **two** tables from the sweep, not one: the old tokenizer's output
       (recorded once during implementation, for review) and the new scanner's
       expected output. The proof asserts against the *new* table — asserting
-      against the old one cannot pass, since `-` changes deliberately — and the
-      old table is what a reviewer diffs it against. Neither may import
+      against the old one cannot pass, since the `n` class changes deliberately
+      and 14 rows change their message — and the old table is what a reviewer
+      diffs it against. Neither may import
       `fjs/js/tokenizer`: a permanent dependency would contradict this stage's
       own "no runtime importer calls `tokenize`" task and leave stage 7 unable
       to delete the machine without rewriting the proof.

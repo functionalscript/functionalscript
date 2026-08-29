@@ -26,8 +26,9 @@ Read in this order; each line says what to do and why it comes when it does.
    *Why here:* it is stage 4's proof source, so landing stage 4 first means
    writing its proofs twice. The corpus bootstraps in JSON precisely so it can
    exist before any DataJS reader does. It is *not* a prerequisite of stage 3,
-   which is JSON's own tokenizer and proves its accepted language unchanged with
-   JSON's own proofs.
+   which is JSON's own tokenizer and settles its own accepted set with JSON's
+   own proofs — unchanged but for one enumerated defect, an `n` today's
+   tokenizer deletes from inside a number.
 3. **Then: stage 4, `fjs/media/datajs`.** No todo file yet — file one under
    `fjs/media/datajs/todo/` before starting, per the workflow. The normative
    behavior is already settled in
@@ -99,7 +100,9 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
 - **JSON**: accepted language and value semantics are frozen; the tokenizer
   becomes self-contained (the `fjs/js/tokenizer` wrapper is replaced by a
   small scanner of JSON's own lexical grammar). Error shapes may change once
-  in that swap; accepted-input behavior and proofs do not.
+  in that swap; accepted-input behavior does not, with one enumerated
+  exception — inputs like `1n1`, which today's tokenizer accepts as a number
+  by deleting the `n`, start erroring. No existing proof is in that class.
 - **DataJS** (the format known in this repository as DJS): a new, minimal,
   spec'd format — JSON extended from a tree to a DAG, nothing else. New
   hand-written parser and serializer in `fjs/media/datajs`, layered on JSON's
@@ -402,8 +405,10 @@ throughout.
       repointed at `fjs/bnf/testlib.f.mjs`.
 - [ ] Stage 3: JSON self-contained tokenizer —
       [`self-contained-tokenizer`](../fjs/media/json/todo/self-contained-tokenizer.md),
-      which measured the swap's blast radius: the accepted language is already
-      JSON's exactly, so only error shapes change.
+      which measured the swap's blast radius: the accepted language is
+      JSON's already, but for one defect — `1n1` and its class, accepted today
+      by deleting an `n` from inside a number — so beyond that only error
+      shapes change.
 - [ ] Stage 4: `fjs/media/datajs`; file its todo. Needs stage 1b's corpus in
       place as its proof source.
 - [ ] Stage 5: front-end move to `fjs/fsc`; file its todo.
