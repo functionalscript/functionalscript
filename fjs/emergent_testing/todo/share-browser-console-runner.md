@@ -792,7 +792,10 @@ are shared.
 - [Test-runner behavior](661-test-runner-behavior.md) — documented differences
   that must remain intentional after sharing the core.
 - [Test tree walker](65z-tf-test-tree-walker.md) — earlier work around recursive
-  proof-tree traversal.
+  proof-tree traversal. Its sketch predates the sequential plan and hard-coded
+  `all` sibling fan-out; that issue now requires the sibling combination to be
+  the instantiation's parameter (sequential for the run path, fan-out for
+  registration), so a later walker cannot undo step 7a's scheduling.
 - [Hostile thrown values and cross-realm promises](hostile-proof-values.md) —
   a behaviour the browser has and `fjs t` does not; decide it, do not inherit
   two answers.
