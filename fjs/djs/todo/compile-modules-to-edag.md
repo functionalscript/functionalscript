@@ -374,9 +374,12 @@ artifacts.
 
 **Where the work lands.** Not in `fjs/djs`. The spellings and their grammar are
 settled in [`spec/datajs/README.md`](../../../spec/datajs/README.md) — `NaN`,
-`Infinity` and `-Infinity` are *words*, `infinity ::= '-'? 'Infinity'` carries the
-sign the way `number` and `bigint` already do, and the three names are excluded
-from bindings — and
+`Infinity` and `-Infinity` are *words*, and `infinity ::= '-'? 'Infinity'` carries
+the sign the way `number` and `bigint` already do. There is no exclusion list to
+implement alongside them: DataJS names begin with `$`, so `$NaN` and
+`$undefined` are ordinary names and the three words are unreachable as bindings
+by the grammar rather than by a rule. Excluding them is **FunctionalScript's**
+policy, whose identifiers have no `$` requirement, and it lands in stage 5 — and
 [`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md)
 assigns implementing that spec to **stage 4, under `fjs/media/datajs`**, with the
 reserved-word half following in stage 5 once the front end moves. Patching

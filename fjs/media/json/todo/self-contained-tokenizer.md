@@ -856,11 +856,14 @@ a seam and a signature. Work through what DataJS actually has to do:
 - **`-Infinity`.** The wrapper must intervene immediately **after the leading
   minus**, where JSON would otherwise see `I` as a non-terminator and consume
   the whole run as a malformed number.
-- **`export default 1;`.** DataJS's statement separator is `;`, which is not in
+- **`const $0=1;`.** DataJS's statement separator is `;`, which is not in
   JSON's accepting-terminator set — `12;1` is an `invalid number` today. A
-  normalized DataJS document whose root is a bare number ends exactly that way,
-  so the seam is useless to stage 4 unless `;` can terminate an accepting
-  number. Review found this one, and it is the finding that shapes the clause
+  DataJS document with a numeric `const` ends that number exactly that way, so
+  the seam is useless to stage 4 unless `;` can terminate an accepting number.
+  The document's *own* end needs nothing new: DataJS puts no `;` after
+  `export default <value>`, so a bare-number root stops at end of input, which
+  the accepting set above already holds. It is the `const` that needs the `;`,
+  not the export. Review found this one, and it is the finding that shapes the clause
   below: two enumerated interceptions were never going to be enough.
 
 A contract of "named state, initial value, terminator rule" can be satisfied by
@@ -920,8 +923,9 @@ enumeration was the wrong shape:
   the lexeme *is* — and reports where it stopped and in which state. Whether
   the stopping character *terminates* is policy applied afterwards, by whoever
   called it. JSON's tokenizer applies the measured set above and nothing
-  changes for it; DataJS applies that set plus `;`, and `export default 1;`
-  yields `number 1`. Every other character DataJS can put after a number —
+  changes for it; DataJS applies that set plus `;`, so `const $0=1;`
+  yields `number 1` at the `;` and `export default 1` yields it at end of
+  input. Every other character DataJS can put after a number —
   `,` `]` `}` and whitespace — is already in JSON's set, so `;` is the whole
   difference.
 
@@ -1132,7 +1136,8 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
 - [ ] Prove the terminator policy is the caller's: `scanNumber` reports the
       stop, `fjs/media/json/tokenizer` applies JSON's set, and a proof feeds
       the scanner `1;` with a set containing `;` and gets `number 1` — the
-      case stage 4 needs for `export default 1;`. JSON's own tokens must not
+      case stage 4 needs for `const $0=1;`, the terminal export's bare number
+      being covered by the end-of-input member the set already carries. JSON's own tokens must not
       move: `12;1` stays `invalid number`, `unexpected character`, `number 1`.
 - [ ] Export `Scan<S>`, `ScanResult<S>`, `StringState` and `NumberState` from
       `types.ts`, and `scanString`, `scanNumber`, `stringStart` and
