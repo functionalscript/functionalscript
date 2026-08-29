@@ -71,10 +71,23 @@ across a change like this is what makes the change reviewable.
 non-establishment, so that half waits: once `['throw', exp]` is in the schema
 (the stage-1 discussion's node, not the corpus's `throws` marker, which
 describes an outcome and never appears in an expression), a case whose lazy
-operand is a `['throw', …]` proves the operand was not established. Until
-`nanvm-lib` implements the three, every case carries a `rust` reason and the
-generated file keeps it as a commented-out `TODO` — the corpus's ordinary way
-of recording a gap.
+operand is a `['throw', …]` proves the operand was not established.
+
+A `rust` reason is not enough on its own, which is worth stating because the
+first draft of this plan assumed it was. The marker defers the *assertion* —
+`emit` comments the statement out — but the statement text is still rendered
+first, so a group whose id has no entry in `rustName` and `op2Rust` throws
+`['no Rust for', '&&']` from `generate` before `emit` is ever reached. Both
+tables are gaps for all three ids.
+
+The entries cannot be written ahead of the operator. `lookup` refuses an
+unmapped id precisely so the generated file does not carry a plausible wrong
+statement, and there is nothing to map `&&` to until `nanvm-lib` has an API
+for it — a guessed `a && b` would be that wrong statement, commented out or
+not. So the Rust spelling lands with the operator, and a group is added when
+its spelling exists rather than in advance of it. What a `rust` reason defers
+is a case `nanvm-lib` cannot yet *pass*, not one the printer cannot yet
+*print*.
 
 **The transport.** When the interpreter lands, the printer grows a second
 output beside the direct-operator statements it prints today: one that
@@ -92,8 +105,11 @@ identity-memoization contract the corpus already relies on.
 
 - [ ] Decide and implement how a nested operation propagates its `Result` in
       the printed Rust, keeping the flat statements as they are.
+- [ ] Add a `rustName` and an `op2Rust` entry for each of `&&`, `||`, and
+      `??`, spelling the `nanvm-lib` API as it is implemented — a group
+      cannot be added before its id is printable.
 - [ ] Add `&&`, `||`, and `??` groups with their value results, each case
-      carrying a `rust` reason until `nanvm-lib` implements the operator.
+      carrying a `rust` reason while `nanvm-lib` cannot yet pass it.
 - [ ] Add non-establishment cases once `['throw', exp]` is in the schema.
 - [ ] Replace the proof's inline evaluator with the `interpret-edag`
       interpreter when it lands, and register the corpus as its test suite.
