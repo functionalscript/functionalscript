@@ -1,5 +1,7 @@
 /**
  * Implementation-private types for the monoid fold.
+ *
+ * @module
  */
 
 /**

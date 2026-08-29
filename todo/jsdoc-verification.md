@@ -14,7 +14,9 @@ absent from a file that needs one all type-check clean.
 The consequences are not hypothetical. `@module` drifted onto 102 files against
 the documented rule, was stripped from all of them on a misreading of *why* the
 rule existed, and the misreading survived a merge because nothing could tell the
-difference. That is three passes over the same tag with no signal at any point.
+difference — then a fourth pass put the tag back on 106 files. Four passes over
+one tag, and no check registered any of them; each was caught, if at all, by a
+person reading prose.
 
 The obvious repair is not available. Root [`AGENTS.md`
 §6](../AGENTS.md#6-external-tools) rules out approximating this with a text
@@ -67,7 +69,6 @@ is worth doing when a tool makes it cheap, not worth building a tool for.
 - [`../AGENTS.md`](../AGENTS.md#6-external-tools) §6 — why not a text pattern,
   and that a real tool needs approval first.
 - [`../fjs/AGENTS.md`](../fjs/AGENTS.md) §2 — the `@module` and `@import` rules
-  this would check.
-- [`../fjs/todo/module-tag-restore.md`](../fjs/todo/module-tag-restore.md) — the
-  drift this issue exists because of.
+  this would check. The restore that brought the tree into line with §2 is the
+  fourth pass over this one tag; no check registered any of the four.
 - [`eslint.md`](./eslint.md) — the standing ESLint discussion.

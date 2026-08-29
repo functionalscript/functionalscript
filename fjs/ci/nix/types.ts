@@ -1,5 +1,7 @@
 /**
  * Types for generated CI Nix flakes.
+ *
+ * @module
  */
 
 /** A CI job's development environment, one generated flake each. */

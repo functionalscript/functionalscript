@@ -1,5 +1,7 @@
 /**
  * Implementation-private types for the DJS AST evaluator.
+ *
+ * @module
  */
 
 import type { List } from '../../types/list/types.ts'

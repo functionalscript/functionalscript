@@ -1,5 +1,7 @@
 /**
  * Types for prime field arithmetic over `bigint`.
+ *
+ * @module
  */
 
 import type { Reduce, Unary } from '../bigint/types.ts'

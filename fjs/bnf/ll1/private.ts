@@ -1,5 +1,7 @@
 /**
  * Implementation-private types for the LL(1) matcher machine.
+ *
+ * @module
  */
 
 import type { CodePoint } from '../../text/utf16/types.ts'
