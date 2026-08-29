@@ -348,6 +348,7 @@ follows the input instead:
 | `[-123n]` | `[`, error, error, `]` | `[`, error, error, `]` — same count, JSON's messages |
 | `12"a"` | error, string `"a"` | unchanged — `"` ends without accepting |
 | `12+1` | one error — `+1` is **swallowed** | `invalid number`, then `+` re-dispatched |
+| `>>>=` | one `invalid token` — a **JS operator** | four `unexpected character` |
 | `00-2` | one error — `-2` is **swallowed** | `invalid number`, number `-2` |
 | `00-` | one error | two `invalid number` |
 | `00"a"` | one error — the string is swallowed | unchanged — `"` is not a recovery boundary |
@@ -582,9 +583,24 @@ failure among them is the port; and every error-shape difference is checked
 against the **generated sweep tables**, so any difference they do not contain is
 also the port.
 
-The attribution baseline is the generated tables — **all** of them, across every
-scanner state, not the number sweeps alone — and **not** the changed-shapes
-table above, which is illustrative and known to be incomplete. `+1` and `.5`
+**No finite sweep is exhaustive**, and this design has now claimed otherwise
+three times — first over two number prefixes, then over the number scanner
+alone, then over the new scanner's states while the *old* one has states the new
+one deliberately lacks. `>>>=` is one `invalid token` today, because the
+JavaScript tokenizer knows it as a single operator; the replacement emits four
+`unexpected character` errors, and no prefix derived from the new scanner
+reaches that.
+
+So the sweep is **coverage, not a proof**, and attribution rests on the two
+invariants plus the stated rules: a difference is expected if it follows from
+the rules, and a bug if it does not. The tables make violations likely to be
+*found*; they do not make the set of differences finite. Their prefixes should
+be derived from the union of both machines — including the old one's operator
+runs — because that is where the differences the new machine cannot predict
+come from.
+
+The changed-shapes table above is narrower still: illustrative, and known
+incomplete. `+1` and `.5`
 are `invalid token` today and become `unexpected character`, and neither has a
 row — the table lists the cases worth explaining to a reader, while the sweep
 lists all of them. An earlier draft rested the attribution rule on the manual
@@ -690,6 +706,13 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       For each prefix, and every ASCII character `c`, record `prefix` + `c` +
       `1`. If the implementation's state set does not match this list, the list
       is wrong and the state set wins.
+
+      Add the **old** machine's states too, since it has states the replacement
+      deliberately lacks: JavaScript operator runs (`>>`, `>>>`, `>>>=`, `===`,
+      `!==`, `&&`, `??`, `=>`, `**=`). Each is one `invalid token` today and
+      becomes one `unexpected character` per character. A prefix set derived
+      only from the new scanner cannot reach them, which is how this was
+      missed.
 - [ ] Commit **two** tables from the sweep, not one: the old tokenizer's output
       (recorded once during implementation, for review) and the new scanner's
       expected output. The proof asserts against the *new* table — asserting
