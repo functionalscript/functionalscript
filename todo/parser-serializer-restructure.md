@@ -21,7 +21,14 @@ Read in this order; each line says what to do and why it comes when it does.
    *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
    scanner unchanged and its number core extended, so JSON has to own those
    scanners before DataJS can borrow them.
-2. **Then: stage 4, `fjs/media/datajs`.** No todo file yet — file one under
+2. **Then: stage 1b, the conformance vectors**
+   ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)).
+   *Why here:* it is stage 4's proof source, so landing stage 4 first means
+   writing its proofs twice. The corpus bootstraps in JSON precisely so it can
+   exist before any DataJS reader does. It is *not* a prerequisite of stage 3,
+   which is JSON's own tokenizer and proves its accepted language unchanged with
+   JSON's own proofs.
+3. **Then: stage 4, `fjs/media/datajs`.** No todo file yet — file one under
    `fjs/media/datajs/todo/` before starting, per the workflow. The normative
    behavior is already settled in
    [`spec/datajs/README.md`](../spec/datajs/README.md); stage 4 implements that
@@ -30,13 +37,6 @@ Read in this order; each line says what to do and why it comes when it does.
    generalized first.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
-3. **Stage 1b, the conformance vectors**
-   ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)),
-   lands **before or together with stage 4** — it is stage 4's proof source, so
-   landing stage 4 first means writing its proofs twice. The corpus bootstraps
-   in JSON precisely so it can exist before any DataJS reader does. It is not a
-   prerequisite of stage 3, which is JSON's own tokenizer and proves its
-   accepted language unchanged with JSON's own proofs.
 4. **Then stages 5–7**, in order, as listed below.
 
 **Already done, do not redo:** stage 1a (the DataJS specification) and stage 2
@@ -273,8 +273,9 @@ combined marker would encode a redundant fact.
 
 ### Priority: stages 3 and 4 come first
 
-Stages 3 and 4 are the urgent ones, ahead of the rest of this plan and ahead of
-stage 1b. They are what [EDAG](./edag-spec.md) is waiting on.
+Stages 3 and 4 are the urgent ones, ahead of the rest of this plan. They are
+what [EDAG](./edag-spec.md) is waiting on. Stage 1b comes with them, between the
+two — it is stage 4's proof source.
 
 An EDAG is an expression DAG whose sharing is *semantics*, not an encoding
 detail: one node referenced from two operand positions is one value, and `{} ===
@@ -315,7 +316,7 @@ throughout.
    one detail left to reconcile in that todo. The
    conformance vectors are the remaining half, tracked in
    [`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md);
-   stages 3, 4 and 6 consume them.
+   stages 4 and 6 consume them — not stage 3, which is JSON's own tokenizer.
 2. **Dead code — done.** `fjs/fsc/bnf.f.mjs` and `fjs/fsc/json.f.mjs` are
    deleted rather than salvaged: both were dead (no importer) and unproven,
    the JSON half duplicated `deterministic` in `fjs/bnf/testlib.f.mjs` rule
@@ -403,7 +404,8 @@ throughout.
       [`self-contained-tokenizer`](../fjs/media/json/todo/self-contained-tokenizer.md),
       which measured the swap's blast radius: the accepted language is already
       JSON's exactly, so only error shapes change.
-- [ ] Stage 4: `fjs/media/datajs`; file its todo.
+- [ ] Stage 4: `fjs/media/datajs`; file its todo. Needs stage 1b's corpus in
+      place as its proof source.
 - [ ] Stage 5: front-end move to `fjs/fsc`; file its todo.
 - [ ] Stage 6: normalizer + subset-law proofs; file its todo.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
