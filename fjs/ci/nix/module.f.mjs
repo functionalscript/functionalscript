@@ -28,9 +28,9 @@ import { install, test, uses } from '../common/module.f.mjs'
 import { nixpkgs } from '../config/module.f.mjs'
 
 /**
- * Directory holding the generated flakes, one subdirectory per job. The
- * generator owns those subdirectories, not everything here: `nix/README.md` is
- * written by hand.
+ * Directory holding the generated environments, one subdirectory per job, each
+ * with a `flake.nix` and a `run` script. The generator owns those
+ * subdirectories, not everything here: `nix/README.md` is written by hand.
  */
 export const generatedDirectory = /** @type {const} */ ('nix')
 
@@ -77,47 +77,112 @@ const flake = ({ system, packages, shellHook }) => ['set',
 export const flakeText = job =>
     unwrapNullable(fromUndefined(nixToString(flake(job))))
 
-/** @type {(job: NixJob) => Effect<Mkdir | WriteFile, void, IoChannel>} */
-const writeFlake = job => {
+/**
+ * The `run` script generated beside a job's flake. `./nix/node26/run npm run cov`
+ * is what a workflow step says; this is what makes that a command.
+ *
+ * It resolves the flake from its own location rather than from the working
+ * directory, so it behaves the same run from the repository root, from `nix/`,
+ * or by absolute path. `"$@"` passes the caller's argument vector through
+ * unsplit, which is what lets a step keep quoting of its own —
+ * `./nix/deno/run deno eval 'console.log(Deno.version.deno)'` arrives as three
+ * arguments, not as text to re-parse.
+ *
+ * That location comes from `case` and `${0%/*}`, which are shell syntax and
+ * parameter expansion — not `dirname`, and not any other program. A generated
+ * script calls no external tool (root `AGENTS.md` §6), and this one has no need
+ * to: the `case` arm is what makes a `$0` with no `/` mean the current
+ * directory, which is the one thing stripping a suffix cannot say by itself.
+ *
+ * What holds that is the proof pinning this text exactly, not a scan for tool
+ * names — §6 rules out the scan, and the exact text already fails on any change
+ * at all.
+ *
+ * `exec` replaces the shell, so the command's exit status is the script's and
+ * no wrapper process sits between CI and the failure.
+ *
+ * The two flags live here rather than in every step. `--no-write-lock-file`
+ * keeps the invocation read-only against the checkout: Nix otherwise writes a
+ * `flake.lock` beside the flake it enters, and the pin in `flake.nix` already
+ * determines every input, so that lock resolves nothing the flake did not
+ * already say. `--quiet` drops Nix's own logging one level, from `info` to
+ * `notice`, which removes the substitution chatter — `copying N paths`, started
+ * at `lvlInfo` — while leaving warnings and errors, which sit below `notice`.
+ *
+ * `--quiet` is spelled long because Nix has no short form for it: `--verbose`
+ * declares `.shortName = 'v'` and `--quiet` declares none, so `-q` is not an
+ * option the `nix` CLI accepts. The one short flag nearby, `-Q`
+ * (`--no-build-output`), belongs to `LegacyArgs` — `nix-build` and `nix-shell`,
+ * not `nix develop`.
+ *
+ * Neither flag reaches the command being run: `--command` execs it with stdio
+ * inherited, so a job's own output is exactly what it was.
+ */
+export const runText = `#!/bin/sh
+case $0 in */*) d=\${0%/*} ;; *) d=. ;; esac
+exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
+`
+
+/**
+ * Writes a job's flake and the `run` script beside it, stopping at the first
+ * failure.
+ *
+ * The script's **content** is generated; its executable bit is not. Nothing in
+ * `fjs/effects/node` can set a file mode, and `fs.writeFile` preserves the mode
+ * of a file that already exists — so a script committed once as `100755` stays
+ * executable through every regeneration, and only a job that has never been
+ * generated needs `git update-index --chmod=+x` by hand. See
+ * `../todo/generated-run-script-mode.md`.
+ *
+ * @type {(job: NixJob) => Effect<Mkdir | WriteFile, void, IoChannel>}
+ */
+const writeJob = job => {
     const directory = `${generatedDirectory}/${job.id}`
     const created = mkdir(directory, { recursive: true })
-    return step(
+    const flakeWritten = step(
         created,
         () => writeUtf8File(`${directory}/flake.nix`, flakeText(job)))
+    return step(
+        flakeWritten,
+        () => writeUtf8File(`${directory}/run`, runText))
 }
 
 /**
- * Writes one generated flake per job, stopping at the first failure.
+ * Writes one generated environment per job, stopping at the first failure.
  *
  * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
 export const nixFlakes = jobs =>
-    forEachStep(pureOk(jobs), writeFlake)
+    forEachStep(pureOk(jobs), writeJob)
 
-/** Path a workflow passes to `nix develop`, for the job of the given id. */
+/** Directory holding the flake and `run` script for the job of the given id. */
 /** @type {(id: string) => string} */
 export const flakePath = id => `./${generatedDirectory}/${id}`
+
+/** The `run` script a workflow step invokes, for the job of the given id. */
+/** @type {(id: string) => string} */
+export const runPath = id => `${flakePath(id)}/run`
 
 /** Installs Nix, with `nix-command` and `flakes` enabled by the action's defaults. */
 export const nixInstall = install(uses('cachix/install-nix-action'))
 
 /**
- * Runs one command inside a job's generated development shell.
+ * Runs one command inside a job's generated development shell, through that
+ * job's `run` script.
  *
- * `--no-write-lock-file` keeps the invocation read-only against the checkout:
- * Nix otherwise writes a `flake.lock` beside the flake it enters. The pin in
- * `flake.nix` already determines every input, so that lock resolves nothing the
- * flake did not already say.
+ * A step reads as the command it runs — `./nix/node26/run npm run cov` — with
+ * the `nix develop` spelling and its flags in one generated place rather than
+ * repeated fifteen times across the workflow. {@link runText} documents what
+ * that spelling is and why.
  *
- * It is not what keeps the Node 26 drift check honest: the root `.gitignore`
- * covers a per-job `flake.lock`, and `git add -A` does not stage an ignored
- * file, so that check never saw one. The ignore rule stays for a hand-run
- * `nix develop` without the flag.
+ * The `.gitignore` rule for a per-job `flake.lock` stays even though the script
+ * passes `--no-write-lock-file`: it is there for a hand-run `nix develop` that
+ * omits the flag, and never for CI, whose drift check could not have seen an
+ * ignored file anyway.
  *
  * @type {(id: string, command: string) => string}
  */
-export const nixDevelop = (id, command) =>
-    `nix develop --no-write-lock-file ${flakePath(id)} --command ${command}`
+export const nixDevelop = (id, command) => `${runPath(id)} ${command}`
 
 /**
  * The Nix system of the runner every job with a flake uses. `ubuntuArm` picks

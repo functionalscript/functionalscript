@@ -96,7 +96,7 @@ commit (`../../ci/config/module.f.mjs`) and generates one flake per job
 CI, at a version the pin decides:
 
 ```sh
-nix develop --no-write-lock-file ./nix/spidermonkey --command js --version
+./nix/spidermonkey/run js --version
 ```
 
 Both halves of that line are read off the pinned commit rather than assumed.
