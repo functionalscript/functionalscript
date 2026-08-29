@@ -79,7 +79,8 @@ Those are the subset laws, and they can run over the whole accept set.
       constraint above.
 - [ ] Write the accept, reject and normalize sets covering the cases listed.
 - [ ] Add the two whole-set subset-law checks.
-- [ ] Point stages 3, 4 and 6 at the corpus as their proof source.
+- [ ] Point stages 4 and 6 at the corpus as their proof source. Not stage 3 —
+      see above.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
