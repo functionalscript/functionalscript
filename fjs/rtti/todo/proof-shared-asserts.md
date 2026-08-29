@@ -37,9 +37,17 @@ the local copies. `assertErrorPath` needs only a structural
 `{ readonly path: readonly string[] }` on the error payload, so it can live
 in `fjs/asserts` too without importing rtti types; if that reads as too
 rtti-specific, `../common/module.f.mjs` is the fallback owner, with
-`edag`'s `assertNoMatch` rewritten over it either way. The `effects` pair's
-`assertOk(r, expected)` is `assertOk` + `assertEq` and can be expressed
-through the hoisted helpers or left as one shared local — decide there.
+`edag`'s `assertNoMatch` rewritten over it either way.
+
+**The `effects` helpers assert the payload, and must keep doing so.**
+`fjs/effects/proof.f.mjs:136-145` defines *both* `assertOk(r, expected)` and
+`assertError(r, expected)`, and each checks the tag **and** compares the
+payload with `assertEq`. The hoisted helpers here are tag-only, so
+substituting them one-for-one would delete every expected-value and
+expected-error check in that file while the suite still passed — a silent
+weakening, which is worse than the duplication being removed. Each site
+becomes the hoisted tag check *plus* the `assertEq` it already had, or the
+two-argument locals stay as they are. Either is fine; a bare swap is not.
 
 Independently of the hoist, `../parse/proof.f.mjs`'s local `unwrap` is
 replaced by `unwrap` from `fjs/types/result/module.f.mjs`.
@@ -49,7 +57,10 @@ replaced by `unwrap` from `fjs/types/result/module.f.mjs`.
 - [ ] Add `assertOk` / `assertError` (and `assertErrorPath`, owner per
       above) to `fjs/asserts/module.f.mjs`.
 - [ ] Rewrite the six proof files through them; express `edag`'s
-      `assertNoMatch` via `assertErrorPath([])`.
+      `assertNoMatch` via `assertErrorPath([])`. In `effects`, keep the
+      payload comparison at every site — the count of `assertEq` calls in
+      `fjs/effects/proof.f.mjs` and `fjs/effects/node/proof.f.mjs` must not
+      fall.
 - [ ] Replace the local `unwrap` in `../parse/proof.f.mjs` with `unwrap`
       from `fjs/types/result/module.f.mjs`.
 - [ ] `npx tsc`, `fjs t`.
