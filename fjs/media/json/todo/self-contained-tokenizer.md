@@ -352,6 +352,15 @@ implementation PR — the premise only actually changes when the code does.
 - [ ] Carry out the two edits owed above: drop 666's JSON task and JSON
       motivation, and repoint `streaming-recognizer`'s scanner citations at
       JSON's own `scanString`/`scanNumber`.
+- [ ] Add `changelog/unreleased/<PR>.md` and the matching `Changelog:` section
+      in the PR description. The implementation changes observable behavior of
+      the public `tokenize` — the error tokens it emits — and adds `scanString`
+      and `scanNumber` to the module's public surface, so the entry is
+      required. Prefix the error-shape half with `**BREAKING CHANGES:**`: a
+      direct consumer matching on today's messages (`" are missing`,
+      `unescaped character`, `invalid token` for `0n`) sees different tokens,
+      and a consumer relying on a *value* token after a malformed literal stops
+      receiving one. Valid JSON is unaffected, and the entry should say so.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related
