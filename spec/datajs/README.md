@@ -42,8 +42,8 @@ reserved-word list, `;` rather than a line terminator so none learns which
 invisible characters end a statement, whitespace pinned at three positions so
 none reasons about token merging, one spelling of `__proto__`, and a restated
 algorithm wherever hosts disagree. The conveniences that are missing —
-comments, trailing commas, a trailing `;`, identifier keys — are missing for
-that reason, each being one more thing to implement and to agree on.
+comments, trailing commas, identifier keys — are missing for that reason, each
+being one more thing to implement and to agree on.
 
 Some of them cost a person something real, and it is worth saying so rather
 than calling the omission neutral. A trailing comma gives every element line

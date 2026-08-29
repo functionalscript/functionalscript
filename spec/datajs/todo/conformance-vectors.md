@@ -645,9 +645,14 @@ The six parts:
   builds fails that and passes every sharing vector.
 
   Two boundaries the productions above do not reach, because they are about
-  where a document *stops*. **`export default 1;`** — a whole document with no
-  `;` anywhere in it, which no other accept vector is, since every other one
-  carries a `const`. And the **document's own edges**: leading and trailing
+  where a document *stops*. **`export default 1;`** — the **shortest document
+  the grammar can spell**, being the empty branch of `const*` with the smallest
+  `value`, so nothing in it is present for any reason but the grammar's
+  minimum. It catches a reader that assumes at least one `const`, or that
+  splits on `;` and expects more than one statement to come back. (`export
+  default [[],[]];` takes the empty branch too, but it is there for node
+  identity and carries a `value` chosen for that.) And the **document's own
+  edges**: leading and trailing
   whitespace are insignificant like any other, so `export default 1;`,
   `export default 1;\n`, `export default 1;\r\n`, `export default 1;  ` and
   `\n export default 1; ` are one document. A file ending the way an editor ends
@@ -805,7 +810,7 @@ The six parts:
   trailing. `[1,]` is *not* one of these — it is the trailing comma above, a
   different rule, and it leaves no hole. Then the three places whitespace is
   *required*. The first two take one vector each — **`const$0=1;export default $0;`**
-  and **`const $0=1;exportdefault $0`** — because only one thing can follow:
+  and **`const $0=1;exportdefault $0;`** — because only one thing can follow:
   after `const` an `id`, which always starts with `$`, and after `export` the
   word `default`. The second carries the binding for the one-reason rule: a
   reader that wrongly splits `exportdefault` into its two keywords lands on
@@ -1234,7 +1239,7 @@ The six parts:
     | - | - | - |
     | `document ::= const* export` | any other statement or declaration | `let a=1;…`, `var a=1;…`, `function f(){}…` |
     | `const ::= 'const' id '=' value ';'` | multiple declarators, destructuring | `const $a=1,$b=2;…`, `const [$a]=[1];…` |
-    | `export ::= 'export' 'default' value` | any other export form | `const $a=1;export{$a};export default $a;` |
+    | `export ::= 'export' 'default' value ';'` | any other export form | `const $a=1;export{$a};export default $a;` |
     | `value ::= <closed list>` | every other expression form | `(1)`, `1+1`, `[1][0]`, `String(1)`, `void 0`, `-(-1)` |
     | `array ::= '[' (value (',' value)*)? ']'` | elisions, spread | `[,1]`, `[1,,2]`, `[1,,]`, `[...[1]]` |
     | `object ::= '{' (member (',' member)*)? '}'` | spread | `{...{"a":1}}` |
@@ -1300,7 +1305,7 @@ The six parts:
   keeping the bigint and octal cases on identical reasoning, four lines apart —
   and they are reject vectors now like the rest. Two of the
   fifteen **required-separator** vectors split three ways, and measuring them
-  is what shows where the split falls. **Ten are SyntaxErrors**: `exportdefault $0`,
+  is what shows where the split falls. **Ten are SyntaxErrors**: `exportdefault $0;`,
   and all nine third-position vectors whose value starts with an identifier
   character — `export default$0;`, `export defaulttrue;` through
   `export defaultInfinity;`, `export default1;` and `export default1n;` — since in

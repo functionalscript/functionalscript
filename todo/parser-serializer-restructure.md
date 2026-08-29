@@ -467,9 +467,10 @@ throughout.
    in `fjs/djs/types.ts` go with it, per
    [663](../fjs/djs/todo/663-json-djs-tree-type.md); `examples/` and the
    top-level `module.f.mjs`/`proof.f.mjs` carrying `compile()` move with
-   the front end to `fsc`. Separator `nl` → `';'` **between** statements, with
-   EOF after the last (never `;` after each — see the FunctionalScript
-   consequences above); reserved words added;
+   the front end to `fsc`. Terminator `nl` → `';'` **after each** statement,
+   the module's final one included (never `;` between statements with EOF
+   after the last — see the FunctionalScript consequences above); reserved
+   words added;
    the DataJS numeric leaves taught to the moved front end — `NaN`,
    `Infinity`, and `-Infinity` are unresolved identifiers in
    today's parser, so reserving the names alone would *reject* DataJS accept
