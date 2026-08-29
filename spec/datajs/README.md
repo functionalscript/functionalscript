@@ -129,6 +129,10 @@ grammar says so rather than leaving it to prose. Three productions carry the
 optional sign — `number`, `bigint` and `infinity` — and nothing else does, so
 `-NaN`, `-undefined`, `-true` and a bare `-` have no rule that accepts them.
 
+Folding the sign into the token is also what keeps the grammar LL(1): every
+alternative of `value` then begins on a distinct terminal, where a separate `-`
+would leave `-Infinity`, `-1` and `-1n` indistinguishable one token in.
+
 #### Strings
 
 A string is a JSON string, unchanged: double quotes, the escapes `\"` `\\`
@@ -623,30 +627,41 @@ names a capture group; a document pasted into one as the replacement text is
 rewritten. Every other embedding, a JSON string included, is unaffected.
 
 **Why require a space after `default` when `export default[1];` would lex?**
-Because the conditional form of the rule is the expensive part, not the byte it
-saves. "Whitespace wherever two tokens would otherwise merge" is correct, but
-it is a statement about lexing: an implementer has to work out which adjacent
-tokens can merge, and a tokenizer has to scan a maximal run of identifier
-characters and classify it only afterwards. A tokenizer that instead ends a
-word as soon as it has matched a keyword would read `export default$0;` as
-three tokens and accept it — a document JavaScript rejects, since `default$0`
-is one identifier to it. That is a subset-law break, not a worse error message.
+Not because the conditional rule cannot be implemented. It can, and without
+maximal munch: require whitespace before an identifier, a word, or an
+**unsigned** number or bigint whenever the preceding character is an identifier
+character — one character of look-behind, decided as the token starts. Those
+are exactly the tokens that can begin with an identifier character, which is
+why a signed value needs no space and `export default-1;` would stay legal. It
+leaves the grammar LL(1) too, though the credit there belongs to folding `-`
+into its token rather than to anything about whitespace. So this is a choice
+between two workable rules, and it goes to whichever is harder to get wrong.
 
-Mandatory whitespace turns the question into a position. `const`, `export` and
-`default` may be lexed as a keyword followed by at least one whitespace
-character, which needs no lookahead and no state, and every other word may end
-wherever it ends: a wrong split anywhere else — `null$13` read as `null` `$13`,
-or `null0` as `null` `0` — yields two adjacent value tokens, and the grammar
-has no production for those, so the document is rejected either way. Walking
-the grammar for pairs where the left token can end with an identifier character
+A reader saves one condition. A **serializer** saves more. Under the
+conditional rule a serializer cannot write `export default` and hand the rest
+to the value writer: it has to know the first character that writer is about to
+emit, and that is not determined by the value's type. `Infinity` takes the
+space and `-Infinity` does not; `1` takes it and `-1` does not; `1n` takes it
+and `-1n` does not. Normalized form has one byte spelling per value, so a
+serializer claiming to produce it would have to make the space depend on the
+*sign* of a number — a coupling between the statement writer and the value
+writer that exists for no reason except this rule. Unconditional, the statement
+writer emits `export default ` and never looks at the value at all.
+
+The reader's side is smaller but real: `const`, `export` and `default` may be
+lexed as a keyword followed by at least one whitespace character, needing no
+look-behind either. A word elsewhere may end wherever it ends, because a wrong
+split there — `null$13` read as `null` `$13`, or `null0` as `null` `0` — yields
+two adjacent value tokens, and the grammar has no production for those.
+Walking it for pairs where the left token can end with an identifier character
 and the right can begin with one turns up `const`·name, `export`·`default` and
 `default`·value and nothing else; every other adjacency has a punctuator, a
 string or a `-` between.
 
 The cost is one byte, in one place, in the documents whose exported value
 begins with `[`, `{`, `"` or `-`. The other two spaces were unavoidable
-already, so nothing else grows — and normalized form loses a conditional in
-exchange.
+already, so nothing else grows — and the reader, the writer and normalized form
+each lose a condition.
 
 **Why only these two extensions?** Both are things JSON cannot express at
 all, rather than conveniences. Sharing is a class of value JSON has no syntax

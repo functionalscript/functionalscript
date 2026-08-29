@@ -133,15 +133,25 @@ key       ::= string | '[' '"__proto__"' ']'
   already — a name begins with `$` and `export` is always followed by
   `default`, so `const$0` and `exportdefault` are each one identifier — and the
   third is the choice: `export default[1];` would lex, but requiring the space
-  regardless is what makes the rule positional. The payoff is stage 4's:
-  `const`, `export` and `default` can be lexed as a keyword plus at least one
-  whitespace character, with no lookahead and no "was this token preceded by
-  whitespace" bit, and no maximal munch anywhere. A word may otherwise end
-  wherever it ends, because a wrong split elsewhere (`null$13` → `null` `$13`)
-  produces two adjacent value tokens, which no production accepts. The
-  merge-capable adjacencies are exactly `const`·name, `export`·`default` and
-  `default`·value; every other pair has a punctuator, a string or a `-`
-  between.
+  regardless is what makes the rule positional. Note what did *not* decide it:
+  the conditional rule is implementable without maximal munch (require
+  whitespace before an identifier, word, or unsigned number/bigint whenever the
+  preceding character is an identifier character — one character of
+  look-behind) and leaves the grammar LL(1) either way, the `-` folded into its
+  token being what buys that.
+  The payoff is stage 4's, and it is larger on the **serializer** than on the
+  parser. A serializer under the conditional rule must know the first character
+  the value writer will emit before it can decide on the space, and the value's
+  type does not tell it: `Infinity` takes the space, `-Infinity` does not; `1`
+  does, `-1` does not. Normalized bytes would depend on the sign of a number.
+  Unconditional, the statement writer emits `export default ` and hands off.
+  On the parser side, `const`, `export` and `default` can be lexed as a keyword
+  plus at least one whitespace character, with no look-behind and no "was this
+  token preceded by whitespace" bit; a word may otherwise end wherever it ends,
+  because a wrong split elsewhere (`null$13` → `null` `$13`) produces two
+  adjacent value tokens, which no production accepts. The merge-capable
+  adjacencies are exactly `const`·name, `export`·`default` and `default`·value;
+  every other pair has a punctuator, a string or a `-` between.
 - **No comments, no imports.** A DataJS document is closed; the compiler
   inlines resolved imports when normalizing FunctionalScript to DataJS.
 - **Strings and numbers are JSON's grammar.** Bigint is a production of its

@@ -62,6 +62,10 @@ A machine-readable corpus with three parts:
   — since it is unconditional now: `export default 1;` must not regress to
   `export default1;`, which JavaScript rejects, and `export default [1];` must
   not regress to the `export default[1];` that JavaScript happens to accept.
+  Pin the signed pairs alongside their unsigned ones — `1` and `-1`, `1n` and
+  `-1n`, `Infinity` and `-Infinity` — since those are where a serializer that
+  kept the old conditional rule would put the space on one and not the other,
+  making normalized bytes depend on a number's sign.
 
 The corpus is data, not code, so it can be read by an implementation in any
 language. Store it as DataJS once `fjs/media/datajs` can read it; until then
