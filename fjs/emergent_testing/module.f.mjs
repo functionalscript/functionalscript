@@ -18,19 +18,21 @@
  * @import { Result } from '../types/result/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
- * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunTotals, TestResult, _TestAndPath } from './types.ts'
+ * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunState, RunTotals, TestFailure, TestId, TestResult, _TestAndPath } from './types.ts'
  * @import { All, Await, Catch, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, catch_, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import {
-    catchStep, foldStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step,
+    catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
+    resultMapStep, resultStep, step,
     walkStep,
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
-import { invert } from '../types/result/module.f.mjs'
+import { invert, ok } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
+import { concat } from '../types/list/module.f.mjs'
 
 /**
  * The empty {@link RunTotals}: what a run's totals are before any leaf lands.
@@ -53,6 +55,37 @@ export const addResult = (totals, r) => ({
     passed: totals.passed + (r.status === 'passed' ? 1 : 0),
     failed: totals.failed + (r.status === 'failed' ? 1 : 0),
     duration: totals.duration + r.duration,
+})
+
+/**
+ * The empty {@link RunState}: what a run has accumulated before any leaf lands.
+ *
+ * @type {RunState}
+ */
+export const zeroState = { totals: zeroTotals, failures: null, aborted: null }
+
+/**
+ * Folds one leaf-landed event into a run's state: the counts through
+ * {@link addResult}, and the leaf itself when it failed.
+ *
+ * A failed leaf is *collected* rather than described here, because what to say
+ * about a thrown value is the reporter's, and when to say it is the reporter's
+ * too — `fjs t` prints the details together once the run has ended, so that a
+ * long run's diagnostics are one block rather than a scattering. Collecting is
+ * the runner's part because the alternative is a reporter remembering things
+ * between two calls it does not own.
+ *
+ * The append is `concat`, not a spread: this runs once per failing leaf and the
+ * state is threaded through every one of them.
+ *
+ * @type {(state: RunState, t: TestResult, r: SandboxResult<unknown>) => RunState}
+ */
+export const addLeaf = (state, t, r) => ({
+    ...state,
+    totals: addResult(state.totals, t),
+    failures: t.status === 'failed'
+        ? concat(state.failures)([{ t, error: r.result[1] }])
+        : state.failures,
 })
 
 /**
@@ -183,25 +216,38 @@ export const registerModule = (ctx, k, v, star) => {
     return mapStep(allOk(...tests.map(e => registerOne(ctx, e))), () => undefined)
 }
 
-/** @type {(a: RunTotals, b: RunTotals) => RunTotals} */
-const mergeTotals = (a, b) =>
-    ({ passed: a.passed + b.passed, failed: a.failed + b.failed, duration: a.duration + b.duration })
-
 /**
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(k: string, v: unknown) => (ts: RunTotals) => Effect<O | Catch, RunTotals, IoChannel>}
+ * @returns {(k: string, v: unknown) => (state: RunState) => Effect<O | Catch, RunState, IoChannel>}
  */
-const runModule = ({ result, test }) => (k, v) => ts => {
+const runModule = ({ result, start, test }) => (k, v) => state => {
     /**
      * @type {(entry: _TestAndPath) =>
-     *     (acc: RunTotals) =>
-     *         Effect<O | Catch, readonly[RunTotals, readonly _TestAndPath[]], IoChannel>}
+     *     (acc: RunState) =>
+     *         Effect<O | Catch, readonly[RunState, readonly _TestAndPath[]], IoChannel>}
      */
     const one = ([testPath, set]) => acc => {
+        // Nothing runs after the run has been abandoned. The walk cannot simply
+        // stop — the state it collected has to reach the summary, which is why
+        // the failure is carried in `acc` rather than thrown — so every
+        // remaining leaf answers the state unchanged instead. `collectTests` is
+        // not reached either, so no further proof export is enumerated: the run
+        // is over, and enumerating one runs user code.
+        if (acc.aborted !== null) { return pureOk(/** @type {const} */ ([acc, emptyEntries])) }
+        // The leaf is named once, for both of the events that name it: the
+        // announcement below and the record built from its result.
+        const id = testId(k, testPath)
         // The leaf's shared record is built here, next to the sandbox result it
         // is read from, so the leaf-landed event carries the value already
         // decided — a reporter renders `t`, it does not derive its own.
+        //
+        // **The announcement is inside the same chain, ahead of `test`.** Not
+        // beside it and not in the fold: what makes a start record worth
+        // anything is that it is on the reader's screen while the leaf is
+        // running, so it has to be written before the leaf's own effect is
+        // performed, and a reporter that cannot write it ends the run there
+        // rather than running a leaf it has failed to announce.
         //
         // **Reading the returned sub-tree is guarded, because reading it runs
         // user code.** `collectTests` enumerates what the leaf returned, so an
@@ -211,8 +257,8 @@ const runModule = ({ result, test }) => (k, v) => ts => {
         // of every module that had already passed. The read happens before the
         // leaf is reported, so its failure is part of what gets reported rather
         // than a correction issued after the fact.
-        const evaluated = step(test(k, testPath, set), sr => {
-            const t = testResult(k, testPath, sr)
+        const evaluated = step(step(start(id), () => test(k, testPath, set)), sr => {
+            const t = resultOf(id, sr)
             if (t.status !== 'passed' || set.throws) {
                 return pureOk(/** @type {const} */ ([t, sr, emptyEntries]))
             }
@@ -237,9 +283,17 @@ const runModule = ({ result, test }) => (k, v) => ts => {
         })
         // Both are still needed after they have been reported, so the reporting
         // call is captured rather than nested inside its own step.
+        //
+        // **Its `Result` is carried as a value** — that is what `resultMapStep`
+        // with `ok` does — because the leaf has already run by the time it is
+        // reported, and a report that fails must not erase the test that
+        // succeeded or failed underneath it. Handling the failure by nesting a
+        // continuation inside this one would see `t` and `sr`, and is what
+        // §3.4 rules out; carrying it in the history keeps the chain flat and
+        // hands the next line both the outcome and the leaf it belongs to.
         const reported = historyStep(
             history(evaluated),
-            ([t, sr]) => result(t, sr, set.throws))
+            ([t, sr]) => resultMapStep(result(t, sr, set.throws), ok))
         // The leaf's children are *answered*, not walked here: `walkEntries`
         // puts them in front of the siblings that remain, which is the same
         // order — the tree a leaf returned, then the next leaf — without a
@@ -247,9 +301,32 @@ const runModule = ({ result, test }) => (k, v) => ts => {
         // ancestor, so a leaf returning a deep enough chain of children died
         // with `RangeError` where the fan-out this replaced had not; see
         // `../effects/module.f.mjs`'s `walkStep`.
-        return mapStep(
-            reported,
-            ([, [t, , children]]) => /** @type {const} */ ([addResult(acc, t), children]))
+        // A failure ends the run, but as a *value*: the walk carries it to the
+        // summary, which describes what the run had already collected before
+        // the channel gave out. Propagating it instead discarded exactly the
+        // diagnostics a dying run is worth having.
+        //
+        // Where it happened decides what the run keeps. A leaf whose *report*
+        // failed still ran, and is folded in before the failure is recorded —
+        // its count and, if it failed, the value it failed with are part of
+        // what the summary describes. A failure in `start` or `test` is the
+        // other case: there is no outcome to keep, and `acc` is the state
+        // unchanged.
+        return resultStep(
+            mapStep(
+                reported,
+                ([reportOutcome, [t, sr, children]]) => {
+                    const landed = addLeaf(acc, t, sr)
+                    return reportOutcome[0] === 'ok'
+                        ? /** @type {const} */ ([landed, children])
+                        : /** @type {const} */ ([
+                            { ...landed, aborted: reportOutcome[1] },
+                            emptyEntries,
+                        ])
+                }),
+            r => r[0] === 'ok'
+                ? pure(r)
+                : pureOk(/** @type {const} */ ([{ ...acc, aborted: r[1] }, emptyEntries])))
     }
     /**
      * Siblings in order, one whole chain at a time.
@@ -271,24 +348,28 @@ const runModule = ({ result, test }) => (k, v) => ts => {
      * fan-out saves is not a goal here.
      *
      * `walkStep` and not a hand-rolled recursion because it is this layer's
-     * `for` loop, and the accumulator is `RunTotals` — added to per leaf, so
-     * the join stays a constant-size record rather than a growing list. It is
-     * `walkStep` rather than `foldStep` because a leaf's children are items of
-     * *this* loop: `one` answers them and they go in front of the siblings
-     * that remain. Folding and recursing into the children instead kept one
+     * `for` loop, and the accumulator is the run's `RunState` — the counts
+     * added to per leaf, the failures appended to with `concat`, so every join
+     * is O(1) whichever half of it grew. It is `walkStep` rather than
+     * `foldStep` because a leaf's children are items of *this* loop: `one`
+     * answers them and they go in front of the siblings that remain. Folding and recursing into the children instead kept one
      * continuation pending per ancestor, which is flat along the siblings and
      * not along the path — a leaf returning a 5,000-deep chain of children
      * died with `RangeError` where the fan-out this replaced had not.
      *
-     * @type {(entries: readonly _TestAndPath[]) => Effect<O | Catch, RunTotals, IoChannel>}
+     * The run's state is threaded in rather than a per-module delta being
+     * merged out: `one` extends what it is given, so a module continues the run
+     * it is part of and there is nothing to join afterwards.
+     *
+     * @type {(entries: readonly _TestAndPath[]) => Effect<O | Catch, RunState, IoChannel>}
      */
-    const walkEntries = entries => walkStep(pureOk(entries), zeroTotals, one)
+    const walkEntries = entries => walkStep(pureOk(entries), state, one)
     // The *module's* own export is read unguarded, and that asymmetry is
     // deliberate rather than an oversight: there is no leaf to attribute it to,
     // so an unreadable `proof` export is whatever loaded the module's problem.
     // `fjs t` panics on one; the browser page catches it and reports one failed
     // module. See `todo/hostile-proof-values.md`.
-    return mapStep(walkEntries(collectTests([], false, v)), delta => mergeTotals(ts, delta))
+    return walkEntries(collectTests([], false, v))
 }
 
 /** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
@@ -309,20 +390,30 @@ export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
     const modules = proofEntries(moduleMap)
     // Modules are folded for the same reason siblings are — one module's leaves
-    // are all reported before the next module's first one — and the totals are
+    // are all reported before the next module's first one — and the state is
     // threaded rather than merged afterwards, because `runModule` already
-    // accepts the running totals and answers the extended ones.
+    // accepts the running state and answers the extended one.
     const total = foldStep(
         pureOk(modules),
-        zeroTotals,
-        ([k, v]) => ts => runModule(reporter)(k, v)(ts))
-    // The totals are still needed after the summary has been printed, so they
-    // are carried forward in a history rather than closed over by a nested
+        zeroState,
+        // Skipped rather than stopped, for the reason `one` gives: an
+        // abandoned run still has to reach its summary.
+        ([k, v]) => state =>
+            state.aborted !== null ? pureOk(state) : runModule(reporter)(k, v)(state))
+    // The state is still needed after the summary has been printed, so it is
+    // carried forward in a history rather than closed over by a nested
     // continuation.
     const reported = historyStep(
         history(total),
         summary)
-    return mapStep(reported, ([, ts]) => ts.failed !== 0 ? 1 : 0)
+    // A run that was abandoned ends with the failure that abandoned it, not
+    // with an exit code computed from counts that stopped early — the tail
+    // reports it and exits `1`. The summary has already run by then, so the
+    // failures it collected are described either way.
+    return step(
+        reported,
+        ([, { totals, aborted }]) =>
+            aborted !== null ? pureError(aborted) : pureOk(totals.failed !== 0 ? 1 : 0))
 }
 
 /**
@@ -451,6 +542,30 @@ export const defaultTest = (file, path, { fn, throws }) =>
     mapStep(sandbox(fn), r => throws ? { ...r, result: invert(r.result) } : r)
 
 /**
+ * Names one leaf: what module it is in, where in that module, and what to call
+ * it.
+ *
+ * Separate from {@link testResult} because a leaf is named at two moments and
+ * judged at one — a runner announces it before running it and reports it
+ * afterwards, and both should call it the same thing. The traversal builds this
+ * once per leaf and hands it to both events.
+ *
+ * @type {(file: string, path: Path) => TestId}
+ */
+export const testId = (file, path) => ({
+    module: file,
+    path: fmtPath(path),
+    name: fmtImport(file, path),
+})
+
+/** @type {(id: TestId, r: SandboxResult<unknown>) => TestResult} */
+const resultOf = (id, { result: [s], duration }) => ({
+    ...id,
+    status: s === 'ok' ? 'passed' : 'failed',
+    duration,
+})
+
+/**
  * Normalizes one leaf's outcome: its identity, whether it passed, and how long
  * it took.
  *
@@ -466,13 +581,7 @@ export const defaultTest = (file, path, { fn, throws }) =>
  *
  * @type {(file: string, path: Path, r: SandboxResult<unknown>) => TestResult}
  */
-export const testResult = (file, path, { result: [s], duration }) => ({
-    module: file,
-    path: fmtPath(path),
-    name: fmtImport(file, path),
-    status: s === 'ok' ? 'passed' : 'failed',
-    duration,
-})
+export const testResult = (file, path, r) => resultOf(testId(file, path), r)
 
 /** @type {(r: TestResult, color: string, label: string) => string} */
 const fmtResultLine = ({ name, duration }, color, label) =>
@@ -499,29 +608,61 @@ export const defaultReporter = options => {
         const x = write(w)
         return s => x(s + '\n')
     }
+    // **Every record a run produces goes to `stdout`, failures included.** The
+    // two streams are not ordered against each other, so splitting the report
+    // across them means a reader — or a consumer collecting the log — cannot
+    // tell where a failure's detail belongs among the tests that surround it,
+    // which is the one thing the ordering of these records is for. `stderr` is
+    // left for a runner *crash*: the tail's channel-failure message, written by
+    // `errorExit` after the run is over, where nothing remains to correlate it
+    // with.
     const csiLog = line('stdout')
-    const csiError = line('stderr')
     const isGitHub = options.env['GITHUB_ACTIONS'] !== undefined
+    // What a failure *was* is written once the run has ended, not where it
+    // happened: an error's detail — a message, a whole stack — is as many lines
+    // as it likes, and inline it splits the one thing the progress output is
+    // for, which is a leaf per line in the order they ran. So a leaf writes its
+    // pass or fail and nothing else, and this describes them together
+    // afterwards, in the order they landed.
+    //
+    // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
+    /** @type {(f: TestFailure) => Effect<Write, void, NotImplemented>} */
+    const detail = ({ t, error }) =>
+        isGitHub
+            ? csiLog(`::error file=${t.module},line=1,title=${ghEscape(t.name)}::${ghEscape(String(error))}`)
+            // `step`, so the value is attempted only when the line naming the
+            // test it belongs to was written: two halves of one report, and
+            // half of it is worse than none.
+            : step(
+                csiLog(`${fgRed}${t.name}${reset}`),
+                () => csiLog(`${fgRed}${error}${reset}`))
     return {
-        // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-        result: (t, r, throws) => {
-            const v = r.result[1]
-            return t.status === 'passed'
+        // Two self-contained records per leaf, not one line completed in place.
+        // No *other* leaf runs between a start and its own result under the
+        // sequential traversal, but the leaf itself does, and anything it puts
+        // on this stream — a proof that logs at runtime, a node warning — would
+        // splice into an open line and attach the later `ok` to unrelated
+        // output. Both records name the test, which is what keeps the pair
+        // legible when something lands between them.
+        start: ({ name }) => csiLog(`${name}: running`),
+        result: (t, _r, throws) =>
+            t.status === 'passed'
                 ? csiLog(fmtResultLine(t, fgGreen, 'ok') + (throws ? ' # EXPECTED TO THROW' : ''))
-                : isGitHub
-                    ? csiError(`::error file=${t.module},line=1,title=${ghEscape(t.name)}::${ghEscape(String(v))}`)
-                    // `step`, so the detail line is attempted only when the
-                    // header line was written: two halves of one report, and
-                    // half of it is worse than none.
-                    : step(
-                        csiError(fmtResultLine(t, fgRed, 'error')),
-                        () => csiError(`${fgRed}${v}${reset}`))
-        },
-        summary: ({ passed, failed, duration }) => {
+                : csiLog(fmtResultLine(t, fgRed, 'error')),
+        // The details come before the counts, so the numbers a reader is
+        // looking for are still the last thing on the screen.
+        // A run that was abandoned gets its failures described and no counts:
+        // a `pass/fail/total` line for a walk that stopped early reads as a
+        // finished run and is not one. What ended it is the tail's to report.
+        summary: ({ totals: { passed, failed, duration }, failures, aborted }) => {
             const fgFail = failed === 0 ? fgGreen : fgRed
             return step(
-                csiLog(`${bold}Number of tests: pass: ${fgGreen}${passed}${reset}${bold}, fail: ${fgFail}${failed}${reset}${bold}, total: ${passed + failed}${reset}`),
-                () => csiLog(`${bold}Time: ${timeFormat(duration)}${reset}`))
+                forEachStep(pureOk(failures), detail),
+                () => aborted !== null
+                    ? pureOk(undefined)
+                    : step(
+                        csiLog(`${bold}Number of tests: pass: ${fgGreen}${passed}${reset}${bold}, fail: ${fgFail}${failed}${reset}${bold}, total: ${passed + failed}${reset}`),
+                        () => csiLog(`${bold}Time: ${timeFormat(duration)}${reset}`)))
         },
         test: defaultTest,
     }

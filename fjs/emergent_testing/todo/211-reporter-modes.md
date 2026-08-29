@@ -7,6 +7,21 @@ The `Reporter<O>` interface (`moduleStart` / `enter` / `pass` / `fail` / `summar
 each an `Effect<NodeOp, void>`) makes the walker reporter-agnostic. Several concrete
 reporter implementations follow naturally.
 
+### Every mode writes to `stdout`
+
+Whatever modes exist, a run's records go to one stream. `stdout` and `stderr`
+are not ordered against each other, so a report split across them cannot be
+read back as a sequence — and where a failure sat among the tests around it is
+exactly what a reader of a test log is asking. `stderr` is for a runner
+*crash*: the tail's channel-failure message, written once there is no longer a
+run to correlate anything with.
+
+`fjs t` was split across both until functionalscript#1790 — failures and
+GitHub annotations on `stderr`, progress on `stdout` — which also meant its two
+records for one leaf (`running`, then the verdict) landed on different streams
+when the leaf failed. A mode that wants a separate error stream has to answer
+the ordering question first.
+
 ### GitHub Actions reporter
 
 `module.f.mjs` currently reads `options.env['GITHUB_ACTIONS']` at startup and switches

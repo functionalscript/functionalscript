@@ -6,6 +6,7 @@
 
 import type { Effect, Operation } from '../effects/types.ts'
 import type { IoChannel, SandboxResult } from '../effects/node/types.ts'
+import type { List } from '../types/list/types.ts'
 
 /** A zero-argument test function whose return value may contain sub-tests. */
 export type TestFn = () => unknown
@@ -40,10 +41,11 @@ export type Path = readonly (string | null)[]
 export type TestStatus = 'passed' | 'failed'
 
 /**
- * One leaf's outcome, normalized: what ran, whether it passed, and how long it
- * took, with no terminal escape codes and no DOM node in it.
+ * What a leaf *is*, normalized: the module it lives in, where in that module's
+ * `proof` export it is, and what to call it — with no terminal escape codes and
+ * no DOM node in it.
  *
- * It exists so that every runner decides those three things the same way. The
+ * It exists so that every runner decides those things the same way. The
  * console runner and the browser runner each used to derive them inline — one
  * on its way to a printed line, the other on its way to a serializable report —
  * and a status is exactly the kind of small decision that drifts unnoticed when
@@ -57,7 +59,7 @@ export type TestStatus = 'passed' | 'failed'
  * the description stays with each host and this carries the part they agree
  * on — the shape of an extension point, not an omission.
  */
-export type TestResult = {
+export type TestId = {
     /** The module key the outcome belongs to, relative to the run's root. */
     readonly module: string
     /**
@@ -88,6 +90,19 @@ export type TestResult = {
      * shared traversal does not have.
      */
     readonly name: string
+}
+
+/**
+ * One leaf's outcome: its {@link TestId}, whether it passed, and how long it
+ * took.
+ *
+ * The identity is a type of its own because it is known at two moments and the
+ * outcome at one: a runner names a leaf *before* running it — that is what
+ * `Reporter.start` carries — and can only say how it went afterwards. Splitting
+ * the record is what lets both events name a test the same way rather than
+ * each spelling an identity of its own.
+ */
+export type TestResult = TestId & {
     readonly status: TestStatus
     /**
      * How long it took. For a leaf, its own execution; for a non-leaf outcome,
@@ -156,6 +171,59 @@ export type RunTotals = {
 }
 
 /**
+ * One failed leaf, kept until the run ends.
+ *
+ * It pairs the shared {@link TestResult} with the **raw** value the leaf failed
+ * with — after the throw expectation has been applied, so an expected throw
+ * that threw is not here and one that returned cleanly is. That raw value is
+ * why this is a separate type rather than a field on `TestResult`: describing a
+ * thrown value is each host's part and a raw value cannot cross a wire, which
+ * is the rule `TestResult` states. This record never leaves the process it was
+ * produced in.
+ */
+export type TestFailure = {
+    readonly t: TestResult
+    readonly error: unknown
+}
+
+/**
+ * What a run accumulates as it walks: the {@link RunTotals} every runner folds,
+ * and the failures a reporter may want to describe once at the end rather than
+ * where they happened.
+ *
+ * The failures are a {@link List} rather than an array because the traversal
+ * threads this record through every leaf and joins it at every module boundary:
+ * appending to an array copies it, so a suite's *n*th failure would cost *n*
+ * again — the linear-join rule in
+ * `todo/share-browser-console-runner.md`'s catalog. `concat` is O(1) and keeps
+ * the order the leaves landed in, which is the order the report is asked to be
+ * in.
+ *
+ * `failures` holds exactly `totals.failed` entries: both are decided by the
+ * same `status` on the same event, in `addLeaf`.
+ */
+export type RunState = {
+    readonly totals: RunTotals
+    readonly failures: List<TestFailure>
+    /**
+     * The channel failure that ended the run early, or `null` for a run that
+     * reached its end.
+     *
+     * **It is carried here rather than thrown**, and that is the whole reason
+     * this field exists. A failing `start`, `test` or `result` used to
+     * short-circuit the walk, which took the collected failures with it: a run
+     * that died after one test had already failed printed that test's name and
+     * never its error, because `summary` — the only thing that describes them
+     * — was never reached. Diagnostics being lost precisely when something went
+     * wrong is backwards, so the failure travels *in* the fold: the walk stops
+     * (every remaining leaf and module is skipped, so no further proof export
+     * is even enumerated), the summary still runs, and the run ends with this
+     * error afterwards.
+     */
+    readonly aborted: IoChannel | null
+}
+
+/**
  * Receives semantic test-run events. Each method is the runner's notification
  * of an event; the reporter decides how to render it (terminal, GitHub
  * annotations, JSON, node `--test`, etc.).
@@ -180,6 +248,21 @@ export type RunTotals = {
  */
 export type Reporter<O extends Operation> = {
     /**
+     * A leaf is about to run, named before there is anything to say about it.
+     *
+     * It carries the identity and nothing else, because nothing else exists
+     * yet: a duration would have to be invented and a status guessed. **It must
+     * not cost a `sandbox` call or a clock read of its own** — the duration a
+     * run reports stays the sandboxed one, measured around the leaf's body and
+     * nothing this event does.
+     *
+     * A start with no matching `result` is the signal a run that died mid-test
+     * leaves behind, and it is the whole reason this event exists: the last
+     * thing printed used to be the last test that *succeeded*, so the one that
+     * actually broke was never named.
+     */
+    readonly start: (id: TestId) => Effect<O, void, IoChannel>
+    /**
      * A leaf landed. The first argument is the shared {@link TestResult} — the
      * runner builds it with `testResult` before notifying, so a reporter
      * receives the leaf's identity and status rather than deriving its own.
@@ -188,8 +271,18 @@ export type Reporter<O extends Operation> = {
      * and the description needs the value.
      */
     readonly result: (t: TestResult, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void, IoChannel>
-    /** The run ended, with the totals folded from every leaf that landed. */
-    readonly summary: (totals: RunTotals) => Effect<O, void, IoChannel>
+    /**
+     * The run ended, with everything folded from the leaves that landed: the
+     * totals, and the failures in the order they happened.
+     *
+     * **The failures are passed, not remembered.** A reporter that wants to
+     * describe them together at the end — as `fjs t` does — could collect them
+     * itself as `result` is called, but only by keeping state between two calls
+     * it does not own, which a reporter has no way to scope to one run. The
+     * runner already threads a fold through the walk, so it carries these too
+     * and hands them over here.
+     */
+    readonly summary: (state: RunState) => Effect<O, void, IoChannel>
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>, IoChannel>
 }
 
