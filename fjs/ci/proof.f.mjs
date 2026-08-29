@@ -7,7 +7,8 @@
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main } from './module.f.mjs'
 import { actions, functionalscript, node } from './config/module.f.mjs'
-import { major, nodeNixJobs, packageArtifact } from './node/module.f.mjs'
+import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
+import { packageCheckJobId } from './package/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
@@ -68,9 +69,16 @@ const workflow = state => {
 const flake = (state, id) =>
     text(path(state.root, ['nix', 'generated', id]), 'flake.nix')
 
+// The packed-package check is generated only when the project pins a compiler,
+// so the shared fixture supplies one. A pin no configuration holds, so an
+// assertion that finds it found the value that came from here.
+const runPin = /** @type {const} */ ('=9.9.9')
+
+const runPackageJson = `{"name":"other-package","devDependencies":{"typescript":"${runPin}"}}`
+
 /** @type {(rust: boolean, nodeExtra?: (o: Os) => readonly MetaStep[]) => GitHubAction} */
 const run = (rust, nodeExtra = () => []) => {
-    const [state, result] = virtual(makeState(rust, undefined))(ci({ nodeExtra }))
+    const [state, result] = virtual(makeState(rust, runPackageJson))(ci({ nodeExtra }))
     assertEq(exitCode(result), 0)
     return workflow(state)
 }
@@ -85,7 +93,7 @@ const runDefault = packageJson => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 14, 'expected 14 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
@@ -254,6 +262,53 @@ export const proof = {
             1,
             'expected exactly one job to upload the package')
     },
+    packageCheck: () => {
+        const gha = run(false)
+        // The job's own shape is proved next to the module, in
+        // `fjs/ci/package/proof.f.mjs`. What only the assembled workflow can
+        // show is that it is wired in, and that the job it waits for is really
+        // the one that produces the artifact — an edge pointing at a job that
+        // never uploads would satisfy the ordering and still never run.
+        const job = gha.jobs[packageCheckJobId]
+        assert(job !== undefined, 'expected the packed-package check job')
+        assertEq(job.needs?.[0], packageJobId)
+        assert(
+            gha.jobs[packageJobId]?.steps.some(
+                step => step.uses?.startsWith('actions/upload-artifact@') === true) === true,
+            'expected the needed job to be the one that uploads')
+        // The compiler comes from the project's own package.json, not from a
+        // constant here that could disagree with it silently.
+        assert(
+            job.steps.some(step => step.run?.includes(`"typescript@${runPin}"`) === true),
+            'expected the compiler pin read from package.json')
+    },
+    // Without a pin the check cannot be run deterministically, so it is not
+    // generated at all rather than run against a compiler nobody chose.
+    packageCheckNeedsAPin: () => {
+        for (const packageJson of /** @type {const} */ ([
+            undefined,                                  // no package.json at all
+            'not json',                                 // unparseable
+            '"a string"',                               // not an object
+            '{"devDependencies":"x"}',                  // devDependencies not an object
+            '{"devDependencies":[]}',                   // nor an array
+            '{"devDependencies":{"typescript":1}}',     // pin not a string
+            '{"name":"p"}',                             // no devDependencies
+            '{"name":"p","devDependencies":{}}',        // no typescript
+            '{"devDependencies":{"typescript":"^7.0.0"}}',   // a range, not a pin
+            '{"devDependencies":{"typescript":"7.0.2"}}',    // bare, still not exact
+            '{"devDependencies":{"typescript":"=7.x"}}',     // `=` prefixing a range
+            '{"devDependencies":{"typescript":"=7.0"}}',     // two segments is a range
+            '{"devDependencies":{"typescript":"=7.0.2.1"}}', // four is not a version
+            '{"devDependencies":{"typescript":"=7.0.2 || 8.x"}}', // a union
+            '{"devDependencies":{"typescript":"=7.0.beta"}}',// a non-numeric segment
+            '{"devDependencies":{"typescript":"=7..2"}}',    // an empty segment
+            '{"devDependencies":{"typescript":"="}}',        // nothing after the sign
+        ])) {
+            const [state, result] = virtual(makeState(false, packageJson))(ci({ nodeExtra: () => [] }))
+            assertEq(exitCode(result), 0)
+            assertEq(workflow(state).jobs[packageCheckJobId], undefined)
+        }
+    },
     jobNeeds: () => {
         const steps = /** @type {const} */ ([{ run: 'echo hi' }])
         /** @type {(jobs: Unknown) => Unknown} */
@@ -283,10 +338,12 @@ export const proof = {
         assertEq(parseGitHubAction(action({
             check: { 'runs-on': 'ubuntu-latest', needs: 'pack', steps },
         }))[0], 'error')
-        // Dormant until something orders itself: the first consumer is the
-        // packed-artifact check in `fjs/ci/todo/f-mjs-package-support.md`.
-        assert(
-            definedValues(run(false).jobs).every(job => job.needs === undefined),
-            'unexpected job ordering in the generated workflow')
+        // Exactly one job orders itself: the packed-package check, which
+        // cannot start before the artifact it consumes exists. Pinning the
+        // count keeps a second ordering edge a deliberate change rather than
+        // something that appears unnoticed — ordering is where a workflow
+        // starts to have a shape that has to be reasoned about.
+        const orderedJobs = definedValues(run(false).jobs).filter(job => job.needs !== undefined)
+        assertEq(orderedJobs.length, 1, 'unexpected job ordering in the generated workflow')
     },
 }
