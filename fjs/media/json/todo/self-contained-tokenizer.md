@@ -727,11 +727,24 @@ export type NumberState = {
 
 export type StringState =
     { readonly kind: 'start' } |
-    { readonly kind: 'body' | 'escape' | 'recovery', readonly value: readonly number[] } |
+    { readonly kind: 'body' | 'escape', readonly value: readonly number[] } |
     { readonly kind: 'hex', readonly value: readonly number[], readonly digits: readonly number[] } |
+    { readonly kind: 'recovery' | 'recoveryEscape' } |
     { readonly kind: 'done', readonly value: readonly number[] } |
     { readonly kind: 'failed' }
 ```
+
+**Recovery is two states, and it carries no value.** `recoveryEscape` is
+required by rule 3: recovery keeps interpreting backslashes, which is why
+`"\x\""` is one error rather than two, so after a backslash the scanner must
+know that the next quote is escaped rather than closing. One `recovery` variant
+cannot answer that without smuggling the distinction into another field, and
+the sweep's `"\x\` prefix exists to exercise exactly this state.
+
+Carrying no value is the second half: a malformed string has no value to
+report, and a variant with nowhere to put one **cannot** produce the fabricated
+token 3a removes. The defect becomes unrepresentable rather than merely
+forbidden.
 
 `NumberState`'s nine kinds are the seven grammar phases plus `start` and
 `recovery`, as argued above — `int` is the bigint interception point, `sign`
