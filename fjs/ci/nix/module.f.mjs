@@ -94,6 +94,10 @@ export const flakeText = job =>
  * to: the `case` arm is what makes a `$0` with no `/` mean the current
  * directory, which is the one thing stripping a suffix cannot say by itself.
  *
+ * What holds that is the proof pinning this text exactly, not a scan for tool
+ * names — §6 rules out the scan, and the exact text already fails on any change
+ * at all.
+ *
  * `exec` replaces the shell, so the command's exit status is the script's and
  * no wrapper process sits between CI and the failure.
  *

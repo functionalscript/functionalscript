@@ -127,18 +127,18 @@ export const proof = {
         // the command's exit status; the `case` and `${0%/*}` find the flake
         // from the script rather than from the working directory; `"$@"` passes
         // the caller's arguments through unsplit.
+        //
+        // This is also the whole of what holds the script to root `AGENTS.md`
+        // §6, which forbids a generated script from calling an external tool:
+        // the text is fixed, so reintroducing `dirname` — or anything else —
+        // fails here. A separate guard scanning for tool names would add no
+        // coverage this does not already have, and would be the kind of check
+        // §6 describes: blind to any name it does not list, and tripped by one
+        // appearing in a comment.
         runText: () => assertEq(runText, `#!/bin/sh
 case $0 in */*) d=\${0%/*} ;; *) d=. ;; esac
 exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
 `),
-        // A generated script calls no external tool (root `AGENTS.md` §6).
-        // `dirname` is the one this script would otherwise have reached for, so
-        // it is the one worth naming; the rest of the line is shell syntax.
-        runCallsNoExternalTool: () => {
-            for (const tool of ['dirname', 'basename', 'realpath', 'grep', 'sed', 'awk']) {
-                assert(!runText.includes(tool), tool)
-            }
-        },
         // Every declared job runs on the one runner the flakes are generated
         // for. A second system would need its own `devShells.<system>.default`
         // rather than a loop, so a job that quietly declared another would
