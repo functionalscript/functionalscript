@@ -201,18 +201,36 @@ would therefore be false.
 
 Two things keep it honest, and neither is new machinery:
 
-- **State the round trip over `validate`'s outputs.** `validate` takes a
-  `JsonUnknown` — a value that came from JSON text, which has no `NaN` or
-  `Infinity` literal — so no value `validate` or `decodeText` returns is
-  non-finite, and `decodeText(encodeText(v)) = v` holds for all of them
-  unconditionally. That is the property the dialect protocol needs.
+- **State the round trip over `validate`'s outputs — with one exception,
+  `-0`.** `validate` takes a `JsonUnknown`, a value that came from JSON
+  text, and JSON has no `NaN` or `Infinity` literal, so nothing `validate`
+  or `decodeText` returns is non-finite. It does have a `-0` literal:
+  `../json/module.f.mjs`'s parser returns negative zero for it (pinned at
+  `../json/extended/proof.f.mjs:61`, `Object.is(parseValue('-0'), -0)`),
+  rtti `number` hands the value back unchanged, and `JSON.stringify(-0)` is
+  `"0"`. So `decodeText(encodeText(v))` differs from `v` under `Object.is`
+  for that one value — and `Object.is` is what this repo compares numbers
+  with, deliberately: `../../types/object/structurally_same/module.f.mjs:25`
+  says `0` and `-0` differ, and `../../rtti/data/module.f.mjs:122-128`
+  orders them apart. `revision` does **not** currently exclude it —
+  `Number.isSafeInteger(-0)` is `true` and `-0 < 0` is `false`, so `:232`
+  accepts it. The round trip is therefore exact for every position except an
+  unrefined `number`, and the factory says so rather than promising more.
 - **For a hand-built value, the refinement is the owner.** `revision`
   already rejects a non-finite `generation` in its own `validate`
   (`Number.isSafeInteger`, `../revision/module.f.mjs:232`), which is why no
-  dialect is broken today. Make that the stated rule for the `number`
+  dialect is broken on that half. Make that the stated rule for the `number`
   position rather than an invention: a dialect whose schema admits `number`
   refines it, and the factory's JSDoc for `encodeText` says the host
   `JSON.stringify` rule applies to a value that skipped the refinement.
+- **Extend that same refinement to `-0`, in `revision`.** One clause beside
+  the existing one — `Object.is(r.generation, -0)` is an error — closes the
+  exception above, and it is right on the merits rather than a patch for the
+  proof: `../revision/module.f.mjs:204-208` already argues that a generation
+  must be an exact count derived as `1 + max(parents')`, which never yields
+  negative zero. A dialect that would rather permit the normalization may,
+  but then it states that `encodeText` maps `-0` to `0`; what it may not do
+  is claim an exact round trip while accepting `-0`.
 
 Do **not** answer this by having the shared `encodeText` walk every value
 checking `Number.isFinite`: that puts a whole-value traversal on every
@@ -360,7 +378,13 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
       outputs, note that a `number` position is finite only because the
       dialect refines it (`../revision/module.f.mjs:232`), and prove it
       both ways — `decodeText(encodeText(v)) = v` for a validated revision,
-      and `validate` rejecting a non-finite `generation`.
+      compared with `Object.is`, and `validate` rejecting a non-finite
+      `generation`.
+- [ ] Add the `-0` clause to `revision`'s `generation` check and prove it:
+      `decodeText('{"generation":-0,…}')` is an error. Without it the
+      round-trip proof above passes only because no case exercises `-0`,
+      which is the shape of hole this issue is meant to close. Independent
+      of the factory — worth landing on its own.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
       copies and the two `isValid…` adapters. Keep every published name —
       `revisionDialect`/`lockDialect`/`noteDialect` aliasing the kit's
