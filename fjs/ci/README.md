@@ -3,7 +3,21 @@
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflow for this repository. Running the generator writes `.github/workflows/ci.yml`
 with the latest matrix of jobs and steps, plus one Nix development environment per
-canonical Node job under `nix/generated/`.
+canonical Node job under `nix/`.
+
+## `fjs ci` is not stable
+
+The generated output changes shape between releases: jobs appear and disappear,
+steps are reordered, and generated files move or are renamed. None of that is
+versioned, and the generator does not migrate a consumer's tree — it writes the
+files it generates now and leaves anything an older version wrote where it is.
+A project upgrading `functionalscript` is expected to regenerate, read the diff,
+and delete whatever the new version stopped writing.
+
+That is a deliberate position rather than an oversight, and it is the reason the
+generator carries no migration code for its own past output. Who this command is
+for, and whether that answer should change, is
+[`todo/ci-generator-audience.md`](./todo/ci-generator-audience.md).
 
 ## Files
 
@@ -17,7 +31,7 @@ canonical Node job under `nix/generated/`.
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
 - `config/module.f.mjs` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
-- `nix/module.f.mjs` — writes one self-contained `nix/generated/<job>/flake.nix`
+- `nix/module.f.mjs` — writes one self-contained `nix/<job>/flake.nix`
   per declared job (`NixJob` in `types.ts`), using the Nix eDSL in `fjs/media/nix`.
 - `node/module.f.mjs` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, package checks, and the Node flake declarations.
@@ -42,7 +56,7 @@ canonical Node job under `nix/generated/`.
    ```
    fjs ci
    ```
-3. Commit the updated `.github/workflows/ci.yml` and `nix/generated/**/flake.nix`
+3. Commit the updated `.github/workflows/ci.yml` and `nix/*/flake.nix`
    files if they have changed.
 
 The generator is idempotent — rerunning it without modifying the source produces the
@@ -53,10 +67,9 @@ plain text built from the pinned commit in `config/module.f.mjs`.
 
 Each canonical Node job declares a system and its Nixpkgs package attribute in
 `node/module.f.mjs` (`nodeNixJobs`), and `nix/module.f.mjs` writes it out as one
-static `flake.nix` exposing `devShells.<system>.default`. Node 22 also declares a
-job-local `shellHook` that points `npm install -g` at `$HOME/.npm-global`, so the
-installed `fjs` stays on `PATH` for the rest of the same `nix develop` invocation.
-See [nix/README.md](../../nix/README.md) for how the generated files are meant to be
+static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
+job-local `shellHook`, run on every entry to the shell; none does today. See
+[nix/README.md](../../nix/README.md) for how the generated files are meant to be
 consumed.
 
 Every runtime uses the same Node versions. `config/module.f.mjs` records the versions
@@ -65,31 +78,38 @@ snapshot usually trails — and those feed both `setup-node` on the GitHub-hoste
 runners and the flakes' package attributes. Bumping a Node version therefore means
 moving the Nixpkgs commit first and copying the versions it offers.
 
-The temporary `nix-flakes` job installs Nix through a pinned action and checks each
-generated flake with
-`test "$(nix develop <flake> --command node --version)" = v<version>`, so both a
-flake that stops evaluating and a shell that provides a different Node fail CI. That
-check is the *only* place the expectation is written: the generated flakes stay
-purely declarative, since a flake pinning an exact Nixpkgs commit already determines
-its package versions and an `assert` inside it would only restate that pin.
+No job checks the flakes; the jobs that use them check the runtime they get. Every
+Ubuntu Node job runs
+`test "$(<command>)" = v<version>` as its first real step, where `<command>` is
+`node --version` for a job `setup-node` installs into and the same through
+`nix develop` for a migrated one. That check is the *only* place the expectation is
+written: the generated flakes stay purely declarative, since a flake pinning an exact
+Nixpkgs commit already determines its package versions and an `assert` inside it would
+only restate that pin.
 
-The job is deliberately separate from `node22`/`node24`/`node26`, which keep their
-`setup-node` runtime until they are migrated one at a time. Delete it once they all
-run through `nix develop` — and give each migrated job its own version check inside
-the `nix develop` invocation, or nothing ties the Nix runtime to the version the
-Windows and macOS jobs install.
+What can be established about a generated flake without Nix is asserted by two proofs.
+`proof.f.mjs` reads the file the pipeline wrote and requires it to equal the generator's
+text for that job, and the job's package attribute to be the `nodejs_<major>` its
+configured version implies. What that text must itself contain — the accepted commit,
+the job's `devShells.<system>.default`, the shell's packages — is pinned character for
+character by `nix/proof.f.mjs`'s literal fixtures. A flake no job runs through is
+therefore first evaluated when its job migrates, which today means Node 22's.
 
 ### Expected package scripts
 
 The generated platform jobs run `npm ci`, install the pinned FunctionalScript
-package globally, and run `fjs test`. Canonical Node jobs run on Ubuntu ARM and are
-split by Node version:
+package globally, and run `fjs test`; the `deno` and `bun` jobs run their own
+equivalents. Those eight are where the published CLI is exercised — no canonical
+Node job does. Canonical Node jobs run on Ubuntu ARM and are split by Node
+version:
 
-- Node 22 runs `npm ci`, installs the pinned FunctionalScript package globally,
-  and runs `fjs test`.
-- Node 24 runs `npm ci` and `node --test`.
-- Node 26 runs `npm ci`, `npm run ci-update`, `git add -A && git diff --cached --exit-code`,
-  `npx tsc`, `npm run cov`, and `npm pack`.
+- Node 22 runs `npm ci` and `node --test` on the runtime `setup-node` installs.
+- Node 24 runs `npm ci` and `node --test` through its generated flake, one
+  `nix develop` step per command.
+- Node 26 runs `npm ci`, `npx tsc`, `npm run cov`, `npm pack` and `npm run ci-update`
+  through its flake the same way, then `git add -A && git diff --cached --exit-code`
+  as a plain step — `git` is the runner's tool, and a step names the flake only when
+  it needs something the flake pins.
 
 The commands that must be provided by `package.json` for generated CI are `cov`
 and `ci-update`. A typical FunctionalScript project can define them like this:
@@ -111,16 +131,17 @@ this repository does for `nanvm-lib/tests/test/generated.rs` (see
 [`fjs/nanvm/README.md`](../nanvm/README.md)). Everything chained there is
 covered by the drift check below for free.
 
-The Node 26 job runs it right after `npm ci` and fails via
+The Node 26 job runs it last, after every other command, and fails via
 `git add -A && git diff --cached --exit-code` when the committed tree no longer
 matches the generator's output, so forgetting to regenerate after changing a
-generator breaks the build instead of silently using stale files. Staging with
-`git add -A` before diffing makes the check cover newly created and deleted
-generated files, not just modified ones — a plain `git diff` never reports
-untracked files. Because the job runs `npm ci` first, `fjs ci` resolves the
-project's own `functionalscript` devDependency; this repository instead uses
-its checked-in sources (`node ./fjs/module.mjs ci`), so the check always reflects
-the generator being reviewed, not the pinned published release.
+generator breaks the build instead of silently using stale files. Running it at the
+end makes it the last word: every earlier step has finished writing, and nothing they
+leave behind is tracked. Staging with `git add -A` before diffing makes the check
+cover newly created and deleted generated files, not just modified ones — a plain
+`git diff` never reports untracked files. Because the job runs `npm ci` first,
+`fjs ci` resolves the project's own `functionalscript` devDependency; this repository
+instead uses its checked-in sources (`node ./fjs/module.mjs ci`), so the check always
+reflects the generator being reviewed, not the pinned published release.
 
 Keep `npx tsc` passing independently because the generated CI runs it as its own
 step before coverage and package creation. Keep `test` as the fast local
