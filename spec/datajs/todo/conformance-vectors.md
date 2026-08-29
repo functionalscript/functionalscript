@@ -363,6 +363,16 @@ The six parts:
     began with a `1` — so a reader whose post-`-` state took only a leading `1`,
     or no exponent at all, passed. A reader accepting integers and the named words while rejecting
     every fraction and exponent passed the earlier set entirely.
+  - **A repetition needs its empty branch.** `char*`, `id`'s tail and the
+    digits of `frac` each admit a count the vectors never used: the
+    **empty string** `""`, a **one-character identifier** — `$` — and a
+    **single-digit fraction**, `1.0`. Review found the first; the other two are
+    the sweep, and the identifier is the sharper of them, because the old set
+    had `$` and `_` and the rewrite that gave every position both class
+    endpoints replaced them with two-character names, so a branch that had
+    coverage lost it. The empty string needs a value and a key twin in **all
+    three roles**: a reader requiring one character passes the accept set, and
+    serializer-only and normalized-serializer implementations run none of it.
   - **`string`** — all nine escapes, not just the one an interesting case
     happened to use: `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t` and
     `\uXXXX`, plus a raw non-ASCII character **and a raw `/`** — the one
@@ -782,7 +792,13 @@ The six parts:
   valid document, when `E0 9F BF` is overlong and sits in this file's own
   reject table; the two legacy octal escapes, named in a paragraph and absent
   from the list that paragraph describes; and the descriptor offenders, given
-  both container kinds as *parents* and only one as *targets*. The sweep for the lead-partition shape had
+  both container kinds as *parents* and only one as *targets* — then the
+  **empty branch of every repetition**: no empty string anywhere, and no
+  one-character identifier since the rewrite that gave `id` both class
+  endpoints at both positions had replaced `$` and `_` with two-character
+  names, taking coverage away from a branch that had it; and **positive zero**,
+  absent from both writer roles while `-0` sat in each of them looking like the
+  zero case. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -950,7 +966,12 @@ The six parts:
   every recipe here while rejecting every `bigint`, `undefined`, `NaN` or
   infinity passed the whole set. The leaves are JSON's four plus the five
   JavaScript adds — `undefined`, a bigint, `NaN`, `Infinity`, `-Infinity` —
-  with `-0` beside them — and **naming a leaf type is not naming a vector**:
+  with **`0`** and `-0` beside them — positive zero is its own vector, since a
+  serializer may refuse it and the ordinary positive vector may be nonzero, and
+  `-0` is the opposite `Object.is` value rather than a stand-in for it; the
+  normalize set pins `export default 0;` for the same reason, against a
+  normalizer that emits `-0` for it — and **naming a leaf type is not naming a
+  vector**:
   "a boolean" instantiates as `true`, "a number" as a positive finite one and
   "a bigint" as a positive one, so a serializer refusing `false`, `-1.5` or
   `-109n` passes a set that lists all three. Both booleans, then, and an
