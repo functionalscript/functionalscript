@@ -239,9 +239,12 @@ throughout.
 1. **Spec** — `spec/datajs/`. The specification itself is **done**:
    [`spec/datajs/README.md`](../spec/datajs/README.md) carries the grammar,
    data model, const-name exclusions, serialization and normalized form,
-   the JSON and JavaScript relationships, and the rationale, and proposes
-   `application/datajs` as the media type (noting that a file served for a
-   browser `import` must instead be sent as a JavaScript MIME type). The
+   the JSON and JavaScript relationships, and the rationale, and settles the media
+   type by deferring to the existing dialect design in
+   [`fjs/todo/group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md):
+   `text/javascript` with the dialect out of band, since RFC 9239 closes the
+   JavaScript MIME list. The dialect segment DataJS takes in that chain is the
+   one detail left to reconcile in that todo. The
    conformance vectors are the remaining half, tracked in
    [`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md);
    stages 3, 4 and 6 consume them.

@@ -523,14 +523,25 @@ Recognized extensions: `.data.js`, `.data.mjs`, `.d.js`, `.d.mjs`.
 Tools emit **`.data.js`**. Use `.data.mjs` where a file must resolve as an ES
 module regardless of the enclosing package's `"type"` field.
 
-The media type is **`application/datajs`**, mirroring `application/json`, with
-charset UTF-8 implied.
+The media type is **`text/javascript`**, with the format identified out of
+band as the dialect **`vnd.fjs.datajs+vnd.fjs.fjs`** — most specific first, so
+a consumer that knows only FunctionalScript still reads it correctly.
 
-One practical caveat: that type describes the *data*. A server that expects a
-browser to `import` the file must send a JavaScript MIME type (`text/javascript`)
-instead, because a module load rejects any other type. The two uses do not
-conflict — they are different requests for the same bytes — but a document
-served for both needs a deliberate choice.
+DataJS gets no media type of its own, and the reason is not stylistic: RFC 9239
+makes JavaScript MIME types a closed list with no registered `+javascript`
+suffix, so `application/datajs` would be opaque to every existing consumer and
+would break the one thing a DataJS document is guaranteed to be — a JavaScript
+module a browser can `import`. A JSON-shaped format could take
+`application/{dialect}+json` and fall back to `application/json`; a
+JavaScript-shaped one has no such ladder.
+
+This follows the dialect design in
+[`fjs/todo/group-fs-subdirectories-by-concern.md`](../../fjs/todo/group-fs-subdirectories-by-concern.md),
+which settled the question for FunctionalScript's formats generally. That
+document names the wider compiler subset's dialect `vnd.fjs.djs`; DataJS is
+narrower and takes its own segment, which is the one detail still to reconcile
+there — see [that todo](../../fjs/todo/group-fs-subdirectories-by-concern.md)
+rather than duplicating the chain rules here.
 
 ## Conformance
 
