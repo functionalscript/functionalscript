@@ -1040,7 +1040,12 @@ The six parts:
   its absence. Then the non-pair surrogate adjacencies, enumerated as
   combinations and then sampled at one end of each range — the coverage rule
   applied to *which* combinations exist and not to the values filling them,
-  one level of the same structure below where it was applied. The sweep for the lead-partition shape had
+  one level of the same structure below where it was applied — then the five
+  controls with simple escapes, absent from serializer accept while its two
+  control endpoints were present, which is the fifth cross-role finding in
+  five rounds and the first to test the matrix: a row named "controls" would
+  have shown a filled cell, so the task now fixes row granularity at the
+  branch rather than the topic. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1258,7 +1263,15 @@ The six parts:
     denotes that exact code-unit sequence: a serializer that refuses such
     strings, or replacement-encodes them, passes any ASCII-string vector;
   - a string holding **each code unit `QuoteJSONString` must escape**: `"`,
-    `\`, and a control below U+0020 at both ends, U+0000 and U+001F. Deriving
+    `\`, a control below U+0020 at both ends, U+0000 and U+001F, **and the
+    five controls that have simple escapes** — U+0008, U+0009, U+000A, U+000C
+    and U+000D, value and key. The endpoints exercise only the generic
+    `\u00XX` path; `\b`, `\t`, `\n`, `\f` and `\r` are five separate
+    branches, and a serializer handling the generic path while refusing,
+    dropping or emitting one of those raw passes this role with output that is
+    invalid or denotes another string. The thirty-two controls are a **range
+    with five special members**, which is the set-with-gaps rule: endpoints do
+    not reach a member that has its own branch. Deriving
     this set by *leaf type* left the string leaf free to be ASCII with nothing
     to escape, and a serializer that emits those units raw produces a document
     that is not DataJS at all — an unterminated string for `"`, a stray escape
@@ -1822,6 +1835,15 @@ needs nothing beyond an engine.
       different value) says *when* a cell is required; the matrix is what makes
       an empty one visible. Generate it from the corpus rather than writing it
       by hand, or it becomes the seventeenth stale cross-reference.
+
+      **Rows are branches, not topics.** The round after this task was written,
+      review found the five controls with simple escapes missing from
+      serializer accept while U+0000 and U+001F were present — and a matrix
+      whose row is "controls" would have shown that cell filled. A row has to
+      be as fine as the thing an implementation can get wrong on its own: one
+      per emitting branch, one per production alternative, one per class
+      endpoint that has its own code path. If two vectors in a row could be
+      handled by different code, they are two rows.
 - [ ] Write the meta-encoding down as a schema before any vector, per the
       section above: node table, `ref` indices, the leaf tags, the `arr` form
       with holes occupying positions, the object pair form **with unique keys
