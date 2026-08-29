@@ -778,10 +778,24 @@ The six parts:
   identifier-starting values to enumerate and no per-value path for a reader to
   get selectively wrong. The rule that replaced it is the reason — derive from
   the rule, not from the list that illustrates it — and here deriving from the
-  rule *shrinks* the obligation rather than growing it.
+  rule *shrinks* the reject side rather than growing it.
 
-  What the positional rule does owe, which the old one did not, is the
-  **accept** side of the third position: `export default [1]`,
+  It grows the accept side, though, and by more than three: **each of the four
+  permitted whitespace characters at each of the three required positions**,
+  twelve in all, `const\t$0=1;export default $0` among them. The
+  four-character requirement above is about whitespace as *trivia*, at
+  boundaries where it is optional, and a required separator is a different code
+  path in any plausible reader — the one that checks a separator is there at
+  all. A reader satisfying that check against a literal U+0020 while treating
+  tab, LF and CR as trivia everywhere else passes every vector in this corpus,
+  including all four of that requirement, and rejects a valid document. Review
+  found this, and it is the same shape as the finding that produced the
+  four-character rule one level up, one level down: accepting only U+0020
+  narrows the language wherever a separator is *required* rather than merely
+  allowed, and the two places are not the same code.
+
+  The positional rule owes one more thing the old one did not, at the third
+  position and about the *value* rather than the separator: `export default [1]`,
   `export default -1`, `export default "a"` and **`export default {}`** all
   carry the space even though `[`, `-`, `"` and `{` cannot merge with
   `default`. A serializer or reader that kept the merging-based rule accepts
