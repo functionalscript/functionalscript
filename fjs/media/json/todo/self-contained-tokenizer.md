@@ -715,6 +715,43 @@ for something already argued above:
 finish call, and the caller's terminator policy handles EOF as one more
 non-continuing character.
 
+And the two state types, since `Scan<S>` without `S` is still two APIs:
+
+```ts
+export type NumberState = {
+    readonly kind:
+        'start' | 'sign' | 'int' | 'point' | 'frac' |
+        'exp' | 'expSign' | 'expDigits' | 'recovery',
+    readonly lexeme: readonly number[],
+}
+
+export type StringState =
+    { readonly kind: 'start' } |
+    { readonly kind: 'body' | 'escape' | 'recovery', readonly value: readonly number[] } |
+    { readonly kind: 'hex', readonly value: readonly number[], readonly digits: readonly number[] } |
+    { readonly kind: 'done', readonly value: readonly number[] } |
+    { readonly kind: 'failed' }
+```
+
+`NumberState`'s nine kinds are the seven grammar phases plus `start` and
+`recovery`, as argued above — `int` is the bigint interception point, `sign`
+the `-Infinity` one, and `recovery` is closed to the wrapper.
+
+**A number state carries its `lexeme`; a string state carries its decoded
+`value`.** The asymmetry is deliberate and both halves are already required
+elsewhere: a number must reach `value` as its *exact* lexeme with no numeric
+value built while scanning, and a string's value simply *is* its decoding, with
+the escapes resolved by the shared table. Carrying raw text for a string would
+make every consumer re-decode it, and carrying a decoded number would lose the
+spelling the losslessness proofs pin.
+
+`done` and `failed` are **terminal**: every input returns `stopped` without
+consuming, so a caller that keeps feeding them gets a stable answer rather than
+an error. A well-formed string reaches `done` by *consuming* its closing quote
+— the quote is part of the lexeme, so it is a `consumed`, and the `stopped`
+comes on the character after. `failed` is where rule 3's recovery ends, whether
+at a consumed closing quote or a re-dispatched LF or CR.
+
 #### The number state exposes its phase, because that is what stage 4 wraps
 
 That list is not sufficient on its own, and saying so is the difference between
@@ -1005,9 +1042,12 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       case stage 4 needs for `export default 1;`. JSON's own tokens must not
       move: `12;1` stays `invalid number`, `unexpected character`, `number 1`.
 - [ ] Export `Scan<S>`, `ScanResult<S>`, `StringState` and `NumberState` from
-      `types.ts` with the signature above, and prove the two properties stage 4
-      rests on: a scan emits no token, and a `stopped` leaves the character
-      unconsumed so the caller can terminate, re-dispatch or take over.
+      `types.ts` **as declared above** — the kinds and fields, not a shape of
+      the implementer's choosing — and prove the properties stage 4 rests on:
+      a scan emits no token; a `stopped` leaves the character unconsumed so the
+      caller can terminate, re-dispatch or take over; `done` and `failed` are
+      terminal; and a number's `lexeme` is its exact source text while a
+      string's `value` is decoded.
 - [ ] Prove the state is observable the way stage 4 needs: from the exported
       state alone, a caller can distinguish "stopped after a well-formed `int`"
       (the bigint interception point) from "stopped after the sign" (the
