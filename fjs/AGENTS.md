@@ -150,10 +150,10 @@ reaches no reader, the tag buys nothing; `proof.*` is the clear case.
 Which reader differs by file kind, and the tag does not decide it.
 `module.f.mjs` and `types.ts` are public API surface. `private.ts` is not: it
 holds implementation-private types outside the public declaration closure, and
-[`todo/separate-private-types.md`](./todo/separate-private-types.md) plans to
-drop its generated declarations from the package altogether. Its prose is for
-contributors reading the sources, so the tag belongs there — but a public
-documentation build must not be pointed at it.
+its generated declarations are excluded from the package entirely
+([`fsc/README.md`](./fsc/README.md)). Its prose is for contributors reading the
+sources, so the tag belongs there — but a public documentation build must not be
+pointed at it.
 
 Put it in the leading block, followed by one blank line before the first
 source-level import or declaration.
