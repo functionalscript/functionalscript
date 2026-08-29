@@ -415,12 +415,14 @@ throughout.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/bnf/todo/207-bnf-semantic-actions.md)
       repointed at `fjs/bnf/testlib.f.mjs`.
-- [ ] Stage 3: JSON self-contained tokenizer —
+- [ ] Stage 3a: drop the fabricated `string` token in the existing wrapper —
       [`self-contained-tokenizer`](../fjs/media/json/todo/self-contained-tokenizer.md),
-      which measured the swap's blast radius: the accepted language is
-      JSON's already, but for one defect — `1n1` and its class, accepted today
-      by deleting an `n` from inside a number — so beyond that only error
-      shapes change.
+      the defect that predates the port and is provable without it.
+- [ ] Stage 3b: the port itself, same design, carrying only what removing the
+      dependency forces. It measured the swap's blast radius: the accepted
+      language is JSON's already, but for one defect — `1n1` and its class,
+      accepted today by deleting an `n` from inside a number, which only the
+      port can fix — so beyond that only error shapes change.
 - [ ] Stage 4: `fjs/media/datajs`; file its todo. Needs stage 1b's corpus in
       place as its proof source.
 - [ ] Stage 5: front-end move to `fjs/fsc`; file its todo.

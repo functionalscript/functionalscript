@@ -37,8 +37,9 @@ A machine-readable corpus with six parts:
 - **accept** — document text plus the graph it denotes, including the sharing.
   Cases: every leaf (`-0`, `NaN`, `±Infinity`, bigint, `undefined`), the
   `["__proto__"]` key, `-0n` — an accepted input spelling denoting `0n`, since
-  bigint has no negative zero — a `const` referenced exactly once and a `const` never
-  referenced at all — the grammar imposes no reference count, and the
+  bigint has no negative zero — a `const` referenced exactly once and a
+  `const` never referenced at all — the grammar imposes no reference count, and
+  the
   normalizer's counting rule is one serializer's rather than a validity rule —
   a `const` bound to a **contextual keyword** (`async`, `as`, `from`, `get`,
   `of`, `set`), which the grammar permits and a reader borrowing JavaScript's
@@ -58,9 +59,9 @@ A machine-readable corpus with six parts:
   `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
   than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
-  and at least one that is not — **`Map` or a boxed number**, not `RegExp`; see
-  below), a
-  sparse-array hole, a symbol-keyed, accessor or non-enumerable own property,
+  and at least one that is not — **`Map` or a boxed number**, not `RegExp`;
+  see below), a sparse-array hole, a symbol-keyed, accessor or non-enumerable
+  own property,
   an array carrying an own property beyond its elements and `length` (`a=[1];
   a.meta=2`), and a cycle. Each is a case where the obvious implementation
   emits a valid document denoting something else. The accessor case asserts
@@ -77,7 +78,7 @@ A machine-readable corpus with six parts:
 
   The rule reaches the leaves too, which review found by applying it: an
   ordinary function has own non-enumerable `name` and `length`, and a
-  non-arrow adds `prototype`, `caller` and `arguments` — so a serializer that
+  non-arrow adds a non-configurable `prototype` — so a serializer that
   never learned to reject functions can refuse one through its
   non-enumerable-property check. An arrow function's `name` and `length` are
   configurable, so deleting them leaves a callable with **no own properties**
@@ -87,8 +88,9 @@ A machine-readable corpus with six parts:
   each with the **graph its output must denote**. Not the exact document:
   whitespace, layout, const names and the hoisting of singly-reached values are
   free choices ([`README.md`](../README.md)), so pinning bytes here would fail
-  conforming serializers. Exact bytes are the `normalize` set's business alone. The spec is explicit that these are
-  outside the data model rather than invalid, and that rejecting them is a
+  conforming serializers. Exact bytes are the `normalize` set's business alone.
+  The spec is explicit that these are outside the data model rather than
+  invalid, and that rejecting them is a
   defect rather than caution ([`README.md`](../README.md)): a `null`-prototype
   object or array, an `Array` subclass, a frozen or sealed object, a
   non-extensible object, and a non-writable property. `Object.freeze` produces
@@ -223,7 +225,7 @@ document can carry. So the corpus does not store values. It stores a
   being writable at all.
 
   **A modifier node denotes its target, modified** — the same object `on`
-  denotes, not a copy. Three consequences, and they are stated because review
+  denotes, not a copy. Four consequences, and they are stated because review
   found two consumers could reasonably read this differently:
 
   - **Identity is the target's.** A `ref` to the modifier and a `ref` to its
@@ -242,8 +244,8 @@ document can carry. So the corpus does not store values. It stores a
 
   A cycle needs no recipe: it is a `ref` to an ancestor.
 
-  Two of these carry an obligation the recipe alone does not express, and both
-  came from review:
+  Three of these carry an obligation the recipe alone does not express, and
+  each came from review:
 
   - **`getter` must be observable, not merely present.** The spec forbids
     reading a getter *because reading it is an effect*
@@ -347,7 +349,8 @@ needs nothing beyond an engine.
       inline, what a modifier node denotes, `builtin`'s and `proto`'s and
       `attrs`'s closed value lists (`proto`'s optional `inherited` key/value
       pair, whose key may not collide with an own key of the target), and
-      `getter`'s **enumerable** accessor with its invocation record. It is the part two
+      `getter`'s **enumerable** accessor with its invocation record. It is the
+      part two
       consumers can silently disagree about, so it lands first and gets its own
       round-trip proof — encode a graph, decode it, and assert the sharing
       survives.

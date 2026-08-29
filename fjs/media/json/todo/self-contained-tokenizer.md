@@ -852,11 +852,13 @@ implement JavaScript's lexical structure inside JSON — which is the coupling
 being removed.
 
 Attribution then has both halves: 3a is one small change with its own proofs,
-and 3b is judged as a port. Every accepted-input proof must pass **byte-identically**, so any
-failure among them is the port — that half is a closed set, because the proofs
-are enumerated. Error-shape differences are judged against the **two invariants
-and the stated rules**: a difference is the error-rule change if it follows from
-them, and the port if it does not. The generated sweep tables are how such
+and 3b is judged as a port. Every accepted-input proof must pass
+**byte-identically**, so any failure among them is the port — that half is a
+closed set, because the proofs are enumerated. Error-shape differences are
+judged against the **two invariants and the stated rules**: a difference is
+**3b's** if it follows from them, and a defect in the port if it does not. The
+split does not change that test, because after it the error rules *are* the
+port's — 3a carries none of them. The generated sweep tables are how such
 differences are *surfaced*; they do not decide which ones may exist, and the
 next section says why they cannot.
 
