@@ -371,13 +371,30 @@ export const proof = {
             assertEq(entersFlake(job, id), installsNix(job), id)
         }
         const onNix = canonical.filter(id => installsNix(gha.jobs[id]))
+        const declared = nixJobs.map(job => job.id)
         // The declared flakes and the jobs that enter one are the same set:
         // a flake nothing enters is never evaluated, and a job entering one
         // that is not declared has no `flake.nix` to find.
-        assertEq(onNix.length, nixJobs.length)
-        for (const { id } of nixJobs) {
+        //
+        // Both directions, because counting and one is not the same as
+        // equality once a duplicate is possible: declaring `deno` twice while
+        // a newly migrated job went undeclared would keep the counts level and
+        // satisfy every declaration, and the generator would write no flake
+        // for the job whose steps enter one. `onNix` comes from `Object.keys`
+        // and cannot repeat, so the reverse containment is what closes that.
+        assertEq(declared.length, onNix.length)
+        for (const id of declared) {
             assert(onNix.includes(id), `expected ${id} to enter its own flake`)
         }
+        for (const id of onNix) {
+            assert(declared.includes(id), `expected a flake declared for ${id}`)
+        }
+        // And named directly, because a repeated declaration is a defect in
+        // its own right — `nixFlakes` would write the same file twice — rather
+        // than only the way the check above could be fooled.
+        assert(
+            declared.every((id, i) => declared.indexOf(id) === i),
+            'duplicate flake declaration')
         assertStructurallySame(
             canonical.filter(id => !installsNix(gha.jobs[id])),
             // `bun` and `wasm` wait on Nixpkgs, for unrelated reasons;
