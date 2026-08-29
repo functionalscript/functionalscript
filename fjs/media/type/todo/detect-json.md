@@ -45,8 +45,12 @@ object/array-only policy (§4) is applied at EOF — the recognizer stays pure
 (accepts any valid JSON), the MIME policy lives here:
 
 ```ts
-// A_json state, added to DetectState (init { rec: recognizerInitCapped(jsonMaxDepth), top: null }):
+// A_json state, added to DetectState (init { rec: jsonRecInit, top: null }):
 const jsonMaxDepth = 64   // the detector's cap; see below
+// recognizerInitCapped returns null for a cap outside the finite non-negative
+// integers. 64 is a literal, so the null is discharged once, here, and never
+// reaches the per-code-point path.
+const jsonRecInit = recognizerInitCapped(jsonMaxDepth) ?? recognizerInit
 type JsonFactor = { readonly rec: JsonRecognizerState; readonly top: Nullable<CodePoint> }
 // per decoded code point: feed the recognizer its UTF-16 units; remember the
 // first non-whitespace cp
@@ -177,6 +181,18 @@ verdicts for the same bytes. `64` is the proposed value — far past anything a
 real document reaches, and shallow enough that the stack is bounded by a
 constant rather than by input — and it belongs in this design because
 `fjs/media/json` has no opinion about it.
+
+**And the cap can be refused.** `recognizerInitCapped` returns
+`JsonRecognizerState | null`, `null` for anything outside the finite
+non-negative integers, because a rejecting state would make this detector
+answer `text/plain` for every valid JSON blob with no way for anyone to tell
+that from bad content — the review that corrected it landed after this design
+merged, so read
+[streaming-recognizer](../../json/todo/streaming-recognizer.md) before building
+the initializer. Here the argument is the literal `64`, so the `null` is
+discharged once at the definition of `jsonRecInit` above and never reaches the
+per-code-point path; the `?? recognizerInit` fallback is unreachable and exists
+only so the type checks without a cast.
 
 **A number is not yet a contract**, which review caught this paragraph
 asserting in the sentence above and then not delivering: `64` decides nothing

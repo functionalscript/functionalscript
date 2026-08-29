@@ -40,7 +40,7 @@ neither values nor token payloads.
 ```ts
 export type JsonRecognizerState = ...     // scanner sub-state × parser control × depth stack
 export const recognizerInit: JsonRecognizerState  // uncapped
-export const recognizerInitCapped = (maxDepth: number): JsonRecognizerState
+export const recognizerInitCapped = (maxDepth: number): JsonRecognizerState | null
 export const recognizerStep = (s: JsonRecognizerState, u: U16): JsonRecognizerState
 export const recognizerAccepts = (s: JsonRecognizerState): boolean   // complete valid document at EOF?
 ```
@@ -75,12 +75,31 @@ a **finite non-negative integer**, and every other `number` — `-1`, `1.5`,
 a plausible reading that a different implementation would pick: round `1.5`,
 compare `-1` directly and reject everything, or honour `Infinity` and silently
 return the uncapped recognizer, which defeats the guard the argument was passed
-to install. Refused rather than thrown, because this module has no exceptions
-to throw: `recognizerInitCapped` is **total**, and an invalid cap yields a state
-that is already rejecting, so `recognizerAccepts` is `false` for every input
-fed to it. That is loud — nothing parses — where honouring `Infinity` would be
-silent. The check belongs at init, where it runs once, and leaves
-`recognizerStep` with nothing to test. `-0` is `0`: it is a finite integer and
+to install.
+
+**Refused means `null`, not a rejecting state**, and the first answer here was
+wrong. This paragraph used to say that `recognizerInitCapped` stays total and
+an invalid cap yields a state that is already rejecting — "loud", it claimed,
+because nothing parses. Review refused that and was right: loud *to whom?* A
+permanently rejecting state is indistinguishable from a genuinely invalid
+document, so the caller cannot tell a bad configuration from bad content, and
+the one consumer — a MIME detector — would report `text/plain` for every valid
+JSON blob it is ever given, forever, with no signal anywhere. That is a
+plausible wrong verdict where a refusal was wanted, which is the exact failure
+this design's own corpus work exists to catch. The alternative was written down
+in this same paragraph and dismissed for a bad reason: that a `Result` would
+put a wrapper on the common path for the sake of a caller error, which is a
+cost-of-typing argument answering a correctness question.
+
+So the signature is `(maxDepth: number) => JsonRecognizerState | null`, `null`
+for a cap outside the finite non-negative integers. `recognizerInit` is
+untouched, so the uncapped common path costs nothing and only the configured
+path pays; a caller passing a literal, as `fjs/media/type` does with `64`,
+discharges the `null` once at its call site. Still no exception, since this
+module has none to throw — but a refusal the type system makes the caller
+look at, rather than a verdict it cannot distinguish from data. The check
+belongs at init, where it runs once, and leaves `recognizerStep` with nothing
+to test. `-0` is `0`: it is a finite integer and
 `-0 >= 0`, so it needs no rule of its own. The checklist and the value-free-parsing bullet below kept describing
 the cap as an unnamed knob for two commits after the export appeared — the same
 stale-cross-reference shape this PR has now recorded fourteen times, here in its
@@ -189,17 +208,18 @@ property, scoped to make it actually hold:
 - [ ] Proof (cap disabled): `recognizerAccepts` agrees with `parse` `ok`/`error`
       across the existing parser test corpus; add large-single-token cases (huge
       string, long number) asserting bounded auxiliary space (no payload buffer).
-- [ ] Proof (invalid cap): `recognizerInitCapped` is total, so each of `-1`,
-      `1.5`, `NaN` and `Infinity` yields a permanently rejecting state — and the
-      proof must **feed a valid document through it**, not test the state as
-      returned. Checking `recognizerAccepts` at init is vacuous: the uncapped
-      initial state rejects there too, because no complete document has arrived,
-      so an implementation treating `Infinity` as uncapped passes and then
-      accepts everything. Run `1` and `[]` through each of the four and assert
-      both still reject. Review found this proof unable to fail, in the file
-      that carries the rule about proofs that cannot fail.
-      `recognizerInitCapped(-0)` behaves as `0`, and its proof is the ordinary
-      one: `1` accepted, `[]` rejected.
+- [ ] Proof (invalid cap): `recognizerInitCapped` returns **`null`** for each
+      of `-1`, `1.5`, `NaN` and `Infinity`. That is the whole assertion, and it
+      is the second version of this proof: the first said each invalid cap
+      yields a permanently rejecting state, which is a claim about a *verdict*
+      rather than a refusal, and could only be tested by feeding documents
+      through — a test the uncapped initial state also passes at init, since no
+      complete document has arrived. Both the design and its proof were wrong
+      in the same direction, and asserting `null` cannot be satisfied by an
+      implementation that quietly rejects everything.
+      `recognizerInitCapped(-0)` returns a **state**, not `null` — `-0` is a
+      finite integer with `-0 >= 0` — and its proof is the ordinary boundary
+      one for a cap of zero: `1` accepted, `[]` rejected.
 - [ ] Proof (cap enabled): **both sides of the boundary**, since "deeper is
       rejected" alone is passed by an implementation that rejects at the cap
       too, and by one that rejects everything. For a cap of `n`: a document
