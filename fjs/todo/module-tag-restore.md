@@ -28,10 +28,10 @@ same decision for the two file kinds.
 
 **`types.ts` yes, `private.ts` no.** `types.ts` is the public type-level API, so
 widening that glob to reach it belongs to the website issue. `private.ts` holds
-implementation-private types outside the public declaration closure, and
-[`separate-private-types.md`](./separate-private-types.md) plans to drop its
-generated declarations from the package in Stage 2 — putting them on the public
-API site would publish exactly what that design removes. Its prose is worth the
+implementation-private types outside the public declaration closure, and its
+generated declarations are excluded from the package
+([`../fsc/README.md`](../fsc/README.md)) — putting them on the public API site
+would publish exactly what packaging removes. Its prose is worth the
 tag for contributors reading the sources or running `deno doc` themselves; it is
 not website input.
 
@@ -98,8 +98,7 @@ answer flips. The three bare-tag ones lost nothing either way.
   — the other half for group 1: its `**/module.f.mjs` glob would have to widen to
   `types.ts` before those descriptions reach a website reader. Not to
   `private.ts`.
-- [`separate-private-types.md`](./separate-private-types.md) — why `private.ts`
-  is contributor-facing only, and why Stage 2 drops its declarations from the
-  package.
+- [`../fsc/README.md`](../fsc/README.md) — why `private.ts` is
+  contributor-facing only, and why its declarations are not packaged.
 - [`../../todo/jsdoc-verification.md`](../../todo/jsdoc-verification.md) — how a
   rule like this might be checked at all, which is why it drifted twice unnoticed.

@@ -129,6 +129,9 @@ _*
 **/*.d.mts
 **/*.d.ts
 
+# `npm pack --json` output, read by the packed-contents assertion
+/pack.json
+
 test-results/
 
 index.html

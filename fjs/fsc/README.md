@@ -155,10 +155,8 @@ types — function-local in a proof.
 Private types and private runtime constants keep a leading `_`, even when
 linkage requires an export. The underscore is an API contract, not
 declaration-level visibility: generated `.d.ts` / `.d.mts` may still contain
-`export type _Type = number` (and, until the packaging stage of
-[`../todo/separate-private-types.md`](../todo/separate-private-types.md) lands,
-a generated `private.d.ts` still ships), but names that begin with `_` are
-private FunctionalScript implementation details. Consumers must not rely on
+`export type _Type = number`, but names that begin with `_` are private
+FunctionalScript implementation details. Consumers must not rely on
 those names directly, so renaming or removing a `_`-prefixed name is not a
 breaking change solely because TypeScript emitted it. The public contract still
 governs transitive effects: if a public type depends on `_Type`, changing
@@ -199,11 +197,15 @@ module's public vocabulary may be published under an ordinary name even though
 its TypeScript alias was module-private, and a former export may become `_`
 when it only ever described an implementation detail.
 
-Removing shipped private declaration artifacts (`private.d.ts`) from the
-package is the second stage of
-[`../todo/separate-private-types.md`](../todo/separate-private-types.md); the
-`_` contract itself is permanent, since `_` helpers in `types.ts` and exported
-`_` constants keep shipping in emitted declarations regardless.
+No generated `private.d.ts` ships: `package.json`'s `files` excludes them with
+a `!**/private.d.ts` negation, and CI asserts both halves of that — the tarball
+carries none, and every declaration it does carry type-checks as an outside
+consumer installs it, so a public declaration that came to depend on a private
+module is a red build rather than a broken package.
+
+The `_` contract is permanent and independent of that. `_` helpers retained in
+`types.ts` by the public declaration closure, and exported `_` constants, keep
+shipping in emitted declarations; they are still not API.
 
 When the last authored implementation/proof `.ts` / `.f.ts` file is gone,
 authored `types.ts` files may remain. The TypeScript runtime-emission pass is
