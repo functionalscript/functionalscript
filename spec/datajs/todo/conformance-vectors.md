@@ -359,7 +359,11 @@ The six parts:
     every fraction and exponent passed the earlier set entirely.
   - **`string`** — all nine escapes, not just the one an interesting case
     happened to use: `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t` and
-    `\uXXXX`, plus a raw non-ASCII character. The lone surrogate exercises
+    `\uXXXX`, plus a raw non-ASCII character **and a raw `/`** — the one
+    character with two valid input spellings, so a reader that mistakes JSON's
+    permission to escape it for a requirement rejects `export default "/";`
+    while passing every other vector here. `normalize` pins that `/` comes back
+    unescaped, but that is a different role and closes nothing for this one. The lone surrogate exercises
     `\u` alone, so a reader supporting raw text and `\u` while rejecting the
     eight simple escapes passed too. `\uXXXX`'s four hex digits are three
     ranges — `0`–`9`, `a`–`f`, `A`–`F` — in **four positions**, and the rule
@@ -480,7 +484,17 @@ The six parts:
   `1.n`, `01n` — since the same argument that forced `9n` into the accept set
   forces the twins here: a reader may have a separate bigint branch, and then
   the number vectors discharge nothing. Review supplied `+1n` and the sweep
-  for its shape supplied `.5n` and `1.n` — and two identifier spellings it takes and DataJS does
+  for its shape supplied `.5n` and `1.n`. **And a signed twin for each**, since
+  the accept set crosses the sign with both `int` alternatives and a reader may
+  equally have a separate post-`-` path — this file already has `-NaN` and
+  `-undefined` as rejects, which is that path handled separately. Every
+  number-family reject takes one except the two whose subject *is* the sign,
+  `+1` and `+1n`: `-0x10`, `-0b10`, `-0o10`, `-1_0`, `-.5`, `-1.`, `-01` and
+  their bigint twins, beside `-1.5n` and `-1e2n`. Measured, they split the same
+  way the unsigned ones do — `-01`, `-01n`, `-.5n`, `-1.n`, `-1.5n` and `-1e2n`
+  are JavaScript SyntaxErrors and so are classified vectors, while `-0x10`,
+  `-.5`, `-1.`, `-1_0` and the bigint radix forms parse, which makes them
+  narrowing vectors a delegating reader fails — and two identifier spellings it takes and DataJS does
   not: a **non-ASCII** one, `const é=1;export default é;`, and an **escaped**
   one, `const \u0061=1;export default \u0061;`. Both are valid JavaScript, so a
   reader borrowing the host's number or identifier grammar passes the whole-set
@@ -711,7 +725,10 @@ The six parts:
   letter — and then the first vector in this file that would have **failed a
   conforming implementation** rather than passing a broken one: a
   serializer-accept case asserting a surrogate pair's units not be escaped,
-  where that role asks only for a document denoting the input. The sweep for the lead-partition shape had
+  where that role asks only for a document denoting the input — then a raw `/`,
+  the one character with two valid spellings and so the one a reader can
+  wrongly require escaped, and the signed twins of every number-family reject,
+  which the accept set had been crossing with the sign all along. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
