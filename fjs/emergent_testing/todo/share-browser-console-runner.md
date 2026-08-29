@@ -269,7 +269,13 @@ the third is about method.
    it once where the run ends. A sequential fold changes execution order, not
    concatenation cost — an immutable `[...acc, r]` append copies the prefix
    every iteration and is the same Θ(N²) — so the port keeps the rope, or
-   another accumulator that is demonstrably linear.
+   another accumulator that is demonstrably linear. The rule has since caught
+   a third case that had nothing to do with the walk's shape:
+   functionalscript#1790 collects each failing leaf so the run can describe
+   them all at the end, and that list is threaded through every leaf and joined
+   at every module boundary like the totals are. It is a `List` joined with
+   `concat` for that reason. Anything a run *accumulates* is subject to this,
+   not only the results it walks.
 10. **A new exported boundary that its own consumers cast past is not typed.**
     `browserRun` began as `(effect: unknown) => Promise<unknown>` with `any`
     casts at both call sites, and its `extra` was `Partial` — advertising a
