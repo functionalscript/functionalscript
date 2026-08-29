@@ -56,7 +56,7 @@ const makeReporter = () => ({
     // the record's own `module` and formatted `path`, not a spelling of the
     // mock's own.
     result: (t, _r, _throws) => writeEvent(['result', t.module, t.path]),
-    summary: ({ passed, failed, duration }) => writeEvent(['summary', passed, failed, duration]),
+    summary: ({ totals: { passed, failed, duration } }) => writeEvent(['summary', passed, failed, duration]),
     test: defaultTest,
 })
 
@@ -70,6 +70,10 @@ const options = (initCwd, github = false) => ({
 const ok0 = () => ({ result: /** @type {const} */ (['ok', undefined]), duration: 0 })
 /** @type {() => unknown} */
 const fail0 = () => ({ result: /** @type {const} */ (['error', 'oops']), duration: 0 })
+// A failing leaf whose thrown value says which one it is, so the deferred
+// report can be read for order rather than only for length.
+/** @type {(v: string) => () => unknown} */
+const failWith = v => () => ({ result: /** @type {const} */ (['error', v]), duration: 0 })
 /** @type {() => unknown} */
 const ok1 = () => ({ result: /** @type {const} */ (['ok', undefined]), duration: 1 })
 
@@ -279,17 +283,85 @@ export const defaultReporterOutputLargeDuration = () => {
     )
 }
 
-// a failure on the non-GitHub reporter writes the error to stderr, not stdout
+// a failure on the non-GitHub reporter writes to stderr, not stdout: the
+// pass/fail line as the leaf lands, and the value it failed with afterwards
 export const defaultReporterFailOutput = () => {
     const [, stderr, exit] = runMain({
         'a.proof.f.ts': () => ({ proof: { bad: fail0 } }),
     })
     assertEq(exit, 1)
-    assertEq(stderr, 'import("./a.proof.f.ts").proof.bad(): error, 0.0000 ms\noops\n')
+    assertEq(
+        stderr,
+        'import("./a.proof.f.ts").proof.bad(): error, 0.0000 ms\n'
+        + 'import("./a.proof.f.ts").proof.bad()\n'
+        + 'oops\n',
+    )
+}
+
+/**
+ * Every failure's *detail* lands after every leaf has run, in the order the
+ * leaves failed — the property this whole arrangement exists for.
+ *
+ * The assertion is the exact stream, and the exactness is what makes it a
+ * proof: with the details inline, `one`'s value would follow `one`'s line and
+ * `three`'s would follow `three`'s, so a run of two failures reads the same
+ * lines in a different order. Asserting only that the details are present, or
+ * that they are in order among themselves, would pass either way — the two
+ * blocks are the observation.
+ *
+ * `two` passes and writes to stdout, so it is absent here; its presence in the
+ * run is what makes the two failures non-adjacent.
+ */
+export const defaultReporterFailuresAtEnd = () => {
+    const [, stderr, exit] = runMain({
+        'a.proof.f.ts': () => ({
+            proof: { one: failWith('first'), two: ok0, three: failWith('second') },
+        }),
+    })
+    assertEq(exit, 1)
+    assertEq(
+        stderr,
+        'import("./a.proof.f.ts").proof.one(): error, 0.0000 ms\n'
+        + 'import("./a.proof.f.ts").proof.three(): error, 0.0000 ms\n'
+        + 'import("./a.proof.f.ts").proof.one()\n'
+        + 'first\n'
+        + 'import("./a.proof.f.ts").proof.three()\n'
+        + 'second\n',
+    )
+}
+
+// Failures are collected across modules, in the order the modules ran — the
+// walk threads one state through all of them rather than one per module.
+export const defaultReporterFailuresAcrossModules = () => {
+    const [, stderr, exit] = runMain({
+        'a.proof.f.ts': () => ({ proof: { x: failWith('from-a') } }),
+        'b.proof.f.ts': () => ({ proof: { y: failWith('from-b') } }),
+    })
+    assertEq(exit, 1)
+    assertEq(
+        stderr,
+        'import("./a.proof.f.ts").proof.x(): error, 0.0000 ms\n'
+        + 'import("./b.proof.f.ts").proof.y(): error, 0.0000 ms\n'
+        + 'import("./a.proof.f.ts").proof.x()\n'
+        + 'from-a\n'
+        + 'import("./b.proof.f.ts").proof.y()\n'
+        + 'from-b\n',
+    )
+}
+
+// A leaf expected to throw that *did* throw is a pass, so it contributes
+// nothing to the report — the expectation is applied before a failure is
+// collected, not after.
+export const defaultReporterExpectedThrowNotReported = () => {
+    const [, stderr, exit] = runMain({
+        'a.proof.f.ts': () => ({ proof: { throw: { x: fail0 } } }),
+    })
+    assertEq(exit, 0)
+    assertEq(stderr, '')
 }
 
 // the GitHub reporter emits an `::error` annotation with a percent-encoded
-// title (the JSON path) and message
+// title (the JSON path) and message, in the same deferred position
 export const githubReporterOutput = () => {
     const [, stderr, exit] = runMain({
         's.proof.f.ts': () => ({ proof: { 'a:b,c%d': fail0 } }),
@@ -297,7 +369,8 @@ export const githubReporterOutput = () => {
     assertEq(exit, 1)
     assertEq(
         stderr,
-        '::error file=./s.proof.f.ts,line=1,title=import("./s.proof.f.ts").proof["a%3Ab%2Cc%25d"]()::oops\n',
+        'import("./s.proof.f.ts").proof["a:b,c%d"](): error, 0.0000 ms\n'
+        + '::error file=./s.proof.f.ts,line=1,title=import("./s.proof.f.ts").proof["a%3Ab%2Cc%25d"]()::oops\n',
     )
 }
 
@@ -706,6 +779,9 @@ export const proof = {
     defaultReporterOutput,
     defaultReporterOutputLargeDuration,
     defaultReporterFailOutput,
+    defaultReporterFailuresAtEnd,
+    defaultReporterFailuresAcrossModules,
+    defaultReporterExpectedThrowNotReported,
     githubReporterOutput,
     reporterWriteFailure,
     registerSuffixes,

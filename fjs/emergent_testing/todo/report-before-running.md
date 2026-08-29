@@ -116,6 +116,11 @@ still the argument for settling it in the shared core rather than twice.
 
 ### Related
 
+- [Report `fjs t` failures at the end](failure-report-at-end.md) — the other
+  half of the same output: it landed the deferral, so a leaf already writes one
+  self-contained pass/fail line and nothing else. The start record this issue
+  adds is the line that pairs with it, and the two-lines-per-leaf format above
+  is what that pairing looks like.
 - [Share the browser and console proof runners](share-browser-console-runner.md)
   — reporting is one of the things each host still does its own way, and this
   is the same question twice until they share a reporter.

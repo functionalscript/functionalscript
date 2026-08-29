@@ -6,6 +6,7 @@
 
 import type { Effect, Operation } from '../effects/types.ts'
 import type { IoChannel, SandboxResult } from '../effects/node/types.ts'
+import type { List } from '../types/list/types.ts'
 
 /** A zero-argument test function whose return value may contain sub-tests. */
 export type TestFn = () => unknown
@@ -156,6 +157,43 @@ export type RunTotals = {
 }
 
 /**
+ * One failed leaf, kept until the run ends.
+ *
+ * It pairs the shared {@link TestResult} with the **raw** value the leaf failed
+ * with — after the throw expectation has been applied, so an expected throw
+ * that threw is not here and one that returned cleanly is. That raw value is
+ * why this is a separate type rather than a field on `TestResult`: describing a
+ * thrown value is each host's part and a raw value cannot cross a wire, which
+ * is the rule `TestResult` states. This record never leaves the process it was
+ * produced in.
+ */
+export type TestFailure = {
+    readonly t: TestResult
+    readonly error: unknown
+}
+
+/**
+ * What a run accumulates as it walks: the {@link RunTotals} every runner folds,
+ * and the failures a reporter may want to describe once at the end rather than
+ * where they happened.
+ *
+ * The failures are a {@link List} rather than an array because the traversal
+ * threads this record through every leaf and joins it at every module boundary:
+ * appending to an array copies it, so a suite's *n*th failure would cost *n*
+ * again — the linear-join rule in
+ * `todo/share-browser-console-runner.md`'s catalog. `concat` is O(1) and keeps
+ * the order the leaves landed in, which is the order the report is asked to be
+ * in.
+ *
+ * `failures` holds exactly `totals.failed` entries: both are decided by the
+ * same `status` on the same event, in `addLeaf`.
+ */
+export type RunState = {
+    readonly totals: RunTotals
+    readonly failures: List<TestFailure>
+}
+
+/**
  * Receives semantic test-run events. Each method is the runner's notification
  * of an event; the reporter decides how to render it (terminal, GitHub
  * annotations, JSON, node `--test`, etc.).
@@ -188,8 +226,18 @@ export type Reporter<O extends Operation> = {
      * and the description needs the value.
      */
     readonly result: (t: TestResult, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void, IoChannel>
-    /** The run ended, with the totals folded from every leaf that landed. */
-    readonly summary: (totals: RunTotals) => Effect<O, void, IoChannel>
+    /**
+     * The run ended, with everything folded from the leaves that landed: the
+     * totals, and the failures in the order they happened.
+     *
+     * **The failures are passed, not remembered.** A reporter that wants to
+     * describe them together at the end — as `fjs t` does — could collect them
+     * itself as `result` is called, but only by keeping state between two calls
+     * it does not own, which a reporter has no way to scope to one run. The
+     * runner already threads a fold through the walk, so it carries these too
+     * and hands them over here.
+     */
+    readonly summary: (state: RunState) => Effect<O, void, IoChannel>
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>, IoChannel>
 }
 
