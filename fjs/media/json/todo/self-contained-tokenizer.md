@@ -437,16 +437,22 @@ guarantees.
 
 **Preserved, and proved:**
 
-1. **Every input that tokenizes without an error today tokenizes identically.**
-   Valid JSON is untouched, which is the property every consumer depends on.
-2. **No input moves between erroring and not erroring**, in either direction.
-   An input that errors today still errors; one that does not, still does not.
-   This is what stops the port quietly widening or narrowing the accepted
-   language.
+1. **Every input that tokenizes without an error today tokenizes identically**,
+   except `<digits> n <digits>`. Valid JSON is untouched, which is the property
+   every consumer depends on.
+2. **No input moves between erroring and not erroring**, in either direction,
+   except `<digits> n <digits>`, which starts erroring. An input that errors
+   today still errors; one that does not, still does not. This is what stops
+   the port quietly widening or narrowing the accepted language.
+
+Both exceptions are the same one, and it is the single deliberate change to the
+accepted language in this stage — `1n1` is `number(11)` today, with the `n`
+deleted and no error emitted. It is enumerated rather than open-ended: an input
+matching no other shape may not move.
 
 **Recorded, not promised:** within inputs that already error, the token stream
-may change. The exhaustive sweep is what makes that safe — not a rule, but a
-complete before/after record, reviewed as data.
+may change. The sweep is what makes that safe — not a rule, but a broad
+before/after record, reviewed as data.
 
 That is the honest shape of this change, and it is stronger than the invariants
 the earlier drafts claimed, because these two are true.
@@ -763,7 +769,10 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
 - [ ] Check the recorded diff against the two invariants, which is the whole
       point of recording it: no row where the old output has no error and the
       new one does (or vice versa), and no row where a valid JSON document
-      tokenizes differently.
+      tokenizes differently — **with the one enumerated exception**,
+      `<digits> n <digits>`, which the sweep reaches at `c = 'n'` and which
+      moves from not-erroring to erroring on purpose. A row matching no other
+      shape and crossing that line is a bug; that one is the fix.
 - [ ] Sweep **mixed boundaries** too, not only single characters: a case like
       `00"/1` is invisible to `00` + `c` + `1`, because the damage comes from
       what the re-dispatched character's *own* scanner then consumes. Generate
