@@ -100,7 +100,7 @@ Commands and Rust coding style: [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md).
 ## 5. Pull requests and releases
 
 A PR implements only one feature or improvement, with minimal code changes, and
-every check above passing. Its title and description become the squash commit
+every check above passing. Its title and description become the merge commit
 on `main`, so write them as one: a `<topic>: <short description>` title and a
 description. A PR that changes behavior or the public API adds
 `changelog/unreleased/<PR>.md`, named by the real PR number once the PR exists,

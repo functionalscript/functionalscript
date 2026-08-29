@@ -1,12 +1,16 @@
 ## Standard for commit messages merged into `main`
 
 **Priority:** P2
-**Status:** wip — the format is adopted, in
-[CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages): title, `Changelog:`
-section, squash-only. Release tagging was rejected, see below.
-`CONTRIBUTING.md` is the normative text from now on; the proposal below is kept for the reasoning
-behind it, and only the repository settings remain undone — they need a
-maintainer with admin rights and cannot land in a PR.
+**Status:** wip — the message format is adopted, in
+[CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages): title and `Changelog:`
+section. Release tagging was rejected, see below. **Squash-only was not**: the
+repository settings this proposal asks for were never applied, so pull requests
+land as merge commits titled `<PR title> (#NNN)` with the description as the
+body, and the branch's commits land with them. `CONTRIBUTING.md` describes that
+and is the normative text from now on; the proposal below is kept for the
+reasoning behind it, and reads as if squash-only were in force — the settings
+need a maintainer with admin rights and cannot land in a PR, so whether to
+pursue them or drop the requirement is still open.
 
 ### Problem
 
@@ -17,10 +21,12 @@ messages are standardized adds a commit the generator cannot parse. So the
 message format must be fixed **now**, ahead of the P4 investigation, or the
 option quietly expires.
 
-Today `main` receives squash commits whose *title* is already uniform — GitHub
-uses the PR title and appends ` (#NNN)` — but whose *body* is GitHub's default
-concatenation of the branch's intermediate commit messages: unreviewed noise
-("Drop stray blank line…", "Address review…") that no generator can use.
+When this was written `main` received commits whose *title* was already uniform
+— GitHub uses the PR title and appends ` (#NNN)` — but whose *body* was
+GitHub's default: unreviewed noise ("Drop stray blank line…", "Address
+review…") that no generator can use. (Today the body is the reviewed pull
+request description, on a merge commit rather than a squash; see the status
+above.)
 Releases are not tagged (`git tag` is empty), so release boundaries exist only
 as version-bump commit titles.
 
@@ -52,7 +58,7 @@ as version-bump commit titles.
 
 #### Title: the PR title, in the changelog-entry style
 
-The squash title is the PR title, so this is a PR-title standard, checkable
+The landed title is the PR title, so this is a PR-title standard, checkable
 before merge:
 
 ```
