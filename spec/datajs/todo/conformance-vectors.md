@@ -203,7 +203,7 @@ document can carry. So the corpus does not store values. It stores a
   | `{"host": "nonEnumerable", "on": <node>, "key": <string>, "value": <node>}` | the same, non-enumerable |
   | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an **enumerable** accessor property that **records its own invocation** and then returns `value` |
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | an **enumerable** own data property under a fresh unique symbol |
-  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"[, "inherited": <node>]}` | the same data under a `null` prototype, or as an `Array` subclass instance — `inherited` puts one **enumerable** member on the subclass's prototype |
+  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"[, "inherited": [<key>, <node>]]}` | the same data under a `null` prototype, or as an `Array` subclass instance — `inherited` puts one **enumerable** member, key and value, on the subclass's prototype |
   | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` names the property for `nonWritable` |
 
   **Every modifier's target must be an `obj` or `arr` node** — or a modifier
@@ -258,7 +258,12 @@ document can carry. So the corpus does not store values. It stores a
     enumerable properties into its result, which the spec forbids: the data is
     the object's **own** enumerable string-keyed properties. Putting one
     enumerable member on the subclass's prototype and asserting it is *absent*
-    from the output is what catches that. This is the only vector in the set
+    from the output is what catches that. The member carries its **key**, not
+    just a value, and **the key must not collide with an own key of the
+    target** — for an `arr` that rules out any index it holds, and `length`.
+    A colliding key is shadowed by the own property during `for...in`, so the
+    vector would pass against a serializer that copies inherited members: the
+    one it exists to fail. This is the only vector in the set
     whose assertion is about a member that must **not** appear.
 
     An earlier draft did this with an arbitrary **custom** prototype, and
@@ -331,7 +336,8 @@ needs nothing beyond an engine.
       modifiers, each modifier naming the node it applies to — with their
       application order, the rule that a modifier is a table entry and never
       inline, what a modifier node denotes, `builtin`'s and `proto`'s and
-      `attrs`'s closed value lists (`proto`'s optional `inherited` node), and
+      `attrs`'s closed value lists (`proto`'s optional `inherited` key/value
+      pair, whose key may not collide with an own key of the target), and
       `getter`'s **enumerable** accessor with its invocation record. It is the part two
       consumers can silently disagree about, so it lands first and gets its own
       round-trip proof — encode a graph, decode it, and assert the sharing
