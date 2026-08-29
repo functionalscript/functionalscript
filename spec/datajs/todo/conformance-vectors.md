@@ -471,8 +471,11 @@ The six parts:
   alone is passed by an implementation that treats every decimal-looking key
   as an index, which reorders the ordinary keys above and corrupts observable
   key order; one-line and readable spellings of
-  the same value; empty containers, deep nesting, and shared nodes reached by
-  several paths.
+  the same value; empty containers, deep nesting, shared nodes reached by
+  several paths, and — the other direction — **two structurally equal nodes
+  that are not shared**, `export default[[],[]];`, whose vector asserts the
+  reader yields two distinct nodes rather than one. A reader interning what it
+  builds fails that and passes every sharing vector.
 - **reject** — document text plus what is wrong with it. Cases: a missing or
   non-final `export default`, a missing `;` **after each of the two statements
   that take one**, `;;`, a **trailing comma in each container** — `[1,]` and
@@ -741,7 +744,10 @@ The six parts:
   which the accept set had been crossing with the sign all along — then the
   trailing comma and the missing `;`, each named once for two productions that
   have one apiece, and the normalized identifier roots, where naming the class
-  had again stood in for naming its members. The sweep for the lead-partition shape had
+  had again stood in for naming its members — then **sharing's own missing
+  direction**: every vector in that set began from a shared node, so all of it
+  caught a serializer that expands sharing and none of it a serializer that
+  hash-conses two equal nodes into one. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1003,6 +1009,27 @@ The six parts:
   other, gets both homogeneous cases right and inlines the mixed one — the same
   implementation that recurses forever on `obj→arr→obj`, here silently changing
   identity instead of hanging. Review found the set array-shaped throughout.
+
+  **And the same number of shapes in the opposite direction.** Every vector
+  above starts from a node that *is* shared, so the whole set catches only a
+  serializer that **expands** sharing. The inverse corruption is a serializer
+  that **hash-conses** — two distinct but structurally equal nodes collapsed
+  into one `const`, identity created where the input had none — and it passes
+  everything above, since none of those inputs has two equal nodes to merge.
+  So an input holding **two distinct structurally equal nodes**, with the
+  vector asserting the emitted document keeps them distinct: empty and
+  non-empty, array and object, four in all. Empty is not a duplicate of
+  non-empty here — canonicalizing an empty collection to one shared instance is
+  a real and narrow optimization, so an implementation can merge `[]` with `[]`
+  and leave `[1]` and `[1]` alone. Mixed kinds do not arise: an array and an
+  object are never structurally equal.
+
+  Review found this, and what it found is a *direction*, not a case — the same
+  shape as "ad-hoc accept sets fail in one direction only" above, which is why
+  the reject half of this corpus exists at all. Sharing had a reject half in
+  name — `[a,a]` against the document `export default [[],[]];` — but that
+  contrasts two *outputs* for one input, and never asked what happens when the
+  input is the one with two distinct nodes.
 - **normalize** — an input **graph**, in the meta-encoding, and the exact bytes
   normalized form must produce. Not an input *document*: a normalized
   serializer is a serializer role, so its input is a programmatic value, and an
