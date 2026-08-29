@@ -2,10 +2,12 @@
  * CI step builder for Bun: installs the pinned Bun version and runs this
  * repository's suite under it.
  *
- * This is the one canonical job still on a setup action rather than a generated
- * Nix flake. Nixpkgs does not package a Bun this repository's proofs pass on —
- * see `../todo/bun-nix-blocked-on-nixpkgs.md`, which owns the migration and
- * records what has to change first.
+ * This is the one canonical runtime job still on a setup action rather than a
+ * generated Nix flake. Nixpkgs does not package a Bun this repository's proofs
+ * pass on — see `../todo/bun-nix-blocked-on-nixpkgs.md`, which owns the
+ * migration and records what has to change first. `wasm` and `package-check`
+ * have no flake either, for reasons of their own that
+ * `../todo/65z-ci-nix.md` collects.
  *
  * @module
  *
