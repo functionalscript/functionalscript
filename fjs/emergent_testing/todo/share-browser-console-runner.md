@@ -483,6 +483,26 @@ and is reviewable without the next one.
       a proof of a scheduling property has to perform the thing being
       scheduled.
 
+      Then a third: **a tree has two dimensions, and flattening one is not
+      flattening the other.** With siblings folded, a leaf's returned children
+      were still walked *inside* that leaf's own continuation, so an ancestor's
+      frame stayed pending for its whole subtree — the exact shape just removed
+      along a list, rebuilt along a path. A leaf returning a 5,000-deep chain of
+      single children died with `RangeError` where the fan-out it replaced had
+      not, because `all`'s handler ran each child effect through a fresh
+      interpreter call and so reset the chain at every level. The fix is a
+      work-list: `effects`' new `walkStep` lets an item answer further items,
+      which go in front of the ones that remain, so a child is another item in
+      the same loop and depth costs what breadth costs. Worth knowing for 7b,
+      and generally: "does it fan out" and "does it recurse" are separate
+      questions, and the answer to one says nothing about the other. Two
+      measurements that are *not* this change's to fix came out of the same
+      run: a returned tree costs quadratic time in its own depth regardless of
+      the traversal — each level copies the path array — and both shapes take
+      the same 7 s at 5,000 levels, so a proof of the depth property costs
+      seconds inside `emergent_testing` and lives in `effects` instead, where
+      20,000 levels cost 34 ms (catalog item 9 on the proof's own cost).
+
       **7b. The page runs the shared traversal** through the step-5
       interpreter. `browser.mjs` stops discovering leaves, applying the throw
       expectation, walking return values and counting: it supplies a

@@ -6,7 +6,7 @@
  */
 
 import {
-    catchStep, do_, foldStep, forEachStep, history, historyStep, mapStep,
+    catchStep, do_, foldStep, forEachStep, history, historyStep, mapStep, walkStep,
     match, partialMatch, pure, pureError, pureOk, resultMapStep, resultStep,
     runPure, step, toIoError, unwrapStep,
 } from './module.f.mjs'
@@ -599,6 +599,45 @@ export const proof = {
             assertOk(
                 pureResult(foldStep(pureOk(items), 0, x => s => pureOk(s + x))),
                 199990000)
+        },
+    },
+    walkStep: {
+        // Answering no items is a plain fold, which is the relationship
+        // `foldStep` is built on.
+        addsNothing: () => {
+            assertOk(
+                pureResult(walkStep(pureOk([1, 2, 3]), 0, x => s => pureOk([s + x, null]))),
+                6)
+        },
+        // What an item produces runs before what remains: `2` answers `[20,
+        // 21]`, and those land between `2` and `3`.
+        producedItemsRunFirst: () => {
+            const e = walkStep(
+                pureOk([1, 2, 3]),
+                '',
+                x => s => pureOk([`${s}${x} `, x === 2 ? [20, 21] : null]))
+            assertOk(pureResult(e), '1 2 20 21 3 ')
+        },
+        // A **deep** walk completes: 20,000 items each producing one more, so
+        // the walk is a path rather than a list.
+        //
+        // This is the dimension a fold does not cover, and the one the
+        // traversal in `../emergent_testing` got wrong before `walkStep`
+        // existed. Written the obvious way — fold the items, and fold the
+        // children inside the item's own continuation — each ancestor's
+        // continuation stays pending while its subtree runs, so a runner walks
+        // one frame per ancestor and deep enough is `RangeError`. Here a child
+        // is another item in the same loop, so depth costs nothing that
+        // breadth does not.
+        //
+        // Each item performs `neg`, for the reason `aLongCommandFoldCompletes`
+        // gives: a command is what makes a continuation survive to be walked.
+        aDeepWalkCompletes: () => {
+            const e = walkStep(
+                pureOk([20000]),
+                0,
+                x => s => mapStep(neg(x), n => /** @type {const} */ ([s - n, x === 0 ? null : [x - 1]])))
+            assertOk(run(e), 200010000)
         },
     },
     forEachStep: {

@@ -85,7 +85,7 @@
  */
 
 import { assert } from '../asserts/module.f.mjs'
-import { next } from '../types/list/module.f.mjs'
+import { concat, next } from '../types/list/module.f.mjs'
 import { error, mapOk, ok } from '../types/result/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
 
@@ -629,15 +629,50 @@ export const historyStep = (e, f) => {
  * @param {(item: T) => (state: S) => Effect<Q, S, E>} f
  * @returns {Effect<O | Q, S, E>}
  */
-export const foldStep = (items, init, f) => step(items, list => _foldLoop(f)(list, init))
+export const foldStep = (items, init, f) =>
+    walkStep(items, init, item => state => mapStep(f(item)(state), s => [s, null]))
 
 /**
- * {@link foldStep}'s loop, closed over nothing: `f` is a leading parameter so
- * this function has a context-free identity (§3.3). That `f`-first currying is
- * the hoist rule's, and does not contradict the argument-order argument above
- * — which is about the *published* combinator, whose order is unchanged. This
- * one is not a sequencing construct anyone writes calls to; it is the loop
- * that construct runs.
+ * {@link foldStep} for a list the body can extend: `f` answers the next state
+ * *and* further items, which are walked **before** the ones that remain. That
+ * makes it a depth-first walk of a tree discovered as it is walked, and the
+ * loop below is what keeps such a walk flat.
+ *
+ * A tree walked by recursion — a fold whose body folds the children it found —
+ * is flat in neither dimension however the sibling loop is written, and the
+ * depth one is the harder half to see. Each ancestor's continuation stays
+ * pending while its subtree runs, so an interpreter resuming a leaf walks one
+ * {@link resultStep} frame per ancestor: the shape {@link _walkLoop} removes
+ * along a list, rebuilt along a path. Measured through `emergent_testing`'s
+ * traversal on node 22, a leaf returning a 5,000-deep chain of single children
+ * died with `RangeError: Maximum call stack size exceeded`; walked here, it
+ * does not, because a child is another item in this loop rather than a nested
+ * one.
+ *
+ * The order is the one a reader of a running program expects: an item, then
+ * everything it produced, then the item after it. Answering `null` for the
+ * items is a plain fold, which is why {@link foldStep} is this with that
+ * argument fixed rather than a loop of its own.
+ *
+ * @template {Operation} O
+ * @template T
+ * @template {Operation} Q
+ * @template S
+ * @template E
+ * @param {Effect<O, List<T>, E>} items
+ * @param {S} init
+ * @param {(item: T) => (state: S) => Effect<Q, readonly[S, List<T>], E>} f
+ * @returns {Effect<O | Q, S, E>}
+ */
+export const walkStep = (items, init, f) => step(items, list => _walkLoop(f)(list, init))
+
+/**
+ * {@link walkStep}'s loop — and so {@link foldStep}'s — closed over nothing:
+ * `f` is a leading parameter so this function has a context-free identity
+ * (§3.3). That `f`-first currying is the hoist rule's, and does not contradict
+ * the argument-order argument above — which is about the *published*
+ * combinator, whose order is unchanged. This one is not a sequencing construct
+ * anyone writes calls to; it is the loop that construct runs.
  *
  * **Neither nesting shape is flat on its own, so this is both.**
  *
@@ -667,11 +702,15 @@ export const foldStep = (items, init, f) => step(items, list => _foldLoop(f)(lis
  * representation at three, and a fourth is a review flag by the rule at the
  * top of the file.
  *
+ * Items an item produced are put in front of the ones that remain, so the
+ * pending list is the walk's own stack and neither dimension of a tree costs
+ * depth here. {@link concat} makes that prepend cheap; nothing is copied.
+ *
  * @type {<T, Q extends Operation, S, E>(
- *     f: (item: T) => (state: S) => Effect<Q, S, E>
+ *     f: (item: T) => (state: S) => Effect<Q, readonly[S, List<T>], E>
  * ) => (l: List<T>, acc: S) => Effect<Q, S, E>}
  */
-const _foldLoop = f => (l, acc) => {
+const _walkLoop = f => (l, acc) => {
     let rest = l
     let state = acc
     while (true) {
@@ -681,13 +720,14 @@ const _foldLoop = f => (l, acc) => {
         const answered = runPure(e)
         if (answered.length === 0) {
             const tail = r.tail
-            return step(e, s => _foldLoop(f)(tail, s))
+            return step(e, ([s, more]) => _walkLoop(f)(concat(more)(tail), s))
         }
         const answer = answered[0]
         const [tag, value] = answer
         if (tag === 'error') { return pure(answer) }
-        state = value
-        rest = r.tail
+        const [s, more] = value
+        state = s
+        rest = concat(more)(r.tail)
     }
 }
 

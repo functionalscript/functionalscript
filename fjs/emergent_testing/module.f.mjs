@@ -26,6 +26,7 @@ import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, catch_, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import {
     catchStep, foldStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step,
+    walkStep,
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
@@ -192,8 +193,12 @@ const mergeTotals = (a, b) =>
  * @returns {(k: string, v: unknown) => (ts: RunTotals) => Effect<O | Catch, RunTotals, IoChannel>}
  */
 const runModule = ({ result, test }) => (k, v) => ts => {
-    /** @type {(entry: _TestAndPath) => Effect<O | Catch, RunTotals, IoChannel>} */
-    const one = ([testPath, set]) => {
+    /**
+     * @type {(entry: _TestAndPath) =>
+     *     (acc: RunTotals) =>
+     *         Effect<O | Catch, readonly[RunTotals, readonly _TestAndPath[]], IoChannel>}
+     */
+    const one = ([testPath, set]) => acc => {
         // The leaf's shared record is built here, next to the sandbox result it
         // is read from, so the leaf-landed event carries the value already
         // decided — a reporter renders `t`, it does not derive its own.
@@ -235,17 +240,16 @@ const runModule = ({ result, test }) => (k, v) => ts => {
         const reported = historyStep(
             history(evaluated),
             ([t, sr]) => result(t, sr, set.throws))
-        return step(
+        // The leaf's children are *answered*, not walked here: `walkEntries`
+        // puts them in front of the siblings that remain, which is the same
+        // order — the tree a leaf returned, then the next leaf — without a
+        // nested walk. Recursing instead left one continuation pending per
+        // ancestor, so a leaf returning a deep enough chain of children died
+        // with `RangeError` where the fan-out this replaced had not; see
+        // `../effects/module.f.mjs`'s `walkStep`.
+        return mapStep(
             reported,
-            ([, [t, sr, children]]) => {
-                const total = addResult(zeroTotals, t)
-                if (children.length === 0) {
-                    return pureOk(total)
-                }
-                return mapStep(
-                    walkEntries(children),
-                    sub => mergeTotals(total, sub))
-            })
+            ([, [t, , children]]) => /** @type {const} */ ([addResult(acc, t), children]))
     }
     /**
      * Siblings in order, one whole chain at a time.
@@ -266,17 +270,19 @@ const runModule = ({ result, test }) => (k, v) => ts => {
      * by anything: a proof runner has no deadline, and the wall clock a
      * fan-out saves is not a goal here.
      *
-     * `foldStep` and not a hand-rolled recursion because it is this layer's
-     * `for` loop, and the accumulator is `RunTotals` — merged per leaf, so the
-     * join stays a constant-size record rather than a growing list.
+     * `walkStep` and not a hand-rolled recursion because it is this layer's
+     * `for` loop, and the accumulator is `RunTotals` — added to per leaf, so
+     * the join stays a constant-size record rather than a growing list. It is
+     * `walkStep` rather than `foldStep` because a leaf's children are items of
+     * *this* loop: `one` answers them and they go in front of the siblings
+     * that remain. Folding and recursing into the children instead kept one
+     * continuation pending per ancestor, which is flat along the siblings and
+     * not along the path — a leaf returning a 5,000-deep chain of children
+     * died with `RangeError` where the fan-out this replaced had not.
      *
      * @type {(entries: readonly _TestAndPath[]) => Effect<O | Catch, RunTotals, IoChannel>}
      */
-    const walkEntries = entries =>
-        foldStep(
-            pureOk(entries),
-            zeroTotals,
-            entry => acc => mapStep(one(entry), delta => mergeTotals(acc, delta)))
+    const walkEntries = entries => walkStep(pureOk(entries), zeroTotals, one)
     // The *module's* own export is read unguarded, and that asymmetry is
     // deliberate rather than an oversight: there is no leaf to attribute it to,
     // so an unreadable `proof` export is whatever loaded the module's problem.
