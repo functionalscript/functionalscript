@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** open
 
-Three CI modules construct a GitHub Actions "setup" step with the identical
+Four CI modules construct a GitHub Actions "setup" step with the identical
 shape `install({ uses: '<action>', with: { '<x>-version': <pinnedVersion> } })`,
 differing only in the action string and the version key/value:
 
@@ -12,15 +12,19 @@ differing only in the action string and the version key/value:
 const installNode = (version: string) =>
     ({ uses: 'actions/setup-node@v7', with: { 'node-version': version } })
 
+// ci/bun/module.f.mjs
+install(uses('oven-sh/setup-bun', { 'bun-version': bun }))
+
 // ci/rust/module.f.mjs
 install({ uses: 'bytecodealliance/actions/wasmtime/setup@v1', with: { version: wasmtime } })
 install({ uses: 'wasmerio/setup-wasmer@v3.1', with: { version: `v${wasmer}` } })
 ```
 
-It used to be five. Deno's and Bun's setup steps went when those jobs moved to Nix:
-their runtime comes from a generated flake now, and the only action either installs is
-`cachix/install-nix-action`, which takes no version input. `installNode` survives
-because the platform matrix and `package-check` still use it.
+It used to be five. Deno's went when that job moved to Nix: its runtime comes from a
+generated flake now, and the only action it installs is `cachix/install-nix-action`,
+which takes no version input. `installNode` survives because the platform matrix and
+`package-check` still use it, and `setup-bun` because that job's migration is blocked
+([bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md)).
 
 ### Proposed abstraction
 
@@ -35,14 +39,15 @@ export const setupTool =
 ```
 
 - `installNode  = setupTool('actions/setup-node@v7', 'node-version')`
+- `installBun   = setupTool('oven-sh/setup-bun@v2', 'bun-version')`
 - wasmtime / wasmer = `setupTool('bytecodealliance/actions/wasmtime/setup@v1', 'version')`
   and `setupTool('wasmerio/setup-wasmer@v3.1', 'version')` (wasmer keeps its
   `v${...}` formatting at the call site).
 
 ### Why this qualifies
 
-- Three real call sites today, all shipping — down from five, but still past the
-  "second real consumer" bar.
+- Four real call sites today, all shipping — down from five, but still well past
+  the "second real consumer" bar.
 - It is the textbook `AGENTS.md` case: identical shape, only data (action
   descriptor, version key/value) varies.
 - It was **complementary to, not a duplicate of, [i170](./170-ci-tool-step-builder.md)**:
@@ -52,18 +57,18 @@ export const setupTool =
 
 ### Caveats / why this is an idea, not a mechanical edit
 
-- **`version` vs `<tool>-version` keys.** Node uses a tool-prefixed key;
+- **`version` vs `<tool>-version` keys.** Node and Bun use a tool-prefixed key;
   wasmtime/wasmer use a bare `version`. The `versionKey` parameter covers both,
   so this is not a blocker — just confirm the two families share the factory
   cleanly rather than forcing a prefixed convention.
 - **The remaining call sites may not stay.** `installNode`'s two consumers are the
   platform matrix and `package-check`, and
-  [built-package-checks](built-package-checks.md) proposes reworking the first. If a
-  future issue moves the Rust tools to a flake as the runtimes went, this factory
-  runs out of call sites the way `toolSteps` did — check the count before building
-  it.
+  [built-package-checks](built-package-checks.md) proposes reworking the first;
+  `setup-bun` goes as soon as Nixpkgs packages a usable Bun. If a future issue moves
+  the Rust tools to a flake as the runtimes went, this factory runs out of call sites
+  the way `toolSteps` did — check the count before building it.
 - Mechanical savings are small (one line per tool); the value is making "install
-  a pinned tool" one named recipe so a fourth tool reuses it.
+  a pinned tool" one named recipe so a fifth tool reuses it.
 
 ### Related
 

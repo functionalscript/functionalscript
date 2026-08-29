@@ -5,21 +5,26 @@
 
 ### Problem
 
-Eight CI jobs install `functionalscript` and run it. Every one of them installs
+Seven CI jobs install `functionalscript` and run it. Every one of them installs
 it **from the registry**, at a version that is not the commit under review:
 
 | job | steps |
 |-----|-------|
 | the six platform jobs, through `nodeMainSteps` → `platformNodeSteps` (`../node/module.f.mjs`) | `npm install -g functionalscript@<version>`, `fjs test` |
 | `deno` (`../deno/module.f.mjs`) | `deno install -g -A --minimum-dependency-age=0 npm:functionalscript@<version>`, `deno run -A --minimum-dependency-age=0 npm:functionalscript@<version> test` |
-| `bun` (`../bun/module.f.mjs`) | `bun install -g functionalscript@<version>`, `bunx functionalscript@<version> test` |
 
-Deno's and Bun's four run inside `nix develop` now, and their global installs are
-`test`-typed steps rather than `install`-typed ones, because the flake they enter
-arrives with the checkout. Neither fact changes what those steps check: still the
-registry, still a version that is not this commit.
+`bun` was an eighth. It lost `bun install -g functionalscript@<version>` and the
+`bunx functionalscript@<version> test` it fed, for the reason this issue gives: they
+subjected a shipped release rather than the commit under review. That job now runs
+`bun install --frozen-lockfile` and `bun test --coverage` and nothing else, so the
+package check it used to carry is one this issue still owes, from the tarball.
 
-`node22` was a ninth until it lost `fjs test` and the install feeding it. Those
+Deno's two run inside `nix develop` now, and its global install is a `test`-typed step
+rather than an `install`-typed one, because the flake it enters arrives with the
+checkout. Neither fact changes what those steps check: still the registry, still a
+version that is not this commit.
+
+`node22` was another until it lost `fjs test` and the install feeding it. Those
 were there because Node 22 could not run `node --test`, not to check a package,
 and the job runs the suite directly now.
 
@@ -89,10 +94,12 @@ installed CLI. Same module, same artifact, different runner requirements.
   check plus `npm ci`. Subtract it and those jobs are Rust-only where Rust is
   present; say what their Node half becomes, including whether `npm ci` still
   has a purpose there.
-- **Whether Deno and Bun move too.** Their smoke steps sit beside
-  `deno task cov` and `bun test --coverage`, which do test the working tree.
-  Moving only the smoke halves leaves those jobs coherent — "this repository
-  under Deno/Bun" — at the cost of more package jobs.
+- **Whether Deno moves too.** Its smoke steps sit beside `deno task cov`, which
+  does test the working tree. Moving only the smoke halves leaves that job
+  coherent — "this repository under Deno" — at the cost of more package jobs.
+  `bun` has already been left in exactly that shape, so it is the worked example
+  rather than a hypothetical: the job reads coherently, and what it used to check
+  is now owed here.
 - **How each runtime installs a tarball globally.** `npm install -g ./x.tgz`,
   `bun install -g ./x.tgz` and Deno's equivalent need checking against the
   pinned versions rather than assumed; Deno in particular installs from
@@ -106,15 +113,15 @@ installed CLI. Same module, same artifact, different runner requirements.
 - [ ] Confirm the global-install spelling for a local tarball on each runtime
 - [ ] Generate the checks from `fjs/ci/package`, consuming `packageArtifact`
       with `needs: [packageJobId]`
-- [ ] Remove the registry installs from `platformNodeSteps`, `denoSteps` and
-      `bunSteps`
+- [ ] Remove the registry installs from `platformNodeSteps` and `denoSteps`
+      (`bunSteps` no longer has one)
 - [ ] Delete `functionalscript` from `../config/module.f.mjs` once nothing reads
       it, and drop Deno's `--minimum-dependency-age=0` with its reason
 - [ ] Consider dropping `NixJob.shellHook`: no job declares one since Node 22's
-      global install left, and the two global installs that arrived with the
-      Deno and Bun migration need none — both write under the home directory
-      rather than into the read-only store, which is what Node 22's hook was
-      working around. Only `fjs/ci/nix/proof.f.mjs` holds the capability
+      global install left, and the one that arrived with the Deno migration needs
+      none — Deno installs under the home directory rather than into the
+      read-only store, which is what Node 22's hook was working around. Only
+      `fjs/ci/nix/proof.f.mjs` holds the capability
 - [ ] Update `../proof.f.mjs`: the job count, the per-job assertions, and
       `jobNeeds`'s ordering count
 

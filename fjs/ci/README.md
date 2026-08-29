@@ -2,8 +2,8 @@
 
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflow for this repository. Running the generator writes `.github/workflows/ci.yml`
-with the latest matrix of jobs and steps, plus one Nix development environment per
-canonical runtime job under `nix/`.
+with the latest matrix of jobs and steps, plus one Nix development environment under
+`nix/` per canonical job that has one — every one but `bun`.
 
 ## `fjs ci` is not stable
 
@@ -48,8 +48,10 @@ for, and whether that answer should change, is
 - `rust/module.f.mjs` — Rust toolchain setup and `cargo` build/test steps.
 - `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
   `proof.f.mjs` — its property-based proofs.
-- `bun/module.f.mjs` — the `bun` job's steps and its flake declaration.
-  `proof.f.mjs` — its property-based proofs.
+- `bun/module.f.mjs` — the `bun` job's steps. The one canonical job still on a
+  setup action, because Nixpkgs packages no Bun this repository's proofs pass
+  on; [`todo/bun-nix-blocked-on-nixpkgs.md`](./todo/bun-nix-blocked-on-nixpkgs.md)
+  owns that. `proof.f.mjs` — its property-based proofs.
 
 ## Usage
 
@@ -67,21 +69,22 @@ plain text built from the pinned commit in `config/module.f.mjs`.
 
 ### Generated Nix environments
 
-Each canonical job declares a system and its Nixpkgs package attributes beside the
-steps that enter them — `nodeNixJobs` in `node/module.f.mjs`, `denoNixJob` and
-`bunNixJob` in their own modules — and `module.f.mjs` composes them into `nixJobs`,
-the one place the whole set is visible. `nix/module.f.mjs` writes each out as one
+Each canonical job with a flake declares a system and its Nixpkgs package attributes
+beside the steps that enter them — `nodeNixJobs` in `node/module.f.mjs`, `denoNixJob`
+in its own module — and `module.f.mjs` composes them into `nixJobs`, the one place the
+whole set is visible. `bun` declares none, and is the only canonical job that does
+not. `nix/module.f.mjs` writes each out as one
 static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
 job-local `shellHook`, run on every entry to the shell; none does today. See
 [nix/README.md](../../nix/README.md) for how the generated files are meant to be
 consumed.
 
-`config/module.f.mjs` records the Node, Deno and Bun versions the pinned Nixpkgs
-snapshot provides — not each vendor's latest release, which the snapshot usually
-trails. They feed the flakes' package attributes where the attribute is versioned,
-as well as the `setup-node` steps left in the platform matrix and `package-check`.
-Bumping any of them therefore means moving the Nixpkgs commit first and copying the
-versions it offers.
+`config/module.f.mjs` records the Node and Deno versions the pinned Nixpkgs snapshot
+provides — not each vendor's latest release, which the snapshot usually trails. They
+feed the flakes' package attributes where the attribute is versioned, as well as the
+`setup-node` steps left in the platform matrix and `package-check`. Bumping either
+therefore means moving the Nixpkgs commit first and copying the versions it offers.
+`bun` is not one of these: `setup-bun` installs it, so that pin is a released Bun.
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical job asserts, as its first command, that its own shell reports the version
@@ -89,21 +92,20 @@ canonical job asserts, as its first command, that its own shell reports the vers
 
 ```sh
 test "$(nix develop --no-write-lock-file ./nix/node26 --command node --version)" = v26.7.0
-test "$(nix develop --no-write-lock-file ./nix/bun --command bun --version)" = 1.3.13
 test "$(nix develop --no-write-lock-file ./nix/deno --command deno eval 'console.log(Deno.version.deno)')" = 2.8.3
 ```
 
 The runtimes disagree on both halves, which is why the check takes the command and
-the expected string separately: `node --version` prints a leading `v` that
-`bun --version` does not, and `deno --version` prints three lines — the runtime, V8
-and TypeScript — so Deno is asked for the one field this repository configures.
+the expected string separately: `node --version` prints a leading `v` the configured
+version does not carry, and `deno --version` prints three lines — the runtime, V8 and
+TypeScript — so Deno is asked for the one field this repository configures.
 
 That check is the *only* place the expectation is written: the generated flakes stay
 purely declarative, since a flake pinning an exact Nixpkgs commit already determines
 its package versions and an `assert` inside it would only restate that pin. For Deno
-and Bun it is also the only tie there is — `pkgs.deno` and `pkgs.bun` name no
-version, so unlike `pkgs.nodejs_26` their attribute cannot be checked against the
-configuration without evaluating them.
+it is also the only tie there is — `pkgs.deno` names no version, so unlike
+`pkgs.nodejs_26` the attribute cannot be checked against the configuration without
+evaluating it.
 
 What can be established about a generated flake without Nix is asserted by two proofs.
 `proof.f.mjs` reads the file the pipeline wrote and requires it to equal the generator's
@@ -116,9 +118,10 @@ evaluated for real, by the job that uses it.
 ### Expected package scripts
 
 The generated platform jobs run `npm ci`, install the pinned FunctionalScript
-package globally, and run `fjs test`; the `deno` and `bun` jobs run their own
-equivalents. Those eight are where the published CLI is exercised — no canonical
-Node job does. Every canonical job runs on Ubuntu ARM, through its own flake:
+package globally, and run `fjs test`; the `deno` job runs its own equivalent. Those
+seven are where the published CLI is exercised — no canonical Node job does, and
+`bun` stopped. Every canonical job runs on Ubuntu ARM, all but `bun` through a
+flake:
 
 - Node 22 runs `npm ci` and `node --test` through its generated flake.
 - Node 24 runs the same pair through its own flake — one builder emits both
@@ -129,13 +132,16 @@ Node job does. Every canonical job runs on Ubuntu ARM, through its own flake:
   it needs something the flake pins.
 - `deno` installs the pinned package, runs the smoke test, then `deno install
   --frozen` and `deno task cov`.
-- `bun` installs the pinned package, then `bun install --frozen-lockfile`, the
-  `bunx` smoke test and `bun test --coverage`.
+- `bun` runs `bun install --frozen-lockfile` and `bun test --coverage`, on a
+  `setup-bun` runtime. It installs no published package: that check subjects a
+  release rather than this commit, and
+  [`todo/built-package-checks.md`](./todo/built-package-checks.md) owns moving it
+  to the package job family.
 
-Deno's and Bun's global installs enter the flake like every other command, so
-neither is an `install`-typed step any more: those run before `actions/checkout`,
-and there is no flake on disk to enter until the repository is. Both only warm a
-cache for the command after them, which names the same version itself.
+Deno's global install enters the flake like every other command, so it is no longer
+an `install`-typed step: those run before `actions/checkout`, and there is no flake
+on disk to enter until the repository is. It only warms a cache for the `deno run`
+after it, which names the same version itself.
 
 The commands that must be provided by `package.json` for generated CI are `cov`
 and `ci-update`. A typical FunctionalScript project can define them like this:

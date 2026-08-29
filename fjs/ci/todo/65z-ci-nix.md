@@ -5,27 +5,35 @@
 
 ### Progress
 
-Flake generation is implemented and **every canonical job is migrated** — the three Node
-jobs, then `deno` and `bun`. Each installs Nix through the pinned action and runs its
+Flake generation is implemented and **every canonical job but `bun` is migrated** — the
+three Node jobs, then `deno`. Each installs Nix through the pinned action and runs its
 command sequence one `nix develop` step per command. Nix runs in CI only where a job uses
 a flake — the temporary `nix-flakes` job that instantiated them to check them is gone,
 and every generated flake is now evaluated by the job that uses it. What needs no Nix is
 established by proofs over the generator's output. See the progress note in
 [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
 
-The two follow-ups this issue named are done. `setup-deno` and `setup-bun` are gone with
-them, and `fjs/ci/config/module.f.mjs` no longer records those action versions; its `deno`
-and `bun` pins now name what the snapshot provides — 2.8.3 and 1.3.13 — rather than each
-vendor's latest release, exactly as the Node pins do. `nixJobs` in `fjs/ci/module.f.mjs`
-composes the flakes of all three families rather than aliasing the Node list.
+`setup-deno` is gone with the Deno migration, and `fjs/ci/config/module.f.mjs` no longer
+records that action version; its `deno` pin now names what the snapshot provides — 2.8.3
+— rather than deno.com's latest, exactly as the Node pins do. `nixJobs` in
+`fjs/ci/module.f.mjs` composes the flakes of two families rather than aliasing the Node
+list.
 
-Deno and Bun brought one thing the Node jobs did not: their package attributes,
-`pkgs.deno` and `pkgs.bun`, carry no version, so the proof that ties `nodejs_24` to the
-configured Node has no counterpart for them. Their CI version check is the whole tie,
-which is also why it is worth more there than it is for Node.
+Deno brought one thing the Node jobs did not: `pkgs.deno` carries no version, so the
+proof that ties `nodejs_24` to the configured Node has no counterpart for it. Its CI
+version check is the whole tie, which is why that check is worth more there than it is
+for Node.
 
-What remains here is the Nixpkgs update command; the other open item, removing stale
-generated job directories, waits on a recursive `rm` effect.
+**Bun was attempted and reverted.** Nixpkgs ships Bun 1.3.13 — on the pinned commit and
+on `master` — and two of this repository's proofs fail on it while passing on the 1.4.0
+`setup-bun` installs. One is a real difference in when `Symbol.species` is read, not a
+slow machine, so no timeout or configuration change reaches it, and weakening a proof to
+move a job to Nix is not a trade worth making.
+[bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md) owns that job and records
+what has to change first.
+
+What remains here is the Nixpkgs update command; the other open items are `bun` and
+removing stale generated job directories, which waits on a recursive `rm` effect.
 
 ### Problem
 
@@ -89,12 +97,13 @@ node22: aarch64-linux, nodejs_22
 node24: aarch64-linux, nodejs_24
 node26: aarch64-linux, nodejs_26
 deno:   aarch64-linux, deno
-bun:    aarch64-linux, bun
 ```
 
-The Node attributes name a major version; Deno's and Bun's name nothing. Where the
-attribute is unversioned the configured version is a claim the flake cannot restate, so
-only the job's own check can hold it.
+`bun` would be `aarch64-linux, bun`, and is not declared while its migration is blocked.
+
+The Node attributes name a major version; Deno's names nothing. Where the attribute is
+unversioned the configured version is a claim the flake cannot restate, so only the job's
+own check can hold it.
 
 A job may also declare tools required by its own work. Keep those additions job-local;
 this TODO does not prescribe which non-Node tools a job needs.
@@ -108,7 +117,6 @@ nix/node22/flake.nix
 nix/node24/flake.nix
 nix/node26/flake.nix
 nix/deno/flake.nix
-nix/bun/flake.nix
 ```
 
 Each generated file should:
@@ -143,7 +151,7 @@ The generator substitutes the job's packages. If another system is later require
 another explicit `devShells.<system>.default` attribute rather than adding a loop or
 system-selection framework.
 
-Node 22, Node 24, Node 26, `deno` and `bun` remain separate because they use different
+Node 22, Node 24, Node 26 and `deno` remain separate because they use different
 runtimes and run different command sequences.
 
 No job declares a `shellHook`. The generator still emits one — a job needing environment
@@ -163,7 +171,7 @@ npm run ci-nix-update
 At a high level it:
 
 1. reads the latest commit from the configured official stable Nixpkgs reference;
-2. verifies that `nodejs_22`, `nodejs_24`, `nodejs_26`, `deno` and `bun` exist;
+2. verifies that `nodejs_22`, `nodejs_24`, `nodejs_26` and `deno` exist;
 3. reads the package versions needed by the currently declared Nix jobs — for the
    unversioned attributes this is the only way to learn them, and today all five were
    read from the snapshot's package files by hand;
@@ -244,7 +252,8 @@ and the job that runs on it is where that claim is worth checking.
 
 Add other jobs only when useful:
 
-- Deno and Bun are done — they were the straightforward follow-ups this list named;
+- Deno is done; Bun is blocked on Nixpkgs, tracked separately in
+  [bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md);
 - Rust should have its own experiment and TODO for concrete toolchain/target packages;
 - real browser execution is tracked by
   [browser-testing](../../emergent_testing/todo/browser-testing.md); the Node-only
@@ -264,8 +273,9 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Add the Node job system and package declarations above.
 - [ ] Add the explicit Nixpkgs update command.
 - [x] Verify all required package attributes exist in the candidate snapshot —
-      `nodejs_{22,24,26}`, `deno` and `bun`, the last two confirmed to carry
-      `aarch64-linux` in `meta.platforms`.
+      `nodejs_{22,24,26}` and `deno`, the last confirmed to carry `aarch64-linux`
+      in `meta.platforms`. `bun` exists and carries it too, but the version it
+      provides fails this repository's suite.
 - [x] Generate one readable self-contained flake per job with
       `devShells.aarch64-linux.default`.
 - [ ] Remove stale generated job directories.
@@ -277,8 +287,8 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
       `nix develop --command` step per command.
 - [x] Validate each Node job independently with its existing commands and order.
 - [x] Keep tracked checkout state unchanged.
-- [x] Migrate jobs one at a time — Node 24, then Node 26, then Node 22, then `deno`
-      and `bun`.
+- [x] Migrate jobs one at a time — Node 24, then Node 26, then Node 22, then `deno`.
+- [ ] Migrate `bun`, once Nixpkgs provides a Bun this repository's proofs pass on.
 - [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
 
 ### Related

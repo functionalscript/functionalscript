@@ -7,26 +7,29 @@
 
 The abstraction was justified by its own count: "Three real consumers (bun, deno,
 node), all shipping — past the 'second real consumer' bar." Two of those three are
-gone. `deno` and `bun` moved to generated Nix flakes, so neither begins with a setup
-action any more — both start with `cachix/install-nix-action` and a version check, and
-every command after that is a `nix develop --command` step. `bunSteps` and `denoSteps`
-still exist and still take a version, but the skeleton this issue extracted —
-`[install(setup action), install(global fjs), …test commands]` — describes neither.
+gone, for different reasons. `deno` moved to a generated Nix flake, so it begins with
+`cachix/install-nix-action` and a version check and every command after that is a
+`nix develop --command` step. `bun` kept its setup action — its migration is blocked,
+see [bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md) — but lost the global
+install and the smoke test it fed, so what is left is two commands about this
+repository. The skeleton this issue extracted,
+`[install(setup action), install(global fjs), …test commands]`, describes neither.
 
-What the two do share now is factored where they share it: `nixInstall`, `nixSteps`
+What the migrated jobs share is factored where they share it: `nixInstall`, `nixSteps`
 and `nixVersionStep` in [`fjs/ci/nix/module.f.mjs`](../nix/module.f.mjs), used by all
-five canonical jobs. That is the same idea — data-parameterized step construction —
-arrived at from the runtimes the migration actually left in common, rather than from
-the setup actions it removed.
+four. That is the same idea — data-parameterized step construction — arrived at from
+what the migration actually left in common, rather than from the setup actions it
+removed.
 
 `platformNodeSteps` still has the original shape, and is the last thing that does. One
 consumer is below this issue's own bar, and
 [built-package-checks](built-package-checks.md) proposes reworking it anyway. Reopen
-this only if a runtime lands that reintroduces the pattern.
+this only if a runtime lands that reintroduces the pattern — including `bun`, if its
+migration ever restores a global install, which it should not.
 
 The sibling factory [i175](./175-ci-setup-tool-factory.md) is unaffected and stays
-open: `setupTool` constructs a pinned-version install step, and three call sites for
-that remain.
+open: `setupTool` constructs a pinned-version install step, and four call sites for
+that remain — `setup-node`, `setup-bun`, wasmtime and wasmer.
 
 ### Original report
 

@@ -14,11 +14,11 @@ follows a hop to arrive where they started:
   that name by `fjs/ci/module.f.mjs:28` while `platformNodeSteps` is exported
   too, so the same function is public twice.
 
-`nixJobs` was a third and is not one any more: `deno` and `bun` own flakes now, so
-`fjs/ci/module.f.mjs` composes `[...nodeNixJobs, denoNixJob, bunNixJob]` and its
-comment — "every generated flake, across all job families that own one" — describes
-what it holds. The spidermonkey runner was expected to be the first second family;
-the runtime migration got there first.
+`nixJobs` was a third and is not one any more: `deno` owns a flake now, so
+`fjs/ci/module.f.mjs` composes `[...nodeNixJobs, denoNixJob]` and its comment —
+"every generated flake, across all job families that own one" — describes what it
+holds. The spidermonkey runner was expected to be the first second family; the Deno
+migration got there first.
 
 `basicNode` (`fjs/ci/node/module.f.mjs:44`) is exported but reached only by its
 own proof.

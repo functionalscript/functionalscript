@@ -18,9 +18,8 @@ The pinned commit determines the package versions: `pkgs.nodejs_24` at that
 revision is one exact Node release, and the same number is recorded in
 `fjs/ci/config`. The flakes do not restate it — the job checks it from inside
 the shell instead (below), which also catches a shell that builds but provides
-the wrong binary. `pkgs.deno` and `pkgs.bun` name no version at all, so for
-those two jobs the check is the only thing tying the recorded version to what
-the shell provides.
+the wrong binary. `pkgs.deno` names no version at all, so for that job the check
+is the only thing tying the recorded version to what the shell provides.
 
 The files stay static and readable on purpose — no job selection, no
 `flake-utils`, no shared Nix modules. A job that later needs a second system
@@ -32,17 +31,22 @@ beside it. CI passes `--no-write-lock-file` to every `nix develop`, which is why
 its runs leave the checkout untouched; the root `.gitignore` still ignores those
 files, for a hand-run `nix develop` that omits the flag.
 
-Every canonical job runs through its flake — the three Node jobs, `deno` and
-`bun`. Each installs Nix, checks the runtime its shell provides, and then runs
+Every canonical job with a flake runs through it — the three Node jobs and
+`deno`. Each installs Nix, checks the runtime its shell provides, and then runs
 its commands one `nix develop` step each, because a CI step runs one command. No
 separate job makes that check — a flake is checked by the job that uses it, and
 every generated flake has one.
 
+`bun` is the exception, and the only canonical job with no flake: Nixpkgs
+packages no Bun this repository's proofs pass on, so that job still installs its
+runtime with `oven-sh/setup-bun`. `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md`
+records what has to change first.
+
 The check's shape follows the runtime rather than a convention: `node --version`
-and `bun --version` print one line, differing only in Node's leading `v`, while
-`deno --version` prints three — the runtime, V8 and TypeScript — so Deno is
-asked for `Deno.version.deno` instead of having two versions nobody configured
-pinned by accident.
+prints a leading `v` the configured version does not carry, while
+`deno --version` prints three lines — the runtime, V8 and TypeScript — so Deno
+is asked for `Deno.version.deno` instead of pinning two versions nobody
+configured.
 
 Node 26's drift check is a plain step, not a `nix develop` one: `git` is the
 runner's tool, and a step names the flake only when it needs something the flake
