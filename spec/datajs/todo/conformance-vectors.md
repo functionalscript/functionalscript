@@ -625,16 +625,45 @@ The six parts:
   that are not shared**, `export default [[],[]]`, whose vector asserts the
   reader yields two distinct nodes rather than one. A reader interning what it
   builds fails that and passes every sharing vector.
-- **reject** — document text plus what is wrong with it. Cases: a missing or
-  non-final `export default`, a missing `;` **after each of the two statements
-  that take one**, `;;`, a **trailing comma in each container** — `[1,]` and
+
+  Two boundaries the productions above do not reach, because they are about
+  where a document *stops*. **`export default 1`** — a whole document with no
+  `;` anywhere in it, which no other accept vector is, since every other one
+  carries a `const`. And the **document's own edges**: leading and trailing
+  whitespace are insignificant like any other, so `export default 1`,
+  `export default 1\n`, `export default 1\r\n`, `export default 1  ` and
+  `\n export default 1 ` are one document. A file ending the way an editor ends
+  files must not be a reject, and normalized form emitting no trailing newline
+  is a fact about those bytes that the `normalize` role pins, not a rule about
+  what a reader takes.
+
+  And a whole-set check rather than a vector: **every accept document imports
+  as an ES module in a real engine**, yielding the graph the vector asserts.
+  That check is load-bearing here in a way it was not before — without the
+  final `;`, DataJS ⊂ JavaScript rests on ASI's end-of-input rule, which is a
+  claim about JavaScript and not about DataJS, and only an engine can settle
+  it.
+- **reject** — document text plus what is wrong with it. Every vector is a
+  whole document that is valid but for the one defect it names: a snippet
+  missing its `export default`, or referencing a name it never bound, would be
+  refused by an implementation that has not implemented the rule under test,
+  and would prove nothing. Cases: a missing or
+  non-final `export default`, a missing `;` **after a `const`** — the one
+  statement a separator follows — and its mirror, a **trailing** `;` after the
+  final export (`export default 1;`, the spelling every pre-decision example
+  used and the one an implementer is likeliest to accept out of habit), `;;`,
+  a leading `;`, a name **without the leading `$`**
+  (`const a=1;export default a`, `const class=1;export default 1`,
+  `const undefined=1;export default 1`), a **trailing comma in each container** — `[1,]` and
   `{"a":1,}`, since `array` and `object` are separate productions with separate
   comma rules — **both comment forms**, `//` and `/* */`, which are separate
   lexical shapes a reader can strip one of,
   an `import` — **one** of those, and the asymmetry is the grammar's rather than
   a guess about implementations: a trailing comma is refused inside a
-  container's element loop and there are two such loops, a missing `;`
-  terminates a statement and there are two such statements, but `import` has no
+  container's element loop and there are two such loops; the `;` **separates**
+  statements rather than terminating them, so only the `const` is followed by
+  one — a missing `;` is a single vector, and the trailing `;` after the export
+  is its mirror rather than a second copy of it; but `import` has no
   production at all and is refused at the single point where `document` decides
   a statement is neither `const` nor `export default` —
   an identifier key, a bare or string `"__proto__"` key and its
@@ -1579,7 +1608,16 @@ The six parts:
   the list. A normalizer that dispatches on type can emit the space for digits
   and drop it for words, producing `export defaultNaN`, which the two numeric
   roots cannot see; and it can equally get one word right and another wrong,
-  which naming the class rather than the members cannot see. That is *naming a
+  which naming the class rather than the members cannot see. The six are no
+  longer the whole of it, though, because the space after `default` is now
+  **unconditional**: a root of every shape owes a vector, the four whose first
+  character cannot merge included — `export default [1]`, `export default {}`,
+  `export default "a"` and `export default -1` must not regress to the
+  spaceless spellings that JavaScript happens to accept. And **signed pairs
+  beside their unsigned ones** — `1` and `-1`, `1n` and `-1n`, `Infinity` and
+  `-Infinity` — since a normalizer that kept the merging-based rule puts the
+  space on one member of each pair and not the other, making canonical bytes
+  depend on the sign of a number. That is *naming a
   type is not naming a vector*, the rule the serializer-accept leaves needed two
   rounds ago, applied here — where it bites harder, because this role is judged
   on bytes and the serializer-accept vector for the same value checks only
