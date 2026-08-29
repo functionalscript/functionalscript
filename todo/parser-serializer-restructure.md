@@ -162,23 +162,57 @@ other implementations may.
 ```text
 module    ::= const* export
 const     ::= 'const' id '=' value ';'
-export    ::= 'export' 'default' value ';'
+export    ::= 'export' 'default' value
 value     ::= primitive | id | array | object
 key       ::= string | '[' '"__proto__"' ']'
 ```
 
-- **`;` terminates every statement, `export default` included** — one
-  uniform rule, no per-statement exception; no empty
-  statements. Rationale, each sufficient alone: no line-terminator taxonomy in
-  the spec (a lone CR *is* a JS `LineTerminator` — trivia no implementer
-  should need); one canonical spelling per document; the separator is a
-  visible character, so byte-different files that render identically cannot
-  differ in meaning; and a document minifies to one line —
-  `const a=[];export default[a,a];` — enabling DataJS inside JSON strings,
-  line-delimited streaming, and one-line test fixtures. Whitespace is needed
-  only between adjacent word-tokens (`const a`, `export default x`).
+- **`;` separates statements and never trails one**; no empty statements.
+  Rationale for `;` over a newline, each sufficient alone: no line-terminator
+  taxonomy in the spec (a lone CR *is* a JS `LineTerminator` — trivia no
+  implementer should need); one canonical spelling per document; the separator
+  is a visible character, so byte-different files that render identically
+  cannot differ in meaning; and a document minifies to one line —
+  `const $0=[];export default [$0,$0]` — enabling DataJS inside JSON strings,
+  line-delimited streaming, and one-line test fixtures. Whitespace is required
+  at three positions and optional everywhere else, per the next bullet.
+- **No `;` after `export default`** — it would be the trailing separator JSON
+  forbids for commas, and one shape should not need two rules. `export
+  default 1;` is rejected; the smallest document, `export default 1`, holds no
+  `;` at all, and the JSON conversion becomes the prefix `"export default " +
+  json` with nothing appended. This does lean on ASI, which requiring `;` was
+  partly meant to avoid — but only on the end-of-input rule, which is a fact
+  about where the file ends, not about which invisible character sits at a line
+  break. The line-terminator taxonomy lives in the *other* ASI rule and is
+  still excluded. Verified against Node: `export default {"a":1}` and
+  `const $0=[1,2];export default {"a":$0,"b":$0}` both import, with no trailing
+  newline.
 - **Whitespace is JSON's** — space, tab, LF, CR — insignificant everywhere.
   Other JS whitespace (U+2028/U+2029, NBSP, FF, BOM) is rejected.
+- **Whitespace is required after `const`, `export` and `default`**, with no
+  condition, and optional everywhere else. Two of the three were forced
+  already — a name begins with `$` and `export` is always followed by
+  `default`, so `const$0` and `exportdefault` are each one identifier — and the
+  third is the choice: `export default[1]` would lex, but requiring the space
+  regardless is what makes the rule positional. Note what did *not* decide it:
+  the conditional rule is implementable without maximal munch (require
+  whitespace before an identifier, word, or unsigned number/bigint whenever the
+  preceding character is an identifier character — one character of
+  look-behind) and leaves the grammar LL(1) either way, the `-` folded into its
+  token being what buys that.
+  The payoff is stage 4's, and it is larger on the **serializer** than on the
+  parser. A serializer under the conditional rule must know the first character
+  the value writer will emit before it can decide on the space, and the value's
+  type does not tell it: `Infinity` takes the space, `-Infinity` does not; `1`
+  does, `-1` does not. Normalized bytes would depend on the sign of a number.
+  Unconditional, the statement writer emits `export default ` and hands off.
+  On the parser side, `const`, `export` and `default` can be lexed as a keyword
+  plus at least one whitespace character, with no look-behind and no "was this
+  token preceded by whitespace" bit; a word may otherwise end wherever it ends,
+  because a wrong split elsewhere (`null$13` → `null` `$13`) produces two
+  adjacent value tokens, which no production accepts. The merge-capable
+  adjacencies are exactly `const`·name, `export`·`default` and `default`·value;
+  every other pair has a punctuator, a string or a `-` between.
 - **No comments, no imports.** A DataJS document is closed; the compiler
   inlines resolved imports when normalizing FunctionalScript to DataJS.
 - **Strings and numbers are JSON's grammar.** Bigint is a production of its
@@ -190,22 +224,24 @@ key       ::= string | '[' '"__proto__"' ']'
 - **Keys** are JSON strings, plus the computed spelling `["__proto__"]` as the
   only way to write that one key; a bare or string `"__proto__"` key is
   rejected (JS would read it as prototype replacement).
-- **Const names** are ASCII: `[A-Za-z_$][A-Za-z0-9_$]*`, each bound once,
-  minus two exclusion sets. Every name JavaScript rejects as a binding
-  identifier in module code (module code is strict) is excluded: the
-  reserved words, including `import`, `export`, `let`, `yield`, `await`,
-  and `static`, and the strict-mode-only bindings `eval` and `arguments` —
-  `const class = 1` and `const eval = 1` are JS syntax errors there, so
-  accepting either would break the subset law. Binding `undefined`, `NaN`,
-  or `Infinity` is additionally
-  rejected — JS *permits* `const undefined = 5` and later `undefined` then
-  means the const, which a subset treating it as a literal would silently
-  reinterpret. The spec enumerates the excluded words exhaustively rather
-  than citing ECMA-262.
+- **Const names** are ASCII and **start with `$`**: `$[A-Za-z0-9_$]*`, each
+  bound once, with **no exclusion list**. The two collisions an exclusion list
+  would have to cover are both closed by the leading `$`, since no JS reserved
+  word and none of `undefined`/`NaN`/`Infinity` contains one. A name JS rejects
+  as a binding identifier in module code (module code is strict) would break
+  the subset law outright — `const class = 1` and `const eval = 1` are syntax
+  errors there — and a name JS *permits* but DataJS reads as a value is worse
+  still: `const undefined = 5` makes `undefined` mean the const, which a subset
+  treating the word as a literal would silently reinterpret. An earlier draft
+  enumerated both sets, about fifty words every implementation would carry and
+  a list ECMA-262 can extend; the `$` moves the whole question into the token
+  grammar, decided on the first character. A tokenizer therefore needs no
+  keyword-vs-identifier lookup: a word starting with `$` is an `id`, a word
+  starting with a letter is one of the nine the grammar names or an error.
 - **Every JSON value is a DataJS value; no JSON document is a DataJS
   document** (a DataJS document is a JS module, so it cannot be a JSON
-  document). The textual conversion `"export default " + json + ";"` yields a
-  valid document with one exception: a bare `"__proto__"` object key —
+  document). The textual conversion `"export default " + json` — a prefix,
+  with nothing appended — yields a valid document with one exception: a bare `"__proto__"` object key —
   rejected by DataJS because JS reads it as prototype replacement — must be
   rewritten to the computed spelling `["__proto__"]` during conversion.
   Plain concatenation is exactly valid for JSON containing no `__proto__`
@@ -218,10 +254,10 @@ iff its value is an object or array referenced more than once **by reference
 identity**; consts are emitted in **post-order of one depth-first traversal**
 of the root value — arrays in element order, objects in observable key
 order, each shared node descended into only on first encounter — with names
-`_0`, `_1`, … assigned in emission order, so a shared node's dependencies
-are always declared before it and "who is `_0`" has exactly one answer:
+`$0`, `$1`, … assigned in emission order, so a shared node's dependencies
+are always declared before it and "who is `$0`" has exactly one answer:
 for `root = [parent, parent, child]` with `child` inside `parent`, `child`
-finishes first and is `_0`, `parent` is `_1`; primitives are always emitted
+finishes first and is `$0`, `parent` is `$1`; primitives are always emitted
 inline and never hoisted, since
 primitive sharing is unobservable and a value-equality ref counter would
 face the `0`/`-0` and `NaN` merging ambiguity that the `Object.is`
@@ -244,12 +280,14 @@ function, a symbol, a `Date` or any other non-plain object), a sparse
 array's hole (which is not an `undefined` element), a symbol-keyed or
 accessor own property (reading a getter is an effect), and a cycle
 (`value.self = value`) — DataJS represents DAGs only, and treating a
-back-edge as sharing would emit a self-referencing `const _0={"self":_0};`,
+back-edge as sharing would emit a self-referencing `const $0={"self":$0};`,
 a TDZ failure in JS. Rejection proofs in stage 4 cover each case. Normalization
 is not a blocker for the format spec. The serializer cannot delegate numbers
 to `JSON.stringify` (it loses `-0` and non-finite values); DataJS owns its
-number writer. The canonical layout is **one line** — fully minified, with
-whitespace only where two word-tokens meet — so normalization has zero
+number writer. The canonical layout is **one line** — fully minified, with a single space
+after each of `const`, `export` and `default` and nowhere else, so a root that
+cannot merge still carries its space (`export default [1]`, never
+`export default[1]`) — so normalization has zero
 layout freedom, which is what byte-determinism (and any future content
 addressing) needs. Tooling *defaults* to a human-readable layout (one
 statement per line, indented containers), which is simply one of the many
@@ -263,19 +301,40 @@ combined marker would encode a redundant fact.
 
 ### FunctionalScript consequences
 
-- **`;` is required in early-stage FunctionalScript**, matching DataJS. This
-  removes ASI — including its future "no LineTerminator here" restricted
-  productions — before the expression grammar grows the hazards (`(`, `[` at
-  line start). Relaxing later to also accept newline termination is
-  backward-compatible; the reverse would be breaking, so strict-first is the
-  safe ratchet. Repository `.f.mjs` source is unaffected (it is parsed by
-  Node/TypeScript); the cost lands at `.f.mjs` → `.f.js` migration, where the
-  normalizer inserts `;` mechanically — `.f.js` is compiler-formatted, not
-  hand-formatted.
-- **`undefined`, `NaN`, `Infinity` become FunctionalScript reserved words**,
-  so the DataJS binding restriction is inherited rather than special-cased.
+- **`;` separates statements in early-stage FunctionalScript**, matching
+  DataJS — and the part stage 5 must not miss is that a module's **final
+  statement takes no `;`**, exactly as `export default value` does not. The
+  obligation is one-way: FunctionalScript has to *accept* a module whose last
+  statement is unterminated, or it rejects every valid DataJS document at its
+  final export and the DataJS ⊂ FunctionalScript proof stage 6 owes cannot
+  hold. Whether it *also* accepts a trailing `;` is FunctionalScript's own
+  call, being strictly more permissive. So stage 5's rule is `;` between
+  statements with EOF after the last, never `;` after each.
+- This still removes ASI's hazardous half — the "no LineTerminator here"
+  restricted productions, and a lone CR or U+2028 ending a statement — before
+  the expression grammar grows the traps (`(`, `[` at line start). What it
+  keeps is ASI's end-of-input rule, a fact about where the file ends that
+  carries no line-terminator taxonomy. Relaxing later to also accept newline
+  termination is backward-compatible; the reverse would be breaking, so
+  strict-first is the safe ratchet. Repository `.f.mjs` source is unaffected
+  (it is parsed by Node/TypeScript); the cost lands at `.f.mjs` → `.f.js`
+  migration, where the normalizer inserts `;` mechanically — `.f.js` is
+  compiler-formatted, not hand-formatted.
+- **`undefined`, `NaN`, `Infinity` become FunctionalScript reserved words.**
+  FunctionalScript accepts identifiers that do not start with `$`, so it needs
+  the restriction for itself; DataJS no longer relies on inheriting it, its
+  `$`-leading names making the collision unreachable.
 - The moved parser's separator rule changes from newline to `';'` (the moved
   tokenizer's operator vocabulary gains `;`).
+- **Whether FunctionalScript takes DataJS's positional whitespace rule is a
+  stage-5 decision, and DataJS does not depend on the answer.** DataJS requires
+  *more* whitespace than a merging-based rule would, so every DataJS document
+  satisfies either, and the subset law holds whichever FunctionalScript picks.
+  The question is worth asking there on its own merits: FunctionalScript has
+  more keyword-adjacent-to-name sites (`import`, `from`, `as`, and whatever the
+  expression grammar grows), and its identifiers do not start with `$`, so the
+  cases DataJS gets for free — `truex` being a lexical error rather than
+  `true` followed by a valid name — do not carry over.
 - Subset laws are proof obligations, not prose: every DataJS *accept* vector
   parses in FunctionalScript to the same value graph; the normalizer closes
   the loop (`parse_datajs(normalize(m))` equals the evaluation of any
@@ -318,7 +377,7 @@ throughout.
 
 1. **Spec** — `spec/datajs/`. The specification itself is **done**:
    [`spec/datajs/README.md`](../spec/datajs/README.md) carries the grammar,
-   data model, const-name exclusions, serialization and normalized form,
+   data model, const names, serialization and normalized form,
    the JSON and JavaScript relationships, and the rationale, and settles the media
    type by deferring to the existing dialect design in
    [`fjs/todo/group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md):
@@ -363,7 +422,9 @@ throughout.
    in `fjs/djs/types.ts` go with it, per
    [663](../fjs/djs/todo/663-json-djs-tree-type.md); `examples/` and the
    top-level `module.f.mjs`/`proof.f.mjs` carrying `compile()` move with
-   the front end to `fsc`. Separator `nl` → `';'`; reserved words added;
+   the front end to `fsc`. Separator `nl` → `';'` **between** statements, with
+   EOF after the last (never `;` after each — see the FunctionalScript
+   consequences above); reserved words added;
    the DataJS numeric leaves taught to the moved front end — `NaN`,
    `Infinity`, and `-Infinity` are unresolved identifiers in
    today's parser, so reserving the names alone would *reject* DataJS accept
