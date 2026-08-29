@@ -108,11 +108,23 @@ the tokenizer at all: `fjs/media/json/parser/types.ts` imports `NumberToken`
 parser takes it from `../tokenizer/types.ts` like everything else, and
 `fjs/media/json` holds no reference to `fjs/js/tokenizer` in either direction.
 
-`fjs/djs/*` keeps its `js/tokenizer` dependency — that is the language front
-end, which moves to `fjs/fsc` in stage 5 and is *supposed* to track the
-JavaScript token vocabulary. This stage removes the dependency from the frozen
-media codec only; retiring the JS tokenizer is stage 7's, once `fjs/fsc` no
-longer needs it either.
+`fjs/djs/*` keeps a `js/tokenizer` dependency, but a much smaller one than it
+looks: `fjs/djs/tokenizer/module.f.mjs:51` imports exactly `isKeywordToken` and
+`mergeTrivia`, plus token *types*, and drives its own BNF tokenizer
+`tokenizeJs` at line 544. It never consumes the JavaScript token stream.
+
+That makes this stage's reach larger than "one module stops importing another".
+`tokenize` — the public entry point of `fjs/js/tokenizer`, and the 747-line
+state machine behind it — has exactly two runtime importers today, and JSON is
+the only one that calls `tokenize`. **After this stage it has none.** What is
+still live is two helper functions and a set of token types.
+
+Stage 7 is where that gets acted on, and the plan's wording for it —
+retire `fjs/js/tokenizer` "when its last consumer is gone" — resolves to
+something more concrete than it reads: the machine is already consumerless at
+the end of stage 3, so stage 7 is a move of `isKeywordToken`, `mergeTrivia` and
+the token types to wherever `fjs/fsc` wants them, and a delete of the rest. Not
+this stage's work, but this stage is what makes it true.
 
 The grammar being scanned, which is [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259)'s:
 
@@ -267,11 +279,13 @@ implementation PR — the premise only actually changes when the code does.
 
 - [666-js-tokenizer-position-layer](../../../js/todo/666-js-tokenizer-position-layer.md)
   — proposes exporting a raw, metadata-free `tokenizeRaw` entry point from
-  `fjs/js/tokenizer` and has a task to "switch `fjs/media/json/tokenizer` to
-  consume it". After stage 3 that consumer does not exist, and one of the
-  issue's two motivations — tidying JSON's dummy-path workaround — goes with
-  it. The extraction still stands on the DJS/`fsc` consumer alone; drop the
-  JSON task and the JSON motivation rather than the issue.
+  `fjs/js/tokenizer`, with a task to "switch `fjs/media/json/tokenizer` to
+  consume it". JSON is that export's **only** proposed consumer, and no other
+  exists: DJS imports two helpers and drives its own tokenizer. So after stage
+  3 the export would be dead public API, against the issue's own
+  defer-until-a-second-consumer rule. Both the export and the JSON task are
+  struck through; what survives is the internal `tokenizeOp` re-extraction,
+  which needs no consumer to justify it.
 - [streaming-recognizer](./streaming-recognizer.md) — requires the recognizer
   to reuse "the tokenizer's *transition structure*" and to inherit the
   raw-control-in-string rejection from `fjs/js`'s `parseStringStateOp`. Its
@@ -297,8 +311,9 @@ implementation PR — the premise only actually changes when the code does.
 - [ ] Keep the losslessness proofs — a valid number reaches `value` as its
       exact lexeme, with no derived numeric value built while scanning.
 - [ ] 100% proof coverage, `scanString`/`scanNumber` called directly.
-- [ ] Confirm `fjs/djs/*` is the only remaining `fjs/js/tokenizer` consumer
-      afterwards; it is retired in stage 7, not here.
+- [ ] Confirm afterwards that no runtime importer of `fjs/js/tokenizer` calls
+      `tokenize`, and that `fjs/djs/tokenizer`'s `isKeywordToken`/`mergeTrivia`
+      import is all that is left. The machine is retired in stage 7, not here.
 - [ ] Carry out the two edits owed above: drop 666's JSON task and JSON
       motivation, and repoint `streaming-recognizer`'s scanner citations at
       JSON's own `scanString`/`scanNumber`.

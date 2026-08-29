@@ -74,12 +74,23 @@ tokenizer's dummy-path workaround.
 
 - [ ] re-extract `tokenizeOp` from `tokenizeWithPositionOp`'s two branches
 - [ ] export a `tokenizeRaw` (no-metadata) entry point built on `tokenizeOp`
-- [ ] ~~switch `fjs/media/json/tokenizer` to consume it instead of
-      `jsTokenize(input)('')`~~ — **superseded**, do not build this. JSON stops
-      consuming `fjs/js/tokenizer` at all; see
+- [ ] ~~export a `tokenizeRaw` (no-metadata) entry point built on
+      `tokenizeOp`~~ and ~~switch `fjs/media/json/tokenizer` to consume it
+      instead of `jsTokenize(input)('')`~~ — **superseded, do not build
+      either.** JSON stops consuming `fjs/js/tokenizer` at all; see
       [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md).
-      The raw entry point is still worth extracting for the DJS/`fsc`
-      consumer, which is the motivation that survives.
+
+      JSON was `tokenizeRaw`'s only proposed consumer, and there is no other:
+      `fjs/djs/tokenizer` imports just `isKeywordToken` and `mergeTrivia` from
+      this module and drives its own `tokenizeJs`
+      (`fjs/djs/tokenizer/module.f.mjs:544`), so it never wanted a bare JS
+      token stream either. Building the export anyway would add an unused
+      public API, which is exactly what this issue's own
+      defer-until-a-second-consumer principle forbids.
+
+      What survives is task 1 alone — re-extracting `tokenizeOp` so
+      `tokenizeWithPositionOp` stops repeating both branches — which is an
+      internal tidy-up justified without any consumer.
 - [ ] (defer) generic `withPosition` combinator once a second consumer appears
 
 ### Related
