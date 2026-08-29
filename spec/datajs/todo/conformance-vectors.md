@@ -47,11 +47,14 @@ A machine-readable corpus with three parts:
   reference, a rebound name, each excluded const name, single quotes, `\x` and
   `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
-  than approximate: a function, symbol or `Date` leaf, a sparse-array hole, a
-  symbol-keyed, accessor or non-enumerable own property, an array carrying an
-  own property beyond its elements and `length` (`a=[1]; a.meta=2`), and a
-  cycle. Each is a case where the obvious implementation emits a valid
-  document denoting something else.
+  than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
+  and at least one that is not — `Map`, `RegExp`, a boxed primitive), a
+  sparse-array hole, a symbol-keyed, accessor or non-enumerable own property,
+  an array carrying an own property beyond its elements and `length` (`a=[1];
+  a.meta=2`), and a cycle. Each is a case where the obvious implementation
+  emits a valid document denoting something else. The accessor case asserts
+  **two** things: that the input was refused, and that the getter was never
+  invoked.
 - **graph equivalence** — an input graph and the documents that do and do not
   denote it, so a serializer cannot pass by emitting merely *valid* output:
   `[a,a]` with one shared `a` is not `export default [[],[]];`.
@@ -130,7 +133,7 @@ document can carry. So the corpus does not store values. It stores a
   | - | - |
   | `{"host": "fn"}` | a function value |
   | `{"host": "symbol"}` | a fresh unique symbol, as a *value* |
-  | `{"host": "date", "ms": <integer>}` | `new Date(ms)` |
+  | `{"host": "builtin", "kind": <kind>[, "ms": <integer>]}` | a non-plain built-in object: `date` (with `ms`), `map`, `regexp` or `boxedNumber` |
   | `{"host": "hole"}` | an array hole — legal **only** as an `arr` element |
 
   …and four **modifier** recipes, each taking the node it applies to, so the
@@ -141,11 +144,30 @@ document can carry. So the corpus does not store values. It stores a
   | - | - |
   | `{"host": "ownProp", "on": <node>, "key": <string>, "value": <node>}` | an enumerable own data property, which is how `a=[1]; a.meta=2` is said |
   | `{"host": "nonEnumerable", "on": <node>, "key": <string>, "value": <node>}` | the same, non-enumerable |
-  | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an accessor property returning `value` |
+  | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an accessor property that **records its own invocation** and then returns `value` |
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | a property under a fresh unique symbol |
 
   Modifiers **apply in the order the nodes appear**, so a node carrying several
   is unambiguous. A cycle needs no recipe: it is a `ref` to an ancestor.
+
+  Two of these carry an obligation the recipe alone does not express, and both
+  came from review:
+
+  - **`getter` must be observable, not merely present.** The spec forbids
+    reading a getter *because reading it is an effect*
+    ([`README.md`](../README.md)), so a serializer that invokes the accessor
+    while enumerating and rejects the object afterwards is wrong and would pass
+    a vector that only checked the rejection. The recipe therefore records its
+    invocation, and **the vector asserts it was never invoked** as well as that
+    the input was refused. Rejecting for the right reason and rejecting after
+    doing the forbidden thing are different outcomes.
+  - **`builtin` covers a class, not `Date`.** The spec rejects "a `Date`, or
+    any other non-plain object", and a corpus naming only `Date` is passed by
+    an implementation that special-cases `Date` and serializes an empty `Map`
+    or `RegExp` as `{}` — valid output denoting something else, which is the
+    failure the serializer-reject set exists to catch. The `kind` list is
+    closed like everything else here, and `map`, `regexp` and `boxedNumber`
+    are in it precisely because they are *not* `Date`.
 
   The list being closed is what makes it useful — a vector needing a recipe not
   in it extends the schema and both consumers, deliberately, rather than each
@@ -179,7 +201,8 @@ needs nothing beyond an engine.
       with holes occupying positions, the object pair form **with unique keys
       in observable order**, and the eight `host` recipes — four leaves, four
       modifiers, each modifier naming the node it applies to — with their
-      application order. It is the part two
+      application order, `builtin`'s closed `kind` list, and `getter`'s
+      invocation record. It is the part two
       consumers can silently disagree about, so it lands first and gets its own
       round-trip proof — encode a graph, decode it, and assert the sharing
       survives.
