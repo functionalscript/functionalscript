@@ -61,15 +61,19 @@ export const allVoid =
         mapStep(allOk(items.map(f)), () => undefined)
 ```
 
-The body hands `allOk` the *list*, not a spread: `allVoid` exists for
-arbitrary-length fan-outs, which is exactly where `allOk(...items.map(f))`
-would rebuild the engine argument ceiling
+The body hands the *list-shaped* callable the list, not a spread: `allVoid`
+exists for arbitrary-length fan-outs, which is exactly where
+`allOk(...items.map(f))` would rebuild the engine argument ceiling
 ([all-argument-limit](./all-argument-limit.md)) inside the new combinator —
 the same correction [allreduce-combinator](./allreduce-combinator.md)
-carries. That makes this issue's landing depend on the list-shaped `allOk`
-from that issue; until it lands, the spread spelling is the only one that
-compiles, which is one more reason this issue is scheduled after the `All`
-move rather than before it.
+carries. `allOk` in the sketch names that list-shaped operation under
+all-argument-limit's naming rule: it is `allOk` itself if the variadic
+wrapper is dropped, and the list-shaped sibling (`allOkList` in that issue's
+sketch) if the wrapper keeps the published names — either way the body's
+call shape is one array argument. That makes this issue's landing depend on
+the list-shaped operation from that issue; until it lands, the spread
+spelling is the only one that compiles, which is one more reason this issue
+is scheduled after the `All` move rather than before it.
 
 `NotImplemented` in the error channel is the runner's, inherited from `allOk`;
 `E` is the children's. Written with the standalone `step` instead —

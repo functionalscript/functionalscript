@@ -69,7 +69,17 @@ the sequential plan the traversal performs no `all`, so no browser implements it
 
 The variadic spelling is nicer at the two-or-three-effect call sites that motivated it
 (`both`, hand-written fan-outs in proofs), so a wrapper that keeps that shape over the
-list-shaped operation is worth having in the same change.
+list-shaped operation is worth having in the same change. **Both callables get
+unambiguous names, whichever branch is taken**: if the wrapper is kept it keeps
+the published `all`/`allOk` names (that is what narrows the break, per the task
+below) and the list-shaped operation is exported beside it under its own names
+(say `allList`/`allOkList`); if the wrapper is dropped, the list shape takes
+the old names. Every arbitrary-length fan-out — the traversal sites in the
+table, and combinators born after this issue
+([allvoid-combinator](./allvoid-combinator.md),
+[allreduce-combinator](./allreduce-combinator.md)) — calls the *list-shaped*
+callable by whichever name this decision lands on, so those designs are
+buildable under every permitted outcome.
 
 ### Alternatives considered
 
