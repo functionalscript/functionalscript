@@ -143,13 +143,29 @@ what `encodeText` produced. The three dialects here are all JSON-valued, so
 nothing is wrong today; the gap is that a fourth could be added without the
 type objecting.
 
-Decide this when implementing rather than guessing at the type now: either
-constrain the accepted schema so `ValueOf<S>` is assignable to
-`JsonUnknown` — which is the honest statement of what the factory can encode
-— or leave `Struct` and record the precondition in the factory's JSDoc with
-a proof that a non-JSON member is refused rather than silently nulled. The
-first is better if it can be expressed without tangling inference; the
-second is acceptable and is what the modules effectively rely on today.
+**Refuse it at construction**, the way `dialectEntry` already refuses a
+schema whose `dialect` is not a direct string:
+
+```js
+assert(typeof dialect === 'string', 'dialectEntry: schema has no direct string `dialect` member')
+```
+
+(`../module.f.mjs:134`). That is the same shape of problem — a schema rtti
+accepts but this registry cannot use — answered loudly, once, when the entry
+is built rather than silently at encode time. The factory walks the schema's
+members and asserts each renders a JSON primitive, so a `bigint` member
+fails at module load with a message naming it, not at the first `encodeText`
+with a `null`.
+
+A type constraint — requiring `ValueOf<S>` assignable to `JsonUnknown` — is
+strictly better where it can be expressed, since it moves the failure to
+compile time, and is worth attempting first. But it is not a substitute for
+the assert and must not be the only answer: `dialectEntry`'s own JSDoc
+(`../module.f.mjs:113-118`) records that TypeScript could not express the
+direct-string-`dialect` half either, which is why the assert exists. Assume
+the same may hold here. A JSDoc precondition alone is **not** an option: it
+constrains no caller, and this issue's own task requires refusal rather than
+documentation.
 
 **The value is `Ts<S>` — not `Ts<Rest<S, Type>>`.** The two are the
 same type here: `RestTs<C, R>` is `C extends Tuple ? TupleRestTs<C, R> :
@@ -264,10 +280,11 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
       `encodeText`/`validate`/`decodeText` for each of the three dialects.
       `note`'s `validate` stays `Result<Note, ValidationError>` with no
       `string`, which is the case that catches an over-wide `E`.
-- [ ] Settle JSON-representability: either constrain the schema so
-      `ValueOf<S>` is assignable to `JsonUnknown`, or keep `Struct` and
-      state the precondition in the factory's JSDoc. Either way a non-JSON
-      member must be refused rather than encoded as `null`.
+- [ ] Refuse a non-JSON schema at construction, with an `assert` beside
+      `dialectEntry`'s, and a proof that a `bigint`-membered schema throws
+      there rather than encoding as `null`. Attempt the
+      `ValueOf<S>`-assignable-to-`JsonUnknown` constraint too, and keep it
+      if it expresses cleanly — but the assert stays either way.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
       copies and the two `isValid…` adapters. Keep every published name —
       `revisionDialect`/`lockDialect`/`noteDialect` aliasing the kit's
