@@ -44,8 +44,14 @@ reader's public byte-accepting path — which stage 4 owes:
 - a document **has no BOM**, which a decoder satisfies the parser on by
   stripping `EF BB BF` before the parser ever runs; and
 - a document **is UTF-8**, which nothing in a code-unit array can violate — so
-  vectors carry invalid UTF-8 (a truncated sequence, an overlong encoding, and
-  a surrogate half encoded as three bytes) to be refused. Each malformed
+  vectors carry invalid UTF-8 to be refused, and **one per error class**, since
+  a decoder can reject three classes and accept a fourth. The classes are: an
+  invalid lead byte (`C0`, `C1`, `F5`–`FF`), a **stray continuation byte**
+  (`80` with no lead), a truncated sequence, an overlong encoding, a surrogate
+  half encoded as three bytes, and a value **above U+10FFFF**
+  (`F4 90 80 80`). Review supplied the second and last of those after the first
+  draft sampled three — the same "enumerate, do not sample" the productions
+  below need. Each malformed
   sequence sits **inside an otherwise valid quoted string**, and that placement
   is the vector. A permissive decoder replaces a bad sequence with U+FFFD, and
   U+FFFD is an ordinary DataJS string character — so with the sequence inside a
@@ -226,7 +232,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Twelve consecutive review rounds
+  vector is the only instrument that sees it. Thirteen consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -237,7 +243,9 @@ The six parts:
   the simple escapes and the fraction and exponent — the last two of which
   finally produced a derivation for the accept set rather than another pair of
   vectors — then the normalizer's escaping branches and JavaScript's own
-  expression forms. Every time the list had been written from memory rather
+  expression forms, then spread, the module statements, and two more UTF-8
+  error classes — which finally produced a per-production table rather than
+  another production's worth of vectors. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -287,22 +295,32 @@ The six parts:
     *decoder* rather than the tokenizer: a leading BOM is stripped by ordinary
     decoding, so only a vector that pins U+FEFF as the **first character**
     tests it.
-  - **The grammars themselves**, not only the prose. `array ::= '[' (value
-    (',' value)*)? ']'` admits no elision, so `[,1]`, `[1,,2]` and `[1,,]` are
-    rejections that no sentence in the spec states — the production states
-    them. A source that is a grammar rather than a sentence is easy to skip
-    precisely because there is nothing to transcribe.
+  - **The grammars themselves**, not only the prose — and **every** production,
+    which is where this kept going wrong. A production states rejections no
+    sentence in the spec states, and it is easy to skip precisely because there
+    is nothing to transcribe; review found this source applied to one
+    production at a time across three rounds. Every one of the cases below is
+    valid JavaScript **evaluating to a value DataJS can express**, measured, so
+    a reader that delegates parsing or evaluates the module gets a permitted
+    value back and has no reason to object:
 
-    The largest of these is **`value`**, a closed list of alternatives, so
-    every other JavaScript *expression* form is a rejection — and, like the
-    escape whitelist, its complement is open-ended, so the vectors go by class:
-    a parenthesized expression `(1)`, an operator expression `1+1`, a member
-    access `[1][0]`, a call `String(1)`, and `void 0`. Each is valid JavaScript
-    denoting a value DataJS can express perfectly well — `1`, `2`, `1`, `"1"`,
-    `undefined` — measured, which is what makes them dangerous: a reader that
-    *evaluates* the module gets a permitted value back and has no reason to
-    object. `-(-1)` belongs here too, and pins the spec's own point that `-` is
-    not an operator but part of the token that follows it.
+    | production | what it excludes | vectors |
+    | - | - | - |
+    | `document ::= const* export` | any other statement or declaration | `let a=1;…`, `var a=1;…`, `function f(){}…` |
+    | `const ::= 'const' id '=' value ';'` | multiple declarators, destructuring | `const a=1,b=2;…`, `const [a]=[1];…` |
+    | `export ::= 'export' 'default' value ';'` | any other export form | `export{a};export default a;` |
+    | `value ::= <closed list>` | every other expression form | `(1)`, `1+1`, `[1][0]`, `String(1)`, `void 0`, `-(-1)` |
+    | `array ::= '[' (value (',' value)*)? ']'` | elisions, spread | `[,1]`, `[1,,2]`, `[1,,]`, `[...[1]]` |
+    | `object ::= '{' (member (',' member)*)? '}'` | spread | `{...{"a":1}}` |
+    | `member ::= key ':' value` | shorthand, methods, accessors | `{a}`, `{a(){}}`, `{get a(){return 1}}` |
+    | `key ::= string \| '[' '"__proto__"' ']'` | identifier and numeric keys, other computed keys | `{a:1}`, `{1:2}`, `{["x"]:1}` |
+
+    Two of these are worth singling out. **`value`'s** complement is
+    open-ended, like the escape whitelist, so its vectors go by class rather
+    than enumeration; and `-(-1)` pins the spec's own point that `-` is not an
+    operator but part of the token that follows it. **`{get a(){return 1}}`**
+    evaluates to `{"a":1}` — an entirely ordinary graph — so nothing after the
+    parse can tell it apart from the document that spells it directly.
 
   **And check both directions.** The corpus has a reader half and a serializer
   half, and a rule can be covered in one while absent in the other — which has
