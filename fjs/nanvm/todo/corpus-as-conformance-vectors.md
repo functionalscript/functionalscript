@@ -51,9 +51,11 @@ with E0308.
 Grouping is already right — an operation nested as an operand is
 parenthesized, so the printed text is the tree the node is, and
 `nestedOperation` in [`../rust/proof.f.mjs`](../rust/proof.f.mjs) pins that.
-What is missing is propagation. Nothing reaches it today: a corpus case is one
+What is missing is propagation. No corpus case reaches it today: a case is one
 operation over lowered values, so `generated.rs` nests nothing and `cargo
-test` has never had the chance to fail.
+test` has never had the chance to fail. The exported `nodeExpr` does reach it —
+it takes an arbitrary `Exp`, so a caller outside the corpus can print a nested
+operation and get text that fails with E0308.
 
 Deciding the shape is part of this issue rather than a detail of it, because
 it sets what every emitted statement looks like. `?` inside a closure, an

@@ -115,9 +115,11 @@ export const proof = {
      * `Result<Any<A>, Any<A>>`, which `check` takes at the top of a statement,
      * so an inner operation hands the outer one a `Result` where it needs an
      * `Any`. Propagating that is the nested-emission strategy owed by
-     * [corpus-as-conformance-vectors](../todo/corpus-as-conformance-vectors.md),
-     * and nothing needs it yet: a corpus case is one operation over lowered
-     * values, so `generated.rs` nests nothing.
+     * [corpus-as-conformance-vectors](../todo/corpus-as-conformance-vectors.md).
+     * No corpus case needs it yet — a case is one operation over lowered
+     * values, so `generated.rs` nests nothing — but `nodeExpr` is exported and
+     * takes an arbitrary `Exp`, so a caller can reach it today, and the
+     * lazy-operator groups will nest.
      *
      * `neg` parenthesizes in its own template, so a composed operand there is
      * doubly wrapped — redundant, and correct either way.
