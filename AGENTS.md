@@ -159,8 +159,11 @@ naming the wrapper rather than the command that failed, and hides which of the
 commands ran at all.
 
 Two commands are one step only when the second is meaningless alone and neither
-is separately reportable — `git add -A && git diff --cached --exit-code` stages
-so the comparison has something to compare.
+is separately reportable. Both such pairs in the generated workflow qualify:
+`git add -A && git diff --cached --exit-code` stages so the comparison has
+something to compare, and `sudo apt-get update && sudo apt-get install -y …`
+refreshes indices the install then reads — split, the update's exit status
+reports nothing anyone acts on.
 
 Repeating a wrapper per step costs nothing that matters. Entering a Nix
 development shell re-runs that shell's `shellHook`, so a job-local environment
