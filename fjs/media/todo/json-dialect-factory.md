@@ -91,8 +91,9 @@ type, with `E = never` for a dialect that has no refinement:
 
 ```ts
 import type { Unknown as JsonUnknown } from './json/types.ts'
+import type { Type } from '../rtti/types.ts'
 
-export type JsonDialect<S, D extends string, E> = {
+export type JsonDialect<S extends Type, D extends string, E> = {
     readonly dialect: D
     readonly mediaType: `application/${D}+json`
     readonly encodeText: (value: Ts<S>) => string
@@ -102,10 +103,15 @@ export type JsonDialect<S, D extends string, E> = {
 }
 ```
 
-The alias is load-bearing, not style. `../types.ts:8` already binds the bare
-name `Unknown` to rtti's — the encoding-neutral one admitting `bigint` and
-`undefined` — and its own JSDoc at `:14-15` draws exactly this contrast for
-`DialectEntry.match`. But the three `validate` exports take
+`S extends Type` is required, not decorative: `Ts` is declared
+`Ts<T extends Type>` (`../../rtti/ts/types.ts:450`), so an unconstrained
+parameter does not typecheck at any of the three uses. `Type` is rtti's
+schema type, from `../../rtti/types.ts`.
+
+The `JsonUnknown` alias is load-bearing too. `../types.ts:8` already binds
+the bare name `Unknown` to rtti's — the encoding-neutral one admitting
+`bigint` and `undefined` — and its own JSDoc at `:14-15` draws exactly this
+contrast for `DialectEntry.match`. But the three `validate` exports take
 `fjs/media/json`'s JSON-only `Unknown` (`../revision/module.f.mjs:17`,
 `../note/module.f.mjs:28`), so writing the bare name in this file would
 silently widen their parameter type and break the identical-declarations
