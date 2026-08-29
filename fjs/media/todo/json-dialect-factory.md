@@ -292,6 +292,31 @@ the same may hold here. A JSDoc precondition alone is **not** an option: it
 constrains no caller, and this issue's own task requires refusal rather than
 documentation.
 
+**If the constraint is dropped, the two JSON-only boundaries need a stated
+cast.** Without `ValueOf<S> extends JsonUnknown`, nothing tells the checker
+that a `ValueOf<S>` is JSON — `S extends Struct` still admits schemas whose
+`Ts` includes `bigint` or `undefined` — so `stringify(sort)`, typed
+`(_: JsonUnknown) => string`, is not assignable to the promised
+`(value: ValueOf<S>) => string`, and the parsed value cannot be handed to
+the JSON-only `jsonExact` walk either. Both are the same boundary, and both
+take the cast on the **value**, once each:
+
+```js
+const encodeText = value => stringify(sort)(/** @type {JsonUnknown} */ (value))
+```
+
+A single cast is enough — no `unknown` intermediate — including when
+`ValueOf<S>` is an unreduced conditional type that could yield
+`bigint | undefined`; checked with `tsc --strict`. What justifies it is the
+construction-time assert, not optimism: the schema has already been refused
+if any member is a non-JSON kind, so by the time either boundary runs, the
+cast restates a fact established at module load. That is exactly the trade
+`dialectEntry` already makes one line above its own assert —
+`/** @type {ValidateE} */ (rttiParse(type))` (`../module.f.mjs:135`) — an
+erased cast paid for by a check that ran first. Keep the constraint if it
+expresses; if it doesn't, this is the shape of the fallback, and it is
+sound for the same reason.
+
 **The value is `Ts<S>` — not `Ts<Rest<S, Type>>`.** The two are the
 same type here: `RestTs<C, R>` is `C extends Tuple ? TupleRestTs<C, R> :
 ConstTs<C>` (`../../rtti/ts/types.ts:353-354`), so for a non-tuple container
@@ -440,7 +465,10 @@ level up from the seven-line kit.
       throws there rather than encoding as `null`, and `revisionSchema` — whose
       `lock` is recursive — constructs without hanging. Attempt the
       `ValueOf<S>`-assignable-to-`JsonUnknown` constraint too, and keep it
-      if it expresses cleanly — but the assert stays either way.
+      if it expresses cleanly — but the assert stays either way. If the
+      constraint is dropped, take the value-position cast at both JSON-only
+      boundaries — `stringify(sort)` and the `jsonExact` walk — as above;
+      `npx tsc` fails without it.
 - [ ] Run one generic `jsonExact` walk over the value `rttiParse` rebuilds,
       inside the factory's `validate`, collecting the path as it descends.
       One strategy, no compiled positions, and nothing a dialect's
