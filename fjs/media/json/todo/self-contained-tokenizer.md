@@ -616,10 +616,14 @@ So the interception rule is stated on the **state**, not on the character:
   reachable only by a well-formed `int` and is therefore an accepting state.
   From every other variant — the leading-zero run included — an `n` is JSON's
   to reject.
-- **The leading-zero variant is terminal for the wrapper exactly as it is for
-  JSON.** Whatever follows it, `n` included, is one `invalid number`, so `00n`,
-  `01n` and `012n` are errors in DataJS for the same reason they are errors in
-  JSON, and by the same code path.
+- **The leading-zero variant is closed to the wrapper**, and JSON's own
+  recovery runs unchanged underneath it — the two are different statements and
+  only the first is about DataJS. The wrapper cannot intercept from this
+  variant at all; recovery then consumes to a **boundary**, exactly as the rule
+  above says, not to the end of the input. So `00n` is one `invalid number`
+  because `n` is not a boundary, and `00-2` is one `invalid number` followed by
+  `number -2` because `-` is — the token DataJS must not lose any more than
+  JSON must.
 - **`-Infinity` is intercepted from the sign variant**, and only from it, by
   the same discipline: a non-accepting state a wrapper is allowed to claim
   before JSON rejects it, named rather than inferred.
