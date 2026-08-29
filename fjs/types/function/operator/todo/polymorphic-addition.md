@@ -1,0 +1,71 @@
+## One polymorphic `addition`, the way `cmp` already does it
+
+**Priority:** P4
+**Status:** open
+
+### Problem
+
+The `+` operation is defined three times, and two of the sites carry TODO
+comments asking for exactly this issue, with no `todo/` file tracking them:
+
+- `../module.f.mjs:50` — `export const addition = a => b => a + b` for
+  `number`, whose JSDoc (`:43-47`) says "We should have one function for
+  `number` | `bigint` and `string` … the same approach as … `Cmp1` and
+  `Cmp2`".
+- `../../../bigint/module.f.mjs:34` — the same lambda for `bigint`, with
+  "TODO: should be combined with `addition` for `number`" (`:29`).
+- `../../../string/module.f.mjs:49` — the same lambda a third time,
+  anonymous, inside
+  `concat = fold({ identity: '', operation: a => b => a + b })`.
+
+The fold over it is also written twice, differing only in the identity
+literal:
+
+```js
+// ../../../bigint/module.f.mjs:42
+export const sum = fold({ identity: 0n, operation: addition })
+// ../../../number/module.f.mjs:18
+export const sum = fold({ identity: 0, operation: addition })
+```
+
+The solved form of the identical problem is one directory over, and is what
+the TODOs point at: `cmp` in `../../compare/module.f.mjs:27-29` is one
+polymorphic definition over `Cmp1`/`Cmp2`, re-exported per domain
+(`../../../number/module.f.mjs:33`, `../../../string/module.f.mjs:55`).
+`../../../bigint/module.f.mjs:253` carries the same complaint a third time
+for `xor` ("It should be combined with `number`").
+
+### Proposal
+
+Define `addition` once here, typed the way `cmp` is — an `Add1`/`Add2` pair
+(or a single `Additive = number | bigint | string` overload set) so that
+mixed operand types are rejected at the type level while each domain's
+re-export keeps its narrow signature:
+
+```js
+/** @type {<A extends Add1>(a: A) => <B extends Add2<A, B>>(b: B) => …} */
+export const addition = a => b => a + b
+```
+
+`number`, `bigint`, and `string` re-export it (the last as the operation
+inside `concat`), and the two `sum` folds keep their per-domain identity
+literals — the identity genuinely differs, so `sum` stays per-domain; only
+the operation stops being re-defined. Delete the three TODO comments as part
+of the change. Whether `xor` and friends follow is a separate decision; this
+issue is only the additive operation the comments already agree on.
+
+### Tasks
+
+- [ ] Add the polymorphic `addition` (and its `types.ts` support) here;
+      re-export from `number`, `bigint`, and `string`.
+- [ ] Remove the three in-code TODOs; leave `xor`'s or convert it to its own
+      issue.
+- [ ] `npx tsc`, `fjs t`.
+
+### Related
+
+- `../../compare/module.f.mjs` — `cmp` over `Cmp1`/`Cmp2`, the pattern to
+  copy.
+- [../../todo/uncurry-accumulator-types.md](../../todo/uncurry-accumulator-types.md)
+  — changes `Fold`/`Reduce` arity and touches every one of these sites;
+  independent, but coordinate if both land.

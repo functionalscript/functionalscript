@@ -60,5 +60,8 @@ in `rtti/ts`:
 ### Related
 
 - `../parse/module.f.mjs` — the same theme of `rtti` submodules sharing the
-  `data` algebra instead of copying it. (The container-skeleton issue this used
-  to point at was resolved by deleting `validate`: only one walker remains.)
+  `data` algebra instead of copying it.
+- [container-read-skeleton.md](./container-read-skeleton.md) — the
+  container-skeleton issue this used to point at; a note briefly recorded it
+  as resolved by deleting `validate`, but that deletion never landed and both
+  walkers remain.

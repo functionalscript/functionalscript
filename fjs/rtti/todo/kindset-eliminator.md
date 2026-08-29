@@ -104,6 +104,8 @@ at `kindFold` as the statement of the contract.
 
 ### Related
 
-- `../data/module.f.mjs` — `patternsValidate` and its callers. (The
-  validate/parse container-skeleton issue that used to be listed here was
-  resolved by deleting `validate`.)
+- `../data/module.f.mjs` — `patternsValidate` and its callers.
+- [container-read-skeleton.md](./container-read-skeleton.md) — the
+  validate/parse container-skeleton issue that used to be listed here; a
+  note briefly recorded it as resolved by deleting `validate`, but that
+  deletion never landed.
