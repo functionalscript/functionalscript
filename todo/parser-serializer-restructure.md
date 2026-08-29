@@ -51,11 +51,19 @@ Read in this order; each line says what to do and why it comes when it does.
 **Already done, do not redo:** stage 1a (the DataJS specification) and stage 2
 (the dead `fjs/fsc` grammars, deleted). Both are on `main`.
 
-**Two things are decided and should not be reopened without a reason:** DataJS
-is frozen at "JSON extended from a tree to a DAG, plus the leaves JSON cannot
-spell" — new syntax belongs in FunctionalScript, not here; and the media codecs
-take no runtime dependency on `fjs/bnf` or on `fjs/js/tokenizer`, which is the
-whole point of the restructure.
+**Three things are decided and should not be reopened without a reason:**
+DataJS is frozen at "JSON extended from a tree to a DAG, plus the leaves JSON
+cannot spell" — new syntax belongs in FunctionalScript, not here; the media
+codecs take no runtime dependency on `fjs/bnf` or on `fjs/js/tokenizer`, which
+is the whole point of the restructure; and the mandatory identifier prefix is
+**`$`**, not `_` or any other character. The prefix itself is what carries the
+design — it retires the exclusion list — and the grammar does not force which
+character does it, so the choice was made once and is closed. The objection on
+the record against it is that `$` reads as a named placeholder nearly
+everywhere (`${name}`, `$1` in replacement patterns, `$0` in a shell), which
+lands squarely on normalized `$0`, `$1`, … names; see
+[the spec's rationale](../spec/datajs/README.md#rationale) for what that costs
+and what it does not.
 
 ### Problem
 
@@ -249,6 +257,12 @@ key       ::= string | '[' '"__proto__"' ']'
   grammar, decided on the first character. A tokenizer therefore needs no
   keyword-vs-identifier lookup: a word starting with `$` is an `id`, a word
   starting with a letter is one of the nine the grammar names or an error.
+  **Which character carries the prefix is a separate question from whether
+  there is one**, and it is settled rather than derived: `_` has the same
+  property — no reserved word contains one either, so `_class` and `_undefined`
+  are equally ordinary names — so the grammar does not choose between them.
+  `$` is the decision; it is in the do-not-reopen list above, with the cost
+  recorded in the spec.
 - **Every JSON value is a DataJS value; no JSON document is a DataJS
   document** (a DataJS document is a JS module, so it cannot be a JSON
   document). The textual conversion `"export default " + json + ";"` — a prefix

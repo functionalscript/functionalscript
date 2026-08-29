@@ -725,19 +725,41 @@ words each implementation would carry, and a list JavaScript can add to. The
 settles it: no reserved word contains a `$`, so no name can be one, now or
 after the next edition of ECMA-262.
 
-The cost is one character per name, spent where the format had no other use for
-it: DataJS has no identifier keys, so an `id` appears only in a `const`
-statement and the references to it, and normalized `$0` is exactly as long as
-the `_0` it replaces. JavaScript gives `$` no meaning of its own — `${` belongs
-to template literals, which this format has no syntax for. The one context that
-is not free is a context that already reads `$`. A `String.prototype.replace`
-replacement pattern spends `$1` on a capture group, and a shell expands `$0`
-and `$1` inside a double-quoted string or an unquoted heredoc — so a normalized
-document, which is exactly where those names appear, is rewritten before its
-reader ever sees it. Both have a spelling that avoids it: single quotes in the
-shell, a quoted `<<'EOF'` heredoc, or a function rather than a pattern string
-for `replace`. Embedding a document as data — in a JSON string, a file, a
-request body — is unaffected, since none of those interpret `$`.
+**Which character carries the prefix is a separate question from whether there
+is one**, and only the second is forced. `_` has the same property that the
+argument above rests on — no reserved word contains an underscore either, so
+`_class`, `_eval` and `_undefined` are equally ordinary names — so the grammar
+does not decide between them. `$` is the decision, made once and not derived;
+what follows is what it costs, so that the cost is on the record rather than
+discovered later.
+
+**The cost is that `$` reads as a named placeholder nearly everywhere.** That
+is a general association, not two incidents: `${name}` in a template literal,
+`$1` for a capture group in a `String.prototype.replace` pattern, `$0` and `$1`
+as positional parameters in a shell, `$VAR` and `${VAR}` in the substitution
+languages of `make`, `envsubst`, CI configuration and most templating engines.
+And it lands exactly where it is least welcome, since normalized form names its
+consts `$0`, `$1`, … — so the documents most likely to be piped through a shell
+for hashing or comparison are the documents most exposed. `_0` would carry none
+of it.
+
+What the association does *not* cost is also worth stating. It is a hazard of
+the surrounding text, not of the format: embedding a document as data — in a
+JSON string, a file, a request body, a database column — is unaffected, since
+none of those interpret `$`. Within JavaScript, `$` has no meaning of its own;
+`${` belongs to template literals, and **no name can produce that sequence**,
+since a name is `$` followed by identifier characters. A *string's contents*
+can hold `${` like any other text — `export default "${name}";` is a valid
+document — so embedding one in a template literal interpolates, but that is
+true of JSON in a template literal too and is not something the prefix
+introduced. Where a context does interpret `$`, each has a spelling that turns
+it off: single quotes or a quoted `<<'EOF'` heredoc in a shell, `$$` in `make`,
+a replacement function rather than a pattern string for `replace`.
+
+The rest of the cost is one character per name, spent where the format had no
+other use for it: DataJS has no identifier keys, so an `id` appears only in a
+`const` statement and the references to it, and normalized `$0` is exactly as
+long as the `_0` an earlier draft used.
 
 **Why require a space after `default` when `export default[1];` would lex?**
 Not because the conditional rule cannot be implemented. It can, and without
