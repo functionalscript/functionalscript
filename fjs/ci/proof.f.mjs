@@ -78,9 +78,8 @@ const runPin = /** @type {const} */ ('=9.9.9')
 const runPackageJson = `{"name":"other-package","devDependencies":{"typescript":"${runPin}"}}`
 
 /**
- * The version the configuration records for a Node job, by job id — the value
- * `setup-node` installs where a job still uses it, and the one its generated
- * flake's package attribute has to agree with.
+ * The version the configuration records for a Node job, by job id — the one its
+ * generated flake's package attribute has to agree with.
  *
  * @type {(id: string) => string}
  */
@@ -228,17 +227,12 @@ export const proof = {
             assertEq(flake(state, job.id), flakeText(job))
         }
     },
-    // The jobs running through their generated flake, step for step. Node 22 is
-    // the one still on `setup-node`.
+    // Every canonical Node job, step for step, each running through its own
+    // generated flake. None installs a runtime with `setup-node` any more.
     migratedNodeJobs: () => {
         const gha = run(false)
-        // The other side of the same fact: the unmigrated job enters no shell,
-        // so a job migrated by accident fails here rather than passing as one
-        // of the two below.
-        assert(
-            !hasRunInJob(`node${major(node.node22)}`, 'nix develop')(gha),
-            'unexpected nix develop in the unmigrated job')
         for (const [version, commands] of /** @type {const} */ ([
+            [node.node22, ['npm ci', 'node --test']],
             [node.node24, ['npm ci', 'node --test']],
             [node.default, ['npm ci', 'npx tsc', 'npm run cov', 'npm pack', 'npm run ci-update']],
         ])) {
@@ -259,23 +253,24 @@ export const proof = {
             assertStructurallySame(
                 job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
                 [
-                    `test "$(nix develop ./nix/${id} --command node --version)" = v${version}`,
-                    ...commands.map(command => `nix develop ./nix/${id} --command ${command}`),
+                    `test "$(nix develop --no-write-lock-file ./nix/${id} --command node --version)" = v${version}`,
+                    ...commands.map(command => `nix develop --no-write-lock-file ./nix/${id} --command ${command}`),
                     ...(id === `node${major(node.default)}`
                         ? ['git add -A && git diff --cached --exit-code']
                         : []),
                 ])
         }
     },
-    // Every Ubuntu Node job asserts the runtime it is about to use, whether
-    // `setup-node` installed it or its flake provides it. Nothing else ties the
-    // versions `fjs/ci/config/module.f.mjs` records to what a job really runs.
+    // Every canonical Node job asserts the runtime it is about to use, read from
+    // its own flake. The platform matrix installs Node and is deliberately not
+    // checked. Nothing else ties the versions `fjs/ci/config/module.f.mjs`
+    // records to what a job really runs.
     nodeVersionChecks: () => {
         const gha = run(false)
         for (const [version, command] of /** @type {const} */ ([
-            [node.node22, 'node --version'],
-            [node.node24, `nix develop ./nix/node${major(node.node24)} --command node --version`],
-            [node.default, `nix develop ./nix/node${major(node.default)} --command node --version`],
+            [node.node22, `nix develop --no-write-lock-file ./nix/node${major(node.node22)} --command node --version`],
+            [node.node24, `nix develop --no-write-lock-file ./nix/node${major(node.node24)} --command node --version`],
+            [node.default, `nix develop --no-write-lock-file ./nix/node${major(node.default)} --command node --version`],
         ])) {
             const id = `node${major(version)}`
             const runs = (gha.jobs[id]?.steps ?? [])
@@ -297,7 +292,7 @@ export const proof = {
         const job = gha.jobs[`node${major(node.default)}`]
         assert(job !== undefined, 'expected the canonical Node job')
         const packIndex = job.steps.findIndex(
-            step => step.run === `nix develop ./nix/node${major(node.default)} --command npm pack`)
+            step => step.run === `nix develop --no-write-lock-file ./nix/node${major(node.default)} --command npm pack`)
         const uploadIndex = job.steps.findIndex(
             step => step.uses === `actions/upload-artifact@${actions['actions/upload-artifact']}`)
         assert(packIndex !== -1, 'expected npm pack')
