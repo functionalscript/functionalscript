@@ -706,7 +706,9 @@ The six parts:
   stand for the boolean, number and bigint branches — then `FE`, the low end of
   the one lead run that has no width scheme and so nothing but its lone-byte
   row, and a **second file's** consumer left feeding code points to a
-  recognizer whose signature had changed under it. The sweep for the lead-partition shape had
+  recognizer whose signature had changed under it — then the `\u00XX` branch,
+  where `\u001f` alone pinned the lowercase rule for `f` and for no other
+  letter. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -976,8 +978,16 @@ The six parts:
   spelling is still a *valid* document, so only exact bytes tell them apart:
   the seven simple escapes `\"` `\\` `\b` `\t` `\n` `\f` `\r`, any of which
   a normalizer may instead emit as `\u00XX`; any other code point below
-  U+0020 as `\u00` plus two **lowercase** hex digits, so U+001F pins
-  `\u001f` and not `\u001F`; a **lone surrogate**, which must come back
+  U+0020 as `\u00` plus two **lowercase** hex digits — and both ends of every
+  range **reachable at each of the two digit positions**, not U+001F alone.
+  Five of the thirty-two controls have simple escapes, so what the `\u00XX`
+  branch can emit is: with a third digit `0`, fourth digits `0`–`7` and
+  `b`, `e`, `f`; with a third digit `1`, all sixteen. That gives **U+0000**,
+  **U+0007**, **U+000B**, **U+000F**, **U+0010**, **U+0019**, **U+001A** and
+  **U+001F** — the ends of the digit run and of the letter run at each third
+  digit — where an earlier draft pinned `\u001f` alone and so pinned the
+  lowercase rule only for `f`. Review found it, and applied this file's own key-twin
+  rule in the same breath: each of the eight has a key twin; a **lone surrogate**, which must come back
   escaped rather than as a replacement character, and all four of them —
   `\ud800`, `\udbff`, `\udc00`, `\udfff` — since the block is two ranges and
   a normalizer re-escaping only the high half emits a replacement character for
