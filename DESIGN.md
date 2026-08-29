@@ -144,7 +144,13 @@ supplies — rather than a special case.
 The order of work follows from that:
 
 1. **Share the skeleton.** Take the existing implementation as the core, with
-   its behaviour unchanged.
+   its behaviour unchanged — unchanged *as it stands when the port begins*.
+   When an idea lands first in the existing context (the idea-first order
+   below), the core the port takes already carries it, and the port copies
+   that. Such a port does acquire the new policy, and stays separate from it
+   all the same: the policy was argued, landed and proved in its own change,
+   in the context that could prove it, so the port's argument is only the
+   port.
 2. **Adjust the parts** the new context genuinely requires, or extend the
    skeleton so it can express what the new context needs.
 3. **Document every difference that remains,** at the part where it is made.
