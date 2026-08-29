@@ -245,8 +245,15 @@ key       ::= string | '[' '"__proto__"' ']'
   rejected (JS would read it as prototype replacement).
 - **Const names** are ASCII and **start with `$`**: `$[A-Za-z0-9_$]*`, each
   bound once, with **no exclusion list**. The two collisions an exclusion list
-  would have to cover are both closed by the leading `$`, since no JS reserved
-  word and none of `undefined`/`NaN`/`Infinity` contains one. A name JS rejects
+  would have to cover are both closed by the leading `$` — though not with the
+  same guarantee, which the spec's rationale now separates: the *value-word*
+  collision is closed permanently by DataJS's own grammar, since the words it
+  reads as values are the nine its productions name and that list does not grow
+  when ECMA-262 does; the *reserved-word* collision rests on ECMA-262 never
+  reserving a word containing `$`, which is an argument from compatibility
+  rather than a theorem, and whose failure would be a loud one. Today, measured
+  over sixty reserved, strict-mode-future, contextual and value words, none
+  contains a `$`. A name JS rejects
   as a binding identifier in module code (module code is strict) would break
   the subset law outright — `const class = 1` and `const eval = 1` are syntax
   errors there — and a name JS *permits* but DataJS reads as a value is worse

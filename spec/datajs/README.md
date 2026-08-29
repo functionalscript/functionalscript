@@ -722,8 +722,35 @@ JavaScript accepts and DataJS reads differently, which is the worse of the two
 failures. An earlier draft excluded both sets by enumerating them — about fifty
 words each implementation would carry, and a list JavaScript can add to. The
 `$` moves the question into the token grammar, where the first character
-settles it: no reserved word contains a `$`, so no name can be one, now or
-after the next edition of ECMA-262.
+settles it.
+
+**The two collisions do not have the same guarantee, and it is worth being
+exact about which is which.**
+
+The **value-word** collision — the silent one, where JavaScript accepts a
+binding and DataJS reads the word as a literal — is closed permanently, and by
+*this* grammar rather than by JavaScript's. The words DataJS reads as values
+are the nine its `value` and `word` productions name, all ASCII letters, and
+that list is fixed here. It does not grow when ECMA-262 grows, so no future
+JavaScript global or literal can become one, whatever it is called. Nothing a
+future edition does can reopen this.
+
+The **reserved-word** collision — the loud one, where JavaScript rejects the
+binding and the document is not JavaScript at all — rests on ECMA-262 never
+reserving a word that contains a `$`. That is an argument rather than a
+theorem, and the argument is: every reserved word, strict-mode future reserved
+word and contextual keyword in the language today is ASCII letters only,
+measured; a new one containing `$` would invalidate existing valid programs,
+since `$`-leading identifiers are legal and widespread; and when TC39 has
+needed a new marker it has taken a character that was *not* already valid in an
+identifier — `#` for private names — precisely to avoid that collision. The
+pattern points away from `$`, but no rule forbids it.
+
+The residual risk is therefore bounded and loud. If it ever happened, a
+document using the affected name would stop parsing as JavaScript — a syntax
+error at load, not a value silently read as something else — and normalized
+form, which spells its names `$` followed by digits, is the least plausible
+shape for a keyword. The exposure is to hand-chosen names only.
 
 **Which character carries the prefix is a separate question from whether there
 is one**, and only the second is forced. `_` has the same property that the
