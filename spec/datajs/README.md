@@ -39,7 +39,19 @@ belongs to [FunctionalScript](../README.md), not here.
 **This document specifies a target, not the current implementation.** The
 FunctionalScript compiler in this repository does not accept DataJS today: it
 separates statements by newline, so it rejects the `;` this format requires.
-The work that closes the gap is staged in
+The `;` is the difference that stops a document parsing at all, but it is not
+the only one. The shipped `fjs/djs` serializer also differs from
+[normalized form](#normalized-form) in four ways, each of them stage 4–6 work
+rather than a bug:
+
+| shipped `fjs/djs` | this specification |
+| --- | --- |
+| `const c0 = …` | `const _0=…` |
+| hoists a repeated primitive into a const | primitives always inline |
+| keys sorted lexicographically — `{"10":0,"9":0}` | array-index keys first in numeric order — `"9"` before `"10"` |
+| `NaN`, `±Infinity` become `null`; `-0` becomes `0` | each round-trips exactly |
+
+The work that closes all of it is staged in
 [`todo/parser-serializer-restructure.md`](../../todo/parser-serializer-restructure.md).
 
 Note the two nearby uses of "DJS". [`spec/README.md`](../README.md) uses it for
@@ -95,13 +107,15 @@ A document is UTF-8. It has no BOM.
 ```text
 punctuator ::= '{' | '}' | '[' | ']' | ':' | ',' | '=' | ';'
 word       ::= 'const' | 'export' | 'default'
-             | 'true' | 'false' | 'null' | 'undefined'
-             | 'NaN' | 'Infinity' | id
+             | 'true' | 'false' | 'null' | 'undefined' | 'NaN'
+             | infinity | id
+infinity   ::= '-'? 'Infinity'
 ```
 
-A `-` is **not an operator**. It is part of the token that follows it, and
-only where that token is a number, a bigint, or `Infinity`. `-NaN`,
-`-undefined`, `-true` and a bare `-` are rejected.
+A `-` is **not an operator**: it belongs to the token that follows it, and the
+grammar says so rather than leaving it to prose. Three productions carry the
+optional sign — `number`, `bigint` and `infinity` — and nothing else does, so
+`-NaN`, `-undefined`, `-true` and a bare `-` have no rule that accepts them.
 
 #### Strings
 
@@ -164,9 +178,8 @@ document ::= const* export
 const    ::= 'const' id '=' value ';'
 export   ::= 'export' 'default' value ';'
 
-value    ::= 'null' | 'true' | 'false' | 'undefined'
-           | 'NaN' | 'Infinity' | '-Infinity'
-           | number | bigint | string
+value    ::= 'null' | 'true' | 'false' | 'undefined' | 'NaN'
+           | infinity | number | bigint | string
            | array | object | id
 
 array    ::= '[' (value (',' value)*)? ']'
@@ -421,6 +434,13 @@ or compare documents.
 
 **Every JSON value is a DataJS value. No JSON document is a DataJS document** —
 a DataJS document is a JavaScript module, which a JSON document is not.
+
+Two different mechanisms exclude them, and an implementer checking documents
+should know which applies. Object-shaped JSON such as `{"a":1}` is **not valid
+JavaScript** at the top level of a module at all: the `{` opens a block. Scalar
+and array JSON — `42`, `"txt"`, `[1,2]` — *is* valid JavaScript, and fails the
+later test instead: it declares no `export default`, so it is a module that
+exports nothing.
 
 The conversion is textual:
 
