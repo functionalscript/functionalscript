@@ -44,22 +44,37 @@ reader's public byte-accepting path — which stage 4 owes:
 - a document **has no BOM**, which a decoder satisfies the parser on by
   stripping `EF BB BF` before the parser ever runs; and
 - a document **is UTF-8**, which nothing in a code-unit array can violate — so
-  vectors carry invalid UTF-8 to be refused, and **one per error class**, since
-  a decoder can reject three classes and accept a fourth. The classes are: an
-  invalid lead byte (`C0`, `C1`, `F5`–`FF`), a **stray continuation byte**
-  (`80` with no lead), a truncated sequence (`C2` at end of input — see the
-  exemption below), a valid
-  lead followed by a **non-continuation** byte, at each position a sequence has
-  one — `C2 41`, `E2 82 41`, `F0 9F 98 41` — since a decoder can validate the
-  first continuation and neglect the later ones, an overlong encoding **per width that can have one** — `E0 80 80` and
-  `F0 80 80 80`, which are independent lower-bound checks a decoder can get
-  right separately; the two-byte overlong `C0 80` needs no vector of its own
-  because `C0` is already an invalid lead byte,
-  a surrogate half encoded as three bytes, and a value **above U+10FFFF**
-  (`F4 90 80 80`). Those middle two are distinct failures rather than one: a
-  decoder can handle a sequence that runs out of input and still mishandle one
-  interrupted by an ordinary byte, and Python's decoder names them differently
-  — "unexpected end of data" against "invalid continuation byte". Review
+  vectors carry invalid UTF-8 to be refused, **one per error class and one at
+  each end of every class**, since a decoder can reject a class's lowest member
+  and accept its highest just as easily as it can reject one class and accept
+  another. Each class is a *range*, and naming a class without its endpoints
+  leaves the vector's value to whoever picks it:
+
+  | class | lowest | highest |
+  | - | - | - |
+  | invalid lead byte, low | `C0` | `C1` |
+  | invalid lead byte, high | `F5` | `FF` |
+  | stray continuation byte | `80` | `BF` |
+  | overlong, three bytes | `E0 80 80` | `E0 9F BF` |
+  | overlong, four bytes | `F0 80 80 80` | `F0 8F BF BF` |
+  | encoded surrogate | `ED A0 80` (U+D800) | `ED BF BF` (U+DFFF) |
+  | above U+10FFFF | `F4 90 80 80` | `F4 BF BF BF` |
+
+  Each overlong range's highest member sits immediately below that width's
+  valid minimum — `E0 9F BF` under `e0 a0 80`, `F0 8F BF BF` under
+  `f0 90 80 80` — so the pairs bracket the transition from both sides, and the
+  same holds for the surrogate hole and the U+10FFFF edge. The two-byte
+  overlong `C0 80` needs no row: `C0` is an invalid lead outright, measured, so
+  the invalid-lead class already carries it.
+
+  Two classes are not ranges and keep their own vectors. A **truncated
+  sequence** (`C2` at end of input) has no vector at all — see the exemption
+  below. A valid lead followed by a **non-continuation** byte needs one per
+  position rather than per endpoint — `C2 41`, `E2 82 41`, `F0 9F 98 41` —
+  since a decoder can validate the first continuation and neglect the later
+  ones. It and the truncated case are distinct failures despite looking alike:
+  Python's decoder names them differently, "unexpected end of data" against
+  "invalid continuation byte". Review
   supplied three of these seven after the first draft sampled three, which is
   the same "enumerate, do not sample" the productions below need. Each malformed
   sequence sits **inside an otherwise valid quoted string**, and that placement
@@ -309,7 +324,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Twenty-one consecutive review
+  vector is the only instrument that sees it. Twenty-two consecutive review
   rounds each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -339,7 +354,9 @@ The six parts:
   then the permitted control whitespace in byte form, which the width table
   had excluded by applying a string rule to the whole document — then the
   overlong classes per width, the two accepts flanking the surrogate hole, and
-  the lone surrogate and key order in the writing direction. Every time the list had been written from memory rather
+  the lone surrogate and key order in the writing direction — then the upper
+  edge of every invalid range, which turned the error classes into a table of
+  endpoints for the same reason the valid widths became one. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
