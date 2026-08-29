@@ -1,5 +1,21 @@
 # FunctionalScript Compiler
 
+## There is no grammar here yet
+
+This package once held `bnf.f.mjs` and `json.f.mjs`, a FunctionalScript module
+grammar over a complete JSON grammar, both written with `fjs/bnf` combinators.
+They were deleted rather than kept: nothing imported them, no proof covered
+them, the JSON half restated lexical rules
+[`fjs/bnf/testlib.f.mjs`](../bnf/testlib.f.mjs)'s `deterministic` already
+covers, and a concrete media grammar does not belong in the compiler at all.
+
+Their FunctionalScript half is also **stale by design**, which is why it was not
+kept as an example: it separated statements by newline, and the language
+requires `;`. Do not restore either file. The front end this package will hold
+arrives by moving the existing one, per
+[`todo/parser-serializer-restructure.md`](../../todo/parser-serializer-restructure.md);
+git history has the deleted `id`/`alpha`/comment rules if they are ever wanted.
+
 ## Source files and repository migration
 
 The FunctionalScript repository uses extensions to separate runtime source,
