@@ -203,7 +203,7 @@ document can carry. So the corpus does not store values. It stores a
   | `{"host": "nonEnumerable", "on": <node>, "key": <string>, "value": <node>}` | the same, non-enumerable |
   | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an **enumerable** accessor property that **records its own invocation** and then returns `value` |
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | an **enumerable** own data property under a fresh unique symbol |
-  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass" \| "custom", "from": <node, with `custom`>}` | the same data under a `null` prototype, as an `Array` subclass instance, or under a custom prototype object |
+  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"[, "inherited": <node>]}` | the same data under a `null` prototype, or as an `Array` subclass instance — `inherited` puts one **enumerable** member on the subclass's prototype |
   | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` names the property for `nonWritable` |
 
   **Every modifier's target must be an `obj` or `arr` node** — or a modifier
@@ -253,15 +253,23 @@ document can carry. So the corpus does not store values. It stores a
     otherwise drop silently. Two consumers would be testing two different
     rejection paths from one vector. Rejecting for the right reason and rejecting after
     doing the forbidden thing are different outcomes.
-  - **`proto: custom` is a serializer-accept vector with teeth.** The
-    prototype it takes is an ordinary `obj` node, so the vector can give it an
-    **enumerable member** — and then assert that member is *absent* from the
-    output. A serializer that enumerates with `for...in` copies inherited
+  - **`arraySubclass` with `inherited` is a serializer-accept vector with
+    teeth.** A serializer that enumerates with `for...in` copies inherited
     enumerable properties into its result, which the spec forbids: the data is
-    the object's **own** enumerable string-keyed properties. Review found that
-    `null` and `arraySubclass` cannot expose this, because neither prototype
-    carries anything to inherit. This is the only vector in the set whose
-    assertion is about a member that must **not** appear.
+    the object's **own** enumerable string-keyed properties. Putting one
+    enumerable member on the subclass's prototype and asserting it is *absent*
+    from the output is what catches that. This is the only vector in the set
+    whose assertion is about a member that must **not** appear.
+
+    An earlier draft did this with an arbitrary **custom** prototype, and
+    review was right that the spec does not clearly permit one: it rejects
+    "any other non-plain object" and exempts prototypes only by naming
+    `null`-prototype objects, `null`-prototype arrays and `Array` subclasses.
+    An implementation rejecting `Object.create({x: 1})` as non-plain would be
+    reading the normative text correctly and failing the corpus. An `Array`
+    subclass is **explicitly** permitted and its prototype can carry a member,
+    so it exercises the same filtering with no spec question attached — and
+    the corpus should not be where a spec question gets silently answered.
   - **`builtin` covers a class, not `Date`.** The spec rejects "a `Date`, or
     any other non-plain object", and a corpus naming only `Date` is passed by
     an implementation that special-cases `Date` and serializes an empty `Map`
@@ -323,12 +331,16 @@ needs nothing beyond an engine.
       modifiers, each modifier naming the node it applies to — with their
       application order, the rule that a modifier is a table entry and never
       inline, what a modifier node denotes, `builtin`'s and `proto`'s and
-      `attrs`'s closed value lists (`proto: custom` carrying the prototype
-      node), and `getter`'s **enumerable** accessor with its invocation
-      record. It is the part two
+      `attrs`'s closed value lists (`proto`'s optional `inherited` node), and
+      `getter`'s **enumerable** accessor with its invocation record. It is the part two
       consumers can silently disagree about, so it lands first and gets its own
       round-trip proof — encode a graph, decode it, and assert the sharing
       survives.
+- [ ] **Raise the plain-object boundary with the spec**, which this corpus
+      cannot settle: `README.md` rejects "any other non-plain object" and
+      exempts prototypes by naming three cases, so whether
+      `Object.create({x: 1})` is permitted is unstated. The vectors avoid the
+      question rather than answering it; the spec should answer it.
 - [ ] Choose the corpus's location. The encoding is settled above: JSON,
       permanently, per the bootstrapping constraint.
 - [ ] Write the accept, reject, **serializer accept**, serializer reject,
