@@ -28,29 +28,44 @@ be threaded through each entry point rather than through one decode.
 
 ### Proposal
 
-Two private one-liners:
+Three private one-liners:
 
 ```js
 /** The canonical decode every entry point starts from. */
 const parts = p => split(toPosix(p))
-/** The segments of a decoded path; rooted iff the root is non-empty. */
-const segmentsOf = ([r, rest]) => posixSegments(r !== '')(rest)
+/** Whether a decoded path is rooted: exactly when its root half is non-empty. */
+const isRooted = ([r]) => r !== ''
+/** The segments of a decoded path. */
+const segmentsOf = p => posixSegments(isRooted(p))(p[1])
 ```
 
-`rejoin` (`../module.f.mjs:101`) is rewritten through `segmentsOf` **too**,
-and it is the one that matters most: `normalize` and `concat` reach the
-rootedness rule only by delegating to it, so leaving its own `r !== ''` in
-place would let every listed entry point be rewritten while the duplication
-this issue removes survives in the function they all call.
+The rootedness test appears at **exactly three** sites today, and `isRooted`
+has to cover all three or the "one owner" claim is not true:
 
-After that, `root`, `parse`, `normalize`, and `concat` are single expressions
-over `parts`/`segmentsOf`/`rejoin`, `rejoin` states the rootedness rule once
-for all of them, and `escapes` keeps its explicit `false` as the visibly odd
-one out. No behavior change; the decode and the rootedness rule each get one
-owner.
+| site | today | reads as |
+|---|---|---|
+| `rejoin` (`../module.f.mjs:101`) | `posixSegments(r !== '')` | via `segmentsOf` |
+| `parse` (`:140`) | `posixSegments(r !== '')` | via `segmentsOf` |
+| `concat` (`:184`) | `if (rb !== '')` | `if (isRooted(pb))` |
+
+`rejoin` matters most among them — `normalize` and `concat` reach the folding
+rule only by delegating to it, so leaving its own `r !== ''` would let every
+entry point be rewritten while the duplication survives in the function they
+all call. But `concat`'s test is a *fourth* use of the same predicate for a
+different decision (does an absolute `b` replace `a`), reachable through
+neither `parts` nor `segmentsOf`, so it needs `isRooted` directly.
+
+That table is the whole set: the only other `!== ''` in the module is
+`base !== ''` at `:212`, which tests a served-prefix argument rather than a
+decoded root. After the rewrite, `root`, `parse`, `normalize`, and `concat`
+are single expressions over `parts`/`segmentsOf`/`rejoin`, the rootedness
+rule has one definition, and `escapes` keeps its explicit `false` as the
+visibly odd one out. No behavior change.
 
 ### Tasks
 
-- [ ] Add `parts`/`segmentsOf`; rewrite `rejoin` through `segmentsOf` and the
-      entry points through `parts`.
+- [ ] Add `parts`/`isRooted`/`segmentsOf`; rewrite all three rows of the
+      table above, and the entry points through `parts`.
+- [ ] Check the result: `r !== ''` on a decoded root appears nowhere outside
+      `isRooted`.
 - [ ] `npx tsc`, `fjs t`; the path proofs pass unchanged.
