@@ -1,5 +1,5 @@
 /**
- * @import { MetaStep, Os, GitHubAction } from './common/types.ts'
+ * @import { Job, MetaStep, Os, GitHubAction } from './common/types.ts'
  * @import { Dir, State } from '../effects/node/virtual/types.ts'
  * @import { Unknown } from '../djs/types.ts'
  */
@@ -8,11 +8,11 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main, nixJobs } from './module.f.mjs'
 import { actions, deno, functionalscript, node } from './config/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
-import { flakeText, nixDevelop } from './nix/module.f.mjs'
+import { flakeText, nixDevelop, runPath } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
-import { test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
+import { architecture, os, test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
@@ -22,6 +22,40 @@ import { parse as jsonParse } from '../media/json/module.f.mjs'
 /** @type {(cmd: string) => (gha: GitHubAction) => boolean} */
 const hasRun = cmd => gha =>
     definedValues(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))
+
+/**
+ * Whether a job bootstraps Nix: the installer step every migrated job has and
+ * no other job needs.
+ *
+ * @type {(job: Job | undefined) => boolean}
+ */
+const installsNix = job =>
+    job?.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true) === true
+
+/**
+ * Whether a job actually *enters* its own generated shell — some step's command
+ * is `nix/<id>/run`.
+ *
+ * Deliberately not the same question as `installsNix`. A job could install Nix
+ * and then run its commands on the runner's own toolchain: it would look
+ * migrated, its flake would never be evaluated, and the runtime it tested would
+ * be whatever the image happened to ship. Nothing else would notice, because
+ * the version check is the step that would have caught it and it is one of the
+ * steps that would be missing.
+ *
+ * The step's **command** is its first field, which is what a `run:` line is:
+ * one command (root `AGENTS.md` §7), and `nixSteps` writes the script's path
+ * as that command. So this compares the first field rather than searching the
+ * line — a step that merely names the path, `echo ./nix/deno/run`, is not
+ * entry and is not counted. Neither is the version check, whose command is
+ * `test` and which reaches the script inside a substitution; a job whose only
+ * mention of its flake were that would fail here, which is the right answer
+ * rather than a gap.
+ *
+ * @type {(job: Job | undefined, id: string) => boolean}
+ */
+const entersFlake = (job, id) =>
+    job?.steps.some(step => step.run?.split(' ')[0] === runPath(id)) === true
 
 /** @type {(jobId: string, cmd: string) => (gha: GitHubAction) => boolean} */
 const hasRunInJob = (jobId, cmd) => gha =>
@@ -315,10 +349,63 @@ export const proof = {
             ['deno install --frozen', 'deno task cov']
                 .map(command => nixDevelop('deno', command)))
     },
-    // Bun is the one canonical job left on a setup action, and the one with no
-    // flake — `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` says why. It also no
-    // longer installs a published `functionalscript`, which is independent of
-    // Nix and is why its two remaining commands are only about this repository.
+    // Every job's Nix status, in one place. The platform matrix is excluded by
+    // construction rather than by exception: those six jobs exist to run on
+    // stock runner images across three operating systems and two
+    // architectures, and four of them are not `aarch64-linux` at all. What is
+    // left is the canonical set, and it splits in two — the jobs that enter a
+    // generated flake, and the three that do not, each with an issue saying
+    // why. `fjs/ci/todo/65z-ci-nix.md` holds those reasons together; this is
+    // what makes a job added later come and declare which side it is on,
+    // instead of joining the second list in silence.
+    nixCoverage: () => {
+        const gha = run(true)
+        const matrix = os.flatMap(o => architecture.map(a => `${o}-${a}`))
+        const canonical = Object.keys(gha.jobs).filter(id => !matrix.includes(id))
+        // Bootstrapping Nix and entering the shell are separate facts, and a
+        // job doing only the first is the one that would slip past a check
+        // reading either alone. Requiring them to agree job by job is what
+        // lets the split below mean what it says.
+        for (const id of canonical) {
+            const job = gha.jobs[id]
+            assertEq(entersFlake(job, id), installsNix(job), id)
+        }
+        const onNix = canonical.filter(id => installsNix(gha.jobs[id]))
+        const declared = nixJobs.map(job => job.id)
+        // The declared flakes and the jobs that enter one are the same set:
+        // a flake nothing enters is never evaluated, and a job entering one
+        // that is not declared has no `flake.nix` to find.
+        //
+        // Both directions, because counting and one is not the same as
+        // equality once a duplicate is possible: declaring `deno` twice while
+        // a newly migrated job went undeclared would keep the counts level and
+        // satisfy every declaration, and the generator would write no flake
+        // for the job whose steps enter one. `onNix` comes from `Object.keys`
+        // and cannot repeat, so the reverse containment is what closes that.
+        assertEq(declared.length, onNix.length)
+        for (const id of declared) {
+            assert(onNix.includes(id), `expected ${id} to enter its own flake`)
+        }
+        for (const id of onNix) {
+            assert(declared.includes(id), `expected a flake declared for ${id}`)
+        }
+        // And named directly, because a repeated declaration is a defect in
+        // its own right — `nixFlakes` would write the same file twice — rather
+        // than only the way the check above could be fooled.
+        assert(
+            declared.every((id, i) => declared.indexOf(id) === i),
+            'duplicate flake declaration')
+        assertStructurallySame(
+            canonical.filter(id => !installsNix(gha.jobs[id])),
+            // `bun` and `wasm` wait on Nixpkgs, for unrelated reasons;
+            // `package-check` runs with no checkout, so there is no file tree
+            // for a flake or its `run` script to be in.
+            ['bun', packageCheckJobId, 'wasm'])
+    },
+    // Bun is the one canonical runtime job left on a setup action —
+    // `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` says why. It also no longer
+    // installs a published `functionalscript`, which is independent of Nix and
+    // is why its two remaining commands are only about this repository.
     bunJob: () => {
         const gha = run(false)
         const job = gha.jobs.bun
