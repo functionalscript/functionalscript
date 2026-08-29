@@ -18,7 +18,7 @@
  * one, and the corpus becomes part of that interpreter's test suite for free:
  * the memoization contract these cases rely on is the one it already owes.
  *
- * @import { Exp, Op2 } from '../edag/types.ts'
+ * @import { Exp, Op2, Properties } from '../edag/types.ts'
  * @import { Case, EqCase, Expectation, Group, OpId, Operand, SharedNode } from './types.ts'
  */
 
@@ -106,8 +106,14 @@ const evaluate = memo => {
         if (id === 'undefined') { return undefined }
         if (id === '[]') { return a.map(f) }
         if (id === '{}') {
-            return fromEntries(a.map(
-                (/** @type {readonly any[]} */ p) => [f(p[1]), f(p[2])]))
+            // `Properties` is `Property | Spread`. A spread read as a property
+            // would take its operand as the key and its absent third element
+            // as the value, giving a silently wrong object rather than an
+            // error — the same defect the printer refuses.
+            return fromEntries(a.map((/** @type {Properties} */ p) => {
+                if (p[0] !== ':') { throw ['not a property', p] }
+                return [f(p[1]), f(p[2])]
+            }))
         }
         return e.length === 2 ? op1(id)(f(a)) : op2(id)(f(a), f(b))
     }
@@ -294,6 +300,14 @@ const jsOnly = {
         toStringThrows: () => String({ toString: () => { throw 'Custom error' } }),
         toStringNotAFunction: () => String({ toString: 'hello' }),
         toStringNotPrimitive: () => String({ toString: () => [] }),
+        /**
+         * An object spread reaching the evaluator. `Properties` is
+         * `Property | Spread`, so this is a valid `Exp`; read as a property it
+         * evaluated to `{ x: undefined }` instead of failing. The corpus
+         * cannot produce one — it lowers JavaScript values — so this is the
+         * only way the branch is walked.
+         */
+        objectSpread: () => evaluate([])(['{}', [['...', 'x']]]),
         /**
          * Only the `eq` section shares, so a `ref` anywhere else is a mistake.
          *

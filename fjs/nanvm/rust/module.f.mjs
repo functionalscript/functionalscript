@@ -24,7 +24,7 @@
  *
  * @module
  *
- * @import { Exp, Primitive } from '../../edag/types.ts'
+ * @import { Exp, Primitive, Properties } from '../../edag/types.ts'
  * @import { Data, Eq, Expectation, Group, OpId, Operand, SharedNode } from '../types.ts'
  *
  * @example
@@ -190,14 +190,30 @@ const expExpr = shared => {
         if (id === '{}') {
             return a.length === 0
                 ? 'Object::default().to_any()'
-                : `[${a.map((/** @type {readonly any[]} */ p) =>
-                    `(${keyExpr(p[1])}, ${f(p[2])})`).join(', ')}].to_object().to_any()`
+                : `[${a.map(propertyExpr).join(', ')}].to_object().to_any()`
         }
         return e.length === 2 ? op1(id)(nested(a)) : op2(id)(nested(a), nested(b))
     }
     /** An operand, parenthesized where its rendering would otherwise re-associate. */
     /** @type {(e: Exp) => string} */
     const nested = e => composed(e) ? `(${f(e)})` : f(e)
+    /**
+     * One object entry.
+     *
+     * `Properties` is `Property | Spread`, so `['...', exp]` is a valid entry
+     * this printer has no `nanvm-lib` spelling for. Read as a property it
+     * would take the spread's operand as the key and its absent third element
+     * as the value, printing a bare `undefined` into the generated file — text
+     * that looks like Rust and is not. Refused for the reason `lookup` refuses
+     * an unmapped id, and so that the two entry shapes agree: a spread as an
+     * *array* item already refuses, having no operator to render as.
+     *
+     * @type {(p: Properties) => string}
+     */
+    const propertyExpr = p => {
+        if (p[0] !== ':') { throw ['not a property', p] }
+        return `(${keyExpr(p[1])}, ${f(p[2])})`
+    }
     return f
 }
 
