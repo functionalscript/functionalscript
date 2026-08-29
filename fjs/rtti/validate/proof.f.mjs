@@ -861,6 +861,69 @@ export const proof = {
             assertOk(read([/** @type {const} */ (42)])([42]))
         }
     },
+    // A value the schema cannot fit is answered by its **shape**, before any
+    // member is read: both readers report the container-level error rather
+    // than the first bad member, and they report it identically. That
+    // precedence is what lets a container be bounded before recursing, which
+    // an `or` of two arities needs — see the comment on the gate in
+    // `./module.f.mjs`. Acceptance is untouched: a shape the gate rejects is
+    // one no walk could have accepted, which the differential against the
+    // unbounded readers confirms. What the gate is *for* is counted by
+    // {@link arityUnionVisitsEachOperandOnce}, not by these paths.
+    structuralMismatchIsAnsweredFirst: () => {
+        const t = /** @type {const} */ ([42])
+        // too long *and* wrong at index 0 — the length is what answers
+        for (const read of [v, p]) { assertErrorPath([])(read(t)([43, 'extra'])) }
+        // a member error alone still reports the member
+        for (const read of [v, p]) { assertErrorPath(['0'])(read(t)([43])) }
+        // an absent required member answers before the members ahead of it
+        // are read — reaching it through the reading walk would recurse
+        // into the operands the longer arm shares, which is the exponential
+        // this order exists to avoid
+        const two = /** @type {const} */ ([number, number])
+        for (const read of [v, p]) { assertErrorPath(['1'])(read(two)(['bad'])) }
+        // and an undeclared member answers before the declared ones are
+        // read, which is the struct kind's half of the same rule — there
+        // `fits` is `() => true`, so the extra *key* is the only thing that
+        // can settle the arm whose value has too much
+        const one = { a: number }
+        for (const read of [v, p]) { assertErrorPath([])(read(one)({ a: 'bad', b: 1 })) }
+        // between the two structural answers the absent member wins, since
+        // it is the cheap one: it consults the schema once per declared
+        // member, where the undeclared check enumerates the value's keys
+        for (const read of [v, p]) { assertErrorPath(['a'])(read(one)({ b: 1 })) }
+        // and a value that fits is read as before
+        for (const read of [v, p, d]) { assertOk(read(t)([42])) }
+    },
+    // Every row above is about error **attribution**, and a regression that
+    // walked a shared operand once per arm while reporting the same paths
+    // would pass them all. So this one counts instead: an `or` of two
+    // arities whose arms share an operand, with the operand's thunk tallying
+    // how often it is visited.
+    //
+    // Linear here, exponential without the bound — measured against the
+    // unbounded readers at the same depths: 31 visits at depth 4, 511 at 8,
+    // 131 071 at 16, against 7, 11 and 19 here. The bound is generous enough
+    // to survive a benign refactor and far below 2^depth either way.
+    arityUnionVisitsEachOperandOnce: () => {
+        /**
+         * @typedef {() => readonly ['or', typeof number, typeof string, _Dot]} _Exp
+         * @typedef {() => readonly ['or', readonly ['.', _Exp, typeof string], readonly ['.', _Exp, typeof string, readonly ['|()', _Exp]]]} _Dot
+         */
+        let visits = 0
+        /** @type {_Exp} */
+        const exp = () => { visits += 1; return ['or', number, string, dot] }
+        /** @type {_Dot} */
+        const dot = () => ['or', ['.', exp, string], ['.', exp, string, ['|()', exp]]]
+        /** @type {(n: number) => Unknown} */
+        const chain = n => n === 0 ? ['nope'] : ['.', chain(n - 1), 'b']
+        const depth = 16
+        for (const read of [v, p]) {
+            visits = 0
+            assertError(read(exp)(chain(depth)))
+            assert(visits <= 3 * depth, 'the shared operand is walked once per level, not once per arm')
+        }
+    },
     // The walk is bounded by what the value and its prototypes carry rather
     // than by `length`: a sparse array as long as the index space allows
     // answers at once, where materializing the range exhausted memory first.
