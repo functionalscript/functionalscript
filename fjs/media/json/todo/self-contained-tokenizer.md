@@ -105,12 +105,38 @@ The public signature does not change:
 export const tokenize: (input: List<number>) => List<JsonToken>
 ```
 
-`JsonToken` does not change either, so `fjs/media/json/parser`'s behavior is
-untouched. What does change is where its parts are declared:
+`JsonToken`'s *shape* is unchanged — the same kinds carrying the same fields —
+so `fjs/media/json/parser`'s behavior is untouched. But it does change at the
+type level, and in a way worth deciding here rather than leaving to the
+implementation.
+
 `fjs/media/json/tokenizer/types.ts` currently builds `JsonToken` out of
 `StringToken`, `NumberToken`, `ErrorToken` and `EofToken` imported from
-`js/tokenizer/types.ts`; those become JSON's own declarations, and
-`_ScanInput`/`_ScanState` are replaced by the new state type.
+`js/tokenizer/types.ts`. Those become JSON's own declarations, and
+`_ScanInput`/`_ScanState` are replaced by the new state type. `ErrorToken` is
+the one that cannot simply move: its `message` is a **closed union** of ten
+literals (`js/tokenizer/types.ts`'s `_ErrorMessage`), and the message this
+design introduces — `invalid string` — is not one of them.
+
+Define JSON's own union explicitly rather than widening `message` to `string`
+or copying JavaScript's list:
+
+```ts
+type JsonErrorMessage =
+    | 'invalid number'
+    | 'invalid string'
+    | 'invalid token'
+    | 'unexpected character'
+```
+
+Four messages, and that is the whole vocabulary — down from the ten JSON
+inherits today, of which it emits eight and several are JavaScript's own
+(`*/ expected` has no JSON meaning). The narrowing is a feature: the union is
+the tokenizer's error contract, so a consumer can exhaustively switch on it, and
+a message JSON cannot produce should not typecheck.
+
+This is a public API change, additive in one direction and narrowing in the
+other, and it belongs in the changelog entry alongside the error shapes.
 
 There is a second edge to repoint, easy to miss because it does not go through
 the tokenizer at all: `fjs/media/json/parser/types.ts` imports `NumberToken`
@@ -327,6 +353,36 @@ changing them breaks nobody. Second, this stage must not go further and
 `-Infinity` folding belong to stage 4, written against the real caller. Export
 the shared core; let stage 4 wrap it.
 
+### Why the port and the error rule land together
+
+Review raised that this stage does two things at once — removes a dependency and
+changes error recovery — and that a PR should do one, so that a failure can be
+attributed to one or the other.
+
+The concern is right in general and the split is not available here.
+
+Some of the error-shape changes are **not a policy choice; they are consequences
+of removing the dependency.** `--` reports once today because the JavaScript
+tokenizer merges it into a decrement operator before JSON sees it. A scanner
+that no longer consults that tokenizer cannot reproduce this without
+reimplementing JavaScript's operator merging inside JSON — which is the coupling
+being removed. The same holds for the sign asymmetry, where `-00` reports twice
+and `00` once.
+
+Landing the rest first, against the existing wrapper, means writing throwaway
+code that exists to be deleted: to suppress the fabricated string in `"\x"`, the
+wrapper would have to watch for a string token following a string error and drop
+it — a heuristic over someone else's token stream, wrong in its own way, alive
+for one PR. The alternative reading, porting first and *preserving* the
+fabricated tokens, means deliberately writing new code to reproduce a known
+defect.
+
+So the two land together, and attribution comes from proofs rather than from
+bisection, which is the stronger guarantee: every accepted-input proof must pass
+**byte-identically**, so any failure among them is the port; every changed error
+shape is tabled above in advance, so any error-shape difference not in that
+table is also the port. Nothing is left to be discovered by staring at a diff.
+
 ### Edits owed to existing issues
 
 Two open issues are written against the dependency this stage removes, and
@@ -356,6 +412,8 @@ implementation PR — the premise only actually changes when the code does.
       `fjs/js/tokenizer` import and the `mapToken`/`parseMinusState` wrapper.
 - [ ] Move `StringToken`, `NumberToken`, `ErrorToken`, `EofToken` into
       `fjs/media/json/tokenizer/types.ts`; drop the `js/tokenizer` imports.
+      Give `ErrorToken` JSON's own four-literal `message` union rather than
+      widening it to `string` or copying JavaScript's ten.
 - [ ] Repoint `fjs/media/json/parser/types.ts`'s direct `NumberToken` import at
       `../tokenizer/types.ts`, so no file under `fjs/media/json` names
       `js/tokenizer`.
@@ -385,7 +443,8 @@ implementation PR — the premise only actually changes when the code does.
       in the PR description. The implementation changes observable behavior of
       the public `tokenize` — the error tokens it emits — so the entry is
       required, with an additive half for the newly exported `scanString`,
-      `scanNumber` and their state types. Prefix the error-shape half with
+      `scanNumber` and their state types, and a note that `JsonToken`'s error
+      `message` narrows to JSON's own four-literal union. Prefix the error-shape half with
       `**BREAKING CHANGES:**`: a
       direct consumer matching on today's messages (`" are missing`,
       `unescaped character`, `invalid token` for `0n`) sees different tokens,
