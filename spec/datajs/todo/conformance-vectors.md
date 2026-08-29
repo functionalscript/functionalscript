@@ -66,6 +66,14 @@ A machine-readable corpus with six parts:
   emits a valid document denoting something else. The accessor case asserts
   **two** things: that the input was refused, and that the getter was never
   invoked.
+
+  **Every rejection vector must be refusable for exactly one reason.** Review
+  found three vectors that a *cheaper* rule could refuse before the rule under
+  test ran — a non-enumerable `getter`, a non-enumerable `symbolKey`, and a
+  `RegExp` carrying an own non-enumerable `lastIndex` — and in each the vector
+  passed while the implementation was wrong. A vector with a second ground for
+  refusal tests whichever ground the implementation happens to reach first,
+  which is not the one it was written for.
 - **serializer accept** — programmatic inputs a serializer must **not** refuse,
   each with the **graph its output must denote**. Not the exact document:
   whitespace, layout, const names and the hoisting of singly-reached values are
@@ -315,7 +323,10 @@ needs nothing beyond an engine.
 - [ ] Choose the corpus's location. The encoding is settled above: JSON,
       permanently, per the bootstrapping constraint.
 - [ ] Write the accept, reject, **serializer accept**, serializer reject,
-      **graph equivalence** and normalize sets covering the cases listed. The
+      **graph equivalence** and normalize sets covering the cases listed.
+      Check each rejection vector for a **second ground of refusal** before
+      committing it — three of the ones designed here had one, and a vector
+      refused by the cheaper rule never exercises the rule it was written for. The
       serializer-accept set is the one an implementation passes by being too
       strict, so it is the one most easily left for later and least safe to.
 - [ ] Add the **JavaScript** whole-set subset-law check. The FunctionalScript
