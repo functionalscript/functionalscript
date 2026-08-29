@@ -136,38 +136,54 @@ reader's public byte-accepting path — which stage 4 owes:
   implementation must expose a decoder is an API question for the spec, not
   one this corpus should settle by requiring it of every consumer.
 
-Byte-form vectors must **accept** as well as reject, and one per sequence
-width, **at both ends of every width's range** — the whole table, not the ends
-that happened to be noticed:
+Byte-form vectors must **accept** as well as reject, and the accept set has a
+derivation rather than a list. **Four leads constrain their second byte** —
+`E0` admits `A0`–`BF`, `ED` admits `80`–`9F`, `F0` admits `90`–`BF`, `F4`
+admits `80`–`8F`, since outside those the sequence would be overlong, a
+surrogate, or above U+10FFFF. Those four constraints **partition the valid lead
+bytes into eight parts**, and each part is a contiguous run of scalars a
+decoder can implement, get wrong, or omit on its own. So: **both ends of every
+part**, measured.
 
-| width | lowest | highest |
-| - | - | - |
-| one byte, in a string | `20` (U+0020) | `7f` (U+007F) |
-| one byte, between tokens | `09`, `0a`, `0d` | — |
-| two bytes | `c2 80` (U+0080) | `df bf` (U+07FF) |
-| three bytes | `e0 a0 80` (U+0800) | `ef bf bf` (U+FFFF) |
-| four bytes | `f0 90 80 80` (U+10000) | `f4 8f bf bf` (U+10FFFF) |
+| lead | scalars | lowest | highest |
+| - | - | - | - |
+| one byte, in a string | U+0020–U+007F | `20` | `7f` |
+| one byte, between tokens | tab, LF, CR | `09`, `0a`, `0d` | — |
+| `c2`–`df` | U+0080–U+07FF | `c2 80` | `df bf` |
+| `e0` | U+0800–U+0FFF | `e0 a0 80` | `e0 bf bf` |
+| `e1`–`ec` | U+1000–U+CFFF | `e1 80 80` | `ec bf bf` |
+| `ed` | U+D000–U+D7FF | `ed 80 80` | `ed 9f bf` |
+| `ee`–`ef` | U+E000–U+FFFF | `ee 80 80` | `ef bf bf` |
+| `f0` | U+10000–U+3FFFF | `f0 90 80 80` | `f0 bf bf bf` |
+| `f1`–`f3` | U+40000–U+FFFFF | `f1 80 80 80` | `f3 bf bf bf` |
+| `f4` | U+100000–U+10FFFF | `f4 80 80 80` | `f4 8f bf bf` |
 
-A decoder rejecting any one lead-byte range refuses valid text while passing a
-set built from interior values: `C2`, `E0` and `F0 90` at the bottom, `DF`,
-`EF` and `F4` at the top.
+The eight parts are contiguous and together cover **U+0080 through U+10FFFF
+with exactly one hole**, U+D800–U+DFFF, which is the surrogate range and the
+one place the reject side takes over. That is the check on the table: a part
+whose neighbours do not meet it is a part written wrong.
 
-**Four leads constrain their second byte, and each needs both edges of that
-constraint** — a level below the width ranges, and the table touched one edge
-of each. `E0` admits `A0`–`BF`, `ED` admits `80`–`9F`, `F0` admits `90`–`BF`,
-`F4` admits `80`–`8F`, since outside those the sequence would be overlong, a
-surrogate, or above U+10FFFF. The accepts above supply `E0 A0 80`, `ED 9F BF`,
-`F0 90 80 80` and `F4 8F BF BF` — one edge each — so a decoder accepting only
-`90` after `F0`, or only `8F` after `F4`, passed while refusing most of the
-plane. The opposite edges are accepts too: **`E0 BF BF`** (U+0FFF),
-**`ED 80 80`** (U+D000), **`F0 BF BF BF`** (U+3FFFF), **`F4 80 80 80`**
-(U+100000), all measured valid. The three-byte row has a hole at U+D800–U+DFFF, and the hole needs its own
-two accepts: **`ed 9f bf` (U+D7FF)** just below it and **`ee 80 80` (U+E000)**
-just above. Without them a decoder rejecting the whole `ED` lead range refuses
-valid text up to U+D7FF while still rejecting the encoded surrogate correctly
-— passing both the row's endpoints, which use `E0` and `EF` leads, and the
-surrogate error class. A hole in a range has two boundaries like any other, and
-this table pinned neither.
+**Four rounds of review each removed one way of sampling this instead of
+deriving it**, and the shape repeated at every level:
+
+- The first table used **interior** values, so a decoder rejecting a whole lead
+  range passed: `C2`, `E0` and `F0 90` at the bottom, `DF`, `EF` and `F4` at
+  the top.
+- Then it had **one edge of each constrained lead** — `e0 a0 80`, `ed 9f bf`,
+  `f0 90 80 80`, `f4 8f bf bf` — so a decoder accepting only `90` after `F0`,
+  or only `8F` after `F4`, passed while refusing most of the plane. The
+  opposite edges are accepts too, and are now the other end of those rows.
+- Then it had no **surrogate hole** flanks. A hole in a range has two
+  boundaries like any other, and a decoder rejecting the whole `ED` lead range
+  refuses valid text up to U+D7FF while still rejecting the encoded surrogate
+  correctly — passing the row's endpoints and the surrogate error class alike.
+- Then, with every constrained lead covered twice over, the **unconstrained**
+  ranges had nothing: no `e1`–`ec` and no `f1`–`f3` anywhere in the set, so a
+  decoder implementing only the special branches — `E0`, `ED`, `F0`, `F4` — and
+  refusing every ordinary four-byte sequence passed the whole corpus. Review
+  found that one, and it is why the table is now indexed by **lead partition**
+  rather than by width: the width framing had no row for a range that no
+  constraint singles out, and so could not show one was missing.
 
 **The one byte range depends on where the byte is**, which is why it is two
 rows. Inside a string it starts at U+0020, because everything below is a
@@ -181,11 +197,12 @@ to the whole document; the same three characters are a rejection in one context
 and an acceptance in the other, so no vector here may leave its context
 unstated.
 
-This table exists because a boundary needs a vector on each side, and review
-has had to say so here **three times running** — first U+10FFFF, then the three
-minima, then the two- and three-byte maxima, which were still interior values
-in the same sentence that claimed to cover both ends. Fixing the reported
-instance and not sweeping the rest is what turned one finding into three. One
+This table exists because a boundary needs a vector on each side, and the four
+rounds listed above are review saying so four times running — U+10FFFF, then
+the three minima, then the two- and three-byte maxima that were still interior
+values in the same sentence claiming to cover both ends, then the ranges no
+constraint singles out. Fixing the reported instance and not sweeping the rest
+is what turned one finding into four. One
 multibyte vector is not enough either — with only a two-byte
 one, a decoder accepting ASCII and two-byte sequences while rejecting every
 three- and four-byte sequence still passes, and the BMP and astral cases under
@@ -213,24 +230,45 @@ The six parts:
   than read off the productions. What that derivation requires, where the
   grammar branches:
 
+  A production's **character classes** are part of where it branches, and they
+  carry the same rule as the byte table above: **both ends of every range, at
+  every position the class appears in**. An interesting case reaches for the
+  middle of a range — `12`, `1.5`, `a9` — and a reader that implements `a`–`z`
+  and forgets `A`–`Z`, or `[1-9]` and forgets `9`, is the ordinary way to get a
+  class wrong.
+
   - **`number ::= '-'? int frac? exp?`** — the sign present and absent, both
     `int` alternatives (`0` and `[1-9][0-9]*`), `frac` present and absent,
     `exp` present and absent, and within `exp` both letter cases and all three
-    sign states: `0`, `-0`, `12`, `1.5`, `-1.5`, `1e2`, `1E2`, `1e+2`, `1e-2`,
-    `1.5e-2`. A reader accepting integers and the named words while rejecting
+    sign states: `0`, `-0`, `9`, `109`, `-109`, `1.09`, `-1.09`, `1e09`, `1E2`,
+    `1e+2`, `1e-2`, `1.09e-2`. `9` and `109` put both ends of `[1-9]` in the
+    leading position and both ends of `[0-9]` after it; `1.09` and `1e09` do
+    the same for the digits of `frac` and `exp`, which `1.5` and `1e2` left in
+    the middle. A reader accepting integers and the named words while rejecting
     every fraction and exponent passed the earlier set entirely.
   - **`string`** — all nine escapes, not just the one an interesting case
     happened to use: `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t` and
     `\uXXXX`, plus a raw non-ASCII character. The lone surrogate exercises
     `\u` alone, so a reader supporting raw text and `\u` while rejecting the
-    eight simple escapes passed too.
+    eight simple escapes passed too. `\uXXXX`'s four hex digits are three
+    ranges — `0`–`9`, `a`–`f`, `A`–`F` — and **`\u09af`** and **`\uAF09`**
+    carry both ends of each: a reader decoding only lowercase hex accepts the
+    lone surrogate `\ud800` and every other escape vector while refusing an
+    input spelling the grammar admits.
   - **`bigint ::= '-'? int 'n'`** — both signs against both `int`
-    alternatives: `0n`, `-0n`, `12n`, `-12n`.
-  - **`id ::= [A-Za-z_$][A-Za-z0-9_$]*`** — both character classes, not just
-    the letters an interesting case happens to use: `$`, `_`, `_0`, `a$`, `a9`.
-    The contextual-keyword vectors (`async`, `as`, `from`, `get`, `of`, `set`)
-    are all letters, so a reader rejecting `$` or a leading `_` passed the set
-    while narrowing a production it never touched.
+    alternatives: `0n`, `-0n`, `109n`, `-109n`. `int`'s own class endpoints are
+    not repeated here: it is the same production `number` uses, and a reader
+    with a separate digit scanner for bigints is not an implementation this
+    grammar describes.
+  - **`id ::= [A-Za-z_$][A-Za-z0-9_$]*`** — both positions, and both ends of
+    every range in each. The first position admits six endpoints (`A`, `Z`,
+    `a`, `z`, `_`, `$`) and the tail eight (those six plus `0` and `9`), which
+    **`A9`, `Za`, `az`, `z_`, `_$`, `$A`** cover between them but for `0` and
+    `Z` in the tail, which **`a0Z`** supplies. The contextual-keyword vectors
+    (`async`, `as`, `from`, `get`, `of`, `set`) are all lowercase letters, so a
+    reader rejecting `$`, a leading `_`, or any uppercase letter passed the set
+    while narrowing a production it never touched — and the earlier set here,
+    `$`, `_`, `_0`, `a$`, `a9`, closed the first two and left the third.
   - **`infinity`, `array`, `object`, `key`, `document`** — both signs; empty
     and non-empty; both `key` alternatives; zero `const`s and several.
 
@@ -454,7 +492,7 @@ The six parts:
   positions of a sequence — then the normalize set taking documents where a
   serializer role takes graphs, the two- and three-byte maxima, `__proto__` in
   the writing direction, and JavaScript's other integer-literal families —
-  then the permitted control whitespace in byte form, which the width table
+  then the permitted control whitespace in byte form, which the accept table
   had excluded by applying a string rule to the whole document — then the
   overlong classes per width, the two accepts flanking the surrogate hole, and
   the lone surrogate and key order in the writing direction — then the upper
@@ -475,7 +513,14 @@ The six parts:
   exact-bytes vector written the round before that **spelled its object keys
   bare**, requiring a document the grammar rejects, and every cell of the
   non-continuation matrix using an ASCII intruder, so that half of the class —
-  a high-bit byte that is not a continuation — had no vector anywhere. Every time the list had been written from memory rather
+  a high-bit byte that is not a continuation — had no vector anywhere — then
+  the valid lead bytes **no constraint singles out**, `E1`–`EC` and `F1`–`F3`,
+  which the accept table had no row for because it was indexed by width, so a
+  decoder implementing only the four special leads passed the corpus, and the
+  sweep for that shape found the same hole in the **code-unit** accepts: every
+  `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
+  hex was lowercase, so four more classes were sampled in the middle where the
+  rule says both ends. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
