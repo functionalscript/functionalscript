@@ -55,17 +55,52 @@ reader's public byte-accepting path — which stage 4 owes:
   | invalid lead byte, low | `C0` | `C1` |
   | invalid lead byte, high | `F5` | `FF` |
   | stray continuation byte | `80` | `BF` |
-  | overlong, three bytes | `E0 80 80` | `E0 9F BF` |
-  | overlong, four bytes | `F0 80 80 80` | `F0 8F BF BF` |
+  | overlong, two bytes | `C0 A0` (U+0020) | `C1 BF` (U+007F) |
+  | overlong, three bytes | `E0 80 A0` (U+0020) | `E0 9F BF` (U+07FF) |
+  | overlong, four bytes | `F0 80 80 A0` (U+0020) | `F0 8F BF BF` (U+FFFF) |
+  | obsolete five-byte form | `F8 80 80 80 A0` (U+0020) | — |
+  | obsolete six-byte form | `FC 80 80 80 80 A0` (U+0020) | — |
   | encoded surrogate | `ED A0 80` (U+D800) | `ED BF BF` (U+DFFF) |
   | above U+10FFFF | `F4 90 80 80` | `F4 BF BF BF` |
 
   Each overlong range's highest member sits immediately below that width's
-  valid minimum — `E0 9F BF` under `e0 a0 80`, `F0 8F BF BF` under
-  `f0 90 80 80` — so the pairs bracket the transition from both sides, and the
-  same holds for the surrogate hole and the U+10FFFF edge. The two-byte
-  overlong `C0 80` needs no row: `C0` is an invalid lead outright, measured, so
-  the invalid-lead class already carries it.
+  valid minimum — `C1 BF` under `c2 80`, `E0 9F BF` under `e0 a0 80`,
+  `F0 8F BF BF` under `f0 90 80 80` — so the pairs bracket the transition from
+  both sides, and the same holds for the surrogate hole and the U+10FFFF edge.
+
+  **The two-byte overlong needs its own row after all.** An earlier draft
+  argued that `C0` is an invalid lead outright, so the invalid-lead class
+  carries `C0 80` already. Review showed the argument inverted: the invalid-lead
+  vector places `C0` inside a quoted string, so its next byte is the closing
+  `22`, and a decoder that *does* treat `C0` as a two-byte lead rejects that for
+  the missing continuation. It refuses the vector without ever enforcing the
+  overlong rule, which is the one thing the vector was about.
+
+  **Every overlong row's true low end is a vector that cannot fail**, which is
+  the sweep that finding forced and it reaches two rows nobody reported.
+  `C0 80`, `E0 80 80` and `F0 80 80 80` all encode **U+0000**, and a decoder
+  that accepts the overlong hands the parser a code point below U+0020 — a
+  rejected raw character — so the document is refused for the *string* rule
+  while the UTF-8 rule goes unenforced. The rows now start at the overlong
+  encoding of **U+0020**, the lowest scalar a string can carry raw, and the
+  class below it is untestable through a document for the same reason
+  truncation is: the corpus records that rather than shipping vectors that
+  pass no matter what. Nor does the space between tokens help — a decoder
+  yielding U+0000 there is refused for not being permitted whitespace.
+
+  **The obsolete widths are testable only where they are also overlong**, and
+  the table says so with an em dash rather than pretending to an upper end.
+  The legacy five-byte form's smallest in-range value is U+200000 and the
+  six-byte form's is U+4000000, both above U+10FFFF, so any such sequence a
+  document could carry is overlong by construction — measured, along with the
+  fact that `F9`–`FB` and `FD` cannot encode an in-range value at all, whatever
+  their payload. So `F8 80 80 80 A0` and `FC 80 80 80 80 A0` catch a decoder
+  that keeps a legacy width branch **and** omits the overlong check, and
+  nothing catches one that keeps the branch and checks overlongs, because such
+  a decoder accepts no five- or six-byte sequence this format can express.
+  Review proposed `F8 88 80 80 80`, whose legacy value is U+200000: every
+  implementation refuses that for being above U+10FFFF, so it would have been
+  another vector unable to fail.
 
   Two classes are not ranges and keep their own vectors. A **truncated
   sequence** (`C2` at end of input) has no vector at all — see the exemption
@@ -552,7 +587,11 @@ The six parts:
   rule applied to that commit's own vectors, which is the newest way this
   document has found to be short — then the whitespace class sampled six of
   fifteen on an assumption its own paragraph disproves, sharing tested only
-  through arrays, and the host variations named on objects alone. The sweep for the lead-partition shape had
+  through arrays, and the host variations named on objects alone — then the
+  two-byte overlong, dismissed on an argument that ran backwards, which on
+  sweeping turned out to have made the low end of **every** overlong row a
+  vector that cannot fail, and the obsolete five- and six-byte widths, which
+  are reachable only where they are also overlong. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1179,6 +1218,11 @@ needs nothing beyond an engine.
       Check its **placement** too: a malformed byte sequence goes inside a
       quoted string and a serializer-reject offender goes below the root, and
       in both directions the placement is what makes the vector able to fail.
+      Then ask what the **broken** implementation produces, not only what a
+      correct one does: if its output trips a *different* rule of the format —
+      an overlong that decodes to a control character, a legacy width whose
+      value exceeds U+10FFFF — the document is refused for that rule and the
+      vector passes while proving nothing.
       Ask of every class whether an **object walker and an array walker can
       differ on it**, and cover both kinds where they can. Four classes here
       have needed it — cycles, where each offender sits, sharing, and the host
