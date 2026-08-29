@@ -37,15 +37,46 @@ for `xor` ("It should be combined with `number`").
 
 ### Proposal
 
-Define `addition` once here, typed the way `cmp` is — an `Add1`/`Add2` pair
-(or a single `Additive = number | bigint | string` overload set) so that
-mixed operand types are rejected at the type level while each domain's
-re-export keeps its narrow signature:
+Define `addition` once here, typed the way `cmp` is — an `Add1`/`Add2` pair,
+so that mixed operand types are rejected at the type level while each
+domain's re-export keeps its narrow signature. In `types.ts`, beside
+`Cmp1`/`Cmp2` (`../../compare/types.ts:13-20`), which this copies minus the
+`boolean` row:
+
+```ts
+export type Add1 = string | number | bigint
+
+export type Add2<A, B> =
+    [A, B] extends [string, string] ? string :
+    [A, B] extends [number, number] ? number :
+    [A, B] extends [bigint, bigint] ? bigint :
+    never
+```
 
 ```js
-/** @type {<A extends Add1>(a: A) => <B extends Add2<A, B>>(b: B) => …} */
+/** @type {<A extends Add1>(a: A) => <B extends Add2<A, B>>(b: B) => Add2<A, B>} */
 export const addition = a => b => /** @type {any} */ (a) + b
 ```
+
+**`Add2<A, B>` is the result type, not `A | B`.** That is the load-bearing
+difference from `min` (`../../compare/module.f.mjs:38`), which does return
+`A | B` because it returns one of its arguments. Addition does not, and the
+mapping is what widens the literals: `Add2<1, 2>` reduces to `number`, so
+`addition(1)(2)` is `number`, while `A | B` would type it `1 | 2` and `any`
+would erase the per-domain signatures this issue exists to preserve. The
+constraint and the result are the same expression, exactly as `cmp` writes
+`B extends Cmp2<A, B>`; only `cmp`'s result is fixed at `Sign`, because a
+comparison's codomain does not vary with its operands.
+
+Checked against `tsc --strict`: all three domains return the widened
+primitive (`addition(1)(2)` is not assignable to `1 | 2`), both mixed forms
+are rejected — `addition(1)('a')` and `addition(true)(true)` — and the
+signature is assignable to `Reduce<number>` / `Reduce<string>`, so
+`fold({ identity: 0, operation: addition })` still infers
+`(input: List<number>) => number` (`../../../number/module.f.mjs:18`) and
+the `bigint` fold still infers its own. That assignability is the one thing
+a polymorphic operation can quietly break, so it belongs in the tasks below
+as a check, not an assumption.
 
 The cast is required, not incidental: `+` on two generic operands raises
 TS2365 even when the constraints admit only addable types. `cmp` carries the
@@ -65,8 +96,12 @@ different domain, and consolidating it is its own decision.
 
 ### Tasks
 
-- [ ] Add the polymorphic `addition` (and its `types.ts` support) here;
-      re-export from `number`, `bigint`, and `string`.
+- [ ] Add `Add1`/`Add2` to `../types.ts` and the polymorphic `addition`
+      here; re-export from `number`, `bigint`, and `string`.
+- [ ] Confirm both halves of the typing: `addition(1)(2)` is `number` (not
+      `1 | 2`), and the two `sum` folds keep their current inferred
+      signatures — the polymorphic form must still be assignable to
+      `Reduce<T>`.
 - [ ] Remove the two addition TODOs (`../module.f.mjs:43-47`,
       `../../../bigint/module.f.mjs:29`); leave `xor`'s alone.
 - [ ] `npx tsc`, `fjs t`.

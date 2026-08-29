@@ -184,6 +184,44 @@ walking them establishes the property for every value the signature admits.
 Following the rest instead would reject all three dialects for an `unknown`
 that never reaches the encoder's parameter type.
 
+**The walk settles kinds, not values — say so, and put the value rule where
+it already lives.** A schema whose members are all JSON kinds still admits
+values the encoder cannot round-trip: rtti `number` has no finiteness
+refinement, `numberSerialize` is `[jsonStringify(input)]`
+(`../json/serializer/module.f.mjs:83-84`), and `JSON.stringify` renders
+`NaN` and `±Infinity` as `null` — a rule this repo already documents at
+`../json/extended/module.f.mjs:50-52`, in the same breath as the fact that
+those values "cannot arrive from JSON text but can be supplied
+programmatically". So `revisionSchema`'s
+`generation: number` (`../revision/module.f.mjs:128`) is a live instance:
+`encodeText({ …, generation: NaN })` emits `null` and `decodeText` then
+rejects it, exactly the `bigint` failure one layer down. Claiming the
+construction assert establishes "JSON-representable" without qualification
+would therefore be false.
+
+Two things keep it honest, and neither is new machinery:
+
+- **State the round trip over `validate`'s outputs.** `validate` takes a
+  `JsonUnknown` — a value that came from JSON text, which has no `NaN` or
+  `Infinity` literal — so no value `validate` or `decodeText` returns is
+  non-finite, and `decodeText(encodeText(v)) = v` holds for all of them
+  unconditionally. That is the property the dialect protocol needs.
+- **For a hand-built value, the refinement is the owner.** `revision`
+  already rejects a non-finite `generation` in its own `validate`
+  (`Number.isSafeInteger`, `../revision/module.f.mjs:232`), which is why no
+  dialect is broken today. Make that the stated rule for the `number`
+  position rather than an invention: a dialect whose schema admits `number`
+  refines it, and the factory's JSDoc for `encodeText` says the host
+  `JSON.stringify` rule applies to a value that skipped the refinement.
+
+Do **not** answer this by having the shared `encodeText` walk every value
+checking `Number.isFinite`: that puts a whole-value traversal on every
+encode for a case no dialect can reach through `validate`, and pushing the
+check down into `../json`'s serializer would change every JSON consumer in
+the repo, far outside this issue. Narrowing the schema is not available
+either — rtti cannot express a finite `number`, which is the same
+expressiveness limit that sends the `bigint` half to a runtime assert.
+
 A type constraint — requiring `ValueOf<S>` assignable to `JsonUnknown` — is
 strictly better where it can be expressed, since it moves the failure to
 compile time, and is worth attempting first. But it is not a substitute for
@@ -314,6 +352,12 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
       `lock` is recursive — constructs without hanging. Attempt the
       `ValueOf<S>`-assignable-to-`JsonUnknown` constraint too, and keep it
       if it expresses cleanly — but the assert stays either way.
+- [ ] Scope the guarantee in the factory's JSDoc to what it establishes:
+      schema **kinds**, not values. State the round trip over `validate`'s
+      outputs, note that a `number` position is finite only because the
+      dialect refines it (`../revision/module.f.mjs:232`), and prove it
+      both ways — `decodeText(encodeText(v)) = v` for a validated revision,
+      and `validate` rejecting a non-finite `generation`.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
       copies and the two `isValid…` adapters. Keep every published name —
       `revisionDialect`/`lockDialect`/`noteDialect` aliasing the kit's
