@@ -210,7 +210,13 @@ The six parts:
   Cases beyond that derivation, each earning its place: a **lone surrogate**, `export default "\ud800";` denoting the
   one-unit value `[0xd800]` — it appears under `normalize` too, but roles are
   judged independently, so a reader-only implementation whose string model
-  cannot hold one passes every reader vector without this; **each of the four
+  cannot hold one passes every reader vector without this; an **escaped
+  surrogate pair**, `export default "\ud83d\ude00";` denoting the *two* units
+  `[0xd83d, 0xde00]`, since a reader combining an escaped pair into one scalar
+  returns the wrong graph and nothing else reaches that path — the lone
+  surrogate exercises a single escape, and the four-byte UTF-8 accepts exercise
+  the raw-character path. This document used that exact pair to argue for code
+  units over code points and then never made it a vector; **each of the four
   permitted whitespace characters between tokens** — space, tab, LF and CR — because the rejection half of this corpus is
   extensive and a reader accepting only U+0020 passes every one of those
   vectors while narrowing the language; every leaf (`-0`, `NaN`, `±Infinity`,
@@ -338,7 +344,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Twenty-three consecutive review
+  vector is the only instrument that sees it. Twenty-four consecutive review
   rounds each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -373,7 +379,9 @@ The six parts:
   endpoints for the same reason the valid widths became one — then the
   non-continuation matrix, which had been covered along one diagonal, and raw
   LF and CR, which one paragraph excluded on the reasoning another used to
-  keep four sibling vectors. Every time the list had been written from memory rather
+  keep four sibling vectors — then the escaped surrogate pair, which this
+  document argued for and never made a vector, and the `_0`/`_1` ordering,
+  which no single-const case can test. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -617,7 +625,12 @@ The six parts:
   number thresholds explicitly — `1e20`, `1e21`, `1e-6`, `1e-7`,
   `5e-324`, `1.7976931348623157e308` — since that is where a host's own
   formatter diverges, and pin `root=[p,p]` with `p=[c]` so the hoisting count
-  is occurrences rather than paths. Include a normalized root that is a bare
+  is occurrences rather than paths — and pin **`root=[a,b,a,b]`**, two
+  independent shared containers, so the `_0`, `_1` naming is tested at all.
+  With a single hoisted const there is no order to get wrong: a normalizer
+  traversing siblings in reverse names them backwards and passes every
+  one-const case. Pin the object analogue too, since there first encounter
+  follows observable key order rather than array position. Include a normalized root that is a bare
   number and a bare bigint, so `export default 1;` cannot regress to
   `export default1;` — which JavaScript rejects, `default1` being one
   identifier. Include an **identifier-starting** root as well (`NaN`, or any of
