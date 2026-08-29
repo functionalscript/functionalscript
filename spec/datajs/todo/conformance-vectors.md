@@ -364,7 +364,23 @@ The six parts:
     conversion, that returns positive zero passes every other number vector
     here: nothing else in the accept set can tell `0` from `-0`, and the sign
     is the whole of the difference. Review found it, and the unsigned two come
-    with them by the signed-twin rule read the other way round. `9` and `109`
+    with them by the signed-twin rule read the other way round. **And four
+    where the denoted Number is not the decimal the text spells**, since
+    `number` names a binary64 value and not the literal: `1000000000000000128`,
+    whose value's canonical spelling is `1000000000000000100`; `5e-324`, the
+    smallest positive subnormal, which is a *nonzero* value; `1e-999`, which
+    denotes `0`; and `1e999`, which denotes `Infinity`, with a signed twin
+    since `-1e999` is `-Infinity`. Each names a different broken reader — one
+    keeping the literal exactly in a decimal or bigint type, one flushing a
+    subnormal to zero, one erroring on underflow, one erroring on overflow —
+    and every other number vector here is small enough that all four pass it.
+    Review found the first; the other three are the sweep for its shape. These
+    are the reader's half of cases the `normalize` role already carries, and
+    per-role conformance means a reader-only implementation never runs that
+    role: **a normalize vector owes a reader vector wherever a plausible
+    implementation would read the same text as a different value**, and owes a
+    serializer vector wherever one would emit a document denoting a different
+    value. `9` and `109`
     put both
     ends of `[1-9]` in the leading position and both ends of `[0-9]` after it;
     `1.09` and `1e09` do the same for the digits of `frac` and `exp`, which
@@ -671,10 +687,17 @@ The six parts:
   emitting side — the six words, the number and the bigint, member by member —
   and that enumeration never crossed to this one — per-role independence cutting the other way than usual,
   since here it left the *reject* side sampling a list the *byte* side spells
-  out. And the rule owes its **accept** side too, which the spec supplies:
-  `export default-1;`, `export default[1];` and `export default"a";` are
-  one-line spellings with no space after `default`, and a reader that requires
-  one there always refuses all three.
+  out. And the rule owes its **accept** side too. The spec supplies three —
+  `export default-1;`, `export default[1];` and `export default"a";` — and
+  three is not the set: the value starts that need no separator are exactly the
+  ones that are not identifier characters, `-`, `[`, `{` and `"`, so
+  **`export default{};`** belongs beside them. Taking the spec's three as the
+  rule is the §Whitespace trap over again, in the same file that records it:
+  derive from the rule, not from the list that illustrates it. A reader
+  requiring a space before object literals alone accepts the other three and
+  every conventionally-spaced object vector, and refuses this one; the
+  `normalize` vector with those bytes cannot see it, since a reader-only
+  implementation never runs that role.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
   than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
   and at least one that is not — **`Map` or a boxed number**, not `RegExp`;
@@ -927,7 +950,15 @@ The six parts:
   and the number thresholds, which move the notation and never ask which
   digits `ToString` picks. Both are the same omission in different clothes: a
   set that pins where a *format* changes while leaving the *value* recoverable
-  by the broken path it exists to catch. The sweep for the lead-partition shape had
+  by the broken path it exists to catch — then three at once, all the same
+  shape and all the consequence of the round before: cases that had just been
+  added to `normalize` and were owed to the roles that never run it. Binary64
+  rounding, which the reader owes because it decides the graph; the two
+  magnitude boundaries, which the serializer owes because flushing or
+  overflowing changes denotation while the notation thresholds beside them do
+  not; and `export default{};`, whose absence came from copying the spec's
+  three illustrations as though they were the rule — the §Whitespace trap, in
+  the file that records the §Whitespace trap. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1099,7 +1130,16 @@ The six parts:
   serializer may refuse it and the ordinary positive vector may be nonzero, and
   `-0` is the opposite `Object.is` value rather than a stand-in for it; the
   normalize set pins `export default 0;` for the same reason, against a
-  normalizer that emits `-0` for it — and **naming a leaf type is not naming a
+  normalizer that emits `-0` for it — **and the two magnitude boundaries**,
+  `5e-324` and `1.7976931348623157e308`, which sat in the `normalize` set
+  alone. They belong here because getting them wrong changes *denotation*, not
+  spelling: a serializer that flushes the smallest subnormal emits `0`, and one
+  that overflows the largest finite emits `Infinity` or `1e309`, each a
+  document denoting a different graph, and each passing a role whose vectors
+  are all ordinary magnitudes. The notation thresholds `1e20`, `1e21`, `1e-6`
+  and `1e-7` stay out of this role on the same test: both spellings across
+  those boundaries denote the same value, so only the byte-exact role can see
+  them — and **naming a leaf type is not naming a
   vector**:
   "a boolean" instantiates as `true`, "a number" as a positive finite one and
   "a bigint" as a positive one, so a serializer refusing `false`, `-1.5` or
