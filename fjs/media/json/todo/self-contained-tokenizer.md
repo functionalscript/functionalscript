@@ -73,11 +73,24 @@ which is not even a valid JSON number. `parse` returns `["ok", …]`. It is
 precisely what [DESIGN.md §10](../../../../DESIGN.md#10-refuse-what-you-cannot-handle)
 forbids.
 
-So the bar is stated with that class named, rather than as an absolute the tree
-does not support:
+The class is **larger than one `n`, and does not have a tidy shape.** A search
+over all strings of length ≤ 5 that contain `n` finds 62 error-free inputs,
+including `1n1n1` → `number(111)`, `0n01` → `number(001)`, `-1n1` →
+`number(-11)` and `1n1.0` → `number(11.0)`. But `1n0`, `1n00` and `0n0` *do*
+error, so it is not simply "`n` between digits" either — the boundary is drawn
+by the JavaScript tokenizer's own state machine, not by anything expressible in
+JSON's terms.
 
-> **No input changes between producing an error token and not producing one —
-> except `<digits> n <digits>`, which starts erroring.**
+So the exception is defined by **mechanism, not by shape**, because every
+attempt in this document to enumerate a shape has been too narrow:
+
+> **No input changes between producing an error token and not producing one,
+> except where today's tokenizer deletes an `n` from inside a number.** Those
+> inputs start erroring.
+
+That is checkable without enumerating anything: a row that crosses the
+erroring boundary is the fix if the old output shows an `n` swallowed into a
+number token, and a bug otherwise.
 
 Stating it precisely matters because `tokenize` is public API rather than an
 internal step of `parse`: a direct consumer sees the tokens, not the rejection.
@@ -388,6 +401,7 @@ follows the input instead:
 | `>>>=` | one `invalid token` — a **JS operator** | four `unexpected character` |
 | `1n1` | **number `11`, no error** — the `n` is deleted | `invalid number`, `invalid token` |
 | `0n1` | **number `01`, no error** — not valid JSON | `invalid number`, `invalid token` |
+| `1n1n1` | **number `111`, no error** — both `n`s deleted | errors |
 | `00-2` | one error — `-2` is **swallowed** | `invalid number`, number `-2` |
 | `00-` | one error | two `invalid number` |
 | `00"a"` | one error — the string is swallowed | unchanged — `"` is not a recovery boundary |
@@ -438,17 +452,18 @@ guarantees.
 **Preserved, and proved:**
 
 1. **Every input that tokenizes without an error today tokenizes identically**,
-   except `<digits> n <digits>`. Valid JSON is untouched, which is the property
-   every consumer depends on.
+   except where the old tokenizer deletes an `n` from inside a number. Valid
+   JSON is untouched, which is the property every consumer depends on.
 2. **No input moves between erroring and not erroring**, in either direction,
-   except `<digits> n <digits>`, which starts erroring. An input that errors
-   today still errors; one that does not, still does not. This is what stops
-   the port quietly widening or narrowing the accepted language.
+   with the same exception, which starts erroring. An input that errors today
+   still errors; one that does not, still does not. This is what stops the port
+   quietly widening or narrowing the accepted language.
 
 Both exceptions are the same one, and it is the single deliberate change to the
 accepted language in this stage — `1n1` is `number(11)` today, with the `n`
-deleted and no error emitted. It is enumerated rather than open-ended: an input
-matching no other shape may not move.
+deleted and no error emitted. It is bounded by that mechanism rather than by a
+shape: a row may cross the erroring boundary only if the old output shows an
+`n` swallowed into a number.
 
 **Recorded, not promised:** within inputs that already error, the token stream
 may change. The sweep is what makes that safe — not a rule, but a broad
@@ -769,10 +784,13 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
 - [ ] Check the recorded diff against the two invariants, which is the whole
       point of recording it: no row where the old output has no error and the
       new one does (or vice versa), and no row where a valid JSON document
-      tokenizes differently — **with the one enumerated exception**,
-      `<digits> n <digits>`, which the sweep reaches at `c = 'n'` and which
-      moves from not-erroring to erroring on purpose. A row matching no other
-      shape and crossing that line is a bug; that one is the fix.
+      tokenizes differently — **with the one exception**, an `n` the old
+      tokenizer deletes from inside a number, which the sweep reaches at
+      `c = 'n'`. Test it by inspecting the *old* output: a row crossing the
+      erroring boundary is the fix if its old token is a number that swallowed
+      an `n`, and a bug otherwise. Do not test it by matching input shapes —
+      the class includes `1n1n1`, `0n01` and `-1n1` but excludes `1n0`, and
+      three attempts in this document to write that shape down were all wrong.
 - [ ] Sweep **mixed boundaries** too, not only single characters: a case like
       `00"/1` is invisible to `00` + `c` + `1`, because the damage comes from
       what the re-dispatched character's *own* scanner then consumes. Generate
