@@ -462,6 +462,9 @@ export const proof = {
                 // and an absent required member answers before the members
                 // ahead of it are read — see `../validate/proof.f.mjs`
                 assertErrorPath(['1'])(parse([number, number])(['bad']))
+                // an undeclared key likewise, which is the struct kind's
+                // half of the rule — see `../validate/proof.f.mjs`
+                assertErrorPath([])(parse({ a: number })({ a: 'bad', b: 1 }))
             },
             // Nor is a key that is no position at all.
             nonIndexKeyRejected: () =>

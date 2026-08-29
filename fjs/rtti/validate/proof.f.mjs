@@ -880,6 +880,12 @@ export const proof = {
         // this order exists to avoid
         const two = /** @type {const} */ ([number, number])
         for (const read of [v, p]) { assertErrorPath(['1'])(read(two)(['bad'])) }
+        // and an undeclared member answers before the declared ones are
+        // read, which is the struct kind's half of the same rule — there
+        // `fits` is `() => true`, so the extra *key* is the only thing that
+        // can settle the arm whose value has too much
+        const one = { a: number }
+        for (const read of [v, p]) { assertErrorPath([])(read(one)({ a: 'bad', b: 1 })) }
         // and a value that fits is read as before
         for (const read of [v, p, d]) { assertOk(read(t)([42])) }
     },

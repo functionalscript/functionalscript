@@ -215,37 +215,38 @@ const constContainerValidate =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            // Decide each declared member's presence, bound the container,
-            // then read the members — in that order, and each decision made
-            // once and then used rather than re-derived.
+            // The container's **shape** is settled before any member is
+            // read: presence is recorded, the container is bounded, an
+            // illegal absence is rejected — and only then are the members
+            // read, from the flags already recorded.
             //
-            // The order is what makes an `or` of two arities linear instead
-            // of 2^depth, which is the shape a schema uses to say a trailing
-            // operand may be left out (`fjs/edag`'s chain nodes). Both steps
-            // earn their place, in opposite directions: the bound settles the
-            // arm whose value is too long, and the presence pass settles the
-            // one whose value is too short, by reaching its absent last
-            // member before any recursion. `parse` does the same, which is
-            // what keeps the two readers reporting the same error.
+            // That order is what makes an `or` of two arities linear
+            // instead of 2^depth, which is the shape a schema uses to say a
+            // trailing operand may be left out (`fjs/edag`'s chain nodes).
+            // The bound settles the arm whose value has too much — an extra
+            // index, an undeclared key — and the absence pass settles the
+            // arm whose value has too little. Neither alone suffices, and
+            // each was measured missing: without the bound, and without
+            // deciding absence early, a chain stays exponential in one
+            // direction or the other. `parse` does the same, which is what
+            // keeps the two readers reporting the same error.
             //
-            // Reading `length` before the members assumes reading it has no
-            // effect — true of every DJS value, and the assumption the
-            // readers are written under. What that gives up for a value built
-            // by arbitrary JavaScript is stated in "What the readers assume
-            // of a value" in `../README.md`.
+            // Reading `length` and enumerating the keys before the members
+            // assumes those reads have no effect — true of every DJS value,
+            // and the assumption the readers are written under. What that
+            // gives up for a value built by arbitrary JavaScript is stated
+            // in "What the readers assume of a value" in `../README.md`.
             const withPresence = rttiEntries.map(([k, v]) =>
                 /** @type {readonly[string, readonly[typeof v, boolean]]} */ ([k, [v, k in value]]))
-            if (!fits(value, declared.length)) {
+            if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
                 return verror('unexpected value')
             }
-            // Absence is answered before **any** member is read. Reaching
-            // an illegal absence through the reading walk would first
-            // recurse into the members that come before it, and those are
-            // the operands the longer arm shares — so an `or` of two
-            // arities would walk them once per arm at every level, which is
-            // the exponential all over again on a value the short arm has
-            // to reject. Measured on a chain of `['.', exp, index]` with a
-            // leaf no arm accepts: 2.5s at depth 16 without this pass.
+            // Reaching an illegal absence through the reading walk would
+            // first recurse into the members that come before it, and those
+            // are the operands the longer arm shares — so the two arms would
+            // walk them once each at every level, which is the exponential
+            // all over again. Measured on a chain of `['.', exp, index]`
+            // with a leaf no arm accepts: 2.5s at depth 16 without this.
             const a = eachEntry(
                 withPresence,
                 (_k, [v, present]) => present ? ok(undefined) : absentMember(v),
@@ -265,9 +266,6 @@ const constContainerValidate =
                 consPresence,
             )
             if (r[0] === 'error') { return r }
-            if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
-                return verror('unexpected value')
-            }
             // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
             // structurally equivalent to C — TypeScript can't narrow element types through the loop.
             // The walk recorded the decisions it was given, so this asks

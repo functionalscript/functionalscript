@@ -340,13 +340,12 @@ const constContainerParse =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            // Presence, then the bound, then the reads — each decision
-            // made once and then used. See the comment on the same shape in
-            // `../validate/module.f.mjs`, including what reading `length`
-            // first assumes of the value.
+            // Presence, the bound, absence, then the reads. See the
+            // comment on the same shape in `../validate/module.f.mjs`,
+            // including what settling the shape first assumes of the value.
             const withPresence = rttiEntries.map(([k, t]) =>
                 /** @type {readonly[string, readonly[typeof t, boolean]]} */ ([k, [t, k in value]]))
-            if (!fits(value, declared.length)) {
+            if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
                 return verror('unexpected value')
             }
             // Absence before any read, for the reason `../validate`'s
@@ -371,9 +370,6 @@ const constContainerParse =
                 consDeclared,
             )
             if (r[0] === 'error') { return r }
-            if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
-                return verror('unexpected value')
-            }
             // The walk recorded the decisions it was given, so this asks
             // the pre-bound snapshot against the final state.
             if (!presenceUnchanged(rttiEntries, r[1].presence, value)) {
