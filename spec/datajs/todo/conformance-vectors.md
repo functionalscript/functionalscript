@@ -51,7 +51,10 @@ reader's public byte-accepting path — which stage 4 owes:
   exemption below), a valid
   lead followed by a **non-continuation** byte, at each position a sequence has
   one — `C2 41`, `E2 82 41`, `F0 9F 98 41` — since a decoder can validate the
-  first continuation and neglect the later ones, an overlong encoding,
+  first continuation and neglect the later ones, an overlong encoding **per width that can have one** — `E0 80 80` and
+  `F0 80 80 80`, which are independent lower-bound checks a decoder can get
+  right separately; the two-byte overlong `C0 80` needs no vector of its own
+  because `C0` is already an invalid lead byte,
   a surrogate half encoded as three bytes, and a value **above U+10FFFF**
   (`F4 90 80 80`). Those middle two are distinct failures rather than one: a
   decoder can handle a sequence that runs out of input and still mishandle one
@@ -100,8 +103,13 @@ that happened to be noticed:
 
 A decoder rejecting any one lead-byte range refuses valid text while passing a
 set built from interior values: `C2`, `E0` and `F0 90` at the bottom, `DF`,
-`EF` and `F4` at the top. The three-byte row has a hole at U+D800–U+DFFF,
-which the surrogate error class already covers.
+`EF` and `F4` at the top. The three-byte row has a hole at U+D800–U+DFFF, and the hole needs its own
+two accepts: **`ed 9f bf` (U+D7FF)** just below it and **`ee 80 80` (U+E000)**
+just above. Without them a decoder rejecting the whole `ED` lead range refuses
+valid text up to U+D7FF while still rejecting the encoded surrogate correctly
+— passing both the row's endpoints, which use `E0` and `EF` leads, and the
+surrogate error class. A hole in a range has two boundaries like any other, and
+this table pinned neither.
 
 **The one byte range depends on where the byte is**, which is why it is two
 rows. Inside a string it starts at U+0020, because everything below is a
@@ -301,7 +309,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Twenty consecutive review
+  vector is the only instrument that sees it. Twenty-one consecutive review
   rounds each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -329,7 +337,9 @@ The six parts:
   serializer role takes graphs, the two- and three-byte maxima, `__proto__` in
   the writing direction, and JavaScript's other integer-literal families —
   then the permitted control whitespace in byte form, which the width table
-  had excluded by applying a string rule to the whole document. Every time the list had been written from memory rather
+  had excluded by applying a string rule to the whole document — then the
+  overlong classes per width, the two accepts flanking the surrogate hole, and
+  the lone surrogate and key order in the writing direction. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -490,12 +500,22 @@ The six parts:
   spec says is **not** a free choice, so it is the only container case whose
   output shape is constrained.
 
-  One key needs its own entry: an object with an own enumerable **`__proto__`**
-  data property. The reader's set covers that key and this one did not, so a
-  serializer-only implementation could refuse a value its own output syntax can
-  express — `{["__proto__"]:…}` is exactly what the grammar provides it for.
-  The same rule reaching two roles owes a vector in each, which is the third
-  time that has come up here.
+  Three cases need naming beyond the leaf and container shapes, because the
+  reader's set covers them and a serializer-only implementation runs none of
+  its vectors:
+
+  - an object with an own enumerable **`__proto__`** data property, which a
+    serializer could otherwise refuse though its own output syntax exists to
+    express it — `{["__proto__"]:…}` is what the grammar provides that form for;
+  - a string holding a **lone surrogate**, `[0xd800]`, with the vector
+    asserting the emitted document denotes that exact code-unit sequence: a
+    serializer that refuses such strings, or replacement-encodes them, passes
+    any ASCII-string vector;
+  - an object mixing **array-index and string keys**, since observable order is
+    a property of the emitted document and nothing else in this set constrains
+    it. Review reported the first two; this one came from sweeping the reader's
+    set against this one afterwards, which is what should have happened when
+    `__proto__` was added a round earlier.
 
   The remaining cases are host variations. The spec is explicit that these are
   outside the data model rather than invalid, and that rejecting them is a
