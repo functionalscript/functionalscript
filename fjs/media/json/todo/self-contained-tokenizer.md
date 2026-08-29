@@ -694,8 +694,25 @@ export type Scan<S> = (state: S) => (input: U16 | null) => ScanResult<S>
 ```
 
 Both scanners are that shape — `Scan<StringState>` and `Scan<NumberState>` —
-with an exported initial state each. Three properties, and each is load-bearing
-for something already argued above:
+and each ships its initial state as a named export, spelled out here because
+the paragraph above rules that "an export a second implementation could satisfy
+incompatibly is not a contract" and then, in an earlier draft, said only *that*
+there was an initial state:
+
+```ts
+export const scanString: Scan<StringState>
+export const scanNumber: Scan<NumberState>
+
+export const stringStart: StringState   // { kind: 'start' }
+export const numberStart: NumberState   // { kind: 'start', lexeme: [] }
+```
+
+The **values** are part of the contract, not just the types. `numberStart`'s
+`lexeme` is empty, and both kinds are `'start'` rather than a phase an input
+could also reach — which is the property the state task already requires proved,
+and it is unprovable against an initial state the design never named.
+
+Three properties, and each is load-bearing for something already argued above:
 
 - **A scanner emits no tokens.** It advances a state, and the state carries the
   lexeme accumulated so far. Building a `JsonToken` is the caller's, which is
@@ -1103,7 +1120,9 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       case stage 4 needs for `export default 1;`. JSON's own tokens must not
       move: `12;1` stays `invalid number`, `unexpected character`, `number 1`.
 - [ ] Export `Scan<S>`, `ScanResult<S>`, `StringState` and `NumberState` from
-      `types.ts` **as declared above** — the kinds and fields, not a shape of
+      `types.ts`, and `scanString`, `scanNumber`, `stringStart` and
+      `numberStart` from the module, **as declared above** — the initial states
+      by those names and with those values, since stage 4 imports them — the kinds and fields, not a shape of
       the implementer's choosing, with `U16` imported from
       [`fjs/text/utf16/types.ts`](../../../text/utf16/types.ts) rather than
       spelled `number`. It is an alias, so this buys no checking; it buys the
@@ -1133,7 +1152,8 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       in the PR description. The implementation changes observable behavior of
       the public `tokenize` — the error tokens it emits — so the entry is
       required, with an additive half for the newly exported `scanString`,
-      `scanNumber` and their state types, and a note that `JsonToken`'s error
+      `scanNumber`, their initial states `stringStart` and `numberStart`, and
+      their state types, and a note that `JsonToken`'s error
       `message` narrows to JSON's own four-literal union. Prefix the error-shape half with
       `**BREAKING CHANGES:**`: a
       direct consumer matching on today's messages (`" are missing` and

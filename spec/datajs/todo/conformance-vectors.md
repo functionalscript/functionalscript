@@ -101,10 +101,16 @@ A machine-readable corpus with six parts:
   `export default "a\<LF>b";`. Then the **raw control characters** a string
   may not contain — U+0000, U+0009 and U+001F, pinning both ends of the
   below-U+0020 range and one ordinary member — each valid inside a JavaScript
-  string literal and none inside a DataJS one. Then all **six** characters
-  JavaScript treats as whitespace or a line terminator and DataJS rejects
-  outside a string — U+2028, U+2029, no-break space, form feed, **vertical
-  tab** and a byte order mark. Then the three places whitespace is
+  string literal and none inside a DataJS one. Then the characters JavaScript
+  treats as whitespace or a line terminator and DataJS does not, of which there
+  are **21**, not the six the spec enumerates: U+000B, U+000C, U+2028, U+2029,
+  U+FEFF, and the fifteen `Space_Separator` characters other than U+0020 —
+  U+00A0, U+1680, U+2000–U+200A, U+202F, U+205F and U+3000. Vectors take one
+  from each shape a delegating reader would get from its host rather than all
+  21: U+000B and U+000C (the C0 pair), U+2028 and U+2029 (the line
+  terminators), U+FEFF, and U+00A0, U+1680, U+2000, U+202F, U+205F and U+3000
+  spanning the `Zs` block, since an implementation reaching that class at all
+  reaches all of it. Then the three places whitespace is
   *required*, one vector each: `constx=1;export default x;`,
   `exportdefault 1;` and `export default1;`.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
@@ -134,11 +140,12 @@ A machine-readable corpus with six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Six consecutive review rounds
+  vector is the only instrument that sees it. Seven consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
-  control characters, then the vertical tab and the required separators. Every time the list had been written from memory rather
+  control characters, then the vertical tab and the required separators, then
+  the fifteen `Space_Separator` characters the spec's own list omits. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -166,16 +173,23 @@ A machine-readable corpus with six parts:
     `+`, no leading or trailing point, no separators, no leading zeros.
   - **Identifiers** — §Identifiers' ASCII-only rule, which excludes both a
     non-ASCII letter and the `\uXXXX` spelling of an ASCII one.
-  - **Whitespace** — §Whitespace, which narrows twice and was the section
-    this derivation had *not* enumerated, which is exactly why one of its six
-    went missing. It closes JSON's four-character set against every other
-    character JavaScript treats as space or a line terminator — U+2028,
-    U+2029, no-break space, form feed, vertical tab, BOM — and it *requires*
-    whitespace in three places, after `const`, after `export`, and before an
-    identifier-starting value after `default`. Six plus three, and the list
-    above now has six plus three. Leaving it in the prose tail below rather
-    than in this enumeration is what let a six-item closed set be transcribed
-    as five.
+  - **Whitespace** — §Whitespace, which narrows twice, and where the *spec's
+    own list* is the trap. Its rule is general and correct: whitespace is
+    exactly JSON's four characters, so **every other character JavaScript
+    treats as whitespace or a line terminator** is rejected. The six it then
+    names after a colon are illustrations, and measured against ECMAScript the
+    real set is 21 — the colon list omits every `Space_Separator` character
+    but U+00A0. Derive from the rule; the six are not a set to copy. §Whitespace
+    also *requires* whitespace in three places, after `const`, after `export`,
+    and before an identifier-starting value after `default`.
+
+    This section has now been got wrong twice in successive rounds, each time
+    by treating a list as closed: first the tail below was transcribed and
+    dropped the vertical tab, then the spec's six were adopted as complete.
+    A conforming reader needs none of this — it accepts four characters and
+    rejects the rest, so it gets all 21 for free. Only a reader **delegating**
+    to a JavaScript tokenizer over-accepts, which is precisely why the vectors
+    have to exist and why they must reach the `Zs` class the spec never lists.
 
   Plus what DataJS simply lacks where JavaScript has it: comments, `import`,
   identifier keys and trailing commas.
@@ -521,6 +535,16 @@ needs nothing beyond an engine.
       exempts prototypes by naming three cases, so whether
       `Object.create({x: 1})` is permitted is unstated. The vectors avoid the
       question rather than answering it; the spec should answer it.
+- [ ] **Raise §Whitespace's enumeration with the spec.** Its rule — whitespace
+      is exactly JSON's four, everything else JavaScript treats as whitespace
+      is rejected — is complete and correct, but the six characters it names
+      after the colon read as that set and are not: measured against
+      ECMAScript, 21 characters qualify, and the list omits every
+      `Space_Separator` but U+00A0 (U+1680, U+2000–U+200A, U+202F, U+205F,
+      U+3000). An implementer reading the colon as the rule accepts fifteen
+      characters DataJS rejects. The corpus derives from the rule and so is
+      correct either way; the spec should either mark the list as examples or
+      complete it.
 - [ ] Choose the corpus's location. The encoding is settled above: JSON,
       permanently, per the bootstrapping constraint.
 - [ ] Write the accept, reject, **serializer accept**, serializer reject,
