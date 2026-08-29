@@ -388,12 +388,18 @@ The six parts:
   treats as whitespace or a line terminator and DataJS does not, of which there
   are **21**, not the six the spec enumerates: U+000B, U+000C, U+2028, U+2029,
   U+FEFF, and the fifteen `Space_Separator` characters other than U+0020 —
-  U+00A0, U+1680, U+2000–U+200A, U+202F, U+205F and U+3000. Vectors take one
-  from each shape a delegating reader would get from its host rather than all
-  21: U+000B and U+000C (the C0 pair), U+2028 and U+2029 (the line
-  terminators), U+FEFF, and U+00A0, U+1680, U+2000, U+202F, U+205F and U+3000
-  spanning the `Zs` block, since an implementation reaching that class at all
-  reaches all of it. **U+FEFF needs vectors in two positions and two input
+  U+00A0, U+1680, U+2000–U+200A, U+202F, U+205F and U+3000. **All 21 get
+  vectors**, not one per shape. An earlier draft took six of the fifteen `Zs`
+  characters — U+00A0, U+1680, U+2000, U+202F, U+205F, U+3000 — on the
+  reasoning that an implementation reaching that class at all reaches all of
+  it. Review was right that nothing guarantees it, and this paragraph carries
+  the disproof in its own first sentence: **the spec's own list of these
+  characters omitted fifteen of them**. A hand-written whitespace table with a
+  hole in it is not a hypothetical here — it is the thing that made this
+  section necessary — and a reader whose table stops at U+2000 accepts U+200A
+  while passing every sampled vector. So: U+000B, U+000C, U+2028, U+2029,
+  U+FEFF, U+00A0, U+1680, U+2000 through U+200A one each, U+202F, U+205F,
+  U+3000. Twenty-one is not a set worth sampling. **U+FEFF needs vectors in two positions and two input
   forms.** Between tokens and as the document's first character are different
   tokenizer states, and a tokenizer may well skip a leading BOM specifically
   while rejecting one between tokens; both spellings are valid JavaScript,
@@ -544,7 +550,9 @@ The six parts:
   three-byte raw character and its two missing sign cases, ordinary negative
   numbers and ordinary negative bigints. A rule stated in a commit is not a
   rule applied to that commit's own vectors, which is the newest way this
-  document has found to be short. The sweep for the lead-partition shape had
+  document has found to be short — then the whitespace class sampled six of
+  fifteen on an assumption its own paragraph disproves, sharing tested only
+  through arrays, and the host variations named on objects alone. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -709,7 +717,9 @@ The six parts:
   infinity passed the whole set. The leaves are JSON's four plus the five
   JavaScript adds — `undefined`, a bigint, `NaN`, `Infinity`, `-Infinity` —
   with `-0` beside them, and the containers are an empty and a non-empty
-  array and object, nesting, and a node reached twice. That last one is not
+  array and object, nesting, and a node reached twice — in each of the three
+  sharing shapes `graph equivalence` names below, since the walker a repeat is
+  met in is what decides whether it is hoisted. That last one is not
   decoration: hoisting a value reachable more than once is the one thing the
   spec says is **not** a free choice, so it is the only container case whose
   output shape is constrained.
@@ -734,17 +744,36 @@ The six parts:
 
   The remaining cases are host variations. The spec is explicit that these are
   outside the data model rather than invalid, and that rejecting them is a
-  defect rather than caution ([`README.md`](../README.md)): a `null`-prototype
-  object or array, an `Array` subclass, a frozen or sealed object, a
-  non-extensible object, and a non-writable property. `Object.freeze` produces
-  the last two together, so a serializer that rejects unusual descriptors
-  cannot serialize a frozen value — including the output of a reader that
-  freezes what it returns, which the spec permits. What each vector asserts is
+  defect rather than caution ([`README.md`](../README.md)): a `null` prototype,
+  frozen, sealed, non-extensible, and a non-writable property — **each on both
+  an object and an array** — plus an `Array` subclass, which has only the one
+  kind. `Object.freeze` produces the last two together, so a serializer that
+  rejects unusual descriptors cannot serialize a frozen value — including the
+  output of a reader that freezes what it returns, which the spec permits.
+
+  **Both kinds because the walkers are separate**, the third place this corpus
+  has needed that and the first where the risk is over-strictness rather than
+  non-termination: a serializer validating shape in its object walker alone
+  accepts every frozen object here and refuses the frozen array, and one
+  dispatching on the prototype rather than on `Array.isArray` refuses the
+  null-prototype array while `Array.isArray` still reports `true` for it,
+  measured. Each variant exists on an array: a frozen array's elements come
+  back `writable: false, configurable: false`, a sealed one is non-extensible
+  with configurable elements, and an element can be made non-writable on its
+  own — all measured, none of them a shape the object cases reach. What each vector asserts is
   that the output is **valid and denotes the input's data** — the host
   variation leaves no trace, and `graph equivalence` supplies the comparison.
 - **graph equivalence** — an input graph and the documents that do and do not
   denote it, so a serializer cannot pass by emitting merely *valid* output:
-  `[a,a]` with one shared `a` is not `export default [[],[]];`.
+  `[a,a]` with one shared `a` is not `export default [[],[]];`. **Three sharing
+  shapes, not one**, for the reason the cycle set is every ordered pair of
+  container kinds: the two references reached from an array (`[a,a]`), from two
+  object properties (`{"x":a,"y":a}`), and from one of each
+  (`[a]` beside `{"x":a}` under a common root). A serializer hoisting a repeat
+  it meets inside one walker, but starting fresh when it dispatches to the
+  other, gets both homogeneous cases right and inlines the mixed one — the same
+  implementation that recurses forever on `obj→arr→obj`, here silently changing
+  identity instead of hanging. Review found the set array-shaped throughout.
 - **normalize** — an input **graph**, in the meta-encoding, and the exact bytes
   normalized form must produce. Not an input *document*: a normalized
   serializer is a serializer role, so its input is a programmatic value, and an
@@ -1150,6 +1179,11 @@ needs nothing beyond an engine.
       Check its **placement** too: a malformed byte sequence goes inside a
       quoted string and a serializer-reject offender goes below the root, and
       in both directions the placement is what makes the vector able to fail.
+      Ask of every class whether an **object walker and an array walker can
+      differ on it**, and cover both kinds where they can. Four classes here
+      have needed it — cycles, where each offender sits, sharing, and the host
+      variations — and only the first was reported as a walker question; the
+      other three read as ordinary single cases until asked.
       Run every **expected-bytes** string in the normalize set through the
       accept grammar before committing it — normalized output is a document, so
       the accept rules bind it, and a vector demanding a document DataJS
