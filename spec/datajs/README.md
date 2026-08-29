@@ -454,10 +454,15 @@ with one exception: a bare `"__proto__"` key must be rewritten to
 `["__proto__"]`, since DataJS rejects the string spelling. For JSON containing
 no `__proto__` key, plain concatenation is exactly a valid DataJS document.
 
-The reverse direction is partial. A DataJS document converts to JSON only when
-it uses no leaf JSON lacks (`undefined`, `NaN`, the infinities, bigint) and no
-**object or array** is reachable more than once — JSON cannot express that
-sharing, and writing the node twice denotes a different graph.
+The reverse direction is partial, and both of its conditions are about the
+graph the document *denotes* — the values reachable from `export default`,
+since an unused `const` contributes nothing to it. A document converts to JSON
+when no reachable value is a leaf JSON lacks (`undefined`, `NaN`, the
+infinities, bigint), and no reachable **object or array** is reachable more
+than once — JSON cannot express that sharing, and writing the node twice
+denotes a different graph. `const dead=undefined;export default 1;` therefore
+converts to `1`: the unreachable `undefined` is not part of what the document
+means.
 
 A shared *primitive* is not an obstacle. `const x=1;export default [x,x];`
 converts to `[1,1]`: primitives have no reference identity, so the two
