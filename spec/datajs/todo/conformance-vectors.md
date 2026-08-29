@@ -232,7 +232,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Thirteen consecutive review rounds
+  vector is the only instrument that sees it. Fourteen consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -245,7 +245,8 @@ The six parts:
   vectors — then the normalizer's escaping branches and JavaScript's own
   expression forms, then spread, the module statements, and two more UTF-8
   error classes — which finally produced a per-production table rather than
-  another production's worth of vectors. Every time the list had been written from memory rather
+  another production's worth of vectors — then the serializer-accept set,
+  which had no derivation at all, and the repeated primitive. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -386,8 +387,21 @@ The six parts:
   whitespace, layout, const names and the hoisting of singly-reached values are
   free choices ([`README.md`](../README.md)), so pinning bytes here would fail
   conforming serializers. Exact bytes are the `normalize` set's business alone.
-  The spec is explicit that these are outside the data model rather than
-  invalid, and that rejecting them is a
+  **Derived from the data model, as the reader's accept set is derived from
+  the grammar** — every leaf and every container shape, not only the host
+  variations below. Conformance is per role, so a serializer-only
+  implementation never runs a reader or normalize vector: one that handles
+  every recipe here while rejecting every `bigint`, `undefined`, `NaN` or
+  infinity passed the whole set. The leaves are JSON's four plus the five
+  JavaScript adds — `undefined`, a bigint, `NaN`, `Infinity`, `-Infinity` —
+  with `-0` beside them, and the containers are an empty and a non-empty
+  array and object, nesting, and a node reached twice. That last one is not
+  decoration: hoisting a value reachable more than once is the one thing the
+  spec says is **not** a free choice, so it is the only container case whose
+  output shape is constrained.
+
+  The remaining cases are host variations. The spec is explicit that these are
+  outside the data model rather than invalid, and that rejecting them is a
   defect rather than caution ([`README.md`](../README.md)): a `null`-prototype
   object or array, an `Array` subclass, a frozen or sealed object, a
   non-extensible object, and a non-writable property. `Object.freeze` produces
@@ -418,7 +432,17 @@ The six parts:
   has **seven** simple escapes where the accept grammar admits **nine**: `\/`
   and `\uXXXX` are input spellings a reader must take and a normalizer must
   never emit, so the two lists differ on purpose and neither checks the other —
-  observable key order, one-line layout. Pin the `__proto__` key's exact bytes,
+  observable key order, one-line layout. Pin **`export default[1,1];`** as the
+  output for `const x=1;export default[x,x];`, because primitives always
+  inline and a repeated one is the case where that bites: the shipped
+  `fjs/djs` hoists it into a `const` today, which the spec's own divergence
+  table lists as a difference this work closes. A normalizer carrying that
+  behavior forward emits `const _0=1;export default[_0,_0];` — valid, denoting
+  the same graph, and wrong — and nothing else in this set can see it. It is
+  also the sharpest boundary in normalized form, since hoisting a **node**
+  reached twice is mandatory while hoisting a repeated **primitive** is
+  forbidden, and the two look identical to a serializer that counts
+  references without asking what it is counting. Pin the `__proto__` key's exact bytes,
   `{["__proto__"]:1}`: a normalizer reusing an ordinary key writer emits
   `{"__proto__":1}`, which is not DataJS at all and which JavaScript reads as
   prototype replacement rather than an own property — a normalized form that
