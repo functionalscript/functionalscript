@@ -28,9 +28,11 @@ A spread is a call, and a call has an argument limit. Measured on node 22:
 | 100,000 | `RangeError: Maximum call stack size exceeded` |
 
 The throw is in **building** the effect, before any interpreter sees it, so no runner can
-recover from it and no `catch` operation is in the path. `fjs t` panics; the browser page
-reports one `infrastructure-error` because it guards the run's own failure, which is the
-guard working as intended but not an answer.
+recover from it and no `catch` operation is in the path. Today only `fjs t` is on this
+path, and it panics. (The reverted functionalscript#1759 briefly put the browser page on
+it too, where the page's run-failure guard reported one `infrastructure-error` — the guard
+working as intended, but not an answer; the current page takes the `Promise.all` path
+below and never builds the effect.)
 
 The ceiling applies **per fan-out**, and a run has two: one module with too many sibling
 leaves breaks the inner spread, and a run with too many *modules* breaks the outer one in

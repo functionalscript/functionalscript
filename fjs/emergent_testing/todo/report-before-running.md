@@ -48,9 +48,13 @@ before the leaf is sandboxed, and let each host decide what to do with it:
   result. Whether the reporter grows a sibling operation or its existing one
   gains a status is part of the design.
 
-The reporter change is small; the interleaving question is the real one, and
-it is the same question in both hosts, which is an argument for settling it in
-the shared core rather than twice.
+The reporter change is small, and the question that was the real one when
+this was written — interleaving — is gone with the concurrency: under the
+sequential runner nothing runs between a start and its own result. What
+remains is the event's shape: whether the reporter grows a sibling operation
+or its existing one gains a status, and what a start-then-result pair looks
+like in each host. That is still the same question in both hosts, which is
+still the argument for settling it in the shared core rather than twice.
 
 ### Constraints
 
