@@ -50,6 +50,29 @@ export const basicNode = version => extra => [
 const fjsGlobalInstall = version =>
     install({ run: `npm install -g functionalscript@${version}` })
 
+/**
+ * Asserts that the Node a job is about to run on is the version configured for
+ * it, whichever way the job got that runtime: `command` is `node --version` for
+ * a job `setup-node` installs into, and the same through `nix develop` for a
+ * job running in its generated flake.
+ *
+ * Both need it, for the same reason and against the same recorded value. A
+ * `setup-node` job can be handed a different patch release than the one
+ * `fjs/ci/config/module.f.mjs` names, and a migrated job's flake resolves its
+ * package from the pinned Nixpkgs commit, which the configuration only claims
+ * provides that version. Neither claim checks itself, and a job that quietly
+ * tests on another runtime reports a green result about something nobody
+ * asked for.
+ *
+ * The jobs that run this are the Ubuntu ones, where the step is a POSIX shell
+ * command. The platform matrix installs Node too, but its Windows jobs run
+ * `run` steps under PowerShell, so this spelling does not belong there.
+ *
+ * @type {(command: string, version: string) => MetaStep}
+ */
+const nodeVersionStep = (command, version) =>
+    test({ run: `test "$(${command})" = v${version}` })
+
 /** @type {(version: string) => readonly MetaStep[]} */
 export const platformNodeSteps = version => [
     ...nodeInstall(node.default),
@@ -60,6 +83,7 @@ export const platformNodeSteps = version => [
 /** @type {(version: string) => readonly MetaStep[]} */
 const node22Steps = version => [
     ...nodeInstall(node.node22),
+    nodeVersionStep('node --version', node.node22),
     fjsGlobalInstall(version),
     test({ run: 'fjs test' }),
     test({ run: 'node --test' }),
@@ -71,15 +95,16 @@ const node22Steps = version => [
  * whatever the runner installs.
  *
  * Its commands and their order are the ones it had, each still its own step
- * (root `AGENTS.md` §7) and each entering the shell again. It states no
- * expected version: the flake pins an exact Nixpkgs commit, which already
- * determines the Node it provides, so a job running through the flake would
- * only be restating that pin.
+ * (root `AGENTS.md` §7) and each entering the shell again — behind the same
+ * version check its `setup-node` siblings make, against the same recorded
+ * value, so the migration is visible as a change of runtime rather than a
+ * change of what CI guarantees.
  *
  * @type {readonly MetaStep[]}
  */
 const node24NixSteps = [
     nixInstall,
+    nodeVersionStep(nixDevelop(jobId(node.node24), 'node --version'), node.node24),
     ...['npm ci', 'node --test'].map(
         command => test({ run: nixDevelop(jobId(node.node24), command) })),
 ]
@@ -87,6 +112,7 @@ const node24NixSteps = [
 /** @type {readonly MetaStep[]} */
 const node26Steps = [
     ...nodeInstall(node.default),
+    nodeVersionStep('node --version', node.default),
     test({ run: 'npm run ci-update' }),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
     // No authored `.mjs` may contain a file-scope JSDoc `@typedef` (root

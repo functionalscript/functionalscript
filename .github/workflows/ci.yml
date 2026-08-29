@@ -450,6 +450,9 @@
           "run": "npm ci"
         },
         {
+          "run": "test \"$(node --version)\" = v22.23.2"
+        },
+        {
           "run": "fjs test"
         },
         {
@@ -465,6 +468,9 @@
         },
         {
           "uses": "actions/checkout@v7.0.1"
+        },
+        {
+          "run": "test \"$(nix develop ./nix/node24 --command node --version)\" = v24.19.0"
         },
         {
           "run": "nix develop ./nix/node24 --command npm ci"
@@ -488,6 +494,9 @@
         },
         {
           "run": "npm ci"
+        },
+        {
+          "run": "test \"$(node --version)\" = v26.7.0"
         },
         {
           "run": "npm run ci-update"

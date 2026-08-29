@@ -202,16 +202,15 @@ the flake, so no step falls back to the runner's preinstalled Node.
 
 For each job:
 
-1. run the existing commands in their current order;
-2. verify there are no tracked or stageable checkout changes;
-3. remove the old setup only after equivalent behavior is demonstrated.
+1. verify the selected Node version, inside the flake, as the job's first real step;
+2. run the existing commands in their current order;
+3. verify there are no tracked or stageable checkout changes;
+4. remove the old setup only after equivalent behavior is demonstrated.
 
-A migrated job states no expected Node version. The flake pins an exact Nixpkgs commit,
-which already determines the version it provides, so a job running through that flake
-would only be restating the pin. The consequence is deliberate: once a job migrates,
-nothing checks the exact version recorded for it in `fjs/ci/config/module.f.mjs` against
-the snapshot — that record is verified only while a job still installs it with
-`setup-node`, and the Nixpkgs update command is what has to keep it honest afterwards.
+Step 1 is the check a `setup-node` job already makes of its own runtime, pointed through
+`nix develop`. It is a step of the job rather than a separate flake job: the version
+`fjs/ci/config/module.f.mjs` records is a claim about what the pinned snapshot provides,
+and the job that runs on it is where that claim is worth checking.
 
 #### Independent follow-ups
 

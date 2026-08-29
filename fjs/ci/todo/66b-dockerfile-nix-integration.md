@@ -16,28 +16,28 @@ Nix installer, and one `nix develop --command` step each for `npm ci` and
 `node --test` — the same commands in the same order, on the runtime the pinned
 snapshot provides instead of the one `setup-node` installs.
 
-**CI does not check the flakes; it uses them.** The temporary `nix-flakes` job
-that instantiated each generated file and compared the Node it provided to an
-expected version is gone, and no job replaces it. Nix runs in CI only where a
-job's own commands run through a flake.
+**No job exists to check the flakes.** The temporary `nix-flakes` job that
+instantiated each generated file and compared the Node it provided to an
+expected version is gone. Nix runs in CI only where a job's own commands run
+through a flake, and each such job checks its own runtime as its first real
+step — the same check, against the same recorded version, that the jobs still
+using `setup-node` make of theirs. What was a separate job is a step of the job
+that cares.
 
-What is checkable about a generated file is checked in `fjs/ci/proof.f.mjs`,
-off the generator's output: each job's flake carries the accepted commit, the
+That check is the one thing about a generated flake that only CI can establish:
+`nix develop` has to resolve the pin, build the shell, and put a Node on
+`PATH`. What can be established without Nix is checked in `fjs/ci/proof.f.mjs`,
+off the generator's output — each job's flake carries the accepted commit, the
 job's `devShells.<system>.default`, and the `nodejs_<major>` matching the
-version `fjs/ci/config/module.f.mjs` records for that job. A proof cannot
-evaluate a flake or reach Nixpkgs, so it cannot say the shell builds or which
-Node it yields — the pin decides that, and a migrated job running its real
-commands is what exercises it.
+version `fjs/ci/config/module.f.mjs` records for that job.
 
-The flakes carry no `assert` of their own either: a flake pinning an exact
-commit already determines its package versions, so an in-flake assertion would
-restate the pin while making a generated, immutable file harder to read.
+The flakes carry no `assert` of their own: a flake pinning an exact commit
+already determines its package versions, so an in-flake assertion would restate
+the pin while making a generated, immutable file harder to read.
 
-The cost is stated rather than hidden. Nothing evaluates the Node 22 and Node
+One cost is stated rather than hidden. Nothing evaluates the Node 22 and Node
 26 flakes until those jobs migrate, so a package attribute the snapshot does not
-actually carry would surface at migration time rather than now; and nothing
-compares a recorded version against the snapshot, which is what the Nixpkgs
-update command has to own.
+actually carry would surface at migration time rather than now.
 
 Still open: the `npm run ci-nix-update` command (phase 1's automation — the
 versions were read from the snapshot by hand), removal of stale generated job
@@ -233,10 +233,11 @@ For each Node job:
 2. verify there are no tracked or stageable checkout changes;
 3. switch only that job after equivalent behavior is demonstrated.
 
-A migrated job states no expected Node version: the flake pins an exact commit,
-which already determines the version, so the job would only be restating the
-pin. Nothing then checks that job's recorded version in
-`fjs/ci/config/module.f.mjs` against the snapshot — see the progress note above.
+A migrated job checks its Node version like any other, as its first real step:
+`test "$(nix develop ./nix/<job> --command node --version)" = v<version>`. The
+pin decides which Node the flake resolves to, and `fjs/ci/config/module.f.mjs`
+only claims to know which — so the claim is checked where it can be, and the
+migration changes a job's runtime without changing what CI guarantees about it.
 
 Node 22, Node 24, and Node 26 can be generated, validated, and adopted independently.
 A problem in one job does not block progress on the others unless it affects the shared

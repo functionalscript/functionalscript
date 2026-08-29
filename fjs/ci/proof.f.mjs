@@ -240,12 +240,12 @@ export const proof = {
             !job.steps.some(step => step.uses?.startsWith('actions/setup-node@') === true),
             'unexpected setup-node in the migrated job')
         // One command per step (root `AGENTS.md` §7), each entering the shell
-        // itself, in the order the job had them — and no expected version
-        // among them: the flake's pinned commit determines the Node it
-        // provides, so a job running through it has nothing left to state.
+        // itself, in the order the job had them, behind the version check its
+        // `setup-node` siblings also make.
         assertStructurallySame(
             job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
             [
+                `test "$(nix develop ./nix/${id} --command node --version)" = v${node.node24}`,
                 `nix develop ./nix/${id} --command npm ci`,
                 `nix develop ./nix/${id} --command node --test`,
             ])
@@ -258,6 +258,33 @@ export const proof = {
             assert(
                 !hasRunInJob(unmigrated, 'nix develop')(gha),
                 `unexpected nix develop in ${unmigrated}`)
+        }
+    },
+    // Every Ubuntu Node job asserts the runtime it is about to use, whether
+    // `setup-node` installed it or its flake provides it. Nothing else ties the
+    // versions `fjs/ci/config/module.f.mjs` records to what a job really runs.
+    nodeVersionChecks: () => {
+        const gha = run(false)
+        for (const [version, command] of /** @type {const} */ ([
+            [node.node22, 'node --version'],
+            [node.node24, `nix develop ./nix/node${major(node.node24)} --command node --version`],
+            [node.default, 'node --version'],
+        ])) {
+            const id = `node${major(version)}`
+            const runs = (gha.jobs[id]?.steps ?? [])
+                .flatMap(step => step.run === undefined ? [] : [step.run])
+            // The job's first real command, so nothing whose result the check
+            // would invalidate has run yet. Only preparation may precede it:
+            // installing dependencies and the published CLI produces no result
+            // to report, and a migrated job runs its `npm ci` through the very
+            // flake under test.
+            /** @type {(run: string) => boolean} */
+            const preparation = run =>
+                run === 'npm ci' || run.startsWith('npm install -g ')
+            assertEq(
+                runs.filter(run => !preparation(run))[0],
+                `test "$(${command})" = v${version}`,
+                id)
         }
     },
     ubuntu: () => {
