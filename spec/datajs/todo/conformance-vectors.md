@@ -44,7 +44,11 @@ A machine-readable corpus with three parts:
 - **normalize** — an input document and the exact bytes normalized form must
   produce: const hoisting by reference identity, post-order `_0`, `_1`, …
   naming, `ToString(Number)` spelling with the `-0` exception,
-  `QuoteJSONString` escaping, observable key order, one-line layout.
+  `QuoteJSONString` escaping, observable key order, one-line layout. Pin the
+  number thresholds explicitly — `1e20`, `1e21`, `1e-6`, `1e-7`,
+  `5e-324`, `1.7976931348623157e308` — since that is where a host's own
+  formatter diverges, and pin `root=[p,p]` with `p=[c]` so the hoisting count
+  is occurrences rather than paths.
 
 The corpus is data, not code, so it can be read by an implementation in any
 language. Store it as DataJS once `fjs/media/datajs` can read it; until then

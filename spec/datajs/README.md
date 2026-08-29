@@ -234,9 +234,12 @@ not an equal copy. In
 const _0=[];export default [_0,_0];
 ```
 
-the two elements are one array. An implementation in a language with
-reference identity must preserve that; an implementation in a language without
-it must document what it does instead.
+the two elements are one array, and a conforming reader must produce a
+representation in which they remain one node. In a host with reference
+identity that is automatic. In a host without it, the reader owes an explicit
+representation — handles, indices into a node table, whatever the host offers
+— because a reader that hands back two equal copies has returned a different
+graph. Documenting that it flattens does not make it conforming.
 
 A reference may name only a **previously declared** `const`. That single rule
 gives the format three properties for free: a document is acyclic by
@@ -307,7 +310,9 @@ approximated:
 - a hole in a sparse array, which is not an `undefined` element;
 - an own property this format cannot write: a symbol key, an accessor
   property (reading a getter is an effect), or a non-enumerable property —
-  each would otherwise vanish from the output;
+  each would otherwise vanish from the output. An array's own `length` is the
+  one exception: it is non-enumerable on every array, it is not a member, and
+  the syntax carries it implicitly in the element list;
 - an array carrying any own property besides its elements and `length`.
   `const a=[1]; a.meta=2` has the own keys `0`, `length` and `meta`, and array
   syntax holds only elements, so `meta` has nowhere to go;
@@ -331,8 +336,12 @@ otherwise merge (`const a`, `export default x`). No indentation, no trailing
 newline.
 
 **Which values become consts.** A value is hoisted into a `const` if and only
-if it is an object or an array reachable more than once **by reference
-identity**. Primitives are always written inline: primitive sharing is not
+if it is an object or an array whose **incoming reference occurrences** number
+more than one, counting by reference identity. An occurrence is one place the
+node appears: an array element, a member value, or the exported value. It is
+not a count of root-to-node paths — for `root=[p,p]` with `p=[c]`, `p` has two
+occurrences and is hoisted, while `c` has exactly one and stays inline, even
+though two paths reach it. Primitives are always written inline: primitive sharing is not
 observable, and counting them by value would raise the `0`/`-0` and `NaN`
 questions that the `Object.is` guarantee forbids answering either way.
 
@@ -344,12 +353,30 @@ dependencies land before the node itself, which the declare-before-use rule
 requires. For `root = [parent, parent, child]` where `child` is inside
 `parent`, `child` finishes first: it is `_0` and `parent` is `_1`.
 
-**Numbers** are spelled by ECMAScript's `ToString(Number)` — the algorithm
-`String(x)` implements — with one exception: `-0`, which `ToString` spells
-`0` and normalized DataJS spells `-0`. `ToString` is fully deterministic, so
-there is no "shortest spelling" tie to break: `1e3` is spelled `1000`, and the
-uppercase `1E3` never arises. `NaN`, `Infinity` and `-Infinity` are spelled by
-those words.
+**Numbers** are spelled by ECMAScript's `ToString` applied to a Number — the
+algorithm `String(x)` implements. It is restated here rather than cited,
+because host formatters disagree on exactly these cases: JavaScript writes
+`1e20` as `100000000000000000000` where Python writes `1e+20`.
+
+- `NaN` is `NaN`; the infinities are `Infinity` and `-Infinity`.
+- A negative number is `-` followed by the spelling of its magnitude. `-0` is
+  the one departure from `ToString`, which spells it `0`; normalized DataJS
+  spells it `-0`.
+- Otherwise pick integers `s`, `k`, `n`, with `k` as small as possible, such
+  that `10^(k-1) ≤ s < 10^k` and `s × 10^(n-k)` is exactly the value — `s` is
+  the shortest digit string that reads back as this number, `k` its length,
+  and `n` the position of the decimal point. Then:
+  - `k ≤ n ≤ 21` — the `k` digits, then `n − k` zeros: `100`;
+  - `0 < n ≤ 21` — the first `n` digits, `.`, the remaining `k − n`: `1.5`;
+  - `−6 < n ≤ 0` — `0.`, then `−n` zeros, then the `k` digits: `0.000001`;
+  - otherwise — the first digit, then `.` and the remaining `k − 1` digits
+    when `k > 1`, then `e`, then `+` or `-`, then the digits of `|n − 1|`:
+    `1e+21`, `1e-7`, `1.7976931348623157e+308`.
+
+The thresholds are exact and worth pinning: `1e20` is `100000000000000000000`
+while `1e21` is `1e+21`, and `1e-6` is `0.000001` while `1e-7` is `1e-7`. A
+positive exponent carries `+`; there is no uppercase `E` spelling, and no
+"shortest form" tie left to break.
 
 **Bigints** are their full decimal digits followed by `n`, never exponent
 notation — which would read back as a number.
