@@ -639,8 +639,23 @@ The six parts:
   all: `export default[,1];`, `[1,,2]` and `[1,,]`, leading, medial and
   trailing. `[1,]` is *not* one of these — it is the trailing comma above, a
   different rule, and it leaves no hole. Then the three places whitespace is
-  *required*, one vector each: `constx=1;export default x;`,
-  `exportdefault 1;` and `export default1;`.
+  *required*. The first two take one vector each — `constx=1;export default x;`
+  and `exportdefault 1;` — because each merges exactly one pair of tokens. The
+  third does not: §Whitespace requires the separator before **any value
+  beginning with an identifier character** and names nine — a name, `true`,
+  `false`, `null`, `undefined`, `NaN`, `Infinity`, a number and a bigint — so
+  it owes nine, `export defaulttrue;` through `export default1n;`, with
+  `export default1;` as the number member and `const x=1;export defaultx;` as
+  the name. A reader can require the separator on its numeric path while
+  prefix-matching `default` before a word, which the single digit vector cannot
+  see. The `normalize` role already enumerates **eight** of the nine for the
+  emitting side — the six words, the number and the bigint, member by member —
+  and that enumeration never crossed to this one — per-role independence cutting the other way than usual,
+  since here it left the *reject* side sampling a list the *byte* side spells
+  out. And the rule owes its **accept** side too, which the spec supplies:
+  `export default-1;`, `export default[1];` and `export default"a";` are
+  one-line spellings with no space after `default`, and a reader that requires
+  one there always refuses all three.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
   than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
   and at least one that is not — **`Map` or a boxed number**, not `RegExp`;
@@ -876,7 +891,12 @@ The six parts:
   called seventeen in one paragraph and 21 in four others — measured: 25
   characters JavaScript treats as whitespace or a line terminator, minus the
   four DataJS permits, is 21, of which sixteen are `Space_Separator` other
-  than U+0020. The sweep for the lead-partition shape had
+  than U+0020. Then the required separator after `default`, given one vector
+  where the spec names nine values it can merge with — and the `normalize` role
+  had eight of them member by member, so the enumeration existed in this file
+  and had not crossed roles; and the depth cap, given a number without the rule
+  it counts by, in the paragraph arguing that an unspecified limit makes two
+  implementations disagree about the same bytes. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the

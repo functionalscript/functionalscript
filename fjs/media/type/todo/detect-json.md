@@ -176,7 +176,20 @@ implementations disagreeing about the limit would return different MIME
 verdicts for the same bytes. `64` is the proposed value — far past anything a
 real document reaches, and shallow enough that the stack is bounded by a
 constant rather than by input — and it belongs in this design because
-`fjs/media/json` has no opinion about it. An earlier draft enabled the cap in
+`fjs/media/json` has no opinion about it.
+
+**A number is not yet a contract**, which review caught this paragraph
+asserting in the sentence above and then not delivering: `64` decides nothing
+until what it counts is pinned. It is the greatest number of containers open
+**at once**, defined with the initializer in
+[streaming-recognizer](../../json/todo/streaming-recognizer.md), so a blob
+whose deepest point has 64 open containers is still JSON to this detector and
+one with 65 is not. Two implementations that read `64` as levels-from-one and
+as open-containers differ on exactly the documents at the boundary, which is
+the disagreement this paragraph exists to prevent. So the detector owes both
+boundary cases as tests, not just the rejecting one: 64 nested containers
+detected as JSON, 65 not — on arrays and on objects, since the two need not
+share a push. An earlier draft enabled the cap in
 prose and initialised the factor with the uncapped `recognizerInit` two
 sections above, which review caught one commit after the capped initializer was
 added for exactly this consumer. Leave

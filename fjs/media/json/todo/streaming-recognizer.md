@@ -55,7 +55,19 @@ operator that carries a limit alongside the accumulator would have to re-read
 it on every code unit, and because `recognizerAccepts` then needs nothing new —
 an over-cap document is already rejected in the state it returns.
 `recognizerInit` stays as the uncapped default so the common case costs no
-argument. The checklist and the value-free-parsing bullet below kept describing
+argument.
+
+**What `maxDepth` counts**, because a number without a counting rule is not a
+contract: it is the greatest number of containers open **at once**, so a
+document is accepted when its deepest point has at most `maxDepth` of them
+open and rejected at `maxDepth + 1`. A document with no container has depth 0
+— `recognizerInitCapped(0)` accepts `1` and `"a"` and rejects `[]` — and `[]`
+has depth 1. Equivalently the cap bounds the bracket stack's length, which is
+the thing being bounded and the reason to state it this way round rather than
+counting nesting *levels* from 1. Review found the number specified and the
+rule it counts by left open, in the same paragraph that argues an unspecified
+limit makes two implementations disagree about the same bytes; an off-by-one
+here is exactly that disagreement, one level down. The checklist and the value-free-parsing bullet below kept describing
 the cap as an unnamed knob for two commits after the export appeared — the same
 stale-cross-reference shape this PR has now recorded fourteen times, here in its
 prose-against-its-own-checklist form, and inside the one file whose export list
@@ -163,9 +175,14 @@ property, scoped to make it actually hold:
 - [ ] Proof (cap disabled): `recognizerAccepts` agrees with `parse` `ok`/`error`
       across the existing parser test corpus; add large-single-token cases (huge
       string, long number) asserting bounded auxiliary space (no payload buffer).
-- [ ] Proof (cap enabled): a valid document nesting deeper than a cap set with
-      `recognizerInitCapped` is rejected by `recognizerAccepts` — the DoS guard,
-      scoped out of the equivalence above.
+- [ ] Proof (cap enabled): **both sides of the boundary**, since "deeper is
+      rejected" alone is passed by an implementation that rejects at the cap
+      too, and by one that rejects everything. For a cap of `n`: a document
+      with exactly `n` open containers is **accepted**, one with `n + 1` is
+      **rejected**. Take that pair on arrays, on objects, and on an alternating
+      mix — a stack may be pushed for one container kind and not the other —
+      and take `recognizerInitCapped(0)`, which accepts a bare scalar and
+      rejects `[]`. The DoS guard, scoped out of the equivalence above.
 - [ ] `npx tsc` clean; `fjs t` green.
 
 ### Related
