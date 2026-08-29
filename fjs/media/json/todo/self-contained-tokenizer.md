@@ -560,17 +560,32 @@ lost `number 1` in `00-"/1`. Then a re-dispatched `+` lost the `]` in `12+"]`.
 Both were reverted, and both were found by review rather than by the rule, which
 is why the scoped claim is stated here rather than assumed.
 
-The exception is **comments**, and it is the one loss this port cannot avoid.
+The exception is **comments**, and it is the one loss this port declines to
+avoid — *declines*, not cannot, which is how an earlier draft put it and which
+review was right to refuse.
 Today `/*"*/1` is one `invalid token` then `number 1`, because JavaScript's
 machine takes the comment as a single token and the `"` inside it never starts
 anything. The replacement has no comment state, so it emits `unexpected
 character` for `/` and `*`, then reads `"` as a JSON string that runs to end of
-input and eats `*/1`. It is **block** comments only: in `//"<LF>1` the LF ends
+input and eats `*/1`. **The avoidance exists**, and stating that it does not was
+the overclaim: a scanner can carry an error-recovery state that, on `/*`, runs
+to the closing `*/` and emits one error there, resuming after it. That rejects
+comments as firmly as anything here — it never yields a comment token, and no
+input moves out of erroring — so "you would have to accept comments" was never
+the obstacle. It is **block** comments only: in `//"<LF>1` the LF ends
 string recovery and is re-dispatched, per rule 3, so the `number 1` still
 arrives — a line comment cannot swallow a suffix, because the construct and the
 malformed string end at the same character. Reproducing today's result
-would mean giving JSON's scanner comment states — the JavaScript grammar this
-stage exists to remove, and a construct JSON must refuse.
+would still mean giving JSON's scanner the *extent* of a JavaScript construct —
+where `/*` ends — which is the grammar this stage exists to remove, and it buys
+tokens no consumer reads. Measured: every consumer of this `tokenize` in the
+repo — `fjs/media/json/module.f.mjs`, `fjs/media/json/extended/module.f.mjs`
+and the parser's own proof — hands the tokens to `parse`, and `parse` returns
+the same `["error", "unexpected token"]` for `/*"*/1`, for `/*"*/`, and for
+`/*"*/1 2`. The suffix this port loses is unobservable through every path that
+exists. So the loss is declined on price, not on impossibility, and the door
+stays open: an error-resilient direct consumer would make the recovery state
+worth building, as its own change with its own proof.
 
 This is the `>>>=` class with a suffix attached: a run JavaScript lexes as one
 token and JSON lexes character by character. It is confined to that class,

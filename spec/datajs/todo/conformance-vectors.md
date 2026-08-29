@@ -381,7 +381,26 @@ The six parts:
     character with two valid input spellings, so a reader that mistakes JSON's
     permission to escape it for a requirement rejects `export default "/";`
     while passing every other vector here. `normalize` pins that `/` comes back
-    unescaped, but that is a different role and closes nothing for this one. The lone surrogate exercises
+    unescaped, but that is a different role and closes nothing for this one.
+    **And the raw non-ASCII character is not one vector but nineteen**, because
+    every character §Whitespace refuses *between* tokens is ordinary content
+    *inside* a string, and only a vector says so. That reject side enumerates
+    21; two of them, U+000B and U+000C, stay rejects inside a string under a
+    different rule — they are below U+0020, where the raw-control rule reaches
+    them — so the contextual inverse is the other nineteen: U+2028, U+2029,
+    U+FEFF and the sixteen `Space_Separator` characters other than U+0020. A
+    reader consulting one whitespace table in both contexts refuses all
+    nineteen while passing every vector above, and a reader refusing only the
+    two JavaScript itself once forbade in string literals, U+2028 and U+2029,
+    survives any sampled set that happens to miss them. All nineteen take a key
+    twin, and all nineteen owe `normalize` vectors as well: `QuoteJSONString`
+    escapes only the code points below U+0020 and unpaired surrogates, so each
+    of these is emitted **literally** — U+2028 as `e2 80 a8`, U+FEFF as
+    `ef bb bf`, U+3000 as `e3 80 80`, measured — which makes the widespread
+    habit of escaping U+2028 and U+2029 for JavaScript safety precisely a
+    normalizer emitting a valid document with the wrong bytes. U+FEFF inside a
+    string is one reason apart from U+FEFF as the document's first character:
+    that one is the decoder's rule, and it needs the byte form. The lone surrogate exercises
     `\u` alone, so a reader supporting raw text and `\u` while rejecting the
     eight simple escapes passed too. `\uXXXX`'s four hex digits are three
     ranges — `0`–`9`, `a`–`f`, `A`–`F` — in **four positions**, and the rule
@@ -458,7 +477,19 @@ The six parts:
   scalar range (U+10000 and U+10FFFF) and, between them, both ends of each
   half — plus `\ud800\udfff`, which keeps the two positions from moving
   together, the same correlation the byte accept table needed broken. Review
-  found the enumeration naming only the interior pair; **each of the four
+  found the enumeration naming only the interior pair. **And three adjacencies
+  that are not pairs**: every surrogate vector above is either isolated or a
+  well-formed high→low pair, so a codec treating *any* two adjacent surrogate
+  units as a pair passes the entire set. The ordered pairs of halves are four,
+  one of which — high then low — is the valid pair already covered, leaving
+  `\ud800\ud800`, `\udc00\ud800` and `\udc00\udc00`. Each denotes two
+  unpaired units and must survive as two, with a key twin, in reader accept,
+  serializer accept and `normalize` alike. The byte form is where the mistake
+  becomes visible: `QuoteJSONString` escapes an unpaired surrogate, so all
+  three come back as ASCII escape text, while the blind-pairing codec emits a
+  four-byte scalar instead — measured, `\ud800\udc00` is the only one of the
+  four adjacencies that becomes `f0 90 80 80`. A pair's *ends* had been
+  enumerated while the adjacency's *combinations* had not; **each of the four
   permitted whitespace characters between tokens** — space, tab, LF and CR — because the rejection half of this corpus is
   extensive and a reader accepting only U+0020 passes every one of those
   vectors while narrowing the language; every leaf (`-0`, `NaN`, `±Infinity`,
@@ -582,9 +613,9 @@ The six parts:
   correctly. Then the characters JavaScript
   treats as whitespace or a line terminator and DataJS does not, of which there
   are **21**, not the six the spec enumerates: U+000B, U+000C, U+2028, U+2029,
-  U+FEFF, and the fifteen `Space_Separator` characters other than U+0020 —
+  U+FEFF, and the sixteen `Space_Separator` characters other than U+0020 —
   U+00A0, U+1680, U+2000–U+200A, U+202F, U+205F and U+3000. **All 21 get
-  vectors**, not one per shape. An earlier draft took six of the fifteen `Zs`
+  vectors**, not one per shape. An earlier draft took six of the sixteen `Zs`
   characters — U+00A0, U+1680, U+2000, U+202F, U+205F, U+3000 — on the
   reasoning that an implementation reaching that class at all reaches all of
   it. Review was right that nothing guarantees it, and this paragraph carries
@@ -760,7 +791,7 @@ The six parts:
   numbers and ordinary negative bigints. A rule stated in a commit is not a
   rule applied to that commit's own vectors, which is the newest way this
   document has found to be short — then the whitespace class sampled six of
-  fifteen on an assumption its own paragraph disproves, sharing tested only
+  sixteen on an assumption its own paragraph disproves, sharing tested only
   through arrays, and the host variations named on objects alone — then the
   two-byte overlong, dismissed on an argument that ran backwards, which on
   sweeping turned out to have made the low end of **every** overlong row a
@@ -832,7 +863,20 @@ The six parts:
   letter is a two-element set, and this file's own coverage rule had already
   been applied to `exp`'s letter case in the accept set one section above,
   so a reader narrowing case-sensitively passed all six lowercase vectors and
-  their signed twins. The sweep for the lead-partition shape had
+  their signed twins — then two **contextual inverses**, which is the accept
+  rule of two bullets up turned sideways: the nineteen non-control characters
+  §Whitespace refuses between tokens and permits inside a string, absent while
+  their rejects were enumerated three times over, and the three surrogate
+  adjacencies that are not pairs, absent while the *pair* had been given both
+  its corners. Rejecting a character in one context says nothing about the
+  context that accepts it, and enumerating a set's endpoints says nothing
+  about which of its members may sit next to which. The sweep for the first
+  of those also found the `Zs` class miscounted as fifteen in three places
+  where the enumeration beside it lists sixteen, and the whitespace rejects
+  called seventeen in one paragraph and 21 in four others — measured: 25
+  characters JavaScript treats as whitespace or a line terminator, minus the
+  four DataJS permits, is 21, of which sixteen are `Space_Separator` other
+  than U+0020. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -932,7 +976,7 @@ The six parts:
 
   The third direction is **accept**, and it went missing the round after this
   was written. Rejection coverage alone cannot catch a reader that *narrows*
-  the language: this corpus rejects seventeen kinds of whitespace and, until
+  the language: this corpus rejects twenty-one kinds of whitespace and, until
   review asked, never accepted a document separated by a tab, an LF or a CR,
   so a reader honouring only U+0020 passed the lot. Every rule that admits
   something owes an accept vector for each thing it admits, not only reject
