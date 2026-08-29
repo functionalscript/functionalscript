@@ -436,7 +436,7 @@ follows the input instead:
 | `12+"]` | error, `]` | unchanged — the `]` survives because the `+` is absorbed |
 | `1e."/1` | error, error, number `1` | same count — `/`'s message becomes `unexpected character` |
 | `>>>=` | one `invalid token` — a **JS operator** | four `unexpected character` |
-| `/*a*/1` | one `invalid token` — a **JS comment** — then number `1` | five `unexpected character`, then number `1` |
+| `/*a*/1` | one `invalid token` — a **JS comment** — then number `1` | four `unexpected character` and one `invalid token` for the word `a`, then number `1` |
 | `/*"*/1` | one `invalid token`, then number `1` | two `unexpected character`, then one `invalid string` — **`1` is lost** |
 | `1n1` | **number `11`, no error** — the `n` is deleted | `invalid number`, `invalid token` |
 | `0n1` | **number `01`, no error** — not valid JSON | `invalid number`, `invalid token` |
@@ -557,7 +557,10 @@ Today `/*"*/1` is one `invalid token` then `number 1`, because JavaScript's
 machine takes the comment as a single token and the `"` inside it never starts
 anything. The replacement has no comment state, so it emits `unexpected
 character` for `/` and `*`, then reads `"` as a JSON string that runs to end of
-input and eats `*/1`. `//"<LF>1` goes the same way. Reproducing today's result
+input and eats `*/1`. It is **block** comments only: in `//"<LF>1` the LF ends
+string recovery and is re-dispatched, per rule 3, so the `number 1` still
+arrives — a line comment cannot swallow a suffix, because the construct and the
+malformed string end at the same character. Reproducing today's result
 would mean giving JSON's scanner comment states — the JavaScript grammar this
 stage exists to remove, and a construct JSON must refuse.
 
@@ -956,8 +959,10 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       deliberately lacks: JavaScript operator runs (`>>`, `>>>`, `>>>=`, `===`,
       `!==`, `&&`, `??`, `=>`, `**=`), each one `invalid token` today and one
       `unexpected character` per character after; and its **comment** states
-      (`/*`, `//`), which are the only old states that can swallow a suffix —
-      `/*"*/1` loses its `number 1`, per the exception above. A prefix set
+      (`/*`, `//`). `/*` is the only old state that can swallow a suffix —
+      `/*"*/1` loses its `number 1`, per the exception above — but sweep `//`
+      as well, since "it cannot" is the kind of claim this review has
+      falsified repeatedly and the prefix costs nothing. A prefix set
       derived only from the new scanner cannot reach any of them, which is how
       this was missed.
 - [ ] Commit **two** tables from the sweep, not one: the old tokenizer's output
@@ -998,9 +1003,10 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
 - [ ] Prove string recovery ends at an unescaped quote, a raw LF and a raw CR
       but not a space — `"a<LF>1` emits the number `1`, `"a 1` is one error.
 - [ ] Pin the **comment** cases, since they are the one place a suffix token is
-      lost: `/*a*/1` is five `unexpected character` then `number 1`, and
-      `/*"*/1` is two `unexpected character` then one `invalid string`, with
-      the `number 1` gone. Assert the loss rather than leaving it to be
+      lost: `/*a*/1` is four `unexpected character` and an `invalid token` for
+      the word `a`, then `number 1`; `/*"*/1` is two `unexpected character`
+      then one `invalid string`, with the `number 1` gone; and `//"<LF>1`
+      keeps its `number 1`, since LF ends string recovery. Assert the loss rather than leaving it to be
       discovered — it is the exception the no-suffix-loss claim carries, and a
       proof that states it is what stops the next reader from "fixing" it by
       teaching JSON's scanner about comments.
