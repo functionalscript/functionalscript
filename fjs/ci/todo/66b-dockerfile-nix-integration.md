@@ -79,6 +79,7 @@ existing CI config -> generated Node flake.nix -> existing Node job commands
 - preserve each job's current commands, order, and coverage;
 - keep `npm run ci-update` Nix-independent and runnable on Windows;
 - ignore per-job lock files created beside generated flakes;
+- let a job add tools required by its own work without changing the Node runtime mapping;
 - defer generalized shell, cache, and package-provider abstractions until a real
   requirement appears.
 
@@ -121,7 +122,7 @@ public output:
 devShells.aarch64-linux.default
 ```
 
-The package mapping is explicit:
+The Node runtime mapping is explicit:
 
 ```text
 node22 -> pkgs.nodejs_22
@@ -129,7 +130,11 @@ node24 -> pkgs.nodejs_24
 node26 -> pkgs.nodejs_26
 ```
 
-Each generated file follows this static shape, with the job's package substituted:
+That mapping defines the runtime, not the complete shell. A job may add explicit tools
+required by its own work; their owning TODO defines those requirements.
+
+Each generated file follows this static shape, with the job's declared packages
+substituted:
 
 ```nix
 {
@@ -219,7 +224,8 @@ node26:
 ```
 
 The workflow generator should continue supplying current configured versions; the list
-above records the existing command families and their order.
+above records the existing command families and their order. Other TODOs may change a
+job's required tools or commands independently.
 
 For each Node job:
 
