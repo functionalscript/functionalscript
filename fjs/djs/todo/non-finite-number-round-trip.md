@@ -20,9 +20,8 @@ current parser and serializer:
 parser keeps it, so only the serializer drops it. The other three fail in both
 directions.
 
-The parser failures above are about the *names*, and are not a missing branch but
-a consequence of the grammar's alphabet. `NaN` and `Infinity` reach the parser as
-`id` tokens, so the grammar
+The parser failures above are about the *names*. `NaN` and `Infinity` reach the
+parser as `id` tokens, so the grammar
 matches them as *references* and name resolution rejects them — the same shape as
 `export default zzz`. `-Infinity` fails earlier: the tokenizer's minus-fold
 applies to numeric literals, and `Infinity` is not one.
@@ -55,7 +54,7 @@ question, not this one's — this issue must leave it untouched.
 
 ### Design questions to settle first
 
-**1. The spellings — and only `NaN` forces a grammar change.** DJS has no
+**1. The spellings.** DJS has no
 arithmetic, so `0/0` and `1/0` are unavailable. But an *overflowing numeric
 literal* already round-trips both infinities today, with no grammar change at
 all, because the fold reaches them through `parseFloat`:
@@ -80,9 +79,35 @@ probably right, but the trade should be made deliberately rather than by
 assuming, as an earlier revision of this issue did, that no literal spelling
 exists.
 
-`NaN` has no numeric spelling at any exponent, so it forces the grammar change
-whichever way the infinities go — which makes the questions below unavoidable
-rather than contingent.
+`NaN` has no numeric spelling at any exponent. It does **not** follow that it
+forces a grammar change: it arrives as an `id`, the `value` rule already accepts
+one, and `foldValue` holds both the identifier's text and the bindings — so
+resolving a bound `NaN` to its binding and an unbound one to the literal is a
+change to the fold alone. Grammar work is needed only if these names are
+*reserved*, which is question 2.
+
+**`-Infinity` is the exception, and it is a tokenizer question, not a parser
+one.** There is no `-` in the `DjsToken` set at all; the tokenizer folds a minus
+into a numeric literal and has no other use for it. So `-Infinity` tokenizes to
+an error:
+
+```
+-Infinity   ->  error  id(Infinity)  eof
+Infinity    ->  id(Infinity)  eof
+-1e400      ->  number(-1e400)  eof
+```
+
+The name `-Infinity` therefore cannot be a fold-only change under any answer to
+question 2 — it needs a `-` token, which means tokenizer, alphabet and grammar
+work — while `-1e400` already tokenizes as one number.
+
+That leaves a real asymmetry to resolve rather than paper over: `NaN` and
+`Infinity` can be had for a fold change, and `-Infinity` cannot. An answer that
+spells two of them as names and the third as `-1e400` is cheap and inconsistent;
+one that spells all three as names pays for a minus token; one that spells all
+the infinities as overflow literals is consistent but unreadable. The issue does
+not pick — it records that the cost is not uniform across the four values, which
+is what an earlier revision assumed.
 
 **2. Whether they are reserved.** Giving `NaN` its own terminal raises the same
 question the framing keywords did: today `const NaN = 1` is legal, because `NaN`
@@ -109,10 +134,12 @@ separates them.
 - [ ] Settle the three questions above; record the reserved-versus-shadowed
       decision in [`../parser/README.md`](../parser/README.md) beside the
       framing-keyword rule it extends.
-- [ ] Parser: admit `NaN`, and the infinity names too if question 1 chooses them
-      over `1e400`; resolve a bound name to the binding rather than the literal.
-      If `1e400` wins, the infinities need no parser change at all — they parse
-      today.
+- [ ] Fold: resolve a bound `NaN` / `Infinity` to its binding and an unbound one
+      to the literal. This needs no grammar or alphabet change — both already
+      arrive as `id` tokens — unless question 2 reserves the names.
+- [ ] `-Infinity`: either adopt `-1e400`, which tokenizes today, or add a `-`
+      token and carry it through the alphabet and grammar. Unlike the other two,
+      this cannot be done in the fold.
 - [ ] Serializer: emit the four values in the chosen spellings. It currently
       delegates to JSON primitives, which have no spelling for any of them.
 - [ ] Prove the round trip semantically, not by string equality —
