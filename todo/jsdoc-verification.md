@@ -25,6 +25,32 @@ cannot distinguish a JSDoc tag from the same characters in a string or a
 comment, and the guard built that way flagged the file whose assertions named
 it. A checker has to parse.
 
+The `@typedef` prohibition had exactly such a gate, in the `node26` CI job,
+until it was deleted for violating §6:
+
+```sh
+! grep -rnE '^(/\*\*.*@typedef|\s\* *@typedef)' --include='*.mjs' --exclude-dir=node_modules .
+```
+
+It is worth reading closely, because it shows what these patterns do rather than
+merely asserting it. The rule it stands for is about **scope** — a file-scope
+`@typedef` is prohibited, a function-local one is allowed — and the pattern has
+no notion of scope, so it encodes one as indentation: a `/**` in column zero, or
+a continuation line with exactly one whitespace character before its `*`. A
+file-scope block indented differently is missed; a `@typedef` inside a string, a
+template literal, or a Markdown block in a comment is flagged. Both call the
+answer with the same confidence.
+
+Its own near-miss is the sharpest evidence. `fjs/ci/node/module.f.mjs` holds the
+pattern as a JavaScript string and a comment naming the tag, in an authored
+`.mjs` the gate searched — matched by neither branch only because both sit
+indented past what the pattern accepts. The guard passed on the file that
+defines it by accident of formatting.
+
+So the `@typedef` rule now sits with the rest: documented, unenforced, and
+waiting on this investigation. §6 calls that the better trade, and it is the
+state to reason from — not a regression to repair in a hurry.
+
 ### Proposal
 
 An investigation, not a design. What to establish:
@@ -60,8 +86,9 @@ is worth doing when a tool makes it cheap, not worth building a tool for.
       placement.
 - [ ] Read [`eslint.md`](./eslint.md) and fold this in rather than duplicating
       it, if the answer is ESLint.
-- [ ] Pick one rule as the trial — `@module` presence is the narrowest — and
-      say what checking it would cost.
+- [ ] Pick one rule as the trial — `@module` presence is the narrowest, and the
+      file-scope `@typedef` prohibition is the one with no check at all since
+      its gate was deleted — and say what checking it would cost.
 - [ ] Decide, and record "not worth it" as an answer if that is the answer.
 
 ### Related
@@ -72,3 +99,6 @@ is worth doing when a tool makes it cheap, not worth building a tool for.
   this would check. The restore that brought the tree into line with §2 is the
   fourth pass over this one tag; no check registered any of the four.
 - [`eslint.md`](./eslint.md) — the standing ESLint discussion.
+- [`../fjs/ci/todo/ci-generator-audience.md`](../fjs/ci/todo/ci-generator-audience.md)
+  — where a convention gate would belong if one is ever built, which is a
+  separate question from whether it can be.

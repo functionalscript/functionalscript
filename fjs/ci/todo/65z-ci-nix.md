@@ -5,10 +5,17 @@
 
 ### Progress
 
-Flake generation is implemented, and a temporary `nix-flakes` CI job instantiates the
-generated flakes — see the progress note in
-[66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md). What remains here is
-the Nixpkgs update command and adopting the flakes in the real Node jobs.
+Flake generation is implemented and **Node 24 and Node 26 are migrated**: each installs
+Nix through the pinned action and runs its command sequence one `nix develop` step per
+command. Nix now runs in CI only where a job uses a flake — the temporary `nix-flakes`
+job that instantiated them to check them is gone, and what can be established about a
+generated file is established by proofs over the generator's output. See the progress
+note in [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
+
+What remains here is the Nixpkgs update command and **Node 22**, now as mechanical as the
+other two: it runs `npm ci` and `node --test` and nothing else. It carried `fjs test` and
+a global install only because Node 22 could not run `node --test`; both are gone, and the
+`shellHook` that existed for them with them.
 
 ### Problem
 
@@ -81,9 +88,9 @@ this TODO does not prescribe which non-Node tools a job needs.
 Generate one self-contained file for each job:
 
 ```text
-nix/generated/node22/flake.nix
-nix/generated/node24/flake.nix
-nix/generated/node26/flake.nix
+nix/node22/flake.nix
+nix/node24/flake.nix
+nix/node26/flake.nix
 ```
 
 Each generated file should:
@@ -121,18 +128,11 @@ system-selection framework.
 Node 22, Node 24, and Node 26 remain separate because they use different runtimes and run
 different command sequences.
 
-The Node 22 flake adds one explicit job-local field for its existing global install:
-
-```nix
-shellHook = ''
-  export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-  export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
-  mkdir -p "$NPM_CONFIG_PREFIX"
-'';
-```
-
-Do not generalize this into a shell-configuration framework unless another surviving job
-proves that abstraction useful.
+No job declares a `shellHook`. The generator still emits one — a job needing environment
+set up on shell entry can declare it, and `fjs/ci/nix/proof.f.mjs` holds that capability
+to its shape — but Node 22's, which existed for a global install the job no longer makes,
+is gone. Do not generalize this into a shell-configuration framework unless a surviving
+job proves that abstraction useful.
 
 #### Nixpkgs update
 
@@ -163,12 +163,12 @@ commit these per-job lock files in the first milestone. Ignore them with the sco
 `.gitignore` rule:
 
 ```gitignore
-/nix/generated/**/flake.lock
+/nix/*/flake.lock
 ```
 
 This keeps the Node 26 generated-file drift check clean without adding special Nix flags
-to every invocation. The rule is deliberately limited to generated CI flakes, so a future
-intentional root or hand-maintained `flake.lock` is unaffected.
+to every invocation. The rule matches one level down, so it covers the per-job flakes and
+no more: a future intentional `nix/flake.lock`, hand-maintained, is unaffected.
 
 #### Validation and adoption
 
@@ -176,25 +176,46 @@ Adopt jobs independently. Each migrated workflow uses:
 
 1. checkout;
 2. a pinned Nix installer action;
-3. one `nix develop --command` invocation containing that job's complete existing
-   command sequence.
-
-The invocation has this shape:
+3. one step per command of that job's existing sequence, each entering the job's shell:
 
 ```sh
-nix develop ./nix/generated/<job> --command bash -euo pipefail -c '<commands>'
+nix develop ./nix/<job> --command <command>
 ```
 
-Using one Nix process keeps the selected Node executable and any job-local `shellHook`
-available to every command. It avoids profiles, cross-step PATH exports, and accidental
-fallback to the runner's preinstalled Node.
+A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7), so the sequence
+is not bundled into a `bash -c` script: the step is what CI reports on, and a bundle
+names the wrapper rather than the command that failed.
+
+A step enters the shell only when it needs a tool the flake pins. `git` is the runner's,
+as it is for a `setup-node` job today, so the Node 26 drift check stays a plain step:
+
+```sh
+nix develop ./nix/node26 --command npm run ci-update
+git add -A && git diff --cached --exit-code
+```
+
+They read a workspace the previous step wrote, which is the same workspace either way.
+This is also why no flake needs to declare `git`, and why it never matters whether
+`nix develop` leaves the runner's `PATH` in place or replaces it with the shell's: only
+commands that must run on the pinned toolchain go through it.
+
+Re-entering the shell per step costs nothing the bundle was buying. `nix develop` runs
+the shell's `shellHook` on every entry, so a job-local environment would be
+re-established for each step rather than exported across them, and what such a hook puts
+on disk persists across steps anyway. Each step still names the flake, so no step falls
+back to the runner's preinstalled Node.
 
 For each job:
 
-1. verify the selected Node version inside the Nix invocation;
+1. verify the selected Node version, inside the flake, as the job's first real step;
 2. run the existing commands in their current order;
 3. verify there are no tracked or stageable checkout changes;
 4. remove the old setup only after equivalent behavior is demonstrated.
+
+Step 1 is the check a `setup-node` job already makes of its own runtime, pointed through
+`nix develop`. It is a step of the job rather than a separate flake job: the version
+`fjs/ci/config/module.f.mjs` records is a claim about what the pinned snapshot provides,
+and the job that runs on it is where that claim is worth checking.
 
 #### Independent follow-ups
 
@@ -222,17 +243,18 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Verify all required Node package attributes exist in the candidate snapshot.
 - [x] Generate one readable self-contained flake per Node job with
       `devShells.aarch64-linux.default`.
-- [x] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
-- [x] Ignore `/nix/generated/**/flake.lock`.
+- [x] Ignore `/nix/*/flake.lock`.
 - [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
-- [ ] Bootstrap Nix through a pinned CI action in each migrated job.
-- [ ] Run each migrated job's complete command sequence inside one
-      `nix develop --command` invocation.
-- [ ] Validate each Node job independently with its existing commands and order.
+- [ ] Bootstrap Nix through a pinned CI action in each migrated job — Node 24 and
+      Node 26 done, Node 22 remains.
+- [ ] Run each migrated job's complete command sequence through its flake, one
+      `nix develop --command` step per command — Node 24 and Node 26 done.
+- [ ] Validate each Node job independently with its existing commands and order —
+      Node 24 and Node 26 done.
 - [ ] Keep tracked checkout state unchanged.
-- [ ] Migrate jobs one at a time.
+- [ ] Migrate jobs one at a time — Node 24, then Node 26; the rule still binds Node 22.
 - [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
 
 ### Related

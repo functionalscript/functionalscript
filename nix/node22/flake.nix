@@ -8,11 +8,6 @@
         in
         pkgs.mkShell {
             packages = [ pkgs.nodejs_22 ];
-            shellHook = ''
-                export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-                export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
-                mkdir -p "$NPM_CONFIG_PREFIX"
-            '';
         };
     };
 }

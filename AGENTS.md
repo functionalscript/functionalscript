@@ -40,6 +40,7 @@ actually touches its subject.
 4. [Rust (`nanvm-lib/`)](#4-rust-nanvm-lib)
 5. [Pull requests and releases](#5-pull-requests-and-releases)
 6. [External tools](#6-external-tools)
+7. [Continuous integration](#7-continuous-integration)
 
 ---
 
@@ -99,7 +100,7 @@ Commands and Rust coding style: [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md).
 ## 5. Pull requests and releases
 
 A PR implements only one feature or improvement, with minimal code changes, and
-every check above passing. Its title and description become the squash commit
+every check above passing. Its title and description become the merge commit
 on `main`, so write them as one: a `<topic>: <short description>` title and a
 description. A PR that changes behavior or the public API adds
 `changelog/unreleased/<PR>.md`, named by the real PR number once the PR exists,
@@ -147,3 +148,26 @@ honest, and cheaper than machinery whose failures are silent.
 
 Keep simple tasks simple; a script earns its place only where the task genuinely
 is not. Instances predating this rule are not precedent for new ones.
+
+## 7. Continuous integration
+
+**A CI step runs one command.** Never bundle a job's command sequence into a
+single shell invocation — no `bash -c 'a && b && c'` wrapper, and one
+`nix develop --command` per step rather than one invocation carrying the whole
+job. The step is the unit CI reports on: a bundle collapses to one red result
+naming the wrapper rather than the command that failed, and hides which of the
+commands ran at all.
+
+Two commands are one step only when the second is meaningless alone and neither
+is separately reportable. Both such pairs in the generated workflow qualify:
+`git add -A && git diff --cached --exit-code` stages so the comparison has
+something to compare, and `sudo apt-get update && sudo apt-get install -y …`
+refreshes indices the install then reads — split, the update's exit status
+reports nothing anyone acts on.
+
+Repeating a wrapper per step costs nothing that matters. Entering a Nix
+development shell re-runs that shell's `shellHook`, so a job-local environment
+is re-established for every step instead of being exported across them.
+
+`.github/workflows/ci.yml` is generated: change `fjs/ci`, run
+`npm run ci-update`, and commit the result. Never edit it by hand.
