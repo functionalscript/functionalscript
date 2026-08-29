@@ -45,8 +45,12 @@ object/array-only policy (§4) is applied at EOF — the recognizer stays pure
 (accepts any valid JSON), the MIME policy lives here:
 
 ```ts
-// A_json state, added to DetectState (init { rec: recognizerInitCapped(jsonMaxDepth), top: null }):
+// A_json state, added to DetectState (init { rec: jsonRecInit, top: null }):
 const jsonMaxDepth = 64   // the detector's cap; see below
+// tryRecognizerInitCapped returns null for a cap outside the finite
+// non-negative integers. 64 is a literal, so a null here is a broken
+// precondition, not a caller error: unwrap asserts, it does not fall back.
+const jsonRecInit = unwrap(tryRecognizerInitCapped(jsonMaxDepth))
 type JsonFactor = { readonly rec: JsonRecognizerState; readonly top: Nullable<CodePoint> }
 // per decoded code point: feed the recognizer its UTF-16 units; remember the
 // first non-whitespace cp
@@ -114,7 +118,7 @@ Both are addressed by the payload-free, O(depth) recognizer proposed in
 **`fjs/media/json/todo/streaming-recognizer.md`** (`recognizerInit` / `recognizerStep`
 / `recognizerAccepts`, sharing the grammar with `parse` so they cannot diverge,
 with an optional max-depth cap this detector **enables**, via
-`recognizerInitCapped`). `A_json`
+`tryRecognizerInitCapped`). `A_json`
 is the thin §1 wrapper over it — the recognizer plus the one-code-point
 top-level tag — adding no JSON grammar of its own. This todo therefore **depends
 on** that recognizer landing first.
@@ -178,6 +182,31 @@ real document reaches, and shallow enough that the stack is bounded by a
 constant rather than by input — and it belongs in this design because
 `fjs/media/json` has no opinion about it.
 
+**And the cap can be refused.** `tryRecognizerInitCapped` returns
+`Nullable<JsonRecognizerState>`, `null` for anything outside the finite
+non-negative integers, because a rejecting state would make this detector
+answer `text/plain` for every valid JSON blob with no way for anyone to tell
+that from bad content — the review that corrected it landed after this design
+merged, so read
+[streaming-recognizer](../../json/todo/streaming-recognizer.md) before building
+the initializer.
+
+**Here the `null` is unwrapped, not defaulted**, and the first draft of this
+paragraph got that wrong in a way worth keeping on the record. It wrote
+`?? recognizerInit` and called the fallback unreachable, existing "only so the
+type checks without a cast" — which is a silent uncapping. If the initializer
+ever did return `null` for `64`, after a regression or a later edit to the
+constant, the detector would quietly run **uncapped** and report
+`application/json` for a 65-deep blob, hiding the exact boundary this design
+promises. That is a plausible wrong verdict standing in for a refusal: the
+defect this whole change exists to remove, reintroduced one level up, inside
+the commit removing it. `REVIEW.md` draws the line — a caller who may
+legitimately supply the input gets a `try*` and a `Nullable`, a broken
+**precondition** gets a panic — and `64` is a literal, so this call site is the
+precondition case. `unwrap` from `fjs/types/nullable` asserts and returns the
+state, so the `null` is discharged once here and never reaches the
+per-code-point path.
+
 **A number is not yet a contract**, which review caught this paragraph
 asserting in the sentence above and then not delivering: `64` decides nothing
 until what it counts is pinned. It is the greatest number of containers open
@@ -224,7 +253,7 @@ exactly the path `cas_get` uses.
       **64** containers is `application/json`, one nesting **65** is
       `text/plain`, on arrays and on objects. They belong here because what they
       catch is *this* module's wiring — initialising with `recognizerInit`
-      instead of `recognizerInitCapped`, passing `63` or `65` for
+      instead of `tryRecognizerInitCapped`, passing `63` or `65` for
       `jsonMaxDepth`, or feeding only one container path through the factor —
       and every other detector case listed above passes all of those while
       deeply nested blobs get the wrong MIME verdict. Review found the promise

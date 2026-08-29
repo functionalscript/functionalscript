@@ -419,7 +419,7 @@ The six parts:
     happened to use: `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t` and
     `\uXXXX`, plus a raw non-ASCII character **and a raw `/`** — the one
     character with two valid input spellings, so a reader that mistakes JSON's
-    permission to escape it for a requirement rejects `export default "/";`
+    permission to escape it for a requirement rejects `export default "/"`
     while passing every other vector here. `normalize` pins that `/` comes back
     unescaped, but that is a different role and closes nothing for this one.
     **And the raw non-ASCII character is not one vector but nineteen**, because
@@ -496,15 +496,35 @@ The six parts:
     `1`. It is the same reasoning that failed for the whitespace class two
     rounds earlier — a claim about how implementations are built, standing in
     for a vector.
-  - **`id ::= [A-Za-z_$][A-Za-z0-9_$]*`** — both positions, and both ends of
-    every range in each. The first position admits six endpoints (`A`, `Z`,
-    `a`, `z`, `_`, `$`) and the tail eight (those six plus `0` and `9`), which
-    **`A9`, `Za`, `az`, `z_`, `_$`, `$A`** cover between them but for `0` and
-    `Z` in the tail, which **`a0Z`** supplies. The contextual-keyword vectors
-    (`async`, `as`, `from`, `get`, `of`, `set`) are all lowercase letters, so a
-    reader rejecting `$`, a leading `_`, or any uppercase letter passed the set
-    while narrowing a production it never touched — and the earlier set here,
-    `$`, `_`, `_0`, `a$`, `a9`, closed the first two and left the third.
+  - **`id ::= '$' [A-Za-z0-9_$]*`** — the first position is a literal, not a
+    range, so it owes no endpoints; the whole obligation is the tail's four
+    ranges at both ends (`A`, `Z`, `a`, `z`, `0`, `9`, `_`, `$`) plus the
+    **empty** tail, which the repetition's own branch requires — and each
+    endpoint in a **one-character tail**, not merely somewhere in a longer one:
+    **`$`**, **`$A`**, **`$Z`**, **`$a`**, **`$z`**, **`$0`**, **`$9`**,
+    **`$_`** and **`$$`**. An earlier revision covered the same eight endpoints
+    with `$AZ`, `$az`, `$09` and `$_$`, which satisfies the repetition rule
+    above — one occurrence anywhere — and still leaves a reader uncaught: those
+    four put every range's *low* end in the first tail character and its *high*
+    end later, so an implementation with a separate first-tail state that stops
+    at `Z`, `z`, `9` or a second `$` accepts all four and rejects `$Z`, `$z`,
+    `$9` and `$$`. This production earns the stricter treatment where a plain
+    `[0-9]*` does not, because its first tail character is where an
+    implementation naturally puts a distinct check — is there a suffix at all,
+    and may it repeat the prefix character — and nine vectors settle it, which
+    is finite in a way "every position of a repetition" is not.
+    **`$$`** carries that last question alone and is worth naming: the tail
+    repeating the prefix is the case a reader restarting its token at `$`, or
+    demanding a *different* character class after it, gets wrong. All nine
+    measured as bindings in a real module, not assumed.
+    Then the words the leading `$` makes ordinary, which no range reaches:
+    **`$class`** and **`$undefined`**, a JavaScript reserved word and a value
+    word, each a name here and neither one before this rule. A reader that
+    kept an exclusion list — checking the text after the `$`, or checking the
+    whole word against one — rejects them while passing every range vector
+    above. The contextual keywords (`async`, `as`, `from`, `get`, `of`, `set`)
+    that the old production owed vectors for are no longer a case at all: they
+    cannot be names, and `$async` is a name for the same reason `$class` is.
   - **`infinity`, `array`, `object`, `key`, `document`** — both signs; empty
     and non-empty; both `key` alternatives; zero `const`s and several.
 
@@ -527,7 +547,7 @@ The six parts:
   every one of those five was invisible until someone asked which way a vector
   pointed.
 
-  Cases beyond that derivation, each earning its place: a **lone surrogate**, `export default "\ud800";` denoting the
+  Cases beyond that derivation, each earning its place: a **lone surrogate**, `export default "\ud800"` denoting the
   one-unit value `[0xd800]` — it appears under `normalize` and in the
   serializer-accept set too, but roles are judged independently, so a
   reader-only implementation whose string model cannot hold one passes every
@@ -538,7 +558,7 @@ The six parts:
   that carry the case. Review found the set using the high half's lower end
   alone, which a reader validating only `D800`–`DBFF` passes while refusing
   every isolated low surrogate; an **escaped
-  surrogate pair**, `export default "\ud83d\ude00";` denoting the *two* units
+  surrogate pair**, `export default "\ud83d\ude00"` denoting the *two* units
   `[0xd83d, 0xde00]`, since a reader combining an escaped pair into one scalar
   returns the wrong graph and nothing else reaches that path — the lone
   surrogate exercises a single escape, and the four-byte UTF-8 accepts exercise
@@ -587,9 +607,13 @@ The six parts:
   `const` never referenced at all — the grammar imposes no reference count, and
   the
   normalizer's counting rule is one serializer's rather than a validity rule —
-  a `const` bound to a **contextual keyword** (`async`, `as`, `from`, `get`,
-  `of`, `set`), which the grammar permits and a reader borrowing JavaScript's
-  reserved-word list would refuse,
+  a `const` bound to a name whose **tail is a reserved or value word** —
+  `$class`, `$await`, `$undefined` — which the grammar permits and a reader
+  that strips the `$` before consulting JavaScript's reserved-word list, or
+  that kept an excluded-name set of its own, would refuse; the contextual
+  keywords this vector named before the `$` became mandatory (`async`, `as`,
+  `from`, `get`, `of`, `set`) are not names at all now, and `$async` is a name
+  for the same reason `$class` is,
   duplicate keys (last value, first position), array-index key
   ordering **with both sides of its boundaries** — an index is
   `0 ≤ n < 2^32 − 1`, so the largest one is `"4294967294"` and the vector has
@@ -616,19 +640,48 @@ The six parts:
   key order; one-line and readable spellings of
   the same value; empty containers, deep nesting, shared nodes reached by
   several paths, and — the other direction — **two structurally equal nodes
-  that are not shared**, `export default[[],[]];`, whose vector asserts the
+  that are not shared**, `export default [[],[]]`, whose vector asserts the
   reader yields two distinct nodes rather than one. A reader interning what it
   builds fails that and passes every sharing vector.
-- **reject** — document text plus what is wrong with it. Cases: a missing or
-  non-final `export default`, a missing `;` **after each of the two statements
-  that take one**, `;;`, a **trailing comma in each container** — `[1,]` and
+
+  Two boundaries the productions above do not reach, because they are about
+  where a document *stops*. **`export default 1`** — a whole document with no
+  `;` anywhere in it, which no other accept vector is, since every other one
+  carries a `const`. And the **document's own edges**: leading and trailing
+  whitespace are insignificant like any other, so `export default 1`,
+  `export default 1\n`, `export default 1\r\n`, `export default 1  ` and
+  `\n export default 1 ` are one document. A file ending the way an editor ends
+  files must not be a reject, and normalized form emitting no trailing newline
+  is a fact about those bytes that the `normalize` role pins, not a rule about
+  what a reader takes.
+
+  And a whole-set check rather than a vector: **every accept document imports
+  as an ES module in a real engine**, yielding the graph the vector asserts.
+  That check is load-bearing here in a way it was not before — without the
+  final `;`, DataJS ⊂ JavaScript rests on ASI's end-of-input rule, which is a
+  claim about JavaScript and not about DataJS, and only an engine can settle
+  it.
+- **reject** — document text plus what is wrong with it. Every vector is a
+  whole document that is valid but for the one defect it names: a snippet
+  missing its `export default`, or referencing a name it never bound, would be
+  refused by an implementation that has not implemented the rule under test,
+  and would prove nothing. Cases: a missing or
+  non-final `export default`, a missing `;` **after a `const`** — the one
+  statement a separator follows — and its mirror, a **trailing** `;` after the
+  final export (`export default 1;`, the spelling every pre-decision example
+  used and the one an implementer is likeliest to accept out of habit), `;;`,
+  a leading `;`, a name **without the leading `$`**
+  (`const a=1;export default a`, `const class=1;export default 1`,
+  `const undefined=1;export default 1`), a **trailing comma in each container** — `[1,]` and
   `{"a":1,}`, since `array` and `object` are separate productions with separate
   comma rules — **both comment forms**, `//` and `/* */`, which are separate
   lexical shapes a reader can strip one of,
   an `import` — **one** of those, and the asymmetry is the grammar's rather than
   a guess about implementations: a trailing comma is refused inside a
-  container's element loop and there are two such loops, a missing `;`
-  terminates a statement and there are two such statements, but `import` has no
+  container's element loop and there are two such loops; the `;` **separates**
+  statements rather than terminating them, so only the `const` is followed by
+  one — a missing `;` is a single vector, and the trailing `;` after the export
+  is its mirror rather than a second copy of it; but `import` has no
   production at all and is refused at the single point where `document` decides
   a statement is neither `const` nor `export default` —
   an identifier key, a bare or string `"__proto__"` key and its
@@ -663,22 +716,42 @@ The six parts:
   narrowing vectors a delegating reader fails. All twelve uppercase-prefix
   forms parse — measured, not assumed — so every one of them is a narrowing
   vector, with no classified case hiding among them — and two identifier spellings it takes and DataJS does
-  not: a **non-ASCII** one, `const é=1;export default é;`, and an **escaped**
-  one, `const \u0061=1;export default \u0061;`. Both are valid JavaScript, so a
+  not: a **non-ASCII** one, `const $é=1;export default $é`, and an **escaped**
+  one, `const \u0024a=1;export default \u0024a`. Both are valid JavaScript, so a
   reader borrowing the host's number or identifier grammar passes the whole-set
   JavaScript check and only this corpus can catch it. The escaped case is the
-  one the ASCII rule alone does not reach: `\u0061` *denotes* `a`, which is a
-  perfectly good `id`, so the vector is about the spelling and nothing else —
-  which is also why **both** occurrences are escaped. Escaping only the
-  declaration, as the review that found this proposed, leaves `export default
-  a;` referring to a name DataJS never saw declared, and an implementation with
-  no spelling check at all refuses it for the unbound reference — a second
-  ground, and the rule below forbids exactly that; a
+  one the ASCII rule alone does not reach: `\u0024` *denotes* `$`, so the
+  escaped spelling decodes to `$a`, a perfectly good `id`, and the vector is
+  about the spelling and nothing else — as the non-ASCII one is about `é` and
+  not about a missing `$`, which is why both carry the leading `$` the grammar
+  requires.
+
+  The escaped case is **three** vectors, not one, because `id` occurs
+  in two grammar positions and a reader can check them separately:
+
+  - `const $a=1;export default \u0024a` — the **reference** escaped alone,
+    catching a reader that validates declarations and lets references through.
+    Clean on the one-reason rule: `\u0024a` decodes to `$a`, which *is* bound,
+    so the escape is the only ground.
+  - `const \u0024a=1;export default $a` — the **declaration** escaped alone,
+    catching the mirror reader. A conforming implementation refuses the escape;
+    one that accepts it binds `$a` and accepts the document, which is the catch.
+  - `const \u0024a=1;export default \u0024a` — both, which was the only
+    spelling here before and is still worth keeping for the residual reader the
+    second vector cannot catch: one that accepts the escaped declaration but
+    keys its bindings on raw text, so it refuses `export default $a` as
+    *unbound* and passes that vector for the wrong reason. Earlier text argued
+    from that hazard that both occurrences must be escaped; the hazard is real
+    and the conclusion was too strong — it makes this the third vector, not the
+    only one.
+
+  All three are valid JavaScript resolving to the same binding and denoting
+  `1` — measured, not assumed. Then a
   computed key that is **not** the one permitted spelling — `{["x"]:1}` and
   `{["\u005f_proto__"]:1}`, since `["__proto__"]` is the only computed form
   the grammar admits — `1.5n`,
   `1e2n`, `01n`, `-NaN`, `-undefined`, a bare `-`, a forward or unbound
-  reference, a rebound name, each excluded const name, and the string spellings
+  reference, a rebound name, and the string spellings
   JavaScript takes and DataJS does not: two **quoting forms** — single quotes
   and a template literal; every **escape outside JSON's nine** — `\v`, `\0`,
   `\'`, `` \` ``, `\x41`, `\u{41}`, the two **legacy octal** forms `\101`
@@ -691,7 +764,7 @@ The six parts:
   contains, which is this file's most repeated failure inside a single
   document; and a **line continuation**, a backslash
   before a raw newline, which JavaScript reads as `"ab"` in
-  `export default "a\<LF>b";`. Then the **raw control characters** a string
+  `export default "a\<LF>b"`. Then the **raw control characters** a string
   may not contain — U+0000, U+0009 and U+001F, pinning both ends of the
   below-U+0020 range and one ordinary member, plus raw **LF** and **CR**. The
   first three are valid inside a JavaScript string literal and none inside a
@@ -724,33 +797,69 @@ The six parts:
   That vector has to be **bytes** — see the byte form below — and review
   caught this document claiming otherwise one round after adding the vector. Then the array **elisions** JavaScript reads as holes
   and the grammar `array ::= '[' (value (',' value)*)? ']'` cannot spell at
-  all: `export default[,1];`, `[1,,2]` and `[1,,]`, leading, medial and
+  all: `export default [,1]`, `[1,,2]` and `[1,,]`, leading, medial and
   trailing. `[1,]` is *not* one of these — it is the trailing comma above, a
   different rule, and it leaves no hole. Then the three places whitespace is
-  *required*. The first two take one vector each — `constx=1;export default x;`
-  and `exportdefault 1;` — because each merges exactly one pair of tokens. The
-  third does not: §Whitespace requires the separator before **any value
-  beginning with an identifier character** and names nine — a name, `true`,
-  `false`, `null`, `undefined`, `NaN`, `Infinity`, a number and a bigint — so
-  it owes nine, `export defaulttrue;` through `export default1n;`, with
-  `export default1;` as the number member and `const x=1;export defaultx;` as
-  the name. A reader can require the separator on its numeric path while
-  prefix-matching `default` before a word, which the single digit vector cannot
-  see. The `normalize` role already enumerates **eight** of the nine for the
-  emitting side — the six words, the number and the bigint, member by member —
-  and that enumeration never crossed to this one — per-role independence cutting the other way than usual,
-  since here it left the *reject* side sampling a list the *byte* side spells
-  out. And the rule owes its **accept** side too. The spec supplies three —
-  `export default-1;`, `export default[1];` and `export default"a";` — and
-  three is not the set: the value starts that need no separator are exactly the
-  ones that are not identifier characters, `-`, `[`, `{` and `"`, so
-  **`export default{};`** belongs beside them. Taking the spec's three as the
-  rule is the §Whitespace trap over again, in the same file that records it:
-  derive from the rule, not from the list that illustrates it. A reader
-  requiring a space before object literals alone accepts the other three and
-  every conventionally-spaced object vector, and refuses this one; the
-  `normalize` vector with those bytes cannot see it, since a reader-only
-  implementation never runs that role.
+  *required*. The first two take one vector each — **`const$0=1;export default $0`**
+  and **`const $0=1;exportdefault $0`** — because only one thing can follow:
+  after `const` an `id`, which always starts with `$`, and after `export` the
+  word `default`. The second carries the binding for the one-reason rule: a
+  reader that wrongly splits `exportdefault` into its two keywords lands on
+  `export default $0`, and without the `const` it would refuse that for an
+  *unbound* name and pass the vector having never checked the separator.
+
+  The third takes **thirteen**, one per distinct value start, and an earlier
+  draft of this section cut them to one on reasoning that was wrong. It argued
+  that §Whitespace no longer conditions the separator on what follows, so there
+  is no list to enumerate and no per-value path for a reader to get selectively
+  wrong. The first half is true and the second does not follow from it: the
+  *rule* stopped dispatching on the value, but a **reader** need not, and the
+  ones this corpus exists to catch are exactly those whose lexer does. A reader
+  can enforce the separator before `$` and before `[`, `{`, `"` and `-` while
+  prefix-matching `default` on its number path or its word path, accepting
+  `export default1` and `export defaulttrue` — and it passes every vector that
+  draft kept. Deriving from the rule is right for the *accept* side, which is
+  read off the productions; the reject side is derived from how readers break,
+  and a rule getting simpler does not make readers simpler. Review found this;
+  it had been caught once before, in the text that draft removed.
+
+  So: the nine value starts that begin with an identifier character — a name,
+  `true`, `false`, `null`, `undefined`, `NaN`, `Infinity`, a number and a
+  bigint, `const $0=1;export default$0` through `export default1n`, the name
+  member carrying a binding for the reason above and the other eight needing
+  none, since a wrong split of `export defaulttrue` yields a document a reader
+  would *accept* — plus the four the old
+  rule never owed a reject for at all, since under it they were *accepts*:
+  `export default[1]`, `export default{}`, `export default"a"` and
+  `export default-1`. Thirteen, which is more than the nine before it. The
+  positional rule shrank the rule and grew its corpus.
+
+  The accept side grows too, and independently of those thirteen, since a
+  separator that is present can still be the wrong character: **each of the
+  four permitted whitespace characters at each of the three required
+  positions**, twelve in all, `const\t$0=1;export default $0` among them. The
+  four-character requirement above is about whitespace as *trivia*, at
+  boundaries where it is optional, and a required separator is a different code
+  path in any plausible reader — the one that checks a separator is there at
+  all. A reader satisfying that check against a literal U+0020 while treating
+  tab, LF and CR as trivia everywhere else passes every vector in this corpus,
+  including all four of that requirement, and rejects a valid document. Review
+  found this, and it is the same shape as the finding that produced the
+  four-character rule one level up, one level down: accepting only U+0020
+  narrows the language wherever a separator is *required* rather than merely
+  allowed, and the two places are not the same code.
+
+  Those last four are worth dwelling on, being the ones the old rule counted as
+  accepts: `export default [1]`,
+  `export default -1`, `export default "a"` and **`export default {}`** all
+  carry the space even though `[`, `-`, `"` and `{` cannot merge with
+  `default`. A serializer or reader that kept the merging-based rule accepts
+  and emits the spaceless spellings of exactly these four, and every other
+  vector in this corpus is spaced conventionally, so nothing else sees it. The
+  spaceless four are therefore **reject** vectors — `export default[1]`,
+  `export default-1`, `export default"a"` and `export default{}` — which is
+  the one place this rule is stricter than JavaScript, and so the one place the
+  whole-set JavaScript check cannot stand in for a vector.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
   than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
   and at least one that is not — **`Map` or a boxed number**, not `RegExp`;
@@ -878,7 +987,7 @@ The six parts:
   non-continuation matrix, which had been covered along one diagonal, and raw
   LF and CR, which one paragraph excluded on the reasoning another used to
   keep four sibling vectors — then the escaped surrogate pair, which this
-  document argued for and never made a vector, and the `_0`/`_1` ordering,
+  document argued for and never made a vector, and the `$0`/`$1` ordering,
   which no single-const case can test, and both edges of the four constrained
   second-byte ranges — then the whole serializer-reject side, where the cycle
   class was one vector for a class with two axes, the entire set left the
@@ -993,10 +1102,10 @@ The six parts:
   it counts by, in the paragraph arguing that an unspecified limit makes two
   implementations disagree about the same bytes — then negative zero, reached
   by `-0.0` and `-0e0` as well as by the lexeme the accept set pinned, and the
-  const counter, stopped at `_1` in every vector when the name's *shape*
-  changes at `_10`, and the hoisting rule's **only if**: every vector shared a
+  const counter, stopped at `$1` in every vector when the name's *shape*
+  changes at `$10`, and the hoisting rule's **only if**: every vector shared a
   container, so a normalizer that hoists unconditionally passed the set while
-  emitting a noncanonical document for `export default[];`. An if-and-only-if
+  emitting a noncanonical document for `export default []`. An if-and-only-if
   owes a vector in both directions, a counter owes the index where its name
   changes width, and a value owes every lexical path that reaches it — then
   the bigints, every one of them small enough to survive `BigInt(Number(text))`,
@@ -1009,7 +1118,7 @@ The six parts:
   rounding, which the reader owes because it decides the graph; the two
   magnitude boundaries, which the serializer owes because flushing or
   overflowing changes denotation while the notation thresholds beside them do
-  not; and `export default{};`, whose absence came from copying the spec's
+  not; and `export default {}`, whose absence came from copying the spec's
   three illustrations as though they were the rule — the §Whitespace trap, in
   the file that records the §Whitespace trap. Then the ceiling above the
   ceiling: the bigint added one round earlier sat past `2^53` and inside
@@ -1084,12 +1193,21 @@ The six parts:
     names after a colon are illustrations, and measured against ECMAScript the
     real set is 21 — the colon list omits every `Space_Separator` character
     but U+00A0. Derive from the rule; the six are not a set to copy. §Whitespace
-    also *requires* whitespace in three places, after `const`, after `export`,
-    and before an identifier-starting value after `default`.
+    also *requires* whitespace in three places — after `const`, after `export`
+    and after `default` — **unconditionally in all three**, whatever follows.
+    Not "before an identifier-starting value after `default`", which is the
+    rule §Whitespace used to have and which this line went on asserting after
+    it changed: reading it that way omits the `[`, `{`, `"` and `-` boundaries
+    and reinstates the merging-based rule the corpus is meant to test against.
 
-    This section has now been got wrong twice in successive rounds, each time
-    by treating a list as closed: first the tail below was transcribed and
-    dropped the vertical tab, then the spec's six were adopted as complete.
+    This section has now been got wrong three times in successive rounds, twice
+    by treating a list as closed — first the tail below was transcribed and
+    dropped the vertical tab, then the spec's six were adopted as complete —
+    and once by keeping a condition the rule had dropped. The third is the same
+    failure wearing different clothes: a *stale* rule is a copied list whose
+    source has moved, and the defence is the same one this section already
+    prescribes, which is to derive from §Whitespace as it currently reads
+    rather than from any sentence about it, this one included.
     A conforming reader needs none of this — it accepts four characters and
     rejects the rest, so it gets all 21 for free. Only a reader **delegating**
     to a JavaScript tokenizer over-accepts, which is precisely why the vectors
@@ -1111,17 +1229,18 @@ The six parts:
     | production | what it excludes | vectors |
     | - | - | - |
     | `document ::= const* export` | any other statement or declaration | `let a=1;…`, `var a=1;…`, `function f(){}…` |
-    | `const ::= 'const' id '=' value ';'` | multiple declarators, destructuring | `const a=1,b=2;…`, `const [a]=[1];…` |
-    | `export ::= 'export' 'default' value ';'` | any other export form | `const a=1;export{a};export default a;` |
+    | `const ::= 'const' id '=' value ';'` | multiple declarators, destructuring | `const $a=1,$b=2;…`, `const [$a]=[1];…` |
+    | `export ::= 'export' 'default' value` | any other export form | `const $a=1;export{$a};export default $a` |
     | `value ::= <closed list>` | every other expression form | `(1)`, `1+1`, `[1][0]`, `String(1)`, `void 0`, `-(-1)` |
     | `array ::= '[' (value (',' value)*)? ']'` | elisions, spread | `[,1]`, `[1,,2]`, `[1,,]`, `[...[1]]` |
     | `object ::= '{' (member (',' member)*)? '}'` | spread | `{...{"a":1}}` |
-    | `member ::= key ':' value` | shorthand, methods, accessors | `const a=1;export default{a};`, `{a(){}}`, `{get a(){return 1}}` |
+    | `member ::= key ':' value` | shorthand, methods, accessors | `const $a=1;export default {$a}`, `{a(){}}`, `{get a(){return 1}}` |
     | `key ::= string \| '[' '"__proto__"' ']'` | identifier and numeric keys, other computed keys | `{a:1}`, `{1:2}`, `{["x"]:1}` |
 
-    Where a row shows a bare value it stands for `export default <value>;`.
-    The two using `a` carry `const a=1;` because they need it: without the
-    binding, `export{a}` and `{a}` are refusable for an unbound name as well
+    Where a row shows a bare value it stands for `export default <value>` —
+    with the space §Whitespace requires and no trailing `;`.
+    The two using `$a` carry `const $a=1;` because they need it: without the
+    binding, `export{$a}` and `{$a}` are refusable for an unbound name as well
     as for their syntax, which the one-reason rule forbids — review caught
     both, and the measurements they came from *had* the binding, so this was
     lost between measuring and writing the table down.
@@ -1176,17 +1295,36 @@ The six parts:
   draft drew the opposite conclusion for LF and CR alone — skipping them while
   keeping the bigint and octal cases on identical reasoning, four lines apart —
   and they are reject vectors now like the rest. Two of the
-  three **required-separator** vectors are the same: `export default1;` and
-  `exportdefault 1;` are SyntaxErrors, since `default1` and `exportdefault`
-  each lex as one identifier — the spec says as much about the first. They stay
+  fifteen **required-separator** vectors split three ways, and measuring them
+  is what shows where the split falls. **Ten are SyntaxErrors**: `exportdefault $0`,
+  and all nine third-position vectors whose value starts with an identifier
+  character — `export default$0`, `export defaulttrue` through
+  `export defaultInfinity`, `export default1` and `export default1n` — since in
+  each the two tokens merge into one identifier and `export <identifier>` is no
+  export form. They stay
   in the reject set as tests of the corpus's own grammar, against a reader that
   matches keyword prefixes itself, but they cannot catch a delegating one.
-  `constx=1;export default x;` is the odd one and the only true narrowing of
-  the three: it **parses** as JavaScript and fails at run time with a
-  `ReferenceError`, so a reader delegating its parse accepts it. All measured,
-  not assumed. Each tests the corpus's own grammar rather than
-  a narrowing, because no reader can over-accept them by delegating to a host
-  that refuses them too.
+  **One is a runtime error**: `const$0=1;export default $0` **parses** and fails
+  with a `ReferenceError`, so a reader delegating its parse accepts it.
+  **Four parse *and evaluate***, and they are the sharpest vectors here —
+  `export default[1]`, `export default-1`,
+  `export default"a"` and `export default{}` yield exactly the graph the spaced
+  spelling denotes, so a delegating
+  reader cannot fail them on any ground at all. All measured, not assumed: the
+  fifteen were written to `.mjs` files and imported, and the counts above are
+  what came back.
+
+  So the classification splits rather than settling one way, and the split is
+  what stage 1b needs to record. The vectors JavaScript also refuses — `+1`,
+  the legacy octal escapes, a raw LF or CR in a string, and the ten separator
+  SyntaxErrors — test the corpus's own grammar and cannot catch a delegating
+  reader, because no reader can over-accept them by delegating to a host that
+  refuses them too. The five JavaScript *accepts* — the `ReferenceError` one
+  and the four that evaluate — are the narrowings, and they are the only
+  vectors here that catch one. Counting them as grammar-only, which an earlier draft of
+  this paragraph did by letting one concluding sentence cover both groups,
+  would have left the whole positional rule with no vector that any delegating
+  reader fails.
 
   The rule has now caught one *before* it landed — the escaped-identifier
   vector above, whose proposed spelling left an unbound reference as a second
@@ -1216,7 +1354,7 @@ The six parts:
   with **`0`** and `-0` beside them — positive zero is its own vector, since a
   serializer may refuse it and the ordinary positive vector may be nonzero, and
   `-0` is the opposite `Object.is` value rather than a stand-in for it; the
-  normalize set pins `export default 0;` for the same reason, against a
+  normalize set pins `export default 0` for the same reason, against a
   normalizer that emits `-0` for it — **and the two magnitude boundaries with
   a signed twin each**, `5e-324`, `-5e-324`, `1.7976931348623157e308` and
   `-1.7976931348623157e308`, which sat in the `normalize` set
@@ -1350,7 +1488,7 @@ The six parts:
   variation leaves no trace, and `graph equivalence` supplies the comparison.
 - **graph equivalence** — an input graph and the documents that do and do not
   denote it, so a serializer cannot pass by emitting merely *valid* output:
-  `[a,a]` with one shared `a` is not `export default [[],[]];`. **Three sharing
+  `[a,a]` with one shared `a` is not `export default [[],[]]`. **Three sharing
   shapes, not one**, for the reason the cycle set is every ordered pair of
   container kinds: the two references reached from an array (`[a,a]`), from two
   object properties (`{"x":a,"y":a}`), and from one of each
@@ -1377,7 +1515,7 @@ The six parts:
   Review found this, and what it found is a *direction*, not a case — the same
   shape as "ad-hoc accept sets fail in one direction only" above, which is why
   the reject half of this corpus exists at all. Sharing had a reject half in
-  name — `[a,a]` against the document `export default [[],[]];` — but that
+  name — `[a,a]` against the document `export default [[],[]]` — but that
   contrasts two *outputs* for one input, and never asked what happens when the
   input is the one with two distinct nodes.
 - **normalize** — an input **graph**, in the meta-encoding, and the exact bytes
@@ -1389,7 +1527,7 @@ The six parts:
   left canonical output unchecked for exactly the implementations the set
   exists to check. Document-to-document normalization needs no new role — it is
   the reader's set composed with this one — so nothing is lost by making the
-  input a graph. What each vector pins: const hoisting by reference identity, post-order `_0`, `_1`, …
+  input a graph. What each vector pins: const hoisting by reference identity, post-order `$0`, `$1`, …
   naming, `ToString(Number)` spelling with the `-0` exception,
   `QuoteJSONString` escaping — **every branch of it**, because a noncanonical
   spelling is still a *valid* document, so only exact bytes tell them apart:
@@ -1454,12 +1592,12 @@ The six parts:
   has **seven** simple escapes where the accept grammar admits **nine**: `\/`
   and `\uXXXX` are input spellings a reader must take and a normalizer must
   never emit, so the two lists differ on purpose and neither checks the other —
-  observable key order, one-line layout. Pin **`export default[1,1];`** as the
-  output for `const x=1;export default[x,x];`, because primitives always
+  observable key order, one-line layout. Pin **`export default [1,1]`** as the
+  output for `const $x=1;export default [$x,$x]`, because primitives always
   inline and a repeated one is the case where that bites: the shipped
   `fjs/djs` hoists it into a `const` today, which the spec's own divergence
   table lists as a difference this work closes. A normalizer carrying that
-  behavior forward emits `const _0=1;export default[_0,_0];` — valid, denoting
+  behavior forward emits `const $0=1;export default [$0,$0]` — valid, denoting
   the same graph, and wrong — and nothing else in this set can see it. It is
   also the sharpest boundary in normalized form, since hoisting a **node**
   reached twice is mandatory while hoisting a repeated **primitive** is
@@ -1501,15 +1639,15 @@ The six parts:
   gives it exactly one spelling — but it has one anyway as the
   identifier-starting root below. The hoisting rule is an **if and only if**, and only its *if* was pinned:
   every hoisting vector here shares a container, so a normalizer that interns
-  or hoists containers unconditionally emits `const _0=[];export default _0;`
+  or hoists containers unconditionally emits `const $0=[];export default $0`
   — valid, graph-equivalent and noncanonical — while passing all of them. Pin
-  the *only if* with the two smallest documents there are: **`export default[];`**
-  and **`export default{};`**, an empty container reached exactly once, whose
+  the *only if* with the two smallest documents there are: **`export default []`**
+  and **`export default {}`**, an empty container reached exactly once, whose
   single occurrence is the exported value. Review found it, and the empty ones
   are the sharpest form because an interning normalizer has the most to gain
   there. Pin `root=[p,p]` with `p=[c]` so the hoisting count
   is occurrences rather than paths — and pin **`root=[a,b,a,b]`**, two
-  independent shared containers, so the `_0`, `_1` naming is tested at all.
+  independent shared containers, so the `$0`, `$1` naming is tested at all.
   With a single hoisted const there is no order to get wrong: a normalizer
   traversing siblings in reverse names them backwards and passes every
   one-const case. Pin the object analogue too, since there first encounter
@@ -1517,19 +1655,19 @@ The six parts:
   **siblings** still leave *post*-order untested, because pre-order and
   post-order agree on siblings: pin **`root=[p,p,c]`** with `p=[c]`, a shared
   parent whose shared child is also reached from the root. Post-order names the
-  child first — `const _0=[];const _1=[_0];export default[_1,_1,_0];` — where a
+  child first — `const $0=[];const $1=[$0];export default [$1,$1,$0]` — where a
   normalizer naming on the way *down* emits
-  `const _1=[];const _0=[_1];export default[_0,_0,_1];`, which is a valid
+  `const $1=[];const $0=[$1];export default [$0,$0,$1]`, which is a valid
   document denoting the same graph and passes every sibling case. What
   separates them is the **names**, not their order: a const referencing a later
-  one throws on evaluation (measured: `const _0=[_1];const _1=[];` is a
+  one throws on evaluation (measured: `const $0=[$1];const $1=[];` is a
   `ReferenceError`), so dependency-before-dependent is forced by the language
   in any document that runs at all, and no vector has to pin it. Pin a graph whose consts reach
-  **`_10`** — eleven distinct shared containers, `root=[a,a,b,b,…,k,k]` with
+  **`$10`** — eleven distinct shared containers, `root=[a,a,b,b,…,k,k]` with
   each of the eleven an empty array, whose exact output is
-  `const _0=[];const _1=[];const _2=[];const _3=[];const _4=[];const _5=[];const _6=[];const _7=[];const _8=[];const _9=[];const _10=[];export default[_0,_0,_1,_1,_2,_2,_3,_3,_4,_4,_5,_5,_6,_6,_7,_7,_8,_8,_9,_9,_10,_10];`
-  — because `_0`, `_1`, … is a *counter*, and every vector above stops at
-  `_1`. A normalizer deriving the name from a single digit passes all of them
+  `const $0=[];const $1=[];const $2=[];const $3=[];const $4=[];const $5=[];const $6=[];const $7=[];const $8=[];const $9=[];const $10=[];export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10]`
+  — because `$0`, `$1`, … is a *counter*, and every vector above stops at
+  `$1`. A normalizer deriving the name from a single digit passes all of them
   and emits something invalid or noncanonical the moment the eleventh const is
   reached, which is the same class as a repetition's empty branch: the
   interesting index is the one where the shape of the name changes, and it is
@@ -1541,16 +1679,16 @@ The six parts:
 
   | parent, child | graph | normalized bytes |
   | - | - | - |
-  | array, array | `root=[p,p,c]`, `p=[c]` | `const _0=[];const _1=[_0];export default[_1,_1,_0];` |
-  | object, object | `root={"a":p,"b":p,"c":q}`, `p={"x":q}` | `const _0={};const _1={"x":_0};export default{"a":_1,"b":_1,"c":_0};` |
-  | object, array | `root={"a":p,"b":p,"c":q}`, `p={"x":q}`, `q` an array | `const _0=[];const _1={"x":_0};export default{"a":_1,"b":_1,"c":_0};` |
-  | array, object | `root=[p,p,q]`, `p=[q]`, `q` an object | `const _0={};const _1=[_0];export default[_1,_1,_0];` |
+  | array, array | `root=[p,p,c]`, `p=[c]` | `const $0=[];const $1=[$0];export default [$1,$1,$0]` |
+  | object, object | `root={"a":p,"b":p,"c":q}`, `p={"x":q}` | `const $0={};const $1={"x":$0};export default {"a":$1,"b":$1,"c":$0}` |
+  | object, array | `root={"a":p,"b":p,"c":q}`, `p={"x":q}`, `q` an array | `const $0=[];const $1={"x":$0};export default {"a":$1,"b":$1,"c":$0}` |
+  | array, object | `root=[p,p,q]`, `p=[q]`, `q` an object | `const $0={};const $1=[$0];export default [$1,$1,$0]` |
 
   Naming can live in a per-container emitter rather than in one shared
   traversal, and a normalizer can go further: name post-order *within* each
   walker while **reserving the parent's name before dispatching** to the other
-  one. That passes both homogeneous cells and assigns the parent `_0` and the
-  child `_1` on either mixed graph, with declaration order still
+  one. That passes both homogeneous cells and assigns the parent `$0` and the
+  child `$1` on either mixed graph, with declaration order still
   dependency-first, so the bytes stay valid and graph-equivalent while the
   names are wrong. Review found it, and it is the fifth class in this file to
   need the object and array walkers separated. **Every key in that output is quoted**,
@@ -1558,14 +1696,23 @@ The six parts:
   review caught this vector spelling its keys bare, which would have required
   a document DataJS rejects and failed the very implementation it exists to
   check. Include a normalized root that is a bare
-  number and a bare bigint, so `export default 1;` cannot regress to
-  `export default1;` — which JavaScript rejects, `default1` being one
+  number and a bare bigint, so `export default 1` cannot regress to
+  `export default1` — which JavaScript rejects, `default1` being one
   identifier. Include an **identifier-starting** root for **each** of the six —
   `NaN`, `true`, `false`, `null`, `undefined`, `Infinity` — not one chosen from
   the list. A normalizer that dispatches on type can emit the space for digits
-  and drop it for words, producing `export defaultNaN;`, which the two numeric
+  and drop it for words, producing `export defaultNaN`, which the two numeric
   roots cannot see; and it can equally get one word right and another wrong,
-  which naming the class rather than the members cannot see. That is *naming a
+  which naming the class rather than the members cannot see. The six are no
+  longer the whole of it, though, because the space after `default` is now
+  **unconditional**: a root of every shape owes a vector, the four whose first
+  character cannot merge included — `export default [1]`, `export default {}`,
+  `export default "a"` and `export default -1` must not regress to the
+  spaceless spellings that JavaScript happens to accept. And **signed pairs
+  beside their unsigned ones** — `1` and `-1`, `1n` and `-1n`, `Infinity` and
+  `-Infinity` — since a normalizer that kept the merging-based rule puts the
+  space on one member of each pair and not the other, making canonical bytes
+  depend on the sign of a number. That is *naming a
   type is not naming a vector*, the rule the serializer-accept leaves needed two
   rounds ago, applied here — where it bites harder, because this role is judged
   on bytes and the serializer-accept vector for the same value checks only
