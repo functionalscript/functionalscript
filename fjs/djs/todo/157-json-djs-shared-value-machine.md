@@ -90,18 +90,46 @@ A `serializeValue` factory (in `json/serializer`) parameterized by the extra
 This serializer sub-task is independent of the exact-number parser dependency
 above and may land separately.
 
-**Depends on [663](./663-json-djs-tree-type.md) in practice.** Sharing one walker
-means typing it over a tree both families name, and JSON's `treeSerialize` is
-already typed over `Tree<P>` from `fjs/media/json/types.ts`. DJS's value aliases
-are not expressed through that shape yet — 663's remaining work — so a walker
-extracted before it would either take `unknown` or need a second signature, which
-is how two walkers come back.
+**Not blocked on [663](./663-json-djs-tree-type.md).** `fjs/djs/types.ts` already
+carries `Assert<Equal<Unknown, Tree<Primitive>>>`, so DJS's value type *is* the
+shape `treeSerialize` is typed over — 663 changes how that shape is spelled and
+where it lives, not whether the two agree. The walker can be shared before 663
+lands.
 
-The shape of the remaining delta, once 663 lands: DJS adds two leaves (`bigint`,
-`undefined`) and a ref-lookup hook that runs before the recursion. Both are
-things `treeSerialize`'s `leafSerialize` seam is a candidate to absorb — worth
-checking against the seam as it stands rather than against the description
-above, which predates it.
+**The delta is three seams, not one.** `leafSerialize` cannot absorb the other
+two, and the dispatch order is why:
+
+```js
+// json/serializer — the leaf seam runs last, and only for non-containers
+const f = value => {
+    if (value instanceof Array) { return arraySerialize(value) }
+    if (isObject(value)) { return objectSerialize(value) }
+    return leafSerialize(value)
+}
+
+// djs/serializer — the ref lookup runs first, before any dispatch
+const f = value => {
+    const ref = refLookup(value)
+    if (ref !== null) { return ref }
+    switch (typeof value) { /* ... */ }
+}
+```
+
+A shared *array or object* carrying a `cref` would be dispatched as a container
+before a leaf seam ever saw it, and the reference would be lost. So the sharing
+needs:
+
+1. **a leaf seam** — DJS adds `bigint` and `undefined`;
+2. **a pre-recursion seam** — `refLookup`, running before container dispatch, so
+   a shared container can short-circuit to `c<N>`;
+3. **a key seam** — `keySerialize`. JSON emits every key as a string; DJS emits
+   `__proto__` in computed form, because `{"__proto__": v}` is a prototype
+   assignment in JavaScript and would not read back the value it was given.
+   Round-tripping depends on it, so it is not a style difference the shared
+   walker can hardcode away.
+
+Whether one walker with three seams is better than two walkers is the question
+this sub-task actually has to answer.
 
 ### 3. Tokenizer minus-rewriter
 
