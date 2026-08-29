@@ -758,6 +758,22 @@ the escapes resolved by the shared table. Carrying raw text for a string would
 make every consumer re-decode it, and carrying a decoded number would lose the
 spelling the losslessness proofs pin.
 
+**`recovery` is terminal for the number scanner too, and for a reason worth
+stating.** Recovery ends at a *boundary*, and the boundary set is the caller's
+— `00;1` must consume the `;` under JSON's set and stop before it under
+DataJS's. A scanner that consumed during recovery would have to know one set or
+the other, which is the delimiter knowledge this design just moved out of it.
+So on entering `recovery` the scanner returns `stopped` for every input, and
+the caller runs to its own boundary and emits one `invalid number`. Review
+found the hole: the `Scan` signature took only a state and a character, so
+without this the same recovery state could not serve both languages.
+
+The string scanner is different **because its recovery ends at string syntax,
+not at delimiters**: the closing quote, a raw LF, a raw CR — the same in both
+languages, since DataJS's strings are JSON's unchanged. Nothing there is
+policy, so `recovery` and `recoveryEscape` consume as normal and reach
+`failed`. The asymmetry tracks exactly where a caller could disagree.
+
 `done` and `failed` are **terminal**: every input returns `stopped` without
 consuming, so a caller that keeps feeding them gets a stable answer rather than
 an error. A well-formed string reaches `done` by *consuming* its closing quote

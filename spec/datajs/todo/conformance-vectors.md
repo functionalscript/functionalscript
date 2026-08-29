@@ -57,6 +57,11 @@ A machine-readable corpus with six parts:
   non-final `export default`, a missing `;`, `;;`, a trailing comma, a comment,
   an `import`, an identifier key, a bare or string `"__proto__"` key and its
   escaped spelling `"\u005f_proto__"` (the rule is on the decoded value), a
+  a number spelling JavaScript takes and DataJS does not — `0x10`, `+1`, `.5`,
+  `1.`, `1_0`, `01` — and a **non-ASCII identifier**, `const é=1;export
+  default é;`, which is valid JavaScript, so a reader borrowing the host's
+  number or identifier grammar passes the whole-set JavaScript check and only
+  this corpus can catch it; a
   computed key that is **not** the one permitted spelling — `{["x"]:1}` and
   `{["\u005f_proto__"]:1}`, since `["__proto__"]` is the only computed form
   the grammar admits — `1.5n`,
