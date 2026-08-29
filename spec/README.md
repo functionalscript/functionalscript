@@ -26,8 +26,8 @@ implemented now.
 **DataJS**, a much narrower interchange format: JSON with two extensions —
 values may be shared, so a document denotes a DAG rather than a tree, and the
 leaf set gains `undefined`, `bigint`, `NaN` and the infinities — and with
-`;`-terminated statements, no `import`, no comments, no identifier keys and no
-trailing commas. The data subset described in *this*
+`;`-separated statements, no `import`, no comments, no identifier keys and no
+trailing commas or trailing `;`. The data subset described in *this*
 document is wider and is what the compiler accepts today. The two converge as
 [`todo/parser-serializer-restructure.md`](../todo/parser-serializer-restructure.md)
 proceeds.
