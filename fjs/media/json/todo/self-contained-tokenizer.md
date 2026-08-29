@@ -579,9 +579,12 @@ a seam and a signature. Work through what DataJS actually has to do:
 
 - **`1n`.** The bigint production is JSON's *integer* part followed by `n` —
   with no fraction and no exponent, since JS rejects `1.5n` and `1e2n`. So the
-  wrapper must be able to tell that scanning stopped **after `int` with nothing
-  else consumed**, and it must see that before JSON's own recovery treats `n`
-  as a non-terminator and swallows it into an `invalid number`.
+  wrapper must be able to tell that scanning stopped **after a well-formed
+  `int` with nothing else consumed**, and it must see that before JSON's own
+  recovery treats `n` as a non-terminator and swallows it into an `invalid
+  number`. *Well-formed* is load-bearing: JS rejects `00n` exactly as it
+  rejects `00`, so "stopped in the integer part" must not be a state a
+  leading-zero run can also reach.
 - **`-Infinity`.** The wrapper must intervene immediately **after the leading
   minus**, where JSON would otherwise see `I` as a non-terminator and consume
   the whole run as a malformed number.
@@ -590,15 +593,39 @@ A contract of "named state, initial value, terminator rule" can be satisfied by
 an implementation whose state is opaque — and then neither interception is
 possible. So the contract has one more clause, and it is the load-bearing one:
 
-**`scanNumber`'s state is a public discriminated union whose variants are the
-grammar's phases** — after the sign, in the integer part, after the decimal
+**`scanNumber`'s state is a public discriminated union.** Its variants are the
+grammar's phases — after the sign, in the integer part, after the decimal
 point, in the fraction, after the exponent letter, after the exponent sign, in
-the exponent — each carrying the lexeme accumulated so far. A wrapper inspects
-the phase at the moment the scanner meets a character it cannot consume, and
-decides whether to take over *before* the accept-or-reject decision is made.
+the exponent — **plus one variant that is not a phase: the leading-zero run**,
+the recovery state the error rule above gives a `0` followed by a digit. Each
+carries the lexeme accumulated so far. A wrapper inspects the state at the
+moment the scanner meets a character it cannot consume, and decides whether to
+take over *before* the accept-or-reject decision is made.
+
+The recovery variant is what keeps the seam honest, and it is why the union is
+listed here rather than left as "the grammar's phases". Without it, the scanner
+after `00` and the scanner after `10` would be the same variant — a wrapper
+reading "in the integer part" would intercept the `n` in `00n` and mint a
+bigint out of a literal JavaScript rejects, and stage 3 would have handed stage
+4 a way to accept something neither language accepts. Hiding the run behind an
+unspecified or opaque state is the same bug wearing a different hat.
+
+So the interception rule is stated on the **state**, not on the character:
+
+- **A wrapper may take over an `n` only from the integer variant**, which is
+  reachable only by a well-formed `int` and is therefore an accepting state.
+  From every other variant — the leading-zero run included — an `n` is JSON's
+  to reject.
+- **The leading-zero variant is terminal for the wrapper exactly as it is for
+  JSON.** Whatever follows it, `n` included, is one `invalid number`, so `00n`,
+  `01n` and `012n` are errors in DataJS for the same reason they are errors in
+  JSON, and by the same code path.
+- **`-Infinity` is intercepted from the sign variant**, and only from it, by
+  the same discipline: a non-accepting state a wrapper is allowed to claim
+  before JSON rejects it, named rather than inferred.
 
 That is what makes `-Infinity` and `1n` expressible without stage 3 knowing
-anything about them.
+anything about them — and `00n` inexpressible, which matters just as much.
 
 Note what this is not: stage 3 still does not add DataJS's productions. There is
 no bigint branch and no `Infinity` branch in JSON's scanner, and no
@@ -722,10 +749,14 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       directly from their exported initial states — not only through
       `tokenize`. A seam proved only via its own module's entry point is not
       proved as a seam, and stage 4 is about to be its second caller.
-- [ ] Prove the phase is observable the way stage 4 needs: from the exported
-      state alone, a caller can distinguish "stopped after `int`" (the bigint
-      interception point) from "stopped after the sign" (the `-Infinity` one)
-      and from every other phase, before the accept-or-reject decision.
+- [ ] Prove the state is observable the way stage 4 needs: from the exported
+      state alone, a caller can distinguish "stopped after a well-formed `int`"
+      (the bigint interception point) from "stopped after the sign" (the
+      `-Infinity` one), from the **leading-zero run**, and from every other
+      variant, before the accept-or-reject decision. Pin the leading-zero case
+      explicitly — after `00`, the state is the recovery variant and not the
+      integer one — since that is the single distinction standing between
+      stage 4 and a bigint built from `00n`.
 - [ ] Confirm afterwards that no runtime importer of `fjs/js/tokenizer` calls
       `tokenize`, and that `fjs/djs/tokenizer`'s `isKeywordToken`/`mergeTrivia`
       import is all that is left. The machine is retired in stage 7, not here.
@@ -756,8 +787,10 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       what enumerates them, not a person:
 
       - **top level** — the empty prefix, so a bare `c` is swept;
-      - **number** — `12` accepting, `00` leading-zero run, and `-`, `1.`,
-        `1e`, `1e+`, `1e-` incomplete;
+      - **number** — one per variant of the union above: `12` in the integer
+        part, `1.5` in the fraction and `1e5` in the exponent, all accepting;
+        `00` the leading-zero run; and `-`, `1.`, `1e`, `1e+`, `1e-`
+        incomplete;
       - **string** — inside a literal (`"a`), after a backslash (`"\`), and
         each `\u` hex position (`"\u`, `"\uA`, `"\uAB`, `"\uABC`);
       - **word** — a keyword prefix (`tru`), a complete keyword (`true`), and a
