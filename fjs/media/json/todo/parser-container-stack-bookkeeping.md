@@ -5,7 +5,7 @@
 
 ### Problem
 
-`fjs/media/json/parser/module.f.mjs` builds its container state machine out of
+[`../parser/module.f.mjs`](../parser/module.f.mjs) builds its container state machine out of
 four helpers — `startArray`, `startObject`, `endArray`, `endObject`. The pop side
 is already deduplicated via a shared `popStack` helper
 (`fjs/media/json/parser/module.f.mjs:59`), used by both `endArray` and
@@ -106,7 +106,7 @@ array-vs-object difference and nothing else.
 The individual helpers are readable as they stand, so this is a cleanup, not a
 correctness fix — hence not high priority. It is worth doing when the JSON parser
 is next touched. It no longer feeds
-[i157-json-djs-shared-core](./157-json-djs-shared-value-machine.md), whose parser
+[i157-json-djs-shared-core](../../../djs/todo/157-json-djs-shared-value-machine.md), whose parser
 sub-task is itself superseded for the same reason: with one parser rather than
 two, there is nothing left to share.
 
@@ -124,8 +124,8 @@ two, there is nothing left to share.
 
 ### Related
 
-- [i157-json-djs-shared-core](./157-json-djs-shared-value-machine.md) — its parser
+- [i157-json-djs-shared-core](../../../djs/todo/157-json-djs-shared-value-machine.md) — its parser
   sub-task is superseded for the same reason this issue lost its DJS half: with
   one parser rather than two, there is no value-machine left to share.
-- [i165-layered-parser](../../bnf/todo/layered-parser.md) — adjacent parser-architecture
+- [i165-layered-parser](../../../bnf/todo/layered-parser.md) — adjacent parser-architecture
   cleanup.
