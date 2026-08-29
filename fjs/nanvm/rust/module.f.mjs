@@ -159,6 +159,21 @@ const keyExpr = k => {
  * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
  */
 const expExpr = shared => {
+    /**
+     * `true` when a node prints as an operator expression.
+     *
+     * Every other rendering is atomic — a literal, a constructor call, a
+     * method chain, or a shared binding's `.clone()` — and survives being an
+     * operand as written. An operator expression does not: Rust parses
+     * `a * b * c` to the left and binds a method call tighter than `*`, so an
+     * unparenthesized composed operand is a different program from the node
+     * it was printed from. A shared node is a lowered value and so never an
+     * operation, which is why the tag alone decides this.
+     *
+     * @type {(e: Exp) => boolean}
+     */
+    const composed = e => e instanceof Array
+        && e[0] !== 'undefined' && e[0] !== '[]' && e[0] !== '{}'
     /** @type {(e: Exp) => string} */
     const f = e => {
         if (!(e instanceof Array)) { return primitiveExpr(e) }
@@ -177,8 +192,11 @@ const expExpr = shared => {
                 : `[${a.map((/** @type {readonly any[]} */ p) =>
                     `(${keyExpr(p[1])}, ${f(p[2])})`).join(', ')}].to_object().to_any()`
         }
-        return e.length === 2 ? op1(id)(f(a)) : op2(id)(f(a), f(b))
+        return e.length === 2 ? op1(id)(nested(a)) : op2(id)(nested(a), nested(b))
     }
+    /** An operand, parenthesized where its rendering would otherwise re-associate. */
+    /** @type {(e: Exp) => string} */
+    const nested = e => composed(e) ? `(${f(e)})` : f(e)
     return f
 }
 

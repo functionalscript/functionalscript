@@ -102,6 +102,35 @@ export const proof = {
         assertEq(nodeExpr(['*', 1, 2]), '(1f64).to_any() * (2f64).to_any()')
         assertEq(nodeExpr(['undefined']), 'Nullish::Undefined.to_any()')
     },
+    /**
+     * An operation nested as an operand keeps its parentheses.
+     *
+     * Rust parses `a * b * c` to the left and binds a method call tighter
+     * than `*`, so without them the printed statement would be a different
+     * program from the node — `1e308 * (1e-308 * 1e-308)` underflows to zero
+     * where the flattened reading does not. The corpus cannot reach this,
+     * since a case is one operation over lowered values, but `nodeExpr` is
+     * exported and the lazy-operator groups will nest.
+     *
+     * `neg` parenthesizes in its own template, so a composed operand there is
+     * doubly wrapped — redundant, and correct either way.
+     */
+    nestedOperation: () => {
+        assertEq(
+            nodeExpr(['*', 1, ['*', 2, 3]]),
+            '(1f64).to_any() * ((2f64).to_any() * (3f64).to_any())')
+        assertEq(
+            nodeExpr(['String', ['*', 1, 2]]),
+            '((1f64).to_any() * (2f64).to_any()).to_string().map(|v| v.to_any())')
+        assertEq(
+            nodeExpr(['neg', ['*', 1, 2]]),
+            '-(((1f64).to_any() * (2f64).to_any()))')
+        // An array, an object and `['undefined']` are atomic renderings, so
+        // they are operands as written.
+        assertEq(nodeExpr(['neg', ['undefined']]), '-(Nullish::Undefined.to_any())')
+        assertEq(nodeExpr(['neg', ['[]', []]]), '-(Array::default().to_any())')
+        assertEq(nodeExpr(['neg', ['{}', []]]), '-(Object::default().to_any())')
+    },
     /** A Rust name is this printer's, and never derived from a punctuation id. */
     rustName: () => {
         assertEq(rustName['*'], 'mul')
