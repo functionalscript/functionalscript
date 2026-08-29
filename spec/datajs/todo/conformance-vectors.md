@@ -532,9 +532,15 @@ The six parts:
   reference, a rebound name, each excluded const name, and the string spellings
   JavaScript takes and DataJS does not: two **quoting forms** — single quotes
   and a template literal; every **escape outside JSON's nine** — `\v`, `\0`,
-  `\'`, `` \` ``, `\x41`, `\u{41}`, and the **identity escape** `\z`, which
+  `\'`, `` \` ``, `\x41`, `\u{41}`, the two **legacy octal** forms `\101`
+  and `\8`, and the **identity escape** `\z`, which
   stands for every other character and is what makes the rule a whitelist
-  rather than a longer blacklist; and a **line continuation**, a backslash
+  rather than a longer blacklist. The octal pair is named here because the
+  paragraph below names it too, and a reader with a legacy-octal branch
+  separate from its decimal one rejects `\0` and `\z` while taking `\101`;
+  review found the list and the paragraph disagreeing about what the set
+  contains, which is this file's most repeated failure inside a single
+  document; and a **line continuation**, a backslash
   before a raw newline, which JavaScript reads as `"ab"` in
   `export default "a\<LF>b";`. Then the **raw control characters** a string
   may not contain — U+0000, U+0009 and U+001F, pinning both ends of the
@@ -976,11 +982,17 @@ The six parts:
     document denoting the input graph" and nothing more, so both spellings pass
     here — the raw character or both units escaped, there being no third, since
     a lone low surrogate raw is not encodable — and the raw form is pinned
-    where spellings are pinned, under `normalize`. **Paths, not endpoints**: the
-    width boundaries belong to `normalize` because emitting U+07FF in three
-    bytes still yields a valid document denoting the same string, so no
-    serializer-accept vector can see it, while a missing branch changes the
-    denotation and every one of them can;
+    where spellings are pinned, under `normalize`. **The UTF-8 width boundaries
+    belong here too** — U+007F and U+0080, U+07FF and U+0800, U+D7FF and
+    U+E000, U+FFFF and U+10000, and U+10FFFF — with key twins. An earlier
+    draft reserved them for `normalize` on the argument that emitting U+07FF in
+    three bytes "still yields a valid document denoting the same string". That
+    is false, and review said so: three bytes for U+07FF is `E0 9F BF`, which
+    is *overlong* and not valid UTF-8 at all — it is a row in the reject table
+    above, measured. What this role cannot see is a choice between two **valid
+    documents denoting the same graph**, which is why the escaped-versus-raw
+    spelling of a surrogate pair is left to `normalize`; a width error produces
+    neither, so it is visible here and everywhere else;
   - an object mixing **array-index and string keys**, since observable order is
     a property of the emitted document and nothing else in this set constrains
     it. Review reported the first two; this one came from sweeping the reader's
