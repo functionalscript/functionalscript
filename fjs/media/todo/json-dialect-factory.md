@@ -93,15 +93,35 @@ type, with `E = never` for a dialect that has no refinement:
 import type { Unknown as JsonUnknown } from './json/types.ts'
 import type { Type } from '../rtti/types.ts'
 
-export type JsonDialect<S extends Type, D extends string, E> = {
-    readonly dialect: D
-    readonly mediaType: `application/${D}+json`
+/** The dialect tag a schema pins, as a literal. */
+type DialectOf<S extends Type> =
+    Ts<S> extends { readonly dialect: infer D extends string } ? D : never
+
+export type JsonDialect<S extends Type, E> = {
+    readonly dialect: DialectOf<S>
+    readonly mediaType: `application/${DialectOf<S>}+json`
     readonly encodeText: (value: Ts<S>) => string
     readonly validate: (value: JsonUnknown) => Result<Ts<S>, ValidationError | E>
     readonly decodeText: (text: string) => Result<Ts<S>, ValidationError | E | string>
     readonly entry: DialectEntry
 }
 ```
+
+**The dialect is derived, not a parameter.** A type parameter appearing only
+in the return type cannot be inferred from a `jsonDialect(schema, …)` call —
+it would fall back to `string` and widen both constants, which is the whole
+thing this section exists to prevent. Deriving it from `S` removes the
+problem: `S` *is* inferable, from the first argument.
+
+The derivation is sound because each schema already pins the tag —
+`revisionSchema = open(/** @type {const} */ ({ dialect, … }))`
+(`../revision/module.f.mjs:123`) — and it is the type-level counterpart of
+what `dialectEntry` does at runtime, reading `dialect` off the schema and
+asserting it is a string (`../module.f.mjs:131-135`). If `Ts<>` turns out to
+widen the member rather than preserving the literal, the fallback is an
+explicit first argument, `jsonDialect(dialect, schema, …)` — which costs a
+redundant-looking parameter but keeps the literal, and is the only other way
+to make it inferable.
 
 `S extends Type` is required, not decorative: `Ts` is declared
 `Ts<T extends Type>` (`../../rtti/ts/types.ts:450`), so an unconstrained
@@ -123,10 +143,7 @@ than erasing it.
 
 Treat that shape as the starting point, not a specification: it is written
 from the three modules as they stand, and the implementation typechecks it
-against them. Where `D` comes from is the one open question — reading it off
-the schema keeps the call sites free of a redundant argument, but if `Ts<>`
-does not surface the `dialect` member as a literal, passing it explicitly is
-the fallback and costs nothing.
+against them.
 
 The check that settles all of it is the emitted `.d.mts`, not that `tsc`
 passes: `revision.mediaType` must still read

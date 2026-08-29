@@ -52,11 +52,20 @@ const resolveParsed = root => target => {
 }
 
 /** @type {Resolve} */
-export const resolve = root => url => resolveParsed(root)(parseTarget(url))
+export const resolve = root => {
+    const r = resolveParsed(root)
+    return url => r(parseTarget(url))
+}
 ```
 
-`respond` then parses once and calls `resolveParsed(root)(target)` with the
-target it already holds — `null` included, which is the case that matters:
+`resolveParsed(root)` is bound in the `root` scope, not inside the per-URL
+callback: it depends on `root` alone, so a per-call `resolveParsed(root)(…)`
+would rebuild the same closure on every request
+(`fjs/AGENTS.md`, "Place curried partial applications at their dependency's
+scope"). `respond` does the same — it is `root => { const r =
+resolveParsed(root); return ({ method, url, headers }) => … }` — and then
+calls `r(target)` with the target it already holds. `null` included, which
+is the case that matters:
 a malformed target whose `Host` header names a served host and whose method
 is `GET` reaches the resolver with `target === null` today and is answered
 `400` by `resolve`'s own guard. Routing that through `resolveParsed` keeps
@@ -81,6 +90,8 @@ two parses of the same string.
 - [ ] Extract the private `resolveParsed`, taking a nullable target and
       owning the `400`; keep `resolve` as the public URL-accepting wrapper;
       call `resolveParsed` from `respond` with the target it already parsed.
+      Bind `resolveParsed(root)` once in each `root` scope rather than inside
+      the per-request callback.
 - [ ] Keep a proof row for the malformed-target-with-served-`Host` request,
       which is the path that reaches the resolver with `null`.
 - [ ] `npx tsc`, `fjs t`; the request/refusal proof rows pass unchanged —
