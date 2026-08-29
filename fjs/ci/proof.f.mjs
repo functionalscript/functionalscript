@@ -33,8 +33,8 @@ const installsNix = job =>
     job?.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true) === true
 
 /**
- * Whether a job actually *enters* its own generated shell — some command it
- * runs goes through `nix/<id>/run`.
+ * Whether a job actually *enters* its own generated shell — some step's command
+ * is `nix/<id>/run`.
  *
  * Deliberately not the same question as `installsNix`. A job could install Nix
  * and then run its commands on the runner's own toolchain: it would look
@@ -43,10 +43,19 @@ const installsNix = job =>
  * the version check is the step that would have caught it and it is one of the
  * steps that would be missing.
  *
+ * The step's **command** is its first field, which is what a `run:` line is:
+ * one command (root `AGENTS.md` §7), and `nixSteps` writes the script's path
+ * as that command. So this compares the first field rather than searching the
+ * line — a step that merely names the path, `echo ./nix/deno/run`, is not
+ * entry and is not counted. Neither is the version check, whose command is
+ * `test` and which reaches the script inside a substitution; a job whose only
+ * mention of its flake were that would fail here, which is the right answer
+ * rather than a gap.
+ *
  * @type {(job: Job | undefined, id: string) => boolean}
  */
 const entersFlake = (job, id) =>
-    job?.steps.some(step => step.run?.includes(runPath(id)) === true) === true
+    job?.steps.some(step => step.run?.split(' ')[0] === runPath(id)) === true
 
 /** @type {(jobId: string, cmd: string) => (gha: GitHubAction) => boolean} */
 const hasRunInJob = (jobId, cmd) => gha =>
