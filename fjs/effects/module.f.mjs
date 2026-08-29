@@ -79,14 +79,13 @@
  * @module
  *
  * @import { List } from '../types/list/types.ts'
- * @import { Fold } from '../types/function/operator/types.ts'
  * @import { Option } from '../types/option/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Commands, Effect, ErrOf, Func, IoChannel, IoError, IoErrorInfo, MatchResult, NotImplemented, OkOf, Operation, OperationMap, PartialOperationMap } from './types.ts'
  */
 
 import { assert } from '../asserts/module.f.mjs'
-import { fold } from '../types/list/module.f.mjs'
+import { concat, next } from '../types/list/module.f.mjs'
 import { error, mapOk, ok } from '../types/result/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
 
@@ -630,10 +629,106 @@ export const historyStep = (e, f) => {
  * @param {(item: T) => (state: S) => Effect<Q, S, E>} f
  * @returns {Effect<O | Q, S, E>}
  */
-export const foldStep = (items, init, f) => {
-    /** @type {Fold<T, Effect<Q, S, E>>} */
-    const op = item => acc => step(acc, f(item))
-    return step(items, fold(op)(pureOk(init)))
+export const foldStep = (items, init, f) =>
+    walkStep(items, init, item => state => mapStep(f(item)(state), s => [s, null]))
+
+/**
+ * {@link foldStep} for a list the body can extend: `f` answers the next state
+ * *and* further items, which are walked **before** the ones that remain. That
+ * makes it a depth-first walk of a tree discovered as it is walked, and the
+ * loop below is what keeps such a walk flat.
+ *
+ * A tree walked by recursion — a fold whose body folds the children it found —
+ * is flat in neither dimension however the sibling loop is written, and the
+ * depth one is the harder half to see. Each ancestor's continuation stays
+ * pending while its subtree runs, so an interpreter resuming a leaf walks one
+ * {@link resultStep} frame per ancestor: the shape {@link _walkLoop} removes
+ * along a list, rebuilt along a path. Measured through `emergent_testing`'s
+ * traversal on node 22, a leaf returning a 5,000-deep chain of single children
+ * died with `RangeError: Maximum call stack size exceeded`; walked here, it
+ * does not, because a child is another item in this loop rather than a nested
+ * one.
+ *
+ * The order is the one a reader of a running program expects: an item, then
+ * everything it produced, then the item after it. Answering `null` for the
+ * items is a plain fold, which is why {@link foldStep} is this with that
+ * argument fixed rather than a loop of its own.
+ *
+ * @template {Operation} O
+ * @template T
+ * @template {Operation} Q
+ * @template S
+ * @template E
+ * @param {Effect<O, List<T>, E>} items
+ * @param {S} init
+ * @param {(item: T) => (state: S) => Effect<Q, readonly[S, List<T>], E>} f
+ * @returns {Effect<O | Q, S, E>}
+ */
+export const walkStep = (items, init, f) => step(items, list => _walkLoop(f)(list, init))
+
+/**
+ * {@link walkStep}'s loop — and so {@link foldStep}'s — closed over nothing:
+ * `f` is a leading parameter so this function has a context-free identity
+ * (§3.3). That `f`-first currying is the hoist rule's, and does not contradict
+ * the argument-order argument above — which is about the *published*
+ * combinator, whose order is unchanged. This one is not a sequencing construct
+ * anyone writes calls to; it is the loop that construct runs.
+ *
+ * **Neither nesting shape is flat on its own, so this is both.**
+ *
+ * Written as a `fold` over {@link step} — `step(step(step(init, f0), f1), f2)`
+ * — the chain nests to the *left*, so an interpreter holds one command wrapped
+ * in as many {@link resultStep} continuations as there are items, and every
+ * resumption walks all of them: depth is the item count and the work is its
+ * square. Measured on node 22 through `emergent_testing`'s traversal, 5,000
+ * items spent 1.6 s in that walk and 10,000 died with `RangeError: Maximum
+ * call stack size exceeded`.
+ *
+ * Building the rest of the loop inside each item's continuation nests to the
+ * *right* and fixes that — but only for items that perform a command, because
+ * those hand control back to the interpreter's own loop. An item whose effect
+ * is already a value resumes immediately, inside this function, and a fold of
+ * those would recurse here exactly as deeply as the left-nested one did in the
+ * interpreter.
+ *
+ * So: loop while items answer values, and return as soon as one performs a
+ * command, with the remainder as its continuation. Depth is constant in the
+ * item count either way, the items still run in order, and a failure still
+ * stops the fold — through {@link step}'s propagation when a command failed,
+ * and through the early return here when a value did.
+ *
+ * The "did it answer a value" question goes through {@link runPure}, not a
+ * shape test of its own: this module keeps the count of things that read the
+ * representation at three, and a fourth is a review flag by the rule at the
+ * top of the file.
+ *
+ * Items an item produced are put in front of the ones that remain, so the
+ * pending list is the walk's own stack and neither dimension of a tree costs
+ * depth here. {@link concat} makes that prepend cheap; nothing is copied.
+ *
+ * @type {<T, Q extends Operation, S, E>(
+ *     f: (item: T) => (state: S) => Effect<Q, readonly[S, List<T>], E>
+ * ) => (l: List<T>, acc: S) => Effect<Q, S, E>}
+ */
+const _walkLoop = f => (l, acc) => {
+    let rest = l
+    let state = acc
+    while (true) {
+        const r = next(rest)
+        if (r === null) { return pureOk(state) }
+        const e = f(r.first)(state)
+        const answered = runPure(e)
+        if (answered.length === 0) {
+            const tail = r.tail
+            return step(e, ([s, more]) => _walkLoop(f)(concat(more)(tail), s))
+        }
+        const answer = answered[0]
+        const [tag, value] = answer
+        if (tag === 'error') { return pure(answer) }
+        const [s, more] = value
+        state = s
+        rest = concat(more)(r.tail)
+    }
 }
 
 /**

@@ -66,9 +66,9 @@ implementations behind two names would have been more honest, because nothing
 about the shared name signals the difference.
 
 **`fjs t` was sequential when that attempt forked from it, and that was a
-decision to copy, not a gap to fill.** (Today's `fjs t` fans out through
-`all`; the sequential plan below returns it to this paragraph's state, which
-is the state everything here argues for.) The first attempt gave the browser a batch
+decision to copy, not a gap to fill.** (It then fanned out through `all` for
+a while; step 7a returned it to this paragraph's state, which is the state
+everything here argues for.) The first attempt gave the browser a batch
 size — proofs launched in groups with a
 yield between groups. Nobody had asked for it, no measurement motivated the
 constant, and it was premature optimization in the strict sense: it made the
@@ -84,8 +84,8 @@ running a due timer. Six rounds of review, every one of them downstream of a
 constant that was finally deleted.
 
 **And "no batch size" is not "no yielding" — this file said so badly enough to
-mislead a later reader, which was me.** Copying today's concurrent `fjs t`
-exactly *does* freeze a page: without a yield the whole suite runs as one
+mislead a later reader, which was me.** Copying the *concurrent* `fjs t` that
+step 7a replaced would freeze a page: without a yield the whole suite runs as one
 task, measured at 54.7 s on this repo's own browser suite, and the line above
 about the batching having no paint boundary is about a bug in that attempt
 rather than a finding that the yield did nothing. What the browser needs is a
@@ -460,6 +460,48 @@ and is reviewable without the next one.
       an assertion that the traversal's chain issues no `all` command — and
       per catalog item 11's discipline the proof is mutation-tested: restore
       one fan-out, watch it fail, revert.
+
+      **Landed in functionalscript#1774.** `walkEntries` and `runModuleMap`
+      fold with `foldStep` instead of `allOk`; `sequential.proof.mjs` states
+      the order on a runner that can interleave, and both fan-outs were
+      restored one at a time to watch the matching proof fail. What it
+      measured, for whoever revisits the cost: the suite's wall clock moved
+      61.6 s → 62.6 s, while the `Time:` line it prints moved 754 s → 60.9 s,
+      because a concurrent leaf's duration counted its siblings' work — one
+      1.4 ms proof had been reporting 17.6 s. Speed was not a goal, and the
+      number that was wrong is the one that got fixed. Review then found two
+      things worth carrying forward. `foldStep` nested one continuation per
+      item, which put a ceiling of ~10,000 sibling leaves on a sequential
+      walk — *lower* than the `all` spread it replaced, and fixed in `effects`
+      in the same PR, so a module of 200,000 leaves now walks in about a
+      second; catalog item 9's "joins must be linear" applies to continuations
+      too, and nobody had looked. And the proof written for *that* guarded
+      only half of what its comment claimed — an all-`pure` fold never
+      accumulated depth, because `resultStep` collapses a `Pure` head as it is
+      built — so the guard became a pair, one fold of commands and one of
+      values, each failing for its own mistake. Item 11 again, one level down:
+      a proof of a scheduling property has to perform the thing being
+      scheduled.
+
+      Then a third: **a tree has two dimensions, and flattening one is not
+      flattening the other.** With siblings folded, a leaf's returned children
+      were still walked *inside* that leaf's own continuation, so an ancestor's
+      frame stayed pending for its whole subtree — the exact shape just removed
+      along a list, rebuilt along a path. A leaf returning a 5,000-deep chain of
+      single children died with `RangeError` where the fan-out it replaced had
+      not, because `all`'s handler ran each child effect through a fresh
+      interpreter call and so reset the chain at every level. The fix is a
+      work-list: `effects`' new `walkStep` lets an item answer further items,
+      which go in front of the ones that remain, so a child is another item in
+      the same loop and depth costs what breadth costs. Worth knowing for 7b,
+      and generally: "does it fan out" and "does it recurse" are separate
+      questions, and the answer to one says nothing about the other. Two
+      measurements that are *not* this change's to fix came out of the same
+      run: a returned tree costs quadratic time in its own depth regardless of
+      the traversal — each level copies the path array — and both shapes take
+      the same 7 s at 5,000 levels, so a proof of the depth property costs
+      seconds inside `emergent_testing` and lives in `effects` instead, where
+      20,000 levels cost 34 ms (catalog item 9 on the proof's own cost).
 
       **7b. The page runs the shared traversal** through the step-5
       interpreter. `browser.mjs` stops discovering leaves, applying the throw
