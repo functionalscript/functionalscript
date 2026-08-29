@@ -463,9 +463,24 @@ The six parts:
     or a `u64`, so an implementation backed by a machine integer rather than an
     arbitrary-precision one passes every vector above while rejecting or
     silently wrapping larger bigints that the grammar admits — `bigint`'s `int`
-    has no upper bound at all. Two ceilings, two vectors, two different broken
-    paths, and only the arbitrary-precision implementation clears both. Review
-    found the second the round after supplying the first. Review found it, and it needs the same vector in
+    has no upper bound at all. **And one past `2^128`**,
+    `340282366920938463463374607431768211457n` with its signed twin, since
+    `18446744073709551617n` still fits an `i128` or a `u128` — a real backend,
+    not a hypothetical one.
+
+    The claim attached to these has to be weaker than the one first written
+    here. "Only the arbitrary-precision implementation clears both" was an
+    overclaim, and review said so: **no finite set of vectors establishes
+    arbitrary precision**, because every value fits some wider fixed-width
+    type. What a vector past width *w* does establish is that a backend of
+    width *w* is ruled out, and nothing more. So the set is chosen by the
+    widths that **exist in practice** — 53 bits from a binary64, 64 bits from
+    `i64`/`u64`, 128 bits from `i128`/`u128` — and it stops there because
+    there is no next standard width to defeat, not because three ceilings prove
+    a negative. An implementation backed by a bounded type wider than 128 bits
+    would need a vector of its own, and that is a property of the corpus worth
+    stating rather than papering over. Review found the second ceiling the
+    round after supplying the first, and the third the round after that. Review found it, and it needs the same vector in
     **serializer accept and `normalize`** — a serializer may format a bigint
     through a number just as readily, and only the byte-exact role can see the
     last digit change. An earlier draft left the endpoints to `number` on the
@@ -983,7 +998,14 @@ The six parts:
   the four were written and unapplied to them — the fifth instance of that
   exactly, and the sharpest, since `-1e-999` denotes `-0` and not `0`, so the
   missing twin was not symmetry but a value the corpus is required to
-  distinguish. The sweep for the lead-partition shape had
+  distinguish. Then the same omission in the writer roles, one round later:
+  the sweep that supplied the reader's four twins did not reach the two
+  magnitude boundaries it had itself added to serializer accept in the round
+  before — the sweep-does-not-cover-its-own-output failure, recorded and then
+  repeated within one commit of recording it. And the third integer ceiling,
+  which retired the claim that two of them prove arbitrary precision: they
+  prove no such thing, and the set is now justified by the backend widths that
+  exist rather than by a negative it cannot establish. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1155,13 +1177,21 @@ The six parts:
   serializer may refuse it and the ordinary positive vector may be nonzero, and
   `-0` is the opposite `Object.is` value rather than a stand-in for it; the
   normalize set pins `export default 0;` for the same reason, against a
-  normalizer that emits `-0` for it — **and the two magnitude boundaries**,
-  `5e-324` and `1.7976931348623157e308`, which sat in the `normalize` set
-  alone. They belong here because getting them wrong changes *denotation*, not
+  normalizer that emits `-0` for it — **and the two magnitude boundaries with
+  a signed twin each**, `5e-324`, `-5e-324`, `1.7976931348623157e308` and
+  `-1.7976931348623157e308`, which sat in the `normalize` set
+  alone and, when they first came across, came across positive-only. They belong here because getting them wrong changes *denotation*, not
   spelling: a serializer that flushes the smallest subnormal emits `0`, and one
   that overflows the largest finite emits `Infinity` or `1e309`, each a
   document denoting a different graph, and each passing a role whose vectors
-  are all ordinary magnitudes. The notation thresholds `1e20`, `1e21`, `1e-6`
+  are all ordinary magnitudes. The twins are required by the same rule as
+  everywhere else and catch a separate negative path: a serializer flushing
+  `-5e-324` emits `-0`, one overflowing `-1.7976931348623157e308` emits
+  `-Infinity`, and `-1.5`, `-0` and `-Infinity` between them exercise only the
+  ordinary and special-value branches. `normalize` takes all four as exact
+  bytes — measured, the largest finite prints with an explicit `+` in its
+  exponent, `1.7976931348623157e+308`, which a normalizer reconstructing the
+  exponent by hand will not. The notation thresholds `1e20`, `1e21`, `1e-6`
   and `1e-7` stay out of this role on the same test: both spellings across
   those boundaries denote the same value, so only the byte-exact role can see
   them — and **naming a leaf type is not naming a
