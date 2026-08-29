@@ -561,7 +561,23 @@ The six parts:
   three come back as ASCII escape text, while the blind-pairing codec emits a
   four-byte scalar instead — measured, `\ud800\udc00` is the only one of the
   four adjacencies that becomes `f0 90 80 80`. A pair's *ends* had been
-  enumerated while the adjacency's *combinations* had not; **each of the four
+  enumerated while the adjacency's *combinations* had not — **and then the
+  combinations were enumerated at one end**: all three used the low endpoint of
+  each half, `D800` and `DC00`, so a codec whose adjacency path handles those
+  and mishandles `DBFF` or `DFFF` passed them. Both halves are *ranges*, and
+  this file's own rule wants both ends at every fixed position, of which an
+  adjacency has two. The **diagonal** supplies that: adding
+  `\udbff\udbff`, `\udfff\udbff` and `\udfff\udfff` puts `D800` and
+  `DBFF` in each position where a high may stand and `DC00` and `DFFF` in each
+  position where a low may, across all three combinations — six vectors, not
+  the twelve of the full product. One more, **`\ud800\udbff`**, keeps the two
+  positions from moving together, which is the same correlation-breaker the
+  valid pair took and the byte accept table needed; one witness discharges it
+  for the class, since the assumption it catches is *the two ends travel as a
+  unit* rather than anything specific to a combination. Seven in each of the
+  three roles, with key twins, and the remaining mixed combinations are
+  deliberately not enumerated — the diagonal already covers both ends at both
+  positions; **each of the four
   permitted whitespace characters between tokens** — space, tab, LF and CR — because the rejection half of this corpus is
   extensive and a reader accepting only U+0020 passes every one of those
   vectors while narrowing the language; every leaf (`-0`, `NaN`, `±Infinity`,
@@ -1021,7 +1037,10 @@ The six parts:
   mentions a class in two roles reads exactly like prose that mentions it in
   three, so the checklist above now calls for a class-by-role matrix generated
   from the corpus, where an empty cell is visible without a reader noticing
-  its absence. The sweep for the lead-partition shape had
+  its absence. Then the non-pair surrogate adjacencies, enumerated as
+  combinations and then sampled at one end of each range — the coverage rule
+  applied to *which* combinations exist and not to the values filling them,
+  one level of the same structure below where it was applied. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
