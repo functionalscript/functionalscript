@@ -219,6 +219,16 @@ exactly the path `cas_get` uses.
       a raw TAB inside a string (`{"a":"⟨TAB⟩"}`) → `text/plain`, not
       `application/json`; bare scalars (`42`, `null`, `"hi"`, `true`) →
       `text/plain` (top-level object/array rule).
+- [ ] Add the **depth-cap boundary** cases, which this design promises above and
+      which the recognizer's own cap proofs cannot stand in for: a blob nesting
+      **64** containers is `application/json`, one nesting **65** is
+      `text/plain`, on arrays and on objects. They belong here because what they
+      catch is *this* module's wiring — initialising with `recognizerInit`
+      instead of `recognizerInitCapped`, passing `63` or `65` for
+      `jsonMaxDepth`, or feeding only one container path through the factor —
+      and every other detector case listed above passes all of those while
+      deeply nested blobs get the wrong MIME verdict. Review found the promise
+      standing in the prose with no task under it.
 - [ ] Update `fjs/media/type/module.f.mjs` module doc (recognised-types table) and the
       `cas_get` output section in `fjs/mcp/cas/module.f.mjs` to list
       `application/json`.

@@ -190,9 +190,16 @@ property, scoped to make it actually hold:
       across the existing parser test corpus; add large-single-token cases (huge
       string, long number) asserting bounded auxiliary space (no payload buffer).
 - [ ] Proof (invalid cap): `recognizerInitCapped` is total, so each of `-1`,
-      `1.5`, `NaN` and `Infinity` yields a state `recognizerAccepts` rejects —
-      `Infinity` especially, since honouring it would silently return the
-      uncapped recognizer. `recognizerInitCapped(-0)` behaves as `0`.
+      `1.5`, `NaN` and `Infinity` yields a permanently rejecting state — and the
+      proof must **feed a valid document through it**, not test the state as
+      returned. Checking `recognizerAccepts` at init is vacuous: the uncapped
+      initial state rejects there too, because no complete document has arrived,
+      so an implementation treating `Infinity` as uncapped passes and then
+      accepts everything. Run `1` and `[]` through each of the four and assert
+      both still reject. Review found this proof unable to fail, in the file
+      that carries the rule about proofs that cannot fail.
+      `recognizerInitCapped(-0)` behaves as `0`, and its proof is the ordinary
+      one: `1` accepted, `[]` rejected.
 - [ ] Proof (cap enabled): **both sides of the boundary**, since "deeper is
       rejected" alone is passed by an implementation that rejects at the cap
       too, and by one that rejects everything. For a cap of `n`: a document

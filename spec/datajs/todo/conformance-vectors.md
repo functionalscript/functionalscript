@@ -448,7 +448,15 @@ The six parts:
     reads a bigint as `BigInt(Number(text))`. Measured, that path turns
     `9007199254740993` into `9007199254740992`: a value the corpus otherwise
     never distinguishes, since `2^53` is exactly where consecutive integers
-    stop being representable. Review found it, and it needs the same vector in
+    stop being representable. **And one past `2^64`**,
+    `18446744073709551617n` with its signed twin, because `2^53` is only the
+    first of two fixed-width ceilings: `9007199254740993` still fits an `i64`
+    or a `u64`, so an implementation backed by a machine integer rather than an
+    arbitrary-precision one passes every vector above while rejecting or
+    silently wrapping larger bigints that the grammar admits — `bigint`'s `int`
+    has no upper bound at all. Two ceilings, two vectors, two different broken
+    paths, and only the arbitrary-precision implementation clears both. Review
+    found the second the round after supplying the first. Review found it, and it needs the same vector in
     **serializer accept and `normalize`** — a serializer may format a bigint
     through a number just as readily, and only the byte-exact role can see the
     last digit change. An earlier draft left the endpoints to `number` on the
@@ -958,7 +966,10 @@ The six parts:
   overflowing changes denotation while the notation thresholds beside them do
   not; and `export default{};`, whose absence came from copying the spec's
   three illustrations as though they were the rule — the §Whitespace trap, in
-  the file that records the §Whitespace trap. The sweep for the lead-partition shape had
+  the file that records the §Whitespace trap. Then the ceiling above the
+  ceiling: the bigint added one round earlier sat past `2^53` and inside
+  `i64`, so a fixed-width implementation passed it, and the vector that had
+  just been written to catch a fixed-width path was itself fixed-width-sized. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
