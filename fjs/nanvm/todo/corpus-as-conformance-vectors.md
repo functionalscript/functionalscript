@@ -74,11 +74,18 @@ describes an outcome and never appears in an expression), a case whose lazy
 operand is a `['throw', …]` proves the operand was not established.
 
 A `rust` reason is not enough on its own, which is worth stating because the
-first draft of this plan assumed it was. The marker defers the *assertion* —
-`emit` comments the statement out — but the statement text is still rendered
-first, so a group whose id has no entry in `rustName` and `op2Rust` throws
-`['no Rust for', '&&']` from `generate` before `emit` is ever reached. Both
-tables are gaps for all three ids.
+first draft of this plan assumed it was. The marker defers the *assertion*:
+`emit` comments a statement out, and it is only ever handed one that already
+rendered. An unprintable id never gets that far, through two gates in turn:
+
+- `fnName(opId(g))` names the group's Rust function, and `rustName` has no
+  entry for any of the three, so `generate` throws `['no Rust for', '&&']`
+  building the function header — before a single case is walked. A group whose
+  `cases` array is *empty* throws just the same, which is what shows the
+  header rather than any statement is what fails.
+- `op2Rust` has no entry either, so once a name exists the next throw comes
+  from `result` rendering the statement. Both tables are gaps for all three
+  ids, so filling in either one alone still never reaches `emit`.
 
 The entries cannot be written ahead of the operator. `lookup` refuses an
 unmapped id precisely so the generated file does not carry a plausible wrong
