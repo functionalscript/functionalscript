@@ -28,9 +28,9 @@ export const images = /** @type {const} */({
 export const functionalscript = /** @type {const} */ '0.47.0'
 
 // Bun is installed by `setup-bun`, so this is a released Bun rather than a
-// packaged one. It is the last canonical job not on a flake: Nixpkgs ships
-// 1.3.13, on which two of this repository's proofs fail — one a real difference
-// in when `Symbol.species` is read, not a slow machine. See
+// packaged one. It is the last canonical *runtime* job not on a flake: Nixpkgs
+// ships 1.3.13, on which two of this repository's proofs fail — one a real
+// difference in when `Symbol.species` is read, not a slow machine. See
 // `../todo/bun-nix-blocked-on-nixpkgs.md`.
 // https://bun.sh/
 export const bun = '1.4.0'
@@ -65,6 +65,11 @@ export const nixpkgs = /** @type {const} */({
     commit: '062346a6d85bc4b49dfaa61c986e9c5be21217d1',
 })
 
+// Wasmtime and Wasmer are installed by their own setup actions, so these are
+// released versions rather than packaged ones. The `wasm` job is not on a flake:
+// Nixpkgs builds no `std` for three of its four WASI targets, so the toolchain it
+// needs cannot come from the snapshot at all. See
+// `../todo/wasm-nix-blocked-on-rust-targets.md`.
 // https://github.com/bytecodealliance/wasmtime/releases
 export const wasmtime = '48.0.1'
 
