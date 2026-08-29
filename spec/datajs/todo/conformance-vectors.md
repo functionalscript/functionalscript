@@ -47,7 +47,8 @@ reader's public byte-accepting path — which stage 4 owes:
   vectors carry invalid UTF-8 to be refused, and **one per error class**, since
   a decoder can reject three classes and accept a fourth. The classes are: an
   invalid lead byte (`C0`, `C1`, `F5`–`FF`), a **stray continuation byte**
-  (`80` with no lead), a truncated sequence (`C2` at end of input), a valid
+  (`80` with no lead), a truncated sequence (`C2` at end of input — see the
+  exemption below), a valid
   lead followed by a **non-continuation** byte (`C2 41`), an overlong encoding,
   a surrogate half encoded as three bytes, and a value **above U+10FFFF**
   (`F4 90 80 80`). Those middle two are distinct failures rather than one: a
@@ -64,6 +65,18 @@ reader's public byte-accepting path — which stage 4 owes:
   the replacement yields an invalid document, which the parser rejects for its
   own reasons: the vector passes while the UTF-8 rule goes unenforced. This is
   the one-reason rule reaching the byte form.
+
+  **Truncation at end of input is the one exemption, and it is a real
+  limitation rather than an oversight.** To be truncated the lead byte must be
+  the document's last, so there is no closing quote and no `;` — and adding
+  them makes it `C2 22`, which is the non-continuation class instead. Every
+  placement that completes the document destroys the case. So this vector's
+  document is malformed twice over, its refusal is not attributable to the
+  bytes, and the corpus keeps it anyway: `C2 41` already covers the decoder's
+  other failure path, so what is lost here is the attribution, not the class.
+  Say that in the vector's own note rather than leaving a reader to discover
+  that the placement rule and this class contradict each other — which is how
+  review found it, one commit after both were written.
 
 Byte-form vectors must **accept** as well as reject, and one per sequence
 width: ASCII, two bytes (`c3 a9`), three (`e2 82 ac`), four
@@ -251,8 +264,8 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Sixteen consecutive review rounds
-  each found one missing: the plain number spellings and the non-ASCII
+  vector is the only instrument that sees it. Seventeen consecutive review
+  rounds each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
   control characters, then the vertical tab and the required separators, then
@@ -271,7 +284,9 @@ The six parts:
   every one of the last four rounds has taken — then a seventh UTF-8 error
   class and the valid side of the U+10FFFF boundary, the latter repeating a
   failure this document had already named and attributed to the array-index
-  keys. Every time the list had been written from memory rather
+  keys — then two rules of this document's own contradicting each other, and
+  two table entries that lost a binding between the measurement and the
+  writing-down. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -334,12 +349,19 @@ The six parts:
     | - | - | - |
     | `document ::= const* export` | any other statement or declaration | `let a=1;…`, `var a=1;…`, `function f(){}…` |
     | `const ::= 'const' id '=' value ';'` | multiple declarators, destructuring | `const a=1,b=2;…`, `const [a]=[1];…` |
-    | `export ::= 'export' 'default' value ';'` | any other export form | `export{a};export default a;` |
+    | `export ::= 'export' 'default' value ';'` | any other export form | `const a=1;export{a};export default a;` |
     | `value ::= <closed list>` | every other expression form | `(1)`, `1+1`, `[1][0]`, `String(1)`, `void 0`, `-(-1)` |
     | `array ::= '[' (value (',' value)*)? ']'` | elisions, spread | `[,1]`, `[1,,2]`, `[1,,]`, `[...[1]]` |
     | `object ::= '{' (member (',' member)*)? '}'` | spread | `{...{"a":1}}` |
-    | `member ::= key ':' value` | shorthand, methods, accessors | `{a}`, `{a(){}}`, `{get a(){return 1}}` |
+    | `member ::= key ':' value` | shorthand, methods, accessors | `const a=1;export default{a};`, `{a(){}}`, `{get a(){return 1}}` |
     | `key ::= string \| '[' '"__proto__"' ']'` | identifier and numeric keys, other computed keys | `{a:1}`, `{1:2}`, `{["x"]:1}` |
+
+    Where a row shows a bare value it stands for `export default <value>;`.
+    The two using `a` carry `const a=1;` because they need it: without the
+    binding, `export{a}` and `{a}` are refusable for an unbound name as well
+    as for their syntax, which the one-reason rule forbids — review caught
+    both, and the measurements they came from *had* the binding, so this was
+    lost between measuring and writing the table down.
 
     Two of these are worth singling out. **`value`'s** complement is
     open-ended, like the escape whitelist, so its vectors go by class rather
