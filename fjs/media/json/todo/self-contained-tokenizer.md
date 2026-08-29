@@ -45,16 +45,51 @@ already rejected:
 | U+00A0 outside a string | `unexpected character` |
 | `00`, `0.`, `0e`, `0e-`, `0n` | rejected |
 
-So the swap changes **no accepted input**, and every accepted-input proof in
-`proof.f.mjs` must survive it byte for byte.
+…with **one exception**, which review found and which the rest of this design
+had to be corrected around.
 
-The regression bar is actually stronger than that, and stating it precisely
-matters because `tokenize` is public API rather than an internal step of
-`parse`: **no input changes between producing an error token and not producing
-one.** Inputs that error today still error, inputs that do not still do not,
-and only the *shape* of the errors changes. "The parser rejects it either way"
-is not a defence, because a direct consumer of the tokenizer sees the tokens,
-not the rejection.
+#### `<digits> n <digits>` is accepted today, as a number, with no error
+
+Measured through the public `tokenize`:
+
+```text
+1n1          → number(11)
+12n12        → number(1212)
+0n1          → number(01)
+12345n6789   → number(123456789)
+-1n1         → number(-11)
+{"a":1n1}    → { string(a) : number(11) }     and parse() returns { a: 11 }
+```
+
+`bigintToToken` (`fjs/js/tokenizer/module.f.mjs:439`) keeps the number state
+with the `n` **dropped from the accumulated value**, so following digits append
+to it. The boundary is sharp: `1n`, `1n0`, `1n00`, `0n0` all error, while `1n1`,
+`1n01`, `1n10`, `12n12` and `-1n1` do not.
+
+This is the design's own defect class in its worst form. `"\x"` at least emits
+an error beside its fabricated string; this emits **a value token for text the
+input never contained and no error at all** — and `0n1` produces `number(01)`,
+which is not even a valid JSON number. `parse` returns `["ok", …]`. It is
+precisely what [DESIGN.md §10](../../../../DESIGN.md#10-refuse-what-you-cannot-handle)
+forbids.
+
+So the bar is stated with that class named, rather than as an absolute the tree
+does not support:
+
+> **No input changes between producing an error token and not producing one —
+> except `<digits> n <digits>`, which starts erroring.**
+
+Stating it precisely matters because `tokenize` is public API rather than an
+internal step of `parse`: a direct consumer sees the tokens, not the rejection.
+Everything else that errors today still errors, everything else that does not
+still does not, and only the *shape* of the errors changes.
+
+The exception is a **fix, not a regression**, and it is the one change in this
+stage that improves the accepted language rather than preserving it. Under the
+rules `1n1` becomes `invalid number` then `invalid token`. An implementer will
+meet it at `c = 'n'` in the `12` + `c` + `1` sweep, which is why it is named
+here rather than left to surface as an apparent contradiction between the sweep
+task and the invariant check.
 
 What is not JSON's is the **shape of the errors**, which is inherited from the
 JavaScript token stream that produced them.
@@ -212,9 +247,10 @@ Five rules replace the inherited behavior:
    continue, look at the next character.
 
    **The scan is maximal munch**, as it is for words in rule 4. A character the
-   grammar can consume is consumed; a character it cannot consume but which
-   belongs to the *lexeme* still is, moving the scan into a **non-accepting**
-   state. That second clause is what `00` needs: `int ::= '0' | [1-9] [0-9]*`
+   grammar can consume is consumed. There is exactly **one** character the
+   grammar cannot consume that is taken anyway — a digit immediately after a
+   complete `int` whose first digit was `0` — and taking it moves the scan into
+   a **non-accepting** state. That single exception is what `00` needs: `int ::= '0' | [1-9] [0-9]*`
    means the first `0` completes, so without it `00` would scan as two `number
    0` tokens instead of the one `invalid number` it is today. A digit after a
    leading zero continues the lexeme; it does not start a new one.
@@ -223,16 +259,17 @@ Five rules replace the inherited behavior:
    are three cases, not two. An earlier draft had two and would have destroyed
    tokens in five number phases.
 
-   - **Accepting stop.** The lexeme is a `number` token, and the character that
-     ended it is re-dispatched. If that character is an accepting terminator the
-     number is well-formed; if it is not — `"` in `12"a"`, `;` in `12;1` — the
-     number is one `invalid number` and the character is *still* re-dispatched,
-     so the string or the next token still scans. `12.]` stays `error, ]`.
+   - **Accepting stop.** The lexeme is complete, and the character that ended it
+     is re-dispatched. It becomes a `number` token if that character is an
+     accepting terminator, and one `invalid number` if it is not — `"` in
+     `12"a"`, `;` in `12;1` — with the character re-dispatched either way, so
+     the string or the next token still scans.
    - **Incomplete stop.** The grammar wanted more and met a character that
      cannot continue: `-`, `1.`, `1e`, `1e+`, `1e-`. One `invalid number`, and
      the character is **re-dispatched**, exactly as in the accepting case.
      `1e"a"` is `invalid number` then the string `"a"` — which is what the
-     tokenizer does today, in all five phases.
+     tokenizer does today, in all five phases. `12.]` is here rather than above,
+     since `12.` stops after the point: `error, ]`.
    - **Leading-zero run.** A `0` followed by a digit: maximal munch pulls the
      digit into an `int` that was already complete. This is the **only** case
      that enters **recovery** — consume through to the next recovery boundary
@@ -349,6 +386,8 @@ follows the input instead:
 | `12"a"` | error, string `"a"` | unchanged — `"` ends without accepting |
 | `12+1` | one error — `+1` is **swallowed** | `invalid number`, then `+` re-dispatched |
 | `>>>=` | one `invalid token` — a **JS operator** | four `unexpected character` |
+| `1n1` | **number `11`, no error** — the `n` is deleted | `invalid number`, `invalid token` |
+| `0n1` | **number `01`, no error** — not valid JSON | `invalid number`, `invalid token` |
 | `00-2` | one error — `-2` is **swallowed** | `invalid number`, number `-2` |
 | `00-` | one error | two `invalid number` |
 | `00"a"` | one error — the string is swallowed | unchanged — `"` is not a recovery boundary |
@@ -730,7 +769,8 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       what the re-dispatched character's *own* scanner then consumes. Generate
       the table from two-character suffixes as well.
 - [ ] Pin the individual cases, since they are what a reader reads: `00-2` is
-      the only changed *token stream*; `00"a"`, `00;1`, `00 1`, `00]`, `00,` and
+      the only changed token stream **within the `00` + `c` + `1` family**
+      (`00-` changes too, and is listed in the table); `00"a"`, `00;1`, `00 1`, `00]`, `00,` and
       `00<LF>1` are wholly unchanged; and `00"/1`, `00/1` and `12/1` keep their
       token counts while `/`'s message becomes `unexpected character`.
 - [ ] Prove string recovery ends at an unescaped quote, a raw LF and a raw CR
