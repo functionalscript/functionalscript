@@ -581,7 +581,8 @@ failure among them is the port; and every error-shape difference is checked
 against the **generated sweep tables**, so any difference they do not contain is
 also the port.
 
-The attribution baseline is the generated tables, **not** the changed-shapes
+The attribution baseline is the generated tables — **all** of them, across every
+scanner state, not the number sweeps alone — and **not** the changed-shapes
 table above, which is illustrative and known to be incomplete. `+1` and `.5`
 are `invalid token` today and become `unexpected character`, and neither has a
 row — the table lists the cases worth explaining to a reader, while the sweep
@@ -666,12 +667,28 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       `unescaped character`, `invalid token` for `0n`) sees different tokens,
       and a consumer relying on a *value* token after a malformed literal stops
       receiving one. Valid JSON is unaffected, and the entry should say so.
-- [ ] Sweep **every number phase**, not a chosen pair. Prefixes: `12`
-      (accepting), `00` (leading-zero run / recovery), and `-`, `1.`, `1e`,
-      `1e+`, `1e-` (incomplete). For each, and for every ASCII character `c`,
-      check `prefix` + `c` + `1`. Two prefixes are not enough and the reason is
-      concrete: `12` and `00` between them cannot see that `1e"a"` emits a
-      string today, which a two-case rule would have swallowed.
+- [ ] **Derive the sweep's prefixes from the scanner's own states**, one per
+      state, rather than listing the ones that came to mind. This requirement is
+      the point: the prefix set has now been too narrow twice — first covering
+      only `12` and `00`, which cannot see that `1e"a"` emits a string today,
+      then covering only the number scanner, which cannot see that `"\x"`
+      changes at all. Both times the sweep was called exhaustive while being
+      exhaustive over one axis.
+
+      Every state of every scanner needs a prefix, and the state machine is
+      what enumerates them, not a person:
+
+      - **top level** — the empty prefix, so a bare `c` is swept;
+      - **number** — `12` accepting, `00` leading-zero run, and `-`, `1.`,
+        `1e`, `1e+`, `1e-` incomplete;
+      - **string** — inside a literal (`"a`), after a backslash (`"\`), and
+        each `\u` hex position (`"\u`, `"\uA`, `"\uAB`, `"\uABC`);
+      - **word** — a keyword prefix (`tru`), a complete keyword (`true`), and a
+        non-keyword run (`x`).
+
+      For each prefix, and every ASCII character `c`, record `prefix` + `c` +
+      `1`. If the implementation's state set does not match this list, the list
+      is wrong and the state set wins.
 - [ ] Commit **two** tables from the sweep, not one: the old tokenizer's output
       (recorded once during implementation, for review) and the new scanner's
       expected output. The proof asserts against the *new* table — asserting
