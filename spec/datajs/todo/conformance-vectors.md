@@ -30,7 +30,14 @@ A machine-readable corpus with three parts:
   grammar's boundaries, which the reject cases alone do not pin: `$`, `$$`,
   `$0`, `$_`, `$class` and `$undefined` are all names, so an implementation
   that demands a suffix after `$`, allows only digits after it, or stops at a
-  second `$` must fail here rather than pass by never being asked. Pair the
+  second `$` must fail here rather than pass by never being asked. Pin the
+  document's boundaries too, since nothing else does: leading whitespace and
+  trailing whitespace are both insignificant, so `export default 1`,
+  `export default 1\n`, `export default 1\r\n`, `export default 1  ` and
+  `\n export default 1 ` are one document — a file ending the way an editor
+  ends files must not be a reject, and normalized form emitting no trailing
+  newline is a fact about those bytes, which the normalize set pins separately.
+  Pair the
   accept set with a check that each document imports as an ES module in a real
   engine,
   since the absence of the final `;` is what makes that a claim about ASI's
