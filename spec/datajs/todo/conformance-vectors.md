@@ -167,10 +167,14 @@ document can carry. So the corpus does not store values. It stores a
 
   …and six **modifier** recipes, each taking the node it applies to, so the
   property cases say which object they are about — the gap review found in
-  `getter`, which named no container. The first four build inputs a serializer
-  must **refuse**; the last two build inputs it must **accept**, which is the
+  `getter`, which named no container. The first four can build inputs a
+  serializer must **refuse**; the last two build inputs it must **accept**, the
   half review found missing — without them a serializer that rejects every
-  unusual prototype or descriptor passes the corpus while being nonconforming:
+  unusual prototype or descriptor passes the corpus while being nonconforming.
+  *Can*, not *must*: `ownProp` on an `obj` builds an ordinary own enumerable
+  string-keyed property, which is exactly what a serializer has to accept, and
+  only an extra property on an **array** is a rejection case. The recipe is a
+  construction; the vector is the claim:
 
   | recipe | builds |
   | - | - |

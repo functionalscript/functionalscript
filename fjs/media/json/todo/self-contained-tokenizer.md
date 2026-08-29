@@ -115,7 +115,8 @@ JavaScript token stream that produced them.
 Rewriting error shapes is cheap to wave through as churn, so the one that is a
 defect should be named as such. It emits a **value token for text that was never
 in the input**, and it is a *class* rather than a handful of cases: **every
-invalid escape and every raw control character inside a string** produces one.
+invalid escape, and every raw control character the tokenizer reports as
+`unescaped control character in string`**, produces one.
 
 ```text
 "\x"        → error 'unescaped character',  string "x"
@@ -126,9 +127,15 @@ invalid escape and every raw control character inside a string** produces one.
 "a<TAB>b"   → error 'unescaped control character in string', string "ab"
 ```
 
-Raw NUL and US inside a string do the same. Counting instances understates it —
-a reader sizing the change needs the class, since rule 1 below covers all of
-them at once.
+Raw NUL, US, FF and VT inside a string do the same. **Raw LF and CR do not**,
+and the boundary is worth stating because it is where the class ends: they end
+the literal instead, giving `unterminated string literal` and no partial
+`string` token, so `"a<LF>b"` is three errors and fabricates nothing. That is
+also why 3a's suppression rule names three messages rather than "control
+characters" — the message is the class, and the character is not.
+
+Counting instances understates it — a reader sizing the change needs the class,
+since rule 1 below covers all of them at once.
 
 A caller that filters errors out — or a parser that resynchronizes on the next
 value — sees a string `"x"` that no document contained. That is
@@ -813,6 +820,10 @@ partial — the fabrication follows exactly three messages, always immediately:
 "<NUL>"     unescaped control character in string → string("")
 ```
 
+Raw LF and CR are **not** in the class — they end the literal, so there is no
+partial token to drop — which is why the rule keys on the message rather than
+on "a control character".
+
 So the rule is total over an enumerated set: **the `string` token immediately
 following one of those three errors is fabricated, and is dropped.** No other
 token is affected, and a real string after a string error survives — `"\x" "ok"`
@@ -999,8 +1010,14 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
         `00`, `12+` and `1e.` for recovery; the empty prefix for **start**;
         and `-`, `1.`, `1e`, `1e+`, `1e-`
         incomplete;
-      - **string** — inside a literal (`"a`), after a backslash (`"\`), and
-        each `\u` hex position (`"\u`, `"\uA`, `"\uAB`, `"\uABC`);
+      - **string** — inside a literal (`"a`), after a backslash (`"\`), each
+        `\u` hex position (`"\u`, `"\uA`, `"\uAB`, `"\uABC`), and — since
+        rule 3 gives malformed strings a recovery of their own — **inside
+        recovery** after an invalid escape (`"\x`) and its post-backslash
+        substate (`"\x\`). Without those two, a mishandled quote, backslash,
+        LF or CR *after* an invalid escape is reachable only by the handful of
+        cases pinned individually, which is what this task exists to stop
+        relying on;
       - **word** — a keyword prefix (`tru`), a complete keyword (`true`), and a
         non-keyword run (`x`).
 
