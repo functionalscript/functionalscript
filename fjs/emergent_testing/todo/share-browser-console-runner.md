@@ -106,12 +106,16 @@ both are properly issues rather than fixes inside a port:
   [Hostile thrown values and cross-realm promises](hostile-proof-values.md) and
   [Imports, promises and realms](imports-promises-realms.md).
 
-The rule that follows: **land the shared skeleton with behaviour unchanged, then
-take each new problem as its own change — in the skeleton where it belongs
-there, so both runners get it, or in every part at once.** An improvement the
-browser could have is an issue, not something to introduce inside a port. A
-behaviour the port cannot preserve is a finding to record before it merges, not
-a silent divergence to explain in review.
+The rule that follows: **a port changes only the behaviour its own argument
+requires, named and proved — everything else lands as its own change, in the
+skeleton where it belongs there, so both runners get it, or in every part at
+once.** An improvement the browser could have is an issue, not something to
+introduce inside a port. A behaviour the port cannot preserve is a finding to
+record before it merges, not a silent divergence to explain in review. (An
+earlier version of this rule said "with behaviour unchanged" — right against
+smuggled improvements, but stated too strongly once the plan itself became a
+scheduling change the port necessarily brings to the page; the next paragraph
+names what step 7b changes and why.)
 
 **Keep the change reviewable: one argument per PR.** The first attempt was
 2646 insertions and 1408 deletions across 35 files in one PR — a move, a
@@ -120,8 +124,15 @@ invention at once, which is why the scheduling argument could not be separated
 from the sharing argument. The sequence that keeps them separate is the one
 the plan below orders: the scheduling change first, alone, in the console
 runner where it is observable and provable without any port (step 7a); then
-the port, which changes no behaviour beyond calling the shared code (step 7b);
-the layout moves after. An earlier version of this paragraph said "shared
+the port (step 7b) — which is itself a behaviour change for the *page*, three
+times over, because 7a touches only `module.f.mjs` and the page does not run
+that code until the port: the page's scheduling goes from 25-at-a-time
+concurrent batches to sequential, its live progress goes from
+children-before-parent to the structural order, and `runModuleMap`'s answer
+changes shape. One argument per PR still holds — 7b's argument is the port,
+and its behaviour changes are the browser's side of decisions 7a and this
+plan already made and named, each carried in 7b's changelog and proofs rather
+than discovered in review; the layout moves after. An earlier version of this paragraph said "shared
 semantics first, with `fjs t` unchanged in behaviour" — right about
 separation, wrong about order once the plan itself became a scheduling change:
 porting first would have moved the browser onto semantics about to change
@@ -454,7 +465,12 @@ and is reviewable without the next one.
       obligations it carried the first time: an `exitCodeOf` helper for
       callers that want the code, every in-repo importer migrated in the same
       PR, and a changelog entry with the `**BREAKING CHANGES:**` prefix
-      naming the return-shape migration. Also re-landed: the page's modules
+      naming the return-shape migration — and, in the same entry, the two
+      page-behaviour changes this port carries: the page's scheduling moves
+      from 25-at-a-time concurrent batches to the sequential traversal (7a
+      changed only `module.f.mjs`; the browser acquires the scheduling
+      here), and live progress adopts the structural order (the paragraph
+      below). Both are proved in this PR, not just listed. Also re-landed: the page's modules
       stay a *list* entered at a seam for already-collected leaves, because
       labels may repeat and an export is enumerated exactly once, under the
       page's own guard (catalog items 5, 6); the run starts only after its
