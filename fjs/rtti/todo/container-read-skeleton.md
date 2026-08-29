@@ -115,6 +115,14 @@ of this issue.
 - [ ] Extract the three per-shape skeletons (uniform, const, rest) into
       `../common/module.f.mjs`, each preserving its own order; rewrite both
       readers through them.
+- [ ] Give each new `common` export its own entry in
+      `../common/proof.f.mjs`. That file already imports and calls every
+      export it covers (`eachEntry`, `structSchemaEntries`,
+      `tupleSchemaEntries`, `undeclaredMembers` at `:6`), and
+      `fjs/AGENTS.md:25-34` asks the same of a new one: the three skeletons
+      and the hoisted `noAccumulate`/`noDeclared` are newly published
+      callables, so being exercised only through `validate` and `parse`
+      would leave the exported names themselves uncalled.
 - [ ] Add a proof row pinning the rest readers' order: a declared member
       whose getter installs a leftover the `rest` rejects must still be
       rejected. It passes today and would fail under a leftovers-first

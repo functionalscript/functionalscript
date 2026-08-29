@@ -347,7 +347,10 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
       `string`, which is the case that catches an over-wide `E`.
 - [ ] Refuse a non-JSON schema at construction, with an `assert` beside
       `dialectEntry`'s, reusing `rtti/data`'s identity-based traversal rather
-      than a new visited set. Prove both halves: a `bigint`-membered schema
+      than a new visited set. Prove both halves **in `../proof.f.mjs`**,
+      calling `jsonDialect` directly — it is a new export, and the three
+      dialect modules using it do not call the exported name from a proof:
+      a `bigint`-membered schema
       throws there rather than encoding as `null`, and `revisionSchema` — whose
       `lock` is recursive — constructs without hanging. Attempt the
       `ValueOf<S>`-assignable-to-`JsonUnknown` constraint too, and keep it
