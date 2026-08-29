@@ -21,7 +21,7 @@ returns `"0x7Bn"` where JavaScript returns `"123"`, and `String(-456n)` returns
 unless an explicit radix is passed to `BigInt.prototype.toString`.
 
 Two cases in the shared operator test data
-([`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs), `stringCoercion`)
+([`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs), the `'String'` group)
 carry a `rust` reason pointing here and are therefore commented out in
 `tests/test/generated.rs`. Deleting those two `rust` reasons and regenerating
 is the acceptance test for this issue.
@@ -44,8 +44,8 @@ representation, and the bigint formatting tests in
 
 - [ ] Add decimal conversion for `BigInt<A>`.
 - [ ] Use it from `StringCoercion::bigint`.
-- [ ] Remove the two `rust` reasons from `stringCoercion` in the shared test
-      data and regenerate `tests/test/generated.rs`.
+- [ ] Remove the two `rust` reasons from the `'String'` group in the shared
+      test data and regenerate `tests/test/generated.rs`.
 
 ### Related
 

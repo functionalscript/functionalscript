@@ -11,28 +11,31 @@ Phase 2 is done: `fjs/ci/nix/module.f.mjs` generates
 running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
 the accepted snapshot.
 
-Phase 3 is two thirds done: **Node 24 and Node 26 are migrated.** Each job is
-checkout, the pinned Nix installer, its runtime check, and one
-`nix develop --command` step per command — the same commands on the runtime the
-pinned snapshot provides instead of the one `setup-node` installs.
+**Phase 3 is done: all three Node jobs are migrated.** Each is checkout, the
+pinned Nix installer, its runtime check, and one `nix develop --command` step
+per command — the same commands on the runtime the pinned snapshot provides
+instead of the one `setup-node` installs. No canonical Node job installs a
+runtime any more; `setup-node` is left to the platform matrix and to
+`package-check`, which installs `node.default` to type-check the packed tarball.
+
+Node 22 and Node 24 run the suite and nothing else, and differ only in the
+version they name, so one builder emits both.
 
 Node 26 orders itself differently, for a reason that is about the job rather
 than about Nix: `npm run ci-update` and the drift check it feeds run last, after
 `npm ci`, `npx tsc`, `npm run cov` and `npm pack`. The check compares the tree
 against what the generator produces, so running it at the end makes it the last
 word — every earlier step has finished writing. Nothing those steps leave is
-tracked: `npm pack`'s tarball, the declarations its `prepack` emits, and the
-`flake.lock` Nix writes beside a flake it enters are all ignored, so the check
-still sees generator output and nothing else. The drift check is a plain step,
-since `git` is the runner's tool.
+tracked: `npm pack`'s tarball and the declarations its `prepack` emits are
+ignored, and `--no-write-lock-file` means Nix leaves nothing at all. The drift
+check is a plain step, since `git` is the runner's tool.
 
 **No job exists to check the flakes.** The temporary `nix-flakes` job that
 instantiated each generated file and compared the Node it provided to an
 expected version is gone. Nix runs in CI only where a job's own commands run
 through a flake, and each such job checks its own runtime as its first real
-step — the same check, against the same recorded version, that the jobs still
-using `setup-node` make of theirs. What was a separate job is a step of the job
-that cares.
+step, against the version the configuration records. What was a separate job is
+a step of the job that cares.
 
 That check is the one thing about a generated flake that only CI can establish:
 `nix develop` has to resolve the pin, build the shell, and put a Node on
@@ -47,19 +50,15 @@ The flakes carry no `assert` of their own: a flake pinning an exact commit
 already determines its package versions, so an in-flake assertion would restate
 the pin while making a generated, immutable file harder to read.
 
-One cost is stated rather than hidden, and it shrinks with each migration.
-Nothing evaluates the Node 22 flake — the last one no job runs through — so a
-package attribute the snapshot does not actually carry would surface when that
-job migrates rather than now.
+The gap this issue recorded through the migrations is closed: every generated
+flake is now evaluated by the job that uses it, so a package attribute the
+snapshot does not actually carry fails CI rather than waiting for a migration
+that has already happened.
 
-Still open: the `npm run ci-nix-update` command (phase 1's automation — the
-versions were read from the snapshot by hand), removal of stale generated job
-directories, and Node 22. Stale-directory removal needs a recursive `rm`
-effect — today's `rm` operation only deletes files. Node 22 is not a repeat of
-the other two: it runs `npm ci` and `node --test` and nothing else. `fjs test`
-and the global install feeding it were there only because Node 22 could not run
-`node --test`, and the flake `shellHook` existed only for that install; all three
-are gone.
+Still open, and neither is about a job: the `npm run ci-nix-update` command
+(phase 1's automation — the versions were read from the snapshot by hand), and
+removal of stale generated job directories, which needs a recursive `rm`
+effect since today's `rm` operation only deletes files.
 
 ### Problem
 
@@ -174,8 +173,9 @@ The generator owns the job subdirectories of `nix/` and removes stale job output
 does not own `nix/` itself: `nix/README.md` is written by hand, so stale-output removal
 deletes directories it generated rather than everything it finds there.
 
-Nix may create `flake.lock` beside a generated flake. Keep these files untracked with
-this root `.gitignore` rule:
+Nix writes a `flake.lock` beside a generated flake unless told not to, so every CI
+invocation passes `--no-write-lock-file` and leaves the checkout untouched. The root
+`.gitignore` rule stays for hand-run `nix develop`, which has no such flag:
 
 ```gitignore
 /nix/*/flake.lock
@@ -198,7 +198,7 @@ Each migrated Node job checks out the repository, installs Nix through a pinned 
 and then runs one step per command of its existing sequence:
 
 ```sh
-nix develop ./nix/<job> --command <command>
+nix develop --no-write-lock-file ./nix/<job> --command <command>
 ```
 
 A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7): a bundled
@@ -211,34 +211,33 @@ to the runner's preinstalled Node.
 A step names the flake only when it needs a tool the flake pins. Node 26's sequence is
 the case that shows the difference: `npm run ci-update`, `npx tsc`, `npm run cov` and
 `npm pack` run on the pinned Node, while `git add -A && git diff --cached --exit-code`
-uses the runner's `git` and stays a plain step, exactly as it does under `setup-node`.
-It reads the workspace the Nix steps wrote, which is the same workspace either way.
+uses the runner's `git` and stays a plain step. It reads the workspace the Nix steps
+wrote, which is the same workspace either way.
 
 So no flake declares `git`, and it never matters whether `nix develop` leaves the
 runner's `PATH` in place or replaces it with the shell's — a question no job has had to
-answer, since Node 24 runs only `npm` and `node`, both from its own shell.
+answer, since the other commands are `npm` and `node`, both from the shell itself.
 
-Preserve each job's command sequence. This is what the three jobs run today, after the
-two migrations — the instruction sheet for the third:
+Preserve each job's command sequence. This is what the three jobs run, all migrated:
 
 ```text
-node22 (setup-node):
-  test "$(node --version)" = v<configured>
-  npm ci
-  node --test
+node22 (flake):
+  test "$(nix develop --no-write-lock-file ./nix/node22 --command node --version)" = v<configured>
+  nix develop --no-write-lock-file ./nix/node22 --command npm ci
+  nix develop --no-write-lock-file ./nix/node22 --command node --test
 
-node24 (flake):
-  test "$(nix develop ./nix/node24 --command node --version)" = v<configured>
-  nix develop ./nix/node24 --command npm ci
-  nix develop ./nix/node24 --command node --test
+node24 (flake) — the same, one builder emits both:
+  test "$(nix develop --no-write-lock-file ./nix/node24 --command node --version)" = v<configured>
+  nix develop --no-write-lock-file ./nix/node24 --command npm ci
+  nix develop --no-write-lock-file ./nix/node24 --command node --test
 
 node26 (flake):
-  test "$(nix develop ./nix/node26 --command node --version)" = v<configured>
-  nix develop ./nix/node26 --command npm ci
-  nix develop ./nix/node26 --command npx tsc
-  nix develop ./nix/node26 --command npm run cov
-  nix develop ./nix/node26 --command npm pack
-  nix develop ./nix/node26 --command npm run ci-update
+  test "$(nix develop --no-write-lock-file ./nix/node26 --command node --version)" = v<configured>
+  nix develop --no-write-lock-file ./nix/node26 --command npm ci
+  nix develop --no-write-lock-file ./nix/node26 --command npx tsc
+  nix develop --no-write-lock-file ./nix/node26 --command npm run cov
+  nix develop --no-write-lock-file ./nix/node26 --command npm pack
+  nix develop --no-write-lock-file ./nix/node26 --command npm run ci-update
   git add -A && git diff --cached --exit-code
 ```
 
@@ -259,7 +258,7 @@ For each Node job:
 3. switch only that job after equivalent behavior is demonstrated.
 
 A migrated job checks its Node version like any other, as its first real step:
-`test "$(nix develop ./nix/<job> --command node --version)" = v<version>`. The
+`test "$(nix develop --no-write-lock-file ./nix/<job> --command node --version)" = v<version>`. The
 pin decides which Node the flake resolves to, and `fjs/ci/config/module.f.mjs`
 only claims to know which — so the claim is checked where it can be, and the
 migration changes a job's runtime without changing what CI guarantees about it.
@@ -295,15 +294,15 @@ milestone.
 - [x] Add `/nix/*/flake.lock` to `.gitignore`.
 - [x] Keep ordinary generation Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
-- [ ] Add pinned Nix bootstrap to each migrated job — Node 24 and Node 26 done.
-- [ ] Run each job's complete command sequence through its flake, one
-      `nix develop --command` step per command — Node 24 and Node 26 done.
-- [ ] Validate the three Node jobs independently — Node 24 and Node 26 done.
-- [ ] Preserve each job's existing commands, order, and coverage — Node 24's are
-      unchanged; Node 26 keeps its commands with the drift check moved last, so it
-      compares a tree every other step has finished writing.
-- [ ] Keep tracked checkout state unchanged.
-- [ ] Migrate jobs one at a time — Node 24, then Node 26; Node 22 remains.
+- [x] Add pinned Nix bootstrap to each migrated job.
+- [x] Run each job's complete command sequence through its flake, one
+      `nix develop --command` step per command.
+- [x] Validate the three Node jobs independently.
+- [x] Preserve each job's existing commands, order, and coverage. Node 24's and
+      Node 22's are unchanged; Node 26 keeps its commands with the drift check
+      moved last, so it compares a tree every other step has finished writing.
+- [x] Keep tracked checkout state unchanged.
+- [x] Migrate jobs one at a time — Node 24, then Node 26, then Node 22.
 
 ### Related
 

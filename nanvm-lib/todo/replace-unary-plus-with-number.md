@@ -7,8 +7,9 @@
 
 The EDAG design has settled on having **no unary `+` operator** in the language at all —
 see [`edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md)'s "Operators"
-table and [`reuse-edag-operators.md`](../../fjs/nanvm/todo/reuse-edag-operators.md)'s note
-that "the EDAG has no unary `+`". `Number(x)` is the language's one numeric-coercion form,
+table, and [`fjs/nanvm/README.md`](../../fjs/nanvm/README.md), where `unaryPlus` is the
+corpus's one group with no canonical id for exactly that reason.
+`Number(x)` is the language's one numeric-coercion form,
 chosen specifically because JS's own unary `+` throws on a `bigint` where `Number(x)` does
 not.
 
@@ -49,10 +50,15 @@ table row claiming `+` is a supported operator. It is exercised only by tests:
 the generated `nanvm-lib/tests/test/generated.rs`.
 
 The shared JS/TS operator-test corpus keeps the removed operator alive on the other side
-too: `fjs/nanvm/types.ts`'s `Op` union has `'unaryPlus'`, `fjs/nanvm/module.f.mjs` declares
-its case group (bigint case `expected: throws`), `fjs/nanvm/proof.f.mjs`'s `apply` switch
-has `case 'unaryPlus': { return +a }`, and `fjs/nanvm/rust/module.f.mjs`'s `call` switch
-emits `Any::unary_plus(...)` when generating `nanvm-lib/tests/test/generated.rs`.
+too, in the one place reserved for an operation with no canonical EDAG id:
+`fjs/nanvm/types.ts` declares `NonEdagGroup` with `nanvmOp: 'unaryPlus'` as its only
+inhabitant, `fjs/nanvm/module.f.mjs` declares its case group (bigint case
+`expected: throws`), `fjs/nanvm/proof.f.mjs`'s `op1Js` table has
+`unaryPlus: a => +a`, and `fjs/nanvm/rust/module.f.mjs`'s `op1Rust` and `rustName` tables
+emit `Any::unary_plus(...)` inside `fn unary_plus` when generating
+`nanvm-lib/tests/test/generated.rs`. Because the group has no `op`, every one of its
+cases takes the corpus's escape path rather than deriving an expression — moving it to
+`'Number'` is what puts it on the EDAG-backed path with the others.
 
 ### Proposal
 
@@ -72,21 +78,23 @@ emits `Any::unary_plus(...)` when generating `nanvm-lib/tests/test/generated.rs`
 - In the corpus, the group's new spelling is the **canonical EDAG id `'Number'`**
   (`op1Id` in [`fjs/edag/module.f.mjs`](../../fjs/edag/module.f.mjs)) — never a new
   NaNVM-only name such as `numberCoercion`, which would introduce exactly the second
-  vocabulary [`reuse-edag-operators.md`](../../fjs/nanvm/todo/reuse-edag-operators.md)
-  exists to remove (that plan also renames `'stringCoercion'` to the canonical
-  `'String'`). Order-aware: if that task has landed, move the group from its
-  `NonEdagGroup` into an EDAG-backed `Group1` with `op: 'Number'` and delete the
-  `NonEdagGroup` type; if this task lands first, replace `'unaryPlus'` with `'Number'`
-  in the current `Op` union.
+  vocabulary the corpus no longer has. Move the group from its `NonEdagGroup` into an
+  EDAG-backed `Group1` with `op: 'Number'`, and delete the `NonEdagGroup` type and
+  `OpId`'s member for it: `unaryPlus` is its only inhabitant, so nothing is left to
+  spell once it goes.
 - Update `fjs/nanvm/module.f.mjs`'s case group for the renamed op: the bigint case's
   `expected` changes from `throws` to the converted number, not an error. Its
-  `numberCoercionCases(negate)` helper is shared with `unaryMinus` — keep that helper and
-  `unaryMinus`'s group untouched; only the `unaryPlus` group and its bigint case move.
-- Update `fjs/nanvm/proof.f.mjs`'s dispatch: replace the `unaryPlus` arm (`return +a`)
-  with a `'Number'` arm returning `Number(a)`.
-- Update `fjs/nanvm/rust/module.f.mjs`'s `call` switch to emit the new Rust method instead
-  of `Any::unary_plus(...)`, and `fjs/nanvm/rust/proof.f.mjs`'s pinned expected-output
-  strings to match.
+  `numberCoercionCases(negate)` helper is shared with `neg` — keep that helper and
+  `neg`'s group untouched; only the `unaryPlus` group and its bigint case move. Its
+  `function` case escapes either way: `functionValue` has no expression whichever id the
+  group carries.
+- Update `fjs/nanvm/proof.f.mjs`'s `op1Js` table: replace the `unaryPlus` entry
+  (`a => +a`) with a `Number` one returning `Number(a)`.
+- Update `fjs/nanvm/rust/module.f.mjs`'s `op1Rust` and `rustName` tables to emit the new
+  Rust method and name its generated function, and `fjs/nanvm/rust/proof.f.mjs`'s pinned
+  expected-output strings and synthetic `sample` corpus to match — the sample is the
+  printer's only `NonEdagGroup`, so it needs a new shape for that construct or its
+  removal along with the type.
 - Regenerate `nanvm-lib/tests/test/generated.rs` via `npm run ci-update` rather than
   hand-editing it.
 - `nanvm-lib/tests/test/main.rs`'s `unary_plus_bigint_message` pins a throw message that no
@@ -98,9 +106,8 @@ emits `Any::unary_plus(...)` when generating `nanvm-lib/tests/test/generated.rs`
 
 - [ ] Remove `Any::unary_plus()`, its README row, and the `any/neg.rs` comment reference.
 - [ ] Implement the real `Number(x)` coercion, including a `BigInt<A> → f64` conversion.
-- [ ] `fjs/nanvm/types.ts`: retire `'unaryPlus'` in favor of the canonical `'Number'`
-      (post-`reuse-edag-operators`: delete `NonEdagGroup`; before it: replace the
-      member in `Op`).
+- [ ] `fjs/nanvm/types.ts`: retire `'unaryPlus'` in favor of the canonical `'Number'`,
+      deleting `NonEdagGroup` and `OpId`'s member for it.
 - [ ] `fjs/nanvm/module.f.mjs`: move the group under `'Number'`; bigint case expects
       a converted number, not `throws`.
 - [ ] `fjs/nanvm/proof.f.mjs`: dispatch `'Number'` to `Number(a)`.
@@ -116,10 +123,10 @@ emits `Any::unary_plus(...)` when generating `nanvm-lib/tests/test/generated.rs`
 
 - [`edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md) — the Operators
   table this decision comes from: no unary `+`, `Number` is the one coercion node.
-- [`reuse-edag-operators.md`](../../fjs/nanvm/todo/reuse-edag-operators.md) — already notes
-  `unaryPlus` has no EDAG operation to derive its shape from.
+- [`fjs/nanvm/README.md`](../../fjs/nanvm/README.md) — the corpus's canonical-id rule,
+  and why `unaryPlus` is its one exception.
 - [`numeric-operator-home.md`](./numeric-operator-home.md) — adjacent `Numeric<A>` algebra
   layout, same `any/`-vs-`numeric.rs` split this touches.
-- operator-test-operation-model (retired; folded into
-  [`reuse-edag-operators.md`](../../fjs/nanvm/todo/reuse-edag-operators.md)) — the
-  `Op`-union redesign this predates.
+- operator-test-operation-model and reuse-edag-operators (both retired; shipped as the
+  canonical-id corpus in [`fjs/nanvm/`](../../fjs/nanvm/README.md)) — the `Op`-union
+  redesign this predates.
