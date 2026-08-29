@@ -345,7 +345,8 @@ const constContainerParse =
             // including what settling the shape first assumes of the value.
             const withPresence = rttiEntries.map(([k, t]) =>
                 /** @type {readonly[string, readonly[typeof t, boolean]]} */ ([k, [t, k in value]]))
-            if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
+            // `fits` first, for the reason `../validate`'s copy states.
+            if (!fits(value, declared.length) || undeclaredMembers(declared, value).length !== 0) {
                 return verror('unexpected value')
             }
             // Absence before any read, for the reason `../validate`'s

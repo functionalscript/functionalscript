@@ -238,7 +238,12 @@ const constContainerValidate =
             // in "What the readers assume of a value" in `../README.md`.
             const withPresence = rttiEntries.map(([k, v]) =>
                 /** @type {readonly[string, readonly[typeof v, boolean]]} */ ([k, [v, k in value]]))
-            if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
+            // `fits` first: it reads one `length`, where `undeclaredMembers`
+            // enumerates every member the value and its prototypes carry. On
+            // an oversized array the two answer alike, so the cheap one has
+            // to ask first — a million-element array against `[number]` is
+            // 1ms in this order and 1.5s in the other.
+            if (!fits(value, declared.length) || undeclaredMembers(declared, value).length !== 0) {
                 return verror('unexpected value')
             }
             // Reaching an illegal absence through the reading walk would
