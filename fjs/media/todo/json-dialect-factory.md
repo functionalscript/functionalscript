@@ -212,12 +212,14 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
 - [ ] Add `jsonDialect` and the shared `dialectMediaType` to
       `module.f.mjs`; have both `detect` and the factory derive through it.
       `DialectEntry` keeps its `{ dialect, match }` shape unchanged.
-- [ ] Type the factory as `JsonDialect<S, D, E>` above — value via `Ts<S>`,
-      error union widened by the refinement only — and confirm in the emitted
-      `.d.mts` that **every** export keeps its current type: the two literals,
-      and `encodeText`/`validate`/`decodeText` for each of the three
-      dialects. `note`'s `validate` stays `Result<Note, ValidationError>`
-      with no `string`, which is the case that catches an over-wide `E`.
+- [ ] Type the factory as `JsonDialect<S extends Struct, E>` above — the
+      dialect derived by `DialectOf<S>`, the value by
+      `ValueOf<S> = Ts<Rest<S, Type>>`, the error union widened by the
+      refinement only — and confirm in the emitted `.d.mts` that **every**
+      export keeps its current type: the two literals, and
+      `encodeText`/`validate`/`decodeText` for each of the three dialects.
+      `note`'s `validate` stays `Result<Note, ValidationError>` with no
+      `string`, which is the case that catches an over-wide `E`.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
       copies and the two `isValid…` adapters. Keep every published name —
       `revisionDialect`/`lockDialect`/`noteDialect` aliasing the kit's

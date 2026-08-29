@@ -44,11 +44,13 @@ stated once and no caller can reach the body with nothing to read:
  * The routing decision over an already-parsed target; `null` is the
  * malformed-URL refusal, since a target that did not parse names no path.
  */
-const resolveParsed = root => target => {
-    if (target === null) { return refuse(400)('malformed request URL') }
+const resolveParsed = root => {
     const base = served(root)
-    const decoded = percentDecode(target.path)
-    …                                            // the rest of today's body
+    return target => {
+        if (target === null) { return refuse(400)('malformed request URL') }
+        const decoded = percentDecode(target.path)
+        …                                        // the rest of today's body
+    }
 }
 
 /** @type {Resolve} */
@@ -58,11 +60,18 @@ export const resolve = root => {
 }
 ```
 
-`resolveParsed(root)` is bound in the `root` scope, not inside the per-URL
-callback: it depends on `root` alone, so a per-call `resolveParsed(root)(…)`
-would rebuild the same closure on every request
-(`fjs/AGENTS.md`, "Place curried partial applications at their dependency's
-scope"). `respond` does the same — it is `root => { const r =
+`served(root)` moves into the `root` scope for the same reason the partial
+application does: it depends on `root` alone, so leaving it in the target
+callback recomputes it for every request. Today it sits inside `resolve`'s
+per-URL body (`../module.f.mjs:264`), where `root` and `url` arrive together
+and there is no outer scope to hoist to; splitting the function creates one,
+and the rule then applies (`fjs/AGENTS.md`, "Hoist call-invariant
+computations").
+
+`resolveParsed(root)` is likewise bound in the `root` scope, not inside the
+per-URL callback: a per-call `resolveParsed(root)(…)` would rebuild the same
+closure on every request (`fjs/AGENTS.md`, "Place curried partial
+applications at their dependency's scope"). `respond` does the same — it is `root => { const r =
 resolveParsed(root); return ({ method, url, headers }) => … }` — and then
 calls `r(target)` with the target it already holds. `null` included, which
 is the case that matters:
