@@ -1,12 +1,48 @@
 ## Restructure JSON, DataJS, and FunctionalScript parsers/serializers
 
-**Priority:** P2
-**Status:** open
+**Priority:** P1 — stages 3 and 4 are urgent; see [Priority](#priority-stages-3-and-4-come-first).
+**Status:** in progress — stages 1a and 2 done.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
 gets its own co-located `todo/` file when it starts; concrete tasks live there,
 not here.
+
+### Pick up here
+
+Read in this order; each line says what to do and why it comes when it does.
+
+1. **Next: stage 3, the JSON self-contained tokenizer.** Design is written and
+   reviewed:
+   [`fjs/media/json/todo/self-contained-tokenizer.md`](../fjs/media/json/todo/self-contained-tokenizer.md).
+   It has the grammar, the error rule, the exact table of error shapes that
+   change, the seam DataJS will reuse, the edits owed to two other issues, and
+   the task list. Implementable without reading anything else here.
+   *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
+   scanner unchanged and its number core extended, so JSON has to own those
+   scanners before DataJS can borrow them.
+2. **Then: stage 4, `fjs/media/datajs`.** No todo file yet — file one under
+   `fjs/media/datajs/todo/` before starting, per the workflow. The normative
+   behavior is already settled in
+   [`spec/datajs/README.md`](../spec/datajs/README.md); stage 4 implements that
+   spec, it does not redesign it. Known prerequisite work is named in the stage
+   list below: JSON's parser seam is **not** wide enough today and has to be
+   generalized first.
+   *Why:* this is the deliverable everything else is waiting for — see
+   [Priority](#priority-stages-3-and-4-come-first).
+3. **Then stage 1b**, the conformance vectors
+   ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)),
+   which needs stage 4 to exist before it can run against anything.
+4. **Then stages 5–7**, in order, as listed below.
+
+**Already done, do not redo:** stage 1a (the DataJS specification) and stage 2
+(the dead `fjs/fsc` grammars, deleted). Both are on `main`.
+
+**Two things are decided and should not be reopened without a reason:** DataJS
+is frozen at "JSON extended from a tree to a DAG, plus the leaves JSON cannot
+spell" — new syntax belongs in FunctionalScript, not here; and the media codecs
+take no runtime dependency on `fjs/bnf` or on `fjs/js/tokenizer`, which is the
+whole point of the restructure.
 
 ### Problem
 
