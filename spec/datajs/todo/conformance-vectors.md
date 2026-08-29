@@ -351,11 +351,17 @@ The six parts:
   - **`number ::= '-'? int frac? exp?`** — the sign present and absent, both
     `int` alternatives (`0` and `[1-9][0-9]*`), `frac` present and absent,
     `exp` present and absent, and within `exp` both letter cases and all three
-    sign states: `0`, `-0`, `9`, `109`, `-109`, `1.09`, `-1.09`, `1e09`, `1E2`,
-    `1e+2`, `1e-2`, `1.09e-2`. `9` and `109` put both ends of `[1-9]` in the
-    leading position and both ends of `[0-9]` after it; `1.09` and `1e09` do
-    the same for the digits of `frac` and `exp`, which `1.5` and `1e2` left in
-    the middle. A reader accepting integers and the named words while rejecting
+    sign states — **and a signed twin for every one of them**, since the sign
+    is a prefix and a reader may have a separate post-`-` state, which is the
+    rule the reject set carries for the same reason: `0`, `-0`, `9`, `-9`,
+    `109`, `-109`, `1.09`, `-1.09`, `1e09`, `-1e09`, `1E2`, `-1E2`, `1e+2`,
+    `-1e+2`, `1e-2`, `-1e-2`, `1.09e-2`, `-1.09e-2`. `9` and `109` put both
+    ends of `[1-9]` in the leading position and both ends of `[0-9]` after it;
+    `1.09` and `1e09` do the same for the digits of `frac` and `exp`, which
+    `1.5` and `1e2` left in the middle. Review found the sign crossed with the
+    `int` *alternatives* but not with anything below them — every negative here
+    began with a `1` — so a reader whose post-`-` state took only a leading `1`,
+    or no exponent at all, passed. A reader accepting integers and the named words while rejecting
     every fraction and exponent passed the earlier set entirely.
   - **`string`** — all nine escapes, not just the one an interesting case
     happened to use: `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t` and
@@ -378,8 +384,8 @@ The six parts:
     uppercase in the first two positions and refuses it in the last two.
     Review found both halves of that, one round apart.
   - **`bigint ::= '-'? int 'n'`** — both signs against both `int`
-    alternatives, **and `int`'s own class endpoints again**: `0n`, `-0n`, `9n`,
-    `109n`, `-109n`. An earlier draft left the endpoints to `number` on the
+    alternatives, **`int`'s own class endpoints again, and a signed twin for
+    each**: `0n`, `-0n`, `9n`, `-9n`, `109n`, `-109n`. An earlier draft left the endpoints to `number` on the
     grounds that `int` is the same production there. Review was right that this
     does not follow: a shared production in the grammar says nothing about
     shared code in an implementation, and a reader whose bigint path accepts
@@ -747,7 +753,11 @@ The six parts:
   had again stood in for naming its members — then **sharing's own missing
   direction**: every vector in that set began from a shared node, so all of it
   caught a serializer that expands sharing and none of it a serializer that
-  hash-conses two equal nodes into one. The sweep for the lead-partition shape had
+  hash-conses two equal nodes into one — then two gaps inside enumerations
+  written the round before: `e` between `b` and `f`, bracketed as though the
+  reachable letters were a run when gaps make them a set, and the sign crossed
+  with the `int` alternatives but with nothing below them, so every negative
+  number in the accept set began with a `1`. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1049,12 +1059,17 @@ The six parts:
   range **reachable at each of the two digit positions**, not U+001F alone.
   Five of the thirty-two controls have simple escapes, so what the `\u00XX`
   branch can emit is: with a third digit `0`, fourth digits `0`–`7` and
-  `b`, `e`, `f`; with a third digit `1`, all sixteen. That gives **U+0000**,
-  **U+0007**, **U+000B**, **U+000F**, **U+0010**, **U+0019**, **U+001A** and
-  **U+001F** — the ends of the digit run and of the letter run at each third
-  digit — where an earlier draft pinned `\u001f` alone and so pinned the
-  lowercase rule only for `f`. Review found it, and applied this file's own key-twin
-  rule in the same breath: each of the eight has a key twin; a **lone surrogate**, which must come back
+  `b`, `e`, `f`; with a third digit `1`, all sixteen. **A run gets its ends; a
+  set with gaps gets enumerated** — `0`–`7` and `a`–`f` are runs, but the
+  letters reachable under a third digit of `0` are `{b, e, f}`, which is not a
+  run, because `a`, `c` and `d` are spelled `\n`, `\f` and `\r`. Bracketing
+  a set is not covering it: a first fix here took `b` and `f` and left
+  `e` between them untested, and review supplied U+000E on exactly that
+  ground. So **U+0000**, **U+0007**, **U+000B**, **U+000E**, **U+000F**,
+  **U+0010**, **U+0019**, **U+001A** and **U+001F** — where an earlier draft
+  pinned `\u001f` alone and so pinned the lowercase rule only for `f`. Review
+  found that too, and applied this file's own key-twin rule in the same breath:
+  each of the nine has a key twin; a **lone surrogate**, which must come back
   escaped rather than as a replacement character, and all four of them —
   `\ud800`, `\udbff`, `\udc00`, `\udfff` — since the block is two ranges and
   a normalizer re-escaping only the high half emits a replacement character for
