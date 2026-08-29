@@ -657,6 +657,11 @@ export const foldStep = (items, init, f) =>
          * propagation when a command failed, and through the early return here
          * when a value did.
          *
+         * The "did it answer a value" question goes through {@link runPure},
+         * not a shape test of its own: this module keeps the count of things
+         * that read the representation at three, and a fourth is a review flag
+         * by the rule at the top of the file.
+         *
          * @type {(l: List<T>, acc: S) => Effect<Q, S, E>}
          */
         const go = (l, acc) => {
@@ -666,11 +671,12 @@ export const foldStep = (items, init, f) =>
                 const r = next(rest)
                 if (r === null) { return pureOk(state) }
                 const e = f(r.first)(state)
-                if (typeof e !== 'function') {
+                const answered = runPure(e)
+                if (answered.length === 0) {
                     const tail = r.tail
                     return step(e, s => go(tail, s))
                 }
-                const answer = e()
+                const answer = answered[0]
                 if (answer[0] === 'error') { return pure(answer) }
                 state = answer[1]
                 rest = r.tail
