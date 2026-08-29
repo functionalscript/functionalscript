@@ -629,61 +629,67 @@ export const historyStep = (e, f) => {
  * @param {(item: T) => (state: S) => Effect<Q, S, E>} f
  * @returns {Effect<O | Q, S, E>}
  */
-export const foldStep = (items, init, f) =>
-    step(items, list => {
-        /**
-         * **Neither nesting shape is flat on its own, so this is both.**
-         *
-         * Written as a `fold` over {@link step} — `step(step(step(init, f0),
-         * f1), f2)` — the chain nests to the *left*, so an interpreter holds
-         * one command wrapped in as many {@link resultStep} continuations as
-         * there are items, and every resumption walks all of them: depth is
-         * the item count and the work is its square. Measured on node 22
-         * through `emergent_testing`'s traversal, 5,000 items spent 1.6 s in
-         * that walk and 10,000 died with `RangeError: Maximum call stack size
-         * exceeded`.
-         *
-         * Building the rest of the loop inside each item's continuation nests
-         * to the *right* and fixes that — but only for items that perform a
-         * command, because those hand control back to the interpreter's own
-         * loop. An item whose effect is already a value resumes immediately,
-         * inside this function, and a fold of those would recurse here exactly
-         * as deeply as the left-nested one did in the interpreter.
-         *
-         * So: loop while items answer values, and return as soon as one
-         * performs a command, with the remainder as its continuation. Depth is
-         * constant in the item count either way, the items still run in order,
-         * and a failure still stops the fold — through {@link step}'s
-         * propagation when a command failed, and through the early return here
-         * when a value did.
-         *
-         * The "did it answer a value" question goes through {@link runPure},
-         * not a shape test of its own: this module keeps the count of things
-         * that read the representation at three, and a fourth is a review flag
-         * by the rule at the top of the file.
-         *
-         * @type {(l: List<T>, acc: S) => Effect<Q, S, E>}
-         */
-        const go = (l, acc) => {
-            let rest = l
-            let state = acc
-            while (true) {
-                const r = next(rest)
-                if (r === null) { return pureOk(state) }
-                const e = f(r.first)(state)
-                const answered = runPure(e)
-                if (answered.length === 0) {
-                    const tail = r.tail
-                    return step(e, s => go(tail, s))
-                }
-                const answer = answered[0]
-                if (answer[0] === 'error') { return pure(answer) }
-                state = answer[1]
-                rest = r.tail
-            }
+export const foldStep = (items, init, f) => step(items, list => _foldLoop(f)(list, init))
+
+/**
+ * {@link foldStep}'s loop, closed over nothing: `f` is a leading parameter so
+ * this function has a context-free identity (§3.3). That `f`-first currying is
+ * the hoist rule's, and does not contradict the argument-order argument above
+ * — which is about the *published* combinator, whose order is unchanged. This
+ * one is not a sequencing construct anyone writes calls to; it is the loop
+ * that construct runs.
+ *
+ * **Neither nesting shape is flat on its own, so this is both.**
+ *
+ * Written as a `fold` over {@link step} — `step(step(step(init, f0), f1), f2)`
+ * — the chain nests to the *left*, so an interpreter holds one command wrapped
+ * in as many {@link resultStep} continuations as there are items, and every
+ * resumption walks all of them: depth is the item count and the work is its
+ * square. Measured on node 22 through `emergent_testing`'s traversal, 5,000
+ * items spent 1.6 s in that walk and 10,000 died with `RangeError: Maximum
+ * call stack size exceeded`.
+ *
+ * Building the rest of the loop inside each item's continuation nests to the
+ * *right* and fixes that — but only for items that perform a command, because
+ * those hand control back to the interpreter's own loop. An item whose effect
+ * is already a value resumes immediately, inside this function, and a fold of
+ * those would recurse here exactly as deeply as the left-nested one did in the
+ * interpreter.
+ *
+ * So: loop while items answer values, and return as soon as one performs a
+ * command, with the remainder as its continuation. Depth is constant in the
+ * item count either way, the items still run in order, and a failure still
+ * stops the fold — through {@link step}'s propagation when a command failed,
+ * and through the early return here when a value did.
+ *
+ * The "did it answer a value" question goes through {@link runPure}, not a
+ * shape test of its own: this module keeps the count of things that read the
+ * representation at three, and a fourth is a review flag by the rule at the
+ * top of the file.
+ *
+ * @type {<T, Q extends Operation, S, E>(
+ *     f: (item: T) => (state: S) => Effect<Q, S, E>
+ * ) => (l: List<T>, acc: S) => Effect<Q, S, E>}
+ */
+const _foldLoop = f => (l, acc) => {
+    let rest = l
+    let state = acc
+    while (true) {
+        const r = next(rest)
+        if (r === null) { return pureOk(state) }
+        const e = f(r.first)(state)
+        const answered = runPure(e)
+        if (answered.length === 0) {
+            const tail = r.tail
+            return step(e, s => _foldLoop(f)(tail, s))
         }
-        return go(list, init)
-    })
+        const answer = answered[0]
+        const [tag, value] = answer
+        if (tag === 'error') { return pure(answer) }
+        state = value
+        rest = r.tail
+    }
+}
 
 /**
  * Runs `f(item)` for each item in order, stopping at the first failure and
