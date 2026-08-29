@@ -101,9 +101,17 @@ still the argument for settling it in the shared core rather than twice.
       and its result, so the proof includes a proof that writes to the
       terminal mid-test and shows both records intact around it.
 - [ ] Render a pending row in the browser page, await one macrotask in the
-      start handler, and settle the row in place — and prove the pending row
-      is observable before the proof body starts (a proof whose body reads
-      the DOM, or blocks long enough that an unpainted row would be caught).
+      start handler, and settle the row in place — and prove the *yield*,
+      not the append. A proof body that reads the DOM proves nothing here:
+      the pending node is appended synchronously before the await, so the
+      DOM looks identical with the yield deleted, and a blocking body cannot
+      see from inside its own task whether the browser painted first — an
+      item-11 coincidence proof in either shape. The proof is an ordering
+      sentinel: a macrotask enqueued before the start handler runs must be
+      observed to fire before the proof body starts (or a real-browser
+      observation of the painted row, as the burst was measured), and the
+      mutation check is deleting the await and watching the sentinel land
+      after the body instead.
 - [ ] Prove that a run killed mid-test leaves the running test's name behind.
 
 ### Related

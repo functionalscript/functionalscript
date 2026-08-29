@@ -466,6 +466,14 @@ and is reviewable without the next one.
       expectation, walking return values and counting: it supplies a
       `Reporter` whose `result` hands the record to its `report` operation,
       and a `report` handler that appends the row and awaits one macrotask.
+      That await is the port's only boundary against the single-task freeze
+      (catalog item 1), and the page proof's fake document cannot see
+      painting — every semantic assertion stays green with the await
+      deleted, the incidental-yield trap item 11 names. So the boundary gets
+      its own ordering proof: a macrotask enqueued before a result is
+      reported must be observed to fire before the next leaf runs,
+      mutation-checked by removing the await and watching the sentinel land
+      after the whole suite instead.
       Update `RunTotals`'s JSDoc in `types.ts` here too: it explains
       wall-clock-vs-summed-duration by leaves running concurrently, and under
       this step the gap is what the run does *between* leaves — per-report
@@ -815,10 +823,14 @@ are shared.
       `running` forever, exactly the class of hazard catalog item 11 exists
       for. 7b instead carries the seam itself, at its smallest: the page's
       run core takes its interpreter (or reporter) as an argument and is
-      exported for proofs from the page's own module, so a proof drives one
-      failing operation through it and watches the `infrastructure-error`
-      report land — mutation-tested like 7a's contract: remove the guard,
-      watch it fail. This is a testing seam, not a public-API widening — the
+      exported for proofs from the page's own module, so proofs drive **each
+      failure route separately** — one case for an operation answering
+      through the error channel, one for an operation the interpreter cannot
+      dispatch, which rejects — and watch the `infrastructure-error` report
+      land from both. Two routes need two mutations: delete either half of
+      the guard alone and its case fails while the other stays green, or the
+      surviving half is masking an untested branch that can still leave the
+      page in `running` forever. This is a testing seam, not a public-API widening — the
       page's published entry point is unchanged, which is what the rejected
       "widen the API to reach the branch" alternative got wrong. Step 8's
       full layout split then absorbs the seam rather than creating it.
