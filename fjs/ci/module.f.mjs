@@ -25,8 +25,8 @@ import {
     ubuntuArm
 } from './common/module.f.mjs'
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
-import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.mjs'
-import { nixFlakes, nixInstall } from './nix/module.f.mjs'
+import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.mjs'
+import { nixFlakes } from './nix/module.f.mjs'
 import { parse as jsonParse } from '../media/json/module.f.mjs'
 import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
 import { bunSteps } from './bun/module.f.mjs'
@@ -48,19 +48,13 @@ const job = (rust, nodeExtra) => o => a => {
 /** @type {readonly NixJob[]} */
 const nixJobs = nodeNixJobs
 
-// Temporary: proves the not-yet-migrated flakes still evaluate. Removed once
-// the canonical Node jobs check their own flake by running through it.
-/** @type {Job} */
-const nixFlakeJob = ubuntuArm([nixInstall, ...nodeNixVersionSteps])
-
 /** @type {(rust: boolean, pin: string | undefined) => Jobs} */
 const canonicalJobs = (rust, pin) => ({
     ...(rust ? { wasm: ubuntuArm(rustWasmSteps) } : {}),
     deno: ubuntuArm(denoSteps(functionalscript)),
     bun: ubuntuArm(bunSteps(functionalscript)),
-    ...nodeVersionJobs(functionalscript),
+    ...nodeVersionJobs(),
     ...(pin === undefined ? {} : { [packageCheckJobId]: packageCheckJob(pin) }),
-    'nix-flakes': nixFlakeJob,
 })
 
 /** @type {(s: string) => boolean} */
