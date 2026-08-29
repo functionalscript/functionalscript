@@ -74,8 +74,12 @@ A machine-readable corpus with six parts:
   `{["\u005f_proto__"]:1}`, since `["__proto__"]` is the only computed form
   the grammar admits — `1.5n`,
   `1e2n`, `01n`, `-NaN`, `-undefined`, a bare `-`, a forward or unbound
-  reference, a rebound name, each excluded const name, single quotes, `\x` and
-  `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string.
+  reference, a rebound name, each excluded const name, and the five string
+  spellings JavaScript takes and DataJS does not — single quotes,
+  a **template literal**, a `\x` escape, a `\u{…}` escape and a **line
+  continuation**, a backslash before a raw newline, which JavaScript reads as
+  `"ab"` in `export default "a\<LF>b";`; U+2028/U+2029/NBSP/FF/BOM outside a
+  string.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
   than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
   and at least one that is not — **`Map` or a boxed number**, not `RegExp`;
@@ -94,6 +98,33 @@ A machine-readable corpus with six parts:
   passed while the implementation was wrong. A vector with a second ground for
   refusal tests whichever ground the implementation happens to reach first,
   which is not the one it was written for.
+
+  **Derive the narrowing vectors from the spec's own narrowing sentences.**
+  Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
+  blind — it asks only whether an *accept* vector is valid JavaScript, never
+  whether something DataJS rejects would be accepted by the host — so a reject
+  vector is the only instrument that sees it. Three consecutive review rounds
+  each found one missing: the plain number spellings and the non-ASCII
+  identifier together, then the *escaped* identifier spelling, then the string
+  spellings. Every time the list had been written from memory instead of read
+  off the spec — and the second round is the telling one, since the class had
+  just been named and the list still went unchecked. So the fix is to name the
+  source. The spec narrows in three places and each owes vectors:
+
+  - **Strings** — the closing sentence of its §Strings: single quotes,
+    template literals, `\x`, `\u{…}`, line continuations. Five, and the list
+    above now has five.
+  - **Numbers** — the closing sentence of its §Numbers: no hex, no leading
+    `+`, no leading or trailing point, no separators, no leading zeros.
+  - **Identifiers** — §Identifiers' ASCII-only rule, which excludes both a
+    non-ASCII letter and the `\uXXXX` spelling of an ASCII one.
+
+  Plus what DataJS simply lacks where JavaScript has it: comments, `import`,
+  identifier keys, trailing commas, and the space characters above.
+
+  **Bigints are not on this list.** JavaScript rejects `1.5n`, `1e2n` and `01n`
+  too — measured, not assumed — so those vectors test the corpus's own grammar
+  rather than a narrowing, and no reader can over-accept them by delegating.
 
   The rule has now caught one *before* it landed — the escaped-identifier
   vector above, whose proposed spelling left an unbound reference as a second
