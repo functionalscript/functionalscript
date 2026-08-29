@@ -55,8 +55,9 @@ Both implementations:
 `registerModule` is a process-adapter path for the surviving external frameworks. It
 cannot always reuse `runModule`'s `Reporter<O>` because of the external-framework
 constraint discussed in the module doc (lines 144-153). But the *traversal* (collect
-leaves, recurse into function-return sub-trees, fan out with `all`) is shared and decouples
-cleanly from the per-leaf action.
+leaves, recurse into function-return sub-trees, combine the siblings — today both do that
+with `all`, though the sequential plan changes `runModule`'s side; see the note under the
+sketch) is shared and decouples cleanly from the per-leaf action.
 
 The removed Node-side Playwright integration is not a consumer of this design. A future
 Playwright Test adapter opens the shared browser application and consumes its report; it
@@ -91,6 +92,22 @@ export const walkTests = <O extends Operation, S>(w: Walker<O | All, S>) => {
 }
 ```
 
+**The sketch above predates the sequential plan and hard-codes the one thing
+the two consumers no longer agree on.** The sequential plan in
+[share-browser-console-runner](share-browser-console-runner.md) makes
+`runModule`'s traversal sequential — one leaf's whole chain finishes before
+the next starts — while `registerModule` keeps its `all` fan-out (its
+recursion drives an external framework's own scheduling, and it is a site in
+[all-argument-limit](../../effects/todo/all-argument-limit.md) either way).
+So `all(...collectTests(...).map(...))` cannot live inside a shared walker:
+scheduling is the *instantiation's* contract, not the walker's. A `walkTests`
+that survives this takes the sibling combination as a parameter alongside
+`merge` — a sequential fold for the run path, a fan-out for the registration
+path — or it does not qualify. Any spike happens after the sequential
+traversal lands, against the code as it then is; a walker that quietly
+restores concurrency to `runModule`, or quietly serializes `registerModule`,
+has broken a scheduling contract this repository has already paid to settle.
+
 `runModule` instantiates `S = RunTotals`, threads `Sandbox`/`Reporter` effects
 in `onLeaf`, and returns the sub-tree value on success-without-`throws`.
 
@@ -105,8 +122,9 @@ inside the page. Playwright itself remains outside that walker and only controls
 
 The exact `Walker` shape is open — it may be cleaner to split "should we
 recurse?" from "give me the sub-tree value" so the abstraction doesn't force a
-boolean discriminator. The point is the recursion shape (collect → fan-out →
-merge) lives in one place for the process-side implementations, while the browser runner
+boolean discriminator. The point is the recursion shape (collect → visit each
+sibling, under the instantiation's scheduling → merge) lives in one place for
+the process-side implementations, while the browser runner
 shares the semantics rather than the obsolete Playwright registration path.
 
 ### Why this qualifies
@@ -114,10 +132,11 @@ shares the semantics rather than the obsolete Playwright registration path.
 - **DRY at the right altitude.** `collectTests` already names the static walk;
   this names the dynamic one. Two process-side consumers exist today, and another
   process adapter, JSON reporter, or coverage instrumenter would otherwise copy it.
-- **Separation of concerns.** The recursion structure (fan-out, merge, when
-  to stop) is one concern; the per-leaf action (sandbox+reporter vs.
-  framework registration) is another. Today they're entangled inside two
-  near-identical functions.
+- **Separation of concerns.** The recursion structure (visit siblings, merge,
+  when to stop) is one concern; the per-leaf action (sandbox+reporter vs.
+  framework registration) is another — and the sibling *scheduling* belongs
+  to neither: it is each instantiation's contract, per the note under the
+  sketch. Today all three are entangled inside two near-identical functions.
 - **Documents the contract.** The "function-return sub-tree is walked the
   same way as the static export tree, with `throws` reset to `false` and a
   `null` marker appended to the path" rule is currently a comment in
@@ -148,11 +167,16 @@ shares the semantics rather than the obsolete Playwright registration path.
 
 ### Tasks
 
-- [ ] Spike a `walkTests` shape against the existing `runModule` and surviving
-      process-adapter `registerModule` implementations.
+- [ ] Spike a `walkTests` shape against `runModule` and the surviving
+      process-adapter `registerModule` — after the sequential traversal from
+      [share-browser-console-runner](share-browser-console-runner.md) lands,
+      with the sibling combination as a parameter, per the note under the
+      sketch.
 - [ ] Keep Playwright out of `TestContext`, `registerModule`, and the process-side walker.
 - [ ] Define runner-independent fixtures for recursive return-value subtrees, `throws`
-      reset, path construction, and sibling fan-out.
+      reset, path construction, and sibling scheduling — proving the run path
+      sequential and the registration path fanned out, since the walker takes
+      the combination as a parameter.
 - [ ] Run those fixtures against both the process walker and the shared browser runner.
 - [ ] Keep the browser runner free of Node and Playwright imports.
 - [ ] Land the abstraction only when the existing process-side implementations become
@@ -160,6 +184,9 @@ shares the semantics rather than the obsolete Playwright registration path.
 
 ### Related
 
+- [Share the browser and console proof runners](share-browser-console-runner.md)
+  — the sequential plan that settled `runModule`'s scheduling, which this
+  issue's walker must take as a parameter rather than decide.
 - i183 — broader work on the `tf`
   framework; this is a structural cleanup that lands cleanly alongside it.
 - [i157](../../djs/todo/157-json-djs-shared-value-machine.md) — same flavour: two parallel

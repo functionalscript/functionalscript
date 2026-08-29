@@ -35,29 +35,54 @@ start event is adding a third event kind, not building the stream first.
 Add a `start` (or `begin`) event to the reporter, called with the file and path
 before the leaf is sandboxed, and let each host decide what to do with it:
 
-- **`fjs t`** prints the name, then completes the line with `ok`/`error` and the
-  duration when the result lands — the standard runner shape, in the format it
-  already prints. Interleaving is the thing to get right: leaves
-  run concurrently, so a half-written line cannot be left open across another
-  test's output. Either the name and its outcome are one deferred line with the
-  name shown live elsewhere, or output is a two-column log that names the start
-  and closes it by identifier.
-- **The browser page** renders a row in a pending state and settles it in place,
-  which is the same list it renders now with one more state per row.
+- **`fjs t`** prints a complete, newline-terminated start record, then a
+  separate result line that names the test again. Not an open line completed
+  in place: no *other leaf* runs between a start and its own result under the
+  sequential runner, but the leaf itself does, and anything it writes to the
+  terminal — a proof that logs at runtime (purity is a convention the sandbox
+  does not enforce; see [hostile-proof-values](hostile-proof-values.md)), a
+  Node warning on stderr — would splice into an open line and attach the
+  later `ok`/`error` to unrelated output, corrupting the log for readers and
+  line-oriented consumers alike. Two self-contained lines per leaf survive
+  that; in the common case the result still directly follows its own start,
+  and the repeated name is what keeps the pair legible when something
+  intervenes.
+- **The browser page** renders a row in a pending state and settles it in
+  place — the same list it renders now with one more state per row — **and
+  its start handler awaits one macrotask after rendering the pending row**,
+  exactly as its `report` handler does after a result. Appending a DOM node
+  does not paint it: without the yield, a proof that runs synchronously for
+  seconds would run and settle the row before the first paint, and the
+  running test this issue exists to show would never be visible. The yield
+  sits before the sandboxed clock reads, so the reported duration is
+  untouched (the constraint below).
 - **A result type** may not need to change at all: a start is an event, not a
   result. Whether the reporter grows a sibling operation or its existing one
   gains a status is part of the design.
 
-The reporter change is small; the interleaving question is the real one, and
-it is the same question in both hosts, which is an argument for settling it in
-the shared core rather than twice.
+The reporter change is small, and the question that was the real one when
+this was written — interleaving — is gone with the concurrency: under the
+sequential runner nothing runs between a start and its own result. What
+remains is the event's shape: whether the reporter grows a sibling operation
+or its existing one gains a status, and what a start-then-result pair looks
+like in each host. That is still the same question in both hosts, which is
+still the argument for settling it in the shared core rather than twice.
 
 ### Constraints
 
 - A start event must not cost a `sandbox` call or a clock read of its own: the
-  duration reported is still the sandboxed one.
-- Concurrency stays. Naming a test before running it must not serialize the
-  suite to keep the output tidy.
+  duration reported is still the sandboxed one. The browser start handler's
+  macrotask yield (above) is compatible: it lands before the sandbox's
+  adjacent clock reads, so it delays the start, not the measurement.
+- The runner's scheduling is not this issue's to change, in either direction.
+  When this was written that meant "concurrency stays"; the sequential plan in
+  [share-browser-console-runner](share-browser-console-runner.md) has since
+  made the traversal sequential, which this issue simply inherits — and
+  benefits from: one leaf's events no longer interleave with another's, so a
+  start is followed by its own result, in both hosts. What sequential does
+  *not* buy is an empty gap between them — the leaf itself runs there, and
+  its output can land on the same stream — which is why the terminal format
+  above emits two complete records rather than completing an open line.
 - Whatever is emitted has to be as useful to an automated consumer as to a
   reader — a start with no matching result is precisely the signal a crashed
   run leaves behind, and a controller should be able to read it.
@@ -69,8 +94,24 @@ the shared core rather than twice.
 
 - [ ] Add the start event to the reporter and call it before the
       leaf is sandboxed.
-- [ ] Decide the terminal format for concurrent output, and prove it.
-- [ ] Render a pending row in the browser page and settle it in place.
+- [ ] Decide the terminal format, and prove it. Under the sequential runner
+      leaves do not interleave, so the question is the shape of a
+      start-then-result pair rather than how to keep concurrent lines
+      legible — but a leaf's *own* output can still land between its start
+      and its result, so the proof includes a proof that writes to the
+      terminal mid-test and shows both records intact around it.
+- [ ] Render a pending row in the browser page, await one macrotask in the
+      start handler, and settle the row in place — and prove the *yield*,
+      not the append. A proof body that reads the DOM proves nothing here:
+      the pending node is appended synchronously before the await, so the
+      DOM looks identical with the yield deleted, and a blocking body cannot
+      see from inside its own task whether the browser painted first — an
+      item-11 coincidence proof in either shape. The proof is an ordering
+      sentinel: a macrotask enqueued before the start handler runs must be
+      observed to fire before the proof body starts (or a real-browser
+      observation of the painted row, as the burst was measured), and the
+      mutation check is deleting the await and watching the sentinel land
+      after the body instead.
 - [ ] Prove that a run killed mid-test leaves the running test's name behind.
 
 ### Related
