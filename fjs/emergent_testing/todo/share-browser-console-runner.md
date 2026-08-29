@@ -451,7 +451,15 @@ and is reviewable without the next one.
       Breaking (scheduling semantics), so it carries its own changelog entry.
       Run the full suite under it *in this PR* — a proof that depends on a
       sibling running concurrently deadlocks here, where it is cheap to find,
-      not in the browser port.
+      not in the browser port. The suite run is *not* the proof of the
+      sequential contract, though: the suite is green under the concurrent
+      traversal too, so it would stay green if a later edit restored a
+      fan-out. The contract gets its own proof, one that fails when work
+      overlaps — leaves that record enter/exit order under a mock interpreter
+      and assert no interleaving between one leaf's start and its finish, or
+      an assertion that the traversal's chain issues no `all` command — and
+      per catalog item 11's discipline the proof is mutation-tested: restore
+      one fan-out, watch it fail, revert.
 
       **7b. The page runs the shared traversal** through the step-5
       interpreter. `browser.mjs` stops discovering leaves, applying the throw
