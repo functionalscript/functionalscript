@@ -342,17 +342,30 @@ approximated:
   syntax holds only elements, so `meta` has nowhere to go;
 - a cycle.
 
-**Property attributes are not part of the data model.** `writable`,
-`configurable` and the object's extensibility describe the *slot*, not the
-value in it, and DataJS has no syntax for them. A serializer neither inspects
-nor preserves them: a frozen `{x:1}` and an ordinary one serialize alike, and
-what reads back is an ordinary object. This is not an oversight to fix by
-rejecting unusual descriptors — `Object.freeze` makes every property
-non-writable and non-configurable, so that rule would make frozen values
-unserializable, including the output of a reader that freezes what it returns,
-which this specification explicitly permits. Enumerability and accessors are
-different, and rejected above, because they change *which values appear at
-all*.
+**Only the data is in the model.** What a serializer reads from an object is
+its own enumerable string-keyed data properties, and from an array its
+elements; what it reads from those is their values. Everything else about the
+host object is outside the data model, because DataJS has no syntax for any of
+it and therefore cannot carry it:
+
+- property attributes — `writable`, `configurable`, and whether the object is
+  extensible, sealed or frozen;
+- the prototype — a `null`-prototype object, a `null`-prototype array, or an
+  `Array` subclass all serialize as their data, and read back ordinary;
+- anything else the host attaches that is not an own enumerable string-keyed
+  data property.
+
+A round trip therefore preserves the **value**, not the object. This is
+deliberate and not a gap to close by rejecting the unusual cases: `Object.freeze`
+makes every property non-writable and non-configurable, so rejecting those
+descriptors would make frozen values unserializable — including the output of a
+reader that freezes what it returns, which this specification explicitly
+permits.
+
+Enumerability and accessors are the exception, rejected above rather than
+ignored here, and the line is worth stating: they change *which values appear
+at all*, which is a question about the data. Everything in this section's list
+is a question about the object holding it.
 
 Every one of these is a case where the obvious implementation quietly produces
 a document denoting something else. `JSON.stringify` substitutes `null` for a
