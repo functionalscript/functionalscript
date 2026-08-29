@@ -26,6 +26,7 @@ import { assert, assertEq } from '../asserts/module.f.mjs'
 import { exp } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
+    arityOf,
     caseExp,
     casesOf,
     data,
@@ -140,9 +141,8 @@ const escapedValue = v => isFunctionValue(v) ? () => 5 : evaluate([])(valueExp(v
  * — for a case the corpus does not lower — the operation applied to built
  * values.
  *
- * The escape reads the group's arity from the operands it was handed, the
- * same rule the evaluator reads off a node's length, so a binary group's
- * escaped case reaches `op2` rather than being refused by the unary table.
+ * The escape dispatches on the group's arity, so a binary group's escaped
+ * case reaches `op2` rather than being refused by the unary table.
  *
  * @type {(g: Group) => (args: readonly Operand[]) => unknown}
  */
@@ -150,7 +150,7 @@ const run = g => args => {
     const lowered = caseExp(g)(args)
     if (lowered[0] === 'exp') { return evaluate([])(lowered[1]) }
     const [a, b] = args.map(escapedValue)
-    return args.length === 1 ? op1(opId(g))(a) : op2(opId(g))(a, b)
+    return arityOf(g) === 1 ? op1(opId(g))(a) : op2(opId(g))(a, b)
 }
 
 /**
@@ -298,6 +298,13 @@ const jsOnly = {
             lowerEq({ shared: { a: [ref('b')], b: [] }, cases: [] }),
         /** An id the corpus does not exercise has no JavaScript here. */
         unusedOperation: () => op1('!'),
+        /**
+         * A count the operation does not take. `Case<N>` cannot carry one,
+         * but `caseExp` is exported and its `args` are a plain array, so the
+         * mismatch is refused rather than lowered to a node that looks like a
+         * `Lowered` and fails the `exp` schema.
+         */
+        wrongOperandCount: () => caseExp({ op: '*', cases: [] })([1]),
     },
 }
 

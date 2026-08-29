@@ -46,6 +46,9 @@ NaNVM-specific vocabulary did not:
 - **Arity is not an annotation.** An operation's operand count is which
   vocabulary its id belongs to: an `Op1Id` group carries `Case<1>`, an `Op2Id`
   group `Case<2>`. A unary operation given two operands is a type error.
+  `arityOf` is the same rule at runtime, asked of the schema rather than of a
+  second copy of the vocabulary — a consumer walking `data.groups` holds a
+  `Group` whose arm is no longer known, and that is what it dispatches on.
 - **`ref` is node sharing.** Two `ref`s to one name lower to one node reached
   twice, which is what EDAG sharing *is*. The proof memoizes nodes by identity
   within a case and the printer emits one `let` binding cloned at each

@@ -13,10 +13,10 @@
  *
  * Beside the data are the format's **constructors** (`functionValue`, `ref`,
  * `throws`), its **eliminators** (`isThrows`, `isFunctionValue`, `orders`,
- * `opId`, `casesOf`), and the **lowering** that turns a case into the EDAG expression it
- * denotes (`valueExp`, `caseExp`, `lowerEq`). All three exist so that neither
- * consumer has to re-implement a rule of the corpus format: a rule written
- * twice is a rule that drifts.
+ * `opId`, `casesOf`, `arityOf`), and the **lowering** that turns a case into
+ * the EDAG expression it denotes (`valueExp`, `caseExp`, `lowerEq`). All
+ * three exist so that neither consumer has to re-implement a rule of the
+ * corpus format: a rule written twice is a rule that drifts.
  *
  * Operation identity comes from [`fjs/edag`](../edag/README.md) and is not
  * restated here — a group's `op` is an `Op1Id` or an `Op2Id`, and which of
@@ -40,7 +40,13 @@
  * ```
  */
 
+import { op1Id } from '../edag/module.f.mjs'
+import { validate } from '../rtti/validate/module.f.mjs'
+
 const { entries } = Object
+
+/** Membership in the unary vocabulary, from the schema rather than a copy. */
+const isOp1Id = validate(op1Id)
 
 // Constructors — the three things a literal cannot express.
 
@@ -135,6 +141,20 @@ export const opId = g => 'op' in g ? g.op : g.nanvmOp
  */
 export const casesOf = g => g.cases
 
+/**
+ * How many operands a group's operation takes.
+ *
+ * Which vocabulary the id belongs to is what fixes the count — the same rule
+ * the group types carry — so this asks the schema rather than a second copy
+ * of the vocabulary, and a group with no canonical id is unary because its
+ * one inhabitant is. It is the runtime half of what `Group1`/`Group2` say
+ * statically, for the consumers that walk `data.groups` and so hold a
+ * `Group` whose arm is no longer known.
+ *
+ * @type {(g: Group) => 1 | 2}
+ */
+export const arityOf = g => !('op' in g) || isOp1Id(g.op)[0] === 'ok' ? 1 : 2
+
 // Lowering — a case as the EDAG expression it denotes.
 
 /**
@@ -183,17 +203,21 @@ export const valueExp = constExp(name => { throw ['no shared value here', name] 
  * @type {(g: Group) => (args: readonly Operand[]) => Lowered}
  */
 export const caseExp = g => args => {
+    // The operand count comes from the group, not from the operands. A
+    // `Case<N>` cannot carry the wrong number, but this function is exported
+    // and its `args` are a plain array, so a caller can hand over a count the
+    // operation does not take — refused here rather than answered with a node
+    // that looks like a `Lowered` and fails the `exp` schema.
+    const n = arityOf(g)
+    if (args.length !== n) { throw ['wrong operand count for', opId(g), args] }
     if (!('op' in g) || args.some(isFunctionValue)) { return ['escape'] }
     // `some` established that no operand is a `FunctionValue`; narrowing an
     // array by a predicate over its elements is not something TypeScript does.
     const [a, b] = /** @type {readonly Value[]} */ (args).map(valueExp)
-    // Which vocabulary the tag is in is what fixed the operand count — that is
-    // the whole of how the group types carry arity — so reading the count back
-    // off the operands recovers the vocabulary. The two casts are that step and
-    // nothing more; the proof revalidates every derived expression against the
-    // `exp` schema, so a group whose id and cases disagree fails there.
+    // `n` decides which vocabulary the tag is in, and the check above makes
+    // that agree with the operands. The casts are that step and nothing more.
     /** @type {Op1 | Op2} */
-    const e = args.length === 1
+    const e = n === 1
         ? [/** @type {Op1Id} */ (g.op), a]
         : [/** @type {Op2Id} */ (g.op), a, b]
     return ['exp', e]

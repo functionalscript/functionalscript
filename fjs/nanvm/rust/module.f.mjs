@@ -38,6 +38,7 @@
  */
 
 import {
+    arityOf,
     caseExp,
     casesOf,
     isFunctionValue,
@@ -239,8 +240,8 @@ const assertion = expected => name => result => isThrows(expected)
  * or — for a case the corpus does not lower — the operation applied to printed
  * values.
  *
- * The escape reads the group's arity from the operands it was handed, as the
- * proof's does, so a binary group's escaped case prints through `op2`.
+ * The escape dispatches on the group's arity, as the proof's does, so a
+ * binary group's escaped case prints through `op2`.
  *
  * @type {(g: Group) => (args: readonly Operand[]) => string}
  */
@@ -248,7 +249,7 @@ const result = g => args => {
     const lowered = caseExp(g)(args)
     if (lowered[0] === 'exp') { return nodeExpr(lowered[1]) }
     const [a, b] = args.map(valueExpr)
-    return args.length === 1 ? op1(opId(g))(a) : op2(opId(g))(a, b)
+    return arityOf(g) === 1 ? op1(opId(g))(a) : op2(opId(g))(a, b)
 }
 
 /** @type {(g: Group) => readonly string[]} */
