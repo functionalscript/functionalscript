@@ -199,10 +199,9 @@ rejects it, exactly the `bigint` failure one layer down. Claiming the
 construction assert establishes "JSON-representable" without qualification
 would therefore be false.
 
-The answer is one rule in one place, not a documented caveat. The walk that
-proves kinds already enumerates the schema's positions; have it keep the
-`number` ones, and have the factory's `validate` reject at exactly those
-positions any value `encodeText` cannot reproduce:
+The answer is one rule in one place, not a documented caveat: after
+`rttiParse` succeeds, walk the value it rebuilt and reject any number
+`encodeText` cannot reproduce.
 
 ```js
 /** A number `JSON.stringify` renders without changing its value. */
@@ -227,35 +226,43 @@ such caller at all: `../json/module.f.mjs`'s parser returns negative zero
 for the `-0` literal, pinned at `../json/extended/proof.f.mjs:61`
 (`Object.is(parseValue('-0'), -0)`), so it arrives from JSON text.
 
-**The factory owns the check in both cases; the refinement is never asked
-to carry it.** The construction walk already knows which shape the schema
-is, so it picks the strategy:
+**One generic walk, after the parse — not a schema-specialized check.** It
+would be possible to compile the schema's `number` positions at construction
+and check only those, with a fixed lookup where the position is a declared
+member path and a traversal only where it is a pattern beneath an
+`array`/`record`. Don't. That buys a linear walk's worth of nothing for the
+dialects that have no numbers, and pays for it with compiled positions, two
+checking strategies to keep in agreement, and the schema's reference cycles
+to re-handle — optimization ahead of any measured need, which
+the repo-root `AGENTS.md:23-26` puts first among the three principles that
+outrank everything else. The generic walk is over the *rebuilt value*, a finite JSON
+tree, so it has no cycle problem at all — the cycle hazard was in walking
+schemas, and this walk never does.
 
-- **Every `number` at a declared member path** — a fixed lookup per path,
-  no traversal. That is all three dialects today: `revisionSchema`'s
-  `generation` (`../revision/module.f.mjs:128`) is the only `number` in any
-  of them, so the factory installs one check at one path, and `lock` and
-  `note` get none at all.
-- **A `number` beneath an `array` or `record`** — the position is a
-  *pattern* rather than a path, so the factory installs a walk over the
-  value's number positions, for that dialect only. No dialect pays for it
-  today, and the one that introduces a nested `number` pays a traversal of
-  the same order as the validation walk rtti already performs on the same
-  value.
+It also cannot be evaded. Running it inside the factory's `validate` means
+no dialect's refinement is asked to carry the rule: `checkReferences` is an
+arbitrary callback whose contract says nothing about numbers, so an identity
+refinement over `array(number)` would return `ok` for an element that is
+`NaN`, `encodeText` would emit `null` for it, and `decodeText` would reject
+what `encodeText` produced. Presence of a refinement is not verification; a
+walk the factory runs itself is.
 
-What the factory must **not** do is treat the presence of a refinement as
-discharging the second case. A `checkReferences` argument is an arbitrary
-callback whose contract says nothing about numbers — an identity refinement
-returns `ok` for an array containing `NaN`, `encodeText` then emits `null`
-for that element, and `decodeText` rejects what `encodeText` produced. That
-is the same silent wrong encoding this section exists to remove, re-admitted
-through a presence test that proves nothing. Presence is not verification;
-if the factory cannot check the value itself, it has no guarantee to state.
+**The guarantee is a fixpoint over `validate`'s output, not over its
+input.** `decodeText(encodeText(validate(x)[1])) = validate(x)` — stated on
+the value `validate` *returns*, which is the one thing both sides share. It
+cannot be stated over an accepted input, because these schemas are
+deliberately `open` and `rttiParse` rebuilds declared members only:
+`parse(open({ a: number }))({ a: 1, b: 2 })` is `['ok', { a: 1 }]`, spelled
+out in the reader's own JSDoc (`../../rtti/parse/module.f.mjs:525-533`). So
+a revision carrying a `future` field is accepted while `encodeText` of the
+*input* would carry a member the round trip drops — and `ValueOf<S>` cannot
+exclude that input, since TypeScript object types are structurally open.
+Dropping extras is the versioning rule working as designed (`../module.f.mjs:119-124`);
+the contract just has to be stated where it is true.
 
-With that, the contract is exact: `decodeText(encodeText(v)) = v` for every
-`v` that `validate` accepts, with no caveat about provenance, no exception
-for `-0`, and no dependence on what a dialect's refinement happens to
-inspect. The error is a `ValidationError` with the offending path, which
+On `validate`'s output the fixpoint holds exactly, with no caveat about
+provenance and no exception for `-0`. The error is a `ValidationError` with
+the offending path — which the walk collects as it descends, and which
 `validate`'s declared result type already admits — so no dialect's published
 signature changes.
 
@@ -266,14 +273,14 @@ an exact count derived as `1 + max(parents')`, which never yields negative
 zero, so the dialect has its own reason to name the value. It stops being
 load-bearing once the factory enforces the rule.
 
-Do **not** answer this in `encodeText` instead, by walking every value
-checking `jsonExact`. `encodeText` has no schema to consult, so it would
-traverse unconditionally — including for the dialects whose `validate`
-needs only a fixed lookup, and on every encode rather than once per value
-admitted. Pushing the check down into `../json`'s serializer is worse still:
-it would change every JSON consumer in the repo, far outside this issue. Narrowing the schema is not available either — rtti cannot express a
-finite `number`, the same expressiveness limit that sends the `bigint` half
-to a runtime assert.
+Do **not** put the walk in `encodeText` instead. The check belongs where a
+value is admitted, once, not on every encode of an already-admitted value —
+and `encodeText` returns a `string`, so a failure there has nowhere to go
+but a throw, while in `validate` it is an ordinary `ValidationError`.
+Pushing it down into `../json`'s serializer is worse still: it would change
+every JSON consumer in the repo, far outside this issue. Narrowing the
+schema is not available either — rtti cannot express a finite `number`, the
+same expressiveness limit that sends the `bigint` half to a runtime assert.
 
 A type constraint — requiring `ValueOf<S>` assignable to `JsonUnknown` — is
 strictly better where it can be expressed, since it moves the failure to
@@ -408,24 +415,25 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
       `lock` is recursive — constructs without hanging. Attempt the
       `ValueOf<S>`-assignable-to-`JsonUnknown` constraint too, and keep it
       if it expresses cleanly — but the assert stays either way.
-- [ ] Have the construction walk keep the schema's `number` positions and
-      have the factory's `validate` enforce `jsonExact` at every one of
-      them: fixed lookups where they are declared member paths, a walk over
-      the value's number positions for a dialect whose schema puts one under
-      an `array`/`record`. A supplied refinement discharges nothing —
-      `checkReferences` is an arbitrary callback with no contract about
-      numbers, so a schema with a nested `number` must be checked by the
-      factory, not waved through because an argument was present. Prove
-      four: `validate` rejects `NaN` and `-0` at `generation` with a
-      `ValidationError` naming the path; a dialect with `array(number)` and
-      an identity refinement still rejects a `NaN` element; and
-      `decodeText(encodeText(v))` is `v` for a validated revision. Compare
-      that last one with `assertStructurallySame`,
-      not `Object.is` — `decodeText` builds a fresh object, so `Object.is`
-      on the whole value is false for any input; the structural comparison
-      is the one that reaches primitives with `Object.is` and so still
-      separates `0` from `-0`
+- [ ] Run one generic `jsonExact` walk over the value `rttiParse` rebuilds,
+      inside the factory's `validate`, collecting the path as it descends.
+      One strategy, no compiled positions, and nothing a dialect's
+      refinement can waive. Prove four: `validate` rejects `NaN` and `-0` at
+      `generation` with a `ValidationError` naming the path; a dialect with
+      `array(number)` and an identity refinement still rejects a `NaN`
+      element (the case a per-schema check would have missed); and the
+      fixpoint `decodeText(encodeText(validate(x)[1])) = validate(x)` for a
+      revision — stated on `validate`'s **output**, since `open` schemas
+      drop undeclared members (`../../rtti/parse/module.f.mjs:525-533`) and
+      the identity does not hold over an accepted input. Compare with
+      `assertStructurallySame`, not `Object.is` — `decodeText` builds a
+      fresh object, so `Object.is` on the whole value is false for any
+      input; the structural comparison is the one that reaches primitives
+      with `Object.is` and so still separates `0` from `-0`
       (`../../types/object/structurally_same/module.f.mjs:25`).
+- [ ] Add a proof row for the dropped-extras case itself, so the fixpoint's
+      scope is pinned rather than assumed: a revision blob with a `future`
+      member validates, and the value it returns does not carry it.
 - [ ] Add `Object.is(r.generation, -0)` to `revision`'s own check for the
       better message, and prove `decodeText('{"generation":-0,…}')` is an
       error. Independent of the factory — worth landing on its own.

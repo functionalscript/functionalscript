@@ -86,8 +86,21 @@ its escape hatch too. The safety lives in the `Add1`/`Add2` constraints at
 the call site, exactly as it does for `cmp`; the cast only gets the body past
 the checker.
 
-`number`, `bigint`, and `string` re-export it (the last as the operation
-inside `concat`), and the two `sum` folds keep their per-domain identity
+**Keep the published surface exactly as it is.** Only `bigint` exports
+`addition` today (`../../../bigint/module.f.mjs:34`); `number` and `string`
+merely *use* the operator module's version, in `sum`
+(`../../../number/module.f.mjs:18`) and inside `concat`
+(`../../../string/module.f.mjs:49`). So `bigint`'s export becomes a narrowly
+typed alias of the polymorphic definition, and `number`/`string` publish
+nothing new — they keep importing it. Adding `number.addition` and
+`string.addition` for symmetry with `cmp` would be a separate decision:
+`cmp` is re-exported per domain because callers ask for it there, and no
+caller asks for these. Each new name would also owe a proof entry of its
+own — `../../../number/proof.f.mjs:1` and `../../../string/proof.f.mjs:1`
+import fixed lists, so a re-export not added to them would be a published
+function nothing calls.
+
+The two `sum` folds keep their per-domain identity
 literals — the identity genuinely differs, so `sum` stays per-domain; only
 the operation stops being re-defined. Delete the two addition TODOs as part
 of the change — `../module.f.mjs:43-47` and `../../../bigint/module.f.mjs:29`.
@@ -97,7 +110,14 @@ different domain, and consolidating it is its own decision.
 ### Tasks
 
 - [ ] Add `Add1`/`Add2` to `../types.ts` and the polymorphic `addition`
-      here; re-export from `number`, `bigint`, and `string`.
+      here. `bigint` keeps its existing `addition` export, now a narrowly
+      typed alias; `number` and `string` keep importing it and publish
+      nothing new.
+- [ ] Give `bigint`'s `addition` a proof entry. It is exported today and
+      `../../../bigint/proof.f.mjs` never calls it — a pre-existing gap
+      against `fjs/AGENTS.md:25-34`, and this change is what makes it a
+      re-export of shared code, where an unexercised alias is exactly how a
+      mis-narrowed signature would go unnoticed.
 - [ ] Confirm both halves of the typing: `addition(1)(2)` is `number` (not
       `1 | 2`), and the two `sum` folds keep their current inferred
       signatures — the polymorphic form must still be assignable to
