@@ -56,8 +56,12 @@ the shared core rather than twice.
 
 - A start event must not cost a `sandbox` call or a clock read of its own: the
   duration reported is still the sandboxed one.
-- Concurrency stays. Naming a test before running it must not serialize the
-  suite to keep the output tidy.
+- The runner's scheduling is not this issue's to change, in either direction.
+  When this was written that meant "concurrency stays"; the sequential plan in
+  [share-browser-console-runner](share-browser-console-runner.md) has since
+  made the traversal sequential, which this issue simply inherits — and
+  benefits from: starts and results no longer interleave, so a start line is
+  followed by its own result line, in both hosts.
 - Whatever is emitted has to be as useful to an automated consumer as to a
   reader — a start with no matching result is precisely the signal a crashed
   run leaves behind, and a controller should be able to read it.
@@ -69,7 +73,10 @@ the shared core rather than twice.
 
 - [ ] Add the start event to the reporter and call it before the
       leaf is sandboxed.
-- [ ] Decide the terminal format for concurrent output, and prove it.
+- [ ] Decide the terminal format, and prove it. Under the sequential runner
+      output does not interleave, so the question is the shape of a
+      start-then-result pair rather than how to keep concurrent lines
+      legible.
 - [ ] Render a pending row in the browser page and settle it in place.
 - [ ] Prove that a run killed mid-test leaves the running test's name behind.
 

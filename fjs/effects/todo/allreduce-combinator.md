@@ -34,15 +34,14 @@ issue wrote it — would not compile. If
 
 `op` must be **commutative** — results may arrive in any order when the runner schedules sub-effects in parallel.
 
-After adding `allReduce`, `runModuleMap` in `fjs/emergent_testing/module.f.mjs` simplifies to:
-
-```ts
-return allReduce
-    (([k, v]: Entry<unknown>) => runModule(reporter)(k, v)(zero))
-    (mergeState)
-    (zero)
-    (modules)
-```
+**`runModuleMap` is no longer a consumer.** An earlier draft of this issue
+rewrote it with `allReduce`, and the sequential plan in
+[share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
+decides the opposite: the proof traversal runs one leaf's whole chain before
+the next, deliberately, and fanning its modules back out would undo that
+decision. The combinator's consumers are the sites that *want* fan-out — the
+framework-registration path and `dev/module.f.mjs`'s file loading — and it
+must not be applied to the traversal.
 
 ### Naming
 
