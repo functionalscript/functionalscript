@@ -74,7 +74,12 @@ tokenizer's dummy-path workaround.
 
 - [ ] re-extract `tokenizeOp` from `tokenizeWithPositionOp`'s two branches
 - [ ] export a `tokenizeRaw` (no-metadata) entry point built on `tokenizeOp`
-- [ ] switch `fjs/media/json/tokenizer` to consume it instead of `jsTokenize(input)('')`
+- [ ] ~~switch `fjs/media/json/tokenizer` to consume it instead of
+      `jsTokenize(input)('')`~~ — **superseded**, do not build this. JSON stops
+      consuming `fjs/js/tokenizer` at all; see
+      [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md).
+      The raw entry point is still worth extracting for the DJS/`fsc`
+      consumer, which is the motivation that survives.
 - [ ] (defer) generic `withPosition` combinator once a second consumer appears
 
 ### Related

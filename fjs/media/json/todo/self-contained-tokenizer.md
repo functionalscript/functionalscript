@@ -144,25 +144,45 @@ is removing — stage 7 keeps it for the same reason.
 
 ### The error rule, stated once
 
-Three sentences replace the inherited behavior:
+Four rules replace the inherited behavior:
 
 1. **One error token per invalid lexeme.** A lexeme that cannot be completed
    produces exactly one `{ kind: 'error' }` and no value token — never a
    partial string or number built from the surviving characters.
-2. **An invalid lexeme runs to the next delimiter**, where a delimiter is
-   whitespace, one of `{}[]:,`, a `"`, or end of input — the four things that
-   can only ever start a new token. Everything else is still part of the
-   lexeme that failed. The delimiter itself is re-dispatched rather than
-   swallowed, so `12.]` stays `error, ]`, while the junk *inside* the lexeme
-   is not re-scanned into further errors.
+2. **A number ends at a terminator, and a malformed one runs to the next
+   terminator.** Scan JSON's number grammar; when the grammar can no longer
+   continue, look at the next character.
 
-   A number is required to end at a delimiter, which is why `0abc` reports
-   `invalid number` rather than the number `0` followed by a stray word. RFC
-   8259 does not demand that — `0` is a complete `number` and the *parser*
-   would reject what follows — but in a valid document a number is always
-   delimited, so requiring it rejects nothing and says something far more
-   useful about the input that is actually wrong.
-3. **The message names the lexeme that failed** — `invalid number`,
+   - A **terminator** — whitespace, one of `{}[]:,`, a `"`, a `-`, or end of
+     input — ends the lexeme and is re-dispatched rather than swallowed. The
+     number is a `number` token if the grammar stopped in an accepting state
+     and one `invalid number` if it did not. So `12.]` stays `error, ]`.
+   - **Anything else** means the lexeme is malformed: consume through to the
+     next terminator and emit exactly one `invalid number`. The junk inside is
+     not re-scanned into further errors.
+
+   A character the grammar can still consume is consumed, so the terminator
+   test never fires mid-lexeme: the `-` in `1e-5` is an exponent sign, because
+   after `e` the grammar wants one.
+
+   Requiring a terminator is why `0abc` reports `invalid number` rather than
+   the number `0` followed by a stray word. RFC 8259 does not demand it — `0`
+   is a complete `number` and the *parser* would reject what follows — but in a
+   valid document a number is always terminated, so requiring it rejects
+   nothing valid and says something far more useful about input that is wrong.
+
+   `-` has to be in the terminator set, and the proofs are what say so:
+   `tokenize('10-0')` asserts the two number tokens `10` and `-0`. Without `-`
+   as a terminator the whole input would scan as one `invalid number`, breaking
+   an accepted-input proof — the very bar this design sets for itself.
+
+3. **A malformed string runs to its closing quote, which it consumes.** The
+   general terminator rule cannot apply inside a string literal, where the only
+   structure is the quote: re-dispatching the closing `"` of `"\x"` would start
+   a *second* string that then hits end of input, giving two errors where one
+   was promised. Recovery therefore ends at the closing `"`, consuming it, or
+   at end of input for an unterminated literal.
+4. **The message names the lexeme that failed** — `invalid number`,
    `invalid string`, `invalid token` for a bare word that is not `true`,
    `false` or `null`, and `unexpected character` for a code point that can
    start no JSON token.
@@ -170,7 +190,8 @@ Three sentences replace the inherited behavior:
 Rule 2 is what makes the count stop depending on JavaScript. Today the same
 malformed number reports once or twice according to whether it carried a sign,
 and `--` reports once where `---` reports twice — the first pair being a JS
-decrement operator. Under one rule each of these is one error:
+decrement operator rather than anything JSON can see. Under one rule the count
+follows the input instead:
 
 | input | today | proposed |
 | --- | --- | --- |
@@ -180,7 +201,8 @@ decrement operator. Under one rule each of these is one error:
 | `-00` | error, error | one `invalid number` |
 | `-0.` | error, error | one `invalid number` |
 | `-` | `invalid token` | one `invalid number` |
-| `--`, `---` | one error / two errors | one `invalid number` each |
+| `--`, `---` | one error / two errors | two / three `invalid number` — one per `-` |
+| `10-0` | number `10`, number `-0` | unchanged — `-` terminates a number |
 | `-.123` | error, error, number `123` | one `invalid number` |
 | `0abc,` | error, error, `,` | one `invalid number`, `,` |
 | `1true` | error, `true` | one `invalid number` |
@@ -192,13 +214,13 @@ An unterminated string stays one error; its message changes from
 `" are missing` to `invalid string`.
 
 The last row is the only one where a token becomes *more* accepted, and it is
-the delimiter rule reading correctly: `"` cannot continue a number, so `12` in
+the terminator rule reading correctly: `"` cannot continue a number, so `12` in
 `12"a"` really is a complete number lexeme, where today it is reported as
 malformed. The document stays invalid either way — the parser rejects two
 adjacent values — so no input changes acceptance.
 
 Nothing moves the other way. `0n` does not become the number `0` followed by a
-stray `n`: `n` is not a delimiter, so the run is one `invalid number`, exactly
+stray `n`: `n` is not a terminator, so the run is one `invalid number`, exactly
 as `0abc` is today.
 
 ### Exporting the string and number scanners
@@ -214,6 +236,27 @@ parameterize them for DataJS's extensions in this stage. A seam built for a
 consumer that does not exist yet is the shape that rots: the `fjs/fsc` grammar
 stage 2 deleted was dead precisely because nothing imported or proved it.
 Widening the seam is stage 4's work, done against a real second caller.
+
+### Edits owed to existing issues
+
+Two open issues are written against the dependency this stage removes, and
+both would otherwise send someone to build something stage 3 deletes. Each
+gets a note now, while this is in flight, and its substantive rewrite in the
+implementation PR — the premise only actually changes when the code does.
+
+- [666-js-tokenizer-position-layer](../../../js/todo/666-js-tokenizer-position-layer.md)
+  — proposes exporting a raw, metadata-free `tokenizeRaw` entry point from
+  `fjs/js/tokenizer` and has a task to "switch `fjs/media/json/tokenizer` to
+  consume it". After stage 3 that consumer does not exist, and one of the
+  issue's two motivations — tidying JSON's dummy-path workaround — goes with
+  it. The extraction still stands on the DJS/`fsc` consumer alone; drop the
+  JSON task and the JSON motivation rather than the issue.
+- [streaming-recognizer](./streaming-recognizer.md) — requires the recognizer
+  to reuse "the tokenizer's *transition structure*" and to inherit the
+  raw-control-in-string rejection from `fjs/js`'s `parseStringStateOp`. Its
+  design survives intact and improves: the scanner it factors over a no-op
+  builder becomes JSON's own `scanString`/`scanNumber`, so "one grammar, two
+  builders" stops meaning "one *JavaScript* grammar". Repoint the citations.
 
 ### Tasks
 
@@ -231,6 +274,9 @@ Widening the seam is stage 4's work, done against a real second caller.
 - [ ] 100% proof coverage, `scanString`/`scanNumber` called directly.
 - [ ] Confirm `fjs/djs/*` is the only remaining `fjs/js/tokenizer` consumer
       afterwards; it is retired in stage 7, not here.
+- [ ] Carry out the two edits owed above: drop 666's JSON task and JSON
+      motivation, and repoint `streaming-recognizer`'s scanner citations at
+      JSON's own `scanString`/`scanNumber`.
 - [ ] `npx tsc`, `fjs test`.
 
 ### Related

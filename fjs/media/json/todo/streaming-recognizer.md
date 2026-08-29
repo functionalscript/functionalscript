@@ -56,7 +56,11 @@ next to it. A standalone recognizer that re-derives the grammar is explicitly
 out of scope, even if a test corpus shows it equivalent.
 
 Concretely, reuse the existing grammar rather than writing a fourth JSON
-parser; drop only the accumulation:
+parser; drop only the accumulation. Where the bullets below say `fjs/js`, read
+`fjs/media/json/tokenizer` once
+[self-contained-tokenizer](./self-contained-tokenizer.md) lands: the string and
+number scanners become JSON's own, which is a better fit for this design, not a
+worse one — "one grammar, two builders" stops meaning one *JavaScript* grammar.
 
 - **Payload-free scanning.** Reuse the tokenizer's *transition structure*
   (range-map dispatch, escape / `\uXXXX` / surrogate handling, number-shape DFA)
