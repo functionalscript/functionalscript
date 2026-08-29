@@ -333,10 +333,15 @@ The six parts:
     uppercase in the first two positions and refuses it in the last two.
     Review found both halves of that, one round apart.
   - **`bigint ::= '-'? int 'n'`** — both signs against both `int`
-    alternatives: `0n`, `-0n`, `109n`, `-109n`. `int`'s own class endpoints are
-    not repeated here: it is the same production `number` uses, and a reader
-    with a separate digit scanner for bigints is not an implementation this
-    grammar describes.
+    alternatives, **and `int`'s own class endpoints again**: `0n`, `-0n`, `9n`,
+    `109n`, `-109n`. An earlier draft left the endpoints to `number` on the
+    grounds that `int` is the same production there. Review was right that this
+    does not follow: a shared production in the grammar says nothing about
+    shared code in an implementation, and a reader whose bigint path accepts
+    `[1][0-9]*` passes a corpus that only ever spells bigints with a leading
+    `1`. It is the same reasoning that failed for the whitespace class two
+    rounds earlier — a claim about how implementations are built, standing in
+    for a vector.
   - **`id ::= [A-Za-z_$][A-Za-z0-9_$]*`** — both positions, and both ends of
     every range in each. The first position admits six endpoints (`A`, `Z`,
     `a`, `z`, `_`, `$`) and the tail eight (those six plus `0` and `9`), which
@@ -416,8 +421,12 @@ The six parts:
   escaped spelling `"\u005f_proto__"` (the rule is on the decoded value), a
   a number spelling JavaScript takes and DataJS does not — **every
   integer-literal family**, since sampling hexadecimal leaves the others open:
-  `0x10`, `0b10`, `0o10`, and the same four as bigints, `0x10n`, `0b10n`,
-  `0o10n`, `1_0n`, plus `+1`, `.5`, `1.`, `1_0`, `01` — and two identifier spellings it takes and DataJS does
+  `0x10`, `0b10`, `0o10`, `1_0`, `+1`, `.5`, `1.`, `01`, **and the bigint twin
+  of every one of them** — `0x10n`, `0b10n`, `0o10n`, `1_0n`, `+1n`, `.5n`,
+  `1.n`, `01n` — since the same argument that forced `9n` into the accept set
+  forces the twins here: a reader may have a separate bigint branch, and then
+  the number vectors discharge nothing. Review supplied `+1n` and the sweep
+  for its shape supplied `.5n` and `1.n` — and two identifier spellings it takes and DataJS does
   not: a **non-ASCII** one, `const é=1;export default é;`, and an **escaped**
   one, `const \u0061=1;export default \u0061;`. Both are valid JavaScript, so a
   reader borrowing the host's number or identifier grammar passes the whole-set
@@ -621,7 +630,12 @@ The six parts:
   vector that cannot fail — then the same backwards argument one row up, at
   `F5`–`F7`, which the round that fixed `C0` did not sweep to, along with the
   claim in that same round that a sequence past U+10FFFF is refused by every
-  implementation when it is refused by every *range-checking* one. The sweep for the lead-partition shape had
+  implementation when it is refused by every *range-checking* one — then the
+  bigint accepts, which left `int`'s endpoints to `number` on the grounds that
+  the production is shared, and the bigint rejects, which had twins for the
+  radices and the separator and none for the sign, the fraction or the trailing
+  dot. A shared production is not shared code, which is the whitespace
+  assumption again with a different subject. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -739,8 +753,12 @@ The six parts:
   identifier keys and trailing commas.
 
   **Two things are not on this list, and saying so keeps a later round from
-  adding vectors that cannot fail.** JavaScript rejects `1.5n`, `1e2n` and
-  `01n`; a strict module rejects the legacy octal escapes `\101` and `\8`; and
+  adding vectors that cannot fail.** JavaScript rejects `1.5n`, `1e2n`, `01n`,
+  `.5n` and `1.n` — but **not** `+1n`, which is the one member of that group
+  JavaScript *parses*: measured, it is unary plus applied to a bigint and
+  throws a `TypeError` only at evaluation, so a reader that parses without
+  evaluating accepts it outright and the vector is a narrowing vector like
+  `+1` rather than a classified one; a strict module rejects the legacy octal escapes `\101` and `\8`; and
   and a raw LF or CR inside a string literal is a JavaScript SyntaxError too.
   None of that is grounds for *omitting* a vector, only for classifying it: a
   standalone reader can accept a raw LF as string content while rejecting NUL,
