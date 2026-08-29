@@ -6,7 +6,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main } from './module.f.mjs'
-import { actions, functionalscript, nixpkgs, node } from './config/module.f.mjs'
+import { actions, functionalscript, node } from './config/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
 import { flakeText } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
