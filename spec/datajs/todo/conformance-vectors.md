@@ -1005,7 +1005,11 @@ The six parts:
   repeated within one commit of recording it. And the third integer ceiling,
   which retired the claim that two of them prove arbitrary precision: they
   prove no such thing, and the set is now justified by the backend widths that
-  exist rather than by a negative it cannot establish. The sweep for the lead-partition shape had
+  exist rather than by a negative it cannot establish. Then U+0020, missing
+  from the serializer-accept width boundaries because that list started at
+  U+007F — the same hole the `normalize` encoder table had two rounds earlier,
+  fixed there and not carried across, so the cross-role rule failed in the
+  direction it exists to prevent within three rounds of being written. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1247,8 +1251,16 @@ The six parts:
     here — the raw character or both units escaped, there being no third, since
     a lone low surrogate raw is not encodable — and the raw form is pinned
     where spellings are pinned, under `normalize`. **The UTF-8 width boundaries
-    belong here too** — U+007F and U+0080, U+07FF and U+0800, U+D7FF and
-    U+E000, U+FFFF and U+10000, and U+10FFFF — with key twins. An earlier
+    belong here too** — U+0020 and U+007F, U+0080 and U+07FF, U+0800 and U+D7FF,
+    U+E000 and U+FFFF, U+10000 and U+10FFFF — with key twins. The list began at
+    U+007F, which is the *high* end of the first row: the one-byte range is
+    **U+0020–U+007F**, everything below U+0020 being a raw control this grammar
+    forbids in a string, so U+0020 is its low end and a serializer-only
+    implementation refusing a space in a value or a key passed this role while
+    accepting ordinary ASCII and every boundary listed. The `normalize`
+    encoder table had exactly this hole and was corrected two rounds earlier;
+    the correction did not cross roles, which is the rule stated at the reader's
+    derivation failing in the direction it was written to prevent. An earlier
     draft reserved them for `normalize` on the argument that emitting U+07FF in
     three bytes "still yields a valid document denoting the same string". That
     is false, and review said so: three bytes for U+07FF is `E0 9F BF`, which
