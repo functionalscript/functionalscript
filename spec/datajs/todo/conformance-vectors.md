@@ -56,15 +56,19 @@ A machine-readable corpus with three parts:
   **two** things: that the input was refused, and that the getter was never
   invoked.
 - **serializer accept** — programmatic inputs a serializer must **not** refuse,
-  each with the document it must produce. The spec is explicit that these are
+  each with the **graph its output must denote**. Not the exact document:
+  whitespace, layout, const names and the hoisting of singly-reached values are
+  free choices ([`README.md`](../README.md)), so pinning bytes here would fail
+  conforming serializers. Exact bytes are the `normalize` set's business alone. The spec is explicit that these are
   outside the data model rather than invalid, and that rejecting them is a
   defect rather than caution ([`README.md`](../README.md)): a `null`-prototype
   object or array, an `Array` subclass, a frozen or sealed object, a
   non-extensible object, and a non-writable property. `Object.freeze` produces
   the last two together, so a serializer that rejects unusual descriptors
   cannot serialize a frozen value — including the output of a reader that
-  freezes what it returns, which the spec permits. Each vector's expected
-  document is the *data*, unchanged: the host variation must leave no trace.
+  freezes what it returns, which the spec permits. What each vector asserts is
+  that the output is **valid and denotes the input's data** — the host
+  variation leaves no trace, and `graph equivalence` supplies the comparison.
 - **graph equivalence** — an input graph and the documents that do and do not
   denote it, so a serializer cannot pass by emitting merely *valid* output:
   `[a,a]` with one shared `a` is not `export default [[],[]];`.
