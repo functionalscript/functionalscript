@@ -521,17 +521,29 @@ The six parts:
   `1.n`, `01n` — since the same argument that forced `9n` into the accept set
   forces the twins here: a reader may have a separate bigint branch, and then
   the number vectors discharge nothing. Review supplied `+1n` and the sweep
-  for its shape supplied `.5n` and `1.n`. **And a signed twin for each**, since
+  for its shape supplied `.5n` and `1.n`. **And both letter cases of every
+  radix prefix** — `0X10`, `0B10`, `0O10`, and the bigint twins `0X10n`,
+  `0B10n`, `0O10n` — because the prefix letter is a two-element set rather than
+  a fixed character. The broken reader this catches is not one that borrows the
+  whole host grammar but one that *narrows*: testing the character after a
+  leading `0` against `x`, `b`, `o` case-sensitively rejects every lowercase
+  vector above and passes `0X10` through to the host, which reads it as 16. The
+  accept set one section up already crosses `exp`'s letter case for exactly
+  this reason — `1E2` sits beside `1e09` there — and this set did not, which
+  review found. **And a signed twin for each**, since
   the accept set crosses the sign with both `int` alternatives and a reader may
   equally have a separate post-`-` path — this file already has `-NaN` and
   `-undefined` as rejects, which is that path handled separately. Every
   number-family reject takes one except the two whose subject *is* the sign,
-  `+1` and `+1n`: `-0x10`, `-0b10`, `-0o10`, `-1_0`, `-.5`, `-1.`, `-01` and
+  `+1` and `+1n`: `-0x10`, `-0b10`, `-0o10`, `-0X10`, `-0B10`, `-0O10`, `-1_0`,
+  `-.5`, `-1.`, `-01` and
   their bigint twins, beside `-1.5n` and `-1e2n`. Measured, they split the same
   way the unsigned ones do — `-01`, `-01n`, `-.5n`, `-1.n`, `-1.5n` and `-1e2n`
   are JavaScript SyntaxErrors and so are classified vectors, while `-0x10`,
   `-.5`, `-1.`, `-1_0` and the bigint radix forms parse, which makes them
-  narrowing vectors a delegating reader fails — and two identifier spellings it takes and DataJS does
+  narrowing vectors a delegating reader fails. All twelve uppercase-prefix
+  forms parse — measured, not assumed — so every one of them is a narrowing
+  vector, with no classified case hiding among them — and two identifier spellings it takes and DataJS does
   not: a **non-ASCII** one, `const é=1;export default é;`, and an **escaped**
   one, `const \u0061=1;export default \u0061;`. Both are valid JavaScript, so a
   reader borrowing the host's number or identifier grammar passes the whole-set
@@ -816,7 +828,11 @@ The six parts:
   sweeping that last one rather than reported, the recognizer's *own* checklist
   and value-free-parsing bullet, still describing the cap as an unnamed knob two
   commits after `recognizerInitCapped` was exported, in the file that exports
-  it. The sweep for the lead-partition shape had
+  it — then the radix prefixes, given only their lowercase letter: the prefix
+  letter is a two-element set, and this file's own coverage rule had already
+  been applied to `exp`'s letter case in the accept set one section above,
+  so a reader narrowing case-sensitively passed all six lowercase vectors and
+  their signed twins. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
