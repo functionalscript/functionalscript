@@ -1,6 +1,8 @@
 ## self-contained-tokenizer. JSON's tokenizer is a wrapper over the JS tokenizer
 
-**Priority:** P2
+**Priority:** P1 — raised, see
+[parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)'s
+priority note. EDAG needs a DataJS codec, and this stage is its prerequisite.
 **Status:** open
 
 ### Problem
@@ -287,40 +289,43 @@ Nothing loosens either. `0n` does not become the number `0` followed by a stray
 `n`: `n` is not a terminator, so the run is one `invalid number`, exactly as
 `0abc` is today.
 
-### The string and number scanners stay internal
+### The string and number scanners are the seam DataJS reuses
 
 The plan promises this module exports its string and number scanners so
-`fjs/media/datajs` can reuse them. **This design proposes not doing that in
-stage 3** — a deliberate deviation, recorded here rather than made silently.
+`fjs/media/datajs` can reuse them, and that consumer is **real and immediate**:
+stage 4 follows this stage directly, and DataJS's tokenizer reuses parts of
+JSON's rather than restating them.
 
-The first draft said to export them as step functions,
-`(input: number | null, state: S) => [List<JsonToken>, S]`, without
-parameterizing them for DataJS. Review found that this is not a seam at all: it
-names no public state type, no initializer, and no entry convention — whether
-the opening quote, sign or first digit has already been consumed. A stage-4
-caller could not start either scanner without reaching into an undocumented
-internal representation, and two implementations could satisfy the signature
-with incompatible conventions. An export nobody can call is worse than no
-export, because it looks like a contract.
+What DataJS needs is known precisely enough to shape the seam:
 
-Answering those questions properly means deciding what DataJS needs from the
-seam — which is stage 4's work, against its real caller. Doing it now is
-designing for an absent consumer, and this change has already struck one export
-for exactly that: 666's `tokenizeRaw` is removed because JSON was its only
-proposed consumer. Adding `scanString` and `scanNumber` with no consumer, in
-the same change that removes `tokenizeRaw` for having none, would be the same
-mistake twice.
+- **Strings are JSON's, unchanged** — same grammar, same escapes, same
+  rejection of raw control characters. `scanString` is reused as-is.
+- **Numbers are JSON's core, extended.** DataJS adds a bigint production
+  (JSON's integer part followed by `n`, with no fraction or exponent — JS
+  rejects `1.5n` and `1e2n`) and folds `-` into a following `Infinity`. The
+  int/frac/exp scanning underneath is identical.
 
-So stage 3 keeps them internal, structured as clearly separable states, and
-stage 4 extracts the seam when it has a second caller to shape it — the
-repository's own "extract at the second consumer" rule, which is the same one
-666 invokes against itself.
+So the two are exported, and this stage owes their **entry contract** in
+writing, not just their signatures — that was the gap in an earlier draft of
+this design, where a bare `(input, state) => [tokens, state]` named no state
+type, no initial value, and no convention for which character the caller had
+already consumed. An export a second implementation could satisfy incompatibly
+is not a contract. Each scanner therefore ships with:
 
-**If the seam is wanted in stage 3 instead**, it has to define, and prove: a
-public state type; an initial value or constructor for each scanner; the entry
-convention naming which character the caller has already consumed; and what a
-caller does with tokens returned mid-lexeme. That is a real API design rather
-than two `export` keywords, and it should be reviewed as one.
+- a named state type in `types.ts`;
+- an exported initial state, with the convention that **the scanner consumes
+  its own opening character** — the `"` for a string, the `-` or first digit
+  for a number — so there is no "already consumed" ambiguity at the boundary;
+- a stated rule for how the caller learns the lexeme ended, and whether the
+  terminating character was consumed or must be re-dispatched.
+
+Two honest caveats, since a seam designed one stage before its caller is a
+known way to get the shape wrong. First, stage 4 may need to adjust it; that is
+cheap precisely because these exports are new in this stage and unreleased, so
+changing them breaks nobody. Second, this stage must not go further and
+*parameterize* the scanners for DataJS's extensions — the bigint suffix and
+`-Infinity` folding belong to stage 4, written against the real caller. Export
+the shared core; let stage 4 wrap it.
 
 ### Edits owed to existing issues
 
@@ -366,10 +371,10 @@ implementation PR — the premise only actually changes when the code does.
       `unexpected character`.
 - [ ] Keep the losslessness proofs — a valid number reaches `value` as its
       exact lexeme, with no derived numeric value built while scanning.
-- [ ] 100% proof coverage. With the scanners internal, `tokenize` is the only
-      public entry point, so coverage comes through it plus direct calls to any
-      state handler it cannot reach — the pattern the current `proof.f.mjs`
-      already uses for `parseMinusState`.
+- [ ] 100% proof coverage, including `scanString` and `scanNumber` called
+      directly from their exported initial states — not only through
+      `tokenize`. A seam proved only via its own module's entry point is not
+      proved as a seam, and stage 4 is about to be its second caller.
 - [ ] Confirm afterwards that no runtime importer of `fjs/js/tokenizer` calls
       `tokenize`, and that `fjs/djs/tokenizer`'s `isKeywordToken`/`mergeTrivia`
       import is all that is left. The machine is retired in stage 7, not here.
@@ -379,8 +384,8 @@ implementation PR — the premise only actually changes when the code does.
 - [ ] Add `changelog/unreleased/<PR>.md` and the matching `Changelog:` section
       in the PR description. The implementation changes observable behavior of
       the public `tokenize` — the error tokens it emits — so the entry is
-      required. The scanners stay internal, so the module's exports are
-      otherwise unchanged and there is no additive half. Prefix it with
+      required, with an additive half for the newly exported `scanString`,
+      `scanNumber` and their state types. Prefix the error-shape half with
       `**BREAKING CHANGES:**`: a
       direct consumer matching on today's messages (`" are missing`,
       `unescaped character`, `invalid token` for `0n`) sees different tokens,
@@ -388,15 +393,15 @@ implementation PR — the premise only actually changes when the code does.
       receiving one. Valid JSON is unaffected, and the entry should say so.
 - [ ] `npm run update`, then `npx tsc` and `fjs test`. The update step is not
       optional bookkeeping here: it regenerates CI workflows and lockfiles, and
-      this stage adds no dependency and, with the scanners internal, changes no
-      export — but the declaration output still tracks the module's types, and
-      those do change.
+      this stage adds no dependency, but it does change the module's exports
+      and types, and the generated declaration output moves with them.
 
 ### Related
 
 - [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)
-  — this is its stage 3; stage 4 (`fjs/media/datajs`) is where the string and
-  number scanners get a second caller, and therefore a designed seam.
+  — this is its stage 3; stage 4 (`fjs/media/datajs`) is the second caller of
+  the string and number scanners this stage exports, and may refine their
+  contract while it is still unreleased.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — DataJS's
   grammar, whose string rule is JSON's and whose number rule extends it.
 - [bnf-grammar-single-owner](./bnf-grammar-single-owner.md) — the BNF copy of

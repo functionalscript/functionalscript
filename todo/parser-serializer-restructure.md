@@ -231,6 +231,33 @@ combined marker would encode a redundant fact.
   data-only module `m`); FunctionalScript fixtures remain valid JS with
   identical meaning (checked against a real JS engine in proofs).
 
+### Priority: stages 3 and 4 come first
+
+Stages 3 and 4 are the urgent ones, ahead of the rest of this plan and ahead of
+stage 1b. They are what [EDAG](./edag-spec.md) is waiting on.
+
+An EDAG is an expression DAG whose sharing is *semantics*, not an encoding
+detail: one node referenced from two operand positions is one value, and `{} ===
+{}` is `false`, so a carrier that expands sharing changes the meaning of the
+graph. Its serialized form is a DataJS module, because the EDAG's sharing
+structure and DataJS's `const` structure are the same thing —
+[edag-stage1-discussion](./edag-stage1-discussion.md). JSON cannot carry it, and
+not marginally: it has no way to express sharing at all, and it also lacks the
+`bigint` leaves EDAG's `Primitive` admits and loses `NaN`, `±Infinity` and
+`-0`. Both directions are needed, not just writing — the incremental-compile
+cache reads `.f.js` back, and the property that matters is that parsing a
+serialized EDAG reproduces the same EDAG.
+
+The order stays **3 then 4**, because DataJS's tokenizer reuses parts of JSON's
+rather than restating them: strings are JSON's unchanged, and DataJS's numbers
+are JSON's int/frac/exp core plus a bigint suffix and `-Infinity` folding.
+Stage 3 is therefore the prerequisite, and it exports that shared core as a
+seam — with stage 4 arriving immediately after as its second caller, which is
+what keeps the seam honest.
+
+Stage 1b (the conformance vectors) waits for these. It was already blocked on
+having an implementation to run against; stage 4 is that implementation.
+
 ### Stages
 
 Each stage lands green and independently; `fjs compile` keeps working
@@ -256,12 +283,12 @@ throughout.
    design this plan replaces with `;`, so keeping it would have preserved a
    grammar contradicting the decision record above. Git history holds them if
    a future stage wants the `id`/`alpha`/comment rules.
-3. **JSON self-contained tokenizer** — replace the `fjs/js/tokenizer` wrapper
+3. **JSON self-contained tokenizer — urgent, see above.** Replace the `fjs/js/tokenizer` wrapper
    in `fjs/media/json/tokenizer` with a scanner of JSON's own lexical
    grammar, exporting the string and number scanners for reuse.
    Accepted-input proofs unchanged; error-shape proofs rewritten once.
-4. **`fjs/media/datajs`** — parser and serializer, proofs over the spec
-   vectors. The parser reuses JSON's container machine, and today's seam is
+4. **`fjs/media/datajs` — urgent, see above; this is what EDAG needs.** Parser
+   and serializer, proofs over the spec vectors. The parser reuses JSON's container machine, and today's seam is
    **not wide enough for that**: `NumberPolicy` receives number tokens only,
    `JsonToken` has no identifier/bigint/`=` tokens, and the object states
    accept string keys only. Generalizing the seam is therefore explicit
@@ -325,6 +352,8 @@ throughout.
       the compiler accepts today.
 - [ ] Stage 1b: the conformance vectors —
       [`conformance-vectors`](../spec/datajs/todo/conformance-vectors.md).
+      Deferred behind stages 3 and 4, which give it an implementation to run
+      against.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/bnf/todo/207-bnf-semantic-actions.md)
       repointed at `fjs/bnf/testlib.f.mjs`.
