@@ -3,26 +3,28 @@
 **Priority:** P3
 **Status:** open
 
-Five CI modules construct a GitHub Actions "setup" step with the identical
+Four CI modules construct a GitHub Actions "setup" step with the identical
 shape `install({ uses: '<action>', with: { '<x>-version': <pinnedVersion> } })`,
 differing only in the action string and the version key/value:
 
 ```ts
-// ci/node/module.f.mjs:21
+// ci/node/module.f.mjs
 const installNode = (version: string) =>
-    ({ uses: 'actions/setup-node@v6', with: { 'node-version': version } })
+    ({ uses: 'actions/setup-node@v7', with: { 'node-version': version } })
 
-// ci/deno/module.f.mjs:11
-install({ uses: 'denoland/setup-deno@v2', with: { 'deno-version': deno } })
+// ci/bun/module.f.mjs
+install(uses('oven-sh/setup-bun', { 'bun-version': bun }))
 
-// ci/bun/module.f.mjs:22  (the non-Windows-ARM default)
-{ uses: 'oven-sh/setup-bun@v2', with: { 'bun-version': bun } }
-
-// ci/rust/module.f.mjs:48
+// ci/rust/module.f.mjs
 install({ uses: 'bytecodealliance/actions/wasmtime/setup@v1', with: { version: wasmtime } })
-// ci/rust/module.f.mjs:52
 install({ uses: 'wasmerio/setup-wasmer@v3.1', with: { version: `v${wasmer}` } })
 ```
+
+It used to be five. Deno's went when that job moved to Nix: its runtime comes from a
+generated flake now, and the only action it installs is `cachix/install-nix-action`,
+which takes no version input. `installNode` survives because the platform matrix and
+`package-check` still use it, and `setup-bun` because that job's migration is blocked
+([bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md)).
 
 ### Proposed abstraction
 
@@ -36,42 +38,43 @@ export const setupTool =
         ({ uses, with: { [versionKey]: version } })
 ```
 
-- `installNode  = setupTool('actions/setup-node@v6', 'node-version')`
-- `installDeno  = setupTool('denoland/setup-deno@v2', 'deno-version')`
-- `bun`'s default branch = `setupTool('oven-sh/setup-bun@v2', 'bun-version')`
+- `installNode  = setupTool('actions/setup-node@v7', 'node-version')`
+- `installBun   = setupTool('oven-sh/setup-bun@v2', 'bun-version')`
 - wasmtime / wasmer = `setupTool('bytecodealliance/actions/wasmtime/setup@v1', 'version')`
   and `setupTool('wasmerio/setup-wasmer@v3.1', 'version')` (wasmer keeps its
   `v${...}` formatting at the call site).
 
 ### Why this qualifies
 
-- Five real call sites today, all shipping.
+- Four real call sites today, all shipping — down from five, but still well past
+  the "second real consumer" bar.
 - It is the textbook `AGENTS.md` case: identical shape, only data (action
   descriptor, version key/value) varies.
-- It is **complementary to, not a duplicate of, [i170](./170-ci-tool-step-builder.md)**.
-  That issue extracts the *step sequence* `toolSteps(setup, cmds)` and
-  deliberately takes the install step as a pre-built input
-  (`ci/bun`'s per-OS `installOnWindowsArm` is why). This issue is the missing
-  other half: a factory that *constructs* those install steps. The two compose:
-  `denoSteps = toolSteps(install(setupTool('denoland/setup-deno@v2','deno-version')(deno)), [...])`.
+- It was **complementary to, not a duplicate of, [i170](./170-ci-tool-step-builder.md)**:
+  that issue extracted the *step sequence* and took the install step as a pre-built
+  input, while this one constructs those install steps. i170 is `irrelevant` now, so
+  this stands alone — which makes it smaller, not blocked.
 
 ### Caveats / why this is an idea, not a mechanical edit
 
-- **Bun's Windows-ARM fallback stays.** `installOnWindowsArm`
-  (`ci/bun/module.f.mjs:16`) swaps the setup action for a PowerShell `irm | iex`
-  on `windows`+`arm`. `setupTool` builds the *default* branch only; the
-  per-OS/arch wrapper continues to choose between it and the PowerShell variant.
-- **`version` vs `<tool>-version` keys.** node/deno/bun use a tool-prefixed key;
+- **`version` vs `<tool>-version` keys.** Node and Bun use a tool-prefixed key;
   wasmtime/wasmer use a bare `version`. The `versionKey` parameter covers both,
   so this is not a blocker — just confirm the two families share the factory
   cleanly rather than forcing a prefixed convention.
+- **The remaining call sites may not stay.** `installNode`'s two consumers are the
+  platform matrix and `package-check`, and
+  [built-package-checks](built-package-checks.md) proposes reworking the first;
+  `setup-bun` goes as soon as Nixpkgs packages a usable Bun. If a future issue moves
+  the Rust tools to a flake as the runtimes went, this factory runs out of call sites
+  the way `toolSteps` did — check the count before building it.
 - Mechanical savings are small (one line per tool); the value is making "install
-  a pinned tool" one named recipe so a sixth tool reuses it.
+  a pinned tool" one named recipe so a fifth tool reuses it.
 
 ### Related
 
-- [i170](./170-ci-tool-step-builder.md) — the `toolSteps` step-sequence builder; this factory feeds
-  it. This entry used to read `i170/i171`, but the retired `i171` is not a CI
+- [i170](./170-ci-tool-step-builder.md) — the `toolSteps` step-sequence builder this
+  factory was to feed, now `irrelevant`: the Nix migration took the two consumers it
+  counted on. This entry used to read `i170/i171`, but the retired `i171` is not a CI
   issue: it was `tf: stop relying on JS function names to detect throw tests`,
   resolved **won't fix** with the reason recorded in `parseTestSet`'s JSDoc in
   [`fjs/emergent_testing/module.f.mjs`](../../emergent_testing/module.f.mjs).

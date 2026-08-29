@@ -5,16 +5,21 @@
 
 ### Problem
 
-Eight CI jobs install `functionalscript` and run it. Every one of them installs
+Six CI jobs install `functionalscript` and run it. Every one of them installs
 it **from the registry**, at a version that is not the commit under review:
 
 | job | steps |
 |-----|-------|
 | the six platform jobs, through `nodeMainSteps` → `platformNodeSteps` (`../node/module.f.mjs`) | `npm install -g functionalscript@<version>`, `fjs test` |
-| `deno` (`../deno/module.f.mjs`) | `deno install -g -A --minimum-dependency-age=0 npm:functionalscript@<version>`, `deno run -A --minimum-dependency-age=0 npm:functionalscript@<version> test` |
-| `bun` (`../bun/module.f.mjs`) | `bun install -g functionalscript@<version>`, `bunx functionalscript@<version> test` |
 
-`node22` was a ninth until it lost `fjs test` and the install feeding it. Those
+`deno` and `bun` were two more. Both lost their global install and the smoke test it
+fed, for the reason this issue gives: they subjected a shipped release rather than
+the commit under review. Each now runs its own lockfile install and its own coverage
+command and nothing else, so the package check those two used to carry is one this
+issue owes, from the tarball. Deno's `--minimum-dependency-age=0` went with its
+install, as this issue predicted it would.
+
+`node22` was another until it lost `fjs test` and the install feeding it. Those
 were there because Node 22 could not run `node --test`, not to check a package,
 and the job runs the suite directly now.
 
@@ -54,14 +59,14 @@ installed CLI. Same module, same artifact, different runner requirements.
 
 #### What falls out
 
-- **`functionalscript` in `../config/module.f.mjs` loses every consumer.** It is
-  read only by `nodeMainSteps`, `denoSteps` and `bunSteps`, all of which are the
-  steps above — `nodeVersionJobs` stopped taking it when Node 22 lost its global
-  install. The constant, and the manual bump it needs after every release, go
-  away.
-- **Deno's `--minimum-dependency-age=0` loses its reason.** Its comment says the
-  flag is there to install a package younger than 24 hours from the registry.
-  A tarball on disk has no dependency age.
+- **`functionalscript` in `../config/module.f.mjs` loses its last consumer.** It
+  is now read only by `nodeMainSteps` → `platformNodeSteps`, which is the row
+  above; `denoSteps` and `bunSteps` stopped reading it, and `nodeVersionJobs`
+  stopped when Node 22 lost its global install. The constant, and the manual
+  bump it needs after every release, go away with that row.
+- **Deno's `--minimum-dependency-age=0` is already gone**, for exactly the reason
+  this issue gave: the flag was there to install a package younger than 24 hours
+  from the registry, and a tarball on disk has no dependency age.
 - **The new jobs gain `needs: [node26]`**, as `package-check` already has, so
   they cannot start before the artifact exists. Today exactly one job orders
   itself, and `jobNeeds` in `../proof.f.mjs:408` pins that count deliberately —
@@ -84,10 +89,11 @@ installed CLI. Same module, same artifact, different runner requirements.
   check plus `npm ci`. Subtract it and those jobs are Rust-only where Rust is
   present; say what their Node half becomes, including whether `npm ci` still
   has a purpose there.
-- **Whether Deno and Bun move too.** Their smoke steps sit beside
-  `deno task cov` and `bun test --coverage`, which do test the working tree.
-  Moving only the smoke halves leaves those jobs coherent — "this repository
-  under Deno/Bun" — at the cost of more package jobs.
+- ~~**Whether Deno and Bun move too.**~~ Settled by removal rather than by a
+  move: both jobs dropped their smoke halves and kept the parts that test the
+  working tree, so each reads coherently as "this repository under Deno/Bun".
+  What they used to check is owed here, from the tarball, and the question left
+  is only how many package jobs that takes.
 - **How each runtime installs a tarball globally.** `npm install -g ./x.tgz`,
   `bun install -g ./x.tgz` and Deno's equivalent need checking against the
   pinned versions rather than assumed; Deno in particular installs from
@@ -101,12 +107,15 @@ installed CLI. Same module, same artifact, different runner requirements.
 - [ ] Confirm the global-install spelling for a local tarball on each runtime
 - [ ] Generate the checks from `fjs/ci/package`, consuming `packageArtifact`
       with `needs: [packageJobId]`
-- [ ] Remove the registry installs from `platformNodeSteps`, `denoSteps` and
-      `bunSteps`
+- [ ] Remove the registry install from `platformNodeSteps` (`denoSteps` and
+      `bunSteps` no longer have one)
 - [ ] Delete `functionalscript` from `../config/module.f.mjs` once nothing reads
-      it, and drop Deno's `--minimum-dependency-age=0` with its reason
+      it — `platformNodeSteps` is the last thing that does
+- [x] Drop Deno's `--minimum-dependency-age=0` with its reason — done when that
+      job's registry install went
 - [ ] Consider dropping `NixJob.shellHook`: no job declares one since Node 22's
-      global install left, so only `fjs/ci/nix/proof.f.mjs` holds the capability
+      global install left, and no global install remains in any job with a flake.
+      Only `fjs/ci/nix/proof.f.mjs` holds the capability
 - [ ] Update `../proof.f.mjs`: the job count, the per-job assertions, and
       `jobNeeds`'s ordering count
 
