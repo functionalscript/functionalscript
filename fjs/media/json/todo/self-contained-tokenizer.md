@@ -783,32 +783,65 @@ come out the wrong shape. Stage 4 may need to adjust it, and that is cheap
 precisely because these exports are new here and unreleased, so changing them
 breaks nobody.
 
-### Why the port and the error rule land together
+### The stage lands as two changes: the fix, then the port
 
-Review raised that this stage does two things at once — removes a dependency and
-changes error recovery — and that a PR should do one, so that a failure can be
-attributed to one or the other.
+Review raised that this stage did two things at once — removed a dependency and
+changed error recovery — and that a PR should do one. Earlier drafts argued the
+split was unavailable. **That was wrong**, on the repo's own rule and on the
+facts, and the design now splits.
 
-The concern is right in general and the split is not available here.
+[`DESIGN.md`](../../../../DESIGN.md) settles the question and even settles the
+order. It forbids *the combination*, not a fixed order, and it names this exact
+case: when the idea is the **premise** — decided before any port and provable in
+the existing context — the separation runs idea first, then the port, "which
+then carries no idea of its own beyond what the shared code already does".
 
-Some of the error-shape changes are **not a policy choice; they are consequences
-of removing the dependency.** `--` reports once today because the JavaScript
-tokenizer merges it into a decrement operator before JSON sees it. A scanner
-that no longer consults that tokenizer cannot reproduce this without
-reimplementing JavaScript's operator merging inside JSON — which is the coupling
-being removed. The same holds for the sign asymmetry, where `-00` reports twice
-and `00` once.
+#### Stage 3a — the fabricated token, fixed where it lives
 
-Landing the rest first, against the existing wrapper, means writing throwaway
-code that exists to be deleted: to suppress the fabricated string in `"\x"`, the
-wrapper would have to watch for a string token following a string error and drop
-it — a heuristic over someone else's token stream, wrong in its own way, alive
-for one PR. The alternative reading, porting first and *preserving* the
-fabricated tokens, means deliberately writing new code to reproduce a known
-defect.
+The fabricated `string` after `"\x"` is a DESIGN.md §10 violation that exists
+**today**, was found before any port was designed, and is provable against the
+current wrapper. It is the premise, so it lands first, on its own, with no
+dependency change.
 
-So the two land together, and attribution comes from proofs rather than from
-bisection. Every accepted-input proof must pass **byte-identically**, so any
+An earlier draft called the wrapper-side fix "a heuristic over someone else's
+token stream, wrong in its own way". Measured, it is neither heuristic nor
+partial — the fabrication follows exactly three messages, always immediately:
+
+```text
+"\x"        unescaped character                  → string("x")
+"\u{41}"    invalid hex value                    → string("{41}")
+"<NUL>"     unescaped control character in string → string("")
+```
+
+So the rule is total over an enumerated set: **the `string` token immediately
+following one of those three errors is fabricated, and is dropped.** No other
+token is affected, and a real string after a string error survives — `"\x" "ok"`
+keeps `"ok"`, which the proof pins. The code is a few lines in the wrapper's
+fold, and the port deletes it. That deletion is the point, not a cost: it is
+what makes 3b carry no idea of its own.
+
+#### Stage 3b — the port, carrying only what the removal forces
+
+Everything else in this design belongs to the port, because it **is** the
+removal showing through rather than a policy this stage chose:
+
+- the `n`-deletion acceptance fix, which the wrapper *cannot* make — it sees the
+  token value `11`, never the `1n1` that produced it, so nothing in the existing
+  context can tell the two apart;
+- `JsonToken`'s error `message` narrowing to JSON's own four literals, since the
+  ten-message union is the JavaScript tokenizer's;
+- the three-case failure rule, absorption, and the terminator sets as caller
+  policy — all statements about a scanner that does not exist until 3b;
+- `--` reporting once today because the JavaScript tokenizer merges it into a
+  decrement operator, and the `-00`/`00` sign asymmetry beside it;
+- `>>>=` as one `invalid token`, and the block-comment suffix loss.
+
+Reproducing any of these in a new scanner would mean writing new code to
+implement JavaScript's lexical structure inside JSON — which is the coupling
+being removed.
+
+Attribution then has both halves: 3a is one small change with its own proofs,
+and 3b is judged as a port. Every accepted-input proof must pass **byte-identically**, so any
 failure among them is the port — that half is a closed set, because the proofs
 are enumerated. Error-shape differences are judged against the **two invariants
 and the stated rules**: a difference is the error-rule change if it follows from
@@ -869,8 +902,28 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
 
 ### Tasks
 
+Two PRs, in this order. Everything from "Stage 3b" down is the second.
+
+#### Stage 3a — drop the fabricated string
+
+- [ ] In `fjs/media/json/tokenizer/module.f.mjs`, drop the `string` token that
+      immediately follows an `unescaped character`, `invalid hex value` or
+      `unescaped control character in string` error. No dependency change, no
+      new scanner, no other error shape touched.
+- [ ] Prove the three cases and the boundary: `"\x"` and `"\u{41}"` and a raw
+      NUL are each one error with no value token, while `"\x" "ok"` keeps
+      `"ok"` — the last is what makes the rule a rule rather than a heuristic.
+- [ ] `changelog/unreleased/<PR>.md`, `**BREAKING CHANGES:**` — a consumer
+      relying on a value token after a malformed literal stops receiving one.
+      Valid JSON is unaffected, and the entry should say so.
+- [ ] `npm run update`, then `npx tsc`, `fjs test`, `cargo clippy` and
+      `cargo fmt -- --check`.
+
+#### Stage 3b — the port
+
 - [ ] Write the scanner in `fjs/media/json/tokenizer/module.f.mjs`; delete the
-      `fjs/js/tokenizer` import and the `mapToken`/`parseMinusState` wrapper.
+      `fjs/js/tokenizer` import, the `mapToken`/`parseMinusState` wrapper, and
+      3a's fabricated-token suppression, which the scanner makes unreachable.
 - [ ] Move `StringToken`, `NumberToken`, `ErrorToken`, `EofToken` into
       `fjs/media/json/tokenizer/types.ts`; drop the `js/tokenizer` imports.
       Give `ErrorToken` JSON's own four-literal `message` union rather than

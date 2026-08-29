@@ -22,7 +22,10 @@ Read in this order; each line says what to do and why it comes when it does.
    generated sweeps are coverage rather than an enumeration — the design is
    explicit that no finite sweep is exhaustive, so the rules plus the
    invariants are what an implementation is held to. Implementable without
-   reading anything else here.
+   reading anything else here. It lands as **two PRs**: 3a drops the fabricated
+   string token in the existing wrapper, and 3b is the port, which then carries
+   only what removing the dependency forces — the order
+   [`DESIGN.md`](../DESIGN.md) prescribes when the idea is the premise.
    *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
    scanner unchanged and its number core extended, so JSON has to own those
    scanners before DataJS can borrow them.
@@ -333,10 +336,14 @@ throughout.
    design this plan replaces with `;`, so keeping it would have preserved a
    grammar contradicting the decision record above. Git history holds them if
    a future stage wants the `id`/`alpha`/comment rules.
-3. **JSON self-contained tokenizer — urgent, see above.** Replace the `fjs/js/tokenizer` wrapper
-   in `fjs/media/json/tokenizer` with a scanner of JSON's own lexical
-   grammar, exporting the string and number scanners for reuse.
-   Accepted-input proofs unchanged; error-shape proofs rewritten once.
+3. **JSON self-contained tokenizer — urgent, see above.** Two PRs: **3a** drops
+   the fabricated `string` token that follows a malformed-literal error, in the
+   existing wrapper, since that defect predates the port and is provable
+   without it; **3b** replaces the `fjs/js/tokenizer` wrapper in
+   `fjs/media/json/tokenizer` with a scanner of JSON's own lexical grammar,
+   exporting the string and number scanners for reuse. Accepted-input proofs
+   unchanged in both, but for one enumerated defect — the `n` an old number
+   swallowed — which only 3b can fix; error-shape proofs rewritten once.
 4. **`fjs/media/datajs` — urgent, see above; this is what EDAG needs.** Parser
    and serializer, proofs over the spec vectors. The parser reuses JSON's container machine, and today's seam is
    **not wide enough for that**: `NumberPolicy` receives number tokens only,
