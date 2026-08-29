@@ -1,7 +1,14 @@
 ## wasm-nix-blocked-on-rust-targets. Migrate the `wasm` job to a generated flake
 
 **Priority:** P3
-**Status:** blocked — Nixpkgs builds no `wasm32-wasi*` standard library
+**Status:** open
+
+Not `blocked`, and not in [`todo/blocked/`](../../../todo/README.md#blocked-by-third-parties),
+whatever this file's name suggests. Both are for an issue that cannot progress
+until something outside this repository happens, and two of the three paths in
+"What has to happen first" are decisions this repository can make today. If both
+are ruled out, what is left is purely a wait on Nixpkgs — and then this moves to
+`todo/blocked/`, with the Trigger section that requires.
 
 ### Problem
 

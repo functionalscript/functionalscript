@@ -35,14 +35,14 @@ Three canonical jobs have none, for three different reasons. That the set is exa
 these three is asserted by `fjs/ci/proof.f.mjs`'s `nixCoverage`, so a job added later
 has to come here and say which side of the line it falls on.
 
-- **`bun`** — blocked, and attempted. Nixpkgs ships 1.3.13, on the pinned commit and
+- **`bun`** — attempted, and reverted. Nixpkgs ships 1.3.13, on the pinned commit and
   on `master`, and two of this repository's proofs fail on it while passing on the
   1.4.0 `setup-bun` installs. One is a real difference in when `Symbol.species` is
   read, not a slow machine, so no timeout or configuration change reaches it, and
   weakening a proof to move a job to Nix is not a trade worth making.
   [bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md) owns it and records what
   has to change first.
-- **`wasm`** — blocked, and not on a version. Nixpkgs builds one `rustc`, with `std`
+- **`wasm`** — waiting on Nixpkgs, and not on a version. Nixpkgs builds one `rustc`, with `std`
   for the host, `wasm32-unknown-unknown` and two bare-metal targets; three of the
   job's four WASI targets have no `std` at all, so nothing the job runs would
   compile. [wasm-nix-blocked-on-rust-targets](wasm-nix-blocked-on-rust-targets.md)

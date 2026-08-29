@@ -8,7 +8,7 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main, nixJobs } from './module.f.mjs'
 import { actions, deno, functionalscript, node } from './config/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
-import { flakeText, nixDevelop } from './nix/module.f.mjs'
+import { flakeText, nixDevelop, runPath } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
@@ -24,14 +24,29 @@ const hasRun = cmd => gha =>
     definedValues(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))
 
 /**
- * Whether a job bootstraps Nix, which is the same thing as whether it enters a
- * generated flake: the installer is the one step every migrated job has and no
- * other job has a use for.
+ * Whether a job bootstraps Nix: the installer step every migrated job has and
+ * no other job needs.
  *
  * @type {(job: Job | undefined) => boolean}
  */
-const usesNix = job =>
+const installsNix = job =>
     job?.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true) === true
+
+/**
+ * Whether a job actually *enters* its own generated shell — some command it
+ * runs goes through `nix/<id>/run`.
+ *
+ * Deliberately not the same question as `installsNix`. A job could install Nix
+ * and then run its commands on the runner's own toolchain: it would look
+ * migrated, its flake would never be evaluated, and the runtime it tested would
+ * be whatever the image happened to ship. Nothing else would notice, because
+ * the version check is the step that would have caught it and it is one of the
+ * steps that would be missing.
+ *
+ * @type {(job: Job | undefined, id: string) => boolean}
+ */
+const entersFlake = (job, id) =>
+    job?.steps.some(step => step.run?.includes(runPath(id)) === true) === true
 
 /** @type {(jobId: string, cmd: string) => (gha: GitHubAction) => boolean} */
 const hasRunInJob = (jobId, cmd) => gha =>
@@ -338,7 +353,15 @@ export const proof = {
         const gha = run(true)
         const matrix = os.flatMap(o => architecture.map(a => `${o}-${a}`))
         const canonical = Object.keys(gha.jobs).filter(id => !matrix.includes(id))
-        const onNix = canonical.filter(id => usesNix(gha.jobs[id]))
+        // Bootstrapping Nix and entering the shell are separate facts, and a
+        // job doing only the first is the one that would slip past a check
+        // reading either alone. Requiring them to agree job by job is what
+        // lets the split below mean what it says.
+        for (const id of canonical) {
+            const job = gha.jobs[id]
+            assertEq(entersFlake(job, id), installsNix(job), id)
+        }
+        const onNix = canonical.filter(id => installsNix(gha.jobs[id]))
         // The declared flakes and the jobs that enter one are the same set:
         // a flake nothing enters is never evaluated, and a job entering one
         // that is not declared has no `flake.nix` to find.
@@ -347,7 +370,7 @@ export const proof = {
             assert(onNix.includes(id), `expected ${id} to enter its own flake`)
         }
         assertStructurallySame(
-            canonical.filter(id => !usesNix(gha.jobs[id])),
+            canonical.filter(id => !installsNix(gha.jobs[id])),
             // `bun` and `wasm` are blocked on Nixpkgs, for unrelated reasons;
             // `package-check` runs with no checkout, so there is no file tree
             // for a flake or its `run` script to be in.

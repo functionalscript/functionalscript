@@ -1,7 +1,13 @@
 ## bun-nix-blocked-on-nixpkgs. Migrate the `bun` job to a generated flake
 
 **Priority:** P3
-**Status:** blocked — Nixpkgs has no Bun this repository's proofs pass on
+**Status:** open
+
+Not `blocked`, and not in [`todo/blocked/`](../../../todo/README.md#blocked-by-third-parties):
+Nixpkgs shipping a Bun that passes is one way out, but deciding whether
+`customSpeciesThatFailsIsReported` asserts something Bun owes is work that can
+be done today. If that decision goes Bun's way and only the wait is left, this
+moves to `todo/blocked/` with a Trigger section.
 
 ### Problem
 
