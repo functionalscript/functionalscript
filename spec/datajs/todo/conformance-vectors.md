@@ -1248,27 +1248,33 @@ The six parts:
   draft drew the opposite conclusion for LF and CR alone — skipping them while
   keeping the bigint and octal cases on identical reasoning, four lines apart —
   and they are reject vectors now like the rest. Two of the
-  three **required-separator** vectors are the same: `export default$0` and
-  `exportdefault $0` are SyntaxErrors, since `default$0` and `exportdefault`
-  each lex as one identifier — the spec says as much about the first. They stay
+  fifteen **required-separator** vectors split three ways, and measuring them
+  is what shows where the split falls. **Ten are SyntaxErrors**: `exportdefault $0`,
+  and all nine third-position vectors whose value starts with an identifier
+  character — `export default$0`, `export defaulttrue` through
+  `export defaultInfinity`, `export default1` and `export default1n` — since in
+  each the two tokens merge into one identifier and `export <identifier>` is no
+  export form. They stay
   in the reject set as tests of the corpus's own grammar, against a reader that
   matches keyword prefixes itself, but they cannot catch a delegating one.
-  `const$0=1;export default $0` is the odd one of the three: it **parses** as
-  JavaScript and fails at run time with a `ReferenceError`, so a reader
-  delegating its parse accepts it. Sharper still are the four **spaceless**
-  vectors the positional rule adds — `export default[1]`, `export default-1`,
-  `export default"a"` and `export default{}` — which parse *and evaluate* in
-  JavaScript to exactly the graph the spaced spelling denotes, so a delegating
-  reader cannot fail them on any ground at all. All measured, not assumed.
+  **One is a runtime error**: `const$0=1;export default $0` **parses** and fails
+  with a `ReferenceError`, so a reader delegating its parse accepts it.
+  **Four parse *and evaluate***, and they are the sharpest vectors here —
+  `export default[1]`, `export default-1`,
+  `export default"a"` and `export default{}` yield exactly the graph the spaced
+  spelling denotes, so a delegating
+  reader cannot fail them on any ground at all. All measured, not assumed: the
+  fifteen were written to `.mjs` files and imported, and the counts above are
+  what came back.
 
   So the classification splits rather than settling one way, and the split is
   what stage 1b needs to record. The vectors JavaScript also refuses — `+1`,
-  the legacy octal escapes, a raw LF or CR in a string, and the two separator
+  the legacy octal escapes, a raw LF or CR in a string, and the ten separator
   SyntaxErrors — test the corpus's own grammar and cannot catch a delegating
   reader, because no reader can over-accept them by delegating to a host that
   refuses them too. The five JavaScript *accepts* — the `ReferenceError` one
-  and the four spaceless — are the narrowings, and they are the only vectors
-  here that catch one. Counting them as grammar-only, which an earlier draft of
+  and the four that evaluate — are the narrowings, and they are the only
+  vectors here that catch one. Counting them as grammar-only, which an earlier draft of
   this paragraph did by letting one concluding sentence cover both groups,
   would have left the whole positional rule with no vector that any delegating
   reader fails.
