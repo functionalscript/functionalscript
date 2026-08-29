@@ -298,6 +298,20 @@ Judgement calls worth deciding explicitly rather than by accident:
       above), so they are the ones a second host is blocked on; `Await` belongs
       to the registration path no browser runs and moves on the layering
       argument alone, which is not urgent.
+- [x] Move `Sandbox`'s and `Catch`'s *handlers* — the impure `sandbox` clock
+      helper and the `catch` thunk — to `fjs/effects/common/module.mjs`, which
+      `effects/node`'s runner spreads into its own operation map. Declaring an
+      operation in a shared layer while each host writes its own copy of the
+      obvious implementation would leave the JavaScript where it was; a browser
+      interpreter spreads the same object.
+- [ ] `fjs/effects/browser`: an interpreter over `commonOperationMap` plus the
+      page's own operations. **Deliberately not created empty.** Today it would
+      be one line wiring handlers nobody calls: the page does not run through
+      effects until
+      [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
+      step 7b, which is also where its `report` operation is designed. It lands
+      with its first consumer, which is the same second-implementer discipline
+      that decided the rows above.
 - [ ] Move `Await` / `awaitIfPromise` to `fjs/effects/common`.
 - [ ] Move the console family to `fjs/effects/common`, add the
       named `Std` type there as `RequiredMap<WriteConsoles, …>`, point

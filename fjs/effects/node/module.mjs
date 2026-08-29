@@ -31,6 +31,7 @@ import * as testContext from 'node:test'
 import { concat, normalize, toPosix } from '../../path/module.f.mjs'
 import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
+import { commonOperationMap } from '../common/module.mjs'
 import {
     emptyHost, emptyHostCode, emptyHostMessage, exitCode, toIoError, usesInlineTestContext,
 } from './module.f.mjs'
@@ -210,30 +211,6 @@ const asyncImport = v => {
     return import(s1)
 }
 
-/**
- * @template T
- * @param {() => T} f
- * @returns {Promise<{ readonly result: Result<T, unknown>, readonly duration: number }>}
- */
-const sandbox = async f => {
-    /** @type {Result<T, unknown>} */
-    let result
-    let after
-    const before = performance.now()
-    try {
-        let p = f()
-        after = performance.now()
-        if (p instanceof Promise) {
-            p = await p
-            after = performance.now()
-        }
-        result = ok(p)
-    } catch (e) {
-        after = performance.now()
-        result = error(e)
-    }
-    return { result, duration: after - before }
-}
 
 /** @type {(p: unknown) => Promise<readonly [unknown]>} */
 const awaitPromise = async p =>
@@ -493,10 +470,9 @@ const runNodeEffect = asyncRun({
     })),
     forever: () => new Promise(() => {}),
     now: async () => ok(now()),
-    sandbox: async f => ok(await sandbox(f)),
-    // A pure thunk over a value the program already has: no clock, no fixture
-    // convention, just "did it throw". See `Catch` in ./types.ts.
-    catch: async f => ok(tryCatch(f)),
+    // `sandbox` and `catch` are every host's, so node spreads them rather than
+    // writing a second copy: `../common/module.mjs`.
+    ...commonOperationMap,
     await: async p => ok(await awaitPromise(p)),
     write: async (stream, data) => ok(await writeAll(streams[stream], fromVec(data))),
     read: async () => ok(await readStdinByte()),
