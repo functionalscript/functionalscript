@@ -991,8 +991,10 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       direct consumer matching on today's messages (`" are missing` and
       `unterminated string literal`, which both become `invalid string`,
       `unescaped character`, `invalid token` for `0n`) sees different tokens,
-      and a consumer relying on a *value* token after a malformed literal stops
-      receiving one. Valid JSON is unaffected, and the entry should say so.
+      and `1n1` starts erroring where it was a number. The fabricated value
+      token is **3a's** entry, not this one — it is gone before the port
+      begins, and claiming it here would credit the port with a change it did
+      not make. Valid JSON is unaffected, and the entry should say so.
 - [ ] **Derive the sweep's prefixes from the scanner's own states**, one per
       state, rather than listing the ones that came to mind. This requirement is
       the point: the prefix set has now been too narrow twice — first covering

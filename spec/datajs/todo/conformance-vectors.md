@@ -95,7 +95,10 @@ A machine-readable corpus with six parts:
   is occurrences rather than paths. Include a normalized root that is a bare
   number and a bare bigint, so `export default 1;` cannot regress to
   `export default1;` — which JavaScript rejects, `default1` being one
-  identifier.
+  identifier. Include an **identifier-starting** root as well (`NaN`, or any of
+  `true`, `false`, `null`, `undefined`, `Infinity`): a normalizer that
+  dispatches on type can emit the space for digits and drop it for words,
+  producing `export defaultNaN;`, and the two numeric roots cannot see that.
 
 The corpus is data, not code, so it can be read by an implementation in any
 language. It is stored as **JSON, permanently** — not "JSON until DataJS can
@@ -181,7 +184,7 @@ document can carry. So the corpus does not store values. It stores a
   | `{"host": "ownProp", "on": <node>, "key": <string>, "value": <node>}` | an enumerable own data property, which is how `a=[1]; a.meta=2` is said |
   | `{"host": "nonEnumerable", "on": <node>, "key": <string>, "value": <node>}` | the same, non-enumerable |
   | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an **enumerable** accessor property that **records its own invocation** and then returns `value` |
-  | `{"host": "symbolKey", "on": <node>, "value": <node>}` | a property under a fresh unique symbol |
+  | `{"host": "symbolKey", "on": <node>, "value": <node>}` | an **enumerable** own data property under a fresh unique symbol |
   | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass" \| "custom", "from": <node, with `custom`>}` | the same data under a `null` prototype, as an `Array` subclass instance, or under a custom prototype object |
   | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` names the property for `nonWritable` |
 
@@ -225,7 +228,12 @@ document can carry. So the corpus does not store values. It stores a
     `Object.defineProperty` defaults to non-enumerable, and a non-enumerable
     accessor is refused for *that* reason without the read path ever being
     reached — so an implementation that eagerly reads every enumerable getter
-    would pass the invocation assertion. Rejecting for the right reason and rejecting after
+    would pass the invocation assertion. **`symbolKey` carries the same
+    requirement for the same reason**: built with `Object.defineProperty`
+    defaults it is non-enumerable, and a serializer refusing it for *that*
+    never has to notice the enumerable symbol-keyed property it would
+    otherwise drop silently. Two consumers would be testing two different
+    rejection paths from one vector. Rejecting for the right reason and rejecting after
     doing the forbidden thing are different outcomes.
   - **`proto: custom` is a serializer-accept vector with teeth.** The
     prototype it takes is an ordinary `obj` node, so the vector can give it an
