@@ -1186,12 +1186,21 @@ The six parts:
     names after a colon are illustrations, and measured against ECMAScript the
     real set is 21 — the colon list omits every `Space_Separator` character
     but U+00A0. Derive from the rule; the six are not a set to copy. §Whitespace
-    also *requires* whitespace in three places, after `const`, after `export`,
-    and before an identifier-starting value after `default`.
+    also *requires* whitespace in three places — after `const`, after `export`
+    and after `default` — **unconditionally in all three**, whatever follows.
+    Not "before an identifier-starting value after `default`", which is the
+    rule §Whitespace used to have and which this line went on asserting after
+    it changed: reading it that way omits the `[`, `{`, `"` and `-` boundaries
+    and reinstates the merging-based rule the corpus is meant to test against.
 
-    This section has now been got wrong twice in successive rounds, each time
-    by treating a list as closed: first the tail below was transcribed and
-    dropped the vertical tab, then the spec's six were adopted as complete.
+    This section has now been got wrong three times in successive rounds, twice
+    by treating a list as closed — first the tail below was transcribed and
+    dropped the vertical tab, then the spec's six were adopted as complete —
+    and once by keeping a condition the rule had dropped. The third is the same
+    failure wearing different clothes: a *stale* rule is a copied list whose
+    source has moved, and the defence is the same one this section already
+    prescribes, which is to derive from §Whitespace as it currently reads
+    rather than from any sentence about it, this one included.
     A conforming reader needs none of this — it accepts four characters and
     rejects the rest, so it gets all 21 for free. Only a reader **delegating**
     to a JavaScript tokenizer over-accepts, which is precisely why the vectors
