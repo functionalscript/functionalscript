@@ -36,8 +36,13 @@ Cancellation must be semantic, not merely visual. It should prevent unstarted
 proofs from running, ignore late module imports and proof completions from the
 cancelled run, and prevent that run from replacing a later run's progress,
 report, promise, or completion event. Work already executing in JavaScript
-cannot always be interrupted; cancellation should be cooperative at module,
-batch, and proof boundaries and document that limitation.
+cannot always be interrupted; cancellation should be cooperative at module
+and leaf boundaries and document that limitation. (When this was filed the
+page ran batches, and the batch boundary was a natural check point; the
+sequential plan in [share-browser-console-runner](share-browser-console-runner.md)
+removes batching, so the boundary that remains is between one leaf's whole
+chain — test, report, children — and the next, which is finer-grained than
+the batch boundary was.)
 
 The final cancelled result needs a serializable status distinct from `failed`
 and `infrastructure-error`. Decide whether cancellation dispatches the existing
@@ -55,8 +60,9 @@ module or a default query parameter.
 - [ ] Add a `Cancel` button and implement the inverse enabled/disabled states
       for `Run` and `Cancel`.
 - [ ] Add a per-run cancellation token or equivalent identity checked during
-      loading, between execution batches, and before every UI/global/event
-      publication.
+      loading, at each sequential leaf boundary (the between-batches check
+      this task once named — gone with batching, per the note above), and
+      before every UI/global/event publication.
 - [ ] Define the serializable cancelled report and completion-event behavior.
 - [x] Prove initial idle behavior and `Run`'s state transitions across
       loading, running, and both terminal outcomes; cancellation-related
