@@ -45,7 +45,22 @@ reader's public byte-accepting path — which stage 4 owes:
   stripping `EF BB BF` before the parser ever runs; and
 - a document **is UTF-8**, which nothing in a code-unit array can violate — so
   vectors carry invalid UTF-8 (a truncated sequence, an overlong encoding, and
-  a surrogate half encoded as three bytes) to be refused.
+  a surrogate half encoded as three bytes) to be refused. Each malformed
+  sequence sits **inside an otherwise valid quoted string**, and that placement
+  is the vector. A permissive decoder replaces a bad sequence with U+FFFD, and
+  U+FFFD is an ordinary DataJS string character — so with the sequence inside a
+  string the replacement yields a **valid** document, and refusal can only be
+  for the malformed bytes. Put the same sequence between tokens or alone and
+  the replacement yields an invalid document, which the parser rejects for its
+  own reasons: the vector passes while the UTF-8 rule goes unenforced. This is
+  the one-reason rule reaching the byte form.
+
+At least one byte-form vector must **accept**, and it carries a multibyte
+character. Every other case here is a rejection, so an implementation that
+refuses every byte array without decoding it would pass them all while
+refusing valid byte-encoded documents — which is the accept-direction rule
+below, and review found this document breaking it in the same commit that
+stated it.
 
 A vector naming a code path the corpus cannot reach is worth less than no
 vector, because it reads as coverage. Review found this document claiming a
@@ -55,8 +70,11 @@ cannot: the corpus reader had already decoded it.
 The six parts:
 
 - **accept** — document text plus the graph it denotes, including the sharing.
-  Cases: **each of the four permitted whitespace characters between tokens** —
-  space, tab, LF and CR — because the rejection half of this corpus is
+  Cases: a **lone surrogate**, `export default "\ud800";` denoting the
+  one-unit value `[0xd800]` — it appears under `normalize` too, but roles are
+  judged independently, so a reader-only implementation whose string model
+  cannot hold one passes every reader vector without this; **each of the four
+  permitted whitespace characters between tokens** — space, tab, LF and CR — because the rejection half of this corpus is
   extensive and a reader accepting only U+0020 passes every one of those
   vectors while narrowing the language; every leaf (`-0`, `NaN`, `±Infinity`,
   bigint, `undefined`), the
@@ -177,14 +195,14 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Nine consecutive review rounds
+  vector is the only instrument that sees it. Ten consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
   control characters, then the vertical tab and the required separators, then
   the fifteen `Space_Separator` characters the spec's own list omits, then the
   array elisions and the leading BOM, then the accept side of the whitespace
-  rule. Every time the list had been written from memory rather
+  rule, then the accept sides of the byte form and the lone surrogate. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -258,6 +276,14 @@ The six parts:
   something owes an accept vector for each thing it admits, not only reject
   vectors for the neighbours it excludes.
 
+  Stating that rule did not make it applied. The very commit that wrote it
+  added a byte-array input form with only rejecting vectors — so an
+  implementation refusing every byte array would have passed — and left the
+  lone surrogate, which the corpus can now transport, in the `normalize` set
+  alone, where a reader-only implementation never meets it. Review found both
+  in the next round. A new capability owes accept vectors at the moment it is
+  added, not when someone asks.
+
   Plus what DataJS simply lacks where JavaScript has it: comments, `import`,
   identifier keys and trailing commas.
 
@@ -313,7 +339,12 @@ The six parts:
   produce: const hoisting by reference identity, post-order `_0`, `_1`, …
   naming, `ToString(Number)` spelling with the `-0` exception,
   `QuoteJSONString` escaping — including a **lone surrogate**, which must come
-  back as `\ud800` in lowercase hex rather than a replacement character —
+  back as `\ud800` in lowercase hex rather than a replacement character, and a
+  **BMP** and an **astral** character, which `QuoteJSONString` leaves *raw*, so
+  their vectors pin the UTF-8 bytes (`c3 a9` for `é`, `f0 9f 98 80` for U+1F600).
+  Without them every pinned byte sequence in this set is ASCII and a serializer
+  emitting Latin-1, or CESU-8's `ed a0 bd ed b8 80` for that astral character,
+  passes a set whose whole promise is exact bytes —
   observable key order, one-line layout. Pin the `__proto__` key's exact bytes,
   `{["__proto__"]:1}`: a normalizer reusing an ordinary key writer emits
   `{"__proto__":1}`, which is not DataJS at all and which JavaScript reads as
