@@ -1,15 +1,26 @@
 /**
  * The single source of truth for `nanvm-lib` operator behaviour.
  *
- * This module is pure data: it names every operator case once, with the
- * arguments and the expected result written as ordinary JavaScript values.
- * Two consumers read it, so a new case is written once and checked twice:
+ * Every operator case is named once here, with the arguments and the expected
+ * result written as ordinary JavaScript values. Two consumers read it, so a
+ * new case is written once and checked twice:
  *
- * - [`proof.f.mjs`](./proof.f.mjs) runs each case through the native
- *   JavaScript operators, proving that the expectations describe JavaScript.
+ * - [`proof.f.mjs`](./proof.f.mjs) evaluates each case against a standard
+ *   JavaScript engine, proving that the expectations describe JavaScript.
  * - [`rust/module.f.mjs`](./rust/module.f.mjs) prints each case as Rust,
  *   producing `nanvm-lib/tests/test/generated.rs`, which runs the same case
  *   against `nanvm-lib`.
+ *
+ * Beside the data are the format's **constructors** (`functionValue`, `ref`,
+ * `throws`), its **eliminators** (`isThrows`, `isFunctionValue`, `orders`,
+ * `opId`, `casesOf`, `arityOf`), and the **lowering** that turns a case into
+ * the EDAG expression it denotes (`valueExp`, `caseExp`, `lowerEq`). All
+ * three exist so that neither consumer has to re-implement a rule of the
+ * corpus format: a rule written twice is a rule that drifts.
+ *
+ * Operation identity comes from [`fjs/edag`](../edag/README.md) and is not
+ * restated here — a group's `op` is an `Op1Id` or an `Op2Id`, and which of
+ * the two vocabularies it is in is what fixes the case's operand count.
  *
  * Cases `nanvm-lib` does not implement yet carry a `rust` reason and are
  * emitted as commented-out `TODO`s instead of being silently dropped — the
@@ -17,7 +28,8 @@
  *
  * @module
  *
- * @import { Case, Data, Special, Value } from './types.ts'
+ * @import { Exp, Op1, Op1Id, Op2, Op2Id, Property } from '../edag/types.ts'
+ * @import { Case, Data, Eq, Expectation, FunctionValue, Group, Lowered, LoweredEq, OpId, Operand, Ref, SharedNode, Throws, Value } from './types.ts'
  *
  * @example
  *
@@ -28,37 +40,229 @@
  * ```
  */
 
+import { op1Id } from '../edag/module.f.mjs'
+import { validate } from '../rtti/validate/module.f.mjs'
+
+const { entries } = Object
+
+/** Membership in the unary vocabulary, from the schema rather than a copy. */
+const isOp1Id = validate(op1Id)
+
+// Constructors — the three things a literal cannot express.
+
 /**
  * A function value.
  *
  * Every operator here coerces a function through `ToPrimitive`, which never
  * inspects it, so which function it is does not matter.
  *
- * @type {Special}
+ * @type {FunctionValue}
  */
 export const functionValue = () => ['function']
 
 /**
  * The case must throw. Valid only as a case's `expected`.
  *
- * @type {Special}
+ * @type {Throws}
  */
 export const throws = () => ['throw']
 
 /**
- * One of the `eq` `shared` values, so the same object reaches both sides of a
- * comparison.
+ * One of the `eq` `shared` values, so the same node — and hence the same
+ * object — reaches both sides of a comparison.
  *
- * @type {(name: string) => Special}
+ * @type {(name: string) => Ref}
  */
 export const ref = name => () => ['ref', name]
+
+// Eliminators — the constructors read back, so each rule has one owner.
+
+/**
+ * `true` when a case's `expected` is `throws` rather than a value.
+ *
+ * @param {Expectation} v
+ * @returns {v is Throws}
+ */
+export const isThrows = v => typeof v === 'function' && v()[0] === 'throw'
+
+/**
+ * `true` when an operand is `functionValue`, the one operand the corpus
+ * declines to lower.
+ *
+ * A constant function *is* spellable — `['=>', ['[]', []], body]`, since `=>`
+ * is an `Op2Id` — but establishing it would drag closure construction into
+ * both consumers for cases that never inspect the function. So such a case
+ * escapes to the direct-value path instead — see {@link caseExp}.
+ *
+ * @param {Operand} v
+ * @returns {v is FunctionValue}
+ */
+export const isFunctionValue = v => typeof v === 'function' && v()[0] === 'function'
+
+/**
+ * `true` when a group's cases are also checked with their arguments swapped.
+ *
+ * Only a binary group can carry the flag; the parameter type is what lets any
+ * group be asked without narrowing first.
+ *
+ * @type {(g: { readonly cases: unknown, readonly commutative?: boolean }) => boolean}
+ */
+const isCommutative = g => g.commutative === true
+
+/**
+ * Every argument order a case is checked in: one, or both for a commutative
+ * operator.
+ *
+ * The `Swapped` suffix is a test-*name* convention, so it has exactly one
+ * owner — spelled differently in the two consumers, the JavaScript and Rust
+ * names for one case would silently diverge.
+ *
+ * @type {(g: Group) => (c: Case<1> | Case<2>) => readonly (readonly[string, readonly Operand[]])[]}
+ */
+export const orders = g => c => isCommutative(g)
+    ? [[c.name, c.args], [`${c.name}Swapped`, c.args.toReversed()]]
+    : [[c.name, c.args]]
+
+/**
+ * The operation tag both consumers dispatch on: the group's canonical EDAG
+ * id, or the NaNVM-only name of a group that has none.
+ *
+ * @type {(g: Group) => OpId}
+ */
+export const opId = g => 'op' in g ? g.op : g.nanvmOp
+
+/**
+ * A group's cases, read without first deciding which kind of group it is.
+ *
+ * The operand count is the point of the three group types, and it is fixed
+ * before a consumer gets here; walking the cases does not need it back.
+ *
+ * @type {(g: Group) => readonly (Case<1> | Case<2>)[]}
+ */
+export const casesOf = g => g.cases
+
+/**
+ * How many operands a group's operation takes.
+ *
+ * Which vocabulary the id belongs to is what fixes the count — the same rule
+ * the group types carry — so this asks the schema rather than a second copy
+ * of the vocabulary, and a group with no canonical id is unary because its
+ * one inhabitant is. It is the runtime half of what `Group1`/`Group2` say
+ * statically, for the consumers that walk `data.groups` and so hold a
+ * `Group` whose arm is no longer known.
+ *
+ * @type {(g: Group) => 1 | 2}
+ */
+export const arityOf = g => !('op' in g) || isOp1Id(g.op)[0] === 'ok' ? 1 : 2
+
+// Lowering — a case as the EDAG expression it denotes.
+
+/**
+ * Lowers a value to the EDAG expression that denotes it.
+ *
+ * `resolve` supplies the node a `ref` names — the *same* node for every
+ * reference, which is what makes `ref` mean EDAG sharing (one node reached
+ * from several places) rather than an equal copy. Every other operand gets a
+ * fresh node, so a multiply-referenced node in a derived expression is always
+ * a `ref` and never an accident of the walk.
+ *
+ * A `ref` is the only thunk a {@link Value} admits, which is why this walk has
+ * no case for the other two: `functionValue` is a whole {@link Operand} that
+ * {@link caseExp} escapes before lowering, and `throws` is an
+ * {@link Expectation}. Neither is spellable here, so neither is rejected here.
+ *
+ * @type {(resolve: (name: string) => Exp) => (v: Value) => Exp}
+ */
+const constExp = resolve => {
+    /** @type {(v: Value) => Exp} */
+    const f = v => {
+        if (typeof v === 'function') { return resolve(v()[1]) }
+        if (v === undefined) { return ['undefined'] }
+        if (Array.isArray(v)) { return ['[]', v.map(f)] }
+        if (typeof v === 'object' && v !== null) {
+            return ['{}', entries(v).map(
+                ([k, p]) => /** @type {Property} */ ([':', k, f(p)]))]
+        }
+        return v
+    }
+    return f
+}
+
+/**
+ * The expression a value denotes, where nothing is shared. Every operand
+ * outside the `eq` section, and every `expected`, is such a value.
+ *
+ * @type {(v: Value) => Exp}
+ */
+export const valueExp = constExp(name => { throw ['no shared value here', name] })
+
+/**
+ * The expression a case denotes: the group's operation applied to its lowered
+ * operands, so `mulCases[0]` is `['*', null, null]`.
+ *
+ * @type {(g: Group) => (args: readonly Operand[]) => Lowered}
+ */
+export const caseExp = g => args => {
+    // The operand count comes from the group, not from the operands. A
+    // `Case<N>` cannot carry the wrong number, but this function is exported
+    // and its `args` are a plain array, so a caller can hand over a count the
+    // operation does not take — refused here rather than answered with a node
+    // that looks like a `Lowered` and fails the `exp` schema.
+    const n = arityOf(g)
+    if (args.length !== n) { throw ['wrong operand count for', opId(g), args] }
+    if (!('op' in g) || args.some(isFunctionValue)) { return ['escape'] }
+    // `some` established that no operand is a `FunctionValue`; narrowing an
+    // array by a predicate over its elements is not something TypeScript does.
+    const [a, b] = /** @type {readonly Value[]} */ (args).map(valueExp)
+    // `n` decides which vocabulary the tag is in, and the check above makes
+    // that agree with the operands. The casts are that step and nothing more.
+    /** @type {Op1 | Op2} */
+    const e = n === 1
+        ? [/** @type {Op1Id} */ (g.op), a]
+        : [/** @type {Op2Id} */ (g.op), a, b]
+    return ['exp', e]
+}
+
+/**
+ * Lowers the `eq` section: its `shared` values as nodes, and every case
+ * beside the `'==='` expression it denotes over them.
+ *
+ * `eq` is the case's `expected` and so is no part of the expression; what is
+ * left is an ordinary binary operation, which is why the `eq` cases validate
+ * and evaluate through exactly the same path as a group's.
+ *
+ * @type {(eq: Eq) => LoweredEq}
+ */
+export const lowerEq = eq => {
+    /** @type {(done: readonly SharedNode[]) => (name: string) => Exp} */
+    const resolve = done => name => {
+        const found = done.find(([k]) => k === name)
+        if (found === undefined) { throw ['unknown shared value', name] }
+        return found[1]
+    }
+    // Each shared value is lowered against the ones already lowered, so a
+    // `ref` inside one reaches the node an earlier entry bound and sharing
+    // nests. A name is in scope only after its own entry, which is what makes
+    // a forward reference — and with it a cycle, which no EDAG may have —
+    // unspellable rather than something to detect.
+    /** @type {readonly SharedNode[]} */
+    const shared = entries(eq.shared).reduce(
+        (/** @type {readonly SharedNode[]} */ done, [k, v]) =>
+            [...done, /** @type {SharedNode} */ ([k, constExp(resolve(done))(v)])],
+        [])
+    const operand = constExp(resolve(shared))
+    return {
+        shared,
+        cases: eq.cases.map(c => [c, ['===', operand(c.a), operand(c.b)]]),
+    }
+}
 
 /**
  * `+n` and `-n` share their whole argument space: both coerce with `ToNumber`
  * and differ only in the sign of the result. Listing the arguments once keeps
  * the two groups from drifting apart.
  *
- * @type {(negate: boolean) => readonly Case[]}
+ * @type {(negate: boolean) => readonly Case<1>[]}
  */
 const numberCoercionCases = negate => {
     /** @type {(v: number) => number} */
@@ -97,7 +301,7 @@ const numberCoercionCases = negate => {
  * two except in the case that proves it. Every pair is checked in both orders
  * — see `commutative`.
  *
- * @type {readonly Case[]}
+ * @type {readonly Case<2>[]}
  */
 const mulCases = [
     { name: 'nullByNull', args: [null, null], expected: 0 },
@@ -134,6 +338,9 @@ const mulCases = [
     { name: 'arrayStringTenByOne', args: [['10'], 1], expected: 10 },
     { name: 'arrayPairByOne', args: [[0, 0], 1], expected: NaN },
     { name: 'emptyObjectByOne', args: [{}, 1], expected: NaN },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    { name: 'functionByOne', args: [functionValue, 1], expected: NaN },
     { name: 'numberByBigint', args: [1, 1n], expected: throws },
 ]
 
@@ -144,7 +351,7 @@ const mulCases = [
  * agree on, so it is not shared data — [`proof.f.mjs`](./proof.f.mjs) checks
  * the JavaScript side separately.
  *
- * @type {readonly Case[]}
+ * @type {readonly Case<1>[]}
  */
 const stringCoercionCases = [
     { name: 'number', args: [123], expected: '123' },
@@ -217,21 +424,24 @@ export const data = {
     },
     groups: [
         {
-            op: 'unaryPlus',
+            // No canonical EDAG id: the EDAG has no unary `+`. Becomes the
+            // `Number` cast — a semantic change, not a rename — through
+            // `nanvm-lib/todo/replace-unary-plus-with-number.md`.
+            nanvmOp: 'unaryPlus',
             cases: [
                 ...numberCoercionCases(false),
                 { name: 'bigint', args: [0n], expected: throws },
             ],
         },
         {
-            op: 'unaryMinus',
+            op: 'neg',
             cases: [
                 ...numberCoercionCases(true),
                 { name: 'bigintPositive', args: [1n], expected: -1n },
                 { name: 'bigintNegative', args: [-1n], expected: 1n },
             ],
         },
-        { op: 'mul', commutative: true, cases: mulCases },
-        { op: 'stringCoercion', cases: stringCoercionCases },
+        { op: '*', commutative: true, cases: mulCases },
+        { op: 'String', cases: stringCoercionCases },
     ],
 }

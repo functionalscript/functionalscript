@@ -7,8 +7,16 @@
  * [`../module.f.mjs`](../module.f.mjs) and appears on both the JavaScript and
  * the Rust side at once.
  *
- * Literal syntax comes from [`fjs/media/rust`](../../media/rust/module.f.mjs);
- * what is specific to this module is the `nanvm-lib` API the statements target.
+ * Each statement is printed from the EDAG expression the case denotes, the
+ * same expression [`../proof.f.mjs`](../proof.f.mjs) evaluates, so the two
+ * consumers read one program rather than each reading the case its own way.
+ *
+ * Rust naming is this module's alone and never leaks back into the shared
+ * data: {@link rustName} maps a canonical operation id to a Rust identifier
+ * explicitly, because `snakeCase` over a punctuation tag such as `*` produces
+ * nothing usable. Literal syntax comes from
+ * [`fjs/media/rust`](../../media/rust/module.f.mjs); what is specific to this
+ * module is the `nanvm-lib` API the statements target.
  *
  * Every emitted function carries `#[rustfmt::skip]`: the line layout here is
  * one statement per case, and `cargo fmt -- --check` runs in CI, so the
@@ -16,7 +24,8 @@
  *
  * @module
  *
- * @import { Case, Data, Eq, Group, Op, Value } from '../types.ts'
+ * @import { Exp, Primitive, Properties } from '../../edag/types.ts'
+ * @import { Data, Eq, Expectation, Group, OpId, Operand, SharedNode } from '../types.ts'
  *
  * @example
  *
@@ -29,13 +38,22 @@
  */
 
 import {
+    arityOf,
+    caseExp,
+    casesOf,
+    isFunctionValue,
+    isThrows,
+    lowerEq,
+    opId,
+    orders,
+    valueExp,
+} from '../module.f.mjs'
+import {
     f64Literal,
     i64Literal,
     snakeCase,
     stringLiteral,
 } from '../../media/rust/module.f.mjs'
-
-const { entries } = Object
 
 const indent = '    '
 
@@ -53,52 +71,170 @@ export const directory = 'nanvm-lib/tests/test'
 export const path = `${directory}/generated.rs`
 
 /**
- * A Rust expression of type `Any<A>`.
+ * The Rust function name for each operation the corpus covers.
  *
- * Every use site fixes `A`, so no expression needs a turbofish: the harness
- * helpers take `Any<A>` arguments and the shared `let` bindings are annotated.
+ * Written out rather than derived: a canonical id may be punctuation, and the
+ * generated function names are this printer's concern and stay stable when an
+ * id is respelled.
  *
- * @type {(v: Value) => string}
+ * @type {{ readonly [k in OpId]?: string }}
  */
-export const valueExpr = v => {
+export const rustName = {
+    unaryPlus: 'unary_plus',
+    neg: 'neg',
+    '*': 'mul',
+    String: 'string_coercion',
+}
+
+/**
+ * The `nanvm-lib` expression each unary operation prints as.
+ *
+ * @type {{ readonly [k in OpId]?: (a: string) => string }}
+ */
+const op1Rust = {
+    unaryPlus: a => `Any::unary_plus(${a})`,
+    neg: a => `-(${a})`,
+    String: a => `${a}.to_string().map(|v| v.to_any())`,
+}
+
+/** The same, for the binary operations. @type {{ readonly [k in OpId]?: (a: string, b: string) => string }} */
+const op2Rust = {
+    '*': (a, b) => `${a} * ${b}`,
+}
+
+/**
+ * What an id names in this printer. An id with no entry is a gap here, not a
+ * case to print a plausible wrong statement for.
+ *
+ * @type {<T>(table: { readonly [k in OpId]?: T }) => (id: OpId) => T}
+ */
+const lookup = table => id => {
+    const v = table[id]
+    if (v === undefined) { throw ['no Rust for', id] }
+    return v
+}
+
+const op1 = lookup(op1Rust)
+
+const op2 = lookup(op2Rust)
+
+const fnName = lookup(rustName)
+
+/** @type {(v: Primitive) => string} */
+const primitiveExpr = v => {
     if (v === null) { return 'Nullish::Null.to_any()' }
-    if (typeof v === 'function') {
-        const info = v()
-        switch (info[0]) {
-            case 'function': { return 'function_any()' }
-            case 'ref': { return `${snakeCase(info[1])}.clone()` }
-            case 'throw': { throw ['`throws` is not a value', info] }
-        }
-    }
     switch (typeof v) {
-        case 'undefined': { return 'Nullish::Undefined.to_any()' }
         case 'boolean': { return `${v}.to_any()` }
         case 'number': { return `(${f64Literal(v)}).to_any()` }
         case 'string': { return `string_any(${stringLiteral(v)})` }
         case 'bigint': { return `bigint_any(${i64Literal(v)})` }
     }
-    if (Array.isArray(v)) {
-        const items = v
-        return items.length === 0
-            ? 'Array::default().to_any()'
-            : `[${items.map(valueExpr).join(', ')}].to_array().to_any()`
-    }
-    const properties = entries(v)
-    return properties.length === 0
-        ? 'Object::default().to_any()'
-        : `[${properties.map(
-            ([k, p]) => `(string_key(${stringLiteral(k)}), ${valueExpr(p)})`).join(', ')}].to_object().to_any()`
 }
 
-/** @type {(op: Op) => (args: readonly string[]) => string} */
-export const call = op => args => {
-    switch (op) {
-        case 'unaryPlus': { return `Any::unary_plus(${args[0]})` }
-        case 'unaryMinus': { return `-(${args[0]})` }
-        case 'mul': { return `${args[0]} * ${args[1]}` }
-        case 'stringCoercion': { return `${args[0]}.to_string().map(|v| v.to_any())` }
-    }
+/**
+ * An object key.
+ *
+ * An EDAG object key is an `exp` — one form for `a:`, `"a":`, and computed
+ * `[exp]:` keys alike — and the corpus lowers JavaScript property names, so
+ * the key is always the string literal `string_key` takes. A computed one has
+ * no `nanvm-lib` spelling here and is refused rather than approximated.
+ *
+ * @type {(k: Exp) => string}
+ */
+const keyExpr = k => {
+    if (typeof k !== 'string') { throw ['not a literal key', k] }
+    return `string_key(${stringLiteral(k)})`
 }
+
+/**
+ * A Rust expression of type `Any<A>` for an EDAG node.
+ *
+ * `shared` names the nodes that already have a `let` binding, so a node
+ * reached from several places is constructed once and cloned at every
+ * reference — EDAG sharing in printed form, and the reason `arrayByItself`
+ * compares one object with itself.
+ *
+ * Every use site fixes `A`, so no expression needs a turbofish: the harness
+ * helpers take `Any<A>` arguments and the shared `let` bindings are annotated.
+ *
+ * @type {(shared: readonly (readonly[Exp, string])[]) => (e: Exp) => string}
+ */
+const expExpr = shared => {
+    /**
+     * `true` when a node prints as an operator expression.
+     *
+     * Every other rendering is atomic — a literal, a constructor call, a
+     * method chain, or a shared binding's `.clone()` — and survives being an
+     * operand as written. An operator expression does not: Rust parses
+     * `a * b * c` to the left and binds a method call tighter than `*`, so an
+     * unparenthesized composed operand is a different program from the node
+     * it was printed from. A shared node is a lowered value and so never an
+     * operation, which is why the tag alone decides this.
+     *
+     * @type {(e: Exp) => boolean}
+     */
+    const composed = e => e instanceof Array
+        && e[0] !== 'undefined' && e[0] !== '[]' && e[0] !== '{}'
+    /** @type {(e: Exp) => string} */
+    const f = e => {
+        if (!(e instanceof Array)) { return primitiveExpr(e) }
+        const bound = shared.find(([n]) => n === e)
+        if (bound !== undefined) { return bound[1] }
+        const [id, a, b] = /** @type {readonly any[]} */ (e)
+        if (id === 'undefined') { return 'Nullish::Undefined.to_any()' }
+        if (id === '[]') {
+            return a.length === 0
+                ? 'Array::default().to_any()'
+                : `[${a.map(f).join(', ')}].to_array().to_any()`
+        }
+        if (id === '{}') {
+            return a.length === 0
+                ? 'Object::default().to_any()'
+                : `[${a.map(propertyExpr).join(', ')}].to_object().to_any()`
+        }
+        return e.length === 2 ? op1(id)(nested(a)) : op2(id)(nested(a), nested(b))
+    }
+    /** An operand, parenthesized where its rendering would otherwise re-associate. */
+    /** @type {(e: Exp) => string} */
+    const nested = e => composed(e) ? `(${f(e)})` : f(e)
+    /**
+     * One object entry.
+     *
+     * `Properties` is `Property | Spread`, so `['...', exp]` is a valid entry
+     * this printer has no `nanvm-lib` spelling for. Read as a property it
+     * would take the spread's operand as the key and its absent third element
+     * as the value, printing a bare `undefined` into the generated file — text
+     * that looks like Rust and is not. Refused for the reason `lookup` refuses
+     * an unmapped id, and so that the two entry shapes agree: a spread as an
+     * *array* item already refuses, having no operator to render as.
+     *
+     * @type {(p: Properties) => string}
+     */
+    const propertyExpr = p => {
+        if (p[0] !== ':') { throw ['not a property', p] }
+        return `(${keyExpr(p[1])}, ${f(p[2])})`
+    }
+    return f
+}
+
+/**
+ * The same, for a node nothing shares — every node outside the `eq` section,
+ * and every `expected`.
+ *
+ * @type {(e: Exp) => string}
+ */
+export const nodeExpr = expExpr([])
+
+/**
+ * A Rust expression for a value, as the printer meets it in the data.
+ *
+ * `functionValue` is the one value with no expression to lower, which is why
+ * a case carrying it escapes; everything else goes through the lowering, so
+ * this printer and the JavaScript proof read one derivation and not two.
+ *
+ * @type {(v: Operand) => string}
+ */
+export const valueExpr = v => isFunctionValue(v) ? 'function_any()' : nodeExpr(valueExp(v))
 
 /**
  * Comments out a statement `nanvm-lib` cannot pass yet, keeping the case
@@ -110,44 +246,60 @@ const emit = reason => statement => reason === undefined
     ? [`${indent}${statement}`]
     : [`${indent}// TODO: ${reason}`, `${indent}// ${statement}`]
 
-/**
- * Every argument order a case is checked in — both for a commutative
- * operator, matching what the JavaScript proof does.
- *
- * @type {(commutative: boolean) => (c: Case) => readonly (readonly[string, readonly Value[]])[]}
- */
-const orders = commutative => c => commutative
-    ? [[c.name, c.args], [`${c.name}Swapped`, c.args.toReversed()]]
-    : [[c.name, c.args]]
+/** @type {(expected: Expectation) => (name: string) => (result: string) => string} */
+const assertion = expected => name => result => isThrows(expected)
+    ? `check_throws::<A>(${stringLiteral(name)}, ${result});`
+    : `check::<A>(${stringLiteral(name)}, ${result}, ${nodeExpr(valueExp(expected))});`
 
-/** @type {(expected: Value) => (name: string) => (result: string) => string} */
-const assertion = expected => name => result =>
-    typeof expected === 'function' && expected()[0] === 'throw'
-        ? `check_throws::<A>(${stringLiteral(name)}, ${result});`
-        : `check::<A>(${stringLiteral(name)}, ${result}, ${valueExpr(expected)});`
+/**
+ * The statement result for one argument order: the case's expression printed,
+ * or — for a case the corpus does not lower — the operation applied to printed
+ * values.
+ *
+ * The escape dispatches on the group's arity, as the proof's does, so a
+ * binary group's escaped case prints through `op2`.
+ *
+ * @type {(g: Group) => (args: readonly Operand[]) => string}
+ */
+const result = g => args => {
+    const lowered = caseExp(g)(args)
+    if (lowered[0] === 'exp') { return nodeExpr(lowered[1]) }
+    const [a, b] = args.map(valueExpr)
+    return arityOf(g) === 1 ? op1(opId(g))(a) : op2(opId(g))(a, b)
+}
 
 /** @type {(g: Group) => readonly string[]} */
 const groupFn = g => [
     '#[rustfmt::skip]',
-    `fn ${snakeCase(g.op)}<A: IVm>() {`,
-    ...g.cases.flatMap(c => orders(g.commutative === true)(c).flatMap(
-        ([name, args]) => emit(c.rust)(
-            assertion(c.expected)(name)(call(g.op)(args.map(valueExpr)))))),
+    `fn ${fnName(opId(g))}<A: IVm>() {`,
+    ...casesOf(g).flatMap(c => orders(g)(c).flatMap(
+        ([name, args]) => emit(c.rust)(assertion(c.expected)(name)(result(g)(args))))),
     '}',
     '',
 ]
 
 /** @type {(eq: Eq) => readonly string[]} */
-const eqFn = eq => [
-    '#[rustfmt::skip]',
-    'fn eq<A: IVm>() {',
-    ...entries(eq.shared).map(
-        ([k, v]) => `${indent}let ${snakeCase(k)}: Any<A> = ${valueExpr(v)};`),
-    ...eq.cases.flatMap(c => emit(c.rust)(
-        `check_eq::<A>(${stringLiteral(c.name)}, ${valueExpr(c.a)}, ${valueExpr(c.b)}, ${c.eq});`)),
-    '}',
-    '',
-]
+const eqFn = eq => {
+    const { shared, cases } = lowerEq(eq)
+    /** @type {(s: SharedNode) => readonly[Exp, string]} */
+    const binding = ([k, node]) => [node, `${snakeCase(k)}.clone()`]
+    const operand = expExpr(shared.map(binding))
+    return [
+        '#[rustfmt::skip]',
+        'fn eq<A: IVm>() {',
+        // An initializer is printed against the bindings established before
+        // it, so a `ref` to an earlier shared value clones that binding
+        // rather than constructing a second object. Printed without them the
+        // Rust heap graph would not be the graph the nodes describe.
+        ...shared.map(([k, node], i) =>
+            `${indent}let ${snakeCase(k)}: Any<A> = ${
+                expExpr(shared.slice(0, i).map(binding))(node)};`),
+        ...cases.flatMap(([c, [, a, b]]) => emit(c.rust)(
+            `check_eq::<A>(${stringLiteral(c.name)}, ${operand(a)}, ${operand(b)}, ${c.eq});`)),
+        '}',
+        '',
+    ]
+}
 
 /** @type {(data: Data) => string} */
 export const generate = data => [
@@ -160,7 +312,7 @@ export const generate = data => [
     ...data.groups.flatMap(groupFn),
     'pub fn all<A: IVm>() {',
     `${indent}eq::<A>();`,
-    ...data.groups.map(g => `${indent}${snakeCase(g.op)}::<A>();`),
+    ...data.groups.map(g => `${indent}${fnName(opId(g))}::<A>();`),
     '}',
     '',
 ].join('\n')

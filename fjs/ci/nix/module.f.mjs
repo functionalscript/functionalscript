@@ -100,6 +100,20 @@ export const flakePath = id => `./${generatedDirectory}/${id}`
 /** Installs Nix, with `nix-command` and `flakes` enabled by the action's defaults. */
 export const nixInstall = install(uses('cachix/install-nix-action'))
 
-/** Runs one command inside a job's generated development shell. */
-/** @type {(id: string, command: string) => string} */
-export const nixDevelop = (id, command) => `nix develop ${flakePath(id)} --command ${command}`
+/**
+ * Runs one command inside a job's generated development shell.
+ *
+ * `--no-write-lock-file` keeps the invocation read-only against the checkout:
+ * Nix otherwise writes a `flake.lock` beside the flake it enters. The pin in
+ * `flake.nix` already determines every input, so that lock resolves nothing the
+ * flake did not already say.
+ *
+ * It is not what keeps the Node 26 drift check honest: the root `.gitignore`
+ * covers a per-job `flake.lock`, and `git add -A` does not stage an ignored
+ * file, so that check never saw one. The ignore rule stays for a hand-run
+ * `nix develop` without the flag.
+ *
+ * @type {(id: string, command: string) => string}
+ */
+export const nixDevelop = (id, command) =>
+    `nix develop --no-write-lock-file ${flakePath(id)} --command ${command}`

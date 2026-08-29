@@ -70,7 +70,7 @@ fn unary_plus<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn unary_minus<A: IVm>() {
+fn neg<A: IVm>() {
     check::<A>("null", -(Nullish::Null.to_any()), (-0f64).to_any());
     check::<A>("undefined", -(Nullish::Undefined.to_any()), (f64::NAN).to_any());
     check::<A>("booleanFalse", -(false.to_any()), (-0f64).to_any());
@@ -170,6 +170,8 @@ fn mul<A: IVm>() {
     check::<A>("arrayPairByOneSwapped", (1f64).to_any() * [(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (f64::NAN).to_any());
     check::<A>("emptyObjectByOne", Object::default().to_any() * (1f64).to_any(), (f64::NAN).to_any());
     check::<A>("emptyObjectByOneSwapped", (1f64).to_any() * Object::default().to_any(), (f64::NAN).to_any());
+    check::<A>("functionByOne", function_any() * (1f64).to_any(), (f64::NAN).to_any());
+    check::<A>("functionByOneSwapped", (1f64).to_any() * function_any(), (f64::NAN).to_any());
     check_throws::<A>("numberByBigint", (1f64).to_any() * bigint_any(1));
     check_throws::<A>("numberByBigintSwapped", bigint_any(1) * (1f64).to_any());
 }
@@ -202,7 +204,7 @@ fn string_coercion<A: IVm>() {
 pub fn all<A: IVm>() {
     eq::<A>();
     unary_plus::<A>();
-    unary_minus::<A>();
+    neg::<A>();
     mul::<A>();
     string_coercion::<A>();
 }
