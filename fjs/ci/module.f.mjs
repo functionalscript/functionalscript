@@ -10,10 +10,12 @@
  * @import { NixJob } from './nix/types.ts'
  * @import { Setup } from './types.ts'
  * @import { Effect } from '../effects/types.ts'
+ * @import { Result } from '../types/result/types.ts'
+ * @import { IoChannel } from '../effects/node/types.ts'
  */
 
 import { resultStep } from '../effects/module.f.mjs'
-import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
+import { access, exitStep, readUtf8File, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
 import { functionalscript, images } from './config/module.f.mjs'
 import {
@@ -25,6 +27,8 @@ import {
 import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeNixVersionSteps, nodeVersionJobs } from './node/module.f.mjs'
 import { nixFlakes, nixInstall } from './nix/module.f.mjs'
+import { parse as jsonParse } from '../media/json/module.f.mjs'
+import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
 import { bunSteps } from './bun/module.f.mjs'
 import { denoSteps } from './deno/module.f.mjs'
 
@@ -49,24 +53,76 @@ const nixJobs = nodeNixJobs
 /** @type {Job} */
 const nixFlakeJob = ubuntuArm([nixInstall, ...nodeNixVersionSteps])
 
-/** @type {(rust: boolean) => Jobs} */
-const canonicalJobs = rust => ({
+/** @type {(rust: boolean, pin: string | undefined) => Jobs} */
+const canonicalJobs = (rust, pin) => ({
     ...(rust ? { wasm: ubuntuArm(rustWasmSteps) } : {}),
     deno: ubuntuArm(denoSteps(functionalscript)),
     bun: ubuntuArm(bunSteps(functionalscript)),
     ...nodeVersionJobs(functionalscript),
+    ...(pin === undefined ? {} : { [packageCheckJobId]: packageCheckJob(pin) }),
     'nix-flakes': nixFlakeJob,
 })
 
+/** @type {(s: string) => boolean} */
+const digits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
+
+/**
+ * `=MAJOR.MINOR.PATCH` and nothing else.
+ *
+ * Anything npm reads as a *range* — `^7.0.0`, `=7.x`, `=7.0`, `=7.0.2 || 8.x` —
+ * lets a later registry release change this check's verdict with no change
+ * here, which is the one thing running it without a checkout is meant to
+ * prevent. A leading `=` is not enough on its own: it can prefix a range. So
+ * the whole value is validated rather than its first character.
+ *
+ * A prerelease pin is rejected too. That is stricter than npm needs, and the
+ * cost of being wrong is the job disappearing from `ci.yml` — a visible diff in
+ * review — rather than a check that silently stops meaning anything.
+ *
+ * @type {(pin: string) => boolean}
+ */
+const exact = pin => {
+    if (!pin.startsWith('=')) { return false }
+    const parts = pin.slice(1).split('.')
+    return parts.length === 3 && parts.every(digits)
+}
+
+/**
+ * The compiler the packed-package check installs, read out of the project's own
+ * `package.json` rather than restated anywhere. A second copy could disagree
+ * with this one silently, and a check running a compiler the package does not
+ * pin is a green result about the wrong thing.
+ *
+ * `undefined` when there is no package.json or no pin: the check cannot be run
+ * deterministically then, so it is not generated at all rather than run against
+ * a compiler nobody chose.
+ *
+ * @type {(text: Result<string, IoChannel>) => string | undefined}
+ */
+const compilerPin = text => {
+    if (text[0] !== 'ok') { return undefined }
+    const json = jsonParse(text[1])
+    if (json[0] !== 'ok') { return undefined }
+    const root = json[1]
+    if (typeof root !== 'object' || root === null || root instanceof Array) { return undefined }
+    const dev = root.devDependencies
+    if (typeof dev !== 'object' || dev === null || dev instanceof Array) { return undefined }
+    const pin = dev.typescript
+    return typeof pin === 'string' && exact(pin) ? pin : undefined
+}
+
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
 export const ci = ({ nodeExtra }) => resultStep(
+    readUtf8File('package.json'),
+    packageJson => resultStep(
     access('Cargo.toml'),
     result => {
         const rust = result[0] === 'ok'
+        const pin = compilerPin(packageJson)
         /** @type {Jobs} */
         const jobs = {
             ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
-            ...canonicalJobs(rust),
+            ...canonicalJobs(rust, pin),
         }
         /** @type {GitHubAction} */
         const gha = {
@@ -85,6 +141,6 @@ export const ci = ({ nodeExtra }) => resultStep(
             JSON.stringify(gha, null, '  '))
         const flakesWritten = ioStep(workflowWritten, () => nixFlakes(nixJobs))
         return exitStep(flakesWritten)
-    })
+    }))
 
 export const main = () => ci({ nodeExtra: () => [] })
