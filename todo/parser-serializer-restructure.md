@@ -22,9 +22,8 @@ relationships grew rather than being designed:
   `fjs compile`. It conflates two different things: a data interchange format
   (values, `const` sharing) and the language front end (imports, comments,
   identifier keys, future expressions).
-- **`fjs/fsc`** — nearly empty: a character-classifier stub plus a dead third
-  copy of the JSON grammar
-  ([orphaned-json-grammar](../fjs/fsc/todo/orphaned-json-grammar.md)).
+- **`fjs/fsc`** — nearly empty: a character-classifier stub. It also held a
+  dead third copy of the JSON grammar, deleted by stage 2.
 - **`fjs/bnf`** — the grammar toolkit, still evolving: a breaking
   EOF-encoding change shipped recently
   ([#1516](https://github.com/functionalscript/functionalscript/pull/1516)),
@@ -73,9 +72,9 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
 - **BNF is not a runtime dependency of the media codecs.** The spec carries
   the grammars as BNF text; `fjs/bnf/**` may hold the JSON and DataJS grammars
   as *proof-covered examples* cross-checked against the spec's test vectors.
-  An example grammar without proof coverage is how
-  [orphaned-json-grammar](../fjs/fsc/todo/orphaned-json-grammar.md) happened;
-  none may be added without proofs.
+  An example grammar without proof coverage is how the dead `fjs/fsc` copy
+  happened — nothing imported or proved it, so it silently drifted from the
+  other two; none may be added without proofs.
 
 ### The DataJS format (decision record)
 
@@ -242,9 +241,14 @@ throughout.
    vectors (accept, reject, round-trip) that every later stage runs against.
    Decides the one remaining deferred detail: the media type. (The
    canonical layout is decided: one line — see **Serialization** above.)
-2. **Dead code** — delete `fjs/fsc/bnf.f.mjs` and `fjs/fsc/json.f.mjs`, or
-   convert the salvageable parts into proof-covered `fjs/bnf/**` examples.
-   Resolves [orphaned-json-grammar](../fjs/fsc/todo/orphaned-json-grammar.md).
+2. **Dead code — done.** `fjs/fsc/bnf.f.mjs` and `fjs/fsc/json.f.mjs` are
+   deleted rather than salvaged: both were dead (no importer) and unproven,
+   the JSON half duplicated `deterministic` in `fjs/bnf/testlib.f.mjs` rule
+   for rule, and the FunctionalScript half encoded **newline-separated**
+   statements (`fjsTail = option(['\n', ws0, fjs])`, `wsNoNewLine0`) — the
+   design this plan replaces with `;`, so keeping it would have preserved a
+   grammar contradicting the decision record above. Git history holds them if
+   a future stage wants the `id`/`alpha`/comment rules.
 3. **JSON self-contained tokenizer** — replace the `fjs/js/tokenizer` wrapper
    in `fjs/media/json/tokenizer` with a scanner of JSON's own lexical
    grammar, exporting the string and number scanners for reuse.
@@ -311,8 +315,9 @@ throughout.
 
 - [ ] Stage 1: write `spec/datajs/` and the conformance vectors; file its
       co-located todo.
-- [ ] Stage 2: resolve
-      [orphaned-json-grammar](../fjs/fsc/todo/orphaned-json-grammar.md).
+- [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
+      citations in [207](../fjs/bnf/todo/207-bnf-semantic-actions.md)
+      repointed at `fjs/bnf/testlib.f.mjs`.
 - [ ] Stage 3: JSON self-contained tokenizer; file its todo under
       `fjs/media/json/todo/`.
 - [ ] Stage 4: `fjs/media/datajs`; file its todo.
@@ -343,8 +348,8 @@ throughout.
   stage 4's `fjs/media/datajs`; its special-number round-trip
   requirement is satisfied by the DataJS spec rather than DJS-specific
   patches.
-- [orphaned-json-grammar](../fjs/fsc/todo/orphaned-json-grammar.md) —
-  resolved by stage 2.
+- `orphaned-json-grammar` — **done**: resolved by stage 2 and its file
+  deleted with the code it described.
 - `fjs/djs/README.md` and the remaining `fjs/djs/todo/*` files — move with
   their subject matter in stage 5; the DJS name in them refers to the moved
   front end, not to DataJS.

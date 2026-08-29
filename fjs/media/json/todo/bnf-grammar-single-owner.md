@@ -14,6 +14,9 @@ places, and neither copy is owned by `fjs/media/json`:
 - `fjs/djs/tokenizer/module.f.mjs` restates much of the JSON lexical grammar and
   extends it for DJS.
 
+Two, not three: a dead third copy at `fjs/fsc/json.f.mjs` was deleted rather
+than given an owner, so this inventory is complete as written.
+
 The duplicated digit/string rules have no single owner, while `fjs/bnf` itself
 should remain grammar tooling rather than the home of a concrete media grammar.
 
@@ -131,3 +134,7 @@ Before implementing this TODO after the blocking split:
   ownership of the lexical BNF grammar.
 - [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
   — media-directory ownership convention followed by this placement.
+- [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)
+  — the plan this task now sits inside; its stage 2 deleted the third copy, and
+  its BNF rule (grammars are spec text plus proof-covered `fjs/bnf` examples,
+  never a runtime dependency of the codecs) constrains where this one can land.

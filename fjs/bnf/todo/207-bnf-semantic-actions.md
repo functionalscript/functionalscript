@@ -357,7 +357,7 @@ const optD   = option(digit)        // Option<number>
 ```
 
 **Hypothesis 2 — real cyclic grammars cannot stay unannotated. ❌**
-Reproducing the JSON shape from `fjs/fsc/json.f.mjs` *without* the `: Rule`
+Reproducing the JSON shape from `fjs/bnf/testlib.f.mjs` *without* the `: Rule`
 annotations fails to compile:
 
 ```ts
@@ -603,8 +603,10 @@ and §5.5 is what hangs on it.
 
 ### 6. Worked example: JSON
 
-Using the grammar from `fjs/fsc/json.f.mjs` (`character`, `escape`, `string`,
-`member`, `object`, …) and the positional elision model:
+Using a JSON grammar whose rules are named as below (`character`, `escape`,
+`string`, `member`, `object`, …) — the shape of `deterministic` in
+`fjs/bnf/testlib.f.mjs`, which spells `character` and `member` inline — and the
+positional elision model:
 
 ```ts
 // escape: { '"' | '\\' | '/' | 'b'|'f'|'n'|'r'|'t' | u: ['u',h,h,h,h] }
@@ -717,4 +719,7 @@ a JSON action set exist as the first real consumer.
   exported; the predicate the instantiation-time boundary check (§5.3) depends
   on — no longer a blocker — and relevant if schemas are auto-derived from the
   BNF data form.
-- `fjs/fsc/json.f.mjs`, `fjs/bnf/testlib.f.mjs` — the grammars used in §6.
+- `fjs/bnf/testlib.f.mjs` — the `deterministic` grammar used in §6. A third
+  copy of it lived at `fjs/fsc/json.f.mjs` until it was deleted as dead code;
+  do not restore it, see
+  [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md).
