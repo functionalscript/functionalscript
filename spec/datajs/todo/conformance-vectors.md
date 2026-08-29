@@ -366,7 +366,9 @@ The six parts:
   - **A repetition needs its empty branch.** `char*`, `id`'s tail and the
     digits of `frac` each admit a count the vectors never used: the
     **empty string** `""`, a **one-character identifier** — `$` — and a
-    **single-digit fraction**, `1.0`. Review found the first; the other two are
+    **single-digit fraction**, `1.0` — with its signed twin `-1.0`, since the
+    rule two bullets down requires one and the commit that added `1.0` did not
+    apply it, which review caught. Review found the first; the other two are
     the sweep, and the identifier is the sharper of them, because the old set
     had `$` and `_` and the rewrite that gave every position both class
     endpoints replaced them with two-character names, so a branch that had
@@ -450,7 +452,13 @@ The six parts:
   returns the wrong graph and nothing else reaches that path — the lone
   surrogate exercises a single escape, and the four-byte UTF-8 accepts exercise
   the raw-character path. This document used that exact pair to argue for code
-  units over code points and then never made it a vector; **each of the four
+  units over code points and then never made it a vector. **Three pairs, not
+  one**: that pair is interior to both halves, so the two corners come with it —
+  `\ud800\udc00` and `\udbff\udfff`, which are the ends of the *combined*
+  scalar range (U+10000 and U+10FFFF) and, between them, both ends of each
+  half — plus `\ud800\udfff`, which keeps the two positions from moving
+  together, the same correlation the byte accept table needed broken. Review
+  found the enumeration naming only the interior pair; **each of the four
   permitted whitespace characters between tokens** — space, tab, LF and CR — because the rejection half of this corpus is
   extensive and a reader accepting only U+0020 passes every one of those
   vectors while narrowing the language; every leaf (`-0`, `NaN`, `±Infinity`,
@@ -798,7 +806,11 @@ The six parts:
   endpoints at both positions had replaced `$` and `_` with two-character
   names, taking coverage away from a branch that had it; and **positive zero**,
   absent from both writer roles while `-0` sat in each of them looking like the
-  zero case. The sweep for the lead-partition shape had
+  zero case — then the escaped surrogate pair, interior to both halves with no
+  corner beside it; the depth cap, described in prose with no entry point to
+  set it; and `1.0` arriving without the signed twin the same file requires two
+  bullets away, the fourth time a rule has gone unapplied to the commit that
+  states it. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the

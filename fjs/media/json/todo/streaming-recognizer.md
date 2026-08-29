@@ -39,10 +39,23 @@ neither values nor token payloads.
 
 ```ts
 export type JsonRecognizerState = ...     // scanner sub-state × parser control × depth stack
-export const recognizerInit: JsonRecognizerState
+export const recognizerInit: JsonRecognizerState  // uncapped
+export const recognizerInitCapped = (maxDepth: number): JsonRecognizerState
 export const recognizerStep = (s: JsonRecognizerState, u: U16): JsonRecognizerState
 export const recognizerAccepts = (s: JsonRecognizerState): boolean   // complete valid document at EOF?
 ```
+
+**The cap is chosen at init, and it needs an entry point.** An earlier draft
+exported `recognizerInit` alone and described the max-depth cap only in prose,
+which left the one consumer that explicitly wants a DoS guard unable to ask for
+one without building state this module does not expose — review found it.
+`recognizerInitCapped` is the whole of the configuration surface: the cap
+belongs to the initial state rather than to `recognizerStep`, because a fold
+operator that carries a limit alongside the accumulator would have to re-read
+it on every code unit, and because `recognizerAccepts` then needs nothing new —
+an over-cap document is already rejected in the state it returns.
+`recognizerInit` stays as the uncapped default so the common case costs no
+argument.
 
 **A code unit, not a code point**, and it is `(state, unit)` rather than a
 `Fold` — see the note at the end of this section before wiring it into one.
