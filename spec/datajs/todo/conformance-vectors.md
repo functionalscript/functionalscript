@@ -1222,18 +1222,25 @@ The six parts:
   each lex as one identifier — the spec says as much about the first. They stay
   in the reject set as tests of the corpus's own grammar, against a reader that
   matches keyword prefixes itself, but they cannot catch a delegating one.
-  `const$0=1;export default $0` is the odd one and the only true narrowing of
-  the three: it **parses** as JavaScript and fails at run time with a
-  `ReferenceError`, so a reader delegating its parse accepts it. The four
-  **spaced-accept** vectors the positional rule adds — the spaceless
-  `export default[1]`, `export default-1`, `export default"a"` and
-  `export default{}` — are narrowings of the same kind and the sharper case:
-  each parses *and evaluates* in JavaScript to exactly the graph the spaced
-  spelling denotes, so a delegating reader cannot fail them on any ground at
-  all. All measured,
-  not assumed. Each tests the corpus's own grammar rather than
-  a narrowing, because no reader can over-accept them by delegating to a host
-  that refuses them too.
+  `const$0=1;export default $0` is the odd one of the three: it **parses** as
+  JavaScript and fails at run time with a `ReferenceError`, so a reader
+  delegating its parse accepts it. Sharper still are the four **spaceless**
+  vectors the positional rule adds — `export default[1]`, `export default-1`,
+  `export default"a"` and `export default{}` — which parse *and evaluate* in
+  JavaScript to exactly the graph the spaced spelling denotes, so a delegating
+  reader cannot fail them on any ground at all. All measured, not assumed.
+
+  So the classification splits rather than settling one way, and the split is
+  what stage 1b needs to record. The vectors JavaScript also refuses — `+1`,
+  the legacy octal escapes, a raw LF or CR in a string, and the two separator
+  SyntaxErrors — test the corpus's own grammar and cannot catch a delegating
+  reader, because no reader can over-accept them by delegating to a host that
+  refuses them too. The five JavaScript *accepts* — the `ReferenceError` one
+  and the four spaceless — are the narrowings, and they are the only vectors
+  here that catch one. Counting them as grammar-only, which an earlier draft of
+  this paragraph did by letting one concluding sentence cover both groups,
+  would have left the whole positional rule with no vector that any delegating
+  reader fails.
 
   The rule has now caught one *before* it landed — the escaped-identifier
   vector above, whose proposed spelling left an unbound reference as a second
