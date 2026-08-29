@@ -60,6 +60,29 @@ thing, so it ships as public API with its type-level signature in
 `export const _jsonDialect`, per `fjs/AGENTS.md`'s rule that a private name
 keeps its `_` even when module linkage requires exporting it.
 
+**The literal types have to survive the extraction.** Each module pins its
+two constants today — `export const dialect = /** @type {const} */
+('vnd.fjs.revision')` and the `mediaType` built from it — while
+`DialectEntry.dialect` is only `string`, so a factory whose return type is
+inferred ordinarily widens both to `string` and weakens a public contract
+that `fjs/AGENTS.md` says must not get weaker for being written in
+JavaScript. The signature in `../types.ts` therefore carries the dialect as
+a type parameter and derives the media type as a template literal:
+
+```ts
+export type JsonDialect<D extends string> = {
+    readonly dialect: D
+    readonly mediaType: `application/${D}+json`
+    // …encodeText, validate, decodeText, entry
+}
+```
+
+with `dialectMediaType` typed `<D extends string>(dialect: D) =>
+\`application/${D}+json\`` so the derivation preserves the literal rather
+than erasing it. Check the emitted `.d.mts`, not just that `tsc` passes:
+`revision.mediaType` must still read `'application/vnd.fjs.revision+json'`,
+not `string`.
+
 Each dialect module then states its schema and (for `revision`/`lock`) its
 `checkReferences`, re-exporting the derived kit — the module's JSDoc keeps
 describing the format, the mechanics live once.
@@ -89,6 +112,9 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
 - [ ] Add `jsonDialect` and the shared `dialectMediaType` to
       `module.f.mjs`; have both `detect` and the factory derive through it.
       `DialectEntry` keeps its `{ dialect, match }` shape unchanged.
+- [ ] Type the factory over the dialect literal (`JsonDialect<D>` above) and
+      confirm in the emitted `.d.mts` that each module's `dialect` and
+      `mediaType` keep their literal types rather than widening to `string`.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
       copies and the two `isValid…` adapters.
 - [ ] `npx tsc`, `fjs t`; the media and mcp proofs pass unchanged.
