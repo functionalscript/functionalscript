@@ -101,10 +101,13 @@ no host API in it.
 The three call sites become `allVoid(e => registerOne(t, e))(sub)` etc.
 If [allreduce-combinator](./allreduce-combinator.md) lands first, consider
 deriving `allVoid` from `allReduce` with a unit monoid instead of
-duplicating the `allOk(...map)` core — but only once `allReduce` is itself
-built on `allOk`. As proposed it folds over `all(...)`, so its monoid receives
-the children's `Result`s as ordinary values, and a unit monoid over those
-would discard precisely the failures this section exists to keep.
+duplicating the shared core — its proposal is now built on the list-shaped
+`allOk`, so its monoid receives plain `R`s and the first failure travels the
+error channel, which is exactly what a unit monoid needs. (An earlier sketch
+of that issue folded over raw `all(...)`, whose monoid would have received
+the children's `Result`s as ordinary values — a unit monoid over those would
+discard precisely the failures this section exists to keep; that sketch is
+recorded as superseded there.)
 
 ### Tasks
 
