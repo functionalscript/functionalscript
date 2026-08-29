@@ -88,6 +88,12 @@ export const flakeText = job =>
  * `./nix/deno/run deno eval 'console.log(Deno.version.deno)'` arrives as three
  * arguments, not as text to re-parse.
  *
+ * That location comes from `case` and `${0%/*}`, which are shell syntax and
+ * parameter expansion — not `dirname`, and not any other program. A generated
+ * script calls no external tool (root `AGENTS.md` §6), and this one has no need
+ * to: the `case` arm is what makes a `$0` with no `/` mean the current
+ * directory, which is the one thing stripping a suffix cannot say by itself.
+ *
  * `exec` replaces the shell, so the command's exit status is the script's and
  * no wrapper process sits between CI and the failure.
  *
@@ -109,7 +115,8 @@ export const flakeText = job =>
  * inherited, so a job's own output is exactly what it was.
  */
 export const runText = `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet "$(dirname "$0")" --command "$@"
+case $0 in */*) d=\${0%/*} ;; *) d=. ;; esac
+exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
 `
 
 /**
@@ -128,11 +135,12 @@ exec nix develop --no-write-lock-file --quiet "$(dirname "$0")" --command "$@"
 const writeJob = job => {
     const directory = `${generatedDirectory}/${job.id}`
     const created = mkdir(directory, { recursive: true })
-    return step(
+    const flakeWritten = step(
         created,
-        () => step(
-            writeUtf8File(`${directory}/flake.nix`, flakeText(job)),
-            () => writeUtf8File(`${directory}/run`, runText)))
+        () => writeUtf8File(`${directory}/flake.nix`, flakeText(job)))
+    return step(
+        flakeWritten,
+        () => writeUtf8File(`${directory}/run`, runText))
 }
 
 /**

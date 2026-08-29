@@ -211,9 +211,11 @@ Neither flag is written in a workflow step. Each job directory holds a generated
 ./nix/node26/run npm run cov
 ```
 
-The script is the same for every job — `exec nix develop … "$(dirname "$0")"
---command "$@"` — so the spelling and its flags have one home instead of fifteen,
-and a step reads as the command it runs. Its executable bit is committed rather
+The script is the same for every job — it resolves its own directory with shell
+parameter expansion rather than `dirname`, since a generated script calls no
+external tool (§6), and `exec`s `nix develop … --command "$@"` — so the spelling
+and its flags have one home instead of fifteen, and a step reads as the command
+it runs. Its executable bit is committed rather
 than generated, because nothing in `fjs/effects/node` can set a file mode;
 [generated-run-script-mode](generated-run-script-mode.md) owns closing that gap.
 

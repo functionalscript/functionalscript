@@ -39,15 +39,20 @@ It is the same two lines for every job:
 
 ```sh
 #!/bin/sh
-exec nix develop --no-write-lock-file --quiet "$(dirname "$0")" --command "$@"
+case $0 in */*) d=${0%/*} ;; *) d=. ;; esac
+exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
 ```
 
-`dirname "$0"` resolves the flake from the script's own location, so it behaves
-the same from the repository root, from `nix/`, or by absolute path. `"$@"`
-passes the caller's argument vector through unsplit, which is what lets a step
-keep quoting of its own — `./nix/deno/run deno eval 'console.log(…)'` arrives as
-three arguments rather than as text to re-parse. `exec` replaces the shell, so
-the command's exit status is the script's.
+The `case` line resolves the flake from the script's own location, so it behaves
+the same from the repository root, from `nix/`, or by absolute path. It is shell
+syntax and parameter expansion rather than `dirname`, because a generated script
+calls no external tool ([`AGENTS.md`](../AGENTS.md) §6); the second arm is what
+makes a `$0` with no `/` mean the current directory, which stripping a suffix
+cannot say by itself. `"$@"` passes the caller's argument vector through
+unsplit, which is what lets a step keep quoting of its own —
+`./nix/deno/run deno eval 'console.log(…)'` arrives as three arguments rather
+than as text to re-parse. `exec` replaces the shell, so the command's exit
+status is the script's.
 
 The two flags live there rather than in every step. `--no-write-lock-file` keeps
 the invocation read-only against the checkout: Nix otherwise writes a
