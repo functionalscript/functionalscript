@@ -61,8 +61,13 @@ reader's public byte-accepting path — which stage 4 owes:
   own reasons: the vector passes while the UTF-8 rule goes unenforced. This is
   the one-reason rule reaching the byte form.
 
-At least one byte-form vector must **accept**, and it carries a multibyte
-character. Every other case here is a rejection, so an implementation that
+Byte-form vectors must **accept** as well as reject, and one per sequence
+width: ASCII, two bytes (`c3 a9`), three (`e2 82 ac`), four
+(`f0 9f 98 80`). One multibyte vector is not enough — with only a two-byte
+one, a decoder accepting ASCII and two-byte sequences while rejecting every
+three- and four-byte sequence still passes, and the BMP and astral cases under
+`normalize` cannot help because they exercise serializer output rather than a
+reader. Every other case here is a rejection, so an implementation that
 refuses every byte array without decoding it would pass them all while
 refusing valid byte-encoded documents — which is the accept-direction rule
 below, and review found this document breaking it in the same commit that
@@ -98,6 +103,11 @@ The six parts:
     eight simple escapes passed too.
   - **`bigint ::= '-'? int 'n'`** — both signs against both `int`
     alternatives: `0n`, `-0n`, `12n`, `-12n`.
+  - **`id ::= [A-Za-z_$][A-Za-z0-9_$]*`** — both character classes, not just
+    the letters an interesting case happens to use: `$`, `_`, `_0`, `a$`, `a9`.
+    The contextual-keyword vectors (`async`, `as`, `from`, `get`, `of`, `set`)
+    are all letters, so a reader rejecting `$` or a leading `_` passed the set
+    while narrowing a production it never touched.
   - **`infinity`, `array`, `object`, `key`, `document`** — both signs; empty
     and non-empty; both `key` alternatives; zero `const`s and several.
 
@@ -232,7 +242,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Fourteen consecutive review rounds
+  vector is the only instrument that sees it. Fifteen consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -246,7 +256,10 @@ The six parts:
   expression forms, then spread, the module statements, and two more UTF-8
   error classes — which finally produced a per-production table rather than
   another production's worth of vectors — then the serializer-accept set,
-  which had no derivation at all, and the repeated primitive. Every time the list had been written from memory rather
+  which had no derivation at all, and the repeated primitive, then `id`'s
+  character classes and the valid UTF-8 sequence widths — both of them
+  derivations applied to some of their items and not all, which is the shape
+  every one of the last four rounds has taken. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
