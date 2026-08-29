@@ -24,6 +24,12 @@ export const major = v => v.split('.')[0]
 /** @type {(version: string) => string} */
 const jobId = version => `node${major(version)}`
 
+/**
+ * The job that packs the tarball and uploads it. A consuming job names this in
+ * `needs` rather than repeating the id.
+ */
+export const packageJobId = jobId(node.default)
+
 /** @type {(v: string) => Step} */
 const installNode = v =>
     uses('actions/setup-node', { 'node-version': v })
