@@ -255,6 +255,13 @@ Five rules replace the inherited behavior:
    start an unterminated string at the last quote, which is the two-error shape
    this rule exists to prevent.
 
+   **A raw LF or CR also ends recovery**, and is re-dispatched rather than
+   consumed. This matches what the tokenizer does today — `"a<LF>1` reports the
+   unterminated literal and then goes on to emit the number `1` — and it is
+   worth keeping on its own merits: an unterminated string should not eat the
+   rest of the file. A raw space does not end it (`"a 1` is one error today),
+   because a space is legal inside a JSON string and a newline is not.
+
    Getting the boundary right matters beyond the error count, because it
    decides where the rest of the input resumes. Today `"ok\x\"tail" 1` already
    ends the literal at the final unescaped quote and goes on to tokenize the
@@ -310,6 +317,9 @@ follows the input instead:
 | `12"a"` | error, string `"a"` | unchanged — `"` ends without accepting |
 | `00-2` | one error — `-2` is **swallowed** | `invalid number`, number `-2` |
 | `00-` | one error | two `invalid number` |
+| `00"a"` | one error — the string is **swallowed** | `invalid number`, string `"a"` |
+| `00<LF>1` | error, number `1` | unchanged — LF was already a boundary |
+| `"a<LF>1` | error, number `1` | unchanged — LF ends string recovery |
 
 An unterminated string stays one error; its message changes from
 `" are missing` to `invalid string`.
@@ -326,7 +336,34 @@ This is the same defect class as the fabricated string, running the other
 direction: one invents a token the input never contained, the other discards one
 it did.
 
-Every other change in that table is an error becoming a *differently shaped*
+#### The delta is two boundary characters, not a list of cases
+
+The table above grew three times under review, each round finding a recovery
+case it had missed. That is a sign the table was being *enumerated* rather than
+*derived*, so here is the derivation, which closes it.
+
+Recovery in both scanners is defined by one question: which characters end it.
+Measured against the tokenizer today:
+
+| | ends recovery today | ends recovery under this design |
+| --- | --- | --- |
+| **number** | whitespace, `{}[]:,`, end of input | those, **plus `-` and `"`** |
+| **string** | unescaped `"`, raw LF or CR, end of input | the same |
+
+**The entire delta is two characters gaining boundary status in number
+recovery.** Everything in the changed-shapes table follows from that and from
+rule 1: `00-2` and `00"a"` change because `-` and `"` are new boundaries;
+`00 1`, `00]`, `00,` and `00<LF>1` do not change, because those were boundaries
+already. String recovery has no delta at all once LF and CR are stated.
+
+Both additions fix an inconsistency rather than introducing one. Today a `"`
+ends a *complete* number (`12"a"` emits the string) but is swallowed by an
+*incomplete* one (`00"a"` does not), and `-` is swallowed after `00` while being
+emitted after `0.` — the same character treated three ways depending on which
+recovery state the scanner happens to be in. Under the design a boundary is a
+boundary.
+
+Every other change in the table is an error becoming a *differently shaped*
 error.
 **No input moves between erroring and not erroring, in either direction** — that
 is the invariant worth checking the implementation against, and it is stronger
@@ -520,10 +557,15 @@ implementation PR — the premise only actually changes when the code does.
       `unescaped character`, `invalid token` for `0n`) sees different tokens,
       and a consumer relying on a *value* token after a malformed literal stops
       receiving one. Valid JSON is unaffected, and the entry should say so.
-- [ ] Prove the minus-boundary recovery class explicitly — `00-2` yields
-      `invalid number` then the number `-2`, and `00-` yields two errors. These
-      are the cases where today's tokenizer silently drops a well-formed token,
-      so they are the ones most worth pinning.
+- [ ] Prove the recovery boundary sets directly, since they are the whole
+      delta: for numbers, that `-` and `"` now end recovery (`00-2` yields
+      `invalid number` then `-2`; `00-` yields two errors; `00"a"` yields
+      `invalid number` then the string) and that whitespace, `{}[]:,`, LF and
+      end of input still do (`00 1`, `00]`, `00,`, `00<LF>1` unchanged); for
+      strings, that an unescaped quote, a raw LF and a raw CR all end recovery
+      while a space does not (`"a<LF>1` emits the number `1`; `"a 1` is one
+      error). These are the cases where today's tokenizer silently drops a
+      well-formed token.
 - [ ] `npm run update`, then `npx tsc`, `fjs test`, `cargo clippy` and
       `cargo fmt -- --check`. The check set lists the last two unconditionally —
       only `cargo test` is scoped to having touched Rust — and they are quick
