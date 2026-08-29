@@ -46,16 +46,30 @@ object/array-only policy (§4) is applied at EOF — the recognizer stays pure
 
 ```ts
 // A_json state, added to DetectState (init { rec: recognizerInit, top: null }):
-type JsonFactor = { readonly rec: JsonRecognizerState; readonly top: Nullable<number> }
-// per decoded code point: feed the recognizer; remember the first non-whitespace cp
-const jsonStep = ({ rec, top }: JsonFactor, cp: number): JsonFactor => ({
-    rec: recognizerStep(rec, cp),
+type JsonFactor = { readonly rec: JsonRecognizerState; readonly top: Nullable<CodePoint> }
+// per decoded code point: feed the recognizer its UTF-16 units; remember the
+// first non-whitespace cp
+const jsonStep = ({ rec, top }: JsonFactor, cp: CodePoint): JsonFactor => ({
+    rec: fold(recognizerStep)(rec)(fromCodePointList([cp])),
     top: top ?? (isJsonWhitespace(cp) ? null : cp),   // ws = 0x20/0x09/0x0A/0x0D
 })
 // at EOF: a complete valid document whose top-level value is an object or array
 const jsonValid = ({ rec, top }: JsonFactor): boolean =>
     recognizerAccepts(rec) && (top === 0x7b /* { */ || top === 0x5b /* [ */)
 ```
+
+**The recognizer takes code *units*, and this factor decodes code *points*** —
+`recognizerStep` is `(s: JsonRecognizerState, u: U16) => JsonRecognizerState`
+per [streaming-recognizer](../../json/todo/streaming-recognizer.md), because it
+reuses scanners typed over `U16`. So a raw astral character arrives here once,
+as `0x1F600`, where the recognizer expects `0xD83D` then `0xDE00`, and
+**TypeScript cannot see the mistake**: `U16` and `CodePoint` are both
+`= number` in `fjs/text/utf16/types.ts`, measured. Hence the expansion above.
+`fjs/text/utf16` exports `fromCodePointList` (`List<CodePoint> => Thunk<U16>`);
+its per-code-point `codePointToUtf16` is module-private today, so either the
+one-element call above or exporting that helper, whichever reads better when
+this is built. Review caught the design feeding scalars straight in after the
+recognizer's signature changed under it.
 
 `push` (`:235-247`) already iterates bytes and calls `utf8Step`, which decodes
 0-or-1 code points per byte via `utf8ByteToCodePointOp`. Feed each decoded code

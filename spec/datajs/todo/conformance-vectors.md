@@ -53,7 +53,7 @@ reader's public byte-accepting path — which stage 4 owes:
   | class | lowest | highest |
   | - | - | - |
   | invalid lead byte, low | `C0` | `C1` |
-  | invalid lead byte, high, as a lone byte | `F5` | `FF` |
+  | lead byte in no width scheme, alone | `FE` | `FF` |
   | four-byte lead past U+10FFFF | `F5 80 80 80` (U+140000) | `F7 BF BF BF` (U+1FFFFF) |
   | stray continuation byte | `80` | `BF` |
   | overlong, two bytes | `C0 A0` (U+0020) | `C1 BF` (U+007F) |
@@ -101,7 +101,13 @@ reader's public byte-accepting path — which stage 4 owes:
   `F5` is not a lead. So the complete sequences, both ends of every lead run
   the width scheme distinguishes: `F5`–`F7` at four bytes, `F8`–`FB` at five,
   `FC`–`FD` at six. `FE` and `FF` are leads in no scheme at all, so they keep
-  only the lone-byte form.
+  only the lone-byte form — and **both** of them: that run is a range like any
+  other, and the table sampled it as `F5` and `FF` until review pointed out
+  that a reader accepting a lone `FE` passes everything else here. A lone `F5`
+  is gone with it: once `F5 80 80 80` exists, the lone byte tests nothing the
+  complete sequence does not, because a decoder treating `F5` as a lead refuses
+  `F5 22` for the missing continuation — the very argument that put the
+  complete sequences in the table.
 
   The second axis is **what the decoder does with the value it computes**, and
   it splits into two implementations that no single vector catches:
@@ -697,7 +703,10 @@ The six parts:
   indexed by width two rounds after the accept table was reindexed by lead
   partition, so `E0`, `ED` and `F4`'s own handlers had no cell; and the
   serializer's leaf list, where naming a type let `true` and two positives
-  stand for the boolean, number and bigint branches. The sweep for the lead-partition shape had
+  stand for the boolean, number and bigint branches — then `FE`, the low end of
+  the one lead run that has no width scheme and so nothing but its lone-byte
+  row, and a **second file's** consumer left feeding code points to a
+  recognizer whose signature had changed under it. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
