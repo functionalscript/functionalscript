@@ -1,7 +1,7 @@
 /**
  * Generates one self-contained Nix flake per declared CI job.
  *
- * Each job gets its own `nix/generated/<id>/flake.nix` pinning the exact
+ * Each job gets its own `nix/<id>/flake.nix` pinning the exact
  * Nixpkgs commit from `../config/module.f.mjs` and exposing a single
  * `devShells.<system>.default` development shell. The files are static and
  * readable on purpose: no job selection, no shared Nix modules, no helper
@@ -14,7 +14,6 @@
  * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Expression } from '../../media/nix/types.ts'
- * @import { MetaStep } from '../common/types.ts'
  * @import { NixJob } from './types.ts'
  */
 
@@ -24,11 +23,15 @@ import { forEachStep, step } from '../../effects/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { install, test, uses } from '../common/module.f.mjs'
+import { install, uses } from '../common/module.f.mjs'
 import { nixpkgs } from '../config/module.f.mjs'
 
-/** Directory owned by this generator. */
-export const generatedDirectory = /** @type {const} */ ('nix/generated')
+/**
+ * Directory holding the generated flakes, one subdirectory per job. The
+ * generator owns those subdirectories, not everything here: `nix/README.md` is
+ * written by hand.
+ */
+export const generatedDirectory = /** @type {const} */ ('nix')
 
 const { commit } = nixpkgs
 
@@ -97,41 +100,20 @@ export const flakePath = id => `./${generatedDirectory}/${id}`
 /** Installs Nix, with `nix-command` and `flakes` enabled by the action's defaults. */
 export const nixInstall = install(uses('cachix/install-nix-action'))
 
-/** Runs one command inside a job's generated development shell. */
-/** @type {(id: string, command: string) => string} */
-export const nixDevelop = (id, command) => `nix develop ${flakePath(id)} --command ${command}`
-
 /**
- * Wraps a string so a POSIX shell reproduces it exactly. Single quotes protect
- * every other character, so only the quote itself needs handling: leave the
- * literal, reopen it, and escape the quote outside (`'` becomes `'\''`).
+ * Runs one command inside a job's generated development shell.
  *
- * @type {(value: string) => string}
+ * `--no-write-lock-file` keeps the invocation read-only against the checkout:
+ * Nix otherwise writes a `flake.lock` beside the flake it enters. The pin in
+ * `flake.nix` already determines every input, so that lock resolves nothing the
+ * flake did not already say.
+ *
+ * It is not what keeps the Node 26 drift check honest: the root `.gitignore`
+ * covers a per-job `flake.lock`, and `git add -A` does not stage an ignored
+ * file, so that check never saw one. The ignore rule stays for a hand-run
+ * `nix develop` without the flag.
+ *
+ * @type {(id: string, command: string) => string}
  */
-const singleQuoted = value =>
-    `'${value.replaceAll("'", "'\\''")}'`
-
-/**
- * Runs a migrated job's whole command sequence in one development shell, so the
- * shell's packages and environment reach every command without exporting a
- * profile across GitHub Actions steps.
- *
- * The commands are a shell script, joined so a failure stops the rest, and are
- * quoted as one argument — a command may contain quotes of its own.
- *
- * @type {(id: string, commands: readonly string[]) => string}
- */
-export const nixDevelopAll = (id, commands) =>
-    nixDevelop(id, `bash -euo pipefail -c ${singleQuoted(commands.join(' && '))}`)
-
-/**
- * Checks a job's generated flake end to end: the shell builds, and the Node it
- * puts on `PATH` is exactly the pinned version. The pinned Nixpkgs commit
- * already determines the version, so this is the only place the expectation
- * is stated — the generated flakes stay declarative instead of carrying an
- * `assert` that restates the commit they pin.
- *
- * @type {(id: string, version: string) => MetaStep}
- */
-export const nixVersionCheckStep = (id, version) =>
-    test({ run: `test "$(${nixDevelop(id, 'node --version')})" = v${version}` })
+export const nixDevelop = (id, command) =>
+    `nix develop --no-write-lock-file ${flakePath(id)} --command ${command}`

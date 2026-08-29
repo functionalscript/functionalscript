@@ -15,7 +15,6 @@ import {
     flakeText,
     generatedDirectory,
     nixDevelop,
-    nixDevelopAll,
     nixFlakes,
     nixInstall,
 } from './module.f.mjs'
@@ -29,7 +28,13 @@ const plain = {
     packages: ['nodejs_24'],
 }
 
-/** @type {NixJob} */
+/**
+ * No declared job needs a `shellHook` any more — Node 22's went with the global
+ * install it existed for. The generator still emits one, and this fixture is
+ * what holds that capability to its shape.
+ *
+ * @type {NixJob}
+ */
 const withShellHook = {
     ...plain,
     id: 'node22',
@@ -92,13 +97,6 @@ export const proof = {
                 assertEq(generated(nodeNixJobs, job.id), flakeText(job))
             }
         },
-        nodeShellHook: () => {
-            const [node22] = nodeNixJobs
-            assert(node22.shellHook !== undefined, 'expected a Node 22 shell hook')
-            assert(
-                generated(nodeNixJobs, node22.id).includes('$HOME/.npm-global'),
-                'expected the Node 22 global installation prefix')
-        },
         packages: () => {
             for (const { id, packages } of nodeNixJobs) {
                 assertEq(packages.length, 1)
@@ -122,17 +120,7 @@ export const proof = {
         flakePath: () => assertEq(flakePath(plain.id), `./${generatedDirectory}/node24`),
         nixDevelop: () => assertEq(
             nixDevelop(plain.id, 'node --version'),
-            'nix develop ./nix/generated/node24 --command node --version'),
-        nixDevelopAll: {
-            sequence: () => assertEq(
-                nixDevelopAll(plain.id, ['npm ci', 'node --test']),
-                `nix develop ./nix/generated/node24 --command bash -euo pipefail -c 'npm ci && node --test'`),
-            // A command carrying its own quote must not end the outer one: the
-            // shell has to see the script back exactly as it was written.
-            quote: () => assertEq(
-                nixDevelopAll(plain.id, [`printf '%s' 'a b'`]),
-                `nix develop ./nix/generated/node24 --command bash -euo pipefail -c 'printf '\\''%s'\\'' '\\''a b'\\'''`),
-        },
+            'nix develop --no-write-lock-file ./nix/node24 --command node --version'),
         nixInstall: () => {
             assertEq(nixInstall.type, 'install')
             assert(

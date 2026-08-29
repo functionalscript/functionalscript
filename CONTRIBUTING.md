@@ -170,12 +170,16 @@ this is [AGENTS.md §1](./AGENTS.md#1-workflow).
 
 ### Commit messages
 
-`main` takes exactly one commit per pull request: the squash merge, titled
-`<PR title> (#NNN)` with the pull request description as its body. Both halves
-are reviewed text that outlives the pull request page, and a changelog generated
-from Git history could read nothing else, so write the title and the description
-as the commit message they become. Commits on the branch are discarded by the
-squash, so their messages are working notes.
+A pull request lands on `main` as a merge commit titled `<PR title> (#NNN)`,
+with the pull request description as its body. Both halves are reviewed text
+that outlives the pull request page, and a changelog generated from Git history
+reads them, so write the title and the description as the commit message they
+become.
+
+The branch's own commits land with it, reachable through the merge's second
+parent and printed by an ordinary `git log`. They are not discarded, so their
+messages are not working notes: write each one for a reader who meets it on
+`main` with no pull request open.
 
 - **Title.** `<topic>: <short description>` — `<topic>` is the module path
   (`types/bit_vec`, `djs/tokenizer`) or an area (`ci`, `docs`, `changelog`,
@@ -206,12 +210,12 @@ squash, so their messages are working notes.
   It duplicates the entry file on purpose: the file is what today's release
   process reads, the section is what a generator reading Git history would
   read. Neither is derived from the other, so keep them identical.
-- **How it lands.** Squash and merge, always. The merge box offers the reviewed
-  title and description as the default message — don't edit it there, where
-  nobody reviews the result. A rebase merge would replay the branch's commits
-  with their working-note messages and no `(#NNN)`; a merge commit would bury
-  the pull request in a two-parent graph. Nothing lands on `main` outside a
-  pull request.
+- **How it lands.** Create a merge commit, always. The merge box offers the
+  reviewed title and description as the default message — don't edit it there,
+  where nobody reviews the result. The branch's commits come along with it: a
+  squash would drop them, and a rebase would replay them onto `main` with no
+  `(#NNN)` and no commit carrying the description. Nothing lands on `main`
+  outside a pull request.
 
 ### Addressing review comments
 

@@ -6,7 +6,7 @@
 
 /** A CI job's development environment, one generated flake each. */
 export type NixJob = {
-    /** Generated directory name under `nix/generated`, matching the CI job id. */
+    /** Generated directory name under `nix`, matching the CI job id. */
     readonly id: string
     /** Nix system of the job's runner, e.g. `aarch64-linux`. */
     readonly system: string

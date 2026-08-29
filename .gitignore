@@ -137,4 +137,4 @@ index.html
 .claude
 
 # Generated Nix flake locks
-/nix/generated/**/flake.lock
+/nix/*/flake.lock
