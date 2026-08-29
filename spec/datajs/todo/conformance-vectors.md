@@ -334,7 +334,7 @@ The six parts:
   see below), a sparse-array hole, a symbol-keyed, accessor or non-enumerable
   own property,
   an array carrying an own property beyond its elements and `length` (`a=[1];
-  a.meta=2`), and a cycle — four of them, below. Each is a case where the
+  a.meta=2`), and a cycle — six of them, below. Each is a case where the
   obvious implementation emits a valid document denoting something else.
 
   The **accessor** case is two vectors rather than one — a getter and a
@@ -343,25 +343,42 @@ The six parts:
   asserts **two** things: that the input was refused, and that the getter was
   never invoked.
 
-  The **cycle** case is four vectors, the product of two axes. Cycle
-  **length**: a self-loop (`o.self=o`) against a cycle through a second
-  container (`a.next=b; b.next=a`) — a serializer whose only guard compares a
-  child against its immediate parent refuses every self-loop and recurses
-  forever on every pair. Cycle **container kind**: object against array
-  (`a[0]=a`, and `a=[b]; b=[a]`) — a visited set lives in a walker, and a
-  serializer keeping one in its object walker and not its array walker is a
-  different implementation from its mirror image.
+  The **cycle** case is six vectors: the two self-loops, and every **ordered
+  pair** of container kinds around a two-node cycle. Two axes force that shape.
 
-  **A diagonal does not do**, and the two indirect cells are the ones that show
-  it. Take the diagonal *self-loop in an object* plus *pair of arrays*: an
-  implementation with the immediate-parent check in both walkers **and** a
-  visited set in the array walker only refuses both — and hangs on a pair of
-  objects, which that diagonal does not contain. The mirror diagonal misses the mirror
-  implementation the same way. So both indirect cells are required, and the two
-  self-loops complete the product as the base case; unlike the indirect pair,
-  neither of them is the only cell that catches some implementation.
+  Cycle **length** — a self-loop (`o.self=o`) against a cycle through a second
+  container (`a.next=b; b.next=a`) — because a serializer whose only guard
+  compares a child against its immediate parent refuses every self-loop and
+  recurses forever on every pair.
 
-  All four cycles sit **one level below the root** — `root=[x]` with `x` on the
+  Cycle **container kind**, which is not a property of the cycle but of the
+  walkers it passes through: a visited set lives in a walker, so `obj→obj`,
+  `arr→arr`, `obj→arr` and `arr→obj` are four different traversals of what is
+  otherwise one shape. The mixed pair is one cycle — `o.a=arr; arr[0]=o` —
+  entered from `o` for the first and from `arr` for the second, since the root
+  reaches one of the two nodes first and that is what a walker sees. Two implementations show the axis is real, and they fail
+  on different cells:
+
+  - **The set in one walker only.** With the immediate-parent check in both
+    walkers and a visited set in the array walker alone, the diagonal
+    *self-loop in an object* plus *pair of arrays* is refused entirely — and a
+    pair of objects hangs. The mirror implementation misses the mirror
+    diagonal. So both homogeneous pairs are required, and a diagonal will not
+    do.
+  - **The set reset at the walker boundary** — each walker keeping its ancestry
+    as a local of its own recursion and starting a fresh one when it dispatches
+    to the other kind. That refuses **both** homogeneous pairs correctly and
+    recurses forever on `obj→arr→obj`, which is why homogeneous coverage is not
+    coverage of the boundary. Review found this one, after the first draft of
+    this paragraph called the axis binary.
+
+  The remaining two cells — the second entry point of the mixed pair, and the
+  second self-loop — are symmetric completion rather than demonstration: the
+  boundary implementation hangs on a mixed cycle entered from either end, and I
+  could not name an implementation that only one of them catches. The file says
+  so rather than implying six separate demonstrations.
+
+  All six cycles sit **one level below the root** — `root=[x]` with `x` on the
   cycle — for the reason the whole set shares, below.
 
   **Every serializer-reject vector puts its offending value below the root**,
@@ -431,7 +448,10 @@ The six parts:
   offender's **placement** unstated where the byte set had pinned it three
   rounds earlier, the normalize numbers were six positive finite thresholds
   and nothing else, and post-order naming rested on two shared siblings, which
-  pre-order names the same way. Every time the list had been written from memory rather
+  pre-order names the same way — then the walker boundary the cycle set had
+  just called a binary axis, `obj→arr→obj` passing every homogeneous cell, and
+  an exact-bytes vector written the round before that **spelled its object keys
+  bare**, requiring a document the grammar rejects. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -700,11 +720,16 @@ The six parts:
   one throws on evaluation (measured: `const _0=[_1];const _1=[];` is a
   `ReferenceError`), so dependency-before-dependent is forced by the language
   in any document that runs at all, and no vector has to pin it. Pin the object
-  analogue of this one too — `root={a:p,b:p,c:q}` with `p={x:q}`, giving
-  `const _0={};const _1={x:_0};export default{a:_1,b:_1,c:_0};` — for the
-  reason the cycle set is a product rather than a diagonal: naming can live in
-  a per-container emitter rather than in one shared traversal, and then only
-  the container kind that carries the nesting sees the order it assigns. Include a normalized root that is a bare
+  analogue of this one too — `root={"a":p,"b":p,"c":q}` with `p={"x":q}`, giving
+  `const _0={};const _1={"x":_0};export default{"a":_1,"b":_1,"c":_0};` — for
+  the reason the cycle set covers every ordered pair of container kinds rather
+  than a diagonal: naming can live in a per-container emitter rather than in
+  one shared traversal, and then only the container kind that carries the
+  nesting sees the order it assigns. **Every key in that output is quoted**,
+  since `key ::= string | '[' '"__proto__"' ']'` admits no identifier form —
+  review caught this vector spelling its keys bare, which would have required
+  a document DataJS rejects and failed the very implementation it exists to
+  check. Include a normalized root that is a bare
   number and a bare bigint, so `export default 1;` cannot regress to
   `export default1;` — which JavaScript rejects, `default1` being one
   identifier. Include an **identifier-starting** root as well (`NaN`, or any of
@@ -858,7 +883,7 @@ document can carry. So the corpus does not store values. It stores a
     makes it dangerous: measured, an enumerable setter-only property has
     `descriptor.get === undefined` and reads as `undefined`, so a serializer
     that guards with `if (descriptor.get)` passes it straight through and emits
-    `{x: undefined}` — a **valid DataJS document**, since `undefined` is one of
+    `{"x":undefined}` — a **valid DataJS document**, since `undefined` is one of
     this format's values, denoting something the input never was. That is
     [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) exactly:
     an unsupported input answered with a plausible wrong value rather than
@@ -1011,7 +1036,13 @@ needs nothing beyond an engine.
       refused by the cheaper rule never exercises the rule it was written for.
       Check its **placement** too: a malformed byte sequence goes inside a
       quoted string and a serializer-reject offender goes below the root, and
-      in both directions the placement is what makes the vector able to fail. The
+      in both directions the placement is what makes the vector able to fail.
+      Run every **expected-bytes** string in the normalize set through the
+      accept grammar before committing it — normalized output is a document, so
+      the accept rules bind it, and a vector demanding a document DataJS
+      rejects fails exactly the implementations it exists to confirm. One
+      designed here spelled its object keys bare, which `key ::= string | '['
+      '"__proto__"' ']'` does not admit. The
       serializer-accept set is the one an implementation passes by being too
       strict, so it is the one most easily left for later and least safe to.
 - [ ] Add the **JavaScript** whole-set subset-law check. The FunctionalScript
