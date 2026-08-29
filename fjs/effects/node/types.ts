@@ -1,5 +1,7 @@
 /**
  * Types for Node.js effect operations.
+ *
+ * @module
  */
 
 import type { List as EffectList } from '../../types/list/types.ts'

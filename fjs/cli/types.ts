@@ -1,5 +1,7 @@
 /**
  * Types for the CLI command dispatch table.
+ *
+ * @module
  */
 
 import type { NodeOp, Program } from '../effects/node/types.ts'

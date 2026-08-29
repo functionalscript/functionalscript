@@ -1,5 +1,7 @@
 /**
  * Types for the Sloth verifiable delay function.
+ *
+ * @module
  */
 
 import type { Nullable } from '../../types/nullable/types.ts'

@@ -1,5 +1,7 @@
 /**
  * Types for the SHA-2 family of hash functions.
+ *
+ * @module
  */
 
 import type { Tuple } from '../../types/array/types.ts'

@@ -1,5 +1,7 @@
 /**
  * Implementation-private types for B-tree removal.
+ *
+ * @module
  */
 
 import type { Branch1, Branch3, Branch5, Leaf1 } from '../types/types.ts'
