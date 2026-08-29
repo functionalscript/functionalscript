@@ -48,7 +48,10 @@ A machine-readable corpus with three parts:
   number thresholds explicitly — `1e20`, `1e21`, `1e-6`, `1e-7`,
   `5e-324`, `1.7976931348623157e308` — since that is where a host's own
   formatter diverges, and pin `root=[p,p]` with `p=[c]` so the hoisting count
-  is occurrences rather than paths.
+  is occurrences rather than paths. Include a normalized root that is a bare
+  number and a bare bigint, so `export default 1;` cannot regress to
+  `export default1;` — which JavaScript rejects, `default1` being one
+  identifier.
 
 The corpus is data, not code, so it can be read by an implementation in any
 language. Store it as DataJS once `fjs/media/datajs` can read it; until then

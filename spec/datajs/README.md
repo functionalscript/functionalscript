@@ -4,11 +4,15 @@ DataJS is JSON with two extensions, and no other additions:
 
 1. a value may be **shared**, so a document denotes a directed acyclic graph
    where JSON denotes a tree;
-2. the leaf set gains the JavaScript values JSON cannot spell — `undefined`,
-   `bigint`, `NaN`, `Infinity`, `-Infinity` and `-0`.
+2. the leaf set gains the JavaScript values JSON cannot carry —
+   `undefined`, `bigint`, `NaN`, `Infinity` and `-Infinity`.
 
 The first is the reason the format exists; the second is what it costs to
 round-trip a JavaScript value honestly.
+
+`-0` is neither, and worth naming separately: JSON syntax spells it and
+`JSON.parse` preserves the sign, but `JSON.stringify` writes it as `0`, so it
+survives DataJS and not a JSON round trip.
 
 A document is a JavaScript module: `const` statements naming values, then one
 `export default` naming the value the document denotes.
@@ -73,9 +77,16 @@ Every other character JavaScript treats as whitespace or a line terminator is
 byte order mark, wherever they appear outside a string literal. Accepting them
 would import a taxonomy no implementer of a data format should have to know.
 
-Whitespace is *required* only between two adjacent word tokens — `const a`,
-`export default x`. Everywhere else it is optional, so every document has a
-one-line spelling.
+Whitespace is *required* exactly where leaving it out would merge two tokens
+into one: between `const` and a name, between `export` and `default`, and
+between `default` and any value beginning with an identifier character — a
+name, `true`, `false`, `null`, `undefined`, `NaN`, `Infinity`, a number, or a
+bigint. `export default1;` is not this format minus a space; it is a
+JavaScript syntax error, because `default1` lexes as a single identifier.
+
+Everywhere else whitespace is optional, so every document has a one-line
+spelling: `export default-1;`, `export default[1];` and `export default"a";`
+all need no space.
 
 A document is UTF-8. It has no BOM.
 
@@ -331,8 +342,10 @@ Normalized form is one specific serializer, chosen so that a value has
 need not produce it — but an implementation that claims to produce normalized
 DataJS must produce these bytes.
 
-**Layout.** One line. Whitespace appears only where two word tokens would
-otherwise merge (`const a`, `export default x`). No indentation, no trailing
+**Layout.** One line. A single space appears exactly where the tokens would
+otherwise merge, as defined under [Whitespace](#whitespace) — after `const`,
+between `export` and `default`, and after `default` when the value begins with
+an identifier character. Nowhere else: no indentation, and no trailing
 newline.
 
 **Which values become consts.** A value is hoisted into a `const` if and only
@@ -362,10 +375,15 @@ because host formatters disagree on exactly these cases: JavaScript writes
 - A negative number is `-` followed by the spelling of its magnitude. `-0` is
   the one departure from `ToString`, which spells it `0`; normalized DataJS
   spells it `-0`.
-- Otherwise pick integers `s`, `k`, `n`, with `k` as small as possible, such
-  that `10^(k-1) ≤ s < 10^k` and `s × 10^(n-k)` is exactly the value — `s` is
-  the shortest digit string that reads back as this number, `k` its length,
-  and `n` the position of the decimal point. Then:
+- Otherwise pick integers `s`, `k`, `n` with `10^(k-1) ≤ s < 10^k` such that
+  `s × 10^(n-k)` **converts back to exactly this Number**, choosing `k` as
+  small as possible; `s` is that shortest digit string, `k` its length, and
+  `n` the position of the decimal point. Round-trip conversion decides this,
+  not exact real-number equality: `0.1` is the Number nearest one tenth, whose
+  exact value is `0.1000000000000000055511151231257827…`, and its spelling is
+  `0.1` because those digits convert back to it. Where several `s` of that
+  length qualify, take the one whose `s × 10^(n-k)` is closest to the Number's
+  exact value; if two are equally close, take the even `s`. Then:
   - `k ≤ n ≤ 21` — the `k` digits, then `n − k` zeros: `100`;
   - `0 < n ≤ 21` — the first `n` digits, `.`, the remaining `k − n`: `1.5`;
   - `−6 < n ≤ 0` — `0.`, then `−n` zeros, then the `k` digits: `0.000001`;
