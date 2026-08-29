@@ -292,12 +292,12 @@ Judgement calls worth deciding explicitly rather than by accident:
       `allOk` is the ok-channel wrapper over `all` and belongs with it;
       [allvoid-combinator](./allvoid-combinator.md) builds on it, so leaving it
       behind would make the combinator import from `effects/node`.
-- [ ] Move `Sandbox` / `SandboxResult` / `sandbox` and `Catch` / `catch_` to
-      `fjs/effects/common` — **first**, and without `Await`. These two are the
+- [x] Move `Sandbox` / `SandboxResult` / `sandbox` and `Catch` / `catch_` to
+      `fjs/effects/common` — first, and without `Await`. These two are the
       operations a browser interpreter implements (see the judgement call
-      above), so they are the ones a second host is blocked on; `Await` belongs
-      to the registration path no browser runs and moves on the layering
-      argument alone, which is not urgent.
+      above), so they are the ones a second host was blocked on; `Await`
+      belongs to the registration path no browser runs and moves on the
+      layering argument alone, which is not urgent.
 - [x] Move `Sandbox`'s and `Catch`'s *handlers* — the impure `sandbox` clock
       helper and the `catch` thunk — to `fjs/effects/common/module.mjs`, which
       `effects/node`'s runner spreads into its own operation map. Declaring an
