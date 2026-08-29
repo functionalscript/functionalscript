@@ -100,7 +100,7 @@ import type { Unknown as JsonUnknown } from './json/types.ts'
 import type { Rest, Struct, Type } from '../rtti/types.ts'
 
 /** The value a dialect schema denotes. */
-type ValueOf<S extends Struct> = Ts<Rest<S, Type>>
+type ValueOf<S extends Struct> = Ts<S>
 
 /** The dialect tag a schema pins, as a literal. */
 type DialectOf<S extends Struct> =
@@ -114,18 +114,38 @@ export type JsonDialect<S extends Struct, E = never> = {
     readonly decodeText: (text: string) => Result<ValueOf<S>, ValidationError | E | string>
     readonly entry: DialectEntry
 }
+
+// and the factory, whose schema parameter is the one `dialectEntry` takes:
+//   <S extends Struct, E = never>(
+//       schema: Rest<S, Type>,
+//       checkReferences?: (value: ValueOf<S>) => Result<ValueOf<S>, E>,
+//   ) => JsonDialect<S, E>
 ```
 
 **The constraint mirrors `dialectEntry`'s, deliberately.** That function is
 declared `@template {Struct} S` taking `@param {Rest<S, Type>} type`
 (`../module.f.mjs:126-127`), and the factory hands it the same schema — so a
 looser `S extends Type` would admit primitives and bare thunks the runtime
-rejects, and the call would need a cast or fail outright. `Rest<S, Type>`
-rather than a bare `Struct` is load-bearing too: `../module.f.mjs:119-124`
+rejects, and the call would need a cast or fail outright. The **parameter**
+is therefore `Rest<S, Type>`, not a bare struct: `../module.f.mjs:119-124`
 explains that a closed struct would make an older reader reject a blob a
 newer writer extended, which is the fail-closed misread the additive-
 extension rule exists to prevent. Every dialect states `open`, and the type
 should require it.
+
+**The value, though, is `Ts<S>` — not `Ts<Rest<S, Type>>`.** The two are the
+same type here: `RestTs<C, R>` is `C extends Tuple ? TupleRestTs<C, R> :
+ConstTs<C>` (`../../rtti/ts/types.ts:353-354`), so for a non-tuple container
+the rest is *discarded*, and `Ts` of a bare struct falls through to
+`ConstTs` as well (`:484`). Both spellings reduce to `ConstTs<S>`, which is
+exactly the `Revision`/`Lock`/`Note` each module already derives.
+
+Prefer the short one. Writing `Ts<Rest<S, Type>>` in a *generic* signature
+makes inference expand the wrapper through rtti's recursive `Type` and risks
+TS2589 — a hazard this file takes seriously enough to carry an explicit
+fast-path against (`../../rtti/ts/types.ts:451-453`). Since the long form
+buys nothing for a struct, it is only a way to fail the `tsc` check the
+tasks below require.
 
 **The dialect is derived, not a parameter.** A type parameter appearing only
 in the return type cannot be inferred from a `jsonDialect(schema, …)` call —
@@ -220,7 +240,7 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
       `DialectEntry` keeps its `{ dialect, match }` shape unchanged.
 - [ ] Type the factory as `JsonDialect<S extends Struct, E>` above — the
       dialect derived by `DialectOf<S>`, the value by
-      `ValueOf<S> = Ts<Rest<S, Type>>`, the error union widened by the
+      `ValueOf<S> = Ts<S>`, the error union widened by the
       refinement only — and confirm in the emitted `.d.mts` that **every**
       export keeps its current type: the two literals, and
       `encodeText`/`validate`/`decodeText` for each of the three dialects.
