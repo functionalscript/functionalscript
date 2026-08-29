@@ -110,7 +110,17 @@ A machine-readable corpus with six parts:
   21: U+000B and U+000C (the C0 pair), U+2028 and U+2029 (the line
   terminators), U+FEFF, and U+00A0, U+1680, U+2000, U+202F, U+205F and U+3000
   spanning the `Zs` block, since an implementation reaching that class at all
-  reaches all of it. Then the three places whitespace is
+  reaches all of it. **U+FEFF needs two vectors, and the positions test
+  different code.** Between tokens it tests the tokenizer, like the other
+  twenty; as the document's **first** character it tests the decoder, against
+  the separate rule that a document "has no BOM" — and a reader that strips a
+  leading BOM while decoding, which is ordinary behavior, passes the
+  between-tokens vector and fails the rule. Both spellings are valid
+  JavaScript, measured. Then the array **elisions** JavaScript reads as holes
+  and the grammar `array ::= '[' (value (',' value)*)? ']'` cannot spell at
+  all: `export default[,1];`, `[1,,2]` and `[1,,]`, leading, medial and
+  trailing. `[1,]` is *not* one of these — it is the trailing comma above, a
+  different rule, and it leaves no hole. Then the three places whitespace is
   *required*, one vector each: `constx=1;export default x;`,
   `exportdefault 1;` and `export default1;`.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
@@ -140,18 +150,19 @@ A machine-readable corpus with six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Seven consecutive review rounds
+  vector is the only instrument that sees it. Eight consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
   control characters, then the vertical tab and the required separators, then
-  the fifteen `Space_Separator` characters the spec's own list omits. Every time the list had been written from memory rather
+  the fifteen `Space_Separator` characters the spec's own list omits, then the
+  array elisions and the leading BOM. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
   derivation pointed at the wrong sentence; and neither does one pointed at the
   right sentence that stops reading halfway through it, nor one that never
-  enumerated the section at all. The spec narrows in four sections, and each
+  enumerated the section at all. The spec narrows in six places, and each
   owes vectors:
 
   - **Strings** — and this is the section that kept biting, because it holds
@@ -190,6 +201,26 @@ A machine-readable corpus with six parts:
     rejects the rest, so it gets all 21 for free. Only a reader **delegating**
     to a JavaScript tokenizer over-accepts, which is precisely why the vectors
     have to exist and why they must reach the `Zs` class the spec never lists.
+  - **The document rule** — "a document is UTF-8; it has no BOM". Separate
+    from §Whitespace even though both concern U+FEFF, because it is about the
+    *decoder* rather than the tokenizer: a leading BOM is stripped by ordinary
+    decoding, so only a vector that pins U+FEFF as the **first character**
+    tests it.
+  - **The grammars themselves**, not only the prose. `array ::= '[' (value
+    (',' value)*)? ']'` admits no elision, so `[,1]`, `[1,,2]` and `[1,,]` are
+    rejections that no sentence in the spec states — the production states
+    them. A source that is a grammar rather than a sentence is easy to skip
+    precisely because there is nothing to transcribe.
+
+  **And check both directions.** The corpus has a reader half and a serializer
+  half, and a rule can be covered in one while absent in the other — which has
+  now happened twice in successive rounds. Required whitespace was covered by
+  the *normalize* set, which constrains emitted bytes and cannot catch a reader
+  accepting a document that omits a space. Array holes were covered by
+  *serializer reject*, which takes a programmatic sparse array and cannot catch
+  a reader accepting `[1,,2]` as document text. Each rule owes a vector in
+  every direction it can be violated, and one direction's coverage reads
+  exactly like the other's until someone asks which way it points.
 
   Plus what DataJS simply lacks where JavaScript has it: comments, `import`,
   identifier keys and trailing commas.
