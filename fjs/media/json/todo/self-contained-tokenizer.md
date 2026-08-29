@@ -966,9 +966,12 @@ differences are *surfaced*; they do not decide which ones may exist, and the
 next section says why they cannot.
 
 **No finite sweep is exhaustive**, and this design has now claimed otherwise
-three times — first over two number prefixes, then over the number scanner
+four times — first over two number prefixes, then over the number scanner
 alone, then over the new scanner's states while the *old* one has states the new
-one deliberately lacks. `>>>=` is one `invalid token` today, because the
+one deliberately lacks, and then over a prefix list that announced one prefix
+per state and gave none for three of `StringState`'s eight kinds. That last one
+is the sharpest, because the rule above the list was right and the list under it
+had simply never been re-derived after the state union grew. `>>>=` is one `invalid token` today, because the
 JavaScript tokenizer knows it as a single operator; the replacement emits four
 `unexpected character` errors, and no prefix derived from the new scanner
 reaches that.
@@ -1109,20 +1112,35 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       not make. Valid JSON is unaffected, and the entry should say so.
 - [ ] **Derive the sweep's prefixes from the scanner's own states**, one per
       state, rather than listing the ones that came to mind. This requirement is
-      the point: the prefix set has now been too narrow twice — first covering
-      only `12` and `00`, which cannot see that `1e"a"` emits a string today,
-      then covering only the number scanner, which cannot see that `"\x"`
-      changes at all. Both times the sweep was called exhaustive while being
-      exhaustive over one axis.
+      the point: the prefix set has now been too narrow three times — first
+      covering only `12` and `00`, which cannot see that `1e"a"` emits a string
+      today; then covering only the number scanner, which cannot see that
+      `"\x"` changes at all; then listing five of `StringState`'s eight kinds
+      under a heading promising all of them. The first two called the sweep
+      exhaustive while being exhaustive over one axis. The third is why the
+      last sentence of this task exists — a list that loses to the state set is
+      only useful if someone actually runs the comparison, and for one round
+      nobody did.
 
-      Every state of every scanner needs a prefix, and the state machine is
-      what enumerates them, not a person:
+      Every state of every scanner needs a prefix — but a **text** prefix
+      reaches a scanner state only through the tokenizer's own dispatch, so it
+      pins that state against the characters the tokenizer can deliver, not
+      against every character the now-public API admits. Two states are
+      therefore not prefixes of their own, and the list has to say so, because
+      each is a place where a mechanically complete-looking list would be
+      **false** coverage: `start` shares the empty prefix, and the two terminal
+      states cannot be any prefix's resting state at all.
 
-      - **top level** — the empty prefix, so a bare `c` is swept;
+      The state machine enumerates the rest, not a person:
+
+      - **top level** — the empty prefix, so a bare `c` is swept. This one
+        prefix is also **`start`** for both scanners: `c` is where the
+        dispatcher hands `"` to a fresh string scan and a digit or `-` to a
+        fresh number scan, and inside the tokenizer neither scanner has any
+        other way in;
       - **number** — one per variant of the union above: `12` in the integer
         part, `1.5` in the fraction and `1e5` in the exponent, all accepting;
-        `00`, `12+` and `1e.` for recovery; the empty prefix for **start**;
-        and `-`, `1.`, `1e`, `1e+`, `1e-`
+        `00`, `12+` and `1e.` for recovery; and `-`, `1.`, `1e`, `1e+`, `1e-`
         incomplete;
       - **string** — inside a literal (`"a`), after a backslash (`"\`), each
         `\u` hex position (`"\u`, `"\uA`, `"\uAB`, `"\uABC`), and — since
@@ -1132,12 +1150,31 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
         LF or CR *after* an invalid escape is reachable only by the handful of
         cases pinned individually, which is what this task exists to stop
         relying on;
+      - **after a literal, both ways** — `""` and `"\x"`. These are *not*
+        prefixes for `done` and `failed`, and listing them under those names
+        would be the false coverage just described: both states are terminal,
+        so the tokenizer emits its token and returns to top level rather than
+        resting in either, and a prefix ending in a closed literal sweeps
+        top-level dispatch. What they pin is the **resumption point** after
+        each kind of string — that a well-formed and a malformed literal hand
+        the next character back to the same place — and `"\x"` is where 3a
+        changes the emitted token, so its rows are the ones a reviewer diffs
+        that change against;
       - **word** — a keyword prefix (`tru`), a complete keyword (`true`), and a
         non-keyword run (`x`).
 
+      `done` and `failed` are reached by the sweep, then, but never held, and
+      their contract — every input `stopped`, nothing consumed — is proved
+      directly on the scanner by the export task above. So is the number
+      scanner's terminal `recovery`, for the same reason and with the same
+      division of labour: a caller may feed a terminal state where the
+      tokenizer never would, and only a direct proof sees that.
+
       For each prefix, and every ASCII character `c`, record `prefix` + `c` +
       `1`. If the implementation's state set does not match this list, the list
-      is wrong and the state set wins.
+      is wrong and the state set wins — subject to the two exemptions named
+      above, which are claims about what a text sweep can reach, not licence to
+      leave a state unpinned.
 
       Add the **old** machine's states too, since it has states the replacement
       deliberately lacks: JavaScript operator runs (`>>`, `>>>`, `>>>=`, `===`,
