@@ -11,6 +11,7 @@
  *
  * @module
  *
+ * @import { MetaStep } from '../common/types.ts'
  * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Expression } from '../../media/nix/types.ts'
@@ -23,7 +24,7 @@ import { forEachStep, step } from '../../effects/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { install, uses } from '../common/module.f.mjs'
+import { install, test, uses } from '../common/module.f.mjs'
 import { nixpkgs } from '../config/module.f.mjs'
 
 /**
@@ -117,3 +118,50 @@ export const nixInstall = install(uses('cachix/install-nix-action'))
  */
 export const nixDevelop = (id, command) =>
     `nix develop --no-write-lock-file ${flakePath(id)} --command ${command}`
+
+/**
+ * The Nix system of the runner every job with a flake uses. `ubuntuArm` picks
+ * the image; this is the same machine named the way a flake names it.
+ *
+ * A job on another runner declares another system, and its flake gets another
+ * explicit `devShells.<system>.default` — not a loop over systems.
+ */
+export const nixSystem = /** @type {const} */ ('aarch64-linux')
+
+/**
+ * One step per command, each entering the job's shell (root `AGENTS.md` §7).
+ *
+ * Re-entering per step is the point rather than a cost: the step is what CI
+ * reports on, and a bundle would name the wrapper instead of the command that
+ * failed. Only commands needing a tool the flake pins go through here — `git`
+ * is the runner's, so the Node 26 drift check stays a plain step.
+ *
+ * @type {(id: string) => (commands: readonly string[]) => readonly MetaStep[]}
+ */
+export const nixSteps = id => commands =>
+    commands.map(command => test({ run: nixDevelop(id, command) }))
+
+/**
+ * Asserts that the runtime a job is about to use is the version configured for
+ * it, read from inside that job's own generated flake.
+ *
+ * The flake resolves its package from the pinned Nixpkgs commit, which
+ * `../config/module.f.mjs` only *claims* provides that version. The claim does
+ * not check itself, and a job quietly testing on another runtime reports a
+ * green result about something nobody asked for. This is the one thing about a
+ * generated flake that only CI can establish: `nix develop` has to resolve the
+ * pin, build the shell, and put the binary on `PATH`.
+ *
+ * It runs before anything that executes project or dependency code — `npm ci`
+ * and its lifecycle hooks, a `deno install`, a `bun install` — so nothing runs
+ * on an unconfirmed runtime.
+ *
+ * `command` and `expected` are separate because the runtimes disagree on both
+ * halves: `node --version` prints a leading `v` that `bun --version` does not,
+ * and `deno --version` prints three lines, so Deno is asked for the one field
+ * instead.
+ *
+ * @type {(id: string, command: string, expected: string) => MetaStep}
+ */
+export const nixVersionStep = (id, command, expected) =>
+    test({ run: `test "$(${nixDevelop(id, command)})" = ${expected}` })

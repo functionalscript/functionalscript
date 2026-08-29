@@ -137,10 +137,11 @@ version-dependent — `print`, `putstr`, `quit`, `scriptArgs`, `os.getenv`,
 
 - [ ] Declare a `spidermonkey` `NixJob` pinning the shell and Node from the
       existing Nixpkgs commit, in a module that owns it the way
-      `nodeNixJobs` (`../../ci/node/module.f.mjs`) owns the Node ones, and add
-      it to `nixJobs` in `../../ci/module.f.mjs` — `nixFlakes` writes the
-      collection it is handed, so a job absent from that list generates no
-      flake. `pkgs.spidermonkey_140` is the newest attribute the pinned commit
+      `nodeNixJobs` (`../../ci/node/module.f.mjs`) owns the Node ones — or,
+      closer in size, the way `denoNixJob` and `bunNixJob` each sit beside the
+      steps that enter them — and add it to `nixJobs` in `../../ci/module.f.mjs`
+      — `nixFlakes` writes the collection it is handed, so a job absent from
+      that list generates no flake. `pkgs.spidermonkey_140` is the newest attribute the pinned commit
       offers; confirm the version the built shell reports.
 - [ ] Check what that shell provides — output, exit code, args, environment,
       job queue, module loading. Note anything that makes the generated file

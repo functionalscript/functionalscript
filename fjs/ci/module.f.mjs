@@ -29,8 +29,8 @@ import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.mjs
 import { nixFlakes } from './nix/module.f.mjs'
 import { parse as jsonParse } from '../media/json/module.f.mjs'
 import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
-import { bunSteps } from './bun/module.f.mjs'
-import { denoSteps } from './deno/module.f.mjs'
+import { bunNixJob, bunSteps } from './bun/module.f.mjs'
+import { denoNixJob, denoSteps } from './deno/module.f.mjs'
 
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
 const job = (rust, nodeExtra) => o => a => {
@@ -44,9 +44,14 @@ const job = (rust, nodeExtra) => o => a => {
     return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
 
-// Every generated flake, across all job families that own one.
-/** @type {readonly NixJob[]} */
-const nixJobs = nodeNixJobs
+/**
+ * Every generated flake, across all job families that own one. Each family
+ * declares its own environment beside the steps that enter it; this is the list
+ * the generator writes out, and the only place the whole set is visible.
+ *
+ * @type {readonly NixJob[]}
+ */
+export const nixJobs = [...nodeNixJobs, denoNixJob, bunNixJob]
 
 /** @type {(rust: boolean, pin: string | undefined) => Jobs} */
 const canonicalJobs = (rust, pin) => ({

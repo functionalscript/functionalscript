@@ -5,13 +5,24 @@
 
 ### Progress
 
-Flake generation is implemented and **all three Node jobs are migrated**: each installs
-Nix through the pinned action and runs its command sequence one `nix develop` step per
-command. Nix runs in CI only where a job uses a flake — the temporary `nix-flakes` job
-that instantiated them to check them is gone, and every generated flake is now evaluated
-by the job that uses it. What needs no Nix is established by proofs over the generator's
-output. See the progress note in
+Flake generation is implemented and **every canonical job is migrated** — the three Node
+jobs, then `deno` and `bun`. Each installs Nix through the pinned action and runs its
+command sequence one `nix develop` step per command. Nix runs in CI only where a job uses
+a flake — the temporary `nix-flakes` job that instantiated them to check them is gone,
+and every generated flake is now evaluated by the job that uses it. What needs no Nix is
+established by proofs over the generator's output. See the progress note in
 [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
+
+The two follow-ups this issue named are done. `setup-deno` and `setup-bun` are gone with
+them, and `fjs/ci/config/module.f.mjs` no longer records those action versions; its `deno`
+and `bun` pins now name what the snapshot provides — 2.8.3 and 1.3.13 — rather than each
+vendor's latest release, exactly as the Node pins do. `nixJobs` in `fjs/ci/module.f.mjs`
+composes the flakes of all three families rather than aliasing the Node list.
+
+Deno and Bun brought one thing the Node jobs did not: their package attributes,
+`pkgs.deno` and `pkgs.bun`, carry no version, so the proof that ties `nodejs_24` to the
+configured Node has no counterpart for them. Their CI version check is the whole tie,
+which is also why it is worth more there than it is for Node.
 
 What remains here is the Nixpkgs update command; the other open item, removing stale
 generated job directories, waits on a recursive `rm` effect.
@@ -71,13 +82,19 @@ Add only the data needed now:
 - exact package versions copied from that snapshot where native CI needs them;
 - simple per-job system and package declarations.
 
-For the current jobs, the Node runtime declarations are:
+The runtime declarations are:
 
 ```text
 node22: aarch64-linux, nodejs_22
 node24: aarch64-linux, nodejs_24
 node26: aarch64-linux, nodejs_26
+deno:   aarch64-linux, deno
+bun:    aarch64-linux, bun
 ```
+
+The Node attributes name a major version; Deno's and Bun's name nothing. Where the
+attribute is unversioned the configured version is a claim the flake cannot restate, so
+only the job's own check can hold it.
 
 A job may also declare tools required by its own work. Keep those additions job-local;
 this TODO does not prescribe which non-Node tools a job needs.
@@ -90,6 +107,8 @@ Generate one self-contained file for each job:
 nix/node22/flake.nix
 nix/node24/flake.nix
 nix/node26/flake.nix
+nix/deno/flake.nix
+nix/bun/flake.nix
 ```
 
 Each generated file should:
@@ -124,8 +143,8 @@ The generator substitutes the job's packages. If another system is later require
 another explicit `devShells.<system>.default` attribute rather than adding a loop or
 system-selection framework.
 
-Node 22, Node 24, and Node 26 remain separate because they use different runtimes and run
-different command sequences.
+Node 22, Node 24, Node 26, `deno` and `bun` remain separate because they use different
+runtimes and run different command sequences.
 
 No job declares a `shellHook`. The generator still emits one — a job needing environment
 set up on shell entry can declare it, and `fjs/ci/nix/proof.f.mjs` holds that capability
@@ -144,8 +163,10 @@ npm run ci-nix-update
 At a high level it:
 
 1. reads the latest commit from the configured official stable Nixpkgs reference;
-2. verifies that `nodejs_22`, `nodejs_24`, and `nodejs_26` exist;
-3. reads the package versions needed by the currently declared Nix jobs;
+2. verifies that `nodejs_22`, `nodejs_24`, `nodejs_26`, `deno` and `bun` exist;
+3. reads the package versions needed by the currently declared Nix jobs — for the
+   unversioned attributes this is the only way to learn them, and today all five were
+   read from the snapshot's package files by hand;
 4. updates the Nixpkgs commit and relevant exact versions in
    `fjs/ci/config/module.f.mjs`;
 5. runs ordinary CI generation to regenerate the declared flakes;
@@ -223,7 +244,7 @@ and the job that runs on it is where that claim is worth checking.
 
 Add other jobs only when useful:
 
-- Deno and Bun can be separate straightforward follow-ups;
+- Deno and Bun are done — they were the straightforward follow-ups this list named;
 - Rust should have its own experiment and TODO for concrete toolchain/target packages;
 - real browser execution is tracked by
   [browser-testing](../../emergent_testing/todo/browser-testing.md); the Node-only
@@ -242,8 +263,10 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
       configuration, plus the exact Node versions that snapshot provides.
 - [x] Add the Node job system and package declarations above.
 - [ ] Add the explicit Nixpkgs update command.
-- [x] Verify all required Node package attributes exist in the candidate snapshot.
-- [x] Generate one readable self-contained flake per Node job with
+- [x] Verify all required package attributes exist in the candidate snapshot —
+      `nodejs_{22,24,26}`, `deno` and `bun`, the last two confirmed to carry
+      `aarch64-linux` in `meta.platforms`.
+- [x] Generate one readable self-contained flake per job with
       `devShells.aarch64-linux.default`.
 - [ ] Remove stale generated job directories.
 - [x] Ignore `/nix/*/flake.lock`.
@@ -254,7 +277,8 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
       `nix develop --command` step per command.
 - [x] Validate each Node job independently with its existing commands and order.
 - [x] Keep tracked checkout state unchanged.
-- [x] Migrate jobs one at a time — Node 24, then Node 26, then Node 22.
+- [x] Migrate jobs one at a time — Node 24, then Node 26, then Node 22, then `deno`
+      and `bun`.
 - [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
 
 ### Related

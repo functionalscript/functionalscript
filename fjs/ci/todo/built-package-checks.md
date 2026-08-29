@@ -14,6 +14,11 @@ it **from the registry**, at a version that is not the commit under review:
 | `deno` (`../deno/module.f.mjs`) | `deno install -g -A --minimum-dependency-age=0 npm:functionalscript@<version>`, `deno run -A --minimum-dependency-age=0 npm:functionalscript@<version> test` |
 | `bun` (`../bun/module.f.mjs`) | `bun install -g functionalscript@<version>`, `bunx functionalscript@<version> test` |
 
+Deno's and Bun's four run inside `nix develop` now, and their global installs are
+`test`-typed steps rather than `install`-typed ones, because the flake they enter
+arrives with the checkout. Neither fact changes what those steps check: still the
+registry, still a version that is not this commit.
+
 `node22` was a ninth until it lost `fjs test` and the install feeding it. Those
 were there because Node 22 could not run `node --test`, not to check a package,
 and the job runs the suite directly now.
@@ -106,7 +111,10 @@ installed CLI. Same module, same artifact, different runner requirements.
 - [ ] Delete `functionalscript` from `../config/module.f.mjs` once nothing reads
       it, and drop Deno's `--minimum-dependency-age=0` with its reason
 - [ ] Consider dropping `NixJob.shellHook`: no job declares one since Node 22's
-      global install left, so only `fjs/ci/nix/proof.f.mjs` holds the capability
+      global install left, and the two global installs that arrived with the
+      Deno and Bun migration need none — both write under the home directory
+      rather than into the read-only store, which is what Node 22's hook was
+      working around. Only `fjs/ci/nix/proof.f.mjs` holds the capability
 - [ ] Update `../proof.f.mjs`: the job count, the per-job assertions, and
       `jobNeeds`'s ordering count
 

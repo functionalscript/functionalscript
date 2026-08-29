@@ -383,25 +383,25 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "denoland/setup-deno@v2.0.5",
-          "with": {
-            "deno-version": "2.9.6"
-          }
-        },
-        {
-          "run": "deno install -g -A --minimum-dependency-age=0 npm:functionalscript@0.47.0"
+          "uses": "cachix/install-nix-action@v31.11.1"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "deno run -A --minimum-dependency-age=0 npm:functionalscript@0.47.0 test"
+          "run": "test \"$(nix develop --no-write-lock-file ./nix/deno --command deno eval 'console.log(Deno.version.deno)')\" = 2.8.3"
         },
         {
-          "run": "deno install --frozen"
+          "run": "nix develop --no-write-lock-file ./nix/deno --command deno install -g -A --minimum-dependency-age=0 npm:functionalscript@0.47.0"
         },
         {
-          "run": "deno task cov"
+          "run": "nix develop --no-write-lock-file ./nix/deno --command deno run -A --minimum-dependency-age=0 npm:functionalscript@0.47.0 test"
+        },
+        {
+          "run": "nix develop --no-write-lock-file ./nix/deno --command deno install --frozen"
+        },
+        {
+          "run": "nix develop --no-write-lock-file ./nix/deno --command deno task cov"
         }
       ]
     },
@@ -409,25 +409,25 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "oven-sh/setup-bun@v2.2.0",
-          "with": {
-            "bun-version": "1.4.0"
-          }
-        },
-        {
-          "run": "bun install -g functionalscript@0.47.0"
+          "uses": "cachix/install-nix-action@v31.11.1"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "bun install --frozen-lockfile"
+          "run": "test \"$(nix develop --no-write-lock-file ./nix/bun --command bun --version)\" = 1.3.13"
         },
         {
-          "run": "bunx functionalscript@0.47.0 test"
+          "run": "nix develop --no-write-lock-file ./nix/bun --command bun install -g functionalscript@0.47.0"
         },
         {
-          "run": "bun test --coverage"
+          "run": "nix develop --no-write-lock-file ./nix/bun --command bun install --frozen-lockfile"
+        },
+        {
+          "run": "nix develop --no-write-lock-file ./nix/bun --command bunx functionalscript@0.47.0 test"
+        },
+        {
+          "run": "nix develop --no-write-lock-file ./nix/bun --command bun test --coverage"
         }
       ]
     },

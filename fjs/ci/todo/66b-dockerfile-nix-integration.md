@@ -30,6 +30,11 @@ tracked: `npm pack`'s tarball and the declarations its `prepack` emits are
 ignored, and `--no-write-lock-file` means Nix leaves nothing at all. The drift
 check is a plain step, since `git` is the runner's tool.
 
+Deno and Bun have since migrated the same way, under
+[65Z](65z-ci-nix.md), which named them as its own follow-ups. They are still out of
+this issue's scope — it is the Node milestone — but the sentences below about how a
+migrated job is shaped now describe five jobs rather than three.
+
 **No job exists to check the flakes.** The temporary `nix-flakes` job that
 instantiated each generated file and compared the Node it provided to an
 expected version is gone. Nix runs in CI only where a job's own commands run
@@ -56,9 +61,10 @@ snapshot does not actually carry fails CI rather than waiting for a migration
 that has already happened.
 
 Still open, and neither is about a job: the `npm run ci-nix-update` command
-(phase 1's automation — the versions were read from the snapshot by hand), and
-removal of stale generated job directories, which needs a recursive `rm`
-effect since today's `rm` operation only deletes files.
+(phase 1's automation — every version, Deno's and Bun's included, was read from
+the snapshot's package files by hand), and removal of stale generated job
+directories, which needs a recursive `rm` effect since today's `rm` operation
+only deletes files.
 
 ### Problem
 
@@ -279,7 +285,8 @@ Do not solve these in this task:
 - OCI output or caching.
 
 Create separate TODOs for those jobs when work begins. They do not block this Node
-milestone.
+milestone. Deno and Bun needed none: they were already listed as follow-ups in
+[65Z](65z-ci-nix.md), and migrated there once this milestone had settled the shape.
 
 ### Tasks
 
