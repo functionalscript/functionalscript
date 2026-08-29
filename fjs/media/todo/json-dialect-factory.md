@@ -157,6 +157,16 @@ members and asserts each renders a JSON primitive, so a `bigint` member
 fails at module load with a message naming it, not at the first `encodeText`
 with a `null`.
 
+Walk the **declared** members only, and do not follow the `open` rest. The
+rest contributes nothing to what `encodeText` accepts: `open(c)` is
+`rest(c, unknown)` (`../../rtti/module.f.mjs:166`), and `RestTs<C, R>` for a
+non-tuple container is `ConstTs<C>` (`../../rtti/ts/types.ts:353-354`), so
+the rest is discarded and `StructTs` adds no index signature
+(`:376-378`). `ValueOf<S>` is therefore exactly the declared members —
+walking them establishes the property for every value the signature admits.
+Following the rest instead would reject all three dialects for an `unknown`
+that never reaches the encoder's parameter type.
+
 A type constraint — requiring `ValueOf<S>` assignable to `JsonUnknown` — is
 strictly better where it can be expressed, since it moves the failure to
 compile time, and is worth attempting first. But it is not a substitute for
