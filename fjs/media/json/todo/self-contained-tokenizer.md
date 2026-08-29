@@ -968,10 +968,12 @@ next section says why they cannot.
 **No finite sweep is exhaustive**, and this design has now claimed otherwise
 four times — first over two number prefixes, then over the number scanner
 alone, then over the new scanner's states while the *old* one has states the new
-one deliberately lacks, and then over a prefix list that announced one prefix
-per state and gave none for three of `StringState`'s eight kinds. That last one
-is the sharpest, because the rule above the list was right and the list under it
-had simply never been re-derived after the state union grew. `>>>=` is one `invalid token` today, because the
+one deliberately lacks, and then over a prefix list that announced one prefix per
+state and delivered neither: it gave none for three of `StringState`'s eight
+kinds, and none for the leading zero, whose behavior `NumberState` keeps in the
+`lexeme` rather than the `kind`. That last round is the sharpest, because the
+rule above the list was right both times and the list under it had simply never
+been re-derived. `>>>=` is one `invalid token` today, because the
 JavaScript tokenizer knows it as a single operator; the replacement emits four
 `unexpected character` errors, and no prefix derived from the new scanner
 reaches that.
@@ -1110,38 +1112,59 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       token is **3a's** entry, not this one — it is gone before the port
       begins, and claiming it here would credit the port with a change it did
       not make. Valid JSON is unaffected, and the entry should say so.
-- [ ] **Derive the sweep's prefixes from the scanner's own states**, one per
-      state, rather than listing the ones that came to mind. This requirement is
-      the point: the prefix set has now been too narrow three times — first
-      covering only `12` and `00`, which cannot see that `1e"a"` emits a string
-      today; then covering only the number scanner, which cannot see that
-      `"\x"` changes at all; then listing five of `StringState`'s eight kinds
-      under a heading promising all of them. The first two called the sweep
-      exhaustive while being exhaustive over one axis. The third is why the
-      last sentence of this task exists — a list that loses to the state set is
-      only useful if someone actually runs the comparison, and for one round
-      nobody did.
+- [ ] **Derive the sweep's prefixes from the scanners' own behavior** — rule
+      2's absorption table for numbers, `StringState`'s kinds for strings —
+      rather than listing the ones that came to mind. This requirement is
+      the point: the prefix set has now been too narrow in three review rounds
+      — first covering only `12` and `00`, which cannot see that `1e"a"` emits
+      a string today; then covering only the number scanner, which cannot see
+      that `"\x"` changes at all; then, in one round, both listing five of
+      `StringState`'s eight kinds under a heading promising all of them **and**
+      omitting the leading zero. The first two called the sweep exhaustive
+      while being exhaustive over one axis. The third is why the last sentence
+      of this task exists — a list that loses to the state set is only useful
+      if someone runs the comparison, and for one round nobody did — and why
+      the derivation below names its two sources instead of saying "the
+      states".
 
-      Every state of every scanner needs a prefix — but a **text** prefix
-      reaches a scanner state only through the tokenizer's own dispatch, so it
-      pins that state against the characters the tokenizer can deliver, not
-      against every character the now-public API admits. Two states are
-      therefore not prefixes of their own, and the list has to say so, because
-      each is a place where a mechanically complete-looking list would be
-      **false** coverage: `start` shares the empty prefix, and the two terminal
-      states cannot be any prefix's resting state at all.
+      Every state of every scanner needs a prefix — but "state" here is
+      **behavior, not `kind`**, and the two do not coincide. Derive the number
+      prefixes from rule 2's absorption table, which enumerates eight phases,
+      and the string prefixes from `StringState`'s kinds; the union is the
+      list. Review found this the hard way, having first written a list off the
+      kind unions alone and lost the leading zero: `0` and `12` are both `int`,
+      and they diverge on the very next character — `120` is `number 120` and
+      `00` is an error. The split lives in the `lexeme`, not in the `kind`.
 
-      The state machine enumerates the rest, not a person:
+      The kinds are still right, and should *not* grow a `zero` variant to make
+      the derivation tidier. No caller wants the distinction: `0n` is as valid
+      a bigint as `12n`, so stage 4's interception point is exactly `int`, and
+      splitting it would make the wrapper match two kinds to ask one question.
+      The state set is the API; the prefix list is a test obligation. It is the
+      list that owes the finer grain.
+
+      A **text** prefix also reaches a scanner state only through the
+      tokenizer's own dispatch, so it pins that state against the characters the
+      tokenizer can deliver, not against every character the now-public API
+      admits. Two states are therefore not prefixes of their own, and the list
+      has to say so, because each is a place where a mechanically
+      complete-looking list would be **false** coverage: `start` shares the
+      empty prefix, and the two terminal states cannot be any prefix's resting
+      state at all.
+
+      So enumerated:
 
       - **top level** — the empty prefix, so a bare `c` is swept. This one
         prefix is also **`start`** for both scanners: `c` is where the
         dispatcher hands `"` to a fresh string scan and a digit or `-` to a
         fresh number scan, and inside the tokenizer neither scanner has any
         other way in;
-      - **number** — one per variant of the union above: `12` in the integer
-        part, `1.5` in the fraction and `1e5` in the exponent, all accepting;
-        `00`, `12+` and `1e.` for recovery; and `-`, `1.`, `1e`, `1e+`, `1e-`
-        incomplete;
+      - **number** — one per row of the absorption table: `12` in the integer
+        part, **`0` after a leading zero**, `1.5` in the fraction and `1e5` in
+        the exponent, all accepting; `00`, `12+` and `1e.` for recovery; and
+        `-`, `1.`, `1e`, `1e+`, `1e-` incomplete. `12` cannot stand in for `0`:
+        the two share the `+` that both absorb, and differ on every digit,
+        which is the character that separates them;
       - **string** — inside a literal (`"a`), after a backslash (`"\`), each
         `\u` hex position (`"\u`, `"\uA`, `"\uAB`, `"\uABC`), and — since
         rule 3 gives malformed strings a recovery of their own — **inside
@@ -1174,7 +1197,9 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       `1`. If the implementation's state set does not match this list, the list
       is wrong and the state set wins — subject to the two exemptions named
       above, which are claims about what a text sweep can reach, not licence to
-      leave a state unpinned.
+      leave a state unpinned. A kind carrying two behaviors owes **two**
+      prefixes, as `int` does; matching the list against the kind union alone is
+      how the leading zero went missing.
 
       Add the **old** machine's states too, since it has states the replacement
       deliberately lacks: JavaScript operator runs (`>>`, `>>>`, `>>>=`, `===`,

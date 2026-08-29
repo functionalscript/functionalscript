@@ -58,10 +58,18 @@ A machine-readable corpus with six parts:
   an `import`, an identifier key, a bare or string `"__proto__"` key and its
   escaped spelling `"\u005f_proto__"` (the rule is on the decoded value), a
   a number spelling JavaScript takes and DataJS does not — `0x10`, `+1`, `.5`,
-  `1.`, `1_0`, `01` — and a **non-ASCII identifier**, `const é=1;export
-  default é;`, which is valid JavaScript, so a reader borrowing the host's
-  number or identifier grammar passes the whole-set JavaScript check and only
-  this corpus can catch it; a
+  `1.`, `1_0`, `01` — and two identifier spellings it takes and DataJS does
+  not: a **non-ASCII** one, `const é=1;export default é;`, and an **escaped**
+  one, `const \u0061=1;export default \u0061;`. Both are valid JavaScript, so a
+  reader borrowing the host's number or identifier grammar passes the whole-set
+  JavaScript check and only this corpus can catch it. The escaped case is the
+  one the ASCII rule alone does not reach: `\u0061` *denotes* `a`, which is a
+  perfectly good `id`, so the vector is about the spelling and nothing else —
+  which is also why **both** occurrences are escaped. Escaping only the
+  declaration, as the review that found this proposed, leaves `export default
+  a;` referring to a name DataJS never saw declared, and an implementation with
+  no spelling check at all refuses it for the unbound reference — a second
+  ground, and the rule below forbids exactly that; a
   computed key that is **not** the one permitted spelling — `{["x"]:1}` and
   `{["\u005f_proto__"]:1}`, since `["__proto__"]` is the only computed form
   the grammar admits — `1.5n`,
@@ -86,6 +94,11 @@ A machine-readable corpus with six parts:
   passed while the implementation was wrong. A vector with a second ground for
   refusal tests whichever ground the implementation happens to reach first,
   which is not the one it was written for.
+
+  The rule has now caught one *before* it landed — the escaped-identifier
+  vector above, whose proposed spelling left an unbound reference as a second
+  ground. That is the first time it worked as a design constraint rather than
+  as a post-mortem, which is the whole point of writing it down.
 
   The rule reaches the leaves too, which review found by applying it: an
   ordinary function has own non-enumerable `name` and `length`, and a
