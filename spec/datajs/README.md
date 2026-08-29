@@ -1,19 +1,33 @@
 # DataJS
 
-DataJS is JSON extended from a **tree** to a **directed acyclic graph**, and
-nothing else. A document is a JavaScript module: a list of `const` statements
-naming values that are used more than once, and one `export default` naming
-the value the document denotes.
+DataJS is JSON with two extensions, and no other additions:
+
+1. a value may be **shared**, so a document denotes a directed acyclic graph
+   where JSON denotes a tree;
+2. the leaf set gains the JavaScript values JSON cannot spell — `undefined`,
+   `bigint`, `NaN`, `Infinity`, `-Infinity` and `-0`.
+
+The first is the reason the format exists; the second is what it costs to
+round-trip a JavaScript value honestly.
+
+A document is a JavaScript module: `const` statements naming values, then one
+`export default` naming the value the document denotes.
 
 ```js
 const _0=[1,2];export default {"a":_0,"b":_0};
 ```
 
-Read as JSON this would be two equal arrays. Read as DataJS it is **one**
-array named twice — that single difference is the whole language.
+Read as JSON that would be two equal arrays. Read as DataJS it is **one**
+array named twice — the sharing is the point.
+
+A `const` is *how* sharing is written, not a claim about use: a name may be
+referenced any number of times, including once or not at all, and the grammar
+imposes no reference count. What counts a value's references is
+[normalized form](#normalized-form), which is one serializer's rule rather
+than a rule about which documents are valid.
 
 The format is meant to be implementable from this document in an afternoon,
-and then to stop changing. Everything that is not needed for the DAG property
+and then to stop changing. Everything not needed to write a value graph
 belongs to [FunctionalScript](../README.md), not here.
 
 ## Status
@@ -430,7 +444,11 @@ compared does not need them.
 things that already have one. FunctionalScript has them; DataJS is where the
 spellings are spent carefully.
 
-**Why is the DAG the only extension?** Because it is the one thing JSON cannot
-express at all — not a convenience but a class of value. Everything else
-JSON's tree already covers, and every further feature would be another version
-of the format for implementers to track.
+**Why only these two extensions?** Both are things JSON cannot express at
+all, rather than conveniences. Sharing is a class of value JSON has no syntax
+for; the extra leaves are values a JavaScript program holds and JSON silently
+destroys — `JSON.stringify` turns `NaN` and the infinities into `null` and
+`-0` into `0`, drops an `undefined` member while turning an `undefined` array
+element into `null`, and throws outright on a `bigint`. Everything else JSON's
+tree already covers, and each further feature would be another version of the
+format for implementers to track.
