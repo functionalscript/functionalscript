@@ -319,6 +319,8 @@ follows the input instead:
 | `00-` | one error | two `invalid number` |
 | `00"a"` | one error — the string is **swallowed** | `invalid number`, string `"a"` |
 | `00<LF>1` | error, number `1` | unchanged — LF was already a boundary |
+| `00/1` | error, error, number `1` | unchanged — `/` continues neither |
+| `00;1` | one error — `;` is **not** a boundary today | error, error, number `1` |
 | `"a<LF>1` | error, number `1` | unchanged — LF ends string recovery |
 
 An unterminated string stays one error; its message changes from
@@ -336,32 +338,51 @@ This is the same defect class as the fabricated string, running the other
 direction: one invents a token the input never contained, the other discards one
 it did.
 
-#### The delta is two boundary characters, not a list of cases
+#### Recovery, stated as a property rather than a list
 
-The table above grew three times under review, each round finding a recovery
-case it had missed. That is a sign the table was being *enumerated* rather than
-*derived*, so here is the derivation, which closes it.
+The changed-shapes table grew under review three times, and the boundary set I
+wrote to replace it was wrong in both directions — it is worth saying how,
+because it is what the rule below is built to prevent.
 
-Recovery in both scanners is defined by one question: which characters end it.
-Measured against the tokenizer today:
+Measured, character by character, the tokenizer today ends malformed-number
+recovery at exactly:
 
-| | ends recovery today | ends recovery under this design |
-| --- | --- | --- |
-| **number** | whitespace, `{}[]:,`, end of input | those, **plus `-` and `"`** |
-| **string** | unescaped `"`, raw LF or CR, end of input | the same |
+```text
+space TAB LF CR  ! % & ( ) * , / : < = > ? [ ] ^ { | } ~
+```
 
-**The entire delta is two characters gaining boundary status in number
-recovery.** Everything in the changed-shapes table follows from that and from
-rule 1: `00-2` and `00"a"` change because `-` and `"` are new boundaries;
-`00 1`, `00]`, `00,` and `00<LF>1` do not change, because those were boundaries
-already. String recovery has no delta at all once LF and CR are stated.
+and continues through `" # $ ' + - . ; @ \ _ ` digits and letters. There is no
+principle in that set: it is `rangeSetTerminalForNumber`, JavaScript's operator
+characters, inherited along with the tokenizer. Hardcoding it into a
+self-contained JSON scanner would bake in the coupling this stage exists to
+remove, and my first attempt at a principled replacement silently dropped
+fourteen of those boundaries — meaning `00/1` would swallow a well-formed `1`,
+the exact defect class this design is meant to fix.
 
-Both additions fix an inconsistency rather than introducing one. Today a `"`
-ends a *complete* number (`12"a"` emits the string) but is swallowed by an
-*incomplete* one (`00"a"` does not), and `-` is swallowed after `00` while being
-emitted after `0.` — the same character treated three ways depending on which
-recovery state the scanner happens to be in. Under the design a boundary is a
-boundary.
+So recovery is specified as a **property**, which can be checked without
+enumerating anything:
+
+> **Recovery consumes only characters that could continue a number or a word** —
+> digits, letters, `_`, `$`, `.`, `+` — **and ends at everything else**, which is
+> re-dispatched rather than consumed.
+
+That set contains every boundary the tokenizer has today, and more (`-`, `"`,
+`#`, `'`, `;`, `@`, `\`, backtick). Which gives the invariant worth proving:
+
+> **Recovery never runs longer than it does today, anywhere.**
+
+So no token that reaches a caller today is lost, in any input — the property
+rules out the whole failure mode, rather than the table ruling out the cases
+someone thought to list. Where recovery stops *earlier*, the tokenizer emits
+more tokens after the error and never fewer, and the error itself is unaffected,
+so the erroring/not-erroring invariant holds too.
+
+The rows below follow from it. `00-2` and `00"a"` change, because `-` and `"`
+gain boundary status. `00/1` does **not** change — `/` cannot continue a number
+or a word, so it stays a boundary, which is what the earlier draft got wrong.
+
+String recovery is unchanged: it ends at an unescaped `"`, a raw LF or CR, or
+end of input, which is what it does today.
 
 Every other change in the table is an error becoming a *differently shaped*
 error.
@@ -557,15 +578,15 @@ implementation PR — the premise only actually changes when the code does.
       `unescaped character`, `invalid token` for `0n`) sees different tokens,
       and a consumer relying on a *value* token after a malformed literal stops
       receiving one. Valid JSON is unaffected, and the entry should say so.
-- [ ] Prove the recovery boundary sets directly, since they are the whole
-      delta: for numbers, that `-` and `"` now end recovery (`00-2` yields
-      `invalid number` then `-2`; `00-` yields two errors; `00"a"` yields
-      `invalid number` then the string) and that whitespace, `{}[]:,`, LF and
-      end of input still do (`00 1`, `00]`, `00,`, `00<LF>1` unchanged); for
-      strings, that an unescaped quote, a raw LF and a raw CR all end recovery
-      while a space does not (`"a<LF>1` emits the number `1`; `"a 1` is one
-      error). These are the cases where today's tokenizer silently drops a
-      well-formed token.
+- [ ] Prove the recovery property rather than a sample of it. The strongest
+      form is a sweep: for every ASCII character `c`, tokenize `00` + `c` + `1`
+      under both the old and new scanners and assert the new one never loses a
+      token the old one produced — that is the "recovery never runs longer"
+      invariant, checked exhaustively instead of by example. Pin the individual
+      cases too, since they are what a reader reads: `00-2`, `00"a"` and `00;1`
+      change; `00 1`, `00]`, `00,`, `00<LF>1` and `00/1` do not.
+- [ ] Prove string recovery ends at an unescaped quote, a raw LF and a raw CR
+      but not a space — `"a<LF>1` emits the number `1`, `"a 1` is one error.
 - [ ] `npm run update`, then `npx tsc`, `fjs test`, `cargo clippy` and
       `cargo fmt -- --check`. The check set lists the last two unconditionally —
       only `cargo test` is scoped to having touched Rust — and they are quick
