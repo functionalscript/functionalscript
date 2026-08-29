@@ -5,17 +5,16 @@
 
 ### Progress
 
-Flake generation is implemented and **Node 24 and Node 26 are migrated**: each installs
+Flake generation is implemented and **all three Node jobs are migrated**: each installs
 Nix through the pinned action and runs its command sequence one `nix develop` step per
-command. Nix now runs in CI only where a job uses a flake — the temporary `nix-flakes`
-job that instantiated them to check them is gone, and what can be established about a
-generated file is established by proofs over the generator's output. See the progress
-note in [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
+command. Nix runs in CI only where a job uses a flake — the temporary `nix-flakes` job
+that instantiated them to check them is gone, and every generated flake is now evaluated
+by the job that uses it. What needs no Nix is established by proofs over the generator's
+output. See the progress note in
+[66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
 
-What remains here is the Nixpkgs update command and **Node 22**, now as mechanical as the
-other two: it runs `npm ci` and `node --test` and nothing else. It carried `fjs test` and
-a global install only because Node 22 could not run `node --test`; both are gone, and the
-`shellHook` that existed for them with them.
+What remains here is the Nixpkgs update command; the other open item, removing stale
+generated job directories, waits on a recursive `rm` effect.
 
 ### Problem
 
@@ -186,8 +185,8 @@ A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7), so the 
 is not bundled into a `bash -c` script: the step is what CI reports on, and a bundle
 names the wrapper rather than the command that failed.
 
-A step enters the shell only when it needs a tool the flake pins. `git` is the runner's,
-as it is for a `setup-node` job today, so the Node 26 drift check stays a plain step:
+A step enters the shell only when it needs a tool the flake pins. `git` is the
+runner's, so the Node 26 drift check stays a plain step:
 
 ```sh
 nix develop ./nix/node26 --command npm run ci-update
@@ -212,8 +211,7 @@ For each job:
 3. verify there are no tracked or stageable checkout changes;
 4. remove the old setup only after equivalent behavior is demonstrated.
 
-Step 1 is the check a `setup-node` job already makes of its own runtime, pointed through
-`nix develop`. It is a step of the job rather than a separate flake job: the version
+Step 1 is a step of the job rather than a separate flake job: the version
 `fjs/ci/config/module.f.mjs` records is a claim about what the pinned snapshot provides,
 and the job that runs on it is where that claim is worth checking.
 
@@ -247,14 +245,12 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Ignore `/nix/*/flake.lock`.
 - [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
-- [ ] Bootstrap Nix through a pinned CI action in each migrated job — Node 24 and
-      Node 26 done, Node 22 remains.
-- [ ] Run each migrated job's complete command sequence through its flake, one
-      `nix develop --command` step per command — Node 24 and Node 26 done.
-- [ ] Validate each Node job independently with its existing commands and order —
-      Node 24 and Node 26 done.
-- [ ] Keep tracked checkout state unchanged.
-- [ ] Migrate jobs one at a time — Node 24, then Node 26; the rule still binds Node 22.
+- [x] Bootstrap Nix through a pinned CI action in each migrated job.
+- [x] Run each migrated job's complete command sequence through its flake, one
+      `nix develop --command` step per command.
+- [x] Validate each Node job independently with its existing commands and order.
+- [x] Keep tracked checkout state unchanged.
+- [x] Migrate jobs one at a time — Node 24, then Node 26, then Node 22.
 - [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
 
 ### Related

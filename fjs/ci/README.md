@@ -74,16 +74,15 @@ consumed.
 
 Every runtime uses the same Node versions. `config/module.f.mjs` records the versions
 the pinned Nixpkgs snapshot provides — not the latest nodejs.org release, which the
-snapshot usually trails — and those feed both `setup-node` on the GitHub-hosted
-runners and the flakes' package attributes. Bumping a Node version therefore means
-moving the Nixpkgs commit first and copying the versions it offers.
+snapshot usually trails — and those feed both the flakes' package attributes and
+`setup-node` on the platform matrix. Bumping a Node version therefore means moving
+the Nixpkgs commit first and copying the versions it offers.
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
-Ubuntu Node job runs
-`test "$(<command>)" = v<version>` as its first real step, where `<command>` is
-`node --version` for a job `setup-node` installs into and the same through
-`nix develop` for a migrated one. That check is the *only* place the expectation is
-written: the generated flakes stay purely declarative, since a flake pinning an exact
+canonical Node job asserts, as its first command, that
+`nix develop ./nix/nodeNN --command node --version` reports the version
+`config/module.f.mjs` records for it. That check is the *only* place the expectation
+is written: the generated flakes stay purely declarative, since a flake pinning an exact
 Nixpkgs commit already determines its package versions and an `assert` inside it would
 only restate that pin.
 
@@ -92,8 +91,8 @@ What can be established about a generated flake without Nix is asserted by two p
 text for that job, and the job's package attribute to be the `nodejs_<major>` its
 configured version implies. What that text must itself contain — the accepted commit,
 the job's `devShells.<system>.default`, the shell's packages — is pinned character for
-character by `nix/proof.f.mjs`'s literal fixtures. A flake no job runs through is
-therefore first evaluated when its job migrates, which today means Node 22's.
+character by `nix/proof.f.mjs`'s literal fixtures. Every generated flake is also
+evaluated for real, by the job that uses it.
 
 ### Expected package scripts
 
@@ -103,9 +102,9 @@ equivalents. Those eight are where the published CLI is exercised — no canonic
 Node job does. Canonical Node jobs run on Ubuntu ARM and are split by Node
 version:
 
-- Node 22 runs `npm ci` and `node --test` on the runtime `setup-node` installs.
-- Node 24 runs `npm ci` and `node --test` through its generated flake, one
-  `nix develop` step per command.
+- Node 22 runs `npm ci` and `node --test` through its generated flake.
+- Node 24 runs the same pair through its own flake — one builder emits both
+  jobs, which differ only in the version they name.
 - Node 26 runs `npm ci`, `npx tsc`, `npm run cov`, `npm pack` and `npm run ci-update`
   through its flake the same way, then `git add -A && git diff --cached --exit-code`
   as a plain step — `git` is the runner's tool, and a step names the flake only when

@@ -228,17 +228,12 @@ export const proof = {
             assertEq(flake(state, job.id), flakeText(job))
         }
     },
-    // The jobs running through their generated flake, step for step. Node 22 is
-    // the one still on `setup-node`.
+    // Every canonical Node job, step for step, each running through its own
+    // generated flake. None installs a runtime with `setup-node` any more.
     migratedNodeJobs: () => {
         const gha = run(false)
-        // The other side of the same fact: the unmigrated job enters no shell,
-        // so a job migrated by accident fails here rather than passing as one
-        // of the two below.
-        assert(
-            !hasRunInJob(`node${major(node.node22)}`, 'nix develop')(gha),
-            'unexpected nix develop in the unmigrated job')
         for (const [version, commands] of /** @type {const} */ ([
+            [node.node22, ['npm ci', 'node --test']],
             [node.node24, ['npm ci', 'node --test']],
             [node.default, ['npm ci', 'npx tsc', 'npm run cov', 'npm pack', 'npm run ci-update']],
         ])) {
@@ -273,7 +268,7 @@ export const proof = {
     nodeVersionChecks: () => {
         const gha = run(false)
         for (const [version, command] of /** @type {const} */ ([
-            [node.node22, 'node --version'],
+            [node.node22, `nix develop ./nix/node${major(node.node22)} --command node --version`],
             [node.node24, `nix develop ./nix/node${major(node.node24)} --command node --version`],
             [node.default, `nix develop ./nix/node${major(node.default)} --command node --version`],
         ])) {
