@@ -227,37 +227,37 @@ export const proof = {
                 `expected the default ${system} shell in the ${id} flake`)
         }
     },
-    // Node 24 is the first canonical job to run through its generated flake.
-    migratedNodeJob: () => {
+    // The jobs running through their generated flake, step for step. Node 22 is
+    // the one still on `setup-node`.
+    migratedNodeJobs: () => {
         const gha = run(false)
-        const id = `node${major(node.node24)}`
-        const job = gha.jobs[id]
-        assert(job !== undefined, 'expected the migrated Node job')
-        assert(
-            job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
-            'expected a pinned Nix installer')
-        assert(
-            !job.steps.some(step => step.uses?.startsWith('actions/setup-node@') === true),
-            'unexpected setup-node in the migrated job')
-        // One command per step (root `AGENTS.md` §7), each entering the shell
-        // itself, in the order the job had them, behind the version check its
-        // `setup-node` siblings also make.
-        assertStructurallySame(
-            job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
-            [
-                `test "$(nix develop ./nix/${id} --command node --version)" = v${node.node24}`,
-                `nix develop ./nix/${id} --command npm ci`,
-                `nix develop ./nix/${id} --command node --test`,
-            ])
-        // Nix runs in CI only where a job uses a flake. There is no job that
-        // instantiates the generated files to check them — what can be checked
-        // about them is checked above, off the generator's output.
-        assertEq(gha.jobs['nix-flakes'], undefined, 'unexpected flake-checking job')
-        for (const version of [node.node22, node.default]) {
-            const unmigrated = `node${major(version)}`
+        for (const [version, commands] of /** @type {const} */ ([
+            [node.node24, ['npm ci', 'node --test']],
+            [node.default, ['npm ci', 'npx tsc', 'npm run cov', 'npm pack', 'npm run ci-update']],
+        ])) {
+            const id = `node${major(version)}`
+            const job = gha.jobs[id]
+            assert(job !== undefined, `expected the ${id} job`)
             assert(
-                !hasRunInJob(unmigrated, 'nix develop')(gha),
-                `unexpected nix develop in ${unmigrated}`)
+                job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
+                `expected a pinned Nix installer in ${id}`)
+            assert(
+                !job.steps.some(step => step.uses?.startsWith('actions/setup-node@') === true),
+                `unexpected setup-node in ${id}`)
+            // One command per step (root `AGENTS.md` §7), each entering the
+            // shell itself, in the order the job had them, behind the version
+            // check. Node 26's drift check closes the list and is deliberately
+            // not a Nix command: `git` is the runner's, and it compares a tree
+            // every earlier step has finished writing.
+            assertStructurallySame(
+                job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
+                [
+                    `test "$(nix develop ./nix/${id} --command node --version)" = v${version}`,
+                    ...commands.map(command => `nix develop ./nix/${id} --command ${command}`),
+                    ...(id === `node${major(node.default)}`
+                        ? ['git add -A && git diff --cached --exit-code']
+                        : []),
+                ])
         }
     },
     // Every Ubuntu Node job asserts the runtime it is about to use, whether
@@ -268,7 +268,7 @@ export const proof = {
         for (const [version, command] of /** @type {const} */ ([
             [node.node22, 'node --version'],
             [node.node24, `nix develop ./nix/node${major(node.node24)} --command node --version`],
-            [node.default, 'node --version'],
+            [node.default, `nix develop ./nix/node${major(node.default)} --command node --version`],
         ])) {
             const id = `node${major(version)}`
             const runs = (gha.jobs[id]?.steps ?? [])
@@ -296,7 +296,8 @@ export const proof = {
         const gha = run(false)
         const job = gha.jobs[`node${major(node.default)}`]
         assert(job !== undefined, 'expected the canonical Node job')
-        const packIndex = job.steps.findIndex(step => step.run === 'npm pack')
+        const packIndex = job.steps.findIndex(
+            step => step.run === `nix develop ./nix/node${major(node.default)} --command npm pack`)
         const uploadIndex = job.steps.findIndex(
             step => step.uses === `actions/upload-artifact@${actions['actions/upload-artifact']}`)
         assert(packIndex !== -1, 'expected npm pack')

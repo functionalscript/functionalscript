@@ -11,10 +11,20 @@ Phase 2 is done: `fjs/ci/nix/module.f.mjs` generates
 running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
 the accepted snapshot.
 
-Phase 3 has started: **Node 24 is migrated.** Its job is checkout, the pinned
-Nix installer, and one `nix develop --command` step each for `npm ci` and
-`node --test` — the same commands in the same order, on the runtime the pinned
-snapshot provides instead of the one `setup-node` installs.
+Phase 3 is two thirds done: **Node 24 and Node 26 are migrated.** Each job is
+checkout, the pinned Nix installer, its runtime check, and one
+`nix develop --command` step per command — the same commands on the runtime the
+pinned snapshot provides instead of the one `setup-node` installs.
+
+Node 26 orders itself differently, for a reason that is about the job rather
+than about Nix: `npm run ci-update` and the drift check it feeds run last, after
+`npm ci`, `npx tsc`, `npm run cov` and `npm pack`. The check compares the tree
+against what the generator produces, so running it at the end makes it the last
+word — every earlier step has finished writing. Nothing those steps leave is
+tracked: `npm pack`'s tarball, the declarations its `prepack` emits, and the
+`flake.lock` Nix writes beside a flake it enters are all ignored, so the check
+still sees generator output and nothing else. The drift check is a plain step,
+since `git` is the runner's tool.
 
 **No job exists to check the flakes.** The temporary `nix-flakes` job that
 instantiated each generated file and compared the Node it provided to an
@@ -41,11 +51,12 @@ actually carry would surface at migration time rather than now.
 
 Still open: the `npm run ci-nix-update` command (phase 1's automation — the
 versions were read from the snapshot by hand), removal of stale generated job
-directories, and the two remaining jobs. Stale-directory removal needs a
-recursive `rm` effect — today's `rm` operation only deletes files. Node 22 and
-Node 26 are not repeats of Node 24: Node 22 is the first job to depend on a
-`shellHook`, and Node 26 is the one that regenerates the tracked files and fails
-on drift.
+directories, and Node 22. Stale-directory removal needs a recursive `rm`
+effect — today's `rm` operation only deletes files. Node 22 is not a repeat of
+the other two: it is the only job that needs its flake's `shellHook`, because it
+installs the FunctionalScript package globally and runs the installed `fjs` in a
+later step. [built-package-checks](built-package-checks.md) proposes moving that
+check to the job whose subject it is, which would take the `shellHook` with it.
 
 ### Problem
 
@@ -282,14 +293,15 @@ milestone.
 - [x] Add `/nix/*/flake.lock` to `.gitignore`.
 - [x] Keep ordinary generation Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
-- [ ] Add pinned Nix bootstrap to each migrated job — Node 24 done.
+- [ ] Add pinned Nix bootstrap to each migrated job — Node 24 and Node 26 done.
 - [ ] Run each job's complete command sequence through its flake, one
-      `nix develop --command` step per command — Node 24 done.
-- [ ] Validate the three Node jobs independently — Node 24 done.
+      `nix develop --command` step per command — Node 24 and Node 26 done.
+- [ ] Validate the three Node jobs independently — Node 24 and Node 26 done.
 - [ ] Preserve each job's existing commands, order, and coverage — Node 24's are
-      unchanged.
+      unchanged; Node 26 keeps its commands with the drift check moved last, so it
+      compares a tree every other step has finished writing.
 - [ ] Keep tracked checkout state unchanged.
-- [ ] Migrate jobs one at a time — Node 24 went alone; Node 22 and Node 26 remain.
+- [ ] Migrate jobs one at a time — Node 24, then Node 26; Node 22 remains.
 
 ### Related
 

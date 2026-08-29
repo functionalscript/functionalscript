@@ -5,18 +5,19 @@
 
 ### Progress
 
-Flake generation is implemented and the **Node 24 job is migrated**: it installs Nix
-through the pinned action and runs its whole command sequence — `npm ci`, `node --test` —
-one `nix develop` step each. Nix now runs in CI only where a job uses a flake: the
-temporary `nix-flakes` job that instantiated them to check them is gone, and what can be
-established about a generated file is established by proofs over the generator's output.
-See the progress note in
-[66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
+Flake generation is implemented and **Node 24 and Node 26 are migrated**: each installs
+Nix through the pinned action and runs its command sequence one `nix develop` step per
+command. Nix now runs in CI only where a job uses a flake — the temporary `nix-flakes`
+job that instantiated them to check them is gone, and what can be established about a
+generated file is established by proofs over the generator's output. See the progress
+note in [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
 
-What remains here is the Nixpkgs update command and migrating Node 22 and Node 26.
-Node 22 additionally exercises the `shellHook` (`npm install -g functionalscript` then
-`fjs test`), and Node 26 runs the generated-file drift check, so neither is the
-mechanical repeat that Node 24 was.
+What remains here is the Nixpkgs update command and **Node 22**, which is the one job
+that needs its flake's `shellHook`: it installs the FunctionalScript package globally and
+runs the installed `fjs` in a later step. That check is proposed for a different job
+entirely — see
+[built-package-checks](built-package-checks.md) — which would take the `shellHook` with
+it and leave Node 22 as mechanical as the other two.
 
 ### Problem
 
@@ -257,14 +258,14 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Ignore `/nix/*/flake.lock`.
 - [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
-- [ ] Bootstrap Nix through a pinned CI action in each migrated job — Node 24 done,
-      Node 22 and Node 26 remain.
+- [ ] Bootstrap Nix through a pinned CI action in each migrated job — Node 24 and
+      Node 26 done, Node 22 remains.
 - [ ] Run each migrated job's complete command sequence through its flake, one
-      `nix develop --command` step per command — Node 24 done.
+      `nix develop --command` step per command — Node 24 and Node 26 done.
 - [ ] Validate each Node job independently with its existing commands and order —
-      Node 24 done.
+      Node 24 and Node 26 done.
 - [ ] Keep tracked checkout state unchanged.
-- [ ] Migrate jobs one at a time — Node 24 went alone; the rule still binds the rest.
+- [ ] Migrate jobs one at a time — Node 24, then Node 26; the rule still binds Node 22.
 - [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
 
 ### Related

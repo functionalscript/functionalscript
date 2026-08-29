@@ -109,15 +109,31 @@ const node24NixSteps = [
         command => test({ run: nixDevelop(jobId(node.node24), command) })),
 ]
 
-/** @type {readonly MetaStep[]} */
-const node26Steps = [
-    ...nodeInstall(node.default),
-    nodeVersionStep('node --version', node.default),
-    test({ run: 'npm run ci-update' }),
+/**
+ * The generated-file job, migrated. Its commands run on the pinned Node like
+ * Node 24's, with two differences that come from what this job does rather than
+ * from Nix.
+ *
+ * `npm run ci-update` and the drift check it feeds run **last**, after every
+ * other command. The check compares the working tree against what the generator
+ * produces, so putting it at the end makes it the last word: any file an earlier
+ * step wrote is in the comparison. Nothing those steps leave behind is tracked —
+ * `npm pack`'s tarball and the declarations its `prepack` emits are ignored, as
+ * is the `flake.lock` Nix writes beside a flake it enters — so the check sees
+ * generator output and nothing else.
+ *
+ * The drift check itself is not a Nix command. `git` is the runner's tool, as it
+ * is for a `setup-node` job, and a step names the flake only when it needs
+ * something the flake pins.
+ *
+ * @type {readonly MetaStep[]}
+ */
+const node26NixSteps = [
+    nixInstall,
+    nodeVersionStep(nixDevelop(jobId(node.default), 'node --version'), node.default),
+    ...['npm ci', 'npx tsc', 'npm run cov', 'npm pack', 'npm run ci-update'].map(
+        command => test({ run: nixDevelop(jobId(node.default), command) })),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
-    test({ run: 'npx tsc' }),
-    test({ run: 'npm run cov' }),
-    test({ run: 'npm pack' }),
     // Hands the tarball to a job that has no checkout, which is the only place
     // the package can be checked as a consumer sees it. `if-no-files-found`
     // must be `error`: the default warns and uploads nothing, so a consuming
@@ -137,7 +153,7 @@ const nodeJob = steps => ubuntuArm(steps)
 export const nodeVersionJobs = version => ({
     [jobId(node.node22)]: nodeJob(node22Steps(version)),
     [jobId(node.node24)]: nodeJob(node24NixSteps),
-    [jobId(node.default)]: nodeJob(node26Steps),
+    [jobId(node.default)]: nodeJob(node26NixSteps),
 })
 
 // The canonical Node jobs run on the Ubuntu ARM runner.

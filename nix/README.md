@@ -29,14 +29,18 @@ loop.
 `flake.lock` files that Nix writes next to a generated flake are ignored (see
 the root `.gitignore`); the pinned commit in `flake.nix` is the lock.
 
-The Node 24 job runs through its flake: it installs Nix, then checks the Node
-the shell provides, then runs `npm ci` and `node --test` — one `nix develop`
-step each, because a CI step runs one command. The check is the same one the
-jobs still using `setup-node` make of their runtime, and no separate job makes
-it; a flake is checked by the job that uses it.
+The Node 24 and Node 26 jobs run through their flakes: each installs Nix, checks
+the Node its shell provides, and then runs its commands one `nix develop` step
+each, because a CI step runs one command. The check is the same one Node 22
+still makes of the runtime `setup-node` gives it, and no separate job makes it;
+a flake is checked by the job that uses it.
+
+Node 26's drift check is a plain step, not a `nix develop` one: `git` is the
+runner's tool, and a step names the flake only when it needs something the flake
+pins.
 
 Nix runs nowhere else in CI. What a generated flake declares — the pinned
 commit, the job's default shell, and the `nodejs_<major>` its configured version
 implies — is asserted by `fjs/ci/proof.f.mjs` against the generator's output,
-which needs no Nix; the Node 22 and Node 26 flakes are first evaluated when
-those jobs migrate.
+which needs no Nix; the Node 22 flake is first evaluated when that job
+migrates.
