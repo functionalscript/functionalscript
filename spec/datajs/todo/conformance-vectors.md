@@ -499,10 +499,24 @@ The six parts:
   - **`id ::= '$' [A-Za-z0-9_$]*`** — the first position is a literal, not a
     range, so it owes no endpoints; the whole obligation is the tail's four
     ranges at both ends (`A`, `Z`, `a`, `z`, `0`, `9`, `_`, `$`) plus the
-    **empty** tail, which the repetition's own branch requires. **`$`**,
-    **`$AZ`**, **`$az`**, **`$09`** and **`$_$`** cover it. A reader that
-    demands a suffix after `$`, admits only digits after it, or stops at a
-    second `$` fails one of those and passes everything else in the corpus.
+    **empty** tail, which the repetition's own branch requires — and each
+    endpoint in a **one-character tail**, not merely somewhere in a longer one:
+    **`$`**, **`$A`**, **`$Z`**, **`$a`**, **`$z`**, **`$0`**, **`$9`**,
+    **`$_`** and **`$$`**. An earlier revision covered the same eight endpoints
+    with `$AZ`, `$az`, `$09` and `$_$`, which satisfies the repetition rule
+    above — one occurrence anywhere — and still leaves a reader uncaught: those
+    four put every range's *low* end in the first tail character and its *high*
+    end later, so an implementation with a separate first-tail state that stops
+    at `Z`, `z`, `9` or a second `$` accepts all four and rejects `$Z`, `$z`,
+    `$9` and `$$`. This production earns the stricter treatment where a plain
+    `[0-9]*` does not, because its first tail character is where an
+    implementation naturally puts a distinct check — is there a suffix at all,
+    and may it repeat the prefix character — and nine vectors settle it, which
+    is finite in a way "every position of a repetition" is not.
+    **`$$`** carries that last question alone and is worth naming: the tail
+    repeating the prefix is the case a reader restarting its token at `$`, or
+    demanding a *different* character class after it, gets wrong. All nine
+    measured as bindings in a real module, not assumed.
     Then the words the leading `$` makes ordinary, which no range reaches:
     **`$class`** and **`$undefined`**, a JavaScript reserved word and a value
     word, each a name here and neither one before this rule. A reader that
