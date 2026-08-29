@@ -67,6 +67,7 @@ import {
     primitive0Validate,
     structSchemaEntries,
     tupleSchemaEntries,
+    hasUndeclaredMember,
     undeclaredMembers,
     verror,
     visit,
@@ -340,13 +341,15 @@ const constContainerParse =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            // Presence, the bound, absence, then the reads. See the
-            // comment on the same shape in `../validate/module.f.mjs`,
-            // including what settling the shape first assumes of the value.
+            // Presence, the bound, absence, the undeclared check, then
+            // the reads. See the comment on the same shape in
+            // `../validate/module.f.mjs`, including what settling the shape
+            // first assumes of the value.
             const withPresence = rttiEntries.map(([k, t]) =>
                 /** @type {readonly[string, readonly[typeof t, boolean]]} */ ([k, [t, k in value]]))
-            // `fits` first, for the reason `../validate`'s copy states.
-            if (!fits(value, declared.length) || undeclaredMembers(declared, value).length !== 0) {
+            // Cheapest structural question first, for the reason
+            // `../validate`'s copy states.
+            if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
             // Absence before any read, for the reason `../validate`'s
@@ -359,6 +362,9 @@ const constContainerParse =
                 acc => acc,
             )
             if (a[0] === 'error') { return a }
+            if (hasUndeclaredMember(declared, value)) {
+                return verror('unexpected value')
+            }
             const r = eachEntry(
                 withPresence,
                 (k, [t, present]) => {

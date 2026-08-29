@@ -886,6 +886,10 @@ export const proof = {
         // can settle the arm whose value has too much
         const one = { a: number }
         for (const read of [v, p]) { assertErrorPath([])(read(one)({ a: 'bad', b: 1 })) }
+        // between the two structural answers the absent member wins, since
+        // it is the cheap one: it consults the schema once per declared
+        // member, where the undeclared check enumerates the value's keys
+        for (const read of [v, p]) { assertErrorPath(['a'])(read(one)({ b: 1 })) }
         // and a value that fits is read as before
         for (const read of [v, p, d]) { assertOk(read(t)([42])) }
     },

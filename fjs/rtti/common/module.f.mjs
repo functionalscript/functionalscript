@@ -335,6 +335,33 @@ export const undeclaredMembers = (declared, value) => {
 }
 
 /**
+ * Whether `value` carries any member `declared` does not name — the same
+ * question {@link undeclaredMembers} answers, for a caller that needs only
+ * the yes or no.
+ *
+ * It exists to **stop early**. A closed container's gate asks whether there
+ * is an undeclared member at all, and building the list to ask its length
+ * makes a value with many of them pay for all of them: an object with 500 000
+ * undeclared keys against a one-key struct spent over a second reading and
+ * pairing every one, where the first key already settles it. The key set
+ * still has to be materialized — JavaScript exposes no lazy own-key walk —
+ * but the values are not read and the scan stops at the first hit.
+ *
+ * `undeclaredMembers` stays for the `rest` readers, which need the pairs.
+ *
+ * @type {(declared: readonly string[], value: ReadonlyArray<Unknown> | StringMap<Unknown>) => boolean}
+ */
+export const hasUndeclaredMember = (declared, value) => {
+    /** @type {(k: string) => boolean} */
+    const undeclared = k => !declared.some(d => d === k)
+    if (!commonIsArray(value)) {
+        return Object.keys(value).some(undeclared)
+    }
+    return readIndices(value).some(i => undeclared(String(i)))
+        || Object.keys(value).some(k => arrayIndex(k) === undefined && undeclared(k))
+}
+
+/**
  * Whether `rtti` admits **absence** with `visited` already ruled out — the
  * recursive half of {@link admitsAbsence}, carrying the thunks on the current
  * path so a recursive union such as `X = or(X, option)` terminates.

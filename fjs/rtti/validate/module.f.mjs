@@ -96,6 +96,7 @@ import {
     primitive0Validate,
     structSchemaEntries,
     tupleSchemaEntries,
+    hasUndeclaredMember,
     undeclaredMembers,
     verror,
     visit,
@@ -217,8 +218,9 @@ const constContainerValidate =
             }
             // The container's **shape** is settled before any member is
             // read: presence is recorded, the container is bounded, an
-            // illegal absence is rejected — and only then are the members
-            // read, from the flags already recorded.
+            // illegal absence is rejected, an undeclared member is
+            // rejected — and only then are the members read, from the flags
+            // already recorded.
             //
             // That order is what makes an `or` of two arities linear
             // instead of 2^depth, which is the shape a schema uses to say a
@@ -238,12 +240,15 @@ const constContainerValidate =
             // in "What the readers assume of a value" in `../README.md`.
             const withPresence = rttiEntries.map(([k, v]) =>
                 /** @type {readonly[string, readonly[typeof v, boolean]]} */ ([k, [v, k in value]]))
-            // `fits` first: it reads one `length`, where `undeclaredMembers`
-            // enumerates every member the value and its prototypes carry. On
-            // an oversized array the two answer alike, so the cheap one has
-            // to ask first — a million-element array against `[number]` is
-            // 1ms in this order and 1.5s in the other.
-            if (!fits(value, declared.length) || undeclaredMembers(declared, value).length !== 0) {
+            // The three structural questions run cheapest-first, since any
+            // of them settles the container and none of them recurses:
+            // `fits` reads one `length`; the absence pass consults the
+            // schema once per *declared* member; only the undeclared check
+            // enumerates the **value's** keys, which is O(its size) and has
+            // no lazy form in JavaScript — `Object.keys` on 500 000 keys is
+            // 185ms whether or not the scan stops at the first. Asking it
+            // last means a value another question answers never pays it.
+            if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
             // Reaching an illegal absence through the reading walk would
@@ -259,6 +264,9 @@ const constContainerValidate =
                 acc => acc,
             )
             if (a[0] === 'error') { return a }
+            if (hasUndeclaredMember(declared, value)) {
+                return verror('unexpected value')
+            }
             const r = eachEntry(
                 withPresence,
                 (k, [v, present]) => {

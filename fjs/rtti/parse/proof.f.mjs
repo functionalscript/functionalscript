@@ -465,6 +465,8 @@ export const proof = {
                 // an undeclared key likewise, which is the struct kind's
                 // half of the rule — see `../validate/proof.f.mjs`
                 assertErrorPath([])(parse({ a: number })({ a: 'bad', b: 1 }))
+                // and between the two, the absent member wins
+                assertErrorPath(['a'])(parse({ a: number })({ b: 1 }))
             },
             // Nor is a key that is no position at all.
             nonIndexKeyRejected: () =>
