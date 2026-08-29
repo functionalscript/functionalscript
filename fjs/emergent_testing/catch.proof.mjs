@@ -9,7 +9,8 @@
  * — only a host runner can, and a host runner belongs in a host file.
  *
  * @import { RunInstance } from '../effects/mock/types.ts'
- * @import { Catch, Sandbox, Write } from '../effects/node/types.ts'
+ * @import { Write } from '../effects/node/types.ts'
+ * @import { Catch, Sandbox } from '../effects/common/types.ts'
  * @import { Reporter } from './types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */

@@ -5,7 +5,8 @@
  */
 
 import type { Effect, Operation } from '../effects/types.ts'
-import type { IoChannel, SandboxResult } from '../effects/node/types.ts'
+import type { IoChannel } from '../effects/node/types.ts'
+import type { SandboxResult } from '../effects/common/types.ts'
 import type { List } from '../types/list/types.ts'
 
 /** A zero-argument test function whose return value may contain sub-tests. */
