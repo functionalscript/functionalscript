@@ -224,10 +224,13 @@ Judgement calls worth deciding explicitly rather than by accident:
   operation set readable at one import for node-side callers, while the
   modules the move exists for (the shared traversal, a browser interpreter)
   import the new home directly. The sandbox row's move is therefore
-  additive. The console, test and `all` moves
-  fail the test — their whole goal is that their consumers stop naming
-  `effects/node` at all — so they remain hard cutovers: update every importer
-  in the same PR, no re-export left behind.
+  additive — and so is the `all` row's, by the same test applied honestly:
+  `NodeOp` unions `All` and both node runners implement it, so `effects/node`
+  re-exporting it is the same one-import convenience, not a dead coupling.
+  The console and test moves are the ones that fail the test — their whole
+  goal is that their consumers stop naming `effects/node` at all — so those
+  remain hard cutovers: update every importer in the same PR, no re-export
+  left behind.
   [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
   step 4 states the same policy from its side.
 - **The obsolete Playwright adapter is already gone.** This task must preserve

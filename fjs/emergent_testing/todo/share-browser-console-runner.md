@@ -461,6 +461,14 @@ and is reviewable without the next one.
       promise is published (item 7); and both runner-failure routes end in
       the `infrastructure-error` report (item 8).
 
+      **One observable ordering change rides with this port, deliberately.**
+      Today's page announces a returned tree's *children before their parent*
+      — the parent's `result` callback fires after `Promise.all(children)` —
+      while the shared traversal reports a parent before the children its
+      return value produced, which is the structural order the report and
+      `fjs t` already use. The port adopts the shared order for live progress
+      too; prove it rather than inheriting it silently.
+
       **What stays the page's own, with the reason:** reading a *module's*
       exported tree. The shared walk guards a returned tree through `catch`
       (see [hostile proof values](hostile-proof-values.md)) but deliberately
