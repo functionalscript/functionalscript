@@ -1,4 +1,4 @@
-## local-tsc-skips-mjs-with-a-generated-declaration. `npx tsc` passes locally on a `.f.mjs` error CI reports
+## Generated declarations shadow their sources
 
 **Priority:** P2
 **Status:** open
