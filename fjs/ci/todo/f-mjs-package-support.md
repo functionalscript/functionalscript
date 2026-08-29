@@ -166,12 +166,11 @@ exposes private types as `_`-prefixed names in `types.d.ts` and as generated
 `private.d.ts` files. Both are package-private by contract, not public API:
 clean-consumer tests must exercise documented public types and must not turn
 `_`-prefixed declaration artifacts into supported API merely because TypeScript
-emitted them. Unshipping generated `private.d.ts` is the second stage of
-[`fjs/todo/separate-private-types.md`](../../todo/separate-private-types.md),
-by a `!**/private.d.ts` negation in `package.json`'s `files` — an exclusion at
-pack time, with `prepack` unchanged and the working tree left alone. An earlier
-draft of that design deleted the files instead; do not reintroduce a deletion
-step. Once it lands, `private.d.ts` is no longer among the package-private
+emitted them. Generated `private.d.ts` is no longer shipped: `package.json`'s
+`files` carries a `!**/private.d.ts` negation — an exclusion at pack time, with
+`prepack` unchanged and the working tree left alone. An earlier design draft
+deleted the files instead; do not reintroduce a deletion step. So `private.d.ts`
+is no longer among the package-private
 artifacts above — what remains is the `_`-prefixed names that still ship by
 design: `_` types emitted into `types.d.ts` and exported `_` constants emitted
 into `module.d.mts`. The leak-tolerance contract narrows to those, and stays
@@ -247,8 +246,18 @@ emission, `npm pack`, and a clean consumer.
           in particular **not** this fixture. A hand-written import list would
           name the fixture, so a violation placed here fails under a fixed list
           too and proves nothing about enumeration. Measured end to end with
-          `fjs/emergent_testing` in
-          [`../../todo/separate-private-types.md`](../../todo/separate-private-types.md).
+          `fjs/emergent_testing`, which had no `private.ts`: given one, plus an
+          exported binding whose signature names it, the job exits 2 with
+          `TS2307` on the packed declaration.
+
+          The same violation with the `files` negation dropped is **green**,
+          because the private declaration then ships and the reference
+          resolves. So this job does not detect a dropped negation, and nothing
+          else does either: an assertion over the packed listing was written for
+          that and removed as not worth its complexity — what it caught was
+          declaration noise in the tarball, which the `_` contract already
+          tolerates, not a broken package. The negation is one line in
+          `package.json` and losing it is a visible diff in review.
       Scope: the fixture exercises the
       supported, fully erased `import type` form only. The forbidden inline `import { type X }` /
       `import * as` / side-effect forms are a documented one-time measurement
@@ -330,9 +339,11 @@ emission, `npm pack`, and a clean consumer.
         typescript` lets the registry change the verdict with no repository
         change. The version is readable without a checkout: `npm pack` keeps
         `devDependencies` in the packed `package.json`.
-      The private-declaration assertion this job carries for
-      [`../../todo/separate-private-types.md`](../../todo/separate-private-types.md)
-      is a condition on it, specified there; the job itself belongs here.
+      The private-declaration assertion this job carries is a condition on it:
+      every packed declaration is type-checked from the installed artifact, so a
+      public declaration that came to depend on an unshipped private module is a
+      red build. Landed in
+      [#1767](https://github.com/functionalscript/functionalscript/pull/1767).
 - [x] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
 - [x] Decide, based on the fixture, whether the second TypeScript runtime-emission
       pass can ever be removed while authored `types.ts` files remain, or whether
@@ -398,9 +409,9 @@ not, and the pipeline is simplified accordingly.
   two-pass `prepack`.
 - [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
   — repository-wide stage-1 implementation source migration.
-- [`fjs/todo/separate-private-types.md`](../../todo/separate-private-types.md)
-  — private-type placement rules and the packaging stage that unships
-  generated private declarations.
+- [`fjs/AGENTS.md`](../../AGENTS.md) §3.2 — private-type placement rules;
+  [`fjs/fsc/README.md`](../../fsc/README.md) — the `_` contract and why
+  generated private declarations are not packaged.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
   — upstream JSDoc typedef stripping limitation; no longer a blocker here, since
   no authored `.mjs` declares a file-scope typedef to strip.
