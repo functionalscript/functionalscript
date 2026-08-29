@@ -1,7 +1,7 @@
 ## Report a test's name before running it, not only after
 
 **Priority:** P2
-**Status:** open
+**Status:** wip
 
 ### Problem
 
@@ -90,16 +90,35 @@ still the argument for settling it in the shared core rather than twice.
   — a terminal line and a DOM row — but a runner that names a running test and
   one that does not are two different tools.
 
+### What landed for `fjs t`
+
+functionalscript#1787. `Reporter` grew a `start` event carrying a `TestId` —
+the identity half of `TestResult`, split out so the two events that name a leaf
+name it the same way — called inside the leaf's own chain ahead of `test`, so a
+reporter that cannot announce a leaf ends the run rather than running one it
+failed to announce. `fjs t` writes `name: running`, then the existing result
+line; two complete records, per the terminal format above.
+
+The browser half is **not** done and was deliberately left out of that change:
+the page still renders a row only once a leaf has settled, and the pending row
+plus its macrotask yield — the part with the real proof problem, since a fake
+document cannot see painting — is what remains.
+
+Worth recording for whoever does it: the `fjs t` start event was cheap because
+the traversal already had the leaf's identity in hand and a place to put the
+call. The browser's cost is not the event, it is the yield and proving it.
+
 ### Tasks
 
-- [ ] Add the start event to the reporter and call it before the
+- [x] Add the start event to the reporter and call it before the
       leaf is sandboxed.
-- [ ] Decide the terminal format, and prove it. Under the sequential runner
+- [x] Decide the terminal format, and prove it. Under the sequential runner
       leaves do not interleave, so the question is the shape of a
       start-then-result pair rather than how to keep concurrent lines
       legible — but a leaf's *own* output can still land between its start
       and its result, so the proof includes a proof that writes to the
       terminal mid-test and shows both records intact around it.
+      `defaultReporterOutputDuringATest` is that proof.
 - [ ] Render a pending row in the browser page, await one macrotask in the
       start handler, and settle the row in place — and prove the *yield*,
       not the append. A proof body that reads the DOM proves nothing here:
@@ -112,7 +131,12 @@ still the argument for settling it in the shared core rather than twice.
       observation of the painted row, as the burst was measured), and the
       mutation check is deleting the await and watching the sentinel land
       after the body instead.
-- [ ] Prove that a run killed mid-test leaves the running test's name behind.
+- [x] Prove that a run killed mid-test leaves the running test's name behind
+      (`startSurvivesARunThatDies`): the leaf's execution fails outright, so it
+      is announced and never reported, and the unmatched start is the name.
+      Both new proofs stay green when the announcement is merely moved to
+      *after* the leaf runs — the event-order proofs cannot see that, since the
+      start still precedes the result — which is why they exist.
 
 ### Related
 

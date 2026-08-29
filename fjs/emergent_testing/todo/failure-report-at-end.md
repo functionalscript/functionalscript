@@ -47,15 +47,15 @@ Two details worth keeping:
   leaf, and by a module boundary — mutation-tested by describing the value
   inline again, which fails exactly those two and nothing else.
 
-What remains is the *other* half of the compact-progress goal, and it belongs
-to [report-before-running](./report-before-running.md): there is still no event
-before a leaf runs, so a name appears only once the leaf is over.
+The other half of the compact-progress goal —
+[report-before-running](./report-before-running.md)'s event before a leaf runs
+— landed for `fjs t` in the same PR, so a leaf now writes `name: running` and
+then its own pass/fail line.
 
 ### Tasks
 
-- [ ] Integrate with the pre-test name event from
-      [report-before-running](./report-before-running.md) — blocked on that
-      event existing.
+- [x] Integrate with the pre-test name event from
+      [report-before-running](./report-before-running.md).
 - [x] Extend the runner summary data to include ordered failed test names and errors.
 - [x] Print only pass/fail after each test; defer error details to the final report.
 - [x] Add proofs for multiple failures, ordering, and absence of inline error details.

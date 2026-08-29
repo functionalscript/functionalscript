@@ -18,7 +18,7 @@
  * @import { Result } from '../types/result/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
- * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunState, RunTotals, TestFailure, TestResult, _TestAndPath } from './types.ts'
+ * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunState, RunTotals, TestFailure, TestId, TestResult, _TestAndPath } from './types.ts'
  * @import { All, Await, Catch, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
@@ -220,16 +220,26 @@ export const registerModule = (ctx, k, v, star) => {
  * @param {Reporter<O>} reporter
  * @returns {(k: string, v: unknown) => (state: RunState) => Effect<O | Catch, RunState, IoChannel>}
  */
-const runModule = ({ result, test }) => (k, v) => state => {
+const runModule = ({ result, start, test }) => (k, v) => state => {
     /**
      * @type {(entry: _TestAndPath) =>
      *     (acc: RunState) =>
      *         Effect<O | Catch, readonly[RunState, readonly _TestAndPath[]], IoChannel>}
      */
     const one = ([testPath, set]) => acc => {
+        // The leaf is named once, for both of the events that name it: the
+        // announcement below and the record built from its result.
+        const id = testId(k, testPath)
         // The leaf's shared record is built here, next to the sandbox result it
         // is read from, so the leaf-landed event carries the value already
         // decided — a reporter renders `t`, it does not derive its own.
+        //
+        // **The announcement is inside the same chain, ahead of `test`.** Not
+        // beside it and not in the fold: what makes a start record worth
+        // anything is that it is on the reader's screen while the leaf is
+        // running, so it has to be written before the leaf's own effect is
+        // performed, and a reporter that cannot write it ends the run there
+        // rather than running a leaf it has failed to announce.
         //
         // **Reading the returned sub-tree is guarded, because reading it runs
         // user code.** `collectTests` enumerates what the leaf returned, so an
@@ -239,8 +249,8 @@ const runModule = ({ result, test }) => (k, v) => state => {
         // of every module that had already passed. The read happens before the
         // leaf is reported, so its failure is part of what gets reported rather
         // than a correction issued after the fact.
-        const evaluated = step(test(k, testPath, set), sr => {
-            const t = testResult(k, testPath, sr)
+        const evaluated = step(step(start(id), () => test(k, testPath, set)), sr => {
+            const t = resultOf(id, sr)
             if (t.status !== 'passed' || set.throws) {
                 return pureOk(/** @type {const} */ ([t, sr, emptyEntries]))
             }
@@ -483,6 +493,30 @@ export const defaultTest = (file, path, { fn, throws }) =>
     mapStep(sandbox(fn), r => throws ? { ...r, result: invert(r.result) } : r)
 
 /**
+ * Names one leaf: what module it is in, where in that module, and what to call
+ * it.
+ *
+ * Separate from {@link testResult} because a leaf is named at two moments and
+ * judged at one — a runner announces it before running it and reports it
+ * afterwards, and both should call it the same thing. The traversal builds this
+ * once per leaf and hands it to both events.
+ *
+ * @type {(file: string, path: Path) => TestId}
+ */
+export const testId = (file, path) => ({
+    module: file,
+    path: fmtPath(path),
+    name: fmtImport(file, path),
+})
+
+/** @type {(id: TestId, r: SandboxResult<unknown>) => TestResult} */
+const resultOf = (id, { result: [s], duration }) => ({
+    ...id,
+    status: s === 'ok' ? 'passed' : 'failed',
+    duration,
+})
+
+/**
  * Normalizes one leaf's outcome: its identity, whether it passed, and how long
  * it took.
  *
@@ -498,13 +532,7 @@ export const defaultTest = (file, path, { fn, throws }) =>
  *
  * @type {(file: string, path: Path, r: SandboxResult<unknown>) => TestResult}
  */
-export const testResult = (file, path, { result: [s], duration }) => ({
-    module: file,
-    path: fmtPath(path),
-    name: fmtImport(file, path),
-    status: s === 'ok' ? 'passed' : 'failed',
-    duration,
-})
+export const testResult = (file, path, r) => resultOf(testId(file, path), r)
 
 /** @type {(r: TestResult, color: string, label: string) => string} */
 const fmtResultLine = ({ name, duration }, color, label) =>
@@ -553,6 +581,14 @@ export const defaultReporter = options => {
                 csiError(`${fgRed}${t.name}${reset}`),
                 () => csiError(`${fgRed}${error}${reset}`))
     return {
+        // Two self-contained records per leaf, not one line completed in place.
+        // No *other* leaf runs between a start and its own result under the
+        // sequential traversal, but the leaf itself does, and anything it puts
+        // on this stream — a proof that logs at runtime, a node warning — would
+        // splice into an open line and attach the later `ok` to unrelated
+        // output. Both records name the test, which is what keeps the pair
+        // legible when something lands between them.
+        start: ({ name }) => csiLog(`${name}: running`),
         result: (t, _r, throws) =>
             t.status === 'passed'
                 ? csiLog(fmtResultLine(t, fgGreen, 'ok') + (throws ? ' # EXPECTED TO THROW' : ''))

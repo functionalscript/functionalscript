@@ -34,6 +34,7 @@ import { utf8ToString } from '../text/module.f.mjs'
 const runWith = proof => {
     /** @type {Reporter<Sandbox | Write>} */
     const reporter = {
+        start: ({ path }) => log(`start:${path}`),
         result: (t, _r, _throws) => log(`${t.path}:${t.status}`),
         summary: ({ totals: { passed, failed } }) => log(`summary:${passed}:${failed}`),
         test: defaultTest,

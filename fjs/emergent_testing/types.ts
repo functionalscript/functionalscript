@@ -41,10 +41,11 @@ export type Path = readonly (string | null)[]
 export type TestStatus = 'passed' | 'failed'
 
 /**
- * One leaf's outcome, normalized: what ran, whether it passed, and how long it
- * took, with no terminal escape codes and no DOM node in it.
+ * What a leaf *is*, normalized: the module it lives in, where in that module's
+ * `proof` export it is, and what to call it — with no terminal escape codes and
+ * no DOM node in it.
  *
- * It exists so that every runner decides those three things the same way. The
+ * It exists so that every runner decides those things the same way. The
  * console runner and the browser runner each used to derive them inline — one
  * on its way to a printed line, the other on its way to a serializable report —
  * and a status is exactly the kind of small decision that drifts unnoticed when
@@ -58,7 +59,7 @@ export type TestStatus = 'passed' | 'failed'
  * the description stays with each host and this carries the part they agree
  * on — the shape of an extension point, not an omission.
  */
-export type TestResult = {
+export type TestId = {
     /** The module key the outcome belongs to, relative to the run's root. */
     readonly module: string
     /**
@@ -89,6 +90,19 @@ export type TestResult = {
      * shared traversal does not have.
      */
     readonly name: string
+}
+
+/**
+ * One leaf's outcome: its {@link TestId}, whether it passed, and how long it
+ * took.
+ *
+ * The identity is a type of its own because it is known at two moments and the
+ * outcome at one: a runner names a leaf *before* running it — that is what
+ * `Reporter.start` carries — and can only say how it went afterwards. Splitting
+ * the record is what lets both events name a test the same way rather than
+ * each spelling an identity of its own.
+ */
+export type TestResult = TestId & {
     readonly status: TestStatus
     /**
      * How long it took. For a leaf, its own execution; for a non-leaf outcome,
@@ -217,6 +231,21 @@ export type RunState = {
  * through unchanged.
  */
 export type Reporter<O extends Operation> = {
+    /**
+     * A leaf is about to run, named before there is anything to say about it.
+     *
+     * It carries the identity and nothing else, because nothing else exists
+     * yet: a duration would have to be invented and a status guessed. **It must
+     * not cost a `sandbox` call or a clock read of its own** — the duration a
+     * run reports stays the sandboxed one, measured around the leaf's body and
+     * nothing this event does.
+     *
+     * A start with no matching `result` is the signal a run that died mid-test
+     * leaves behind, and it is the whole reason this event exists: the last
+     * thing printed used to be the last test that *succeeded*, so the one that
+     * actually broke was never named.
+     */
+    readonly start: (id: TestId) => Effect<O, void, IoChannel>
     /**
      * A leaf landed. The first argument is the shared {@link TestResult} — the
      * runner builds it with `testResult` before notifying, so a reporter
