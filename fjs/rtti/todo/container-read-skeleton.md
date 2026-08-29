@@ -6,10 +6,9 @@
 ### Problem
 
 `../validate/module.f.mjs` and `../parse/module.f.mjs` are the same reader
-written twice. Both implement the identical container protocol — the
-`isContainer` gate, the `fits` bound, the absence pass, the
-`hasUndeclaredMember` check, the member read, the `presenceUnchanged` re-ask —
-and differ only in what a success carries. Factory for factory:
+written twice. Each `validate` factory has a `parse` twin implementing the
+identical protocol, differing only in what a success carries. Factory for
+factory:
 
 | `validate` | `parse` | substantive difference |
 |---|---|---|
@@ -33,13 +32,29 @@ copy-pasted outright:
   (identical cast-justification comment included) and
   `../validate/module.f.mjs:382` ≡ `../parse/module.f.mjs:480`.
 
-The cost is not just size. The read **order** — bound, absence, undeclared,
-reads, re-ask — is the load-bearing part: it is what keeps an `or` of two
-arities linear instead of exponential, and what makes the three readers agree
-on every acceptance question. That order is currently pinned by proof tables
-(`../host.proof.mjs`, `../validate/proof.f.mjs`) rather than by construction,
-so any change must land identically in two files, and the design commentary
-already shows the drift: `../parse/module.f.mjs:347-358` is a stub pointing at
+The cost is not just size. The read **order** is the load-bearing part: it is
+what keeps an `or` of two arities linear instead of exponential, and what
+makes the three readers agree on every acceptance question. Crucially there
+are **two** orders, one per shape, and they are not interchangeable:
+
+- the *const-container* pair (`:200` / `:325`) settles the shape first —
+  `fits` bound, absence pass, `hasUndeclaredMember` — and only then reads the
+  members, re-asking presence last;
+- the *rest-container* pair (`:328` / `:420`) reads the declared members
+  **first** (deciding absence inline as it goes), then computes
+  `undeclaredMembers`, then applies `fits` or the `rest` check, then re-asks.
+
+That difference is observable, not incidental. Because the rest readers
+compute the leftovers *after* running the declared members' accessors, a
+getter for declared index 0 that installs an invalid index 1 is caught by a
+numeric `rest`; computing leftovers before the reads would accept it. So the
+skeleton must be per shape, preserving each order exactly — the goal is one
+copy of each order, not one order for both.
+
+Both orders are currently pinned by proof tables (`../host.proof.mjs`,
+`../validate/proof.f.mjs`) rather than by construction, so any change must
+land identically in two files, and the design commentary already shows the
+drift: `../parse/module.f.mjs:347-358` is a stub pointing at
 `../validate/module.f.mjs`'s 50-line rationale, `../common/module.f.mjs:5-8`
 names `parse` and `data` as the consumers while `../common/types.ts:2` says
 "`validate`, `parse`".
@@ -53,8 +68,11 @@ re-tracks the issue; the stale parentheticals are corrected to link here.
 
 ### Proposal
 
-Hoist one skeleton per kind into `../common/module.f.mjs`, parameterized by
-the three things that actually differ:
+Hoist one skeleton **per shape** — uniform container, const container, rest
+container — into `../common/module.f.mjs`. Three skeletons, not one: each
+keeps its own order verbatim, and the sharing is strictly between a
+`validate` factory and its `parse` twin. Each is parameterized by the three
+things that actually differ:
 
 - `present` — what a successfully read member contributes (`ok(true)` /
   `ok([p[1]])`) together with the matching `eachEntry` seed and cons
@@ -66,11 +84,16 @@ the three things that actually differ:
 
 `../common/types.ts` already owns the parameter vocabulary (`Fits`,
 `IsContainer`, `SchemaEntries`, `Presence`). Each reader module keeps its
-visitor, its JSDoc contract, and its `finish`; the protocol — order included —
-is stated once. Move `noAccumulate`, `noDeclared`, and the two array
-length-bound builders into `common` as part of the same change, and keep the
-one full copy of the read-order rationale on the shared skeleton, where both
-readers inherit it.
+visitor, its JSDoc contract, and its `finish`; each shape's protocol — its own
+order included — is then stated once instead of twice. Move `noAccumulate`,
+`noDeclared`, and the two array length-bound builders into `common` as part
+of the same change, and put each shape's read-order rationale on its
+skeleton, where both readers inherit it.
+
+Do **not** unify the const-container and rest-container orders while doing
+this: the rest readers' read-before-leftovers order is load-bearing (see
+above), and collapsing the two would be a behavior change wearing a
+refactor's clothes.
 
 The data form's `arraySetValidate`/`objectSetValidate` pair repeats the same
 shape over `Data` and is tracked separately in
@@ -80,8 +103,13 @@ of this issue.
 
 ### Tasks
 
-- [ ] Extract the shared container/const-container/rest-container skeletons
-      into `../common/module.f.mjs`; rewrite both readers through them.
+- [ ] Extract the three per-shape skeletons (uniform, const, rest) into
+      `../common/module.f.mjs`, each preserving its own order; rewrite both
+      readers through them.
+- [ ] Add a proof row pinning the rest readers' order: a declared member
+      whose getter installs a leftover the `rest` rejects must still be
+      rejected. It passes today and would fail under a leftovers-first
+      skeleton, so it is the regression test for this refactor.
 - [ ] Move `noAccumulate`, `noDeclared`, and the array empty-rest length
       bounds into `common`; delete the five copies.
 - [ ] Consolidate the read-order commentary on the shared skeleton; fix
