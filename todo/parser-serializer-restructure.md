@@ -236,11 +236,18 @@ combined marker would encode a redundant fact.
 Each stage lands green and independently; `fjs compile` keeps working
 throughout.
 
-1. **Spec** — `spec/datajs/`: format spec (grammar as BNF text, data model,
-   rationale) plus the normalization section, and the conformance test
-   vectors (accept, reject, round-trip) that every later stage runs against.
-   Decides the one remaining deferred detail: the media type. (The
-   canonical layout is decided: one line — see **Serialization** above.)
+1. **Spec** — `spec/datajs/`. The specification itself is **done**:
+   [`spec/datajs/README.md`](../spec/datajs/README.md) carries the grammar,
+   data model, const-name exclusions, serialization and normalized form,
+   the JSON and JavaScript relationships, and the rationale, and settles the media
+   type by deferring to the existing dialect design in
+   [`fjs/todo/group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md):
+   `text/javascript` with the dialect out of band, since RFC 9239 closes the
+   JavaScript MIME list. The dialect segment DataJS takes in that chain is the
+   one detail left to reconcile in that todo. The
+   conformance vectors are the remaining half, tracked in
+   [`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md);
+   stages 3, 4 and 6 consume them.
 2. **Dead code — done.** `fjs/fsc/bnf.f.mjs` and `fjs/fsc/json.f.mjs` are
    deleted rather than salvaged: both were dead (no importer) and unproven,
    the JSON half duplicated `deterministic` in `fjs/bnf/testlib.f.mjs` rule
@@ -313,8 +320,11 @@ throughout.
 
 ### Tasks
 
-- [ ] Stage 1: write `spec/datajs/` and the conformance vectors; file its
-      co-located todo.
+- [x] Stage 1a: write `spec/datajs/README.md`; disambiguate the older "DJS"
+      in [`spec/README.md`](../spec/README.md), which names the wider subset
+      the compiler accepts today.
+- [ ] Stage 1b: the conformance vectors —
+      [`conformance-vectors`](../spec/datajs/todo/conformance-vectors.md).
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/bnf/todo/207-bnf-semantic-actions.md)
       repointed at `fjs/bnf/testlib.f.mjs`.
