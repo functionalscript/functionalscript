@@ -26,11 +26,20 @@ A machine-readable corpus with three parts:
   `["__proto__"]` key, duplicate keys (last value, first position), array-index
   key ordering, one-line and readable spellings of the same value, empty
   containers, deep nesting, and shared nodes reached by several paths. Include
-  `export default 1` — a whole document with no `;` in it — and pair the accept
-  set with a check that each document imports as an ES module in a real engine,
+  `export default 1` — a whole document with no `;` in it — and the identifier
+  grammar's boundaries, which the reject cases alone do not pin: `$`, `$$`,
+  `$0`, `$_`, `$class` and `$undefined` are all names, so an implementation
+  that demands a suffix after `$`, allows only digits after it, or stops at a
+  second `$` must fail here rather than pass by never being asked. Pair the
+  accept set with a check that each document imports as an ES module in a real
+  engine,
   since the absence of the final `;` is what makes that a claim about ASI's
   end-of-input rule rather than about DataJS alone.
-- **reject** — document text plus what is wrong with it. Cases: a missing or
+- **reject** — document text plus what is wrong with it. Every vector is a
+  whole document that is valid but for the one defect it names: a snippet
+  missing an `export default`, or referencing a name it never bound, would be
+  rejected by an implementation that has not implemented the rule under test,
+  and would prove nothing. Cases: a missing or
   non-final `export default`, a missing `;` between statements, a **trailing**
   `;` (`export default 1;`, the spelling every pre-decision example used, and
   the one an implementer is most likely to accept out of habit), `;;`, a
@@ -38,10 +47,12 @@ A machine-readable corpus with three parts:
   an `import`, an identifier key, a bare or string `"__proto__"` key and its escaped spelling
   `"\u005f_proto__"` (the rule is on the decoded value), `1.5n`,
   `1e2n`, `01n`, `-NaN`, `-undefined`, a bare `-`, a forward or unbound
-  reference, a rebound name, a name without the leading `$` (`const a=1;`,
-  `const class=1;`, `const undefined=1;`), each of the three required spaces
-  left out — `const$0=1;export default $0`, `exportdefault $0`,
-  `export default$0` and `export default1` — single quotes, `\x` and
+  reference, a rebound name, a name without the leading `$`
+  (`const a=1;export default a`, `const class=1;export default 1`,
+  `const undefined=1;export default 1`), each of the three required spaces
+  left out — `const$0=1;export default $0`,
+  `exportdefault $0` and `export default$0`, each preceded by `const $0=1;`,
+  and `export default1` — single quotes, `\x` and
   `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string. Pair the
   whitespace cases with accepted documents whose value cannot merge —
   `export default [1]`, `export default -1`, `export default "a"` — since

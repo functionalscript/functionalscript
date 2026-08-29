@@ -189,8 +189,8 @@ key       ::= string | '[' '"__proto__"' ']'
   starting with a letter is one of the nine the grammar names or an error.
 - **Every JSON value is a DataJS value; no JSON document is a DataJS
   document** (a DataJS document is a JS module, so it cannot be a JSON
-  document). The textual conversion `"export default " + json + ";"` yields a
-  valid document with one exception: a bare `"__proto__"` object key —
+  document). The textual conversion `"export default " + json` — a prefix,
+  with nothing appended — yields a valid document with one exception: a bare `"__proto__"` object key —
   rejected by DataJS because JS reads it as prototype replacement — must be
   rewritten to the computed spelling `["__proto__"]` during conversion.
   Plain concatenation is exactly valid for JSON containing no `__proto__`
@@ -233,8 +233,10 @@ back-edge as sharing would emit a self-referencing `const $0={"self":$0};`,
 a TDZ failure in JS. Rejection proofs in stage 4 cover each case. Normalization
 is not a blocker for the format spec. The serializer cannot delegate numbers
 to `JSON.stringify` (it loses `-0` and non-finite values); DataJS owns its
-number writer. The canonical layout is **one line** — fully minified, with
-whitespace only where two word-tokens meet — so normalization has zero
+number writer. The canonical layout is **one line** — fully minified, with a single space
+after each of `const`, `export` and `default` and nowhere else, so a root that
+cannot merge still carries its space (`export default [1]`, never
+`export default[1]`) — so normalization has zero
 layout freedom, which is what byte-determinism (and any future content
 addressing) needs. Tooling *defaults* to a human-readable layout (one
 statement per line, indented containers), which is simply one of the many
@@ -248,15 +250,25 @@ combined marker would encode a redundant fact.
 
 ### FunctionalScript consequences
 
-- **`;` is required in early-stage FunctionalScript**, matching DataJS. This
-  removes ASI — including its future "no LineTerminator here" restricted
-  productions — before the expression grammar grows the hazards (`(`, `[` at
-  line start). Relaxing later to also accept newline termination is
-  backward-compatible; the reverse would be breaking, so strict-first is the
-  safe ratchet. Repository `.f.mjs` source is unaffected (it is parsed by
-  Node/TypeScript); the cost lands at `.f.mjs` → `.f.js` migration, where the
-  normalizer inserts `;` mechanically — `.f.js` is compiler-formatted, not
-  hand-formatted.
+- **`;` separates statements in early-stage FunctionalScript**, matching
+  DataJS — and the part stage 5 must not miss is that a module's **final
+  statement takes no `;`**, exactly as `export default value` does not. The
+  obligation is one-way: FunctionalScript has to *accept* a module whose last
+  statement is unterminated, or it rejects every valid DataJS document at its
+  final export and the DataJS ⊂ FunctionalScript proof stage 6 owes cannot
+  hold. Whether it *also* accepts a trailing `;` is FunctionalScript's own
+  call, being strictly more permissive. So stage 5's rule is `;` between
+  statements with EOF after the last, never `;` after each.
+- This still removes ASI's hazardous half — the "no LineTerminator here"
+  restricted productions, and a lone CR or U+2028 ending a statement — before
+  the expression grammar grows the traps (`(`, `[` at line start). What it
+  keeps is ASI's end-of-input rule, a fact about where the file ends that
+  carries no line-terminator taxonomy. Relaxing later to also accept newline
+  termination is backward-compatible; the reverse would be breaking, so
+  strict-first is the safe ratchet. Repository `.f.mjs` source is unaffected
+  (it is parsed by Node/TypeScript); the cost lands at `.f.mjs` → `.f.js`
+  migration, where the normalizer inserts `;` mechanically — `.f.js` is
+  compiler-formatted, not hand-formatted.
 - **`undefined`, `NaN`, `Infinity` become FunctionalScript reserved words.**
   FunctionalScript accepts identifiers that do not start with `$`, so it needs
   the restriction for itself; DataJS no longer relies on inheriting it, its
@@ -326,7 +338,9 @@ throughout.
    in `fjs/djs/types.ts` go with it, per
    [663](../fjs/djs/todo/663-json-djs-tree-type.md); `examples/` and the
    top-level `module.f.mjs`/`proof.f.mjs` carrying `compile()` move with
-   the front end to `fsc`. Separator `nl` → `';'`; reserved words added;
+   the front end to `fsc`. Separator `nl` → `';'` **between** statements, with
+   EOF after the last (never `;` after each — see the FunctionalScript
+   consequences above); reserved words added;
    the DataJS numeric leaves taught to the moved front end — `NaN`,
    `Infinity`, and `-Infinity` are unresolved identifiers in
    today's parser, so reserving the names alone would *reject* DataJS accept

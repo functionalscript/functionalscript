@@ -109,8 +109,8 @@ separation. This document specifies **DataJS**, the narrow interchange format.
 2. **One spelling wherever possible.** Fewer spellings mean fewer decisions
    for an implementer and fewer disagreements between implementations.
 3. **No semantics on invisible characters.** Two files that render identically
-   in every editor must not mean different things. This is why statements end
-   with a visible `;` rather than a line terminator.
+   in every editor must not mean different things. This is why a visible `;`
+   separates statements, rather than a line terminator.
 4. **Restate, do not cite.** Where DataJS depends on a JavaScript algorithm,
    this document writes the algorithm out. An implementer should not need
    ECMA-262 open beside it.
@@ -250,8 +250,14 @@ key      ::= string | '[' '"__proto__"' ']'
 **`;` separates statements and never trails one.** Every `const` is followed by
 it; the `export default` is last, has nothing after it, and so takes no `;`.
 This is JSON's comma rule applied to statements — a separator between items,
-never after the final one — and a document ends with the last character of its
-value.
+never after the final one.
+
+The value is the last *token* of a document, not necessarily its last
+character: whitespace stays insignificant here as everywhere, so
+`export default 1`, `export default 1\n` and `export default 1  \n` are the
+same document, and a file that ends the way a text editor ends files is valid.
+[Normalized form](#normalized-form) picks one of them by emitting no trailing
+newline, which is a rule about those bytes and not about what a reader accepts.
 
 `export default 1;` is therefore **rejected**, as are `;;`, a leading `;`, and
 a stray `;` anywhere else. There is no empty statement.
@@ -688,9 +694,14 @@ it: DataJS has no identifier keys, so an `id` appears only in a `const`
 statement and the references to it, and normalized `$0` is exactly as long as
 the `_0` it replaces. JavaScript gives `$` no meaning of its own — `${` belongs
 to template literals, which this format has no syntax for. The one context that
-is not free is a `String.prototype.replace` replacement pattern, where `$1`
-names a capture group; a document pasted into one as the replacement text is
-rewritten. Every other embedding, a JSON string included, is unaffected.
+is not free is a context that already reads `$`. A `String.prototype.replace`
+replacement pattern spends `$1` on a capture group, and a shell expands `$0`
+and `$1` inside a double-quoted string or an unquoted heredoc — so a normalized
+document, which is exactly where those names appear, is rewritten before its
+reader ever sees it. Both have a spelling that avoids it: single quotes in the
+shell, a quoted `<<'EOF'` heredoc, or a function rather than a pattern string
+for `replace`. Embedding a document as data — in a JSON string, a file, a
+request body — is unaffected, since none of those interpret `$`.
 
 **Why require a space after `default` when `export default[1]` would lex?**
 Not because the conditional rule cannot be implemented. It can, and without
