@@ -1,5 +1,7 @@
 /**
  * Type-level API for SUL identifiers.
+ *
+ * @module
  */
 
 import type { Nominal } from '../../types/nominal/types.ts'

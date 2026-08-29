@@ -5,6 +5,8 @@
  * The phantom field uses a unique symbol key so it is excluded from string index
  * signatures (`{ readonly [K in string]: ... }`), making `Phantom<S, T>` valid
  * for any `S` regardless of its index signature constraints.
+ *
+ * @module
  */
 
 declare const phantomKey: unique symbol

@@ -151,19 +151,18 @@ Which reader differs by file kind, and the tag does not decide it.
 `module.f.mjs` and `types.ts` are public API surface. `private.ts` is not: it
 holds implementation-private types outside the public declaration closure, and
 its generated declarations are excluded from the package entirely
-([`fsc/README.md`](./fsc/README.md)). Its prose is for
-contributors reading the sources, so the tag belongs there — but a public
-documentation build must not be pointed at it.
+([`fsc/README.md`](./fsc/README.md)). Its prose is for contributors reading the
+sources, so the tag belongs there — but a public documentation build must not be
+pointed at it.
 
 Put it in the leading block, followed by one blank line before the first
 source-level import or declaration.
 
-The tree does not obey this yet. #1756 stripped the tag from 102 files and
-#1750 from 16 `private.ts`, on the older reading; the prose survives in source
-and `deno doc` cannot see it. Restoring it is
-[`fjs/todo/module-tag-restore.md`](./todo/module-tag-restore.md); until that
-lands, an untagged `types.ts` or `private.ts` is debt rather than an example to
-copy.
+`proof.*` is settled rather than assumed. The restore left all 11 proof files
+untagged and confirmed with `deno doc --json` that they publish no `module_doc`
+— which is the intent, since a proof's prose documents a verification rather
+than an API and no documentation build is pointed at proofs. Point one at them
+and the tag is what would have to change.
 
 The tag is necessary, not sufficient. It decides whether `deno doc` *can* see a
 file's module documentation; whether anything is generated from that file is a

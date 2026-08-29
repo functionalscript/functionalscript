@@ -2,6 +2,8 @@
  * Implementation-private types for the Node.js effect runner: the narrowed
  * structural views of `node:http` objects the runner interprets HTTP
  * operations against.
+ *
+ * @module
  */
 
 import type { StringMap } from '../../types/object/types.ts'

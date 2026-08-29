@@ -1,5 +1,7 @@
 /**
  * Types for encoding multi-character token names as single BNF input symbols.
+ *
+ * @module
  */
 
 import type { Nullable } from '../../types/nullable/types.ts'
