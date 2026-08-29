@@ -65,13 +65,16 @@ Add only the data needed now:
 - exact package versions copied from that snapshot where native CI needs them;
 - simple per-job system and package declarations.
 
-For the current jobs, the declarations are:
+For the current jobs, the Node runtime declarations are:
 
 ```text
 node22: aarch64-linux, nodejs_22
 node24: aarch64-linux, nodejs_24
 node26: aarch64-linux, nodejs_26
 ```
+
+A job may also declare tools required by its own work. Keep those additions job-local;
+this TODO does not prescribe which non-Node tools a job needs.
 
 #### Generated environments
 
@@ -87,7 +90,7 @@ Each generated file should:
 
 - pin the exact Nixpkgs commit;
 - expose `devShells.aarch64-linux.default` for the current ARM Linux job;
-- use `pkgs.mkShell` with exactly that job's Node package;
+- use `pkgs.mkShell` with that job's declared packages;
 - be readable without inspecting the generator;
 - contain no job-selection logic;
 - contain no unrelated platform branches;
@@ -111,7 +114,7 @@ The minimal public contract is:
 }
 ```
 
-The generator substitutes the job's package. If another system is later required, emit
+The generator substitutes the job's packages. If another system is later required, emit
 another explicit `devShells.<system>.default` attribute rather than adding a loop or
 system-selection framework.
 
