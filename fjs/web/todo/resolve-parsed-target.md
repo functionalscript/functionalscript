@@ -35,38 +35,54 @@ call sites rather than a stated one, and the string is walked twice for it.
 
 ### Proposal
 
-Split the resolver in two, keeping the published signature:
+Split the resolver in two, keeping the published signature. The private half
+takes the target **including its `null`**, so the malformed-URL refusal is
+stated once and no caller can reach the body with nothing to read:
 
 ```js
-/** The routing decision over an already-parsed target. Private. */
-const resolveTarget = root => target => { … }   // `served(root)`, then the body from `decoded` on
+/**
+ * The routing decision over an already-parsed target; `null` is the
+ * malformed-URL refusal, since a target that did not parse names no path.
+ */
+const resolveParsed = root => target => {
+    if (target === null) { return refuse(400)('malformed request URL') }
+    const base = served(root)
+    const decoded = percentDecode(target.path)
+    …                                            // the rest of today's body
+}
 
 /** @type {Resolve} */
-export const resolve = root => url => {
-    const target = parseTarget(url)
-    return target === null ? refuse(400)('malformed request URL') : resolveTarget(root)(target)
-}
+export const resolve = root => url => resolveParsed(root)(parseTarget(url))
 ```
 
-`respond` then parses once and calls `resolveTarget` with the target it
-already holds. `resolve` keeps the `Resolve` contract exactly as
-`../types.ts:24-31` publishes it — a URL string in, malformed-URL rejection
-owned here — which matters because `parseTarget` is private, so an external
-caller has no other way to reach the canonical parser. The wrapper is the
-public API, not proof scaffolding.
+`respond` then parses once and calls `resolveParsed(root)(target)` with the
+target it already holds — `null` included, which is the case that matters:
+a malformed target whose `Host` header names a served host and whose method
+is `GET` reaches the resolver with `target === null` today and is answered
+`400` by `resolve`'s own guard. Routing that through `resolveParsed` keeps
+that answer; handing a bare `resolveTarget` a `null` would instead read
+`target.path` off nothing.
 
-What this buys is one walk per request instead of two, and one place where
-the `null` target is interpreted per caller: `resolve` answers `400`,
-`respond` falls back to the `Host` header before the host check. Those two
-readings stay different on purpose — the host check must precede
-interpreting the target — but each becomes local to the function that makes
-it rather than an agreement spanning two call sites.
+`resolve` keeps the `Resolve` contract exactly as `../types.ts:24-31`
+publishes it — a URL string in, malformed-URL rejection owned here — which
+matters because `parseTarget` is private, so an external caller has no other
+way to reach the canonical parser. The wrapper is the public API, not proof
+scaffolding.
+
+What this buys is one walk per request instead of two, with the `null` target
+answered in one place instead of two: `resolveParsed` owns the `400`, and
+`respond` keeps `null` only for the `Host`-header fallback that must precede
+the host check. That ordering stays exactly as it is — the host check runs
+before the target is interpreted — but it stops being an agreement spanning
+two parses of the same string.
 
 ### Tasks
 
-- [ ] Extract the private `resolveTarget`; keep `resolve` as the public
-      URL-accepting wrapper; call `resolveTarget` from `respond` with the
-      target it already parsed.
+- [ ] Extract the private `resolveParsed`, taking a nullable target and
+      owning the `400`; keep `resolve` as the public URL-accepting wrapper;
+      call `resolveParsed` from `respond` with the target it already parsed.
+- [ ] Keep a proof row for the malformed-target-with-served-`Host` request,
+      which is the path that reaches the resolver with `null`.
 - [ ] `npx tsc`, `fjs t`; the request/refusal proof rows pass unchanged —
       `resolve`'s signature does not change, so its proofs need no edit.
 
