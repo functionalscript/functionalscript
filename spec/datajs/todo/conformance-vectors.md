@@ -1145,11 +1145,11 @@ The six parts:
 
   | scalar | bytes | scalar | bytes |
   | - | - | - | - |
-  | U+007F | `7f` | U+0080 | `c2 80` |
-  | U+07FF | `df bf` | U+0800 | `e0 a0 80` |
-  | U+D7FF | `ed 9f bf` | U+E000 | `ee 80 80` |
-  | U+FFFF | `ef bf bf` | U+10000 | `f0 90 80 80` |
-  | U+10FFFF | `f4 8f bf bf` | | |
+  | U+0020 | `20` | U+007F | `7f` |
+  | U+0080 | `c2 80` | U+07FF | `df bf` |
+  | U+0800 | `e0 a0 80` | U+D7FF | `ed 9f bf` |
+  | U+E000 | `ee 80 80` | U+FFFF | `ef bf bf` |
+  | U+10000 | `f0 90 80 80` | U+10FFFF | `f4 8f bf bf` |
 
   Widths rather than the lead partition the reader's byte table uses, because
   an encoder branches on the scalar's magnitude and computes the lead from it —

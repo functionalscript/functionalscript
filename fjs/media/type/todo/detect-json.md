@@ -45,7 +45,8 @@ object/array-only policy (§4) is applied at EOF — the recognizer stays pure
 (accepts any valid JSON), the MIME policy lives here:
 
 ```ts
-// A_json state, added to DetectState (init { rec: recognizerInit, top: null }):
+// A_json state, added to DetectState (init { rec: recognizerInitCapped(jsonMaxDepth), top: null }):
+const jsonMaxDepth = 64   // the detector's cap; see below
 type JsonFactor = { readonly rec: JsonRecognizerState; readonly top: Nullable<CodePoint> }
 // per decoded code point: feed the recognizer its UTF-16 units; remember the
 // first non-whitespace cp
@@ -112,7 +113,8 @@ work for two reasons that are `fjs/media/json`'s to own, not `fjs/media/type`'s 
 Both are addressed by the payload-free, O(depth) recognizer proposed in
 **`fjs/media/json/todo/streaming-recognizer.md`** (`recognizerInit` / `recognizerStep`
 / `recognizerAccepts`, sharing the grammar with `parse` so they cannot diverge,
-with an optional max-depth cap `fjs/media/type` should enable as a DoS guard). `A_json`
+with an optional max-depth cap this detector **enables**, via
+`recognizerInitCapped`). `A_json`
 is the thin §1 wrapper over it — the recognizer plus the one-code-point
 top-level tag — adding no JSON grammar of its own. This todo therefore **depends
 on** that recognizer landing first.
@@ -166,7 +168,18 @@ never settles a live-text blob (magic `dead` + valid text keeps scanning), so
 confirming whole-blob UTF-8 validity already forces a full scan of every text
 blob — JSON validity, also only knowable at EOF, rides that same scan for free.
 The magic-matched early exit (`pdfThenLargeTextTail`) is untouched. The only new
-cost is the recognizer's O(depth) stack, bounded by the depth cap. Leave
+cost is the recognizer's O(depth) stack, bounded by the depth cap.
+
+**The cap is a fixed number here, not a knob**, and that is a contract rather
+than a tuning choice: a detector is asked *what type is this blob*, so two
+implementations disagreeing about the limit would return different MIME
+verdicts for the same bytes. `64` is the proposed value — far past anything a
+real document reaches, and shallow enough that the stack is bounded by a
+constant rather than by input — and it belongs in this design because
+`fjs/media/json` has no opinion about it. An earlier draft enabled the cap in
+prose and initialised the factor with the uncapped `recognizerInit` two
+sections above, which review caught one commit after the capped initializer was
+added for exactly this consumer. Leave
 `isSettled` as-is (a text blob cannot settle early regardless of the JSON
 factor).
 
