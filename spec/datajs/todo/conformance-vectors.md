@@ -810,7 +810,9 @@ The six parts:
   corner beside it; the depth cap, described in prose with no entry point to
   set it; and `1.0` arriving without the signed twin the same file requires two
   bullets away, the fourth time a rule has gone unapplied to the commit that
-  states it. The sweep for the lead-partition shape had
+  states it — then the encoder's one-byte row, given its upper end and not its
+  lower, and the detector still initialising with the uncapped `recognizerInit`
+  one commit after the capped initializer was added for it. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1150,6 +1152,13 @@ The six parts:
   | U+0800 | `e0 a0 80` | U+D7FF | `ed 9f bf` |
   | U+E000 | `ee 80 80` | U+FFFF | `ef bf bf` |
   | U+10000 | `f0 90 80 80` | U+10FFFF | `f4 8f bf bf` |
+
+  The one-byte row starts at **U+0020**, not at U+007F: everything below is a
+  rejected raw character, so U+0020 is the low end of what `QuoteJSONString`
+  leaves raw, and a normalizer whose value writer escapes printable ASCII emits
+  `\u0020` — valid, the same string, noncanonical — and passes every other
+  vector here. Review found the row with its upper end only, which is the
+  endpoint rule failing on the row that states it.
 
   Widths rather than the lead partition the reader's byte table uses, because
   an encoder branches on the scalar's magnitude and computes the lead from it —
