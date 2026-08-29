@@ -56,8 +56,8 @@ mechanical. Pick one before building it. Until then the Problem's "one
 forgotten PR at a time" is unaddressed for exactly that case, and the required
 check enforces shape rather than completeness.
 
-One hole no pre-merge check covers: GitHub lets whoever clicks "Squash and
-merge" edit the commit message in the merge dialog. Backstops: don't touch
+One hole no pre-merge check covers: GitHub lets whoever clicks the merge button
+edit the commit message in the merge dialog. Backstops: don't touch
 the merge box (auto-merge sidesteps it entirely — it merges with the default
 message); a post-merge audit job on `push` to `main` that compares the
 landed message against the PR and fails loudly; commit-metadata rulesets
