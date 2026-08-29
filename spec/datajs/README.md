@@ -342,6 +342,18 @@ approximated:
   syntax holds only elements, so `meta` has nowhere to go;
 - a cycle.
 
+**Property attributes are not part of the data model.** `writable`,
+`configurable` and the object's extensibility describe the *slot*, not the
+value in it, and DataJS has no syntax for them. A serializer neither inspects
+nor preserves them: a frozen `{x:1}` and an ordinary one serialize alike, and
+what reads back is an ordinary object. This is not an oversight to fix by
+rejecting unusual descriptors — `Object.freeze` makes every property
+non-writable and non-configurable, so that rule would make frozen values
+unserializable, including the output of a reader that freezes what it returns,
+which this specification explicitly permits. Enumerability and accessors are
+different, and rejected above, because they change *which values appear at
+all*.
+
 Every one of these is a case where the obvious implementation quietly produces
 a document denoting something else. `JSON.stringify` substitutes `null` for a
 function, expands a hole to `null`, drops a symbol-keyed member, and drops that
