@@ -67,7 +67,21 @@ the thing being bounded and the reason to state it this way round rather than
 counting nesting *levels* from 1. Review found the number specified and the
 rule it counts by left open, in the same paragraph that argues an unspecified
 limit makes two implementations disagree about the same bytes; an off-by-one
-here is exactly that disagreement, one level down. The checklist and the value-free-parsing bullet below kept describing
+here is exactly that disagreement, one level down.
+
+**And what may be passed**, which the round after that one asked: `maxDepth` is
+a **finite non-negative integer**, and every other `number` — `-1`, `1.5`,
+`NaN`, `Infinity` — is refused. Refused rather than left open, because each has
+a plausible reading that a different implementation would pick: round `1.5`,
+compare `-1` directly and reject everything, or honour `Infinity` and silently
+return the uncapped recognizer, which defeats the guard the argument was passed
+to install. Refused rather than thrown, because this module has no exceptions
+to throw: `recognizerInitCapped` is **total**, and an invalid cap yields a state
+that is already rejecting, so `recognizerAccepts` is `false` for every input
+fed to it. That is loud — nothing parses — where honouring `Infinity` would be
+silent. The check belongs at init, where it runs once, and leaves
+`recognizerStep` with nothing to test. `-0` is `0`: it is a finite integer and
+`-0 >= 0`, so it needs no rule of its own. The checklist and the value-free-parsing bullet below kept describing
 the cap as an unnamed knob for two commits after the export appeared — the same
 stale-cross-reference shape this PR has now recorded fourteen times, here in its
 prose-against-its-own-checklist form, and inside the one file whose export list
@@ -175,6 +189,10 @@ property, scoped to make it actually hold:
 - [ ] Proof (cap disabled): `recognizerAccepts` agrees with `parse` `ok`/`error`
       across the existing parser test corpus; add large-single-token cases (huge
       string, long number) asserting bounded auxiliary space (no payload buffer).
+- [ ] Proof (invalid cap): `recognizerInitCapped` is total, so each of `-1`,
+      `1.5`, `NaN` and `Infinity` yields a state `recognizerAccepts` rejects —
+      `Infinity` especially, since honouring it would silently return the
+      uncapped recognizer. `recognizerInitCapped(-0)` behaves as `0`.
 - [ ] Proof (cap enabled): **both sides of the boundary**, since "deeper is
       rejected" alone is passed by an implementation that rejects at the cap
       too, and by one that rejects everything. For a cap of `n`: a document
