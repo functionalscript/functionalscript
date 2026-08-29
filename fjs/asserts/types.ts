@@ -1,5 +1,7 @@
 /**
  * Type-level assertion helpers.
+ *
+ * @module
  */
 
 /**

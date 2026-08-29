@@ -1,5 +1,7 @@
 /**
  * Implementation-private types for the RTTI parser's container rebuilds.
+ *
+ * @module
  */
 
 import type { Presence } from '../common/types.ts'

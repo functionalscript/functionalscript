@@ -295,9 +295,10 @@ Use `@template out T`, `@template in T`, or constrained forms such as
 A JavaScript implementation must not gain a real JavaScript import just because
 it uses a separately declared type. Use JSDoc `@import` with the same real source
 path used by `import type`. All module-level `@import` tags belong in one
-leading JSDoc block — sharing it with `@module` in a `module.*` file, or
-standing alone at the top of a `proof.*` or other non-`module.*` file, which
-does not carry `@module`; do not create separate `@import` comment blocks.
+leading JSDoc block — sharing it with `@module` in a file that carries one, or
+standing alone in a file that does not, such as `proof.*`; do not create
+separate `@import` comment blocks. Which files carry `@module` is
+[`fjs/AGENTS.md`](../fjs/AGENTS.md) §2, not this document.
 
 The corresponding TypeScript implementation uses `import type` with the same
 specifier:
@@ -318,8 +319,8 @@ JavaScript in a `module.*` file uses:
  */
 ```
 
-JavaScript in a `proof.*` file (or any other non-`module.*` file, which has no
-`@module` tag) groups the same `@import` tags without one:
+JavaScript in a `proof.*` file, which has no `@module` tag, groups the same
+`@import` tags without one:
 
 ```js
 /**
@@ -457,10 +458,13 @@ source meanwhile.
 
 #### Module header and import ordering
 
-The `@module` tag belongs only to a package's entry-point file — `module.f.mjs` /
-`module.mjs`. It is not required on `proof.f.mjs`, `types.ts`, or any other file.
-A `module.*` file starts with one leading JSDoc block carrying `@module`; always
-put one blank line after that block before the first source-level import or
+`@module` placement is [`fjs/AGENTS.md`](../fjs/AGENTS.md) §2: the tag goes
+wherever a file has module-level documentation a reader is meant to get from
+`deno doc`, `types.ts` and `private.ts` included — not only `module.*`. It is
+linked rather than restated here deliberately; this document carried its own
+copy of an earlier, narrower rule and so did not move when §2 did. A `module.*`
+file starts with one leading JSDoc block carrying `@module`; always put one
+blank line after that block before the first source-level import or
 declaration.
 
 For TypeScript, put type-only imports first, external or built-in runtime imports
@@ -1199,8 +1203,8 @@ person can re-check rather than re-derive. Counts are as of
   `types.ts` may preserve declaration documentation through normal TypeScript
   emit.
 - Every module-level import follows the module-header/import convention:
-  `@module` appears only on `module.*` entry-point files, never on `proof.*` or
-  other files; JavaScript groups module-level `@import` tags into one leading
+  `@module` placement follows [`fjs/AGENTS.md`](../fjs/AGENTS.md) §2;
+  JavaScript groups module-level `@import` tags into one leading
   JSDoc block — shared with `@module` where present, standing alone otherwise —
   one blank line follows that block, external/built-in runtime imports form
   their own group, and repository-owned relative runtime imports are ordered as

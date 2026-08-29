@@ -5,6 +5,8 @@
  * This is a runtime representation, not a new syntax: an extended value's
  * serialized form is ordinary valid JSON text, with no `123n` literal, tagged
  * object, or quoted-integer convention.
+ *
+ * @module
  */
 
 import type { Primitive as JsonPrimitive, Tree, TreeObject, TreeArray, TreeMapEntries } from '../types.ts'

@@ -1,5 +1,7 @@
 /**
  * Type-level API shared by RTTI consumers (`validate`, `parse`).
+ *
+ * @module
  */
 
 import type { Primitive, Unknown } from '../ts/types.ts'

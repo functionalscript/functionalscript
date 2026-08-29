@@ -1,5 +1,7 @@
 /**
  * Type-level API for BNF grammar primitives and helpers.
+ *
+ * @module
  */
 
 import type { StringMap } from '../types/object/types.ts'
