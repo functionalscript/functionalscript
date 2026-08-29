@@ -28,7 +28,8 @@ A machine-readable corpus with three parts:
   containers, deep nesting, and shared nodes reached by several paths.
 - **reject** — document text plus what is wrong with it. Cases: a missing or
   non-final `export default`, a missing `;`, `;;`, a trailing comma, a comment,
-  an `import`, an identifier key, a bare or string `"__proto__"` key, `1.5n`,
+  an `import`, an identifier key, a bare or string `"__proto__"` key and its escaped spelling
+  `"\u005f_proto__"` (the rule is on the decoded value), `1.5n`,
   `1e2n`, `01n`, `-NaN`, `-undefined`, a bare `-`, a forward or unbound
   reference, a rebound name, each excluded const name, single quotes, `\x` and
   `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string.

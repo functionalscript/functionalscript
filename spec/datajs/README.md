@@ -243,6 +243,14 @@ computed form:
 export default {["__proto__"]:1};
 ```
 
+The rule is on the key's **decoded value**, not its spelling: a plain string
+key is rejected whenever it decodes to `__proto__`, so `{"\u005f_proto__":1}`
+is rejected exactly as `{"__proto__":1}` is. JavaScript decides the same way —
+the escaped form is a prototype assignment too, and an implementation matching
+source text instead would accept it and read back an own property JavaScript
+never created. The computed form is spelled `["__proto__"]` and only that,
+since one spelling is the point of the rule.
+
 A bare `__proto__` key and the string form `{"__proto__":1}` are **rejected**,
 because JavaScript reads them as an instruction to replace the object's
 prototype rather than as data. The computed form is an ordinary own property
@@ -475,9 +483,11 @@ The conversion is textual:
 "export default " + json + ";"
 ```
 
-with one exception: a bare `"__proto__"` key must be rewritten to
-`["__proto__"]`, since DataJS rejects the string spelling. For JSON containing
-no `__proto__` key, plain concatenation is exactly a valid DataJS document.
+with one exception: a key **decoding to** `__proto__` must be rewritten to
+`["__proto__"]`, since DataJS rejects every plain-string spelling of it. That
+covers escaped spellings such as `"\u005f_proto__"`, which JSON and DataJS
+both read as the same key. For JSON containing no such key, plain
+concatenation is exactly a valid DataJS document.
 
 The reverse direction is partial, and both of its conditions are about the
 graph the document *denotes* — the values reachable from `export default`,
