@@ -128,7 +128,18 @@ that happened to be noticed:
 
 A decoder rejecting any one lead-byte range refuses valid text while passing a
 set built from interior values: `C2`, `E0` and `F0 90` at the bottom, `DF`,
-`EF` and `F4` at the top. The three-byte row has a hole at U+D800–U+DFFF, and the hole needs its own
+`EF` and `F4` at the top.
+
+**Four leads constrain their second byte, and each needs both edges of that
+constraint** — a level below the width ranges, and the table touched one edge
+of each. `E0` admits `A0`–`BF`, `ED` admits `80`–`9F`, `F0` admits `90`–`BF`,
+`F4` admits `80`–`8F`, since outside those the sequence would be overlong, a
+surrogate, or above U+10FFFF. The accepts above supply `E0 A0 80`, `ED 9F BF`,
+`F0 90 80 80` and `F4 8F BF BF` — one edge each — so a decoder accepting only
+`90` after `F0`, or only `8F` after `F4`, passed while refusing most of the
+plane. The opposite edges are accepts too: **`E0 BF BF`** (U+0FFF),
+**`ED 80 80`** (U+D000), **`F0 BF BF BF`** (U+3FFFF), **`F4 80 80 80`**
+(U+100000), all measured valid. The three-byte row has a hole at U+D800–U+DFFF, and the hole needs its own
 two accepts: **`ed 9f bf` (U+D7FF)** just below it and **`ee 80 80` (U+E000)**
 just above. Without them a decoder rejecting the whole `ED` lead range refuses
 valid text up to U+D7FF while still rejecting the encoded surrogate correctly
@@ -344,7 +355,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Twenty-four consecutive review
+  vector is the only instrument that sees it. Twenty-five consecutive review
   rounds each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -381,7 +392,8 @@ The six parts:
   LF and CR, which one paragraph excluded on the reasoning another used to
   keep four sibling vectors — then the escaped surrogate pair, which this
   document argued for and never made a vector, and the `_0`/`_1` ordering,
-  which no single-const case can test. Every time the list had been written from memory rather
+  which no single-const case can test, and both edges of the four constrained
+  second-byte ranges. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
