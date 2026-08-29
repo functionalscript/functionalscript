@@ -267,9 +267,20 @@ they are special, and JavaScript accepts them as bindings in module code.
 
 ## Serialization
 
-Any serializer that emits a valid document is conforming; whitespace, which
-values are hoisted into a `const`, and the names of those consts are all free
-choices. A reader must accept every valid document however it is spelled.
+A serializer conforms when its output is a valid document **that denotes the
+input graph** — the same values, with the same sharing. Validity alone is not
+the bar: `export default null;` is a perfectly valid document and almost never
+the right answer.
+
+Given that, the remaining choices are free: whitespace and layout, the names
+of the consts, and whether a value reachable only once is hoisted into one.
+
+Hoisting a value reachable **more than once is not a free choice**. Writing it
+inline at each occurrence yields a document denoting equal copies rather than
+one shared node — a different graph — so a serializer must emit a `const` for
+it. A `const` is the only way the format expresses sharing at all.
+
+A reader must accept every valid document however it is spelled.
 
 ### What may be serialized
 
@@ -280,13 +291,19 @@ approximated:
 - a leaf outside the leaf set — a function, a symbol, a `Date`, or any other
   non-plain object;
 - a hole in a sparse array, which is not an `undefined` element;
-- a symbol-keyed own property, or an accessor property (reading a getter is
-  an effect);
+- an own property this format cannot write: a symbol key, an accessor
+  property (reading a getter is an effect), or a non-enumerable property —
+  each would otherwise vanish from the output;
+- an array carrying any own property besides its elements and `length`.
+  `const a=[1]; a.meta=2` has the own keys `0`, `length` and `meta`, and array
+  syntax holds only elements, so `meta` has nowhere to go;
 - a cycle.
 
-Silently substituting `null`, dropping a member, or expanding a hole is what
-`JSON.stringify` does; DataJS does not, because the result would be a valid
-document denoting a different value.
+Every one of these is a case where the obvious implementation quietly produces
+a document denoting something else. `JSON.stringify` substitutes `null` for a
+function, expands a hole to `null`, drops a symbol-keyed member, and drops that
+`meta` without a word. DataJS rejects instead, because a silently wrong
+document is worse than no document.
 
 ### Normalized form
 

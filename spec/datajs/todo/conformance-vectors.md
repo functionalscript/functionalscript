@@ -32,6 +32,15 @@ A machine-readable corpus with three parts:
   `1e2n`, `01n`, `-NaN`, `-undefined`, a bare `-`, a forward or unbound
   reference, a rebound name, each excluded const name, single quotes, `\x` and
   `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string.
+- **serializer reject** — programmatic inputs a serializer must refuse rather
+  than approximate: a function, symbol or `Date` leaf, a sparse-array hole, a
+  symbol-keyed, accessor or non-enumerable own property, an array carrying an
+  own property beyond its elements and `length` (`a=[1]; a.meta=2`), and a
+  cycle. Each is a case where the obvious implementation emits a valid
+  document denoting something else.
+- **graph equivalence** — an input graph and the documents that do and do not
+  denote it, so a serializer cannot pass by emitting merely *valid* output:
+  `[a,a]` with one shared `a` is not `export default [[],[]];`.
 - **normalize** — an input document and the exact bytes normalized form must
   produce: const hoisting by reference identity, post-order `_0`, `_1`, …
   naming, `ToString(Number)` spelling with the `-0` exception,
