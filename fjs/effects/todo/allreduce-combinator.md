@@ -26,6 +26,12 @@ export const allReduce =
             rs => pure(rs.reduce((a, b) => op(b)(a), init)))
 ```
 
+**The body must call the list-shaped operation directly once
+[all-argument-limit](./all-argument-limit.md) lands** — the spread above is
+exactly the unbounded-spread shape that issue exists to remove, and a
+combinator built for arbitrarily long lists must not become another instance
+of the ceiling. Until then the spread inherits the documented limit.
+
 Note the standalone `step`: `all(...)` returns a raw `Effect`, which is plain
 data with no methods, so `all(...).step(...)` — as an earlier draft of this
 issue wrote it — would not compile. If

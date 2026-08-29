@@ -37,11 +37,11 @@ before the leaf is sandboxed, and let each host decide what to do with it:
 
 - **`fjs t`** prints the name, then completes the line with `ok`/`error` and the
   duration when the result lands — the standard runner shape, in the format it
-  already prints. Interleaving is the thing to get right: leaves
-  run concurrently, so a half-written line cannot be left open across another
-  test's output. Either the name and its outcome are one deferred line with the
-  name shown live elsewhere, or output is a two-column log that names the start
-  and closes it by identifier.
+  already prints. When this was written leaves ran concurrently and
+  interleaving was the thing to get right; under the sequential runner this
+  issue inherits (see the constraint below), nothing runs between a start and
+  its own result, so the open line is simply completed in place — no deferred
+  lines, no two-column log, no identifier to close by.
 - **The browser page** renders a row in a pending state and settles it in place,
   which is the same list it renders now with one more state per row.
 - **A result type** may not need to change at all: a start is an event, not a

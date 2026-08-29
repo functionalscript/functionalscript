@@ -327,7 +327,10 @@ and is reviewable without the next one.
       [node-module-layering](../../effects/todo/node-module-layering.md)'s
       question, which moves it to `effects/all` on the layering argument, with
       the Node runners and the registration path as its implementers. `await` never qualified: it belongs to that
-      registration path, which no browser runs. `import`, `now` and `fetch`
+      registration path, which no browser runs — though it *moves* with
+      `sandbox` and `catch`, to the same `effects/sandbox` home, on
+      node-module-layering's layering argument rather than on this step's
+      second-implementer one; that move is that issue's, not step 4's. `import`, `now` and `fetch`
       never qualified either: a page loads modules through its own importer
       and reads its own wall clock, in the impure shell where host values
       belong. Everything without a second implementer stays in `effects/node`
