@@ -100,6 +100,16 @@ export const flakePath = id => `./${generatedDirectory}/${id}`
 /** Installs Nix, with `nix-command` and `flakes` enabled by the action's defaults. */
 export const nixInstall = install(uses('cachix/install-nix-action'))
 
-/** Runs one command inside a job's generated development shell. */
-/** @type {(id: string, command: string) => string} */
-export const nixDevelop = (id, command) => `nix develop ${flakePath(id)} --command ${command}`
+/**
+ * Runs one command inside a job's generated development shell.
+ *
+ * `--no-write-lock-file` keeps the invocation read-only against the checkout.
+ * Nix otherwise writes a `flake.lock` beside the flake it enters, which is a
+ * file CI created in a tree the Node 26 job then compares against the
+ * generator's output. The pin in `flake.nix` already determines every input, so
+ * the lock adds nothing to resolve — only something to ignore.
+ *
+ * @type {(id: string, command: string) => string}
+ */
+export const nixDevelop = (id, command) =>
+    `nix develop --no-write-lock-file ${flakePath(id)} --command ${command}`

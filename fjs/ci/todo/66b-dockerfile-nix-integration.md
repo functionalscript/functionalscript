@@ -25,10 +25,9 @@ than about Nix: `npm run ci-update` and the drift check it feeds run last, after
 `npm ci`, `npx tsc`, `npm run cov` and `npm pack`. The check compares the tree
 against what the generator produces, so running it at the end makes it the last
 word — every earlier step has finished writing. Nothing those steps leave is
-tracked: `npm pack`'s tarball, the declarations its `prepack` emits, and the
-`flake.lock` Nix writes beside a flake it enters are all ignored, so the check
-still sees generator output and nothing else. The drift check is a plain step,
-since `git` is the runner's tool.
+tracked: `npm pack`'s tarball and the declarations its `prepack` emits are
+ignored, and `--no-write-lock-file` means Nix leaves nothing at all. The drift
+check is a plain step, since `git` is the runner's tool.
 
 **No job exists to check the flakes.** The temporary `nix-flakes` job that
 instantiated each generated file and compared the Node it provided to an
@@ -173,8 +172,9 @@ The generator owns the job subdirectories of `nix/` and removes stale job output
 does not own `nix/` itself: `nix/README.md` is written by hand, so stale-output removal
 deletes directories it generated rather than everything it finds there.
 
-Nix may create `flake.lock` beside a generated flake. Keep these files untracked with
-this root `.gitignore` rule:
+Nix writes a `flake.lock` beside a generated flake unless told not to, so every CI
+invocation passes `--no-write-lock-file` and leaves the checkout untouched. The root
+`.gitignore` rule stays for hand-run `nix develop`, which has no such flag:
 
 ```gitignore
 /nix/*/flake.lock
@@ -197,7 +197,7 @@ Each migrated Node job checks out the repository, installs Nix through a pinned 
 and then runs one step per command of its existing sequence:
 
 ```sh
-nix develop ./nix/<job> --command <command>
+nix develop --no-write-lock-file ./nix/<job> --command <command>
 ```
 
 A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7): a bundled
@@ -221,22 +221,22 @@ Preserve each job's command sequence. This is what the three jobs run, all migra
 
 ```text
 node22 (flake):
-  test "$(nix develop ./nix/node22 --command node --version)" = v<configured>
-  nix develop ./nix/node22 --command npm ci
-  nix develop ./nix/node22 --command node --test
+  test "$(nix develop --no-write-lock-file ./nix/node22 --command node --version)" = v<configured>
+  nix develop --no-write-lock-file ./nix/node22 --command npm ci
+  nix develop --no-write-lock-file ./nix/node22 --command node --test
 
 node24 (flake) — the same, one builder emits both:
-  test "$(nix develop ./nix/node24 --command node --version)" = v<configured>
-  nix develop ./nix/node24 --command npm ci
-  nix develop ./nix/node24 --command node --test
+  test "$(nix develop --no-write-lock-file ./nix/node24 --command node --version)" = v<configured>
+  nix develop --no-write-lock-file ./nix/node24 --command npm ci
+  nix develop --no-write-lock-file ./nix/node24 --command node --test
 
 node26 (flake):
-  test "$(nix develop ./nix/node26 --command node --version)" = v<configured>
-  nix develop ./nix/node26 --command npm ci
-  nix develop ./nix/node26 --command npx tsc
-  nix develop ./nix/node26 --command npm run cov
-  nix develop ./nix/node26 --command npm pack
-  nix develop ./nix/node26 --command npm run ci-update
+  test "$(nix develop --no-write-lock-file ./nix/node26 --command node --version)" = v<configured>
+  nix develop --no-write-lock-file ./nix/node26 --command npm ci
+  nix develop --no-write-lock-file ./nix/node26 --command npx tsc
+  nix develop --no-write-lock-file ./nix/node26 --command npm run cov
+  nix develop --no-write-lock-file ./nix/node26 --command npm pack
+  nix develop --no-write-lock-file ./nix/node26 --command npm run ci-update
   git add -A && git diff --cached --exit-code
 ```
 
@@ -257,7 +257,7 @@ For each Node job:
 3. switch only that job after equivalent behavior is demonstrated.
 
 A migrated job checks its Node version like any other, as its first real step:
-`test "$(nix develop ./nix/<job> --command node --version)" = v<version>`. The
+`test "$(nix develop --no-write-lock-file ./nix/<job> --command node --version)" = v<version>`. The
 pin decides which Node the flake resolves to, and `fjs/ci/config/module.f.mjs`
 only claims to know which — so the claim is checked where it can be, and the
 migration changes a job's runtime without changing what CI guarantees about it.

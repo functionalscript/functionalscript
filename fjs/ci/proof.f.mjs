@@ -254,8 +254,8 @@ export const proof = {
             assertStructurallySame(
                 job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
                 [
-                    `test "$(nix develop ./nix/${id} --command node --version)" = v${version}`,
-                    ...commands.map(command => `nix develop ./nix/${id} --command ${command}`),
+                    `test "$(nix develop --no-write-lock-file ./nix/${id} --command node --version)" = v${version}`,
+                    ...commands.map(command => `nix develop --no-write-lock-file ./nix/${id} --command ${command}`),
                     ...(id === `node${major(node.default)}`
                         ? ['git add -A && git diff --cached --exit-code']
                         : []),
@@ -268,9 +268,9 @@ export const proof = {
     nodeVersionChecks: () => {
         const gha = run(false)
         for (const [version, command] of /** @type {const} */ ([
-            [node.node22, `nix develop ./nix/node${major(node.node22)} --command node --version`],
-            [node.node24, `nix develop ./nix/node${major(node.node24)} --command node --version`],
-            [node.default, `nix develop ./nix/node${major(node.default)} --command node --version`],
+            [node.node22, `nix develop --no-write-lock-file ./nix/node${major(node.node22)} --command node --version`],
+            [node.node24, `nix develop --no-write-lock-file ./nix/node${major(node.node24)} --command node --version`],
+            [node.default, `nix develop --no-write-lock-file ./nix/node${major(node.default)} --command node --version`],
         ])) {
             const id = `node${major(version)}`
             const runs = (gha.jobs[id]?.steps ?? [])
@@ -292,7 +292,7 @@ export const proof = {
         const job = gha.jobs[`node${major(node.default)}`]
         assert(job !== undefined, 'expected the canonical Node job')
         const packIndex = job.steps.findIndex(
-            step => step.run === `nix develop ./nix/node${major(node.default)} --command npm pack`)
+            step => step.run === `nix develop --no-write-lock-file ./nix/node${major(node.default)} --command npm pack`)
         const uploadIndex = job.steps.findIndex(
             step => step.uses === `actions/upload-artifact@${actions['actions/upload-artifact']}`)
         assert(packIndex !== -1, 'expected npm pack')

@@ -80,7 +80,7 @@ the Nixpkgs commit first and copying the versions it offers.
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical Node job asserts, as its first command, that
-`nix develop ./nix/nodeNN --command node --version` reports the version
+`nix develop --no-write-lock-file ./nix/nodeNN --command node --version` reports the version
 `config/module.f.mjs` records for it. That check is the *only* place the expectation
 is written: the generated flakes stay purely declarative, since a flake pinning an exact
 Nixpkgs commit already determines its package versions and an `assert` inside it would

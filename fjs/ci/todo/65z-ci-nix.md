@@ -157,17 +157,21 @@ Browser-runner and browser-package synchronization is outside this Node-only upd
 
 #### Generated flake locks
 
-Nix may create a `flake.lock` beside a generated `flake.nix` during evaluation. Do not
-commit these per-job lock files in the first milestone. Ignore them with the scoped root
-`.gitignore` rule:
+Nix writes a `flake.lock` beside the `flake.nix` it evaluates unless told not to. CI
+tells it not to: every invocation passes `--no-write-lock-file`, so a CI run leaves the
+checkout exactly as it found it. The pin in `flake.nix` already determines every input,
+so the lock resolves nothing the flake did not already say.
+
+An earlier revision took the opposite trade — ignore the lock rather than add a flag to
+every invocation — and the scoped root `.gitignore` rule it added stays:
 
 ```gitignore
 /nix/*/flake.lock
 ```
 
-This keeps the Node 26 generated-file drift check clean without adding special Nix flags
-to every invocation. The rule matches one level down, so it covers the per-job flakes and
-no more: a future intentional `nix/flake.lock`, hand-maintained, is unaffected.
+Not for CI, which no longer writes one, but for a developer running `nix develop` by hand
+without the flag. The rule matches one level down, so it covers the per-job flakes and no
+more: a future intentional `nix/flake.lock`, hand-maintained, is unaffected.
 
 #### Validation and adoption
 
@@ -178,7 +182,7 @@ Adopt jobs independently. Each migrated workflow uses:
 3. one step per command of that job's existing sequence, each entering the job's shell:
 
 ```sh
-nix develop ./nix/<job> --command <command>
+nix develop --no-write-lock-file ./nix/<job> --command <command>
 ```
 
 A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7), so the sequence
@@ -189,7 +193,7 @@ A step enters the shell only when it needs a tool the flake pins. `git` is the
 runner's, so the Node 26 drift check stays a plain step:
 
 ```sh
-nix develop ./nix/node26 --command npm run ci-update
+nix develop --no-write-lock-file ./nix/node26 --command npm run ci-update
 git add -A && git diff --cached --exit-code
 ```
 

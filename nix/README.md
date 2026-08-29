@@ -11,7 +11,7 @@ Each flake pins the exact Nixpkgs commit from
 development shell for the job's runner:
 
 ```sh
-nix develop ./nix/node24 --command node --version
+nix develop --no-write-lock-file ./nix/node24 --command node --version
 ```
 
 The pinned commit determines the package versions: `pkgs.nodejs_24` at that
@@ -25,8 +25,10 @@ The files stay static and readable on purpose — no job selection, no
 gets a second explicit `devShells.<system>.default` attribute rather than a
 loop.
 
-`flake.lock` files that Nix writes next to a generated flake are ignored (see
-the root `.gitignore`); the pinned commit in `flake.nix` is the lock.
+The pinned commit in `flake.nix` is the lock, so nothing needs a `flake.lock`
+beside it. CI passes `--no-write-lock-file` to every `nix develop`, which is why
+its runs leave the checkout untouched; the root `.gitignore` still ignores those
+files, for a hand-run `nix develop` that omits the flag.
 
 Every canonical Node job runs through its flake: each installs Nix, checks the
 Node its shell provides, and then runs its commands one `nix develop` step each,
