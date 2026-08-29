@@ -32,10 +32,34 @@ Landing stage 4 without it would mean writing stage 4's proofs twice.
 
 ### Proposal
 
-A machine-readable corpus with six parts:
+A machine-readable corpus with six parts.
+
+**Document inputs come in two forms.** Code-unit arrays carry all but two of
+the rules below, and rightly: those rules are about the token stream, and a
+corpus that made every consumer decode UTF-8 first would be testing its own
+reader. Two rules are *not* about the token stream and cannot be reached that
+way at all, so their vectors carry a **byte array** instead, fed to the
+reader's public byte-accepting path — which stage 4 owes:
+
+- a document **has no BOM**, which a decoder satisfies the parser on by
+  stripping `EF BB BF` before the parser ever runs; and
+- a document **is UTF-8**, which nothing in a code-unit array can violate — so
+  vectors carry invalid UTF-8 (a truncated sequence, an overlong encoding, and
+  a surrogate half encoded as three bytes) to be refused.
+
+A vector naming a code path the corpus cannot reach is worth less than no
+vector, because it reads as coverage. Review found this document claiming a
+code-unit BOM vector "tests the decoder" one round after adding it, which it
+cannot: the corpus reader had already decoded it.
+
+The six parts:
 
 - **accept** — document text plus the graph it denotes, including the sharing.
-  Cases: every leaf (`-0`, `NaN`, `±Infinity`, bigint, `undefined`), the
+  Cases: **each of the four permitted whitespace characters between tokens** —
+  space, tab, LF and CR — because the rejection half of this corpus is
+  extensive and a reader accepting only U+0020 passes every one of those
+  vectors while narrowing the language; every leaf (`-0`, `NaN`, `±Infinity`,
+  bigint, `undefined`), the
   `["__proto__"]` key, `-0n` — an accepted input spelling denoting `0n`, since
   bigint has no negative zero — a `const` referenced exactly once and a
   `const` never referenced at all — the grammar imposes no reference count, and
@@ -110,13 +134,16 @@ A machine-readable corpus with six parts:
   21: U+000B and U+000C (the C0 pair), U+2028 and U+2029 (the line
   terminators), U+FEFF, and U+00A0, U+1680, U+2000, U+202F, U+205F and U+3000
   spanning the `Zs` block, since an implementation reaching that class at all
-  reaches all of it. **U+FEFF needs two vectors, and the positions test
-  different code.** Between tokens it tests the tokenizer, like the other
-  twenty; as the document's **first** character it tests the decoder, against
-  the separate rule that a document "has no BOM" — and a reader that strips a
-  leading BOM while decoding, which is ordinary behavior, passes the
-  between-tokens vector and fails the rule. Both spellings are valid
-  JavaScript, measured. Then the array **elisions** JavaScript reads as holes
+  reaches all of it. **U+FEFF needs vectors in two positions and two input
+  forms.** Between tokens and as the document's first character are different
+  tokenizer states, and a tokenizer may well skip a leading BOM specifically
+  while rejecting one between tokens; both spellings are valid JavaScript,
+  measured. But neither, as *code units*, reaches the rule that a document
+  "has no BOM": every document in this corpus is a code-unit array, so the
+  corpus reader has already decoded it, and a UTF-8 decoder that strips a
+  leading `EF BB BF` hands the parser a document with no BOM in it to find.
+  That vector has to be **bytes** — see the byte form below — and review
+  caught this document claiming otherwise one round after adding the vector. Then the array **elisions** JavaScript reads as holes
   and the grammar `array ::= '[' (value (',' value)*)? ']'` cannot spell at
   all: `export default[,1];`, `[1,,2]` and `[1,,]`, leading, medial and
   trailing. `[1,]` is *not* one of these — it is the trailing comma above, a
@@ -150,13 +177,14 @@ A machine-readable corpus with six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Eight consecutive review rounds
+  vector is the only instrument that sees it. Nine consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
   control characters, then the vertical tab and the required separators, then
   the fifteen `Space_Separator` characters the spec's own list omits, then the
-  array elisions and the leading BOM. Every time the list had been written from memory rather
+  array elisions and the leading BOM, then the accept side of the whitespace
+  rule. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -221,6 +249,14 @@ A machine-readable corpus with six parts:
   a reader accepting `[1,,2]` as document text. Each rule owes a vector in
   every direction it can be violated, and one direction's coverage reads
   exactly like the other's until someone asks which way it points.
+
+  The third direction is **accept**, and it went missing the round after this
+  was written. Rejection coverage alone cannot catch a reader that *narrows*
+  the language: this corpus rejects seventeen kinds of whitespace and, until
+  review asked, never accepted a document separated by a tab, an LF or a CR,
+  so a reader honouring only U+0020 passed the lot. Every rule that admits
+  something owes an accept vector for each thing it admits, not only reject
+  vectors for the neighbours it excludes.
 
   Plus what DataJS simply lacks where JavaScript has it: comments, `import`,
   identifier keys and trailing commas.
@@ -549,7 +585,8 @@ needs nothing beyond an engine.
       section above: node table, `ref` indices, the leaf tags, the `arr` form
       with holes occupying positions, the object pair form **with unique keys
       in observable order**, strings as UTF-16 code-unit arrays everywhere a
-      string appears, and the eleven `host` recipes — four leaves, seven
+      string appears, the **byte-array** document form and which vectors use
+      it, and the eleven `host` recipes — four leaves, seven
       modifiers, each modifier naming the node it applies to — with their
       application order, the rule that a modifier is a table entry and never
       inline, what a modifier node denotes, `builtin`'s and `proto`'s and
