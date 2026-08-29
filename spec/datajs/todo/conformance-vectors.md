@@ -237,6 +237,13 @@ The six parts:
   and forgets `A`–`Z`, or `[1-9]` and forgets `9`, is the ordinary way to get a
   class wrong.
 
+  "Every position" means the **fixed** ones. `\uXXXX` has exactly four, so its
+  endpoints are needed in each of the four — an implementation can unroll four
+  reads and get the third wrong. A repetition like `[0-9]*` has no fixed
+  positions to enumerate, so one occurrence of each endpoint anywhere in the
+  repetition is the whole obligation; demanding more would be a rule no vector
+  set can satisfy.
+
   - **`number ::= '-'? int frac? exp?`** — the sign present and absent, both
     `int` alternatives (`0` and `[1-9][0-9]*`), `frac` present and absent,
     `exp` present and absent, and within `exp` both letter cases and all three
@@ -251,10 +258,17 @@ The six parts:
     `\uXXXX`, plus a raw non-ASCII character. The lone surrogate exercises
     `\u` alone, so a reader supporting raw text and `\u` while rejecting the
     eight simple escapes passed too. `\uXXXX`'s four hex digits are three
-    ranges — `0`–`9`, `a`–`f`, `A`–`F` — and **`\u09af`** and **`\uAF09`**
-    carry both ends of each: a reader decoding only lowercase hex accepts the
-    lone surrogate `\ud800` and every other escape vector while refusing an
-    input spelling the grammar admits.
+    ranges — `0`–`9`, `a`–`f`, `A`–`F` — in **four positions**, and the rule
+    above says every endpoint in every position, which one pair of vectors
+    cannot do: six escapes can, each position taking the six endpoints in a
+    different rotation. Writing only the four hex digits of each:
+    `09af`, `9afA`, `afAF`, `fAF0`, `AF09`, `F09a` — measured, every position
+    carries all of `0`, `9`, `a`, `f`, `A`, `F`, and none of the six lands in
+    `D800`–`DFFF`. A reader decoding only lowercase hex accepts the lone
+    surrogate `\ud800` and every other escape vector while refusing an input
+    spelling the grammar admits, and one unrolling its four digit reads accepts
+    uppercase in the first two positions and refuses it in the last two.
+    Review found both halves of that, one round apart.
   - **`bigint ::= '-'? int 'n'`** — both signs against both `int`
     alternatives: `0n`, `-0n`, `109n`, `-109n`. `int`'s own class endpoints are
     not repeated here: it is the same production `number` uses, and a reader
@@ -279,9 +293,16 @@ The six parts:
   pointed.
 
   Cases beyond that derivation, each earning its place: a **lone surrogate**, `export default "\ud800";` denoting the
-  one-unit value `[0xd800]` — it appears under `normalize` too, but roles are
-  judged independently, so a reader-only implementation whose string model
-  cannot hold one passes every reader vector without this; an **escaped
+  one-unit value `[0xd800]` — it appears under `normalize` and in the
+  serializer-accept set too, but roles are judged independently, so a
+  reader-only implementation whose string model cannot hold one passes every
+  reader vector without this. **Four of them, not one**: the surrogate block is
+  two ranges, high `D800`–`DBFF` and low `DC00`–`DFFF`, and an implementation
+  tests them separately because pairing does — so `\ud800`, `\udbff`,
+  `\udc00` and `\udfff`, both ends of both halves, in each of the three roles
+  that carry the case. Review found the set using the high half's lower end
+  alone, which a reader validating only `D800`–`DBFF` passes while refusing
+  every isolated low surrogate; an **escaped
   surrogate pair**, `export default "\ud83d\ude00";` denoting the *two* units
   `[0xd83d, 0xde00]`, since a reader combining an escaped pair into one scalar
   returns the wrong graph and nothing else reaches that path — the lone
@@ -516,8 +537,15 @@ The six parts:
   a high-bit byte that is not a continuation — had no vector anywhere — then
   the valid lead bytes **no constraint singles out**, `E1`–`EC` and `F1`–`F3`,
   which the accept table had no row for because it was indexed by width, so a
-  decoder implementing only the four special leads passed the corpus, and the
-  sweep for that shape found the same hole in the **code-unit** accepts: every
+  decoder implementing only the four special leads passed the corpus — then
+  the four vectors the round before had *just added under that rule*, which
+  put uppercase hex in two of `\uXXXX`'s four positions and lone surrogates in
+  one of the surrogate block's two halves, plus the normalize set's missing
+  three-byte raw character and its two missing sign cases, ordinary negative
+  numbers and ordinary negative bigints. A rule stated in a commit is not a
+  rule applied to that commit's own vectors, which is the newest way this
+  document has found to be short. The sweep for the lead-partition shape had
+  already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
   rule says both ends. Every time the list had been written from memory rather
@@ -693,10 +721,11 @@ The six parts:
   - an object with an own enumerable **`__proto__`** data property, which a
     serializer could otherwise refuse though its own output syntax exists to
     express it — `{["__proto__"]:…}` is what the grammar provides that form for;
-  - a string holding a **lone surrogate**, `[0xd800]`, with the vector
-    asserting the emitted document denotes that exact code-unit sequence: a
-    serializer that refuses such strings, or replacement-encodes them, passes
-    any ASCII-string vector;
+  - a string holding a **lone surrogate** — `[0xd800]`, `[0xdbff]`, `[0xdc00]`
+    and `[0xdfff]`, both ends of both halves of the block, for the reason given
+    under the reader set — with the vector asserting the emitted document
+    denotes that exact code-unit sequence: a serializer that refuses such
+    strings, or replacement-encodes them, passes any ASCII-string vector;
   - an object mixing **array-index and string keys**, since observable order is
     a property of the emitted document and nothing else in this set constrains
     it. Review reported the first two; this one came from sweeping the reader's
@@ -732,14 +761,23 @@ The six parts:
   the seven simple escapes `\"` `\\` `\b` `\t` `\n` `\f` `\r`, any of which
   a normalizer may instead emit as `\u00XX`; any other code point below
   U+0020 as `\u00` plus two **lowercase** hex digits, so U+001F pins
-  `\u001f` and not `\u001F`; a **lone surrogate**, which must come back as
-  `\ud800` rather than a replacement character; the **never-escaped `/`**,
-  which a normalizer borrowing a JSON writer that escapes it gets wrong; and a
-  **BMP** and an **astral** character, which `QuoteJSONString` leaves *raw*, so
-  their vectors pin the UTF-8 bytes (`c3 a9` for `é`, `f0 9f 98 80` for U+1F600).
-  Without those last two every pinned byte sequence in this set is ASCII and a
-  serializer emitting Latin-1, or CESU-8's `ed a0 bd ed b8 80` for that astral
-  character, passes a set whose whole promise is exact bytes. Normalized output
+  `\u001f` and not `\u001F`; a **lone surrogate**, which must come back
+  escaped rather than as a replacement character, and all four of them —
+  `\ud800`, `\udbff`, `\udc00`, `\udfff` — since the block is two ranges and
+  a normalizer re-escaping only the high half emits a replacement character for
+  the low; the **never-escaped `/`**, which a normalizer borrowing a JSON
+  writer that escapes it gets wrong; and a **raw** character of every UTF-8
+  width, which is what `QuoteJSONString` leaves unescaped, so their vectors pin
+  the encoder's bytes: ASCII at one byte, which every other vector here already
+  carries, then `c3 a9` for `é`, `e2 82 ac` for `€`, and `f0 9f 98 80` for
+  U+1F600. Widths rather than the lead partition the reader's byte table uses,
+  because an encoder branches on the scalar's magnitude and computes the lead
+  from it. Without the multibyte three every pinned byte sequence in this set
+  is ASCII and a serializer emitting Latin-1, or CESU-8's `ed a0 bd ed b8 80`
+  for that astral character, passes a set whose whole promise is exact bytes;
+  review supplied the three-byte width after the first draft had the other
+  two, the gap a normalizer escaping every U+0800–U+FFFF scalar as `\uXXXX`
+  walks straight through. Normalized output
   has **seven** simple escapes where the accept grammar admits **nine**: `\/`
   and `\uXXXX` are input spellings a reader must take and a normalizer must
   never emit, so the two lists differ on purpose and neither checks the other —
@@ -760,7 +798,10 @@ The six parts:
   denotes a different graph than its input. Pin that
   `-0n` normalizes to `0n` — the grammar accepts the spelling and normalized
   form must never emit it, which is the one place a bigint and a number differ
-  on negative zero. Pin the
+  on negative zero — and pin **`-109n`** beside it, because `-0n` is the one
+  negative bigint whose output drops the sign, so a normalizer emitting the
+  magnitude and an `n` passes it while turning every other negative bigint
+  positive. Pin the
   number thresholds explicitly — `1e20`, `1e21`, `1e-6`, `1e-7`,
   `5e-324`, `1.7976931348623157e308` — since that is where a host's own
   formatter diverges. Those six are positive and finite, which leaves the three
@@ -769,7 +810,10 @@ The six parts:
   spell — measured, `String(-0)` is `"0"` — so a normalizer must special-case
   it, and `-0.0` and `-0e0` are valid documents denoting the same value; the
   infinities are likewise not their own only spelling, since `1e999` and
-  `-1e999` evaluate to them. `NaN` needs no vector of this kind — the grammar
+  `-1e999` evaluate to them. Those nine are still every sign case *except the
+  ordinary one*: pin **`-1.5`** as well, since a normalizer formatting through
+  the magnitude and special-casing `-0` and the infinities passes all nine and
+  emits `1.5` for it. `NaN` needs no vector of this kind — the grammar
   gives it exactly one spelling — but it has one anyway as the
   identifier-starting root below. Pin `root=[p,p]` with `p=[c]` so the hoisting count
   is occurrences rather than paths — and pin **`root=[a,b,a,b]`**, two
