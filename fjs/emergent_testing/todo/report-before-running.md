@@ -92,7 +92,7 @@ still the argument for settling it in the shared core rather than twice.
 
 ### What landed for `fjs t`
 
-functionalscript#1787. `Reporter` grew a `start` event carrying a `TestId` —
+functionalscript#1790. `Reporter` grew a `start` event carrying a `TestId` —
 the identity half of `TestResult`, split out so the two events that name a leaf
 name it the same way — called inside the leaf's own chain ahead of `test`, so a
 reporter that cannot announce a leaf ends the run rather than running one it

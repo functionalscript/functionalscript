@@ -86,13 +86,23 @@ feed the flakes' package attributes where the attribute is versioned, as well as
 therefore means moving the Nixpkgs commit first and copying the versions it offers.
 `bun` is not one of these: `setup-bun` installs it, so that pin is a released Bun.
 
+Each job directory also gets a generated `run` script, and a workflow step reads
+as the command it runs — `./nix/node26/run npm run cov` — rather than as a
+`nix develop` invocation repeated fifteen times. The script carries
+`--no-write-lock-file` (leave the checkout untouched) and `--quiet` (drop Nix's
+logging from `info` to `notice`, which removes the `copying N paths`
+substitution chatter without touching warnings, errors, or the command's own
+output). `-q` is not a spelling Nix accepts; see
+[nix/README.md](../../nix/README.md), which also covers why the executable bit
+is committed rather than generated.
+
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical job asserts, as its first command, that its own shell reports the version
 `config/module.f.mjs` records for it:
 
 ```sh
-test "$(nix develop --no-write-lock-file ./nix/node26 --command node --version)" = v26.7.0
-test "$(nix develop --no-write-lock-file ./nix/deno --command deno eval 'console.log(Deno.version.deno)')" = 2.8.3
+test "$(./nix/node26/run node --version)" = v26.7.0
+test "$(./nix/deno/run deno eval 'console.log(Deno.version.deno)')" = 2.8.3
 ```
 
 The runtimes disagree on both halves, which is why the check takes the command and

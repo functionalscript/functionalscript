@@ -25,7 +25,7 @@ Overall counts and exit status remain unchanged.
 
 ### What landed
 
-The deferral itself, in functionalscript#1787. `RunState` — the record the
+The deferral itself, in functionalscript#1790. `RunState` — the record the
 shared traversal already threads through every leaf — now carries a `failures`
 list beside the counts, `addLeaf` appends to it when a leaf's post-expectation
 status is `failed`, and `Reporter.summary` receives the whole record. `fjs t`

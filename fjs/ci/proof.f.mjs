@@ -260,8 +260,8 @@ export const proof = {
             assertStructurallySame(
                 job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
                 [
-                    `test "$(nix develop --no-write-lock-file ./nix/${id} --command node --version)" = v${version}`,
-                    ...commands.map(command => `nix develop --no-write-lock-file ./nix/${id} --command ${command}`),
+                    `test "$(./nix/${id}/run node --version)" = v${version}`,
+                    ...commands.map(command => `./nix/${id}/run ${command}`),
                     ...(id === `node${major(node.default)}`
                         ? ['git add -A && git diff --cached --exit-code']
                         : []),
@@ -340,7 +340,7 @@ export const proof = {
         const job = gha.jobs[`node${major(node.default)}`]
         assert(job !== undefined, 'expected the canonical Node job')
         const packIndex = job.steps.findIndex(
-            step => step.run === `nix develop --no-write-lock-file ./nix/node${major(node.default)} --command npm pack`)
+            step => step.run === `./nix/node${major(node.default)}/run npm pack`)
         const uploadIndex = job.steps.findIndex(
             step => step.uses === `actions/upload-artifact@${actions['actions/upload-artifact']}`)
         assert(packIndex !== -1, 'expected npm pack')
