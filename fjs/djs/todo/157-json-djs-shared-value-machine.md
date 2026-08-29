@@ -41,13 +41,24 @@ numeric leaves rather than collapsing them to JavaScript `number` eagerly, so
 extended, standard-compatibility, and RTTI policies can read the same token tree.
 That belongs to whichever JSON work needs it, not to a JSON/DJS extraction.
 
-### 2. Recursive serializer walker (three copies)
+### 2. Recursive serializer walker (two copies, down from three)
 
-The same recursive `typeof`-dispatch walker is written three times:
+The same recursive `typeof`-dispatch walker was written three times. Two of the
+three have since been folded, from opposite ends, so the count below is what is
+left rather than what this section was filed against:
 
-- `fjs/media/json/module.f.mjs:49` (`serialize`)
-- `fjs/djs/serializer/module.f.mjs:79` (`serializeWithoutConst`)
-- `fjs/djs/serializer/module.f.mjs:117` (`serializeWithConst`)
+- `fjs/media/json/serializer/module.f.mjs` — `treeSerialize(leafSerialize)(sort)`,
+  now a factory. `fjs/media/json`'s `serialize` and the extended codec are two
+  applications of it, not two copies.
+- `fjs/djs/serializer/module.f.mjs` — `buildSerialize`, which absorbed both DJS
+  walkers (sub-task 2b below).
+
+So the remaining duplication is one walker per family, and the extraction point
+already exists and is exported: `treeSerialize`. The question is no longer "where
+should a shared walker live" but "can `treeSerialize`'s `leafSerialize` seam
+absorb DJS's deltas". `fjs/djs/serializer` already imports the *leaves*
+(`objectWrap`, `arrayWrap`, `colon`, `stringSerialize`, …) from
+`fjs/media/json/serializer` — only the walker is still its own.
 
 Each defines the identical closure cluster: `propertySerialize`
 (`flat([stringSerialize(k), colon, f(v)])`), `mapPropertySerialize`,
@@ -78,6 +89,19 @@ A `serializeValue` factory (in `json/serializer`) parameterized by the extra
 
 This serializer sub-task is independent of the exact-number parser dependency
 above and may land separately.
+
+**Depends on [663](./663-json-djs-tree-type.md) in practice.** Sharing one walker
+means typing it over a tree both families name, and JSON's `treeSerialize` is
+already typed over `Tree<P>` from `fjs/media/json/types.ts`. DJS's value aliases
+are not expressed through that shape yet — 663's remaining work — so a walker
+extracted before it would either take `unknown` or need a second signature, which
+is how two walkers come back.
+
+The shape of the remaining delta, once 663 lands: DJS adds two leaves (`bigint`,
+`undefined`) and a ref-lookup hook that runs before the recursion. Both are
+things `treeSerialize`'s `leafSerialize` seam is a candidate to absorb — worth
+checking against the seam as it stands rather than against the description
+above, which predates it.
 
 ### 3. Tokenizer minus-rewriter
 
