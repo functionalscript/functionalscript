@@ -355,7 +355,17 @@ The six parts:
     is a prefix and a reader may have a separate post-`-` state, which is the
     rule the reject set carries for the same reason: `0`, `-0`, `9`, `-9`,
     `109`, `-109`, `1.09`, `-1.09`, `1e09`, `-1e09`, `1E2`, `-1E2`, `1e+2`,
-    `-1e+2`, `1e-2`, `-1e-2`, `1.09e-2`, `-1.09e-2`. `9` and `109` put both
+    `-1e+2`, `1e-2`, `-1e-2`, `1.09e-2`, `-1.09e-2`, and — because negative zero is a
+    *value* the grammar reaches by three different lexical paths, not just the
+    lexeme `-0` — `-0.0` and `-0e0` with `0.0` and `0e0` beside them, four
+    vectors whose asserted graphs are `-0`, `-0`, `0` and `0` under the
+    `Object.is` rule. A reader special-casing the exact `-0` lexeme while
+    running `-0.0` through a fraction conversion, or `-0e0` through an exponent
+    conversion, that returns positive zero passes every other number vector
+    here: nothing else in the accept set can tell `0` from `-0`, and the sign
+    is the whole of the difference. Review found it, and the unsigned two come
+    with them by the signed-twin rule read the other way round. `9` and `109`
+    put both
     ends of `[1-9]` in the leading position and both ends of `[0-9]` after it;
     `1.09` and `1e09` do the same for the digits of `frac` and `exp`, which
     `1.5` and `1e2` left in the middle. Review found the sign crossed with the
@@ -896,7 +906,14 @@ The six parts:
   had eight of them member by member, so the enumeration existed in this file
   and had not crossed roles; and the depth cap, given a number without the rule
   it counts by, in the paragraph arguing that an unspecified limit makes two
-  implementations disagree about the same bytes. The sweep for the lead-partition shape had
+  implementations disagree about the same bytes — then negative zero, reached
+  by `-0.0` and `-0e0` as well as by the lexeme the accept set pinned, and the
+  const counter, stopped at `_1` in every vector when the name's *shape*
+  changes at `_10`, and the hoisting rule's **only if**: every vector shared a
+  container, so a normalizer that hoists unconditionally passed the set while
+  emitting a noncanonical document for `export default[];`. An if-and-only-if
+  owes a vector in both directions, a counter owes the index where its name
+  changes width, and a value owes every lexical path that reaches it. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1298,7 +1315,15 @@ The six parts:
   the magnitude and special-casing `-0` and the infinities passes all nine and
   emits `1.5` for it. `NaN` needs no vector of this kind — the grammar
   gives it exactly one spelling — but it has one anyway as the
-  identifier-starting root below. Pin `root=[p,p]` with `p=[c]` so the hoisting count
+  identifier-starting root below. The hoisting rule is an **if and only if**, and only its *if* was pinned:
+  every hoisting vector here shares a container, so a normalizer that interns
+  or hoists containers unconditionally emits `const _0=[];export default _0;`
+  — valid, graph-equivalent and noncanonical — while passing all of them. Pin
+  the *only if* with the two smallest documents there are: **`export default[];`**
+  and **`export default{};`**, an empty container reached exactly once, whose
+  single occurrence is the exported value. Review found it, and the empty ones
+  are the sharpest form because an interning normalizer has the most to gain
+  there. Pin `root=[p,p]` with `p=[c]` so the hoisting count
   is occurrences rather than paths — and pin **`root=[a,b,a,b]`**, two
   independent shared containers, so the `_0`, `_1` naming is tested at all.
   With a single hoisted const there is no order to get wrong: a normalizer
@@ -1315,7 +1340,16 @@ The six parts:
   separates them is the **names**, not their order: a const referencing a later
   one throws on evaluation (measured: `const _0=[_1];const _1=[];` is a
   `ReferenceError`), so dependency-before-dependent is forced by the language
-  in any document that runs at all, and no vector has to pin it. Pin **all four
+  in any document that runs at all, and no vector has to pin it. Pin a graph whose consts reach
+  **`_10`** — eleven distinct shared containers, `root=[a,a,b,b,…,k,k]` with
+  each of the eleven an empty array, whose exact output is
+  `const _0=[];const _1=[];const _2=[];const _3=[];const _4=[];const _5=[];const _6=[];const _7=[];const _8=[];const _9=[];const _10=[];export default[_0,_0,_1,_1,_2,_2,_3,_3,_4,_4,_5,_5,_6,_6,_7,_7,_8,_8,_9,_9,_10,_10];`
+  — because `_0`, `_1`, … is a *counter*, and every vector above stops at
+  `_1`. A normalizer deriving the name from a single digit passes all of them
+  and emits something invalid or noncanonical the moment the eleventh const is
+  reached, which is the same class as a repetition's empty branch: the
+  interesting index is the one where the shape of the name changes, and it is
+  index 10. Pin **all four
   ordered pairs** of parent and child kind, not the two homogeneous ones, for
   the reason the cycle set covers every ordered pair rather than a diagonal —
   and here the mixed cells are the ones with a demonstration, which the
