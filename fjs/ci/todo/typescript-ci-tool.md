@@ -1,5 +1,6 @@
 ## Move TypeScript from npm devDependencies to the CI toolchain
 
+**Priority:** P3
 **Status:** open
 
 ### Problem
@@ -12,19 +13,20 @@ This task is intentionally limited to TypeScript. Keep `@types/node` in `devDepe
 
 ### Goal
 
-Provision a pinned TypeScript version through the CI/Nix tool environment and remove `typescript` from the root `package.json` `devDependencies`.
+Provision a pinned TypeScript version through the CI tool environment and remove `typescript` from the root `package.json` `devDependencies`.
 
-Only jobs that actually run TypeScript need the tool. In particular, do not install TypeScript merely because a job runs `npm ci`.
+Only jobs that actually run TypeScript need the tool. In particular, Node 22, Node 24, Deno, and Bun jobs should not install TypeScript just because they install npm dependencies.
 
-Developers using the Nix environment should get the pinned TypeScript automatically. Developer documentation must also explain that non-Nix development requires TypeScript to be installed globally so `tsc` is available on `PATH`.
+Local development must continue to support `tsc`, `npm test`, and `npm pack`: outside an environment that provides the compiler, developers install the pinned TypeScript globally so `tsc` is available on `PATH`.
 
 ### Tasks
 
 - [ ] Add a pinned TypeScript version to the CI tool configuration.
-- [ ] Make the canonical type-checking job provide that TypeScript version through its CI/Nix environment.
+- [ ] Provision that TypeScript version only in the canonical CI job that runs `tsc` (currently Node 26).
 - [ ] Run `tsc` from `PATH` instead of relying on `npx tsc` / `node_modules/.bin/tsc`.
 - [ ] Remove `typescript` from the root `package.json` `devDependencies` and update `package-lock.json`.
 - [ ] Keep `@types/node` as a devDependency.
-- [ ] Update developer documentation: Nix provides the pinned TypeScript; without Nix, install TypeScript globally and ensure `tsc` is on `PATH`.
-- [ ] Verify jobs that do not run `tsc` no longer install TypeScript unnecessarily.
-- [ ] Verify `npm test`, `npm pack`, and other scripts that invoke `tsc` run only in environments where the CI/development toolchain provides it.
+- [ ] Update `CONTRIBUTING.md` to list TypeScript as a developer tool, document installing the pinned version globally for local development, and replace `npx tsc` instructions with `tsc`.
+- [ ] Update the Docker and OpenAI Codex development setup so their documented `npm test` / `tsc` checks have the pinned TypeScript on `PATH` without relying on the root devDependency.
+- [ ] Verify Node 22, Node 24, Deno, and Bun no longer install TypeScript unnecessarily.
+- [ ] Verify `tsc`, `npm test`, and `npm pack` work in every documented development environment.
