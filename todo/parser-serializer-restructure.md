@@ -1,12 +1,61 @@
 ## Restructure JSON, DataJS, and FunctionalScript parsers/serializers
 
-**Priority:** P2
-**Status:** open
+**Priority:** P1 — stages 3 and 4 are urgent; see [Priority](#priority-stages-3-and-4-come-first).
+**Status:** wip — stages 1a and 2 done.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
 gets its own co-located `todo/` file when it starts; concrete tasks live there,
 not here.
+
+### Pick up here
+
+Read in this order; each line says what to do and why it comes when it does.
+
+1. **Next: stage 3, the JSON self-contained tokenizer.** Design is written and
+   reviewed:
+   [`fjs/media/json/todo/self-contained-tokenizer.md`](../fjs/media/json/todo/self-contained-tokenizer.md).
+   It has the grammar, the error rule and the two invariants that decide
+   whether a difference is expected, an illustrative table of error shapes that
+   change, the seam DataJS will reuse, the edits owed to two other issues, and
+   the task list. That table is illustrative and known incomplete, and even the
+   generated sweeps are coverage rather than an enumeration — the design is
+   explicit that no finite sweep is exhaustive, so the rules plus the
+   invariants are what an implementation is held to. Implementable without
+   reading anything else here. It lands as **two PRs**: 3a drops the fabricated
+   string token in the existing wrapper, and 3b is the port, which then carries
+   only what removing the dependency forces — the order
+   [`DESIGN.md`](../DESIGN.md) prescribes when the idea is the premise.
+   *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
+   scanner unchanged and its number core extended, so JSON has to own those
+   scanners before DataJS can borrow them.
+2. **Then: stage 1b, the conformance vectors**
+   ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)).
+   *Why here:* it is stage 4's proof source, so landing stage 4 first means
+   writing its proofs twice. The corpus bootstraps in JSON precisely so it can
+   exist before any DataJS reader does. It is *not* a prerequisite of stage 3,
+   which is JSON's own tokenizer and settles its own accepted set with JSON's
+   own proofs — unchanged but for one enumerated defect, an `n` today's
+   tokenizer deletes from inside a number.
+3. **Then: stage 4, `fjs/media/datajs`.** No todo file yet — file one under
+   `fjs/media/datajs/todo/` before starting, per the workflow. The normative
+   behavior is already settled in
+   [`spec/datajs/README.md`](../spec/datajs/README.md); stage 4 implements that
+   spec, it does not redesign it. Known prerequisite work is named in the stage
+   list below: JSON's parser seam is **not** wide enough today and has to be
+   generalized first.
+   *Why:* this is the deliverable everything else is waiting for — see
+   [Priority](#priority-stages-3-and-4-come-first).
+4. **Then stages 5–7**, in order, as listed below.
+
+**Already done, do not redo:** stage 1a (the DataJS specification) and stage 2
+(the dead `fjs/fsc` grammars, deleted). Both are on `main`.
+
+**Two things are decided and should not be reopened without a reason:** DataJS
+is frozen at "JSON extended from a tree to a DAG, plus the leaves JSON cannot
+spell" — new syntax belongs in FunctionalScript, not here; and the media codecs
+take no runtime dependency on `fjs/bnf` or on `fjs/js/tokenizer`, which is the
+whole point of the restructure.
 
 ### Problem
 
@@ -59,7 +108,9 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
 - **JSON**: accepted language and value semantics are frozen; the tokenizer
   becomes self-contained (the `fjs/js/tokenizer` wrapper is replaced by a
   small scanner of JSON's own lexical grammar). Error shapes may change once
-  in that swap; accepted-input behavior and proofs do not.
+  in that swap; accepted-input behavior does not, with one enumerated
+  exception — inputs like `1n1`, which today's tokenizer accepts as a number
+  by deleting the `n`, start erroring. No existing proof is in that class.
 - **DataJS** (the format known in this repository as DJS): a new, minimal,
   spec'd format — JSON extended from a tree to a DAG, nothing else. New
   hand-written parser and serializer in `fjs/media/datajs`, layered on JSON's
@@ -231,6 +282,35 @@ combined marker would encode a redundant fact.
   data-only module `m`); FunctionalScript fixtures remain valid JS with
   identical meaning (checked against a real JS engine in proofs).
 
+### Priority: stages 3 and 4 come first
+
+Stages 3 and 4 are the urgent ones, ahead of the rest of this plan. They are
+what [EDAG](./edag-spec.md) is waiting on. Stage 1b comes with them, between the
+two — it is stage 4's proof source.
+
+An EDAG is an expression DAG whose sharing is *semantics*, not an encoding
+detail: one node referenced from two operand positions is one value, and `{} ===
+{}` is `false`, so a carrier that expands sharing changes the meaning of the
+graph. Its serialized form is a DataJS module, because the EDAG's sharing
+structure and DataJS's `const` structure are the same thing —
+[edag-stage1-discussion](./edag-stage1-discussion.md). JSON cannot carry it, and
+not marginally: it has no way to express sharing at all, and it also lacks the
+`bigint` leaves EDAG's `Primitive` admits and loses `NaN`, `±Infinity` and
+`-0`. Both directions are needed, not just writing — the incremental-compile
+cache reads `.f.js` back, and the property that matters is that parsing a
+serialized EDAG reproduces the same EDAG.
+
+The order stays **3 then 4**, because DataJS's tokenizer reuses parts of JSON's
+rather than restating them: strings are JSON's unchanged, and DataJS's numbers
+are JSON's int/frac/exp core plus a bigint suffix and `-Infinity` folding.
+Stage 3 is therefore the prerequisite, and it exports that shared core as a
+seam — with stage 4 as its second caller, close enough behind to keep the seam
+honest, and stage 1b between them.
+
+Stage 1b (the conformance vectors) sits **between** them: it is stage 4's proof
+source, not stage 3's, and its corpus is stored in JSON exactly so it can exist
+before a DataJS reader does. So the order is 3, 1b, 4.
+
 ### Stages
 
 Each stage lands green and independently; `fjs compile` keeps working
@@ -247,7 +327,7 @@ throughout.
    one detail left to reconcile in that todo. The
    conformance vectors are the remaining half, tracked in
    [`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md);
-   stages 3, 4 and 6 consume them.
+   stages 4 and 6 consume them — not stage 3, which is JSON's own tokenizer.
 2. **Dead code — done.** `fjs/fsc/bnf.f.mjs` and `fjs/fsc/json.f.mjs` are
    deleted rather than salvaged: both were dead (no importer) and unproven,
    the JSON half duplicated `deterministic` in `fjs/bnf/testlib.f.mjs` rule
@@ -256,12 +336,16 @@ throughout.
    design this plan replaces with `;`, so keeping it would have preserved a
    grammar contradicting the decision record above. Git history holds them if
    a future stage wants the `id`/`alpha`/comment rules.
-3. **JSON self-contained tokenizer** — replace the `fjs/js/tokenizer` wrapper
-   in `fjs/media/json/tokenizer` with a scanner of JSON's own lexical
-   grammar, exporting the string and number scanners for reuse.
-   Accepted-input proofs unchanged; error-shape proofs rewritten once.
-4. **`fjs/media/datajs`** — parser and serializer, proofs over the spec
-   vectors. The parser reuses JSON's container machine, and today's seam is
+3. **JSON self-contained tokenizer — urgent, see above.** Two PRs: **3a** drops
+   the fabricated `string` token that follows a malformed-literal error, in the
+   existing wrapper, since that defect predates the port and is provable
+   without it; **3b** replaces the `fjs/js/tokenizer` wrapper in
+   `fjs/media/json/tokenizer` with a scanner of JSON's own lexical grammar,
+   exporting the string and number scanners for reuse. Accepted-input proofs
+   unchanged in both, but for one enumerated defect — the `n` an old number
+   swallowed — which only 3b can fix; error-shape proofs rewritten once.
+4. **`fjs/media/datajs` — urgent, see above; this is what EDAG needs.** Parser
+   and serializer, proofs over the spec vectors. The parser reuses JSON's container machine, and today's seam is
    **not wide enough for that**: `NumberPolicy` receives number tokens only,
    `JsonToken` has no identifier/bigint/`=` tokens, and the object states
    accept string keys only. Generalizing the seam is therefore explicit
@@ -325,12 +409,22 @@ throughout.
       the compiler accepts today.
 - [ ] Stage 1b: the conformance vectors —
       [`conformance-vectors`](../spec/datajs/todo/conformance-vectors.md).
+      After stage 3 and **before stage 4**, which consumes it: landing stage 4
+      first means writing its proofs twice. The corpus bootstraps in JSON so it
+      needs no DataJS reader to exist.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/bnf/todo/207-bnf-semantic-actions.md)
       repointed at `fjs/bnf/testlib.f.mjs`.
-- [ ] Stage 3: JSON self-contained tokenizer; file its todo under
-      `fjs/media/json/todo/`.
-- [ ] Stage 4: `fjs/media/datajs`; file its todo.
+- [ ] Stage 3a: drop the fabricated `string` token in the existing wrapper —
+      [`self-contained-tokenizer`](../fjs/media/json/todo/self-contained-tokenizer.md),
+      the defect that predates the port and is provable without it.
+- [ ] Stage 3b: the port itself, same design, carrying only what removing the
+      dependency forces. It measured the swap's blast radius: the accepted
+      language is JSON's already, but for one defect — `1n1` and its class,
+      accepted today by deleting an `n` from inside a number, which only the
+      port can fix — so beyond that only error shapes change.
+- [ ] Stage 4: `fjs/media/datajs`; file its todo. Needs stage 1b's corpus in
+      place as its proof source.
 - [ ] Stage 5: front-end move to `fjs/fsc`; file its todo.
 - [ ] Stage 6: normalizer + subset-law proofs; file its todo.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
