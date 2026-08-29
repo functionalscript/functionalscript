@@ -273,12 +273,34 @@ an exact count derived as `1 + max(parents')`, which never yields negative
 zero, so the dialect has its own reason to name the value. It stops being
 load-bearing once the factory enforces the rule.
 
-Do **not** put the walk in `encodeText` instead. The check belongs where a
-value is admitted, once, not on every encode of an already-admitted value —
-and `encodeText` returns a `string`, so a failure there has nowhere to go
-but a throw, while in `validate` it is an ordinary `ValidationError`.
-Pushing it down into `../json`'s serializer is worse still: it would change
-every JSON consumer in the repo, far outside this issue. Narrowing the
+**`encodeText` needs the same walk — and refuses rather than reports.**
+`encodeText` is public and takes a bare `ValueOf<S>`, with nothing marking
+the value as having passed `validate`, so a caller may hand it one that
+never did. `fjs/cas/evo` does exactly that in production:
+`encodeText(canonicalRevision)` (`../../cas/evo/module.f.mjs:521`), on a
+revision that module builds itself. Left unchecked, a `NaN` `generation`
+there produces well-formed JSON containing `null` — a plausible wrong
+answer to an unsupported input, which `DESIGN.md §10` refuses outright.
+
+The two boundaries run the same `jsonExact` walk and differ only in how
+they fail, because they are handed different things:
+
+- `validate` receives **data** — an untrusted blob's parsed value — so a
+  bad number is an ordinary `ValidationError` with a path, like every other
+  way that data can be wrong.
+- `encodeText` receives a **typed value the caller vouched for**. A number
+  that cannot be encoded is a broken precondition, i.e. a programming
+  error, and this repo answers those with a loud `assert` — the same
+  instrument `dialectEntry` uses one line above its own cast
+  (`../module.f.mjs:134`). Changing the return type to a `Result` would
+  break `evo` and every other caller for a case that is a bug at the call
+  site, not a runtime condition to handle.
+
+The cost objection does not survive contact: `encodeText` already traverses
+the whole value to serialize it, so the check is a second pass of the same
+order over the same data, not a new class of work. Folding it into that
+existing pass would mean changing `../json`'s serializer, which would reach
+every JSON consumer in the repo and is out of scope here. Narrowing the
 schema is not available either — rtti cannot express a finite `number`, the
 same expressiveness limit that sends the `bigint` half to a runtime assert.
 
@@ -392,10 +414,20 @@ export const revisionDialect = kit.entry
 ```
 
 The same applies to every other name the modules publish today: `dialect`,
-`mediaType`, `encodeText`, `validate`, `decodeText`, and `isHash` on
-`revision`. The factory supplies the values; the module still spells out
-what it exports, so the public surface is unchanged by construction rather
-than by inspection.
+`mediaType`, `encodeText`, `validate`, `decodeText`, `isHash` on `revision`,
+and — the one this list first missed — **`checkReferences` on both
+`revision` and `lock`**. That one is not a detail: `../../cas/evo/module.f.mjs:78`
+imports `revision`'s alongside `encodeText`, `decodeText`, `dialect` and
+`isHash`, so deleting it breaks production, and `lock`'s is exported at
+`../lock/module.f.mjs:94` with its own proof rows
+(`../lock/proof.f.mjs:117-123`). The refinement is the **input** the factory
+takes, not something it replaces: each module keeps defining and exporting
+its own, and passes it in. `note` has none, which is exactly why the
+factory's `checkReferences` parameter is optional.
+
+The factory supplies the values; the module still spells out what it
+exports, so the public surface is unchanged by construction rather than by
+inspection.
 
 For the media type, share the **rule**, not a field on the entry:
 
@@ -469,6 +501,12 @@ level up from the seven-line kit.
       constraint is dropped, take the value-position cast at both JSON-only
       boundaries — `stringify(sort)` and the `jsonExact` walk — as above;
       `npx tsc` fails without it.
+- [ ] Run the same walk in `encodeText`, as an `assert` rather than a
+      `Result`: it takes a bare `ValueOf<S>` no one has to have validated,
+      and `../../cas/evo/module.f.mjs:521` calls it directly, so an
+      unchecked `NaN` there becomes JSON containing `null` — the plausible
+      wrong answer `DESIGN.md §10` refuses. Prove it throws rather than
+      encoding, and confirm `evo`'s existing proofs still pass.
 - [ ] Run one generic `jsonExact` walk over the value `rttiParse` rebuilds,
       inside the factory's `validate`, collecting the path as it descends.
       One strategy, no compiled positions, and nothing a dialect's
@@ -502,7 +540,10 @@ level up from the seven-line kit.
       copies and the two `isValid…` adapters. Keep every published name —
       `revisionDialect`/`lockDialect`/`noteDialect` aliasing the kit's
       `entry`, plus `dialect`, `mediaType`, `encodeText`, `validate`,
-      `decodeText`, and `revision`'s `isHash`.
+      `decodeText`, `revision`'s `isHash`, and `checkReferences` on both
+      `revision` and `lock` — the refinement stays each module's own
+      definition and export, passed *into* the factory
+      (`../../cas/evo/module.f.mjs:78` imports `revision`'s).
 - [ ] Diff the three modules' `.d.mts` against the pre-change ones: the set
       of exported names and their types should be identical. That is the
       check, not reading the diff — `../../mcp/cas/module.f.mjs:120-122` is
