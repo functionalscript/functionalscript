@@ -14,10 +14,14 @@ moves to `todo/blocked/` with a Trigger section.
 Every canonical **runtime** job but this one runs through a generated Nix flake.
 `bun` still installs its runtime with `oven-sh/setup-bun`, so
 `fjs/ci/config/module.f.mjs`'s `bun` is a released version rather than a packaged
-one and `nixJobs` in `../module.f.mjs` has no entry for it. Two other jobs have no
-flake either — `wasm`, blocked on a different Nixpkgs gap, and `package-check`,
-which has no checkout to hold a flake — and
+one and `nixJobs` in `../module.f.mjs` has no entry for it. One other job has no
+flake either — `package-check`, which has no checkout to hold one — and
 [65Z-ci-nix](65z-ci-nix.md) keeps that whole picture.
+
+`wasm` was the other, and is not any more: its toolchain comes from a second flake
+input rather than from Nixpkgs. That is not a route out of here. The WASM job's gap
+was a missing `rust-std`, which the Rust project itself publishes; Bun's is a
+runtime whose behaviour differs, and no packaging of 1.3.13 changes what it does.
 
 The migration itself is written and works: a `bunNixJob` declaring
 `packages: ['bun']` on `aarch64-linux`, `nixInstall`, a
@@ -82,8 +86,8 @@ Any one of these unblocks it; the first is the cheap one:
 
 - [65Z-ci-nix](65z-ci-nix.md) — the flake generation this job is a holdout
   from, and where every job's Nix status is recorded
-- [wasm-nix-blocked-on-rust-targets](wasm-nix-blocked-on-rust-targets.md) — the
-  other canonical job Nixpkgs cannot serve yet
+- [65Z-ci-nix](65z-ci-nix.md), "`wasm`, and the second input" — the other job
+  Nixpkgs could not serve, and what taking a toolchain from elsewhere cost
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — the Node
   milestone that set the shape every migrated job follows
 - [built-package-checks](built-package-checks.md) — why the `bun` job no longer
