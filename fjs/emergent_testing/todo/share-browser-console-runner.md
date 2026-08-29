@@ -208,12 +208,15 @@ the third is about method.
    can catch it. Sequential removes every traversal site;
    [all-argument-limit](../../effects/todo/all-argument-limit.md) keeps the
    rest.
-4. **`batchSize = 25` was doing three unnamed jobs**: its `setTimeout` between
-   waves was the page's only macrotask boundary; awaiting each batch bounded
-   how far reporting lagged execution; and 25-at-a-time stayed under the
-   argument ceiling. Nobody chose it for any of them. The lesson is not that
-   the constant was right — it was indefensible — but that **before deleting
-   unmotivated code, enumerate what it does, not what it was for.**
+4. **`batchSize = 25` was doing two unnamed jobs**: its `setTimeout` between
+   waves was the page's only macrotask boundary, and awaiting each batch
+   bounded how far reporting lagged execution. Nobody chose it for either. (A
+   third was claimed during review — staying under the argument ceiling — and
+   was a misattribution: `Promise.all(batch.map(…))` passes one iterable, so
+   the old runner had no spread at any batch size; the ceiling is item 3's,
+   the variadic operation's.) The lesson is not that the constant was right —
+   it was indefensible — but that **before deleting unmotivated code,
+   enumerate what it does, not what it was for.**
 
 **These survive into any implementation:**
 
