@@ -676,7 +676,44 @@ Each scanner therefore ships with:
   its own opening character** — the `"` for a string, the `-` or first digit
   for a number — so there is no "already consumed" ambiguity at the boundary;
 - a stated rule for how the caller learns the lexeme ended, and whether the
-  terminating character was consumed or must be re-dispatched.
+  terminating character was consumed or must be re-dispatched;
+- **the signature itself**, below. Naming the states and the conventions is not
+  enough: "consumes the stopping character and emits a token" and "reports a
+  stop and emits nothing" both satisfy the prose above, and stage 4 can only
+  use the second.
+
+#### The signature, so the seam has one shape rather than two
+
+```ts
+export type ScanResult<S> =
+    { readonly kind: 'consumed', readonly state: S } |
+    { readonly kind: 'stopped',  readonly state: S }
+
+export type Scan<S> = (state: S) => (input: number | null) => ScanResult<S>
+```
+
+Both scanners are that shape — `Scan<StringState>` and `Scan<NumberState>` —
+with an exported initial state each. Three properties, and each is load-bearing
+for something already argued above:
+
+- **A scanner emits no tokens.** It advances a state, and the state carries the
+  lexeme accumulated so far. Building a `JsonToken` is the caller's, which is
+  what lets JSON build one and DataJS build a different one from the same scan.
+- **`stopped` does not consume the character.** The caller sees the state and
+  the character it stopped at, and decides: terminate, re-dispatch, or take
+  over. That is the whole of "the terminator sets are the caller's", expressed
+  as a return type rather than a promise — and it is where `n`, `Infinity` and
+  `;` are intercepted, all three before any accept-or-reject.
+- **Absorption stays inside `consumed`.** A character the grammar rejects but
+  maximal munch takes — rule 2's table — is a `consumed` that moves to the
+  recovery variant, never a `stopped`. Absorption decides what the lexeme *is*,
+  so it is the scanner's; termination decides what to *do* with it, so it is
+  the caller's. Stating both on one return type is what keeps that boundary
+  from drifting.
+
+`input` is `null` at end of input, so a scanner never needs a separate
+finish call, and the caller's terminator policy handles EOF as one more
+non-continuing character.
 
 #### The number state exposes its phase, because that is what stage 4 wraps
 
@@ -967,6 +1004,10 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       the scanner `1;` with a set containing `;` and gets `number 1` — the
       case stage 4 needs for `export default 1;`. JSON's own tokens must not
       move: `12;1` stays `invalid number`, `unexpected character`, `number 1`.
+- [ ] Export `Scan<S>`, `ScanResult<S>`, `StringState` and `NumberState` from
+      `types.ts` with the signature above, and prove the two properties stage 4
+      rests on: a scan emits no token, and a `stopped` leaves the character
+      unconsumed so the caller can terminate, re-dispatch or take over.
 - [ ] Prove the state is observable the way stage 4 needs: from the exported
       state alone, a caller can distinguish "stopped after a well-formed `int`"
       (the bigint interception point) from "stopped after the sign" (the
