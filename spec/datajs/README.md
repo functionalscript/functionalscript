@@ -46,13 +46,18 @@ comments, trailing commas, a trailing `;`, identifier keys — are missing for
 that reason, each being one more thing to implement and to agree on.
 
 Some of them cost a person something real, and it is worth saying so rather
-than calling the omission neutral. A trailing comma is what lets a multiline
-array gain an element as one added line instead of two changed ones, which is
-why people write them; without it the line above has to be touched, and every
-such edit shows up in a diff that did not need to. That is a genuine loss to
-whoever edits a document by hand. It is accepted because a convenience in the
-grammar is a rule in every implementation of the format, forever, and there
-will be more implementations of DataJS than hand-edited DataJS documents.
+than calling the omission neutral. A trailing comma gives every element line
+the same shape, so entries are added and removed by adding and removing whole
+lines — any of them, any number of them, without looking at what is around
+them. Without one the last element is a special case that the person editing
+has to notice every time: delete the final line and the line above is left with
+a comma and nothing after it; paste a line after it and that same line is
+missing the comma it now needs. The diff noise follows from this, and is the
+smaller half of it. That is a
+genuine loss to whoever edits a document by hand, and it is accepted because a
+convenience in the grammar is a rule in every implementation of the format,
+forever — and there will be more implementations of DataJS than hand-edited
+DataJS documents.
 
 In JavaScript the job is already done: a document *is* a module, so an engine
 loads one with `import` — no parser, no library, no build step. Every other
@@ -663,9 +668,10 @@ compared does not need them.
 **Why no identifier keys or trailing commas?** They are second spellings of
 things that already have one. FunctionalScript has them; DataJS is where the
 spellings are spent carefully. The trailing comma is the one that costs
-something — it is the reason a multiline array can gain a line without
-touching the line above — and it is refused anyway, since a serializer never
-needs it and a reader would have to accept both spellings forever.
+something — it is what makes every element line the same shape, so entries can
+be added and removed as whole lines with no special case at the end — and it is
+refused anyway, since a serializer never needs it and a reader would have to
+accept both spellings forever.
 
 **Why must every name start with `$`?** Because the alternative is a list. A
 `const` named `class`, `eval` or `await` makes a document JavaScript rejects
