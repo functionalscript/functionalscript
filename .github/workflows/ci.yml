@@ -508,10 +508,7 @@
           "run": "npm run cov"
         },
         {
-          "run": "npm pack --json > pack.json"
-        },
-        {
-          "run": "node -e \"const f=JSON.parse(require('fs').readFileSync('pack.json','utf8'))[0].files.map(x=>x.path).filter(x=>x.endsWith('private.d.ts'));if(f.length!==0){console.error('packed private declarations:',f);process.exit(1)}\""
+          "run": "npm pack"
         },
         {
           "uses": "actions/upload-artifact@v7.0.1",

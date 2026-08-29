@@ -248,11 +248,16 @@ emission, `npm pack`, and a clean consumer.
           too and proves nothing about enumeration. Measured end to end with
           `fjs/emergent_testing`, which had no `private.ts`: given one, plus an
           exported binding whose signature names it, the job exits 2 with
-          `TS2307` on the packed declaration. The same violation with the
-          `files` negation dropped is **green**, because the private
-          declaration then ships and the reference resolves — which is why the
-          packed-contents assertion in the Node job is a separate check and not
-          a restatement of this one.
+          `TS2307` on the packed declaration.
+
+          The same violation with the `files` negation dropped is **green**,
+          because the private declaration then ships and the reference
+          resolves. So this job does not detect a dropped negation, and nothing
+          else does either: an assertion over the packed listing was written for
+          that and removed as not worth its complexity — what it caught was
+          declaration noise in the tarball, which the `_` contract already
+          tolerates, not a broken package. The negation is one line in
+          `package.json` and losing it is a visible diff in review.
       Scope: the fixture exercises the
       supported, fully erased `import type` form only. The forbidden inline `import { type X }` /
       `import * as` / side-effect forms are a documented one-time measurement

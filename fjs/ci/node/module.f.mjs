@@ -72,19 +72,6 @@ const node24Steps = [
 ]
 
 /** @type {readonly MetaStep[]} */
-const packListing = /** @type {const} */ ('pack.json')
-
-/**
- * Fails if the package ships a generated `private.d.ts`.
- *
- * `node` rather than a text search over the listing: the paths arrive as JSON
- * and are compared as whole filenames, so nothing here can mistake a path that
- * merely contains the name for one that ends in it. Root `AGENTS.md` §6 asks
- * for a tool that parses what it checks; here that tool is the runtime this
- * repository is written in, already running in every job.
- */
-const noPackedPrivateDeclarations = `node -e "const f=JSON.parse(require('fs').readFileSync('${packListing}','utf8'))[0].files.map(x=>x.path).filter(x=>x.endsWith('private.d.ts'));if(f.length!==0){console.error('packed private declarations:',f);process.exit(1)}"`
-
 const node26Steps = [
     ...nodeInstall(node.default),
     test({ run: 'npm run ci-update' }),
@@ -95,15 +82,7 @@ const node26Steps = [
     test({ run: "! grep -rnE '^(/\\*\\*.*@typedef|\\s\\* *@typedef)' --include='*.mjs' --exclude-dir=node_modules ." }),
     test({ run: 'npx tsc' }),
     test({ run: 'npm run cov' }),
-    // `--json` so the assertion below reads npm's own account of what it packed
-    // rather than re-deriving it. The tarball is still written; only `--dry-run`
-    // suppresses that.
-    test({ run: `npm pack --json > ${packListing}` }),
-    // The complement to the packed-declaration type-check, which cannot see
-    // this: with `private.d.ts` shipped, every reference to it resolves and the
-    // type-check is green. The two fail on opposite inputs, so neither stands
-    // in for the other. Measured both ways before this landed.
-    test({ run: noPackedPrivateDeclarations }),
+    test({ run: 'npm pack' }),
     // Hands the tarball to a job that has no checkout, which is the only place
     // the package can be checked as a consumer sees it. `if-no-files-found`
     // must be `error`: the default warns and uploads nothing, so a consuming

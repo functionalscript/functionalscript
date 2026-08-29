@@ -230,37 +230,11 @@ export const proof = {
         assert(job['runs-on'] !== undefined, 'expected runs-on')
         assert(job.steps.length > 0, 'expected steps')
     },
-    // The packed-contents half of the private-declaration guard. The packed
-    // *declaration* type-check cannot see a dropped `files` negation: with
-    // `private.d.ts` shipped, every reference to it resolves and that job is
-    // green. Both were measured on the input that breaks each before this
-    // landed, and they are opposite inputs, so neither substitutes for the
-    // other.
-    noPackedPrivateDeclarations: () => {
-        const gha = run(false)
-        const job = gha.jobs[`node${major(node.default)}`]
-        assert(job !== undefined, 'expected the canonical Node job')
-        const packIndex = job.steps.findIndex(step => step.run?.startsWith('npm pack') === true)
-        const checkIndex = job.steps.findIndex(
-            step => step.run?.includes("endsWith('private.d.ts')") === true)
-        assert(checkIndex !== -1, 'expected the packed private-declaration check')
-        // It reads what packing produced, so it cannot run before packing.
-        assert(checkIndex > packIndex, 'expected the check to follow npm pack')
-        // A check that never fails is indistinguishable from one that passes.
-        assert(
-            job.steps[checkIndex]?.run?.includes('process.exit(1)') === true,
-            'expected a non-zero exit on a packed private declaration')
-        // `--json` is what makes the listing machine-readable; without it the
-        // check reads prose and matches nothing, which is silently green.
-        assert(
-            job.steps[packIndex]?.run?.includes('--json') === true,
-            'expected the pack listing emitted as JSON')
-    },
     packageArtifact: () => {
         const gha = run(false)
         const job = gha.jobs[`node${major(node.default)}`]
         assert(job !== undefined, 'expected the canonical Node job')
-        const packIndex = job.steps.findIndex(step => step.run?.startsWith('npm pack') === true)
+        const packIndex = job.steps.findIndex(step => step.run === 'npm pack')
         const uploadIndex = job.steps.findIndex(
             step => step.uses === `actions/upload-artifact@${actions['actions/upload-artifact']}`)
         assert(packIndex !== -1, 'expected npm pack')
