@@ -68,10 +68,52 @@ A machine-readable corpus with three parts:
   identifier.
 
 The corpus is data, not code, so it can be read by an implementation in any
-language. Store it as DataJS once `fjs/media/datajs` can read it; until then
-JSON, since the corpus must be readable by the very implementation it tests —
-a corpus that can only be read by a working DataJS parser cannot be used to
-bring one up.
+language. It is stored as **JSON, permanently** — not "JSON until DataJS can
+read it", which an earlier draft said and which contradicts its own reason: the
+corpus must be readable by the very implementation it tests, and a corpus that
+only a working DataJS parser can read cannot be used to bring one up. The same
+argument applies to every later reimplementation, so the constraint never
+lapses.
+
+#### The meta-encoding, since JSON cannot spell what the corpus asserts
+
+That decision has a consequence an earlier draft left implicit, and review was
+right that leaving it implicit forces stage 1b to invent a schema and lets
+stages 4 and 6 read the same vector differently. Almost nothing in the accept
+set is JSON-expressible: sharing, `undefined`, bigint, `NaN`, `±Infinity` and
+`-0` are the *point* of DataJS, and the serializer-reject set is worse — a
+cycle, a sparse hole, an accessor, a symbol key and a `Date` are not values any
+document can carry. So the corpus does not store values. It stores a
+**description** of them, and the description is the part this file has to fix:
+
+- **A document is a node table plus a root.** Every node is a tagged object,
+  and a reference is `{"ref": <index>}`. Sharing is then something a vector
+  *states* rather than something a reader might reconstruct — `[a,a]` with one
+  shared `a` is two `{"ref": 3}`s, and `[[],[]]` is two distinct nodes. Cycles
+  fall out of the same mechanism, which is what the serializer-reject set
+  needs, and no encoder has to detect them.
+- **Leaves are tagged and lexical.** `{"num": "-0"}`, `{"num": "5e-324"}`,
+  `{"big": "-12"}`, `{"str": "…"}`, `{"bool": true}`, `{"null": true}`,
+  `{"undef": true}`, `{"nan": true}`, `{"inf": 1}`, `{"inf": -1}`. Numbers are
+  carried as their **exact lexeme**, never as a JSON number: a JSON reader that
+  parses `5e-324` and re-emits it has already involved a host formatter, which
+  is precisely what the normalize set exists to pin.
+- **Objects are ordered pairs, not JSON objects.** `{"obj": [[key, node], …]}`
+  — because duplicate keys, observable key order and the `"__proto__"` key are
+  all vectors here, and a JSON object can express none of the three. The pair
+  form also sidesteps the `__proto__` hazard in any host that builds objects
+  from literals.
+- **Host-only inputs are recipes, not data.** A `Date`, a function, a symbol
+  key, an accessor, a non-enumerable property, a sparse hole and an array
+  carrying an own property beyond its elements cannot be described as values at
+  all, so each is a named recipe the consumer builds: `{"host": "date", "ms":
+  0}`, `{"host": "hole"}`, `{"host": "getter"}`, and so on. The list is finite
+  and closed, each consumer implements it once, and the corpus stays data.
+
+The test of this encoding is whether two independent consumers can disagree.
+They cannot: identity is an index, a number is a lexeme, key order is array
+order, and the host values are a closed vocabulary rather than a construction
+the reader improvises.
 
 Two properties worth proving directly rather than case by case: every
 **accept** document parses in FunctionalScript to the same graph, and every
@@ -90,8 +132,14 @@ needs nothing beyond an engine.
 
 ### Tasks
 
-- [ ] Choose the corpus's own encoding and location, per the bootstrapping
-      constraint above.
+- [ ] Write the meta-encoding down as a schema before any vector, per the
+      section above: node table, `ref` indices, the leaf tags, the object pair
+      form, and the closed `host` recipe vocabulary. It is the part two
+      consumers can silently disagree about, so it lands first and gets its own
+      round-trip proof — encode a graph, decode it, and assert the sharing
+      survives.
+- [ ] Choose the corpus's location. The encoding is settled above: JSON,
+      permanently, per the bootstrapping constraint.
 - [ ] Write the accept, reject and normalize sets covering the cases listed.
 - [ ] Add the **JavaScript** whole-set subset-law check. The FunctionalScript
       one is stage 6's, once stage 5 has taught the front end `;` and the
