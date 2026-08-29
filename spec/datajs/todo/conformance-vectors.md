@@ -36,9 +36,13 @@ A machine-readable corpus with six parts:
 
 - **accept** — document text plus the graph it denotes, including the sharing.
   Cases: every leaf (`-0`, `NaN`, `±Infinity`, bigint, `undefined`), the
-  `["__proto__"]` key, a `const` referenced exactly once and a `const` never
+  `["__proto__"]` key, `-0n` — an accepted input spelling denoting `0n`, since
+  bigint has no negative zero — a `const` referenced exactly once and a `const` never
   referenced at all — the grammar imposes no reference count, and the
   normalizer's counting rule is one serializer's rather than a validity rule —
+  a `const` bound to a **contextual keyword** (`async`, `as`, `from`, `get`,
+  `of`, `set`), which the grammar permits and a reader borrowing JavaScript's
+  reserved-word list would refuse,
   duplicate keys (last value, first position), array-index
   key ordering, one-line and readable spellings of the same value, empty
   containers, deep nesting, and shared nodes reached by several paths.
@@ -81,7 +85,10 @@ A machine-readable corpus with six parts:
 - **normalize** — an input document and the exact bytes normalized form must
   produce: const hoisting by reference identity, post-order `_0`, `_1`, …
   naming, `ToString(Number)` spelling with the `-0` exception,
-  `QuoteJSONString` escaping, observable key order, one-line layout. Pin the
+  `QuoteJSONString` escaping, observable key order, one-line layout. Pin that
+  `-0n` normalizes to `0n` — the grammar accepts the spelling and normalized
+  form must never emit it, which is the one place a bigint and a number differ
+  on negative zero. Pin the
   number thresholds explicitly — `1e20`, `1e21`, `1e-6`, `1e-7`,
   `5e-324`, `1.7976931348623157e308` — since that is where a host's own
   formatter diverges, and pin `root=[p,p]` with `p=[c]` so the hoisting count
@@ -171,7 +178,7 @@ document can carry. So the corpus does not store values. It stores a
   | `{"host": "nonEnumerable", "on": <node>, "key": <string>, "value": <node>}` | the same, non-enumerable |
   | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an **enumerable** accessor property that **records its own invocation** and then returns `value` |
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | a property under a fresh unique symbol |
-  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"}` | the same data under a `null` prototype, or as an `Array` subclass instance |
+  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass" \| "custom", "from": <node, with `custom`>}` | the same data under a `null` prototype, as an `Array` subclass instance, or under a custom prototype object |
   | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` names the property for `nonWritable` |
 
   **Every modifier's target must be an `obj` or `arr` node** — or a modifier
@@ -216,6 +223,15 @@ document can carry. So the corpus does not store values. It stores a
     reached — so an implementation that eagerly reads every enumerable getter
     would pass the invocation assertion. Rejecting for the right reason and rejecting after
     doing the forbidden thing are different outcomes.
+  - **`proto: custom` is a serializer-accept vector with teeth.** The
+    prototype it takes is an ordinary `obj` node, so the vector can give it an
+    **enumerable member** — and then assert that member is *absent* from the
+    output. A serializer that enumerates with `for...in` copies inherited
+    enumerable properties into its result, which the spec forbids: the data is
+    the object's **own** enumerable string-keyed properties. Review found that
+    `null` and `arraySubclass` cannot expose this, because neither prototype
+    carries anything to inherit. This is the only vector in the set whose
+    assertion is about a member that must **not** appear.
   - **`builtin` covers a class, not `Date`.** The spec rejects "a `Date`, or
     any other non-plain object", and a corpus naming only `Date` is passed by
     an implementation that special-cases `Date` and serializes an empty `Map`
@@ -257,8 +273,10 @@ needs nothing beyond an engine.
       with holes occupying positions, the object pair form **with unique keys
       in observable order**, and the ten `host` recipes — four leaves, six
       modifiers, each modifier naming the node it applies to — with their
-      application order, what a modifier node denotes, `builtin`'s and
-      `proto`'s and `attrs`'s closed value lists, and `getter`'s invocation
+      application order, the rule that a modifier is a table entry and never
+      inline, what a modifier node denotes, `builtin`'s and `proto`'s and
+      `attrs`'s closed value lists (`proto: custom` carrying the prototype
+      node), and `getter`'s **enumerable** accessor with its invocation
       record. It is the part two
       consumers can silently disagree about, so it lands first and gets its own
       round-trip proof — encode a graph, decode it, and assert the sharing
