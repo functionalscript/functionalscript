@@ -9,7 +9,7 @@
  * — only a host runner can, and a host runner belongs in a host file.
  *
  * @import { RunInstance } from '../effects/mock/types.ts'
- * @import { All, Catch, Sandbox, Write } from '../effects/node/types.ts'
+ * @import { Catch, Sandbox, Write } from '../effects/node/types.ts'
  * @import { Reporter } from './types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
@@ -38,19 +38,12 @@ const runWith = proof => {
         summary: ({ passed, failed }) => log(`summary:${passed}:${failed}`),
         test: defaultTest,
     }
-    /** @type {RunInstance<All | Catch | Sandbox | Write, string>} */
-    let runner
-    runner = mockRun(/** @type {Parameters<typeof mockRun<All | Catch | Sandbox | Write, string>>[0]} */ ({
-        all: (...effects) => s => {
-            const [st, rs] = effects.reduce(
-                ([st1, rs1], e) => {
-                    const [ns, r] = runner(st1)(e)
-                    return [ns, [...rs1, r]]
-                },
-                /** @type {readonly [string, readonly unknown[]]} */ ([s, []]),
-            )
-            return [st, ok(rs)]
-        },
+    // No `all` handler, and that is not an omission: the shared traversal is
+    // sequential, so it issues none — a restored fan-out would panic here as an
+    // unclaimed command. What the *order* of a run must be is proved
+    // separately, in `./sequential.proof.mjs`, on a runner that can interleave.
+    /** @type {RunInstance<Catch | Sandbox | Write, string>} */
+    const runner = mockRun(/** @type {Parameters<typeof mockRun<Catch | Sandbox | Write, string>>[0]} */ ({
         // The two handlers this proof turns on. A real `try` is what
         // `../effects/node/virtual` cannot offer and what the Node runner does.
         sandbox: (/** @type {() => unknown} */ f) => (/** @type {string} */ s) => {
