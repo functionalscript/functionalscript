@@ -160,8 +160,9 @@ JavaScript fact with no JSON meaning.
 ### Proposal
 
 Replace the wrapper with a scanner of JSON's own lexical grammar, in the same
-shape as the JS tokenizer it replaces: a `StateScan` over code points followed
-by a single `null` end-of-input sentinel, folded with `stateScan` and `flat`.
+shape as the JS tokenizer it replaces: a `StateScan` over **UTF-16 code
+units** followed by a single `null` end-of-input sentinel, folded with
+`stateScan` and `flat`.
 No `fjs/bnf` dependency — the format's grammars are spec text plus
 proof-covered examples, never a runtime dependency of the codecs.
 
@@ -237,7 +238,7 @@ ws     ::= (' ' | '\t' | '\n' | '\r')*
 token  ::= '{' | '}' | '[' | ']' | ':' | ',' | 'true' | 'false' | 'null'
          | string | number
 string ::= '"' char* '"'
-char   ::= <any code point except '"', '\', and U+0000–U+001F>
+char   ::= <any code unit except '"', '\', and U+0000–U+001F>
          | '\' ('"' | '\' | '/' | 'b' | 'f' | 'n' | 'r' | 't' | 'u' hex hex hex hex)
 number ::= '-'? int frac? exp?
 int    ::= '0' | [1-9] [0-9]*
@@ -413,7 +414,7 @@ Five rules replace the inherited behavior:
 
 5. **The message names the lexeme that failed** — `invalid number`,
    `invalid string`, `invalid token` for a word run that is not `true`,
-   `false` or `null`, and `unexpected character` for a code point that can
+   `false` or `null`, and `unexpected character` for a code unit that can
    start no JSON token at all (`ÿ` after `true` is one, since it is outside the
    word-character set).
 
@@ -689,7 +690,7 @@ export type ScanResult<S> =
     { readonly kind: 'consumed', readonly state: S } |
     { readonly kind: 'stopped',  readonly state: S }
 
-export type Scan<S> = (state: S) => (input: number | null) => ScanResult<S>
+export type Scan<S> = (state: S) => (input: U16 | null) => ScanResult<S>
 ```
 
 Both scanners are that shape — `Scan<StringState>` and `Scan<NumberState>` —
@@ -722,17 +723,43 @@ export type NumberState = {
     readonly kind:
         'start' | 'sign' | 'int' | 'point' | 'frac' |
         'exp' | 'expSign' | 'expDigits' | 'recovery',
-    readonly lexeme: readonly number[],
+    readonly lexeme: readonly U16[],
 }
 
 export type StringState =
     { readonly kind: 'start' } |
-    { readonly kind: 'body' | 'escape', readonly value: readonly number[] } |
-    { readonly kind: 'hex', readonly value: readonly number[], readonly digits: readonly number[] } |
+    { readonly kind: 'body' | 'escape', readonly value: readonly U16[] } |
+    { readonly kind: 'hex', readonly value: readonly U16[], readonly digits: readonly U16[] } |
     { readonly kind: 'recovery' | 'recoveryEscape' } |
-    { readonly kind: 'done', readonly value: readonly number[] } |
+    { readonly kind: 'done', readonly value: readonly U16[] } |
     { readonly kind: 'failed' }
 ```
+
+**Every one of those `U16`s is a UTF-16 code unit, not a code point**, and
+that is load-bearing rather than a naming preference. The public entry point is
+`tokenize(stringToList(text))` and `stringToList` is `charCodeAt` — code units
+— so the choice is already made by the code this design replaces; an earlier
+draft of this document said "code points" and would have sent an implementer
+to build something the caller cannot feed. Two consequences, both measured
+against today's tokenizer:
+
+```text
+"😀"             → [0xd83d, 0xde00]
+"\ud83d\ude00"  → [0xd83d, 0xde00]      the same value, as JSON requires
+"\ud800"        → [0xd800]              a lone surrogate, preserved
+```
+
+A code-point scan breaks both: the raw astral character would decode to
+`[0x1f600]` while its escaped spelling stayed two units, so two JSON documents
+that denote the same string would decode differently — and a lone surrogate,
+which `\uXXXX` can spell and JSON permits, has no code point to be. The escape
+grammar is `\uXXXX`, a *code unit* escape, so a JSON string simply is a
+sequence of code units; scanning it as anything else re-opens a question JSON
+already answered.
+
+This is also why the scanner never decodes: every non-ASCII code unit,
+surrogate or not, is just "any character except the three excluded classes" in
+the `char` production above, so the string rules never inspect one.
 
 **Recovery is two states, and it carries no value.** `recoveryEscape` is
 required by rule 3: recovery keeps interpreting backslashes, which is why
@@ -1077,7 +1104,11 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       move: `12;1` stays `invalid number`, `unexpected character`, `number 1`.
 - [ ] Export `Scan<S>`, `ScanResult<S>`, `StringState` and `NumberState` from
       `types.ts` **as declared above** — the kinds and fields, not a shape of
-      the implementer's choosing — and prove the properties stage 4 rests on:
+      the implementer's choosing, with `U16` imported from
+      [`fjs/text/utf16/types.ts`](../../../text/utf16/types.ts) rather than
+      spelled `number`. It is an alias, so this buys no checking; it buys the
+      reader the one fact a bare `number` hides, and this document has already
+      lost that fact once — and prove the properties stage 4 rests on:
       a scan emits no token; a `stopped` leaves the character unconsumed so the
       caller can terminate, re-dispatch or take over; `done` and `failed` are
       terminal; and a number's `lexeme` is its exact source text while a

@@ -74,11 +74,14 @@ A machine-readable corpus with six parts:
   `{["\u005f_proto__"]:1}`, since `["__proto__"]` is the only computed form
   the grammar admits — `1.5n`,
   `1e2n`, `01n`, `-NaN`, `-undefined`, a bare `-`, a forward or unbound
-  reference, a rebound name, each excluded const name, and the five string
-  spellings JavaScript takes and DataJS does not — single quotes,
-  a **template literal**, a `\x` escape, a `\u{…}` escape and a **line
-  continuation**, a backslash before a raw newline, which JavaScript reads as
-  `"ab"` in `export default "a\<LF>b";`; U+2028/U+2029/NBSP/FF/BOM outside a
+  reference, a rebound name, each excluded const name, and the string spellings
+  JavaScript takes and DataJS does not: two **quoting forms** — single quotes
+  and a template literal; every **escape outside JSON's nine** — `\v`, `\0`,
+  `\'`, `` \` ``, `\x41`, `\u{41}`, and the **identity escape** `\z`, which
+  stands for every other character and is what makes the rule a whitelist
+  rather than a longer blacklist; and a **line continuation**, a backslash
+  before a raw newline, which JavaScript reads as `"ab"` in
+  `export default "a\<LF>b";`. Then U+2028/U+2029/NBSP/FF/BOM outside a
   string.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
   than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
@@ -99,21 +102,29 @@ A machine-readable corpus with six parts:
   refusal tests whichever ground the implementation happens to reach first,
   which is not the one it was written for.
 
-  **Derive the narrowing vectors from the spec's own narrowing sentences.**
+  **Derive the narrowing vectors from the spec's own narrowing rules.**
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Three consecutive review rounds
+  vector is the only instrument that sees it. Four consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
-  identifier together, then the *escaped* identifier spelling, then the string
-  spellings. Every time the list had been written from memory instead of read
-  off the spec — and the second round is the telling one, since the class had
-  just been named and the list still went unchecked. So the fix is to name the
-  source. The spec narrows in three places and each owes vectors:
+  identifier together, then the *escaped* identifier spelling, then line
+  continuations and template literals, then the remaining escapes. Every time
+  the list had been written from memory rather than read off the spec, and the
+  last two rounds are the telling ones: by then the class had been named *and*
+  this derivation written, and the list was still short. Naming a class does
+  not check a list, and neither does a derivation pointed at the wrong
+  sentence. The spec narrows in three sections, and each owes vectors:
 
-  - **Strings** — the closing sentence of its §Strings: single quotes,
-    template literals, `\x`, `\u{…}`, line continuations. Five, and the list
-    above now has five.
+  - **Strings** — and this is the one that bit. §Strings *closes* by naming
+    five forms — single quotes, template literals, `\x`, `\u{…}`, line
+    continuations — but the escape narrowing is the **whitelist** two
+    sentences earlier: `\"` `\\` `\/` `\b` `\f` `\n` `\r` `\t` `\uXXXX`, and
+    nothing else. A whitelist's complement is not a list to copy, so those
+    vectors come by class from JavaScript's escape grammar instead. An earlier
+    draft of this very derivation read only the closing sentence and declared
+    the string half complete at five, which is how `\v`, `\0`, `\'`, `` \` ``
+    and `\z` stayed missing one round longer.
   - **Numbers** — the closing sentence of its §Numbers: no hex, no leading
     `+`, no leading or trailing point, no separators, no leading zeros.
   - **Identifiers** — §Identifiers' ASCII-only rule, which excludes both a
@@ -122,9 +133,12 @@ A machine-readable corpus with six parts:
   Plus what DataJS simply lacks where JavaScript has it: comments, `import`,
   identifier keys, trailing commas, and the space characters above.
 
-  **Bigints are not on this list.** JavaScript rejects `1.5n`, `1e2n` and `01n`
-  too — measured, not assumed — so those vectors test the corpus's own grammar
-  rather than a narrowing, and no reader can over-accept them by delegating.
+  **Two things are not on this list, and saying so keeps a later round from
+  adding vectors that cannot fail.** JavaScript rejects `1.5n`, `1e2n` and
+  `01n`, and a strict module rejects the legacy octal escapes `\101` and `\8`
+  — all measured, not assumed. Each tests the corpus's own grammar rather than
+  a narrowing, because no reader can over-accept them by delegating to a host
+  that refuses them too.
 
   The rule has now caught one *before* it landed — the escaped-identifier
   vector above, whose proposed spelling left an unbound reference as a second
