@@ -45,12 +45,29 @@ A machine-readable corpus with six parts:
   `of`, `set`), which the grammar permits and a reader borrowing JavaScript's
   reserved-word list would refuse,
   duplicate keys (last value, first position), array-index key
-  ordering **with its boundaries** — a vector mixing real index keys with
-  `"4294967295"` (outside the range, since an index is `0 ≤ n < 2^32 − 1`),
-  `"01"` (non-canonical) and `"1.0"`, all of which are ordinary keys in
-  first-occurrence order. `{"2":0,"1":0}` alone is passed by an implementation
-  that treats every decimal-looking key as an index, which reorders the three
-  above and corrupts observable key order; one-line and readable spellings of
+  ordering **with both sides of its boundaries** — an index is
+  `0 ≤ n < 2^32 − 1`, so the largest one is `"4294967294"` and the vector has
+  to carry it as well as the first non-index `"4294967295"`, plus
+  `"2147483648"`, the first index above the signed-32-bit range. One vector
+  mixes them with small indices, an ordinary key, `"01"` (non-canonical) and
+  `"1.0"`, and asserts the whole observable order:
+
+  ```
+  {"z":0,"4294967295":0,"4294967294":0,"2147483648":0,"1":0,"01":0,"1.0":0,"0":0}
+      ⇒ 0, 1, 2147483648, 4294967294, z, 4294967295, 01, 1.0
+  ```
+
+  Each of the three large keys catches a different wrong cutoff, which is why
+  none of them substitutes for another: `"4294967295"` catches an
+  implementation treating every decimal-looking key as an index, and review
+  found the corpus stopping there — with only that one, an **off-by-one**
+  upper bound classifies every listed key correctly while leaving
+  `"4294967294"` in first-occurrence order, and a **signed 32-bit** cutoff
+  does the same from `"2147483648"` up. A boundary needs the value on each
+  side of it, and the accepting side was the one missing. `{"2":0,"1":0}`
+  alone is passed by an implementation that treats every decimal-looking key
+  as an index, which reorders the ordinary keys above and corrupts observable
+  key order; one-line and readable spellings of
   the same value; empty containers, deep nesting, and shared nodes reached by
   several paths.
 - **reject** — document text plus what is wrong with it. Cases: a missing or
