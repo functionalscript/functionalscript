@@ -226,6 +226,24 @@ with exactly one hole**, U+D800–U+DFFF, which is the surrogate range and the
 one place the reject side takes over. That is the check on the table: a part
 whose neighbours do not meet it is a part written wrong.
 
+**Each continuation position also has to vary independently**, and the two
+endpoints of a part do not give that on their own: a row whose accepts are
+`e1 80 80` and `ec bf bf` is passed whole by a decoder that requires the
+continuation bytes to be *equal to each other*, which then refuses valid text
+like `e1 80 bf`. Every position already sees both `80` and `BF` across the two
+endpoints — what they lack is the independence, so each part with more than one
+continuation position gets accepts making **every pair of its positions differ
+in at least one vector**: `e1 80 bf` (U+103F), `ee 80 bf` (U+E03F),
+`f0 90 80 bf` (U+1003F), `f1 80 bf 80` (U+40FC0) with `f1 80 80 bf` (U+4003F),
+and `f4 80 80 bf` (U+10003F), all measured valid.
+
+Four parts need nothing added, and the reason is the constraint that defines
+them: `E0` admits `A0`–`BF` where its second continuation admits `80`, so
+`e0 a0 80` already has two positions that differ, and `ED` and the first
+positions of `F0` and `F4` are the same. The second-byte constraints did that
+much of the work for free — the parts that needed a vector are exactly the ones
+no constraint touches, which is where this table has been short every time.
+
 **Four rounds of review each removed one way of sampling this instead of
 deriving it**, and the shape repeated at every level:
 
@@ -635,7 +653,12 @@ The six parts:
   the production is shared, and the bigint rejects, which had twins for the
   radices and the separator and none for the sign, the fraction or the trailing
   dot. A shared production is not shared code, which is the whitespace
-  assumption again with a different subject. The sweep for the lead-partition shape had
+  assumption again with a different subject — then the accept table's
+  continuation bytes, correlated because each part's two endpoints are uniform;
+  the serializer-accept strings, free to be ASCII because that set derives by
+  leaf type and the escaping classes are pinned only under `normalize`; and
+  the normalized encoder's own width boundaries, given as interior values in
+  the same paragraph that said an encoder branches on magnitude. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -823,6 +846,17 @@ The six parts:
     under the reader set — with the vector asserting the emitted document
     denotes that exact code-unit sequence: a serializer that refuses such
     strings, or replacement-encodes them, passes any ASCII-string vector;
+  - a string holding **each code unit `QuoteJSONString` must escape**: `"`,
+    `\`, and a control below U+0020 at both ends, U+0000 and U+001F. Deriving
+    this set by *leaf type* left the string leaf free to be ASCII with nothing
+    to escape, and a serializer that emits those units raw produces a document
+    that is not DataJS at all — an unterminated string for `"`, a stray escape
+    for `\`, a rejected raw character for the controls. Review found it, and
+    the reason it survived is per-role conformance yet again: `normalize` pins
+    every escaping branch to exact bytes, and a serializer-only implementation
+    runs none of those vectors. Each asserts the emitted document denotes the
+    input's exact code-unit sequence, which is what separates a correct escape
+    from a serializer that drops the character;
   - an object mixing **array-index and string keys**, since observable order is
     a property of the emitted document and nothing else in this set constrains
     it. Review reported the first two; this one came from sweeping the reader's
@@ -882,18 +916,36 @@ The six parts:
   `\ud800`, `\udbff`, `\udc00`, `\udfff` — since the block is two ranges and
   a normalizer re-escaping only the high half emits a replacement character for
   the low; the **never-escaped `/`**, which a normalizer borrowing a JSON
-  writer that escapes it gets wrong; and a **raw** character of every UTF-8
-  width, which is what `QuoteJSONString` leaves unescaped, so their vectors pin
-  the encoder's bytes: ASCII at one byte, which every other vector here already
-  carries, then `c3 a9` for `é`, `e2 82 ac` for `€`, and `f0 9f 98 80` for
-  U+1F600. Widths rather than the lead partition the reader's byte table uses,
-  because an encoder branches on the scalar's magnitude and computes the lead
-  from it. Without the multibyte three every pinned byte sequence in this set
-  is ASCII and a serializer emitting Latin-1, or CESU-8's `ed a0 bd ed b8 80`
-  for that astral character, passes a set whose whole promise is exact bytes;
-  review supplied the three-byte width after the first draft had the other
-  two, the gap a normalizer escaping every U+0800–U+FFFF scalar as `\uXXXX`
-  walks straight through. Normalized output
+  writer that escapes it gets wrong; and a **raw** character at
+  **both ends of every UTF-8 width**, which is what `QuoteJSONString` leaves
+  unescaped, so their vectors pin the encoder's bytes. The widths' transitions,
+  not values inside them:
+
+  | scalar | bytes | scalar | bytes |
+  | - | - | - | - |
+  | U+007F | `7f` | U+0080 | `c2 80` |
+  | U+07FF | `df bf` | U+0800 | `e0 a0 80` |
+  | U+D7FF | `ed 9f bf` | U+E000 | `ee 80 80` |
+  | U+FFFF | `ef bf bf` | U+10000 | `f0 90 80 80` |
+  | U+10FFFF | `f4 8f bf bf` | | |
+
+  Widths rather than the lead partition the reader's byte table uses, because
+  an encoder branches on the scalar's magnitude and computes the lead from it —
+  `e0` and `e1`–`ec` are one branch on this side. But the **surrogate hole is a
+  boundary here too**, since an encoder reading UTF-16 must decide pair from
+  lone at exactly U+D800, which is why `ed 9f bf` and `ee 80 80` are in the
+  table beside the width transitions.
+
+  An earlier draft gave `c3 a9`, `e2 82 ac` and `f0 9f 98 80` — interior values
+  of three widths — in the same paragraph that said an encoder branches on
+  magnitude. Review pointed out what that leaves open: an encoder testing
+  `< 0x7ff` where it means `<= 0x7ff` emits U+07FF in three bytes and still
+  gets every interior value right. That is a rule stated and not applied to
+  the vectors stated with it, which is now the third time in this file. Without
+  the multibyte cases at all, every pinned byte sequence here is ASCII and a
+  serializer emitting Latin-1, or CESU-8's `ed a0 bd ed b8 80` for an astral
+  character, passes a set whose whole promise is exact bytes; a normalizer
+  escaping every U+0800–U+FFFF scalar as `\uXXXX` walks through the same gap. Normalized output
   has **seven** simple escapes where the accept grammar admits **nine**: `\/`
   and `\uXXXX` are input spellings a reader must take and a normalizer must
   never emit, so the two lists differ on purpose and neither checks the other —
