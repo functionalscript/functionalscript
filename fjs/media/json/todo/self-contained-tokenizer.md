@@ -560,10 +560,18 @@ fabricated tokens, means deliberately writing new code to reproduce a known
 defect.
 
 So the two land together, and attribution comes from proofs rather than from
-bisection, which is the stronger guarantee: every accepted-input proof must pass
-**byte-identically**, so any failure among them is the port; every changed error
-shape is tabled above in advance, so any error-shape difference not in that
-table is also the port. Nothing is left to be discovered by staring at a diff.
+bisection. Every accepted-input proof must pass **byte-identically**, so any
+failure among them is the port; and every error-shape difference is checked
+against the **generated sweep tables**, so any difference they do not contain is
+also the port.
+
+The attribution baseline is the generated tables, **not** the changed-shapes
+table above, which is illustrative and known to be incomplete. `+1` and `.5`
+are `invalid token` today and become `unexpected character`, and neither has a
+row — the table lists the cases worth explaining to a reader, while the sweep
+lists all of them. An earlier draft rested the attribution rule on the manual
+table, which would have misclassified a correct implementation as a
+regression.
 
 ### Edits owed to existing issues
 
@@ -663,8 +671,9 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       what the re-dispatched character's *own* scanner then consumes. Generate
       the table from two-character suffixes as well.
 - [ ] Pin the individual cases, since they are what a reader reads: `00-2` is
-      the only changed row; `00"a"`, `00"/1`, `00;1`, `00 1`, `00]`, `00,`,
-      `00<LF>1`, `00/1` and `12/1` are all unchanged.
+      the only changed *token stream*; `00"a"`, `00;1`, `00 1`, `00]`, `00,` and
+      `00<LF>1` are wholly unchanged; and `00"/1`, `00/1` and `12/1` keep their
+      token counts while `/`'s message becomes `unexpected character`.
 - [ ] Prove string recovery ends at an unescaped quote, a raw LF and a raw CR
       but not a space — `"a<LF>1` emits the number `1`, `"a 1` is one error.
 - [ ] `npm run update`, then `npx tsc`, `fjs test`, `cargo clippy` and
