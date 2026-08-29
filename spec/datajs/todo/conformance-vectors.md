@@ -10,12 +10,20 @@ cannot be executed, so nothing stops the reference implementation and the
 specification from drifting apart — which is exactly what happened to the
 `fjs/fsc` grammar that stage 2 deleted, unproven and unimported.
 
-The stages that follow all need the same corpus:
-stage 3 (JSON's self-contained tokenizer) must prove JSON's accepted language
-is unchanged, stage 4 (`fjs/media/datajs`) must prove the parser and
-serializer implement *the spec* rather than each other, and stage 6 must prove
-the DataJS ⊂ FunctionalScript ⊂ JavaScript subset laws. One corpus, four
-consumers.
+Two later stages need this corpus. Stage 4 (`fjs/media/datajs`) must prove its
+parser and serializer implement *the spec* rather than each other, and stage 6
+must prove the DataJS ⊂ FunctionalScript ⊂ JavaScript subset laws.
+
+Stage 3 is **not** a consumer, though an earlier draft of this file said it was.
+Stage 3 is JSON's tokenizer, and what it must prove — that JSON's accepted
+language is unchanged — is a property of JSON, established by JSON's own
+proofs and by
+[self-contained-tokenizer](../../../fjs/media/json/todo/self-contained-tokenizer.md)'s
+exhaustive character sweeps. A DataJS corpus has nothing to say about it.
+
+**This corpus must therefore land before or together with stage 4**, which is
+compatible with running stage 3 first: the sequence is 3, then 1b, then 4.
+Landing stage 4 without it would mean writing stage 4's proofs twice.
 
 ### Proposal
 

@@ -30,9 +30,13 @@ Read in this order; each line says what to do and why it comes when it does.
    generalized first.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
-3. **Then stage 1b**, the conformance vectors
+3. **Stage 1b, the conformance vectors**
    ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)),
-   which needs stage 4 to exist before it can run against anything.
+   lands **before or together with stage 4** — it is stage 4's proof source, so
+   landing stage 4 first means writing its proofs twice. The corpus bootstraps
+   in JSON precisely so it can exist before any DataJS reader does. It is not a
+   prerequisite of stage 3, which is JSON's own tokenizer and proves its
+   accepted language unchanged with JSON's own proofs.
 4. **Then stages 5–7**, in order, as listed below.
 
 **Already done, do not redo:** stage 1a (the DataJS specification) and stage 2
@@ -291,8 +295,9 @@ Stage 3 is therefore the prerequisite, and it exports that shared core as a
 seam — with stage 4 arriving immediately after as its second caller, which is
 what keeps the seam honest.
 
-Stage 1b (the conformance vectors) waits for these. It was already blocked on
-having an implementation to run against; stage 4 is that implementation.
+Stage 1b (the conformance vectors) sits **between** them: it is stage 4's proof
+source, not stage 3's, and its corpus is stored in JSON exactly so it can exist
+before a DataJS reader does. So the order is 3, 1b, 4.
 
 ### Stages
 

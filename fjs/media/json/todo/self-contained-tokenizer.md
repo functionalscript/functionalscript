@@ -317,11 +317,12 @@ follows the input instead:
 | `12"a"` | error, string `"a"` | unchanged — `"` ends without accepting |
 | `00-2` | one error — `-2` is **swallowed** | `invalid number`, number `-2` |
 | `00-` | one error | two `invalid number` |
-| `00"a"` | one error — the string is **swallowed** | `invalid number`, string `"a"` |
+| `00"a"` | one error — the string is swallowed | unchanged — `"` is not a recovery boundary |
+| `00"/1` | error, error, number `1` | unchanged — making `"` a boundary would lose the `1` |
 | `00<LF>1` | error, number `1` | unchanged — LF was already a boundary |
 | `00/1` | error, error, number `1` | unchanged — `/` continues neither |
 | `12/1` | number `12`, error, number `1` | unchanged — `/` accepts |
-| `00;1` | one error — `;` is **not** a boundary today | error, error, number `1` |
+| `00;1` | one error — `;` is not a boundary | unchanged |
 | `"a<LF>1` | error, number `1` | unchanged — LF ends string recovery |
 
 An unterminated string stays one error; its message changes from
@@ -390,27 +391,46 @@ remove, and my first attempt at a principled replacement silently dropped
 fourteen of those boundaries — meaning `00/1` would swallow a well-formed `1`,
 the exact defect class this design is meant to fix.
 
-So recovery is specified as a **property**, which can be checked without
-enumerating anything:
+A first attempt specified recovery as a *property* — consume only what could
+continue a number or a word, end at everything else — on the reasoning that
+ending recovery earlier can only ever emit more tokens. **That reasoning is
+false**, and the counter-example is worth keeping because it is not obvious:
 
-> **Recovery consumes only characters that could continue a number or a word** —
-> digits, letters, `_`, `$`, `.`, `+` — **and ends at everything else**, which is
-> re-dispatched rather than consumed.
+```text
+00"/1   today   E(invalid number)  E(invalid token)  number(1)
+```
 
-That set contains every boundary the tokenizer has today, and more (`-`, `"`,
-`#`, `'`, `;`, `@`, `\`, backtick). Which gives the invariant worth proving:
+Today `"` is not a recovery boundary, so `00"` is swallowed whole and `/1`
+tokenizes normally. Make `"` a boundary and the re-dispatched quote **starts a
+string**, which runs to the next quote or end of input — consuming `/1` and
+destroying two tokens. Ending one scan earlier can start another that runs
+further. "Recovery never runs longer" is a statement about recovery; the
+property that matters is about the whole token stream, and they are not the
+same.
 
-> **Recovery never runs longer than it does today, anywhere.**
+So the safety condition is narrower, and it is what the design uses:
 
-So no token that reaches a caller today is lost, in any input — the property
-rules out the whole failure mode, rather than the table ruling out the cases
-someone thought to list. Where recovery stops *earlier*, the tokenizer emits
-more tokens after the error and never fewer, and the error itself is unaffected,
-so the erroring/not-erroring invariant holds too.
+> A character may be added as a recovery boundary only if **re-dispatching it
+> cannot consume more input than recovery would have.**
 
-The rows below follow from it. `00-2` and `00"a"` change, because `-` and `"`
-gain boundary status. `00/1` does **not** change — `/` cannot continue a number
-or a word, so it stays a boundary, which is what the earlier draft got wrong.
+`-` satisfies it: a re-dispatched `-` begins a number, and a number's own
+recovery stops at the same boundaries, so nothing runs further. `"` does not:
+a string scan is bounded by the next quote, not by the number boundaries.
+
+Recovery therefore keeps today's boundary set and adds exactly `-`:
+
+```text
+space TAB LF CR  ! % & ( ) * , / : < = > ? [ ] ^ { | } ~   end of input
+plus  -
+```
+
+`-` is added because today's treatment of it *loses* a token: `00-2` reports one
+error and the well-formed `-2` never reaches the caller, while `0.-2` and
+`12.-2` do emit it — the same character handled three ways by accident. That is
+the one change, and it only ever adds tokens.
+
+One row changes: `00-2`. Everything else — `00"a"`, `00"/1`, `00/1`, `00;1`,
+`00 1`, `00]`, `00,`, `00<LF>1` — is exactly as today.
 
 String recovery is unchanged: it ends at an unescaped `"`, a raw LF or CR, or
 end of input, which is what it does today.
@@ -619,9 +639,13 @@ implementation PR — the premise only actually changes when the code does.
       `fjs/js/tokenizer` — a permanent proof dependency would contradict this
       stage's own "no runtime importer calls `tokenize`" task and would leave
       stage 7 unable to delete the machine without rewriting the proof.
-- [ ] Pin the individual cases too, since they are what a reader reads: `00-2`,
-      `00"a"` and `00;1` change; `00 1`, `00]`, `00,`, `00<LF>1`, `00/1` and
-      `12/1` do not.
+- [ ] Sweep **mixed boundaries** too, not only single characters: a case like
+      `00"/1` is invisible to `00` + `c` + `1`, because the damage comes from
+      what the re-dispatched character's *own* scanner then consumes. Generate
+      the table from two-character suffixes as well.
+- [ ] Pin the individual cases, since they are what a reader reads: `00-2` is
+      the only changed row; `00"a"`, `00"/1`, `00;1`, `00 1`, `00]`, `00,`,
+      `00<LF>1`, `00/1` and `12/1` are all unchanged.
 - [ ] Prove string recovery ends at an unescaped quote, a raw LF and a raw CR
       but not a space — `"a<LF>1` emits the number `1`, `"a 1` is one error.
 - [ ] `npm run update`, then `npx tsc`, `fjs test`, `cargo clippy` and
