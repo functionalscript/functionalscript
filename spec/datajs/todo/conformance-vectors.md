@@ -98,6 +98,13 @@ document can carry. So the corpus does not store values. It stores a
   carried as their **exact lexeme**, never as a JSON number: a JSON reader that
   parses `5e-324` and re-emits it has already involved a host formatter, which
   is precisely what the normalize set exists to pin.
+- **Arrays are `{"arr": [node, …]}`**, elements in order, each element a node or
+  a `ref`. `[a,a]` with one shared `a` is `{"arr": [{"ref": 3}, {"ref": 3}]}`
+  and `[[],[]]` is two distinct nodes — the pair of vectors graph-equivalence
+  exists to separate, and the encoding has to keep them apart before any
+  consumer reads it. A **sparse hole occupies a position** rather than being
+  absent, as `{"host": "hole"}`, since a missing element and a hole are
+  different inputs and an encoding that drops one cannot state the difference.
 - **Objects are ordered pairs, not JSON objects.** `{"obj": [[key, node], …]}`
   — because duplicate keys, observable key order and the `"__proto__"` key are
   all vectors here, and a JSON object can express none of the three. The pair
@@ -107,8 +114,12 @@ document can carry. So the corpus does not store values. It stores a
   key, an accessor, a non-enumerable property, a sparse hole and an array
   carrying an own property beyond its elements cannot be described as values at
   all, so each is a named recipe the consumer builds: `{"host": "date", "ms":
-  0}`, `{"host": "hole"}`, `{"host": "getter"}`, and so on. The list is finite
-  and closed, each consumer implements it once, and the corpus stays data.
+  0}`, `{"host": "hole"}`, `{"host": "getter"}`, and so on. **A recipe may take
+  node arguments**, which is how the composite cases are said — `a=[1]; a.meta=2`
+  is `{"host": "ownProp", "on": {"ref": 1}, "key": "meta", "value": {"ref": 2}}`
+  over an ordinary `arr` node, rather than a second array form. The list is
+  finite and closed, each consumer implements it once, and the corpus stays
+  data.
 
 The test of this encoding is whether two independent consumers can disagree.
 They cannot: identity is an index, a number is a lexeme, key order is array
@@ -133,8 +144,9 @@ needs nothing beyond an engine.
 ### Tasks
 
 - [ ] Write the meta-encoding down as a schema before any vector, per the
-      section above: node table, `ref` indices, the leaf tags, the object pair
-      form, and the closed `host` recipe vocabulary. It is the part two
+      section above: node table, `ref` indices, the leaf tags, the `arr` form
+      with holes occupying positions, the object pair form, and the closed
+      `host` recipe vocabulary with its node arguments. It is the part two
       consumers can silently disagree about, so it lands first and gets its own
       round-trip proof — encode a graph, decode it, and assert the sharing
       survives.
