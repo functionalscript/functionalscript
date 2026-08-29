@@ -219,25 +219,35 @@ Five rules replace the inherited behavior:
    0` tokens instead of the one `invalid number` it is today. A digit after a
    leading zero continues the lexeme; it does not start a new one.
 
-   What happens at the end is decided by the **stop state**, not by the
-   character class:
+   What happens at the end is decided by **how the lexeme failed**, and there
+   are three cases, not two. An earlier draft had two and would have destroyed
+   tokens in five number phases.
 
-   - **Stopped in an accepting state.** The lexeme is a `number` token, and the
-     character that ended it is re-dispatched rather than swallowed. If that
-     character is an accepting terminator the number is well-formed; if it is
-     not — `"` in `12"a"`, `;` in `12;1` — the number is one `invalid number`
-     and the character is *still* re-dispatched, so the string or the next token
-     still scans. Either way exactly one lexeme is consumed. `12.]` stays
-     `error, ]`.
-   - **Stopped in a non-accepting state.** The lexeme is malformed and enters
-     **recovery**: consume through to the next recovery boundary and emit
-     exactly one `invalid number`. This is the case `00abc`, `-00` and `-.123`
-     take, and the junk inside is not re-scanned into further errors.
+   - **Accepting stop.** The lexeme is a `number` token, and the character that
+     ended it is re-dispatched. If that character is an accepting terminator the
+     number is well-formed; if it is not — `"` in `12"a"`, `;` in `12;1` — the
+     number is one `invalid number` and the character is *still* re-dispatched,
+     so the string or the next token still scans. `12.]` stays `error, ]`.
+   - **Incomplete stop.** The grammar wanted more and met a character that
+     cannot continue: `-`, `1.`, `1e`, `1e+`, `1e-`. One `invalid number`, and
+     the character is **re-dispatched**, exactly as in the accepting case.
+     `1e"a"` is `invalid number` then the string `"a"` — which is what the
+     tokenizer does today, in all five phases.
+   - **Leading-zero run.** A `0` followed by a digit: maximal munch pulls the
+     digit into an `int` that was already complete. This is the **only** case
+     that enters **recovery** — consume through to the next recovery boundary
+     and emit one `invalid number`, so `00abc`, `01"a"` and `012"a"` are each a
+     single error with the rest swallowed.
 
-   The two are easy to conflate and produce different token streams: `0abc` is
-   *accepting* (the `0` completes) so it is `invalid number` then `invalid
-   token`, while `00abc` is *non-accepting* (maximal munch pulled the second
-   `0` in) so it is one error.
+   Measured, that third trigger is exactly as narrow as stated: `01"a"`,
+   `00"a"`, `012"a"` and `-00"a"` swallow the string, while `1.2"a"`, `1e2"a"`
+   and `-0"a"` emit it. Any rule that sent every non-accepting stop to recovery
+   would swallow strings after `-`, `1.`, `1e`, `1e+` and `1e-` — five phases of
+   token loss, from one word in the rule.
+
+   The pair most easily conflated: `0abc` is an *accepting* stop (the `0`
+   completes) so it is `invalid number` then `invalid token`, while `00abc` is a
+   *leading-zero run* so it is one error.
 
    A character the grammar can still consume is consumed, so the terminator
    test never fires mid-lexeme: the `-` in `1e-5` is an exponent sign, because
@@ -650,10 +660,12 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       `unescaped character`, `invalid token` for `0n`) sees different tokens,
       and a consumer relying on a *value* token after a malformed literal stops
       receiving one. Valid JSON is unaffected, and the entry should say so.
-- [ ] Sweep **both** states, not just the malformed one: for every ASCII
-      character `c`, check `12` + `c` + `1` (the accepting path) as well as
-      `00` + `c` + `1` (the recovery path). The first sweep is what catches an
-      accepting-set regression such as `12/1`, and the second cannot see it.
+- [ ] Sweep **every number phase**, not a chosen pair. Prefixes: `12`
+      (accepting), `00` (leading-zero run / recovery), and `-`, `1.`, `1e`,
+      `1e+`, `1e-` (incomplete). For each, and for every ASCII character `c`,
+      check `prefix` + `c` + `1`. Two prefixes are not enough and the reason is
+      concrete: `12` and `00` between them cannot see that `1e"a"` emits a
+      string today, which a two-case rule would have swallowed.
 - [ ] Commit **two** tables from the sweep, not one: the old tokenizer's output
       (recorded once during implementation, for review) and the new scanner's
       expected output. The proof asserts against the *new* table — asserting
