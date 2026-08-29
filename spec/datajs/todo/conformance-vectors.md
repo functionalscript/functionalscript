@@ -44,8 +44,13 @@ A machine-readable corpus with six parts:
   a `const` bound to a **contextual keyword** (`async`, `as`, `from`, `get`,
   `of`, `set`), which the grammar permits and a reader borrowing JavaScript's
   reserved-word list would refuse,
-  duplicate keys (last value, first position), array-index
-  key ordering, one-line and readable spellings of the same value, empty
+  duplicate keys (last value, first position), array-index key
+  ordering **with its boundaries** — a vector mixing real index keys with
+  `"4294967295"` (outside the range, since an index is `0 ≤ n < 2^32 − 1`),
+  `"01"` (non-canonical) and `"1.0"`, all of which are ordinary keys in
+  first-occurrence order. `{"2":0,"1":0}` alone is passed by an implementation
+  that treats every decimal-looking key as an index, which reorders the three
+  above and corrupts observable key order, one-line and readable spellings of the same value, empty
   containers, deep nesting, and shared nodes reached by several paths.
 - **reject** — document text plus what is wrong with it. Cases: a missing or
   non-final `export default`, a missing `;`, `;;`, a trailing comma, a comment,
@@ -107,7 +112,11 @@ A machine-readable corpus with six parts:
   naming, `ToString(Number)` spelling with the `-0` exception,
   `QuoteJSONString` escaping — including a **lone surrogate**, which must come
   back as `\ud800` in lowercase hex rather than a replacement character —
-  observable key order, one-line layout. Pin that
+  observable key order, one-line layout. Pin the `__proto__` key's exact bytes,
+  `{["__proto__"]:1}`: a normalizer reusing an ordinary key writer emits
+  `{"__proto__":1}`, which is not DataJS at all and which JavaScript reads as
+  prototype replacement rather than an own property — a normalized form that
+  denotes a different graph than its input. Pin that
   `-0n` normalizes to `0n` — the grammar accepts the spelling and normalized
   form must never emit it, which is the one place a bigint and a number differ
   on negative zero. Pin the
