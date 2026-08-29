@@ -467,9 +467,6 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(nix develop ./nix/generated/node24 --command node --version)\" = v24.19.0"
-        },
-        {
           "run": "nix develop ./nix/generated/node24 --command npm ci"
         },
         {

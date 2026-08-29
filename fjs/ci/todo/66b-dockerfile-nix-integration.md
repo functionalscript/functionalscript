@@ -12,9 +12,9 @@ running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
 the accepted snapshot.
 
 Phase 3 has started: **Node 24 is migrated.** Its job is checkout, the pinned
-Nix installer, and one `nix develop --command` step each for the runtime check,
-`npm ci`, and `node --test` — the same commands in the same order, on the
-runtime the pinned snapshot provides instead of the one `setup-node` installs.
+Nix installer, and one `nix develop --command` step each for `npm ci` and
+`node --test` — the same commands in the same order, on the runtime the pinned
+snapshot provides instead of the one `setup-node` installs.
 
 A temporary `nix-flakes` job instantiates the flakes no job runs through yet and
 compares the Node each provides to the expected version, so every generated file
@@ -214,10 +214,14 @@ above records the existing command families and their order.
 
 For each Node job:
 
-1. verify the selected Node version inside the Nix invocation;
-2. run the complete command sequence above;
-3. verify there are no tracked or stageable checkout changes;
-4. switch only that job after equivalent behavior is demonstrated.
+1. run the complete command sequence above;
+2. verify there are no tracked or stageable checkout changes;
+3. switch only that job after equivalent behavior is demonstrated.
+
+A migrated job states no expected Node version: the flake pins an exact commit,
+which already determines the version, so the job would only be restating the
+pin. Nothing then checks that job's recorded version in
+`fjs/ci/config/module.f.mjs` against the snapshot — see the progress note above.
 
 Node 22, Node 24, and Node 26 can be generated, validated, and adopted independently.
 A problem in one job does not block progress on the others unless it affects the shared
@@ -257,7 +261,7 @@ milestone.
       `nix develop --command` step per command — Node 24 done.
 - [ ] Validate the three Node jobs independently — Node 24 done.
 - [ ] Preserve each job's existing commands, order, and coverage — Node 24's are
-      unchanged apart from the runtime check ahead of them.
+      unchanged.
 - [ ] Keep tracked checkout state unchanged.
 - [ ] Migrate jobs one at a time — Node 24 went alone; Node 22 and Node 26 remain.
 

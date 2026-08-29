@@ -6,8 +6,8 @@
 ### Progress
 
 Flake generation is implemented and the **Node 24 job is migrated**: it installs Nix
-through the pinned action and runs its whole command sequence — the runtime check, `npm
-ci`, `node --test` — one `nix develop` step each. The temporary `nix-flakes` job
+through the pinned action and runs its whole command sequence — `npm ci`, `node --test` —
+one `nix develop` step each. The temporary `nix-flakes` job
 now covers only the two jobs that have not migrated; it shrinks with each migration and
 goes away with the last one. See the progress note in
 [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
@@ -198,10 +198,16 @@ the flake, so no step falls back to the runner's preinstalled Node.
 
 For each job:
 
-1. verify the selected Node version inside the Nix invocation;
-2. run the existing commands in their current order;
-3. verify there are no tracked or stageable checkout changes;
-4. remove the old setup only after equivalent behavior is demonstrated.
+1. run the existing commands in their current order;
+2. verify there are no tracked or stageable checkout changes;
+3. remove the old setup only after equivalent behavior is demonstrated.
+
+A migrated job states no expected Node version. The flake pins an exact Nixpkgs commit,
+which already determines the version it provides, so a job running through that flake
+would only be restating the pin. The consequence is deliberate: once a job migrates,
+nothing checks the exact version recorded for it in `fjs/ci/config/module.f.mjs` against
+the snapshot — that record is verified only while a job still installs it with
+`setup-node`, and the Nixpkgs update command is what has to keep it honest afterwards.
 
 #### Independent follow-ups
 

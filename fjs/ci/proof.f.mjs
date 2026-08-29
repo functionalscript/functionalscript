@@ -242,13 +242,12 @@ export const proof = {
             !job.steps.some(step => step.uses?.startsWith('actions/setup-node@') === true),
             'unexpected setup-node in the migrated job')
         // One command per step (root `AGENTS.md` §7), each entering the shell
-        // itself, in the order the job had them — and the check the temporary
-        // flake job used to make for this flake ahead of the commands whose
-        // result depends on it.
+        // itself, in the order the job had them — and no expected version
+        // among them: the flake's pinned commit determines the Node it
+        // provides, so a job running through it has nothing left to state.
         assertStructurallySame(
             job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
             [
-                `test "$(nix develop ./nix/generated/${id} --command node --version)" = v${node.node24}`,
                 `nix develop ./nix/generated/${id} --command npm ci`,
                 `nix develop ./nix/generated/${id} --command node --test`,
             ])

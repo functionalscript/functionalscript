@@ -71,15 +71,15 @@ const node22Steps = version => [
  * whatever the runner installs.
  *
  * Its commands and their order are the ones it had, each still its own step
- * (root `AGENTS.md` §7) and each entering the shell again. The version check
- * comes first: nothing else ties this job's runtime to the version
- * `setup-node` gives the others.
+ * (root `AGENTS.md` §7) and each entering the shell again. It states no
+ * expected version: the flake pins an exact Nixpkgs commit, which already
+ * determines the Node it provides, so a job running through the flake would
+ * only be restating that pin.
  *
  * @type {readonly MetaStep[]}
  */
 const node24NixSteps = [
     nixInstall,
-    nixVersionCheckStep(jobId(node.node24), node.node24),
     ...['npm ci', 'node --test'].map(
         command => test({ run: nixDevelop(jobId(node.node24), command) })),
 ]

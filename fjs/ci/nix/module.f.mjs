@@ -108,11 +108,11 @@ export const nixDevelop = (id, command) => `nix develop ${flakePath(id)} --comma
  * stated — the generated flakes stay declarative instead of carrying an
  * `assert` that restates the commit they pin.
  *
- * Every job that uses a flake runs this: a migrated job ahead of its own steps,
- * and the temporary flake job for the flakes no job runs through yet. That is
- * what lets the temporary job shrink with each migration without taking the
- * guarantee with it — once it is gone, nothing else ties a Nix runtime to the
- * version the Windows and macOS jobs install.
+ * Only the temporary flake job runs this, for the flakes no job runs through
+ * yet: it is the one thing that evaluates them at all, and the one place their
+ * package versions are tied to what `setup-node` installs for the same job. A
+ * migrated job does not repeat it — running through the flake is what proves
+ * the flake, and the version it provides is the pin's to decide.
  *
  * @type {(id: string, version: string) => MetaStep}
  */
