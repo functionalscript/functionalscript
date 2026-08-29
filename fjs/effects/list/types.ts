@@ -1,5 +1,7 @@
 /**
  * Types for the effectful cons-list.
+ *
+ * @module
  */
 
 import type { Operation } from '../types.ts'

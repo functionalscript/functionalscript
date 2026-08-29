@@ -1,5 +1,7 @@
 /**
  * Types for compact 4-bit membership tracking.
+ *
+ * @module
  */
 
 /** A set of nibbles as a 16-bit mask. JSON-serializable. */

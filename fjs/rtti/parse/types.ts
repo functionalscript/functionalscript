@@ -1,5 +1,7 @@
 /**
  * Type-level API for RTTI deserialization.
+ *
+ * @module
  */
 
 import type { Type } from '../types.ts'

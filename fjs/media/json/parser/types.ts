@@ -1,6 +1,8 @@
 /**
  * Types for the shared structural JSON parser: its numeric policy, the tree
  * that policy produces, and the parser's internal state.
+ *
+ * @module
  */
 
 import type { Tree } from '../types.ts'

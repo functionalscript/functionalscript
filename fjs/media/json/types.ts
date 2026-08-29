@@ -8,6 +8,8 @@
  * `Assert<Check<Unknown, typeof unknown>>`. The pin is what keeps the two
  * descriptions of the same data model from drifting apart — and it holds the
  * `Tree<Primitive>` spelling to the same data model the schemas describe.
+ *
+ * @module
  */
 
 import type { Entry as ObjectEntry } from '../../types/object/types.ts'

@@ -1,5 +1,7 @@
 /**
  * Types for ASN.1 BER/DER encoding and decoding over bit vectors.
+ *
+ * @module
  */
 
 import type { Vec } from '../types/bit_vec/types.ts'

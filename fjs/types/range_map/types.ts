@@ -1,5 +1,7 @@
 /**
  * Types for managing and merging range maps.
+ *
+ * @module
  */
 
 import type { Equal, Reduce } from '../function/operator/types.ts'
