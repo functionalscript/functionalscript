@@ -209,16 +209,16 @@ Five rules replace the inherited behavior:
    terminator.** Scan JSON's number grammar; when the grammar can no longer
    continue, look at the next character.
 
-   - An **accepting terminator** — whitespace, one of `{}[]:,`, a `-`, or end
-     of input — ends the lexeme and is re-dispatched rather than swallowed. The
-     number is a `number` token if the grammar stopped in an accepting state
-     and one `invalid number` if it did not. So `12.]` stays `error, ]`.
-   - A **`"` ends the lexeme without accepting it**: the number is one
-     `invalid number` and the quote is re-dispatched, so the string that
-     follows still scans. It is the single character in this position, and it
-     earns the special case: consuming it would swallow an entire well-formed
-     string token, which loses far more than an error shape. `12"a"` is
-     therefore `invalid number` then the string `"a"`, exactly as today.
+   - An **accepting terminator** ends the lexeme and is re-dispatched rather
+     than swallowed. The number is a `number` token if the grammar stopped in
+     an accepting state and one `invalid number` if it did not. So `12.]` stays
+     `error, ]`. The set is measured rather than invented — see below.
+   - A character that is **not** an accepting terminator but still cannot
+     continue the lexeme ends it **without accepting**: one `invalid number`,
+     and the character is re-dispatched so whatever follows still scans. `"` is
+     the case that matters, since consuming it would swallow an entire
+     well-formed string: `12"a"` is `invalid number` then the string `"a"`,
+     exactly as today.
    - **Anything else** means the lexeme is malformed: consume through to the
      next terminator and emit exactly one `invalid number`. The junk inside is
      not re-scanned into further errors.
@@ -320,6 +320,7 @@ follows the input instead:
 | `00"a"` | one error — the string is **swallowed** | `invalid number`, string `"a"` |
 | `00<LF>1` | error, number `1` | unchanged — LF was already a boundary |
 | `00/1` | error, error, number `1` | unchanged — `/` continues neither |
+| `12/1` | number `12`, error, number `1` | unchanged — `/` accepts |
 | `00;1` | one error — `;` is **not** a boundary today | error, error, number `1` |
 | `"a<LF>1` | error, number `1` | unchanged — LF ends string recovery |
 
@@ -337,6 +338,36 @@ inconsistently, which is the tell that it is an accident rather than a policy �
 This is the same defect class as the fabricated string, running the other
 direction: one invents a token the input never contained, the other discards one
 it did.
+
+#### The accepting set is reproduced exactly, because both invariants pin it
+
+Measured, a complete number is accepted today when followed by:
+
+```text
+space TAB LF CR  ! % & ( ) * , - / : < = > ? [ ] ^ { | } ~   and end of input
+```
+
+and rejected before `" # $ ' + . ; @ \ _ ` digits and letters.
+
+This set is `rangeSetTerminalForNumber` plus `-`: JavaScript's operator
+characters, inherited with the tokenizer. It has no JSON principle behind it —
+none of `!`, `%`, `(` can appear in a valid JSON document at all.
+
+It is nonetheless **reproduced exactly**, because the design's two invariants
+between them leave no freedom:
+
+- *Accepting fewer* characters loses tokens. `12/1` is `number 12`,
+  `invalid token`, `number 1` today; drop `/` from the set and the `12` becomes
+  an error — a well-formed number destroyed, the defect class this design
+  exists to remove.
+- *Accepting more* removes errors. Add `"` and `12"a"` stops erroring at all,
+  which the erroring/not-erroring invariant forbids — this is the case an
+  earlier draft got wrong in exactly that way.
+
+So the set is pinned by measurement, and the design says plainly that it is
+arbitrary and inherited. Narrowing it to JSON's own `{}[]:,` plus whitespace
+would be defensible on its own terms, but it is a separate, deliberate
+behavior change with its own proofs — not something to slip into a port.
 
 #### Recovery, stated as a property rather than a list
 
@@ -578,13 +609,19 @@ implementation PR — the premise only actually changes when the code does.
       `unescaped character`, `invalid token` for `0n`) sees different tokens,
       and a consumer relying on a *value* token after a malformed literal stops
       receiving one. Valid JSON is unaffected, and the entry should say so.
-- [ ] Prove the recovery property rather than a sample of it. The strongest
-      form is a sweep: for every ASCII character `c`, tokenize `00` + `c` + `1`
-      under both the old and new scanners and assert the new one never loses a
-      token the old one produced — that is the "recovery never runs longer"
-      invariant, checked exhaustively instead of by example. Pin the individual
-      cases too, since they are what a reader reads: `00-2`, `00"a"` and `00;1`
-      change; `00 1`, `00]`, `00,`, `00<LF>1` and `00/1` do not.
+- [ ] Sweep **both** states, not just the malformed one: for every ASCII
+      character `c`, check `12` + `c` + `1` (the accepting path) as well as
+      `00` + `c` + `1` (the recovery path). The first sweep is what catches an
+      accepting-set regression such as `12/1`, and the second cannot see it.
+- [ ] Run the sweep against the old tokenizer **once, during implementation**,
+      and commit its output as a literal expected-token table. The committed
+      proof asserts the new scanner against that table and must **not** import
+      `fjs/js/tokenizer` — a permanent proof dependency would contradict this
+      stage's own "no runtime importer calls `tokenize`" task and would leave
+      stage 7 unable to delete the machine without rewriting the proof.
+- [ ] Pin the individual cases too, since they are what a reader reads: `00-2`,
+      `00"a"` and `00;1` change; `00 1`, `00]`, `00,`, `00<LF>1`, `00/1` and
+      `12/1` do not.
 - [ ] Prove string recovery ends at an unescaped quote, a raw LF and a raw CR
       but not a space — `"a<LF>1` emits the number `1`, `"a 1` is one error.
 - [ ] `npm run update`, then `npx tsc`, `fjs test`, `cargo clippy` and
