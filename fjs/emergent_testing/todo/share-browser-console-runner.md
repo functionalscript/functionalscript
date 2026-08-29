@@ -443,21 +443,6 @@ and is reviewable without the next one.
 - [ ] **7. One sequential skeleton.** Two PRs, in this order.
 
       **7a. Make the shared traversal sequential**, in `module.f.mjs` alone.
-      **Landed in functionalscript#1774.** `walkEntries` and `runModuleMap`
-      fold with `foldStep` instead of `allOk`; `sequential.proof.mjs` states
-      the order on a runner that can interleave, and both fan-outs were
-      restored one at a time to watch the matching proof fail. The measured
-      part, for whoever revisits the cost: the suite's wall clock moved 61.6 s
-      → 62.6 s, while the `Time:` line it prints moved 754 s → 60.9 s, because
-      a concurrent leaf's duration counted its siblings' work — one 1.4 ms
-      proof had been reporting 17.6 s. Speed was not a goal, and the number
-      that was wrong is the one that got fixed. The review of that PR also
-      found what the fold cost before it was flattened: `foldStep` nested one
-      continuation per item, which put a ceiling of ~10,000 sibling leaves on
-      a sequential walk — *lower* than the `all` spread it replaced. Fixed in
-      `effects` in the same PR, so a module of 200,000 leaves now walks in
-      about a second; catalog item 9's "joins must be linear" applies to
-      continuations too, and nobody had looked.
       Replace the `all` fan-outs with a sequential fold: one leaf's whole
       chain — test, report, children — awaited before the next leaf starts,
       for siblings and for modules alike. Console-observable and
@@ -475,6 +460,28 @@ and is reviewable without the next one.
       an assertion that the traversal's chain issues no `all` command — and
       per catalog item 11's discipline the proof is mutation-tested: restore
       one fan-out, watch it fail, revert.
+
+      **Landed in functionalscript#1774.** `walkEntries` and `runModuleMap`
+      fold with `foldStep` instead of `allOk`; `sequential.proof.mjs` states
+      the order on a runner that can interleave, and both fan-outs were
+      restored one at a time to watch the matching proof fail. What it
+      measured, for whoever revisits the cost: the suite's wall clock moved
+      61.6 s → 62.6 s, while the `Time:` line it prints moved 754 s → 60.9 s,
+      because a concurrent leaf's duration counted its siblings' work — one
+      1.4 ms proof had been reporting 17.6 s. Speed was not a goal, and the
+      number that was wrong is the one that got fixed. Review then found two
+      things worth carrying forward. `foldStep` nested one continuation per
+      item, which put a ceiling of ~10,000 sibling leaves on a sequential
+      walk — *lower* than the `all` spread it replaced, and fixed in `effects`
+      in the same PR, so a module of 200,000 leaves now walks in about a
+      second; catalog item 9's "joins must be linear" applies to continuations
+      too, and nobody had looked. And the proof written for *that* guarded
+      only half of what its comment claimed — an all-`pure` fold never
+      accumulated depth, because `resultStep` collapses a `Pure` head as it is
+      built — so the guard became a pair, one fold of commands and one of
+      values, each failing for its own mistake. Item 11 again, one level down:
+      a proof of a scheduling property has to perform the thing being
+      scheduled.
 
       **7b. The page runs the shared traversal** through the step-5
       interpreter. `browser.mjs` stops discovering leaves, applying the throw

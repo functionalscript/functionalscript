@@ -565,17 +565,36 @@ export const proof = {
                 x => s => x === 2 ? pureError('two') : pureOk(s + x))
             assertError(pureResult(e), 'two')
         },
-        // A fold far longer than any this repository performs still completes.
+        // A long fold whose items **perform commands** still completes, and
+        // this is the pair's load-bearing half.
         //
-        // This one used to be the ceiling nobody had looked for. Written as a
-        // `fold` over `step`, the chain nested to the left, so every
-        // resumption walked one continuation per item: 5,000 items cost 1.6 s
-        // in that walk and 10,000 died with `RangeError: Maximum call stack
-        // size exceeded`. Both numbers are engine-specific, which is why this
-        // asserts that a long fold *finishes* rather than asserting where the
-        // old one stopped — the property being guarded is that depth does not
-        // grow with the item count.
-        aLongFoldCompletes: () => {
+        // The defect it guards: written as a `fold` over `step`, the chain
+        // nested to the left, so a runner held one command wrapped in a
+        // continuation per item already folded and walked all of them on every
+        // resumption. 5,000 items cost 1.6 s in that walk and 10,000 died with
+        // `RangeError: Maximum call stack size exceeded`. Both numbers are
+        // engine-specific, so this asserts that a long fold *finishes* rather
+        // than asserting where the old one stopped.
+        //
+        // Each item performs `neg`, because a command is what makes the
+        // continuation survive to be walked — see the pure sibling below for
+        // why an all-`pure` fold cannot show this.
+        aLongCommandFoldCompletes: () => {
+            const items = Array.from({ length: 20000 }, (_, i) => i)
+            const e = foldStep(pureOk(items), 0, x => s => mapStep(neg(x), n => s - n))
+            assertOk(run(e), 199990000)
+        },
+        // The same length with no command in it, which guards the *other*
+        // half: that answering-with-a-value does not recurse either.
+        //
+        // On its own this proves less than it looks. `resultStep` collapses a
+        // `Pure` head as it is built, so the left-nested chain never
+        // accumulated depth on this path — restore the old `foldStep` and this
+        // leaf still passes. What it does pin is the loop that replaced the
+        // naive right-nested fix: drop it, always hand the remainder to the
+        // interpreter, and a fold of values recurses once per item and this is
+        // the leaf that fails.
+        aLongPureFoldCompletes: () => {
             const items = Array.from({ length: 20000 }, (_, i) => i)
             assertOk(
                 pureResult(foldStep(pureOk(items), 0, x => s => pureOk(s + x))),
