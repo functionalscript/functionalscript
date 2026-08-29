@@ -7,9 +7,10 @@
 
 Flake generation is implemented and the **Node 24 job is migrated**: it installs Nix
 through the pinned action and runs its whole command sequence — `npm ci`, `node --test` —
-one `nix develop` step each. The temporary `nix-flakes` job
-now covers only the two jobs that have not migrated; it shrinks with each migration and
-goes away with the last one. See the progress note in
+one `nix develop` step each. Nix now runs in CI only where a job uses a flake: the
+temporary `nix-flakes` job that instantiated them to check them is gone, and what can be
+established about a generated file is established by proofs over the generator's output.
+See the progress note in
 [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
 
 What remains here is the Nixpkgs update command and migrating Node 22 and Node 26.

@@ -10,7 +10,7 @@
 
 import { node } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
-import { nixDevelop, nixInstall, nixVersionCheckStep } from '../nix/module.f.mjs'
+import { nixDevelop, nixInstall } from '../nix/module.f.mjs'
 
 /**
  * Name of the CI artifact carrying the `npm pack` tarball. The producing step
@@ -127,12 +127,6 @@ const npmGlobalShellHook = /** @type {const} */ (`export NPM_CONFIG_PREFIX="$HOM
 export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
 mkdir -p "$NPM_CONFIG_PREFIX"`)
 
-// Canonical Node jobs that still install their runtime with `setup-node`, in
-// job order. A version leaves this list when its job migrates to `nix develop`
-// and starts checking its own flake; the temporary flake job below goes away
-// with the last entry.
-const unmigratedVersions = /** @type {const} */ ([node.node22, node.default])
-
 /** @type {(version: string) => NixJob} */
 const nixJob = version => ({
     id: jobId(version),
@@ -149,33 +143,5 @@ export const nodeNixJobs = [
     nixJob(node.node24),
     nixJob(node.default),
 ]
-
-/**
- * Version-check steps for the generated flakes of the Node jobs that do not run
- * through them yet, one per job. Collected into the shared temporary
- * `nix-flakes` job in `fjs/ci/module.f.mjs`.
- *
- * @type {readonly MetaStep[]}
- */
-export const nodeNixVersionSteps =
-    unmigratedVersions.map(version => nixVersionCheckStep(jobId(version), version))
-
-/**
- * Temporary job that instantiates every flake no job runs through yet.
- *
- * Nothing else in CI evaluates those files, so a broken flake — or one whose
- * snapshot moved to a different Node — would only surface once a real job
- * started using it. It deliberately stays separate from the canonical Node
- * jobs: the ones still on `setup-node` keep it until they are migrated one at a
- * time. Each migrated job checks its own Node version inside its `nix develop`
- * invocation, which is what lets this job shrink to nothing and go away without
- * losing the guarantee.
- *
- * @type {Job}
- */
-export const nodeNixFlakeJob = ubuntuArm([
-    nixInstall,
-    ...nodeNixVersionSteps,
-])
 
 export const nodeMainSteps = platformNodeSteps

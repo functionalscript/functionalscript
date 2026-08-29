@@ -30,7 +30,10 @@ the root `.gitignore`); the pinned commit in `flake.nix` is the lock.
 
 The Node 24 job runs through its flake: it installs Nix, then runs `npm ci` and
 `node --test` — one `nix develop` step each, because a CI step runs one command.
-It states no expected version; the pin already determines that. CI's temporary
-`nix-flakes` job checks the version for every flake no job runs through yet,
-which is the only thing evaluating those files at all. It loses a step per
-migration and disappears with the last one.
+It states no expected version; the pin already determines that.
+
+CI does not otherwise run Nix. It uses these files rather than checking them:
+what a generated flake declares — the pinned commit, the job's default shell,
+and the `nodejs_<major>` its configured version implies — is asserted by
+`fjs/ci/proof.f.mjs` against the generator's output, and the Node 22 and Node 26
+flakes are first evaluated when those jobs migrate.

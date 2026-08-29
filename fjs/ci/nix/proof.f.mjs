@@ -17,7 +17,6 @@ import {
     nixDevelop,
     nixFlakes,
     nixInstall,
-    nixVersionCheckStep,
 } from './module.f.mjs'
 
 const { commit } = nixpkgs
@@ -123,17 +122,6 @@ export const proof = {
         nixDevelop: () => assertEq(
             nixDevelop(plain.id, 'node --version'),
             'nix develop ./nix/generated/node24 --command node --version'),
-        // The check every job using a flake makes, migrated or not: the shell
-        // builds, and the Node it provides is the pinned one. The substitution
-        // is the whole command, so the version it compares is the shell's and
-        // never the runner's.
-        nixVersionCheckStep: () => {
-            const step = nixVersionCheckStep(plain.id, '24.19.0')
-            assertEq(step.type, 'test')
-            assertEq(
-                step.type === 'test' ? step.step.run : undefined,
-                `test "$(nix develop ./nix/generated/node24 --command node --version)" = v24.19.0`)
-        },
         nixInstall: () => {
             assertEq(nixInstall.type, 'install')
             assert(

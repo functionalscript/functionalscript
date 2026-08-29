@@ -6,7 +6,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main } from './module.f.mjs'
-import { actions, functionalscript, node } from './config/module.f.mjs'
+import { actions, functionalscript, nixpkgs, node } from './config/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
@@ -76,10 +76,17 @@ const runPin = /** @type {const} */ ('=9.9.9')
 
 const runPackageJson = `{"name":"other-package","devDependencies":{"typescript":"${runPin}"}}`
 
-// The canonical Node jobs still installing their runtime with `setup-node`.
-// Node 24 runs through its generated flake instead, so it is checked as a
-// migrated job rather than by the temporary flake job.
-const unmigratedVersions = /** @type {const} */ ([node.node22, node.default])
+/**
+ * The version the configuration records for a Node job, by job id — the value
+ * `setup-node` installs where a job still uses it, and the one its generated
+ * flake's package attribute has to agree with.
+ *
+ * @type {(id: string) => string}
+ */
+const configuredVersion = id =>
+    id === `node${major(node.node22)}` ? node.node22
+    : id === `node${major(node.node24)}` ? node.node24
+    : node.default
 
 /** @type {(rust: boolean, nodeExtra?: (o: Os) => readonly MetaStep[]) => GitHubAction} */
 const run = (rust, nodeExtra = () => []) => {
@@ -98,7 +105,7 @@ const runDefault = packageJson => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 14, 'expected 14 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
@@ -191,42 +198,33 @@ export const proof = {
             assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version install')
         },
     },
+    // Every generated flake is checked here rather than by a CI job: CI only
+    // uses these files, and a proof reading the generator's own output can say
+    // more about them than a shell can, without a Nix installation.
     nixFlakes: () => {
         const [state, result] = virtual(makeState(false, undefined))(main())
         assertEq(exitCode(result), 0)
-        for (const { id, packages } of nodeNixJobs) {
+        const { commit } = nixpkgs
+        for (const { id, packages, system } of nodeNixJobs) {
+            const text = flake(state, id)
             const [nodePackage] = packages
+            // The package attribute the job declares, tied to the version the
+            // configuration records for it: `node24` gets `pkgs.nodejs_24`, so
+            // a job renamed or repointed without its package following is a
+            // failure here rather than a shell running the wrong Node.
+            assertEq(nodePackage, `nodejs_${major(configuredVersion(id))}`)
             assert(
-                flake(state, id).includes(`pkgs.${nodePackage}`),
+                text.includes(`pkgs.${nodePackage}`),
                 `expected ${nodePackage} in the ${id} flake`)
-        }
-    },
-    nixFlakeJob: () => {
-        const gha = run(false)
-        const job = gha.jobs['nix-flakes']
-        assert(job !== undefined, 'expected the temporary flake job')
-        assert(
-            job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
-            'expected a pinned Nix installer')
-        // Exactly one check per unmigrated flake: none goes unchecked, and no
-        // check outlives the flake it was written for. A migrated job checks its
-        // own flake by running through it, so it is not covered here.
-        assertEq(job.steps.filter(step => step.run !== undefined).length, unmigratedVersions.length)
-        for (const version of unmigratedVersions) {
-            const id = `node${major(version)}`
-            // The whole check, exactly: the flake instantiates, and the Node it
-            // provides is the one `setup-node` still installs for that job.
-            // Since the flakes no longer assert their own version, this is
-            // where that tie is made for a job that has not migrated.
+            // The pin is what decides the version that package resolves to, so
+            // every flake has to carry the accepted commit, and the shell has
+            // to be the one the job's `nix develop` asks for by path.
             assert(
-                hasExactRunInJob(
-                    'nix-flakes',
-                    `test "$(nix develop ./nix/generated/${id} --command node --version)" = v${version}`
-                )(gha),
-                `expected the ${id} flake to be instantiated and checked`)
-            // Those jobs keep their current runtime setup until they are
-            // migrated one at a time.
-            assert(!hasRunInJob(id, 'nix develop')(gha), `unexpected nix develop in ${id}`)
+                text.includes(`github:NixOS/nixpkgs/${commit}`),
+                `expected the pinned commit in the ${id} flake`)
+            assert(
+                text.includes(`devShells.${system}.default`),
+                `expected the default ${system} shell in the ${id} flake`)
         }
     },
     // Node 24 is the first canonical job to run through its generated flake.
@@ -251,9 +249,16 @@ export const proof = {
                 `nix develop ./nix/generated/${id} --command npm ci`,
                 `nix develop ./nix/generated/${id} --command node --test`,
             ])
-        assert(
-            !hasRunInJob('nix-flakes', `./nix/generated/${id}`)(gha),
-            'unexpected duplicate check of a migrated flake')
+        // Nix runs in CI only where a job uses a flake. There is no job that
+        // instantiates the generated files to check them — what can be checked
+        // about them is checked above, off the generator's output.
+        assertEq(gha.jobs['nix-flakes'], undefined, 'unexpected flake-checking job')
+        for (const version of [node.node22, node.default]) {
+            const unmigrated = `node${major(version)}`
+            assert(
+                !hasRunInJob(unmigrated, 'nix develop')(gha),
+                `unexpected nix develop in ${unmigrated}`)
+        }
     },
     ubuntu: () => {
         const job = ubuntu([test({ run: 'echo hi' })])

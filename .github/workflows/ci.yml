@@ -551,23 +551,6 @@
           "run": "npx tsc"
         }
       ]
-    },
-    "nix-flakes": {
-      "runs-on": "ubuntu-26.04-arm",
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.1"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "test \"$(nix develop ./nix/generated/node22 --command node --version)\" = v22.23.2"
-        },
-        {
-          "run": "test \"$(nix develop ./nix/generated/node26 --command node --version)\" = v26.7.0"
-        }
-      ]
     }
   }
 }

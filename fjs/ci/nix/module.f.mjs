@@ -14,7 +14,6 @@
  * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Expression } from '../../media/nix/types.ts'
- * @import { MetaStep } from '../common/types.ts'
  * @import { NixJob } from './types.ts'
  */
 
@@ -24,7 +23,7 @@ import { forEachStep, step } from '../../effects/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { install, test, uses } from '../common/module.f.mjs'
+import { install, uses } from '../common/module.f.mjs'
 import { nixpkgs } from '../config/module.f.mjs'
 
 /** Directory owned by this generator. */
@@ -100,21 +99,3 @@ export const nixInstall = install(uses('cachix/install-nix-action'))
 /** Runs one command inside a job's generated development shell. */
 /** @type {(id: string, command: string) => string} */
 export const nixDevelop = (id, command) => `nix develop ${flakePath(id)} --command ${command}`
-
-/**
- * Checks a job's generated flake end to end: the shell builds, and the Node it
- * puts on `PATH` is exactly the pinned version. The pinned Nixpkgs commit
- * already determines the version, so this is the only place the expectation is
- * stated — the generated flakes stay declarative instead of carrying an
- * `assert` that restates the commit they pin.
- *
- * Only the temporary flake job runs this, for the flakes no job runs through
- * yet: it is the one thing that evaluates them at all, and the one place their
- * package versions are tied to what `setup-node` installs for the same job. A
- * migrated job does not repeat it — running through the flake is what proves
- * the flake, and the version it provides is the pin's to decide.
- *
- * @type {(id: string, version: string) => MetaStep}
- */
-export const nixVersionCheckStep = (id, version) =>
-    test({ run: `test "$(${nixDevelop(id, 'node --version')})" = v${version}` })
