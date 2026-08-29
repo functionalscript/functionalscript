@@ -831,10 +831,22 @@ is a general association, not two incidents: `${name}` in a template literal,
 `$1` for a capture group in a `String.prototype.replace` pattern, `$0` and `$1`
 as positional parameters in a shell, `$VAR` and `${VAR}` in the substitution
 languages of `make`, `envsubst`, CI configuration and most templating engines.
-And it lands exactly where it is least welcome, since normalized form names its
-consts `$0`, `$1`, … — so the documents most likely to be piped through a shell
-for hashing or comparison are the documents most exposed. `_0` would carry none
-of it.
+Normalized form names its consts `$0`, `$1`, … — exactly a shell's positional
+parameters — so where the association bites it bites the machine-produced
+documents rather than the hand-written ones. `_0` would carry none of it.
+
+**A document has to *be* shell source for that to happen, and passing through a
+shell is not the same thing.** An earlier draft of this section said the
+documents most likely to be piped through a shell for hashing or comparison
+were the most exposed, which is not so: a shell expands the words of a command
+before running it and does not rescan the bytes flowing through the pipeline.
+Measured — a document piped into a filter, redirected from a file, and captured
+in a quoted `$(…)` all come through byte for byte, with `sha256sum` giving the
+same digest through the pipe as from the file. Only writing the document *into*
+a script reaches it: in an unquoted `<<EOF` heredoc, `const $0=[1,2];` arrives
+as `const /bin/bash=[1,2];`. So the bulk operations — hashing, diffing, moving
+documents between commands — are not exposed at all, and what is left is the
+narrower case of pasting a document into a script.
 
 What the association does *not* cost is also worth stating. It is a hazard of
 the surrounding text, not of the format: embedding a document as data — in a

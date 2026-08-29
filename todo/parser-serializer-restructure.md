@@ -61,7 +61,9 @@ design — it retires the exclusion list — and the grammar does not force whic
 character does it, so the choice was made once and is closed. The objection on
 the record against it is that `$` reads as a named placeholder nearly
 everywhere (`${name}`, `$1` in replacement patterns, `$0` in a shell), which
-lands squarely on normalized `$0`, `$1`, … names; see
+lands squarely on normalized `$0`, `$1`, … names — though only where a document
+is *written into* shell source, since piping one through a shell does not expand
+it; see
 [the spec's rationale](../spec/datajs/README.md#rationale) for what that costs
 and what it does not.
 
