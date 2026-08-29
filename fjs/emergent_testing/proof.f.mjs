@@ -302,8 +302,9 @@ export const githubReporterOutput = () => {
 }
 
 // A reporter that cannot write neither panics nor reports success. The failed
-// `result` line short-circuits its own test, leaves `allOk` as the first error,
-// skips the summary, and reaches the program tail — which answers exit `1`.
+// `result` line short-circuits its own leaf, and the sequential fold carries
+// that failure out of the walk rather than running the remaining leaves into
+// the same wall: the summary is skipped and the program tail answers exit `1`.
 //
 // `write` fails for every stream here, including the one `errorExit` reports
 // the failure on, so the exit code rather than a message is what is observable:

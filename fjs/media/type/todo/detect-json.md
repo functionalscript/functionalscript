@@ -45,17 +45,52 @@ object/array-only policy (§4) is applied at EOF — the recognizer stays pure
 (accepts any valid JSON), the MIME policy lives here:
 
 ```ts
-// A_json state, added to DetectState (init { rec: recognizerInit, top: null }):
-type JsonFactor = { readonly rec: JsonRecognizerState; readonly top: Nullable<number> }
-// per decoded code point: feed the recognizer; remember the first non-whitespace cp
-const jsonStep = ({ rec, top }: JsonFactor, cp: number): JsonFactor => ({
-    rec: recognizerStep(rec, cp),
+// A_json state, added to DetectState (init { rec: jsonRecInit, top: null }):
+const jsonMaxDepth = 64   // the detector's cap; see below
+// tryRecognizerInitCapped returns null for a cap outside the finite
+// non-negative integers. 64 is a literal, so a null here is a broken
+// precondition, not a caller error: unwrap asserts, it does not fall back.
+const jsonRecInit = unwrap(tryRecognizerInitCapped(jsonMaxDepth))
+type JsonFactor = { readonly rec: JsonRecognizerState; readonly top: Nullable<CodePoint> }
+// per decoded code point: feed the recognizer its UTF-16 units; remember the
+// first non-whitespace cp
+// recognizerStep is state-first and uncurried; Fold is input-first and curried
+const stepFold: Fold<U16, JsonRecognizerState> = u => s => recognizerStep(s, u)
+const jsonStep = ({ rec, top }: JsonFactor, cp: CodePoint): JsonFactor => ({
+    rec: fold(stepFold)(rec)(fromCodePointList([cp])),
     top: top ?? (isJsonWhitespace(cp) ? null : cp),   // ws = 0x20/0x09/0x0A/0x0D
 })
 // at EOF: a complete valid document whose top-level value is an object or array
 const jsonValid = ({ rec, top }: JsonFactor): boolean =>
     recognizerAccepts(rec) && (top === 0x7b /* { */ || top === 0x5b /* [ */)
 ```
+
+**The recognizer takes code *units*, and this factor decodes code *points*** —
+`recognizerStep` is `(s: JsonRecognizerState, u: U16) => JsonRecognizerState`
+per [streaming-recognizer](../../json/todo/streaming-recognizer.md), because it
+reuses scanners typed over `U16`. So a raw astral character arrives here once,
+as `0x1F600`, where the recognizer expects `0xD83D` then `0xDE00`, and
+**TypeScript cannot see the mistake**: `U16` and `CodePoint` are both
+`= number` in `fjs/text/utf16/types.ts`, measured. Hence the expansion above.
+`fjs/text/utf16` exports `fromCodePointList` (`List<CodePoint> => Thunk<U16>`);
+its per-code-point `codePointToUtf16` is module-private today, so either the
+one-element call above or exporting that helper, whichever reads better when
+this is built. Review caught the design feeding scalars straight in after the
+recognizer's signature changed under it.
+
+**The adapter is not decoration.** `Fold<I, O>` is `Binary<I, O, O>` in
+`fjs/types/function/operator/types.ts` — `(input) => (acc) => acc`, input-first
+and curried — while `recognizerStep` is `(state, unit) => state`, state-first
+and uncurried. Handing `recognizerStep` to `fold` directly would treat the first
+code unit as the recognizer state and then call the returned state as a
+function; review caught that in the first version of this sketch. The two
+shapes disagree on **both** axes, and they will still disagree on argument
+order after [uncurry-accumulator-types](../../../types/function/todo/uncurry-accumulator-types.md)
+lands, since that proposal makes `Fold` `(input, acc) => acc` — also input-first.
+Whether the recognizer should take its unit first, matching the `StateScan`
+precedent that todo generalizes, is a question for
+[streaming-recognizer](../../json/todo/streaming-recognizer.md) to settle when
+it is built; until then the adapter is one line and says what it is.
 
 `push` (`:235-247`) already iterates bytes and calls `utf8Step`, which decodes
 0-or-1 code points per byte via `utf8ByteToCodePointOp`. Feed each decoded code
@@ -82,7 +117,8 @@ work for two reasons that are `fjs/media/json`'s to own, not `fjs/media/type`'s 
 Both are addressed by the payload-free, O(depth) recognizer proposed in
 **`fjs/media/json/todo/streaming-recognizer.md`** (`recognizerInit` / `recognizerStep`
 / `recognizerAccepts`, sharing the grammar with `parse` so they cannot diverge,
-with an optional max-depth cap `fjs/media/type` should enable as a DoS guard). `A_json`
+with an optional max-depth cap this detector **enables**, via
+`tryRecognizerInitCapped`). `A_json`
 is the thin §1 wrapper over it — the recognizer plus the one-code-point
 top-level tag — adding no JSON grammar of its own. This todo therefore **depends
 on** that recognizer landing first.
@@ -136,7 +172,56 @@ never settles a live-text blob (magic `dead` + valid text keeps scanning), so
 confirming whole-blob UTF-8 validity already forces a full scan of every text
 blob — JSON validity, also only knowable at EOF, rides that same scan for free.
 The magic-matched early exit (`pdfThenLargeTextTail`) is untouched. The only new
-cost is the recognizer's O(depth) stack, bounded by the depth cap. Leave
+cost is the recognizer's O(depth) stack, bounded by the depth cap.
+
+**The cap is a fixed number here, not a knob**, and that is a contract rather
+than a tuning choice: a detector is asked *what type is this blob*, so two
+implementations disagreeing about the limit would return different MIME
+verdicts for the same bytes. `64` is the proposed value — far past anything a
+real document reaches, and shallow enough that the stack is bounded by a
+constant rather than by input — and it belongs in this design because
+`fjs/media/json` has no opinion about it.
+
+**And the cap can be refused.** `tryRecognizerInitCapped` returns
+`Nullable<JsonRecognizerState>`, `null` for anything outside the finite
+non-negative integers, because a rejecting state would make this detector
+answer `text/plain` for every valid JSON blob with no way for anyone to tell
+that from bad content — the review that corrected it landed after this design
+merged, so read
+[streaming-recognizer](../../json/todo/streaming-recognizer.md) before building
+the initializer.
+
+**Here the `null` is unwrapped, not defaulted**, and the first draft of this
+paragraph got that wrong in a way worth keeping on the record. It wrote
+`?? recognizerInit` and called the fallback unreachable, existing "only so the
+type checks without a cast" — which is a silent uncapping. If the initializer
+ever did return `null` for `64`, after a regression or a later edit to the
+constant, the detector would quietly run **uncapped** and report
+`application/json` for a 65-deep blob, hiding the exact boundary this design
+promises. That is a plausible wrong verdict standing in for a refusal: the
+defect this whole change exists to remove, reintroduced one level up, inside
+the commit removing it. `REVIEW.md` draws the line — a caller who may
+legitimately supply the input gets a `try*` and a `Nullable`, a broken
+**precondition** gets a panic — and `64` is a literal, so this call site is the
+precondition case. `unwrap` from `fjs/types/nullable` asserts and returns the
+state, so the `null` is discharged once here and never reaches the
+per-code-point path.
+
+**A number is not yet a contract**, which review caught this paragraph
+asserting in the sentence above and then not delivering: `64` decides nothing
+until what it counts is pinned. It is the greatest number of containers open
+**at once**, defined with the initializer in
+[streaming-recognizer](../../json/todo/streaming-recognizer.md), so a blob
+whose deepest point has 64 open containers is still JSON to this detector and
+one with 65 is not. Two implementations that read `64` as levels-from-one and
+as open-containers differ on exactly the documents at the boundary, which is
+the disagreement this paragraph exists to prevent. So the detector owes both
+boundary cases as tests, not just the rejecting one: 64 nested containers
+detected as JSON, 65 not — on arrays and on objects, since the two need not
+share a push. An earlier draft enabled the cap in
+prose and initialised the factor with the uncapped `recognizerInit` two
+sections above, which review caught one commit after the capped initializer was
+added for exactly this consumer. Leave
 `isSettled` as-is (a text blob cannot settle early regardless of the JSON
 factor).
 
@@ -163,6 +248,16 @@ exactly the path `cas_get` uses.
       a raw TAB inside a string (`{"a":"⟨TAB⟩"}`) → `text/plain`, not
       `application/json`; bare scalars (`42`, `null`, `"hi"`, `true`) →
       `text/plain` (top-level object/array rule).
+- [ ] Add the **depth-cap boundary** cases, which this design promises above and
+      which the recognizer's own cap proofs cannot stand in for: a blob nesting
+      **64** containers is `application/json`, one nesting **65** is
+      `text/plain`, on arrays and on objects. They belong here because what they
+      catch is *this* module's wiring — initialising with `recognizerInit`
+      instead of `tryRecognizerInitCapped`, passing `63` or `65` for
+      `jsonMaxDepth`, or feeding only one container path through the factor —
+      and every other detector case listed above passes all of those while
+      deeply nested blobs get the wrong MIME verdict. Review found the promise
+      standing in the prose with no task under it.
 - [ ] Update `fjs/media/type/module.f.mjs` module doc (recognised-types table) and the
       `cas_get` output section in `fjs/mcp/cas/module.f.mjs` to list
       `application/json`.

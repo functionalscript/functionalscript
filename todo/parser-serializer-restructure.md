@@ -1,12 +1,61 @@
 ## Restructure JSON, DataJS, and FunctionalScript parsers/serializers
 
-**Priority:** P2
-**Status:** open
+**Priority:** P1 — stages 3 and 4 are urgent; see [Priority](#priority-stages-3-and-4-come-first).
+**Status:** wip — stages 1a and 2 done.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
 gets its own co-located `todo/` file when it starts; concrete tasks live there,
 not here.
+
+### Pick up here
+
+Read in this order; each line says what to do and why it comes when it does.
+
+1. **Next: stage 3, the JSON self-contained tokenizer.** Design is written and
+   reviewed:
+   [`fjs/media/json/todo/self-contained-tokenizer.md`](../fjs/media/json/todo/self-contained-tokenizer.md).
+   It has the grammar, the error rule and the two invariants that decide
+   whether a difference is expected, an illustrative table of error shapes that
+   change, the seam DataJS will reuse, the edits owed to two other issues, and
+   the task list. That table is illustrative and known incomplete, and even the
+   generated sweeps are coverage rather than an enumeration — the design is
+   explicit that no finite sweep is exhaustive, so the rules plus the
+   invariants are what an implementation is held to. Implementable without
+   reading anything else here. It lands as **two PRs**: 3a drops the fabricated
+   string token in the existing wrapper, and 3b is the port, which then carries
+   only what removing the dependency forces — the order
+   [`DESIGN.md`](../DESIGN.md) prescribes when the idea is the premise.
+   *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
+   scanner unchanged and its number core extended, so JSON has to own those
+   scanners before DataJS can borrow them.
+2. **Then: stage 1b, the conformance vectors**
+   ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)).
+   *Why here:* it is stage 4's proof source, so landing stage 4 first means
+   writing its proofs twice. The corpus bootstraps in JSON precisely so it can
+   exist before any DataJS reader does. It is *not* a prerequisite of stage 3,
+   which is JSON's own tokenizer and settles its own accepted set with JSON's
+   own proofs — unchanged but for one enumerated defect, an `n` today's
+   tokenizer deletes from inside a number.
+3. **Then: stage 4, `fjs/media/datajs`.** No todo file yet — file one under
+   `fjs/media/datajs/todo/` before starting, per the workflow. The normative
+   behavior is already settled in
+   [`spec/datajs/README.md`](../spec/datajs/README.md); stage 4 implements that
+   spec, it does not redesign it. Known prerequisite work is named in the stage
+   list below: JSON's parser seam is **not** wide enough today and has to be
+   generalized first.
+   *Why:* this is the deliverable everything else is waiting for — see
+   [Priority](#priority-stages-3-and-4-come-first).
+4. **Then stages 5–7**, in order, as listed below.
+
+**Already done, do not redo:** stage 1a (the DataJS specification) and stage 2
+(the dead `fjs/fsc` grammars, deleted). Both are on `main`.
+
+**Two things are decided and should not be reopened without a reason:** DataJS
+is frozen at "JSON extended from a tree to a DAG, plus the leaves JSON cannot
+spell" — new syntax belongs in FunctionalScript, not here; and the media codecs
+take no runtime dependency on `fjs/bnf` or on `fjs/js/tokenizer`, which is the
+whole point of the restructure.
 
 ### Problem
 
@@ -59,7 +108,9 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
 - **JSON**: accepted language and value semantics are frozen; the tokenizer
   becomes self-contained (the `fjs/js/tokenizer` wrapper is replaced by a
   small scanner of JSON's own lexical grammar). Error shapes may change once
-  in that swap; accepted-input behavior and proofs do not.
+  in that swap; accepted-input behavior does not, with one enumerated
+  exception — inputs like `1n1`, which today's tokenizer accepts as a number
+  by deleting the `n`, start erroring. No existing proof is in that class.
 - **DataJS** (the format known in this repository as DJS): a new, minimal,
   spec'd format — JSON extended from a tree to a DAG, nothing else. New
   hand-written parser and serializer in `fjs/media/datajs`, layered on JSON's
@@ -111,23 +162,57 @@ other implementations may.
 ```text
 module    ::= const* export
 const     ::= 'const' id '=' value ';'
-export    ::= 'export' 'default' value ';'
+export    ::= 'export' 'default' value
 value     ::= primitive | id | array | object
 key       ::= string | '[' '"__proto__"' ']'
 ```
 
-- **`;` terminates every statement, `export default` included** — one
-  uniform rule, no per-statement exception; no empty
-  statements. Rationale, each sufficient alone: no line-terminator taxonomy in
-  the spec (a lone CR *is* a JS `LineTerminator` — trivia no implementer
-  should need); one canonical spelling per document; the separator is a
-  visible character, so byte-different files that render identically cannot
-  differ in meaning; and a document minifies to one line —
-  `const a=[];export default[a,a];` — enabling DataJS inside JSON strings,
-  line-delimited streaming, and one-line test fixtures. Whitespace is needed
-  only between adjacent word-tokens (`const a`, `export default x`).
+- **`;` separates statements and never trails one**; no empty statements.
+  Rationale for `;` over a newline, each sufficient alone: no line-terminator
+  taxonomy in the spec (a lone CR *is* a JS `LineTerminator` — trivia no
+  implementer should need); one canonical spelling per document; the separator
+  is a visible character, so byte-different files that render identically
+  cannot differ in meaning; and a document minifies to one line —
+  `const $0=[];export default [$0,$0]` — enabling DataJS inside JSON strings,
+  line-delimited streaming, and one-line test fixtures. Whitespace is required
+  at three positions and optional everywhere else, per the next bullet.
+- **No `;` after `export default`** — it would be the trailing separator JSON
+  forbids for commas, and one shape should not need two rules. `export
+  default 1;` is rejected; the smallest document, `export default 1`, holds no
+  `;` at all, and the JSON conversion becomes the prefix `"export default " +
+  json` with nothing appended. This does lean on ASI, which requiring `;` was
+  partly meant to avoid — but only on the end-of-input rule, which is a fact
+  about where the file ends, not about which invisible character sits at a line
+  break. The line-terminator taxonomy lives in the *other* ASI rule and is
+  still excluded. Verified against Node: `export default {"a":1}` and
+  `const $0=[1,2];export default {"a":$0,"b":$0}` both import, with no trailing
+  newline.
 - **Whitespace is JSON's** — space, tab, LF, CR — insignificant everywhere.
   Other JS whitespace (U+2028/U+2029, NBSP, FF, BOM) is rejected.
+- **Whitespace is required after `const`, `export` and `default`**, with no
+  condition, and optional everywhere else. Two of the three were forced
+  already — a name begins with `$` and `export` is always followed by
+  `default`, so `const$0` and `exportdefault` are each one identifier — and the
+  third is the choice: `export default[1]` would lex, but requiring the space
+  regardless is what makes the rule positional. Note what did *not* decide it:
+  the conditional rule is implementable without maximal munch (require
+  whitespace before an identifier, word, or unsigned number/bigint whenever the
+  preceding character is an identifier character — one character of
+  look-behind) and leaves the grammar LL(1) either way, the `-` folded into its
+  token being what buys that.
+  The payoff is stage 4's, and it is larger on the **serializer** than on the
+  parser. A serializer under the conditional rule must know the first character
+  the value writer will emit before it can decide on the space, and the value's
+  type does not tell it: `Infinity` takes the space, `-Infinity` does not; `1`
+  does, `-1` does not. Normalized bytes would depend on the sign of a number.
+  Unconditional, the statement writer emits `export default ` and hands off.
+  On the parser side, `const`, `export` and `default` can be lexed as a keyword
+  plus at least one whitespace character, with no look-behind and no "was this
+  token preceded by whitespace" bit; a word may otherwise end wherever it ends,
+  because a wrong split elsewhere (`null$13` → `null` `$13`) produces two
+  adjacent value tokens, which no production accepts. The merge-capable
+  adjacencies are exactly `const`·name, `export`·`default` and `default`·value;
+  every other pair has a punctuator, a string or a `-` between.
 - **No comments, no imports.** A DataJS document is closed; the compiler
   inlines resolved imports when normalizing FunctionalScript to DataJS.
 - **Strings and numbers are JSON's grammar.** Bigint is a production of its
@@ -139,22 +224,24 @@ key       ::= string | '[' '"__proto__"' ']'
 - **Keys** are JSON strings, plus the computed spelling `["__proto__"]` as the
   only way to write that one key; a bare or string `"__proto__"` key is
   rejected (JS would read it as prototype replacement).
-- **Const names** are ASCII: `[A-Za-z_$][A-Za-z0-9_$]*`, each bound once,
-  minus two exclusion sets. Every name JavaScript rejects as a binding
-  identifier in module code (module code is strict) is excluded: the
-  reserved words, including `import`, `export`, `let`, `yield`, `await`,
-  and `static`, and the strict-mode-only bindings `eval` and `arguments` —
-  `const class = 1` and `const eval = 1` are JS syntax errors there, so
-  accepting either would break the subset law. Binding `undefined`, `NaN`,
-  or `Infinity` is additionally
-  rejected — JS *permits* `const undefined = 5` and later `undefined` then
-  means the const, which a subset treating it as a literal would silently
-  reinterpret. The spec enumerates the excluded words exhaustively rather
-  than citing ECMA-262.
+- **Const names** are ASCII and **start with `$`**: `$[A-Za-z0-9_$]*`, each
+  bound once, with **no exclusion list**. The two collisions an exclusion list
+  would have to cover are both closed by the leading `$`, since no JS reserved
+  word and none of `undefined`/`NaN`/`Infinity` contains one. A name JS rejects
+  as a binding identifier in module code (module code is strict) would break
+  the subset law outright — `const class = 1` and `const eval = 1` are syntax
+  errors there — and a name JS *permits* but DataJS reads as a value is worse
+  still: `const undefined = 5` makes `undefined` mean the const, which a subset
+  treating the word as a literal would silently reinterpret. An earlier draft
+  enumerated both sets, about fifty words every implementation would carry and
+  a list ECMA-262 can extend; the `$` moves the whole question into the token
+  grammar, decided on the first character. A tokenizer therefore needs no
+  keyword-vs-identifier lookup: a word starting with `$` is an `id`, a word
+  starting with a letter is one of the nine the grammar names or an error.
 - **Every JSON value is a DataJS value; no JSON document is a DataJS
   document** (a DataJS document is a JS module, so it cannot be a JSON
-  document). The textual conversion `"export default " + json + ";"` yields a
-  valid document with one exception: a bare `"__proto__"` object key —
+  document). The textual conversion `"export default " + json` — a prefix,
+  with nothing appended — yields a valid document with one exception: a bare `"__proto__"` object key —
   rejected by DataJS because JS reads it as prototype replacement — must be
   rewritten to the computed spelling `["__proto__"]` during conversion.
   Plain concatenation is exactly valid for JSON containing no `__proto__`
@@ -167,10 +254,10 @@ iff its value is an object or array referenced more than once **by reference
 identity**; consts are emitted in **post-order of one depth-first traversal**
 of the root value — arrays in element order, objects in observable key
 order, each shared node descended into only on first encounter — with names
-`_0`, `_1`, … assigned in emission order, so a shared node's dependencies
-are always declared before it and "who is `_0`" has exactly one answer:
+`$0`, `$1`, … assigned in emission order, so a shared node's dependencies
+are always declared before it and "who is `$0`" has exactly one answer:
 for `root = [parent, parent, child]` with `child` inside `parent`, `child`
-finishes first and is `_0`, `parent` is `_1`; primitives are always emitted
+finishes first and is `$0`, `parent` is `$1`; primitives are always emitted
 inline and never hoisted, since
 primitive sharing is unobservable and a value-equality ref counter would
 face the `0`/`-0` and `NaN` merging ambiguity that the `Object.is`
@@ -193,12 +280,14 @@ function, a symbol, a `Date` or any other non-plain object), a sparse
 array's hole (which is not an `undefined` element), a symbol-keyed or
 accessor own property (reading a getter is an effect), and a cycle
 (`value.self = value`) — DataJS represents DAGs only, and treating a
-back-edge as sharing would emit a self-referencing `const _0={"self":_0};`,
+back-edge as sharing would emit a self-referencing `const $0={"self":$0};`,
 a TDZ failure in JS. Rejection proofs in stage 4 cover each case. Normalization
 is not a blocker for the format spec. The serializer cannot delegate numbers
 to `JSON.stringify` (it loses `-0` and non-finite values); DataJS owns its
-number writer. The canonical layout is **one line** — fully minified, with
-whitespace only where two word-tokens meet — so normalization has zero
+number writer. The canonical layout is **one line** — fully minified, with a single space
+after each of `const`, `export` and `default` and nowhere else, so a root that
+cannot merge still carries its space (`export default [1]`, never
+`export default[1]`) — so normalization has zero
 layout freedom, which is what byte-determinism (and any future content
 addressing) needs. Tooling *defaults* to a human-readable layout (one
 statement per line, indented containers), which is simply one of the many
@@ -212,24 +301,74 @@ combined marker would encode a redundant fact.
 
 ### FunctionalScript consequences
 
-- **`;` is required in early-stage FunctionalScript**, matching DataJS. This
-  removes ASI — including its future "no LineTerminator here" restricted
-  productions — before the expression grammar grows the hazards (`(`, `[` at
-  line start). Relaxing later to also accept newline termination is
-  backward-compatible; the reverse would be breaking, so strict-first is the
-  safe ratchet. Repository `.f.mjs` source is unaffected (it is parsed by
-  Node/TypeScript); the cost lands at `.f.mjs` → `.f.js` migration, where the
-  normalizer inserts `;` mechanically — `.f.js` is compiler-formatted, not
-  hand-formatted.
-- **`undefined`, `NaN`, `Infinity` become FunctionalScript reserved words**,
-  so the DataJS binding restriction is inherited rather than special-cased.
+- **`;` separates statements in early-stage FunctionalScript**, matching
+  DataJS — and the part stage 5 must not miss is that a module's **final
+  statement takes no `;`**, exactly as `export default value` does not. The
+  obligation is one-way: FunctionalScript has to *accept* a module whose last
+  statement is unterminated, or it rejects every valid DataJS document at its
+  final export and the DataJS ⊂ FunctionalScript proof stage 6 owes cannot
+  hold. Whether it *also* accepts a trailing `;` is FunctionalScript's own
+  call, being strictly more permissive. So stage 5's rule is `;` between
+  statements with EOF after the last, never `;` after each.
+- This still removes ASI's hazardous half — the "no LineTerminator here"
+  restricted productions, and a lone CR or U+2028 ending a statement — before
+  the expression grammar grows the traps (`(`, `[` at line start). What it
+  keeps is ASI's end-of-input rule, a fact about where the file ends that
+  carries no line-terminator taxonomy. Relaxing later to also accept newline
+  termination is backward-compatible; the reverse would be breaking, so
+  strict-first is the safe ratchet. Repository `.f.mjs` source is unaffected
+  (it is parsed by Node/TypeScript); the cost lands at `.f.mjs` → `.f.js`
+  migration, where the normalizer inserts `;` mechanically — `.f.js` is
+  compiler-formatted, not hand-formatted.
+- **`undefined`, `NaN`, `Infinity` become FunctionalScript reserved words.**
+  FunctionalScript accepts identifiers that do not start with `$`, so it needs
+  the restriction for itself; DataJS no longer relies on inheriting it, its
+  `$`-leading names making the collision unreachable.
 - The moved parser's separator rule changes from newline to `';'` (the moved
   tokenizer's operator vocabulary gains `;`).
+- **Whether FunctionalScript takes DataJS's positional whitespace rule is a
+  stage-5 decision, and DataJS does not depend on the answer.** DataJS requires
+  *more* whitespace than a merging-based rule would, so every DataJS document
+  satisfies either, and the subset law holds whichever FunctionalScript picks.
+  The question is worth asking there on its own merits: FunctionalScript has
+  more keyword-adjacent-to-name sites (`import`, `from`, `as`, and whatever the
+  expression grammar grows), and its identifiers do not start with `$`, so the
+  cases DataJS gets for free — `truex` being a lexical error rather than
+  `true` followed by a valid name — do not carry over.
 - Subset laws are proof obligations, not prose: every DataJS *accept* vector
   parses in FunctionalScript to the same value graph; the normalizer closes
   the loop (`parse_datajs(normalize(m))` equals the evaluation of any
   data-only module `m`); FunctionalScript fixtures remain valid JS with
   identical meaning (checked against a real JS engine in proofs).
+
+### Priority: stages 3 and 4 come first
+
+Stages 3 and 4 are the urgent ones, ahead of the rest of this plan. They are
+what [EDAG](./edag-spec.md) is waiting on. Stage 1b comes with them, between the
+two — it is stage 4's proof source.
+
+An EDAG is an expression DAG whose sharing is *semantics*, not an encoding
+detail: one node referenced from two operand positions is one value, and `{} ===
+{}` is `false`, so a carrier that expands sharing changes the meaning of the
+graph. Its serialized form is a DataJS module, because the EDAG's sharing
+structure and DataJS's `const` structure are the same thing —
+[edag-stage1-discussion](./edag-stage1-discussion.md). JSON cannot carry it, and
+not marginally: it has no way to express sharing at all, and it also lacks the
+`bigint` leaves EDAG's `Primitive` admits and loses `NaN`, `±Infinity` and
+`-0`. Both directions are needed, not just writing — the incremental-compile
+cache reads `.f.js` back, and the property that matters is that parsing a
+serialized EDAG reproduces the same EDAG.
+
+The order stays **3 then 4**, because DataJS's tokenizer reuses parts of JSON's
+rather than restating them: strings are JSON's unchanged, and DataJS's numbers
+are JSON's int/frac/exp core plus a bigint suffix and `-Infinity` folding.
+Stage 3 is therefore the prerequisite, and it exports that shared core as a
+seam — with stage 4 as its second caller, close enough behind to keep the seam
+honest, and stage 1b between them.
+
+Stage 1b (the conformance vectors) sits **between** them: it is stage 4's proof
+source, not stage 3's, and its corpus is stored in JSON exactly so it can exist
+before a DataJS reader does. So the order is 3, 1b, 4.
 
 ### Stages
 
@@ -238,7 +377,7 @@ throughout.
 
 1. **Spec** — `spec/datajs/`. The specification itself is **done**:
    [`spec/datajs/README.md`](../spec/datajs/README.md) carries the grammar,
-   data model, const-name exclusions, serialization and normalized form,
+   data model, const names, serialization and normalized form,
    the JSON and JavaScript relationships, and the rationale, and settles the media
    type by deferring to the existing dialect design in
    [`fjs/todo/group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md):
@@ -247,7 +386,7 @@ throughout.
    one detail left to reconcile in that todo. The
    conformance vectors are the remaining half, tracked in
    [`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md);
-   stages 3, 4 and 6 consume them.
+   stages 4 and 6 consume them — not stage 3, which is JSON's own tokenizer.
 2. **Dead code — done.** `fjs/fsc/bnf.f.mjs` and `fjs/fsc/json.f.mjs` are
    deleted rather than salvaged: both were dead (no importer) and unproven,
    the JSON half duplicated `deterministic` in `fjs/bnf/testlib.f.mjs` rule
@@ -256,12 +395,16 @@ throughout.
    design this plan replaces with `;`, so keeping it would have preserved a
    grammar contradicting the decision record above. Git history holds them if
    a future stage wants the `id`/`alpha`/comment rules.
-3. **JSON self-contained tokenizer** — replace the `fjs/js/tokenizer` wrapper
-   in `fjs/media/json/tokenizer` with a scanner of JSON's own lexical
-   grammar, exporting the string and number scanners for reuse.
-   Accepted-input proofs unchanged; error-shape proofs rewritten once.
-4. **`fjs/media/datajs`** — parser and serializer, proofs over the spec
-   vectors. The parser reuses JSON's container machine, and today's seam is
+3. **JSON self-contained tokenizer — urgent, see above.** Two PRs: **3a** drops
+   the fabricated `string` token that follows a malformed-literal error, in the
+   existing wrapper, since that defect predates the port and is provable
+   without it; **3b** replaces the `fjs/js/tokenizer` wrapper in
+   `fjs/media/json/tokenizer` with a scanner of JSON's own lexical grammar,
+   exporting the string and number scanners for reuse. Accepted-input proofs
+   unchanged in both, but for one enumerated defect — the `n` an old number
+   swallowed — which only 3b can fix; error-shape proofs rewritten once.
+4. **`fjs/media/datajs` — urgent, see above; this is what EDAG needs.** Parser
+   and serializer, proofs over the spec vectors. The parser reuses JSON's container machine, and today's seam is
    **not wide enough for that**: `NumberPolicy` receives number tokens only,
    `JsonToken` has no identifier/bigint/`=` tokens, and the object states
    accept string keys only. Generalizing the seam is therefore explicit
@@ -279,7 +422,9 @@ throughout.
    in `fjs/djs/types.ts` go with it, per
    [663](../fjs/djs/todo/663-json-djs-tree-type.md); `examples/` and the
    top-level `module.f.mjs`/`proof.f.mjs` carrying `compile()` move with
-   the front end to `fsc`. Separator `nl` → `';'`; reserved words added;
+   the front end to `fsc`. Separator `nl` → `';'` **between** statements, with
+   EOF after the last (never `;` after each — see the FunctionalScript
+   consequences above); reserved words added;
    the DataJS numeric leaves taught to the moved front end — `NaN`,
    `Infinity`, and `-Infinity` are unresolved identifiers in
    today's parser, so reserving the names alone would *reject* DataJS accept
@@ -325,12 +470,22 @@ throughout.
       the compiler accepts today.
 - [ ] Stage 1b: the conformance vectors —
       [`conformance-vectors`](../spec/datajs/todo/conformance-vectors.md).
+      After stage 3 and **before stage 4**, which consumes it: landing stage 4
+      first means writing its proofs twice. The corpus bootstraps in JSON so it
+      needs no DataJS reader to exist.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/bnf/todo/207-bnf-semantic-actions.md)
       repointed at `fjs/bnf/testlib.f.mjs`.
-- [ ] Stage 3: JSON self-contained tokenizer; file its todo under
-      `fjs/media/json/todo/`.
-- [ ] Stage 4: `fjs/media/datajs`; file its todo.
+- [ ] Stage 3a: drop the fabricated `string` token in the existing wrapper —
+      [`self-contained-tokenizer`](../fjs/media/json/todo/self-contained-tokenizer.md),
+      the defect that predates the port and is provable without it.
+- [ ] Stage 3b: the port itself, same design, carrying only what removing the
+      dependency forces. It measured the swap's blast radius: the accepted
+      language is JSON's already, but for one defect — `1n1` and its class,
+      accepted today by deleting an `n` from inside a number, which only the
+      port can fix — so beyond that only error shapes change.
+- [ ] Stage 4: `fjs/media/datajs`; file its todo. Needs stage 1b's corpus in
+      place as its proof source.
 - [ ] Stage 5: front-end move to `fjs/fsc`; file its todo.
 - [ ] Stage 6: normalizer + subset-law proofs; file its todo.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.

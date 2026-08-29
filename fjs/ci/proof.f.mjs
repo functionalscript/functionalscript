@@ -5,10 +5,10 @@
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { ci, main } from './module.f.mjs'
-import { actions, functionalscript, node } from './config/module.f.mjs'
+import { ci, main, nixJobs } from './module.f.mjs'
+import { actions, deno, functionalscript, node } from './config/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
-import { flakeText } from './nix/module.f.mjs'
+import { flakeText, nixDevelop } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
@@ -179,24 +179,23 @@ export const proof = {
         functionalscriptPackage: () => {
             const gha = runDefault('{"name":"functionalscript"}')
             assert(hasRun('fjs test')(gha), 'expected fjs self-test')
-            assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} test`)(gha), 'expected deno self-test')
-            assert(hasRun(`bunx functionalscript@${functionalscript} test`)(gha), 'expected bun self-test')
         },
         otherPackage: () => {
             const gha = runDefault('{"name":"other-package"}')
-            assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} test`)(gha), 'expected canonical deno self-test')
-            assert(hasRun(`bunx functionalscript@${functionalscript} test`)(gha), 'expected canonical bun self-test')
+            // The platform matrix is the only family left running a published
+            // CLI; `deno` and `bun` stopped, and no canonical Node job ever did.
+            assert(hasRun('fjs test')(gha), 'expected canonical platform self-test')
         },
         configuredPackageVersion: () => {
             const gha = runDefault('{"name":"other-package","version":"1.2.3"}')
             assert(hasRun(`npm install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version platform install')
-            assert(hasRun(`deno install -g -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript}`)(gha), 'expected configured-version deno install cache')
             assert(hasRun('deno install --frozen')(gha), 'expected deno lock install')
-            assert(hasRun(`deno run -A --minimum-dependency-age=0 npm:functionalscript@${functionalscript} test`)(gha), 'expected configured-version deno install')
             assert(hasRun('deno task cov')(gha), 'expected deno coverage task')
-            assert(hasRun(`bun install -g functionalscript@${functionalscript}`)(gha), 'expected configured-version bun cache')
             assert(hasRun('bun install --frozen-lockfile')(gha), 'expected bun lock install')
-            assert(hasRun(`bunx functionalscript@${functionalscript} test`)(gha), 'expected configured-version bun install')
+            // Neither runtime job installs the published package any more, so
+            // the configured version reaches only the platform matrix.
+            assert(!hasRun('npm:functionalscript@')(gha), 'unexpected published-package step in deno')
+            assert(!hasRun('bunx functionalscript@')(gha), 'unexpected published-package step in bun')
         },
         missingPackageJson: () => {
             const gha = runDefault()
@@ -209,14 +208,11 @@ export const proof = {
     nixFlakes: () => {
         const [state, result] = virtual(makeState(false, undefined))(main())
         assertEq(exitCode(result), 0)
-        for (const job of nodeNixJobs) {
-            const [nodePackage] = job.packages
-            // The package attribute the job declares, tied to the version the
-            // configuration records for it: `node24` gets `nodejs_24`, so a job
-            // renamed or repointed without its package following is a failure
-            // here rather than a shell running the wrong Node. This is the
-            // job's own data, not text scanned out of a file.
-            assertEq(nodePackage, `nodejs_${major(configuredVersion(job.id))}`)
+        // Every generated flake, not just the Node ones: `nixJobs` is what the
+        // generator was given, so a family that declares an environment and
+        // never has it written fails here.
+        assertEq(nixJobs.length, 4)
+        for (const job of nixJobs) {
             // The pipeline wrote that job's flake, whole, at the path a
             // `nix develop` step names. Equality rather than a substring
             // search: a `pkgs.nodejs_24` occurring in a comment or an unrelated
@@ -225,6 +221,17 @@ export const proof = {
             // commit, the shell, the packages — is pinned character for
             // character by `nix/proof.f.mjs`.
             assertEq(flake(state, job.id), flakeText(job))
+        }
+        for (const job of nodeNixJobs) {
+            const [nodePackage] = job.packages
+            // The package attribute the job declares, tied to the version the
+            // configuration records for it: `node24` gets `nodejs_24`, so a job
+            // renamed or repointed without its package following is a failure
+            // here rather than a shell running the wrong Node. This is the
+            // job's own data, not text scanned out of a file. Deno's and Bun's
+            // attributes carry no version, so their checks are the only tie
+            // they have — see `nixVersionChecks`.
+            assertEq(nodePackage, `nodejs_${major(configuredVersion(job.id))}`)
         }
     },
     // Every canonical Node job, step for step, each running through its own
@@ -261,26 +268,67 @@ export const proof = {
                 ])
         }
     },
-    // Every canonical Node job asserts the runtime it is about to use, read from
-    // its own flake. The platform matrix installs Node and is deliberately not
+    // Every job with a flake asserts the runtime it is about to use, read from
+    // that flake. The platform matrix installs Node and is deliberately not
     // checked. Nothing else ties the versions `fjs/ci/config/module.f.mjs`
-    // records to what a job really runs.
-    nodeVersionChecks: () => {
+    // records to what a job really runs — and for Deno and Bun nothing else
+    // could, since `pkgs.deno` and `pkgs.bun` name no version.
+    nixVersionChecks: () => {
         const gha = run(false)
-        for (const [version, command] of /** @type {const} */ ([
-            [node.node22, `nix develop --no-write-lock-file ./nix/node${major(node.node22)} --command node --version`],
-            [node.node24, `nix develop --no-write-lock-file ./nix/node${major(node.node24)} --command node --version`],
-            [node.default, `nix develop --no-write-lock-file ./nix/node${major(node.default)} --command node --version`],
-        ])) {
-            const id = `node${major(version)}`
+        /** @type {readonly (readonly [string, string, string])[]} */
+        const checks = [
+            [`node${major(node.node22)}`, 'node --version', `v${node.node22}`],
+            [`node${major(node.node24)}`, 'node --version', `v${node.node24}`],
+            [`node${major(node.default)}`, 'node --version', `v${node.default}`],
+            // Deno prints three lines for `--version`, so it is asked for the
+            // one field this repository configures.
+            ['deno', `deno eval 'console.log(Deno.version.deno)'`, deno],
+        ]
+        assertEq(checks.length, nixJobs.length)
+        for (const [id, command, expected] of checks) {
             const runs = (gha.jobs[id]?.steps ?? [])
                 .flatMap(step => step.run === undefined ? [] : [step.run])
             // The job's first command, with nothing exempted. `npm ci` in
             // particular runs lifecycle hooks from the project and its
             // dependencies — code executing on a runtime the check has not
-            // confirmed yet — so it comes after, not before.
-            assertEq(runs[0], `test "$(${command})" = v${version}`, id)
+            // confirmed yet — so it comes after, not before. `deno install` is
+            // the same case.
+            assertEq(runs[0], `test "$(${nixDevelop(id, command)})" = ${expected}`, id)
         }
+    },
+    // Deno, step for step. It lost its setup action, and every command it runs
+    // enters its own flake.
+    migratedDenoJob: () => {
+        const gha = run(false)
+        const job = gha.jobs.deno
+        assert(job !== undefined, 'expected the deno job')
+        assert(
+            job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
+            'expected a pinned Nix installer in deno')
+        assert(
+            !job.steps.some(step => step.uses?.startsWith('denoland/setup-deno@') === true),
+            'unexpected setup-deno')
+        assertStructurallySame(
+            job.steps
+                .flatMap(step => step.run === undefined ? [] : [step.run])
+                .slice(1),
+            ['deno install --frozen', 'deno task cov']
+                .map(command => nixDevelop('deno', command)))
+    },
+    // Bun is the one canonical job left on a setup action, and the one with no
+    // flake — `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` says why. It also no
+    // longer installs a published `functionalscript`, which is independent of
+    // Nix and is why its two remaining commands are only about this repository.
+    bunJob: () => {
+        const gha = run(false)
+        const job = gha.jobs.bun
+        assert(job !== undefined, 'expected the bun job')
+        assert(
+            job.steps.some(step => step.uses?.startsWith('oven-sh/setup-bun@') === true),
+            'expected setup-bun')
+        assertStructurallySame(
+            job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
+            ['bun install --frozen-lockfile', 'bun test --coverage'])
     },
     ubuntu: () => {
         const job = ubuntu([test({ run: 'echo hi' })])

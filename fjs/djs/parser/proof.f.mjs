@@ -307,9 +307,11 @@ export const proof = {
             assertEq(value.metadata?.column, 11)
         },
         () => {
+            // anchored at the `/*` that was never closed, not at the end of
+            // input — the same convention the unterminated string above uses
             const [tag, value] = parseFromTokens(tokenizeString('const a = /* x'))
             assert(tag === 'error', tag)
-            assertEq(value.metadata?.column, 15)
+            assertEq(value.metadata?.column, 11)
         },
     ],
     // None of the framing keywords is reserved: outside the positions that frame

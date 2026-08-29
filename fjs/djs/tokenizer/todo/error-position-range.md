@@ -26,12 +26,19 @@ is that only one of the two useful positions survives. "Unterminated string
 starting at 1:1" and "expected `\"` before end of input at 1:14" are both worth
 saying, and a caret-and-underline renderer needs both to draw anything.
 
-The inconsistency this creates is visible in the current expectations
-(`fjs/djs/tokenizer/proof.f.mjs`, `errorPosition` group): `'"value'` reports the
-token start at 1:1, while `'/* c'` — also unterminated — reports 1:5, the end of
-input, because the comment's content is consumed before the tag is emitted. Two
-unterminated constructs, two different conventions, and neither can express what
-the other does.
+**The inconsistency this described is fixed, and it was the concrete half of
+this issue.** `'"value'` and `'/* c'` both reported different anchors — the
+string its start at 1:1, the comment the end of input at 1:5 — because the
+comment's content is consumed before the tag is emitted, so the report fell back
+to the end. An unterminated comment is now anchored at its `/*`, matching the
+string and matching what TypeScript reports, and a malformed number keeps its own
+convention of pointing at the offending character, which is what the reader has
+to change. The specific messages `*/ expected` and `invalid number` are used
+where the tokenizer already distinguishes those cases.
+
+What remains here is only the **end**, and it is still speculative: nothing
+renders a span. `errorLocation` in [`fjs/djs/module.f.mjs`](../../module.f.mjs)
+prints `path:line:column` and would discard one.
 
 ### Proposal
 
@@ -75,8 +82,9 @@ does not straddle files.
 - [ ] Choose the shape; define `TokenRange`
 - [ ] Carry the start position through the structural-error path so both ends
       are available where `metadataAfterTag` builds the error today
-- [ ] Make the unterminated-comment and unterminated-string cases agree
-- [ ] Update the `errorPosition` and `metadata` proof groups
+- [x] Make the unterminated-comment and unterminated-string cases agree — both
+      anchor at the construct's opening
+- [x] Update the `errorPosition` and `metadata` proof groups
 - [ ] `npx tsc`, `fjs t`
 
 ### Related

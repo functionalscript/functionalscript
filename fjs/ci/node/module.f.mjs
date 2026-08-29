@@ -10,7 +10,7 @@
 
 import { node } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
-import { nixDevelop, nixInstall } from '../nix/module.f.mjs'
+import { nixInstall, nixSteps, nixSystem, nixVersionStep } from '../nix/module.f.mjs'
 
 /**
  * Name of the CI artifact carrying the `npm pack` tarball. The producing step
@@ -51,24 +51,19 @@ const fjsGlobalInstall = version =>
     install({ run: `npm install -g functionalscript@${version}` })
 
 /**
- * Asserts that the Node a job is about to run on is the version configured for
- * it, read from inside that job's generated flake.
+ * Asserts the Node a job is about to run on, through the shared check.
  *
- * The flake resolves its package from the pinned Nixpkgs commit, which
- * `fjs/ci/config/module.f.mjs` only *claims* provides that version. The claim
- * does not check itself, and a job quietly testing on another runtime reports a
- * green result about something nobody asked for.
- *
- * Every Node job runs this, and none needs a `setup-node` spelling any more.
- * The other jobs that install Node get no check: the platform matrix, whose
- * Windows jobs run `run` steps under PowerShell where this POSIX command would
- * not survive, and `package-check`, which has no checkout to enter a flake
- * from.
+ * `node --version` prints a leading `v` the configured version does not carry,
+ * so the expected string restores it. Every canonical Node job runs this, and
+ * none needs a `setup-node` spelling any more. The other jobs that install Node
+ * get no check: the platform matrix, whose Windows jobs run `run` steps under
+ * PowerShell where this POSIX command would not survive, and `package-check`,
+ * which has no checkout to enter a flake from.
  *
  * @type {(version: string) => MetaStep}
  */
 const nodeVersionStep = version =>
-    test({ run: `test "$(${nixDevelop(jobId(version), 'node --version')})" = v${version}` })
+    nixVersionStep(jobId(version), 'node --version', `v${version}`)
 
 /** @type {(version: string) => readonly MetaStep[]} */
 export const platformNodeSteps = version => [
@@ -92,8 +87,7 @@ export const platformNodeSteps = version => [
 const suiteNixSteps = version => [
     nixInstall,
     nodeVersionStep(version),
-    ...['npm ci', 'node --test'].map(
-        command => test({ run: nixDevelop(jobId(version), command) })),
+    ...nixSteps(jobId(version))(['npm ci', 'node --test']),
 ]
 
 /**
@@ -116,8 +110,8 @@ const suiteNixSteps = version => [
 const node26NixSteps = [
     nixInstall,
     nodeVersionStep(node.default),
-    ...['npm ci', 'npx tsc', 'npm run cov', 'npm pack', 'npm run ci-update'].map(
-        command => test({ run: nixDevelop(jobId(node.default), command) })),
+    ...nixSteps(jobId(node.default))(
+        ['npm ci', 'npx tsc', 'npm run cov', 'npm pack', 'npm run ci-update']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
     // Hands the tarball to a job that has no checkout, which is the only place
     // the package can be checked as a consumer sees it. `if-no-files-found`
@@ -140,9 +134,6 @@ export const nodeVersionJobs = () => ({
     [jobId(node.node24)]: nodeJob(suiteNixSteps(node.node24)),
     [jobId(node.default)]: nodeJob(node26NixSteps),
 })
-
-// The canonical Node jobs run on the Ubuntu ARM runner.
-export const nixSystem = /** @type {const} */ ('aarch64-linux')
 
 /** @type {(version: string) => NixJob} */
 const nixJob = version => ({
