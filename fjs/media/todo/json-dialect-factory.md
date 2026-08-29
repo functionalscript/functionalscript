@@ -87,7 +87,13 @@ straightforward rather than a guess:
   error message" records.
 
 So the signature is parameterized by the schema and by the refinement's error
-type, with `E = never` for a dialect that has no refinement:
+type. `E` **defaults to `never`**, and the default is what makes `note`
+correct: it calls `jsonDialect(noteSchema)` with no second argument, so
+nothing infers `E`, and without the default it would land on `unknown` and
+widen `note.validate` to `Result<Note, unknown>` — the opposite of the
+declaration-preservation this section exists for. The factory needs the
+matching runtime default (`checkReferences` optional), or a one-argument
+overload:
 
 ```ts
 import type { Unknown as JsonUnknown } from './json/types.ts'
@@ -100,7 +106,7 @@ type ValueOf<S extends Struct> = Ts<Rest<S, Type>>
 type DialectOf<S extends Struct> =
     ValueOf<S> extends { readonly dialect: infer D extends string } ? D : never
 
-export type JsonDialect<S extends Struct, E> = {
+export type JsonDialect<S extends Struct, E = never> = {
     readonly dialect: DialectOf<S>
     readonly mediaType: `application/${DialectOf<S>}+json`
     readonly encodeText: (value: ValueOf<S>) => string
