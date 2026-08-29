@@ -44,8 +44,9 @@ export const recognizerStep = (s: JsonRecognizerState, u: U16): JsonRecognizerSt
 export const recognizerAccepts = (s: JsonRecognizerState): boolean   // complete valid document at EOF?
 ```
 
-**A code unit, not a code point**, and the reason is the seam this design
-reuses. [self-contained-tokenizer](./self-contained-tokenizer.md) types the
+**A code unit, not a code point**, and it is `(state, unit)` rather than a
+`Fold` — see the note at the end of this section before wiring it into one.
+The reason for the unit is the seam this design reuses. [self-contained-tokenizer](./self-contained-tokenizer.md) types the
 scanners as `Scan<S>` over `U16 | null`, so a caller holding one value for a
 raw astral character such as U+1F600 has nothing it can pass: the scalar is two
 units, and expanding it is the caller's job under either spelling. Taking
@@ -54,6 +55,17 @@ re-splits what the caller just joined, and it matches what JSON strings are —
 code-unit sequences, which is why a lone surrogate is a string this format can
 carry. Review caught the two designs disagreeing at that seam; the earlier
 `cp: number` predates the scanner's type.
+
+**`recognizerStep` is not a `Fold`**, and a caller folding a run of units has
+to adapt it. `Fold<I, O>` is `(input) => (acc) => acc` — input-first and
+curried — against this signature's state-first, uncurried `(state, unit)`, so
+the two disagree on both axes; the first consumer got this wrong the moment it
+was written. Left as it is on purpose for now: currying data parameters is the
+footgun [uncurry-accumulator-types](../../../types/function/todo/uncurry-accumulator-types.md)
+exists to remove, and its proposed `(input, acc) => acc` would still want the
+unit first, so **whether this signature becomes `(unit, state)` is a decision
+for whoever builds it**, not one to make silently in a design under review.
+Either way the adapter at a call site is one line.
 
 **One grammar → one state machine → two builders.** The architecture is not
 "two implementations kept equivalent by tests": there is a single grammar

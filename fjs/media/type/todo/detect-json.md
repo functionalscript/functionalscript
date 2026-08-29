@@ -49,8 +49,10 @@ object/array-only policy (§4) is applied at EOF — the recognizer stays pure
 type JsonFactor = { readonly rec: JsonRecognizerState; readonly top: Nullable<CodePoint> }
 // per decoded code point: feed the recognizer its UTF-16 units; remember the
 // first non-whitespace cp
+// recognizerStep is state-first and uncurried; Fold is input-first and curried
+const stepFold: Fold<U16, JsonRecognizerState> = u => s => recognizerStep(s, u)
 const jsonStep = ({ rec, top }: JsonFactor, cp: CodePoint): JsonFactor => ({
-    rec: fold(recognizerStep)(rec)(fromCodePointList([cp])),
+    rec: fold(stepFold)(rec)(fromCodePointList([cp])),
     top: top ?? (isJsonWhitespace(cp) ? null : cp),   // ws = 0x20/0x09/0x0A/0x0D
 })
 // at EOF: a complete valid document whose top-level value is an object or array
@@ -70,6 +72,20 @@ its per-code-point `codePointToUtf16` is module-private today, so either the
 one-element call above or exporting that helper, whichever reads better when
 this is built. Review caught the design feeding scalars straight in after the
 recognizer's signature changed under it.
+
+**The adapter is not decoration.** `Fold<I, O>` is `Binary<I, O, O>` in
+`fjs/types/function/operator/types.ts` — `(input) => (acc) => acc`, input-first
+and curried — while `recognizerStep` is `(state, unit) => state`, state-first
+and uncurried. Handing `recognizerStep` to `fold` directly would treat the first
+code unit as the recognizer state and then call the returned state as a
+function; review caught that in the first version of this sketch. The two
+shapes disagree on **both** axes, and they will still disagree on argument
+order after [uncurry-accumulator-types](../../../types/function/todo/uncurry-accumulator-types.md)
+lands, since that proposal makes `Fold` `(input, acc) => acc` — also input-first.
+Whether the recognizer should take its unit first, matching the `StateScan`
+precedent that todo generalizes, is a question for
+[streaming-recognizer](../../json/todo/streaming-recognizer.md) to settle when
+it is built; until then the adapter is one line and says what it is.
 
 `push` (`:235-247`) already iterates bytes and calls `utf8Step`, which decodes
 0-or-1 code points per byte via `utf8ByteToCodePointOp`. Feed each decoded code
