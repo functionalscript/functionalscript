@@ -84,10 +84,15 @@ its commands one `nix develop` step each, because a CI step runs one command. No
 separate job makes that check — a flake is checked by the job that uses it, and
 every generated flake has one.
 
-`bun` is the exception, and the only canonical job with no flake: Nixpkgs
-packages no Bun this repository's proofs pass on, so that job still installs its
-runtime with `oven-sh/setup-bun`. `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md`
-records what has to change first.
+Three canonical jobs have no flake, for three unrelated reasons. `bun` still
+installs its runtime with `oven-sh/setup-bun`, because Nixpkgs packages no Bun
+this repository's proofs pass on. `wasm` takes its Rust, Wasmtime and Wasmer from
+setup actions, because Nixpkgs builds one `rustc` and it has no `std` for three of
+that job's four WASI targets — a gap no version bump closes.
+`package-check` runs with no checkout, which is the whole point of it, and a flake
+and its `run` script are files in a checkout. `fjs/ci/todo/65z-ci-nix.md` keeps the
+three together, and `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` and
+`fjs/ci/todo/wasm-nix-blocked-on-rust-targets.md` own the two that are blocked.
 
 The check's shape follows the runtime rather than a convention: `node --version`
 prints a leading `v` the configured version does not carry, while

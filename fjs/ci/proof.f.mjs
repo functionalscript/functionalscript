@@ -1,5 +1,5 @@
 /**
- * @import { MetaStep, Os, GitHubAction } from './common/types.ts'
+ * @import { Job, MetaStep, Os, GitHubAction } from './common/types.ts'
  * @import { Dir, State } from '../effects/node/virtual/types.ts'
  * @import { Unknown } from '../djs/types.ts'
  */
@@ -12,7 +12,7 @@ import { flakeText, nixDevelop } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
-import { test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
+import { architecture, os, test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
@@ -22,6 +22,16 @@ import { parse as jsonParse } from '../media/json/module.f.mjs'
 /** @type {(cmd: string) => (gha: GitHubAction) => boolean} */
 const hasRun = cmd => gha =>
     definedValues(gha.jobs).some(job => job.steps.some(step => step.run?.includes(cmd)))
+
+/**
+ * Whether a job bootstraps Nix, which is the same thing as whether it enters a
+ * generated flake: the installer is the one step every migrated job has and no
+ * other job has a use for.
+ *
+ * @type {(job: Job | undefined) => boolean}
+ */
+const usesNix = job =>
+    job?.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true) === true
 
 /** @type {(jobId: string, cmd: string) => (gha: GitHubAction) => boolean} */
 const hasRunInJob = (jobId, cmd) => gha =>
@@ -315,10 +325,38 @@ export const proof = {
             ['deno install --frozen', 'deno task cov']
                 .map(command => nixDevelop('deno', command)))
     },
-    // Bun is the one canonical job left on a setup action, and the one with no
-    // flake — `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` says why. It also no
-    // longer installs a published `functionalscript`, which is independent of
-    // Nix and is why its two remaining commands are only about this repository.
+    // Every job's Nix status, in one place. The platform matrix is excluded by
+    // construction rather than by exception: those six jobs exist to run on
+    // stock runner images across three operating systems and two
+    // architectures, and four of them are not `aarch64-linux` at all. What is
+    // left is the canonical set, and it splits in two — the jobs that enter a
+    // generated flake, and the three that do not, each with an issue saying
+    // why. `fjs/ci/todo/65z-ci-nix.md` holds those reasons together; this is
+    // what makes a job added later come and declare which side it is on,
+    // instead of joining the second list in silence.
+    nixCoverage: () => {
+        const gha = run(true)
+        const matrix = os.flatMap(o => architecture.map(a => `${o}-${a}`))
+        const canonical = Object.keys(gha.jobs).filter(id => !matrix.includes(id))
+        const onNix = canonical.filter(id => usesNix(gha.jobs[id]))
+        // The declared flakes and the jobs that enter one are the same set:
+        // a flake nothing enters is never evaluated, and a job entering one
+        // that is not declared has no `flake.nix` to find.
+        assertEq(onNix.length, nixJobs.length)
+        for (const { id } of nixJobs) {
+            assert(onNix.includes(id), `expected ${id} to enter its own flake`)
+        }
+        assertStructurallySame(
+            canonical.filter(id => !usesNix(gha.jobs[id])),
+            // `bun` and `wasm` are blocked on Nixpkgs, for unrelated reasons;
+            // `package-check` runs with no checkout, so there is no file tree
+            // for a flake or its `run` script to be in.
+            ['bun', packageCheckJobId, 'wasm'])
+    },
+    // Bun is the one canonical runtime job left on a setup action —
+    // `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` says why. It also no longer
+    // installs a published `functionalscript`, which is independent of Nix and
+    // is why its two remaining commands are only about this repository.
     bunJob: () => {
         const gha = run(false)
         const job = gha.jobs.bun

@@ -5,10 +5,13 @@
 
 ### Problem
 
-Every other canonical CI job runs through a generated Nix flake. `bun` is the
-one exception, still installing its runtime with `oven-sh/setup-bun`, so
-`fjs/ci/config/module.f.mjs`'s `bun` is a released version rather than a
-packaged one and `nixJobs` in `../module.f.mjs` has no entry for it.
+Every canonical **runtime** job but this one runs through a generated Nix flake.
+`bun` still installs its runtime with `oven-sh/setup-bun`, so
+`fjs/ci/config/module.f.mjs`'s `bun` is a released version rather than a packaged
+one and `nixJobs` in `../module.f.mjs` has no entry for it. Two other jobs have no
+flake either — `wasm`, blocked on a different Nixpkgs gap, and `package-check`,
+which has no checkout to hold a flake — and
+[65Z-ci-nix](65z-ci-nix.md) keeps that whole picture.
 
 The migration itself is written and works: a `bunNixJob` declaring
 `packages: ['bun']` on `aarch64-linux`, `nixInstall`, a
@@ -71,8 +74,10 @@ Any one of these unblocks it; the first is the cheap one:
 
 ### Related
 
-- [65Z-ci-nix](65z-ci-nix.md) — the flake generation this job is the last
-  canonical holdout from
+- [65Z-ci-nix](65z-ci-nix.md) — the flake generation this job is a holdout
+  from, and where every job's Nix status is recorded
+- [wasm-nix-blocked-on-rust-targets](wasm-nix-blocked-on-rust-targets.md) — the
+  other canonical job Nixpkgs cannot serve yet
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — the Node
   milestone that set the shape every migrated job follows
 - [built-package-checks](built-package-checks.md) — why the `bun` job no longer
