@@ -27,18 +27,27 @@ export const images = /** @type {const} */({
 // https://www.npmjs.com/package/functionalscript
 export const functionalscript = /** @type {const} */ '0.47.0'
 
+// Bun is installed by `setup-bun`, so this is a released Bun rather than a
+// packaged one. It is the last canonical job not on a flake: Nixpkgs ships
+// 1.3.13, on which two of this repository's proofs fail — one a real difference
+// in when `Symbol.species` is read, not a slow machine. See
+// `../todo/bun-nix-blocked-on-nixpkgs.md`.
 // https://bun.sh/
 export const bun = '1.4.0'
 
+// The Deno version the pinned Nixpkgs snapshot below provides — read from
+// `pkgs/by-name/de/deno/package.nix` at that commit. The job asserts the
+// version its flake gives it, so this is checked rather than trusted. Nixpkgs
+// trails deno.com, so bump the snapshot first and copy the version it offers.
 // https://deno.com/
-export const deno = '2.9.6'
+export const deno = '2.8.3'
 
 // The Node versions the pinned Nixpkgs snapshot below provides — read from
-// `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. Every runtime
-// uses these: `setup-node` on the GitHub-hosted runners and the generated
-// flakes on the Nix jobs, which assert the version they actually get. Nixpkgs
-// usually trails nodejs.org, so bump the snapshot first and copy the versions
-// it offers rather than the latest release.
+// `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. They feed the
+// canonical jobs' flakes, which assert the version they actually get, as well
+// as the `setup-node` steps left in the platform matrix and `package-check`.
+// Nixpkgs usually trails nodejs.org, so bump the snapshot first and copy the
+// versions it offers rather than the latest release.
 // https://nodejs.org/en/download
 export const node = /** @type {const} */({
     default: '26.7.0',
@@ -71,16 +80,14 @@ export const actions = /** @type {const} */({
     'actions/checkout': 'v7.0.1',
     // https://github.com/marketplace/actions/setup-node-js-environment
     'actions/setup-node': 'v7.0.0',
+    // https://github.com/marketplace/actions/setup-bun
+    'oven-sh/setup-bun': 'v2.2.0',
     // https://github.com/marketplace/actions/cache
     'actions/cache': 'v6.1.0',
     // https://github.com/marketplace/actions/upload-a-build-artifact
     'actions/upload-artifact': 'v7.0.1',
     // https://github.com/marketplace/actions/download-a-build-artifact
     'actions/download-artifact': 'v8.0.1',
-    // https://github.com/marketplace/actions/setup-deno
-    'denoland/setup-deno': 'v2.0.5',
-    // https://github.com/marketplace/actions/setup-bun
-    'oven-sh/setup-bun': 'v2.2.0',
     // https://github.com/bytecodealliance/actions
     'bytecodealliance/actions/wasmtime/setup': 'v1.1.3',
     // https://github.com/wasmerio/setup-wasmer
