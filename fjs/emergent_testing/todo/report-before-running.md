@@ -35,13 +35,18 @@ start event is adding a third event kind, not building the stream first.
 Add a `start` (or `begin`) event to the reporter, called with the file and path
 before the leaf is sandboxed, and let each host decide what to do with it:
 
-- **`fjs t`** prints the name, then completes the line with `ok`/`error` and the
-  duration when the result lands — the standard runner shape, in the format it
-  already prints. When this was written leaves ran concurrently and
-  interleaving was the thing to get right; under the sequential runner this
-  issue inherits (see the constraint below), nothing runs between a start and
-  its own result, so the open line is simply completed in place — no deferred
-  lines, no two-column log, no identifier to close by.
+- **`fjs t`** prints a complete, newline-terminated start record, then a
+  separate result line that names the test again. Not an open line completed
+  in place: no *other leaf* runs between a start and its own result under the
+  sequential runner, but the leaf itself does, and anything it writes to the
+  terminal — a proof that logs at runtime (purity is a convention the sandbox
+  does not enforce; see [hostile-proof-values](hostile-proof-values.md)), a
+  Node warning on stderr — would splice into an open line and attach the
+  later `ok`/`error` to unrelated output, corrupting the log for readers and
+  line-oriented consumers alike. Two self-contained lines per leaf survive
+  that; in the common case the result still directly follows its own start,
+  and the repeated name is what keeps the pair legible when something
+  intervenes.
 - **The browser page** renders a row in a pending state and settles it in place,
   which is the same list it renders now with one more state per row.
 - **A result type** may not need to change at all: a start is an event, not a
@@ -64,8 +69,11 @@ still the argument for settling it in the shared core rather than twice.
   When this was written that meant "concurrency stays"; the sequential plan in
   [share-browser-console-runner](share-browser-console-runner.md) has since
   made the traversal sequential, which this issue simply inherits — and
-  benefits from: starts and results no longer interleave, so a start line is
-  followed by its own result line, in both hosts.
+  benefits from: one leaf's events no longer interleave with another's, so a
+  start is followed by its own result, in both hosts. What sequential does
+  *not* buy is an empty gap between them — the leaf itself runs there, and
+  its output can land on the same stream — which is why the terminal format
+  above emits two complete records rather than completing an open line.
 - Whatever is emitted has to be as useful to an automated consumer as to a
   reader — a start with no matching result is precisely the signal a crashed
   run leaves behind, and a controller should be able to read it.
@@ -78,9 +86,11 @@ still the argument for settling it in the shared core rather than twice.
 - [ ] Add the start event to the reporter and call it before the
       leaf is sandboxed.
 - [ ] Decide the terminal format, and prove it. Under the sequential runner
-      output does not interleave, so the question is the shape of a
+      leaves do not interleave, so the question is the shape of a
       start-then-result pair rather than how to keep concurrent lines
-      legible.
+      legible — but a leaf's *own* output can still land between its start
+      and its result, so the proof includes a proof that writes to the
+      terminal mid-test and shows both records intact around it.
 - [ ] Render a pending row in the browser page and settle it in place.
 - [ ] Prove that a run killed mid-test leaves the running test's name behind.
 
