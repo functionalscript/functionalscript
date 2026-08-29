@@ -34,8 +34,9 @@ import { utf8ToString } from '../text/module.f.mjs'
 const runWith = proof => {
     /** @type {Reporter<Sandbox | Write>} */
     const reporter = {
+        start: ({ path }) => log(`start:${path}`),
         result: (t, _r, _throws) => log(`${t.path}:${t.status}`),
-        summary: ({ passed, failed }) => log(`summary:${passed}:${failed}`),
+        summary: ({ totals: { passed, failed } }) => log(`summary:${passed}:${failed}`),
         test: defaultTest,
     }
     // No `all` handler, and that is not an omission: the shared traversal is
