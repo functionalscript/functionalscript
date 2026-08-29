@@ -801,8 +801,12 @@ The six parts:
   trailing. `[1,]` is *not* one of these — it is the trailing comma above, a
   different rule, and it leaves no hole. Then the three places whitespace is
   *required*. The first two take one vector each — **`const$0=1;export default $0`**
-  and **`exportdefault $0`** — because only one thing can follow: after `const`
-  an `id`, which always starts with `$`, and after `export` the word `default`.
+  and **`const $0=1;exportdefault $0`** — because only one thing can follow:
+  after `const` an `id`, which always starts with `$`, and after `export` the
+  word `default`. The second carries the binding for the one-reason rule: a
+  reader that wrongly splits `exportdefault` into its two keywords lands on
+  `export default $0`, and without the `const` it would refuse that for an
+  *unbound* name and pass the vector having never checked the separator.
 
   The third takes **thirteen**, one per distinct value start, and an earlier
   draft of this section cut them to one on reasoning that was wrong. It argued
@@ -821,7 +825,10 @@ The six parts:
 
   So: the nine value starts that begin with an identifier character — a name,
   `true`, `false`, `null`, `undefined`, `NaN`, `Infinity`, a number and a
-  bigint, `export default$0` through `export default1n` — plus the four the old
+  bigint, `const $0=1;export default$0` through `export default1n`, the name
+  member carrying a binding for the reason above and the other eight needing
+  none, since a wrong split of `export defaulttrue` yields a document a reader
+  would *accept* — plus the four the old
   rule never owed a reject for at all, since under it they were *accepts*:
   `export default[1]`, `export default{}`, `export default"a"` and
   `export default-1`. Thirteen, which is more than the nine before it. The
