@@ -47,11 +47,15 @@ reader's public byte-accepting path — which stage 4 owes:
   vectors carry invalid UTF-8 to be refused, and **one per error class**, since
   a decoder can reject three classes and accept a fourth. The classes are: an
   invalid lead byte (`C0`, `C1`, `F5`–`FF`), a **stray continuation byte**
-  (`80` with no lead), a truncated sequence, an overlong encoding, a surrogate
-  half encoded as three bytes, and a value **above U+10FFFF**
-  (`F4 90 80 80`). Review supplied the second and last of those after the first
-  draft sampled three — the same "enumerate, do not sample" the productions
-  below need. Each malformed
+  (`80` with no lead), a truncated sequence (`C2` at end of input), a valid
+  lead followed by a **non-continuation** byte (`C2 41`), an overlong encoding,
+  a surrogate half encoded as three bytes, and a value **above U+10FFFF**
+  (`F4 90 80 80`). Those middle two are distinct failures rather than one: a
+  decoder can handle a sequence that runs out of input and still mishandle one
+  interrupted by an ordinary byte, and Python's decoder names them differently
+  — "unexpected end of data" against "invalid continuation byte". Review
+  supplied three of these seven after the first draft sampled three, which is
+  the same "enumerate, do not sample" the productions below need. Each malformed
   sequence sits **inside an otherwise valid quoted string**, and that placement
   is the vector. A permissive decoder replaces a bad sequence with U+FFFD, and
   U+FFFD is an ordinary DataJS string character — so with the sequence inside a
@@ -63,7 +67,12 @@ reader's public byte-accepting path — which stage 4 owes:
 
 Byte-form vectors must **accept** as well as reject, and one per sequence
 width: ASCII, two bytes (`c3 a9`), three (`e2 82 ac`), four
-(`f0 9f 98 80`). One multibyte vector is not enough — with only a two-byte
+(`f0 9f 98 80`) — and **`f4 8f bf bf`, U+10FFFF itself**, because the reject
+side refuses `F4 90 80 80` and the accept side otherwise stops at an `F0`
+sequence, so a decoder refusing every `F4` lead passes both while refusing the
+largest valid scalar. A boundary needs a vector on each side; this document
+says exactly that about array-index keys and had not applied it here. One
+multibyte vector is not enough either — with only a two-byte
 one, a decoder accepting ASCII and two-byte sequences while rejecting every
 three- and four-byte sequence still passes, and the BMP and astral cases under
 `normalize` cannot help because they exercise serializer output rather than a
@@ -242,7 +251,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Fifteen consecutive review rounds
+  vector is the only instrument that sees it. Sixteen consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -259,7 +268,10 @@ The six parts:
   which had no derivation at all, and the repeated primitive, then `id`'s
   character classes and the valid UTF-8 sequence widths — both of them
   derivations applied to some of their items and not all, which is the shape
-  every one of the last four rounds has taken. Every time the list had been written from memory rather
+  every one of the last four rounds has taken — then a seventh UTF-8 error
+  class and the valid side of the U+10FFFF boundary, the latter repeating a
+  failure this document had already named and attributed to the array-index
+  keys. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
