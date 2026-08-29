@@ -37,12 +37,20 @@ const parts = p => split(toPosix(p))
 const segmentsOf = ([r, rest]) => posixSegments(r !== '')(rest)
 ```
 
-after which `root`, `parse`, `normalize`, and `concat` are single
-expressions over `parts`/`segmentsOf`, and `escapes` keeps its explicit
-`false` as the visibly odd one out. No behavior change; the decode and the
-rootedness rule each get one owner.
+`rejoin` (`../module.f.mjs:101`) is rewritten through `segmentsOf` **too**,
+and it is the one that matters most: `normalize` and `concat` reach the
+rootedness rule only by delegating to it, so leaving its own `r !== ''` in
+place would let every listed entry point be rewritten while the duplication
+this issue removes survives in the function they all call.
+
+After that, `root`, `parse`, `normalize`, and `concat` are single expressions
+over `parts`/`segmentsOf`/`rejoin`, `rejoin` states the rootedness rule once
+for all of them, and `escapes` keeps its explicit `false` as the visibly odd
+one out. No behavior change; the decode and the rootedness rule each get one
+owner.
 
 ### Tasks
 
-- [ ] Add `parts`/`segmentsOf`; rewrite the entry points through them.
+- [ ] Add `parts`/`segmentsOf`; rewrite `rejoin` through `segmentsOf` and the
+      entry points through `parts`.
 - [ ] `npx tsc`, `fjs t`; the path proofs pass unchanged.

@@ -42,7 +42,7 @@ One factory in `module.f.mjs`, next to `dialectEntry`:
 ```js
 /** Everything a `vnd.fjs.*`+json dialect derives from its schema and its
  * optional semantic refinement. */
-const jsonDialect = (schema, checkReferences) => ({
+export const jsonDialect = (schema, checkReferences) => ({
     dialect,        // read off the schema, as dialectEntry already does
     mediaType,      // `application/${dialect}+json`, stated once
     encodeText,     // stringify(sort)
@@ -51,6 +51,14 @@ const jsonDialect = (schema, checkReferences) => ({
     entry,          // the DialectEntry for `detect`
 })
 ```
+
+It is **exported**: `revision`, `lock`, and `note` are three separate modules
+that import it, so a module-private `const` would not reach them.
+`dialectEntry` is already public here and the factory is the same kind of
+thing, so it ships as public API with its type-level signature in
+`../types.ts`. If it is judged internal instead, the linkage-only form is
+`export const _jsonDialect`, per `fjs/AGENTS.md`'s rule that a private name
+keeps its `_` even when module linkage requires exporting it.
 
 Each dialect module then states its schema and (for `revision`/`lock`) its
 `checkReferences`, re-exporting the derived kit — the module's JSDoc keeps

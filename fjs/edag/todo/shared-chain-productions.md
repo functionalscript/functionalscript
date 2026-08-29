@@ -34,9 +34,16 @@ Express the containment once per layer:
   both `or`s. The productions reference `optionPropertyLambda` and
   `optionLambda`, which is why `_optionLambda` is already a thunk — the
   shared piece stays one for the same TDZ reason. The JSDoc `@type` tuples
-  can then name a shared type alias for the common segment (tuple spread in
-  the annotation) instead of re-listing it, keeping the `Phantom` pins
-  intact.
+  can then spread a named common-segment type instead of re-listing it,
+  keeping the `Phantom` pins intact.
+
+  That name may **not** be a file-scope `@typedef` in `module.f.mjs` —
+  `fjs/AGENTS.md` forbids one in any authored `.mjs`. It goes in
+  `../types.ts` beside the unions it mirrors (it is reached by the shipped
+  `Phantom` declarations, so it belongs to the public closure; give it a `_`
+  prefix if judged private) and is pulled in with `@import`. Inlining
+  `ReturnType<typeof _commonProductions>` in both annotations is the
+  alternative if a name reads like overhead.
 
 If the `@type`/`Phantom` plumbing resists the spread cleanly, the `types.ts`
 half alone is still worth landing: it is where a reader checks what the
@@ -47,7 +54,9 @@ states admit, and it is the copy most likely to drift silently.
 - [ ] Rewrite `OptionPropertyLambda` (and, if it reads well,
       `PropertyLambda`'s overlap) through `OptionLambda` in `../types.ts`.
 - [ ] Share the four common productions between `_optionLambda` and
-      `_optionPropertyLambda` in `../module.f.mjs`, JSDoc included.
+      `_optionPropertyLambda` in `../module.f.mjs`, JSDoc included — with the
+      common-segment type in `../types.ts` or inlined, never as a file-scope
+      `@typedef` in the `.mjs`.
 - [ ] `npx tsc`, `fjs t`; the edag schema proofs pass unchanged.
 
 ### Related
