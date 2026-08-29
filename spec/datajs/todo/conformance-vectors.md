@@ -31,7 +31,9 @@ A machine-readable corpus with three parts:
   an `import`, an identifier key, a bare or string `"__proto__"` key and its escaped spelling
   `"\u005f_proto__"` (the rule is on the decoded value), `1.5n`,
   `1e2n`, `01n`, `-NaN`, `-undefined`, a bare `-`, a forward or unbound
-  reference, a rebound name, each excluded const name, single quotes, `\x` and
+  reference, a rebound name, a name without the leading `$` (`const a=1;`,
+  `const class=1;`, `const undefined=1;`), `export default$0;` — where the
+  name merges into the single identifier `default$0` — single quotes, `\x` and
   `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
   than approximate: a function, symbol or `Date` leaf, a sparse-array hole, a
@@ -43,7 +45,7 @@ A machine-readable corpus with three parts:
   denote it, so a serializer cannot pass by emitting merely *valid* output:
   `[a,a]` with one shared `a` is not `export default [[],[]];`.
 - **normalize** — an input document and the exact bytes normalized form must
-  produce: const hoisting by reference identity, post-order `_0`, `_1`, …
+  produce: const hoisting by reference identity, post-order `$0`, `$1`, …
   naming, `ToString(Number)` spelling with the `-0` exception,
   `QuoteJSONString` escaping, observable key order, one-line layout. Pin the
   number thresholds explicitly — `1e20`, `1e21`, `1e-6`, `1e-7`,

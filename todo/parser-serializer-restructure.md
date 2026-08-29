@@ -139,18 +139,20 @@ key       ::= string | '[' '"__proto__"' ']'
 - **Keys** are JSON strings, plus the computed spelling `["__proto__"]` as the
   only way to write that one key; a bare or string `"__proto__"` key is
   rejected (JS would read it as prototype replacement).
-- **Const names** are ASCII: `[A-Za-z_$][A-Za-z0-9_$]*`, each bound once,
-  minus two exclusion sets. Every name JavaScript rejects as a binding
-  identifier in module code (module code is strict) is excluded: the
-  reserved words, including `import`, `export`, `let`, `yield`, `await`,
-  and `static`, and the strict-mode-only bindings `eval` and `arguments` —
-  `const class = 1` and `const eval = 1` are JS syntax errors there, so
-  accepting either would break the subset law. Binding `undefined`, `NaN`,
-  or `Infinity` is additionally
-  rejected — JS *permits* `const undefined = 5` and later `undefined` then
-  means the const, which a subset treating it as a literal would silently
-  reinterpret. The spec enumerates the excluded words exhaustively rather
-  than citing ECMA-262.
+- **Const names** are ASCII and **start with `$`**: `$[A-Za-z0-9_$]*`, each
+  bound once, with **no exclusion list**. The two collisions an exclusion list
+  would have to cover are both closed by the leading `$`, since no JS reserved
+  word and none of `undefined`/`NaN`/`Infinity` contains one. A name JS rejects
+  as a binding identifier in module code (module code is strict) would break
+  the subset law outright — `const class = 1` and `const eval = 1` are syntax
+  errors there — and a name JS *permits* but DataJS reads as a value is worse
+  still: `const undefined = 5` makes `undefined` mean the const, which a subset
+  treating the word as a literal would silently reinterpret. An earlier draft
+  enumerated both sets, about fifty words every implementation would carry and
+  a list ECMA-262 can extend; the `$` moves the whole question into the token
+  grammar, decided on the first character. A tokenizer therefore needs no
+  keyword-vs-identifier lookup: a word starting with `$` is an `id`, a word
+  starting with a letter is one of the nine the grammar names or an error.
 - **Every JSON value is a DataJS value; no JSON document is a DataJS
   document** (a DataJS document is a JS module, so it cannot be a JSON
   document). The textual conversion `"export default " + json + ";"` yields a
@@ -167,10 +169,10 @@ iff its value is an object or array referenced more than once **by reference
 identity**; consts are emitted in **post-order of one depth-first traversal**
 of the root value — arrays in element order, objects in observable key
 order, each shared node descended into only on first encounter — with names
-`_0`, `_1`, … assigned in emission order, so a shared node's dependencies
-are always declared before it and "who is `_0`" has exactly one answer:
+`$0`, `$1`, … assigned in emission order, so a shared node's dependencies
+are always declared before it and "who is `$0`" has exactly one answer:
 for `root = [parent, parent, child]` with `child` inside `parent`, `child`
-finishes first and is `_0`, `parent` is `_1`; primitives are always emitted
+finishes first and is `$0`, `parent` is `$1`; primitives are always emitted
 inline and never hoisted, since
 primitive sharing is unobservable and a value-equality ref counter would
 face the `0`/`-0` and `NaN` merging ambiguity that the `Object.is`
@@ -193,7 +195,7 @@ function, a symbol, a `Date` or any other non-plain object), a sparse
 array's hole (which is not an `undefined` element), a symbol-keyed or
 accessor own property (reading a getter is an effect), and a cycle
 (`value.self = value`) — DataJS represents DAGs only, and treating a
-back-edge as sharing would emit a self-referencing `const _0={"self":_0};`,
+back-edge as sharing would emit a self-referencing `const $0={"self":$0};`,
 a TDZ failure in JS. Rejection proofs in stage 4 cover each case. Normalization
 is not a blocker for the format spec. The serializer cannot delegate numbers
 to `JSON.stringify` (it loses `-0` and non-finite values); DataJS owns its
@@ -221,8 +223,10 @@ combined marker would encode a redundant fact.
   Node/TypeScript); the cost lands at `.f.mjs` → `.f.js` migration, where the
   normalizer inserts `;` mechanically — `.f.js` is compiler-formatted, not
   hand-formatted.
-- **`undefined`, `NaN`, `Infinity` become FunctionalScript reserved words**,
-  so the DataJS binding restriction is inherited rather than special-cased.
+- **`undefined`, `NaN`, `Infinity` become FunctionalScript reserved words.**
+  FunctionalScript accepts identifiers that do not start with `$`, so it needs
+  the restriction for itself; DataJS no longer relies on inheriting it, its
+  `$`-leading names making the collision unreachable.
 - The moved parser's separator rule changes from newline to `';'` (the moved
   tokenizer's operator vocabulary gains `;`).
 - Subset laws are proof obligations, not prose: every DataJS *accept* vector
@@ -238,7 +242,7 @@ throughout.
 
 1. **Spec** — `spec/datajs/`. The specification itself is **done**:
    [`spec/datajs/README.md`](../spec/datajs/README.md) carries the grammar,
-   data model, const-name exclusions, serialization and normalized form,
+   data model, const names, serialization and normalized form,
    the JSON and JavaScript relationships, and the rationale, and settles the media
    type by deferring to the existing dialect design in
    [`fjs/todo/group-fs-subdirectories-by-concern.md`](../fjs/todo/group-fs-subdirectories-by-concern.md):
