@@ -15,34 +15,49 @@ The pattern `step(all(...xs.map(f)), rs => pure(rs.reduce(op, init)))` — fan o
 
 ```ts
 export const allReduce =
-    <O extends Operation, T, R>(
-        f: (item: T) => Effect<O, R>,
+    <O extends Operation, T, R, E>(
+        f: (item: T) => Effect<O, R, E>,
     ) =>
     (op: (a: R) => (b: R) => R) =>
     (init: R) =>
-    (items: List<T>): Effect<O | All, R> =>
-        step(
-            all(...toArray(items).map(f)),
-            rs => pure(rs.reduce((a, b) => op(b)(a), init)))
+    (items: List<T>): Effect<O | All, R, NotImplemented | E> =>
+        mapStep(
+            allOk(toArray(items).map(f)),
+            rs => rs.reduce((a, b) => op(b)(a), init))
 ```
 
-Note the standalone `step`: `all(...)` returns a raw `Effect`, which is plain
-data with no methods, so `all(...).step(...)` — as an earlier draft of this
-issue wrote it — would not compile. If
-[map-step-combinator](./map-step-combinator.md) lands first, the body is
-`mapStep(all(...toArray(items).map(f)), rs => rs.reduce(...))`.
+**Built on `allOk`, not on raw `all`, and the error channel is a parameter.**
+`all`'s continuation receives `readonly Result<R, E>[]` — the children's
+failures arrive *inside* the value — so a monoid folding those elements as
+`R` either does not type-check or aggregates failure tuples as data. An
+earlier sketch of this issue did exactly that. `allOk` collapses the list to
+`readonly R[]` and lifts the first failure into the effect's error channel,
+which is how every named consumer below already behaves at its existing
+`allOk` call sites; `NotImplemented` is the runner's, inherited from `allOk`,
+and `E` is the children's.
+
+**The body hands `allOk` the list, not a spread**, per
+[all-argument-limit](./all-argument-limit.md)'s naming rule (`allOk` above
+names the list-shaped callable — `allOk` itself if the variadic wrapper is
+dropped, the list-shaped sibling if it is kept): a combinator built for
+arbitrarily long lists must not become another instance of the ceiling that
+issue removes. This issue therefore lands after all-argument-limit; until
+then only the variadic spelling compiles.
+
+Note the standalone `mapStep`: `allOk(…)` returns a raw `Effect`, which is
+plain data with no methods, so `allOk(…).step(…)` — as an earlier draft of
+this issue wrote it — would not compile.
 
 `op` must be **commutative** — results may arrive in any order when the runner schedules sub-effects in parallel.
 
-After adding `allReduce`, `runModuleMap` in `fjs/emergent_testing/module.f.mjs` simplifies to:
-
-```ts
-return allReduce
-    (([k, v]: Entry<unknown>) => runModule(reporter)(k, v)(zero))
-    (mergeState)
-    (zero)
-    (modules)
-```
+**`runModuleMap` is no longer a consumer.** An earlier draft of this issue
+rewrote it with `allReduce`, and the sequential plan in
+[share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
+decides the opposite: the proof traversal runs one leaf's whole chain before
+the next, deliberately, and fanning its modules back out would undo that
+decision. The combinator's consumers are the sites that *want* fan-out — the
+framework-registration path and `dev/module.f.mjs`'s file loading — and it
+must not be applied to the traversal.
 
 ### Naming
 

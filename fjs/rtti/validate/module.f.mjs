@@ -87,8 +87,10 @@ import {
     absentMember,
     consPresence,
     constPrimitiveValidate,
+    declaredTest,
     eachEntry,
     emptyPresence,
+    hasUndeclaredMember,
     isArray,
     isObject,
     orVisit,
@@ -211,17 +213,75 @@ const constContainerValidate =
         // than once per validated value.
         const rttiEntries = schemaEntries(rtti)
         const declared = rttiEntries.map(([k]) => k)
+        // One lookup per key at the gate, rather than a scan of `declared`.
+        const isDeclared = declaredTest(declared)
         return value => {
             if (!isContainer(value)) {
+                return verror('unexpected value')
+            }
+            // The container's **shape** is settled before any member is
+            // read: it is bounded, an illegal absence is rejected, an
+            // undeclared member is rejected — and only then are the members
+            // read.
+            //
+            // That order is what makes an `or` of two arities linear
+            // instead of 2^depth, which is the shape a schema uses to say a
+            // trailing operand may be left out (`fjs/edag`'s chain nodes).
+            // The bound settles the arm whose value has too much — an extra
+            // index, an undeclared key — and the absence pass settles the
+            // arm whose value has too little. Neither alone suffices, and
+            // each was measured missing: without the bound, and without
+            // deciding absence early, a chain stays exponential in one
+            // direction or the other. `parse` does the same, which is what
+            // keeps the two readers reporting the same error.
+            //
+            // Reading `length` and enumerating the keys before the members
+            // assumes those reads have no effect — true of every DJS value,
+            // and the assumption the readers are written under. What that
+            // gives up for a value built by arbitrary JavaScript is stated
+            // in "What the readers assume of a value" in `../README.md`.
+            // The structural questions run cheapest-first, since any of
+            // them settles the container and none of them recurses:
+            // `fits` reads one `length`; the absence pass probes and
+            // consults the schema once per *declared* member; only the
+            // undeclared check enumerates the **value's** keys, which is
+            // O(its size) and has no lazy form in JavaScript —
+            // `Object.keys` on 500 000 keys is 185ms whether or not the
+            // scan stops at the first. So a value one question answers
+            // never pays for the ones after it, and the constant-time
+            // bound precedes everything else.
+            if (!fits(value, declared.length)) {
+                return verror('unexpected value')
+            }
+            // Reaching an illegal absence through the reading walk would
+            // first recurse into the members that come before it, and those
+            // are the operands the longer arm shares — so the two arms would
+            // walk them once each at every level, which is the exponential
+            // all over again. Measured on a chain of `['.', exp, index]`
+            // with a leaf no arm accepts: 2.5s at depth 16 without this.
+            //
+            // The pass carries nothing forward, so it stops at the first
+            // illegal absence having touched only the members before it: a
+            // 500 000-position schema against `[]` answers at index 0. The
+            // reading walk asks `in` again rather than being handed a
+            // recorded flag — one `HasProperty` on a value whose reads have
+            // no effect, which is the assumption stated in `../README.md`,
+            // and cheaper than a list the short-circuit would waste.
+            const a = eachEntry(
+                rttiEntries,
+                (k, v) => k in value ? ok(undefined) : absentMember(v),
+                undefined,
+                acc => acc,
+            )
+            if (a[0] === 'error') { return a }
+            if (hasUndeclaredMember(isDeclared, value)) {
                 return verror('unexpected value')
             }
             const r = eachEntry(
                 rttiEntries,
                 (k, v) => {
-                    if (!(k in value)) {
-                        const a = absentMember(v)
-                        return a[0] === 'error' ? a : ok(false)
-                    }
+                    // Absence is settled above, so this one is legal.
+                    if (!(k in value)) { return ok(false) }
                     const m = /** @type {any} */ (validate(v))(getItem(value, k))
                     return m[0] === 'error' ? m : ok(true)
                 },
@@ -229,11 +289,10 @@ const constContainerValidate =
                 consPresence,
             )
             if (r[0] === 'error') { return r }
-            if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
-                return verror('unexpected value')
-            }
             // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
             // structurally equivalent to C — TypeScript can't narrow element types through the loop.
+            // The walk recorded the decisions it was given, so this asks
+            // the pre-bound snapshot against the final state.
             return presenceUnchanged(rttiEntries, r[1], value)
                 ? /** @type {any} */ (ok(value))
                 : verror('unexpected value')

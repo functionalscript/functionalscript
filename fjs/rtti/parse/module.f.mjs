@@ -59,7 +59,9 @@ import { ok } from '../../types/result/module.f.mjs'
 import {
     absentMember,
     constPrimitiveValidate,
+    declaredTest,
     eachEntry,
+    hasUndeclaredMember,
     isArray,
     isObject,
     orVisit,
@@ -336,17 +338,39 @@ const constContainerParse =
         // Depend on `rtti` alone, so they are computed once per schema.
         const rttiEntries = schemaEntries(rtti)
         const declared = rttiEntries.map(([k]) => k)
+        // One lookup per key at the gate, rather than a scan of `declared`.
+        const isDeclared = declaredTest(declared)
         return value => {
             if (!isContainer(value)) {
+                return verror('unexpected value')
+            }
+            // The bound, absence, the undeclared check, then the reads.
+            // See the comment on the same shape in
+            // `../validate/module.f.mjs`, including what settling the shape
+            // first assumes of the value.
+            // Cheapest structural question first, for the reason
+            // `../validate`'s copy states.
+            if (!fits(value, declared.length)) {
+                return verror('unexpected value')
+            }
+            // Absence before any read, and carrying nothing forward so it
+            // stops at the first illegal one — for the reasons
+            // `../validate`'s copy of this comment gives.
+            const a = eachEntry(
+                rttiEntries,
+                (k, t) => k in value ? ok(undefined) : absentMember(t),
+                undefined,
+                acc => acc,
+            )
+            if (a[0] === 'error') { return a }
+            if (hasUndeclaredMember(isDeclared, value)) {
                 return verror('unexpected value')
             }
             const r = eachEntry(
                 rttiEntries,
                 (k, t) => {
-                    if (!(k in value)) {
-                        const a = absentMember(t)
-                        return a[0] === 'error' ? a : ok([])
-                    }
+                    // Absence is settled above, so this one is legal.
+                    if (!(k in value)) { return ok([]) }
                     const p = /** @type {any} */ (parse(t))(getItem(value, k))
                     return p[0] === 'error' ? p : ok([p[1]])
                 },
@@ -354,9 +378,8 @@ const constContainerParse =
                 consDeclared,
             )
             if (r[0] === 'error') { return r }
-            if (undeclaredMembers(declared, value).length !== 0 || !fits(value, declared.length)) {
-                return verror('unexpected value')
-            }
+            // The walk recorded the decisions it was given, so this asks
+            // the pre-bound snapshot against the final state.
             if (!presenceUnchanged(rttiEntries, r[1].presence, value)) {
                 return verror('unexpected value')
             }

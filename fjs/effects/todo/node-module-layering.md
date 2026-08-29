@@ -51,11 +51,11 @@ provides*. Proposed destinations:
 | Moves to | Contents |
 |---|---|
 | `fjs/effects/all/module.f.mjs` | `All`, `all`, `allOk`, `both`, and `allVoid`/`allReduce` when they land |
-| `fjs/effects/sandbox/module.f.mjs` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise` — the "run foreign code and observe what happened" pair |
+| `fjs/effects/sandbox/module.f.mjs` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise`, and `Catch`/`catch_` (landed after this table was written) — the "run foreign code and observe what happened" family. This row is what [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md) step 4's "shared module" resolves to: a browser gives `Sandbox` and `Catch` their second implementer; `Await` moves on this issue's layering argument alone, since it belongs to the registration path no browser runs |
 | `fjs/effects/console/module.f.mjs` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/test/module.f.mjs` | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
 | stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Forever`, `RandomInt`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
-| unsettled | `Now`, `Fetch`, `Import` — this issue and share-browser-console-runner's step 4 disagree; step 5 decides (see the judgement call below) |
+| stays, now settled | `Now`, `Fetch`, `Import` — the browser interpreter implements none of them, so none has a second implementer (see the judgement call below) |
 | already moved to `fjs/effects` | `OpResult`, `IoChannel`, `IoError`, `IoErrorInfo`, `IoResult`, `ioError`, `toIoError` — the vocabulary every operation is declared in; `effects/node` re-exports them (see the judgement call below) |
 
 `NodeOp` stays where it is and keeps unioning every family — it is the
@@ -69,23 +69,37 @@ Judgement calls worth deciding explicitly rather than by accident:
 - **`RandomInt` stays.** An ambient host capability with no cross-runtime
   abstraction to gain and no consumer outside `fjs/cas` and the interpreters.
   Moving it would be motion without a reader benefit.
-- **`Now`, `Fetch` and `Import` are unsettled, and step 5 of
+- **`Now`, `Fetch` and `Import` stay, and this was settled by building the
+  browser interpreter rather than by arguing.** This issue and
   [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
-  decides them.** This issue put all three in the "stays" row on the reader-benefit
-  argument above; that issue's step 4 lists `now`, `fetch` and `import` among the
-  operations to move. Both were written without the fact that settles it — **which
-  operations a browser interpreter actually implements** — so neither ruling is
-  authoritative and the disagreement is recorded here rather than resolved by
-  whichever file a later reader opens first.
+  step 4 disagreed: this file put all three in "stays" on the reader-benefit
+  argument, that one listed them among the operations to move. Neither was
+  written knowing the fact that decides it — which operations a browser
+  interpreter actually implements — so both recorded the disagreement and left
+  it to step 5.
 
-  The test to apply is the one `isNotFound` failed: not "does a browser also
-  have one of these", but "is this operation about no host in particular". By
-  that test `now` and `import` look likely to move — a browser proof run needs a
-  clock and dynamic import, so step 5 gives them a second implementer — and
-  `fetch` looks likely to stay, since nothing in the shared runner performs one
-  and DESIGN.md §4 extracts at the second *real* consumer, not the second
-  possible one. Those are expectations, not rulings: whichever way step 5 goes,
-  it updates both files in the same change.
+  Step 5's answer was `sandbox`, `catch` and `all`, and nothing else: the
+  browser interpreter built (and later reverted, with its record) in
+  functionalscript#1759 implemented those three because the shared proof
+  traversal performed those three. A page loads its modules through its own
+  importer rather than an `import` operation, measures its own wall clock
+  rather than dispatching `now`, and performs no `fetch` at all. So none of
+  the three gained a second implementer, and DESIGN.md §4 keeps them here
+  until one does. The sequential plan that replaced that attempt (see
+  share-browser-console-runner) shrinks the measured set once more: a
+  sequential traversal performs no `all`, so the operations a browser gives a
+  second implementer are `sandbox` and `catch` alone. That takes `all` out of
+  *step 4's* motivation, not out of this issue's: its move to `effects/all`
+  above rests on the layering argument, and its implementers stay the Node
+  runners and the registration path.
+
+  Worth recording, because the earlier expectation written here was wrong about
+  two of them: "a browser proof run needs a clock and dynamic import" is true of
+  the *page* and false of the *effect set* — the page does both directly, in the
+  impure shell where host values belong, which is exactly the boundary this
+  whole exercise is drawing. Reasoning from what a host can do predicted the
+  wrong answer; reading what the interpreter had to implement gave the right
+  one.
 - **`isNotFound` stays, and this was tested.** It encodes `ENOENT`
   specifically — a POSIX filesystem code that a host without a filesystem never
   reports — so it *is* a Node-layer concern. A change that moved it to the core
@@ -200,15 +214,43 @@ Judgement calls worth deciding explicitly rather than by accident:
   concern per PR, update every importer in the same PR, and prefix the CHANGELOG
   entry with `**BREAKING CHANGES:**`. Do not leave re-export shims behind.
 
-  **The vocabulary move is the one exception, and for a reason that does not
-  generalize.** A re-export is a shim when it keeps a *dead* coupling alive —
-  which is the case for every move in the table above, where the whole goal is
-  that `fjs/text/sgr` stops naming `effects/node` at all. It is not the case
-  for `IoChannel` and its siblings: node's own operations are declared in
-  them, so `effects/node` re-exporting what it genuinely uses keeps one
-  vocabulary readable at one import rather than preserving a coupling anyone
-  wants gone. That is why that move was additive and needed no importer churn,
-  and why the moves below still need theirs.
+  **The exception is decided by a test, not by a list.** A re-export is a shim
+  when it keeps a *dead* coupling alive; it is legitimate where the
+  re-exporting module genuinely uses the names. The vocabulary move passed
+  that test — node's own operations are declared in `IoChannel` and its
+  siblings — and so does the whole sandbox row, `Await` included: `NodeOp` is
+  declared over `Sandbox`, `Catch` and `Await`, and both node runners
+  implement all three, so `effects/node` re-exporting them keeps one
+  operation set readable at one import for node-side callers, while the
+  modules the move exists for (the shared traversal, a browser interpreter)
+  import the new home directly. The sandbox row's move is therefore
+  additive — and so is the `all` row's, by the same test applied honestly:
+  `NodeOp` unions `All` and both node runners implement it, so `effects/node`
+  re-exporting it is the same one-import convenience, not a dead coupling.
+  The console and test rows *split* under the same test rather than failing
+  it wholesale, because the test applies per name, not per concern: the
+  surviving `effects/node` declarations still reference the operation
+  types — `NodeOp` unions `Read`, `Write` and `Test`, and
+  `NodeProgramOptions` names `WriteConsoles` and `TestContext` — so those
+  names stay re-exported by the same argument as `Sandbox` and `All`. The
+  test reaches the helpers one name at a time, the surviving *code* counts
+  as much as the declarations, and it is applied to the module **as it
+  stands after the move**: `exitStep` stays — it is the node program's
+  exit-code policy, consumed repo-wide — and it calls `errorExit`, so
+  `errorExit` stays re-exported. `errorExit`'s own call to `error` moves to
+  the console module with its body, and nothing that remains in
+  `effects/node` references `error` after that — so `error` is *not* kept
+  by `errorExit`'s keeping, and joins `log`, `readLine` and the `test`
+  combinator as the dead couplings: their consumers are exactly the ones
+  the moves exist to decouple, so they move as hard cutovers, every
+  importer updated in the same PR, no re-export left behind. Draw the exact
+  split at move time by this test — grep what the post-move `effects/node`
+  declarations *and function bodies* reference — and note
+  that the decoupling each move exists for is enforced by its own step's
+  check (`fjs/text/sgr` no longer importing `effects/node`), which a type
+  re-export for node-side callers does not weaken.
+  [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
+  step 4 states the same policy from its side.
 - **The obsolete Playwright adapter is already gone.** This task must preserve
   only the process-side `TestContext` fields that still have consumers. It must
   not use relocation as a reason to revive the Playwright engine, context,
@@ -235,7 +277,8 @@ Judgement calls worth deciding explicitly rather than by accident:
       `allOk` is the ok-channel wrapper over `all` and belongs with it;
       [allvoid-combinator](./allvoid-combinator.md) builds on it, so leaving it
       behind would make `effects/all` import from `effects/node`.
-- [ ] Move `Sandbox` / `Await` and helpers to `fjs/effects/sandbox/module.f.mjs`.
+- [ ] Move `Sandbox` / `Await` / `Catch` and helpers to
+      `fjs/effects/sandbox/module.f.mjs`.
 - [ ] Move the console family to `fjs/effects/console/module.f.mjs`, add the
       named `Std` type there as `RequiredMap<WriteConsoles, …>`, point
       `NodeProgramOptions.std` at it, and narrow `csiWrite` to take `Std`
