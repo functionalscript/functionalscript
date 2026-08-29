@@ -127,8 +127,6 @@ export const proof = {
         }
     },
     throw: {
-        /** `throws` is an outcome, so it has no expression to print. */
-        throwsIsNotAnExp: () => valueExpr(throws),
         /**
          * An operation the printer has no `nanvm-lib` spelling for. The
          * generated file would otherwise carry a statement that does not

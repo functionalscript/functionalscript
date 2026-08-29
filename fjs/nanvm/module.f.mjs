@@ -29,7 +29,7 @@
  * @module
  *
  * @import { Exp, Op1, Op1Id, Op2, Op2Id, Property } from '../edag/types.ts'
- * @import { Case, Data, Eq, Group, Lowered, LoweredEq, OpId, SharedNode, Special, Value } from './types.ts'
+ * @import { Case, Data, Eq, Expectation, FunctionValue, Group, Lowered, LoweredEq, OpId, Operand, Ref, SharedNode, Throws, Value } from './types.ts'
  *
  * @example
  *
@@ -50,14 +50,14 @@ const { entries } = Object
  * Every operator here coerces a function through `ToPrimitive`, which never
  * inspects it, so which function it is does not matter.
  *
- * @type {Special}
+ * @type {FunctionValue}
  */
 export const functionValue = () => ['function']
 
 /**
  * The case must throw. Valid only as a case's `expected`.
  *
- * @type {Special}
+ * @type {Throws}
  */
 export const throws = () => ['throw']
 
@@ -65,15 +65,19 @@ export const throws = () => ['throw']
  * One of the `eq` `shared` values, so the same node — and hence the same
  * object — reaches both sides of a comparison.
  *
- * @type {(name: string) => Special}
+ * @type {(name: string) => Ref}
  */
 export const ref = name => () => ['ref', name]
 
 // Eliminators — the constructors read back, so each rule has one owner.
 
-/** `true` when a case's `expected` is `throws` rather than a value. */
-export const isThrows = (/** @type {Value} */ v) =>
-    typeof v === 'function' && v()[0] === 'throw'
+/**
+ * `true` when a case's `expected` is `throws` rather than a value.
+ *
+ * @param {Expectation} v
+ * @returns {v is Throws}
+ */
+export const isThrows = v => typeof v === 'function' && v()[0] === 'throw'
 
 /**
  * `true` when an operand is `functionValue`, the one operand the corpus
@@ -83,9 +87,11 @@ export const isThrows = (/** @type {Value} */ v) =>
  * is an `Op2Id` — but establishing it would drag closure construction into
  * both consumers for cases that never inspect the function. So such a case
  * escapes to the direct-value path instead — see {@link caseExp}.
+ *
+ * @param {Operand} v
+ * @returns {v is FunctionValue}
  */
-export const isFunctionValue = (/** @type {Value} */ v) =>
-    typeof v === 'function' && v()[0] === 'function'
+export const isFunctionValue = v => typeof v === 'function' && v()[0] === 'function'
 
 /**
  * `true` when a group's cases are also checked with their arguments swapped.
@@ -105,7 +111,7 @@ const isCommutative = g => g.commutative === true
  * owner — spelled differently in the two consumers, the JavaScript and Rust
  * names for one case would silently diverge.
  *
- * @type {(g: Group) => (c: Case<1> | Case<2>) => readonly (readonly[string, readonly Value[]])[]}
+ * @type {(g: Group) => (c: Case<1> | Case<2>) => readonly (readonly[string, readonly Operand[]])[]}
  */
 export const orders = g => c => isCommutative(g)
     ? [[c.name, c.args], [`${c.name}Swapped`, c.args.toReversed()]]
@@ -140,20 +146,17 @@ export const casesOf = g => g.cases
  * fresh node, so a multiply-referenced node in a derived expression is always
  * a `ref` and never an accident of the walk.
  *
- * `functionValue` and `throws` have no expression: the first is what
- * {@link isFunctionValue} exists to catch before the walk reaches it, and the
- * second is an outcome rather than a value.
+ * A `ref` is the only thunk a {@link Value} admits, which is why this walk has
+ * no case for the other two: `functionValue` is a whole {@link Operand} that
+ * {@link caseExp} escapes before lowering, and `throws` is an
+ * {@link Expectation}. Neither is spellable here, so neither is rejected here.
  *
  * @type {(resolve: (name: string) => Exp) => (v: Value) => Exp}
  */
 const constExp = resolve => {
     /** @type {(v: Value) => Exp} */
     const f = v => {
-        if (typeof v === 'function') {
-            const info = v()
-            if (info[0] === 'ref') { return resolve(info[1]) }
-            throw ['not an expression', info]
-        }
+        if (typeof v === 'function') { return resolve(v()[1]) }
         if (v === undefined) { return ['undefined'] }
         if (Array.isArray(v)) { return ['[]', v.map(f)] }
         if (typeof v === 'object' && v !== null) {
@@ -177,11 +180,13 @@ export const valueExp = constExp(name => { throw ['no shared value here', name] 
  * The expression a case denotes: the group's operation applied to its lowered
  * operands, so `mulCases[0]` is `['*', null, null]`.
  *
- * @type {(g: Group) => (args: readonly Value[]) => Lowered}
+ * @type {(g: Group) => (args: readonly Operand[]) => Lowered}
  */
 export const caseExp = g => args => {
     if (!('op' in g) || args.some(isFunctionValue)) { return ['escape'] }
-    const [a, b] = args.map(valueExp)
+    // `some` established that no operand is a `FunctionValue`; narrowing an
+    // array by a predicate over its elements is not something TypeScript does.
+    const [a, b] = /** @type {readonly Value[]} */ (args).map(valueExp)
     // Which vocabulary the tag is in is what fixed the operand count — that is
     // the whole of how the group types carry arity — so reading the count back
     // off the operands recovers the vocabulary. The two casts are that step and
@@ -302,6 +307,9 @@ const mulCases = [
     { name: 'arrayStringTenByOne', args: [['10'], 1], expected: 10 },
     { name: 'arrayPairByOne', args: [[0, 0], 1], expected: NaN },
     { name: 'emptyObjectByOne', args: [{}, 1], expected: NaN },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    { name: 'functionByOne', args: [functionValue, 1], expected: NaN },
     { name: 'numberByBigint', args: [1, 1n], expected: throws },
 ]
 

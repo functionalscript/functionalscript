@@ -20,7 +20,14 @@ import type { Tuple } from '../types/array/types.ts'
 import type { Equal } from '../types/ts/types.ts'
 
 /**
- * A value under test, written as itself.
+ * A value under test, written as itself — anywhere, nesting included.
+ *
+ * `functionValue` is deliberately **not** here and `throws` is not either:
+ * each is legal in exactly one position, and {@link Operand} and
+ * {@link Expectation} are those positions. Admitting them everywhere is what
+ * would let a corpus case be written that no consumer can lower — a
+ * `functionValue` inside an array operand, or as an `eq` side — and be a type
+ * error nowhere.
  *
  * The shape follows `fjs/rtti`, where a constant is its own schema and a
  * thunk describes anything that needs a tag: `2.3`, `'a'`, `12n`, `[1, 2]`,
@@ -33,7 +40,7 @@ import type { Equal } from '../types/ts/types.ts'
  * expression that denotes it, so `typeof` plus `Array.isArray` recovers
  * everything a tag would have carried.
  */
-export type Value = Const | Special
+export type Value = Const | Ref
 
 /** A value that is its own description. */
 export type Const =
@@ -56,22 +63,53 @@ export type Struct = { readonly [k in string]?: Value }
  * that happens to be a function — `functionValue` is how the data says "a
  * function".
  */
-export type Special = () => Info
+export type Special<I extends Info> = () => I
 
 /**
- * What a {@link Special} describes.
- *
- * - `function` — a function value. Every operator here coerces one through
- *   `ToPrimitive`, which never inspects it, so there is nothing to carry.
- * - `ref` — one of the {@link Eq} `shared` values, so the *same* node — and
- *   hence the same object — reaches both sides of a comparison.
- * - `throw` — not a value at all: the case must throw. Valid only as a
- *   {@link Case}'s `expected`.
+ * What a {@link Special} describes. Each of the three is its own type below,
+ * so where it may appear is a type and not a comment.
  */
 export type Info =
     | readonly ['function']
     | readonly ['ref', string]
     | readonly ['throw']
+
+/**
+ * A function value. Every operator here coerces one through `ToPrimitive`,
+ * which never inspects it, so there is nothing to carry.
+ *
+ * Legal only as a whole {@link Operand}: it is the one operand the corpus
+ * declines to lower, and the escape that handles it reads the operand, not a
+ * value inside it.
+ */
+export type FunctionValue = Special<readonly ['function']>
+
+/**
+ * One of the {@link Eq} `shared` values, so the *same* node — and hence the
+ * same object — reaches both sides of a comparison. Legal anywhere a
+ * {@link Value} is, nesting included: the lowering resolves it in place.
+ */
+export type Ref = Special<readonly ['ref', string]>
+
+/**
+ * Not a value at all: the case must throw. Legal only as a {@link Case}'s
+ * `expected` — see {@link Expectation}.
+ */
+export type Throws = Special<readonly ['throw']>
+
+/**
+ * What a case applies its operation to: a value, or the function escape.
+ *
+ * The escape is whole-operand by construction. A `functionValue` nested in an
+ * array or an object would have to be built by a second, recursive
+ * value-to-JavaScript and value-to-Rust walk in each consumer — the very
+ * duplication deriving one expression removes — so the type does not admit
+ * one.
+ */
+export type Operand = Value | FunctionValue
+
+/** What a case expects: a value, or `throws`. */
+export type Expectation = Value | Throws
 
 /**
  * The operation a group applies, as both consumers name it: a canonical EDAG
@@ -100,8 +138,8 @@ export type OpId = Op1Id | Op2Id | NonEdagGroup['nanvmOp']
  */
 export type Case<N extends number> = {
     readonly name: string
-    readonly args: Tuple<N, Value>
-    readonly expected: Value
+    readonly args: Tuple<N, Operand>
+    readonly expected: Expectation
     readonly rust?: string
 }
 
@@ -149,12 +187,19 @@ export type Group = Group1 | Group2 | NonEdagGroup
 // written there passed with any claim at all. A module-scope alias in a
 // `.ts` file is checked; `../types/array/types.ts` is the precedent.
 
-type _Unary = Assert<Equal<Case<1>['args'], readonly [Value]>>
-type _Binary = Assert<Equal<Case<2>['args'], readonly [Value, Value]>>
+type _Unary = Assert<Equal<Case<1>['args'], readonly [Operand]>>
+type _Binary = Assert<Equal<Case<2>['args'], readonly [Operand, Operand]>>
 type _NotWidened = Assert<Equal<Case<2> extends Case<1> ? true : false, false>>
 type _NotNarrowed = Assert<Equal<Case<1> extends Case<2> ? true : false, false>>
 type _Op1Groups = Assert<Equal<Group1['cases'], readonly Case<1>[]>>
 type _Op2Groups = Assert<Equal<Group2['cases'], readonly Case<2>[]>>
+
+// Where each thunk may appear, as a type rather than as a sentence: a
+// `functionValue` is a whole operand or nothing, and `throws` is an
+// expectation or nothing.
+type _NoNestedFunction = Assert<Equal<FunctionValue extends Value ? true : false, false>>
+type _NoThrowsOperand = Assert<Equal<Throws extends Operand ? true : false, false>>
+type _NoFunctionExpected = Assert<Equal<FunctionValue extends Expectation ? true : false, false>>
 
 /**
  * What a case denotes, as the consumers receive it.

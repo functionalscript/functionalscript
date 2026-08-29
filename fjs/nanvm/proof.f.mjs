@@ -19,7 +19,7 @@
  * the memoization contract these cases rely on is the one it already owes.
  *
  * @import { Exp, Op2 } from '../edag/types.ts'
- * @import { Case, EqCase, Group, OpId, SharedNode, Value } from './types.ts'
+ * @import { Case, EqCase, Expectation, Group, OpId, Operand, SharedNode } from './types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
@@ -130,7 +130,7 @@ const sharedMemo = shared => shared.map(
  * through the lowering, so there is one walk from a corpus value to a
  * JavaScript one rather than two that can disagree.
  *
- * @type {(v: Value) => unknown}
+ * @type {(v: Operand) => unknown}
  */
 const escapedValue = v => isFunctionValue(v) ? () => 5 : evaluate([])(valueExp(v))
 
@@ -139,18 +139,17 @@ const escapedValue = v => isFunctionValue(v) ? () => 5 : evaluate([])(valueExp(v
  * — for a case the corpus does not lower — the operation applied to built
  * values.
  *
- * The escape path is unary. The escapes are `unaryPlus`, whose group is
- * unary, and a `functionValue` operand, which only the unary coercion groups
- * carry; a binary escape would need a second line here, and until it is
- * written `op1` refuses the binary id instead of answering for it.
+ * The escape reads the group's arity from the operands it was handed, the
+ * same rule the evaluator reads off a node's length, so a binary group's
+ * escaped case reaches `op2` rather than being refused by the unary table.
  *
- * @type {(g: Group) => (args: readonly Value[]) => unknown}
+ * @type {(g: Group) => (args: readonly Operand[]) => unknown}
  */
 const run = g => args => {
     const lowered = caseExp(g)(args)
-    return lowered[0] === 'exp'
-        ? evaluate([])(lowered[1])
-        : op1(opId(g))(escapedValue(args[0]))
+    if (lowered[0] === 'exp') { return evaluate([])(lowered[1]) }
+    const [a, b] = args.map(escapedValue)
+    return args.length === 1 ? op1(opId(g))(a) : op2(opId(g))(a, b)
 }
 
 /**
@@ -166,7 +165,7 @@ const group = g => {
     /** @type {(c: Case<1> | Case<2>) => readonly (readonly[string, () => void])[]} */
     const leaves = c => {
         const { expected } = c
-        /** @type {(args: readonly Value[]) => () => void} */
+        /** @type {(args: readonly Operand[]) => () => void} */
         const fn = isThrows(expected)
             ? args => () => { run(g)(args) }
             : args => () => {
@@ -256,11 +255,14 @@ const jsOnly = {
         toStringThrows: () => String({ toString: () => { throw 'Custom error' } }),
         toStringNotAFunction: () => String({ toString: 'hello' }),
         toStringNotPrimitive: () => String({ toString: () => [] }),
-        /** `throws` describes a case's outcome; it is not a value to lower. */
-        throwsIsNotAnExp: () => valueExp(() => ['throw']),
-        /** Nor is a function value — that is what an escaped case is for. */
-        functionValueIsNotAnExp: () => valueExp(() => ['function']),
-        /** Only the `eq` section shares, so a `ref` anywhere else is a mistake. */
+        /**
+         * Only the `eq` section shares, so a `ref` anywhere else is a mistake.
+         *
+         * `throws` and `functionValue` used to be refused here too. They are
+         * now unspellable where they were being refused — `Expectation` and
+         * `Operand` admit each in one position only — so the claim is a type
+         * and its pins are in `types.ts`.
+         */
         refOutsideEq: () => valueExp(() => ['ref', 'emptyArray']),
         /** And inside it, a name no `shared` value carries. */
         unknownRef: () => lowerEq({

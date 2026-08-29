@@ -170,6 +170,8 @@ fn mul<A: IVm>() {
     check::<A>("arrayPairByOneSwapped", (1f64).to_any() * [(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (f64::NAN).to_any());
     check::<A>("emptyObjectByOne", Object::default().to_any() * (1f64).to_any(), (f64::NAN).to_any());
     check::<A>("emptyObjectByOneSwapped", (1f64).to_any() * Object::default().to_any(), (f64::NAN).to_any());
+    check::<A>("functionByOne", function_any() * (1f64).to_any(), (f64::NAN).to_any());
+    check::<A>("functionByOneSwapped", (1f64).to_any() * function_any(), (f64::NAN).to_any());
     check_throws::<A>("numberByBigint", (1f64).to_any() * bigint_any(1));
     check_throws::<A>("numberByBigintSwapped", bigint_any(1) * (1f64).to_any());
 }

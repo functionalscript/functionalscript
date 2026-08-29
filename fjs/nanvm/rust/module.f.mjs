@@ -25,7 +25,7 @@
  * @module
  *
  * @import { Exp, Primitive } from '../../edag/types.ts'
- * @import { Data, Eq, Group, OpId, SharedNode, Value } from '../types.ts'
+ * @import { Data, Eq, Expectation, Group, OpId, Operand, SharedNode } from '../types.ts'
  *
  * @example
  *
@@ -197,7 +197,7 @@ export const nodeExpr = expExpr([])
  * a case carrying it escapes; everything else goes through the lowering, so
  * this printer and the JavaScript proof read one derivation and not two.
  *
- * @type {(v: Value) => string}
+ * @type {(v: Operand) => string}
  */
 export const valueExpr = v => isFunctionValue(v) ? 'function_any()' : nodeExpr(valueExp(v))
 
@@ -211,7 +211,7 @@ const emit = reason => statement => reason === undefined
     ? [`${indent}${statement}`]
     : [`${indent}// TODO: ${reason}`, `${indent}// ${statement}`]
 
-/** @type {(expected: Value) => (name: string) => (result: string) => string} */
+/** @type {(expected: Expectation) => (name: string) => (result: string) => string} */
 const assertion = expected => name => result => isThrows(expected)
     ? `check_throws::<A>(${stringLiteral(name)}, ${result});`
     : `check::<A>(${stringLiteral(name)}, ${result}, ${nodeExpr(valueExp(expected))});`
@@ -221,17 +221,16 @@ const assertion = expected => name => result => isThrows(expected)
  * or — for a case the corpus does not lower — the operation applied to printed
  * values.
  *
- * The escape path is unary, for the same reason it is in the proof: the
- * escapes are `unaryPlus`, whose group is unary, and a `functionValue`
- * operand, which only the unary coercion groups carry.
+ * The escape reads the group's arity from the operands it was handed, as the
+ * proof's does, so a binary group's escaped case prints through `op2`.
  *
- * @type {(g: Group) => (args: readonly Value[]) => string}
+ * @type {(g: Group) => (args: readonly Operand[]) => string}
  */
 const result = g => args => {
     const lowered = caseExp(g)(args)
-    return lowered[0] === 'exp'
-        ? nodeExpr(lowered[1])
-        : op1(opId(g))(valueExpr(args[0]))
+    if (lowered[0] === 'exp') { return nodeExpr(lowered[1]) }
+    const [a, b] = args.map(valueExpr)
+    return args.length === 1 ? op1(opId(g))(a) : op2(opId(g))(a, b)
 }
 
 /** @type {(g: Group) => readonly string[]} */
