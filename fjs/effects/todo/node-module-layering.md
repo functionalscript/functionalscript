@@ -214,15 +214,21 @@ Judgement calls worth deciding explicitly rather than by accident:
   concern per PR, update every importer in the same PR, and prefix the CHANGELOG
   entry with `**BREAKING CHANGES:**`. Do not leave re-export shims behind.
 
-  **The vocabulary move is the one exception, and for a reason that does not
-  generalize.** A re-export is a shim when it keeps a *dead* coupling alive —
-  which is the case for every move in the table above, where the whole goal is
-  that `fjs/text/sgr` stops naming `effects/node` at all. It is not the case
-  for `IoChannel` and its siblings: node's own operations are declared in
-  them, so `effects/node` re-exporting what it genuinely uses keeps one
-  vocabulary readable at one import rather than preserving a coupling anyone
-  wants gone. That is why that move was additive and needed no importer churn,
-  and why the moves below still need theirs.
+  **The exception is decided by a test, not by a list.** A re-export is a shim
+  when it keeps a *dead* coupling alive; it is legitimate where the
+  re-exporting module genuinely uses the names. The vocabulary move passed
+  that test — node's own operations are declared in `IoChannel` and its
+  siblings — and so does the `Sandbox`/`Catch` half of the sandbox row:
+  `NodeOp` is declared over both and the node interpreter implements both, so
+  `effects/node` re-exporting them keeps one operation set readable at one
+  import for node-side callers, while the modules the move exists for (the
+  shared traversal, a browser interpreter) import the new home directly.
+  Those two moves are therefore additive. The console, test and `all` moves
+  fail the test — their whole goal is that their consumers stop naming
+  `effects/node` at all — so they remain hard cutovers: update every importer
+  in the same PR, no re-export left behind.
+  [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
+  step 4 states the same policy from its side.
 - **The obsolete Playwright adapter is already gone.** This task must preserve
   only the process-side `TestContext` fields that still have consumers. It must
   not use relocation as a reason to revive the Playwright engine, context,

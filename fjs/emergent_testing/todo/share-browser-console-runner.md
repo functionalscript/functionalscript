@@ -310,7 +310,13 @@ and is reviewable without the next one.
 
 - [ ] **4. Common effects.** Move `sandbox` and `catch` out of `effects/node`
       into a shared module that `effects/node` re-exports unchanged, so
-      nothing has to move with them.
+      node-side callers keep one import. The re-export is legitimate here by
+      [node-module-layering](../../effects/todo/node-module-layering.md)'s own
+      test — a re-export is a shim only when it keeps a *dead* coupling
+      alive, and `NodeOp` is declared over `Sandbox` and `Catch`, so
+      `effects/node` genuinely uses what it re-exports. The modules the move
+      exists for — the shared traversal, the browser interpreter — import the
+      new home directly.
 
       **The list was settled by measurement, then shrank again by design.**
       The reverted #1759 interpreter implemented exactly `sandbox`, `catch`
@@ -436,12 +442,18 @@ and is reviewable without the next one.
       stays there (step 6's note carries the same correction).
       What the reverted #1759 validated and this PR re-lands: the traversal
       threads a `RunOutcome<R>` — folded totals plus each host's leaf records
-      in the walk's order (`fjs t` answers `void` and collects nothing); the
-      page's modules stay a *list* entered at a seam for already-collected
-      leaves, because labels may repeat and an export is enumerated exactly
-      once, under the page's own guard (catalog items 5, 6); the run starts
-      only after its promise is published (item 7); and both runner-failure
-      routes end in the `infrastructure-error` report (item 8).
+      in the walk's order (`fjs t` answers `void` and collects nothing).
+      **That is a breaking change to `runModuleMap`'s exported answer** —
+      today it is an exit code, `0 | 1` — and re-landing it carries the same
+      obligations it carried the first time: an `exitCodeOf` helper for
+      callers that want the code, every in-repo importer migrated in the same
+      PR, and a changelog entry with the `**BREAKING CHANGES:**` prefix
+      naming the return-shape migration. Also re-landed: the page's modules
+      stay a *list* entered at a seam for already-collected leaves, because
+      labels may repeat and an export is enumerated exactly once, under the
+      page's own guard (catalog items 5, 6); the run starts only after its
+      promise is published (item 7); and both runner-failure routes end in
+      the `infrastructure-error` report (item 8).
 
       **What stays the page's own, with the reason:** reading a *module's*
       exported tree. The shared walk guards a returned tree through `catch`

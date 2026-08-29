@@ -59,9 +59,10 @@ export type All = readonly['all', <T, E>(effects: readonly Effect<never, T, E>[]
 ```
 
 Then `allOk(entries.map(one))` builds an array and hands it over, and no call in the path
-grows with the suite. Every interpreter changes shape — `effects/node`, `effects/browser`,
-the mock, and any fixture that supplies an `all` handler — which is what makes this its own
-step rather than a fix inside another change.
+grows with the suite. Every `all` handler changes shape — `effects/node`'s real and
+virtual runners, the mock, and any fixture that supplies one — which is what makes this
+its own step rather than a fix inside another change. Not a browser interpreter: under
+the sequential plan the traversal performs no `all`, so no browser implements it.
 
 The variadic spelling is nicer at the two-or-three-effect call sites that motivated it
 (`both`, hand-written fan-outs in proofs), so a wrapper that keeps that shape over the
