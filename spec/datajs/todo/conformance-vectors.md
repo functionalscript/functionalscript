@@ -92,16 +92,28 @@ that happened to be noticed:
 
 | width | lowest | highest |
 | - | - | - |
-| one byte | `20` (U+0020) | `7f` (U+007F) |
+| one byte, in a string | `20` (U+0020) | `7f` (U+007F) |
+| one byte, between tokens | `09`, `0a`, `0d` | — |
 | two bytes | `c2 80` (U+0080) | `df bf` (U+07FF) |
 | three bytes | `e0 a0 80` (U+0800) | `ef bf bf` (U+FFFF) |
 | four bytes | `f0 90 80 80` (U+10000) | `f4 8f bf bf` (U+10FFFF) |
 
 A decoder rejecting any one lead-byte range refuses valid text while passing a
 set built from interior values: `C2`, `E0` and `F0 90` at the bottom, `DF`,
-`EF` and `F4` at the top. The one-byte row starts at U+0020 because everything
-below it is a rejected raw control, and the three-byte row has a hole at
-U+D800–U+DFFF, which the surrogate error class already covers.
+`EF` and `F4` at the top. The three-byte row has a hole at U+D800–U+DFFF,
+which the surrogate error class already covers.
+
+**The one byte range depends on where the byte is**, which is why it is two
+rows. Inside a string it starts at U+0020, because everything below is a
+rejected raw control. Between tokens, tab, LF and CR are *permitted
+whitespace*, so `09`, `0a` and `0d` are accepts — and they need byte-form
+vectors of their own, because the code-unit whitespace accepts never reach a
+decoder at all. A byte reader rejecting any of the three during decoding
+passed every other vector here. An earlier draft of this table gave one
+unqualified one-byte row starting at U+0020, which was the string rule applied
+to the whole document; the same three characters are a rejection in one context
+and an acceptance in the other, so no vector here may leave its context
+unstated.
 
 This table exists because a boundary needs a vector on each side, and review
 has had to say so here **three times running** — first U+10FFFF, then the three
@@ -289,7 +301,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Nineteen consecutive review
+  vector is the only instrument that sees it. Twenty consecutive review
   rounds each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -315,7 +327,9 @@ The six parts:
   boundary of every UTF-8 width, and non-continuation bytes at the later
   positions of a sequence — then the normalize set taking documents where a
   serializer role takes graphs, the two- and three-byte maxima, `__proto__` in
-  the writing direction, and JavaScript's other integer-literal families. Every time the list had been written from memory rather
+  the writing direction, and JavaScript's other integer-literal families —
+  then the permitted control whitespace in byte form, which the width table
+  had excluded by applying a string rule to the whole document. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
