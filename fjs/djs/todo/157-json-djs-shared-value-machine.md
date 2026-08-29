@@ -56,7 +56,7 @@ left rather than what this section was filed against:
 So the remaining duplication is one walker per family, and the extraction point
 already exists and is exported: `treeSerialize`. The question is no longer "where
 should a shared walker live" but "is one walker with the seams DJS needs better
-than two" — which **the delta is three seams** below sets out, and does not
+than two" — which **the delta is four seams** below sets out, and does not
 presume.
 
 Both still define the same closure cluster — `propertySerialize`,
@@ -73,7 +73,7 @@ Both still define the same closure cluster — `propertySerialize`,
 this section is sharing one walker between that factory and JSON's
 `treeSerialize`.
 
-What that costs is set out under **the delta is three seams** below. Note the
+What that costs is set out under **the delta is four seams** below. Note the
 shape of `buildSerialize` above: it already takes the key seam and the
 pre-recursion seam as parameters, which is the same shape a shared walker would
 need — this section is about whether the two can be one function, not about
@@ -88,8 +88,8 @@ shape `treeSerialize` is typed over — 663 changes how that shape is spelled an
 where it lives, not whether the two agree. The walker can be shared before 663
 lands.
 
-**The delta is three seams, not one.** `leafSerialize` cannot absorb the other
-two, and the dispatch order is why:
+**The delta is four seams, not one.** `leafSerialize` cannot absorb the others,
+and for the first of them the dispatch order is why:
 
 ```js
 // json/serializer — the leaf seam runs last, and only for non-containers
@@ -119,9 +119,33 @@ needs:
    assignment in JavaScript and would not read back the value it was given.
    Round-tripping depends on it, so it is not a style difference the shared
    walker can hardcode away.
+4. **an entry-enumeration seam** — `treeSerialize` reads an object through
+   `definedEntries`, which drops a property whose value is `undefined` before
+   any other seam runs; `buildSerialize` reads it through `entries`, which keeps
+   it. DJS emits that property today:
 
-Whether one walker with three seams is better than two walkers is the question
-this sub-task actually has to answer.
+   ```
+   {a: 1, b: undefined}  ->  {"a":1,"b":undefined}
+   ```
+
+   so reusing the JSON walker unchanged would silently discard `b`. This one is
+   data loss rather than formatting, which makes it the seam most worth checking
+   an implementation against.
+
+The fourth is not an oversight in `treeSerialize`; the two families disagree
+about what an `undefined` property *means*. `undefined` is a DJS `Primitive`, so
+`{a: undefined}` is a value with a property; JSON has no such leaf, so a
+`Tree<P>` property that reads `undefined` is an absent one. Note the interaction
+with [663](./663-json-djs-tree-type.md): the optional index signature it argues
+is *required* for soundness — `{ readonly [k in string]?: Unknown<P> }` — is
+exactly what makes "present and `undefined`" indistinguishable from "absent" at
+the type level, so only the runtime enumerator can tell them apart. Any shared
+walker has to take that choice as a parameter rather than inherit JSON's.
+
+Whether one walker with four seams is better than two walkers is the question
+this sub-task actually has to answer. Three of them — key, pre-recursion,
+entry enumeration — are already parameters of `buildSerialize` or forced by it,
+so the shared walker would carry most of DJS's shape either way.
 
 ### 3. Tokenizer minus-rewriter
 
