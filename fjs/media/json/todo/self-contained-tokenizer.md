@@ -44,7 +44,15 @@ already rejected:
 | `00`, `0.`, `0e`, `0e-`, `0n` | rejected |
 
 So the swap changes **no accepted input**, and every accepted-input proof in
-`proof.f.mjs` must survive it byte for byte. That is the regression bar.
+`proof.f.mjs` must survive it byte for byte.
+
+The regression bar is actually stronger than that, and stating it precisely
+matters because `tokenize` is public API rather than an internal step of
+`parse`: **no input changes between producing an error token and not producing
+one.** Inputs that error today still error, inputs that do not still do not,
+and only the *shape* of the errors changes. "The parser rejects it either way"
+is not a defence, because a direct consumer of the tokenizer sees the tokens,
+not the rejection.
 
 What is not JSON's is the **shape of the errors**, which is inherited from the
 JavaScript token stream that produced them.
@@ -165,10 +173,16 @@ Five rules replace the inherited behavior:
    terminator.** Scan JSON's number grammar; when the grammar can no longer
    continue, look at the next character.
 
-   - A **terminator** — whitespace, one of `{}[]:,`, a `"`, a `-`, or end of
-     input — ends the lexeme and is re-dispatched rather than swallowed. The
+   - An **accepting terminator** — whitespace, one of `{}[]:,`, a `-`, or end
+     of input — ends the lexeme and is re-dispatched rather than swallowed. The
      number is a `number` token if the grammar stopped in an accepting state
      and one `invalid number` if it did not. So `12.]` stays `error, ]`.
+   - A **`"` ends the lexeme without accepting it**: the number is one
+     `invalid number` and the quote is re-dispatched, so the string that
+     follows still scans. It is the single character in this position, and it
+     earns the special case: consuming it would swallow an entire well-formed
+     string token, which loses far more than an error shape. `12"a"` is
+     therefore `invalid number` then the string `"a"`, exactly as today.
    - **Anything else** means the lexeme is malformed: consume through to the
      next terminator and emit exactly one `invalid number`. The junk inside is
      not re-scanned into further errors.
@@ -182,6 +196,9 @@ Five rules replace the inherited behavior:
    is a complete `number` and the *parser* would reject what follows — but in a
    valid document a number is always terminated, so requiring it rejects
    nothing valid and says something far more useful about input that is wrong.
+   The `"` case is the same judgement applied consistently: a number abutting a
+   string is as malformed as a number abutting a word, and it would be hard to
+   defend rejecting `0abc` while accepting `12"a"`.
 
    `-` has to be in the terminator set, and the proofs are what say so:
    `tokenize('10-0')` asserts the two number tokens `10` and `-0`. Without `-`
@@ -254,20 +271,21 @@ follows the input instead:
 | `1true` | error, `true` | one `invalid number` |
 | `0n`, `123n` | `invalid token` | one `invalid number` |
 | `[-123n]` | `[`, error, error, `]` | `[`, one `invalid number`, `]` |
-| `12"a"` | error, string `"a"` | number `12`, string `"a"` |
+| `12"a"` | error, string `"a"` | unchanged — `"` ends without accepting |
 
 An unterminated string stays one error; its message changes from
 `" are missing` to `invalid string`.
 
-The last row is the only one where a token becomes *more* accepted, and it is
-the terminator rule reading correctly: `"` cannot continue a number, so `12` in
-`12"a"` really is a complete number lexeme, where today it is reported as
-malformed. The document stays invalid either way — the parser rejects two
-adjacent values — so no input changes acceptance.
+Every change in that table is an error becoming a *differently shaped* error.
+**No input moves between erroring and not erroring, in either direction** — that
+is the invariant worth checking the implementation against, and it is stronger
+than "accepted documents are unchanged", because the tokenizer is public API and
+a direct consumer can observe an error token the parser would only turn into a
+rejection.
 
-Nothing moves the other way. `0n` does not become the number `0` followed by a
-stray `n`: `n` is not a terminator, so the run is one `invalid number`, exactly
-as `0abc` is today.
+Nothing loosens either. `0n` does not become the number `0` followed by a stray
+`n`: `n` is not a terminator, so the run is one `invalid number`, exactly as
+`0abc` is today.
 
 ### Exporting the string and number scanners
 

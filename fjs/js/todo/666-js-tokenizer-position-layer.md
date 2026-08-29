@@ -53,45 +53,40 @@ Separate the two concerns:
 1. **Extract the pure dispatch back out**, as the `tokenizeOp` this issue was
    written against — `(input, state) => input == null ? tokenizeEofOp(state) :
    tokenizeCharCodeOp(input, state)` — and have `tokenizeWithPositionOp` call
-   it instead of repeating both branches. Then **expose a raw entry point** over
-   it yielding `List<JsToken>` without metadata (`tokenizeRaw`), which JSON's
-   tokenizer consumes directly instead of supplying a dummy path and throwing
-   positions away. The extraction is step zero now; when this issue was written
-   it was already done.
+   it instead of repeating both branches. The extraction is step zero now; when
+   this issue was written it was already done.
+
+   This issue originally went on to **expose a raw entry point** over it
+   (`tokenizeRaw`), yielding `List<JsToken>` without metadata, for JSON's
+   tokenizer to consume instead of supplying a dummy path and throwing
+   positions away. **That half is superseded — do not build it.**
+   [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md)
+   stops JSON consuming `fjs/js/tokenizer` at all, and JSON was `tokenizeRaw`'s
+   only proposed consumer: `fjs/djs/tokenizer` imports just `isKeywordToken`
+   and `mergeTrivia` and drives its own `tokenizeJs`
+   (`fjs/djs/tokenizer/module.f.mjs:544`), so it never wanted a bare JS token
+   stream either. Exporting it anyway would add exactly the unused public API
+   this issue's own defer-until-a-second-consumer rule forbids.
 2. (Optional, defer until a second consumer) Express position tracking as a
    standalone generic combinator
    `StateScan<C, S, List<T>> → StateScan<C, {state:S, metadata}, List<{token:T, metadata}>>`,
    with newline detection passed in, so `tokenizeWithPositionOp` becomes one
    application of it. Per the repo's "extract at the second consumer" rule, the
-   generic combinator has no second consumer yet — so the immediate, justified step
-   is just (1): exposing the raw/no-metadata entry point.
+   generic combinator has no second consumer yet — so the immediate, justified
+   step is the `tokenizeOp` re-extraction in (1), and nothing else.
 
 This is a separation-of-concerns improvement: the lexical core and the source-
-position bookkeeping become independently consumable, which also tidies the JSON
-tokenizer's dummy-path workaround.
+position bookkeeping stop being one fused operator. The issue's second
+motivation — tidying JSON's dummy-path workaround — is gone with the JSON
+consumer, so what remains is justified as an internal tidy-up on its own.
 
 ### Tasks
 
 - [ ] re-extract `tokenizeOp` from `tokenizeWithPositionOp`'s two branches
-- [ ] export a `tokenizeRaw` (no-metadata) entry point built on `tokenizeOp`
-- [ ] ~~export a `tokenizeRaw` (no-metadata) entry point built on
-      `tokenizeOp`~~ and ~~switch `fjs/media/json/tokenizer` to consume it
-      instead of `jsTokenize(input)('')`~~ — **superseded, do not build
-      either.** JSON stops consuming `fjs/js/tokenizer` at all; see
-      [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md).
-
-      JSON was `tokenizeRaw`'s only proposed consumer, and there is no other:
-      `fjs/djs/tokenizer` imports just `isKeywordToken` and `mergeTrivia` from
-      this module and drives its own `tokenizeJs`
-      (`fjs/djs/tokenizer/module.f.mjs:544`), so it never wanted a bare JS
-      token stream either. Building the export anyway would add an unused
-      public API, which is exactly what this issue's own
-      defer-until-a-second-consumer principle forbids.
-
-      What survives is task 1 alone — re-extracting `tokenizeOp` so
-      `tokenizeWithPositionOp` stops repeating both branches — which is an
-      internal tidy-up justified without any consumer.
 - [ ] (defer) generic `withPosition` combinator once a second consumer appears
+
+The `tokenizeRaw` export and the task to point `fjs/media/json/tokenizer` at it
+are **removed, not deferred** — see the Proposal above.
 
 ### Related
 
