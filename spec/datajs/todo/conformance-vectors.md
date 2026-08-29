@@ -474,8 +474,18 @@ The six parts:
   the same value; empty containers, deep nesting, and shared nodes reached by
   several paths.
 - **reject** — document text plus what is wrong with it. Cases: a missing or
-  non-final `export default`, a missing `;`, `;;`, a trailing comma, a comment,
-  an `import`, an identifier key, a bare or string `"__proto__"` key and its
+  non-final `export default`, a missing `;` **after each of the two statements
+  that take one**, `;;`, a **trailing comma in each container** — `[1,]` and
+  `{"a":1,}`, since `array` and `object` are separate productions with separate
+  comma rules — **both comment forms**, `//` and `/* */`, which are separate
+  lexical shapes a reader can strip one of,
+  an `import` — **one** of those, and the asymmetry is the grammar's rather than
+  a guess about implementations: a trailing comma is refused inside a
+  container's element loop and there are two such loops, a missing `;`
+  terminates a statement and there are two such statements, but `import` has no
+  production at all and is refused at the single point where `document` decides
+  a statement is neither `const` nor `export default` —
+  an identifier key, a bare or string `"__proto__"` key and its
   escaped spelling `"\u005f_proto__"` (the rule is on the decoded value), a
   a number spelling JavaScript takes and DataJS does not — **every
   integer-literal family**, since sampling hexadecimal leaves the others open:
@@ -728,7 +738,10 @@ The six parts:
   where that role asks only for a document denoting the input — then a raw `/`,
   the one character with two valid spellings and so the one a reader can
   wrongly require escaped, and the signed twins of every number-family reject,
-  which the accept set had been crossing with the sign all along. The sweep for the lead-partition shape had
+  which the accept set had been crossing with the sign all along — then the
+  trailing comma and the missing `;`, each named once for two productions that
+  have one apiece, and the normalized identifier roots, where naming the class
+  had again stood in for naming its members. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1130,10 +1143,17 @@ The six parts:
   check. Include a normalized root that is a bare
   number and a bare bigint, so `export default 1;` cannot regress to
   `export default1;` — which JavaScript rejects, `default1` being one
-  identifier. Include an **identifier-starting** root as well (`NaN`, or any of
-  `true`, `false`, `null`, `undefined`, `Infinity`): a normalizer that
-  dispatches on type can emit the space for digits and drop it for words,
-  producing `export defaultNaN;`, and the two numeric roots cannot see that.
+  identifier. Include an **identifier-starting** root for **each** of the six —
+  `NaN`, `true`, `false`, `null`, `undefined`, `Infinity` — not one chosen from
+  the list. A normalizer that dispatches on type can emit the space for digits
+  and drop it for words, producing `export defaultNaN;`, which the two numeric
+  roots cannot see; and it can equally get one word right and another wrong,
+  which naming the class rather than the members cannot see. That is *naming a
+  type is not naming a vector*, the rule the serializer-accept leaves needed two
+  rounds ago, applied here — where it bites harder, because this role is judged
+  on bytes and the serializer-accept vector for the same value checks only
+  validity and denotation, so nothing else in the corpus would catch stray
+  whitespace around `false`.
 
 The corpus is data, not code, so it can be read by an implementation in any
 language. It is stored as **JSON, permanently** — not "JSON until DataJS can
