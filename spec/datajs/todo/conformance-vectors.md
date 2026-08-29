@@ -369,14 +369,19 @@ The six parts:
     `number` names a binary64 value and not the literal: `1000000000000000128`,
     whose value's canonical spelling is `1000000000000000100`; `5e-324`, the
     smallest positive subnormal, which is a *nonzero* value; `1e-999`, which
-    denotes `0`; and `1e999`, which denotes `Infinity`. Each names a different
+    denotes `0`; `1e999`, which denotes `Infinity`; and
+    `1.7976931348623157e308`, the **largest finite**, which denotes itself and
+    not an infinity — the boundary the other three approach from the wrong
+    side, since a reader with an off-by-one overflow threshold returns
+    `Infinity` for it while handling `1e999` correctly. Each names a different
     broken reader — one keeping the literal exactly in a decimal or bigint
     type, one flushing a subnormal to zero, one erroring on underflow, one
     erroring on overflow — and every other number vector here is small enough
     that all four pass it. **And a signed twin of each**, which the rule two
     bullets down requires and the commit that added the four did not apply,
     the fifth time that has happened: `-1000000000000000128`, `-5e-324`,
-    `-1e-999` and `-1e999`. Measured, the signs are not decoration —
+    `-1e-999`, `-1e999` and `-1.7976931348623157e308`. Measured, the signs are
+    not decoration —
     `-1e-999` denotes **`-0`** where `1e-999` denotes `0`, an `Object.is`
     difference this corpus is required to see, so a reader preserving the sign
     on the literal zero spellings `-0`, `-0.0` and `-0e0` while dropping it
@@ -1009,7 +1014,14 @@ The six parts:
   from the serializer-accept width boundaries because that list started at
   U+007F — the same hole the `normalize` encoder table had two rounds earlier,
   fixed there and not carried across, so the cross-role rule failed in the
-  direction it exists to prevent within three rounds of being written. The sweep for the lead-partition shape had
+  direction it exists to prevent within three rounds of being written — then
+  the nineteen whitespace-like scalars, absent from serializer accept, and the
+  largest finite, absent from reader accept. Four consecutive rounds of one
+  shape is not a run of oversights, it is a missing artifact: prose that
+  mentions a class in two roles reads exactly like prose that mentions it in
+  three, so the checklist above now calls for a class-by-role matrix generated
+  from the corpus, where an empty cell is visible without a reader noticing
+  its absence. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1237,6 +1249,14 @@ The six parts:
     runs none of those vectors. Each asserts the emitted document denotes the
     input's exact code-unit sequence, which is what separates a correct escape
     from a serializer that drops the character;
+  - a string holding each of the **nineteen whitespace-like scalars**, value
+    and key — U+2028, U+2029, U+FEFF and the sixteen `Space_Separator`
+    characters other than U+0020. They are ordinary string content, and a
+    serializer-only implementation refusing any of them refuses a valid input
+    while passing every other vector in this role, since nothing else here is
+    one of them. They were assigned to reader accept and `normalize` when the
+    contextual inverse was found and did not reach this role, which is the
+    third round running that a class has been short a role;
   - a string holding an ordinary **non-ASCII BMP character** and a
     **surrogate pair**, the two paths the escape classes above do not reach. A
     serializer with an ASCII path and a lone-surrogate escape path passes
@@ -1768,6 +1788,21 @@ needs nothing beyond an engine.
 
 ### Tasks
 
+- [ ] **Emit a class-by-role matrix and check it in beside the corpus.** Rows
+      are the classes this document names, columns the three roles, and a cell
+      is a vector id or an explicit "not applicable, because…". Prose cannot do
+      this job: a class short a role has now been the finding on four
+      consecutive review rounds — the whitespace-like scalars missing from
+      serializer accept, the largest finite missing from reader accept, U+0020
+      missing from the writer boundaries, the magnitude boundaries added
+      positive-only — and each was found by a reader noticing the absence,
+      which is exactly the work a table does mechanically. The rule stated at
+      the reader's derivation (a `normalize` case owes a reader vector where a
+      plausible implementation would read the same text as a different value,
+      and a serializer vector where one would emit a document denoting a
+      different value) says *when* a cell is required; the matrix is what makes
+      an empty one visible. Generate it from the corpus rather than writing it
+      by hand, or it becomes the seventeenth stale cross-reference.
 - [ ] Write the meta-encoding down as a schema before any vector, per the
       section above: node table, `ref` indices, the leaf tags, the `arr` form
       with holes occupying positions, the object pair form **with unique keys
