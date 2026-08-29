@@ -220,9 +220,9 @@ const constContainerValidate =
                 return verror('unexpected value')
             }
             // The container's **shape** is settled before any member is
-            // read: it is bounded, presence is recorded, an illegal absence
-            // is rejected, an undeclared member is rejected — and only then
-            // are the members read, from the flags already recorded.
+            // read: it is bounded, an illegal absence is rejected, an
+            // undeclared member is rejected — and only then are the members
+            // read.
             //
             // That order is what makes an `or` of two arities linear
             // instead of 2^depth, which is the shape a schema uses to say a
@@ -249,22 +249,27 @@ const constContainerValidate =
             // `Object.keys` on 500 000 keys is 185ms whether or not the
             // scan stops at the first. So a value one question answers
             // never pays for the ones after it, and the constant-time
-            // bound precedes even the presence list, which is one entry
-            // per declared member and so is the schema's size.
+            // bound precedes everything else.
             if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
-            const withPresence = rttiEntries.map(([k, v]) =>
-                /** @type {readonly[string, readonly[typeof v, boolean]]} */ ([k, [v, k in value]]))
             // Reaching an illegal absence through the reading walk would
             // first recurse into the members that come before it, and those
             // are the operands the longer arm shares — so the two arms would
             // walk them once each at every level, which is the exponential
             // all over again. Measured on a chain of `['.', exp, index]`
             // with a leaf no arm accepts: 2.5s at depth 16 without this.
+            //
+            // The pass carries nothing forward, so it stops at the first
+            // illegal absence having touched only the members before it: a
+            // 500 000-position schema against `[]` answers at index 0. The
+            // reading walk asks `in` again rather than being handed a
+            // recorded flag — one `HasProperty` on a value whose reads have
+            // no effect, which is the assumption stated in `../README.md`,
+            // and cheaper than a list the short-circuit would waste.
             const a = eachEntry(
-                withPresence,
-                (_k, [v, present]) => present ? ok(undefined) : absentMember(v),
+                rttiEntries,
+                (k, v) => k in value ? ok(undefined) : absentMember(v),
                 undefined,
                 acc => acc,
             )
@@ -273,10 +278,10 @@ const constContainerValidate =
                 return verror('unexpected value')
             }
             const r = eachEntry(
-                withPresence,
-                (k, [v, present]) => {
-                    // Absence is settled above; this walk only records it.
-                    if (!present) { return ok(false) }
+                rttiEntries,
+                (k, v) => {
+                    // Absence is settled above, so this one is legal.
+                    if (!(k in value)) { return ok(false) }
                     const m = /** @type {any} */ (validate(v))(getItem(value, k))
                     return m[0] === 'error' ? m : ok(true)
                 },

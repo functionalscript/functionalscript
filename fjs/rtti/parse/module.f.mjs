@@ -344,8 +344,8 @@ const constContainerParse =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            // The bound, presence, absence, the undeclared check, then
-            // the reads. See the comment on the same shape in
+            // The bound, absence, the undeclared check, then the reads.
+            // See the comment on the same shape in
             // `../validate/module.f.mjs`, including what settling the shape
             // first assumes of the value.
             // Cheapest structural question first, for the reason
@@ -353,14 +353,12 @@ const constContainerParse =
             if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
-            const withPresence = rttiEntries.map(([k, t]) =>
-                /** @type {readonly[string, readonly[typeof t, boolean]]} */ ([k, [t, k in value]]))
-            // Absence before any read, for the reason `../validate`'s
-            // copy of this comment gives: reaching an illegal absence
-            // through the reading walk restores the exponential.
+            // Absence before any read, and carrying nothing forward so it
+            // stops at the first illegal one — for the reasons
+            // `../validate`'s copy of this comment gives.
             const a = eachEntry(
-                withPresence,
-                (_k, [t, present]) => present ? ok(undefined) : absentMember(t),
+                rttiEntries,
+                (k, t) => k in value ? ok(undefined) : absentMember(t),
                 undefined,
                 acc => acc,
             )
@@ -369,10 +367,10 @@ const constContainerParse =
                 return verror('unexpected value')
             }
             const r = eachEntry(
-                withPresence,
-                (k, [t, present]) => {
-                    // Absence is settled above; this walk only records it.
-                    if (!present) { return ok([]) }
+                rttiEntries,
+                (k, t) => {
+                    // Absence is settled above, so this one is legal.
+                    if (!(k in value)) { return ok([]) }
                     const p = /** @type {any} */ (parse(t))(getItem(value, k))
                     return p[0] === 'error' ? p : ok([p[1]])
                 },
