@@ -87,15 +87,27 @@ reader's public byte-accepting path — which stage 4 owes:
   one this corpus should settle by requiring it of every consumer.
 
 Byte-form vectors must **accept** as well as reject, and one per sequence
-width, **at both ends of each width's range**: ASCII; `c2 80` (U+0080) and
-`c3 a9`; `e0 a0 80` (U+0800) and `e2 82 ac`; `f0 90 80 80` (U+10000),
-`f0 9f 98 80`, and `f4 8f bf bf` (U+10FFFF). The minima matter for the same
-reason the maximum does — a decoder rejecting every `C2` lead, every `E0`
-lead, or every `F0 90` sequence refuses valid U+0080, U+0800 or U+10000 while
-passing a set built from interior values, exactly as one rejecting every `F4`
-lead refused U+10FFFF. A boundary needs a vector on each side; this document
-says that about array-index keys, and review has now had to apply it here
-twice, once per end. One
+width, **at both ends of every width's range** — the whole table, not the ends
+that happened to be noticed:
+
+| width | lowest | highest |
+| - | - | - |
+| one byte | `20` (U+0020) | `7f` (U+007F) |
+| two bytes | `c2 80` (U+0080) | `df bf` (U+07FF) |
+| three bytes | `e0 a0 80` (U+0800) | `ef bf bf` (U+FFFF) |
+| four bytes | `f0 90 80 80` (U+10000) | `f4 8f bf bf` (U+10FFFF) |
+
+A decoder rejecting any one lead-byte range refuses valid text while passing a
+set built from interior values: `C2`, `E0` and `F0 90` at the bottom, `DF`,
+`EF` and `F4` at the top. The one-byte row starts at U+0020 because everything
+below it is a rejected raw control, and the three-byte row has a hole at
+U+D800–U+DFFF, which the surrogate error class already covers.
+
+This table exists because a boundary needs a vector on each side, and review
+has had to say so here **three times running** — first U+10FFFF, then the three
+minima, then the two- and three-byte maxima, which were still interior values
+in the same sentence that claimed to cover both ends. Fixing the reported
+instance and not sweeping the rest is what turned one finding into three. One
 multibyte vector is not enough either — with only a two-byte
 one, a decoder accepting ASCII and two-byte sequences while rejecting every
 three- and four-byte sequence still passes, and the BMP and astral cases under
@@ -196,8 +208,10 @@ The six parts:
   non-final `export default`, a missing `;`, `;;`, a trailing comma, a comment,
   an `import`, an identifier key, a bare or string `"__proto__"` key and its
   escaped spelling `"\u005f_proto__"` (the rule is on the decoded value), a
-  a number spelling JavaScript takes and DataJS does not — `0x10`, `+1`, `.5`,
-  `1.`, `1_0`, `01` — and two identifier spellings it takes and DataJS does
+  a number spelling JavaScript takes and DataJS does not — **every
+  integer-literal family**, since sampling hexadecimal leaves the others open:
+  `0x10`, `0b10`, `0o10`, and the same four as bigints, `0x10n`, `0b10n`,
+  `0o10n`, `1_0n`, plus `+1`, `.5`, `1.`, `1_0`, `01` — and two identifier spellings it takes and DataJS does
   not: a **non-ASCII** one, `const é=1;export default é;`, and an **escaped**
   one, `const \u0061=1;export default \u0061;`. Both are valid JavaScript, so a
   reader borrowing the host's number or identifier grammar passes the whole-set
@@ -275,7 +289,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Eighteen consecutive review
+  vector is the only instrument that sees it. Nineteen consecutive review
   rounds each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -299,7 +313,9 @@ The six parts:
   two table entries that lost a binding between the measurement and the
   writing-down, then a truncation vector that could not fail, the lower
   boundary of every UTF-8 width, and non-continuation bytes at the later
-  positions of a sequence. Every time the list had been written from memory rather
+  positions of a sequence — then the normalize set taking documents where a
+  serializer role takes graphs, the two- and three-byte maxima, `__proto__` in
+  the writing direction, and JavaScript's other integer-literal families. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -460,6 +476,13 @@ The six parts:
   spec says is **not** a free choice, so it is the only container case whose
   output shape is constrained.
 
+  One key needs its own entry: an object with an own enumerable **`__proto__`**
+  data property. The reader's set covers that key and this one did not, so a
+  serializer-only implementation could refuse a value its own output syntax can
+  express — `{["__proto__"]:…}` is exactly what the grammar provides it for.
+  The same rule reaching two roles owes a vector in each, which is the third
+  time that has come up here.
+
   The remaining cases are host variations. The spec is explicit that these are
   outside the data model rather than invalid, and that rejecting them is a
   defect rather than caution ([`README.md`](../README.md)): a `null`-prototype
@@ -473,8 +496,16 @@ The six parts:
 - **graph equivalence** — an input graph and the documents that do and do not
   denote it, so a serializer cannot pass by emitting merely *valid* output:
   `[a,a]` with one shared `a` is not `export default [[],[]];`.
-- **normalize** — an input document and the exact bytes normalized form must
-  produce: const hoisting by reference identity, post-order `_0`, `_1`, …
+- **normalize** — an input **graph**, in the meta-encoding, and the exact bytes
+  normalized form must produce. Not an input *document*: a normalized
+  serializer is a serializer role, so its input is a programmatic value, and an
+  implementation providing that role and no reader could not run a
+  document-input set without implementing a role it never claimed. Review found
+  every vector here starting from a document, which under per-role conformance
+  left canonical output unchecked for exactly the implementations the set
+  exists to check. Document-to-document normalization needs no new role — it is
+  the reader's set composed with this one — so nothing is lost by making the
+  input a graph. What each vector pins: const hoisting by reference identity, post-order `_0`, `_1`, …
   naming, `ToString(Number)` spelling with the `-0` exception,
   `QuoteJSONString` escaping — **every branch of it**, because a noncanonical
   spelling is still a *valid* document, so only exact bytes tell them apart:
