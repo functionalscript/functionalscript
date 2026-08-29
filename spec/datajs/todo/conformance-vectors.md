@@ -122,12 +122,34 @@ document can carry. So the corpus does not store values. It stores a
 - **Host-only inputs are recipes, not data.** A `Date`, a function, a symbol
   key, an accessor, a non-enumerable property, a sparse hole and an array
   carrying an own property beyond its elements cannot be described as values at
-  all, so each is a named recipe the consumer builds: `{"host": "date", "ms":
-  0}`, `{"host": "hole"}`, `{"host": "getter"}`, and so on. **A recipe may take
-  node arguments**, which is how the composite cases are said — `a=[1]; a.meta=2`
-  is `{"host": "ownProp", "on": {"ref": 1}, "key": "meta", "value": {"ref": 2}}`
-  over an ordinary `arr` node, rather than a second array form. The list is
-  finite and closed, each consumer implements it once, and the corpus stays
+  all, so each is a named recipe the consumer builds. The vocabulary is
+  **closed, and closed means enumerated** — "and so on" was an open list
+  wearing the word closed, which review caught. Four **leaf** recipes:
+
+  | recipe | builds |
+  | - | - |
+  | `{"host": "fn"}` | a function value |
+  | `{"host": "symbol"}` | a fresh unique symbol, as a *value* |
+  | `{"host": "date", "ms": <integer>}` | `new Date(ms)` |
+  | `{"host": "hole"}` | an array hole — legal **only** as an `arr` element |
+
+  …and four **modifier** recipes, each taking the node it applies to, so the
+  property cases say which object they are about — the gap review found in
+  `getter`, which named no container:
+
+  | recipe | builds |
+  | - | - |
+  | `{"host": "ownProp", "on": <node>, "key": <string>, "value": <node>}` | an enumerable own data property, which is how `a=[1]; a.meta=2` is said |
+  | `{"host": "nonEnumerable", "on": <node>, "key": <string>, "value": <node>}` | the same, non-enumerable |
+  | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an accessor property returning `value` |
+  | `{"host": "symbolKey", "on": <node>, "value": <node>}` | a property under a fresh unique symbol |
+
+  Modifiers **apply in the order the nodes appear**, so a node carrying several
+  is unambiguous. A cycle needs no recipe: it is a `ref` to an ancestor.
+
+  The list being closed is what makes it useful — a vector needing a recipe not
+  in it extends the schema and both consumers, deliberately, rather than each
+  consumer improvising. Each implements the eight once, and the corpus stays
   data.
 
 The test of this encoding is whether two independent consumers can disagree.
@@ -155,8 +177,9 @@ needs nothing beyond an engine.
 - [ ] Write the meta-encoding down as a schema before any vector, per the
       section above: node table, `ref` indices, the leaf tags, the `arr` form
       with holes occupying positions, the object pair form **with unique keys
-      in observable order**, and the closed `host` recipe vocabulary with its
-      node arguments. It is the part two
+      in observable order**, and the eight `host` recipes — four leaves, four
+      modifiers, each modifier naming the node it applies to — with their
+      application order. It is the part two
       consumers can silently disagree about, so it lands first and gets its own
       round-trip proof — encode a graph, decode it, and assert the sharing
       survives.
