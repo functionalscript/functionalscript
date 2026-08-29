@@ -1,18 +1,20 @@
-## 66E-parser-container-stack-bookkeeping. JSON/DJS parser: separate container-stack bookkeeping from container kind
+## 66E-parser-container-stack-bookkeeping. JSON parser: separate container-stack bookkeeping from container kind
 
 **Priority:** P4
 **Status:** open
 
 ### Problem
 
-Both `fjs/media/json/parser/module.f.mjs` and `fjs/djs/parser/module.f.mjs` build the
-container state machine out of four helpers — `startArray`, `startObject`,
-`endArray`, `endObject`. The pop side is already deduplicated in both modules
-via a shared `popStack` helper (`fjs/media/json/parser/module.f.mjs:59`,
-`fjs/djs/parser/module.f.mjs:272`), used by both `endArray` and `endObject`.
-What remains is the push side: the two `start*` helpers in each module still
-share their *entire* stack-push body verbatim — only the `status` label and
-the empty-container literal differ between array and object.
+`fjs/media/json/parser/module.f.mjs` builds its container state machine out of
+four helpers — `startArray`, `startObject`, `endArray`, `endObject`. The pop side
+is already deduplicated via a shared `popStack` helper
+(`fjs/media/json/parser/module.f.mjs:59`), used by both `endArray` and
+`endObject`. What remains is the push side: the two `start*` helpers still share
+their *entire* stack-push body verbatim — only the `status` label and the
+empty-container literal differ between array and object.
+
+This was filed as a JSON **and** DJS issue; the DJS half is gone, and the section
+below records why.
 
 #### JSON (`fjs/media/json/parser/module.f.mjs:46-49,79-82`)
 
@@ -58,44 +60,22 @@ const endObject = state => {
 }
 ```
 
-#### DJS (`fjs/djs/parser/module.f.mjs:262-303`)
+#### DJS — no longer applicable
 
-The same shape recurs, with `{ ...state, ... }` spread instead of a fresh record
-and tuple containers instead of `kind`-tagged objects:
+This issue was filed when `fjs/djs/parser` ran the same container state machine,
+with `startArray` / `startObject` / `popStack` spelled out beside JSON's. That
+parser is now a BNF grammar over token symbols and those helpers are deleted, so
+only the JSON side of the duplication is left — and one implementation is not
+duplication.
 
-```ts
-const startArray = state => {
-    const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
-    return { ... state, valueState: '[', top: ['array', null ], stack: newStack }
-}
-const startObject = state => {
-    const newStack = state.top === null ? null : { first: state.top, tail: state.stack }
-    return { ... state, valueState: '{', top: ['object', null, ''], stack: newStack }
-}
-```
-
-DJS's `endArray`/`endObject` also already share their pop body through a local
-`popStack` helper (`fjs/djs/parser/module.f.mjs:272`), mirroring JSON's.
-
-So the `newStack` push appears **four** times across the two modules — twice
-per module, byte-identical modulo the container-kind literal — while the pop
-side is already down to one `popStack` per module. The repeated push is not a
-trivial one-liner: it's a conditional (`state.top === null ? null : { first,
-tail }`) that decides whether to grow the stack. This is exactly the case
-`AGENTS.md` calls out — "when two code branches share most of their
-structure, refactor so the shared part appears once and only the difference
-lives in the conditional" — and it is also a separation-of-concerns point:
-*manipulating the container stack* is a distinct concern from *which
-container kind* is being opened or closed.
-
-The DRY trigger is already met inside each module on its own: there are two real
-consumers of the start skeleton (array, object) and two of the end skeleton, so
-this is not a speculative one-call-site extraction.
+Applying the shape "to both" would now mean recreating the deleted machine to
+have something to apply it to. What survives is a JSON-only tidy-up, which is
+what the rest of this issue describes.
 
 ### Proposal
 
-In each parser, name the two stack operations once and parameterize the
-container-kind difference. For JSON:
+Name the two stack operations once and parameterize the container-kind
+difference:
 
 ```ts
 // stack bookkeeping — the concern shared by every container
@@ -121,40 +101,31 @@ already share their pop body through the existing `popStack` helper — so only
 `startArray`/`startObject` shrink to one-line derivations whose body *is* the
 array-vs-object difference and nothing else.
 
-The DJS module gets the same treatment, keeping its `{ ...state, ... }` spread
-inside `startContainer` and its tuple containers in the `top` argument.
-`endArray`/`endObject` need no change there either, since DJS's `popStack`
-already covers the pop side.
-
 ### Why this is filed at P4
 
 The individual helpers are readable as they stand, so this is a cleanup, not a
-correctness fix — hence not high priority. It is worth doing when either parser
-is next touched, and it is a natural prerequisite for
-[i157-json-djs-shared-core](./157-json-djs-shared-value-machine.md): that issue wants to
-*share one value-machine across json and djs*, and the cleaner the per-module
-start/end building blocks are first, the smaller the surface that shared core has
-to absorb. The two efforts are complementary, not overlapping — 157 removes
-duplication **between** the two parsers; this removes duplication **within** each
-one and can land independently of 157.
+correctness fix — hence not high priority. It is worth doing when the JSON parser
+is next touched. It no longer feeds
+[i157-json-djs-shared-core](./157-json-djs-shared-value-machine.md), whose parser
+sub-task is itself superseded for the same reason: with one parser rather than
+two, there is nothing left to share.
 
 ### Tasks
 
-- [x] Pop side: both modules already share their pop body via a `popStack`
-      helper (`fjs/media/json/parser/module.f.mjs:59`,
-      `fjs/djs/parser/module.f.mjs:272`), used by `endArray`/`endObject`.
+- [x] Pop side: JSON already shares its pop body via a `popStack` helper
+      (`fjs/media/json/parser/module.f.mjs:59`), used by `endArray`/`endObject`.
+- [x] DJS side: **not applicable** — that parser is a BNF grammar now and the
+      helpers this would have tidied no longer exist.
 - [ ] In `fjs/media/json/parser/module.f.mjs`, add `pushStack` / `startContainer`
       (or equivalently named); derive `startArray` / `startObject` from them.
-- [ ] Apply the same shape to `fjs/djs/parser/module.f.mjs`, preserving the
-      `{ ...state }` spread.
-- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/media/json/parser/proof.f.mjs` and
-      `fjs/djs/parser/proof.f.mjs` still pass with full line/branch coverage
-      (behaviour is unchanged — this is a pure refactor).
+- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/media/json/parser/proof.f.mjs`
+      still passes with full line/branch coverage (behaviour is unchanged — this
+      is a pure refactor).
 
 ### Related
 
-- [i157-json-djs-shared-core](./157-json-djs-shared-value-machine.md) — the larger effort
-  to share one value-machine across json and djs; this issue tidies the per-module
-  start/end helpers it would build on.
+- [i157-json-djs-shared-core](./157-json-djs-shared-value-machine.md) — its parser
+  sub-task is superseded for the same reason this issue lost its DJS half: with
+  one parser rather than two, there is no value-machine left to share.
 - [i165-layered-parser](../../bnf/todo/layered-parser.md) — adjacent parser-architecture
   cleanup.
