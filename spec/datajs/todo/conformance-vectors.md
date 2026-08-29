@@ -593,9 +593,13 @@ The six parts:
   `const` never referenced at all — the grammar imposes no reference count, and
   the
   normalizer's counting rule is one serializer's rather than a validity rule —
-  a `const` bound to a **contextual keyword** (`async`, `as`, `from`, `get`,
-  `of`, `set`), which the grammar permits and a reader borrowing JavaScript's
-  reserved-word list would refuse,
+  a `const` bound to a name whose **tail is a reserved or value word** —
+  `$class`, `$await`, `$undefined` — which the grammar permits and a reader
+  that strips the `$` before consulting JavaScript's reserved-word list, or
+  that kept an excluded-name set of its own, would refuse; the contextual
+  keywords this vector named before the `$` became mandatory (`async`, `as`,
+  `from`, `get`, `of`, `set`) are not names at all now, and `$async` is a name
+  for the same reason `$class` is,
   duplicate keys (last value, first position), array-index key
   ordering **with both sides of its boundaries** — an index is
   `0 ≤ n < 2^32 − 1`, so the largest one is `"4294967294"` and the vector has
@@ -716,7 +720,7 @@ The six parts:
   `{["\u005f_proto__"]:1}`, since `["__proto__"]` is the only computed form
   the grammar admits — `1.5n`,
   `1e2n`, `01n`, `-NaN`, `-undefined`, a bare `-`, a forward or unbound
-  reference, a rebound name, each excluded const name, and the string spellings
+  reference, a rebound name, and the string spellings
   JavaScript takes and DataJS does not: two **quoting forms** — single quotes
   and a template literal; every **escape outside JSON's nine** — `\v`, `\0`,
   `\'`, `` \` ``, `\x41`, `\u{41}`, the two **legacy octal** forms `\101`
