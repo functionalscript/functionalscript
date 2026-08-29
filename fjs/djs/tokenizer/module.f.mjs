@@ -540,6 +540,32 @@ const metadataAfterTag = (tag, flatTokens, fallback) => {
     return found === undefined ? fallback : found[1]
 }
 
+/**
+ * Where the token carrying `errorTag` began.
+ *
+ * An unterminated construct is anchored at its opening, not at the point the
+ * input ran out: the reader is being told which `"` or `/*` was never closed,
+ * and the end of the file is not that. It is also what TypeScript reports for
+ * the same input, and what an unterminated *string* already reports here — the
+ * comment reporting the end was the odd one out.
+ *
+ * The search runs backwards from the error tag rather than forwards from the
+ * start, so the second comment in `/* ok *\/ /* bad` is the one blamed.
+ *
+ * Both lookups succeed by construction — an `unterminated` tag exists only
+ * inside a `comment`, and a comment always carries at least its opening `/` — so
+ * this asserts rather than falling back on a position no input can produce.
+ *
+ * @type {(tokenTag: string, errorTag: string, flatTokens: readonly _FlatToken[]) => TokenMetadata}
+ */
+const tokenStartOfTag = (tokenTag, errorTag, flatTokens) => {
+    const tokenIdx = flatTokens.lastIndexOf(tokenTag, flatTokens.indexOf(errorTag))
+    assert(tokenIdx !== -1, ['no enclosing token carried', errorTag])
+    const found = flatTokens.slice(tokenIdx + 1).find((/** @type {_FlatToken} */ t) => t instanceof Array)
+    assert(found !== undefined && found instanceof Array, ['enclosing token had no code points', tokenTag])
+    return found[1]
+}
+
 /** @type {(input: List<number>) => (path: string) => List<JsTokenWithMetadata>} */
 export const tokenizeJs = input => path => {
     const cp = toArray(input)
@@ -563,12 +589,22 @@ export const tokenizeJs = input => path => {
     }
 
     const flatTokens = toArray(getTokensFromAstRule(ast))
-    const structuralError = flatTokens.includes('unterminated') ? 'unterminated'
-        : flatTokens.includes('numError') ? 'numError'
-        : null
-    if (structuralError !== null) {
-        const errorMetadata = metadataAfterTag(structuralError, flatTokens, finalMetadata)
-        return [{ token: { kind: 'error', message: 'invalid token' }, metadata: errorMetadata }]
+    // The two structural errors want different anchors, because they are
+    // different questions. An unterminated comment asks "which `/*` was never
+    // closed", so it is reported at that `/*`. A malformed number asks "what is
+    // this character doing here", so it is reported at the character — `123abc`
+    // points at the `a`, not at the `1`.
+    if (flatTokens.includes('unterminated')) {
+        return [{
+            token: { kind: 'error', message: '*/ expected' },
+            metadata: tokenStartOfTag('comment', 'unterminated', flatTokens),
+        }]
+    }
+    if (flatTokens.includes('numError')) {
+        return [{
+            token: { kind: 'error', message: 'invalid number' },
+            metadata: metadataAfterTag('numError', flatTokens, finalMetadata),
+        }]
     }
 
     const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
