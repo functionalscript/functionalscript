@@ -426,7 +426,16 @@ The six parts:
     Review found both halves of that, one round apart.
   - **`bigint ::= '-'? int 'n'`** — both signs against both `int`
     alternatives, **`int`'s own class endpoints again, and a signed twin for
-    each**: `0n`, `-0n`, `9n`, `-9n`, `109n`, `-109n`. An earlier draft left the endpoints to `number` on the
+    each**: `0n`, `-0n`, `9n`, `-9n`, `109n`, `-109n` — **and one past `2^53`**,
+    `9007199254740993n` with its signed twin, because every other bigint here
+    round-trips through a `number` and so cannot see the implementation that
+    reads a bigint as `BigInt(Number(text))`. Measured, that path turns
+    `9007199254740993` into `9007199254740992`: a value the corpus otherwise
+    never distinguishes, since `2^53` is exactly where consecutive integers
+    stop being representable. Review found it, and it needs the same vector in
+    **serializer accept and `normalize`** — a serializer may format a bigint
+    through a number just as readily, and only the byte-exact role can see the
+    last digit change. An earlier draft left the endpoints to `number` on the
     grounds that `int` is the same production there. Review was right that this
     does not follow: a shared production in the grammar says nothing about
     shared code in an implementation, and a reader whose bigint path accepts
@@ -913,7 +922,12 @@ The six parts:
   container, so a normalizer that hoists unconditionally passed the set while
   emitting a noncanonical document for `export default[];`. An if-and-only-if
   owes a vector in both directions, a counter owes the index where its name
-  changes width, and a value owes every lexical path that reaches it. The sweep for the lead-partition shape had
+  changes width, and a value owes every lexical path that reaches it — then
+  the bigints, every one of them small enough to survive `BigInt(Number(text))`,
+  and the number thresholds, which move the notation and never ask which
+  digits `ToString` picks. Both are the same omission in different clothes: a
+  set that pins where a *format* changes while leaving the *value* recoverable
+  by the broken path it exists to catch. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -1304,7 +1318,18 @@ The six parts:
   positive. Pin the
   number thresholds explicitly — `1e20`, `1e21`, `1e-6`, `1e-7`,
   `5e-324`, `1.7976931348623157e308` — since that is where a host's own
-  formatter diverges. Those six are positive and finite, which leaves the three
+  formatter diverges. Those six move the *notation*; they say nothing about
+  which **digits** `ToString` picks, and that is a separate rule: it emits the
+  shortest decimal that reads back as the same Number, not the value's exact
+  decimal expansion. Two vectors, one on each side of the point. The integer
+  side is `1000000000000000128`, whose canonical spelling is
+  `1000000000000000100` — measured, `String` gives the latter and both parse to
+  the same Number — so a formatter printing the exact integer emits a valid,
+  graph-equivalent, noncanonical document that passes all six thresholds. The
+  fraction side is `0.1`, whose exact value is
+  `0.1000000000000000055511151231257827021181583404541015625` and which also
+  reads back the same, so a formatter printing the binary expansion is wrong in
+  the other direction. Review found the integer one. Those six are positive and finite, which leaves the three
   number leaves no threshold reaches: pin **`-0`**, **`Infinity`** and
   **`-Infinity`** as well. `-0` is the one value `ToString(Number)` cannot
   spell — measured, `String(-0)` is `"0"` — so a normalizer must special-case
