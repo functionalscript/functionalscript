@@ -5,17 +5,60 @@
 
 ### Problem
 
-`fjs t` should keep the test run output minimal and make failures easy to review together.
-Printing exception details inline interrupts the run and scatters diagnostic information
-throughout the log.
+`fjs t` should keep progress output compact while making failures easy to review together.
+Printing exception details inline scatters diagnostic information throughout the log.
 
-### Proposal
+This must compose with [report-before-running](./report-before-running.md): the test name is
+printed before the proof starts so a process crash still identifies the proof that was
+running.
 
-During test execution, print only whether each test passed or failed. Do not print
-exception/error details during the run.
+### Output
 
-When a test fails, capture its normalized test name and error. After all tests finish,
-print one consolidated failure report containing the failed test names and their errors.
+For each test, `fjs t` should:
+
+1. print the test name before running it;
+2. run the test;
+3. print only its pass/fail status.
+
+A normal test failure must not print its exception/error details at that point. Instead,
+collect the failed test and its error. After all tests finish, print one consolidated
+failure report containing every failed test name and its error.
+
+Thus a runner crash leaves the last started test name visible, while an ordinary failure
+keeps the run readable and moves diagnostics to the final report.
+
+### Failure data flow
+
+Do not keep failures in mutable reporter-local state. The shared traversal already folds
+run data; extend that immutable result to carry failures as well as totals.
+
+Introduce a failure record containing the information the final reporter needs to render
+the same error it previously rendered inline, for example:
+
+```ts
+type TestFailure = {
+    readonly test: TestResult
+    readonly result: SandboxResult<unknown>
+    readonly throws: boolean
+}
+
+type RunSummary = {
+    readonly totals: RunTotals
+    readonly failures: readonly TestFailure[]
+}
+```
+
+Change `Reporter.summary` from `summary(totals: RunTotals)` to
+`summary(summary: RunSummary)`. The traversal appends a `TestFailure` only when the
+normalized `TestResult.status` is `failed`, preserving traversal order. `Reporter.result`
+remains a per-test event and renders only status; it does not own the accumulated
+failures.
+
+The exact type names may change during implementation, but the data flow is required:
+failures are accumulated immutably by the runner and passed explicitly to the final
+summary reporter, never captured in a mutable closure.
+
+### Final report
 
 The final failure report should:
 
@@ -28,13 +71,20 @@ Overall pass/fail counts and the process exit status remain unchanged.
 
 ### Tasks
 
-- [ ] Extend the `fjs t` reporter state to retain failed test names and errors.
-- [ ] During the run, render only pass/fail status for each test.
-- [ ] Do not render exception/error details from per-test failure events.
+- [ ] Land or coordinate with the `start` reporter event from
+      [report-before-running](./report-before-running.md).
+- [ ] Extend the traversal result and `Reporter.summary` API to carry ordered failures
+      explicitly.
+- [ ] Print the test name before execution and only pass/fail status after execution.
+- [ ] Do not render exception/error details from per-test result events.
 - [ ] Render the collected failures as one report after test execution completes.
-- [ ] Add proofs covering multiple failures, ordering, and absence of inline exception output.
+- [ ] Add proofs covering multiple failures, ordering, expected failures, absence of
+      inline exception output, and the start-name/status sequence.
 
 ### Related
 
+- [Report before running](./report-before-running.md) — the pre-test name record used by
+  this output format.
 - [Reporter modes](./211-reporter-modes.md) — reporter architecture and output modes.
-- [Test Framework Silent Mode](./test-framework-silent-mode.md) — broader default-output simplification.
+- [Test Framework Silent Mode](./test-framework-silent-mode.md) — broader default-output
+  simplification.
