@@ -50,8 +50,9 @@ A machine-readable corpus with six parts:
   `"01"` (non-canonical) and `"1.0"`, all of which are ordinary keys in
   first-occurrence order. `{"2":0,"1":0}` alone is passed by an implementation
   that treats every decimal-looking key as an index, which reorders the three
-  above and corrupts observable key order, one-line and readable spellings of the same value, empty
-  containers, deep nesting, and shared nodes reached by several paths.
+  above and corrupts observable key order; one-line and readable spellings of
+  the same value; empty containers, deep nesting, and shared nodes reached by
+  several paths.
 - **reject** — document text plus what is wrong with it. Cases: a missing or
   non-final `export default`, a missing `;`, `;;`, a trailing comma, a comment,
   an `import`, an identifier key, a bare or string `"__proto__"` key and its
@@ -284,8 +285,8 @@ document can carry. So the corpus does not store values. It stores a
     defaults it is non-enumerable, and a serializer refusing it for *that*
     never has to notice the enumerable symbol-keyed property it would
     otherwise drop silently. Two consumers would be testing two different
-    rejection paths from one vector. Rejecting for the right reason and rejecting after
-    doing the forbidden thing are different outcomes.
+    rejection paths from one vector. Rejecting for the right reason and
+    rejecting after doing the forbidden thing are different outcomes.
   - **`arraySubclass` with `inherited` is a serializer-accept vector with
     teeth.** A serializer that enumerates with `for...in` copies inherited
     enumerable properties into its result, which the spec forbids: the data is
