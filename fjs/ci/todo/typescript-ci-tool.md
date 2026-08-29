@@ -15,18 +15,19 @@ This task is intentionally limited to TypeScript. Keep `@types/node` in `devDepe
 
 Provision a pinned TypeScript version through the CI tool environment and remove `typescript` from the root `package.json` `devDependencies`.
 
-Only jobs that actually run TypeScript need the tool. In particular, Node 22, Node 24, Deno, and Bun jobs should not install TypeScript just because they install npm dependencies.
+Only environments that actually need TypeScript should receive the tool. In particular, Node 22, Node 24, Deno, and Bun jobs should not install TypeScript just because they install npm dependencies. The canonical type-checking job and package publishing path do need it because `tsc` is invoked directly or through npm lifecycle scripts such as `prepack`.
 
 Local development must continue to support `tsc`, `npm test`, and `npm pack`: outside an environment that provides the compiler, developers install the pinned TypeScript globally so `tsc` is available on `PATH`.
 
 ### Tasks
 
 - [ ] Add a pinned TypeScript version to the CI tool configuration.
-- [ ] Provision that TypeScript version only in the canonical CI job that runs `tsc` (currently Node 26).
+- [ ] Provision that TypeScript version in the canonical CI job that runs `tsc` (currently Node 26).
+- [ ] Provision the pinned TypeScript in the npm publishing workflow so `prepack` uses the intended compiler during `npm publish`.
 - [ ] Run `tsc` from `PATH` instead of relying on `npx tsc` / `node_modules/.bin/tsc`.
 - [ ] Remove `typescript` from the root `package.json` `devDependencies` and update `package-lock.json`.
 - [ ] Keep `@types/node` as a devDependency.
-- [ ] Update `CONTRIBUTING.md` to list TypeScript as a developer tool, document installing the pinned version globally for local development, and replace `npx tsc` instructions with `tsc`.
+- [ ] Update repository-owned developer/check documentation, including `CONTRIBUTING.md`, `AGENTS.md`, `fjs/AGENTS.md`, and `fjs/ci/README.md`: list TypeScript as a developer tool where appropriate, document installing the pinned version globally for local development, and replace required `npx tsc` instructions with `tsc`.
 - [ ] Update the Docker and OpenAI Codex development setup so their documented `npm test` / `tsc` checks have the pinned TypeScript on `PATH` without relying on the root devDependency.
 - [ ] Verify Node 22, Node 24, Deno, and Bun no longer install TypeScript unnecessarily.
-- [ ] Verify `tsc`, `npm test`, and `npm pack` work in every documented development environment.
+- [ ] Verify `tsc`, `npm test`, `npm pack`, and the npm publish path work in every environment that is documented or responsible for those checks.
