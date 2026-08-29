@@ -157,6 +157,23 @@ members and asserts each renders a JSON primitive, so a `bigint` member
 fails at module load with a message naming it, not at the first `encodeText`
 with a `null`.
 
+**The walk must be cycle-safe, and must not hand-roll that.** A member's
+schema can be recursive: `revision`'s `lock` is
+`() => ['record', lockValue]` with `lockValue = () => ['or', string, lock]`
+(`../revision/module.f.mjs:75-86`), so `lock → lockValue → lock` is a cycle,
+and a naive descent through `array`/`record`/`or` would not terminate at
+module load — the very moment the assert runs. The schema's own JSDoc names
+both the hazard and the answer: the data form (`fjs/rtti/data`, which
+`toJsonSchema` already routes through) "closes reference cycles by
+identity", tracking schemas by identity rather than structure
+(`../../rtti/data/module.f.mjs:792`, `:850`).
+
+Reuse that traversal rather than writing a visited set here — a second
+cycle-closing walk over rtti schemas is exactly the duplication this issue
+exists to remove, and getting identity-vs-structure wrong is how it would
+silently diverge. Pin it: the proof must run the factory over
+`revisionSchema` itself, whose recursive `lock` is the case that would hang.
+
 Walk the **declared** members only, and do not follow the `open` rest. The
 rest contributes nothing to what `encodeText` accepts: `open(c)` is
 `rest(c, unknown)` (`../../rtti/module.f.mjs:166`), and `RestTs<C, R>` for a
@@ -291,8 +308,10 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
       `note`'s `validate` stays `Result<Note, ValidationError>` with no
       `string`, which is the case that catches an over-wide `E`.
 - [ ] Refuse a non-JSON schema at construction, with an `assert` beside
-      `dialectEntry`'s, and a proof that a `bigint`-membered schema throws
-      there rather than encoding as `null`. Attempt the
+      `dialectEntry`'s, reusing `rtti/data`'s identity-based traversal rather
+      than a new visited set. Prove both halves: a `bigint`-membered schema
+      throws there rather than encoding as `null`, and `revisionSchema` — whose
+      `lock` is recursive — constructs without hanging. Attempt the
       `ValueOf<S>`-assignable-to-`JsonUnknown` constraint too, and keep it
       if it expresses cleanly — but the assert stays either way.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
