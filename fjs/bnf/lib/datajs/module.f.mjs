@@ -1,6 +1,6 @@
-import { string } from '../../rtti/module.f.mjs'
+import { string } from '../../../rtti/module.f.mjs'
 import { digit, uint, optionFloatSuffix, optionNeg, true_, false_, null_, wsSymbol, ws } from '../json/module.f.mjs'
-import { option, range, repeat0Plus, repeat1Plus } from '../module.f.mjs'
+import { option, range, repeat0Plus, repeat1Plus } from '../../module.f.mjs'
 
 const uNumber = {
     finite: [uint, { n: 'n', optionFloatSuffix }],

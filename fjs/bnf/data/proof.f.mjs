@@ -34,7 +34,7 @@ export const proof = {
     toData: [
         () => {
             const c = toData(classic())
-            const d = toData(deterministic())
+            const d = toData(deterministic)
         },
         () => {
             const stringRule = 'true'

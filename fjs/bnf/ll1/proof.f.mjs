@@ -285,7 +285,7 @@ export const proof = {
             expect('{a}', true)
         },
         () => {
-            const rule = deterministic()
+            const rule = deterministic
             const [, entry] = toData(rule)
             const md = descentParser(rule)
             const ml = parser(rule)
@@ -357,7 +357,7 @@ export const proof = {
             // Deep non-repetition nesting: 5000 bracket levels in the
             // JSON-like test grammar. The frame stack grows on the heap, so
             // depth is bounded by memory rather than the JS call stack.
-            const m = parser(deterministic())
+            const m = parser(deterministic)
             const n = 5000
             const cp = toArray(stringToCodePointList('['.repeat(n) + ']'.repeat(n)))
             const [, success, remainder] = m('', cp)

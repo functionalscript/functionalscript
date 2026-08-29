@@ -1,4 +1,4 @@
-import { commaJoin0Plus, option, range, remove, repeat, repeat0Plus, repeat1Plus, set, unicodeMax } from "../module.f.mjs"
+import { commaJoin0Plus, option, range, remove, repeat, repeat0Plus, set, unicodeMax } from "../../module.f.mjs"
 
 const onenine = range('19')
 
@@ -68,4 +68,4 @@ const value = () => ({
     object: cj('{}', [string, ws, ':', ws, value]),
 })
 
-const json = [ws, value, ws]
+export const json = [ws, value, ws]

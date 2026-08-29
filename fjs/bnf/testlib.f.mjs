@@ -16,6 +16,7 @@ import {
     set,
     unicodeMax,
 } from './module.f.mjs'
+import { json as libJson } from './lib/json/module.f.mjs'
 
 /** @type {() => Rule} */
 export const classic = () => {
@@ -133,68 +134,7 @@ export const classic = () => {
     return json
 }
 
-/** @type {() => Rule} */
-export const deterministic = () => {
-
-    const onenine = range('19')
-
-    /** @type {Rule} */
-    const digit = range('09')
-
-    const string = [
-        '"',
-        repeat0Plus({
-            ...remove(range(` ${unicodeMax}`), set('"\\')),
-            escape: [
-                '\\',
-                {
-                    ...set('"\\/bfnrt'),
-                    u: [
-                        'u',
-                        ...repeat(4)({
-                            digit,
-                            AF: range('AF'),
-                            af: range('af'),
-                        })
-                    ],
-                }
-            ],
-        }),
-        '"'
-    ]
-
-    const digits0 = repeat0Plus(digit)
-
-    const digits = [digit, digits0]
-
-    const number = [
-        option('-'),
-        {
-            0: '0',
-            onenine: [onenine, digits0],
-        },
-        option(['.', digits]),
-        option([set('Ee'), option(set('+-')), digits])
-    ]
-
-    const ws = repeat0Plus(set(' \n\r\t'))
-
-    const cj = commaJoin0Plus(ws)
-
-    const value = () => ({
-        array: cj('[]', value),
-        object: cj('{}', [string, ws, ':', ws, value]),
-        string,
-        number,
-        true: 'true',
-        false: 'false',
-        null: 'null'
-    })
-
-    const json = [ws, value, ws]
-
-    return json
-}
+export const deterministic = libJson
 
 //
 
