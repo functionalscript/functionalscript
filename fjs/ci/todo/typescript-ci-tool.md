@@ -25,7 +25,7 @@ The Nix package must derive from the CI TypeScript version rather than silently 
 
 Prefer migrating an environment to Nix before adding a separate npm-global install. The direct-Nix migration is tracked by [65Z-ci-nix](65z-ci-nix.md) and its concrete Node-job implementation [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md). A Nix migration must preserve the environment's existing isolation guarantees; in particular, `package-check` must remain a checkout-free packed-package consumer rather than gaining access to repository sources or `tsconfig.json` merely so it can reach a relative flake. If Nix cannot provide the compiler while preserving that isolation, install the CI-pinned TypeScript with npm inside the isolated consumer environment instead.
 
-Local development must continue to support `tsc`, `npm test`, and `npm pack`: outside an environment that provides the compiler, developers install the CI-pinned TypeScript globally with npm so `tsc` is available on `PATH`.
+Local development must continue to support `tsc`, `npm test`, and `npm pack`. Outside an environment that provides the compiler, developers install the CI-pinned TypeScript globally with npm so `tsc` is available on `PATH`. Because a global tool is shared across checkouts, repository-owned checks that depend on TypeScript must verify the available compiler version against the current checkout's CI pin before using it. On mismatch, fail fast and print the exact `npm install -g typescript@<CI version>` command; do not silently run a compiler from another checkout and do not manually install platform dependencies.
 
 ### Tasks
 
@@ -38,14 +38,16 @@ Local development must continue to support `tsc`, `npm test`, and `npm pack`: ou
 - [ ] Add the Nix-packaged TypeScript tool to the generated Node 26 environment (`nodeNixJobs`) so the canonical development shell provides `tsc`; update its proofs/generated-flake expectations. This extends the Node 26 migration tracked by [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
 - [ ] Prefer moving npm publishing to Nix first and provide TypeScript there so `prepack` uses the intended compiler during `npm publish`. Coordinate this with [668-ci-npm-publish-workflow](668-ci-npm-publish-workflow.md), which owns generation of the publish workflow. If publishing remains outside Nix, install the CI-pinned compiler with npm rather than manually assembling its files or dependencies.
 - [ ] Run `tsc` from the environment-provided installation instead of relying on an implicit root `node_modules/.bin/tsc`.
+- [ ] Add one repository-owned TypeScript version check derived from the CI pin and reuse it anywhere a checkout can reach an ambient/global `tsc` (including `npm test` and `prepack`/`npm pack`). The check must reject a mismatched compiler before type-checking and tell non-Nix developers to run `npm install -g typescript@<CI version>`; it must not download or assemble platform dependencies itself.
 - [ ] Remove `typescript` from the root `package.json` `devDependencies`, then run `npm run update` so `package-lock.json`, `deno.lock`, `bun.lock`, and generated CI files are all regenerated consistently.
 - [ ] Keep `@types/node` as a devDependency.
-- [ ] Update repository-owned developer/check documentation, including `CONTRIBUTING.md`, `AGENTS.md`, `fjs/AGENTS.md`, and `fjs/ci/README.md`: list TypeScript as a developer tool where appropriate, document `npm install -g typescript@<CI version>` for non-Nix local development, and replace required `npx tsc` instructions with `tsc` where the environment provides it.
+- [ ] Update repository-owned developer/check documentation, including `CONTRIBUTING.md`, `AGENTS.md`, `fjs/AGENTS.md`, and `fjs/ci/README.md`: list TypeScript as a developer tool where appropriate, document `npm install -g typescript@<CI version>` for non-Nix local development, explain that repository checks verify the global compiler against the checkout's CI pin, and replace required `npx tsc` instructions with `tsc` where the environment provides it.
 - [ ] Update Docker and OpenAI Codex development setup so their documented `npm test` / `tsc` checks install the CI-pinned TypeScript through Nix or npm, without relying on the root devDependency or manually installing platform dependencies.
 - [ ] Verify Node 22, Node 24, Deno, and Bun no longer install TypeScript unnecessarily and their frozen-lock installs still succeed.
 - [ ] Verify the generated Node 26 Nix shell provides exactly the CI-configured TypeScript version and can run the canonical type-check/package commands without a local TypeScript devDependency.
 - [ ] Verify changing the CI TypeScript version does not require changing the Node version or manually updating a platform-package list.
 - [ ] Verify `package-check` remains checkout-free and uses the CI-configured TypeScript installation without falling back to an unrelated ambient compiler.
+- [ ] Verify switching between checkouts with different CI TypeScript pins cannot make `npm test`/`npm pack` silently use the wrong global compiler.
 - [ ] Verify every environment uses the CI-configured TypeScript version rather than maintaining an independent pin.
 - [ ] Verify `tsc`, `npm test`, `npm pack`, and the npm publish path work in every environment that is documented or responsible for those checks.
 
