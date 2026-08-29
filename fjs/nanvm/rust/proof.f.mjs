@@ -141,6 +141,25 @@ export const proof = {
     generate: () => {
         assertEq(generate(sample), expected)
     },
+    /**
+     * A shared value referencing an earlier one clones that binding.
+     *
+     * Printed without the bindings established before it, the initializer
+     * would construct a second object and the Rust heap graph would not be
+     * the graph the nodes describe — with `base` left unread besides.
+     */
+    nestedSharing: () => {
+        const rust = generate({
+            eq: {
+                shared: { base: [], wrapper: [ref('base')] },
+                cases: [{ name: 'w', a: ref('wrapper'), b: ref('wrapper'), eq: true }],
+            },
+            groups: [],
+        })
+        assert(
+            rust.includes('let wrapper: Any<A> = [base.clone()].to_array().to_any();'),
+            rust)
+    },
     generateData: () => {
         // The real corpus, which is what `ci-update` writes. Only its shape is
         // asserted here: its contents are checked by `cargo test`.

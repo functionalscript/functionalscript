@@ -271,8 +271,13 @@ const eqFn = eq => {
     return [
         '#[rustfmt::skip]',
         'fn eq<A: IVm>() {',
-        ...shared.map(([k, node]) =>
-            `${indent}let ${snakeCase(k)}: Any<A> = ${nodeExpr(node)};`),
+        // An initializer is printed against the bindings established before
+        // it, so a `ref` to an earlier shared value clones that binding
+        // rather than constructing a second object. Printed without them the
+        // Rust heap graph would not be the graph the nodes describe.
+        ...shared.map(([k, node], i) =>
+            `${indent}let ${snakeCase(k)}: Any<A> = ${
+                expExpr(shared.slice(0, i).map(binding))(node)};`),
         ...cases.flatMap(([c, [, a, b]]) => emit(c.rust)(
             `check_eq::<A>(${stringLiteral(c.name)}, ${operand(a)}, ${operand(b)}, ${c.eq});`)),
         '}',

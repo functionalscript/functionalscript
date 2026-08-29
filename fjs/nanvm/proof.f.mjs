@@ -117,13 +117,19 @@ const evaluate = memo => {
 /**
  * The shared nodes, evaluated to one value each.
  *
+ * Each is evaluated against the ones already evaluated, so a `ref` inside a
+ * shared value reaches that value rather than an equal copy — the same
+ * ordering the lowering used to resolve it.
+ *
  * Rebuilt per case: the model's memo is per invocation and a case is one
  * invocation, so nothing here depends on two cases seeing the same object.
  *
  * @type {(shared: readonly SharedNode[]) => readonly (readonly[Exp, unknown])[]}
  */
-const sharedMemo = shared => shared.map(
-    ([, node]) => /** @type {readonly[Exp, unknown]} */ ([node, evaluate([])(node)]))
+const sharedMemo = shared => shared.reduce(
+    (/** @type {readonly (readonly[Exp, unknown])[]} */ memo, [, node]) =>
+        [...memo, /** @type {readonly[Exp, unknown]} */ ([node, evaluate(memo)(node)])],
+    [])
 
 /**
  * An operand of an escaped case, built directly.
@@ -209,8 +215,14 @@ const eqProof = (() => {
  * `Value` admits a `Ref` wherever it appears, nesting included, so this is
  * writable corpus data; before it resolved, lowering the `shared` map threw.
  * Identity is the whole claim — an equal copy would leave `arrayByItself`'s
- * guarantee meaningless one level in — so the assertion is `===` on the node
- * and not a structural comparison.
+ * guarantee meaningless one level in — so every assertion here is `===` and
+ * not a structural comparison.
+ *
+ * The evaluated half is the half that matters, and asserting only on the
+ * lowered nodes is what let both consumers discard the identity while this
+ * passed: the lowering shared the node, and each consumer then built the
+ * shared value from scratch. So the memo is checked too, and
+ * `rust/proof.f.mjs` checks the printed `let` bindings.
  */
 const nestedSharing = () => {
     const { shared } = lowerEq({
@@ -221,6 +233,12 @@ const nestedSharing = () => {
     const items = /** @type {readonly any[]} */ (wrapper)[1]
     assertEq(items.length, 1)
     assert(items[0] === base, ['wrapper holds a copy, not the shared node'])
+    // And the values the nodes evaluate to share in the same place.
+    const memo = sharedMemo(shared)
+    const [[, baseValue], [, wrapperValue]] = memo
+    assert(
+        /** @type {readonly unknown[]} */ (wrapperValue)[0] === baseValue,
+        ['the evaluated wrapper holds a copy, not the shared value'])
 }
 
 /**
