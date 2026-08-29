@@ -12,7 +12,7 @@ import { packageCheckJobId } from './package/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
 import { definedValues } from '../types/object/module.f.mjs'
@@ -221,7 +221,7 @@ export const proof = {
             assert(
                 hasExactRunInJob(
                     'nix-flakes',
-                    `nix develop ./nix/generated/${id} --command bash -euo pipefail -c 'test "$(node --version)" = v${version}'`
+                    `test "$(nix develop ./nix/generated/${id} --command node --version)" = v${version}`
                 )(gha),
                 `expected the ${id} flake to be instantiated and checked`)
             // Those jobs keep their current runtime setup until they are
@@ -241,21 +241,17 @@ export const proof = {
         assert(
             !job.steps.some(step => step.uses?.startsWith('actions/setup-node@') === true),
             'unexpected setup-node in the migrated job')
-        // One invocation, not one per command: a second `nix develop` step
-        // would run in a different process, so the shell's Node would reach
-        // only the commands sharing its own.
-        const commands = job.steps.flatMap(step => step.run === undefined ? [] : [step.run])
-        assertEq(commands.length, 1, 'expected a single Nix invocation')
-        const [only] = commands
-        assert(
-            only.startsWith(`nix develop ./nix/generated/${id} --command bash -euo pipefail -c `),
-            'expected the job to run inside its own generated flake')
-        // What the temporary flake job used to guarantee for this flake, the
-        // job now guarantees for itself — and it does so before running the
-        // commands whose result depends on it.
-        assert(
-            only.includes(`test "$(node --version)" = v${node.node24} && npm ci && node --test`),
-            'expected the runtime check ahead of the job commands')
+        // One command per step (root `AGENTS.md` §7), each entering the shell
+        // itself, in the order the job had them — and the check the temporary
+        // flake job used to make for this flake ahead of the commands whose
+        // result depends on it.
+        assertStructurallySame(
+            job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
+            [
+                `test "$(nix develop ./nix/generated/${id} --command node --version)" = v${node.node24}`,
+                `nix develop ./nix/generated/${id} --command npm ci`,
+                `nix develop ./nix/generated/${id} --command node --test`,
+            ])
         assert(
             !hasRunInJob('nix-flakes', `./nix/generated/${id}`)(gha),
             'unexpected duplicate check of a migrated flake')

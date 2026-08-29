@@ -15,11 +15,9 @@ import {
     flakeText,
     generatedDirectory,
     nixDevelop,
-    nixDevelopAll,
     nixFlakes,
     nixInstall,
     nixVersionCheckStep,
-    nodeVersionCheck,
 } from './module.f.mjs'
 
 const { commit } = nixpkgs
@@ -125,27 +123,16 @@ export const proof = {
         nixDevelop: () => assertEq(
             nixDevelop(plain.id, 'node --version'),
             'nix develop ./nix/generated/node24 --command node --version'),
-        nixDevelopAll: {
-            sequence: () => assertEq(
-                nixDevelopAll(plain.id, ['npm ci', 'node --test']),
-                `nix develop ./nix/generated/node24 --command bash -euo pipefail -c 'npm ci && node --test'`),
-            // A command carrying its own quote must not end the outer one: the
-            // shell has to see the script back exactly as it was written.
-            quote: () => assertEq(
-                nixDevelopAll(plain.id, [`printf '%s' 'a b'`]),
-                `nix develop ./nix/generated/node24 --command bash -euo pipefail -c 'printf '\\''%s'\\'' '\\''a b'\\'''`),
-        },
-        nodeVersionCheck: () => assertEq(
-            nodeVersionCheck('24.19.0'),
-            `test "$(node --version)" = v24.19.0`),
-        // The check a job that has not migrated yet makes: the same command a
-        // migrated job runs first, in the same shell, with nothing after it.
+        // The check every job using a flake makes, migrated or not: the shell
+        // builds, and the Node it provides is the pinned one. The substitution
+        // is the whole command, so the version it compares is the shell's and
+        // never the runner's.
         nixVersionCheckStep: () => {
             const step = nixVersionCheckStep(plain.id, '24.19.0')
             assertEq(step.type, 'test')
             assertEq(
                 step.type === 'test' ? step.step.run : undefined,
-                `nix develop ./nix/generated/node24 --command bash -euo pipefail -c 'test "$(node --version)" = v24.19.0'`)
+                `test "$(nix develop ./nix/generated/node24 --command node --version)" = v24.19.0`)
         },
         nixInstall: () => {
             assertEq(nixInstall.type, 'install')

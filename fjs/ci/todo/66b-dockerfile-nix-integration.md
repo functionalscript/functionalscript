@@ -12,10 +12,9 @@ running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
 the accepted snapshot.
 
 Phase 3 has started: **Node 24 is migrated.** Its job is checkout, the pinned
-Nix installer, and one `nix develop --command bash -euo pipefail -c` invocation
-carrying the runtime check, `npm ci`, and `node --test` — the same commands in
-the same order, on the runtime the pinned snapshot provides instead of the one
-`setup-node` installs.
+Nix installer, and one `nix develop --command` step each for the runtime check,
+`npm ci`, and `node --test` — the same commands in the same order, on the
+runtime the pinned snapshot provides instead of the one `setup-node` installs.
 
 A temporary `nix-flakes` job instantiates the flakes no job runs through yet and
 compares the Node each provides to the expected version, so every generated file
@@ -28,10 +27,10 @@ snapshot provides, shared by `setup-node` and the flakes' package attributes.
 The flakes themselves carry no `assert`, because a flake pinning an exact commit
 already determines its package versions, so an in-flake assertion would restate
 the pin while making a generated, immutable file harder to read. The expectation
-is stated where a shell can be observed instead — `nodeVersionCheck` in
-`fjs/ci/nix/module.f.mjs` — and both jobs run that same command: the temporary
-job with nothing after it, a migrated job ahead of its own commands. That is
-what lets the temporary job disappear without losing the guarantee.
+is stated where a shell can be observed instead — `nixVersionCheckStep` in
+`fjs/ci/nix/module.f.mjs` — and every job using a flake runs that same step: the
+temporary job with nothing after it, a migrated job ahead of its own commands.
+That is what lets the temporary job disappear without losing the guarantee.
 
 Still open: the `npm run ci-nix-update` command (phase 1's automation — the
 versions were read from the snapshot by hand), removal of stale generated job
@@ -68,8 +67,8 @@ existing CI config -> generated Node flake.nix -> existing Node job commands
 - keep generated files static and readable;
 - do not add job-selection conditions, helper libraries, or shared generated Nix modules;
 - keep commands in GitHub Actions;
-- run each migrated job's complete command sequence inside one `nix develop --command`
-  invocation;
+- run each migrated job's complete command sequence through its flake, one
+  `nix develop --command` step per command;
 - preserve each job's current commands, order, and coverage;
 - keep `npm run ci-update` Nix-independent and runnable on Windows;
 - ignore per-job lock files created beside generated flakes;
@@ -175,19 +174,19 @@ schema for this one requirement.
 
 #### Phase 3: validate independently
 
-Each migrated Node job has three workflow steps:
-
-1. check out the repository;
-2. install Nix through a pinned action;
-3. run the job's complete existing command sequence in one invocation:
+Each migrated Node job checks out the repository, installs Nix through a pinned action,
+and then runs one step per command of its existing sequence:
 
 ```sh
-nix develop ./nix/generated/<job> --command bash -euo pipefail -c '<commands>'
+nix develop ./nix/generated/<job> --command <command>
 ```
 
-Using one invocation makes the selected Node executable and the job-local `shellHook`
-available to every command without exporting a profile or PATH across GitHub Actions
-steps.
+A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7): a bundled
+`bash -c` script collapses the job into a single red result naming the wrapper rather
+than the command that failed. Re-entering the shell per step loses nothing — `nix
+develop` runs the `shellHook` on every entry, and what a hook puts on disk persists
+across steps regardless — while each step names the flake, so none can fall back to the
+runner's preinstalled Node.
 
 Preserve the current command sequences and order:
 
@@ -254,8 +253,8 @@ milestone.
 - [x] Commit the generated flakes.
 - [ ] Add pinned Nix bootstrap to each migrated job (the pinned action is already
       used by the temporary `nix-flakes` job) — Node 24 done.
-- [ ] Run each job's complete command sequence through one `nix develop --command`
-      invocation — Node 24 done.
+- [ ] Run each job's complete command sequence through its flake, one
+      `nix develop --command` step per command — Node 24 done.
 - [ ] Validate the three Node jobs independently — Node 24 done.
 - [ ] Preserve each job's existing commands, order, and coverage — Node 24's are
       unchanged apart from the runtime check ahead of them.

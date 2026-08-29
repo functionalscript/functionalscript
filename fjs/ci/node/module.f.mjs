@@ -10,7 +10,7 @@
 
 import { node } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
-import { nixDevelopAll, nixInstall, nodeVersionCheck, nixVersionCheckStep } from '../nix/module.f.mjs'
+import { nixDevelop, nixInstall, nixVersionCheckStep } from '../nix/module.f.mjs'
 
 /**
  * Name of the CI artifact carrying the `npm pack` tarball. The producing step
@@ -70,22 +70,18 @@ const node22Steps = version => [
  * flake, so the runtime it tests on is the pinned Nixpkgs snapshot rather than
  * whatever the runner installs.
  *
- * The whole sequence is one `nix develop` invocation, so the shell's Node
- * reaches every command without exporting a profile between GitHub Actions
- * steps. It checks that Node itself first: nothing else ties this job's
- * runtime to the version `setup-node` gives the other jobs.
+ * Its commands and their order are the ones it had, each still its own step
+ * (root `AGENTS.md` §7) and each entering the shell again. The version check
+ * comes first: nothing else ties this job's runtime to the version
+ * `setup-node` gives the others.
  *
  * @type {readonly MetaStep[]}
  */
 const node24NixSteps = [
     nixInstall,
-    test({
-        run: nixDevelopAll(jobId(node.node24), [
-            nodeVersionCheck(node.node24),
-            'npm ci',
-            'node --test',
-        ])
-    }),
+    nixVersionCheckStep(jobId(node.node24), node.node24),
+    ...['npm ci', 'node --test'].map(
+        command => test({ run: nixDevelop(jobId(node.node24), command) })),
 ]
 
 /** @type {readonly MetaStep[]} */

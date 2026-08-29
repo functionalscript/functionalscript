@@ -7,7 +7,7 @@
 
 Flake generation is implemented and the **Node 24 job is migrated**: it installs Nix
 through the pinned action and runs its whole command sequence — the runtime check, `npm
-ci`, `node --test` — inside one `nix develop` invocation. The temporary `nix-flakes` job
+ci`, `node --test` — one `nix develop` step each. The temporary `nix-flakes` job
 now covers only the two jobs that have not migrated; it shrinks with each migration and
 goes away with the last one. See the progress note in
 [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
@@ -180,18 +180,21 @@ Adopt jobs independently. Each migrated workflow uses:
 
 1. checkout;
 2. a pinned Nix installer action;
-3. one `nix develop --command` invocation containing that job's complete existing
-   command sequence.
-
-The invocation has this shape:
+3. one step per command of that job's existing sequence, each entering the job's shell:
 
 ```sh
-nix develop ./nix/generated/<job> --command bash -euo pipefail -c '<commands>'
+nix develop ./nix/generated/<job> --command <command>
 ```
 
-Using one Nix process keeps the selected Node executable and any job-local `shellHook`
-available to every command. It avoids profiles, cross-step PATH exports, and accidental
-fallback to the runner's preinstalled Node.
+A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7), so the sequence
+is not bundled into a `bash -c` script: the step is what CI reports on, and a bundle
+names the wrapper rather than the command that failed.
+
+Re-entering the shell per step costs nothing the bundle was buying. `nix develop` runs
+the shell's `shellHook` on every entry, so a job-local environment is re-established for
+each step rather than exported across them, and what such a hook puts on disk — the
+Node 22 `$HOME/.npm-global` prefix — persists across steps anyway. Each step still names
+the flake, so no step falls back to the runner's preinstalled Node.
 
 For each job:
 
@@ -233,8 +236,8 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Commit the generated flakes.
 - [ ] Bootstrap Nix through a pinned CI action in each migrated job — Node 24 done,
       Node 22 and Node 26 remain.
-- [ ] Run each migrated job's complete command sequence inside one
-      `nix develop --command` invocation — Node 24 done.
+- [ ] Run each migrated job's complete command sequence through its flake, one
+      `nix develop --command` step per command — Node 24 done.
 - [ ] Validate each Node job independently with its existing commands and order —
       Node 24 done.
 - [ ] Keep tracked checkout state unchanged.

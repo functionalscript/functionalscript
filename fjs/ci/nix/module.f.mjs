@@ -102,50 +102,19 @@ export const nixInstall = install(uses('cachix/install-nix-action'))
 export const nixDevelop = (id, command) => `nix develop ${flakePath(id)} --command ${command}`
 
 /**
- * Wraps a string so a POSIX shell reproduces it exactly. Single quotes protect
- * every other character, so only the quote itself needs handling: leave the
- * literal, reopen it, and escape the quote outside (`'` becomes `'\''`).
+ * Checks a job's generated flake end to end: the shell builds, and the Node it
+ * puts on `PATH` is exactly the pinned version. The pinned Nixpkgs commit
+ * already determines the version, so this is the only place the expectation is
+ * stated — the generated flakes stay declarative instead of carrying an
+ * `assert` that restates the commit they pin.
  *
- * @type {(value: string) => string}
- */
-const singleQuoted = value =>
-    `'${value.replaceAll("'", "'\\''")}'`
-
-/**
- * Runs a migrated job's whole command sequence in one development shell, so the
- * shell's packages and environment reach every command without exporting a
- * profile across GitHub Actions steps.
- *
- * The commands are a shell script, joined so a failure stops the rest, and are
- * quoted as one argument — a command may contain quotes of its own.
- *
- * @type {(id: string, commands: readonly string[]) => string}
- */
-export const nixDevelopAll = (id, commands) =>
-    nixDevelop(id, `bash -euo pipefail -c ${singleQuoted(commands.join(' && '))}`)
-
-/**
- * Asserts, from inside a development shell, that the Node on `PATH` is exactly
- * the pinned version.
- *
- * The pinned Nixpkgs commit already determines that version, so the generated
- * flakes stay declarative instead of carrying an `assert` that restates the
- * commit they pin: the expectation is stated where a shell can be observed
- * instead. A migrated job runs this as the first command of its own
- * `nix develop` invocation, which is what keeps its Nix runtime tied to the
- * version the other runners install once the temporary flake job is gone.
- *
- * @type {(version: string) => string}
- */
-export const nodeVersionCheck = version =>
-    `test "$(node --version)" = v${version}`
-
-/**
- * Checks a not-yet-migrated job's generated flake end to end: the shell builds,
- * and it provides the pinned Node. This is the same check a migrated job makes,
- * in the same development shell, with none of the job's own commands after it.
+ * Every job that uses a flake runs this: a migrated job ahead of its own steps,
+ * and the temporary flake job for the flakes no job runs through yet. That is
+ * what lets the temporary job shrink with each migration without taking the
+ * guarantee with it — once it is gone, nothing else ties a Nix runtime to the
+ * version the Windows and macOS jobs install.
  *
  * @type {(id: string, version: string) => MetaStep}
  */
 export const nixVersionCheckStep = (id, version) =>
-    test({ run: nixDevelopAll(id, [nodeVersionCheck(version)]) })
+    test({ run: `test "$(${nixDevelop(id, 'node --version')})" = v${version}` })

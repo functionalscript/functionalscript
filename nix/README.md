@@ -29,7 +29,8 @@ loop.
 the root `.gitignore`); the pinned commit in `flake.nix` is the lock.
 
 The Node 24 job runs through its flake: it installs Nix, then runs the version
-check, `npm ci`, and `node --test` in one `nix develop` invocation. CI's
-temporary `nix-flakes` job makes the same version check for every flake no job
-runs through yet, so all of these files are checked on every pull request. It
-loses a step per migration and disappears with the last one.
+check, `npm ci`, and `node --test` — one `nix develop` step each, because a CI
+step runs one command. CI's temporary `nix-flakes` job makes the same version
+check for every flake no job runs through yet, so all of these files are checked
+on every pull request. It loses a step per migration and disappears with the
+last one.
