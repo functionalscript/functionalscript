@@ -1,7 +1,7 @@
 ## JSDoc `@typedef` documentation is dropped by tsgo declaration emit
 
-> Authored `.mjs` no longer carries file-scope `@typedef`s
-> ([`../../fjs/todo/separate-private-types.md`](../../fjs/todo/separate-private-types.md)),
+> Authored `.mjs` no longer carries file-scope `@typedef`s (root
+> [`AGENTS.md`](../../AGENTS.md), [`fjs/AGENTS.md`](../../fjs/AGENTS.md) §3.2),
 > so no authored typedef documentation reaches declaration emit any more; this
 > upstream behavior matters again only if that rule is ever relaxed.
 
@@ -213,8 +213,8 @@ Body:
 
 - [`todo/migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md) —
   "Typedef documentation does not survive declaration emit".
-- [`../../fjs/todo/separate-private-types.md`](../../fjs/todo/separate-private-types.md)
-  — private-type placement; superseded the wait-for-`@internal` strategy.
+- [`../../fjs/AGENTS.md`](../../fjs/AGENTS.md) §3.2 — private-type placement;
+  superseded the wait-for-`@internal` strategy.
 - [microsoft/TypeScript#43534](https://github.com/microsoft/TypeScript/issues/43534),
   [microsoft/TypeScript#61664](https://github.com/microsoft/TypeScript/issues/61664)
   — adjacent strada behaviors.

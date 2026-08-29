@@ -343,8 +343,8 @@ consumer all work; that is tracked in
 
 A named type migrating out of a `.f.ts` never becomes a **file-scope** JSDoc
 `@typedef` — authored `.mjs` files carry none, repository-wide (root
-`AGENTS.md`; design in
-[`../fjs/todo/separate-private-types.md`](../fjs/todo/separate-private-types.md)).
+`AGENTS.md`; placement rules in
+[`../fjs/AGENTS.md`](../fjs/AGENTS.md) §3.2).
 It lands in the sibling `types.ts` when it is part of the public declaration
 closure, in an optional sibling `private.ts` when it is implementation-private
 and separating it reads cleaner than inlining, inline in the annotations that
@@ -399,14 +399,14 @@ plans to remove both. Hiding a type behind `_` to make its eventual removal
 cheaper gives up a real present-day API in exchange for a discount on a breaking
 change that should simply be documented when it happens.
 
-Unshipping generated private declaration artifacts is the packaging stage of
-[`../fjs/todo/separate-private-types.md`](../fjs/todo/separate-private-types.md);
-the `_` contract itself is permanent.
+Generated private declaration artifacts are not shipped
+([`../fjs/fsc/README.md`](../fjs/fsc/README.md)); the `_` contract itself is
+permanent, since `_` names still reach the declarations that do ship.
 
 #### Typedef documentation does not survive declaration emit
 
 > Since the repository-wide prohibition on file-scope `@typedef` in authored
-> `.mjs` ([`../fjs/todo/separate-private-types.md`](../fjs/todo/separate-private-types.md)),
+> `.mjs` (root [`AGENTS.md`](../AGENTS.md)),
 > named types live in `types.ts`/`private.ts`, whose documentation emits
 > through the normal TypeScript pipeline — so this loss no longer affects
 > authored code. The record below explains the behavior and why the
@@ -1258,9 +1258,9 @@ person can re-check rather than re-derive. Counts are as of
   — broader package-publishing plan.
 - [`../fjs/fsc/README.md`](../fjs/fsc/README.md) — authoritative FunctionalScript
   extension and migration contract.
-- [`../fjs/todo/separate-private-types.md`](../fjs/todo/separate-private-types.md)
-  — private-type placement rules and the packaging stage that unships
-  generated private declarations.
+- [`../fjs/AGENTS.md`](../fjs/AGENTS.md) §3.2 — private-type placement rules;
+  [`../fjs/fsc/README.md`](../fjs/fsc/README.md) — why generated private
+  declarations are not packaged.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
   — upstream request for `stripInternal` support on JSDoc typedefs.
 - [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) — existing compiler

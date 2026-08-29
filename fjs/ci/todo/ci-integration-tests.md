@@ -36,10 +36,12 @@ Open questions:
       `fjs/ci/common/types.ts`, and cover the new field in the proof. Without
       it the two stages race and the consumer fails at `download-artifact`:
       red for the wrong reason, which is the one failure mode that trains
-      people to re-run a check instead of reading it. This blocks the stage
-      split below and the packed-declaration check in
-      [`../../todo/separate-private-types.md`](../../todo/separate-private-types.md)
-      alike, so it is owned here rather than by either consumer.
+      people to re-run a check instead of reading it. This blocked the stage
+      split below and the packed-declaration check alike, so it is owned here
+      rather than by either consumer. The `needs` field landed in
+      [#1762](https://github.com/functionalscript/functionalscript/pull/1762)
+      and its first consumer in
+      [#1767](https://github.com/functionalscript/functionalscript/pull/1767).
 - [ ] Implement scenario job generation: download artifact, install, run `main`.
 - [ ] Port existing demo/smoke-test steps (`fjs t`, `deno run … t`, `bunx … t`) to the scenario model.
 - [ ] Document the scenario authoring convention.
