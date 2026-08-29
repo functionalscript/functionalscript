@@ -55,7 +55,11 @@ pass.
 
 ### Related
 
-- [`fjs/web`](../README.md) — the response table this race can contradict.
+- [`fjs/web`](../README.md) — the response table this race can contradict, and
+  "A path that descends through a file", whose `ENOTDIR` mapping re-stats the
+  root and so degrades a *permanent* wrong status into this request-local one.
+  A root held **open** would answer that case and the deleted-root case with no
+  re-check at all, which is a second reason to want this effect.
 - [symlink-containment](./symlink-containment.md) — the other guard that cannot
   be written against a name.
 - `fjs/effects/node/module.mjs` — `readFile`, whose own size check throws where

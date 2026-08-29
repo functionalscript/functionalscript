@@ -1,4 +1,4 @@
-# Switch back to `.js` extension when Type Annotations lands
+## Switch back to `.js` extension when Type Annotations lands
 
 **Priority:** P3
 **Status:** blocked

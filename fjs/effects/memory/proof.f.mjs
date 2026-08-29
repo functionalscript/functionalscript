@@ -13,16 +13,14 @@ import {
 } from './module.f.mjs'
 
 /**
- * @typedef {{
+ * @type {{
  *   readonly next: number,
  *   readonly values: { readonly [key: string]: unknown },
- * }} _MemoryState
+ * }}
  */
-
-/** @type {_MemoryState} */
 const initial = { next: 0, values: {} }
 
-/** @type {MemOperationMap<MemOp, _MemoryState>} */
+/** @type {MemOperationMap<MemOp, typeof initial>} */
 const mock = {
     memCreate: value => state => {
         const id = `k${state.next}`

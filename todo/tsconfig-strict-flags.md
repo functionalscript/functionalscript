@@ -1,4 +1,4 @@
-# Additional strictness flags for `tsconfig.json`
+## Additional strictness flags for `tsconfig.json`
 
 **Priority:** P2
 **Status:** wip
@@ -18,7 +18,7 @@ every index access yield `T | undefined`, which is exactly the obligation
 by an unchecked cast. Its error sites cluster in the same modules where
 [inline-type-casts.md](./inline-type-casts.md) already found `assert`
 candidates: `fjs/effects/node/virtual/`, `fjs/bnf/descent/`,
-`fjs/types/rtti/data/`, `fjs/sul/level/hash/`.
+`fjs/rtti/data/`, `fjs/sul/level/hash/`.
 
 ### Measurements
 

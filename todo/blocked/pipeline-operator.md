@@ -1,4 +1,4 @@
-# Pipeline operator
+## Pipeline operator
 
 **Priority:** P3
 **Status:** blocked

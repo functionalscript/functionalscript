@@ -160,22 +160,22 @@ Update `AGENTS.md` with that runtime source-migration policy and the stable
 `types.ts` companion convention. Compiler compatibility is a later
 `.f.mjs -> .f.js` migration and is not part of this package prerequisite.
 
-JSDoc declaration emit currently exposes every top-level `@typedef` as an
-exported type alias. During the migration, implementation-only typedefs that stay
-inside `.mjs` use the repository's leading-`_` convention, for example `_Node`;
-see [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md).
-An emitted `export type _Node = ...` is therefore package-private by contract,
-not public API. Clean-consumer tests must exercise documented public types and
-must not turn `_`-prefixed declaration artifacts into supported API merely
-because TypeScript emitted them.
-
-Types intentionally moved to `types.ts` use ordinary TypeScript syntax and do
-not need the JSDoc-emission workaround merely to remain expressible. The eventual
-replacement for private JSDoc typedefs is still `@internal` plus `stripInternal`,
-blocked on
-[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
-and tracked in
-[`todo/blocked/jsdoc-typedef-strip-internal.md`](../../../todo/blocked/jsdoc-typedef-strip-internal.md).
+Authored `.mjs` files carry no file-scope JSDoc `@typedef` (root `AGENTS.md`);
+named types live in `types.ts` or an optional `private.ts`, so declaration emit
+exposes private types as `_`-prefixed names in `types.d.ts` and as generated
+`private.d.ts` files. Both are package-private by contract, not public API:
+clean-consumer tests must exercise documented public types and must not turn
+`_`-prefixed declaration artifacts into supported API merely because TypeScript
+emitted them. Generated `private.d.ts` is no longer shipped: `package.json`'s
+`files` carries a `!**/private.d.ts` negation — an exclusion at pack time, with
+`prepack` unchanged and the working tree left alone. An earlier design draft
+deleted the files instead; do not reintroduce a deletion step. So `private.d.ts`
+is no longer among the package-private
+artifacts above — what remains is the `_`-prefixed names that still ship by
+design: `_` types emitted into `types.d.ts` and exported `_` constants emitted
+into `module.d.mts`. The leak-tolerance contract narrows to those, and stays
+permanent for them; see
+[`../../fsc/README.md`](../../fsc/README.md) for the contract itself.
 
 Package selection does not need to distinguish every authored `.mjs` by public
 API status during this transition. Incidental authored files such as
@@ -221,9 +221,45 @@ emission, `npm pack`, and a clean consumer.
       outputs.
 - [ ] Keep package/publish jobs on a clean CI checkout; do not add generated
       output tracking or cleanup for artifacts from previous revisions.
-- [ ] Add a mixed `module.f.ts` / `module.f.mjs` plus authored `types.ts` package
-      fixture. Scope: the fixture exercises the supported, fully erased
-      `import type` form only. The forbidden inline `import { type X }` /
+- [ ] Add a package fixture in the current source model — `module.f.mjs` with a
+      co-located `proof.f.mjs`, an authored `types.ts` and, for the
+      private-declaration check, a sibling `private.ts` (authored
+      implementation and proof `.f.ts` are retired, so the fixture must not
+      reintroduce them). The proof is not optional paperwork: `fjs/AGENTS.md`
+      §1.2 requires 100% proof coverage for every authored `.f.mjs`, so a
+      fixture without one fails `npm run cov` and lands the repository in
+      violation of its own rule — while demonstrating package support.
+      Two constraints follow from what the fixture is *for*:
+      - It must be a **conforming** module: its private type stays out of every
+        exported signature, matching the public-declaration-closure rule and
+        the rest of the tree. A fixture that exports a private-typed binding
+        would permanently redden the packed-declaration check it exists to
+        support.
+      - Any violation is therefore *deliberate and temporary*, applied while
+        verifying the check and then reverted — never the fixture's steady
+        state. Two different controls are needed, and they must not be run in
+        the same place:
+        - **Can the check fail at all?** Export a binding whose signature names
+          the private type, here in the fixture, and confirm `TS2307`.
+        - **Is the check exhaustive?** This one must go in a module the
+          consumer would *not* name — one with no private surface today, and
+          in particular **not** this fixture. A hand-written import list would
+          name the fixture, so a violation placed here fails under a fixed list
+          too and proves nothing about enumeration. Measured end to end with
+          `fjs/emergent_testing`, which had no `private.ts`: given one, plus an
+          exported binding whose signature names it, the job exits 2 with
+          `TS2307` on the packed declaration.
+
+          The same violation with the `files` negation dropped is **green**,
+          because the private declaration then ships and the reference
+          resolves. So this job does not detect a dropped negation, and nothing
+          else does either: an assertion over the packed listing was written for
+          that and removed as not worth its complexity — what it caught was
+          declaration noise in the tarball, which the `_` contract already
+          tolerates, not a broken package. The negation is one line in
+          `package.json` and losing it is a visible diff in review.
+      Scope: the fixture exercises the
+      supported, fully erased `import type` form only. The forbidden inline `import { type X }` /
       `import * as` / side-effect forms are a documented one-time measurement
       ([`packed-consumer-validation.md`](../packed-consumer-validation.md),
       "`types.js` is not a real module") — their behavior belongs to consumer
@@ -248,14 +284,29 @@ emission, `npm pack`, and a clean consumer.
       required for portable resolution. Done in
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
       only `types.d.ts` is required; `types.js` is no longer generated.
-- [ ] Include an implementation-only `_`-prefixed JSDoc typedef in the `.mjs`
-      fixture; tolerate its current exported declaration form without treating it
-      as clean-consumer public API.
-- [ ] Test the allowed `.ts` -> `.mjs` runtime dependency direction in a clean
-      checkout and CI-built package archive.
-- [ ] Reject authored `.mjs` runtime imports to remaining relative implementation
-      `.ts` / `.f.ts`; type-only imports to intentional `types.ts` companions are
-      allowed.
+- [ ] Include an implementation-only `_`-prefixed type (in the fixture's
+      `types.ts` or `private.ts`, per the file-scope-typedef prohibition) whose
+      name reaches the emitted declarations; tolerate that declaration form
+      without treating it as clean-consumer public API.
+- [x] Test the allowed `.ts` -> `.mjs` runtime dependency direction in a clean
+      checkout and CI-built package archive. Retired, not performed: the
+      direction no longer exists to test. Every authored `.ts` left is a
+      `types.ts` / `private.ts`, and every one of their import statements is
+      `import type` (226 at the time of writing) — measured on the tree after
+      [#1750](https://github.com/functionalscript/functionalscript/pull/1750).
+      A runtime dependency out of an authored `.ts` would also need emitted
+      JavaScript for it, and the decision above settled that `types.js` is not
+      part of the package layout, so the form is doubly excluded. Writing a
+      fixture for it would manufacture a source shape the repository forbids.
+- [ ] Reject authored `.mjs` runtime imports to any relative authored `.ts` —
+      the rule outlived the migration and got *wider*, not narrower. It once
+      guarded against importing implementation `.ts` / `.f.ts`; with those
+      retired, the remaining authored `.ts` are exactly the type-level
+      `types.ts` / `private.ts` companions, for which no JavaScript is emitted,
+      so a runtime import would resolve in the source tree and dangle in the
+      package. Type-only imports (`import type`, JSDoc `@import`) stay allowed
+      and are the only permitted form. Currently zero authored `.mjs` violate
+      this, so the fixture pins a property that already holds.
 - [x] Type-check and run a clean packed-package consumer under TypeScript, Node,
       Deno, and Bun using the `types.ts`-backed API. Measured manually in
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520)
@@ -264,6 +315,35 @@ emission, `npm pack`, and a clean consumer.
       CI fixture is the remaining fixture work above.
 - [ ] Verify the CI-built archive contains exactly the generated/runtime/type
       artifacts needed for the `types.ts` convention during stage 1.
+- [ ] Run the clean packed-package consumer **in CI**, in a job with no
+      repository checkout, consuming the tarball handed over as an artifact by
+      [`ci-integration-tests.md`](ci-integration-tests.md) (which also owns the
+      job-ordering edge that keeps it from racing the upload). The missing
+      checkout is the point and is stronger than merely working outside the
+      repository: with no repository on the runner there is no `tsconfig.json`
+      up the tree to inherit, no `node_modules` to resolve into, and no source
+      file that could stand in for a declaration the tarball omits. Four
+      details decide whether such a job can fail at all, each learned by
+      measurement rather than reasoning:
+      - **Type-check every packed declaration**, enumerated from the installed
+        artifact — not a hand-written consumer importing today's known
+        surfaces, whose import list goes stale the moment a module changes.
+      - **Leave `skipLibCheck` at its `false` default.** `tsc --init` writes
+        `true`; that silently turns the job into a no-op. It applies to
+        declaration files however they enter the program, root files included.
+      - **Install the tarball as a real dependency**, never by unpacking into
+        `node_modules` by hand — a later `npm install` prunes what is not in
+        `package.json`, leaving the check passing on an empty file list.
+      - **Pin the compiler** to the repository's exact `typescript` version.
+        With no checkout there is no lockfile, so a bare `npm install
+        typescript` lets the registry change the verdict with no repository
+        change. The version is readable without a checkout: `npm pack` keeps
+        `devDependencies` in the packed `package.json`.
+      The private-declaration assertion this job carries is a condition on it:
+      every packed declaration is type-checked from the installed artifact, so a
+      public declaration that came to depend on an unshipped private module is a
+      red build. Landed in
+      [#1767](https://github.com/functionalscript/functionalscript/pull/1767).
 - [x] Update `AGENTS.md` to the asymmetric `.f.ts` / `.f.mjs` migration policy.
 - [x] Decide, based on the fixture, whether the second TypeScript runtime-emission
       pass can ever be removed while authored `types.ts` files remain, or whether
@@ -289,9 +369,11 @@ emission, `npm pack`, and a clean consumer.
 - `_`-prefixed JSDoc typedefs are treated as private API even if declaration
   emission currently writes them as exported aliases; clean-consumer tests do
   not depend on those names.
-- Remaining implementation `.ts` may import migrated `.mjs`; migrated `.mjs`
-  cannot runtime-import remaining implementation `.ts` / `.f.ts` or generated
-  `.js`.
+- Authored `.mjs` cannot runtime-import any relative authored `.ts` or generated
+  `.js`; type-only imports of `types.ts` / `private.ts` companions are the only
+  permitted form. (The converse allowance — implementation `.ts` importing
+  migrated `.mjs` — lapsed with the migration: no authored implementation `.ts`
+  remains to exercise it.)
 - A clean consumer can import the CI-built `.mjs` runtime and type-check its
   `types.ts`-backed public API.
 - `.f.mjs` carries no current-compiler compatibility promise during stage 1.
@@ -327,11 +409,12 @@ not, and the pipeline is simplified accordingly.
   two-pass `prepack`.
 - [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
   — repository-wide stage-1 implementation source migration.
-- [`todo/blocked/jsdoc-typedef-strip-internal.md`](../../../todo/blocked/jsdoc-typedef-strip-internal.md)
-  — replace the temporary `_` convention with `@internal` when declaration emit
-  supports it.
+- [`fjs/AGENTS.md`](../../AGENTS.md) §3.2 — private-type placement rules;
+  [`fjs/fsc/README.md`](../../fsc/README.md) — the `_` contract and why
+  generated private declarations are not packaged.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
-  — upstream blocker for stripping private JSDoc typedefs.
+  — upstream JSDoc typedef stripping limitation; no longer a blocker here, since
+  no authored `.mjs` declares a file-scope typedef to strip.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package roadmap.
 - [`f-js-package-support.md`](./f-js-package-support.md) — stage-2 authored
   `.f.js` package prerequisite.

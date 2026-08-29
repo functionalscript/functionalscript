@@ -295,9 +295,10 @@ Use `@template out T`, `@template in T`, or constrained forms such as
 A JavaScript implementation must not gain a real JavaScript import just because
 it uses a separately declared type. Use JSDoc `@import` with the same real source
 path used by `import type`. All module-level `@import` tags belong in one
-leading JSDoc block — sharing it with `@module` in a `module.*` file, or
-standing alone at the top of a `proof.*` or other non-`module.*` file, which
-does not carry `@module`; do not create separate `@import` comment blocks.
+leading JSDoc block — sharing it with `@module` in a file that carries one, or
+standing alone in a file that does not, such as `proof.*`; do not create
+separate `@import` comment blocks. Which files carry `@module` is
+[`fjs/AGENTS.md`](../fjs/AGENTS.md) §2, not this document.
 
 The corresponding TypeScript implementation uses `import type` with the same
 specifier:
@@ -318,8 +319,8 @@ JavaScript in a `module.*` file uses:
  */
 ```
 
-JavaScript in a `proof.*` file (or any other non-`module.*` file, which has no
-`@module` tag) groups the same `@import` tags without one:
+JavaScript in a `proof.*` file, which has no `@module` tag, groups the same
+`@import` tags without one:
 
 ```js
 /**
@@ -340,45 +341,41 @@ consumer all work; that is tracked in
 
 #### Preserve private type intent with `_`
 
-A non-exported TypeScript type that is translated into a JavaScript `@typedef`
-can become externally visible merely because TypeScript currently emits JSDoc
-typedefs as exported aliases. The upstream request to make `@internal` plus
-`stripInternal` work for JSDoc typedefs is
-[microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407).
-
-Until that support is available, prefix implementation-only **JSDoc typedef**
-names with `_` during migration. For example:
+A named type migrating out of a `.f.ts` never becomes a **file-scope** JSDoc
+`@typedef` — authored `.mjs` files carry none, repository-wide (root
+`AGENTS.md`; placement rules in
+[`../fjs/AGENTS.md`](../fjs/AGENTS.md) §3.2).
+It lands in the sibling `types.ts` when it is part of the public declaration
+closure, in an optional sibling `private.ts` when it is implementation-private
+and separating it reads cleaner than inlining, inline in the annotations that
+use it, or function-local in a proof when it is a compile-time proof type. For
+example:
 
 ```ts
 type Node = number
 export type Tree = readonly Node[]
 ```
 
-becomes conceptually:
+becomes, in `types.ts`:
 
-```js
-/** @typedef {number} _Node */
-/** @typedef {readonly _Node[]} Tree */
+```ts
+export type _Node = number
+export type Tree = readonly _Node[]
 ```
 
-The leading `_` is the FunctionalScript API visibility convention. It does not
-prevent declaration emission, so generated declarations may contain
-`export type _Node = number`. `_Node` is still private by contract: consumers
-must not depend on that emitted name directly, so renaming or removing `_Node`
-is not a breaking change solely because TypeScript exposed the alias.
+The leading `_` is the FunctionalScript API visibility convention, kept even
+when linkage requires an export: `_Node` is private by contract, so consumers
+must not depend on the name directly, and renaming or removing `_Node` is not a
+breaking change solely because a declaration exposed it.
 
 The public contract still governs transitive effects. In the example above,
 `Tree` is public and depends on `_Node`; changing `_Node` from `number` to
 `string` changes `Tree`'s public assignability and is therefore a breaking
 change. The underscore exempts only the private alias itself, never a change to
-the expanded public API. Public typedefs keep ordinary names without a leading
+the expanded public API. Public types keep ordinary names without a leading
 `_`.
 
-Types intentionally separated into `types.ts` use ordinary TypeScript source
-visibility and syntax and do not need the JSDoc underscore workaround merely
-because they remain TypeScript.
-
-Which JSDoc typedefs are public is an API design decision made at the migration
+Which types are public is an API design decision made at the migration
 boundary, not a mechanical copy of what the `.f.ts` happened to export. The
 `.f.ts` -> `.f.mjs` rename is already a breaking change — importers must update
 the specifier — so it is the one moment where a module's JSDoc visibility
@@ -402,11 +399,18 @@ plans to remove both. Hiding a type behind `_` to make its eventual removal
 cheaper gives up a real present-day API in exchange for a discount on a breaking
 change that should simply be documented when it happens.
 
-This convention is temporary. Once TypeScript can strip `@internal` JSDoc
-typedefs correctly, replace the underscore workaround as tracked by
-[`blocked/jsdoc-typedef-strip-internal.md`](./blocked/jsdoc-typedef-strip-internal.md).
+Generated private declaration artifacts are not shipped
+([`../fjs/fsc/README.md`](../fjs/fsc/README.md)); the `_` contract itself is
+permanent, since `_` names still reach the declarations that do ship.
 
 #### Typedef documentation does not survive declaration emit
+
+> Since the repository-wide prohibition on file-scope `@typedef` in authored
+> `.mjs` (root [`AGENTS.md`](../AGENTS.md)),
+> named types live in `types.ts`/`private.ts`, whose documentation emits
+> through the normal TypeScript pipeline — so this loss no longer affects
+> authored code. The record below explains the behavior and why the
+> prohibition avoids it.
 
 The same upstream gap has a second, opposite-facing symptom: declaration emit
 drops the documentation written on a JSDoc `@typedef`. A TypeScript
@@ -454,10 +458,13 @@ source meanwhile.
 
 #### Module header and import ordering
 
-The `@module` tag belongs only to a package's entry-point file — `module.f.mjs` /
-`module.mjs`. It is not required on `proof.f.mjs`, `types.ts`, or any other file.
-A `module.*` file starts with one leading JSDoc block carrying `@module`; always
-put one blank line after that block before the first source-level import or
+`@module` placement is [`fjs/AGENTS.md`](../fjs/AGENTS.md) §2: the tag goes
+wherever a file has module-level documentation a reader is meant to get from
+`deno doc`, `types.ts` and `private.ts` included — not only `module.*`. It is
+linked rather than restated here deliberately; this document carried its own
+copy of an earlier, narrower rule and so did not move when §2 did. A `module.*`
+file starts with one leading JSDoc block carrying `@module`; always put one
+blank line after that block before the first source-level import or
 declaration.
 
 For TypeScript, put type-only imports first, external or built-in runtime imports
@@ -866,12 +873,13 @@ blocking, plus the prose sweep. The remaining items are listed under
       emitted declarations measure zero `elided` repo-wide after it. (Its
       Phantom `$out` intentionally differs from `Ts<typeof unknownThunk>` in
       field optionality, so no exact `Equal` round-trip assert applies there.)
-- [ ] Decide each JSDoc typedef's visibility at the migration boundary: prefix
-      implementation-only typedefs with `_` and leave publicly useful ones
+- [ ] Decide each migrated type's visibility at the migration boundary: prefix
+      implementation-only types with `_` and leave publicly useful ones
       unprefixed, judged by what the module should offer its consumers rather
       than by what the `.f.ts` happened to export or by what a pending refactor
-      plans to delete. Types intentionally moved to `types.ts` use normal
-      TypeScript source visibility instead.
+      plans to delete. Place each per the file-scope-typedef prohibition:
+      `types.ts` for the public declaration closure, optional `private.ts`,
+      inline, or function-local in a proof.
 - [x] Apply the module-header/import convention: `@module` belongs only to
       `module.*` entry-point files, never to `proof.*` or other files; group
       module-level JavaScript `@import` tags into one leading JSDoc block —
@@ -1094,7 +1102,7 @@ person can re-check rather than re-derive. Counts are as of
       [#1530](https://github.com/functionalscript/functionalscript/pull/1530)
       retitled it, `serializable-data.md` left when
       [#1539](https://github.com/functionalscript/functionalscript/pull/1539)
-      implemented `fjs/types/rtti/data` and deleted it, and earlier revisions
+      implemented `fjs/rtti/data` and deleted it, and earlier revisions
       of this paragraph ran one short —
       `fjs/emergent_testing/scenarios.md`, which quotes the deleted `run.sh`
       verbatim, was in the measured set but never enumerated. Review on #1530
@@ -1151,10 +1159,10 @@ person can re-check rather than re-derive. Counts are as of
       now [`fjs/todo/formatter-for-f-js-files.md`](../fjs/todo/formatter-for-f-js-files.md),
       naming `.f.mjs` (and the stage-2 `.f.js`) as the formatter's targets.
 - [x] **Fix the one broken doc link that is not a rename artifact.**
-      `fjs/types/rtti/todo/serializable-data.md` linked to `../data/module.f.ts`
-      before `fjs/types/rtti/data/` existed. Resolved by implementing that
+      `fjs/rtti/todo/serializable-data.md` linked to `../data/module.f.ts`
+      before `fjs/rtti/data/` existed. Resolved by implementing that
       issue: the module landed as authored `.f.mjs` source
-      ([`fjs/types/rtti/data/module.f.mjs`](../fjs/types/rtti/data/module.f.mjs))
+      ([`fjs/rtti/data/module.f.mjs`](../fjs/rtti/data/module.f.mjs))
       and the issue file was deleted.
 
 ### Acceptance criteria
@@ -1195,8 +1203,8 @@ person can re-check rather than re-derive. Counts are as of
   `types.ts` may preserve declaration documentation through normal TypeScript
   emit.
 - Every module-level import follows the module-header/import convention:
-  `@module` appears only on `module.*` entry-point files, never on `proof.*` or
-  other files; JavaScript groups module-level `@import` tags into one leading
+  `@module` placement follows [`fjs/AGENTS.md`](../fjs/AGENTS.md) §2;
+  JavaScript groups module-level `@import` tags into one leading
   JSDoc block — shared with `@module` where present, standing alone otherwise —
   one blank line follows that block, external/built-in runtime imports form
   their own group, and repository-owned relative runtime imports are ordered as
@@ -1250,9 +1258,9 @@ person can re-check rather than re-derive. Counts are as of
   — broader package-publishing plan.
 - [`../fjs/fsc/README.md`](../fjs/fsc/README.md) — authoritative FunctionalScript
   extension and migration contract.
-- [`blocked/jsdoc-typedef-strip-internal.md`](./blocked/jsdoc-typedef-strip-internal.md)
-  — replace the temporary `_` convention with `@internal` when upstream
-  declaration emit supports it.
+- [`../fjs/AGENTS.md`](../fjs/AGENTS.md) §3.2 — private-type placement rules;
+  [`../fjs/fsc/README.md`](../fjs/fsc/README.md) — why generated private
+  declarations are not packaged.
 - [microsoft/TypeScript#46407](https://github.com/microsoft/TypeScript/issues/46407)
   — upstream request for `stripInternal` support on JSDoc typedefs.
 - [`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) — existing compiler

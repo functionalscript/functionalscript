@@ -11,8 +11,8 @@
  */
 
 import { actions, images } from '../config/module.f.mjs'
-import { option, array, record, string } from '../../types/rtti/module.f.mjs'
-import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
+import { array, option, or, record, string } from '../../rtti/module.f.mjs'
+import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 
 export const os = /** @type {const} */ (['ubuntu', 'macos', 'windows'])
 
@@ -25,13 +25,19 @@ export const architecture = /** @type {const} */ (['intel', 'arm'])
 // `if`, `env` and much else — would need `open`.
 
 export const stepSchema = /** @type {const} */ ({
-    run: option(string),
-    uses: option(string),
-    with: option(record(string))
+    run: or(option, string),
+    uses: or(option, string),
+    with: or(option, record(string))
 })
 
+// `needs` is how one job waits for another: a job that consumes an artifact
+// cannot start before the job that uploads it. It is optional because most jobs
+// are independent, and it is named here rather than emitted past the schema —
+// `parseGitHubAction` reads back the workflow this repository generates, so an
+// unmodelled key would fail that round-trip in `fjs/ci/proof.f.mjs`.
 export const jobSchema = /** @type {const} */ ({
     'runs-on': string,
+    needs: or(option, array(string)),
     steps: array(stepSchema)
 })
 
@@ -40,8 +46,8 @@ export const jobsSchema = record(jobSchema)
 export const gitHubActionSchema = /** @type {const} */ ({
     name: string,
     on: {
-        pull_request: option({}),
-        merge_group: option({})
+        pull_request: or(option, {}),
+        merge_group: or(option, {})
     },
     permissions: record(string),
     jobs: jobsSchema

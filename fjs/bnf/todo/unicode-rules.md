@@ -80,7 +80,7 @@ This split changes the public design assumptions used by older open TODOs:
   is blocked by this task. Its implementation must import Unicode-specific
   construction from `fjs/bnf/unicode/module.f.mjs` and lower text literals to
   generic rules before they reach core BNF.
-- [`fjs/bnf/todo/207.md`](./207.md) is blocked by this task. Its planned
+- [`fjs/bnf/todo/207-bnf-semantic-actions.md`](./207-bnf-semantic-actions.md) is blocked by this task. Its planned
   split/revision must remove `string` as a generic rule kind. Unicode text helpers
   are constructors of ordinary generic rules rather than a distinct generic rule
   kind.
@@ -107,14 +107,14 @@ This split changes the public design assumptions used by older open TODOs:
   terminals with core `range('--')` / `range('09')` and assumes `testlib.f.mjs`
   obtains those helpers from `./module.f.mjs`; after the split, fixture construction
   must import the Unicode adapter while descent/LL1 remain generic consumers.
-- [`fjs/bnf/todo/data-tosequence-reuse.md`](./data-tosequence-reuse.md) is
-  **irrelevant because it is superseded by this task**. It proposed preserving
+- `data-tosequence-reuse` (retired; **superseded by this task**, and deleted
+  with its reason recorded here) proposed preserving
   `bnf/data`'s string case and reusing core `toSequence`; this task removes that
   string case and moves `toSequence` to the Unicode adapter instead, so there is
   no duplicate generic string-expansion implementation left to reuse.
 
-Do not implement these older designs against the pre-split API. The irrelevant
-`data-tosequence-reuse.md` should not be implemented at all; when the other TODOs
+Do not implement these older designs against the pre-split API. The retired
+`data-tosequence-reuse` proposal should not be implemented at all; when the other TODOs
 are next revised/split, update their status/dependency headers and examples to the
 new module boundary and final rule discriminants before implementation starts.
 
@@ -141,7 +141,7 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Update/block `fjs/media/json/todo/bnf-grammar-single-owner.md` so its JSON
       grammar design imports Unicode helpers from `fjs/bnf/unicode/module.f.mjs`
       and does not depend on raw string rules in core BNF.
-- [ ] Keep `fjs/bnf/todo/207.md` blocked until it is rebased/split so `string` is
+- [ ] Keep `fjs/bnf/todo/207-bnf-semantic-actions.md` blocked until it is rebased/split so `string` is
       no longer described as a generic rule kind; Unicode text constructors lower
       to ordinary generic rules before semantic evaluation.
 - [ ] Check `isRepeat` in `fjs/bnf/data/module.f.mjs` still holds after the
@@ -156,8 +156,6 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Keep `fjs/bnf/todo/proof-recognizer-and-fixtures.md` blocked on this split;
       rebase its shared text fixtures/testlib imports on
       `fjs/bnf/unicode/module.f.mjs` before implementing the extraction.
-- [ ] Keep `fjs/bnf/todo/data-tosequence-reuse.md` irrelevant/superseded; do not
-      implement its old generic-string reuse proposal.
 - [ ] Add byte helper proofs for byte boundaries and representative binary
       sequences/ranges.
 - [ ] Move/add proof coverage so generic BNF proofs exercise abstract symbols and
@@ -179,7 +177,7 @@ new module boundary and final rule discriminants before implementation starts.
   another non-Unicode alphabet consumed by the generic BNF core.
 - [JSON BNF grammar owner](../../media/json/todo/bnf-grammar-single-owner.md) —
   blocked on this split and must target `bnf/unicode` for text terminals.
-- [BNF semantic actions](./207.md) — blocked on this split; its rule model must
+- [BNF semantic actions](./207-bnf-semantic-actions.md) — blocked on this split; its rule model must
   remove generic `string` before implementation.
 - [`../data/README.md`](../data/README.md#the-repeat-rule) — unaffected by this
   split; the shipped `Repeat` encoding is a data-layer string, not a functional
@@ -192,9 +190,9 @@ new module boundary and final rule discriminants before implementation starts.
 - [Shared recognizer/proof fixtures](./proof-recognizer-and-fixtures.md) — blocked
   on this split; text fixture construction moves to `bnf/unicode` while parser
   backends stay alphabet-agnostic.
-- [Reuse `toSequence` in BNF data](./data-tosequence-reuse.md) — irrelevant because
-  it is superseded by this split; generic BNF data no longer performs Unicode
-  string expansion.
+- data-tosequence-reuse (retired; superseded by this split) — reusing core
+  `toSequence` in `bnf/data`; generic BNF data no longer performs Unicode
+  string expansion, so there is nothing left to reuse.
 - [`fjs/bnf/module.f.mjs`](../module.f.mjs) — currently mixes generic and Unicode
   rule construction.
 - [`fjs/bnf/data/module.f.mjs`](../data/module.f.mjs) — currently expands string

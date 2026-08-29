@@ -22,13 +22,13 @@ export type { phantomKey }
  *
  * **`T` is an unchecked annotation, not a derivation** — nothing stops it from
  * being wrong, and once something reads it back (e.g. `Ts<>` in
- * `fjs/types/rtti/ts/types.ts`, which short-circuits to `T` instead of
+ * `fjs/rtti/ts/types.ts`, which short-circuits to `T` instead of
  * structurally recursing), a wrong `T` is trusted silently. Guard every
  * `Phantom<typeof rawThunk, T>` with two asserts: one against the
  * un-annotated `rawThunk` (forces the real structural check, catching a
  * wrong `T`) and one against the phantom-wrapped export (catches the export
  * and the raw thunk drifting apart), using `Check` from
- * `fjs/types/rtti/ts/types.ts` — or `Check3`, which pairs the two into one
+ * `fjs/rtti/ts/types.ts` — or `Check3`, which pairs the two into one
  * assert. See `fjs/edag/module.f.mjs` (`_exp`/`exp`) for the pattern:
  *
  * ```ts
@@ -36,6 +36,24 @@ export type { phantomKey }
  * export const thunk: Phantom<typeof rawThunk, MyType> = rawThunk
  * type _Check = Assert<Check3<MyType, typeof rawThunk, typeof thunk>>
  * ```
+ *
+ * For an rtti schema: when the wrapped schema's *root* admits absence —
+ * `or(option, …)` — `T` must carry the flag in the `AbsentOr` wrapper
+ * (`AbsentOr<MyType>`), or a member the wrapped schema is used at silently
+ * renders required. A wrapper rather than an `Absent | MyType` union,
+ * because a union member drowns when `MyType` renders as the top —
+ * `Absent | unknown` *is* `unknown` — taking the optionality with it. The
+ * pair above cannot catch the omission, both halves comparing through the
+ * public `Ts<>`, which strips absence from both sides — so such a schema
+ * **requires** the raw assert beside them, with `CheckRaw` and `AbsentOr`
+ * from `fjs/rtti/ts/types.ts`:
+ *
+ * ```ts
+ * type _CheckRaw = Assert<CheckRaw<AbsentOr<MyType>, typeof rawThunk>>
+ * ```
+ *
+ * A schema whose root excludes absence needs nothing new — `_TsRaw` and
+ * `Ts` agree everywhere below a root `or` chain.
  *
  * One phantom per recursive cycle is enough: `fjs/edag` wraps only `exp`,
  * the union every node kind recurses through, and the node schemas

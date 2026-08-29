@@ -22,7 +22,7 @@ This resolves several deep problems in modern software:
 
 **Normalization removes superficial differences.** The CA compiler normalizes code before hashing: it strips comments, whitespace, and renames internal variables to canonical forms. Two versions of a package that differ only in comments produce the same hash — they are the same package. This extends to dead code elimination: unused code that differs between versions does not affect the hash of the parts that are actually used.
 
-Other CA languages exist — Unison is the most notable — but they require learning a new language and ecosystem from scratch. Most purely functional languages also impose a static type system (Haskell, Elm, PureScript). FunctionalScript takes a different approach: a dynamic type system at the core, with type validation as a separate, pluggable layer. TypeScript serves as the default validator today. Longer term, we plan to support additional type systems better suited to FunctionalScript's CA properties — including one based on `fjs/rtti` (runtime type information), which enables type-safe validation without requiring a compile-time type checker. The RTTI data form is implemented at [`fjs/types/rtti/data/module.f.mjs`](../../fjs/types/rtti/data/module.f.mjs); the broader universal type system design is tracked in [i141](../../fjs/types/todo/141.md). A pluggable type system means different communities can bring their own type discipline without forking the language. An RTTI-based type system has a further advantage: the same language is used for programming, for validating types, and for metaprogramming — one language, one mental model. This avoids the trap of TypeScript and similar systems, where the type layer is itself a separate, accidentally Turing-complete language (people have literally run DOOM inside the TypeScript type system). Types in FunctionalScript are ordinary FunctionalScript values and functions, not a second language bolted on top. Crucially, type annotations are erased during normalization — they do not affect the content hash of the logic. This means switching type systems never requires rewriting old algorithms: the normalized code is identical whether annotated with TypeScript types, RTTI validators, or no types at all. Old and new code remain fully compatible across type system changes. FunctionalScript is a strict subset of JavaScript: any software engineer who already knows JavaScript can read and write it immediately. The CA properties come from what FunctionalScript removes (mutation, side effects, identity-based equality) rather than from new syntax or concepts. This makes adoption frictionless for the world's largest developer community.
+Other CA languages exist — Unison is the most notable — but they require learning a new language and ecosystem from scratch. Most purely functional languages also impose a static type system (Haskell, Elm, PureScript). FunctionalScript takes a different approach: a dynamic type system at the core, with type validation as a separate, pluggable layer. TypeScript serves as the default validator today. Longer term, we plan to support additional type systems better suited to FunctionalScript's CA properties — including one based on `fjs/rtti` (runtime type information), which enables type-safe validation without requiring a compile-time type checker. The RTTI data form is implemented at [`fjs/rtti/data/module.f.mjs`](../../fjs/rtti/data/module.f.mjs); the broader universal type system design is tracked in [i141](../../fjs/types/todo/141-universal-rtti-type-system.md). A pluggable type system means different communities can bring their own type discipline without forking the language. An RTTI-based type system has a further advantage: the same language is used for programming, for validating types, and for metaprogramming — one language, one mental model. This avoids the trap of TypeScript and similar systems, where the type layer is itself a separate, accidentally Turing-complete language (people have literally run DOOM inside the TypeScript type system). Types in FunctionalScript are ordinary FunctionalScript values and functions, not a second language bolted on top. Crucially, type annotations are erased during normalization — they do not affect the content hash of the logic. This means switching type systems never requires rewriting old algorithms: the normalized code is identical whether annotated with TypeScript types, RTTI validators, or no types at all. Old and new code remain fully compatible across type system changes. FunctionalScript is a strict subset of JavaScript: any software engineer who already knows JavaScript can read and write it immediately. The CA properties come from what FunctionalScript removes (mutation, side effects, identity-based equality) rather than from new syntax or concepts. This makes adoption frictionless for the world's largest developer community.
 
 FunctionalScript's purely functional, side-effect-free design makes it an ideal foundation for a CA language: without mutation or identity-based equality, normalization is well-defined and deduplication is always safe.
 
@@ -42,6 +42,43 @@ if (a !== a) { throw "a !== a" }  // does not throw
 Even though `a` and `b` are structurally identical (both empty arrays), `a !== b` because JavaScript compares by object identity, not shape. In a CA language, `a` and `b` would have the same hash and be the same value. This eliminates an entire class of bugs and incompatibilities — including the type incompatibility in diamond dependencies, where two copies of the same type compare as unequal despite being structurally identical.
 
 More broadly, reference-based object identity makes most modern languages subtly non-deterministic: you can never tell from the code alone whether `b` is a clone of `a` (sharing structure, potentially sharing mutations) or independently reconstructed from scratch (a separate object that happens to look the same). This ambiguity infects testing, serialization, distributed state, and caching. In a CA language the question disappears: `b` is `a` if and only if they have the same hash. Identity is observable, not hidden in a pointer.
+
+**Built-ins have identity too, and it costs real time.** The example above uses
+arrays, but the same defect reaches the language's own types. Every realm — an
+iframe, a worker, a `node:vm` context — has its own `Promise`, `Array`, `Error`,
+identical in definition and meaning and unequal in identity. `x instanceof
+Promise` does not ask *is this a promise*; it asks *was this made by my copy of
+the constructor*. A perfectly ordinary promise from an iframe answers no.
+
+That is the diamond dependency problem and the broken-`instanceof`-after-
+deserialization problem in a third guise: identity by origin, where shape was
+what mattered. And it is not theoretical. Building this repository's browser
+proof runner, that one question — *is this value a promise?* — consumed several
+rounds of design, review, and reversal. Two proposed answers were measured and
+found to **hang** the test suite rather than merely misreport. About 150 lines of
+`Symbol.species` machinery accumulated to defend against values the runner
+turned out to be incapable of producing.
+
+Every one of those rounds was spent because host values and business logic were
+sharing a code path. The fix was not a cleverer identity check — no check
+works, since a genuine cross-realm promise passes every one of them and the
+defect is in what happens next. The fix was **separation**: the runner executes authored FunctionalScript, which
+by convention has no promises, so the question stops arising. The 150 lines and
+the fixtures testing them were deleted together — and the residual honesty is
+that the convention is not enforced, since module selection is by filename. A
+language whose purity is checked rather than agreed would close that last gap
+too.
+
+That is the argument for CA and for effects as one argument rather than two.
+Business logic should be pure, serializable and content-addressed, where identity
+is shape and comparison is a hash. Host values — sockets, DOM nodes, promises —
+belong in the glue, reached through effects and opaque handles, never flowing
+through the logic. This repository already does the second half: `fjs/effects`
+represents a live HTTP server to pure code as
+`Nominal<'server', '160855c4…', unknown>` — a handle whose type identity *is* a
+content hash, with the real object held only by the interpreter. Where that
+boundary is drawn, identity questions do not come up. Where it is not, they cost
+weeks.
 
 **Hashing is incremental and shallow.** The hash of a compound value — an array, an object, a function — is computed from the hashes of its constituent parts, not from the raw bytes of the entire sub-tree. The hash of an array is the hash of its elements' hashes; the hash of an object is the hash of its (canonically ordered) property hashes; the hash of a function is the hash of its normalized EDAG node hashes. This forms a Merkle DAG: every referenced value already has its hash, so computing the hash of a new value is a shallow operation — one level deep, regardless of how deeply nested the structure is. No implementation needs to re-traverse sub-objects; their hashes are already known. This makes CA hashing efficient and composable by construction.
 

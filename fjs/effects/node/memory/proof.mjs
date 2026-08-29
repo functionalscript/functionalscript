@@ -1,10 +1,8 @@
 /**
  * Node.js interpreter proofs for memory effects.
  *
- * @module
- *
  * @import { Key } from '../../memory/types.ts'
- * @import { Uuid } from './module.mjs'
+ * @import { Uuid } from './types.ts'
  */
 
 import { errorSummary } from '../module.f.mjs'

@@ -109,7 +109,7 @@
  * @import { Key } from '../../effects/memory/types.ts'
  */
 
-import { string, option, or, boolean } from '../../types/rtti/module.f.mjs'
+import { string, option, or, boolean } from '../../rtti/module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { pureOk, resultStep } from '../../effects/module.f.mjs'
 import { cBase32ToVec, vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
@@ -143,13 +143,13 @@ import { assertNotNullish } from '../../asserts/module.f.mjs'
 /** Arguments for `cas_add`: content to store, with optional encoding type. */
 export const casAddArgs = /** @type {const} */ ({
     content: string,
-    type: or('text', 'base64', undefined)
+    type: or(option, 'text', 'base64')
 })
 
 /** Arguments for `cas_get`: the cBase32 hash to look up; optionally request inline content. */
 export const casGetArgs = /** @type {const} */ ({
     hash: string,
-    content: option(boolean)
+    content: or(option, boolean)
 })
 
 /** Arguments for `cas_list`: none. */
@@ -167,17 +167,15 @@ const toJson = stringify(identity)
  */
 const detectDialect = detect([revisionDialect, lockDialect, noteDialect])
 
-/** @typedef {{
+/**
+ * Maps a media-type detector verdict to the `cas_get` wire metadata.
+ *
+ * @type {(uri: string) => (detected: { readonly length: bigint, readonly mime_type: string, readonly type: 'text' | 'base64' }) => {
  *   readonly length: number
  *   readonly mimeType: string
  *   readonly type: 'text' | 'base64'
  *   readonly uri: string
- * }} _Meta */
-
-/**
- * Maps a media-type detector verdict to the `cas_get` wire metadata.
- *
- * @type {(uri: string) => (detected: { readonly length: bigint, readonly mime_type: string, readonly type: 'text' | 'base64' }) => _Meta}
+ * }}
  */
 const toMeta = uri => ({ length, mime_type: mimeType, type }) =>
     ({ length: Number(length), mimeType, type, uri })

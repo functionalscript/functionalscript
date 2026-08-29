@@ -103,7 +103,7 @@ Or it was **won't fix**, like `i171`, whose reason lives in `parseTestSet`'s
 JSDoc exactly as the won't-fix rule below requires; say so and cite that.
 
 Whichever it is, rewrite the citation to name it — `i143` and `i172` in
-`fjs/bnf/todo/207.md` are the pattern — or delete the reference if the
+`fjs/bnf/todo/207-bnf-semantic-actions.md` are the pattern — or delete the reference if the
 relationship no longer holds. Do **not** link one to a same-numbered GitHub
 issue: that number belongs to unrelated work.
 
@@ -113,7 +113,7 @@ survives, or the word **`retired`** beside it with the target named:
 
 ```md
 - [i167](../fjs/types/bit_vec/module.f.mjs) — the `bit_vec` re-binding.
-- i143 (retired; shipped as [`fjs/types/rtti/data/`](../fjs/types/rtti/data/module.f.mjs)) — …
+- i143 (retired; shipped as [`fjs/rtti/data/`](../fjs/rtti/data/module.f.mjs)) — …
 ```
 
 Write `retired` in the second form; it is the word that makes the resolution
@@ -123,7 +123,7 @@ which is what it should mean.
 
 Those two targets are written as they would appear **from this file**, in
 `todo/`. Re-base them against the file you are editing rather than copying them
-across — `fjs/types/todo/185.md` reaches the same module as
+across — `fjs/types/todo/185-byte-set-from-bigint-mask.md` reaches the same module as
 `../bit_vec/module.f.mjs`. Relative paths surviving a move without being
 re-based is what put 105 broken links in this tree.
 
@@ -178,6 +178,15 @@ Before deleting, ensure design decisions are captured in the relevant
 Won't-fix issues: document the reason in the relevant `README.md`, in a code
 comment, or in another issue — then delete the issue file. Do not leave a
 status-only tombstone.
+
+Kept as the record: a resolved issue stays **only** when live documents cite it
+for something no surviving file says — a migration's staged rationale, a
+decision's alternatives. Say so in its `**Status:**` and name what cites it, so
+a reader can tell it from an open task at a glance;
+[`fjs/effects/todo/io-effect-migration.md`](../fjs/effects/todo/io-effect-migration.md)
+is the worked example. This is the narrow exception, not a way to keep finished
+work around: if the rationale can move into a `README.md` or JSDoc, move it and
+delete the file.
 
 ## Priority scale
 

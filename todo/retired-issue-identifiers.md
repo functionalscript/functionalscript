@@ -18,10 +18,10 @@ Every cited identifier below has a file:
 
 |Identifier|Retired file|Status when deleted|Bare citations|
 |-|-|-|-|
-|`i149`|`issues/149-sandbox.md`|—|`emergent_testing/todo/206.md` ×1|
-|`i155`|`issues/155-test-runner-integration.md`|—|`emergent_testing/todo/211.md` ×1, `661-test-runner-behavior.md` ×1|
-|`i163`|`issues/163-reporter-test-method.md`|open|`emergent_testing/todo/211.md` ×2|
-|`i183`|`issues/183-tf-framework-scenario-tests.md`|open|`emergent_testing/todo/206.md` ×1, `65y-proof-asserteq-adoption.md` ×1, `65z-singleton-effect.md` ×1, `65z-tf-test-tree-walker.md` ×1|
+|`i149`|`issues/149-sandbox.md`|—|`emergent_testing/todo/206-workers-as-a-sandbox.md` ×1|
+|`i155`|`issues/155-test-runner-integration.md`|—|`emergent_testing/todo/211-reporter-modes.md` ×1, `661-test-runner-behavior.md` ×1|
+|`i163`|`issues/163-reporter-test-method.md`|open|`emergent_testing/todo/211-reporter-modes.md` ×2|
+|`i183`|`issues/183-tf-framework-scenario-tests.md`|open|`emergent_testing/todo/206-workers-as-a-sandbox.md` ×1, `65y-proof-asserteq-adoption.md` ×1, `65z-singleton-effect.md` ×1, `65z-tf-test-tree-walker.md` ×1|
 |`i189`|`issues/189-asn1-decode-all-unfold.md`|done|`fjs/asn.1/todo/65z-asn1-tag-codec-table.md` ×1|
 |`i180-sorted-set-intersect-symmetry`|`issues/180-…`|done|`fjs/types/todo/66b-sorted-list-cmp-reduce-factory.md` ×1|
 |`i662`|`issues/662-rtti-ts-printer-visit.md`|open|`fjs/types/todo/66d-ts-printer-tuple-readonly-fold.md` ×1|
@@ -140,7 +140,7 @@ correctly-resolved citation as outstanding. A resolution takes one of two forms:
 ```md
 - [i167](../fjs/types/bit_vec/module.f.mjs) — the identifier as a link label,
   where a document survives to link to.
-- i143 (retired; shipped as [`fjs/types/rtti/data/`](../fjs/types/rtti/data/module.f.mjs))
+- i143 (retired; shipped as [`fjs/rtti/data/`](../fjs/rtti/data/module.f.mjs))
   — the identifier with `retired` beside it and the target named, for code.
 - the retired `i171` … resolved **won't fix**, reason in `parseTestSet`'s JSDoc.
 ```

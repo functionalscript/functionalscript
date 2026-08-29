@@ -15,10 +15,12 @@
  *
  * @module
  *
- * @import { _TestAndPath } from './types.ts'
+ * @import { BrowserTestReport, TestResult, _BrowserImporter, _BrowserTestResult, _TestAndPath } from './types.ts'
+ * @import { Result } from '../types/result/types.ts'
  */
 
-import { collectTests, fmtPath } from './module.f.mjs'
+import { addResult, collectTests, testResult, zeroTotals } from './module.f.mjs'
+import { error as errorResult, invert, ok } from '../types/result/module.f.mjs'
 
 /** @type {(value: unknown) => string} */
 const text = value => {
@@ -57,136 +59,42 @@ const errorDetails = error => {
     return [fallback, fallback]
 }
 
-/** @typedef {{ readonly module: string, readonly path: string, readonly status: string, readonly duration: number, readonly message?: string, readonly stack?: string }} _BrowserTestResult */
-/** @typedef {{ readonly status: string, readonly browser: string, readonly totals: { readonly tests: number, readonly passed: number, readonly failed: number }, readonly duration: number, readonly results: readonly _BrowserTestResult[] }} BrowserTestReport */
-
 /**
- * Attaches the handlers with the intrinsic `then`, but answers with a promise
- * of this realm instead of the one `then` returns. That result is built by
- * `constructor[Symbol.species]`, which a promise can make an ordinary object:
- * awaiting it would end the test before the promise it came from ever settled
- * and put the species object itself in the report.
+ * A failure of a whole module — one that will not link, or whose `proof` export
+ * cannot be enumerated. It does not go through `testResult`, and that is the
+ * point: there is no leaf here, so there is no path and no `fmtImport` name to
+ * build. What is known about it is its source, so its source is its name.
  *
- * The `then` call still throws — before either handler is attached — for a
- * value that is not a promise or whose species construction fails, which is
- * what `runPromise` reads.
+ * It is still a `TestResult`, and still counted, because a report whose totals
+ * disagreed with its `results` would tell an automated consumer that the suite
+ * was empty rather than that it was broken. The cost is that a consumer cannot
+ * assume every entry names a leaf — which is why {@link TestResult} says so.
+ * Whether these belong in a variant of their own is part of the report-shape
+ * decision `todo/share-browser-console-runner.md` tracks, and is deliberately
+ * not settled here.
  *
- * @type {(value: unknown, fulfilled: (value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[], rejected: (error: unknown) => readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]>}
+ * @type {(source: string, duration: number, message: string, stack: string) => _BrowserTestResult}
  */
-const subscribe = (value, fulfilled, rejected) => {
-    /** @type {(results: Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]) => void} */
-    let settle = () => undefined
-    /** @type {Promise<readonly _BrowserTestResult[]>} */
-    const settled = new Promise(resolve => { settle = resolve })
-    Reflect.apply(Promise.prototype.then, value, [
-        /** @type {(value: unknown) => void} */ (resolved => settle(fulfilled(resolved))),
-        /** @type {(error: unknown) => void} */ (error => settle(rejected(error))),
-    ])
-    return settled
-}
-
-/**
- * Reproduces the lookup `then` performs before it builds its result promise:
- * `constructor`, then its `Symbol.species`. A genuine promise with a hostile
- * species throws here too; an object that only claims to be a promise failed
- * the brand check first and reads its `constructor` cleanly. That is what
- * separates a promise nothing can subscribe to from an ordinary proof tree,
- * once shadowing `constructor` has turned out to be impossible.
- *
- * @type {(value: unknown) => boolean}
- */
-const speciesFails = value => {
-    try {
-        if (value === null || value === undefined) { return false }
-        const { constructor } = /** @type {{ readonly constructor?: unknown }} */ (value)
-        if (constructor === null || constructor === undefined) { return false }
-        // The species itself never matters, only whether reading it completes:
-        // that is the step `then` takes before it builds its result.
-        void /** @type {{ readonly [Symbol.species]?: unknown }} */ (constructor)[Symbol.species]
-        return false
-    } catch {
-        return true
-    }
-}
-
-/**
- * Runs the intrinsic Promise `then` only for genuine promises. The first call
- * is both the native brand check and the normal await path, so arbitrary proof
- * objects with a `then` key are never assimilated.
- *
- * A genuine Promise can still throw after passing the brand check if species
- * construction fails. In that case, temporarily shadow `constructor` with the
- * current realm's Promise and retry the same intrinsic call; the shadow is
- * removed immediately after the handlers are attached.
- *
- * A promise that pins its own `constructor`, or is frozen, leaves nothing to
- * shadow, so no subscription is possible at all. The species failure is then
- * reported against the test that produced the promise — the same outcome
- * `await` gives it in the Node runner — because a result nobody can observe is
- * not a pass. A non-extensible object that merely claims to be a promise
- * reaches the same dead end and is still walked as the proof tree it is.
- *
- * @type {(value: unknown, fulfilled: (value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[], rejected: (error: unknown) => readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]> | null}
- */
-const runPromise = (value, fulfilled, rejected) => {
-    const call = () => subscribe(value, fulfilled, rejected)
-    try {
-        return call()
-    } catch (error) {
-        // Either `value` is not a promise and the brand check rejected it
-        // before any handler was attached, or it is a genuine promise that
-        // failed while constructing the result through Symbol.species. Only
-        // the second case is worth a retry, and `then` attaches nothing before
-        // it throws, so the retry cannot run the handlers twice.
-        try {
-            if (Object.prototype.toString.call(value) !== '[object Promise]') { return null }
-        } catch {
-            return null
-        }
-        if (value === null || (typeof value !== 'object' && typeof value !== 'function')) { return null }
-        /** @type {PropertyDescriptor | undefined} */
-        let descriptor
-        try {
-            descriptor = Object.getOwnPropertyDescriptor(value, 'constructor')
-            Object.defineProperty(value, 'constructor', { value: Promise, configurable: true })
-        } catch {
-            // Nothing to shadow, so the value is whatever its own lookup says:
-            // a promise that cannot be subscribed to fails on the species error
-            // rather than passing on a result that was never awaited, and a
-            // frozen spoof is an ordinary proof tree.
-            return speciesFails(value) ? Promise.resolve(rejected(error)) : null
-        }
-        try {
-            return call()
-        } catch {
-            // The intrinsic `constructor` cannot fail the retry, so the brand
-            // check did: `value` only claims to be a promise and is walked as
-            // an ordinary proof result.
-            return null
-        } finally {
-            try {
-                if (descriptor === undefined) {
-                    Reflect.deleteProperty(value, 'constructor')
-                } else {
-                    Object.defineProperty(value, 'constructor', descriptor)
-                }
-            } catch {
-                // The temporary property is configurable, so ordinary objects
-                // restore cleanly. A hostile Proxy can make restoration itself
-                // observable.
-            }
-        }
-    }
-}
+const moduleFailure = (source, duration, message, stack) => ({
+    module: source, path: '', name: source, status: 'failed', duration, message, stack,
+})
 
 /** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
 const runOne = (module, path, throws, fn, result) => {
     const start = performance.now()
+    // The throw expectation is applied with the same `invert` the console
+    // runner's `defaultTest` uses, and the status is then read off the result by
+    // the same `testResult`. Both runners therefore answer "did this leaf pass"
+    // in one place — the rule that used to be spelled out at four sites here and
+    // once again over there.
+    /** @type {(o: Result<unknown, unknown>, duration: number) => TestResult} */
+    const leaf = (o, duration) =>
+        testResult(module, path, { result: throws ? invert(o) : o, duration })
     /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
     const passed = value => {
             const duration = performance.now() - start
             if (throws) {
-                const failure = { module, path: fmtPath(path), status: 'failed', duration,
+                const failure = { ...leaf(ok(value), duration),
                     message: 'Expected the proof to throw', stack: '' }
                 result(failure)
                 return [failure]
@@ -205,7 +113,7 @@ const runOne = (module, path, throws, fn, result) => {
             return Promise.all(children.map(([childPath, child]) =>
                 runOne(module, childPath, child.throws, child.fn, result)
             )).then(results => {
-                const success = { module, path: fmtPath(path), status: 'passed', duration }
+                const success = leaf(ok(value), duration)
                 result(success)
                 return [success, ...results.flat()]
             })
@@ -214,31 +122,87 @@ const runOne = (module, path, throws, fn, result) => {
     const failed = error => {
             const duration = performance.now() - start
             if (throws) {
-                const success = { module, path: fmtPath(path), status: 'passed', duration }
+                const success = leaf(errorResult(error), duration)
                 result(success)
                 return [success]
             }
             const [message, stack] = errorDetails(error)
-            const failure = { module, path: fmtPath(path), status: 'failed', duration, message, stack }
+            const failure = { ...leaf(errorResult(error), duration), message, stack }
             result(failure)
             return [failure]
         }
-    // Wrap the raw return so Promise resolution does not assimilate arbitrary
-    // objects with a `then` proof property. The Node runner awaits only actual
-    // promises, and browser execution must preserve that same test-tree rule.
-    return Promise.resolve().then(() => [fn()]).then(
-        ([value]) => runPromise(value, passed, failed) ?? passed(value),
-        failed
-    )
+    // `instanceof Promise`, then `await` — the whole of `fjs t`'s promise
+    // handling, spelled the same way here.
+    //
+    // It is deliberately not more than that. A promise can replace its own
+    // `then`, present a `constructor` that is not the intrinsic `Promise`, or
+    // carry a `Symbol.species` that fails, and each of those defeats `await` in
+    // a different way. Defending against them takes about 150 lines, none of
+    // which authored FunctionalScript can reach: it has no `Promise`, no
+    // `class`, no `Proxy` and no `Symbol`. `todo/imports-promises-realms.md`
+    // records each case, what the deleted machinery did about it, and what a
+    // runner does without it — to be implemented when an input that needs it
+    // actually exists.
+    //
+    // The value is wrapped in a tuple first so that resolving it cannot
+    // assimilate a proof tree carrying a `then` key: such a tree is a sub-tree
+    // with a test called `then` in it, in both runners.
+    //
+    // What makes this enough is the `await` above, not an assumption about the
+    // values that reach it. FunctionalScript as specified has no promises, and
+    // the browser suite selects `.f.mjs` — but that selection is by filename
+    // with no content check (`website/browser-prepare.mjs`), so a module that
+    // does not conform is still loaded and can return one. The handling here is
+    // correct either way. See `todo/imports-promises-realms.md` for the
+    // machinery this replaces and the measurements behind removing it.
+    /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
+    const settled = async value => {
+        // Even the brand check runs user code: `instanceof` consults
+        // `getPrototypeOf`, which a proxy can trap and a revoked one always
+        // throws from. `fjs t` performs this check inside `sandbox`'s
+        // `try`/`catch`, so it reports such a value as its test's failure; this
+        // handler has no enclosing `try`, so without one here the whole run
+        // rejects and the page never leaves `running`.
+        let isPromise = false
+        try {
+            isPromise = value instanceof Promise
+        } catch (error) {
+            return failed(error)
+        }
+        if (!isPromise) { return passed(value) }
+        /** @type {readonly [unknown]} */
+        let resolved
+        // Only the `await` is guarded. A throw from `passed` is the traversal's
+        // own and has its own handling; catching it here would report a broken
+        // proof tree as a rejected promise.
+        try {
+            resolved = [await value]
+        } catch (error) {
+            return failed(error)
+        }
+        return passed(resolved[0])
+    }
+    return Promise.resolve().then(() => [fn()]).then(([value]) => settled(value), failed)
 }
 
-/** @type {(status: string, duration: number, results: readonly _BrowserTestResult[]) => BrowserTestReport} */
-const reportOf = (status, duration, results) => {
-    const failed = results.filter(result => result.status === 'failed').length
+/**
+ * The run-ended event, as the page reports it. The counts — and with them the
+ * run's own pass/fail status — come from folding the results with the same
+ * `addResult` that decides `fjs t`'s summary and exit code, so "did the run
+ * pass" has one answer across the runners. `duration` stays the page's own
+ * wall clock: leaves run concurrently here, so the fold's summed duration is
+ * not how long the run took (see `RunTotals`).
+ *
+ * `status` overrides the folded decision when the run never got to its leaves
+ * — module loading failed — which no leaf result can express.
+ *
+ * @type {(duration: number, results: readonly _BrowserTestResult[], status?: string) => BrowserTestReport} */
+const reportOf = (duration, results, status = undefined) => {
+    const { passed, failed } = results.reduce(addResult, zeroTotals)
     return {
-        status,
+        status: status ?? (failed !== 0 ? 'failed' : 'passed'),
         browser: navigator.userAgent,
-        totals: { tests: results.length, passed: results.length - failed, failed },
+        totals: { tests: results.length, passed, failed },
         duration,
         results,
     }
@@ -246,6 +210,11 @@ const reportOf = (status, duration, results) => {
 
 /**
  * Runs named proof exports and returns the serializable browser report.
+ *
+ * `result` is the page's subscription to the leaf-landed event — the same
+ * event `fjs t`'s `Reporter.result` carries, a shared `TestResult` plus the
+ * browser's own `message`/`stack` part — and the resolved report is its
+ * run-ended event, with totals folded by the shared `addResult`.
  *
  * @type {(modules: readonly (readonly [string, unknown])[], result?: (result: _BrowserTestResult) => void) => Promise<BrowserTestReport>}
  */
@@ -265,7 +234,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
     /** @type {(module: string, error: unknown) => () => Promise<readonly _BrowserTestResult[]>} */
     const unreadable = (module, error) => () => {
         const [message, stack] = errorDetails(error)
-        const failure = { module, path: '', status: 'failed', duration: 0, message, stack }
+        const failure = moduleFailure(module, 0, message, stack)
         announce(failure)
         return Promise.resolve([failure])
     }
@@ -291,18 +260,10 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
         ).then(next => runBatch(index + batchSize, next))
     }
     const completed = runBatch(0, [])
-    return completed.then(results => reportOf(
-        results.some(result => result.status === 'failed') ? 'failed' : 'passed',
-        performance.now() - start,
-        results,
-    ))
+    return completed.then(results => reportOf(performance.now() - start, results))
 }
 
-/** @typedef {(source: string) => Promise<{ readonly proof?: unknown }>} _BrowserImporter */
-/** @typedef {{ readonly status: 'loaded', readonly source: string, readonly proof: unknown } | { readonly status: 'error', readonly source: string, readonly error: unknown }} _LoadedModule */
-/** @typedef {Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }} _TestWindow */
-
-/** @type {(root: Element) => _TestWindow | null} */
+/** @type {(root: Element) => (Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }) | null} */
 const viewOf = root => root.ownerDocument.defaultView
 
 /**
@@ -330,10 +291,16 @@ const publish = (root, report) => {
  * @type {(root: Element, sources: readonly string[], importer: _BrowserImporter) => Promise<BrowserTestReport>}
  */
 export const startBrowserTestSources = (root, sources, importer) => {
+    /** @typedef {{ readonly status: 'loaded', readonly source: string, readonly proof: unknown } | { readonly status: 'error', readonly source: string, readonly error: unknown }} _LoadedModule */
     const start = performance.now()
     setState(root, 'loading')
     let loaded = 0
     const summary = root.querySelector('[data-test-summary]')
+    // Set synchronously, before any import settles: otherwise the page keeps
+    // showing its idle text throughout loading — indefinitely, if a module
+    // import never settles — even though the state and control already
+    // changed.
+    if (summary !== null) { summary.textContent = `Loading 0/${sources.length}` }
     // The importer is supplied by the page, so obtaining the promise is itself
     // a failure point: a synchronous throw becomes a rejection here and is
     // reported as a loader failure, rather than escaping past a `loading` state
@@ -364,11 +331,12 @@ export const startBrowserTestSources = (root, sources, importer) => {
             // that disagreed with `results` would tell an automated consumer
             // the suite was empty rather than broken.
             const duration = performance.now() - start
-            return publish(root, Promise.resolve(reportOf('infrastructure-error', duration,
+            return publish(root, Promise.resolve(reportOf(duration,
                 rejected.map(({ source, error }) => {
                     const [message, stack] = errorDetails(error)
-                    return { module: source, path: '', status: 'failed', duration, message, stack }
-                }))))
+                    return moduleFailure(source, duration, message, stack)
+                }),
+                'infrastructure-error')))
         }
         return startBrowserTests(root, loadedModules.flatMap(module =>
             module.status === 'loaded'
@@ -380,8 +348,26 @@ export const startBrowserTestSources = (root, sources, importer) => {
     return report
 }
 
-/** @type {(root: Element, state: string) => void} */
-const setState = (root, state) => root.setAttribute('data-state', state)
+/**
+ * Sets the runner state and keeps the `Run` control's real disabled state in
+ * sync with it: passive while a suite is loading or running, active in every
+ * other state (idle, or any terminal status). A disabled attribute is used
+ * rather than a click handler that silently ignores the action, so assistive
+ * technology sees the same unavailability a sighted user does.
+ *
+ * @type {(root: Element, state: string) => void}
+ */
+const setState = (root, state) => {
+    root.setAttribute('data-state', state)
+    const runButton = root.querySelector('[data-test-run]')
+    if (runButton !== null) {
+        if (state === 'loading' || state === 'running') {
+            runButton.setAttribute('disabled', '')
+        } else {
+            runButton.removeAttribute('disabled')
+        }
+    }
+}
 
 /**
  * Renders a completed report in the browser test page.
@@ -408,7 +394,7 @@ const renderResult = (document, result) => {
     const item = document.createElement('li')
     item.setAttribute('data-status', result.status)
     const detail = result.status === 'failed' ? `: ${result.message}\n${result.stack}` : ''
-    item.textContent = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.module} ${result.path} (${result.duration.toFixed(1)} ms)${detail}`
+    item.textContent = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.name} (${result.duration.toFixed(1)} ms)${detail}`
     return item
 }
 

@@ -14,15 +14,15 @@
  * @module
  *
  * @import { Unknown } from '../../media/json/types.ts'
- * @import { Ts } from '../../types/rtti/ts/types.ts'
+ * @import { Ts } from '../../rtti/ts/types.ts'
  * @import { Effect, Operation } from '../../effects/types.ts'
  * @import { Key, MemOp } from '../../effects/memory/types.ts'
  * @import { Response } from '../json_rpc/types.ts'
- * @import { Type } from '../../types/rtti/types.ts'
+ * @import { Type } from '../../rtti/types.ts'
  * @import { Implementation, ServerCapabilities, InitializeResult, Tool, ToolsListParams, ToolsCallResult, McpHandlers, ToolEntry, McpSessionState, McpConfig, ProtocolVersions } from './types.ts'
  */
 
-import { boolean, string, open, option, array, record, or } from '../../types/rtti/module.f.mjs'
+import { boolean, string, open, option, array, record, or } from '../../rtti/module.f.mjs'
 import { pureOk, resultMapStep, resultStep, step as ioStep } from '../../effects/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 import { read, write } from '../../effects/memory/module.f.mjs'
@@ -31,7 +31,7 @@ import {
     rpcError, internalError, invalidRequest, invalidParams, methodNotFound,
     errorResponseOf, successResponseOf,
 } from '../json_rpc/module.f.mjs'
-import { parse } from '../../types/rtti/parse/module.f.mjs'
+import { parse } from '../../rtti/parse/module.f.mjs'
 import { toJsonSchema } from '../../media/json/schema/module.f.mjs'
 import { unknown } from '../../media/json/rtti/module.f.mjs'
 
@@ -51,11 +51,11 @@ export const implementation = open(/** @type {const} */ ({
 
 // ── Capabilities ───────────────────────────────────────────────────────────────
 
-const toolsCapability = open(/** @type {const} */ ({ listChanged: option(boolean) }))
+const toolsCapability = open(/** @type {const} */ ({ listChanged: or(option, boolean) }))
 
 /** Server capabilities advertised in the `initialize` response. */
 export const serverCapabilities = open(/** @type {const} */ ({
-    tools: option(toolsCapability),
+    tools: or(option, toolsCapability),
 }))
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ export const initializeResult = open(/** @type {const} */ ({
     protocolVersion: string,
     capabilities: serverCapabilities,
     serverInfo: implementation,
-    instructions: option(string),
+    instructions: or(option, string),
 }))
 
 // ── Content ────────────────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ export const textContent = open(/** @type {const} */ ({ type: 'text', text: stri
  */
 export const blobResource = open(/** @type {const} */ ({
     uri: string,
-    mimeType: option(string),
+    mimeType: or(option, string),
     blob: string,
 }))
 
@@ -114,7 +114,7 @@ export const contentItem = or(textContent, embeddedResource)
  */
 export const tool = open(/** @type {const} */ ({
     name: string,
-    description: option(string),
+    description: or(option, string),
     inputSchema: unknown,
 }))
 
@@ -123,22 +123,22 @@ export const tool = open(/** @type {const} */ ({
  * from a previous `ToolsListResult.nextCursor`.
  */
 export const toolsListParams = open(/** @type {const} */ ({
-    cursor: option(string),
+    cursor: or(option, string),
 }))
 
 export const toolsListResult = open(/** @type {const} */ ({
     tools: array(tool),
-    nextCursor: option(string),
+    nextCursor: or(option, string),
 }))
 
 export const toolsCallParams = open(/** @type {const} */ ({
     name: string,
-    arguments: option(record(unknown)),
+    arguments: or(option, record(unknown)),
 }))
 
 export const toolsCallResult = open(/** @type {const} */ ({
     content: array(contentItem),
-    isError: option(boolean),
+    isError: or(option, boolean),
 }))
 
 // ── Dispatch ───────────────────────────────────────────────────────────────────
@@ -260,8 +260,11 @@ export const fromRegistry = registry => ({
 export const notInitialized = rpcError(-32002)('Server not initialized')
 
 // Params for methods that take no arguments (`ping`, `notifications/initialized`):
-// absent, or an object (which may carry `_meta`).
-const _noParams = option(record(unknown))
+// absent, or an object (which may carry `_meta`). Checked against the *read*
+// `message.params`, a top-level value — absence has already become the read
+// `undefined` by then, so the union carries `undefined` the value, not
+// `option`: at the entry position nothing can be absent.
+const _noParams = or(record(unknown), undefined)
 
 /** Initial session state — always start here. */
 /** @type {McpSessionState} */

@@ -88,7 +88,7 @@ Note on the casts: removing `as any` / `as Ts<T>` was tried and hits
 `TS2589: Type instantiation is excessively deep` at the `handle(r)` call —
 `Ts<T>` for an unbound `T extends Type` exceeds the compiler's recursion
 limit, the same limitation already documented at
-`fjs/types/rtti/parse/module.f.mjs:164`. The casts stay (with a comment citing
+`fjs/rtti/parse/module.f.mjs:164`. The casts stay (with a comment citing
 TS2589), but they move to construction scope where they run once.
 
 ### Tasks
@@ -97,7 +97,7 @@ TS2589), but they move to construction scope where they run once.
 - [ ] Hoist the `tools` descriptor array (and its `toJsonSchema` calls) to
       `fromRegistry`'s construction scope.
 - [ ] Add a comment on the remaining casts citing TS2589, mirroring
-      `fjs/types/rtti/parse/module.f.mjs:164`.
+      `fjs/rtti/parse/module.f.mjs:164`.
 - [ ] `npx tsc` clean; `fjs t` passes (`fjs/protocol/mcp/proof.f.mjs`, `fjs/mcp/proof.f.mjs`).
 
 ### Related
@@ -105,5 +105,5 @@ TS2589), but they move to construction scope where they run once.
 - `fjs/protocol/mcp/module.f.mjs:158-168`, `:201-215` — the two factories.
 - AGENTS.md — "Hoist call-invariant computations out of function bodies";
   curried-application placement rule.
-- `fjs/types/rtti/parse/module.f.mjs:164` — precedent for the TS2589 cast
+- `fjs/rtti/parse/module.f.mjs:164` — precedent for the TS2589 cast
   comment.

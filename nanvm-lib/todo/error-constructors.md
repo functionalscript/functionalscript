@@ -41,4 +41,4 @@ thrown value look like" becomes one module's decision.
 
 ### Related
 
-- [131](131.md) — the allocator's failure channel, a different concern
+- [131](131-non-panicking-allocator.md) — the allocator's failure channel, a different concern

@@ -5,8 +5,8 @@
  * `LockMap`; import it from there directly rather than through this module.
  */
 
-import type { ValidationError } from '../../types/rtti/common/types.ts'
-import type { Ts } from '../../types/rtti/ts/types.ts'
+import type { ValidationError } from '../../rtti/common/types.ts'
+import type { Ts } from '../../rtti/ts/types.ts'
 import type { lockSchema } from './module.f.mjs'
 
 /** The TypeScript type derived from `lockSchema` — the single source of truth. */

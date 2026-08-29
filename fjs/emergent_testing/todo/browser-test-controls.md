@@ -1,18 +1,16 @@
 ## Add explicit browser test controls
 
 **Priority:** P3
-**Status:** open
+**Status:** wip
 
 ### Problem
 
-The generated browser-test page starts its suite as soon as the entry module
-loads and labels its only button `Run again`. That makes an expensive full run
-surprising, gives a user no idle state in which to inspect the page, and offers
-no way to stop a run that is no longer useful.
-
-The controls also do not express the runner state clearly. A run action should
-be available only while no suite is active, while cancellation should be
-available only while a suite is active.
+The generated browser-test page now starts idle, waits for an explicit `Run`
+click or controller call, and keeps that control genuinely disabled — not
+merely click-ignoring — while a suite is loading or running. What remains is
+the other half of the proposal below: there is still no way to stop a run
+that is no longer useful, and no `Cancel` control expressing that a suite is
+active.
 
 ### Proposal
 
@@ -38,8 +36,15 @@ Cancellation must be semantic, not merely visual. It should prevent unstarted
 proofs from running, ignore late module imports and proof completions from the
 cancelled run, and prevent that run from replacing a later run's progress,
 report, promise, or completion event. Work already executing in JavaScript
-cannot always be interrupted; cancellation should be cooperative at module,
-batch, and proof boundaries and document that limitation.
+cannot always be interrupted; cancellation should be cooperative at module
+and leaf boundaries and document that limitation. (When this was filed the
+page ran batches, and the batch boundary was a natural check point; the
+sequential plan in [share-browser-console-runner](share-browser-console-runner.md)
+removes batching, so the check point is before each leaf invocation — the
+next *sibling* and each returned *child* alike, since a cancel that lands
+during a parent's awaited report must keep its unstarted children unstarted,
+per the requirement above. The un-interruptible unit is one leaf's own test
+and report, which is finer-grained than the batch was.)
 
 The final cancelled result needs a serializable status distinct from `failed`
 and `infrastructure-error`. Decide whether cancellation dispatches the existing
@@ -52,17 +57,18 @@ module or a default query parameter.
 
 ### Tasks
 
-- [ ] Remove the entry module's automatic `start()` call.
-- [ ] Rename `Run again` to `Run`.
+- [x] Remove the entry module's automatic `start()` call.
+- [x] Rename `Run again` to `Run`.
 - [ ] Add a `Cancel` button and implement the inverse enabled/disabled states
       for `Run` and `Cancel`.
 - [ ] Add a per-run cancellation token or equivalent identity checked during
-      loading, between execution batches, and before every UI/global/event
-      publication.
+      loading, before each leaf invocation — sibling and returned child alike
+      (the between-batches check this task once named — gone with batching,
+      per the note above), and before every UI/global/event publication.
 - [ ] Define the serializable cancelled report and completion-event behavior.
-- [ ] Prove initial idle behavior, both buttons' state transitions,
-      cancellation during loading, cancellation during proof execution, and a
-      new run after cancellation.
+- [x] Prove initial idle behavior and `Run`'s state transitions across
+      loading, running, and both terminal outcomes; cancellation-related
+      proofs are deferred with the `Cancel` button above.
 
 ### Related
 

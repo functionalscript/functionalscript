@@ -1,4 +1,4 @@
-# An internal representation of a map CAPL
+## An internal representation of a map CAPL
 
 **Priority:** P4
 **Status:** open

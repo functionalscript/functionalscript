@@ -99,7 +99,7 @@ const numberPolicy = token => ok(parseFloat(token.value))
  * for them.
  *
  * The result is an untyped {@link Unknown}; narrow it to a domain type with an
- * rtti schema (`fjs/types/rtti/parse`) rather than with an `as` cast.
+ * rtti schema (`fjs/rtti/parse`) rather than with an `as` cast.
  *
  * @type {(text: string) => Result<Unknown, string>}
  */

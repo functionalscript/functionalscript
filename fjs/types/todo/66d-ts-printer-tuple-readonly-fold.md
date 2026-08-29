@@ -56,6 +56,6 @@ touched anyway, not on its own.
 
 ### Related
 
-- [`fjs/types/rtti/ts`](../rtti/ts/module.f.mjs) — the rtti printer consuming
+- [`fjs/rtti/ts`](../../rtti/ts/module.f.mjs) — the rtti printer consuming
   this `Printer` (data-driven; the former i662 proposal to route it through
   `visit` was superseded when it stopped walking the thunk ADT at all).

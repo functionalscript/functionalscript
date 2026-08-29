@@ -36,13 +36,129 @@ export type TestSet = TestEntry | readonly (readonly [string, unknown])[]
  */
 export type Path = readonly (string | null)[]
 
+/** Whether a leaf passed, after the throw expectation has been applied. */
+export type TestStatus = 'passed' | 'failed'
+
+/**
+ * One leaf's outcome, normalized: what ran, whether it passed, and how long it
+ * took, with no terminal escape codes and no DOM node in it.
+ *
+ * It exists so that every runner decides those three things the same way. The
+ * console runner and the browser runner each used to derive them inline — one
+ * on its way to a printed line, the other on its way to a serializable report —
+ * and a status is exactly the kind of small decision that drifts unnoticed when
+ * it is made twice.
+ *
+ * **A thrown value is deliberately absent.** Describing one is not a decision
+ * every host can share: the browser's report must survive a wire hop, so it
+ * reads `message` and `stack` off the value, while `fjs t` prints the value
+ * itself and keeps the stack the panic would have shown. Both need the raw
+ * value to do that, and a raw value cannot live in a serializable record. So
+ * the description stays with each host and this carries the part they agree
+ * on — the shape of an extension point, not an omission.
+ */
+export type TestResult = {
+    /** The module key the outcome belongs to, relative to the run's root. */
+    readonly module: string
+    /**
+     * The key chain within that module's `proof` export, as `fmtPath` renders
+     * it — empty when the outcome is not a leaf's.
+     */
+    readonly path: string
+    /**
+     * What ran. For a leaf this is `fmtImport(module, path)`, the identity every
+     * runner names it by. A runner may also report an outcome that has no leaf —
+     * the browser reports a module that will not link, so that a report saying
+     * "0 tests" cannot be confused with a suite that is merely broken — and
+     * names it by whatever it does know, which for a module is its source.
+     *
+     * So this is "what ran", not "which leaf ran". Whether a runner should
+     * report a non-leaf outcome through this type at all, or through a separate
+     * variant with its own fields, is open — see
+     * `todo/share-browser-console-runner.md`, with the rest of the report
+     * shape.
+     *
+     * **The runners are not symmetric here, and that is a known gap rather than
+     * a design.** Only the browser reports a non-leaf outcome at all: the same
+     * `proof` export that it records as one failed result makes `fjs t` panic,
+     * taking down the whole run — including the modules that would have passed,
+     * which are then never reported either. So a consumer must not read this
+     * field's tolerance as a promise that every runner keeps going. Closing the
+     * gap is `todo/hostile-proof-values.md`, which needs an operation the
+     * shared traversal does not have.
+     */
+    readonly name: string
+    readonly status: TestStatus
+    /**
+     * How long it took. For a leaf, its own execution; for a non-leaf outcome,
+     * whatever the runner was measuring when it failed.
+     */
+    readonly duration: number
+}
+
+/**
+ * A leaf's outcome as the browser page reports it: the shared
+ * {@link TestResult} — identity, status and duration, decided by `testResult`
+ * rather than by the browser runner — plus the two fields only a browser
+ * report needs.
+ *
+ * `message` and `stack` are the browser's own part, and stay outside the shared
+ * record for the reason `TestResult` gives: describing a thrown value needs the
+ * value, a serializable report cannot carry one, and `fjs t` describes it
+ * differently because it is writing to a terminal rather than to a wire.
+ *
+ * @internal
+ */
+export type _BrowserTestResult = TestResult & {
+    readonly message?: string
+    readonly stack?: string
+}
+
+/** The serializable report a browser test run resolves with. */
+export type BrowserTestReport = {
+    readonly status: string
+    readonly browser: string
+    readonly totals: {
+        readonly tests: number
+        readonly passed: number
+        readonly failed: number
+    }
+    readonly duration: number
+    readonly results: readonly _BrowserTestResult[]
+}
+
+/**
+ * Loads one proof module by its source path for the browser runner.
+ *
+ * @internal
+ */
+export type _BrowserImporter = (source: string) => Promise<{ readonly proof?: unknown }>
+
+/**
+ * A run's outcome, folded from its leaf results: how many passed, how many
+ * failed, and how long they took together.
+ *
+ * It is built one `TestResult` at a time with `addResult`, starting from
+ * `zeroTotals`, so a stream of leaf-landed events and a finished totals record
+ * are the same information at two moments — which is what lets both runners
+ * answer "did the run pass" (`failed !== 0`) from the same fold.
+ *
+ * `duration` is the *sum* of the folded results' durations. For `fjs t`, which
+ * runs leaves sequentially, that is also the run's time and is what its
+ * `Time:` line prints. The browser runs leaves concurrently, so the sum stops
+ * meaning "how long the run took" there; its wire report keeps its own
+ * wall-clock `duration` and takes only the counts from the fold.
+ */
+export type RunTotals = {
+    readonly passed: number
+    readonly failed: number
+    readonly duration: number
+}
+
 /**
  * Receives semantic test-run events. Each method is the runner's notification
  * of an event; the reporter decides how to render it (terminal, GitHub
- * annotations, JSON, node `--test`, etc.). `path` is the chain of object keys
- * leading to the current location; `null` marks a function-call boundary, e.g.
- * `['outer', null, 'inner']` means `outer` was invoked and its return value
- * contained `inner`.
+ * annotations, JSON, node `--test`, etc.).
  *
  * **Every method is fallible**, because reporting is IO and IO can fail: a
  * write to a closed pipe, a runner that cannot dispatch `write` at all. The
@@ -63,16 +179,18 @@ export type Path = readonly (string | null)[]
  * through unchanged.
  */
 export type Reporter<O extends Operation> = {
-    readonly result: (file: string, path: Path, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void, IoChannel>
-    readonly summary: (pass: number, fail: number, time: number) => Effect<O, void, IoChannel>
+    /**
+     * A leaf landed. The first argument is the shared {@link TestResult} — the
+     * runner builds it with `testResult` before notifying, so a reporter
+     * receives the leaf's identity and status rather than deriving its own.
+     * The raw `SandboxResult` and the throw expectation travel with it because
+     * describing a *thrown value* is each host's part (see {@link TestResult}),
+     * and the description needs the value.
+     */
+    readonly result: (t: TestResult, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void, IoChannel>
+    /** The run ended, with the totals folded from every leaf that landed. */
+    readonly summary: (totals: RunTotals) => Effect<O, void, IoChannel>
     readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>, IoChannel>
-}
-
-/** @internal */
-export type _TestState = {
-    readonly time: number,
-    readonly pass: number,
-    readonly fail: number,
 }
 
 /** @internal */

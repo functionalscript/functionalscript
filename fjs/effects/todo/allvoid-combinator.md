@@ -58,12 +58,26 @@ sites already spell it that way.
 export const allVoid =
     <O extends Operation, T, E>(f: (item: T) => Effect<O, void, E>) =>
     (items: readonly T[]): Effect<O | All, void, NotImplemented | E> =>
-        mapStep(allOk(...items.map(f)), () => undefined)
+        mapStep(allOk(items.map(f)), () => undefined)
 ```
+
+The body hands the *list-shaped* callable the list, not a spread: `allVoid`
+exists for arbitrary-length fan-outs, which is exactly where
+`allOk(...items.map(f))` would rebuild the engine argument ceiling
+([all-argument-limit](./all-argument-limit.md)) inside the new combinator —
+the same correction [allreduce-combinator](./allreduce-combinator.md)
+carries. `allOk` in the sketch names that list-shaped operation under
+all-argument-limit's naming rule: it is `allOk` itself if the variadic
+wrapper is dropped, and the list-shaped sibling (`allOkList` in that issue's
+sketch) if the wrapper keeps the published names — either way the body's
+call shape is one array argument. That makes this issue's landing depend on
+the list-shaped operation from that issue; until it lands, the spread
+spelling is the only one that compiles, which is one more reason this issue
+is scheduled after the `All` move rather than before it.
 
 `NotImplemented` in the error channel is the runner's, inherited from `allOk`;
 `E` is the children's. Written with the standalone `step` instead —
-`step(allOk(...items.map(f)), () => pureOk(undefined))` — it is the same effect
+`step(allOk(items.map(f)), () => pureOk(undefined))` — it is the same effect
 said less directly; either works. Note `pureOk`, not `pure`: `pure` takes a
 `Result` (`pureOk = v => pure(ok(v))`), so `pure(undefined)` would yield a bare
 `undefined` where the chain expects `ok(undefined)`. Both spellings must also
@@ -87,10 +101,13 @@ no host API in it.
 The three call sites become `allVoid(e => registerOne(t, e))(sub)` etc.
 If [allreduce-combinator](./allreduce-combinator.md) lands first, consider
 deriving `allVoid` from `allReduce` with a unit monoid instead of
-duplicating the `allOk(...map)` core — but only once `allReduce` is itself
-built on `allOk`. As proposed it folds over `all(...)`, so its monoid receives
-the children's `Result`s as ordinary values, and a unit monoid over those
-would discard precisely the failures this section exists to keep.
+duplicating the shared core — its proposal is now built on the list-shaped
+`allOk`, so its monoid receives plain `R`s and the first failure travels the
+error channel, which is exactly what a unit monoid needs. (An earlier sketch
+of that issue folded over raw `all(...)`, whose monoid would have received
+the children's `Result`s as ordinary values — a unit monoid over those would
+discard precisely the failures this section exists to keep; that sketch is
+recorded as superseded there.)
 
 ### Tasks
 
@@ -98,6 +115,10 @@ would discard precisely the failures this section exists to keep.
       `All`/`all`/`both` **and `allOk`** to `fjs/effects/all/module.f.mjs`.
       `allVoid` is built on `allOk`, so moving one without the other inverts
       the layering.
+- [ ] Wait for [all-argument-limit](./all-argument-limit.md)'s list-shaped
+      `allOk`, and hand it the list: `allVoid` is an arbitrary-length
+      fan-out, so a spread in its body would rebuild the argument ceiling it
+      is called at (the note under the proposal).
 - [ ] Add `allVoid` there (next to `all`/`both`) with proof coverage — **not**
       to `fjs/effects/node/module.f.mjs`, per the note at the top of this issue.
 - [ ] Convert the three `mapStep(allOk(...), () => undefined)` call sites in

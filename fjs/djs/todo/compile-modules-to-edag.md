@@ -24,7 +24,7 @@ required by EDAG. Object parsing accumulates properties in an `OrderedMap` with
 `setReplace` and eventually produces a plain `AstObject`; duplicate keys are therefore
 collapsed and integer-like keys can lose their written order before EDAG conversion.
 This task must preserve object entries as an ordered sequence in the parser/AST until
-they are converted to `['{}', ...entry]`.
+they are converted to `['{}', [...entry]]`.
 
 ### Proposal
 
@@ -251,7 +251,7 @@ Also introduce call operations into EDAG:
 
 ```js
 ['()', object, args]                       // f(...args)
-['.', object, property, ['|()', args, null]]   // o.p(...args)
+['.', object, property, ['|()', args]]     // o.p(...args)
 ```
 
 There are two call spellings and the receiver is what tells them apart. `()` is the
@@ -260,10 +260,10 @@ call is instead the **property-access node owning its call** — the `'|()'` ste
 `.` node's continuation is what carries the `this` binding, which no `()` node can.
 See "Chains" in [`../../edag/README.md`](../../edag/README.md). Stage 2 needs neither
 optional node (`?.`, `?.()`) nor any of the other three steps, since optional chaining
-is not in its source subset; a plain property read is `['.', object, property, null]`.
+is not in its source subset; a plain property read is `['.', object, property]`.
 
 The property operand of a `.` node carrying a `'|()'` step follows **the same canonical
-safety restriction as `.`** with a `null` continuation.
+safety restriction as `.`** with no continuation.
 In this stage that means a permitted string constant or number constant; prohibited
 names, runtime-computed strings, and other unsupported property expressions are
 rejected. This is the EDAG form of the method-call distinction and safety rules already
@@ -284,19 +284,19 @@ The staged work builds on the basic structural forms already being defined for E
 - primitive constants directly: `null`, boolean, number, string, `bigint`
   (`undefined` is `['undefined']`, not a bare constant — see
   `edag-stage1-discussion.md`'s "Structural operations" table);
-- object constructors: `['{}', ...entry]`, where the initial entry form is
+- object constructors: `['{}', [...entry]]`, where the initial entry form is
   `[':', key, value]` and **`key` is a string constant** in this task, matching what
   the current DJS parser produces;
-- array constructors: `['[]', ...node]`;
+- array constructors: `['[]', [...node]]`;
 - the argument array: `['args']`;
-- Stage 1 property access: `['.', object, property, null]`, with the restricted
-  property operands described above — the `null` is the continuation operand, saying
-  the receiver this access produced is dropped;
+- Stage 1 property access: `['.', object, property]`, with the restricted
+  property operands described above — the absent fourth operand is the continuation,
+  and leaving it out says the receiver this access produced is dropped;
 - Stage 2 non-capturing functions: `['=>', null, body]` (`frame` is a general `exp` in
   the schema; `null` is what *this task's* parser and interpreter are scoped to, not a
   schema-level restriction);
 - Stage 2 calls: `['()', callee, args]` for an ordinary call, and
-  `['.', object, property, ['|()', args, null]]` for a method call, with the property
+  `['.', object, property, ['|()', args]]` for a method call, with the property
   operand using the same restriction as `.`;
 - semantic sharing by node identity, serialized with DJS `const` references when
   needed.
@@ -358,7 +358,7 @@ The current DJS serializer reuses JSON serialization primitives, so ordinary
 `JSON.stringify(number)` cannot be the DJS fallback for these values: it serializes
 non-finite values as `null` and loses the sign of `-0`. Add DJS-specific handling so
 the chosen `.f.js` spellings parse back to the exact values. If common parser/serializer
-machinery is extracted, coordinate with [`157.md`](./157.md), which already owns the
+machinery is extracted, coordinate with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md), which already owns the
 JSON/DJS structural deduplication; codec policy remains separate.
 
 The exact tests must distinguish the edge cases semantically:
@@ -479,11 +479,11 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Validate that a nested function body is a disjoint EDAG scope: operation nodes
       must not be shared across a function boundary, while sharing within the body is
       preserved.
-- [x] `['()', callee, args]` and the `['|()', args, null]` step a `.` node carries for
+- [x] `['()', callee, args]` and the `['|()', args]` step a `.` node carries for
       a method call are in the EDAG validation/type schema (`fjs/edag/`), shape only —
       the property-operand restriction below is this stage's own work.
 - [ ] Convert the corresponding parser call expressions to the EDAG call forms — `()`
-      for an ordinary call, a `.` node with a `['|()', args, null]` continuation for a
+      for an ordinary call, a `.` node with a `['|()', args]` continuation for a
       method call; reject prohibited or runtime-computed string properties in that
       node rather than bypassing the property-access safety rule.
 - [ ] Add proofs for non-capturing nested functions and ordinary/method calls in the
@@ -510,7 +510,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [ ] Add DJS-specific number serialization that the DJS parser round-trips to exactly
       `Infinity`, `-Infinity`, `NaN`, and `-0`; do not change the standard JSON codec's
       policy as a side effect of this task.
-- [ ] Coordinate any shared parser/serializer extraction with [`157.md`](./157.md)
+- [ ] Coordinate any shared parser/serializer extraction with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md)
       instead of adding another duplicate JSON/DJS walker or numeric-policy layer.
 - [ ] Serialize the final EDAG to `.f.js` through the EDAG-producing artifact path;
       allow JSON output only when it preserves the EDAG completely.
@@ -554,7 +554,7 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 - [`../../media/json/todo/number-edge-cases.md`](../../media/json/todo/number-edge-cases.md)
   — existing owner of the standard FunctionalScript JSON policy for `-0`, `NaN`, and
   infinities.
-- [`157.md`](./157.md) — existing JSON/DJS parser/serializer deduplication task.
+- [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md) — existing JSON/DJS parser/serializer deduplication task.
 - [`../ast/types.ts`](../ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
   and plain-object representation to replace.
 - [`../ast/module.f.mjs`](../ast/module.f.mjs) — current sequential AST evaluator.

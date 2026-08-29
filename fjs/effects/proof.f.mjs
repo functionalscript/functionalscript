@@ -1,12 +1,14 @@
 /**
- * @import { Effect, Func, Operation } from './types.ts'
+ * @import { Assert } from '../asserts/types.ts'
+ * @import { Effect, Func, IoChannel, NotImplemented, Operation } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
+ * @import { Equal } from '../types/ts/types.ts'
  */
 
 import {
-    catchStep, do_, foldStep, forEachStep, history, historyStep, mapStep, match,
-    partialMatch, pure, pureError, pureOk, resultMapStep, resultStep, runPure, step,
-    unwrapStep,
+    catchStep, do_, foldStep, forEachStep, history, historyStep, mapStep,
+    match, partialMatch, pure, pureError, pureOk, resultMapStep, resultStep,
+    runPure, step, toIoError, unwrapStep,
 } from './module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
@@ -35,10 +37,9 @@ const assertPure = (e, expected) => {
  * `Operation` requires a `Result` return, so a runner always has somewhere to
  * answer `error(notImplemented)` — and that requirement is what lets an effect
  * carry its error channel in the type rather than inside an opaque payload.
- * @typedef {readonly['add', (a: number, b: number) => Result<number, string>]} _AddOp
+ * @type {(command: 'add') => (a: number, b: number) =>
+ *     Effect<readonly['add', (a: number, b: number) => Result<number, string>], number, string>}
  */
-
-/** @type {(command: 'add') => (a: number, b: number) => Effect<_AddOp, number, string>} */
 const doAdd = do_
 
 const next = match({
@@ -51,10 +52,9 @@ const next = match({
  * nothing stops it naming a member `map` inherits from `Object.prototype`
  * rather than an own handler. `match` must refuse those, and this type is how a
  * proof says so without an `as` cast.
- * @typedef {readonly[string, (a: number) => Result<number, string>]} _AnyOp
+ * @type {(command: string) => (a: number) =>
+ *     Effect<readonly[string, (a: number) => Result<number, string>], number, string>}
  */
-
-/** @type {(command: string) => (a: number) => Effect<_AnyOp, number, string>} */
 const doAny = do_
 
 const anyNext = match({ add: (/** @type {number} */ a) => ok(a + 1) })
@@ -78,21 +78,15 @@ const anyPartial = partialMatch(
  * A fallible operation, spelled the way every operation is spelled: the
  * `Result` is in the command's declared return type, so `do_` already builds an
  * `Effect` and the runner's handler already answers with `ok` / `error`.
- * @typedef {readonly['div', (a: number, b: number) => Result<number, string>]} _DivOp
+ * @type {Func<readonly['div', (a: number, b: number) => Result<number, string>]>}
  */
+const div = do_('div')
 
 /**
  * A second operation, so a chain can join two of them and the operation sets
  * union.
- * @typedef {readonly['neg', (a: number) => Result<number, string>]} _NegOp
+ * @type {Func<readonly['neg', (a: number) => Result<number, string>]>}
  */
-
-/** @typedef {_DivOp | _NegOp} _Op */
-
-/** @type {Func<_DivOp>} */
-const div = do_('div')
-
-/** @type {Func<_NegOp>} */
 const neg = do_('neg')
 
 const nextArith = match({
@@ -104,7 +98,10 @@ const nextArith = match({
 /**
  * Runs an effect to completion against the two operations above — `asyncRun`'s
  * loop without the `await`, which is all a synchronous runner is.
- * @type {<T, E>(e: Effect<_Op, T, E>) => Result<T, E>}
+ * @type {<T, E>(e: Effect<
+ *     | readonly['div', (a: number, b: number) => Result<number, string>]
+ *     | readonly['neg', (a: number) => Result<number, string>],
+ *     T, E>) => Result<T, E>}
  */
 const run = e => {
     let current = e
@@ -175,7 +172,136 @@ const checked = v => {
  */
 const show = e => `${e}`
 
+/**
+ * Asserts that a channel error is a host failure carrying `message`. Every
+ * runner reports through the same normalized `IoError`, so a proof names the
+ * message rather than the shape.
+ *
+ * @type {(e: IoChannel, message: string) => void}
+ */
+const assertIoMessage = (e, message) => {
+    assert(e[0] === 'ioError', e)
+    assertEq(e[1].message, message)
+}
+
 export const proof = {
+    // The one boundary where a runner's `catch` becomes effect data: whatever
+    // was thrown is reduced to a code (when the host attached a string one)
+    // and a message.
+    toIoError: {
+        error: () => {
+            assertIoMessage(toIoError(new Error('boom')), 'boom')
+        },
+        withCode: () => {
+            const e = toIoError(Object.assign(new Error('missing'), { code: 'ENOENT' }))
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, 'ENOENT', e)
+            assertEq(e[1].message, 'missing', e)
+        },
+        // A thrown non-`Error` still normalizes: the value's string form is the
+        // message, and there is no code to carry.
+        string: () => {
+            const e = toIoError('plain')
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+            assertEq(e[1].message, 'plain', e)
+        },
+        null: () => {
+            assertIoMessage(toIoError(null), 'null')
+        },
+        // An object whose `code` is not a string is not an OS error code, so it
+        // is dropped rather than carried as one.
+        nonStringCode: () => {
+            const e = toIoError({ code: 42 })
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+        },
+        noCode: () => {
+            const e = toIoError({})
+            assert(e[0] === 'ioError', e)
+            assertEq(e[1].code, undefined, e)
+        },
+    },
+    /**
+     * Every combinator's signature, pinned at a concrete instantiation. These
+     * verify `./module.f.mjs`, so they live here rather than in `./types.ts`;
+     * the widening rules the layer itself rests on stay there.
+     */
+    signatures: () => {
+        /** @typedef {readonly['add', (a: number, b: number) => Result<number, NotImplemented>]} _AddOp */
+        /** @typedef {readonly['mul', (a: number, b: number) => Result<number, NotImplemented>]} _MulOp */
+        // `step` unions the operation sets and the errors, and replaces the
+        // success type with the continuation's.
+        /**
+         * @typedef {Assert<Equal<
+         *  ReturnType<typeof step<_AddOp, number, NotImplemented, _MulOp, string, string>>,
+         *  Effect<_AddOp | _MulOp, string, NotImplemented | string>>>} _StepSig
+         */
+        // `catchStep` mirrors it: the success channel is the union of the
+        // preserved value and the recovery's, and the error type is the
+        // recovery's alone — `never` when every error is handled.
+        /**
+         * @typedef {Assert<Equal<
+         *  ReturnType<typeof catchStep<_AddOp, number, NotImplemented, _MulOp, string, never>>,
+         *  Effect<_AddOp | _MulOp, string | number, never>>>} _CatchStepSig
+         */
+        // `resultStep` consumes both branches, so it replaces both channels and
+        // unions only the operation sets. It is the layer's primitive — `step`
+        // and `catchStep` are it with a tag test in front — so this signature
+        // is the one the other two are derived from rather than a third
+        // variant beside them.
+        /**
+         * @typedef {Assert<Equal<
+         *  ReturnType<typeof resultStep<_AddOp, number, NotImplemented, _MulOp, string, string>>,
+         *  Effect<_AddOp | _MulOp, string, string>>>} _ResultStepSig
+         */
+        // `mapStep` widens nothing: a pure projection issues no commands and
+        // cannot fail, so only the success type changes.
+        /**
+         * @typedef {Assert<Equal<
+         *  ReturnType<typeof mapStep<_AddOp, number, NotImplemented, string>>,
+         *  Effect<_AddOp, string, NotImplemented>>>} _MapStepSig
+         */
+        // `resultMapStep` is the both-branches projection, so it replaces the
+        // error channel as well — this is the assert that says a caller may
+        // discard errors here, which is the whole reason the name is separate
+        // from `mapStep`'s.
+        /**
+         * @typedef {Assert<Equal<
+         *  ReturnType<typeof resultMapStep<_AddOp, number, NotImplemented, Result<string, string>>>,
+         *  Effect<_AddOp, string, string>>>} _ResultMapStepSig
+         */
+        // ...and a projection that only ever answers `ok` empties the channel
+        // rather than acquiring one. Reading the two halves off `f`'s concrete
+        // return type is what makes this line pass; matching `Result<R, F>`
+        // directly would infer `F` from the `ok` payload.
+        /**
+         * @typedef {Assert<Equal<
+         *  ReturnType<typeof resultMapStep<_AddOp, number, NotImplemented, readonly['ok', string]>>,
+         *  Effect<_AddOp, string, never>>>} _ResultMapStepEmpties
+         */
+        // `unwrapStep` panics on the error branch, so what it hands back is an
+        // effect whose channel is empty — `never` earned by the throw rather
+        // than asserted.
+        /**
+         * @typedef {Assert<Equal<
+         *  ReturnType<typeof unwrapStep<_AddOp, number, NotImplemented>>,
+         *  Effect<_AddOp, number, never>>>} _UnwrapStepSig
+         */
+        // ...and the renderer it takes is what stops that panic from quietly
+        // growing. A summary written for one channel is *not* usable where a
+        // wider channel's summary is required — parameters are contravariant —
+        // so adding a failure upstream breaks the site that chose to panic
+        // instead of silently enlarging what it crashes on. This is the assert
+        // that makes the argument checkable: were it to pass, `unwrapStep`
+        // would be back to absorbing anything.
+        /** @template E @typedef {Parameters<typeof unwrapStep<_AddOp, number, E>>[1]} _Summary */
+        /**
+         * @typedef {Assert<Equal<
+         *  _Summary<NotImplemented> extends _Summary<NotImplemented | string> ? true : false,
+         *  false>>} _UnwrapStepPinsItsChannel
+         */
+    },
     runPure: {
         ok: () => {
             assertPure(pure(ok(5)), ok(5))
@@ -321,6 +447,7 @@ export const proof = {
         overFailedDo: () => {
             // `todo` never returns, so it pins none of the continuation's type
             // parameters; the annotation supplies the operation set `run` needs.
+            /** @typedef {readonly['div', (a: number, b: number) => Result<number, string>]} _DivOp */
             /** @type {Effect<_DivOp, never, string>} */
             const e = step(div(1, 0), todo)
             assertError(run(e), 'div by zero')
@@ -328,7 +455,9 @@ export const proof = {
         // Adjacent links performing different commands: the operation sets
         // union, so one runner interprets the whole chain.
         joinsOperations: () => {
-            /** @type {Effect<_Op, number, string>} */
+            /** @typedef {readonly['div', (a: number, b: number) => Result<number, string>]} _DivOp */
+            /** @typedef {readonly['neg', (a: number) => Result<number, string>]} _NegOp */
+            /** @type {Effect<_DivOp | _NegOp, number, string>} */
             const e = step(div(6, 3), neg)
             assertOk(run(e), -2)
         },

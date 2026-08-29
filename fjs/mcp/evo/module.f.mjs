@@ -49,7 +49,7 @@
  * @import { Evo } from '../../cas/evo/types.ts'
  */
 
-import { string, option, array } from '../../types/rtti/module.f.mjs'
+import { array, option, or, string } from '../../rtti/module.f.mjs'
 import { lockField } from '../../media/revision/module.f.mjs'
 import { evoSummary } from '../../cas/evo/module.f.mjs'
 import { toolEntry, toolResultStep } from '../../protocol/mcp/module.f.mjs'
@@ -67,7 +67,7 @@ import { identity } from '../../types/function/module.f.mjs'
  * `Evo.list` — omitted lists the active subjects, `true` the archived ones.
  */
 export const evoListArgs = /** @type {const} */ ({
-    archived: option(true),
+    archived: or(option, true),
 })
 
 /** Arguments for `evo_head`: the subject whose current heads are requested. */
@@ -96,10 +96,10 @@ export const evoRevisionArgs = /** @type {const} */ ({
  */
 export const evoAddArgs = /** @type {const} */ ({
     parents: array(string),
-    snapshot: option(string),
-    subject: option(string),
-    archived: option(true),
-    lock: option(lockField),
+    snapshot: or(option, string),
+    subject: or(option, string),
+    archived: or(option, true),
+    lock: or(option, lockField),
 })
 
 // ── Tool registry ────────────────────────────────────────────────────────────────

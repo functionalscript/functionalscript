@@ -28,7 +28,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.46.1"
+          "run": "npm install -g functionalscript@0.47.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -81,7 +81,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.46.1"
+          "run": "npm install -g functionalscript@0.47.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -122,7 +122,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.46.1"
+          "run": "npm install -g functionalscript@0.47.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -163,7 +163,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.46.1"
+          "run": "npm install -g functionalscript@0.47.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -205,7 +205,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.46.1"
+          "run": "npm install -g functionalscript@0.47.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -258,7 +258,7 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.46.1"
+          "run": "npm install -g functionalscript@0.47.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -385,17 +385,17 @@
         {
           "uses": "denoland/setup-deno@v2.0.5",
           "with": {
-            "deno-version": "2.9.5"
+            "deno-version": "2.9.6"
           }
         },
         {
-          "run": "deno install -g -A --minimum-dependency-age=0 npm:functionalscript@0.46.1"
+          "run": "deno install -g -A --minimum-dependency-age=0 npm:functionalscript@0.47.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "deno run -A --minimum-dependency-age=0 npm:functionalscript@0.46.1 test"
+          "run": "deno run -A --minimum-dependency-age=0 npm:functionalscript@0.47.0 test"
         },
         {
           "run": "deno install --frozen"
@@ -415,7 +415,7 @@
           }
         },
         {
-          "run": "bun install -g functionalscript@0.46.1"
+          "run": "bun install -g functionalscript@0.47.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -424,7 +424,7 @@
           "run": "bun install --frozen-lockfile"
         },
         {
-          "run": "bunx functionalscript@0.46.1 test"
+          "run": "bunx functionalscript@0.47.0 test"
         },
         {
           "run": "bun test --coverage"
@@ -441,16 +441,13 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.46.1"
-        },
-        {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "npm ci"
+          "run": "test \"$(node --version)\" = v22.23.2"
         },
         {
-          "run": "fjs test"
+          "run": "npm ci"
         },
         {
           "run": "node --test"
@@ -461,55 +458,23 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "actions/setup-node@v7.0.0",
-          "with": {
-            "node-version": "24.19.0"
-          }
+          "uses": "cachix/install-nix-action@v31.11.1"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "npm ci"
+          "run": "test \"$(nix develop ./nix/node24 --command node --version)\" = v24.19.0"
         },
         {
-          "run": "node --test"
+          "run": "nix develop ./nix/node24 --command npm ci"
+        },
+        {
+          "run": "nix develop ./nix/node24 --command node --test"
         }
       ]
     },
     "node26": {
-      "runs-on": "ubuntu-26.04-arm",
-      "steps": [
-        {
-          "uses": "actions/setup-node@v7.0.0",
-          "with": {
-            "node-version": "26.7.0"
-          }
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "npm ci"
-        },
-        {
-          "run": "npm run ci-update"
-        },
-        {
-          "run": "git add -A && git diff --cached --exit-code"
-        },
-        {
-          "run": "npx tsc"
-        },
-        {
-          "run": "npm run cov"
-        },
-        {
-          "run": "npm pack"
-        }
-      ]
-    },
-    "nix-flakes": {
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
@@ -519,13 +484,68 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(nix develop ./nix/generated/node22 --command node --version)\" = v22.23.2"
+          "run": "test \"$(nix develop ./nix/node26 --command node --version)\" = v26.7.0"
         },
         {
-          "run": "test \"$(nix develop ./nix/generated/node24 --command node --version)\" = v24.19.0"
+          "run": "nix develop ./nix/node26 --command npm ci"
         },
         {
-          "run": "test \"$(nix develop ./nix/generated/node26 --command node --version)\" = v26.7.0"
+          "run": "nix develop ./nix/node26 --command npx tsc"
+        },
+        {
+          "run": "nix develop ./nix/node26 --command npm run cov"
+        },
+        {
+          "run": "nix develop ./nix/node26 --command npm pack"
+        },
+        {
+          "run": "nix develop ./nix/node26 --command npm run ci-update"
+        },
+        {
+          "run": "git add -A && git diff --cached --exit-code"
+        },
+        {
+          "uses": "actions/upload-artifact@v7.0.1",
+          "with": {
+            "name": "package-tarball",
+            "path": "*.tgz",
+            "if-no-files-found": "error"
+          }
+        }
+      ]
+    },
+    "package-check": {
+      "runs-on": "ubuntu-26.04-arm",
+      "needs": [
+        "node26"
+      ],
+      "steps": [
+        {
+          "uses": "actions/download-artifact@v8.0.1",
+          "with": {
+            "name": "package-tarball"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "26.7.0"
+          }
+        },
+        {
+          "run": "npm init -y > /dev/null"
+        },
+        {
+          "run": "npm install \"packed@file:$(echo *.tgz)\""
+        },
+        {
+          "run": "npm install \"typescript@=7.0.2\""
+        },
+        {
+          "run": "echo '{\"include\":[\"node_modules/packed/**/*\",\"node_modules/packed/**/.*\",\"node_modules/packed/**/.*/**/*\"],\"exclude\":[],\"compilerOptions\":{\"module\":\"nodenext\",\"target\":\"esnext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":false}}' > tsconfig.json"
+        },
+        {
+          "run": "npx tsc"
         }
       ]
     }

@@ -27,13 +27,13 @@
  *
  * @import { Unknown } from '../json/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { ValidationError } from '../../types/rtti/common/types.ts'
+ * @import { ValidationError } from '../../rtti/common/types.ts'
  * @import { DialectEntry } from '../types.ts'
  * @import { Note, NoteError } from './types.ts'
  */
 
-import { array, open, option, or, string } from '../../types/rtti/module.f.mjs'
-import { parse as rttiParse } from '../../types/rtti/parse/module.f.mjs'
+import { array, open, option, or, string } from '../../rtti/module.f.mjs'
+import { parse as rttiParse } from '../../rtti/parse/module.f.mjs'
 import { parse as parseJson, stringify } from '../json/module.f.mjs'
 import { okThen } from '../../types/result/module.f.mjs'
 import { dialectEntry } from '../module.f.mjs'
@@ -101,8 +101,8 @@ export const priorities = /** @type {const} */ (['P1', 'P2', 'P3', 'P4', 'P5'])
 export const noteSchema = open(/** @type {const} */ ({
     dialect,
     text: string,
-    dependencies: option(array(string)),
-    priority: option(or(...priorities)),
+    dependencies: or(option, array(string)),
+    priority: or(option, ...priorities),
 }))
 
 /** Serializes a note canonically, sorting every object's property names.

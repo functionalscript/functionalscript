@@ -10,12 +10,61 @@
  * which `comma` is now the sole route to; it pins the operand array's
  * element schema, and claims nothing about what a `,` means.
  *
- * @import { ValidationError } from '../types/rtti/common/types.ts'
- * @import { Unknown } from '../types/rtti/ts/types.ts'
+ * @import { Assert } from '../asserts/types.ts'
+ * @import { ValidationError } from '../rtti/common/types.ts'
+ * @import { Check, Check3, Unknown } from '../rtti/ts/types.ts'
  * @import { StringMap } from '../types/object/types.ts'
+ * @import {
+ *  _exp,
+ *  _optionLambda,
+ *  _optionPropertyLambda,
+ *  array,
+ *  call,
+ *  comma,
+ *  dot,
+ *  exps,
+ *  items,
+ *  numberCast,
+ *  object,
+ *  op0,
+ *  op1,
+ *  op2,
+ *  optionCall,
+ *  optionDot,
+ *  primitive,
+ *  properties,
+ *  property,
+ *  spread,
+ * } from './module.f.mjs'
+ * @import {
+ *  Array,
+ *  Call,
+ *  Comma,
+ *  Dot,
+ *  Exp,
+ *  Exps,
+ *  Items,
+ *  NumberCast,
+ *  Object,
+ *  Op0,
+ *  Op0Id,
+ *  Op1,
+ *  Op1Id,
+ *  Op2,
+ *  Op2Id,
+ *  OptionCall,
+ *  OptionDot,
+ *  OptionLambda,
+ *  OptionPropertyLambda,
+ *  Primitive,
+ *  Properties,
+ *  Property,
+ *  PropertyLambda,
+ *  Spread,
+ * } from './types.ts'
  */
 
-import { validate } from '../types/rtti/validate/module.f.mjs'
+import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
     exp, op0Id, op1Id, op2Id,
@@ -29,7 +78,7 @@ const assertOk = ([k]) => { assertEq(k, 'ok', 'expected ok') }
  * `exp` is a top-level `or` trying every node kind in turn, so when a value
  * matches none of them the reported failure is always the root (`path: []`,
  * `message: 'no match'`) — there is no single branch whose deeper path is
- * "the" failure. Same rule as `../types/rtti/validate/proof.f.mjs`'s `orRoot`.
+ * "the" failure. Same rule as `../rtti/validate/proof.f.mjs`'s `orRoot`.
  * The three lambda schemas are `or`s too, so their failures report the same
  * way.
  * @type {(r: readonly [string, unknown]) => void}
@@ -99,6 +148,37 @@ const op2Ids = /** @type {const} */ ([
 const desugarOptionalAt = o => o !== null && o !== undefined ? o.at : undefined
 
 export const proof = {
+    /**
+     * Each RTTI constant in `./module.f.mjs` matches its declared type in
+     * `./types.ts`. These are compile-time checks; the function body only has
+     * to exist so the typedefs have a local scope.
+     */
+    consistency: () => {
+        /** @typedef {Assert<Check3<Exp, typeof _exp, typeof exp>>} _ExpAssert */
+        /** @typedef {Assert<Check<Primitive, typeof primitive>>} _Primitive */
+        /** @typedef {Assert<Check<Exps, typeof exps>>} _Exps */
+        /** @typedef {Assert<Check<Spread, typeof spread>>} _Spread */
+        /** @typedef {Assert<Check<Items, typeof items>>} _Items */
+        /** @typedef {Assert<Check<Array, typeof array>>} _Array */
+        /** @typedef {Assert<Check<Property, typeof property>>} _Property */
+        /** @typedef {Assert<Check<Properties, typeof properties>>} _Properties */
+        /** @typedef {Assert<Check<Object, typeof object>>} _Object */
+        /** @typedef {Assert<Check<NumberCast, typeof numberCast>>} _NumberCast */
+        /** @typedef {Assert<Check3<OptionLambda, typeof _optionLambda, typeof optionLambda>>} _OptionLambda */
+        /** @typedef {Assert<Check3<OptionPropertyLambda, typeof _optionPropertyLambda, typeof optionPropertyLambda>>} _OptionPropertyLambda */
+        /** @typedef {Assert<Check<PropertyLambda, typeof propertyLambda>>} _PropertyLambda */
+        /** @typedef {Assert<Check<Call, typeof call>>} _Call */
+        /** @typedef {Assert<Check<Dot, typeof dot>>} _Dot */
+        /** @typedef {Assert<Check<OptionDot, typeof optionDot>>} _OptionDot */
+        /** @typedef {Assert<Check<OptionCall, typeof optionCall>>} _OptionCall */
+        /** @typedef {Assert<Check<Comma, typeof comma>>} _Comma */
+        /** @typedef {Assert<Check<Op0Id, typeof op0Id>>} _Op0Id */
+        /** @typedef {Assert<Check<Op0, typeof op0>>} _Op0 */
+        /** @typedef {Assert<Check<Op1Id, typeof op1Id>>} _Op1Id */
+        /** @typedef {Assert<Check<Op1, typeof op1>>} _Op1 */
+        /** @typedef {Assert<Check<Op2Id, typeof op2Id>>} _Op2Id */
+        /** @typedef {Assert<Check<Op2, typeof op2>>} _Op2 */
+    },
     primitive: {
         ok: () => {
             assertOk(v(null))
@@ -190,31 +270,42 @@ export const proof = {
             assertNoMatch(v(['.', 'a', 'b', ['|?.()', 1, null, 'extra']]))
             assertNoMatch(v(['?.', 'a', 'b', ['|.', 'c', null, 'extra']]))
             assertNoMatch(v(['?.', 'a', 'b', ['|!()', 1, null, 'extra']]))
-            assertNoMatch(v(['.', 'a', ['Number', 1, 'extra'], null]))
+            assertNoMatch(v(['.', 'a', ['Number', 1, 'extra']]))
         },
     },
     dot: {
         ok: () => {
-            assertOk(v(['.', 'a', 'b', null]))
-            assertOk(v(['.', ['[]', [1, 2]], 0, null]))
+            assertOk(v(['.', 'a', 'b']))
+            assertOk(v(['.', ['[]', [1, 2]], 0]))
             // `index`'s three accepted shapes, pinned explicitly: string,
             // number (above), and a `numberCast` (below) — not `boolean`
             // (see `error`).
-            assertOk(v(['.', 'a', ['Number', 1], null]))
+            assertOk(v(['.', 'a', ['Number', 1]]))
         },
         // `index` — string, number, or `numberCast` — never admitted
         // `undefined`, so a missing index has always been a real error.
-        missingIndexIsError: () => assertNoMatch(v(['.', 'a', null, null])),
-        // The continuation is not optional. `null` says "the receiver is
-        // dropped here"; a missing position says nothing, and reads as
-        // `undefined`, which no lambda admits.
-        missingTailIsError: () => assertNoMatch(v(['.', 'a', 'b'])),
+        missingIndexIsError: () => assertNoMatch(v(['.', 'a', null])),
+        // Ending the chain is the *shorter* arity (`ok` above), so the
+        // terminator values are gone: `null` is a primitive again and has no
+        // reading in a continuation position, and a present `undefined` never
+        // had one.
+        terminatorTailIsError: () => {
+            assertNoMatch(v(['.', 'a', 'b', null]))
+            assertNoMatch(v(['.', 'a', 'b', undefined]))
+        },
+        // A trailing **hole** is not the short arity: the three-element arm
+        // is bounded by length and the four-element arm has no `option`
+        // member, so a length-4 value with nothing at index 3 matches
+        // neither. `concat` builds one without a hole literal, which
+        // FunctionalScript does not have.
+        trailingHoleIsError: () =>
+            assertNoMatch(v(['.', 'a', 'b'].concat(new Array(1)))),
         error: () => {
             assertNoMatch(v(['x', 'a', 'b', null]))
-            assertNoMatch(v(['.', {}, 'b', null]))
+            assertNoMatch(v(['.', {}, 'b']))
             // `index` excludes `boolean` on purpose — not narrowed to just
             // `string`/`number` by accident.
-            assertNoMatch(v(['.', 'a', true, null]))
+            assertNoMatch(v(['.', 'a', true]))
         },
     },
     // The chain continuations. There are three because a chain carries two
@@ -227,96 +318,103 @@ export const proof = {
         // because only a call spends a receiver; `|()` is terminal and
         // `|?.()` opens a region that owns the rest of the chain.
         propertyLambda: () => {
-            assertOk(vPropertyLambda(null))
-            assertOk(vPropertyLambda(['|()', 1, null]))
-            assertOk(vPropertyLambda(['|?.()', 1, null]))
-            assertOk(vPropertyLambda(['|?.()', 1, ['|.', 'c', null]]))
+            assertOk(vPropertyLambda(['|()', 1]))
+            assertOk(vPropertyLambda(['|?.()', 1]))
+            assertOk(vPropertyLambda(['|?.()', 1, ['|.', 'c']]))
             // No `|.`: a property step here would waste the receiver with no
             // region to keep it in, so `a.b.c` nests `.` nodes instead. That
             // absence is what gives a plain property path one spelling.
-            assertNoMatch(vPropertyLambda(['|.', 'c', null]))
+            assertNoMatch(vPropertyLambda(['|.', 'c']))
             // No `|!()`: there is no open region for it to close.
-            assertNoMatch(vPropertyLambda(['|!()', 1, null]))
+            assertNoMatch(vPropertyLambda(['|!()', 1]))
         },
         // `optionLambda` — a plain value inside a region. A call stays in the
         // region (it must, or the region would not cover it) and a property
         // step hands a receiver on within it.
         optionLambda: () => {
-            assertOk(vOptionLambda(null))
-            assertOk(vOptionLambda(['|()', 1, null]))
-            assertOk(vOptionLambda(['|.', 'c', null]))
-            assertOk(vOptionLambda(['|.', 'c', ['|!()', 1, null]]))
+            assertOk(vOptionLambda(['|()', 1]))
+            assertOk(vOptionLambda(['|.', 'c']))
+            assertOk(vOptionLambda(['|.', 'c', ['|!()', 1]]))
             // Neither `|?.()` nor `|!()` is here: with the receiver already
             // spent, guarding or closing at this point protects nothing a
             // nested node would not protect equally.
-            assertNoMatch(vOptionLambda(['|?.()', 1, null]))
-            assertNoMatch(vOptionLambda(['|!()', 1, null]))
+            assertNoMatch(vOptionLambda(['|?.()', 1]))
+            assertNoMatch(vOptionLambda(['|!()', 1]))
         },
         // `optionPropertyLambda` — both bits live, so every production is
         // here: the three ways a call can relate to its region, plus the
         // property step the region will not let leave.
         optionPropertyLambda: () => {
-            assertOk(vOptionPropertyLambda(null))
-            assertOk(vOptionPropertyLambda(['|()', 1, null]))
-            assertOk(vOptionPropertyLambda(['|.', 'c', null]))
-            assertOk(vOptionPropertyLambda(['|?.()', 1, null]))
-            assertOk(vOptionPropertyLambda(['|!()', 1, null]))
+            assertOk(vOptionPropertyLambda(['|()', 1]))
+            assertOk(vOptionPropertyLambda(['|.', 'c']))
+            assertOk(vOptionPropertyLambda(['|?.()', 1]))
+            assertOk(vOptionPropertyLambda(['|!()', 1]))
             // `|.` hands the region back to this same state, so every
             // production above is reachable one property step further in —
             // `a?.b.c?.(...d)` is the guarded call through a `|.`.
-            assertOk(vOptionPropertyLambda(['|.', 'c', ['|?.()', 1, null]]))
-            assertOk(vOptionPropertyLambda(['|.', 'c', ['|.', 'd', null]]))
+            assertOk(vOptionPropertyLambda(['|.', 'c', ['|?.()', 1]]))
+            assertOk(vOptionPropertyLambda(['|.', 'c', ['|.', 'd']]))
         },
         // `|.` takes an `index` and the call steps take an `exp`, the same
         // operand schemas the nodes use — so a general `exp` in a naming
         // position is rejected where it is accepted in an argument one.
         operandSchemas: () => {
-            assertOk(vOptionLambda(['|.', 0, null]))
-            assertOk(vOptionLambda(['|.', ['Number', 1], null]))
-            assertNoMatch(vOptionLambda(['|.', ['[]', []], null]))
-            assertOk(vOptionLambda(['|()', ['[]', [1, 2]], null]))
+            assertOk(vOptionLambda(['|.', 0]))
+            assertOk(vOptionLambda(['|.', ['Number', 1]]))
+            assertNoMatch(vOptionLambda(['|.', ['[]', []]]))
+            assertOk(vOptionLambda(['|()', ['[]', [1, 2]]]))
         },
         // A lambda only means anything as the continuation of a chain node:
         // it takes its input implicitly, so on its own it is not an `exp` and
         // cannot be lifted out as a shared node. The `|` prefix is what makes
         // that statable — see `tagsAreDisjoint`.
         notAnExp: () => {
-            assertNoMatch(v(['|.', 'b', null]))
-            assertNoMatch(v(['|()', 1, null]))
-            assertNoMatch(v(['|?.()', 1, null]))
-            assertNoMatch(v(['|!()', 1, null]))
+            assertNoMatch(v(['|.', 'b']))
+            assertNoMatch(v(['|()', 1]))
+            assertNoMatch(v(['|?.()', 1]))
+            assertNoMatch(v(['|!()', 1]))
         },
-        // The prefix is a correctness requirement, not a readability one.
-        // Unprefixed, `['()', f, null]` would be both a `call` — call `f`
-        // with `null` as its arguments — and an `optionLambda` — call the
-        // chain's value with `f` as its arguments, and stop. Equal length, so
-        // closedness could not have separated them — it bounds a tuple's
-        // length and says nothing about its tag; only disjoint vocabularies
-        // can, and these two assertions are that disjointness.
+        // The prefix keeps the step vocabulary disjoint from the node one,
+        // so a tuple's tag alone says which grammar it belongs to. Unprefixed,
+        // `['()', f, k]` would read as a `call` — call `f` with `k` as its
+        // arguments — and as a step — call the chain's value with `f` as its
+        // arguments, then continue with `k`. Closedness bounds a tuple's
+        // length and says nothing about its tag, so no arity separates those
+        // readings; these assertions are the disjointness that does.
         tagsAreDisjoint: () => {
             assertOk(v(['()', 'f', null]))
             assertNoMatch(vOptionLambda(['()', 'f', null]))
-            assertNoMatch(v(['|()', 'f', null]))
+            assertNoMatch(v(['|()', 'f']))
         },
-        // Uniform arity is the other half. `propertyLambda`'s `|()` is
-        // terminal, and it says so with an explicit `null` rather than by
-        // being one element shorter: a two-element terminal handed a real
-        // continuation would validate with the rest silently dropped.
-        terminalsAreExplicit: () => {
-            assertNoMatch(vPropertyLambda(['|()', 1]))
-            assertNoMatch(vPropertyLambda(['|()', 1, ['|.', 'c', null]]))
-            assertNoMatch(vOptionPropertyLambda(['|!()', 1]))
-            assertNoMatch(vOptionPropertyLambda(['|!()', 1, ['|.', 'c', null]]))
+        // A terminal has one arity, and closedness by length is what keeps
+        // the rest from being smuggled past it: `propertyLambda`'s `|()`
+        // spends the receiver and exits, `optionPropertyLambda`'s `|!()`
+        // closes the region, and neither has a three-element arm to hold a
+        // continuation. This is the case the old explicit `null` existed to
+        // guard, and length now answers it.
+        terminalsTakeNoContinuation: () => {
+            assertNoMatch(vPropertyLambda(['|()', 1, ['|.', 'c']]))
+            assertNoMatch(vOptionPropertyLambda(['|!()', 1, ['|.', 'c']]))
+            // ...including the old spelling, whose `null` is simply a third
+            // element the terminal does not declare.
+            assertNoMatch(vPropertyLambda(['|()', 1, null]))
+            assertNoMatch(vOptionPropertyLambda(['|!()', 1, null]))
         },
-        missingTailIsError: () => {
-            assertNoMatch(vOptionPropertyLambda(['|.', 'c']))
-            assertNoMatch(vOptionPropertyLambda(['|()', 1]))
-            assertNoMatch(vOptionPropertyLambda(['|?.()', 1]))
+        // The steps that *can* continue end by being one element shorter,
+        // never by carrying a terminator, and never by leaving a hole where
+        // the continuation would go.
+        endingIsTheShorterArity: () => {
+            assertOk(vOptionPropertyLambda(['|.', 'c']))
+            assertOk(vOptionPropertyLambda(['|()', 1]))
+            assertOk(vOptionPropertyLambda(['|?.()', 1]))
+            assertNoMatch(vOptionPropertyLambda(['|.', 'c', null]))
+            assertNoMatch(vOptionPropertyLambda(['|()', 1, undefined]))
+            assertNoMatch(vOptionPropertyLambda(['|()', 1].concat(new Array(1))))
         },
         // Each tag is a real constraint, not a stand-in for `string`: a node
         // tag in a step position is rejected, and so is an unknown one.
         unknownOpIsRejected: () => {
-            assertNoMatch(vOptionPropertyLambda(['.', 'b', null]))
+            assertNoMatch(vOptionPropertyLambda(['.', 'b']))
             assertNoMatch(vOptionPropertyLambda(['|.z', 'b', null]))
             assertNoMatch(vOptionPropertyLambda('xyz'))
         },
@@ -324,7 +422,7 @@ export const proof = {
     call: {
         ok: () => {
             assertOk(v(['()', 'f', ['[]', []]]))
-            assertOk(v(['()', ['.', 'o', 'k', null], 1])) // (0, o.k)(...args)
+            assertOk(v(['()', ['.', 'o', 'k'], 1])) // (0, o.k)(...args)
             assertOk(v(['()', 'f', ['[]', [1, 2]]]))
         },
         // A missing argument operand reads as `undefined` — an error, same
@@ -337,30 +435,40 @@ export const proof = {
     },
     optionDot: {
         ok: () => {
-            assertOk(v(['?.', 'a', 'b', null]))
-            assertOk(v(['?.', 'a', ['Number', 1], null]))
-            assertOk(v(['?.', 'a', 'b', ['|.', 'c', null]]))
+            assertOk(v(['?.', 'a', 'b']))
+            assertOk(v(['?.', 'a', ['Number', 1]]))
+            assertOk(v(['?.', 'a', 'b', ['|.', 'c']]))
         },
         // Same three `index` shapes as `.`, `boolean` excluded the same way.
         error: () => {
-            assertNoMatch(v(['?.', 'a', true, null]))
+            assertNoMatch(v(['?.', 'a', true]))
             assertNoMatch(v(['?.z', 'a', 'b', null]))
         },
-        // The continuation is required — `null` says "the optional region
-        // ends here", a missing position says nothing.
-        missingTailIsError: () => assertNoMatch(v(['?.', 'a', 'b'])),
+        // As on `.`: the region ends at the shorter arity, so a terminator
+        // value or a trailing hole in the continuation position is an error.
+        terminatorTailIsError: () => {
+            assertNoMatch(v(['?.', 'a', 'b', null]))
+            assertNoMatch(v(['?.', 'a', 'b', undefined]))
+        },
+        trailingHoleIsError: () =>
+            assertNoMatch(v(['?.', 'a', 'b'].concat(new Array(1)))),
     },
     optionCall: {
         ok: () => {
-            assertOk(v(['?.()', 'f', 1, null]))
-            assertOk(v(['?.()', 'f', ['[]', [1]], ['|()', 2, null]]))
+            assertOk(v(['?.()', 'f', 1]))
+            assertOk(v(['?.()', 'f', ['[]', [1]], ['|()', 2]]))
         },
         // One continuation, not two: the callee is an ordinary expression, so
-        // there is no pre-call chain for this node to own.
-        missingTailIsError: () => {
-            assertNoMatch(v(['?.()', 'f', 1]))
-            assertNoMatch(v(['?.()', 'f']))
+        // there is no pre-call chain for this node to own. The *arguments*
+        // operand is still required — only the continuation is what the
+        // shorter arity leaves out.
+        missingArgsIsError: () => assertNoMatch(v(['?.()', 'f'])),
+        terminatorTailIsError: () => {
+            assertNoMatch(v(['?.()', 'f', 1, null]))
+            assertNoMatch(v(['?.()', 'f', 1, undefined]))
         },
+        trailingHoleIsError: () =>
+            assertNoMatch(v(['?.()', 'f', 1].concat(new Array(1)))),
         error: () => assertNoMatch(v(['?.()', 'f', [], 1, []])),
     },
     // One entry per JS spelling whose grouping or hidden control flow the
@@ -374,58 +482,58 @@ export const proof = {
         // that node owns. Reaching the call through a complete node instead
         // is the detached spelling, and a different graph.
         receiver: () => {
-            assertOk(v(['.', 'a', 'b', ['|()', 'args', null]])) // a.b(...args)
-            assertOk(v(['()', ['.', 'a', 'b', null], 'args'])) // (0, a.b)(...args)
-            assertOk(v(['.', 'a', 'b', ['|?.()', 'args', null]])) // a.b?.(...args)
-            assertOk(v(['?.()', 'a', 'args', null])) // a?.(...args)
+            assertOk(v(['.', 'a', 'b', ['|()', 'args']])) // a.b(...args)
+            assertOk(v(['()', ['.', 'a', 'b'], 'args'])) // (0, a.b)(...args)
+            assertOk(v(['.', 'a', 'b', ['|?.()', 'args']])) // a.b?.(...args)
+            assertOk(v(['?.()', 'a', 'args'])) // a?.(...args)
             // (a?.(...args))(...args2)
-            assertOk(v(['()', ['?.()', 'a', 'args', null], 'args2']))
+            assertOk(v(['()', ['?.()', 'a', 'args'], 'args2']))
         },
         // A plain property path nests, because `propertyLambda` has no `|.`
         // production — so `a.b.c` has exactly one spelling and the dead-prefix
         // rule needs no lowering pass to hold.
         propertyPath: () => {
-            assertOk(v(['.', ['.', 'a', 'b', null], 'c', null])) // a.b.c
+            assertOk(v(['.', ['.', 'a', 'b'], 'c'])) // a.b.c
             // a.b(...args).c — the inner call is the inner node's business.
-            assertOk(v(['.', ['.', 'a', 'b', ['|()', 'args', null]], 'c', null]))
+            assertOk(v(['.', ['.', 'a', 'b', ['|()', 'args']], 'c']))
         },
         // An optional region is one continuation chain, however long, and
         // grouping is what ends it: `a?.b.c` skips `.c` on a nullish `a`,
         // `(a?.b).c` throws there — one node against two.
         optionalRegion: () => {
-            assertOk(v(['?.', 'a', 'b', null])) // a?.b
-            assertOk(v(['?.', 'a', 'b', ['|.', 'c', null]])) // a?.b.c
-            assertOk(v(['.', ['?.', 'a', 'b', null], 'c', null])) // (a?.b).c
+            assertOk(v(['?.', 'a', 'b'])) // a?.b
+            assertOk(v(['?.', 'a', 'b', ['|.', 'c']])) // a?.b.c
+            assertOk(v(['.', ['?.', 'a', 'b'], 'c'])) // (a?.b).c
             // a?.b.c(...args) — the call is inside the region.
-            assertOk(v(['?.', 'a', 'b', ['|.', 'c', ['|()', 'args', null]]]))
+            assertOk(v(['?.', 'a', 'b', ['|.', 'c', ['|()', 'args']]]))
             // (a?.b).c(...args) — the parens ended it, so a `.` node owns the
             // call and `a?.b` is a complete node under it.
-            assertOk(v(['.', ['?.', 'a', 'b', null], 'c', ['|()', 'args', null]]))
+            assertOk(v(['.', ['?.', 'a', 'b'], 'c', ['|()', 'args']]))
             // a?.b(...args).c(...args2) — one region across two calls.
             assertOk(v(['?.', 'a', 'b',
-                ['|()', 'args', ['|.', 'c', ['|()', 'args2', null]]]]))
+                ['|()', 'args', ['|.', 'c', ['|()', 'args2']]]]))
             // a?.(...args).c and a?.(...args)(...args2)
-            assertOk(v(['?.()', 'a', 'args', ['|.', 'c', null]]))
-            assertOk(v(['?.()', 'a', 'args', ['|()', 'args2', null]]))
+            assertOk(v(['?.()', 'a', 'args', ['|.', 'c']]))
+            assertOk(v(['?.()', 'a', 'args', ['|()', 'args2']]))
         },
         // The three ways a call can relate to the region around it — the
         // complete taxonomy, and the reason `|!()` is a tag of its own.
         callsAgainstTheRegion: () => {
-            assertOk(v(['?.', 'a', 'b', ['|()', 'args', null]])) // a?.b(...args)
-            assertOk(v(['?.', 'a', 'b', ['|?.()', 'args', null]])) // a?.b?.(...args)
-            assertOk(v(['?.', 'a', 'b', ['|!()', 'args', null]])) // (a?.b)(...args)
+            assertOk(v(['?.', 'a', 'b', ['|()', 'args']])) // a?.b(...args)
+            assertOk(v(['?.', 'a', 'b', ['|?.()', 'args']])) // a?.b?.(...args)
+            assertOk(v(['?.', 'a', 'b', ['|!()', 'args']])) // (a?.b)(...args)
             // (a?.b.c)(...args) — the region closes after a property step,
             // which is the same `|!()` one step further in.
-            assertOk(v(['?.', 'a', 'b', ['|.', 'c', ['|!()', 'args', null]]]))
+            assertOk(v(['?.', 'a', 'b', ['|.', 'c', ['|!()', 'args']]]))
             // a?.b.c?.(...args) — and so is the guarded call.
-            assertOk(v(['?.', 'a', 'b', ['|.', 'c', ['|?.()', 'args', null]]]))
+            assertOk(v(['?.', 'a', 'b', ['|.', 'c', ['|?.()', 'args']]]))
         },
         // The operands an optional node skips on its nullish branch have to
         // be operands *of* that node, which is what makes `k`/`a`
         // observably unevaluated: `a?.[k]` and `f?.(...a)`.
         skippedOperands: () => {
-            assertOk(v(['?.', 'a', ['Number', 'k'], null])) // a?.[k]
-            assertOk(v(['?.()', 'f', 'a', null])) // f?.(...a)
+            assertOk(v(['?.', 'a', ['Number', 'k']])) // a?.[k]
+            assertOk(v(['?.()', 'f', 'a'])) // f?.(...a)
         },
     },
     // The four duplicate families a flat step array admitted are not
@@ -435,27 +543,27 @@ export const proof = {
         // `a?.b?.c` — no lambda has a `?.` production at all; `?.` is only
         // ever a node tag, so a guarded property access always starts a node.
         optionalPropertyStep: () => {
-            assertNoMatch(v(['?.', 'a', 'b', ['|?.', 'c', null]]))
-            assertOk(v(['?.', ['?.', 'a', 'b', null], 'c', null])) // the spelling
+            assertNoMatch(v(['?.', 'a', 'b', ['|?.', 'c']]))
+            assertOk(v(['?.', ['?.', 'a', 'b'], 'c'])) // the spelling
         },
         // `a.b(...c)?.d` — `propertyLambda`'s `|()` is terminal, so the chain
         // exits and what follows is an ordinary node over an ordinary value.
         callTerminatesPropertyLambda: () => {
-            assertNoMatch(v(['.', 'a', 'b', ['|()', 'c', ['|.', 'd', null]]]))
-            assertOk(v(['?.', ['.', 'a', 'b', ['|()', 'c', null]], 'd', null]))
+            assertNoMatch(v(['.', 'a', 'b', ['|()', 'c', ['|.', 'd']]]))
+            assertOk(v(['?.', ['.', 'a', 'b', ['|()', 'c']], 'd']))
         },
         // `(a?.(...b))(...c)` — `optionLambda` has no `|!()`, since with the
         // receiver already spent there is nothing for the close to keep. The
         // outer call is a plain `()` over a complete `?.()` node.
         closeWithoutReceiver: () => {
-            assertNoMatch(v(['?.()', 'a', 'b', ['|!()', 'c', null]]))
-            assertOk(v(['()', ['?.()', 'a', 'b', null], 'c']))
+            assertNoMatch(v(['?.()', 'a', 'b', ['|!()', 'c']]))
+            assertOk(v(['()', ['?.()', 'a', 'b'], 'c']))
         },
         // `a?.b(...c)?.d` — `optionLambda` has no guarded step either, so the
         // guarded access after the call starts its own node.
         guardedStepAfterCall: () => {
-            assertNoMatch(v(['?.', 'a', 'b', ['|()', 'c', ['|?.()', 'd', null]]]))
-            assertOk(v(['?.()', ['?.', 'a', 'b', ['|()', 'c', null]], 'd', null]))
+            assertNoMatch(v(['?.', 'a', 'b', ['|()', 'c', ['|?.()', 'd']]]))
+            assertOk(v(['?.()', ['?.', 'a', 'b', ['|()', 'c']], 'd']))
         },
     },
     op0: {
@@ -550,17 +658,17 @@ export const proof = {
         // `this`, and parentheses around the reference do not break that —
         // only detaching the value does (`throw.detachedReceiver`). It holds
         // across an optional link too, which is why `(a?.b)(d)` is a `?.`
-        // node with a `|!()` continuation, `['?.', a, 'b', ['|!()', d, null]]`,
-        // rather than a `()` over a complete `['?.', a, 'b', null]`: the
+        // node with a `|!()` continuation, `['?.', a, 'b', ['|!()', d]]`,
+        // rather than a `()` over a complete `['?.', a, 'b']`: the
         // latter would produce an ordinary value and lose the receiver.
         receiver: () => {
             const a = [42]
             assertEq(a.at(0), 42)
             assertEq((a.at)(0), 42)
-            assertEq((a?.at)(0), 42) // ['?.', a, 'at', ['|!()', …, null]]
-            assertEq((a?.at)?.(0), 42) // ['?.', a, 'at', ['|?.()', …, null]]
-            assertEq(a.at?.(0), 42) // ['.', a, 'at', ['|?.()', …, null]]
-            assertEq(a?.at?.(0), 42) // ['?.', a, 'at', ['|?.()', …, null]]
+            assertEq((a?.at)(0), 42) // ['?.', a, 'at', ['|!()', …]]
+            assertEq((a?.at)?.(0), 42) // ['?.', a, 'at', ['|?.()', …]]
+            assertEq(a.at?.(0), 42) // ['.', a, 'at', ['|?.()', …]]
+            assertEq(a?.at?.(0), 42) // ['?.', a, 'at', ['|?.()', …]]
         },
         // Short-circuit: a nullish link skips the rest of its chain, and
         // grouping is what ends that chain — `u?.at.name` is `undefined`
@@ -570,7 +678,7 @@ export const proof = {
             /** @type {any} */
             const u = undefined
             assertEq(u?.at, undefined)
-            assertEq(u?.at.name, undefined) // ['?.', u, 'at', ['|.', 'name', null]]
+            assertEq(u?.at.name, undefined) // ['?.', u, 'at', ['|.', 'name']]
             assertEq(u?.at?.(0), undefined)
             // The operands on the skipped branch are never evaluated: an
             // optional property's index, and an optional call's arguments.
@@ -616,7 +724,7 @@ export const proof = {
         // `|!()` terms, JavaScriptCore (so `bun test`) carries the
         // short-circuit through the parentheses and answers `undefined` where
         // V8 throws, so asserting either answer would redden a runner. The
-        // node is unaffected — `['?.', u, 'at', ['|!()', …, null]]` means the
+        // node is unaffected — `['?.', u, 'at', ['|!()', …]]` means the
         // throwing reading — and `optionRegion.throw.closeStepOnUndefined` in
         // `./amnesia/proof.f.mjs` pins it by evaluating the node, which is
         // the only oracle that works on every runner. See "Chains" in
@@ -679,7 +787,7 @@ export const proof = {
         const value = /** @type {const} */ (['.',
             ['()', 'f', ['args']],
             'k',
-            ['|()', ['[]', [['.', 'obj', 'a', null]]], null],
+            ['|()', ['[]', [['.', 'obj', 'a']]]],
         ])
         assertOk(v(value))
     },

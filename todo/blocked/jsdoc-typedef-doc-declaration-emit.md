@@ -1,9 +1,14 @@
-# JSDoc `@typedef` documentation is dropped by tsgo declaration emit
+## JSDoc `@typedef` documentation is dropped by tsgo declaration emit
+
+> Authored `.mjs` no longer carries file-scope `@typedef`s (root
+> [`AGENTS.md`](../../AGENTS.md), [`fjs/AGENTS.md`](../../fjs/AGENTS.md) §3.2),
+> so no authored typedef documentation reaches declaration emit any more; this
+> upstream behavior matters again only if that rule is ever relaxed.
 
 **Priority:** P2
 **Status:** blocked
 
-## Trigger
+### Trigger
 
 The upstream issue below is filed at
 [microsoft/typescript-go](https://github.com/microsoft/typescript-go/issues),
@@ -12,7 +17,7 @@ repository's `devDependencies`. Until then, substantial documented type APIs
 live in `types.ts` (whose declaration comments emit through the normal
 TypeScript pipeline), per `todo/migrate-typescript-to-mjs.md`.
 
-## Problem
+### Problem
 
 Documentation written on a JSDoc `@typedef` in authored `.mjs` can vanish from
 the emitted `.d.mts`, so the published package loses exactly its type
@@ -59,7 +64,7 @@ prose in every measured shape.
 microsoft/TypeScript#43534, fixed for the services layer only, and
 microsoft/TypeScript#61664.)
 
-## Reproduction
+### Reproduction
 
 `repro.mjs`, compiled with
 `tsc --allowJs --checkJs --declaration --emitDeclarationOnly --strict`:
@@ -162,7 +167,7 @@ type, and the doc block lands on `post`. Delete the header block (making the
 typedef block the first thing in the file) and the same input attaches the
 doc to `export type T` in full.
 
-## Ready-to-file upstream issue
+### Ready-to-file upstream issue
 
 Title: **Declaration emit loses JSDoc `@typedef` documentation when the block
 precedes a declaration or declares multiple typedefs**
@@ -195,7 +200,7 @@ Body:
 > declaration emit untouched), #61664 (proposes stripping redundant JSDoc
 > type directives while keeping documentation).
 
-## Tasks
+### Tasks
 
 - [ ] File the issue at `microsoft/typescript-go` (the regression is in tsgo;
       strada's milder trimming/duplication is already tracked upstream) and
@@ -204,12 +209,12 @@ Body:
       type-level APIs still need the `types.ts` placement solely for
       documentation fidelity.
 
-## Related
+### Related
 
 - [`todo/migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md) —
   "Typedef documentation does not survive declaration emit".
-- [`jsdoc-typedef-strip-internal.md`](./jsdoc-typedef-strip-internal.md) —
-  the adjacent `@internal` + `stripInternal` gap for JSDoc typedefs.
+- [`../../fjs/AGENTS.md`](../../fjs/AGENTS.md) §3.2 — private-type placement;
+  superseded the wait-for-`@internal` strategy.
 - [microsoft/TypeScript#43534](https://github.com/microsoft/TypeScript/issues/43534),
   [microsoft/TypeScript#61664](https://github.com/microsoft/TypeScript/issues/61664)
   — adjacent strada behaviors.

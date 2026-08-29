@@ -48,17 +48,18 @@ the `proof.mjs` filename convention.
 A `proof.f.mjs` is authored `.f.mjs` like any other. Its relative **runtime**
 imports must target `.f.mjs` modules. Type-only APIs may live in an authored
 `types.ts` companion and are referenced directly through that real source path.
-Its leading module JSDoc block may include, for example:
+Its leading JSDoc block may include, for example:
 
 ```js
 /**
  * ...
  *
- * @module
- *
  * @import { Phantom } from '../phantom/types.ts'
  */
 ```
+
+No `@module`: a proof's documentation is not published, so the tag has nothing
+to attach it to (§2).
 
 JSDoc `@import` introduces no runtime dependency; a `types.ts` file naming the
 same path from TypeScript uses `import type` instead. A type that several modules
@@ -132,12 +133,40 @@ normally the part of the contract that matters.
 ## 2. Documentation
 
 Use JSDoc for module documentation in both JavaScript and TypeScript source.
-The `@module` tag belongs only to a package's entry-point file — `module.f.mjs` /
-`module.mjs` — not to `proof.f.mjs`, `types.ts`, or any other file. A `module.*`
-file starts with one module JSDoc block carrying `@module`, followed by one blank
-line before the first source-level import or declaration. A `proof.*` or other
-non-`module.*` file has no `@module` tag and no required leading documentation
-block; one is still needed if the file has `@import` tags to hold, per below.
+
+**`@module` is what makes a leading block *be* module documentation.** It is not
+a marker of entry-point-ness. `deno doc` reads the tag and nothing else: a file
+whose leading block carries it gets that prose as its `module_doc`, and a file
+without it gets no `module_doc` at all — the block is dropped, not demoted.
+Verified against the pinned Deno (`fjs/ci/config/module.f.mjs`), for `.mjs` and
+`.ts` alike; the tag need not be in the first block, only in some block.
+
+**So the tag goes wherever a file has module-level documentation a reader is
+meant to get from `deno doc`** — `module.f.mjs`, `types.ts`, `private.ts` — and a
+`module.*` file always has some. A file whose leading block only holds `@import`
+tags has nothing to attach and wants no `@module`. Where a file's documentation
+reaches no reader, the tag buys nothing; `proof.*` is the clear case.
+
+Which reader differs by file kind, and the tag does not decide it.
+`module.f.mjs` and `types.ts` are public API surface. `private.ts` is not: it
+holds implementation-private types outside the public declaration closure, and
+its generated declarations are excluded from the package entirely
+([`fsc/README.md`](./fsc/README.md)). Its prose is for contributors reading the
+sources, so the tag belongs there — but a public documentation build must not be
+pointed at it.
+
+Put it in the leading block, followed by one blank line before the first
+source-level import or declaration.
+
+`proof.*` is settled rather than assumed. The restore left all 11 proof files
+untagged and confirmed with `deno doc --json` that they publish no `module_doc`
+— which is the intent, since a proof's prose documents a verification rather
+than an API and no documentation build is pointed at proofs. Point one at them
+and the tag is what would have to change.
+
+The tag is necessary, not sufficient. It decides whether `deno doc` *can* see a
+file's module documentation; whether anything is generated from that file is a
+separate question of what the documentation build is pointed at.
 
 Group all module-level `@import` tags into one leading JSDoc comment block — the
 same block as `@module` in a `module.*` file, or a standalone block at the top of
@@ -247,15 +276,42 @@ changes. A separately useful type-level API may live in an authored sibling
 `types.ts`; that file remains TypeScript type source and holds no runtime
 implementation.
 
-Name implementation-only JSDoc typedefs with a leading `_`
-(`/** @typedef {number} _Type */`). Declaration emit cannot strip them yet, so
-the underscore — not the emitted `.d.ts` — is what marks a name private,
-and renaming or removing a `_`-prefixed alias is not by itself a breaking
-change. The public contract still governs transitive effects. See
-[Private JSDoc typedefs](./fsc/README.md#private-jsdoc-typedefs) for the
-full rule and examples.
+No authored `.mjs` may contain a **file-scope** JSDoc `@typedef` — anywhere in
+the repository, whatever the directory or basename. Function-local typedefs are
+allowed, and are the normal home for compile-time proof types (see the
+`consistency` and `signatures` entries in `fjs/edag/proof.f.mjs` and
+`fjs/effects/proof.f.mjs`). A named file-scope type goes to one of:
 
-Use `@typedef` for a named type and `@template` for its type parameters. A
+- the sibling `types.ts` when it is part of the **public declaration closure** —
+  public types, plus any private `_` helper a shipped public declaration
+  reaches transitively (e.g. `_Byte` in `fjs/types/byte_set/types.ts`) — or the
+  type is inlined into the annotation instead;
+- an optional sibling `private.ts` for implementation-private types outside the
+  public closure, when separating them reads cleaner than inlining (e.g.
+  `fjs/common/monoid/private.ts`, `fjs/rtti/data/private.ts`); do not create it
+  mechanically for every `_` name;
+- nowhere: a short type used once or twice is simply inlined.
+
+Name private types and private runtime constants with a leading `_`, even when
+module linkage requires an export: exportability is linkage, not API status, so
+renaming or removing a `_`-prefixed name is not by itself a breaking change.
+The public contract still governs transitive effects. See
+[Private types](./fsc/README.md#private-types) for the full rule.
+
+The intra-directory dependency direction is
+`types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`
+(dependency to dependent; a layering guide, not a requirement that every file
+exists). `types.ts` must not depend on `private.ts`, and verification moves
+downstream: an assertion that checks the implementation belongs in a proof
+function, not in `types.ts`. Recursive RTTI whose annotation needs a named
+public type may stay in `module.f.mjs` (e.g. `exp` in `fjs/edag/module.f.mjs`),
+and declarative compile-time/runtime constants shared between TypeScript and
+runtime code may be split into a normal subordinate metaprogramming module such
+as `meta/module.f.mjs` when that helps — it is an ordinary module, discovered
+and covered like any other `module.f.mjs`, never a requirement.
+
+Use `@typedef` (function-local in `.mjs`, or `export type` in `types.ts` /
+`private.ts`) for a named type and `@template` for its type parameters. A
 constraint goes in braces before the parameter name:
 
 ```js
@@ -380,7 +436,7 @@ FunctionalScript data is immutable, but stock `tsc` widens literals by default
 and tuple-dependent typing (`Ts<>` over an rtti schema, tagged-tuple
 discriminants in the effect system). The rule scopes to literals because a const
 assertion is only legal on a literal or enum member (TS1355) — calls,
-conditionals, and references (`or(...)`, `option(...)`, a bare `string`) already
+conditionals, and references (`or(...)`, a bare `string` or `option`) already
 carry precise, non-widening types and are exempt. The mistake is invisible at
 runtime (the value is correct; only the type widens), which is exactly why it
 must be a style rule.
@@ -402,8 +458,9 @@ validate({ a: 42 })                          // the same, with `<const T>`
 
 A cast there is the absence of a modifier on the callee, not a fact about the
 value — and it has to be repeated at every call, where the modifier is written
-once. `types/rtti` (`or`, `option`, `array`, `record`), `types/rtti/validate`,
-`types/rtti/parse`, `types/result` (`ok`, `error`), `protocol/mcp`'s
+once. `rtti` (`or`, `array`, `record` — `option` is nullary and takes
+nothing), `rtti/validate`,
+`rtti/parse`, `types/result` (`ok`, `error`), `protocol/mcp`'s
 `toolEntry`, and `bnf`'s `option` already carry it; a new schema- or
 literal-taking export should too.
 
@@ -434,9 +491,14 @@ inference with an `Assert<Equal<…>>` in the proof, per
 literal, since a primitive would pass with or without it:
 
 ```js
-const v = validate({ a: 42, b: 'hello' })
-/** @typedef {Assert<Equal<typeof v, Validate<{ readonly a: 42, readonly b: 'hello' }>>>} _ConstParameter */
+constParameter: () => {
+    const v = validate({ a: 42, b: 'hello' })
+    /** @typedef {Assert<Equal<typeof v, Validate<{ readonly a: 42, readonly b: 'hello' }>>>} _ConstParameter */
+},
 ```
+
+The typedef sits inside the proof entry because an authored `.mjs` carries no
+file-scope typedef (§3.2).
 
 #### Avoid `as` type assertions
 
@@ -535,10 +597,10 @@ that context on its own: `ToAsyncOperationMap<O>` is a mapped type keyed on
 back out of the argument. Left to argument inference `O` falls back to its
 `Operation` constraint — payloads and outputs `never` — which no real map is
 assignable to, and the call site reaches for exactly the cast this section warns
-about. **Annotate the result instead**: pin the runner's own type
-(`/** @type {_EffectToPromise} */`, `/** @type {MemoryRun} */`) and `O` is
-inferred from the return type, giving the call a real `O` to check its argument
-against. Both Node runners are written that way —
+about. **Annotate the result instead**: pin the runner's own type — an inline
+generic annotation, or a `types.ts` name such as `/** @type {MemoryRun} */` —
+and `O` is inferred from the return type, giving the call a real `O` to check
+its argument against. Both Node runners are written that way —
 `fjs/effects/node/module.mjs`'s `runNodeEffect` and
 `fjs/effects/node/memory/module.mjs`'s `memoryRun`.
 

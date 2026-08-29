@@ -82,6 +82,6 @@ record the decision (the duplication is the accepted cost of readability).
 
 ### Related
 
-- [i193-btree-path-fold-engine](../../todo/193.md) — shares the
+- [i193-btree-path-fold-engine](../../todo/193-btree-shared-path-fold.md) — shares the
   cross-module `fold`/`reduceX` Path-walk engine between `set` and `remove`;
   this issue is the orthogonal, *within-`remove*` left/right mirror collapse.

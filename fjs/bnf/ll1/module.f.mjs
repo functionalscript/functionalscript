@@ -28,11 +28,10 @@
  * @import { CodePoint } from '../../text/utf16/types.ts'
  * @import { Properties } from '../../types/range_map/types.ts'
  * @import { StringSet } from '../../types/string_set/types.ts'
- * @import { List } from '../../types/list/types.ts'
- * @import { RuleSet, Sequence } from '../data/types.ts'
- * @import { Ast, AstResult, AstSequence, AstTag, Cursor } from '../matcher/types.ts'
+ * @import { RuleSet } from '../data/types.ts'
  * @import { Rule as FRule } from '../types.ts'
  * @import { Match, MatchResult, Remainder, _Dispatch, _DispatchBranch, _DispatchMap, _DispatchResult, _DispatchRule } from './types.ts'
+ * @import { _Position, _Result, _Stack, _Task } from './private.ts'
  */
 
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
@@ -162,90 +161,6 @@ export const parser = fr => {
     const data = toData(fr)
     return parserRuleSet(data[0])
 }
-
-/**
- * Where a match stopped: a {@link Cursor}, or `null` when it ran out of input —
- * the `null` {@link Remainder} this backend reports for that.
- *
- * @typedef {Cursor|null} _Position
- */
-
-/**
- * The machine's own result: a {@link MatchResult} positioned by a cursor
- * instead of by a materialized remainder.
- *
- * @typedef {AstResult<CodePoint, _Position>} _Result
- */
-
-/**
- * A suspended sequence match: `items[itemIndex]` is being matched by the
- * current task, and `seq` holds the ASTs of the items already matched.
- *
- * @typedef {{
- *     readonly kind: 'seq'
- *     readonly tag: AstTag
- *     readonly items: Sequence
- *     readonly itemIndex: number
- *     readonly seq: AstSequence<CodePoint>
- * }} _SeqFrame
- */
-
-/**
- * A suspended repetition: the item is being matched by the current task for
- * one more round, and `items` holds the ASTs of the rounds that already
- * completed. They accumulate as a list rather than an array because a
- * repetition is as long as its input: appending to an array per round would
- * copy the whole prefix each time and make one repetition quadratic in the
- * number of items it matched.
- *
- * @typedef {{
- *     readonly kind: 'repeat'
- *     readonly tag: AstTag
- *     readonly item: string
- *     readonly items: _Items
- * }} _RepeatFrame
- */
-
-/** @typedef {List<Ast<CodePoint>>} _Items */
-
-/** @typedef {_SeqFrame | _RepeatFrame} _Frame */
-
-/**
- * Immutable cons-cell stack: O(1) push/pop, no array copying per step.
- *
- * @typedef {null | {
- *     readonly top: _Frame
- *     readonly rest: _Stack
- * }} _Stack
- */
-
-/**
- * The rule invocation about to be evaluated, or `null` when a result is ready
- * to resume the innermost frame instead.
- *
- * @typedef {{
- *     readonly kind: 'rule'
- *     readonly name: string
- *     readonly tag: AstTag
- *     readonly pos: Cursor
- * }} _RuleTask
- */
-
-/**
- * The next round of a repetition, about to be decided by lookahead. Both the
- * rule that introduces a repetition and the frame that finishes one of its
- * rounds go through this, so a round is set up in exactly one place.
- *
- * @typedef {{
- *     readonly kind: 'repeat'
- *     readonly tag: AstTag
- *     readonly item: string
- *     readonly items: _Items
- *     readonly pos: Cursor
- * }} _RepeatTask
- */
-
-/** @typedef {_RuleTask | _RepeatTask} _Task */
 
 /**
  * A leaf here is the code point itself, so it *is* its own symbol. The

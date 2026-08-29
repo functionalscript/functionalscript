@@ -12,7 +12,7 @@
 /**
  * A value under test, written as itself.
  *
- * The shape follows `fjs/types/rtti`, where a constant is its own schema and a
+ * The shape follows `fjs/rtti`, where a constant is its own schema and a
  * thunk describes anything that needs a tag: `2.3`, `'a'`, `12n`, `[1, 2]`,
  * and `{ a: 1 }` mean exactly what they look like, and the only tagged forms
  * are the ones a literal cannot express — see {@link Special}.

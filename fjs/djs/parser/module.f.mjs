@@ -5,18 +5,14 @@
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Fold } from '../../types/function/operator/types.ts'
  * @import { DjsToken, DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { OrderedMap } from '../../types/ordered_map/types.ts'
  * @import { AstArray, AstConst, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
- * @import { TokenMetadata } from '../../js/tokenizer/types.ts'
- * @import { ParseError, _FramingKeyword, _OrdinaryTokenName, _ValueToken } from './types.ts'
- * @import { Assert } from '../../asserts/types.ts'
- * @import { Equal } from '../../types/ts/types.ts'
+ * @import { ParseError, _OrdinaryTokenName, _ValueToken } from './types.ts'
  * @import { CodePointMeta } from '../../bnf/descent/types.ts'
- * @import { Ast, AstSequence } from '../../bnf/matcher/types.ts'
+ * @import { AstSequence } from '../../bnf/matcher/types.ts'
  * @import { Rule, TerminalRange } from '../../bnf/types.ts'
  * @import { DescentMatch } from '../../bnf/descent/types.ts'
+ * @import { _FoldFrame, _FoldState, _Node, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -28,16 +24,6 @@ import { eof, oneEncode, option, rangeDecode, repeat0Plus, unicodeRange } from '
 import { encoding } from '../../bnf/token_symbol/module.f.mjs'
 import { toData } from '../../bnf/data/module.f.mjs'
 import { descentParserRuleSet } from '../../bnf/descent/module.f.mjs'
-
-/**
- * The ordinary token stream a BNF parser layer consumes, with the tokenizer's
- * one physical end-of-input token split off.
- *
- * @typedef {{
- *   readonly tokens: readonly DjsTokenWithMetadata[]
- *   readonly eofMetadata: TokenMetadata
- * }} _TokenStream
- */
 
 /**
  * Splits the tokenizer's single final physical `eof` token off a token list.
@@ -96,13 +82,14 @@ const splitEof = tokenList => {
  *
  * A name is not always a kind. The framing keywords arrive as `id` tokens and
  * need terminals of their own, or the grammar could not tell `export default`
- * from two arbitrary identifiers — see {@link framingKeywords}.
+ * from two arbitrary identifiers — see {@link _framingKeywords}.
  *
- * The `_…AreComplete` assertions below check both halves against `DjsToken` and
- * `_FramingKeyword` at compile time, so a kind or keyword added there breaks the
- * build rather than going unrepresented.
+ * The `_…AreComplete` assertions in `./proof.f.mjs`'s `consistency` entry check
+ * both halves against `DjsToken` and `_FramingKeyword` at compile time, so a
+ * kind or keyword added there breaks the build rather than going unrepresented.
+ * Exported with a leading `_` for that linkage — the export is not API.
  */
-const tokenKindNames = /** @type {const} */ ([
+export const _tokenKindNames = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined',
     '{', '}', ':', ',', '[', ']', '.', '=',
     'string', 'number', 'error', 'id', 'bigint',
@@ -125,29 +112,14 @@ const tokenKindNames = /** @type {const} */ ([
  * Giving a word its own symbol narrows where it is *required*, never where it is
  * *allowed*.
  */
-const framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from'])
+export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from'])
 
 /**
  * The complete alphabet: one name per `DjsToken` kind except `eof`, plus one per
  * framing keyword. No keyword collides with a kind, so the two lists concatenate
  * without a name being registered twice — which `encoding` would reject anyway.
  */
-const ordinaryTokenNames = [...tokenKindNames, ...framingKeywords]
-
-/** @typedef {Assert<Equal<(typeof tokenKindNames)[number], Exclude<DjsToken['kind'], 'eof'>>>} _KindsAreComplete */
-
-/** @typedef {Assert<Equal<(typeof framingKeywords)[number], _FramingKeyword>>} _KeywordsAreComplete */
-
-/** @typedef {Assert<Equal<(typeof ordinaryTokenNames)[number], _OrdinaryTokenName>>} _AlphabetIsComplete */
-
-/**
- * `eof` is not a member of the alphabet, so a second end marker cannot be
- * encoded rather than merely going unused — and `encode` would reject the name
- * outright. Checked at the type level because that is where it is decidable:
- * `includes('eof')` does not even compile against this element type.
- *
- * @typedef {Assert<Equal<Extract<_OrdinaryTokenName, 'eof'>, never>>} _EofIsNotAName
- */
+export const _ordinaryTokenNames = [..._tokenKindNames, ..._framingKeywords]
 
 /**
  * The alphabet's encoding, built once for the module rather than per parse.
@@ -158,7 +130,7 @@ const ordinaryTokenNames = [...tokenKindNames, ...framingKeywords]
  * last Unicode scalar value, so a token symbol can never be mistaken for a code
  * point of the layer below.
  */
-const tokenEncoding = encoding(ordinaryTokenNames)
+const tokenEncoding = encoding(_ordinaryTokenNames)
 
 /**
  * One ordinary token as a descent input leaf: the symbol standing for its kind,
@@ -181,7 +153,7 @@ const tokenToSymbol = t => {
     // a set membership test because it also narrows the result to the keyword
     // union, which is what lets `encode` be called without a cast.
     const keyword = token.kind === 'id'
-        ? framingKeywords.find(k => k === token.value)
+        ? _framingKeywords.find(k => k === token.value)
         : undefined
     const name = keyword ?? token.kind
     assert(name !== 'eof', ['eof token reached the parser alphabet', t])
@@ -226,7 +198,7 @@ const statementEnd = () => [
  * Every word that may stand where an identifier is expected: a plain `id` and
  * each framing keyword, since none of them is reserved.
  *
- * This is the union {@link framingKeywords} obliges the grammar to provide.
+ * This is the union {@link _framingKeywords} obliges the grammar to provide.
  */
 const identifier = {
     id: sym('id'),
@@ -396,8 +368,6 @@ const isValueToken = token => {
 }
 // -- folding the match into an `AstModule` ----------------------------------
 
-/** @typedef {Ast<CodePointMeta<DjsTokenWithMetadata>>} _Node */
-
 /**
  * The token a slot holds.
  *
@@ -509,22 +479,6 @@ const keyOf = node => {
     return [token.value, computed]
 }
 
-/**
- * A fold in progress: the names bound so far, the module specifiers and the
- * body collected so far, and the first error if one has been met.
- *
- * The error rides in the state rather than wrapping every step in a `Result`,
- * so a step reads as one expression instead of a nested match. Once set it is
- * never replaced, which is what makes the reported error the *first* one.
- *
- * @typedef {{
- *   readonly refs: OrderedMap<AstModuleRef>
- *   readonly modules: readonly string[]
- *   readonly consts: readonly AstConst[]
- *   readonly error: ParseError | null
- * }} _FoldState
- */
-
 /** @type {(message: string) => (token: DjsTokenWithMetadata) => ParseError} */
 const foldError = message => ({ metadata }) => ({ message, metadata })
 
@@ -544,24 +498,6 @@ const bind = state => node => ref => {
         ? { ...state, error: foldError('duplicate id')(withMetadata) }
         : { ...state, refs: setReplace(token.value)(ref)(state.refs) }
 }
-
-/**
- * A frame of {@link foldValue}'s explicit stack: the container being built, the
- * element nodes still to read, and what has been built so far.
- *
- * `done` is a `List` rather than an array because a frame gains one element at a
- * time: appending to an array per element would copy the whole prefix each time,
- * which is what makes the obvious spelling quadratic in an array's length.
- *
- * @typedef {{
- *   readonly items: readonly _Node[]
- *   readonly index: number
- *   readonly array: List<AstConst>
- *   readonly object: OrderedMap<AstConst>
- *   readonly keys: readonly(readonly[string, boolean])[]
- *   readonly isArray: boolean
- * }} _FoldFrame
- */
 
 /**
  * The error a frame's current key earns, or `null`.
@@ -774,7 +710,7 @@ export const proof = {
         // matters because the token-symbol mapping this alphabet feeds has to be
         // injective over it — two entries for one name would break that.
         noDuplicates: () => {
-            assertEq(new Set(ordinaryTokenNames).size, ordinaryTokenNames.length)
+            assertEq(new Set(_ordinaryTokenNames).size, _ordinaryTokenNames.length)
         },
     },
     tokenToSymbol: {
@@ -782,8 +718,8 @@ export const proof = {
         // code point — the three properties that let a token stream be the
         // alphabet of the layer above.
         distinctAndAboveUnicode: () => {
-            const symbols = ordinaryTokenNames.map(n => tokenEncoding.encode(n))
-            assertEq(new Set(symbols).size, ordinaryTokenNames.length)
+            const symbols = _ordinaryTokenNames.map(n => tokenEncoding.encode(n))
+            assertEq(new Set(symbols).size, _ordinaryTokenNames.length)
             const [, unicodeLast] = rangeDecode(unicodeRange)
             assert(symbols.every(s => s > unicodeLast), JSON.stringify(symbols))
         },
@@ -796,9 +732,9 @@ export const proof = {
             const symbolOf = value =>
                 tokenToSymbol({ token: { kind: 'id', value }, metadata: { path: 'a.js', line: 1, column: 1 } })[0]
             const id = symbolOf('foo')
-            const keywords = framingKeywords.map(symbolOf)
+            const keywords = _framingKeywords.map(symbolOf)
             assert(keywords.every(s => s !== id), JSON.stringify([id, keywords]))
-            assertEq(new Set(keywords).size, framingKeywords.length)
+            assertEq(new Set(keywords).size, _framingKeywords.length)
             assertEq(tokenEncoding.decode(symbolOf('export')), 'export')
             assertEq(tokenEncoding.decode(id), 'id')
         },

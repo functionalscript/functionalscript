@@ -14,7 +14,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { All, Access, Await, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
+ * @import { All, Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -23,19 +23,26 @@ import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { error as resultError, ok as resultOk, unwrap } from '../../types/result/module.f.mjs'
-import { do_, pure } from '../module.f.mjs'
+import { do_, ioError, pure, toIoError } from '../module.f.mjs'
 import {
     mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
 
 /**
- * Builds a normalized host error. The constructor exists so the shape is
- * written once: every runner reports its failures through it, and a consumer
- * matching on `'ioError'` knows what the payload holds.
+ * `ioError` and `toIoError` are declared in
+ * [`../module.f.mjs`](../module.f.mjs) beside the effect representation,
+ * because neither is node's: normalizing a thrown value into serializable
+ * effect data is what any host's interpreter does at its `catch`. They are
+ * re-exported here so the modules that reach for them through the node module
+ * keep working, and so an operation's declaration and its failure constructor
+ * still read as one vocabulary.
  *
- * @type {(info: IoErrorInfo) => IoError}
+ * {@link isNotFound} stayed, and the difference is the test for where any of
+ * this belongs: it reads `ENOENT`, a POSIX filesystem code that no browser
+ * ever reports. Being about a *host failure* does not make a thing
+ * host-agnostic — being about no host in particular does.
  */
-export const ioError = info => ['ioError', info]
+export { ioError, toIoError }
 
 /**
  * The host a {@link Listen} refuses.
@@ -84,27 +91,6 @@ export const emptyHostError = ioError({
 })
 
 /**
- * Normalizes a **thrown** value into an {@link IoError}: the OS error code when
- * the host attached a string one, and a message that is the `Error`'s own or
- * the value's string form.
- *
- * This is the boundary where an impure runner's `catch` becomes ordinary effect
- * data. Nothing past it sees the thrown object, which is the point — a stack, a
- * `cause`, and arbitrary own properties do not survive a wire hop, and a
- * program that branched on them would be reading the host's implementation
- * rather than the operation's contract.
- *
- * @type {(e: unknown) => IoError}
- */
-export const toIoError = e => {
-    const message = e instanceof Error ? e.message : String(e)
-    if (typeof e !== 'object' || e === null || !('code' in e) || typeof e.code !== 'string') {
-        return ioError({ message })
-    }
-    return ioError({ code: e.code, message })
-}
-
-/**
  * True if `e` is a "file or directory does not exist" (`ENOENT`) error.
  *
  * Node's filesystem rejections are `Error`s carrying `code: 'ENOENT'`, which
@@ -117,6 +103,10 @@ export const toIoError = e => {
  * the operation has not looked for the path at all, so the two must not
  * collapse into one benign branch — which is exactly what a bare `unknown`
  * error channel used to allow.
+ *
+ * **It belongs to this layer, unlike the constructors above.** `ENOENT` is a
+ * POSIX filesystem code; a host without a filesystem never reports one, so a
+ * shared `isNotFound` would be a node predicate wearing a host-agnostic name.
  *
  * @type {(e: IoChannel) => boolean}
  */
@@ -137,7 +127,7 @@ export const isNotFound = ([tag, payload]) =>
  * @type {CommandSet<NodeOp>}
  */
 const nodeCommandSet = {
-    access: null, all: null, await: null, createExclusive: null,
+    access: null, all: null, await: null, catch: null, createExclusive: null,
     createServer: null, exec: null, fetch: null, forever: null,
     import: null, listen: null, memCreate: null, memRead: null,
     memWrite: null, mkdir: null, now: null, randomInt: null,
@@ -461,6 +451,16 @@ export const sandbox = do_('sandbox')
 
 /** @type {Func<Await>} */
 const awaitPromise = do_('await')
+
+// catch
+
+/**
+ * Runs a pure thunk, answering `ok(v)` for what it returned and `error(e)` for
+ * what it threw. See {@link Catch} for why this is not `sandbox`.
+ *
+ * @type {Func<Catch>}
+ */
+export const catch_ = do_('catch')
 
 /** @type {(p: unknown) => Effect<Await, unknown, NotImplemented>} */
 export const awaitIfPromise = p =>

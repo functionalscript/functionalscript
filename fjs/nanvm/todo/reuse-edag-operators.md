@@ -179,7 +179,7 @@ const constExp = v => {
   establishes `=>` anyway.
 
 The proof then validates every derived expression with the schema —
-`validate(exp)` from `fjs/types/rtti/validate` over `exp` from
+`validate(exp)` from `fjs/rtti/validate` over `exp` from
 `fjs/edag/module.f.mjs` — before running it. That is the runtime half of the
 coupling: a change to an operand shape or validation rule in the schema fails
 the corpus proof. (`validate` is shape-only and not identity-aware — it
@@ -324,8 +324,8 @@ Throughout:
   — the interpreter and remaining-operators items this feeds.
 - [`../../../nanvm-lib/todo/replace-unary-plus-with-number.md`](../../../nanvm-lib/todo/replace-unary-plus-with-number.md)
   — retires `unaryPlus` in favor of the canonical `Number`.
-- [`../../../nanvm-lib/todo/operator-test-operation-model.md`](../../../nanvm-lib/todo/operator-test-operation-model.md)
-  — the superseded local `[name, argsN]` model; its still-applicable
+- operator-test-operation-model (retired; superseded by this issue)
+  — the local `[name, argsN]` model; its still-applicable
   requirements (stable names and `Swapped`, faithful literals in diagnostics,
   static arity rejection, consumer-owned mappings) are folded in above.
   Original reviews: [#1489 r3770780551](https://github.com/functionalscript/functionalscript/pull/1489#discussion_r3770780551),

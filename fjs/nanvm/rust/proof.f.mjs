@@ -5,8 +5,6 @@
  * pins the exact text of every construct the printer can emit, so a change in
  * layout is a visible diff here and not only in the generated file.
  *
- * @module
- *
  * @import { Data } from '../types.ts'
  */
 

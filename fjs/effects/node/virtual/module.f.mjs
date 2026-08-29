@@ -56,6 +56,36 @@ const isJsModule = entity => typeof entity === 'function'
  */
 const isDir = entity => !isBinFile(entity) && !isJsModule(entity)
 
+const { hasOwn } = Object
+
+/**
+ * The entry `dir` holds at `name`, or `undefined` if it holds none.
+ *
+ * **Own names only.** A `Dir` is a plain object, so `dir[name]` also finds
+ * whatever `Object.prototype` holds: `dir['toString']` is a function — which
+ * this file system reads as a `JsModule` — and `dir['__proto__']` is an object,
+ * which it reads as a directory. A host has no such names, so an empty root
+ * that answers for `toString` or descends into `__proto__` models nothing, and
+ * a caller's absent-path branch could be reached by a name that is not absent
+ * here while being absent everywhere else.
+ *
+ * An own name holding `undefined` is absent too — `Dir`'s values are optional,
+ * and every operation here already reads `undefined` as "no entry".
+ *
+ * **A fixture spells `__proto__` with a computed key**, `{ ['__proto__']: e }`,
+ * which is an own property. The plain and quoted forms — `{ __proto__: e }`,
+ * `{ '__proto__': e }` — set the *prototype* instead, so there is no entry for
+ * this to find. That is not a rule invented here: FunctionalScript's own parser
+ * refuses both spellings with `__proto__ requires the computed key form`
+ * (`../../../djs/parser/`), for this exact reason. The refused spelling was
+ * never a working fixture anyway — `readdir` walks `Object.entries`, which is
+ * own-only, so such a directory listed as empty while `stat` claimed the entry
+ * existed. Now every operation agrees it is absent.
+ *
+ * @type {(dir: Dir, name: string) => _Entity | undefined}
+ */
+const entryOf = (dir, name) => hasOwn(dir, name) ? dir[name] : undefined
+
 /**
  * @template T
  * @param {(dir: Dir, path: readonly string[]) => readonly [Dir, T]} op
@@ -68,7 +98,7 @@ const operation = op => {
             return op(dir, path)
         }
         const [first, ...rest] = path
-        const subDir = dir[first]
+        const subDir = entryOf(dir, first)
         if (subDir === undefined || !isDir(subDir)) {
             return op(dir, path)
         }
@@ -121,10 +151,14 @@ const mkdir = recursive => operation(mkdirOp(recursive))
 /** Absent-path error mirroring Node's `ENOENT`, so `isNotFound` recognizes it. */
 const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directory' }))
 
+/** What a POSIX host answers for a path that descends through a name which is
+ * not a directory — see {@link statPath}, its only source here. */
+const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
+
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<Vec>]} */
 const readFile = readOperation((dir, path) => {
     if (path.length !== 1) { return enoent }
-    const file = dir[path[0]]
+    const file = entryOf(dir, path[0])
     if (file === undefined) { return enoent }
     if (isJsModule(file)) { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
     // `operation`'s wrapper descends into every plain-object (`Dir`) entry
@@ -148,7 +182,7 @@ const readFile = readOperation((dir, path) => {
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<Module>]} */
 const import_ = readOperation((dir, path) => {
     if (path.length !== 1) { return fail('no such file') }
-    const entry = dir[path[0]]
+    const entry = entryOf(dir, path[0])
     if (entry === undefined || !isJsModule(entry)) { return fail(`'${path[0]}' is not a JsModule`) }
     return ok(entry())
 })
@@ -159,7 +193,7 @@ const writeFileError = fail('invalid file')
 const writeFileOp = payload => (dir, path) => {
     if (path.length !== 1) { return [dir, writeFileError] }
     const [name] = path
-    const file = dir[name]
+    const file = entryOf(dir, name)
     if (file !== undefined && !isBinFile(file)) { return [dir, writeFileError] }
     dir = { ...dir, [name]: [payload] }
     return [dir, okVoid]
@@ -196,14 +230,14 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
 const access = readOperation((dir, path) => {
     if (path.length === 0) { return okVoid }
     if (path.length !== 1) { return enoent }
-    return dir[path[0]] !== undefined ? okVoid : enoent
+    return entryOf(dir, path[0]) !== undefined ? okVoid : enoent
 })
 
 /** @type {(dir: Dir, path: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const rmOp = (dir, path) => {
     if (path.length !== 1) { return [dir, fail('invalid path')] }
     const [name] = path
-    const entry = dir[name]
+    const entry = entryOf(dir, name)
     if (entry === undefined) { return [dir, fail('no such file')] }
     // No "is a directory" guard here: `operation`'s wrapper descends into
     // every plain-object (`Dir`) entry before this op ever runs, so `entry`
@@ -222,13 +256,13 @@ const extractEntity = (dir, path) => {
     if (path.length === 0) { return [dir, fail('cannot extract root')] }
     if (path.length === 1) {
         const [name] = path
-        const entry = dir[name]
+        const entry = entryOf(dir, name)
         if (entry === undefined) { return [dir, enoent] }
         const { [name]: _, ...rest } = dir
         return [rest, ok(entry)]
     }
     const [first, ...rest] = path
-    const sub = dir[first]
+    const sub = entryOf(dir, first)
     if (sub === undefined || !isDir(sub)) { return [dir, enoent] }
     const [newSub, result] = extractEntity(sub, rest)
     if (result[0] === 'error') { return [dir, result] }
@@ -246,7 +280,7 @@ const insertEntityAt = (dir, path, entity) => {
     assert(path.length > 0, 'cannot insert at root')
     if (path.length === 1) {
         const [name] = path
-        const existing = dir[name]
+        const existing = entryOf(dir, name)
         if (existing !== undefined) {
             const entityIsDir = isDir(entity)
             const existingIsDir = isDir(existing)
@@ -267,7 +301,7 @@ const insertEntityAt = (dir, path, entity) => {
         return [{ ...dir, [name]: entity }, okVoid]
     }
     const [first, ...rest] = path
-    const sub = dir[first]
+    const sub = entryOf(dir, first)
     if (sub === undefined) { return [dir, enoent] }
     if (!isDir(sub)) { return [dir, fail('not a directory')] }
     const [newSub, result] = insertEntityAt(sub, rest, entity)
@@ -295,7 +329,7 @@ const rename = (src, dst) => state => {
 /** @type {(path: string, offset: number, size: number) => (state: State) => readonly [State, IoResult<Vec>]} */
 const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
     if (p.length !== 1) { return enoent }
-    const file = dir[p[0]]
+    const file = entryOf(dir, p[0])
     if (file === undefined) { return enoent }
     if (isJsModule(file)) { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
     // `operation`'s wrapper descends into every plain-object (`Dir`) entry
@@ -326,11 +360,19 @@ const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
     return ok(result)
 })(path)
 
-/** What `stat` answers for a name that exists and is not a regular file.
+/** What `stat` answers for a name that exists and is neither a regular file nor
+ * a directory — this file system's `JsModule`, standing in for a host's FIFO,
+ * device or socket.
  *
  * @type {IoResult<FileStat>}
  */
-const notRegular = ok({ size: 0, isFile: false })
+const notRegular = ok({ size: 0, isFile: false, isDirectory: false })
+
+/** What `stat` answers for a directory.
+ *
+ * @type {IoResult<FileStat>}
+ */
+const directory = ok({ size: 0, isFile: false, isDirectory: true })
 
 /** Total byte size of a chunk-list file (each chunk is byte-aligned).
  *
@@ -347,7 +389,7 @@ const createExclusiveOp = (dir, path) => {
     if (path.length !== 1) { return [dir, invalidPath] }
     const [name] = path
     // O_EXCL: fail if the name is already taken; otherwise create an empty file.
-    if (dir[name] !== undefined) { return [dir, eexist] }
+    if (entryOf(dir, name) !== undefined) { return [dir, eexist] }
     return [{ ...dir, [name]: [] }, okVoid]
 }
 
@@ -363,7 +405,7 @@ const createExclusive = operation(createExclusiveOp)
 const writeBytesRawOp = (offset, data) => (dir, p) => {
     if (p.length !== 1) { return [dir, enoent] }
     const [name] = p
-    const file = dir[name]
+    const file = entryOf(dir, name)
     if (file === undefined) { return [dir, enoent] }              // writeBytes never creates
     if (!isBinFile(file)) { return [dir, fail(`'${name}' is not a file`)] }
     if (!Number.isInteger(offset) || offset < 0) { return [dir, fail(`Offset ${offset} is invalid`)] }
@@ -383,23 +425,39 @@ const writeBytesOp = (path, offset, data) => operation(writeBytesRawOp(offset, d
  * file, and a caller's guard against reading one can only be exercised here if
  * this runner does the same.
  *
- * Two entries answer `isFile: false`. A `JsModule` is this file system's stand-in
- * for a name that exists and is not a file at all. A **directory** arrives as an
+ * Two entries answer `isFile: false`, and they are *not* the same answer. A
+ * `JsModule` is this file system's stand-in for a name that exists and is not a
+ * file at all, so both flags are false for it. A **directory** arrives as an
  * empty remaining path, because `operation` has already descended into it — the
- * one way to reach `statOp` with nothing left to look up — and that is what it
- * means, root included.
+ * one way to reach `statOp` with nothing left to look up — and answers
+ * `isDirectory: true`, root included.
+ *
+ * **A path that descends through a non-directory is `ENOTDIR`, not `ENOENT`.**
+ * `operation` stops descending at the first entry that is not a `Dir`, so more
+ * than one segment left over means the name before them exists and has nothing
+ * under it — which is what a POSIX host says with `ENOTDIR` where it says
+ * `ENOENT` for a name that is simply absent. Answering `ENOENT` for both made
+ * `stat('README.md/index.html')` indistinguishable from `stat('nope/index.html')`
+ * here while a host distinguishes them, so a caller's `ENOTDIR` branch could not
+ * be reached — let alone proven — against this runner. (Windows reports `ENOENT`
+ * for it, so this models POSIX; a caller that treats the two alike is right on
+ * both.)
  *
  * @type {(path: string) => (state: State) => readonly [State, IoResult<FileStat>]}
  */
 const statPath = readOperation((dir, path) => {
-    if (path.length === 0) { return notRegular }
-    if (path.length !== 1) { return enoent }
-    const file = dir[path[0]]
+    if (path.length === 0) { return directory }
+    // `entryOf`, not `dir[path[0]]`: an inherited name is not an entry, and
+    // reading one as though it were would answer `ENOTDIR` — "the name before
+    // this one exists" — for `toString/x` under an empty root, where a host
+    // says `ENOENT`.
+    const file = entryOf(dir, path[0])
     if (file === undefined) { return enoent }
+    if (path.length !== 1) { return enotdir }
     // `isBinFile` rather than a local `Array.isArray`: which entity kind a name
     // holds is asked in one place now (#1697), and `stat` is one of its askers.
     if (!isBinFile(file)) { return notRegular }
-    return ok({ size: fileSizeBytes(file), isFile: true })
+    return ok({ size: fileSizeBytes(file), isFile: true, isDirectory: false })
 })
 
 /**
@@ -626,6 +684,11 @@ const map = {
     // See: issues/156-tf-virtual-tests.md
     sandbox: f => state => [state, ok(/** @type {SandboxResult<unknown>} */ (f()))],
     await: p => state => [state, ok([p])],
+    // A pure runner cannot catch, so this reports what the thunk returned and a
+    // throw still panics — the same bargain `sandbox` above already makes.
+    // Virtual proofs use benign fixtures; the hostile ones belong to a runner
+    // that has a real `try`. See `Catch` in `../types.ts`.
+    catch: f => state => [state, ok(ok(f()))],
     write: (stream, data) => state => {
         const s = utf8ToString(data)
         return [{ ...state, [stream]: `${state[stream]}${s}` }, okVoid]

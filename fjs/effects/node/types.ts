@@ -10,66 +10,21 @@ import type { MemOp } from '../memory/types.ts'
 import type { Nominal } from '../../types/nominal/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
-import type { Effect, NotImplemented, Operation, ToAsyncOperationMap } from '../types.ts'
+import type {
+    Effect, IoChannel, IoError, IoErrorInfo, IoResult, NotImplemented, OpResult,
+    Operation, ToAsyncOperationMap,
+} from '../types.ts'
 import type { List } from '../list/types.ts'
 
 /**
- * A host failure, normalized: whatever the runtime threw reduced to a
- * serializable record. `code` is the OS error code when the host supplied one
- * (`'ENOENT'`, `'EEXIST'`), absent otherwise.
- *
- * It is a tagged tuple for the same reason {@link NotImplemented} is — the two
- * share an error channel, and the tag is what tells them apart. That
- * distinction is the whole reason this type exists: with a bare `unknown`
- * error, `NotImplemented | unknown` collapses to `unknown` and a program can no
- * longer tell "this runner cannot do it" from "the host tried and failed".
- *
- * Normalizing also keeps the channel serializable. A thrown `Error` carries a
- * stack, a `cause`, and arbitrary own properties; none of it survives a wire
- * hop, and a runner in another process could not reproduce it.
+ * The vocabulary every operation is declared in — how a runner reports that it
+ * cannot dispatch, and how a host reports that it tried and failed — now lives
+ * in [`../types.ts`](../types.ts), beside {@link NotImplemented}, because none
+ * of it is node's. It is re-exported here so that the several dozen modules
+ * naming these through the node module keep doing so, and so a signature can go
+ * on reading as one vocabulary rather than two.
  */
-export type IoError = readonly['ioError', IoErrorInfo]
-
-export type IoErrorInfo = {
-    readonly code?: string
-    readonly message: string
-}
-
-/**
- * The result of an operation with no failures of its own: it either produces
- * its value or reports that the runner does not implement it.
- *
- * Every operation's return type is a `Result`, including the ones that cannot
- * fail on their own terms — an operation left on a raw contract would be a hole
- * in the error channel, and a runner may omit a handler for any of them.
- */
-export type OpResult<T> = Result<T, NotImplemented>
-
-/**
- * The error channel of anything that performs host IO: a normalized host
- * failure, or the report that the runner does not implement the operation.
- *
- * It is one name rather than a union spelled at each site, and that is a
- * migration property rather than brevity. An effect that does no IO *yet* is
- * one added `readFile` away from doing some, and if each signature names its
- * own errors, that one change walks up every enclosing signature — the failure
- * mode that sank `throws` clauses elsewhere, where engineers eventually
- * declared everything throwing rather than maintain the cascade. Declaring the
- * standard channel once is that concession made deliberately: an IO-touching
- * effect says it fails *the way node IO fails*, and gaining a new way to do so
- * changes nothing above it.
- *
- * It is not a licence to widen. An operation with failures of its own extends
- * the channel (`IoChannel | ParseError`), and a computation whose errors are
- * genuinely narrower should say so — this is the default for IO, not a ceiling.
- */
-export type IoChannel = NotImplemented | IoError
-
-/**
- * The result of an operation that performs host IO: its value, a normalized
- * host failure, or the missing-handler report.
- */
-export type IoResult<T> = Result<T, IoChannel>
+export type { IoChannel, IoError, IoErrorInfo, IoResult, OpResult }
 
 // all
 
@@ -182,8 +137,8 @@ export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, I
 // stat
 
 /**
- * File metadata returned by `stat`: the size in bytes, and whether the entry is
- * a *regular* file.
+ * File metadata returned by `stat`: the size in bytes, and which of the two
+ * entry kinds a caller can act on it is.
  *
  * `isFile` is not a convenience. Reading a FIFO, a device or a socket is not
  * reading a file: `open` on a FIFO with no writer blocks until one appears, so a
@@ -191,10 +146,18 @@ export type _WriteLoop = <O extends Operation>(offset: number, e: List<O, Vec, I
  * long as it waits. Size cannot stand in for the check — a FIFO stats as zero
  * bytes and passes every bound. It is the same question `Dirent` answers for a
  * directory listing, asked about one path.
+ *
+ * `isDirectory` is not its negation, which is the whole reason it is a second
+ * flag rather than a derived one: a FIFO, a device, a socket and the virtual
+ * runner's `JsModule` are all `isFile: false` without being directories, so a
+ * caller that needs "a name it can descend through" — `fjs/web` validating its
+ * served root — cannot ask `!isFile` for it. Both flags are false for such an
+ * entry, and that is the answer, not a gap.
  */
 export type FileStat = {
     readonly size: number
     readonly isFile: boolean
+    readonly isDirectory: boolean
 }
 
 export type Stat = readonly['stat', (path: string) => IoResult<FileStat>]
@@ -333,6 +296,29 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxRes
  */
 export type Await = readonly['await', (p: unknown) => OpResult<readonly[unknown]>]
 
+// catch
+
+/**
+ * Runs a pure thunk and answers what it did: its value, or the value it threw.
+ *
+ * It sits beside {@link Sandbox} and is deliberately *not* it. `sandbox` carries
+ * a clock and, in the virtual runner, a fixture convention — its handler is a
+ * pass-through whose thunk is expected to answer a {@link SandboxResult}
+ * directly, because `../virtual` is `.f.mjs` and FunctionalScript has no
+ * `try`/`catch` to implement a real one with. Routing a tree walk through
+ * `sandbox` would hand that handler a thunk answering something else entirely.
+ *
+ * This one carries neither, so every runner implements it truthfully: the real
+ * Node runner and a browser interpreter with `tryCatch`, and the virtual runner
+ * with `ok(ok(f()))` — a pure runner still cannot catch, so a hostile fixture
+ * still panics there, which is the same bargain `sandbox` already makes.
+ *
+ * It exists because reading a *user* value is an operation, not pure logic: the
+ * proof traversal enumerates values a test returned, and an enumerable getter or
+ * a proxy trap in one of them is a failure of that test rather than of the run.
+ */
+export type Catch = readonly['catch', <T>(f: () => T) => OpResult<Result<T, unknown>>]
+
 // Test registration
 
 /**
@@ -373,6 +359,7 @@ export type NodeOp =
     | Access
     | All
     | Await
+    | Catch
     | Fetch
     | Fs
     | Http

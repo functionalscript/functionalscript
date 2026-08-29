@@ -4,7 +4,7 @@
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { ok, error } from '../../types/result/module.f.mjs'
-import { parse } from '../../types/rtti/parse/module.f.mjs'
+import { parse } from '../../rtti/parse/module.f.mjs'
 import {
     error as errorSchema,
     decodeRequest,

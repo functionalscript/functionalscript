@@ -52,7 +52,10 @@ eventual isolated browser-test application root
 └── authored or copied .f.mjs / .mjs modules
 ```
 
-`index.html` starts the runner. The website integration currently loads the
+`index.html` hosts the runner, idle until an explicit `Run` click or
+controller call starts it — see
+[Explicit browser test controls](browser-test-controls.md), which supersedes
+auto-start below. The website integration currently loads the
 generated list of proof sources with native `import()` from the repository
 working tree; this is not the isolated application root described by this
 section. The eventual application exposes HTML and JavaScript only — it does
@@ -60,6 +63,52 @@ not serve the repository working tree, declaration files, `types.ts` (type-only
 imports are JSDoc comments and never produce a request), or paths outside the
 application root. The browser runner must not import the Node effect runner,
 `node:test`, Node built-ins, or Playwright.
+
+### Scope: authored FunctionalScript only
+
+The standing rule lives in [the README](../README.md#scope); this section is
+what it means for the browser suite specifically.
+
+**The browser suite runs `.f.mjs` and nothing else.** `website/browser-prepare.mjs`
+selects on `name.endsWith('.f.mjs')`; the generated manifest currently carries
+137 modules, none of them anything else. That is the design, not a first
+iteration to be widened later.
+
+It follows from what the two kinds of module are. Authored FunctionalScript is
+pure — no host objects, no `node:` imports, no promises, no `async` — so a
+`.f.mjs` proof means the same thing in every runner, and the extension is a
+sufficient declaration for a static selector that never imports anything. An
+impure `.mjs` proof means whatever its host provides: `node:fs`, `node:vm`,
+`process`, `node:test`, a filesystem, a subprocess.
+
+**Impure `.mjs` proofs are therefore Node-only, by construction, and that is the
+answer rather than a gap.** Loading JavaScript written against Node into a
+browser and expecting it to test anything is a nightmare, and nobody has asked
+for it; no convention for labelling a test's host changes what `node:fs` needs.
+There is no work item here, and the rule is recorded because it looks like an
+omission if met without context. Two things a future design would have to face,
+if someone ever turns up with a concrete impure test a browser must run:
+*targeting* and *describing* are different questions — `browser/proof.mjs` tests
+browser code but runs in Node, so a filename convention would mislabel exactly
+that file — and a declaration is a claim, so a test declaring `browser` while
+importing `node:fs` is a lie the dependency-graph acceptance above has to
+catch.
+
+Two things follow that are easy to get wrong:
+
+- **The runner's promise handling is a required guard, not decoration.**
+  FunctionalScript as specified has no promises, so a conforming proof produces
+  none — but selection is by filename with no content check, so a module that
+  does not conform is loaded and can return one. The `instanceof Promise` check
+  and the settlement behind it are what keep that from silently losing a
+  sub-tree, and they are not to be deleted on the grounds that the language
+  forbids the input. What *was* deleted is the `Symbol.species` recovery
+  machinery, which is a different thing. See
+  [imports, promises and realms](imports-promises-realms.md).
+- **The impure proofs that drive the browser runner are not part of the suite.**
+  `emergent_testing/browser/proof.mjs` tests browser code, but it is `.mjs`, so
+  it runs under `fjs t` in Node against this module called as a library. Testing
+  the browser runner and running in a browser are different things.
 
 ### Selection
 
@@ -76,9 +125,12 @@ The named `proof` export is the source of truth; filenames are conventions.
    omission or a Node fallback — when the graph reaches a `node:` import or an
    unresolved external package.
 
-Extending selection to generic `.mjs` modules with Node-dependent graphs is
-optional, later, and may introduce environment metadata; it does not block the
-first working browser suite.
+Extending selection to generic `.mjs` modules is **not** planned — see the scope
+section above, which supersedes this paragraph's earlier "optional, later"
+framing. A Node-dependent proof needs `node:fs`, `node:vm`, `process` and a
+filesystem, none of which a page has, and no environment metadata changes that.
+What remains open is the *rejection*: a `.f.mjs` whose graph reaches a `node:`
+import must be reported, which is the dependency-graph acceptance above.
 
 ### In-browser runner and report
 
@@ -98,10 +150,12 @@ preparation, loopback static serving, URL construction, report validation,
 timeout and infrastructure-error classification, and conversion of the report
 into a generic pass/fail result.
 
-- **HTML page**: run/re-run UI with loading, running, passed, failed, and
-  infrastructure-error states; failed test paths with messages and stacks;
-  module-loading failures distinguished from proof failures; auto-start via a
-  query parameter. The FunctionalScript website hosts the same application and
+- **HTML page**: idle, loading, running, passed, failed, and
+  infrastructure-error states, starting only on an explicit `Run` click or
+  controller call — no auto-start via a query parameter, per
+  [Explicit browser test controls](browser-test-controls.md); failed test
+  paths with messages and stacks; module-loading failures distinguished from
+  proof failures. The FunctionalScript website hosts the same application and
   report contract — no website-only implementation.
 - **`fjs browser-test`** (`build` / `serve` / `run --browser=...`): no
   Playwright dependency; starts a loopback server, opens or launches an

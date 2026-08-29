@@ -428,6 +428,9 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(stat('docs'))
         assert(result[0] === 'ok', result)
         assertEq(result[1].isFile, false)
+        // And says *what* it is, which `!isFile` cannot: a `JsModule` below
+        // answers false to both.
+        assertEq(result[1].isDirectory, true)
     },
     statOnEmptyPath: () => {
         // An empty path is not the root, though `parse` collapses both to no
@@ -439,6 +442,7 @@ export const proof = {
         const [, root] = virtual(emptyState)(stat('.'))
         assert(root[0] === 'ok', root)
         assertEq(root[1].isFile, false)
+        assertEq(root[1].isDirectory, true)
     },
     statOnJsModule: () => {
         // A `JsModule` entry is this file system's non-regular name: it exists
@@ -450,7 +454,157 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(stat('a.f.ts'))
         assert(result[0] === 'ok', result)
         assertEq(result[1].isFile, false)
+        // Neither a file nor a directory. That is why `isDirectory` is its own
+        // flag: a caller asking `!isFile` for "may I descend into it" would
+        // descend into a FIFO.
+        assertEq(result[1].isDirectory, false)
         assertEq(result[1].size, 0)
+    },
+    statOnInheritedName: () => {
+        // A `Dir` is a plain object, so `dir[name]` finds `Object.prototype`'s
+        // names too — and this file system would have read them as entries:
+        // `toString` is a function, which is its `JsModule`, and `__proto__` is
+        // an object, which is a directory. A host has none of these names, so
+        // every one of them is absent here.
+        //
+        // Reachable from an *empty* root, which is what makes it worth pinning:
+        // no fixture has to contain anything for a caller to ask.
+        /** @type {(path: string) => void} */
+        const absent = path => {
+            const [, result] = virtual(emptyState)(stat(path))
+            assert(result[0] === 'error', [path, result])
+            assertIoCode(result[1], 'ENOENT')
+        }
+        absent('toString')
+        absent('constructor')
+        // Not `ENOTDIR`: that answer claims the name before the slash exists,
+        // which is the reading an inherited name must not earn.
+        absent('toString/x')
+        // `__proto__` is the one that reads as a *directory* — `operation`
+        // would descend into `Object.prototype` and stat it as the root.
+        absent('__proto__')
+        absent('__proto__/x')
+    },
+    // Every operation asks the same question, so every operation answers the
+    // same way. Stopping at `stat` is what made `__proto__` worse rather than
+    // better: with the descent refusing it and the leaf still reading it,
+    // `readFile` reached its is-a-file assertion and *threw* — out of the
+    // effect's channel, where no FunctionalScript program can answer it — and
+    // `rm` reported success for a name that was never there.
+    inheritedNameInEveryOperation: () => {
+        /** @type {<T>(e: Effect<NodeOp, T, IoChannel>) => IoChannel} */
+        const failure = e => {
+            const [, result] = virtual(emptyState)(e)
+            assert(result[0] === 'error', result)
+            return result[1]
+        }
+        for (const name of ['__proto__', 'toString']) {
+            assertIoCode(failure(stat(name)), 'ENOENT')
+            assertIoCode(failure(readFile(name)), 'ENOENT')
+            assertIoCode(failure(access(name)), 'ENOENT')
+            // `rm` words a missing entry its own way, and says it here too.
+            assertIoMessage(failure(rm(name)), 'no such file')
+            // A name that is not a `JsModule`, because it is not an entry.
+            assertIoMessage(failure(import_(name)), `'${name}' is not a JsModule`)
+        }
+        // And an own name still works, so the guard refuses names rather than
+        // lookups: `createExclusive` claims one, and the second try is `EEXIST`.
+        const [claimed] = virtual(emptyState)(createExclusive('__proto__'))
+        assertEq(Object.keys(claimed.root).join(), '__proto__')
+        const [, again] = virtual(claimed)(createExclusive('__proto__'))
+        assert(again[0] === 'error', again)
+        assertIoCode(again[1], 'EEXIST')
+    },
+    // An entry genuinely named `__proto__` is not what the guard refuses, and
+    // a fixture writes one with a **computed key** — the spelling that makes an
+    // own property. `{ '__proto__': e }` sets the prototype instead, which is
+    // why FunctionalScript's own parser refuses that form (`protoKey` in
+    // `../../../djs/parser/proof.f.mjs`); it was never a working fixture here
+    // either, since `readdir` walks own entries and would have listed the
+    // directory as empty.
+    protoKeyFixture: () => {
+        /** @type {Dir} */
+        const root = { ['__proto__']: [utf8('hi')] }
+        const [, s] = virtual({ ...emptyState, root })(stat('__proto__'))
+        assert(s[0] === 'ok', s)
+        assertEq(s[1].isFile, true)
+        const [, f] = virtual({ ...emptyState, root })(readFile('__proto__'))
+        assert(f[0] === 'ok', f)
+        assertEq(utf8ToString(f[1]), 'hi')
+        // And the listing agrees, which is the half the refused spelling lost.
+        const [, d] = virtual({ ...emptyState, root })(readdir('.', {}))
+        assert(d[0] === 'ok', d)
+        assertEq(d[1].map(e => e.name).join(), '__proto__')
+    },
+    // The writing half, which the reads above do not reach: one proof per
+    // remaining lookup, so a regression confined to a single operation cannot
+    // hide behind the shared helper.
+    inheritedNameInWrites: () => {
+        const payload = utf8('x')
+        // `writeFile` **creates** it: an inherited name is absent, and writing
+        // to an absent name is what this operation is for. Before the guard,
+        // `dir['toString']` was a function and the write was refused as
+        // "invalid file".
+        const [written, result] = virtual(emptyState)(writeFile('toString', payload))
+        assert(result[0] === 'ok', result)
+        assertEq(Object.keys(written.root).join(), 'toString')
+        // And what comes back is the payload, not the inherited function.
+        const [, read] = virtual(written)(readFile('toString'))
+        assert(read[0] === 'ok', read)
+        assertEq(utf8ToString(read[1]), 'x')
+        // The two positional operations refuse it, neither creating nor
+        // reading `Object.prototype`.
+        const [, bytes] = virtual(emptyState)(readBytes('toString', 0, 1))
+        assert(bytes[0] === 'error', bytes)
+        assertIoCode(bytes[1], 'ENOENT')
+        const [, put] = virtual(emptyState)(writeBytes('toString', 0, payload))
+        assert(put[0] === 'error', put)
+        assertIoCode(put[1], 'ENOENT')
+        // `rename` reads through both halves: `extractEntity` for the source,
+        // `insertEntityAt` for the destination.
+        const [, moved] = virtual(emptyState)(rename('toString', 'a.txt'))
+        assert(moved[0] === 'error', moved)
+        assertIoCode(moved[1], 'ENOENT')
+        // Renaming *onto* one is an ordinary create, not an overwrite of
+        // whatever `Object.prototype` holds there.
+        /** @type {Dir} */
+        const root = { 'a.txt': [vec8(0x41n)] }
+        const [renamed, onto] = virtual({ ...emptyState, root })(rename('a.txt', '__proto__'))
+        assert(onto[0] === 'ok', onto)
+        assertEq(Object.keys(renamed.root).join(), '__proto__')
+    },
+    statOnRegularFile: () => {
+        /** @type {Dir} */
+        const root = { 'a.txt': [vec8(0x41n)] }
+        const [, result] = virtual({ ...emptyState, root })(stat('a.txt'))
+        assert(result[0] === 'ok', result)
+        assertEq(result[1].isFile, true)
+        assertEq(result[1].isDirectory, false)
+        assertEq(result[1].size, 1)
+    },
+    statThroughNonDirectory: () => {
+        // A path that descends through a name which is not a directory is
+        // `ENOTDIR` — the name exists and has nothing under it — where a path
+        // whose *first* missing segment is simply absent stays `ENOENT`. A POSIX
+        // host draws the same line, and a caller that maps one of the two to its
+        // own answer cannot be proven against a runner that reports both alike.
+        /** @type {Dir} */
+        const root = { 'a.txt': [vec8(0x41n)], 'm.f.ts': () => ({}), docs: {} }
+        /** @type {(path: string) => string | undefined} */
+        const code = path => {
+            const [, result] = virtual({ ...emptyState, root })(stat(path))
+            assert(result[0] === 'error', result)
+            assert(result[1][0] === 'ioError', result[1])
+            return result[1][1].code
+        }
+        assertEq(code('a.txt/index.html'), 'ENOTDIR')
+        // Any depth below it, and a `JsModule` is no more descendable.
+        assertEq(code('a.txt/x/y'), 'ENOTDIR')
+        assertEq(code('m.f.ts/index.html'), 'ENOTDIR')
+        // Absent names stay `ENOENT`, whether the missing segment is the last
+        // one or the one being descended through.
+        assertEq(code('nope.txt/index.html'), 'ENOENT')
+        assertEq(code('docs/nope.html'), 'ENOENT')
     },
     largeFileReadBytes: () => {
         // A file stored as two 128 KiB chunks is larger than maxLengthBytes.

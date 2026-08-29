@@ -12,8 +12,6 @@ import { bsearch } from '../function/compare/module.f.mjs'
 import { next } from '../list/module.f.mjs'
 import { identity } from '../function/module.f.mjs'
 
-/** @template T @typedef {readonly T[]} _SortedArray */
-
 /**
  * Two-way sorted-list merge.
  * `reduceOp` returns `[output, sign, nextState]` where sign `-1` advances `a`, `1` advances `b`, `0` advances both; `null` output skips emission.
@@ -46,8 +44,6 @@ export const genericMerge =
         return f
     }
 
-/** @template T @typedef {ReduceOp<T, null>} _CmpReduceOp */
-
 export const merge =
     /**
      * @template T
@@ -60,7 +56,7 @@ const cmpReduce =
     /**
      * @template T
      * @param {Cmp<T>} cmp
-     * @returns {_CmpReduceOp<T>}
+     * @returns {ReduceOp<T, null>}
      */
     cmp => () => a => b => {
         const sign = cmp(a)(b)
@@ -111,7 +107,7 @@ export const find =
     cmp =>
         /** @param {T} value */
         value =>
-            /** @param {_SortedArray<T>} array */
+            /** @param {readonly T[]} array */
             array => {
                 const cmpValue = cmp(value)
                 const pos = bsearch(array.length)(mid => cmpValue(array[mid]))

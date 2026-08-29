@@ -34,7 +34,7 @@ Counts in the current tree (re-verified 2026-08-14):
   `fjs/types/nominal/proof.f.mjs`,
   `fjs/types/object/structurally_same/proof.f.mjs`,
   `fjs/types/range/proof.f.mjs`, `fjs/types/range_set/proof.f.mjs`,
-  `fjs/types/rtti/proof.f.mjs`, `todo/proof.f.mjs`.
+  `fjs/rtti/proof.f.mjs`, `todo/proof.f.mjs`.
 - A number of files already using `assertEq` still carry leftover
   manual `if (...) { throw ... }` sites alongside it (the 494 count
   above is not confined to the 9 holdout files) — full adoption within
@@ -147,7 +147,7 @@ it's by far the most common and the lowest-judgement case.
 - `fjs/sul/id/module.f.mjs:19`, `fjs/sul/id/proof.f.mjs:1`,
   `fjs/sul/proof.f.mjs:1`, `fjs/sul/level/hash/proof.f.mjs:1` — the four
   existing consumers, demonstrating the desired call-site shape.
-- [i194](./194.md), `i65X-async-test-functions` (retired, and since shipped) —
+- [i194](./194-test-effects-design.md), `i65X-async-test-functions` (retired, and since shipped) —
   parallel work on the test framework's effect surface. The helper
   story above is intentionally smaller and orthogonal; it does not
   touch the `Reporter`/`TestEntry`/`testAll` path. Both halves of the async

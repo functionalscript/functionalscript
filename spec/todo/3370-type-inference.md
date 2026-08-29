@@ -75,7 +75,7 @@ Compared to level 2, this level contains dynamic information about subsets of th
 ## The inference domain: decide before designing
 
 Nothing else in stage 6 can be specified until this is settled, and once
-[668](../../fjs/types/rtti/todo/668-rtti-function-types.md) lands 7a there is
+[668](../../fjs/rtti/todo/668-rtti-function-types.md) lands 7a there is
 otherwise no task anyone can pick up to unblock 7b.
 
 - [ ] **Decide the inference domain.** Either the `enum Type` bit-set lattice
@@ -95,7 +95,7 @@ otherwise no task anyone can pick up to unblock 7b.
         a third answer — *cannot decide* — and **today's API cannot express
         one**: `subset` is
         `(a: Data) => (b: Data) => boolean`
-        ([`data/module.f.mjs`](../../fjs/types/rtti/data/module.f.mjs)), so a
+        ([`data/module.f.mjs`](../../fjs/rtti/data/module.f.mjs)), so a
         `false` conflates a genuine non-inclusion with a documented
         undecidable case such as
         `readonly [number | string] ⊆ readonly [number] | readonly [string]`.
@@ -103,7 +103,7 @@ otherwise no task anyone can pick up to unblock 7b.
         this task also owes one of: a **tri-state inclusion API**, a separate
         **completeness witness** saying whether a given pair falls in the
         decidable fragment, or completing the algorithm in the direction
-        [`data/README.md`](../../fjs/types/rtti/data/README.md) names. Without
+        [`data/README.md`](../../fjs/rtti/data/README.md) names. Without
         one, stage 6 cannot both reject definite type errors and fall back on
         incomplete ones — it has to pick a single behaviour for `false` and
         will be wrong for one of the two.

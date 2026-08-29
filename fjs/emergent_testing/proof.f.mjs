@@ -4,8 +4,8 @@
  * @import { NodeProgramOptions, OpResult, Sandbox, Write } from '../effects/node/types.ts'
  * @import { JsModule } from '../effects/node/virtual/types.ts'
  * @import { Reporter } from './types.ts'
- * @import { All, Await, Import, Readdir, Test, TestContext } from '../effects/node/types.ts'
- * @import { Ts } from '../types/rtti/ts/types.ts'
+ * @import { All, Await, Catch, Import, Readdir, Test, TestContext } from '../effects/node/types.ts'
+ * @import { Ts } from '../rtti/ts/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
@@ -13,15 +13,15 @@ import { log } from '../effects/node/module.f.mjs'
 import { defaultNodeProgramOptions, emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, todo } from '../asserts/module.f.mjs'
 import {
-    testAll, fmtPath, fmtTerm, fmtImport, ghEscape, isInteger, isIdentifier,
+    testAll, fmtPath, fmtImport, ghEscape, isInteger, isIdentifier,
     registerModule, parseTestSet,
-    defaultTest, main, register,
+    addResult, defaultTest, main, register, testResult, zeroTotals,
 } from './module.f.mjs'
 import { run as mockRun } from '../effects/mock/module.f.mjs'
 import { shouldLoad } from '../dev/module.f.mjs'
 import { parse as parseJson } from '../media/json/module.f.mjs'
-import { array, number as rttiNumber, or, string as rttiString } from '../types/rtti/module.f.mjs'
-import { parse as rttiParse } from '../types/rtti/parse/module.f.mjs'
+import { number as rttiNumber, or, string as rttiString } from '../rtti/module.f.mjs'
+import { parse as rttiParse } from '../rtti/parse/module.f.mjs'
 import { error, ok, unwrap } from '../types/result/module.f.mjs'
 
 /**
@@ -35,28 +35,28 @@ import { error, ok, unwrap } from '../types/result/module.f.mjs'
  * JSON representation to round-trip through anyway.
  */
 const event = or(
-    /** @type {const} */ (['result', rttiString, array(or(rttiString, null))]),
+    /** @type {const} */ (['result', rttiString, rttiString]),
     /** @type {const} */ (['summary', rttiNumber, rttiNumber, rttiNumber]),
 )
 
-/** @typedef {Ts<typeof event>} _Event */
-
 const parseEvent = rttiParse(event)
 
-/** @typedef {Reporter<Sandbox | Write>} _TestReporter */
-
-/** @type {(e: _Event) => Effect<Write, void, NotImplemented>} */
+/** @type {(e: Ts<typeof event>) => Effect<Write, void, NotImplemented>} */
 const writeEvent = e => log(JSON.stringify(e))
 
-/** @type {(stdout: string) => readonly _Event[]} */
+/** @type {(stdout: string) => readonly Ts<typeof event>[]} */
 const parseEvents = stdout =>
     stdout === '' ? [] : stdout.trimEnd().split('\n')
         .map(line => unwrap(parseEvent(unwrap(parseJson(line)))))
 
-/** @type {() => _TestReporter} */
+/** @type {() => Reporter<Sandbox | Write>} */
 const makeReporter = () => ({
-    result: (file, path, _r, _throws) => writeEvent(['result', file, [...path]]),
-    summary: (pass, fail, time) => writeEvent(['summary', pass, fail, time]),
+    // The leaf-landed event arrives with the shared `TestResult` already
+    // built, so what this writes — and what the proofs below assert on — is
+    // the record's own `module` and formatted `path`, not a spelling of the
+    // mock's own.
+    result: (t, _r, _throws) => writeEvent(['result', t.module, t.path]),
+    summary: ({ passed, failed, duration }) => writeEvent(['summary', passed, failed, duration]),
     test: defaultTest,
 })
 
@@ -73,7 +73,7 @@ const fail0 = () => ({ result: /** @type {const} */ (['error', 'oops']), duratio
 /** @type {() => unknown} */
 const ok1 = () => ({ result: /** @type {const} */ (['ok', undefined]), duration: 1 })
 
-/** @type {(dir: Record<string, JsModule>, initCwd?: string) => readonly [readonly _Event[], number]} */
+/** @type {(dir: Record<string, JsModule>, initCwd?: string) => readonly [readonly Ts<typeof event>[], number]} */
 const run = (dir, initCwd = '.') => {
     const reporter = makeReporter()
     const state = { ...emptyState, root: dir }
@@ -98,8 +98,8 @@ export const flat = () => {
     })
     assertEq(exit, 0)
     const [e0, e1, e2] = events
-    assert(e0[0] === 'result' && e0[2][0] === 'a')
-    assert(e1[0] === 'result' && e1[2][0] === 'b')
+    assert(e0[0] === 'result' && e0[2] === '.a')
+    assert(e1[0] === 'result' && e1[2] === '.b')
     assert(e2[0] === 'summary')
     const [, pass, fail] = e2
     assertEq(pass, 2)
@@ -113,8 +113,8 @@ export const nested = () => {
     })
     assertEq(exit, 0)
     const [e0, e1, e2] = events
-    assert(e0[0] === 'result' && e0[2][1] === 'add')
-    assert(e1[0] === 'result' && e1[2][1] === 'sub')
+    assert(e0[0] === 'result' && e0[2] === '.math.add')
+    assert(e1[0] === 'result' && e1[2] === '.math.sub')
     assert(e2[0] === 'summary')
     const [, pass, fail] = e2
     assertEq(pass, 2)
@@ -128,7 +128,7 @@ export const throwKey = () => {
     })
     assertEq(exit, 0)
     const [e0, e1] = events
-    assert(e0[0] === 'result' && e0[2][0] === 'throw' && e0[2][1] === 'a')
+    assert(e0[0] === 'result' && e0[2] === '.throw.a')
     assert(e1[0] === 'summary')
     const [, pass, fail] = e1
     assertEq(pass, 1)
@@ -180,8 +180,8 @@ export const returnValueSubTree = () => {
     const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 2)
     const [p0, p1] = passEvents
-    assertEq(p0[2][0], 'outer')
-    assertEq(p1[2][2], 'inner')
+    assertEq(p0[2], '.outer')
+    assertEq(p1[2], '.outer().inner')
 }
 
 // integer-indexed array keys appear as numeric path segments
@@ -192,8 +192,8 @@ export const arrayKeys = () => {
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 2)
-    assertEq(passEvents[0][2][1], '0')
-    assertEq(passEvents[1][2][1], '1')
+    assertEq(passEvents[0][2], '.arr[0]')
+    assertEq(passEvents[1][2], '.arr[1]')
 }
 
 // non-proof files are skipped: plain `.ts` is not loaded; `.f.ts` without
@@ -235,7 +235,7 @@ export const throwByFunctionName = () => {
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 1)
-    assertEq(passEvents[0][2][0], 'here')
+    assertEq(passEvents[0][2], '.here')
 }
 
 // only the `proof` export is used; other module properties are ignored
@@ -246,8 +246,8 @@ export const namedExports = () => {
     assertEq(exit, 0)
     const passEvents = events.filter(e => e[0] === 'result')
     assertEq(passEvents.length, 2) // `other` is ignored
-    assertEq(passEvents[0][2][0], 'a')
-    assertEq(passEvents[1][2][0], 'b')
+    assertEq(passEvents[0][2], '.a')
+    assertEq(passEvents[1][2], '.b')
 }
 
 // the default (non-GitHub) reporter formats module/pass/summary lines on stdout
@@ -301,8 +301,6 @@ export const githubReporterOutput = () => {
     )
 }
 
-/** @typedef {All | Import | Readdir | Sandbox | Write} _FailOps */
-
 // A reporter that cannot write neither panics nor reports success. The failed
 // `result` line short-circuits its own test, leaves `allOk` as the first error,
 // skips the summary, and reaches the program tail — which answers exit `1`.
@@ -311,6 +309,7 @@ export const githubReporterOutput = () => {
 // the failure on, so the exit code rather than a message is what is observable:
 // a run that cannot say anything at all still says it failed.
 export const reporterWriteFailure = () => {
+    /** @typedef {All | Catch | Import | Readdir | Sandbox | Write} _FailOps */
     /** @type {RunInstance<_FailOps, undefined>} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_FailOps, undefined>>[0]} */ ({
@@ -328,6 +327,10 @@ export const reporterWriteFailure = () => {
         },
         sandbox: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) =>
             [s, ok({ result: ok(f()), duration: 0 })],
+        // Benign, like the virtual runner's: this proof is about a reporter
+        // that cannot write, and its fixture's tree reads cleanly.
+        catch: (/** @type {() => unknown} */ f) => (/** @type {undefined} */ s) =>
+            [s, ok(ok(f()))],
         write: (_stream, _data) => s => [s, error(['notImplemented', 'write'])],
     }))
     const [, code] = runner(undefined)(
@@ -335,33 +338,40 @@ export const reporterWriteFailure = () => {
     assertEq(exitCode(code), 1)
 }
 
-/** @typedef {readonly string[]} _RegisterMockState */
-
-/** @typedef {Test | All | Await} _RegisterMockOps */
-
-/** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
-
 /**
- * The `test` op body for a `registerModule` mock; `runner` is threaded in explicitly (rather than closed over) so it can recurse into sub-effects returned by `fn`.
- * @typedef {(
- *     runner: _RegisterRunner,
- *     ctx: TestContext,
- *     name: string,
- *     expectFailure: boolean,
- *     fn: (t: TestContext) => Effect<_RegisterMockOps, void, never>,
- * ) => (s: _RegisterMockState) => readonly [_RegisterMockState, OpResult<void>]} _RegisterTestOp
+ * A `TestContext` that is never invoked. Every mock runner below intercepts the
+ * `test` *effect* and reads the context as data, so `test` here exists only to
+ * satisfy the type — and it panics rather than answering, so an accidental call
+ * fails loudly instead of resolving quietly. A throw is also what lets a pure
+ * module satisfy `TestFn` at all: the body's type is `never`, which is
+ * assignable to the `Promise<void>` the signature demands, with no `Promise`
+ * constructed and no cast.
+ *
+ * @type {TestContext}
  */
-
-/** @type {TestContext} */
-const registerNoopCtx = { test: (_n, _o, _f) => Promise.resolve() }
+const registerNoopCtx = { test: (_n, _o, _f) => { throw 'registerNoopCtx is data, not a runner' } }
 
 /**
  * Builds a synchronous mock runner for `registerModule`'s `Test`/`All`/`Await`
  * effect operations. Only the `test` op varies between call sites (whether it
  * invokes the registered callback), so `all`/`await` are shared here.
+ *
+ * `testOp` is the `test` op body for a `registerModule` mock; `runner` is
+ * threaded in explicitly (rather than closed over) so it can recurse into
+ * sub-effects returned by `fn`.
  */
-/** @type {(testOp: _RegisterTestOp) => _RegisterRunner} */
+/** @type {(testOp: (
+ *     runner: RunInstance<Test | All | Await, readonly string[]>,
+ *     ctx: TestContext,
+ *     name: string,
+ *     expectFailure: boolean,
+ *     fn: (t: TestContext) => Effect<Test | All | Await, void, never>,
+ * ) => (s: readonly string[]) => readonly [readonly string[], OpResult<void>]
+ * ) => RunInstance<Test | All | Await, readonly string[]>} */
 const makeRegisterRunner = testOp => {
+    /** @typedef {readonly string[]} _RegisterMockState */
+    /** @typedef {Test | All | Await} _RegisterMockOps */
+    /** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
     /** @type {_RegisterRunner} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
@@ -410,6 +420,9 @@ export const registerSuffixes = () => {
 // which is why `registerOne` ends in a `catchStep` that throws rather than in
 // a channel nobody reads.
 const registerBodyPanicsOnUndispatchableEffect = () => {
+    /** @typedef {readonly string[]} _RegisterMockState */
+    /** @typedef {Test | All | Await} _RegisterMockOps */
+    /** @typedef {RunInstance<_RegisterMockOps, _RegisterMockState>} _RegisterRunner */
     /** @type {_RegisterRunner} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps, _RegisterMockState>>[0]} */ ({
@@ -427,7 +440,10 @@ const registerBodyPanicsOnUndispatchableEffect = () => {
         // The runner has no `await`, which is what the body's channel carries.
         await: _p => s => [s, error(['notImplemented', 'await'])],
     }))
-    const proof = /** @type {const} */ ({ a: () => Promise.resolve(undefined) })
+    // The leaf's value never needs to be a promise: `registerOne` routes every
+    // leaf through the `await` effect unconditionally, and this runner's
+    // handler ignores the payload and answers `notImplemented` regardless.
+    const proof = /** @type {const} */ ({ a: () => undefined })
     runner([])(registerModule(registerNoopCtx, './a.f.ts', proof, ''))
 }
 
@@ -483,6 +499,7 @@ export const registerEmptyModuleMap = () => {
 // so a swapped `engine` ternary or a deleted `inlineTestContext` branch
 // changes what's observed here, not just whether the line ran.
 export const registerSelectsContextAndStar = () => {
+    /** @typedef {Test | All | Await} _RegisterMockOps */
     /** @type {TestContext} */
     const nodeCtx = { test: todo }
     /** @type {TestContext} */
@@ -582,14 +599,6 @@ export const helpers = {
         assertEq(fmtPath(['x', 'hello world']), '.x["hello world"]')
         assertEq(fmtPath(['outer', null, 'inner']), '.outer().inner')
     },
-    fmtTerm: () => {
-        assertEq(fmtTerm([]), '()')
-        assertEq(fmtTerm(['math', 'add']), '| | add')
-        assertEq(fmtTerm(['a', '0']), '| | 0')
-        assertEq(fmtTerm(['x', 'hello world']), '| | "hello world"')
-        // null marks a function-call boundary; fmtTerm filters it out
-        assertEq(fmtTerm(['outer', null, 'inner']), '| | inner')
-    },
     ghEscape: () => {
         assertEq(ghEscape('a%b'), 'a%25b')
         assertEq(ghEscape('a:b'), 'a%3Ab')
@@ -622,7 +631,63 @@ const defaultReporterExpectedToThrow = () => {
     assert(stdout.includes('# EXPECTED TO THROW'), stdout)
 }
 
+/**
+ * `testResult` is where every runner decides what a leaf is called and whether
+ * it passed, so these pin both.
+ *
+ * The result it takes is the one *after* the throw expectation has been
+ * applied, which is why an expected throw does not appear here: inverting is
+ * `defaultTest`'s job and `invert`'s rule, and this reads whatever that
+ * produced.
+ */
+const testResultProofs = {
+    passes: () => {
+        const t = testResult('./a.f.mjs', ['x'], { result: ok(1), duration: 0.5 })
+        assertEq(t.status, 'passed')
+        assertEq(t.duration, 0.5)
+        assertEq(t.module, './a.f.mjs')
+    },
+    fails: () => {
+        const t = testResult('./a.f.mjs', ['x'], { result: error('boom'), duration: 2 })
+        assertEq(t.status, 'failed')
+    },
+    // The identity and the key chain come from the same two functions the
+    // console runner formats its own output with, so a runner cannot spell
+    // either of them its own way by building this record itself.
+    namesTheLeaf: () => {
+        const path = ['nested', null, 'a.b']
+        const t = testResult('./a.f.mjs', path, { result: ok(undefined), duration: 0 })
+        assertEq(t.name, fmtImport('./a.f.mjs', path))
+        assertEq(t.name, 'import("./a.f.mjs").proof.nested()["a.b"]()')
+        assertEq(t.path, fmtPath(path))
+    },
+}
+
+/**
+ * `addResult` is where every runner turns a stream of leaf results into the
+ * run's totals — the summary line, the exit code and the browser report's
+ * counts all read this fold — so the fold itself is pinned here, not only its
+ * end-to-end effects.
+ */
+const runTotalsProofs = {
+    startsEmpty: () => {
+        assertEq(zeroTotals.passed, 0)
+        assertEq(zeroTotals.failed, 0)
+        assertEq(zeroTotals.duration, 0)
+    },
+    countsByTheSharedStatus: () => {
+        const pass = testResult('./a.f.mjs', ['x'], { result: ok(1), duration: 0.5 })
+        const fail = testResult('./a.f.mjs', ['y'], { result: error('boom'), duration: 2 })
+        const totals = [pass, fail, pass].reduce(addResult, zeroTotals)
+        assertEq(totals.passed, 2)
+        assertEq(totals.failed, 1)
+        assertEq(totals.duration, 3)
+    },
+}
+
 export const proof = {
+    testResult: testResultProofs,
+    runTotals: runTotalsProofs,
     throw: {
         registerBodyPanicsOnUndispatchableEffect,
     },

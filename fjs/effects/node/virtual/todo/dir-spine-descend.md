@@ -82,5 +82,6 @@ as-is.
 ### Related
 
 - [resolve-file-helper](./resolve-file-helper.md) — leaf-level counterpart.
-- [name-entity-kind-discrimination-once](./name-entity-kind-discrimination-once.md)
-  — the guards above should use those predicates once extracted.
+- name-entity-kind-discrimination-once (retired; shipped as `isBinFile`,
+  `isJsModule`, and `isDir` in [`../module.f.mjs`](../module.f.mjs)) — the
+  guards above should use those predicates.

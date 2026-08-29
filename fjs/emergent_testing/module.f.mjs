@@ -3,7 +3,7 @@
  *
  * Two parallel execution paths:
  * - `runModule` / `Reporter<O>` — self-hosted Effects runner used by `fjs t`;
- *   sandboxes each leaf call individually and accumulates `TestState`.
+ *   sandboxes each leaf call individually and accumulates `RunTotals`.
  * - `registerModule` / `TestContext` — registers tests with an external
  *   framework (Node `--test`, Bun, Deno) at import time; the framework owns
  *   scheduling and pass/fail counting.
@@ -11,14 +11,15 @@
  * @module
  *
  * @import { Operation } from '../effects/types.ts'
+ * @import { Result } from '../types/result/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
- * @import { TestFn, TestEntry, TestSet, Path, Reporter, _TestState, _TestAndPath } from './types.ts'
- * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
+ * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunTotals, TestResult, _TestAndPath } from './types.ts'
+ * @import { All, Await, Catch, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  */
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
-import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
+import { allOk, awaitIfPromise, catch_, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import {
     catchStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step,
 } from '../effects/module.f.mjs'
@@ -26,13 +27,36 @@ import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
 
-/** @type {(delta: number) => (ts: _TestState) => _TestState} */
-const addPass = delta => ts =>
-    ({ ...ts, time: ts.time + delta, pass: ts.pass + 1 })
+/**
+ * The empty {@link RunTotals}: what a run's totals are before any leaf lands.
+ *
+ * @type {RunTotals}
+ */
+export const zeroTotals = { passed: 0, failed: 0, duration: 0 }
 
-/** @type {(delta: number) => (ts: _TestState) => _TestState} */
-const addFail = delta => ts =>
-    ({ ...ts, time: ts.time + delta, fail: ts.fail + 1 })
+/**
+ * Folds one leaf-landed event into a run's totals.
+ *
+ * This is where "did the run pass" is decided, for every runner: the counts
+ * come from each result's shared `status`, so the summary line, the exit code
+ * and the browser report's totals all read the same fold of the same events
+ * rather than each counting their own way.
+ *
+ * @type {(totals: RunTotals, r: TestResult) => RunTotals}
+ */
+export const addResult = (totals, r) => ({
+    passed: totals.passed + (r.status === 'passed' ? 1 : 0),
+    failed: totals.failed + (r.status === 'failed' ? 1 : 0),
+    duration: totals.duration + r.duration,
+})
+
+/**
+ * The empty entry list, named so the three places that mean "this leaf has no
+ * sub-tree" share one value rather than three literals.
+ *
+ * @type {readonly _TestAndPath[]}
+ */
+const emptyEntries = []
 
 /** @type {(a: number) => string} */
 const timeFormat = a => {
@@ -154,49 +178,80 @@ export const registerModule = (ctx, k, v, star) => {
     return mapStep(allOk(...tests.map(e => registerOne(ctx, e))), () => undefined)
 }
 
-/** @type {(a: _TestState, b: _TestState) => _TestState} */
-const mergeState = (a, b) =>
-    ({ time: a.time + b.time, pass: a.pass + b.pass, fail: a.fail + b.fail })
-
-/** @type {_TestState} */
-const zero = { time: 0, pass: 0, fail: 0 }
+/** @type {(a: RunTotals, b: RunTotals) => RunTotals} */
+const mergeTotals = (a, b) =>
+    ({ passed: a.passed + b.passed, failed: a.failed + b.failed, duration: a.duration + b.duration })
 
 /**
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(k: string, v: unknown) => (ts: _TestState) => Effect<O | All, _TestState, IoChannel>}
+ * @returns {(k: string, v: unknown) => (ts: RunTotals) => Effect<O | All | Catch, RunTotals, IoChannel>}
  */
 const runModule = ({ result, test }) => (k, v) => ts => {
-    /** @type {(entry: _TestAndPath) => Effect<O | All, _TestState, IoChannel>} */
+    /** @type {(entry: _TestAndPath) => Effect<O | All | Catch, RunTotals, IoChannel>} */
     const one = ([testPath, set]) => {
-        // The sandbox result is still needed after it has been reported, so the
-        // reporting call is captured rather than nested inside its own step.
+        // The leaf's shared record is built here, next to the sandbox result it
+        // is read from, so the leaf-landed event carries the value already
+        // decided — a reporter renders `t`, it does not derive its own.
+        //
+        // **Reading the returned sub-tree is guarded, because reading it runs
+        // user code.** `collectTests` enumerates what the leaf returned, so an
+        // enumerable getter or a proxy trap in that value throws *here* — and
+        // that is a failure of the leaf which produced it, not of the run.
+        // Unguarded it unwinds the whole traversal, taking with it the results
+        // of every module that had already passed. The read happens before the
+        // leaf is reported, so its failure is part of what gets reported rather
+        // than a correction issued after the fact.
+        const evaluated = step(test(k, testPath, set), sr => {
+            const t = testResult(k, testPath, sr)
+            if (t.status !== 'passed' || set.throws) {
+                return pureOk(/** @type {const} */ ([t, sr, emptyEntries]))
+            }
+            // null marks the call boundary, so paths render as
+            // `outer().inner`; `throws` resets to false inside a return value.
+            const read = /** @type {Effect<Catch, Result<readonly _TestAndPath[], unknown>, NotImplemented>} */ (
+                catch_(() => collectTests([...testPath, null], false, sr.result[1])))
+            return mapStep(
+                read,
+                r => r[0] === 'ok'
+                    ? /** @type {const} */ ([t, sr, r[1]])
+                    // The leaf answers for a tree nothing can read. Its own
+                    // duration is kept — that is what running it took — while
+                    // the result handed to the reporter carries the reading
+                    // failure, so a host that describes a thrown value
+                    // describes this one.
+                    : /** @type {const} */ ([
+                        { ...t, status: 'failed' },
+                        { ...sr, result: r },
+                        emptyEntries,
+                    ]))
+        })
+        // Both are still needed after they have been reported, so the reporting
+        // call is captured rather than nested inside its own step.
         const reported = historyStep(
-            history(test(k, testPath, set)),
-            sr => result(k, testPath, sr, set.throws))
+            history(evaluated),
+            ([t, sr]) => result(t, sr, set.throws))
         return step(
             reported,
-            ([, sr]) => {
-                const { result: [s, r], duration } = sr
-                if (s !== 'ok') {
-                    return pureOk(addFail(duration)(zero))
+            ([, [t, sr, children]]) => {
+                const total = addResult(zeroTotals, t)
+                if (children.length === 0) {
+                    return pureOk(total)
                 }
-                if (set.throws) {
-                    return pureOk(addPass(duration)(zero))
-                }
-                // Walk return-value sub-tree; null marks the call boundary so
-                // paths render as e.g. `outer().inner`. throws resets to false.
                 return mapStep(
-                    walk([...testPath, null], false, r),
-                    sub => mergeState(addPass(duration)(zero), sub))
+                    walkEntries(children),
+                    sub => mergeTotals(total, sub))
             })
     }
-    /** @type {(path: Path, throws: boolean, v: unknown) => Effect<O | All, _TestState, IoChannel>} */
-    const walk = (path, throws, v) => {
-        const effects = collectTests(path, throws, v).map(one)
-        return mapStep(allOk(...effects), states => states.reduce(mergeState, zero))
-    }
-    return mapStep(walk([], false, v), delta => mergeState(ts, delta))
+    /** @type {(entries: readonly _TestAndPath[]) => Effect<O | All | Catch, RunTotals, IoChannel>} */
+    const walkEntries = entries =>
+        mapStep(allOk(...entries.map(one)), states => states.reduce(mergeTotals, zeroTotals))
+    // The *module's* own export is read unguarded, and that asymmetry is
+    // deliberate rather than an oversight: there is no leaf to attribute it to,
+    // so an unreadable `proof` export is whatever loaded the module's problem.
+    // `fjs t` panics on one; the browser page catches it and reports one failed
+    // module. See `todo/hostile-proof-values.md`.
+    return mapStep(walkEntries(collectTests([], false, v)), delta => mergeTotals(ts, delta))
 }
 
 /** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
@@ -211,21 +266,21 @@ const proofEntries = moduleMap =>
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(moduleMap: ModuleMap) => Effect<O | All, number, IoChannel>}
+ * @returns {(moduleMap: ModuleMap) => Effect<O | All | Catch, number, IoChannel>}
  */
 export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
     const modules = proofEntries(moduleMap)
     const total = mapStep(
-        allOk(...modules.map(([k, v]) => runModule(reporter)(k, v)(zero))),
-        m => m.reduce(mergeState, zero))
+        allOk(...modules.map(([k, v]) => runModule(reporter)(k, v)(zeroTotals))),
+        m => m.reduce(mergeTotals, zeroTotals))
     // The totals are still needed after the summary has been printed, so they
     // are carried forward in a history rather than closed over by a nested
     // continuation.
     const reported = historyStep(
         history(total),
-        ts => summary(ts.pass, ts.fail, ts.time))
-    return mapStep(reported, ([, ts]) => ts.fail !== 0 ? 1 : 0)
+        summary)
+    return mapStep(reported, ([, ts]) => ts.failed !== 0 ? 1 : 0)
 }
 
 /**
@@ -264,7 +319,7 @@ const exitCodeStep = e =>
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {Program<O | All | LoadModuleOperations | Write>}
+ * @returns {Program<O | All | Catch | LoadModuleOperations | Write>}
  */
 export const testAll = reporter => options =>
     exitCodeStep(step(loadModuleMap(options.env), runModuleMap(reporter)))
@@ -331,22 +386,6 @@ export const fmtImport = (file, path) =>
     `import(${JSON.stringify(file)}).proof${fmtPath(path)}()`
 
 /**
- * Renders a key chain for terminal output: `| ` per level of depth, followed
- * by the last segment formatted as a bare integer, a bare identifier, or a
- * JSON-quoted string. E.g. `['math', 'add']` → `| | add`,
- * `['a', '0']` → `| | 0`, `['x', 'hello world']` → `| | "hello world"`.
- *
- * @type {(path: Path) => string}
- */
-export const fmtTerm = path => {
-    const keys = path.flatMap(k => k !== null ? [k] : [])
-    const indent = '| '.repeat(keys.length)
-    if (keys.length === 0) { return `${indent}()` }
-    const last = keys[keys.length - 1]
-    return `${indent}${isInteger(last) || isIdentifier(last) ? last : JSON.stringify(last)}`
-}
-
-/**
  * Percent-encodes characters that GitHub workflow-command property values
  * treat as separators (`%`, `:`, `,`) plus newlines.
  * https://docs.github.com/en/actions/learn-github-actions/workflow-commands-for-github-actions
@@ -369,9 +408,33 @@ export const ghEscape = s =>
 export const defaultTest = (file, path, { fn, throws }) =>
     mapStep(sandbox(fn), r => throws ? { ...r, result: invert(r.result) } : r)
 
-/** @type {(file: string, path: Path, color: string, label: string, duration: number) => string} */
-const fmtResultLine = (file, path, color, label, duration) =>
-    `${fmtImport(file, path)}: ${color}${label}${reset}, ${timeFormat(duration)}`
+/**
+ * Normalizes one leaf's outcome: its identity, whether it passed, and how long
+ * it took.
+ *
+ * `r` is the result *after* the throw expectation has been applied — what
+ * {@link defaultTest} answers — so `ok` means the leaf did what it was supposed
+ * to, whether that was returning or throwing. Inverting first and normalizing
+ * second is what lets one status rule serve both cases.
+ *
+ * Every runner builds its report through this, so "what is this test called"
+ * and "did it pass" are answered once rather than once per host. What a runner
+ * does with the answer — a coloured line, a row in a page, a JSON record — is
+ * its own.
+ *
+ * @type {(file: string, path: Path, r: SandboxResult<unknown>) => TestResult}
+ */
+export const testResult = (file, path, { result: [s], duration }) => ({
+    module: file,
+    path: fmtPath(path),
+    name: fmtImport(file, path),
+    status: s === 'ok' ? 'passed' : 'failed',
+    duration,
+})
+
+/** @type {(r: TestResult, color: string, label: string) => string} */
+const fmtResultLine = ({ name, duration }, color, label) =>
+    `${name}: ${color}${label}${reset}, ${timeFormat(duration)}`
 
 /**
  * The terminal/GitHub reporter used by `fjs t`. Output goes through
@@ -399,22 +462,24 @@ export const defaultReporter = options => {
     const isGitHub = options.env['GITHUB_ACTIONS'] !== undefined
     return {
         // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-        result: (file, path, { result: [s, v], duration }, throws) =>
-            s === 'ok'
-                ? csiLog(fmtResultLine(file, path, fgGreen, 'ok', duration) + (throws ? ' # EXPECTED TO THROW' : ''))
+        result: (t, r, throws) => {
+            const v = r.result[1]
+            return t.status === 'passed'
+                ? csiLog(fmtResultLine(t, fgGreen, 'ok') + (throws ? ' # EXPECTED TO THROW' : ''))
                 : isGitHub
-                    ? csiError(`::error file=${file},line=1,title=${ghEscape(fmtImport(file, path))}::${ghEscape(String(v))}`)
+                    ? csiError(`::error file=${t.module},line=1,title=${ghEscape(t.name)}::${ghEscape(String(v))}`)
                     // `step`, so the detail line is attempted only when the
                     // header line was written: two halves of one report, and
                     // half of it is worse than none.
                     : step(
-                        csiError(fmtResultLine(file, path, fgRed, 'error', duration)),
-                        () => csiError(`${fgRed}${v}${reset}`)),
-        summary: (pass, fail, time) => {
-            const fgFail = fail === 0 ? fgGreen : fgRed
+                        csiError(fmtResultLine(t, fgRed, 'error')),
+                        () => csiError(`${fgRed}${v}${reset}`))
+        },
+        summary: ({ passed, failed, duration }) => {
+            const fgFail = failed === 0 ? fgGreen : fgRed
             return step(
-                csiLog(`${bold}Number of tests: pass: ${fgGreen}${pass}${reset}${bold}, fail: ${fgFail}${fail}${reset}${bold}, total: ${pass + fail}${reset}`),
-                () => csiLog(`${bold}Time: ${timeFormat(time)}${reset}`))
+                csiLog(`${bold}Number of tests: pass: ${fgGreen}${passed}${reset}${bold}, fail: ${fgFail}${failed}${reset}${bold}, total: ${passed + failed}${reset}`),
+                () => csiLog(`${bold}Time: ${timeFormat(duration)}${reset}`))
         },
         test: defaultTest,
     }
