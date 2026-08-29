@@ -121,6 +121,25 @@ Each dialect module then states its schema and (for `revision`/`lock`) its
 `checkReferences`, re-exporting the derived kit — the module's JSDoc keeps
 describing the format, the mechanics live once.
 
+**Re-export under the existing names.** The kit's `entry` is generic, but
+each module publishes its own: `revisionDialect` (`../revision/module.f.mjs:276`),
+`lockDialect` (`../lock/module.f.mjs:131`), and `noteDialect`
+(`../note/module.f.mjs:138`). These are not proof-only conveniences —
+`../../mcp/cas/module.f.mjs:120-122` imports all three and passes them to
+`detect` at `:168`, and `../module.f.mjs:17` names them in its own JSDoc — so
+spreading the kit and letting `entry` stand would delete three public names
+that production code depends on. Each module keeps its own:
+
+```js
+export const revisionDialect = kit.entry
+```
+
+The same applies to every other name the modules publish today: `dialect`,
+`mediaType`, `encodeText`, `validate`, `decodeText`, and `isHash` on
+`revision`. The factory supplies the values; the module still spells out
+what it exports, so the public surface is unchanged by construction rather
+than by inspection.
+
 For the media type, share the **rule**, not a field on the entry:
 
 ```js
@@ -153,7 +172,14 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
       dialects. `note`'s `validate` stays `Result<Note, ValidationError>`
       with no `string`, which is the case that catches an over-wide `E`.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
-      copies and the two `isValid…` adapters.
+      copies and the two `isValid…` adapters. Keep every published name —
+      `revisionDialect`/`lockDialect`/`noteDialect` aliasing the kit's
+      `entry`, plus `dialect`, `mediaType`, `encodeText`, `validate`,
+      `decodeText`, and `revision`'s `isHash`.
+- [ ] Diff the three modules' `.d.mts` against the pre-change ones: the set
+      of exported names and their types should be identical. That is the
+      check, not reading the diff — `../../mcp/cas/module.f.mjs:120-122` is
+      production code importing the three entry names.
 - [ ] `npx tsc`, `fjs t`; the media and mcp proofs pass unchanged.
 
 ### Related
