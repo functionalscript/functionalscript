@@ -81,8 +81,14 @@ export const platformNodeSteps = version => [
 ]
 
 /**
- * The last job still installing its runtime with `setup-node`. Its version check
- * comes before `npm ci` rather than after: `npm ci` runs `preinstall`/`install`/
+ * The last job still installing its runtime with `setup-node`, and now the same
+ * suite Node 24 runs, on Node 22. It carried `fjs test` and the global install
+ * that fed it only because Node 22 could not run `node --test`; it can, and
+ * does, so the pair is gone. What the global install also happened to
+ * exercise — the published CLI — is the platform matrix's job and the subject
+ * of `built-package-checks.md`, not this one's.
+ *
+ * Its version check comes before `npm ci` rather than after: `npm ci` runs `preinstall`/`install`/
  * `postinstall` hooks from the project and its dependencies, so a runner handed
  * a different patch release would execute that code on the wrong Node and could
  * fail there instead of on the diagnostic written for it.
@@ -91,14 +97,12 @@ export const platformNodeSteps = version => [
  * and gets no check — its Windows jobs run `run` steps under PowerShell, where
  * this POSIX spelling would not survive.
  *
- * @type {(version: string) => readonly MetaStep[]}
+ * @type {readonly MetaStep[]}
  */
-const node22Steps = version => [
+const node22Steps = [
     install(installNode(node.node22)),
     nodeVersionStep('node --version', node.node22),
     test({ run: 'npm ci' }),
-    fjsGlobalInstall(version),
-    test({ run: 'fjs test' }),
     test({ run: 'node --test' }),
 ]
 
@@ -162,21 +166,15 @@ const node26NixSteps = [
 /** @type {(steps: readonly MetaStep[]) => Job} */
 const nodeJob = steps => ubuntuArm(steps)
 
-/** @type {(version: string) => Jobs} */
-export const nodeVersionJobs = version => ({
-    [jobId(node.node22)]: nodeJob(node22Steps(version)),
+/** @type {() => Jobs} */
+export const nodeVersionJobs = () => ({
+    [jobId(node.node22)]: nodeJob(node22Steps),
     [jobId(node.node24)]: nodeJob(node24NixSteps),
     [jobId(node.default)]: nodeJob(node26NixSteps),
 })
 
 // The canonical Node jobs run on the Ubuntu ARM runner.
 export const nixSystem = /** @type {const} */ ('aarch64-linux')
-
-// Keeps `npm install -g functionalscript` writable and puts the installed `fjs`
-// on `PATH` for the rest of the same `nix develop` invocation.
-const npmGlobalShellHook = /** @type {const} */ (`export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
-mkdir -p "$NPM_CONFIG_PREFIX"`)
 
 /** @type {(version: string) => NixJob} */
 const nixJob = version => ({
@@ -190,7 +188,7 @@ const nixJob = version => ({
  * @type {readonly NixJob[]}
  */
 export const nodeNixJobs = [
-    { ...nixJob(node.node22), shellHook: npmGlobalShellHook },
+    nixJob(node.node22),
     nixJob(node.node24),
     nixJob(node.default),
 ]

@@ -12,12 +12,10 @@ job that instantiated them to check them is gone, and what can be established ab
 generated file is established by proofs over the generator's output. See the progress
 note in [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
 
-What remains here is the Nixpkgs update command and **Node 22**, which is the one job
-that needs its flake's `shellHook`: it installs the FunctionalScript package globally and
-runs the installed `fjs` in a later step. That check is proposed for a different job
-entirely — see
-[built-package-checks](built-package-checks.md) — which would take the `shellHook` with
-it and leave Node 22 as mechanical as the other two.
+What remains here is the Nixpkgs update command and **Node 22**, now as mechanical as the
+other two: it runs `npm ci` and `node --test` and nothing else. It carried `fjs test` and
+a global install only because Node 22 could not run `node --test`; both are gone, and the
+`shellHook` that existed for them with them.
 
 ### Problem
 
@@ -130,18 +128,11 @@ system-selection framework.
 Node 22, Node 24, and Node 26 remain separate because they use different runtimes and run
 different command sequences.
 
-The Node 22 flake adds one explicit job-local field for its existing global install:
-
-```nix
-shellHook = ''
-  export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-  export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
-  mkdir -p "$NPM_CONFIG_PREFIX"
-'';
-```
-
-Do not generalize this into a shell-configuration framework unless another surviving job
-proves that abstraction useful.
+No job declares a `shellHook`. The generator still emits one — a job needing environment
+set up on shell entry can declare it, and `fjs/ci/nix/proof.f.mjs` holds that capability
+to its shape — but Node 22's, which existed for a global install the job no longer makes,
+is gone. Do not generalize this into a shell-configuration framework unless a surviving
+job proves that abstraction useful.
 
 #### Nixpkgs update
 
@@ -209,10 +200,10 @@ This is also why no flake needs to declare `git`, and why it never matters wheth
 commands that must run on the pinned toolchain go through it.
 
 Re-entering the shell per step costs nothing the bundle was buying. `nix develop` runs
-the shell's `shellHook` on every entry, so a job-local environment is re-established for
-each step rather than exported across them, and what such a hook puts on disk — the
-Node 22 `$HOME/.npm-global` prefix — persists across steps anyway. Each step still names
-the flake, so no step falls back to the runner's preinstalled Node.
+the shell's `shellHook` on every entry, so a job-local environment would be
+re-established for each step rather than exported across them, and what such a hook puts
+on disk persists across steps anyway. Each step still names the flake, so no step falls
+back to the runner's preinstalled Node.
 
 For each job:
 
@@ -252,7 +243,6 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Verify all required Node package attributes exist in the candidate snapshot.
 - [x] Generate one readable self-contained flake per Node job with
       `devShells.aarch64-linux.default`.
-- [x] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
 - [x] Ignore `/nix/*/flake.lock`.
 - [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.

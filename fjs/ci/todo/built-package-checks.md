@@ -5,15 +5,18 @@
 
 ### Problem
 
-Nine CI jobs install `functionalscript` and run it. Every one of them installs
+Eight CI jobs install `functionalscript` and run it. Every one of them installs
 it **from the registry**, at a version that is not the commit under review:
 
 | job | steps |
 |-----|-------|
 | the six platform jobs, through `nodeMainSteps` → `platformNodeSteps` (`../node/module.f.mjs`) | `npm install -g functionalscript@<version>`, `fjs test` |
-| `node22`, through `node22Steps` (same module) | the same pair |
 | `deno` (`../deno/module.f.mjs`) | `deno install -g -A --minimum-dependency-age=0 npm:functionalscript@<version>`, `deno run -A --minimum-dependency-age=0 npm:functionalscript@<version> test` |
 | `bun` (`../bun/module.f.mjs`) | `bun install -g functionalscript@<version>`, `bunx functionalscript@<version> test` |
+
+`node22` was a ninth until it lost `fjs test` and the install feeding it. Those
+were there because Node 22 could not run `node --test`, not to check a package,
+and the job runs the suite directly now.
 
 `<version>` is `functionalscript` in `../config/module.f.mjs`, and its comment
 states the intent: a **published release** (0.47.0 today), deliberately not
@@ -28,26 +31,7 @@ type-checks the declarations it ships — never runs it.
 
 There is a second problem underneath: a job named for a runtime proves two
 unrelated things, so "where does CI test the package?" has one right answer and
-nine other places that also claim to.
-
-### What it costs the Nix migration
-
-`nix/node22/flake.nix` is the one generated flake carrying a `shellHook`:
-
-```nix
-shellHook = ''
-  export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-  export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
-  mkdir -p "$NPM_CONFIG_PREFIX"
-'';
-```
-
-It exists so `npm install -g` has somewhere writable inside the shell and the
-installed `fjs` is on `PATH` for a later step — the package check, not the Node
-22 runtime. Note that changing where the package comes from does **not** remove
-it: a global install of a tarball needs the same prefix. The hook goes only when
-the check leaves `node22`, taking `NixJob.shellHook`'s only declared user with
-it and making Node 22's migration as mechanical as Node 24's.
+eight other places that also claim to.
 
 ### Proposal
 
@@ -71,9 +55,10 @@ installed CLI. Same module, same artifact, different runner requirements.
 #### What falls out
 
 - **`functionalscript` in `../config/module.f.mjs` loses every consumer.** It is
-  read only by `nodeMainSteps`, `denoSteps`, `bunSteps` and `nodeVersionJobs`
-  (`../module.f.mjs:41,54,55,56`), all of which are the steps above. The
-  constant, and the manual bump it needs after every release, go away.
+  read only by `nodeMainSteps`, `denoSteps` and `bunSteps`, all of which are the
+  steps above — `nodeVersionJobs` stopped taking it when Node 22 lost its global
+  install. The constant, and the manual bump it needs after every release, go
+  away.
 - **Deno's `--minimum-dependency-age=0` loses its reason.** Its comment says the
   flag is there to install a package younger than 24 hours from the registry.
   A tarball on disk has no dependency age.
@@ -116,20 +101,20 @@ installed CLI. Same module, same artifact, different runner requirements.
 - [ ] Confirm the global-install spelling for a local tarball on each runtime
 - [ ] Generate the checks from `fjs/ci/package`, consuming `packageArtifact`
       with `needs: [packageJobId]`
-- [ ] Remove the registry installs from `platformNodeSteps`, `node22Steps`,
-      `denoSteps` and `bunSteps`
+- [ ] Remove the registry installs from `platformNodeSteps`, `denoSteps` and
+      `bunSteps`
 - [ ] Delete `functionalscript` from `../config/module.f.mjs` once nothing reads
       it, and drop Deno's `--minimum-dependency-age=0` with its reason
-- [ ] Drop `nix/node22`'s `shellHook`, and `NixJob.shellHook` with it if nothing
-      else declares one
+- [ ] Consider dropping `NixJob.shellHook`: no job declares one since Node 22's
+      global install left, so only `fjs/ci/nix/proof.f.mjs` holds the capability
 - [ ] Update `../proof.f.mjs`: the job count, the per-job assertions, and
       `jobNeeds`'s ordering count
 
 ### Related
 
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) and
-  [65Z-ci-nix](65z-ci-nix.md) — the Node 22 migration whose `shellHook` this
-  removes the reason for
+  [65Z-ci-nix](65z-ci-nix.md) — the Node jobs, all three of which are now free of
+  published-package steps
 - [667-ci-self-test-script](667-ci-self-test-script.md) — a package self-test
   convention; it describes checks run against the freshly packed tarball, which
   is the same artifact this issue installs

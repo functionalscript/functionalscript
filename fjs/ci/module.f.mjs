@@ -53,7 +53,7 @@ const canonicalJobs = (rust, pin) => ({
     ...(rust ? { wasm: ubuntuArm(rustWasmSteps) } : {}),
     deno: ubuntuArm(denoSteps(functionalscript)),
     bun: ubuntuArm(bunSteps(functionalscript)),
-    ...nodeVersionJobs(functionalscript),
+    ...nodeVersionJobs(),
     ...(pin === undefined ? {} : { [packageCheckJobId]: packageCheckJob(pin) }),
 })
 

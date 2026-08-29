@@ -54,10 +54,10 @@ Still open: the `npm run ci-nix-update` command (phase 1's automation — the
 versions were read from the snapshot by hand), removal of stale generated job
 directories, and Node 22. Stale-directory removal needs a recursive `rm`
 effect — today's `rm` operation only deletes files. Node 22 is not a repeat of
-the other two: it is the only job that needs its flake's `shellHook`, because it
-installs the FunctionalScript package globally and runs the installed `fjs` in a
-later step. [built-package-checks](built-package-checks.md) proposes moving that
-check to the job whose subject it is, which would take the `shellHook` with it.
+the other two: it runs `npm ci` and `node --test` and nothing else. `fjs test`
+and the global install feeding it were there only because Node 22 could not run
+`node --test`, and the flake `shellHook` existed only for that install; all three
+are gone.
 
 ### Problem
 
@@ -182,21 +182,13 @@ this root `.gitignore` rule:
 The rule matches one level down, so it is limited to the generated per-job flakes. A
 future intentional `nix/flake.lock` remains visible to Git.
 
-##### Node 22 global installation
+##### Shell hooks
 
-The Node 22 flake adds this job-local field to its `pkgs.mkShell` expression:
-
-```nix
-shellHook = ''
-  export NPM_CONFIG_PREFIX="$HOME/.npm-global"
-  export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
-  mkdir -p "$NPM_CONFIG_PREFIX"
-'';
-```
-
-This keeps `npm install -g functionalscript` writable and makes `fjs` available to the
-remaining commands in the same Nix process. Do not introduce a generalized shell-setup
-schema for this one requirement.
+No job declares one. Node 22's kept `npm install -g functionalscript` writable and
+put the installed `fjs` on `PATH`, and went when that install did. The generator
+still emits a `shellHook` for a job that declares one, and
+`fjs/ci/nix/proof.f.mjs` holds that capability to its shape; do not introduce a
+generalized shell-setup schema until a job needs it.
 
 #### Phase 3: validate independently
 
@@ -210,9 +202,9 @@ nix develop ./nix/<job> --command <command>
 A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7): a bundled
 `bash -c` script collapses the job into a single red result naming the wrapper rather
 than the command that failed. Re-entering the shell per step loses nothing — `nix
-develop` runs the `shellHook` on every entry, and what a hook puts on disk persists
-across steps regardless — while each step names the flake, so none can fall back to the
-runner's preinstalled Node.
+develop` would run a `shellHook` on every entry, and what such a hook puts on disk
+persists across steps regardless — while each step names the flake, so none can fall back
+to the runner's preinstalled Node.
 
 A step names the flake only when it needs a tool the flake pins. Node 26's sequence is
 the case that shows the difference: `npm run ci-update`, `npx tsc`, `npm run cov` and
@@ -229,10 +221,8 @@ two migrations — the instruction sheet for the third:
 
 ```text
 node22 (setup-node):
-  npm install -g functionalscript@<configured>   # install phase, before checkout
   test "$(node --version)" = v<configured>
   npm ci
-  fjs test
   node --test
 
 node24 (flake):
@@ -257,8 +247,8 @@ every earlier step's output.
 
 The workflow generator supplies the configured versions; the list records command
 families and their order. Other TODOs may change a job's required tools or commands
-independently — [built-package-checks](built-package-checks.md) proposes moving Node
-22's global install and `fjs test` out of it entirely.
+independently. Node 22 lost its global install and `fjs test` outright: it carried them
+only because it could not run `node --test`.
 
 For each Node job:
 
@@ -299,7 +289,6 @@ milestone.
 - [x] Verify the three required Node package attributes exist.
 - [x] Generate separate Node 22, Node 24, and Node 26 flakes with
       `devShells.aarch64-linux.default`.
-- [x] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
 - [x] Add `/nix/*/flake.lock` to `.gitignore`.
 - [x] Keep ordinary generation Nix-independent and Windows-compatible.

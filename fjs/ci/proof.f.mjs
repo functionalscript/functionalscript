@@ -125,7 +125,12 @@ export const proof = {
         assert(hasRunInJob('wasm', 'cargo clippy --target wasm32-wasip1-threads -- -D warnings')(gha), 'expected WASM threads lint')
         assert(!hasExactRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads')(gha), 'unexpected Wasmtime WASM threads check')
         assert(!hasExactRunInJob('wasm', 'cargo test --target wasm32-wasip1-threads --release')(gha), 'unexpected Wasmtime WASM threads release check')
-        assert(hasRunInJob('node22', 'fjs test')(gha), 'expected Node 22 FunctionalScript smoke test')
+        // Node 22 runs the suite the way every other Node job does. `fjs test`
+        // and the global install that fed it were there only because Node 22
+        // could not run `node --test`.
+        assert(hasRunInJob('node22', 'node --test')(gha), 'expected the Node 22 suite')
+        assert(!hasRunInJob('node22', 'fjs test')(gha), 'unexpected published-CLI smoke test in node22')
+        assert(!hasRunInJob('node22', 'npm install -g')(gha), 'unexpected global install in node22')
         assert(hasRunInJob('node26', 'npm pack')(gha), 'expected Node 26 package check')
         assert(hasRunInJob('node26', 'npm run ci-update')(gha), 'expected Node 26 workflow regeneration')
         assert(hasRunInJob('node26', 'git add -A && git diff --cached --exit-code')(gha), 'expected Node 26 generated-file drift check')

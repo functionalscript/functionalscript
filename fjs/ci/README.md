@@ -67,10 +67,9 @@ plain text built from the pinned commit in `config/module.f.mjs`.
 
 Each canonical Node job declares a system and its Nixpkgs package attribute in
 `node/module.f.mjs` (`nodeNixJobs`), and `nix/module.f.mjs` writes it out as one
-static `flake.nix` exposing `devShells.<system>.default`. Node 22 also declares a
-job-local `shellHook` that points `npm install -g` at `$HOME/.npm-global`, so the
-installed `fjs` stays on `PATH` for the rest of the same `nix develop` invocation.
-See [nix/README.md](../../nix/README.md) for how the generated files are meant to be
+static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
+job-local `shellHook`, run on every entry to the shell; none does today. See
+[nix/README.md](../../nix/README.md) for how the generated files are meant to be
 consumed.
 
 Every runtime uses the same Node versions. `config/module.f.mjs` records the versions
@@ -99,11 +98,10 @@ therefore first evaluated when its job migrates, which today means Node 22's.
 ### Expected package scripts
 
 The generated platform jobs run `npm ci`, install the pinned FunctionalScript
-package globally, and run `fjs test`. Canonical Node jobs run on Ubuntu ARM and are
-split by Node version:
+package globally, and run `fjs test` — the only jobs that exercise the published
+CLI. Canonical Node jobs run on Ubuntu ARM and are split by Node version:
 
-- Node 22 runs `npm ci` on the runtime `setup-node` installs, installs the pinned
-  FunctionalScript package globally, and runs `fjs test`.
+- Node 22 runs `npm ci` and `node --test` on the runtime `setup-node` installs.
 - Node 24 runs `npm ci` and `node --test` through its generated flake, one
   `nix develop` step per command.
 - Node 26 runs `npm ci`, `npx tsc`, `npm run cov`, `npm pack` and `npm run ci-update`

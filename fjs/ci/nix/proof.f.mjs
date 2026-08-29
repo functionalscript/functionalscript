@@ -28,7 +28,13 @@ const plain = {
     packages: ['nodejs_24'],
 }
 
-/** @type {NixJob} */
+/**
+ * No declared job needs a `shellHook` any more — Node 22's went with the global
+ * install it existed for. The generator still emits one, and this fixture is
+ * what holds that capability to its shape.
+ *
+ * @type {NixJob}
+ */
 const withShellHook = {
     ...plain,
     id: 'node22',
@@ -90,13 +96,6 @@ export const proof = {
             for (const job of nodeNixJobs) {
                 assertEq(generated(nodeNixJobs, job.id), flakeText(job))
             }
-        },
-        nodeShellHook: () => {
-            const [node22] = nodeNixJobs
-            assert(node22.shellHook !== undefined, 'expected a Node 22 shell hook')
-            assert(
-                generated(nodeNixJobs, node22.id).includes('$HOME/.npm-global'),
-                'expected the Node 22 global installation prefix')
         },
         packages: () => {
             for (const { id, packages } of nodeNixJobs) {

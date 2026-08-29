@@ -441,9 +441,6 @@
           }
         },
         {
-          "run": "npm install -g functionalscript@0.47.0"
-        },
-        {
           "uses": "actions/checkout@v7.0.1"
         },
         {
@@ -451,9 +448,6 @@
         },
         {
           "run": "npm ci"
-        },
-        {
-          "run": "fjs test"
         },
         {
           "run": "node --test"
