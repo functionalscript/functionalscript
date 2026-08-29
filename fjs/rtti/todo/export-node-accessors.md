@@ -53,8 +53,14 @@ in `rtti/ts`:
 
 - [ ] Export `resolve`, `isTop`, `isNever` from `fjs/rtti/data/module.f.mjs`
       with JSDoc; add proof coverage for the exported forms.
-- [ ] Rewrite `admitsUndefined` and `isTop` in `fjs/rtti/ts/module.f.mjs`
-      through the imports; drop the fake-`Data` `cmp` trick.
+- [ ] Rewrite `admitsUndefined`, `isTop`, **and `isNever`** in
+      `fjs/rtti/ts/module.f.mjs` through the imports; drop the fake-`Data`
+      `cmp` trick. `isNever` (`ts/module.f.mjs:236`) is the site that
+      actually spells that trick —
+      `cmp([{}, resolveNode(ctx)(n)])([{}, bottom]) === 0` — so leaving it
+      out would complete every task with the copy still standing. Resolve
+      the node before calling the imported `isNever`: data's returns `false`
+      for a string reference, which is why `ts`'s version resolves first.
 - [ ] `npx tsc`, `fjs t` — rtti proofs pass unchanged.
 
 ### Related
