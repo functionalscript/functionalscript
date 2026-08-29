@@ -61,7 +61,13 @@ export const proof = {
     // path passes through the shell, so a space or a quote in a directory name
     // has nothing to survive; an empty match is TS18003 rather than a pass.
     tscEnumerates: () => {
-        assert(scriptHas('"include":["node_modules/packed/**/*"]'), 'expected the artifact tree enumerated by tsc')
+        assert(scriptHas('"node_modules/packed/**/*"'), 'expected the artifact tree enumerated by tsc')
+        // npm's `**` walks into a dot-prefixed name and TypeScript's does not,
+        // so `files` publishes what a lone `**` would leave unchecked — even
+        // the package's own `types` entry point, and without saying so. Each
+        // pattern names a dot segment explicitly, which does match.
+        assert(scriptHas('"node_modules/packed/**/.*"'), 'expected dot-named files enumerated')
+        assert(scriptHas('"node_modules/packed/**/.*/**/*"'), 'expected declarations under a dot-named directory enumerated')
         // The default excludes node_modules, which is the only place the
         // artifact exists.
         assert(scriptHas('"exclude":[]'), 'expected node_modules not excluded')

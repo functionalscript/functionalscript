@@ -548,7 +548,7 @@
           "run": "npm install \"typescript@=7.0.2\""
         },
         {
-          "run": "echo '{\"include\":[\"node_modules/packed/**/*\"],\"exclude\":[],\"compilerOptions\":{\"module\":\"nodenext\",\"target\":\"esnext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":false}}' > tsconfig.json"
+          "run": "echo '{\"include\":[\"node_modules/packed/**/*\",\"node_modules/packed/**/.*\",\"node_modules/packed/**/.*/**/*\"],\"exclude\":[],\"compilerOptions\":{\"module\":\"nodenext\",\"target\":\"esnext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":false}}' > tsconfig.json"
         },
         {
           "run": "npx tsc"

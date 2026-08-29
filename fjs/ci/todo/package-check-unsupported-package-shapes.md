@@ -9,8 +9,8 @@
 installs the packed tarball and type-checks it. It works for a package shaped
 like this repository's, and three review findings on
 [#1767](https://github.com/functionalscript/functionalscript/pull/1767) named
-shapes it does not handle. Each was declined there; this file is where the
-answers live now.
+shapes it does not handle — one of them fixed as far as a glob can go, the rest
+declined. This file is where the answers live now.
 
 All three are the same question — how far does `fjs ci` go for a project that is
 not us? [`node26-typedef-gate-reaches-consumers.md`](./node26-typedef-gate-reaches-consumers.md)
@@ -29,7 +29,18 @@ Declined because the generator's other jobs do not depend on a pin and a project
 without one still wants them; the contract is written down in
 [`../README.md`](../README.md) instead.
 
-**3. A package that ships `.ts` sources and no declarations.** `include` is
+**3. A declaration under two consecutive dot-prefixed segments.**
+`.a/.b/x.d.ts` is packed by npm and skipped by `tsc`. npm's `**` walks into a
+dot-prefixed name and TypeScript's does not, so `include` names dot segments
+explicitly — `**/.*` and `**/.*/**/*`, which cover a dot-named file and
+anything under one dot-named directory at any depth. Two in a row still
+escape: the inner `**` has to cross the second. Closing it properly means
+enumerating the names, which needs a tool walking the tree and so needs
+approval under [root `AGENTS.md` §6](../../../AGENTS.md#6-external-tools).
+Nothing in this package ships a dot-prefixed path today; unlike the others
+this one *is* reachable, because `files` would publish such a file.
+
+**4. A package that ships `.ts` sources and no declarations.** `include` is
 `**/*`, so TypeScript sources are a nonempty root set and the `TS18003`
 empty-check never fires: `npx tsc` succeeds having checked no declaration.
 Unreachable here — root `package.json` `files` is an allowlist
@@ -51,7 +62,10 @@ What each would cost, so the next person does not re-derive it:
   generated step, which is new machinery for a case no consumer has.
 - **(2)** A `Result` from `ci(setup)` and an error path through `fjs ci`. Cheap;
   the question is whether refusing is right, not whether it is hard.
-- **(3)** Either enumerate declaration extensions in `include` — the
+- **(3)** A pattern per arrangement of dots does not converge — each new
+  pattern covers one more shape and there are unboundedly many. The complete
+  fix reads the installed tree's real names, so it is the §6 conversation.
+- **(4)** Either enumerate declaration extensions in `include` — the
   hand-written list removed in
   [5f90cda](https://github.com/functionalscript/functionalscript/commit/5f90cda),
   which review had already caught omitting `.d.cts` — or count declarations in a
@@ -63,8 +77,10 @@ What each would cost, so the next person does not re-derive it:
 
 - [ ] Establish whether any project outside this repository runs `fjs ci`. If
       none does, close (1) and (2) as speculative generality.
-- [ ] Build (3) the day root `package.json` `files` admits a `.ts` source, and
+- [ ] Build (4) the day root `package.json` `files` admits a `.ts` source, and
       not before.
+- [ ] Close (3) if the §6 conversation permits a tool that reads the installed
+      tree; until then a dot-in-dot path is an unchecked declaration.
 
 ### Related
 

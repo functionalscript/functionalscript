@@ -48,13 +48,27 @@ const alias = /** @type {const} */ ('packed')
  * `package.json` `files` is an allowlist with no pattern matching a source
  * file. Recorded in `../todo/package-check-unsupported-package-shapes.md`.
  *
+ * The three patterns are one rule TypeScript and npm disagree about: npm's
+ * `**` walks into a dot-prefixed name and TypeScript's does not. So `files`
+ * publishes `.d/x.d.ts` and a lone `**` would leave it unchecked — silently,
+ * and even when it is the package's `types` entry point. The extra patterns
+ * name a dot segment explicitly, which does match: `**\/.*` for a dot-named
+ * file, `**\/.*\/**\/*` for anything under a dot-named directory at any
+ * depth. Two dot segments in a row (`.a/.b/x.d.ts`) still escape, because the
+ * inner `**` has to cross `.b` — see the todo. Enumerating the names instead
+ * would need a tool walking the tree, which root `AGENTS.md` §6 rules out.
+ *
  * `exclude` is emptied because the default excludes `node_modules`, which is
  * the only place the artifact exists. `skipLibCheck` is stated rather than
  * left at its default: it is the one option whose flip would stop `tsc`
  * opening these declarations at all, and the job would still pass.
  */
 const tsconfig = /** @type {const} */ ({
-    include: [`node_modules/${alias}/**/*`],
+    include: [
+        `node_modules/${alias}/**/*`,
+        `node_modules/${alias}/**/.*`,
+        `node_modules/${alias}/**/.*/**/*`,
+    ],
     exclude: [],
     compilerOptions: {
         module: 'nodenext',
