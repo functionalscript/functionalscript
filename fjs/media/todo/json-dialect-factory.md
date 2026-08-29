@@ -179,10 +179,17 @@ rest contributes nothing to what `encodeText` accepts: `open(c)` is
 `rest(c, unknown)` (`../../rtti/module.f.mjs:166`), and `RestTs<C, R>` for a
 non-tuple container is `ConstTs<C>` (`../../rtti/ts/types.ts:353-354`), so
 the rest is discarded and `StructTs` adds no index signature
-(`:376-378`). `ValueOf<S>` is therefore exactly the declared members —
-walking them establishes the property for every value the signature admits.
-Following the rest instead would reject all three dialects for an `unknown`
-that never reaches the encoder's parameter type.
+(`:376-378`). `ValueOf<S>` *names* exactly the declared members, so walking
+them is what settles the schema's own kinds. Following the rest instead
+would reject all three dialects for an `unknown` that never reaches the
+encoder's parameter type.
+
+What it does **not** settle is the set of values that reach `encodeText`.
+`ValueOf<S>` naming only the declared members is a statement about the
+type, not about the objects assignable to it: TypeScript object types are
+structurally open, so a variable carrying additional members is assignable
+all the same. That is a runtime concern, answered at the encode boundary
+below, not something a schema walk can reach.
 
 **The walk settles kinds; the values need their own rule.** A schema whose
 members are all JSON kinds still admits
@@ -273,22 +280,51 @@ an exact count derived as `1 + max(parents')`, which never yields negative
 zero, so the dialect has its own reason to name the value. It stops being
 load-bearing once the factory enforces the rule.
 
-**`encodeText` needs the same walk — and refuses rather than reports.**
-`encodeText` is public and takes a bare `ValueOf<S>`, with nothing marking
-the value as having passed `validate`, so a caller may hand it one that
-never did. `fjs/cas/evo` does exactly that in production:
+**`encodeText` needs a walk too — a wider one, and it refuses rather than
+reports.** `encodeText` is public and takes a bare `ValueOf<S>`, with
+nothing marking the value as having passed `validate`, so a caller may hand
+it one that never did. `fjs/cas/evo` does exactly that in production:
 `encodeText(canonicalRevision)` (`../../cas/evo/module.f.mjs:521`), on a
 revision that module builds itself. Left unchecked, a `NaN` `generation`
 there produces well-formed JSON containing `null` — a plausible wrong
 answer to an unsupported input, which `DESIGN.md §10` refuses outright.
 
-The two boundaries run the same `jsonExact` walk and differ only in how
-they fail, because they are handed different things:
+**The two boundaries check different things, because they are handed
+different things.** `validate` receives a value parsed from JSON text: every
+leaf is already a JSON kind, so the only way a leaf can be unencodable is
+an inexact number, and `jsonExact` is the whole check. `encodeText`
+receives an arbitrary JS value that the type system cannot confine — object
+types are structurally open, so a *variable* holding
+`{ ...revision, future: 1n }` is assignable to `ValueOf<S>` (only a fresh
+object literal would be caught, by excess-property checking). `stringify`
+walks the runtime object, not the schema, and `primitiveSerialize` sends
+anything that is not a boolean, number, or string to `nullSerialize`
+(`../json/module.f.mjs:59-65`) — so that `bigint` is emitted as
+`"future": null`. Checking only numbers at this boundary would leave
+exactly the failure the boundary exists to prevent.
+
+So the encode-side predicate is JSON-representability of every runtime
+leaf, of which `jsonExact` is the number case:
+
+```js
+const jsonLeaf = x =>
+    x === null || typeof x === 'boolean' || typeof x === 'string'
+    || (typeof x === 'number' && jsonExact(x))
+```
+
+Reject rather than strip. Rebuilding the value through the schema before
+serializing would also stop the bad output, but by *silently dropping* the
+member the caller passed — and between refusing an input and answering it
+with a quietly different one, `DESIGN.md §10` is unambiguous. Stripping
+would also make `encodeText` a second validator, doubling what `validate`
+already owns.
+
+They differ in how they fail, too:
 
 - `validate` receives **data** — an untrusted blob's parsed value — so a
   bad number is an ordinary `ValidationError` with a path, like every other
   way that data can be wrong.
-- `encodeText` receives a **typed value the caller vouched for**. A number
+- `encodeText` receives a **typed value the caller vouched for**. A leaf
   that cannot be encoded is a broken precondition, i.e. a programming
   error, and this repo answers those with a loud `assert` — the same
   instrument `dialectEntry` uses one line above its own cast
@@ -501,12 +537,16 @@ level up from the seven-line kit.
       constraint is dropped, take the value-position cast at both JSON-only
       boundaries — `stringify(sort)` and the `jsonExact` walk — as above;
       `npx tsc` fails without it.
-- [ ] Run the same walk in `encodeText`, as an `assert` rather than a
-      `Result`: it takes a bare `ValueOf<S>` no one has to have validated,
-      and `../../cas/evo/module.f.mjs:521` calls it directly, so an
-      unchecked `NaN` there becomes JSON containing `null` — the plausible
-      wrong answer `DESIGN.md §10` refuses. Prove it throws rather than
-      encoding, and confirm `evo`'s existing proofs still pass.
+- [ ] Walk `encodeText`'s argument for `jsonLeaf` — every runtime leaf, not
+      just the numbers — and `assert` rather than returning a `Result`. It
+      takes a bare `ValueOf<S>` no one has to have validated, and
+      `../../cas/evo/module.f.mjs:521` calls it directly. Prove both leaf
+      kinds throw rather than encoding: a `NaN` `generation`, and an extra
+      member the type system cannot exclude —
+      `const r = { ...revision, future: 1n }; encodeText(r)`, which today
+      emits `"future": null` (`../json/module.f.mjs:59-65`). Do not strip
+      the value through the schema instead; refuse it. Confirm `evo`'s
+      existing proofs still pass.
 - [ ] Run one generic `jsonExact` walk over the value `rttiParse` rebuilds,
       inside the factory's `validate`, collecting the path as it descends.
       One strategy, no compiled positions, and nothing a dialect's
