@@ -52,26 +52,23 @@ const fjsGlobalInstall = version =>
 
 /**
  * Asserts that the Node a job is about to run on is the version configured for
- * it, whichever way the job got that runtime: `command` is `node --version` for
- * a job `setup-node` installs into, and the same through `nix develop` for a
- * job running in its generated flake.
+ * it, read from inside that job's generated flake.
  *
- * Both need it, for the same reason and against the same recorded value. A
- * `setup-node` job can be handed a different patch release than the one
- * `fjs/ci/config/module.f.mjs` names, and a migrated job's flake resolves its
- * package from the pinned Nixpkgs commit, which the configuration only claims
- * provides that version. Neither claim checks itself, and a job that quietly
- * tests on another runtime reports a green result about something nobody
- * asked for.
+ * The flake resolves its package from the pinned Nixpkgs commit, which
+ * `fjs/ci/config/module.f.mjs` only *claims* provides that version. The claim
+ * does not check itself, and a job quietly testing on another runtime reports a
+ * green result about something nobody asked for.
  *
- * The jobs that run this are the Ubuntu ones, where the step is a POSIX shell
- * command. The platform matrix installs Node too, but its Windows jobs run
- * `run` steps under PowerShell, so this spelling does not belong there.
+ * Every Node job runs this, and none needs a `setup-node` spelling any more.
+ * The other jobs that install Node get no check: the platform matrix, whose
+ * Windows jobs run `run` steps under PowerShell where this POSIX command would
+ * not survive, and `package-check`, which has no checkout to enter a flake
+ * from.
  *
- * @type {(command: string, version: string) => MetaStep}
+ * @type {(version: string) => MetaStep}
  */
-const nodeVersionStep = (command, version) =>
-    test({ run: `test "$(${command})" = v${version}` })
+const nodeVersionStep = version =>
+    test({ run: `test "$(${nixDevelop(jobId(version), 'node --version')})" = v${version}` })
 
 /** @type {(version: string) => readonly MetaStep[]} */
 export const platformNodeSteps = version => [
@@ -81,49 +78,22 @@ export const platformNodeSteps = version => [
 ]
 
 /**
- * The last job still installing its runtime with `setup-node`, and now the same
- * suite Node 24 runs, on Node 22. It carried `fjs test` and the global install
- * that fed it only because Node 22 could not run `node --test`; it can, and
- * does, so the pair is gone. What the global install also happened to
- * exercise — the published CLI — is the platform matrix's job and the subject
- * of `built-package-checks.md`, not this one's.
+ * A Node job that runs the suite and nothing else: install Nix, check the
+ * runtime its flake provides, install dependencies, run the proofs. Node 22 and
+ * Node 24 differ only in the version they name, so they share this.
  *
- * Its version check comes before `npm ci` rather than after: `npm ci` runs `preinstall`/`install`/
- * `postinstall` hooks from the project and its dependencies, so a runner handed
- * a different patch release would execute that code on the wrong Node and could
- * fail there instead of on the diagnostic written for it.
+ * The check precedes `npm ci`, which runs `preinstall`/`install`/`postinstall`
+ * hooks from the project and its dependencies — code that would otherwise
+ * execute on a runtime nothing has confirmed. Every command after it enters the
+ * shell again, one step each (root `AGENTS.md` §7).
  *
- * That is why this job does not reuse `nodeInstall`. The platform matrix does,
- * and gets no check — its Windows jobs run `run` steps under PowerShell, where
- * this POSIX spelling would not survive.
- *
- * @type {readonly MetaStep[]}
+ * @type {(version: string) => readonly MetaStep[]}
  */
-const node22Steps = [
-    install(installNode(node.node22)),
-    nodeVersionStep('node --version', node.node22),
-    test({ run: 'npm ci' }),
-    test({ run: 'node --test' }),
-]
-
-/**
- * The first job migrated off `setup-node`: it runs through its own generated
- * flake, so the runtime it tests on is the pinned Nixpkgs snapshot rather than
- * whatever the runner installs.
- *
- * Its commands and their order are the ones it had, each still its own step
- * (root `AGENTS.md` §7) and each entering the shell again — behind the same
- * version check its `setup-node` siblings make, against the same recorded
- * value, so the migration is visible as a change of runtime rather than a
- * change of what CI guarantees.
- *
- * @type {readonly MetaStep[]}
- */
-const node24NixSteps = [
+const suiteNixSteps = version => [
     nixInstall,
-    nodeVersionStep(nixDevelop(jobId(node.node24), 'node --version'), node.node24),
+    nodeVersionStep(version),
     ...['npm ci', 'node --test'].map(
-        command => test({ run: nixDevelop(jobId(node.node24), command) })),
+        command => test({ run: nixDevelop(jobId(version), command) })),
 ]
 
 /**
@@ -134,20 +104,18 @@ const node24NixSteps = [
  * `npm run ci-update` and the drift check it feeds run **last**, after every
  * other command. The check compares the working tree against what the generator
  * produces, so putting it at the end makes it the last word: any file an earlier
- * step wrote is in the comparison. Nothing those steps leave behind is tracked —
- * `npm pack`'s tarball and the declarations its `prepack` emits are ignored, as
- * is the `flake.lock` Nix writes beside a flake it enters — so the check sees
- * generator output and nothing else.
+ * step wrote is in the comparison. Nothing those steps leave behind is tracked:
+ * `npm pack`'s tarball and the declarations its `prepack` emits are ignored, and
+ * `--no-write-lock-file` means Nix leaves nothing at all.
  *
- * The drift check itself is not a Nix command. `git` is the runner's tool, as it
- * is for a `setup-node` job, and a step names the flake only when it needs
- * something the flake pins.
+ * The drift check itself is not a Nix command. `git` is the runner's tool, and a
+ * step names the flake only when it needs something the flake pins.
  *
  * @type {readonly MetaStep[]}
  */
 const node26NixSteps = [
     nixInstall,
-    nodeVersionStep(nixDevelop(jobId(node.default), 'node --version'), node.default),
+    nodeVersionStep(node.default),
     ...['npm ci', 'npx tsc', 'npm run cov', 'npm pack', 'npm run ci-update'].map(
         command => test({ run: nixDevelop(jobId(node.default), command) })),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
@@ -168,8 +136,8 @@ const nodeJob = steps => ubuntuArm(steps)
 
 /** @type {() => Jobs} */
 export const nodeVersionJobs = () => ({
-    [jobId(node.node22)]: nodeJob(node22Steps),
-    [jobId(node.node24)]: nodeJob(node24NixSteps),
+    [jobId(node.node22)]: nodeJob(suiteNixSteps(node.node22)),
+    [jobId(node.node24)]: nodeJob(suiteNixSteps(node.node24)),
     [jobId(node.default)]: nodeJob(node26NixSteps),
 })
 
