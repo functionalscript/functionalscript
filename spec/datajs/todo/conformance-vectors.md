@@ -36,13 +36,19 @@ A machine-readable corpus with six parts:
 
 - **accept** — document text plus the graph it denotes, including the sharing.
   Cases: every leaf (`-0`, `NaN`, `±Infinity`, bigint, `undefined`), the
-  `["__proto__"]` key, duplicate keys (last value, first position), array-index
+  `["__proto__"]` key, a `const` referenced exactly once and a `const` never
+  referenced at all — the grammar imposes no reference count, and the
+  normalizer's counting rule is one serializer's rather than a validity rule —
+  duplicate keys (last value, first position), array-index
   key ordering, one-line and readable spellings of the same value, empty
   containers, deep nesting, and shared nodes reached by several paths.
 - **reject** — document text plus what is wrong with it. Cases: a missing or
   non-final `export default`, a missing `;`, `;;`, a trailing comma, a comment,
-  an `import`, an identifier key, a bare or string `"__proto__"` key and its escaped spelling
-  `"\u005f_proto__"` (the rule is on the decoded value), `1.5n`,
+  an `import`, an identifier key, a bare or string `"__proto__"` key and its
+  escaped spelling `"\u005f_proto__"` (the rule is on the decoded value), a
+  computed key that is **not** the one permitted spelling — `{["x"]:1}` and
+  `{["\u005f_proto__"]:1}`, since `["__proto__"]` is the only computed form
+  the grammar admits — `1.5n`,
   `1e2n`, `01n`, `-NaN`, `-undefined`, a bare `-`, a forward or unbound
   reference, a rebound name, each excluded const name, single quotes, `\x` and
   `\u{…}` escapes, U+2028/U+2029/NBSP/FF/BOM outside a string.
@@ -163,7 +169,7 @@ document can carry. So the corpus does not store values. It stores a
   | - | - |
   | `{"host": "ownProp", "on": <node>, "key": <string>, "value": <node>}` | an enumerable own data property, which is how `a=[1]; a.meta=2` is said |
   | `{"host": "nonEnumerable", "on": <node>, "key": <string>, "value": <node>}` | the same, non-enumerable |
-  | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an accessor property that **records its own invocation** and then returns `value` |
+  | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an **enumerable** accessor property that **records its own invocation** and then returns `value` |
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | a property under a fresh unique symbol |
   | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"}` | the same data under a `null` prototype, or as an `Array` subclass instance |
   | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` names the property for `nonWritable` |
@@ -186,8 +192,12 @@ document can carry. So the corpus does not store values. It stores a
   - **Only nodes reachable from `root` are built**, modifiers included. The
     table is data, not a program, so an unreachable row is inert and cannot
     reach into the graph by side effect.
-  - **Reachable modifiers apply in table order**, so a target carrying several
-    is unambiguous.
+  - **A modifier appears only as a table entry, never inline** in an `arr`, an
+    `obj`, or another modifier's `on`, all of which take a `ref` to it. Without
+    that restriction two inline modifiers on one target have no relative order,
+    and `ownProp` then `attrs: frozen` succeeds where the reverse fails.
+  - **Reachable modifiers apply in table order**, which the restriction above
+    makes total, so a target carrying several is unambiguous.
 
   A cycle needs no recipe: it is a `ref` to an ancestor.
 
@@ -200,7 +210,11 @@ document can carry. So the corpus does not store values. It stores a
     while enumerating and rejects the object afterwards is wrong and would pass
     a vector that only checked the rejection. The recipe therefore records its
     invocation, and **the vector asserts it was never invoked** as well as that
-    the input was refused. Rejecting for the right reason and rejecting after
+    the input was refused. *Enumerable* is load-bearing and easy to lose:
+    `Object.defineProperty` defaults to non-enumerable, and a non-enumerable
+    accessor is refused for *that* reason without the read path ever being
+    reached — so an implementation that eagerly reads every enumerable getter
+    would pass the invocation assertion. Rejecting for the right reason and rejecting after
     doing the forbidden thing are different outcomes.
   - **`builtin` covers a class, not `Date`.** The spec rejects "a `Date`, or
     any other non-plain object", and a corpus naming only `Date` is passed by
