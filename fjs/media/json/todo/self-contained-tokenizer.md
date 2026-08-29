@@ -263,9 +263,9 @@ Five rules replace the inherited behavior:
 
    It does **not** collapse the whole run into one token. `0abc` is `invalid
    number` and then `invalid token`, because the `a` is re-dispatched and the
-   word rule takes it — two errors, exactly as today. Only a number malformed
-   *before it completes*, like `00abc`, enters recovery and consumes the rest
-   into a single error.
+   word rule takes it — two errors, exactly as today. Only a **leading-zero
+   run** — `00abc`, `01"a"` — enters recovery and consumes the rest into a
+   single error.
 
    `-` has to be in the terminator set, and the proofs are what say so:
    `tokenize('10-0')` asserts the two number tokens `10` and `-0`. Without `-`
@@ -445,13 +445,19 @@ deliberate change with its own proofs — not something to slip into a port.
 
 #### Where a number lexeme ends
 
-Two failure states, which earlier drafts conflated:
+Three failure states, which earlier drafts conflated into two:
 
 - **A complete number followed by a character outside the accepting set** emits
   one `invalid number` and **re-dispatches** that character. `1true` is
   `invalid number` then `true`; `12"a"` is `invalid number` then the string.
-- **A number malformed before it completes** enters recovery, which consumes
-  until a boundary and emits one `invalid number`. `00abc` is one error.
+- **An incomplete number** — the grammar wanted more and met a character that
+  cannot continue — does the same: one `invalid number`, character
+  **re-dispatched**. `1e"a"` is `invalid number` then the string, and so are
+  `-"a"`, `1."a"`, `1e+"a"` and `1e-"a"`. This is the case a two-state rule
+  swallowed, destroying a string in all five phases.
+- **A leading-zero run** — a `0` followed by a digit — is the **only** state
+  that enters recovery, consuming until a boundary and emitting one `invalid
+  number`. `00abc`, `01"a"` and `012"a"` are each one error.
 
 Recovery's boundary set is today's, plus `-`:
 
