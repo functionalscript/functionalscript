@@ -53,12 +53,26 @@ in `rtti/ts`:
 
 - [ ] Export `resolve`, `isTop`, `isNever` from `fjs/rtti/data/module.f.mjs`
       with JSDoc; add proof coverage for the exported forms.
-- [ ] Rewrite `admitsUndefined` and `isTop` in `fjs/rtti/ts/module.f.mjs`
-      through the imports; drop the fake-`Data` `cmp` trick.
+- [ ] Make **`resolveNode` itself** delegate to the imported `resolve`
+      (`ts/module.f.mjs:189`). That is where the duplicated lookup lives, and
+      it has four callers — `admitsUndefined` (`:201`), `admitsAbsence`
+      (`:210`), `interiorToTs` (`:223`), and `isNever` (`:236`) — so
+      rewriting only the functions named below would leave the copy standing
+      for the other two. One delegation gives every caller the shared rule.
+- [ ] Rewrite `admitsUndefined`, `isTop`, **and `isNever`** through the
+      imports; drop the fake-`Data` `cmp` trick. `isNever` (`:236`) is the
+      site that actually spells it —
+      `cmp([{}, resolveNode(ctx)(n)])([{}, bottom]) === 0` — so leaving it
+      out would complete every task with the trick still standing. Resolve
+      the node before calling the imported `isNever`: data's returns `false`
+      for a string reference, which is why `ts`'s version resolves first.
 - [ ] `npx tsc`, `fjs t` — rtti proofs pass unchanged.
 
 ### Related
 
 - `../parse/module.f.mjs` — the same theme of `rtti` submodules sharing the
-  `data` algebra instead of copying it. (The container-skeleton issue this used
-  to point at was resolved by deleting `validate`: only one walker remains.)
+  `data` algebra instead of copying it.
+- [container-read-skeleton.md](./container-read-skeleton.md) — the
+  container-skeleton issue this used to point at; a note briefly recorded it
+  as resolved by deleting `validate`, but that deletion never landed and both
+  walkers remain.
