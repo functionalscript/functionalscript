@@ -144,7 +144,7 @@ is removing — stage 7 keeps it for the same reason.
 
 ### The error rule, stated once
 
-Four rules replace the inherited behavior:
+Five rules replace the inherited behavior:
 
 1. **One error token per invalid lexeme.** A lexeme that cannot be completed
    produces exactly one `{ kind: 'error' }` and no value token — never a
@@ -182,10 +182,31 @@ Four rules replace the inherited behavior:
    a *second* string that then hits end of input, giving two errors where one
    was promised. Recovery therefore ends at the closing `"`, consuming it, or
    at end of input for an unterminated literal.
-4. **The message names the lexeme that failed** — `invalid number`,
-   `invalid string`, `invalid token` for a bare word that is not `true`,
+4. **A word is a maximal run of `[A-Za-z0-9_$]`**, and it is a keyword only if
+   the whole run is exactly `true`, `false` or `null`. Otherwise it is one
+   `invalid token`. A character outside that set ends the word and is
+   re-dispatched.
+
+   Maximal matching rather than prefix matching is the whole content of this
+   rule, and it is what today's tokenizer already does — measured, not assumed:
+   `truefalse`, `true0`, `true_`, `true$`, `nullx` and `tru3` each give one
+   `invalid token`, while `true]`, `true,` and `true true` give the keyword and
+   then the next token. A prefix matcher would emit `true` followed by
+   something for every input in the first group, which fits the grammar just as
+   well and would silently change the public token stream. `_x` and `$x` are
+   `invalid token` too, so `_` and `$` start a word rather than being
+   unexpected characters.
+
+   The rule meshes with rule 2 in both directions: `-` is not a word character,
+   so `null-1` is `null` then the number `-1`; and a digit starts a number
+   rather than a word, so `0abc` is one `invalid number` and `tru3` is one
+   `invalid token`.
+
+5. **The message names the lexeme that failed** — `invalid number`,
+   `invalid string`, `invalid token` for a word run that is not `true`,
    `false` or `null`, and `unexpected character` for a code point that can
-   start no JSON token.
+   start no JSON token at all (`ÿ` after `true` is one, since it is outside the
+   word-character set).
 
 Rule 2 is what makes the count stop depending on JavaScript. Today the same
 malformed number reports once or twice according to whether it carried a sign,
@@ -269,6 +290,10 @@ implementation PR — the premise only actually changes when the code does.
       `js/tokenizer`.
 - [ ] Keep every accepted-input proof unchanged; rewrite only the error-shape
       cases, each with the reason it changed.
+- [ ] Add word-boundary proofs, which today's suite does not cover: `true0`,
+      `true_`, `true$`, `nullx`, `tru3` and `_x` are each one `invalid token`;
+      `null-1` is `null` then `-1`; `trueÿ` is `true` then
+      `unexpected character`.
 - [ ] Keep the losslessness proofs — a valid number reaches `value` as its
       exact lexeme, with no derived numeric value built while scanning.
 - [ ] 100% proof coverage, `scanString`/`scanNumber` called directly.
