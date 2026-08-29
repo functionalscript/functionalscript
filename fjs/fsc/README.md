@@ -198,10 +198,17 @@ its TypeScript alias was module-private, and a former export may become `_`
 when it only ever described an implementation detail.
 
 No generated `private.d.ts` ships: `package.json`'s `files` excludes them with
-a `!**/private.d.ts` negation, and CI asserts both halves of that — the tarball
-carries none, and every declaration it does carry type-checks as an outside
-consumer installs it, so a public declaration that came to depend on a private
-module is a red build rather than a broken package.
+a `!**/private.d.ts` negation.
+
+What CI checks is the consequence, not the exclusion. Every declaration the
+package does carry is type-checked as an outside consumer installs it, so a
+public declaration that came to depend on a private module is a red build
+rather than a broken package. Losing the negation itself is *not* caught: the
+private declarations come back, every reference to them resolves, and that job
+stays green. It is one line, and losing it is a visible diff in review — see
+[`../ci/todo/f-mjs-package-support.md`](../ci/todo/f-mjs-package-support.md)
+for why an assertion over the packed listing was written for that and then
+removed.
 
 The `_` contract is permanent and independent of that. `_` helpers retained in
 `types.ts` by the public declaration closure, and exported `_` constants, keep
