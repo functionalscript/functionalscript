@@ -3,7 +3,9 @@
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflow for this repository. Running the generator writes `.github/workflows/ci.yml`
 with the latest matrix of jobs and steps, plus one Nix development environment under
-`nix/` per canonical job that has one — every one but `bun`.
+`nix/` per canonical job that has one — the three Node jobs and `deno`. Which jobs
+have one and why the rest do not is
+[`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
 
 ## `fjs ci` is not stable
 
@@ -45,12 +47,16 @@ for, and whether that answer should change, is
   standing in for declarations the tarball omits, so the check would pass on
   the repository rather than on the package.
   `proof.f.mjs` — its property-based proofs.
-- `rust/module.f.mjs` — Rust toolchain setup and `cargo` build/test steps.
+- `rust/module.f.mjs` — Rust toolchain setup and `cargo` build/test steps. Its
+  three toolchains come from setup actions rather than a flake, and cannot come
+  from one today: Nixpkgs builds no `std` for three of the WASM job's four
+  targets. [`todo/wasm-nix-blocked-on-rust-targets.md`](./todo/wasm-nix-blocked-on-rust-targets.md)
+  owns that.
 - `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
   `proof.f.mjs` — its property-based proofs.
-- `bun/module.f.mjs` — the `bun` job's steps. The one canonical job still on a
-  setup action, because Nixpkgs packages no Bun this repository's proofs pass
-  on; [`todo/bun-nix-blocked-on-nixpkgs.md`](./todo/bun-nix-blocked-on-nixpkgs.md)
+- `bun/module.f.mjs` — the `bun` job's steps. The one canonical runtime job
+  still on a setup action, because Nixpkgs packages no Bun this repository's
+  proofs pass on; [`todo/bun-nix-blocked-on-nixpkgs.md`](./todo/bun-nix-blocked-on-nixpkgs.md)
   owns that. `proof.f.mjs` — its property-based proofs.
 
 ## Usage
@@ -72,8 +78,8 @@ plain text built from the pinned commit in `config/module.f.mjs`.
 Each canonical job with a flake declares a system and its Nixpkgs package attributes
 beside the steps that enter them — `nodeNixJobs` in `node/module.f.mjs`, `denoNixJob`
 in its own module — and `module.f.mjs` composes them into `nixJobs`, the one place the
-whole set is visible. `bun` declares none, and is the only canonical job that does
-not. `nix/module.f.mjs` writes each out as one
+whole set is visible. `bun`, `wasm` and `package-check` declare none, for three
+different reasons the issue above collects. `nix/module.f.mjs` writes each out as one
 static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
 job-local `shellHook`, run on every entry to the shell; none does today. See
 [nix/README.md](../../nix/README.md) for how the generated files are meant to be
@@ -130,7 +136,7 @@ evaluated for real, by the job that uses it.
 The generated platform jobs run `npm ci`, install the pinned FunctionalScript
 package globally, and run `fjs test`. Those six are now the only place the
 published CLI is exercised: no canonical Node job does, and `deno` and `bun` both
-stopped. Every canonical job runs on Ubuntu ARM, all but `bun` through a flake:
+stopped. Every canonical job runs on Ubuntu ARM; four of them through a flake:
 
 - Node 22 runs `npm ci` and `node --test` through its generated flake.
 - Node 24 runs the same pair through its own flake — one builder emits both
