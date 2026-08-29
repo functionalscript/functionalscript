@@ -58,12 +58,22 @@ sites already spell it that way.
 export const allVoid =
     <O extends Operation, T, E>(f: (item: T) => Effect<O, void, E>) =>
     (items: readonly T[]): Effect<O | All, void, NotImplemented | E> =>
-        mapStep(allOk(...items.map(f)), () => undefined)
+        mapStep(allOk(items.map(f)), () => undefined)
 ```
+
+The body hands `allOk` the *list*, not a spread: `allVoid` exists for
+arbitrary-length fan-outs, which is exactly where `allOk(...items.map(f))`
+would rebuild the engine argument ceiling
+([all-argument-limit](./all-argument-limit.md)) inside the new combinator —
+the same correction [allreduce-combinator](./allreduce-combinator.md)
+carries. That makes this issue's landing depend on the list-shaped `allOk`
+from that issue; until it lands, the spread spelling is the only one that
+compiles, which is one more reason this issue is scheduled after the `All`
+move rather than before it.
 
 `NotImplemented` in the error channel is the runner's, inherited from `allOk`;
 `E` is the children's. Written with the standalone `step` instead —
-`step(allOk(...items.map(f)), () => pureOk(undefined))` — it is the same effect
+`step(allOk(items.map(f)), () => pureOk(undefined))` — it is the same effect
 said less directly; either works. Note `pureOk`, not `pure`: `pure` takes a
 `Result` (`pureOk = v => pure(ok(v))`), so `pure(undefined)` would yield a bare
 `undefined` where the chain expects `ok(undefined)`. Both spellings must also
@@ -98,6 +108,10 @@ would discard precisely the failures this section exists to keep.
       `All`/`all`/`both` **and `allOk`** to `fjs/effects/all/module.f.mjs`.
       `allVoid` is built on `allOk`, so moving one without the other inverts
       the layering.
+- [ ] Wait for [all-argument-limit](./all-argument-limit.md)'s list-shaped
+      `allOk`, and hand it the list: `allVoid` is an arbitrary-length
+      fan-out, so a spread in its body would rebuild the argument ceiling it
+      is called at (the note under the proposal).
 - [ ] Add `allVoid` there (next to `all`/`both`) with proof coverage — **not**
       to `fjs/effects/node/module.f.mjs`, per the note at the top of this issue.
 - [ ] Convert the three `mapStep(allOk(...), () => undefined)` call sites in

@@ -95,7 +95,12 @@ list-shaped operation is worth having in the same change.
       the wrapper narrows the break to the handlers, which is the argument
       for keeping it.
 - [ ] Move every interpreter and fixture to it in one change, and every spread site in the
-      table above with them.
+      table above with them. Future combinators scheduled after this issue are
+      consumers too, born list-shaped rather than migrated:
+      [allvoid-combinator](./allvoid-combinator.md) and
+      [allreduce-combinator](./allreduce-combinator.md) both say so in their
+      proposals — an arbitrary-length fan-out combinator with a spread in its
+      body would rebuild this ceiling inside itself.
 - [ ] Prove a fan-out above the current ceiling — the number itself is engine-specific, so
       the proof asserts that a large fan-out completes rather than asserting the ceiling.
 
