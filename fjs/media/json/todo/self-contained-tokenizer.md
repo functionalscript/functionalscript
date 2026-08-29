@@ -436,6 +436,8 @@ follows the input instead:
 | `12+"]` | error, `]` | unchanged — the `]` survives because the `+` is absorbed |
 | `1e."/1` | error, error, number `1` | same count — `/`'s message becomes `unexpected character` |
 | `>>>=` | one `invalid token` — a **JS operator** | four `unexpected character` |
+| `/*a*/1` | one `invalid token` — a **JS comment** — then number `1` | five `unexpected character`, then number `1` |
+| `/*"*/1` | one `invalid token`, then number `1` | two `unexpected character`, then one `invalid string` — **`1` is lost** |
 | `1n1` | **number `11`, no error** — the `n` is deleted | `invalid number`, `invalid token` |
 | `0n1` | **number `01`, no error** — not valid JSON | `invalid number`, `invalid token` |
 | `1n1n1` | **number `111`, no error** — both `n`s deleted | errors |
@@ -536,7 +538,8 @@ introduce.
 
 Worth recording, since three drafts got this wrong in three different ways:
 **no row loses a token that belongs to the input *after* the malformed
-literal.** The claim has to be scoped that way, because inside a malformed
+literal — except where today's tokenizer used a lexical construct JavaScript
+has and JSON does not.** The claim has to be scoped that way, because inside a malformed
 literal this design deliberately removes a token — the fabricated `string` after
 `"\x"` is the defect it exists to fix, and `-00`'s two errors become one. Those
 are the change, not collateral damage. What may never happen is a well-formed
@@ -548,6 +551,23 @@ is an incomplete stop, so the `.` is re-dispatched. Then a `-` recovery boundary
 lost `number 1` in `00-"/1`. Then a re-dispatched `+` lost the `]` in `12+"]`.
 Both were reverted, and both were found by review rather than by the rule, which
 is why the scoped claim is stated here rather than assumed.
+
+The exception is **comments**, and it is the one loss this port cannot avoid.
+Today `/*"*/1` is one `invalid token` then `number 1`, because JavaScript's
+machine takes the comment as a single token and the `"` inside it never starts
+anything. The replacement has no comment state, so it emits `unexpected
+character` for `/` and `*`, then reads `"` as a JSON string that runs to end of
+input and eats `*/1`. `//"<LF>1` goes the same way. Reproducing today's result
+would mean giving JSON's scanner comment states — the JavaScript grammar this
+stage exists to remove, and a construct JSON must refuse.
+
+This is the `>>>=` class with a suffix attached: a run JavaScript lexes as one
+token and JSON lexes character by character. It is confined to that class,
+which is measured and small — single quotes and backticks already fail today
+exactly as the replacement would (`'"'1` is `unexpected character` then an
+unterminated string *today*), so comments are the only construct where the two
+machines disagree about a suffix. Both invariants hold throughout: the input
+errors before and after, and no valid JSON document contains a comment.
 
 It does not go the other way either: `00-2`'s `-2` is lost today and stays lost,
 because recovering it costs more than it returns.
@@ -934,10 +954,12 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
 
       Add the **old** machine's states too, since it has states the replacement
       deliberately lacks: JavaScript operator runs (`>>`, `>>>`, `>>>=`, `===`,
-      `!==`, `&&`, `??`, `=>`, `**=`). Each is one `invalid token` today and
-      becomes one `unexpected character` per character. A prefix set derived
-      only from the new scanner cannot reach them, which is how this was
-      missed.
+      `!==`, `&&`, `??`, `=>`, `**=`), each one `invalid token` today and one
+      `unexpected character` per character after; and its **comment** states
+      (`/*`, `//`), which are the only old states that can swallow a suffix —
+      `/*"*/1` loses its `number 1`, per the exception above. A prefix set
+      derived only from the new scanner cannot reach any of them, which is how
+      this was missed.
 - [ ] Commit **two** tables from the sweep, not one: the old tokenizer's output
       (recorded once during implementation, for review) and the new scanner's
       expected output. The proof asserts against the *new* table — asserting
@@ -975,6 +997,13 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       claimed the whole family unchanged could not be satisfied.
 - [ ] Prove string recovery ends at an unescaped quote, a raw LF and a raw CR
       but not a space — `"a<LF>1` emits the number `1`, `"a 1` is one error.
+- [ ] Pin the **comment** cases, since they are the one place a suffix token is
+      lost: `/*a*/1` is five `unexpected character` then `number 1`, and
+      `/*"*/1` is two `unexpected character` then one `invalid string`, with
+      the `number 1` gone. Assert the loss rather than leaving it to be
+      discovered — it is the exception the no-suffix-loss claim carries, and a
+      proof that states it is what stops the next reader from "fixing" it by
+      teaching JSON's scanner about comments.
 - [ ] `npm run update`, then `npx tsc`, `fjs test`, `cargo clippy` and
       `cargo fmt -- --check`. The check set lists the last two unconditionally —
       only `cargo test` is scoped to having touched Rust — and they are quick
