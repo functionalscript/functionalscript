@@ -38,29 +38,36 @@ spelling of the same lift, unmentioned. The binary operations repeat the
 
 ### Proposal
 
-One private lift per shape, next to `unpack`/`pack`:
+One private lift per shape, at **module scope**. `unpackPopFront` is declared
+inside `bo` (`../module.f.mjs:263`), so the lift takes it as a leading curried
+parameter rather than closing over it — which is what lets it be hoisted at
+all, per `fjs/AGENTS.md`'s "lift its captures into leading curried parameters
+and hoist it":
 
 ```js
 /** `unpackPopFront` over `Vec` input: the one unary lift. */
-const onUnpacked = len => {
+const onUnpacked = unpackPopFront => len => {
     const f = unpackPopFront(len)
     return v => f(unpack(v))
 }
 ```
 
-Each projection binds the lift **once at the `len` scope**, exactly where
+Inside `bo`, that parameter is bound once — `const onLen = onUnpacked(unpackPopFront)`
+— and each projection applies it at the `len` scope.
+
+Each projection binds `onLen(len)` **once at the `len` scope**, exactly where
 `unpackPopFront(len)` is bound today — the partial application belongs at its
 dependency's scope (`fjs/AGENTS.md`, "Place curried partial applications at
-their dependency's scope"), and a per-call `onUnpacked(len)(v)` would rebuild
-the closure on every vector:
+their dependency's scope"), and a per-call `onLen(len)(v)` would rebuild the
+closure on every vector:
 
 ```js
 const front = len => {
-    const f = onUnpacked(len)
+    const f = onLen(len)
     return v => f(v)[0]
 }
 const removeFront = len => {
-    const f = onUnpacked(len)
+    const f = onLen(len)
     return v => pack(f(v)[1])
 }
 ```
@@ -74,8 +81,9 @@ way, the closures built per `len` and per codec stay exactly as they are.
 
 ### Tasks
 
-- [ ] Add the unary and binary lifts; rewrite the six sites through them,
-      binding each lift at the scope its argument depends on.
+- [ ] Add the unary and binary lifts at module scope, each taking its `bo`
+      locals as leading curried parameters; bind those once inside `bo` and
+      the `len` application once per projection.
 - [ ] `npx tsc`, `fjs t`; both bit orders' proofs pass unchanged.
 
 ### Related

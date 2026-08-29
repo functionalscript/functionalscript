@@ -85,10 +85,19 @@ things that actually differ:
 `../common/types.ts` already owns the parameter vocabulary (`Fits`,
 `IsContainer`, `SchemaEntries`, `Presence`). Each reader module keeps its
 visitor, its JSDoc contract, and its `finish`; each shape's protocol — its own
-order included — is then stated once instead of twice. Move `noAccumulate`,
-`noDeclared`, and the two array length-bound builders into `common` as part
-of the same change, and put each shape's read-order rationale on its
-skeleton, where both readers inherit it.
+order included — is then stated once instead of twice. Move `noAccumulate`
+and `noDeclared` into `common` as part of the same change, and put each
+shape's read-order rationale on its skeleton, where both readers inherit it.
+
+The array length-bound builders **stay out of `common`**. They are written in
+terms of `emptyRest`, which lives in `../data/module.f.mjs`, and
+`../data/module.f.mjs:29` already imports `eachEntry`, `undeclaredMembers`
+and friends from `../common/module.f.mjs` — so hoisting them would make the
+shared kernel import its own consumer and close a `common` ↔ `data` runtime
+cycle. They are already passed in as the `fits`/`restFits` parameter, which
+is the right seam: the skeleton takes the predicate and stays ignorant of
+`emptyRest`. Deduplicating the two identical builder bodies, if worth doing
+at all, belongs in a module that may depend on `data`, not in `common`.
 
 Do **not** unify the const-container and rest-container orders while doing
 this: the rest readers' read-before-leftovers order is load-bearing (see
@@ -110,8 +119,9 @@ of this issue.
       whose getter installs a leftover the `rest` rejects must still be
       rejected. It passes today and would fail under a leftovers-first
       skeleton, so it is the regression test for this refactor.
-- [ ] Move `noAccumulate`, `noDeclared`, and the array empty-rest length
-      bounds into `common`; delete the five copies.
+- [ ] Move `noAccumulate` and `noDeclared` into `common`; delete their five
+      copies. Leave the `emptyRest`-based length bounds in the readers,
+      passed in as `fits`/`restFits` — `common` must not import `data`.
 - [ ] Consolidate the read-order commentary on the shared skeleton; fix
       `../common/types.ts:2` vs `../common/module.f.mjs:5-8` to name the same
       consumer set.

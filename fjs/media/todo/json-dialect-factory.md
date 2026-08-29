@@ -54,16 +54,33 @@ const jsonDialect = (schema, checkReferences) => ({
 
 Each dialect module then states its schema and (for `revision`/`lock`) its
 `checkReferences`, re-exporting the derived kit — the module's JSDoc keeps
-describing the format, the mechanics live once. Have `dialectEntry` (or the
-factory's `entry`) carry `mediaType` so `detect` reads it instead of
-re-deriving it at `module.f.mjs:165`. The `isValid…` adapters disappear into
-the factory; alternatively (or additionally) `fjs/types/result` grows the
-`isOk` they both hand-roll.
+describing the format, the mechanics live once.
+
+For the media type, share the **rule**, not a field on the entry:
+
+```js
+/** The media type a `vnd.fjs.*` dialect is served with. */
+const dialectMediaType = dialect => `application/${dialect}+json`
+```
+
+`detect` keeps deriving from `matched.dialect` (`module.f.mjs:165`) and the
+factory builds each module's exported `mediaType` constant with the same
+helper, so the two stop being independent spellings of one rule. Do **not**
+move the derivation onto `DialectEntry`: `../types.ts:18-28` states that the
+type is deliberately not opaque and a caller may write the `{ dialect, match }`
+struct by hand, so reading `matched.mediaType` in `detect` would report
+`undefined` for every handwritten entry, and making the field required would
+break those callers outright. Keeping the rule in a shared function preserves
+that contract while still having one owner.
+
+The `isValid…` adapters disappear into the factory; alternatively (or
+additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
 
 ### Tasks
 
-- [ ] Add `jsonDialect` to `module.f.mjs`; carry `mediaType` on the entry
-      and read it in `detect`.
+- [ ] Add `jsonDialect` and the shared `dialectMediaType` to
+      `module.f.mjs`; have both `detect` and the factory derive through it.
+      `DialectEntry` keeps its `{ dialect, match }` shape unchanged.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
       copies and the two `isValid…` adapters.
 - [ ] `npx tsc`, `fjs t`; the media and mcp proofs pass unchanged.
