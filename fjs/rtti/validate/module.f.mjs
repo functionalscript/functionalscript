@@ -217,10 +217,9 @@ const constContainerValidate =
                 return verror('unexpected value')
             }
             // The container's **shape** is settled before any member is
-            // read: presence is recorded, the container is bounded, an
-            // illegal absence is rejected, an undeclared member is
-            // rejected — and only then are the members read, from the flags
-            // already recorded.
+            // read: it is bounded, presence is recorded, an illegal absence
+            // is rejected, an undeclared member is rejected — and only then
+            // are the members read, from the flags already recorded.
             //
             // That order is what makes an `or` of two arities linear
             // instead of 2^depth, which is the shape a schema uses to say a
@@ -238,19 +237,22 @@ const constContainerValidate =
             // and the assumption the readers are written under. What that
             // gives up for a value built by arbitrary JavaScript is stated
             // in "What the readers assume of a value" in `../README.md`.
-            const withPresence = rttiEntries.map(([k, v]) =>
-                /** @type {readonly[string, readonly[typeof v, boolean]]} */ ([k, [v, k in value]]))
-            // The three structural questions run cheapest-first, since any
-            // of them settles the container and none of them recurses:
-            // `fits` reads one `length`; the absence pass consults the
-            // schema once per *declared* member; only the undeclared check
-            // enumerates the **value's** keys, which is O(its size) and has
-            // no lazy form in JavaScript — `Object.keys` on 500 000 keys is
-            // 185ms whether or not the scan stops at the first. Asking it
-            // last means a value another question answers never pays it.
+            // The structural questions run cheapest-first, since any of
+            // them settles the container and none of them recurses:
+            // `fits` reads one `length`; the absence pass probes and
+            // consults the schema once per *declared* member; only the
+            // undeclared check enumerates the **value's** keys, which is
+            // O(its size) and has no lazy form in JavaScript —
+            // `Object.keys` on 500 000 keys is 185ms whether or not the
+            // scan stops at the first. So a value one question answers
+            // never pays for the ones after it, and the constant-time
+            // bound precedes even the presence list, which is one entry
+            // per declared member and so is the schema's size.
             if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
+            const withPresence = rttiEntries.map(([k, v]) =>
+                /** @type {readonly[string, readonly[typeof v, boolean]]} */ ([k, [v, k in value]]))
             // Reaching an illegal absence through the reading walk would
             // first recurse into the members that come before it, and those
             // are the operands the longer arm shares — so the two arms would

@@ -341,17 +341,17 @@ const constContainerParse =
             if (!isContainer(value)) {
                 return verror('unexpected value')
             }
-            // Presence, the bound, absence, the undeclared check, then
+            // The bound, presence, absence, the undeclared check, then
             // the reads. See the comment on the same shape in
             // `../validate/module.f.mjs`, including what settling the shape
             // first assumes of the value.
-            const withPresence = rttiEntries.map(([k, t]) =>
-                /** @type {readonly[string, readonly[typeof t, boolean]]} */ ([k, [t, k in value]]))
             // Cheapest structural question first, for the reason
             // `../validate`'s copy states.
             if (!fits(value, declared.length)) {
                 return verror('unexpected value')
             }
+            const withPresence = rttiEntries.map(([k, t]) =>
+                /** @type {readonly[string, readonly[typeof t, boolean]]} */ ([k, [t, k in value]]))
             // Absence before any read, for the reason `../validate`'s
             // copy of this comment gives: reaching an illegal absence
             // through the reading walk restores the exponential.
