@@ -233,12 +233,16 @@ Judgement calls worth deciding explicitly rather than by accident:
   types — `NodeOp` unions `Read`, `Write` and `Test`, and
   `NodeProgramOptions` names `WriteConsoles` and `TestContext` — so those
   names stay re-exported by the same argument as `Sandbox` and `All`. The
-  names those declarations never touch — the helpers (`log`, `error`,
-  `readLine`, `errorExit`, the `test` combinator) — are the dead couplings:
-  their consumers are exactly the ones the moves exist to decouple, so they
-  move as hard cutovers, every importer updated in the same PR, no re-export
-  left behind. Draw the exact split at move time by this test — grep what
-  the surviving `effects/node` declarations and runners reference — and note
+  test reaches the helpers one name at a time, and the surviving *code*
+  counts as much as the declarations: `exitStep` stays — it is the node
+  program's exit-code policy, consumed repo-wide — and it calls `errorExit`,
+  whose body calls `error`, so those two stay re-exported too. The names
+  nothing surviving touches — `log`, `readLine`, the `test` combinator — are
+  the dead couplings: their consumers are exactly the ones the moves exist
+  to decouple, so they move as hard cutovers, every importer updated in the
+  same PR, no re-export left behind. Draw the exact split at move time by
+  this test — grep what the surviving `effects/node` declarations *and
+  function bodies* reference — and note
   that the decoupling each move exists for is enforced by its own step's
   check (`fjs/text/sgr` no longer importing `effects/node`), which a type
   re-export for node-side callers does not weaken.
