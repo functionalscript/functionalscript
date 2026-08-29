@@ -803,18 +803,25 @@ are shared.
       and why even measured-correct it could not fix the reporting burst, is
       the pitfall catalog above (items 1, 2, 4, 11, 12).
 - [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's
-      own failure, as opposed to any proof's — **at step 8, not step 7b.**
-      The order is forced, and worth stating so 7b is not directed to do the
-      impossible: the guard itself must land with 7b, because a page must
-      never stay in `running`, but neither half of it (an operation reporting
-      through the error channel, or one the interpreter cannot dispatch,
-      which rejects) is reachable through the public entry point — the
-      reverted #1759 proved that by mutation, removing the guard stayed
-      green. So 7b lands the guard and records it unproven, and step 8's
-      split of the page into `module.f.mjs`/`module.mjs` is the seam that
-      makes it reachable and closes this task. Widening the public API just
-      to reach the branch was considered and rejected: testing a thing by
-      deforming it.
+      own failure, as opposed to any proof's — **in step 7b, with the
+      minimal seam that makes it reachable.** Neither half of the branch (an
+      operation reporting through the error channel, or one the interpreter
+      cannot dispatch, which rejects) is reachable through the public entry
+      point — the reverted #1759 proved that by mutation: removing the guard
+      stayed green. An earlier version of this task concluded "land the
+      guard in 7b, record it unproven, prove it at step 8's
+      `module.f.mjs`/`module.mjs` split" — superseded, because that ships a
+      branch known to be untested whose failure mode is a page stuck in
+      `running` forever, exactly the class of hazard catalog item 11 exists
+      for. 7b instead carries the seam itself, at its smallest: the page's
+      run core takes its interpreter (or reporter) as an argument and is
+      exported for proofs from the page's own module, so a proof drives one
+      failing operation through it and watches the `infrastructure-error`
+      report land — mutation-tested like 7a's contract: remove the guard,
+      watch it fail. This is a testing seam, not a public-API widening — the
+      page's published entry point is unchanged, which is what the rejected
+      "widen the API to reach the branch" alternative got wrong. Step 8's
+      full layout split then absorbs the seam rather than creating it.
 
 ### Related
 
