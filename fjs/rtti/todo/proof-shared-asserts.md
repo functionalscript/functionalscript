@@ -55,7 +55,13 @@ replaced by `unwrap` from `fjs/types/result/module.f.mjs`.
 ### Tasks
 
 - [ ] Add `assertOk` / `assertError` (and `assertErrorPath`, owner per
-      above) to `fjs/asserts/module.f.mjs`.
+      above) to `fjs/asserts/module.f.mjs`, **with co-located entries in
+      `fjs/asserts/proof.f.mjs`** — one passing and one failing case each,
+      matching the `assertPassesOnTrue` / `assertEqPassesOnEqual` shape
+      already there. The consumer proofs exercise these helpers incidentally;
+      the repo's rule is that a new export carries its own proof, and a
+      hoisted assertion is exactly the kind whose failure path nothing else
+      checks.
 - [ ] Rewrite the six proof files through them; express `edag`'s
       `assertNoMatch` via `assertErrorPath([])`. In `effects`, keep the
       payload comparison at every site — the count of `assertEq` calls in

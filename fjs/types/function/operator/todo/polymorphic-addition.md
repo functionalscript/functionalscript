@@ -44,8 +44,16 @@ re-export keeps its narrow signature:
 
 ```js
 /** @type {<A extends Add1>(a: A) => <B extends Add2<A, B>>(b: B) => …} */
-export const addition = a => b => a + b
+export const addition = a => b => /** @type {any} */ (a) + b
 ```
+
+The cast is required, not incidental: `+` on two generic operands raises
+TS2365 even when the constraints admit only addable types. `cmp` carries the
+same cast for the same reason — `/** @type {any} */(a) < b ? -1 : …`
+(`../../compare/module.f.mjs:28-29`) — so copying that pattern means copying
+its escape hatch too. The safety lives in the `Add1`/`Add2` constraints at
+the call site, exactly as it does for `cmp`; the cast only gets the body past
+the checker.
 
 `number`, `bigint`, and `string` re-export it (the last as the operation
 inside `concat`), and the two `sum` folds keep their per-domain identity
