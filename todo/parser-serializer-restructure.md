@@ -393,8 +393,9 @@ throughout.
       the compiler accepts today.
 - [ ] Stage 1b: the conformance vectors —
       [`conformance-vectors`](../spec/datajs/todo/conformance-vectors.md).
-      Deferred behind stages 3 and 4, which give it an implementation to run
-      against.
+      After stage 3 and **before stage 4**, which consumes it: landing stage 4
+      first means writing its proofs twice. The corpus bootstraps in JSON so it
+      needs no DataJS reader to exist.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/bnf/todo/207-bnf-semantic-actions.md)
       repointed at `fjs/bnf/testlib.f.mjs`.

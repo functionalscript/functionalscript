@@ -309,12 +309,13 @@ follows the input instead:
 | `-` | `invalid token` | one `invalid number` |
 | `--`, `---` | one error / two errors | two / three `invalid number` — one per `-` |
 | `10-0` | number `10`, number `-0` | unchanged — `-` terminates a number |
-| `-.123` | error, error, number `123` | one `invalid number` |
-| `0abc,` | error, error, `,` | one `invalid number`, `,` |
-| `1true` | error, `true` | one `invalid number` |
-| `0n`, `123n` | `invalid token` | one `invalid number` |
-| `[-123n]` | `[`, error, error, `]` | `[`, one `invalid number`, `]` |
+| `-.123` | error, error, number `123` | one `invalid number` — recovery |
+| `0abc,` | error, error, `,` | unchanged — `0` completes, `abc` re-dispatched |
+| `1true` | error, `true` | unchanged — same reason |
+| `0n`, `123n` | `invalid token` — a **JS bigint literal** | `invalid number`, `invalid token` |
+| `[-123n]` | `[`, error, error, `]` | `[`, error, error, `]` — same count, JSON's messages |
 | `12"a"` | error, string `"a"` | unchanged — `"` ends without accepting |
+| `12+1` | one error — `+1` is **swallowed** | `invalid number`, then `+` re-dispatched |
 | `00-2` | one error — `-2` is **swallowed** | `invalid number`, number `-2` |
 | `00-` | one error | two `invalid number` |
 | `00"a"` | one error — the string is swallowed | unchanged — `"` is not a recovery boundary |
@@ -340,112 +341,81 @@ This is the same defect class as the fabricated string, running the other
 direction: one invents a token the input never contained, the other discards one
 it did.
 
-#### The accepting set is reproduced exactly, because both invariants pin it
+#### What is preserved, and what is only recorded
 
-Measured, a complete number is accepted today when followed by:
+Five review rounds were spent trying to state a rule that preserves today's
+malformed-number behavior. Each attempt was wrong, and the reason is worth
+writing down rather than attempting a sixth: **today's behavior in malformed
+input is not a system.** Three unrelated code paths produce it —
+
+- the `'-'` state, which is why `-.123` is `invalid token`, `invalid token`,
+  `number 123` rather than anything a number rule would produce;
+- the invalid-number state, which consumes to `rangeSetTerminalForNumber`,
+  JavaScript's operator characters;
+- the JavaScript tokenizer's own literals: `0n` is one `invalid token` because
+  it is a **valid JS bigint literal**, mapped wholesale — the coupling this
+  stage exists to remove, visible in the output.
+
+No self-contained JSON scanner reproduces all three, and it should not try: two
+of them are JavaScript facts with no JSON meaning. So the design stops promising
+token-level preservation on malformed input and states what it actually
+guarantees.
+
+**Preserved, and proved:**
+
+1. **Every input that tokenizes without an error today tokenizes identically.**
+   Valid JSON is untouched, which is the property every consumer depends on.
+2. **No input moves between erroring and not erroring**, in either direction.
+   An input that errors today still errors; one that does not, still does not.
+   This is what stops the port quietly widening or narrowing the accepted
+   language.
+
+**Recorded, not promised:** within inputs that already error, the token stream
+may change. The exhaustive sweep is what makes that safe — not a rule, but a
+complete before/after record, reviewed as data.
+
+That is the honest shape of this change, and it is stronger than the invariants
+the earlier drafts claimed, because these two are true.
+
+#### The accepting set, measured
+
+A complete number is accepted today when followed by:
 
 ```text
 space TAB LF CR  ! % & ( ) * , - / : < = > ? [ ] ^ { | } ~   and end of input
 ```
 
-and rejected before `" # $ ' + . ; @ \ _ ` digits and letters.
+That set is `rangeSetTerminalForNumber` plus `-`: JavaScript's operator
+characters, with no JSON principle behind it — none of `!`, `%`, `(` can appear
+in a valid JSON document. It is nonetheless **reproduced exactly**, because
+invariant 2 pins it from both sides: accepting fewer characters turns `12/1`'s
+`number 12` into an error, and accepting more stops `12"a"` erroring at all.
 
-This set is `rangeSetTerminalForNumber` plus `-`: JavaScript's operator
-characters, inherited with the tokenizer. It has no JSON principle behind it —
-none of `!`, `%`, `(` can appear in a valid JSON document at all.
+Narrowing it to JSON's own delimiters is defensible, and is a separate,
+deliberate change with its own proofs — not something to slip into a port.
 
-It is nonetheless **reproduced exactly**, because the design's two invariants
-between them leave no freedom:
+#### Where a number lexeme ends
 
-- *Accepting fewer* characters loses tokens. `12/1` is `number 12`,
-  `invalid token`, `number 1` today; drop `/` from the set and the `12` becomes
-  an error — a well-formed number destroyed, the defect class this design
-  exists to remove.
-- *Accepting more* removes errors. Add `"` and `12"a"` stops erroring at all,
-  which the erroring/not-erroring invariant forbids — this is the case an
-  earlier draft got wrong in exactly that way.
+Two failure states, which earlier drafts conflated:
 
-So the set is pinned by measurement, and the design says plainly that it is
-arbitrary and inherited. Narrowing it to JSON's own `{}[]:,` plus whitespace
-would be defensible on its own terms, but it is a separate, deliberate
-behavior change with its own proofs — not something to slip into a port.
+- **A complete number followed by a character outside the accepting set** emits
+  one `invalid number` and **re-dispatches** that character. `1true` is
+  `invalid number` then `true`; `12"a"` is `invalid number` then the string.
+- **A number malformed before it completes** enters recovery, which consumes
+  until a boundary and emits one `invalid number`. `00abc` is one error.
 
-#### Recovery, stated as a property rather than a list
-
-The changed-shapes table grew under review three times, and the boundary set I
-wrote to replace it was wrong in both directions — it is worth saying how,
-because it is what the rule below is built to prevent.
-
-Measured, character by character, the tokenizer today ends malformed-number
-recovery at exactly:
+Recovery's boundary set is today's, plus `-`:
 
 ```text
-space TAB LF CR  ! % & ( ) * , / : < = > ? [ ] ^ { | } ~
+space TAB LF CR  ! % & ( ) * , / : < = > ? [ ] ^ { | } ~  -  end of input
 ```
 
-and continues through `" # $ ' + - . ; @ \ _ ` digits and letters. There is no
-principle in that set: it is `rangeSetTerminalForNumber`, JavaScript's operator
-characters, inherited along with the tokenizer. Hardcoding it into a
-self-contained JSON scanner would bake in the coupling this stage exists to
-remove, and my first attempt at a principled replacement silently dropped
-fourteen of those boundaries — meaning `00/1` would swallow a well-formed `1`,
-the exact defect class this design is meant to fix.
-
-A first attempt specified recovery as a *property* — consume only what could
-continue a number or a word, end at everything else — on the reasoning that
-ending recovery earlier can only ever emit more tokens. **That reasoning is
-false**, and the counter-example is worth keeping because it is not obvious:
-
-```text
-00"/1   today   E(invalid number)  E(invalid token)  number(1)
-```
-
-Today `"` is not a recovery boundary, so `00"` is swallowed whole and `/1`
-tokenizes normally. Make `"` a boundary and the re-dispatched quote **starts a
-string**, which runs to the next quote or end of input — consuming `/1` and
-destroying two tokens. Ending one scan earlier can start another that runs
-further. "Recovery never runs longer" is a statement about recovery; the
-property that matters is about the whole token stream, and they are not the
-same.
-
-So the safety condition is narrower, and it is what the design uses:
-
-> A character may be added as a recovery boundary only if **re-dispatching it
-> cannot consume more input than recovery would have.**
-
-`-` satisfies it: a re-dispatched `-` begins a number, and a number's own
-recovery stops at the same boundaries, so nothing runs further. `"` does not:
-a string scan is bounded by the next quote, not by the number boundaries.
-
-Recovery therefore keeps today's boundary set and adds exactly `-`:
-
-```text
-space TAB LF CR  ! % & ( ) * , / : < = > ? [ ] ^ { | } ~   end of input
-plus  -
-```
-
-`-` is added because today's treatment of it *loses* a token: `00-2` reports one
-error and the well-formed `-2` never reaches the caller, while `0.-2` and
-`12.-2` do emit it — the same character handled three ways by accident. That is
-the one change, and it only ever adds tokens.
-
-One row changes: `00-2`. Everything else — `00"a"`, `00"/1`, `00/1`, `00;1`,
-`00 1`, `00]`, `00,`, `00<LF>1` — is exactly as today.
-
-String recovery is unchanged: it ends at an unescaped `"`, a raw LF or CR, or
-end of input, which is what it does today.
-
-Every other change in the table is an error becoming a *differently shaped*
-error.
-**No input moves between erroring and not erroring, in either direction** — that
-is the invariant worth checking the implementation against, and it is stronger
-than "accepted documents are unchanged", because the tokenizer is public API and
-a direct consumer can observe an error token the parser would only turn into a
-rejection.
-
-Nothing loosens either. `0n` does not become the number `0` followed by a stray
-`n`: `n` is not a terminator, so the run is one `invalid number`, exactly as
-`0abc` is today.
+`-` is added because it is the one boundary whose absence *loses* a token today:
+`00-2` reports one error and the well-formed `-2` never reaches the caller,
+while `0.-2` and `12.-2` do emit it. It is safe to add because a re-dispatched
+`-` begins a number, whose own recovery stops at the same boundaries — the
+condition that `"` fails, since a string scan runs to the next quote instead and
+would swallow `/1` in `00"/1`.
 
 ### The string and number scanners are the seam DataJS reuses
 
@@ -633,12 +603,18 @@ implementation PR — the premise only actually changes when the code does.
       character `c`, check `12` + `c` + `1` (the accepting path) as well as
       `00` + `c` + `1` (the recovery path). The first sweep is what catches an
       accepting-set regression such as `12/1`, and the second cannot see it.
-- [ ] Run the sweep against the old tokenizer **once, during implementation**,
-      and commit its output as a literal expected-token table. The committed
-      proof asserts the new scanner against that table and must **not** import
-      `fjs/js/tokenizer` — a permanent proof dependency would contradict this
-      stage's own "no runtime importer calls `tokenize`" task and would leave
-      stage 7 unable to delete the machine without rewriting the proof.
+- [ ] Commit **two** tables from the sweep, not one: the old tokenizer's output
+      (recorded once during implementation, for review) and the new scanner's
+      expected output. The proof asserts against the *new* table — asserting
+      against the old one cannot pass, since `-` changes deliberately — and the
+      old table is what a reviewer diffs it against. Neither may import
+      `fjs/js/tokenizer`: a permanent dependency would contradict this stage's
+      own "no runtime importer calls `tokenize`" task and leave stage 7 unable
+      to delete the machine without rewriting the proof.
+- [ ] Check the recorded diff against the two invariants, which is the whole
+      point of recording it: no row where the old output has no error and the
+      new one does (or vice versa), and no row where a valid JSON document
+      tokenizes differently.
 - [ ] Sweep **mixed boundaries** too, not only single characters: a case like
       `00"/1` is invisible to `00` + `c` + `1`, because the damage comes from
       what the re-dispatched character's *own* scanner then consumes. Generate
