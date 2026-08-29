@@ -4,11 +4,12 @@
  * @import { NixJob } from './types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { nixpkgs } from '../config/module.f.mjs'
+import { nixJobs } from '../module.f.mjs'
 import { nodeNixJobs } from '../node/module.f.mjs'
 import {
     flakePath,
@@ -17,6 +18,9 @@ import {
     nixDevelop,
     nixFlakes,
     nixInstall,
+    nixSteps,
+    nixSystem,
+    nixVersionStep,
 } from './module.f.mjs'
 
 const { commit } = nixpkgs
@@ -93,14 +97,26 @@ export const proof = {
     nixFlakes: {
         write: () => assertEq(generated([plain], plain.id), plainFlake),
         every: () => {
-            for (const job of nodeNixJobs) {
-                assertEq(generated(nodeNixJobs, job.id), flakeText(job))
+            for (const job of nixJobs) {
+                assertEq(generated(nixJobs, job.id), flakeText(job))
             }
         },
+        // The Node mapping only. Deno's and Bun's attributes are unversioned,
+        // so there is no name to derive — their jobs' version checks carry
+        // that tie instead.
         packages: () => {
             for (const { id, packages } of nodeNixJobs) {
                 assertEq(packages.length, 1)
                 assertEq(packages[0], `nodejs_${id.slice('node'.length)}`)
+            }
+        },
+        // Every declared job runs on the one runner the flakes are generated
+        // for. A second system would need its own `devShells.<system>.default`
+        // rather than a loop, so a job that quietly declared another would
+        // otherwise generate a shell no runner can enter.
+        oneSystem: () => {
+            for (const { system } of nixJobs) {
+                assertEq(system, nixSystem)
             }
         },
         // Job data only ever reaches quotable positions, so an unusual package
@@ -121,6 +137,27 @@ export const proof = {
         nixDevelop: () => assertEq(
             nixDevelop(plain.id, 'node --version'),
             'nix develop --no-write-lock-file ./nix/node24 --command node --version'),
+        // One step per command, each entering the shell itself (root
+        // `AGENTS.md` §7) — never one invocation carrying the sequence.
+        nixSteps: () => {
+            const steps = nixSteps(plain.id)(['npm ci', 'node --test'])
+            assertEq(steps.length, 2)
+            assertStructurallySame(
+                steps.map(s => s.type === 'test' ? s.step.run : undefined),
+                [
+                    'nix develop --no-write-lock-file ./nix/node24 --command npm ci',
+                    'nix develop --no-write-lock-file ./nix/node24 --command node --test',
+                ])
+        },
+        // The command and the expected string are independent: Node's output
+        // carries a leading `v` that the configured version does not.
+        nixVersionStep: () => {
+            const step = nixVersionStep(plain.id, 'node --version', 'v24.19.0')
+            assertEq(step.type, 'test')
+            assertEq(
+                step.type === 'test' ? step.step.run : undefined,
+                'test "$(nix develop --no-write-lock-file ./nix/node24 --command node --version)" = v24.19.0')
+        },
         nixInstall: () => {
             assertEq(nixInstall.type, 'install')
             assert(
