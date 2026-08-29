@@ -82,6 +82,15 @@ list-shaped operation is worth having in the same change.
 ### Tasks
 
 - [ ] Decide the list-shaped `All` signature and whether a variadic wrapper stays.
+      **Either way this is breaking, and the entry must say so.** Changing the
+      *operation* breaks every `all` handler however it is spelled at call
+      sites; dropping the wrapper additionally changes the published
+      `all`/`allOk` call shape, which reaches every fixed-arity caller
+      (`both`, hand-written fan-outs in proofs) and any external importer —
+      so the PR migrates every in-repo caller in the same change and carries
+      a `**BREAKING CHANGES:**` changelog entry naming what moved. Keeping
+      the wrapper narrows the break to the handlers, which is the argument
+      for keeping it.
 - [ ] Move every interpreter and fixture to it in one change, and every spread site in the
       table above with them.
 - [ ] Prove a fan-out above the current ceiling — the number itself is engine-specific, so

@@ -218,12 +218,13 @@ Judgement calls worth deciding explicitly rather than by accident:
   when it keeps a *dead* coupling alive; it is legitimate where the
   re-exporting module genuinely uses the names. The vocabulary move passed
   that test — node's own operations are declared in `IoChannel` and its
-  siblings — and so does the `Sandbox`/`Catch` half of the sandbox row:
-  `NodeOp` is declared over both and the node interpreter implements both, so
-  `effects/node` re-exporting them keeps one operation set readable at one
-  import for node-side callers, while the modules the move exists for (the
-  shared traversal, a browser interpreter) import the new home directly.
-  Those two moves are therefore additive. The console, test and `all` moves
+  siblings — and so does the whole sandbox row, `Await` included: `NodeOp` is
+  declared over `Sandbox`, `Catch` and `Await`, and both node runners
+  implement all three, so `effects/node` re-exporting them keeps one
+  operation set readable at one import for node-side callers, while the
+  modules the move exists for (the shared traversal, a browser interpreter)
+  import the new home directly. The sandbox row's move is therefore
+  additive. The console, test and `all` moves
   fail the test — their whole goal is that their consumers stop naming
   `effects/node` at all — so they remain hard cutovers: update every importer
   in the same PR, no re-export left behind.
