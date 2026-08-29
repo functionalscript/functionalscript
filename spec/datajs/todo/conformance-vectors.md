@@ -769,20 +769,37 @@ The six parts:
   all: `export default [,1]`, `[1,,2]` and `[1,,]`, leading, medial and
   trailing. `[1,]` is *not* one of these — it is the trailing comma above, a
   different rule, and it leaves no hole. Then the three places whitespace is
-  *required*, one vector each: **`const$0=1;export default $0`**,
-  **`exportdefault $0`** and **`export default$0`**, the last two carrying
-  `const $0=1;` so the only defect is the missing space. Three, and not the
-  nine an earlier draft of this section owed, because §Whitespace no longer
-  conditions the separator on what follows: it is required after `const`,
-  `export` and `default` whatever comes next, so there is no list of
-  identifier-starting values to enumerate and no per-value path for a reader to
-  get selectively wrong. The rule that replaced it is the reason — derive from
-  the rule, not from the list that illustrates it — and here deriving from the
-  rule *shrinks* the reject side rather than growing it.
+  *required*. The first two take one vector each — **`const$0=1;export default $0`**
+  and **`exportdefault $0`** — because only one thing can follow: after `const`
+  an `id`, which always starts with `$`, and after `export` the word `default`.
 
-  It grows the accept side, though, and by more than three: **each of the four
-  permitted whitespace characters at each of the three required positions**,
-  twelve in all, `const\t$0=1;export default $0` among them. The
+  The third takes **thirteen**, one per distinct value start, and an earlier
+  draft of this section cut them to one on reasoning that was wrong. It argued
+  that §Whitespace no longer conditions the separator on what follows, so there
+  is no list to enumerate and no per-value path for a reader to get selectively
+  wrong. The first half is true and the second does not follow from it: the
+  *rule* stopped dispatching on the value, but a **reader** need not, and the
+  ones this corpus exists to catch are exactly those whose lexer does. A reader
+  can enforce the separator before `$` and before `[`, `{`, `"` and `-` while
+  prefix-matching `default` on its number path or its word path, accepting
+  `export default1` and `export defaulttrue` — and it passes every vector that
+  draft kept. Deriving from the rule is right for the *accept* side, which is
+  read off the productions; the reject side is derived from how readers break,
+  and a rule getting simpler does not make readers simpler. Review found this;
+  it had been caught once before, in the text that draft removed.
+
+  So: the nine value starts that begin with an identifier character — a name,
+  `true`, `false`, `null`, `undefined`, `NaN`, `Infinity`, a number and a
+  bigint, `export default$0` through `export default1n` — plus the four the old
+  rule never owed a reject for at all, since under it they were *accepts*:
+  `export default[1]`, `export default{}`, `export default"a"` and
+  `export default-1`. Thirteen, which is more than the nine before it. The
+  positional rule shrank the rule and grew its corpus.
+
+  The accept side grows too, and independently of those thirteen, since a
+  separator that is present can still be the wrong character: **each of the
+  four permitted whitespace characters at each of the three required
+  positions**, twelve in all, `const\t$0=1;export default $0` among them. The
   four-character requirement above is about whitespace as *trivia*, at
   boundaries where it is optional, and a required separator is a different code
   path in any plausible reader — the one that checks a separator is there at
@@ -794,8 +811,8 @@ The six parts:
   narrows the language wherever a separator is *required* rather than merely
   allowed, and the two places are not the same code.
 
-  The positional rule owes one more thing the old one did not, at the third
-  position and about the *value* rather than the separator: `export default [1]`,
+  Those last four are worth dwelling on, being the ones the old rule counted as
+  accepts: `export default [1]`,
   `export default -1`, `export default "a"` and **`export default {}`** all
   carry the space even though `[`, `-`, `"` and `{` cannot merge with
   `default`. A serializer or reader that kept the merging-based rule accepts
