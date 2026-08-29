@@ -753,18 +753,35 @@ binding and the document is not JavaScript at all — is not closed by this
 grammar, because ECMA-262 decides it. It is worth being exact about what would
 have to happen, since "a future keyword" is broader than the actual risk. **Two
 things would both have to be true.** ECMA-262 would have to choose a spelling
-containing `$` for a new keyword, *and* make that keyword **reserved** rather
-than contextual. Either alone is harmless: a contextual keyword does not remove
-a name from the set of legal bindings, and a reserved word spelled in letters
-cannot collide with a name that starts with `$`.
+containing `$` for a new keyword, *and* make that keyword **unusable as a
+binding identifier in module code**. Either alone is harmless: a keyword that
+stays usable as a binding takes no name away from a DataJS document, and a
+keyword spelled in letters cannot collide with a name that starts with `$`.
 
-Both are contrary to how the language has actually grown.
+The second condition is **binding position, not reserved-word status**, and the
+difference is not academic. Being contextual does not by itself keep a word
+usable as a name: `let` and `static` are contextual — ordinary identifiers in
+sloppy code — and yet `const let = 1` and `const static = 1` are both syntax
+errors in module code, which is strict. So is every other word on the
+strict-mode future reserved list, and so are `await` and `yield` in a module.
+A future contextual keyword prohibited in binding position would break a DataJS
+document exactly as a reserved word would, which is why the condition is
+stated this way and not as "reserved rather than contextual".
 
-- **Contextual is the normal shape of an addition.** Measured over sixteen
-  contextual keywords including the recent and proposed ones — `using`,
-  `accessor`, `satisfies`, `match`, `defer`, `source` — fourteen are still
-  legal `const` names today. Additions of this kind cannot break a DataJS
-  document at all, whatever they are spelled with.
+Both conditions are contrary to how the language has actually grown.
+
+- **Contextual is the normal shape of an addition, and contextual additions
+  have stayed legal names.** Measured over sixteen contextual keywords
+  including the recent and proposed ones — `using`, `accessor`, `satisfies`,
+  `match`, `defer`, `source` — fourteen are legal `const` names in module code
+  today. The two that are not are `let` and `static`, and they are the reason
+  the condition above is worded as it is. Those two appear on the strict-mode
+  future reserved list of the next bullet as well — the overlap is real and not
+  a miscount, and it is precisely a word being contextual *and* prohibited as a
+  binding. They were restricted by ES5 rather than by any addition since: no
+  edition has taken a binding name away from strict-mode programs that already
+  used it. Additions of this kind have not broken a document yet, and the trend
+  is what the argument rests on — not a guarantee that they cannot.
 - **The reserved list is essentially closed.** Its thirty-eight words, and the
   eight strict-mode future reserved words beside them, have been fixed since
   ES1–ES6; the language grows by adding contextual keywords and punctuation,

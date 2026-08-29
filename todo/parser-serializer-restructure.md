@@ -255,11 +255,14 @@ key       ::= string | '[' '"__proto__"' ']'
   and so belong to the other collision. That one, the *reserved-word*
   collision, is ECMA-262's to decide, and
   would need **two** things at once — a new keyword spelled with a `$` **and**
-  made reserved rather than contextual. Measured: none of the sixty reserved,
-  strict-mode-future, contextual and value words contains a `$`; fourteen of
-  sixteen contextual keywords, including `using`, `accessor`, `satisfies` and
-  `match`, are still legal `const` names, so additions of that shape cannot
-  break a document at all; and `#x` is rejected as a binding where `$x` and
+  made unusable as a **binding identifier in module code**. That second
+  condition is binding position, not reserved-word status: `let` and `static`
+  are contextual keywords and still syntax errors as `const` names in a module,
+  so "contextual" alone guarantees nothing. Measured: none of the sixty
+  reserved, strict-mode-future, contextual and value words contains a `$`;
+  fourteen of sixteen contextual keywords, including `using`, `accessor`,
+  `satisfies` and `match`, are legal `const` names, the two exceptions being
+  `let` and `static`, restricted by ES5 rather than by any later addition; and `#x` is rejected as a binding where `$x` and
   `_x` are accepted, which is why TC39 reaches outside the identifier grammar
   for new markers. What the format does to reduce the cost if it happened
   anyway — normalized names are `$` plus digits, the failure is a syntax error
