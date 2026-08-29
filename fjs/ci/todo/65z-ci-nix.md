@@ -196,6 +196,29 @@ tells it not to: every invocation passes `--no-write-lock-file`, so a CI run lea
 checkout exactly as it found it. The pin in `flake.nix` already determines every input,
 so the lock resolves nothing the flake did not already say.
 
+Every invocation also passes `--quiet`, which is about the log rather than the
+checkout: it drops Nix's logging from `info` to `notice`, removing the `copying N
+paths` substitution chatter and leaving warnings and errors. Nix has no short
+spelling — `--quiet` declares no short name, and the `-Q` that exists is
+`--no-build-output` on the legacy commands — so `-q` is not available here.
+
+#### Generated `run` scripts
+
+Neither flag is written in a workflow step. Each job directory holds a generated
+`run` script beside its flake, and a step invokes that:
+
+```sh
+./nix/node26/run npm run cov
+```
+
+The script is the same for every job — it resolves its own directory with shell
+parameter expansion rather than `dirname`, since a generated script calls no
+external tool (§6), and `exec`s `nix develop … --command "$@"` — so the spelling
+and its flags have one home instead of fifteen, and a step reads as the command
+it runs. Its executable bit is committed rather
+than generated, because nothing in `fjs/effects/node` can set a file mode;
+[generated-run-script-mode](generated-run-script-mode.md) owns closing that gap.
+
 An earlier revision took the opposite trade — ignore the lock rather than add a flag to
 every invocation — and the scoped root `.gitignore` rule it added stays:
 
@@ -216,7 +239,7 @@ Adopt jobs independently. Each migrated workflow uses:
 3. one step per command of that job's existing sequence, each entering the job's shell:
 
 ```sh
-nix develop --no-write-lock-file ./nix/<job> --command <command>
+./nix/<job>/run <command>
 ```
 
 A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7), so the sequence
@@ -227,7 +250,7 @@ A step enters the shell only when it needs a tool the flake pins. `git` is the
 runner's, so the Node 26 drift check stays a plain step:
 
 ```sh
-nix develop --no-write-lock-file ./nix/node26 --command npm run ci-update
+./nix/node26/run npm run ci-update
 git add -A && git diff --cached --exit-code
 ```
 
@@ -284,6 +307,8 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Generate one readable self-contained flake per job with
       `devShells.aarch64-linux.default`.
 - [ ] Remove stale generated job directories.
+- [x] Generate a `run` script per job, so a workflow step names a command rather
+      than a `nix develop` invocation.
 - [x] Ignore `/nix/*/flake.lock`.
 - [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
