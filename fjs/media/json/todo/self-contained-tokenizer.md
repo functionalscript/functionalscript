@@ -341,7 +341,7 @@ follows the input instead:
 | `-` | `invalid token` | one `invalid number` |
 | `--`, `---` | one error / two errors | two / three `invalid number` — one per `-` |
 | `10-0` | number `10`, number `-0` | unchanged — `-` terminates a number |
-| `-.123` | error, error, number `123` | one `invalid number` — recovery |
+| `-.123` | error, error, number `123` | same count — `invalid number`, `unexpected character`, number `123` |
 | `0abc,` | error, error, `,` | unchanged — `0` completes, `abc` re-dispatched |
 | `1true` | error, `true` | unchanged — same reason |
 | `0n`, `123n` | `invalid token` — a **JS bigint literal** | `invalid number`, `invalid token` |
@@ -424,21 +424,22 @@ characters, with no JSON principle behind it — none of `!`, `%`, `(` can appea
 in a valid JSON document.
 
 It is **reproduced exactly**, and it is worth being precise about why, because
-an earlier draft justified it with a rule this design does not actually hold.
-That draft said dropping `/` would destroy `12/1`'s well-formed `number 12`,
-"the defect class this design exists to remove". But `12/1` errors today and
-errors either way, so **neither invariant forbids it** — and the table already
-accepts `-.123` losing its `number 123`, which is the same kind of loss. A
-principle applied to one row and not the other is not a principle.
+an earlier draft justified it with a rule this design does not hold. That draft
+said dropping `/` would destroy `12/1`'s well-formed `number 12`, "the defect
+class this design exists to remove". But `12/1` errors today and errors either
+way, so **neither invariant forbids it**.
 
 The honest reason is narrower. Invariant 2 pins one side: accepting *more*
 characters would stop `12"a"` erroring at all, which is forbidden. The other
 side is a **judgement, not a law** — reproducing the set costs nothing, and
 gratuitously turning well-formed numbers into errors is churn a port should not
-introduce. Where the design does lose a token (`-.123`), it is because
-reproducing that behavior would mean reproducing the `'-'` state, a JavaScript
-artifact this stage removes; the loss is recorded in the table and permitted by
-the invariants rather than justified by a rule.
+introduce.
+
+Worth recording, since an earlier draft claimed otherwise: **no row in the table
+loses a token.** `-.123` was the one case said to, and it does not — under the
+three-case rule the `-` is an incomplete stop, so the `.` is re-dispatched and
+`number 123` survives, with only the two error messages changing. The design
+changes error *shapes*; it does not destroy well-formed tokens anywhere.
 
 Narrowing the set to JSON's own delimiters is defensible, and is a separate,
 deliberate change with its own proofs — not something to slip into a port.
