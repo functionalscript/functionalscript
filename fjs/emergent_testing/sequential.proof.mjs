@@ -73,6 +73,11 @@ const eventsOf = async moduleMap => {
     const record = do_('record')
     /** @type {Reporter<Sandbox | _Record>} */
     const reporter = {
+        // `announce`, not `start`: the runner's own `sandbox` bracket already
+        // writes `start`/`end` below, and two events called the same thing
+        // would make the assertions unreadable exactly where their whole
+        // content is an order.
+        start: id => record(`announce:${id.path}`),
         result: t => record(`report:${t.path}`),
         summary: () => record('summary'),
         test: defaultTest,
@@ -123,7 +128,7 @@ const siblingsDoNotOverlap = async () => {
     })
     assertEq(
         events,
-        'start end report:.a start end report:.b summary',
+        'announce:.a start end report:.a announce:.b start end report:.b summary',
         events)
 }
 
@@ -142,7 +147,7 @@ const modulesDoNotOverlap = async () => {
     })
     assertEq(
         events,
-        'start end report:.a start end report:.b summary',
+        'announce:.a start end report:.a announce:.b start end report:.b summary',
         events)
 }
 
@@ -156,7 +161,8 @@ const modulesDoNotOverlap = async () => {
  * What the fold adds is that the child's whole chain finishes before the next
  * sibling starts. Restore `walkEntries`' fan-out and the observed order is
  * `start start end end report:.outer start report:.after end
- * report:.outer().inner summary` — `.after` runs inside the child's chain and
+ * report:.outer().inner summary` (with each leaf's `announce` ahead of its own
+ * `start`) — `.after` runs inside the child's chain and
  * is reported before it.
  */
 const childrenRunBeforeTheNextSibling = async () => {
@@ -165,8 +171,9 @@ const childrenRunBeforeTheNextSibling = async () => {
     })
     assertEq(
         events,
-        'start end report:.outer start end report:.outer().inner'
-        + ' start end report:.after summary',
+        'announce:.outer start end report:.outer'
+        + ' announce:.outer().inner start end report:.outer().inner'
+        + ' announce:.after start end report:.after summary',
         events)
 }
 
