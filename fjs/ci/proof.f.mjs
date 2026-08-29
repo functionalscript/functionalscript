@@ -227,6 +227,12 @@ export const proof = {
     // the one still on `setup-node`.
     migratedNodeJobs: () => {
         const gha = run(false)
+        // The other side of the same fact: the unmigrated job enters no shell,
+        // so a job migrated by accident fails here rather than passing as one
+        // of the two below.
+        assert(
+            !hasRunInJob(`node${major(node.node22)}`, 'nix develop')(gha),
+            'unexpected nix develop in the unmigrated job')
         for (const [version, commands] of /** @type {const} */ ([
             [node.node24, ['npm ci', 'node --test']],
             [node.default, ['npm ci', 'npx tsc', 'npm run cov', 'npm pack', 'npm run ci-update']],

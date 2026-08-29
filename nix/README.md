@@ -39,8 +39,9 @@ Node 26's drift check is a plain step, not a `nix develop` one: `git` is the
 runner's tool, and a step names the flake only when it needs something the flake
 pins.
 
-Nix runs nowhere else in CI. What a generated flake declares — the pinned
-commit, the job's default shell, and the `nodejs_<major>` its configured version
-implies — is asserted by `fjs/ci/proof.f.mjs` against the generator's output,
-which needs no Nix; the Node 22 flake is first evaluated when that job
-migrates.
+Nix runs nowhere else in CI. What a generated flake declares is asserted without
+Nix by two proofs: `fjs/ci/proof.f.mjs` requires the written file to equal the
+generator's text for that job, and its package attribute to follow the
+configured version; `fjs/ci/nix/proof.f.mjs` pins that text character for
+character, the pinned commit and `devShells.<system>.default` included. The Node
+22 flake is first evaluated when that job migrates.

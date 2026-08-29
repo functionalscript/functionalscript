@@ -224,30 +224,41 @@ So no flake declares `git`, and it never matters whether `nix develop` leaves th
 runner's `PATH` in place or replaces it with the shell's — a question no job has had to
 answer, since Node 24 runs only `npm` and `node`, both from its own shell.
 
-Preserve the current command sequences and order:
+Preserve each job's command sequence. This is what the three jobs run today, after the
+two migrations — the instruction sheet for the third:
 
 ```text
-node22:
-  npm install -g functionalscript@0.38.0
+node22 (setup-node):
+  npm install -g functionalscript@<configured>   # install phase, before checkout
+  test "$(node --version)" = v<configured>
   npm ci
-  fjs t
-
-node24:
-  npm ci
+  fjs test
   node --test
 
-node26:
-  npm ci
-  npm run ci-update
+node24 (flake):
+  test "$(nix develop ./nix/node24 --command node --version)" = v<configured>
+  nix develop ./nix/node24 --command npm ci
+  nix develop ./nix/node24 --command node --test
+
+node26 (flake):
+  test "$(nix develop ./nix/node26 --command node --version)" = v<configured>
+  nix develop ./nix/node26 --command npm ci
+  nix develop ./nix/node26 --command npx tsc
+  nix develop ./nix/node26 --command npm run cov
+  nix develop ./nix/node26 --command npm pack
+  nix develop ./nix/node26 --command npm run ci-update
   git add -A && git diff --cached --exit-code
-  npx tsc
-  npm run cov
-  npm pack
 ```
 
-The workflow generator should continue supplying current configured versions; the list
-above records the existing command families and their order. Other TODOs may change a
-job's required tools or commands independently.
+Two orderings above are load-bearing rather than incidental. The runtime check precedes
+`npm ci`, which runs lifecycle hooks that would otherwise execute on an unchecked
+runtime; and Node 26's regeneration and drift check come last, so the comparison covers
+every earlier step's output.
+
+The workflow generator supplies the configured versions; the list records command
+families and their order. Other TODOs may change a job's required tools or commands
+independently — [built-package-checks](built-package-checks.md) proposes moving Node
+22's global install and `fjs test` out of it entirely.
 
 For each Node job:
 

@@ -88,11 +88,13 @@ written: the generated flakes stay purely declarative, since a flake pinning an 
 Nixpkgs commit already determines its package versions and an `assert` inside it would
 only restate that pin.
 
-What can be established about a generated flake without Nix — that it carries the
-accepted commit, the job's `devShells.<system>.default`, and the `nodejs_<major>` its
-configured version implies — is asserted by `proof.f.mjs` against the generator's own
-output. A flake no job runs through is therefore first evaluated when its job
-migrates, which today means Node 22's.
+What can be established about a generated flake without Nix is asserted by two proofs.
+`proof.f.mjs` reads the file the pipeline wrote and requires it to equal the generator's
+text for that job, and the job's package attribute to be the `nodejs_<major>` its
+configured version implies. What that text must itself contain — the accepted commit,
+the job's `devShells.<system>.default`, the shell's packages — is pinned character for
+character by `nix/proof.f.mjs`'s literal fixtures. A flake no job runs through is
+therefore first evaluated when its job migrates, which today means Node 22's.
 
 ### Expected package scripts
 
