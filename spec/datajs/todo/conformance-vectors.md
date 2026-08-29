@@ -55,6 +55,16 @@ A machine-readable corpus with three parts:
   emits a valid document denoting something else. The accessor case asserts
   **two** things: that the input was refused, and that the getter was never
   invoked.
+- **serializer accept** — programmatic inputs a serializer must **not** refuse,
+  each with the document it must produce. The spec is explicit that these are
+  outside the data model rather than invalid, and that rejecting them is a
+  defect rather than caution ([`README.md`](../README.md)): a `null`-prototype
+  object or array, an `Array` subclass, a frozen or sealed object, a
+  non-extensible object, and a non-writable property. `Object.freeze` produces
+  the last two together, so a serializer that rejects unusual descriptors
+  cannot serialize a frozen value — including the output of a reader that
+  freezes what it returns, which the spec permits. Each vector's expected
+  document is the *data*, unchanged: the host variation must leave no trace.
 - **graph equivalence** — an input graph and the documents that do and do not
   denote it, so a serializer cannot pass by emitting merely *valid* output:
   `[a,a]` with one shared `a` is not `export default [[],[]];`.
@@ -136,9 +146,12 @@ document can carry. So the corpus does not store values. It stores a
   | `{"host": "builtin", "kind": <kind>[, "ms": <integer>]}` | a non-plain built-in object: `date` (with `ms`), `map`, `regexp` or `boxedNumber` |
   | `{"host": "hole"}` | an array hole — legal **only** as an `arr` element |
 
-  …and four **modifier** recipes, each taking the node it applies to, so the
+  …and six **modifier** recipes, each taking the node it applies to, so the
   property cases say which object they are about — the gap review found in
-  `getter`, which named no container:
+  `getter`, which named no container. The first four build inputs a serializer
+  must **refuse**; the last two build inputs it must **accept**, which is the
+  half review found missing — without them a serializer that rejects every
+  unusual prototype or descriptor passes the corpus while being nonconforming:
 
   | recipe | builds |
   | - | - |
@@ -146,6 +159,8 @@ document can carry. So the corpus does not store values. It stores a
   | `{"host": "nonEnumerable", "on": <node>, "key": <string>, "value": <node>}` | the same, non-enumerable |
   | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an accessor property that **records its own invocation** and then returns `value` |
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | a property under a fresh unique symbol |
+  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"}` | the same data under a `null` prototype, or as an `Array` subclass instance |
+  | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` names the property for `nonWritable` |
 
   **A modifier node denotes its target, modified** — the same object `on`
   denotes, not a copy. Three consequences, and they are stated because review
@@ -184,8 +199,9 @@ document can carry. So the corpus does not store values. It stores a
 
   The list being closed is what makes it useful — a vector needing a recipe not
   in it extends the schema and both consumers, deliberately, rather than each
-  consumer improvising. Each implements the eight once, and the corpus stays
-  data.
+  consumer improvising. Each implements the ten once, and the corpus stays
+  data. Nothing in the encoding marks a recipe as accept-side or reject-side;
+  which set a vector lands in is the vector's claim, not the recipe's.
 
 The test of this encoding is whether two independent consumers can disagree.
 They cannot: identity is an index, a number is a lexeme, key order is array
@@ -212,16 +228,20 @@ needs nothing beyond an engine.
 - [ ] Write the meta-encoding down as a schema before any vector, per the
       section above: node table, `ref` indices, the leaf tags, the `arr` form
       with holes occupying positions, the object pair form **with unique keys
-      in observable order**, and the eight `host` recipes — four leaves, four
+      in observable order**, and the ten `host` recipes — four leaves, six
       modifiers, each modifier naming the node it applies to — with their
-      application order, what a modifier node denotes, `builtin`'s closed `kind`
-      list, and `getter`'s invocation record. It is the part two
+      application order, what a modifier node denotes, `builtin`'s and
+      `proto`'s and `attrs`'s closed value lists, and `getter`'s invocation
+      record. It is the part two
       consumers can silently disagree about, so it lands first and gets its own
       round-trip proof — encode a graph, decode it, and assert the sharing
       survives.
 - [ ] Choose the corpus's location. The encoding is settled above: JSON,
       permanently, per the bootstrapping constraint.
-- [ ] Write the accept, reject and normalize sets covering the cases listed.
+- [ ] Write the accept, reject, **serializer accept**, serializer reject and
+      normalize sets covering the cases listed. The serializer-accept set is
+      the one an implementation passes by being too strict, so it is the one
+      most easily left for later and least safe to.
 - [ ] Add the **JavaScript** whole-set subset-law check. The FunctionalScript
       one is stage 6's, once stage 5 has taught the front end `;` and the
       special numbers — see above.
