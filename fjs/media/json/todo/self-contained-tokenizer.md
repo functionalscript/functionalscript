@@ -260,13 +260,28 @@ Five rules replace the inherited behavior:
    continue, look at the next character.
 
    **The scan is maximal munch**, as it is for words in rule 4. A character the
-   grammar can consume is consumed. There is exactly **one** character the
-   grammar cannot consume that is taken anyway — a digit immediately after a
-   complete `int` whose first digit was `0` — and taking it moves the scan into
-   a **non-accepting** state. That single exception is what `00` needs: `int ::= '0' | [1-9] [0-9]*`
-   means the first `0` completes, so without it `00` would scan as two `number
-   0` tokens instead of the one `invalid number` it is today. A digit after a
-   leading zero continues the lexeme; it does not start a new one.
+   grammar can consume is consumed, and there are **two** characters the
+   grammar cannot consume that are taken anyway. Taking either moves the scan
+   into a **non-accepting** state, and both are measured facts about today's
+   tokenizer rather than choices this design makes:
+
+   - **A digit immediately after a complete `int` whose first digit was `0`.**
+     `int ::= '0' | [1-9] [0-9]*` means the first `0` completes, so without
+     this `00` would scan as two `number 0` tokens instead of the one `invalid
+     number` it is today. A digit after a leading zero continues the lexeme; it
+     does not start a new one.
+   - **A `+` in any state that has already consumed a digit or the point.**
+     `12+1`, `0+1`, `1.5+1`, `1e5+1` and `1.+1` are each one `invalid number`
+     today, with everything up to the next boundary swallowed — the `+` is
+     pulled into the lexeme rather than ending it. `1e+5` is *not* this case:
+     there the grammar wants the sign, so it is consumed normally. Review found
+     this one, from `12+"]`: today that is `invalid number` then `]`, and
+     re-dispatching the `+` instead would hand `"` to a string scan that runs
+     to end of input and eats the `]`.
+
+   Neither absorbed character is an improvement, and neither is JSON's — they
+   are JavaScript's number machine showing through. They are reproduced because
+   not reproducing them destroys tokens today's tokenizer emits.
 
    What happens at the end is decided by **how the lexeme failed**, and there
    are three cases, not two. An earlier draft had two and would have destroyed
@@ -276,28 +291,29 @@ Five rules replace the inherited behavior:
      is re-dispatched. It becomes a `number` token if that character is an
      accepting terminator, and one `invalid number` if it is not — `"` in
      `12"a"`, `;` in `12;1` — with the character re-dispatched either way, so
-     the string or the next token still scans.
+     the string or the next token still scans. `+` never reaches this case: it
+     is absorbed, per the rule above.
    - **Incomplete stop.** The grammar wanted more and met a character that
      cannot continue: `-`, `1.`, `1e`, `1e+`, `1e-`. One `invalid number`, and
      the character is **re-dispatched**, exactly as in the accepting case.
      `1e"a"` is `invalid number` then the string `"a"` — which is what the
      tokenizer does today, in all five phases. `12.]` is here rather than above,
      since `12.` stops after the point: `error, ]`.
-   - **Leading-zero run.** A `0` followed by a digit: maximal munch pulls the
-     digit into an `int` that was already complete. This is the **only** case
+   - **Absorbed character.** One of the two characters above was pulled into
+     the lexeme, which is now invalid and cannot end. This is the **only** case
      that enters **recovery** — consume through to the next recovery boundary
-     and emit one `invalid number`, so `00abc`, `01"a"` and `012"a"` are each a
-     single error with the rest swallowed.
+     and emit one `invalid number`, so `00abc`, `01"a"`, `012"a"` and `12+"a"`
+     are each a single error with the rest swallowed.
 
    Measured, that third trigger is exactly as narrow as stated: `01"a"`,
-   `00"a"`, `012"a"` and `-00"a"` swallow the string, while `1.2"a"`, `1e2"a"`
-   and `-0"a"` emit it. Any rule that sent every non-accepting stop to recovery
-   would swallow strings after `-`, `1.`, `1e`, `1e+` and `1e-` — five phases of
-   token loss, from one word in the rule.
+   `00"a"`, `012"a"`, `-00"a"` and `12+"a"` swallow the string, while `1.2"a"`,
+   `1e2"a"` and `-0"a"` emit it. Any rule that sent every non-accepting stop to
+   recovery would swallow strings after `-`, `1.`, `1e`, `1e+` and `1e-` — five
+   phases of token loss, from one word in the rule.
 
    The pair most easily conflated: `0abc` is an *accepting* stop (the `0`
-   completes) so it is `invalid number` then `invalid token`, while `00abc` is a
-   *leading-zero run* so it is one error.
+   completes) so it is `invalid number` then `invalid token`, while `00abc`
+   absorbed its second digit so it is one error.
 
    A character the grammar can still consume is consumed, so the terminator
    test never fires mid-lexeme: the `-` in `1e-5` is an exponent sign, because
@@ -313,9 +329,9 @@ Five rules replace the inherited behavior:
 
    It does **not** collapse the whole run into one token. `0abc` is `invalid
    number` and then `invalid token`, because the `a` is re-dispatched and the
-   word rule takes it — two errors, exactly as today. Only a **leading-zero
-   run** — `00abc`, `01"a"` — enters recovery and consumes the rest into a
-   single error.
+   word rule takes it — two errors, exactly as today. Only an **absorbed
+   character** — `00abc`, `01"a"`, `12+"a"` — enters recovery and consumes the
+   rest into a single error.
 
    `-` has to be in the terminator set, and the proofs are what say so:
    `tokenize('10-0')` asserts the two number tokens `10` and `-0`. Without `-`
@@ -397,7 +413,8 @@ follows the input instead:
 | `0n`, `123n` | `invalid token` — a **JS bigint literal** | `invalid number`, `invalid token` |
 | `[-123n]` | `[`, error, error, `]` | `[`, error, error, `]` — same count, JSON's messages |
 | `12"a"` | error, string `"a"` | unchanged — `"` ends without accepting |
-| `12+1` | one error — `+1` is **swallowed** | `invalid number`, then `+` re-dispatched |
+| `12+1` | one error — `+1` is **swallowed** | unchanged — the `+` is absorbed |
+| `12+"]` | error, `]` | unchanged — the `]` survives because the `+` is absorbed |
 | `>>>=` | one `invalid token` — a **JS operator** | four `unexpected character` |
 | `1n1` | **number `11`, no error** — the `n` is deleted | `invalid number`, `invalid token` |
 | `0n1` | **number `01`, no error** — not valid JSON | `invalid number`, `invalid token` |
@@ -517,14 +534,16 @@ Three failure states, which earlier drafts conflated into two:
 - **A complete number followed by a character outside the accepting set** emits
   one `invalid number` and **re-dispatches** that character. `1true` is
   `invalid number` then `true`; `12"a"` is `invalid number` then the string.
+  `+` is not such a character — it is absorbed, below.
 - **An incomplete number** — the grammar wanted more and met a character that
   cannot continue — does the same: one `invalid number`, character
   **re-dispatched**. `1e"a"` is `invalid number` then the string, and so are
   `-"a"`, `1."a"`, `1e+"a"` and `1e-"a"`. This is the case a two-state rule
   swallowed, destroying a string in all five phases.
-- **A leading-zero run** — a `0` followed by a digit — is the **only** state
-  that enters recovery, consuming until a boundary and emitting one `invalid
-  number`. `00abc`, `01"a"` and `012"a"` are each one error.
+- **An absorbed character** — a digit after a leading zero, or a `+` after a
+  digit or the point — is the **only** state that enters recovery, consuming
+  until a boundary and emitting one `invalid number`. `00abc`, `01"a"`,
+  `012"a"` and `12+"a"` are each one error.
 
 Recovery's boundary set is today's, **reproduced exactly** — `-` is not in it:
 
@@ -612,8 +631,9 @@ a seam and a signature. Work through what DataJS actually has to do:
   `int` with nothing else consumed**, and it must see that before JSON's own
   recovery treats `n` as a non-terminator and swallows it into an `invalid
   number`. *Well-formed* is load-bearing: JS rejects `00n` exactly as it
-  rejects `00`, so "stopped in the integer part" must not be a state a
-  leading-zero run can also reach.
+  rejects `00`, so "stopped in the integer part" must not be a state an
+  absorbed digit — or an absorbed `+`, which `12+n` would otherwise reach —
+  can also reach.
 - **`-Infinity`.** The wrapper must intervene immediately **after the leading
   minus**, where JSON would otherwise see `I` as a non-terminator and consume
   the whole run as a malformed number.
@@ -625,9 +645,10 @@ possible. So the contract has one more clause, and it is the load-bearing one:
 **`scanNumber`'s state is a public discriminated union.** Its variants are the
 grammar's phases — after the sign, in the integer part, after the decimal
 point, in the fraction, after the exponent letter, after the exponent sign, in
-the exponent — **plus one variant that is not a phase: the leading-zero run**,
-the recovery state the error rule above gives a `0` followed by a digit. Each
-carries the lexeme accumulated so far. A wrapper inspects the state at the
+the exponent — **plus one variant that is not a phase: recovery**, the state
+the error rule above gives a lexeme that absorbed a character the grammar
+rejects (a digit after a leading zero, or a `+` after a digit or the point).
+Each carries the lexeme accumulated so far. A wrapper inspects the state at the
 moment the scanner meets a character it cannot consume, and decides whether to
 take over *before* the accept-or-reject decision is made.
 
@@ -643,9 +664,8 @@ So the interception rule is stated on the **state**, not on the character:
 
 - **A wrapper may take over an `n` only from the integer variant**, which is
   reachable only by a well-formed `int` and is therefore an accepting state.
-  From every other variant — the leading-zero run included — an `n` is JSON's
-  to reject.
-- **The leading-zero variant is closed to the wrapper**, and JSON's own
+  From every other variant — recovery included — an `n` is JSON's to reject.
+- **The recovery variant is closed to the wrapper**, and JSON's own
   recovery runs unchanged underneath it — the two are different statements and
   only the first is about DataJS. The wrapper cannot intercept from this
   variant at all; recovery then consumes to a **boundary**, exactly as the rule
@@ -789,11 +809,11 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
 - [ ] Prove the state is observable the way stage 4 needs: from the exported
       state alone, a caller can distinguish "stopped after a well-formed `int`"
       (the bigint interception point) from "stopped after the sign" (the
-      `-Infinity` one), from the **leading-zero run**, and from every other
-      variant, before the accept-or-reject decision. Pin the leading-zero case
-      explicitly — after `00`, the state is the recovery variant and not the
+      `-Infinity` one), from **recovery**, and from every other variant, before
+      the accept-or-reject decision. Pin both ways into recovery explicitly —
+      after `00` and after `12+`, the state is the recovery variant and not an
       integer one — since that is the single distinction standing between
-      stage 4 and a bigint built from `00n`.
+      stage 4 and a bigint built from `00n` or `12+n`.
 - [ ] Confirm afterwards that no runtime importer of `fjs/js/tokenizer` calls
       `tokenize`, and that `fjs/djs/tokenizer`'s `isKeywordToken`/`mergeTrivia`
       import is all that is left. The machine is retired in stage 7, not here.
@@ -826,7 +846,7 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       - **top level** — the empty prefix, so a bare `c` is swept;
       - **number** — one per variant of the union above: `12` in the integer
         part, `1.5` in the fraction and `1e5` in the exponent, all accepting;
-        `00` the leading-zero run; and `-`, `1.`, `1e`, `1e+`, `1e-`
+        `00` and `12+` the two ways into recovery; and `-`, `1.`, `1e`, `1e+`, `1e-`
         incomplete;
       - **string** — inside a literal (`"a`), after a backslash (`"\`), and
         each `\u` hex position (`"\u`, `"\uA`, `"\uAB`, `"\uABC`);
@@ -861,10 +881,13 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       an `n`, and a bug otherwise. Do not test it by matching input shapes —
       the class includes `1n1n1`, `0n01` and `-1n1` but excludes `1n0`, and
       three attempts in this document to write that shape down were all wrong.
-- [ ] Sweep **mixed boundaries** too, not only single characters: a case like
-      `00"/1` is invisible to `00` + `c` + `1`, because the damage comes from
-      what the re-dispatched character's *own* scanner then consumes. Generate
-      the table from two-character suffixes as well.
+- [ ] Sweep **mixed boundaries** too, not only single characters: `00"/1` and
+      `12+"]` are both invisible to `prefix` + `c` + `1`, because the damage
+      comes from what the re-dispatched character's *own* scanner then
+      consumes — in `12+"]` a re-dispatched `+` would hand `"` to a string scan
+      that eats the `]`. Generate the table from two-character suffixes as
+      well; that is how both absorbed characters were found, one review round
+      apart.
 - [ ] Pin the individual cases, since they are what a reader reads: **no input
       in the `00` + `c` + `1` family changes its token kinds or counts** — that
       is the point of reproducing today's recovery set rather than improving it.
