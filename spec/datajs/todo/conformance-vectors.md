@@ -1,6 +1,8 @@
 ## DataJS conformance vectors
 
-**Priority:** P2
+**Priority:** P1 — it blocks stage 4, which is P1. Raised with the stages it
+sits between; see
+[parser-serializer-restructure](../../../todo/parser-serializer-restructure.md).
 **Status:** open
 
 ### Problem

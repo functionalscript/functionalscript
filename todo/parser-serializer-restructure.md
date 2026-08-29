@@ -293,8 +293,8 @@ The order stays **3 then 4**, because DataJS's tokenizer reuses parts of JSON's
 rather than restating them: strings are JSON's unchanged, and DataJS's numbers
 are JSON's int/frac/exp core plus a bigint suffix and `-Infinity` folding.
 Stage 3 is therefore the prerequisite, and it exports that shared core as a
-seam — with stage 4 arriving immediately after as its second caller, which is
-what keeps the seam honest.
+seam — with stage 4 as its second caller, close enough behind to keep the seam
+honest, and stage 1b between them.
 
 Stage 1b (the conformance vectors) sits **between** them: it is stage 4's proof
 source, not stage 3's, and its corpus is stored in JSON exactly so it can exist

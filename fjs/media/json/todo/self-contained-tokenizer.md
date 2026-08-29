@@ -138,8 +138,10 @@ type JsonErrorMessage =
 ```
 
 Four messages, and that is the whole vocabulary — down from the ten JSON
-inherits today, of which it emits eight and several are JavaScript's own
-(`*/ expected` has no JSON meaning). The narrowing is a feature: the union is
+inherits today, of which it emits **nine** — only `eof` is unreachable, and
+`*/ expected` is not JS-only in practice: `tokenize('/* c')` emits it, which is
+JSON being told about an unterminated comment it has no comments to have. The
+narrowing is a feature: the union is
 the tokenizer's error contract, so a consumer can exhaustively switch on it, and
 a message JSON cannot produce should not typecheck.
 
@@ -209,19 +211,33 @@ Five rules replace the inherited behavior:
    terminator.** Scan JSON's number grammar; when the grammar can no longer
    continue, look at the next character.
 
-   - An **accepting terminator** ends the lexeme and is re-dispatched rather
-     than swallowed. The number is a `number` token if the grammar stopped in
-     an accepting state and one `invalid number` if it did not. So `12.]` stays
-     `error, ]`. The set is measured rather than invented — see below.
-   - A character that is **not** an accepting terminator but still cannot
-     continue the lexeme ends it **without accepting**: one `invalid number`,
-     and the character is re-dispatched so whatever follows still scans. `"` is
-     the case that matters, since consuming it would swallow an entire
-     well-formed string: `12"a"` is `invalid number` then the string `"a"`,
-     exactly as today.
-   - **Anything else** means the lexeme is malformed: consume through to the
-     next terminator and emit exactly one `invalid number`. The junk inside is
-     not re-scanned into further errors.
+   **The scan is maximal munch**, as it is for words in rule 4. A character the
+   grammar can consume is consumed; a character it cannot consume but which
+   belongs to the *lexeme* still is, moving the scan into a **non-accepting**
+   state. That second clause is what `00` needs: `int ::= '0' | [1-9] [0-9]*`
+   means the first `0` completes, so without it `00` would scan as two `number
+   0` tokens instead of the one `invalid number` it is today. A digit after a
+   leading zero continues the lexeme; it does not start a new one.
+
+   What happens at the end is decided by the **stop state**, not by the
+   character class:
+
+   - **Stopped in an accepting state.** The lexeme is a `number` token, and the
+     character that ended it is re-dispatched rather than swallowed. If that
+     character is an accepting terminator the number is well-formed; if it is
+     not — `"` in `12"a"`, `;` in `12;1` — the number is one `invalid number`
+     and the character is *still* re-dispatched, so the string or the next token
+     still scans. Either way exactly one lexeme is consumed. `12.]` stays
+     `error, ]`.
+   - **Stopped in a non-accepting state.** The lexeme is malformed and enters
+     **recovery**: consume through to the next recovery boundary and emit
+     exactly one `invalid number`. This is the case `00abc`, `-00` and `-.123`
+     take, and the junk inside is not re-scanned into further errors.
+
+   The two are easy to conflate and produce different token streams: `0abc` is
+   *accepting* (the `0` completes) so it is `invalid number` then `invalid
+   token`, while `00abc` is *non-accepting* (maximal munch pulled the second
+   `0` in) so it is one error.
 
    A character the grammar can still consume is consumed, so the terminator
    test never fires mid-lexeme: the `-` in `1e-5` is an exponent sign, because
@@ -325,17 +341,19 @@ follows the input instead:
 | `00-2` | one error — `-2` is **swallowed** | `invalid number`, number `-2` |
 | `00-` | one error | two `invalid number` |
 | `00"a"` | one error — the string is swallowed | unchanged — `"` is not a recovery boundary |
-| `00"/1` | error, error, number `1` | unchanged — making `"` a boundary would lose the `1` |
+| `00"/1` | error, error, number `1` | same count — `/`'s message becomes `unexpected character` |
 | `00<LF>1` | error, number `1` | unchanged — LF was already a boundary |
-| `00/1` | error, error, number `1` | unchanged — `/` continues neither |
-| `12/1` | number `12`, error, number `1` | unchanged — `/` accepts |
+| `00/1` | error, error, number `1` | same count — `/`'s message becomes `unexpected character` |
+| `12/1` | number `12`, error, number `1` | same count — `/`'s message becomes `unexpected character` |
 | `00;1` | one error — `;` is not a boundary | unchanged |
 | `"a<LF>1` | error, number `1` | unchanged — LF ends string recovery |
 
-An unterminated string stays one error; its message changes from
-`" are missing` to `invalid string`.
+An unterminated string stays one error, and today it has **two** messages
+depending on how it ended — `" are missing` at end of input, `unterminated
+string literal` at a raw newline. Both become `invalid string`.
 
-The last two rows are a recovery class of their own, and the current behavior
+The `00-2` and `00-` rows are a recovery class of their own, and the current
+behavior
 there is worse than noisy — it is lossy. Today a malformed number swallows a
 following `-` and everything after it: `00-2` reports one error and the
 well-formed number `-2` never reaches the caller at all. And it does this
@@ -442,8 +460,8 @@ would swallow `/1` in `00"/1`.
 
 The plan promises this module exports its string and number scanners so
 `fjs/media/datajs` can reuse them, and that consumer is **real and immediate**:
-stage 4 follows this stage directly, and DataJS's tokenizer reuses parts of
-JSON's rather than restating them.
+DataJS's tokenizer reuses parts of JSON's rather than restating them, and stage
+4 follows soon after — with stage 1b, the conformance corpus, between them.
 
 What DataJS needs is known precisely enough to shape the seam:
 
@@ -619,7 +637,8 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       `scanNumber` and their state types, and a note that `JsonToken`'s error
       `message` narrows to JSON's own four-literal union. Prefix the error-shape half with
       `**BREAKING CHANGES:**`: a
-      direct consumer matching on today's messages (`" are missing`,
+      direct consumer matching on today's messages (`" are missing` and
+      `unterminated string literal`, which both become `invalid string`,
       `unescaped character`, `invalid token` for `0n`) sees different tokens,
       and a consumer relying on a *value* token after a malformed literal stops
       receiving one. Valid JSON is unaffected, and the entry should say so.
