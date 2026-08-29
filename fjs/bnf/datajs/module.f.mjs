@@ -31,7 +31,7 @@ const value  = {
 
 const ws1 = repeat1Plus(wsSymbol)
 
-const datajs = [
+export const datajs = [
     ws,
     repeat0Plus(['const', ws1, id, ws, '=', ws, value, ws, ';', ws]),
     'export',
