@@ -499,10 +499,21 @@ served for both needs a deliberate choice.
 
 ## Conformance
 
-An implementation conforms if it accepts every document this specification
-accepts, rejects every document it rejects, and denotes the graph described
-here. The machine-readable accept / reject / round-trip corpus that decides
-this is
+Conformance is per role, because an implementation may provide only one of
+them — a library that just writes DataJS accepts no documents at all, and one
+that just reads it emits none.
+
+- A conforming **reader** accepts every document this specification accepts,
+  rejects every document it rejects, and yields the graph the document
+  denotes, sharing included.
+- A conforming **serializer** rejects every input outside
+  [the data model](#what-may-be-serialized) and otherwise emits a valid
+  document denoting the input graph.
+- A conforming **normalized serializer** is a conforming serializer whose
+  output is the byte sequence [normalized form](#normalized-form) defines.
+
+An implementation states which roles it provides, and is judged only on those.
+The machine-readable corpus that decides each is
 [`spec/datajs/todo/conformance-vectors.md`](./todo/conformance-vectors.md);
 until it lands, this prose is the only statement of conformance.
 
