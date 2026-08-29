@@ -43,8 +43,16 @@ invisible characters end a statement, whitespace pinned at three positions so
 none reasons about token merging, one spelling of `__proto__`, and a restated
 algorithm wherever hosts disagree. The conveniences that are missing —
 comments, trailing commas, a trailing `;`, identifier keys — are missing for
-that reason, each being one more thing to implement and to agree on, and not
-because a document ought to be unpleasant to read.
+that reason, each being one more thing to implement and to agree on.
+
+Some of them cost a person something real, and it is worth saying so rather
+than calling the omission neutral. A trailing comma is what lets a multiline
+array gain an element as one added line instead of two changed ones, which is
+why people write them; without it the line above has to be touched, and every
+such edit shows up in a diff that did not need to. That is a genuine loss to
+whoever edits a document by hand. It is accepted because a convenience in the
+grammar is a rule in every implementation of the format, forever, and there
+will be more implementations of DataJS than hand-edited DataJS documents.
 
 In JavaScript the job is already done: a document *is* a module, so an engine
 loads one with `import` — no parser, no library, no build step. Every other
@@ -654,7 +662,10 @@ compared does not need them.
 
 **Why no identifier keys or trailing commas?** They are second spellings of
 things that already have one. FunctionalScript has them; DataJS is where the
-spellings are spent carefully.
+spellings are spent carefully. The trailing comma is the one that costs
+something — it is the reason a multiline array can gain a line without
+touching the line above — and it is refused anyway, since a serializer never
+needs it and a reader would have to accept both spellings forever.
 
 **Why must every name start with `$`?** Because the alternative is a list. A
 `const` named `class`, `eval` or `await` makes a document JavaScript rejects
