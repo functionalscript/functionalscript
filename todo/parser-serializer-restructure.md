@@ -1,7 +1,7 @@
 ## Restructure JSON, DataJS, and FunctionalScript parsers/serializers
 
 **Priority:** P1 — stages 3 and 4 are urgent; see [Priority](#priority-stages-3-and-4-come-first).
-**Status:** in progress — stages 1a and 2 done.
+**Status:** wip — stages 1a and 2 done.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage

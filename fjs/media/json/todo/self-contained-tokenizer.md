@@ -332,11 +332,11 @@ What DataJS needs is known precisely enough to shape the seam:
   int/frac/exp scanning underneath is identical.
 
 So the two are exported, and this stage owes their **entry contract** in
-writing, not just their signatures — that was the gap in an earlier draft of
-this design, where a bare `(input, state) => [tokens, state]` named no state
-type, no initial value, and no convention for which character the caller had
-already consumed. An export a second implementation could satisfy incompatibly
-is not a contract. Each scanner therefore ships with:
+writing, not just their signatures — that was the gap in an earlier draft, where
+a bare `(input, state) => [tokens, state]` named no state type, no initial
+value, and no convention for which character the caller had already consumed. An
+export a second implementation could satisfy incompatibly is not a contract.
+Each scanner therefore ships with:
 
 - a named state type in `types.ts`;
 - an exported initial state, with the convention that **the scanner consumes
@@ -345,13 +345,46 @@ is not a contract. Each scanner therefore ships with:
 - a stated rule for how the caller learns the lexeme ended, and whether the
   terminating character was consumed or must be re-dispatched.
 
-Two honest caveats, since a seam designed one stage before its caller is a
-known way to get the shape wrong. First, stage 4 may need to adjust it; that is
-cheap precisely because these exports are new in this stage and unreleased, so
-changing them breaks nobody. Second, this stage must not go further and
-*parameterize* the scanners for DataJS's extensions — the bigint suffix and
-`-Infinity` folding belong to stage 4, written against the real caller. Export
-the shared core; let stage 4 wrap it.
+#### The number state exposes its phase, because that is what stage 4 wraps
+
+That list is not sufficient on its own, and saying so is the difference between
+a seam and a signature. Work through what DataJS actually has to do:
+
+- **`1n`.** The bigint production is JSON's *integer* part followed by `n` —
+  with no fraction and no exponent, since JS rejects `1.5n` and `1e2n`. So the
+  wrapper must be able to tell that scanning stopped **after `int` with nothing
+  else consumed**, and it must see that before JSON's own recovery treats `n`
+  as a non-terminator and swallows it into an `invalid number`.
+- **`-Infinity`.** The wrapper must intervene immediately **after the leading
+  minus**, where JSON would otherwise see `I` as a non-terminator and consume
+  the whole run as a malformed number.
+
+A contract of "named state, initial value, terminator rule" can be satisfied by
+an implementation whose state is opaque — and then neither interception is
+possible. So the contract has one more clause, and it is the load-bearing one:
+
+**`scanNumber`'s state is a public discriminated union whose variants are the
+grammar's phases** — after the sign, in the integer part, after the decimal
+point, in the fraction, after the exponent letter, after the exponent sign, in
+the exponent — each carrying the lexeme accumulated so far. A wrapper inspects
+the phase at the moment the scanner meets a character it cannot consume, and
+decides whether to take over *before* the accept-or-reject decision is made.
+
+That is what makes `-Infinity` and `1n` expressible without stage 3 knowing
+anything about them.
+
+Note what this is not: stage 3 still does not add DataJS's productions. There is
+no bigint branch and no `Infinity` branch in JSON's scanner, and no
+configuration parameter that switches them on. Exposing which phase the machine
+is in is not the same as parameterizing it — the first is making the existing
+machine observable, the second is putting someone else's grammar inside it. An
+earlier draft of this section said "do not parameterize" and left it there,
+which read as forbidding both; only the second is forbidden.
+
+One honest caveat remains: a seam designed one stage before its caller can still
+come out the wrong shape. Stage 4 may need to adjust it, and that is cheap
+precisely because these exports are new here and unreleased, so changing them
+breaks nobody.
 
 ### Why the port and the error rule land together
 
@@ -433,6 +466,10 @@ implementation PR — the premise only actually changes when the code does.
       directly from their exported initial states — not only through
       `tokenize`. A seam proved only via its own module's entry point is not
       proved as a seam, and stage 4 is about to be its second caller.
+- [ ] Prove the phase is observable the way stage 4 needs: from the exported
+      state alone, a caller can distinguish "stopped after `int`" (the bigint
+      interception point) from "stopped after the sign" (the `-Infinity` one)
+      and from every other phase, before the accept-or-reject decision.
 - [ ] Confirm afterwards that no runtime importer of `fjs/js/tokenizer` calls
       `tokenize`, and that `fjs/djs/tokenizer`'s `isKeywordToken`/`mergeTrivia`
       import is all that is left. The machine is retired in stage 7, not here.
