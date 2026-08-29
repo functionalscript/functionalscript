@@ -45,9 +45,10 @@ The flakes carry no `assert` of their own: a flake pinning an exact commit
 already determines its package versions, so an in-flake assertion would restate
 the pin while making a generated, immutable file harder to read.
 
-One cost is stated rather than hidden. Nothing evaluates the Node 22 and Node
-26 flakes until those jobs migrate, so a package attribute the snapshot does not
-actually carry would surface at migration time rather than now.
+One cost is stated rather than hidden, and it shrinks with each migration.
+Nothing evaluates the Node 22 flake — the last one no job runs through — so a
+package attribute the snapshot does not actually carry would surface when that
+job migrates rather than now.
 
 Still open: the `npm run ci-nix-update` command (phase 1's automation — the
 versions were read from the snapshot by hand), removal of stale generated job
