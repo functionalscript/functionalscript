@@ -106,10 +106,19 @@ document can carry. So the corpus does not store values. It stores a
   absent, as `{"host": "hole"}`, since a missing element and a hole are
   different inputs and an encoding that drops one cannot state the difference.
 - **Objects are ordered pairs, not JSON objects.** `{"obj": [[key, node], …]}`
-  — because duplicate keys, observable key order and the `"__proto__"` key are
-  all vectors here, and a JSON object can express none of the three. The pair
-  form also sidesteps the `__proto__` hazard in any host that builds objects
-  from literals.
+  — because observable key order and the `"__proto__"` key are vectors here,
+  and a JSON object can express neither. The pair form also sidesteps the
+  `__proto__` hazard in any host that builds objects from literals.
+
+  **Keys are unique and in observable order**, because these pairs describe the
+  *graph*, not the document. A duplicate-key vector lives on the other side of
+  the accept pair: the document text says `{"a":1,"b":2,"a":3}` and the graph
+  it denotes is `[["a", 3], ["b", 2]]` — last value, first position, which is
+  the rule the vector exists to pin. Letting `obj` carry all three source
+  members would make the encoding a second parser, and one two consumers could
+  disagree about; letting it carry duplicates without a collapse rule would be
+  worse. The document half is a string, so it can say anything; the graph half
+  is normalized by construction.
 - **Host-only inputs are recipes, not data.** A `Date`, a function, a symbol
   key, an accessor, a non-enumerable property, a sparse hole and an array
   carrying an own property beyond its elements cannot be described as values at
@@ -145,8 +154,9 @@ needs nothing beyond an engine.
 
 - [ ] Write the meta-encoding down as a schema before any vector, per the
       section above: node table, `ref` indices, the leaf tags, the `arr` form
-      with holes occupying positions, the object pair form, and the closed
-      `host` recipe vocabulary with its node arguments. It is the part two
+      with holes occupying positions, the object pair form **with unique keys
+      in observable order**, and the closed `host` recipe vocabulary with its
+      node arguments. It is the part two
       consumers can silently disagree about, so it lands first and gets its own
       round-trip proof — encode a graph, decode it, and assert the sharing
       survives.
