@@ -105,7 +105,9 @@ A machine-readable corpus with six parts:
 - **normalize** — an input document and the exact bytes normalized form must
   produce: const hoisting by reference identity, post-order `_0`, `_1`, …
   naming, `ToString(Number)` spelling with the `-0` exception,
-  `QuoteJSONString` escaping, observable key order, one-line layout. Pin that
+  `QuoteJSONString` escaping — including a **lone surrogate**, which must come
+  back as `\ud800` in lowercase hex rather than a replacement character —
+  observable key order, one-line layout. Pin that
   `-0n` normalizes to `0n` — the grammar accepts the spelling and normalized
   form must never emit it, which is the one place a bigint and a number differ
   on negative zero. Pin the
@@ -146,7 +148,8 @@ document can carry. So the corpus does not store values. It stores a
   fall out of the same mechanism, which is what the serializer-reject set
   needs, and no encoder has to detect them.
 - **Leaves are tagged and lexical.** `{"num": "-0"}`, `{"num": "5e-324"}`,
-  `{"big": "-12"}`, `{"str": "…"}`, `{"bool": true}`, `{"null": true}`,
+  `{"big": "-12"}`, `{"str": [<code unit>, …]}`, `{"bool": true}`,
+  `{"null": true}`,
   `{"undef": true}`, `{"nan": true}`, `{"inf": 1}`, `{"inf": -1}`. Numbers are
   carried as their **exact lexeme**, never as a JSON number: a JSON reader that
   parses `5e-324` and re-emits it has already involved a host formatter, which
@@ -162,6 +165,16 @@ document can carry. So the corpus does not store values. It stores a
   — because observable key order and the `"__proto__"` key are vectors here,
   and a JSON object can express neither. The pair form also sidesteps the
   `__proto__` hazard in any host that builds objects from literals.
+
+  **Every string in the corpus is an array of UTF-16 code units** — leaf
+  values, object keys, and the `key` of a `host` recipe alike — never a decoded
+  JSON string. DataJS strings are code-unit sequences, so a valid document can
+  hold a **lone surrogate** (`"\uD800"`, which normalized form must re-escape),
+  and a JSON decoder is not obliged to materialize one: an implementation whose
+  string type admits only scalar values replaces or rejects it, and stages 4
+  and 6 then reconstruct different graphs from the same vector. Code units are
+  the string analogue of carrying numbers as lexemes — the corpus does not let
+  the host decide what its own text means. Review found this.
 
   **Keys are unique and in observable order**, because these pairs describe the
   *graph*, not the document. A duplicate-key vector lives on the other side of
@@ -343,7 +356,8 @@ needs nothing beyond an engine.
 - [ ] Write the meta-encoding down as a schema before any vector, per the
       section above: node table, `ref` indices, the leaf tags, the `arr` form
       with holes occupying positions, the object pair form **with unique keys
-      in observable order**, and the ten `host` recipes — four leaves, six
+      in observable order**, strings as UTF-16 code-unit arrays everywhere a
+      string appears, and the ten `host` recipes — four leaves, six
       modifiers, each modifier naming the node it applies to — with their
       application order, the rule that a modifier is a table entry and never
       inline, what a modifier node denotes, `builtin`'s and `proto`'s and
