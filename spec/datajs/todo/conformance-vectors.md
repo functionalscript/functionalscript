@@ -32,7 +32,7 @@ Landing stage 4 without it would mean writing stage 4's proofs twice.
 
 ### Proposal
 
-A machine-readable corpus with three parts:
+A machine-readable corpus with six parts:
 
 - **accept** — document text plus the graph it denotes, including the sharing.
   Cases: every leaf (`-0`, `NaN`, `±Infinity`, bigint, `undefined`), the
@@ -136,10 +136,12 @@ document can carry. So the corpus does not store values. It stores a
   disagree about; letting it carry duplicates without a collapse rule would be
   worse. The document half is a string, so it can say anything; the graph half
   is normalized by construction.
-- **Host-only inputs are recipes, not data.** A `Date`, a function, a symbol
-  key, an accessor, a non-enumerable property, a sparse hole and an array
-  carrying an own property beyond its elements cannot be described as values at
-  all, so each is a named recipe the consumer builds. The vocabulary is
+- **Host-only inputs are recipes, not data.** Some of these have no value to
+  describe at all — a `Date`, a function, a symbol key, an accessor, a sparse
+  hole. Others have perfectly ordinary data and a *host variation* the encoding
+  has no place for: a frozen object, a `null`-prototype array, an array
+  carrying an own property beyond its elements. Either way the encoding cannot
+  state it, so each is a named recipe the consumer builds. The vocabulary is
   **closed, and closed means enumerated** — "and so on" was an open list
   wearing the word closed, which review caught. Four **leaf** recipes:
 
@@ -165,6 +167,13 @@ document can carry. So the corpus does not store values. It stores a
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | a property under a fresh unique symbol |
   | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"}` | the same data under a `null` prototype, or as an `Array` subclass instance |
   | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` names the property for `nonWritable` |
+
+  **Every modifier's target must be an `obj` or `arr` node** — or a modifier
+  over one, since a modifier denotes its target. Nothing else has properties to
+  add or attributes to set, and `arraySubclass` narrows further to an `arr`.
+  `hole` is the mirror constraint on the leaf side: legal only as an `arr`
+  element. Stating both is what stops a vector like "freeze a number" from
+  being writable at all.
 
   **A modifier node denotes its target, modified** — the same object `on`
   denotes, not a copy. Three consequences, and they are stated because review
@@ -242,8 +251,8 @@ needs nothing beyond an engine.
       survives.
 - [ ] Choose the corpus's location. The encoding is settled above: JSON,
       permanently, per the bootstrapping constraint.
-- [ ] Write the accept, reject, **serializer accept**, serializer reject and
-      normalize sets covering the cases listed. The serializer-accept set is
+- [ ] Write the accept, reject, **serializer accept**, serializer reject,
+      **graph equivalence** and normalize sets covering the cases listed. The serializer-accept set is
       the one an implementation passes by being too strict, so it is the one
       most easily left for later and least safe to.
 - [ ] Add the **JavaScript** whole-set subset-law check. The FunctionalScript
