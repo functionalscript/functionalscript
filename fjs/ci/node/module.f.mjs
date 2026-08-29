@@ -10,7 +10,7 @@
 
 import { node } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
-import { nixInstall, nixVersionCheckStep } from '../nix/module.f.mjs'
+import { nixDevelopAll, nixInstall, nodeVersionCheck, nixVersionCheckStep } from '../nix/module.f.mjs'
 
 /**
  * Name of the CI artifact carrying the `npm pack` tarball. The producing step
@@ -65,10 +65,27 @@ const node22Steps = version => [
     test({ run: 'node --test' }),
 ]
 
-/** @type {readonly MetaStep[]} */
-const node24Steps = [
-    ...nodeInstall(node.node24),
-    test({ run: 'node --test' }),
+/**
+ * The first job migrated off `setup-node`: it runs through its own generated
+ * flake, so the runtime it tests on is the pinned Nixpkgs snapshot rather than
+ * whatever the runner installs.
+ *
+ * The whole sequence is one `nix develop` invocation, so the shell's Node
+ * reaches every command without exporting a profile between GitHub Actions
+ * steps. It checks that Node itself first: nothing else ties this job's
+ * runtime to the version `setup-node` gives the other jobs.
+ *
+ * @type {readonly MetaStep[]}
+ */
+const node24NixSteps = [
+    nixInstall,
+    test({
+        run: nixDevelopAll(jobId(node.node24), [
+            nodeVersionCheck(node.node24),
+            'npm ci',
+            'node --test',
+        ])
+    }),
 ]
 
 /** @type {readonly MetaStep[]} */
@@ -101,7 +118,7 @@ const nodeJob = steps => ubuntuArm(steps)
 /** @type {(version: string) => Jobs} */
 export const nodeVersionJobs = version => ({
     [jobId(node.node22)]: nodeJob(node22Steps(version)),
-    [jobId(node.node24)]: nodeJob(node24Steps),
+    [jobId(node.node24)]: nodeJob(node24NixSteps),
     [jobId(node.default)]: nodeJob(node26Steps),
 })
 
@@ -114,8 +131,11 @@ const npmGlobalShellHook = /** @type {const} */ (`export NPM_CONFIG_PREFIX="$HOM
 export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
 mkdir -p "$NPM_CONFIG_PREFIX"`)
 
-// Versions of the canonical Node jobs, in job order.
-const nixVersions = /** @type {const} */ ([node.node22, node.node24, node.default])
+// Canonical Node jobs that still install their runtime with `setup-node`, in
+// job order. A version leaves this list when its job migrates to `nix develop`
+// and starts checking its own flake; the temporary flake job below goes away
+// with the last entry.
+const unmigratedVersions = /** @type {const} */ ([node.node22, node.default])
 
 /** @type {(version: string) => NixJob} */
 const nixJob = version => ({
@@ -135,25 +155,25 @@ export const nodeNixJobs = [
 ]
 
 /**
- * Version-check steps for the canonical Node jobs' generated flakes, one per
- * job. Collected into the shared temporary `nix-flakes` job in
- * `fjs/ci/module.f.mjs`.
+ * Version-check steps for the generated flakes of the Node jobs that do not run
+ * through them yet, one per job. Collected into the shared temporary
+ * `nix-flakes` job in `fjs/ci/module.f.mjs`.
  *
  * @type {readonly MetaStep[]}
  */
 export const nodeNixVersionSteps =
-    nixVersions.map(version => nixVersionCheckStep(jobId(version), version))
+    unmigratedVersions.map(version => nixVersionCheckStep(jobId(version), version))
 
 /**
- * Temporary job that instantiates every generated flake.
+ * Temporary job that instantiates every flake no job runs through yet.
  *
- * Nothing else in CI evaluates the generated files, so a broken flake — or one
- * whose snapshot moved to a different Node — would only surface once a real job
- * started using it. It deliberately stays separate from the canonical Node jobs:
- * those keep their current `setup-node` runtime until they are migrated one at a
- * time. When the last one migrates and this job goes away, each migrated job
- * must check its own Node version inside the `nix develop` invocation, or the
- * guarantee is lost.
+ * Nothing else in CI evaluates those files, so a broken flake — or one whose
+ * snapshot moved to a different Node — would only surface once a real job
+ * started using it. It deliberately stays separate from the canonical Node
+ * jobs: the ones still on `setup-node` keep it until they are migrated one at a
+ * time. Each migrated job checks its own Node version inside its `nix develop`
+ * invocation, which is what lets this job shrink to nothing and go away without
+ * losing the guarantee.
  *
  * @type {Job}
  */

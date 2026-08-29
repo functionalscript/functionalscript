@@ -5,10 +5,17 @@
 
 ### Progress
 
-Flake generation is implemented, and a temporary `nix-flakes` CI job instantiates the
-generated flakes — see the progress note in
-[66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md). What remains here is
-the Nixpkgs update command and adopting the flakes in the real Node jobs.
+Flake generation is implemented and the **Node 24 job is migrated**: it installs Nix
+through the pinned action and runs its whole command sequence — the runtime check, `npm
+ci`, `node --test` — inside one `nix develop` invocation. The temporary `nix-flakes` job
+now covers only the two jobs that have not migrated; it shrinks with each migration and
+goes away with the last one. See the progress note in
+[66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md).
+
+What remains here is the Nixpkgs update command and migrating Node 22 and Node 26.
+Node 22 additionally exercises the `shellHook` (`npm install -g functionalscript` then
+`fjs test`), and Node 26 runs the generated-file drift check, so neither is the
+mechanical repeat that Node 24 was.
 
 ### Problem
 
@@ -224,12 +231,14 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Ignore `/nix/generated/**/flake.lock`.
 - [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
-- [ ] Bootstrap Nix through a pinned CI action in each migrated job.
+- [ ] Bootstrap Nix through a pinned CI action in each migrated job — Node 24 done,
+      Node 22 and Node 26 remain.
 - [ ] Run each migrated job's complete command sequence inside one
-      `nix develop --command` invocation.
-- [ ] Validate each Node job independently with its existing commands and order.
+      `nix develop --command` invocation — Node 24 done.
+- [ ] Validate each Node job independently with its existing commands and order —
+      Node 24 done.
 - [ ] Keep tracked checkout state unchanged.
-- [ ] Migrate jobs one at a time.
+- [ ] Migrate jobs one at a time — Node 24 went alone; the rule still binds the rest.
 - [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
 
 ### Related

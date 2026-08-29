@@ -11,28 +11,35 @@ Phase 2 is done: `fjs/ci/nix/module.f.mjs` generates
 running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
 the accepted snapshot.
 
-A temporary `nix-flakes` job instantiates every generated flake and compares the
-Node it provides to the expected version, so the generated files are checked on
-every pull request. It is not part of the migration: the canonical Node jobs
-keep their `setup-node` runtime, and the temporary job is deleted once they all
-run through `nix develop`.
+Phase 3 has started: **Node 24 is migrated.** Its job is checkout, the pinned
+Nix installer, and one `nix develop --command bash -euo pipefail -c` invocation
+carrying the runtime check, `npm ci`, and `node --test` — the same commands in
+the same order, on the runtime the pinned snapshot provides instead of the one
+`setup-node` installs.
 
-The Node versions in `fjs/ci/config/module.f.mjs` are now the ones the pinned
+A temporary `nix-flakes` job instantiates the flakes no job runs through yet and
+compares the Node each provides to the expected version, so every generated file
+is checked on every pull request. It is not part of the migration: it shrinks by
+one job per migration — Node 22 and Node 26 are left — and is deleted with the
+last one.
+
+The Node versions in `fjs/ci/config/module.f.mjs` are the ones the pinned
 snapshot provides, shared by `setup-node` and the flakes' package attributes.
-The expectation is stated once, in the `nix-flakes` job — the flakes themselves
-carry no `assert`, because a flake pinning an exact commit already determines its
-package versions, so an in-flake assertion would restate the pin while making a
-generated, immutable file harder to read.
-
-**When the temporary job is deleted, each migrated job must check its own Node
-version inside the `nix develop` invocation** (already listed under phase 3), or
-nothing ties the Nix runtime to the version the Windows and macOS jobs install.
+The flakes themselves carry no `assert`, because a flake pinning an exact commit
+already determines its package versions, so an in-flake assertion would restate
+the pin while making a generated, immutable file harder to read. The expectation
+is stated where a shell can be observed instead — `nodeVersionCheck` in
+`fjs/ci/nix/module.f.mjs` — and both jobs run that same command: the temporary
+job with nothing after it, a migrated job ahead of its own commands. That is
+what lets the temporary job disappear without losing the guarantee.
 
 Still open: the `npm run ci-nix-update` command (phase 1's automation — the
 versions were read from the snapshot by hand), removal of stale generated job
-directories, and the rest of phase 3 (migrating the jobs themselves).
-Stale-directory removal needs a recursive `rm` effect — today's `rm` operation
-only deletes files.
+directories, and the two remaining jobs. Stale-directory removal needs a
+recursive `rm` effect — today's `rm` operation only deletes files. Node 22 and
+Node 26 are not repeats of Node 24: Node 22 is the first job to depend on a
+`shellHook`, and Node 26 is the one that regenerates the tracked files and fails
+on drift.
 
 ### Problem
 
@@ -246,13 +253,14 @@ milestone.
 - [x] Keep ordinary generation Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
 - [ ] Add pinned Nix bootstrap to each migrated job (the pinned action is already
-      used by the temporary `nix-flakes` job).
+      used by the temporary `nix-flakes` job) — Node 24 done.
 - [ ] Run each job's complete command sequence through one `nix develop --command`
-      invocation.
-- [ ] Validate the three Node jobs independently.
-- [ ] Preserve each job's existing commands, order, and coverage.
+      invocation — Node 24 done.
+- [ ] Validate the three Node jobs independently — Node 24 done.
+- [ ] Preserve each job's existing commands, order, and coverage — Node 24's are
+      unchanged apart from the runtime check ahead of them.
 - [ ] Keep tracked checkout state unchanged.
-- [ ] Migrate jobs one at a time.
+- [ ] Migrate jobs one at a time — Node 24 went alone; Node 22 and Node 26 remain.
 
 ### Related
 

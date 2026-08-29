@@ -15,10 +15,10 @@ nix develop ./nix/generated/node24 --command node --version
 
 The pinned commit determines the package versions: `pkgs.nodejs_24` at that
 revision is one exact Node release, recorded in `fjs/ci/config` and installed by
-the GitHub-hosted jobs with `setup-node`, so every runtime in CI runs the
-identical Node. The flakes do not restate that version — CI's `nix-flakes` job
-checks it instead (below), which also catches a shell that builds but provides
-the wrong binary.
+the jobs that still use `setup-node`, so every runtime in CI runs the identical
+Node. The flakes do not restate that version — a job checks it from inside the
+shell instead (below), which also catches a shell that builds but provides the
+wrong binary.
 
 The files stay static and readable on purpose — no job selection, no
 `flake-utils`, no shared Nix modules. A job that later needs a second system
@@ -28,6 +28,8 @@ loop.
 `flake.lock` files that Nix writes next to a generated flake are ignored (see
 the root `.gitignore`); the pinned commit in `flake.nix` is the lock.
 
-CI's temporary `nix-flakes` job runs exactly that command for every generated
-flake and compares the output to the expected version, so these files are
-checked on every pull request even though no real job uses them yet.
+The Node 24 job runs through its flake: it installs Nix, then runs the version
+check, `npm ci`, and `node --test` in one `nix develop` invocation. CI's
+temporary `nix-flakes` job makes the same version check for every flake no job
+runs through yet, so all of these files are checked on every pull request. It
+loses a step per migration and disappears with the last one.

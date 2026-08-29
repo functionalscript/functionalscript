@@ -18,6 +18,8 @@ import {
     nixDevelopAll,
     nixFlakes,
     nixInstall,
+    nixVersionCheckStep,
+    nodeVersionCheck,
 } from './module.f.mjs'
 
 const { commit } = nixpkgs
@@ -132,6 +134,18 @@ export const proof = {
             quote: () => assertEq(
                 nixDevelopAll(plain.id, [`printf '%s' 'a b'`]),
                 `nix develop ./nix/generated/node24 --command bash -euo pipefail -c 'printf '\\''%s'\\'' '\\''a b'\\'''`),
+        },
+        nodeVersionCheck: () => assertEq(
+            nodeVersionCheck('24.19.0'),
+            `test "$(node --version)" = v24.19.0`),
+        // The check a job that has not migrated yet makes: the same command a
+        // migrated job runs first, in the same shell, with nothing after it.
+        nixVersionCheckStep: () => {
+            const step = nixVersionCheckStep(plain.id, '24.19.0')
+            assertEq(step.type, 'test')
+            assertEq(
+                step.type === 'test' ? step.step.run : undefined,
+                `nix develop ./nix/generated/node24 --command bash -euo pipefail -c 'test "$(node --version)" = v24.19.0'`)
         },
         nixInstall: () => {
             assertEq(nixInstall.type, 'install')
