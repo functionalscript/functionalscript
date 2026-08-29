@@ -1,0 +1,2 @@
+#!/bin/sh
+exec nix develop --no-write-lock-file --quiet "$(dirname "$0")" --command "$@"

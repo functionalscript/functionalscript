@@ -11,7 +11,7 @@ Each flake pins the exact Nixpkgs commit from
 development shell for the job's runner:
 
 ```sh
-nix develop --no-write-lock-file ./nix/node24 --command node --version
+./nix/node24/run node --version
 ```
 
 The pinned commit determines the package versions: `pkgs.nodejs_24` at that
@@ -26,10 +26,52 @@ The files stay static and readable on purpose — no job selection, no
 gets a second explicit `devShells.<system>.default` attribute rather than a
 loop.
 
-The pinned commit in `flake.nix` is the lock, so nothing needs a `flake.lock`
-beside it. CI passes `--no-write-lock-file` to every `nix develop`, which is why
-its runs leave the checkout untouched; the root `.gitignore` still ignores those
-files, for a hand-run `nix develop` that omits the flag.
+### `run`
+
+Each job directory also holds a generated `run` script, and that is what CI
+invokes:
+
+```sh
+./nix/node26/run npm run cov
+```
+
+It is the same two lines for every job:
+
+```sh
+#!/bin/sh
+exec nix develop --no-write-lock-file --quiet "$(dirname "$0")" --command "$@"
+```
+
+`dirname "$0"` resolves the flake from the script's own location, so it behaves
+the same from the repository root, from `nix/`, or by absolute path. `"$@"`
+passes the caller's argument vector through unsplit, which is what lets a step
+keep quoting of its own — `./nix/deno/run deno eval 'console.log(…)'` arrives as
+three arguments rather than as text to re-parse. `exec` replaces the shell, so
+the command's exit status is the script's.
+
+The two flags live there rather than in every step. `--no-write-lock-file` keeps
+the invocation read-only against the checkout: Nix otherwise writes a
+`flake.lock` beside the flake it enters, and the pin already determines every
+input, so that lock resolves nothing the flake did not already say. The root
+`.gitignore` still ignores those files, for a hand-run `nix develop` that omits
+the flag.
+
+`--quiet` drops Nix's own logging from `info` to `notice`. That removes the
+substitution chatter — the `copying N paths` lines that are most of what these
+steps print and none of what they check — while leaving warnings and errors,
+which sit below `notice`. Nix has no short spelling for it: `--verbose` declares
+a `v` short name and `--quiet` declares none, so `-q` is not an option the `nix`
+CLI accepts, and the `-Q` that exists is `--no-build-output` on
+`nix-build`/`nix-shell` rather than on this command. Neither flag reaches the
+command being run — `--command` execs it with stdio inherited — so a job's own
+output is unchanged.
+
+The generator writes the script's **content**; its executable bit is committed
+once and preserved by every regeneration, because `fs.writeFile` keeps the mode
+of a file that already exists. A job generated for the first time needs
+`git update-index --chmod=+x nix/<job>/run` by hand —
+[`fjs/ci/todo/generated-run-script-mode.md`](../fjs/ci/todo/generated-run-script-mode.md)
+is about removing that step.
 
 Every canonical job with a flake runs through it — the three Node jobs and
 `deno`. Each installs Nix, checks the runtime its shell provides, and then runs

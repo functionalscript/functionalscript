@@ -21,6 +21,8 @@ import {
     nixSteps,
     nixSystem,
     nixVersionStep,
+    runPath,
+    runText,
 } from './module.f.mjs'
 
 const { commit } = nixpkgs
@@ -79,15 +81,18 @@ const shellHookFlake = `{
 }
 `
 
-/** @type {(jobs: readonly NixJob[], id: string) => string} */
-const generated = (jobs, id) => {
+/** @type {(jobs: readonly NixJob[], id: string, file: string) => string} */
+const generatedFile = (jobs, id, file) => {
     const written = ioStep(
         nixFlakes(jobs),
-        () => readUtf8File(`${generatedDirectory}/${id}/flake.nix`))
+        () => readUtf8File(`${generatedDirectory}/${id}/${file}`))
     const [, [tag, result]] = virtual(emptyState)(written)
     assert(tag === 'ok', result)
     return result
 }
+
+/** @type {(jobs: readonly NixJob[], id: string) => string} */
+const generated = (jobs, id) => generatedFile(jobs, id, 'flake.nix')
 
 export const proof = {
     flakeText: {
@@ -110,6 +115,21 @@ export const proof = {
                 assertEq(packages[0], `nodejs_${id.slice('node'.length)}`)
             }
         },
+        // The `run` script is written beside every flake, byte for byte the
+        // same for each job: it resolves its own flake from `$0`, so nothing
+        // in it varies by job.
+        run: () => {
+            for (const job of nixJobs) {
+                assertEq(generatedFile(nixJobs, job.id, 'run'), runText)
+            }
+        },
+        // What that script must say, pinned rather than described. `exec` keeps
+        // the command's exit status; `dirname "$0"` finds the flake from the
+        // script rather than from the working directory; `"$@"` passes the
+        // caller's arguments through unsplit.
+        runText: () => assertEq(runText, `#!/bin/sh
+exec nix develop --no-write-lock-file --quiet "$(dirname "$0")" --command "$@"
+`),
         // Every declared job runs on the one runner the flakes are generated
         // for. A second system would need its own `devShells.<system>.default`
         // rather than a loop, so a job that quietly declared another would
@@ -134,9 +154,13 @@ export const proof = {
         // The path a workflow passes to `nix develop` must be the directory the
         // generator wrote the flake into.
         flakePath: () => assertEq(flakePath(plain.id), `./${generatedDirectory}/node24`),
+        // A step reads as the command it runs. The `nix develop` spelling and
+        // its flags live in the generated script instead, once per job rather
+        // than once per step.
         nixDevelop: () => assertEq(
             nixDevelop(plain.id, 'node --version'),
-            'nix develop --no-write-lock-file ./nix/node24 --command node --version'),
+            './nix/node24/run node --version'),
+        runPath: () => assertEq(runPath(plain.id), './nix/node24/run'),
         // One step per command, each entering the shell itself (root
         // `AGENTS.md` §7) — never one invocation carrying the sequence.
         nixSteps: () => {
@@ -144,10 +168,7 @@ export const proof = {
             assertEq(steps.length, 2)
             assertStructurallySame(
                 steps.map(s => s.type === 'test' ? s.step.run : undefined),
-                [
-                    'nix develop --no-write-lock-file ./nix/node24 --command npm ci',
-                    'nix develop --no-write-lock-file ./nix/node24 --command node --test',
-                ])
+                ['./nix/node24/run npm ci', './nix/node24/run node --test'])
         },
         // The command and the expected string are independent: Node's output
         // carries a leading `v` that the configured version does not.
@@ -156,7 +177,7 @@ export const proof = {
             assertEq(step.type, 'test')
             assertEq(
                 step.type === 'test' ? step.step.run : undefined,
-                'test "$(nix develop --no-write-lock-file ./nix/node24 --command node --version)" = v24.19.0')
+                'test "$(./nix/node24/run node --version)" = v24.19.0')
         },
         nixInstall: () => {
             assertEq(nixInstall.type, 'install')
