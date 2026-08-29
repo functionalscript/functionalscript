@@ -210,16 +210,23 @@ export const caseExp = g => args => {
  * @type {(eq: Eq) => LoweredEq}
  */
 export const lowerEq = eq => {
-    /** @type {readonly SharedNode[]} */
-    const shared = entries(eq.shared).map(
-        ([k, v]) => /** @type {SharedNode} */ ([k, valueExp(v)]))
-    /** @type {(name: string) => Exp} */
-    const resolve = name => {
-        const found = shared.find(([k]) => k === name)
+    /** @type {(done: readonly SharedNode[]) => (name: string) => Exp} */
+    const resolve = done => name => {
+        const found = done.find(([k]) => k === name)
         if (found === undefined) { throw ['unknown shared value', name] }
         return found[1]
     }
-    const operand = constExp(resolve)
+    // Each shared value is lowered against the ones already lowered, so a
+    // `ref` inside one reaches the node an earlier entry bound and sharing
+    // nests. A name is in scope only after its own entry, which is what makes
+    // a forward reference — and with it a cycle, which no EDAG may have —
+    // unspellable rather than something to detect.
+    /** @type {readonly SharedNode[]} */
+    const shared = entries(eq.shared).reduce(
+        (/** @type {readonly SharedNode[]} */ done, [k, v]) =>
+            [...done, /** @type {SharedNode} */ ([k, constExp(resolve(done))(v)])],
+        [])
+    const operand = constExp(resolve(shared))
     return {
         shared,
         cases: eq.cases.map(c => [c, ['===', operand(c.a), operand(c.b)]]),

@@ -34,6 +34,7 @@ import {
     lowerEq,
     opId,
     orders,
+    ref,
     valueExp,
 } from './module.f.mjs'
 
@@ -203,6 +204,26 @@ const eqProof = (() => {
 })()
 
 /**
+ * A `ref` inside a `shared` value reaches the node the earlier entry bound.
+ *
+ * `Value` admits a `Ref` wherever it appears, nesting included, so this is
+ * writable corpus data; before it resolved, lowering the `shared` map threw.
+ * Identity is the whole claim — an equal copy would leave `arrayByItself`'s
+ * guarantee meaningless one level in — so the assertion is `===` on the node
+ * and not a structural comparison.
+ */
+const nestedSharing = () => {
+    const { shared } = lowerEq({
+        shared: { base: [], wrapper: [ref('base')] },
+        cases: [],
+    })
+    const [[, base], [, wrapper]] = shared
+    const items = /** @type {readonly any[]} */ (wrapper)[1]
+    assertEq(items.length, 1)
+    assert(items[0] === base, ['wrapper holds a copy, not the shared node'])
+}
+
+/**
  * Every expression the corpus derives is a well-formed EDAG.
  *
  * This is the runtime half of the coupling to [`fjs/edag`](../edag/README.md).
@@ -269,6 +290,12 @@ const jsOnly = {
             shared: {},
             cases: [{ name: 'nope', a: () => ['ref', 'nope'], b: null, eq: false }],
         }),
+        /**
+         * A `shared` value sees only the entries before it, so a forward
+         * reference is refused — and a cycle, needing one, cannot be written.
+         */
+        forwardSharedRef: () =>
+            lowerEq({ shared: { a: [ref('b')], b: [] }, cases: [] }),
         /** An id the corpus does not exercise has no JavaScript here. */
         unusedOperation: () => op1('!'),
     },
@@ -278,5 +305,6 @@ export const proof = {
     eq: eqProof,
     ...fromEntries(data.groups.map(g => [opId(g), group(g)])),
     edagShape,
+    nestedSharing,
     jsOnly,
 }
