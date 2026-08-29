@@ -204,7 +204,16 @@ document can carry. So the corpus does not store values. It stores a
   | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an **enumerable** accessor property that **records its own invocation** and then returns `value` |
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | an **enumerable** own data property under a fresh unique symbol |
   | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"[, "inherited": [<key>, <node>]]}` | the same data under a `null` prototype, or as an `Array` subclass instance — `inherited` puts one **enumerable** member, key and value, on the subclass's prototype |
-  | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` names the property for `nonWritable` |
+  | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` is **required with `nonWritable` and forbidden otherwise**, and must name an **existing own data property** of the target |
+
+  `nonWritable`'s `key` carries that constraint because the recipe is otherwise
+  not a *modifier* at all: `Object.defineProperty` with an unknown key **adds**
+  a non-enumerable `undefined` property, turning a serializer-**accept** vector
+  into a serializer-reject one, while another consumer might refuse the recipe
+  outright. Naming an existing own data property is what keeps the two
+  consumers building the same graph — and keeps the vector about writability,
+  which is outside the data model, rather than about a property that should
+  not be there.
 
   **Every modifier's target must be an `obj` or `arr` node** — or a modifier
   over one, since a modifier denotes its target. Nothing else has properties to
