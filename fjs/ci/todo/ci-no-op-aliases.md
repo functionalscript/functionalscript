@@ -5,18 +5,20 @@
 
 ### Problem
 
-Three names in `fjs/ci` are exact aliases of the thing they wrap, so a reader
+Two names in `fjs/ci` are exact aliases of the thing they wrap, so a reader
 follows a hop to arrive where they started:
 
-- `fjs/ci/node/module.f.mjs:112` — `const nodeJob = steps => ubuntuArm(steps)`,
+- `fjs/ci/node/module.f.mjs:129` — `const nodeJob = steps => ubuntuArm(steps)`,
   an eta-expansion of `ubuntuArm`;
-- `:147` — `export const nodeMainSteps = platformNodeSteps`, imported under
+- `:155` — `export const nodeMainSteps = platformNodeSteps`, imported under
   that name by `fjs/ci/module.f.mjs:28` while `platformNodeSteps` is exported
-  too, so the same function is public twice;
-- `fjs/ci/module.f.mjs:49` — `const nixJobs = nodeNixJobs`. Its comment ("every
-  generated flake, across all job families that own one") is the one thing the
-  alias adds, and it will stop being an alias as soon as a second family owns a
-  flake — the spidermonkey runner would be the first.
+  too, so the same function is public twice.
+
+`nixJobs` was a third and is not one any more: `deno` owns a flake now, so
+`fjs/ci/module.f.mjs` composes `[...nodeNixJobs, denoNixJob]` and its comment —
+"every generated flake, across all job families that own one" — describes what it
+holds. The spidermonkey runner was expected to be the first second family; the Deno
+migration got there first.
 
 `basicNode` (`fjs/ci/node/module.f.mjs:44`) is exported but reached only by its
 own proof.
@@ -24,14 +26,12 @@ own proof.
 ### Proposal
 
 Drop `nodeJob` and `nodeMainSteps`; call `ubuntuArm` and `platformNodeSteps`
-directly. Keep `nixJobs` only if its comment is worth the hop — otherwise inline
-it and move the comment to `nodeNixJobs`. Either use `basicNode` from
-`nodeInstall`'s callers or make it private.
+directly. Either use `basicNode` from `nodeInstall`'s callers or make it private.
 
 ### Tasks
 
 - [ ] Remove the `nodeJob` and `nodeMainSteps` aliases
-- [ ] Decide `nixJobs`: keep with its comment, or inline
+- [x] Decide `nixJobs`: kept, and no longer an alias — it composes three families
 - [ ] Use `basicNode` or make it private
 
 ### Related
