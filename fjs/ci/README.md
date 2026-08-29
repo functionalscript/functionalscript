@@ -22,6 +22,15 @@ canonical Node job under `nix/generated/`.
 - `node/module.f.mjs` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, package checks, and the Node flake declarations.
   `proof.f.mjs` — its property-based proofs.
+- `package/module.f.mjs` — the `package-check` job: downloads the tarball the
+  Node job uploads, installs it under a fixed alias outside any checkout, and
+  type-checks every declaration it ships. It is the one job built without
+  `toSteps`, because that helper adds `actions/checkout` and the missing
+  checkout is the point — with the repository on the runner there would be a
+  `tsconfig.json` up the tree, a `node_modules` to resolve into, and sources
+  standing in for declarations the tarball omits, so the check would pass on
+  the repository rather than on the package.
+  `proof.f.mjs` — its property-based proofs.
 - `rust/module.f.mjs` — Rust toolchain setup and `cargo` build/test steps.
 - `deno/module.f.mjs` — Deno runtime steps.
 - `bun/module.f.mjs` — Bun runtime steps.
@@ -134,9 +143,15 @@ package has been installed. Custom projects that need different runtime setup st
 should use `fjs run <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
-The built-in command does not read `package.json` to customize generated steps.
-The FunctionalScript package version used by generated Node, Deno, and Bun smoke
-tests is pinned in `config/module.f.mjs`, not read from `package.json`.
+The built-in command reads `package.json` for one thing: `devDependencies.typescript`.
+An exact version there — `=7.0.2`, not `^7.0.0` — generates the `package-check`
+job and is the compiler that job installs, because a job with no checkout has no
+lockfile to resolve a range against. Anything else, including no entry at all,
+generates no `package-check` job.
+
+Nothing else in `package.json` reaches the generated steps. The FunctionalScript
+package version used by generated Node, Deno, and Bun smoke tests is pinned in
+`config/module.f.mjs`, not read from `package.json`.
 
 ## Customisation
 

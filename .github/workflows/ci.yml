@@ -520,6 +520,41 @@
         }
       ]
     },
+    "package-check": {
+      "runs-on": "ubuntu-26.04-arm",
+      "needs": [
+        "node26"
+      ],
+      "steps": [
+        {
+          "uses": "actions/download-artifact@v8.0.1",
+          "with": {
+            "name": "package-tarball"
+          }
+        },
+        {
+          "uses": "actions/setup-node@v7.0.0",
+          "with": {
+            "node-version": "26.7.0"
+          }
+        },
+        {
+          "run": "npm init -y > /dev/null"
+        },
+        {
+          "run": "npm install \"packed@file:$(echo *.tgz)\""
+        },
+        {
+          "run": "npm install \"typescript@=7.0.2\""
+        },
+        {
+          "run": "echo '{\"include\":[\"node_modules/packed/**/*\",\"node_modules/packed/**/.*\",\"node_modules/packed/**/.*/**/*\"],\"exclude\":[],\"compilerOptions\":{\"module\":\"nodenext\",\"target\":\"esnext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":false}}' > tsconfig.json"
+        },
+        {
+          "run": "npx tsc"
+        }
+      ]
+    },
     "nix-flakes": {
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
