@@ -633,6 +633,20 @@ The six parts:
   All six cycles sit **one level below the root** — `root=[x]` with `x` on the
   cycle — for the reason the whole set shares, below.
 
+  **A descriptor offender needs both container kinds under it as well as over
+  it.** The placement rule below is about the offender's *parent*, and it
+  catches a serializer that recurses without re-validating; this is the other
+  end — the container the offender sits *on*. A getter, a setter-only
+  accessor, a non-enumerable property and a symbol key each exist on an array
+  as readily as on an object, measured: `defineProperty(a, "0", {get})` leaves
+  `Array.isArray` true with `length` 1, a non-enumerable index vanishes from
+  `Object.keys` while staying an own property, and a symbol sits on an array
+  like any other exotic object. A serializer that inspects descriptors in its
+  object walker but iterates array indices by value refuses every offender on
+  an object and emits a document for the same offender on an array, so each of
+  those four takes both targets. Review found it, and the placement rule as
+  written reads as though it covered this axis, which it does not.
+
   **Every serializer-reject vector puts its offending value below the root**,
   never as the root itself, and the placement is part of the vector exactly as
   it is for the malformed byte sequences above. A serializer that validates its
@@ -763,7 +777,12 @@ The six parts:
   written the round before: `e` between `b` and `f`, bracketed as though the
   reachable letters were a run when gaps make them a set, and the sign crossed
   with the `int` alternatives but with nothing below them, so every negative
-  number in the accept set began with a `1`. The sweep for the lead-partition shape had
+  number in the accept set began with a `1` — then a **false claim about what a
+  role can see**, that a serializer emitting U+07FF in three bytes yields a
+  valid document, when `E0 9F BF` is overlong and sits in this file's own
+  reject table; the two legacy octal escapes, named in a paragraph and absent
+  from the list that paragraph describes; and the descriptor offenders, given
+  both container kinds as *parents* and only one as *targets*. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
