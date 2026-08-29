@@ -328,8 +328,10 @@ throughout.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/bnf/todo/207-bnf-semantic-actions.md)
       repointed at `fjs/bnf/testlib.f.mjs`.
-- [ ] Stage 3: JSON self-contained tokenizer; file its todo under
-      `fjs/media/json/todo/`.
+- [ ] Stage 3: JSON self-contained tokenizer —
+      [`self-contained-tokenizer`](../fjs/media/json/todo/self-contained-tokenizer.md),
+      which measured the swap's blast radius: the accepted language is already
+      JSON's exactly, so only error shapes change.
 - [ ] Stage 4: `fjs/media/datajs`; file its todo.
 - [ ] Stage 5: front-end move to `fjs/fsc`; file its todo.
 - [ ] Stage 6: normalizer + subset-law proofs; file its todo.
