@@ -188,12 +188,25 @@ Five rules replace the inherited behavior:
    as a terminator the whole input would scan as one `invalid number`, breaking
    an accepted-input proof — the very bar this design sets for itself.
 
-3. **A malformed string runs to its closing quote, which it consumes.** The
-   general terminator rule cannot apply inside a string literal, where the only
-   structure is the quote: re-dispatching the closing `"` of `"\x"` would start
-   a *second* string that then hits end of input, giving two errors where one
-   was promised. Recovery therefore ends at the closing `"`, consuming it, or
-   at end of input for an unterminated literal.
+3. **A malformed string runs to its next *unescaped* quote, which it
+   consumes.** The general terminator rule cannot apply inside a string
+   literal, where the only structure is the quote: re-dispatching the closing
+   `"` of `"\x"` would start a *second* string that then hits end of input,
+   giving two errors where one was promised. Recovery therefore ends at the
+   closing `"`, consuming it, or at end of input for an unterminated literal.
+
+   **Recovery keeps interpreting backslashes** — it is scanning for the end of
+   the literal, not for the next quote character. In `"\x\""` the quote after
+   the bad `\x` is the second half of a `\"` escape and only the final quote
+   closes the literal; stopping at the first would report one error and then
+   start an unterminated string at the last quote, which is the two-error shape
+   this rule exists to prevent.
+
+   Getting the boundary right matters beyond the error count, because it
+   decides where the rest of the input resumes. Today `"ok\x\"tail" 1` already
+   ends the literal at the final unescaped quote and goes on to tokenize the
+   `1` — it just also emits a fabricated string `okx"tail` on the way. The new
+   rule keeps that boundary and drops the fabricated token.
 4. **A word is a maximal run of `[A-Za-z0-9_$]`**, and it is a keyword only if
    the whole run is exactly `true`, `false` or `null`. Otherwise it is one
    `invalid token`. A character outside that set ends the word and is
@@ -304,6 +317,10 @@ implementation PR — the premise only actually changes when the code does.
       `js/tokenizer`.
 - [ ] Keep every accepted-input proof unchanged; rewrite only the error-shape
       cases, each with the reason it changed.
+- [ ] Add string-recovery proofs for the escape cases, which today's suite does
+      not cover: `"\x\""` is one `invalid string`, and `"ok\x\"tail" 1` is one
+      `invalid string` followed by the number `1` — the second pins the
+      resumption point, not just the count.
 - [ ] Add word-boundary proofs, which today's suite does not cover: `true0`,
       `true_`, `true$`, `nullx`, `tru3` and `_x` are each one `invalid token`;
       `null-1` is `null` then `-1`; `trueÿ` is `true` then
