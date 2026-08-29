@@ -3,7 +3,7 @@
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflow for this repository. Running the generator writes `.github/workflows/ci.yml`
 with the latest matrix of jobs and steps, plus one Nix development environment per
-canonical Node job under `nix/generated/`.
+canonical Node job under `nix/`.
 
 ## Files
 
@@ -17,7 +17,7 @@ canonical Node job under `nix/generated/`.
   `GitHubAction`, `MetaStep`, `Os`, `Architecture`), and step-builder helpers
   (`test`, `install`, `uses`).
 - `config/module.f.mjs` — runner image matrix (OS × architecture → GitHub-hosted image name) and pinned tool/package versions, including the FunctionalScript package version used by generated smoke tests and the exact Nixpkgs commit the generated flakes pin.
-- `nix/module.f.mjs` — writes one self-contained `nix/generated/<job>/flake.nix`
+- `nix/module.f.mjs` — writes one self-contained `nix/<job>/flake.nix`
   per declared job (`NixJob` in `types.ts`), using the Nix eDSL in `fjs/media/nix`.
 - `node/module.f.mjs` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, package checks, and the Node flake declarations.
@@ -42,7 +42,7 @@ canonical Node job under `nix/generated/`.
    ```
    fjs ci
    ```
-3. Commit the updated `.github/workflows/ci.yml` and `nix/generated/**/flake.nix`
+3. Commit the updated `.github/workflows/ci.yml` and `nix/*/flake.nix`
    files if they have changed.
 
 The generator is idempotent — rerunning it without modifying the source produces the

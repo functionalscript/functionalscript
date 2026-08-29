@@ -6,7 +6,7 @@
 ### Progress
 
 Phase 2 is done: `fjs/ci/nix/module.f.mjs` generates
-`nix/generated/node{22,24,26}/flake.nix` from the pinned Nixpkgs commit in
+`nix/node{22,24,26}/flake.nix` from the pinned Nixpkgs commit in
 `fjs/ci/config/module.f.mjs`, and `npm run ci-update` regenerates them without
 running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
 the accepted snapshot.
@@ -109,9 +109,9 @@ It does not update npm dependencies or package-manager lockfiles.
 Generate:
 
 ```text
-nix/generated/node22/flake.nix
-nix/generated/node24/flake.nix
-nix/generated/node26/flake.nix
+nix/node22/flake.nix
+nix/node24/flake.nix
+nix/node26/flake.nix
 ```
 
 The current Node jobs run on the ARM Linux runner, so each generated file exposes this
@@ -151,17 +151,19 @@ Do not add loops, system-selection conditions, `flake-utils`, or shared imports.
 later supports another system, generate another explicit `devShells.<system>.default`
 attribute in that job's file.
 
-The generator owns the generated directory and removes stale job outputs.
+The generator owns the job subdirectories of `nix/` and removes stale job outputs. It
+does not own `nix/` itself: `nix/README.md` is written by hand, so stale-output removal
+deletes directories it generated rather than everything it finds there.
 
 Nix may create `flake.lock` beside a generated flake. Keep these files untracked with
 this root `.gitignore` rule:
 
 ```gitignore
-/nix/generated/**/flake.lock
+/nix/*/flake.lock
 ```
 
-The rule is limited to generated CI flakes. A future intentional root or hand-written
-lock file remains visible to Git.
+The rule matches one level down, so it is limited to the generated per-job flakes. A
+future intentional `nix/flake.lock` remains visible to Git.
 
 ##### Node 22 global installation
 
@@ -185,7 +187,7 @@ Each migrated Node job checks out the repository, installs Nix through a pinned 
 and then runs one step per command of its existing sequence:
 
 ```sh
-nix develop ./nix/generated/<job> --command <command>
+nix develop ./nix/<job> --command <command>
 ```
 
 A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7): a bundled
@@ -259,7 +261,7 @@ milestone.
       `devShells.aarch64-linux.default`.
 - [x] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
-- [x] Add `/nix/generated/**/flake.lock` to `.gitignore`.
+- [x] Add `/nix/*/flake.lock` to `.gitignore`.
 - [x] Keep ordinary generation Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
 - [ ] Add pinned Nix bootstrap to each migrated job — Node 24 done.

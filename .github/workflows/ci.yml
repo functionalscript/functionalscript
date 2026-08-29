@@ -467,10 +467,10 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "nix develop ./nix/generated/node24 --command npm ci"
+          "run": "nix develop ./nix/node24 --command npm ci"
         },
         {
-          "run": "nix develop ./nix/generated/node24 --command node --test"
+          "run": "nix develop ./nix/node24 --command node --test"
         }
       ]
     },

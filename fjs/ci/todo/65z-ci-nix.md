@@ -86,9 +86,9 @@ node26: aarch64-linux, nodejs_26
 Generate one self-contained file for each job:
 
 ```text
-nix/generated/node22/flake.nix
-nix/generated/node24/flake.nix
-nix/generated/node26/flake.nix
+nix/node22/flake.nix
+nix/node24/flake.nix
+nix/node26/flake.nix
 ```
 
 Each generated file should:
@@ -168,12 +168,12 @@ commit these per-job lock files in the first milestone. Ignore them with the sco
 `.gitignore` rule:
 
 ```gitignore
-/nix/generated/**/flake.lock
+/nix/*/flake.lock
 ```
 
 This keeps the Node 26 generated-file drift check clean without adding special Nix flags
-to every invocation. The rule is deliberately limited to generated CI flakes, so a future
-intentional root or hand-maintained `flake.lock` is unaffected.
+to every invocation. The rule matches one level down, so it covers the per-job flakes and
+no more: a future intentional `nix/flake.lock`, hand-maintained, is unaffected.
 
 #### Validation and adoption
 
@@ -184,7 +184,7 @@ Adopt jobs independently. Each migrated workflow uses:
 3. one step per command of that job's existing sequence, each entering the job's shell:
 
 ```sh
-nix develop ./nix/generated/<job> --command <command>
+nix develop ./nix/<job> --command <command>
 ```
 
 A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7), so the sequence
@@ -238,7 +238,7 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
       `devShells.aarch64-linux.default`.
 - [x] Add the Node 22 `$HOME/.npm-global` shell hook.
 - [ ] Remove stale generated job directories.
-- [x] Ignore `/nix/generated/**/flake.lock`.
+- [x] Ignore `/nix/*/flake.lock`.
 - [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
 - [ ] Bootstrap Nix through a pinned CI action in each migrated job — Node 24 done,

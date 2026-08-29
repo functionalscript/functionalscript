@@ -1,16 +1,17 @@
 # Nix environments
 
-`generated/<job>/flake.nix` is **generated** by [`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs)
-— one self-contained flake per CI job. Do not edit these files by hand: run
-`npm run ci-update` and commit the result. The Node 26 CI job fails when the
-committed files no longer match the generator's output.
+`<job>/flake.nix` is **generated** by [`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs)
+— one self-contained flake per CI job, in a directory named after the job. Do
+not edit these files by hand: run `npm run ci-update` and commit the result. The
+Node 26 CI job fails when the committed files no longer match the generator's
+output. This README is the one file here that is written by hand.
 
 Each flake pins the exact Nixpkgs commit from
 [`fjs/ci/config`](../fjs/ci/config/module.f.mjs) and exposes a single
 development shell for the job's runner:
 
 ```sh
-nix develop ./nix/generated/node24 --command node --version
+nix develop ./nix/node24 --command node --version
 ```
 
 The pinned commit determines the package versions: `pkgs.nodejs_24` at that

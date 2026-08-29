@@ -67,7 +67,7 @@ const workflow = state => {
 
 /** @type {(state: State, id: string) => string} */
 const flake = (state, id) =>
-    text(path(state.root, ['nix', 'generated', id]), 'flake.nix')
+    text(path(state.root, ['nix', id]), 'flake.nix')
 
 // The packed-package check is generated only when the project pins a compiler,
 // so the shared fixture supplies one. A pin no configuration holds, so an
@@ -246,8 +246,8 @@ export const proof = {
         assertStructurallySame(
             job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
             [
-                `nix develop ./nix/generated/${id} --command npm ci`,
-                `nix develop ./nix/generated/${id} --command node --test`,
+                `nix develop ./nix/${id} --command npm ci`,
+                `nix develop ./nix/${id} --command node --test`,
             ])
         // Nix runs in CI only where a job uses a flake. There is no job that
         // instantiates the generated files to check them — what can be checked

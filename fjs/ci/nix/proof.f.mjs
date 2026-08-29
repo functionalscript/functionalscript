@@ -121,7 +121,7 @@ export const proof = {
         flakePath: () => assertEq(flakePath(plain.id), `./${generatedDirectory}/node24`),
         nixDevelop: () => assertEq(
             nixDevelop(plain.id, 'node --version'),
-            'nix develop ./nix/generated/node24 --command node --version'),
+            'nix develop ./nix/node24 --command node --version'),
         nixInstall: () => {
             assertEq(nixInstall.type, 'install')
             assert(

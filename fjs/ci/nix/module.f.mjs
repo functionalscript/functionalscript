@@ -1,7 +1,7 @@
 /**
  * Generates one self-contained Nix flake per declared CI job.
  *
- * Each job gets its own `nix/generated/<id>/flake.nix` pinning the exact
+ * Each job gets its own `nix/<id>/flake.nix` pinning the exact
  * Nixpkgs commit from `../config/module.f.mjs` and exposing a single
  * `devShells.<system>.default` development shell. The files are static and
  * readable on purpose: no job selection, no shared Nix modules, no helper
@@ -26,8 +26,12 @@ import { unwrap } from '../../types/result/module.f.mjs'
 import { install, uses } from '../common/module.f.mjs'
 import { nixpkgs } from '../config/module.f.mjs'
 
-/** Directory owned by this generator. */
-export const generatedDirectory = /** @type {const} */ ('nix/generated')
+/**
+ * Directory holding the generated flakes, one subdirectory per job. The
+ * generator owns those subdirectories, not everything here: `nix/README.md` is
+ * written by hand.
+ */
+export const generatedDirectory = /** @type {const} */ ('nix')
 
 const { commit } = nixpkgs
 
